@@ -41,6 +41,11 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 /* Based on work by: Emil Lenngren
  * https://github.com/pornin/X25519-Cortex-M4
@@ -63,8 +68,13 @@ WC_OMIT_FRAME_POINTER void fe_init()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         "\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc"
     );
 }
@@ -166,8 +176,13 @@ WC_OMIT_FRAME_POINTER void fe_add_sub_op()
         "SBC	r11, r11, #0x0\n\t"
         "STM	r1, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         /* Done Add-Sub */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -207,8 +222,13 @@ WC_OMIT_FRAME_POINTER void fe_sub_op()
         "SBC	lr, lr, #0x0\n\t"
         "STM	r0, {r6, r7, r8, r9, r10, r11, r12, lr}\n\t"
         /* Done Sub */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -227,8 +247,13 @@ WC_OMIT_FRAME_POINTER void fe_sub(fe r, const fe a, const fe b)
 
     __asm__ __volatile__ (
         "BL	fe_sub_op\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -269,8 +294,13 @@ WC_OMIT_FRAME_POINTER void fe_add_op()
         "ADC	lr, lr, #0x0\n\t"
         "STM	r0, {r6, r7, r8, r9, r10, r11, r12, lr}\n\t"
         /* Done Add */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -289,8 +319,13 @@ WC_OMIT_FRAME_POINTER void fe_add(fe r, const fe a, const fe b)
 
     __asm__ __volatile__ (
         "BL	fe_add_op\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -327,8 +362,13 @@ WC_OMIT_FRAME_POINTER void fe_frombytes(fe out, const unsigned char* in)
         "STR	r7, [%[out], #20]\n\t"
         "STR	r8, [%[out], #24]\n\t"
         "STR	r9, [%[out], #28]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [in] "+r" (in)
         :
+#else
+        :
+        : [out] "r" (out), [in] "r" (in)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -373,8 +413,13 @@ WC_OMIT_FRAME_POINTER void fe_tobytes(unsigned char* out, const fe n)
         "STR	r7, [%[out], #20]\n\t"
         "STR	r8, [%[out], #24]\n\t"
         "STR	r9, [%[out], #28]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [out] "+r" (out), [n] "+r" (n)
         :
+#else
+        :
+        : [out] "r" (out), [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
 }
@@ -400,8 +445,13 @@ WC_OMIT_FRAME_POINTER void fe_1(fe n)
         "MOV	r8, #0x0\n\t"
         "MOV	r9, #0x0\n\t"
         "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [n] "+r" (n)
         :
+#else
+        :
+        : [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -427,8 +477,13 @@ WC_OMIT_FRAME_POINTER void fe_0(fe n)
         "MOV	r8, #0x0\n\t"
         "MOV	r9, #0x0\n\t"
         "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [n] "+r" (n)
         :
+#else
+        :
+        : [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -454,8 +509,13 @@ WC_OMIT_FRAME_POINTER void fe_copy(fe r, const fe a)
         "LDRD	r4, r5, [%[a], #24]\n\t"
         "STRD	r2, r3, [%[r], #16]\n\t"
         "STRD	r4, r5, [%[r], #24]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5"
     );
 }
@@ -487,8 +547,13 @@ WC_OMIT_FRAME_POINTER void fe_neg(fe r, const fe a)
         "SBCS	r4, r7, r4\n\t"
         "SBC	r5, r6, r5\n\t"
         "STM	%[r]!, {r2, r3, r4, r5}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7"
     );
 }
@@ -531,8 +596,13 @@ WC_OMIT_FRAME_POINTER int fe_isnonzero(const fe a)
         "ORR	r4, r4, r6\n\t"
         "ORR	r2, r2, r8\n\t"
         "ORR	%[a], r2, r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10"
     );
@@ -564,14 +634,20 @@ WC_OMIT_FRAME_POINTER int fe_isnegative(const fe a)
         "AND	%[a], r2, #0x1\n\t"
         "LSR	r1, r1, #31\n\t"
         "EOR	%[a], %[a], r1\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5"
     );
     return (word32)(size_t)a;
 }
 
-#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN) || defined(WOLFSSL_CURVE25519_USE_ED25519)
+#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN) || \
+        defined(WOLFSSL_CURVE25519_USE_ED25519)
 #ifndef WC_NO_CACHE_RESISTANT
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r_p, const fe* base_p,
@@ -1550,8 +1626,13 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "STRD	r4, r5, [%[r], #24]\n\t"
         "STRD	r6, r7, [%[r], #56]\n\t"
         "STRD	r8, r9, [%[r], #88]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [base] "r" (base), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r3", "r10",
             "r11", "r12", "lr"
     );
@@ -1664,15 +1745,21 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
         "AND	r7, r7, lr\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "SUB	%[base], %[base], %[b]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [base] "r" (base), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
-#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN || WOLFSSL_CURVE25519_USE_ED25519 */
+#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN ||
+        * WOLFSSL_CURVE25519_USE_ED25519 */
 #endif /* HAVE_ED25519 || WOLFSSL_CURVE25519_USE_ED25519 */
 #ifdef WOLFSSL_ARM_ARCH_7M
 void fe_mul_op(void);
@@ -2054,8 +2141,13 @@ WC_OMIT_FRAME_POINTER void fe_mul_op()
         "LDR	r0, [sp, #36]\n\t"
         "STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x28\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -2194,8 +2286,13 @@ WC_OMIT_FRAME_POINTER void fe_mul_op()
         /* Store */
         "STM	lr, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
         "ADD	sp, sp, #0x10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -2215,8 +2312,13 @@ WC_OMIT_FRAME_POINTER void fe_mul(fe r, const fe a, const fe b)
 
     __asm__ __volatile__ (
         "BL	fe_mul_op\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -2495,8 +2597,13 @@ WC_OMIT_FRAME_POINTER void fe_sq_op()
         "LDR	r0, [sp, #64]\n\t"
         "STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -2621,8 +2728,13 @@ WC_OMIT_FRAME_POINTER void fe_sq_op()
         "POP	{lr}\n\t"
         /* Store */
         "STM	lr, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         :
         :
+#else
+        :
+        :
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -2641,8 +2753,13 @@ WC_OMIT_FRAME_POINTER void fe_sq(fe r, const fe a)
 
     __asm__ __volatile__ (
         "BL	fe_sq_op\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -2702,8 +2819,13 @@ WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
         "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -2749,8 +2871,13 @@ WC_OMIT_FRAME_POINTER void fe_mul121666(fe r, fe a)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
         "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -3247,8 +3374,13 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "BL	fe_mul_op\n\t"
         "MOV	r0, #0x0\n\t"
         "ADD	sp, sp, #0xbc\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [n] "r" (n), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
     );
@@ -3655,8 +3787,13 @@ WC_OMIT_FRAME_POINTER int curve25519(byte* r, const byte* n, const byte* a)
         "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "MOV	r0, #0x0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [n] "r" (n), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
     );
@@ -3916,8 +4053,13 @@ WC_OMIT_FRAME_POINTER void fe_invert(fe r, const fe a)
         "LDR	%[a], [sp, #132]\n\t"
         "LDR	%[r], [sp, #128]\n\t"
         "ADD	sp, sp, #0x88\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
     );
@@ -4231,8 +4373,13 @@ WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
         "LDR	r0, [sp, #64]\n\t"
         "STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -4394,8 +4541,13 @@ WC_OMIT_FRAME_POINTER void fe_sq2(fe r, const fe a)
         "STM	r12, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
         "MOV	r0, r12\n\t"
         "MOV	r1, lr\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -4651,8 +4803,13 @@ WC_OMIT_FRAME_POINTER void fe_pow22523(fe r, const fe a)
         "LDR	%[a], [sp, #100]\n\t"
         "LDR	%[r], [sp, #96]\n\t"
         "ADD	sp, sp, #0x68\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
     );
@@ -4688,8 +4845,13 @@ WC_OMIT_FRAME_POINTER void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p)
         :
+#else
+        :
+        : [r] "r" (r), [p] "r" (p)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12"
     );
@@ -4730,8 +4892,13 @@ WC_OMIT_FRAME_POINTER void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x60\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p)
         :
+#else
+        :
+        : [r] "r" (r), [p] "r" (p)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12"
     );
@@ -4784,8 +4951,13 @@ WC_OMIT_FRAME_POINTER void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
         "MOV	r1, r0\n\t"
         "BL	fe_sub_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p)
         :
+#else
+        :
+        : [r] "r" (r), [p] "r" (p)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -4875,8 +5047,13 @@ WC_OMIT_FRAME_POINTER void ge_madd(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r1, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0xc\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
+#else
+        :
+        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -4967,8 +5144,13 @@ WC_OMIT_FRAME_POINTER void ge_msub(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r0, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0xc\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
+#else
+        :
+        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -5059,8 +5241,13 @@ WC_OMIT_FRAME_POINTER void ge_add(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r0, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0x2c\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
+#else
+        :
+        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -5151,8 +5338,13 @@ WC_OMIT_FRAME_POINTER void ge_sub(ge_p1p1 * r, const ge_p3 * p,
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0x2c\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
+#else
+        :
+        : [r] "r" (r), [p] "r" (p), [q] "r" (q)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -5588,8 +5780,13 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "LDR	%[s], [sp, #52]\n\t"
         "STM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADD	sp, sp, #0x38\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s)
         :
+#else
+        :
+        : [s] "r" (s)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12", "lr"
     );
@@ -5894,8 +6091,13 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "LDR	%[s], [sp, #52]\n\t"
         "STM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADD	sp, sp, #0x38\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s)
         :
+#else
+        :
+        : [s] "r" (s)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12", "lr"
     );
@@ -6693,8 +6895,13 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "STR	r8, [%[s], #24]\n\t"
         "STR	r9, [%[s], #28]\n\t"
         "ADD	sp, sp, #0x50\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
+#else
+        :
+        : [s] "r" (s), [a] "r" (a), [b] "r" (b), [c] "r" (c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
     );
@@ -7134,8 +7341,13 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "STR	r8, [%[s], #24]\n\t"
         "STR	r9, [%[s], #28]\n\t"
         "ADD	sp, sp, #0x50\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
+#else
+        :
+        : [s] "r" (s), [a] "r" (a), [b] "r" (b), [c] "r" (c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
     );

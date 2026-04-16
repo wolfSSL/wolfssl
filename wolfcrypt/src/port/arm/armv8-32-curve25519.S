@@ -2737,12 +2737,12 @@ fe_mul_op:
 	lsl	r0, r0, #1
 	orr	r0, r0, r10, lsr #31
 	mul	r11, r0, lr
-	pop	{r0, r1, r2}
+	pop	{r0-r2}
 	mov	lr, #38
 	umaal	r0, r11, r12, lr
 	umaal	r1, r11, r4, lr
 	umaal	r2, r11, r5, lr
-	pop	{r3, r4, r5}
+	pop	{r3-r5}
 	umaal	r3, r11, r6, lr
 	umaal	r4, r11, r7, lr
 	umaal	r5, r11, r8, lr
@@ -3147,18 +3147,18 @@ fe_sq_op:
 	lsl	r0, r0, #1
 	orr	r0, r0, r7, lsr #31
 	mul	lr, r0, r6
-	pop	{r0, r1}
+	pop	{r0-r1}
 	mov	r6, #38
 	umaal	r0, lr, r12, r6
 	umaal	r1, lr, r11, r6
 	mov	r12, r3
 	mov	r11, r4
-	pop	{r2, r3, r4}
+	pop	{r2-r4}
 	umaal	r2, lr, r10, r6
 	umaal	r3, lr, r12, r6
 	umaal	r4, lr, r11, r6
 	mov	r12, r6
-	pop	{r5, r6}
+	pop	{r5-r6}
 	umaal	r5, lr, r8, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	bic	r7, r7, #0x80000000
@@ -4563,18 +4563,18 @@ fe_sq2:
 	lsl	r0, r0, #1
 	orr	r0, r0, r7, lsr #31
 	mul	lr, r0, r6
-	pop	{r0, r1}
+	pop	{r0-r1}
 	mov	r6, #38
 	umaal	r0, lr, r12, r6
 	umaal	r1, lr, r11, r6
 	mov	r12, r3
 	mov	r11, r4
-	pop	{r2, r3, r4}
+	pop	{r2-r4}
 	umaal	r2, lr, r10, r6
 	umaal	r3, lr, r12, r6
 	umaal	r4, lr, r11, r6
 	mov	r12, r6
-	pop	{r5, r6}
+	pop	{r5-r6}
 	umaal	r5, lr, r8, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	bic	r7, r7, #0x80000000

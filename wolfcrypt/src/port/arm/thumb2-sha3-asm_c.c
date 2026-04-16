@@ -41,9 +41,14 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 #ifdef WOLFSSL_SHA3
-static const word64 L_sha3_thumb2_rt[] = {
+XALIGNED(16) static const word64 L_sha3_thumb2_rt[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
     0x000000000000808bUL, 0x0000000080000001UL,
@@ -70,10 +75,8 @@ WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
     register word64* state __asm__ ("r0") = (word64*)state_p;
     register word64* L_sha3_thumb2_rt_c __asm__ ("r1") =
         (word64*)&L_sha3_thumb2_rt;
-
 #else
     register word64* L_sha3_thumb2_rt_c = (word64*)&L_sha3_thumb2_rt;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1153,8 +1156,13 @@ WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
         "BNE.W	L_sha3_thumb2_begin_%=\n\t"
 #endif
         "ADD	sp, sp, #0xcc\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [state] "+r" (state), [L_sha3_thumb2_rt] "+r" (L_sha3_thumb2_rt_c)
         :
+#else
+        :
+        : [state] "r" (state), [L_sha3_thumb2_rt] "r" (L_sha3_thumb2_rt_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );

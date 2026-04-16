@@ -32,40 +32,36 @@
 #ifdef HAVE_CHACHA
 #ifndef __APPLE__
 	.text
-	.type	L_chacha20_arm64_ctr, %object
 	.section	.rodata
+	.type	L_chacha20_arm64_ctr, %object
 	.size	L_chacha20_arm64_ctr, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
 	.align	3
 #else
 	.p2align	3
 #endif /* __APPLE__ */
 L_chacha20_arm64_ctr:
-	.word	0x00000000
-	.word	0x00000001
-	.word	0x00000002
-	.word	0x00000003
+	.long	0x00000000,0x00000001,0x00000002,0x00000003
 #ifndef __APPLE__
 	.text
-	.type	L_chacha20_arm64_rol8, %object
 	.section	.rodata
+	.type	L_chacha20_arm64_rol8, %object
 	.size	L_chacha20_arm64_rol8, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
 	.align	3
 #else
 	.p2align	3
 #endif /* __APPLE__ */
 L_chacha20_arm64_rol8:
-	.word	0x02010003
-	.word	0x06050407
-	.word	0x0a09080b
-	.word	0x0e0d0c0f
+	.long	0x02010003,0x06050407,0x0a09080b,0x0e0d0c0f
 #ifndef WOLFSSL_ARMASM_NO_NEON
 #ifndef __APPLE__
 .text
@@ -1009,26 +1005,21 @@ _wc_chacha_setiv:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_chacha_setkey_arm64_constant, %object
 	.section	.rodata
+	.type	L_chacha_setkey_arm64_constant, %object
 	.size	L_chacha_setkey_arm64_constant, 32
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
 	.align	3
 #else
 	.p2align	3
 #endif /* __APPLE__ */
 L_chacha_setkey_arm64_constant:
-	.word	0x61707865
-	.word	0x3120646e
-	.word	0x79622d36
-	.word	0x6b206574
-	.word	0x61707865
-	.word	0x3320646e
-	.word	0x79622d32
-	.word	0x6b206574
+	.long	0x61707865,0x3120646e,0x79622d36,0x6b206574
+	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574
 #ifndef __APPLE__
 .text
 .globl	wc_chacha_setkey

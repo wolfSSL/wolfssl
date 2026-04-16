@@ -30,8 +30,6 @@
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
-#include <stdint.h>
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -59,13 +57,13 @@ WC_OMIT_FRAME_POINTER void AES_set_key_AARCH32(const byte* userKey_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_set_key_AARCH32(const byte* userKey, int keylen,
     byte* key, int dir)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* userKey asm ("r0") = (const byte*)userKey_p;
-    register int keylen asm ("r1") = (int)keylen_p;
-    register byte* key asm ("r2") = (byte*)key_p;
-    register int dir asm ("r3") = (int)dir_p;
+    register const byte* userKey __asm__ ("r0") = (const byte*)userKey_p;
+    register int keylen __asm__ ("r1") = (int)keylen_p;
+    register byte* key __asm__ ("r2") = (byte*)key_p;
+    register int dir __asm__ ("r3") = (int)dir_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -368,7 +366,7 @@ WC_OMIT_FRAME_POINTER void AES_set_key_AARCH32(const byte* userKey, int keylen,
         "vst1.32	{q0}, [%[key]]\n\t"
         "b	L_aes_set_key_arm32_crypto_done_%=\n\t"
         "\n"
-    "L_aes_set_key_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_set_key_arm32_crypto_start_256_%=:\n\t"
         "ldr	r4, [%[userKey]], #4\n\t"
         "ldr	r5, [%[userKey]], #4\n\t"
         "ldr	r6, [%[userKey]], #4\n\t"
@@ -721,7 +719,7 @@ WC_OMIT_FRAME_POINTER void AES_set_key_AARCH32(const byte* userKey, int keylen,
         "vst1.32	{q0}, [%[key]]\n\t"
         "b	L_aes_set_key_arm32_crypto_done_%=\n\t"
         "\n"
-    "L_aes_set_key_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_set_key_arm32_crypto_start_128_%=:\n\t"
         "ldr	r4, [%[userKey]], #4\n\t"
         "ldr	r5, [%[userKey]], #4\n\t"
         "ldr	r6, [%[userKey]], #4\n\t"
@@ -993,7 +991,7 @@ WC_OMIT_FRAME_POINTER void AES_set_key_AARCH32(const byte* userKey, int keylen,
         "aesimc.8	q0, q0\n\t"
         "vst1.32	{q0}, [%[key]]\n\t"
         "\n"
-    "L_aes_set_key_arm32_crypto_done_%=: \n\t"
+    "L_aes_set_key_arm32_crypto_done_%=:\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [userKey] "+r" (userKey), [keylen] "+r" (keylen), [key] "+r" (key),
           [dir] "+r" (dir)
@@ -1017,13 +1015,13 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_AARCH32(const byte* inBlock_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_encrypt_AARCH32(const byte* inBlock,
     byte* outBlock, byte* key, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* inBlock asm ("r0") = (const byte*)inBlock_p;
-    register byte* outBlock asm ("r1") = (byte*)outBlock_p;
-    register byte* key asm ("r2") = (byte*)key_p;
-    register int nr asm ("r3") = (int)nr_p;
+    register const byte* inBlock __asm__ ("r0") = (const byte*)inBlock_p;
+    register byte* outBlock __asm__ ("r1") = (byte*)outBlock_p;
+    register byte* key __asm__ ("r2") = (byte*)key_p;
+    register int nr __asm__ ("r3") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1065,7 +1063,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_AARCH32(const byte* inBlock,
         "aesmc.8	q0, q0\n\t"
         "aese.8	q0, q2\n\t"
         "\n"
-    "L_aes_encrypt_arm32_crypto_round_done_%=: \n\t"
+    "L_aes_encrypt_arm32_crypto_round_done_%=:\n\t"
         "vld1.32	{q1}, [%[key]]\n\t"
         "veor.32	q0, q0, q1\n\t"
         "vst1.8	{q0}, [%[outBlock]]\n\t"
@@ -1094,13 +1092,13 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_AARCH32(const byte* inBlock_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_decrypt_AARCH32(const byte* inBlock,
     byte* outBlock, byte* key, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* inBlock asm ("r0") = (const byte*)inBlock_p;
-    register byte* outBlock asm ("r1") = (byte*)outBlock_p;
-    register byte* key asm ("r2") = (byte*)key_p;
-    register int nr asm ("r3") = (int)nr_p;
+    register const byte* inBlock __asm__ ("r0") = (const byte*)inBlock_p;
+    register byte* outBlock __asm__ ("r1") = (byte*)outBlock_p;
+    register byte* key __asm__ ("r2") = (byte*)key_p;
+    register int nr __asm__ ("r3") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1142,7 +1140,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_AARCH32(const byte* inBlock,
         "aesimc.8	q0, q0\n\t"
         "aesd.8	q0, q2\n\t"
         "\n"
-    "L_aes_decrypt_arm32_crypto_round_done_%=: \n\t"
+    "L_aes_decrypt_arm32_crypto_round_done_%=:\n\t"
         "vld1.32	{q1}, [%[key]]\n\t"
         "veor.32	q0, q0, q1\n\t"
         "vst1.8	{q0}, [%[outBlock]]\n\t"
@@ -1169,14 +1167,14 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
     word32 sz, byte* key, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register byte* key asm ("r3") = (byte*)key_p;
-    register int nr asm ("r12") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register byte* key __asm__ ("r3") = (byte*)key_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1193,7 +1191,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #1\n\t"
         "beq	L_aes_encrypt_blocks_arm32_crypto_192_start_1_%=\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_192_start_4_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_192_start_4_%=:\n\t"
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_encrypt_blocks_arm32_crypto_192_start_2_%=\n\t"
         "vldm.8	%[in]!, {q12-q15}\n\t"
@@ -1302,7 +1300,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "bge	L_aes_encrypt_blocks_arm32_crypto_192_start_4_%=\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_192_start_2_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_192_start_2_%=:\n\t"
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_encrypt_blocks_arm32_crypto_192_start_1_%=\n\t"
         "vld1.8	{q12-q13}, [%[in]]!\n\t"
@@ -1361,7 +1359,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[sz], %[sz], #2\n\t"
         "vst1.8	{q12-q13}, [%[out]]!\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_192_start_1_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_encrypt_blocks_arm32_crypto_192_done_%=\n\t"
         "vld1.8	{q12}, [%[in]]!\n\t"
@@ -1395,18 +1393,18 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[key], %[key], #48\n\t"
         "vst1.8	{q12}, [%[out]]!\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_192_done_%=:\n\t"
 #endif /* !NO_AES_192 */
         "b	L_aes_encrypt_blocks_arm32_crypto_done_%=\n\t"
         /* AES_ECB_256 */
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "vld1.32	{q8-q9}, [%[key]]!\n\t"
         "cmp	%[sz], #1\n\t"
         "beq	L_aes_encrypt_blocks_arm32_crypto_256_start_1_%=\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_256_start_4_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_256_start_4_%=:\n\t"
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_encrypt_blocks_arm32_crypto_256_start_2_%=\n\t"
         "vldm.8	%[in]!, {q12-q15}\n\t"
@@ -1533,7 +1531,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "bge	L_aes_encrypt_blocks_arm32_crypto_256_start_4_%=\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_256_start_2_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_256_start_2_%=:\n\t"
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_encrypt_blocks_arm32_crypto_256_start_1_%=\n\t"
         "vld1.8	{q12-q13}, [%[in]]!\n\t"
@@ -1602,7 +1600,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[sz], %[sz], #2\n\t"
         "vst1.8	{q12-q13}, [%[out]]!\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_256_start_1_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_encrypt_blocks_arm32_crypto_256_done_%=\n\t"
         "vld1.8	{q12}, [%[in]]!\n\t"
@@ -1642,18 +1640,18 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[key], %[key], #0x50\n\t"
         "vst1.8	{q12}, [%[out]]!\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_256_done_%=:\n\t"
 #endif /* !NO_AES_256 */
         "b	L_aes_encrypt_blocks_arm32_crypto_done_%=\n\t"
         /* AES_ECB_128 */
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "vldm.32	%[key]!, {q8-q10}\n\t"
         "cmp	%[sz], #1\n\t"
         "beq	L_aes_encrypt_blocks_arm32_crypto_128_start_1_%=\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_128_start_4_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_128_start_4_%=:\n\t"
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_encrypt_blocks_arm32_crypto_128_start_2_%=\n\t"
         "vldm.8	%[in]!, {q12-q15}\n\t"
@@ -1742,7 +1740,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "bge	L_aes_encrypt_blocks_arm32_crypto_128_start_4_%=\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_128_start_2_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_128_start_2_%=:\n\t"
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_encrypt_blocks_arm32_crypto_128_start_1_%=\n\t"
         "vld1.8	{q12-q13}, [%[in]]!\n\t"
@@ -1789,7 +1787,7 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[sz], %[sz], #2\n\t"
         "vst1.8	{q12-q13}, [%[out]]!\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_128_start_1_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_encrypt_blocks_arm32_crypto_128_done_%=\n\t"
         "vld1.8	{q12}, [%[in]]!\n\t"
@@ -1815,10 +1813,10 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_blocks_AARCH32(const byte* in, byte* out,
         "veor.32	q12, q12, q10\n\t"
         "vst1.8	{q12}, [%[out]]!\n\t"
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_128_done_%=:\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_encrypt_blocks_arm32_crypto_done_%=: \n\t"
+    "L_aes_encrypt_blocks_arm32_crypto_done_%=:\n\t"
         "pop	{%[nr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [sz] "+r" (sz), [key] "+r" (key),
@@ -1841,14 +1839,14 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
     word32 sz, byte* key, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register byte* key asm ("r3") = (byte*)key_p;
-    register int nr asm ("r12") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register byte* key __asm__ ("r3") = (byte*)key_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1867,7 +1865,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_decrypt_blocks_arm32_crypto_192_start_2_%=\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_192_start_4_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_192_start_4_%=:\n\t"
         "vldm.8	%[in]!, {q12-q15}\n\t"
         "aesd.8	q12, q0\n\t"
         "aesimc.8	q12, q12\n\t"
@@ -1974,7 +1972,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "bge	L_aes_decrypt_blocks_arm32_crypto_192_start_4_%=\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_192_start_2_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_192_start_2_%=:\n\t"
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_decrypt_blocks_arm32_crypto_192_start_1_%=\n\t"
         "vld1.8	{q12-q13}, [%[in]]!\n\t"
@@ -2033,7 +2031,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[sz], %[sz], #2\n\t"
         "vst1.8	{q12-q13}, [%[out]]!\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_192_start_1_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_decrypt_blocks_arm32_crypto_192_done_%=\n\t"
         "vld1.8	{q12}, [%[in]]!\n\t"
@@ -2067,12 +2065,12 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[key], %[key], #48\n\t"
         "vst1.8	{q12}, [%[out]]!\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_192_done_%=:\n\t"
 #endif /* !NO_AES_192 */
         "b	L_aes_decrypt_blocks_arm32_crypto_done_%=\n\t"
         /* AES_ECB_256 */
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "vld1.32	{q8-q9}, [%[key]]!\n\t"
         "cmp	%[sz], #1\n\t"
@@ -2080,7 +2078,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_decrypt_blocks_arm32_crypto_256_start_2_%=\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_256_start_4_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_256_start_4_%=:\n\t"
         "vldm.8	%[in]!, {q12-q15}\n\t"
         "aesd.8	q12, q0\n\t"
         "aesimc.8	q12, q12\n\t"
@@ -2205,7 +2203,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "bge	L_aes_decrypt_blocks_arm32_crypto_256_start_4_%=\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_256_start_2_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_256_start_2_%=:\n\t"
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_decrypt_blocks_arm32_crypto_256_start_1_%=\n\t"
         "vld1.8	{q12-q13}, [%[in]]!\n\t"
@@ -2274,7 +2272,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[sz], %[sz], #2\n\t"
         "vst1.8	{q12-q13}, [%[out]]!\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_256_start_1_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_decrypt_blocks_arm32_crypto_256_done_%=\n\t"
         "vld1.8	{q12}, [%[in]]!\n\t"
@@ -2314,12 +2312,12 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[key], %[key], #0x50\n\t"
         "vst1.8	{q12}, [%[out]]!\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_256_done_%=:\n\t"
 #endif /* !NO_AES_256 */
         "b	L_aes_decrypt_blocks_arm32_crypto_done_%=\n\t"
         /* AES_ECB_128 */
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "vldm.32	%[key]!, {q8-q10}\n\t"
         "cmp	%[sz], #1\n\t"
@@ -2327,7 +2325,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_decrypt_blocks_arm32_crypto_128_start_2_%=\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_128_start_4_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_128_start_4_%=:\n\t"
         "vldm.8	%[in]!, {q12-q15}\n\t"
         "aesd.8	q12, q0\n\t"
         "aesimc.8	q12, q12\n\t"
@@ -2414,7 +2412,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "bge	L_aes_decrypt_blocks_arm32_crypto_128_start_4_%=\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_128_start_2_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_128_start_2_%=:\n\t"
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_decrypt_blocks_arm32_crypto_128_start_1_%=\n\t"
         "vld1.8	{q12-q13}, [%[in]]!\n\t"
@@ -2461,7 +2459,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "sub	%[sz], %[sz], #2\n\t"
         "vst1.8	{q12-q13}, [%[out]]!\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_128_start_1_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_decrypt_blocks_arm32_crypto_128_done_%=\n\t"
         "vld1.8	{q12}, [%[in]]!\n\t"
@@ -2487,10 +2485,10 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_blocks_AARCH32(const byte* in, byte* out,
         "veor.32	q12, q12, q10\n\t"
         "vst1.8	{q12}, [%[out]]!\n\t"
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_128_done_%=:\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_decrypt_blocks_arm32_crypto_done_%=: \n\t"
+    "L_aes_decrypt_blocks_arm32_crypto_done_%=:\n\t"
         "pop	{%[nr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [sz] "+r" (sz), [key] "+r" (key),
@@ -2515,15 +2513,15 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
     word32 sz, byte* reg, byte* key, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register byte* reg asm ("r3") = (byte*)reg_p;
-    register byte* key asm ("r12") = (byte*)key_p;
-    register int nr asm ("lr") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register byte* reg __asm__ ("r3") = (byte*)reg_p;
+    register byte* key __asm__ ("r12") = (byte*)key_p;
+    register int nr __asm__ ("lr") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -2545,7 +2543,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_cbc_encrypt_arm32_crypto_192_start_2_%=\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_192_start_4_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_192_start_4_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -2661,7 +2659,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_cbc_encrypt_arm32_crypto_192_start_1_%=\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_192_start_2_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_192_start_2_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -2719,7 +2717,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vst1.8	{q15}, [%[out]]!\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_192_start_1_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -2746,13 +2744,13 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "aese.8	q15, q11\n\t"
         "veor.32	q15, q15, q12\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_192_done_%=:\n\t"
         "vst1.8	{q15}, [%[out]]!\n\t"
 #endif /* !NO_AES_192 */
         "b	L_aes_cbc_encrypt_arm32_crypto_done_%=\n\t"
         /* AES_CBC_256 */
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vldm.32	r12!, {q8-q11}\n\t"
@@ -2764,7 +2762,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_cbc_encrypt_arm32_crypto_256_start_2_%=\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_256_start_4_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_256_start_4_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -2900,7 +2898,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_cbc_encrypt_arm32_crypto_256_start_1_%=\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_256_start_2_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_256_start_2_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -2968,7 +2966,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vst1.8	{q15}, [%[out]]!\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_256_start_1_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -3000,13 +2998,13 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "aese.8	q15, q12\n\t"
         "veor.32	q15, q15, q13\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_256_done_%=:\n\t"
         "vst1.8	{q15}, [%[out]]!\n\t"
 #endif /* !NO_AES_256 */
         "b	L_aes_cbc_encrypt_arm32_crypto_done_%=\n\t"
         /* AES_CBC_128 */
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vldm.32	r12!, {q8-q10}\n\t"
@@ -3015,7 +3013,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #4\n\t"
         "blt	L_aes_cbc_encrypt_arm32_crypto_128_start_2_%=\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_128_start_4_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_128_start_4_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -3115,7 +3113,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #2\n\t"
         "blt	L_aes_cbc_encrypt_arm32_crypto_128_start_1_%=\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_128_start_2_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_128_start_2_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -3165,7 +3163,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vst1.8	{q15}, [%[out]]!\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_128_start_1_%=:\n\t"
         "veor.32	q15, q15, q14\n\t"
         "aese.8	q15, q0\n\t"
         "aesmc.8	q15, q15\n\t"
@@ -3188,11 +3186,11 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt_AARCH32(const byte* in, byte* out,
         "aese.8	q15, q9\n\t"
         "veor.32	q15, q15, q10\n\t"
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_128_done_%=:\n\t"
         "vst1.8	{q15}, [%[out]]!\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_cbc_encrypt_arm32_crypto_done_%=: \n\t"
+    "L_aes_cbc_encrypt_arm32_crypto_done_%=:\n\t"
         "vst1.32	{q15}, [%[reg]]\n\t"
         "pop	{%[key], %[nr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3216,15 +3214,15 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
     word32 sz, byte* reg, byte* key, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register byte* reg asm ("r3") = (byte*)reg_p;
-    register byte* key asm ("r12") = (byte*)key_p;
-    register int nr asm ("lr") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register byte* reg __asm__ ("r3") = (byte*)reg_p;
+    register byte* key __asm__ ("r12") = (byte*)key_p;
+    register int nr __asm__ ("lr") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3243,7 +3241,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	%[sz], #1\n\t"
         "beq	L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_1_%=\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_2_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_2_%=:\n\t"
         "vld1.8	{q14-q15}, [%[in]]!\n\t"
         "vmov	q11, q13\n\t"
         "vmov	q12, q14\n\t"
@@ -3309,7 +3307,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_cbc_decrypt_blocks_arm32_crypto_192_done_%=\n\t"
         "bgt	L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_2_%=\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_1_%=:\n\t"
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vmov	q11, q13\n\t"
         "vmov	q13, q14\n\t"
@@ -3344,18 +3342,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q14, q14, q11\n\t"
         "vst1.8	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_192_done_%=:\n\t"
 #endif /* !NO_AES_192 */
         "b	L_aes_cbc_decrypt_blocks_arm32_crypto_done_%=\n\t"
         /* AES_CBC_256 */
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "vld1.32	{q8}, [r12]!\n\t"
         "cmp	%[sz], #1\n\t"
         "beq	L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_1_%=\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_2_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_2_%=:\n\t"
         "vld1.8	{q14-q15}, [%[in]]!\n\t"
         "vmov	q11, q13\n\t"
         "vmov	q12, q14\n\t"
@@ -3431,7 +3429,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_cbc_decrypt_blocks_arm32_crypto_256_done_%=\n\t"
         "bgt	L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_2_%=\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_1_%=:\n\t"
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vmov	q11, q13\n\t"
         "vmov	q13, q14\n\t"
@@ -3472,18 +3470,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q14, q14, q11\n\t"
         "vst1.8	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_256_done_%=:\n\t"
 #endif /* !NO_AES_256 */
         "b	L_aes_cbc_decrypt_blocks_arm32_crypto_done_%=\n\t"
         /* AES_CBC_128 */
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "vldm.32	r12!, {q8-q10}\n\t"
         "cmp	%[sz], #1\n\t"
         "beq	L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_1_%=\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_2_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_2_%=:\n\t"
         "vld1.8	{q14-q15}, [%[in]]!\n\t"
         "vmov	q11, q13\n\t"
         "vmov	q12, q14\n\t"
@@ -3536,7 +3534,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_cbc_decrypt_blocks_arm32_crypto_128_done_%=\n\t"
         "bgt	L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_2_%=\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_1_%=:\n\t"
         "vld1.8	{q14}, [%[in]]!\n\t"
         "vmov	q11, q13\n\t"
         "vmov	q13, q14\n\t"
@@ -3563,10 +3561,10 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q14, q14, q11\n\t"
         "vst1.8	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_128_done_%=:\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_cbc_decrypt_blocks_arm32_crypto_done_%=: \n\t"
+    "L_aes_cbc_decrypt_blocks_arm32_crypto_done_%=:\n\t"
         "vst1.32	{q13}, [%[reg]]\n\t"
         "pop	{%[key], %[nr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3593,17 +3591,17 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
     word32 sz, byte* reg, byte* key, byte* tmp, word32* left, word32 nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register byte* reg asm ("r3") = (byte*)reg_p;
-    register byte* key asm ("r12") = (byte*)key_p;
-    register byte* tmp asm ("lr") = (byte*)tmp_p;
-    register word32* left asm ("r4") = (word32*)left_p;
-    register word32 nr asm ("r5") = (word32)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register byte* reg __asm__ ("r3") = (byte*)reg_p;
+    register byte* key __asm__ ("r12") = (byte*)key_p;
+    register byte* tmp __asm__ ("lr") = (byte*)tmp_p;
+    register word32* left __asm__ ("r4") = (word32*)left_p;
+    register word32 nr __asm__ ("r5") = (word32)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3636,7 +3634,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "vmov	d2, r5, r6\n\t"
         "vrev32.8	q1, q1\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_192_start_2_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_192_start_2_%=:\n\t"
         "aese.8	q0, q3\n\t"
         "aesmc.8	q0, q0\n\t"
         "aese.8	q1, q3\n\t"
@@ -3712,7 +3710,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	lr, #0\n\t"
         "blt	L_aes_ctr_encrypt_arm32_crypto_192_done_%=\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_192_start_1_%=:\n\t"
         "aese.8	q0, q3\n\t"
         "aesmc.8	q0, q0\n\t"
         "adds	r8, r8, lr\n\t"
@@ -3752,7 +3750,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	lr, #1\n\t"
         "vrev32.8	q0, q2\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_192_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_ctr_encrypt_arm32_crypto_192_partial_done_%=\n\t"
         "ldr	r4, [sp, #8]\n\t"
@@ -3794,7 +3792,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	r5, #16\n\t"
         "sub	r5, r5, %[sz]\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_192_start_byte_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_192_start_byte_%=:\n\t"
         "ldrb	r7, [lr], #1\n\t"
         "ldrb	r8, [%[in]], #1\n\t"
         "eor	r7, r7, r8\n\t"
@@ -3804,12 +3802,12 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "vrev32.8	q0, q2\n\t"
         "str	r5, [r4]\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_192_partial_done_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_192_partial_done_%=:\n\t"
 #endif /* !NO_AES_192 */
         "b	L_aes_ctr_encrypt_arm32_crypto_done_%=\n\t"
         /* AES_CTR_256 */
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "vldm.32	r12!, {q11-q13}\n\t"
         "mov	lr, #1\n\t"
@@ -3824,7 +3822,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "vmov	d2, r5, r6\n\t"
         "vrev32.8	q1, q1\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_256_start_2_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_256_start_2_%=:\n\t"
         "aese.8	q0, q3\n\t"
         "aesmc.8	q0, q0\n\t"
         "aese.8	q1, q3\n\t"
@@ -3910,7 +3908,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	lr, #0\n\t"
         "blt	L_aes_ctr_encrypt_arm32_crypto_256_done_%=\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_256_start_1_%=:\n\t"
         "aese.8	q0, q3\n\t"
         "aesmc.8	q0, q0\n\t"
         "adds	r8, r8, lr\n\t"
@@ -3956,7 +3954,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	lr, #1\n\t"
         "vrev32.8	q0, q2\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_256_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_ctr_encrypt_arm32_crypto_256_partial_done_%=\n\t"
         "ldr	r4, [sp, #8]\n\t"
@@ -4004,7 +4002,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	r5, #16\n\t"
         "sub	r5, r5, %[sz]\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_256_start_byte_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_256_start_byte_%=:\n\t"
         "ldrb	r7, [lr], #1\n\t"
         "ldrb	r8, [%[in]], #1\n\t"
         "eor	r7, r7, r8\n\t"
@@ -4014,12 +4012,12 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "vrev32.8	q0, q2\n\t"
         "str	r5, [r4]\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_256_partial_done_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_256_partial_done_%=:\n\t"
 #endif /* !NO_AES_256 */
         "b	L_aes_ctr_encrypt_arm32_crypto_done_%=\n\t"
         /* AES_CTR_128 */
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "vldm.32	r12!, {q11-q13}\n\t"
         "mov	lr, #1\n\t"
@@ -4034,7 +4032,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "vmov	d2, r5, r6\n\t"
         "vrev32.8	q1, q1\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_128_start_2_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_128_start_2_%=:\n\t"
         "aese.8	q0, q3\n\t"
         "aesmc.8	q0, q0\n\t"
         "aese.8	q1, q3\n\t"
@@ -4099,7 +4097,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	lr, #0\n\t"
         "blt	L_aes_ctr_encrypt_arm32_crypto_128_done_%=\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_128_start_1_%=:\n\t"
         "aese.8	q0, q3\n\t"
         "aesmc.8	q0, q0\n\t"
         "adds	r8, r8, lr\n\t"
@@ -4132,7 +4130,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	lr, #1\n\t"
         "vrev32.8	q0, q2\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_128_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_ctr_encrypt_arm32_crypto_128_partial_done_%=\n\t"
         "ldr	r4, [sp, #8]\n\t"
@@ -4168,7 +4166,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "mov	r5, #16\n\t"
         "sub	r5, r5, %[sz]\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_128_start_byte_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_128_start_byte_%=:\n\t"
         "ldrb	r7, [lr], #1\n\t"
         "ldrb	r8, [%[in]], #1\n\t"
         "eor	r7, r7, r8\n\t"
@@ -4178,10 +4176,10 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt_AARCH32(const byte* in, byte* out,
         "vrev32.8	q0, q2\n\t"
         "str	r5, [r4]\n\t"
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_128_partial_done_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_128_partial_done_%=:\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_ctr_encrypt_arm32_crypto_done_%=: \n\t"
+    "L_aes_ctr_encrypt_arm32_crypto_done_%=:\n\t"
         "vst1.32	{q0}, [%[reg]]\n\t"
         "pop	{%[key], %[tmp]}\n\t"
         "pop	{%[left], %[nr]}\n\t"
@@ -4208,13 +4206,13 @@ WC_OMIT_FRAME_POINTER void AES_GCM_set_key_AARCH32(const byte* nonce_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_GCM_set_key_AARCH32(const byte* nonce,
     const byte* key, byte* gcm_h, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* nonce asm ("r0") = (const byte*)nonce_p;
-    register const byte* key asm ("r1") = (const byte*)key_p;
-    register byte* gcm_h asm ("r2") = (byte*)gcm_h_p;
-    register int nr asm ("r3") = (int)nr_p;
+    register const byte* nonce __asm__ ("r0") = (const byte*)nonce_p;
+    register const byte* key __asm__ ("r1") = (const byte*)key_p;
+    register byte* gcm_h __asm__ ("r2") = (byte*)gcm_h_p;
+    register int nr __asm__ ("r3") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -4258,7 +4256,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_set_key_AARCH32(const byte* nonce,
         "aesmc.8	q0, q0\n\t"
         "aese.8	q0, q2\n\t"
         "\n"
-    "L_aes_gcm_set_key_arm32_crypto_round_done_%=: \n\t"
+    "L_aes_gcm_set_key_arm32_crypto_round_done_%=:\n\t"
         "vld1.8	{q1}, [%[key]]\n\t"
         "veor	q0, q0, q1\n\t"
         "vmov.i8	q1, #0x55\n\t"
@@ -4295,23 +4293,23 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
     word32 sz, const byte* nonce, word32 nonceSz, byte* tag, word32 tagSz,
     const byte* aad, word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg,
     int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register const byte* nonce asm ("r3") = (const byte*)nonce_p;
-    register word32 nonceSz asm ("r12") = (word32)nonceSz_p;
-    register byte* tag asm ("lr") = (byte*)tag_p;
-    register word32 tagSz asm ("r4") = (word32)tagSz_p;
-    register const byte* aad asm ("r5") = (const byte*)aad_p;
-    register word32 aadSz asm ("r6") = (word32)aadSz_p;
-    register byte* key asm ("r7") = (byte*)key_p;
-    register byte* gcm_h asm ("r8") = (byte*)gcm_h_p;
-    register byte* tmp asm ("r9") = (byte*)tmp_p;
-    register byte* reg asm ("r10") = (byte*)reg_p;
-    register int nr asm ("r11") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register const byte* nonce __asm__ ("r3") = (const byte*)nonce_p;
+    register word32 nonceSz __asm__ ("r12") = (word32)nonceSz_p;
+    register byte* tag __asm__ ("lr") = (byte*)tag_p;
+    register word32 tagSz __asm__ ("r4") = (word32)tagSz_p;
+    register const byte* aad __asm__ ("r5") = (const byte*)aad_p;
+    register word32 aadSz __asm__ ("r6") = (word32)aadSz_p;
+    register byte* key __asm__ ("r7") = (byte*)key_p;
+    register byte* gcm_h __asm__ ("r8") = (byte*)gcm_h_p;
+    register byte* tmp __asm__ ("r9") = (byte*)tmp_p;
+    register byte* reg __asm__ ("r10") = (byte*)reg_p;
+    register int nr __asm__ ("r11") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -4332,7 +4330,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "vshr.u64	q13, q13, #56\n\t"
         "vld1.32	{q8}, [r8]\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_setup_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_setup_done_%=:\n\t"
         /* Load Nonce */
         "cmp	r12, #12\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_ghash_nonce_%=\n\t"
@@ -4346,12 +4344,12 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "mov	r5, #1\n\t"
         "b	L_aes_gcm_encrypt_arm32_crypto_done_nonce_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_ghash_nonce_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_ghash_nonce_%=:\n\t"
         "lsr	r10, r12, #4\n\t"
         "cmp	r10, #0\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_nonce_done_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_1_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_1_%=:\n\t"
         "vld1.32	{q14}, [%[nonce]]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -4382,7 +4380,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "subs	r10, r10, #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_nonce_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_done_%=:\n\t"
         "ands	r11, r12, #15\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_nonce_partial_done_%=\n\t"
         "veor.8	q0, q0, q0\n\t"
@@ -4391,21 +4389,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r12, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_nonce_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_dw_%=:\n\t"
         "ldr	r8, [%[nonce]], #4\n\t"
         "sub	r12, r12, #4\n\t"
         "str	r8, [r9], #4\n\t"
         "cmp	r12, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_nonce_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_sw_%=:\n\t"
         "cmp	r12, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_nonce_start_byte_%=\n\t"
         "ldrh	r8, [%[nonce]], #2\n\t"
         "sub	r12, r12, #2\n\t"
         "strh	r8, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_start_byte_%=:\n\t"
         "cmp	r12, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_nonce_end_bytes_%=\n\t"
         "ldrb	r8, [%[nonce]], #1\n\t"
@@ -4413,7 +4411,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [r9], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_nonce_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "vld1.32	{q14}, [r9]\n\t"
         "vmov.i8	q12, #0x55\n\t"
@@ -4443,7 +4441,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q6, q6, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_nonce_partial_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_nonce_partial_done_%=:\n\t"
         "veor.8	q0, q0, q0\n\t"
         /* nonceSz */
         "ldr	r12, [sp]\n\t"
@@ -4484,7 +4482,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "vmov.32	s27, r5\n\t"
         "rev	r5, r5\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_done_nonce_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_done_nonce_%=:\n\t"
         "vldm.32	r7!, {q0-q3}\n\t"
         "vldm.32	r7!, {q7-q13}\n\t"
         /* nr */
@@ -4499,7 +4497,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_done_%=\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_192_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_start_2_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_start_2_%=:\n\t"
         "add	r8, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "add	r5, r5, #2\n\t"
@@ -4568,7 +4566,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "bgt	L_aes_gcm_encrypt_arm32_crypto_192_start_2_%=\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_done_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_start_1_%=:\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "rev	r8, r5\n\t"
@@ -4604,7 +4602,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q14, q14, q4\n\t"
         "vst1.32	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_192_partial_done_%=\n\t"
         "veor.8	q14, q14, q14\n\t"
@@ -4613,21 +4611,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_start_dw_%=:\n\t"
         "ldr	lr, [%[in]], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [r9], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_192_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_start_byte_%=\n\t"
         "ldrh	lr, [%[in]], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_end_bytes_%=\n\t"
         "ldrb	lr, [%[in]], #1\n\t"
@@ -4635,7 +4633,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [r9], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_192_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
@@ -4675,21 +4673,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_out_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_out_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_out_start_dw_%=:\n\t"
         "ldr	lr, [r9], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [%[out]], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_192_out_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_out_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_out_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte_%=\n\t"
         "ldrh	lr, [r9], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [%[out]], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_192_out_end_bytes_%=\n\t"
         "ldrb	lr, [r9], #1\n\t"
@@ -4697,9 +4695,9 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [%[out]], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_out_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_out_end_bytes_%=:\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_192_partial_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_192_partial_done_%=:\n\t"
         /* Finish */
         "add	r8, %[sz], #15\n\t"
         "sub	r8, r5, r8, lsr #4\n\t"
@@ -4736,13 +4734,13 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "b	L_aes_gcm_encrypt_arm32_crypto_done_enc_%=\n\t"
         /* AES_GCM_256 */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "cmp	r10, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_done_%=\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_256_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_start_2_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_start_2_%=:\n\t"
         "add	r8, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "add	r5, r5, #2\n\t"
@@ -4821,7 +4819,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "bgt	L_aes_gcm_encrypt_arm32_crypto_256_start_2_%=\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_done_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_start_1_%=:\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "rev	r8, r5\n\t"
@@ -4863,7 +4861,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q14, q14, q4\n\t"
         "vst1.32	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_256_partial_done_%=\n\t"
         "veor.8	q14, q14, q14\n\t"
@@ -4872,21 +4870,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_start_dw_%=:\n\t"
         "ldr	lr, [%[in]], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [r9], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_256_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_start_byte_%=\n\t"
         "ldrh	lr, [%[in]], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_end_bytes_%=\n\t"
         "ldrb	lr, [%[in]], #1\n\t"
@@ -4894,7 +4892,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [r9], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_256_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
@@ -4940,21 +4938,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_out_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_out_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_out_start_dw_%=:\n\t"
         "ldr	lr, [r9], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [%[out]], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_256_out_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_out_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_out_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte_%=\n\t"
         "ldrh	lr, [r9], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [%[out]], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_256_out_end_bytes_%=\n\t"
         "ldrb	lr, [r9], #1\n\t"
@@ -4962,9 +4960,9 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [%[out]], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_out_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_out_end_bytes_%=:\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_256_partial_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_256_partial_done_%=:\n\t"
         /* Finish */
         "add	r8, %[sz], #15\n\t"
         "sub	r8, r5, r8, lsr #4\n\t"
@@ -5007,13 +5005,13 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "b	L_aes_gcm_encrypt_arm32_crypto_done_enc_%=\n\t"
         /* AES_GCM_128 */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "cmp	r10, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_done_%=\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_128_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_start_2_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_start_2_%=:\n\t"
         "add	r8, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "add	r5, r5, #2\n\t"
@@ -5071,7 +5069,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "bgt	L_aes_gcm_encrypt_arm32_crypto_128_start_2_%=\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_done_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_start_1_%=:\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "rev	r8, r5\n\t"
@@ -5100,7 +5098,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q14, q14, q4\n\t"
         "vst1.32	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_128_partial_done_%=\n\t"
         "veor.8	q14, q14, q14\n\t"
@@ -5109,21 +5107,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_start_dw_%=:\n\t"
         "ldr	lr, [%[in]], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [r9], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_128_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_start_byte_%=\n\t"
         "ldrh	lr, [%[in]], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_end_bytes_%=\n\t"
         "ldrb	lr, [%[in]], #1\n\t"
@@ -5131,7 +5129,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [r9], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_128_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
@@ -5164,21 +5162,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_out_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_out_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_out_start_dw_%=:\n\t"
         "ldr	lr, [r9], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [%[out]], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_128_out_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_out_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_out_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte_%=\n\t"
         "ldrh	lr, [r9], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [%[out]], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_128_out_end_bytes_%=\n\t"
         "ldrb	lr, [r9], #1\n\t"
@@ -5186,9 +5184,9 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [%[out]], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_out_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_out_end_bytes_%=:\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_128_partial_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_128_partial_done_%=:\n\t"
         /* Finish */
         "add	r8, %[sz], #15\n\t"
         "sub	r8, r5, r8, lsr #4\n\t"
@@ -5216,7 +5214,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q6, q6, q13\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_done_enc_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_done_enc_%=:\n\t"
         /* aadSz */
         "ldr	r6, [sp, #16]\n\t"
         /* gcm_h */
@@ -5263,7 +5261,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q11, q11, q0\n\t"
         /* Done */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_h_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_h_done_%=:\n\t"
         /* aad */
         "ldr	r5, [sp, #12]\n\t"
         "lsr	r10, r6, #4\n\t"
@@ -5273,7 +5271,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_aad_start_2_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_start_4_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_start_4_%=:\n\t"
         "vldm	r5!, {q0-q2}\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vmov.i8	q5, #51\n\t"
@@ -5365,7 +5363,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_gcm_encrypt_arm32_crypto_aad_done_%=\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_aad_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_start_2_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_start_2_%=:\n\t"
         "vld1.32	{q14-q15}, [r5]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -5414,7 +5412,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #0\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_aad_done_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_start_1_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_start_1_%=:\n\t"
         "vld1.32	{q14}, [r5]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -5443,7 +5441,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_done_%=:\n\t"
         "ands	r11, r6, #15\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_aad_partial_done_%=\n\t"
         "veor.8	q0, q0, q0\n\t"
@@ -5452,21 +5450,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r12, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_aad_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_start_dw_%=:\n\t"
         "ldr	r8, [r5], #4\n\t"
         "sub	r12, r12, #4\n\t"
         "str	r8, [r9], #4\n\t"
         "cmp	r12, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_aad_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_start_sw_%=:\n\t"
         "cmp	r12, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_aad_start_byte_%=\n\t"
         "ldrh	r8, [r5], #2\n\t"
         "sub	r12, r12, #2\n\t"
         "strh	r8, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_start_byte_%=:\n\t"
         "cmp	r12, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_aad_end_bytes_%=\n\t"
         "ldrb	r8, [r5], #1\n\t"
@@ -5474,7 +5472,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [r9], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_aad_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "vld1.32	{q14}, [r9]\n\t"
         "vmov.i8	q12, #0x55\n\t"
@@ -5504,7 +5502,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_aad_partial_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_aad_partial_done_%=:\n\t"
         /* out */
         "lsr	r10, %[sz], #4\n\t"
         "cmp	r10, #1\n\t"
@@ -5513,7 +5511,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_out_start_2_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_start_4_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_start_4_%=:\n\t"
         "vldm	%[out]!, {q0-q2}\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vmov.i8	q5, #51\n\t"
@@ -5605,7 +5603,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_gcm_encrypt_arm32_crypto_out_done_%=\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_out_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_start_2_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_start_2_%=:\n\t"
         "vld1.32	{q14-q15}, [%[out]]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -5654,7 +5652,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #0\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_out_done_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_start_1_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_start_1_%=:\n\t"
         "vld1.32	{q14}, [%[out]]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -5683,7 +5681,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_encrypt_arm32_crypto_out_partial_done_%=\n\t"
         "veor.8	q0, q0, q0\n\t"
@@ -5692,21 +5690,21 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r12, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_out_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_start_dw_%=:\n\t"
         "ldr	r8, [%[out]], #4\n\t"
         "sub	r12, r12, #4\n\t"
         "str	r8, [r9], #4\n\t"
         "cmp	r12, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_out_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_start_sw_%=:\n\t"
         "cmp	r12, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_out_start_byte_%=\n\t"
         "ldrh	r8, [%[out]], #2\n\t"
         "sub	r12, r12, #2\n\t"
         "strh	r8, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_start_byte_%=:\n\t"
         "cmp	r12, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_out_end_bytes_%=\n\t"
         "ldrb	r8, [%[out]], #1\n\t"
@@ -5714,7 +5712,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [r9], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_out_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "vld1.32	{q14}, [r9]\n\t"
         "vmov.i8	q12, #0x55\n\t"
@@ -5744,7 +5742,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_out_partial_done_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_out_partial_done_%=:\n\t"
         "lsr	lr, r6, #29\n\t"
         "lsl	r6, r6, #3\n\t"
         "rbit	lr, lr\n\t"
@@ -5792,26 +5790,26 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "vst1.8	{q7}, [lr]\n\t"
         "b	L_aes_gcm_encrypt_arm32_crypto_done_gcm_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_partial_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_partial_%=:\n\t"
         "vst1.8	{q7}, [r9]\n\t"
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_dw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_dw_%=:\n\t"
         "ldr	r8, [r9], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	r8, [lr], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_sw_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_byte_%=\n\t"
         "ldrh	r8, [r9], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	r8, [lr], #2\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_byte_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_encrypt_arm32_crypto_tag_tag_end_bytes_%=\n\t"
         "ldrb	r8, [r9], #1\n\t"
@@ -5819,9 +5817,9 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [lr], #1\n\t"
         "bne	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_end_bytes_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_tag_tag_end_bytes_%=:\n\t"
         "\n"
-    "L_aes_gcm_encrypt_arm32_crypto_done_gcm_%=: \n\t"
+    "L_aes_gcm_encrypt_arm32_crypto_done_gcm_%=:\n\t"
         "pop	{%[nonceSz], %[tag]}\n\t"
         "pop	{%[tagSz], %[aad], %[aadSz], %[key], %[gcm_h], %[tmp], %[reg], %[nr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5854,23 +5852,23 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
     word32 sz, const byte* nonce, word32 nonceSz, const byte* tag, word32 tagSz,
     const byte* aad, word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg,
     int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register const byte* nonce asm ("r3") = (const byte*)nonce_p;
-    register word32 nonceSz asm ("r12") = (word32)nonceSz_p;
-    register const byte* tag asm ("lr") = (const byte*)tag_p;
-    register word32 tagSz asm ("r4") = (word32)tagSz_p;
-    register const byte* aad asm ("r5") = (const byte*)aad_p;
-    register word32 aadSz asm ("r6") = (word32)aadSz_p;
-    register byte* key asm ("r7") = (byte*)key_p;
-    register byte* gcm_h asm ("r8") = (byte*)gcm_h_p;
-    register byte* tmp asm ("r9") = (byte*)tmp_p;
-    register byte* reg asm ("r10") = (byte*)reg_p;
-    register int nr asm ("r11") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register const byte* nonce __asm__ ("r3") = (const byte*)nonce_p;
+    register word32 nonceSz __asm__ ("r12") = (word32)nonceSz_p;
+    register const byte* tag __asm__ ("lr") = (const byte*)tag_p;
+    register word32 tagSz __asm__ ("r4") = (word32)tagSz_p;
+    register const byte* aad __asm__ ("r5") = (const byte*)aad_p;
+    register word32 aadSz __asm__ ("r6") = (word32)aadSz_p;
+    register byte* key __asm__ ("r7") = (byte*)key_p;
+    register byte* gcm_h __asm__ ("r8") = (byte*)gcm_h_p;
+    register byte* tmp __asm__ ("r9") = (byte*)tmp_p;
+    register byte* reg __asm__ ("r10") = (byte*)reg_p;
+    register int nr __asm__ ("r11") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -5925,7 +5923,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q11, q11, q0\n\t"
         /* Done */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_h_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_h_done_%=:\n\t"
         /* aad */
         "ldr	r5, [sp, #12]\n\t"
         "lsr	r10, r6, #4\n\t"
@@ -5935,7 +5933,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_aad_start_2_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_start_4_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_start_4_%=:\n\t"
         "vldm	r5!, {q0-q2}\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vmov.i8	q5, #51\n\t"
@@ -6027,7 +6025,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_gcm_decrypt_arm32_crypto_aad_done_%=\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_aad_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_start_2_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_start_2_%=:\n\t"
         "vld1.32	{q14-q15}, [r5]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -6076,7 +6074,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #0\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_aad_done_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_start_1_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_start_1_%=:\n\t"
         "vld1.32	{q14}, [r5]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -6105,7 +6103,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_done_%=:\n\t"
         "ands	r11, r6, #15\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_aad_partial_done_%=\n\t"
         "veor.8	q0, q0, q0\n\t"
@@ -6114,21 +6112,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r12, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_aad_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_start_dw_%=:\n\t"
         "ldr	r8, [r5], #4\n\t"
         "sub	r12, r12, #4\n\t"
         "str	r8, [r9], #4\n\t"
         "cmp	r12, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_aad_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_start_sw_%=:\n\t"
         "cmp	r12, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_aad_start_byte_%=\n\t"
         "ldrh	r8, [r5], #2\n\t"
         "sub	r12, r12, #2\n\t"
         "strh	r8, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_start_byte_%=:\n\t"
         "cmp	r12, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_aad_end_bytes_%=\n\t"
         "ldrb	r8, [r5], #1\n\t"
@@ -6136,7 +6134,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [r9], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_aad_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "vld1.32	{q14}, [r9]\n\t"
         "vmov.i8	q12, #0x55\n\t"
@@ -6166,7 +6164,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_aad_partial_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_aad_partial_done_%=:\n\t"
         /* in */
         "lsr	r10, %[sz], #4\n\t"
         "cmp	r10, #1\n\t"
@@ -6175,7 +6173,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_in_start_2_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_start_4_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_start_4_%=:\n\t"
         "vldm	%[in]!, {q0-q2}\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vmov.i8	q5, #51\n\t"
@@ -6267,7 +6265,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_gcm_decrypt_arm32_crypto_in_done_%=\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_in_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_start_2_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_start_2_%=:\n\t"
         "vld1.32	{q14-q15}, [%[in]]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -6316,7 +6314,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r10, #0\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_in_done_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_start_1_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_start_1_%=:\n\t"
         "vld1.32	{q14}, [%[in]]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -6345,7 +6343,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_in_partial_done_%=\n\t"
         "veor.8	q0, q0, q0\n\t"
@@ -6354,21 +6352,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r12, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_in_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_start_dw_%=:\n\t"
         "ldr	r8, [%[in]], #4\n\t"
         "sub	r12, r12, #4\n\t"
         "str	r8, [r9], #4\n\t"
         "cmp	r12, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_in_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_start_sw_%=:\n\t"
         "cmp	r12, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_in_start_byte_%=\n\t"
         "ldrh	r8, [%[in]], #2\n\t"
         "sub	r12, r12, #2\n\t"
         "strh	r8, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_start_byte_%=:\n\t"
         "cmp	r12, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_in_end_bytes_%=\n\t"
         "ldrb	r8, [%[in]], #1\n\t"
@@ -6376,7 +6374,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [r9], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_in_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "vld1.32	{q14}, [r9]\n\t"
         "vmov.i8	q12, #0x55\n\t"
@@ -6406,10 +6404,10 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q7, q7, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_in_partial_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_in_partial_done_%=:\n\t"
         "sub	%[in], %[in], %[sz]\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_done_gcm_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_done_gcm_%=:\n\t"
         /* nonceSz */
         "ldr	r12, [sp]\n\t"
         /* Load Nonce */
@@ -6425,12 +6423,12 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "mov	r5, #1\n\t"
         "b	L_aes_gcm_decrypt_arm32_crypto_done_nonce_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_ghash_nonce_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_ghash_nonce_%=:\n\t"
         "lsr	r10, r12, #4\n\t"
         "cmp	r10, #0\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_nonce_done_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_1_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_1_%=:\n\t"
         "vld1.32	{q14}, [%[nonce]]!\n\t"
         "vmov.i8	q12, #0x55\n\t"
         "vshl.u8	q0, q14, #1\n\t"
@@ -6461,7 +6459,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "subs	r10, r10, #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_nonce_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_nonce_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_nonce_done_%=:\n\t"
         "ands	r11, r12, #15\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_nonce_partial_done_%=\n\t"
         "veor.8	q0, q0, q0\n\t"
@@ -6470,21 +6468,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r12, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_nonce_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_dw_%=:\n\t"
         "ldr	r8, [%[nonce]], #4\n\t"
         "sub	r12, r12, #4\n\t"
         "str	r8, [r9], #4\n\t"
         "cmp	r12, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_nonce_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_sw_%=:\n\t"
         "cmp	r12, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_nonce_start_byte_%=\n\t"
         "ldrh	r8, [%[nonce]], #2\n\t"
         "sub	r12, r12, #2\n\t"
         "strh	r8, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_nonce_start_byte_%=:\n\t"
         "cmp	r12, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_nonce_end_bytes_%=\n\t"
         "ldrb	r8, [%[nonce]], #1\n\t"
@@ -6492,7 +6490,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [r9], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_nonce_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_nonce_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_nonce_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "vld1.32	{q14}, [r9]\n\t"
         "vmov.i8	q12, #0x55\n\t"
@@ -6522,7 +6520,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q6, q6, q0\n\t"
         /* Done GHASH */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_nonce_partial_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_nonce_partial_done_%=:\n\t"
         "veor.8	q0, q0, q0\n\t"
         /* nonceSz */
         "ldr	r12, [sp]\n\t"
@@ -6563,7 +6561,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "vmov.32	s27, r5\n\t"
         "rev	r5, r5\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_done_nonce_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_done_nonce_%=:\n\t"
         /* reg */
         "ldr	r9, [sp, #32]\n\t"
         "vst1.32	{q7}, [r9]\n\t"
@@ -6584,7 +6582,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_done_%=\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_192_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_start_2_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_start_2_%=:\n\t"
         "add	r8, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "add	r5, r5, #2\n\t"
@@ -6653,7 +6651,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "bgt	L_aes_gcm_decrypt_arm32_crypto_192_start_2_%=\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_done_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_start_1_%=:\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "rev	r8, r5\n\t"
@@ -6689,7 +6687,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q14, q14, q4\n\t"
         "vst1.32	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_192_partial_done_%=\n\t"
         "veor.8	q14, q14, q14\n\t"
@@ -6698,21 +6696,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_start_dw_%=:\n\t"
         "ldr	lr, [%[in]], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [r9], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_192_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_start_byte_%=\n\t"
         "ldrh	lr, [%[in]], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_end_bytes_%=\n\t"
         "ldrb	lr, [%[in]], #1\n\t"
@@ -6720,7 +6718,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [r9], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_192_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
@@ -6760,21 +6758,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_out_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_out_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_out_start_dw_%=:\n\t"
         "ldr	lr, [r9], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [%[out]], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_192_out_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_out_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_out_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte_%=\n\t"
         "ldrh	lr, [r9], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [%[out]], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_192_out_end_bytes_%=\n\t"
         "ldrb	lr, [r9], #1\n\t"
@@ -6782,9 +6780,9 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [%[out]], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_out_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_out_end_bytes_%=:\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_192_partial_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_192_partial_done_%=:\n\t"
         /* Finish */
         "add	r8, %[sz], #15\n\t"
         "sub	r8, r5, r8, lsr #4\n\t"
@@ -6821,13 +6819,13 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "b	L_aes_gcm_decrypt_arm32_crypto_done_enc_%=\n\t"
         /* AES_GCM_256 */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "cmp	r10, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_done_%=\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_256_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_start_2_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_start_2_%=:\n\t"
         "add	r8, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "add	r5, r5, #2\n\t"
@@ -6906,7 +6904,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "bgt	L_aes_gcm_decrypt_arm32_crypto_256_start_2_%=\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_done_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_start_1_%=:\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "rev	r8, r5\n\t"
@@ -6948,7 +6946,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q14, q14, q4\n\t"
         "vst1.32	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_256_partial_done_%=\n\t"
         "veor.8	q14, q14, q14\n\t"
@@ -6957,21 +6955,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_start_dw_%=:\n\t"
         "ldr	lr, [%[in]], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [r9], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_256_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_start_byte_%=\n\t"
         "ldrh	lr, [%[in]], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_end_bytes_%=\n\t"
         "ldrb	lr, [%[in]], #1\n\t"
@@ -6979,7 +6977,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [r9], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_256_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
@@ -7025,21 +7023,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_out_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_out_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_out_start_dw_%=:\n\t"
         "ldr	lr, [r9], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [%[out]], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_256_out_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_out_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_out_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte_%=\n\t"
         "ldrh	lr, [r9], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [%[out]], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_256_out_end_bytes_%=\n\t"
         "ldrb	lr, [r9], #1\n\t"
@@ -7047,9 +7045,9 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [%[out]], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_out_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_out_end_bytes_%=:\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_256_partial_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_256_partial_done_%=:\n\t"
         /* Finish */
         "add	r8, %[sz], #15\n\t"
         "sub	r8, r5, r8, lsr #4\n\t"
@@ -7092,13 +7090,13 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "b	L_aes_gcm_decrypt_arm32_crypto_done_enc_%=\n\t"
         /* AES_GCM_128 */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "cmp	r10, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_done_%=\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_128_start_1_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_start_2_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_start_2_%=:\n\t"
         "add	r8, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "add	r5, r5, #2\n\t"
@@ -7156,7 +7154,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "bgt	L_aes_gcm_decrypt_arm32_crypto_128_start_2_%=\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_done_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_start_1_%=:\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
         "rev	r8, r5\n\t"
@@ -7185,7 +7183,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q14, q14, q4\n\t"
         "vst1.32	{q14}, [%[out]]!\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_done_%=:\n\t"
         "ands	r11, %[sz], #15\n\t"
         "beq	L_aes_gcm_decrypt_arm32_crypto_128_partial_done_%=\n\t"
         "veor.8	q14, q14, q14\n\t"
@@ -7194,21 +7192,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_start_dw_%=:\n\t"
         "ldr	lr, [%[in]], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [r9], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_128_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_start_byte_%=\n\t"
         "ldrh	lr, [%[in]], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_end_bytes_%=\n\t"
         "ldrb	lr, [%[in]], #1\n\t"
@@ -7216,7 +7214,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [r9], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_128_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_end_bytes_%=:\n\t"
         "sub	r9, r9, r11\n\t"
         "add	r5, r5, #1\n\t"
         "vmov.8	q4, q6\n\t"
@@ -7249,21 +7247,21 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_out_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_out_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_out_start_dw_%=:\n\t"
         "ldr	lr, [r9], #4\n\t"
         "sub	r4, r4, #4\n\t"
         "str	lr, [%[out]], #4\n\t"
         "cmp	r4, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_128_out_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_out_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_out_start_sw_%=:\n\t"
         "cmp	r4, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte_%=\n\t"
         "ldrh	lr, [r9], #2\n\t"
         "sub	r4, r4, #2\n\t"
         "strh	lr, [%[out]], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte_%=:\n\t"
         "cmp	r4, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_128_out_end_bytes_%=\n\t"
         "ldrb	lr, [r9], #1\n\t"
@@ -7271,9 +7269,9 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	lr, [%[out]], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_out_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_out_end_bytes_%=:\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_128_partial_done_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_128_partial_done_%=:\n\t"
         /* Finish */
         "add	r8, %[sz], #15\n\t"
         "sub	r8, r5, r8, lsr #4\n\t"
@@ -7301,7 +7299,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "veor.8	q6, q6, q13\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_done_enc_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_done_enc_%=:\n\t"
         "vmov.i8	q13, #0x87\n\t"
         "vshr.u64	q13, q13, #56\n\t"
         /* gcm_h */
@@ -7359,28 +7357,28 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "vld1.8	{q0}, [lr]\n\t"
         "b	L_aes_gcm_decrypt_arm32_crypto_tag_tag_loaded_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_tag_part_tag_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_tag_part_tag_%=:\n\t"
         "veor.8	q0, q0, q0\n\t"
         "mov	r12, r4\n\t"
         "vst1.32	{q0}, [r9]\n\t"
         "cmp	r12, #4\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_sw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_dw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_dw_%=:\n\t"
         "ldr	r8, [lr], #4\n\t"
         "sub	r12, r12, #4\n\t"
         "str	r8, [r9], #4\n\t"
         "cmp	r12, #4\n\t"
         "bge	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_dw_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_sw_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_sw_%=:\n\t"
         "cmp	r12, #2\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_byte_%=\n\t"
         "ldrh	r8, [lr], #2\n\t"
         "sub	r12, r12, #2\n\t"
         "strh	r8, [r9], #2\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_byte_%=:\n\t"
         "cmp	r12, #1\n\t"
         "blt	L_aes_gcm_decrypt_arm32_crypto_tag_tag_end_bytes_%=\n\t"
         "ldrb	r8, [lr], #1\n\t"
@@ -7388,7 +7386,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "strb	r8, [r9], #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_byte_%=\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_end_bytes_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_end_bytes_%=:\n\t"
         "sub	r9, r9, r4\n\t"
         "vld1.32	{q0}, [r9]\n\t"
         "mov	r12, #16\n\t"
@@ -7397,14 +7395,14 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "eor	r8, r8, r8\n\t"
         "add	r9, r9, r4\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_tag_calc_tag_byte_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_tag_calc_tag_byte_%=:\n\t"
         "strb	r8, [r9], #1\n\t"
         "subs	r12, r12, #1\n\t"
         "bne	L_aes_gcm_decrypt_arm32_crypto_tag_calc_tag_byte_%=\n\t"
         "subs	r9, r9, #16\n\t"
         "vld1.32	{q7}, [r9]\n\t"
         "\n"
-    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_loaded_%=: \n\t"
+    "L_aes_gcm_decrypt_arm32_crypto_tag_tag_loaded_%=:\n\t"
         "vceq.i32	q0, q0, q7\n\t"
         "vmov	r5, s0\n\t"
         "vmov	r8, s1\n\t"
@@ -7448,17 +7446,17 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register const byte* i asm ("r3") = (const byte*)i_p;
-    register byte* key asm ("r12") = (byte*)key_p;
-    register byte* key2 asm ("lr") = (byte*)key2_p;
-    register byte* tmp asm ("r4") = (byte*)tmp_p;
-    register int nr asm ("r5") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register const byte* i __asm__ ("r3") = (const byte*)i_p;
+    register byte* key __asm__ ("r12") = (byte*)key_p;
+    register byte* key2 __asm__ ("lr") = (byte*)key2_p;
+    register byte* tmp __asm__ ("r4") = (byte*)tmp_p;
+    register int nr __asm__ ("r5") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -7509,7 +7507,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #1\n\t"
         "blt	L_aes_xts_encrypt_arm32_crypto_192_done_%=\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_192_start_1_%=:\n\t"
         "vld1.8	{q1}, [%[in]]!\n\t"
         "veor.32	q1, q1, q0\n\t"
         "aese.8	q1, q2\n\t"
@@ -7551,7 +7549,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "vst1.8	{q1}, [%[out]]!\n\t"
         "bne	L_aes_xts_encrypt_arm32_crypto_192_start_1_%=\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_192_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_xts_encrypt_arm32_crypto_192_partial_done_%=\n\t"
         "sub	%[out], %[out], #16\n\t"
@@ -7560,7 +7558,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "vst1.32	{q1}, [r4]\n\t"
         "mov	r5, %[sz]\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_192_start_byte_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_192_start_byte_%=:\n\t"
         "ldrb	r8, [r4]\n\t"
         "ldrb	r9, [%[in]], #1\n\t"
         "strb	r8, [%[out]], #1\n\t"
@@ -7599,12 +7597,12 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q1, q1, q0\n\t"
         "vst1.8	{q1}, [%[out]]\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_192_partial_done_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_192_partial_done_%=:\n\t"
 #endif /* !NO_AES_192 */
         "b	L_aes_xts_encrypt_arm32_crypto_done_%=\n\t"
         /* AES_XTS_256 */
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "vldm.32	lr!, {q10-q13}\n\t"
         "aese.8	q0, q2\n\t"
@@ -7646,7 +7644,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #1\n\t"
         "blt	L_aes_xts_encrypt_arm32_crypto_256_done_%=\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_256_start_1_%=:\n\t"
         "vld1.8	{q1}, [%[in]]!\n\t"
         "veor.32	q1, q1, q0\n\t"
         "aese.8	q1, q2\n\t"
@@ -7696,7 +7694,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "vst1.8	{q1}, [%[out]]!\n\t"
         "bne	L_aes_xts_encrypt_arm32_crypto_256_start_1_%=\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_256_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_xts_encrypt_arm32_crypto_256_partial_done_%=\n\t"
         "sub	%[out], %[out], #16\n\t"
@@ -7705,7 +7703,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "vst1.32	{q1}, [r4]\n\t"
         "mov	r5, %[sz]\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_256_start_byte_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_256_start_byte_%=:\n\t"
         "ldrb	r8, [r4]\n\t"
         "ldrb	r9, [%[in]], #1\n\t"
         "strb	r8, [%[out]], #1\n\t"
@@ -7751,12 +7749,12 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q1, q1, q0\n\t"
         "vst1.8	{q1}, [%[out]]\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_256_partial_done_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_256_partial_done_%=:\n\t"
 #endif /* !NO_AES_256 */
         "b	L_aes_xts_encrypt_arm32_crypto_done_%=\n\t"
         /* AES_XTS_128 */
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "vldm.32	lr!, {q10-q12}\n\t"
         "aese.8	q0, q2\n\t"
@@ -7787,7 +7785,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #1\n\t"
         "blt	L_aes_xts_encrypt_arm32_crypto_128_done_%=\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_128_start_1_%=:\n\t"
         "vld1.8	{q1}, [%[in]]!\n\t"
         "veor.32	q1, q1, q0\n\t"
         "aese.8	q1, q2\n\t"
@@ -7825,7 +7823,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "vst1.8	{q1}, [%[out]]!\n\t"
         "bne	L_aes_xts_encrypt_arm32_crypto_128_start_1_%=\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_128_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_xts_encrypt_arm32_crypto_128_partial_done_%=\n\t"
         "sub	%[out], %[out], #16\n\t"
@@ -7834,7 +7832,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "vst1.32	{q1}, [r4]\n\t"
         "mov	r5, %[sz]\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_128_start_byte_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_128_start_byte_%=:\n\t"
         "ldrb	r8, [r4]\n\t"
         "ldrb	r9, [%[in]], #1\n\t"
         "strb	r8, [%[out]], #1\n\t"
@@ -7869,10 +7867,10 @@ WC_OMIT_FRAME_POINTER void AES_XTS_encrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q1, q1, q0\n\t"
         "vst1.8	{q1}, [%[out]]\n\t"
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_128_partial_done_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_128_partial_done_%=:\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_xts_encrypt_arm32_crypto_done_%=: \n\t"
+    "L_aes_xts_encrypt_arm32_crypto_done_%=:\n\t"
         "pop	{%[key], %[key2]}\n\t"
         "pop	{%[tmp], %[nr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7899,17 +7897,17 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const byte* in asm ("r0") = (const byte*)in_p;
-    register byte* out asm ("r1") = (byte*)out_p;
-    register word32 sz asm ("r2") = (word32)sz_p;
-    register const byte* i asm ("r3") = (const byte*)i_p;
-    register byte* key asm ("r12") = (byte*)key_p;
-    register byte* key2 asm ("lr") = (byte*)key2_p;
-    register byte* tmp asm ("r4") = (byte*)tmp_p;
-    register int nr asm ("r5") = (int)nr_p;
+    register const byte* in __asm__ ("r0") = (const byte*)in_p;
+    register byte* out __asm__ ("r1") = (byte*)out_p;
+    register word32 sz __asm__ ("r2") = (word32)sz_p;
+    register const byte* i __asm__ ("r3") = (const byte*)i_p;
+    register byte* key __asm__ ("r12") = (byte*)key_p;
+    register byte* key2 __asm__ ("lr") = (byte*)key2_p;
+    register byte* tmp __asm__ ("r4") = (byte*)tmp_p;
+    register int nr __asm__ ("r5") = (int)nr_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -7963,7 +7961,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #1\n\t"
         "blt	L_aes_xts_decrypt_arm32_crypto_192_done_%=\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_192_start_1_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_192_start_1_%=:\n\t"
         "vld1.8	{q0}, [%[in]]!\n\t"
         "veor.32	q0, q0, q1\n\t"
         "aesd.8	q0, q2\n\t"
@@ -8005,7 +8003,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "vst1.8	{q0}, [%[out]]!\n\t"
         "bne	L_aes_xts_decrypt_arm32_crypto_192_start_1_%=\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_192_done_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_192_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_xts_decrypt_arm32_crypto_192_partial_done_%=\n\t"
         "and	r5, lr, r9, asr #31\n\t"
@@ -8050,7 +8048,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "add	%[out], %[out], #16\n\t"
         "mov	r5, %[sz]\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_192_start_byte_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_192_start_byte_%=:\n\t"
         "ldrb	r8, [r4]\n\t"
         "ldrb	r9, [%[in]], #1\n\t"
         "strb	r8, [%[out]], #1\n\t"
@@ -8089,12 +8087,12 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q0, q0, q1\n\t"
         "vst1.8	{q0}, [%[out]]\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_192_partial_done_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_192_partial_done_%=:\n\t"
 #endif /* !NO_AES_192 */
         "b	L_aes_xts_decrypt_arm32_crypto_done_%=\n\t"
         /* AES_XTS_256 */
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_start_256_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_start_256_%=:\n\t"
 #ifndef NO_AES_256
         "vldm.32	lr!, {q10-q13}\n\t"
         "aese.8	q1, q2\n\t"
@@ -8136,7 +8134,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #1\n\t"
         "blt	L_aes_xts_decrypt_arm32_crypto_256_done_%=\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_256_start_1_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_256_start_1_%=:\n\t"
         "vld1.8	{q0}, [%[in]]!\n\t"
         "veor.32	q0, q0, q1\n\t"
         "aesd.8	q0, q2\n\t"
@@ -8187,7 +8185,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "vst1.8	{q0}, [%[out]]!\n\t"
         "bne	L_aes_xts_decrypt_arm32_crypto_256_start_1_%=\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_256_done_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_256_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_xts_decrypt_arm32_crypto_256_partial_done_%=\n\t"
         "and	r5, lr, r9, asr #31\n\t"
@@ -8241,7 +8239,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "add	%[out], %[out], #16\n\t"
         "mov	r5, %[sz]\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_256_start_byte_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_256_start_byte_%=:\n\t"
         "ldrb	r8, [r4]\n\t"
         "ldrb	r9, [%[in]], #1\n\t"
         "strb	r8, [%[out]], #1\n\t"
@@ -8288,12 +8286,12 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q0, q0, q1\n\t"
         "vst1.8	{q0}, [%[out]]\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_256_partial_done_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_256_partial_done_%=:\n\t"
 #endif /* !NO_AES_256 */
         "b	L_aes_xts_decrypt_arm32_crypto_done_%=\n\t"
         /* AES_XTS_128 */
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_start_128_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_start_128_%=:\n\t"
 #ifndef NO_AES_128
         "vldm.32	lr!, {q10-q12}\n\t"
         "aese.8	q1, q2\n\t"
@@ -8324,7 +8322,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "cmp	r4, #1\n\t"
         "blt	L_aes_xts_decrypt_arm32_crypto_128_done_%=\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_128_start_1_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_128_start_1_%=:\n\t"
         "vld1.8	{q0}, [%[in]]!\n\t"
         "veor.32	q0, q0, q1\n\t"
         "aesd.8	q0, q2\n\t"
@@ -8362,7 +8360,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "vst1.8	{q0}, [%[out]]!\n\t"
         "bne	L_aes_xts_decrypt_arm32_crypto_128_start_1_%=\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_128_done_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_128_done_%=:\n\t"
         "cmp	%[sz], #0\n\t"
         "beq	L_aes_xts_decrypt_arm32_crypto_128_partial_done_%=\n\t"
         "and	r5, lr, r9, asr #31\n\t"
@@ -8403,7 +8401,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "add	%[out], %[out], #16\n\t"
         "mov	r5, %[sz]\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_128_start_byte_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_128_start_byte_%=:\n\t"
         "ldrb	r8, [r4]\n\t"
         "ldrb	r9, [%[in]], #1\n\t"
         "strb	r8, [%[out]], #1\n\t"
@@ -8438,10 +8436,10 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
         "veor.32	q0, q0, q1\n\t"
         "vst1.8	{q0}, [%[out]]\n\t"
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_128_partial_done_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_128_partial_done_%=:\n\t"
 #endif /* !NO_AES_128 */
         "\n"
-    "L_aes_xts_decrypt_arm32_crypto_done_%=: \n\t"
+    "L_aes_xts_decrypt_arm32_crypto_done_%=:\n\t"
         "pop	{%[key], %[key2]}\n\t"
         "pop	{%[tmp], %[nr]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -8464,7 +8462,7 @@ WC_OMIT_FRAME_POINTER void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
 #endif /* WOLFSSL_AES_XTS */
 #else
 #ifdef HAVE_AES_DECRYPT
-static const word32 L_AES_ARM32_td_data[] = {
+XALIGNED(8) static const word32 L_AES_ARM32_td_data[] = {
     0x5051f4a7, 0x537e4165, 0xc31a17a4, 0x963a275e,
     0xcb3bab6b, 0xf11f9d45, 0xabacfa58, 0x934be303,
     0x552030fa, 0xf6ad766d, 0x9188cc76, 0x25f5024c,
@@ -8535,7 +8533,7 @@ static const word32 L_AES_ARM32_td_data[] = {
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
     defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
     defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
-static const word32 L_AES_ARM32_te_data[] = {
+XALIGNED(8) static const word32 L_AES_ARM32_te_data[] = {
     0xa5c66363, 0x84f87c7c, 0x99ee7777, 0x8df67b7b,
     0x0dfff2f2, 0xbdd66b6b, 0xb1de6f6f, 0x5491c5c5,
     0x50603030, 0x03020101, 0xa9ce6767, 0x7d562b2b,
@@ -8619,13 +8617,13 @@ void AES_invert_key(unsigned char* ks_p, word32 rounds_p);
 WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
 #else
 WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register unsigned char* ks asm ("r0") = (unsigned char*)ks_p;
-    register word32 rounds asm ("r1") = (word32)rounds_p;
-    register word32* L_AES_ARM32_te_c asm ("r2") = (word32*)L_AES_ARM32_te;
-    register word32* L_AES_ARM32_td_c asm ("r3") = (word32*)L_AES_ARM32_td;
+    register unsigned char* ks __asm__ ("r0") = (unsigned char*)ks_p;
+    register word32 rounds __asm__ ("r1") = (word32)rounds_p;
+    register word32* L_AES_ARM32_te_c __asm__ ("r2") = (word32*)L_AES_ARM32_te;
+    register word32* L_AES_ARM32_td_c __asm__ ("r3") = (word32*)L_AES_ARM32_td;
 #else
     register word32* L_AES_ARM32_te_c = (word32*)L_AES_ARM32_te;
     register word32* L_AES_ARM32_td_c = (word32*)L_AES_ARM32_td;
@@ -8637,7 +8635,7 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
         "add	r10, %[ks], %[rounds], lsl #4\n\t"
         "mov	r11, %[rounds]\n\t"
         "\n"
-    "L_AES_invert_key_loop_%=: \n\t"
+    "L_AES_invert_key_loop_%=:\n\t"
         "ldm	%[ks], {r2, r3, r4, r5}\n\t"
         "ldm	r10, {r6, r7, r8, r9}\n\t"
         "stm	r10, {r2, r3, r4, r5}\n\t"
@@ -8649,7 +8647,7 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
         "add	%[ks], %[ks], #16\n\t"
         "sub	r11, %[rounds], #1\n\t"
         "\n"
-    "L_AES_invert_key_mix_loop_%=: \n\t"
+    "L_AES_invert_key_mix_loop_%=:\n\t"
         "ldm	%[ks], {r2, r3, r4, r5}\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
@@ -8842,7 +8840,7 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
 }
 
 #endif /* HAVE_AES_DECRYPT */
-static const word32 L_AES_ARM32_rcon[] = {
+XALIGNED(8) static const word32 L_AES_ARM32_rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
     0x1b000000, 0x36000000
@@ -8856,14 +8854,15 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
     word32 len, unsigned char* ks)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const unsigned char* key asm ("r0") = (const unsigned char*)key_p;
-    register word32 len asm ("r1") = (word32)len_p;
-    register unsigned char* ks asm ("r2") = (unsigned char*)ks_p;
-    register word32* L_AES_ARM32_te_c asm ("r3") = (word32*)L_AES_ARM32_te;
-    register word32* L_AES_ARM32_rcon_c asm ("r12") =
+    register const unsigned char* key __asm__ ("r0") =
+        (const unsigned char*)key_p;
+    register word32 len __asm__ ("r1") = (word32)len_p;
+    register unsigned char* ks __asm__ ("r2") = (unsigned char*)ks_p;
+    register word32* L_AES_ARM32_te_c __asm__ ("r3") = (word32*)L_AES_ARM32_te;
+    register word32* L_AES_ARM32_rcon_c __asm__ ("r12") =
         (word32*)&L_AES_ARM32_rcon;
 #else
     register word32* L_AES_ARM32_te_c = (word32*)L_AES_ARM32_te;
@@ -8945,7 +8944,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "sub	%[ks], %[ks], #16\n\t"
         "mov	r12, #6\n\t"
         "\n"
-    "L_AES_set_encrypt_key_loop_256_%=: \n\t"
+    "L_AES_set_encrypt_key_loop_256_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r4, r7, #24\n\t"
@@ -9093,7 +9092,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "sub	%[ks], %[ks], #16\n\t"
         "b	L_AES_set_encrypt_key_end_%=\n\t"
         "\n"
-    "L_AES_set_encrypt_key_start_192_%=: \n\t"
+    "L_AES_set_encrypt_key_start_192_%=:\n\t"
         "ldr	r4, [%[key]]\n\t"
         "ldr	r5, [%[key], #4]\n\t"
         "ldr	r6, [%[key], #8]\n\t"
@@ -9149,7 +9148,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "mov	r7, %[len]\n\t"
         "mov	r12, #7\n\t"
         "\n"
-    "L_AES_set_encrypt_key_loop_192_%=: \n\t"
+    "L_AES_set_encrypt_key_loop_192_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r0, r7, #24\n\t"
@@ -9248,7 +9247,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "stm	%[ks], {r0, r1, r4, r5}\n\t"
         "b	L_AES_set_encrypt_key_end_%=\n\t"
         "\n"
-    "L_AES_set_encrypt_key_start_128_%=: \n\t"
+    "L_AES_set_encrypt_key_start_128_%=:\n\t"
         "ldr	r4, [%[key]]\n\t"
         "ldr	r5, [%[key], #4]\n\t"
         "ldr	r6, [%[key], #8]\n\t"
@@ -9283,7 +9282,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "stm	%[ks], {r4, r5, r6, r7}\n\t"
         "mov	r12, #10\n\t"
         "\n"
-    "L_AES_set_encrypt_key_loop_128_%=: \n\t"
+    "L_AES_set_encrypt_key_loop_128_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r4, r7, #24\n\t"
@@ -9333,7 +9332,7 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "subs	r12, r12, #1\n\t"
         "bne	L_AES_set_encrypt_key_loop_128_%=\n\t"
         "\n"
-    "L_AES_set_encrypt_key_end_%=: \n\t"
+    "L_AES_set_encrypt_key_end_%=:\n\t"
         "pop	{%[L_AES_ARM32_rcon]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks),
@@ -9359,18 +9358,18 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te_p, int nr_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te, int nr, int len,
     const word32* ks)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const word32* te asm ("r0") = (const word32*)te_p;
-    register int nr asm ("r1") = (int)nr_p;
-    register int len asm ("r2") = (int)len_p;
-    register const word32* ks asm ("r3") = (const word32*)ks_p;
+    register const word32* te __asm__ ("r0") = (const word32*)te_p;
+    register int nr __asm__ ("r1") = (int)nr_p;
+    register int len __asm__ ("r2") = (int)len_p;
+    register const word32* ks __asm__ ("r3") = (const word32*)ks_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
-    "L_AES_encrypt_block_nr_%=: \n\t"
+    "L_AES_encrypt_block_nr_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -10030,15 +10029,17 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r12") = (int)nr_p;
-    register word32* L_AES_ARM32_te_ecb_c asm ("lr") =
+    register const unsigned char* in __asm__ ("r0") =
+        (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") =
+        (const unsigned char*)ks_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
+    register word32* L_AES_ARM32_te_ecb_c __asm__ ("lr") =
         (word32*)L_AES_ARM32_te_ecb;
 #else
     register word32* L_AES_ARM32_te_ecb_c = (word32*)L_AES_ARM32_te_ecb;
@@ -10055,7 +10056,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "cmp	r12, #12\n\t"
         "beq	L_AES_ECB_encrypt_start_block_192_%=\n\t"
         "\n"
-    "L_AES_ECB_encrypt_loop_block_256_%=: \n\t"
+    "L_AES_ECB_encrypt_loop_block_256_%=:\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
         "ldr	r6, [lr, #8]\n\t"
@@ -10095,7 +10096,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_ECB_encrypt_block_nr_256_%=: \n\t"
+    "L_AES_ECB_encrypt_block_nr_256_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -10766,9 +10767,9 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "bne	L_AES_ECB_encrypt_loop_block_256_%=\n\t"
         "b	L_AES_ECB_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_ECB_encrypt_start_block_192_%=: \n\t"
+    "L_AES_ECB_encrypt_start_block_192_%=:\n\t"
         "\n"
-    "L_AES_ECB_encrypt_loop_block_192_%=: \n\t"
+    "L_AES_ECB_encrypt_loop_block_192_%=:\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
         "ldr	r6, [lr, #8]\n\t"
@@ -10808,7 +10809,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_ECB_encrypt_block_nr_192_%=: \n\t"
+    "L_AES_ECB_encrypt_block_nr_192_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -11479,9 +11480,9 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "bne	L_AES_ECB_encrypt_loop_block_192_%=\n\t"
         "b	L_AES_ECB_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_ECB_encrypt_start_block_128_%=: \n\t"
+    "L_AES_ECB_encrypt_start_block_128_%=:\n\t"
         "\n"
-    "L_AES_ECB_encrypt_loop_block_128_%=: \n\t"
+    "L_AES_ECB_encrypt_loop_block_128_%=:\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
         "ldr	r6, [lr, #8]\n\t"
@@ -11521,7 +11522,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_ECB_encrypt_block_nr_128_%=: \n\t"
+    "L_AES_ECB_encrypt_block_nr_128_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -12191,7 +12192,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
         "add	%[out], %[out], #16\n\t"
         "bne	L_AES_ECB_encrypt_loop_block_128_%=\n\t"
         "\n"
-    "L_AES_ECB_encrypt_end_%=: \n\t"
+    "L_AES_ECB_encrypt_end_%=:\n\t"
         "pop	{%[ks]}\n\t"
         "pop	{%[nr], %[L_AES_ARM32_te_ecb]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -12222,16 +12223,18 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in_p,
 WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* iv)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r12") = (int)nr_p;
-    register unsigned char* iv asm ("lr") = (unsigned char*)iv_p;
-    register word32* L_AES_ARM32_te_cbc_c asm ("r4") =
+    register const unsigned char* in __asm__ ("r0") =
+        (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") =
+        (const unsigned char*)ks_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
+    register unsigned char* iv __asm__ ("lr") = (unsigned char*)iv_p;
+    register word32* L_AES_ARM32_te_cbc_c __asm__ ("r4") =
         (word32*)L_AES_ARM32_te_cbc;
 #else
     register word32* L_AES_ARM32_te_cbc_c = (word32*)L_AES_ARM32_te_cbc;
@@ -12251,7 +12254,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "cmp	r8, #12\n\t"
         "beq	L_AES_CBC_encrypt_start_block_192_%=\n\t"
         "\n"
-    "L_AES_CBC_encrypt_loop_block_256_%=: \n\t"
+    "L_AES_CBC_encrypt_loop_block_256_%=:\n\t"
         "ldr	r8, [lr]\n\t"
         "ldr	r9, [lr, #4]\n\t"
         "ldr	r10, [lr, #8]\n\t"
@@ -12295,7 +12298,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_encrypt_block_nr_256_%=: \n\t"
+    "L_AES_CBC_encrypt_block_nr_256_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -12966,9 +12969,9 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "bne	L_AES_CBC_encrypt_loop_block_256_%=\n\t"
         "b	L_AES_CBC_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_CBC_encrypt_start_block_192_%=: \n\t"
+    "L_AES_CBC_encrypt_start_block_192_%=:\n\t"
         "\n"
-    "L_AES_CBC_encrypt_loop_block_192_%=: \n\t"
+    "L_AES_CBC_encrypt_loop_block_192_%=:\n\t"
         "ldr	r8, [lr]\n\t"
         "ldr	r9, [lr, #4]\n\t"
         "ldr	r10, [lr, #8]\n\t"
@@ -13012,7 +13015,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_encrypt_block_nr_192_%=: \n\t"
+    "L_AES_CBC_encrypt_block_nr_192_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -13683,9 +13686,9 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "bne	L_AES_CBC_encrypt_loop_block_192_%=\n\t"
         "b	L_AES_CBC_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_CBC_encrypt_start_block_128_%=: \n\t"
+    "L_AES_CBC_encrypt_start_block_128_%=:\n\t"
         "\n"
-    "L_AES_CBC_encrypt_loop_block_128_%=: \n\t"
+    "L_AES_CBC_encrypt_loop_block_128_%=:\n\t"
         "ldr	r8, [lr]\n\t"
         "ldr	r9, [lr, #4]\n\t"
         "ldr	r10, [lr, #8]\n\t"
@@ -13729,7 +13732,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_encrypt_block_nr_128_%=: \n\t"
+    "L_AES_CBC_encrypt_block_nr_128_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -14399,7 +14402,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
         "add	%[out], %[out], #16\n\t"
         "bne	L_AES_CBC_encrypt_loop_block_128_%=\n\t"
         "\n"
-    "L_AES_CBC_encrypt_end_%=: \n\t"
+    "L_AES_CBC_encrypt_end_%=:\n\t"
         "pop	{%[ks], r9}\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
         "pop	{%[nr], %[iv]}\n\t"
@@ -14433,16 +14436,18 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in_p,
 WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* ctr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r12") = (int)nr_p;
-    register unsigned char* ctr asm ("lr") = (unsigned char*)ctr_p;
-    register word32* L_AES_ARM32_te_ctr_c asm ("r4") =
+    register const unsigned char* in __asm__ ("r0") =
+        (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") =
+        (const unsigned char*)ks_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
+    register unsigned char* ctr __asm__ ("lr") = (unsigned char*)ctr_p;
+    register word32* L_AES_ARM32_te_ctr_c __asm__ ("r4") =
         (word32*)L_AES_ARM32_te_ctr;
 #else
     register word32* L_AES_ARM32_te_ctr_c = (word32*)L_AES_ARM32_te_ctr;
@@ -14486,7 +14491,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "cmp	r12, #12\n\t"
         "beq	L_AES_CTR_encrypt_start_block_192_%=\n\t"
         "\n"
-    "L_AES_CTR_encrypt_loop_block_256_%=: \n\t"
+    "L_AES_CTR_encrypt_loop_block_256_%=:\n\t"
         "push	{r1, %[len], lr}\n\t"
         "ldr	lr, [sp, #16]\n\t"
         "adds	r11, r7, #1\n\t"
@@ -14505,7 +14510,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CTR_encrypt_block_nr_256_%=: \n\t"
+    "L_AES_CTR_encrypt_block_nr_256_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -15186,9 +15191,9 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "bne	L_AES_CTR_encrypt_loop_block_256_%=\n\t"
         "b	L_AES_CTR_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_CTR_encrypt_start_block_192_%=: \n\t"
+    "L_AES_CTR_encrypt_start_block_192_%=:\n\t"
         "\n"
-    "L_AES_CTR_encrypt_loop_block_192_%=: \n\t"
+    "L_AES_CTR_encrypt_loop_block_192_%=:\n\t"
         "push	{r1, %[len], lr}\n\t"
         "ldr	lr, [sp, #16]\n\t"
         "adds	r11, r7, #1\n\t"
@@ -15207,7 +15212,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CTR_encrypt_block_nr_192_%=: \n\t"
+    "L_AES_CTR_encrypt_block_nr_192_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -15888,9 +15893,9 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "bne	L_AES_CTR_encrypt_loop_block_192_%=\n\t"
         "b	L_AES_CTR_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_CTR_encrypt_start_block_128_%=: \n\t"
+    "L_AES_CTR_encrypt_start_block_128_%=:\n\t"
         "\n"
-    "L_AES_CTR_encrypt_loop_block_128_%=: \n\t"
+    "L_AES_CTR_encrypt_loop_block_128_%=:\n\t"
         "push	{r1, %[len], lr}\n\t"
         "ldr	lr, [sp, #16]\n\t"
         "adds	r11, r7, #1\n\t"
@@ -15909,7 +15914,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CTR_encrypt_block_nr_128_%=: \n\t"
+    "L_AES_CTR_encrypt_block_nr_128_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -16589,7 +16594,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "add	%[out], %[out], #16\n\t"
         "bne	L_AES_CTR_encrypt_loop_block_128_%=\n\t"
         "\n"
-    "L_AES_CTR_encrypt_end_%=: \n\t"
+    "L_AES_CTR_encrypt_end_%=:\n\t"
         "pop	{%[ks], r8}\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "eor	r10, r4, r4, ror #16\n\t"
@@ -16644,17 +16649,17 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td_p, int nr_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td, int nr,
     const byte* td4)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const word32* td asm ("r0") = (const word32*)td_p;
-    register int nr asm ("r1") = (int)nr_p;
-    register const byte* td4 asm ("r2") = (const byte*)td4_p;
+    register const word32* td __asm__ ("r0") = (const word32*)td_p;
+    register int nr __asm__ ("r1") = (int)nr_p;
+    register const byte* td4 __asm__ ("r2") = (const byte*)td4_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
-    "L_AES_decrypt_block_nr_%=: \n\t"
+    "L_AES_decrypt_block_nr_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -17304,7 +17309,7 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td, int nr,
 static const word32* L_AES_ARM32_td_ecb = L_AES_ARM32_td_data;
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
         defined(HAVE_AES_ECB)
-static const byte L_AES_ARM32_ecb_td4[] = {
+XALIGNED(4) static const word8 L_AES_ARM32_ecb_td4[] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
     0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87,
@@ -17348,21 +17353,23 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in_p,
 #else
 WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r12") = (int)nr_p;
-    register word32* L_AES_ARM32_td_ecb_c asm ("lr") =
+    register const unsigned char* in __asm__ ("r0") =
+        (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") =
+        (const unsigned char*)ks_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
+    register word32* L_AES_ARM32_td_ecb_c __asm__ ("lr") =
         (word32*)L_AES_ARM32_td_ecb;
-    register byte* L_AES_ARM32_ecb_td4_c asm ("r4") =
-        (byte*)&L_AES_ARM32_ecb_td4;
+    register word8* L_AES_ARM32_ecb_td4_c __asm__ ("r4") =
+        (word8*)&L_AES_ARM32_ecb_td4;
 #else
     register word32* L_AES_ARM32_td_ecb_c = (word32*)L_AES_ARM32_td_ecb;
-    register byte* L_AES_ARM32_ecb_td4_c = (byte*)&L_AES_ARM32_ecb_td4;
+    register word8* L_AES_ARM32_ecb_td4_c = (word8*)&L_AES_ARM32_ecb_td4;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -17378,7 +17385,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "cmp	r8, #12\n\t"
         "beq	L_AES_ECB_decrypt_start_block_192_%=\n\t"
         "\n"
-    "L_AES_ECB_decrypt_loop_block_256_%=: \n\t"
+    "L_AES_ECB_decrypt_loop_block_256_%=:\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
         "ldr	r6, [lr, #8]\n\t"
@@ -17418,7 +17425,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_ECB_decrypt_block_nr_256_%=: \n\t"
+    "L_AES_ECB_decrypt_block_nr_256_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -18088,9 +18095,9 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "bne	L_AES_ECB_decrypt_loop_block_256_%=\n\t"
         "b	L_AES_ECB_decrypt_end_%=\n\t"
         "\n"
-    "L_AES_ECB_decrypt_start_block_192_%=: \n\t"
+    "L_AES_ECB_decrypt_start_block_192_%=:\n\t"
         "\n"
-    "L_AES_ECB_decrypt_loop_block_192_%=: \n\t"
+    "L_AES_ECB_decrypt_loop_block_192_%=:\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
         "ldr	r6, [lr, #8]\n\t"
@@ -18130,7 +18137,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_ECB_decrypt_block_nr_192_%=: \n\t"
+    "L_AES_ECB_decrypt_block_nr_192_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -18800,9 +18807,9 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "bne	L_AES_ECB_decrypt_loop_block_192_%=\n\t"
         "b	L_AES_ECB_decrypt_end_%=\n\t"
         "\n"
-    "L_AES_ECB_decrypt_start_block_128_%=: \n\t"
+    "L_AES_ECB_decrypt_start_block_128_%=:\n\t"
         "\n"
-    "L_AES_ECB_decrypt_loop_block_128_%=: \n\t"
+    "L_AES_ECB_decrypt_loop_block_128_%=:\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
         "ldr	r6, [lr, #8]\n\t"
@@ -18842,7 +18849,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_ECB_decrypt_block_nr_128_%=: \n\t"
+    "L_AES_ECB_decrypt_block_nr_128_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -19511,7 +19518,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
         "add	%[out], %[out], #16\n\t"
         "bne	L_AES_ECB_decrypt_loop_block_128_%=\n\t"
         "\n"
-    "L_AES_ECB_decrypt_end_%=: \n\t"
+    "L_AES_ECB_decrypt_end_%=:\n\t"
         "pop	{%[nr], %[L_AES_ARM32_td_ecb]}\n\t"
         "pop	{%[L_AES_ARM32_ecb_td4]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19531,7 +19538,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
 
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
 #ifdef HAVE_AES_CBC
-static const byte L_AES_ARM32_cbc_td4[] = {
+XALIGNED(4) static const word8 L_AES_ARM32_cbc_td4[] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
     0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87,
@@ -19577,22 +19584,24 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in_p,
 WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* iv)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r12") = (int)nr_p;
-    register unsigned char* iv asm ("lr") = (unsigned char*)iv_p;
-    register word32* L_AES_ARM32_td_ecb_c asm ("r4") =
+    register const unsigned char* in __asm__ ("r0") =
+        (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") =
+        (const unsigned char*)ks_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
+    register unsigned char* iv __asm__ ("lr") = (unsigned char*)iv_p;
+    register word32* L_AES_ARM32_td_ecb_c __asm__ ("r4") =
         (word32*)L_AES_ARM32_td_ecb;
-    register byte* L_AES_ARM32_cbc_td4_c asm ("r5") =
-        (byte*)&L_AES_ARM32_cbc_td4;
+    register word8* L_AES_ARM32_cbc_td4_c __asm__ ("r5") =
+        (word8*)&L_AES_ARM32_cbc_td4;
 #else
     register word32* L_AES_ARM32_td_ecb_c = (word32*)L_AES_ARM32_td_ecb;
-    register byte* L_AES_ARM32_cbc_td4_c = (byte*)&L_AES_ARM32_cbc_td4;
+    register word8* L_AES_ARM32_cbc_td4_c = (word8*)&L_AES_ARM32_cbc_td4;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -19610,7 +19619,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "cmp	r8, #12\n\t"
         "beq	L_AES_CBC_decrypt_loop_block_192_%=\n\t"
         "\n"
-    "L_AES_CBC_decrypt_loop_block_256_%=: \n\t"
+    "L_AES_CBC_decrypt_loop_block_256_%=:\n\t"
         "push	{r1, r12, lr}\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
@@ -19663,7 +19672,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_decrypt_block_nr_256_odd_%=: \n\t"
+    "L_AES_CBC_decrypt_block_nr_256_odd_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -20389,7 +20398,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_decrypt_block_nr_256_even_%=: \n\t"
+    "L_AES_CBC_decrypt_block_nr_256_even_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -21077,7 +21086,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bne	L_AES_CBC_decrypt_loop_block_256_%=\n\t"
         "b	L_AES_CBC_decrypt_end_%=\n\t"
         "\n"
-    "L_AES_CBC_decrypt_loop_block_192_%=: \n\t"
+    "L_AES_CBC_decrypt_loop_block_192_%=:\n\t"
         "push	{r1, r12, lr}\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
@@ -21130,7 +21139,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_decrypt_block_nr_192_odd_%=: \n\t"
+    "L_AES_CBC_decrypt_block_nr_192_odd_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -21856,7 +21865,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_decrypt_block_nr_192_even_%=: \n\t"
+    "L_AES_CBC_decrypt_block_nr_192_even_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -22544,7 +22553,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bne	L_AES_CBC_decrypt_loop_block_192_%=\n\t"
         "b	L_AES_CBC_decrypt_end_%=\n\t"
         "\n"
-    "L_AES_CBC_decrypt_loop_block_128_%=: \n\t"
+    "L_AES_CBC_decrypt_loop_block_128_%=:\n\t"
         "push	{r1, r12, lr}\n\t"
         "ldr	r4, [lr]\n\t"
         "ldr	r5, [lr, #4]\n\t"
@@ -22597,7 +22606,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_decrypt_block_nr_128_odd_%=: \n\t"
+    "L_AES_CBC_decrypt_block_nr_128_odd_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -23323,7 +23332,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bl	AES_decrypt_block\n\t"
 #else
         "\n"
-    "L_AES_CBC_decrypt_block_nr_128_even_%=: \n\t"
+    "L_AES_CBC_decrypt_block_nr_128_even_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r7, #8\n\t"
@@ -24011,7 +24020,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "bne	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
         "b	L_AES_CBC_decrypt_end_%=\n\t"
         "\n"
-    "L_AES_CBC_decrypt_end_odd_%=: \n\t"
+    "L_AES_CBC_decrypt_end_odd_%=:\n\t"
         "ldr	r4, [sp, #4]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [r4, #16]\n\t"
@@ -24037,7 +24046,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         "strd	r10, r11, [r4, #8]\n\t"
 #endif
         "\n"
-    "L_AES_CBC_decrypt_end_%=: \n\t"
+    "L_AES_CBC_decrypt_end_%=:\n\t"
         "pop	{%[ks]-r4}\n\t"
         "pop	{%[nr], %[iv]}\n\t"
         "pop	{%[L_AES_ARM32_td_ecb], %[L_AES_ARM32_cbc_td4]}\n\t"
@@ -24063,7 +24072,7 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
-static const word32 L_GCM_gmult_len_r[] = {
+XALIGNED(8) static const word32 L_GCM_gmult_len_r[] = {
     0x00000000, 0x1c200000, 0x38400000, 0x24600000,
     0x70800000, 0x6ca00000, 0x48c00000, 0x54e00000,
     0xe1000000, 0xfd200000, 0xd9400000, 0xc5600000,
@@ -24078,15 +24087,16 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x_p,
 #else
 WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
     const unsigned char** m, const unsigned char* data, unsigned long len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register unsigned char* x asm ("r0") = (unsigned char*)x_p;
-    register const unsigned char** m asm ("r1") = (const unsigned char**)m_p;
-    register const unsigned char* data asm ("r2") =
+    register unsigned char* x __asm__ ("r0") = (unsigned char*)x_p;
+    register const unsigned char** m __asm__ ("r1") =
+        (const unsigned char**)m_p;
+    register const unsigned char* data __asm__ ("r2") =
         (const unsigned char*)data_p;
-    register unsigned long len asm ("r3") = (unsigned long)len_p;
-    register word32* L_GCM_gmult_len_r_c asm ("r12") =
+    register unsigned long len __asm__ ("r3") = (unsigned long)len_p;
+    register word32* L_GCM_gmult_len_r_c __asm__ ("r12") =
         (word32*)&L_GCM_gmult_len_r;
 #else
     register word32* L_GCM_gmult_len_r_c = (word32*)&L_GCM_gmult_len_r;
@@ -24096,7 +24106,7 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "push	{%[L_GCM_gmult_len_r]}\n\t"
         "mov	lr, %[L_GCM_gmult_len_r]\n\t"
         "\n"
-    "L_GCM_gmult_len_start_block_%=: \n\t"
+    "L_GCM_gmult_len_start_block_%=:\n\t"
         "push	{r3}\n\t"
         "ldr	r12, [r0, #12]\n\t"
         "ldr	%[len], [r2, #12]\n\t"
@@ -24692,16 +24702,18 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in_p,
 WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
     unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
     unsigned char* ctr)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r12") = (int)nr_p;
-    register unsigned char* ctr asm ("lr") = (unsigned char*)ctr_p;
-    register word32* L_AES_ARM32_te_gcm_c asm ("r4") =
+    register const unsigned char* in __asm__ ("r0") =
+        (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") =
+        (const unsigned char*)ks_p;
+    register int nr __asm__ ("r12") = (int)nr_p;
+    register unsigned char* ctr __asm__ ("lr") = (unsigned char*)ctr_p;
+    register word32* L_AES_ARM32_te_gcm_c __asm__ ("r4") =
         (word32*)L_AES_ARM32_te_gcm;
 #else
     register word32* L_AES_ARM32_te_gcm_c = (word32*)L_AES_ARM32_te_gcm;
@@ -24745,7 +24757,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "cmp	r12, #12\n\t"
         "beq	L_AES_GCM_encrypt_start_block_192_%=\n\t"
         "\n"
-    "L_AES_GCM_encrypt_loop_block_256_%=: \n\t"
+    "L_AES_GCM_encrypt_loop_block_256_%=:\n\t"
         "push	{r1, %[len], lr}\n\t"
         "ldr	lr, [sp, #16]\n\t"
         "add	r7, r7, #1\n\t"
@@ -24761,7 +24773,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_GCM_encrypt_block_nr_256_%=: \n\t"
+    "L_AES_GCM_encrypt_block_nr_256_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -25442,9 +25454,9 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "bne	L_AES_GCM_encrypt_loop_block_256_%=\n\t"
         "b	L_AES_GCM_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_GCM_encrypt_start_block_192_%=: \n\t"
+    "L_AES_GCM_encrypt_start_block_192_%=:\n\t"
         "\n"
-    "L_AES_GCM_encrypt_loop_block_192_%=: \n\t"
+    "L_AES_GCM_encrypt_loop_block_192_%=:\n\t"
         "push	{r1, %[len], lr}\n\t"
         "ldr	lr, [sp, #16]\n\t"
         "add	r7, r7, #1\n\t"
@@ -25460,7 +25472,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_GCM_encrypt_block_nr_192_%=: \n\t"
+    "L_AES_GCM_encrypt_block_nr_192_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -26141,9 +26153,9 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "bne	L_AES_GCM_encrypt_loop_block_192_%=\n\t"
         "b	L_AES_GCM_encrypt_end_%=\n\t"
         "\n"
-    "L_AES_GCM_encrypt_start_block_128_%=: \n\t"
+    "L_AES_GCM_encrypt_start_block_128_%=:\n\t"
         "\n"
-    "L_AES_GCM_encrypt_loop_block_128_%=: \n\t"
+    "L_AES_GCM_encrypt_loop_block_128_%=:\n\t"
         "push	{r1, %[len], lr}\n\t"
         "ldr	lr, [sp, #16]\n\t"
         "add	r7, r7, #1\n\t"
@@ -26159,7 +26171,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "bl	AES_encrypt_block\n\t"
 #else
         "\n"
-    "L_AES_GCM_encrypt_block_nr_128_%=: \n\t"
+    "L_AES_GCM_encrypt_block_nr_128_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "lsl	r8, r5, #8\n\t"
@@ -26839,7 +26851,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "add	%[out], %[out], #16\n\t"
         "bne	L_AES_GCM_encrypt_loop_block_128_%=\n\t"
         "\n"
-    "L_AES_GCM_encrypt_end_%=: \n\t"
+    "L_AES_GCM_encrypt_end_%=:\n\t"
         "pop	{%[ks], r8}\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "eor	r10, r4, r4, ror #16\n\t"

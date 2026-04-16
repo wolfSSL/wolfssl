@@ -672,8 +672,8 @@ _poly1305_setkey_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_poly1305_avx2_blocks_mask:
-.quad	0x3ffffff, 0x3ffffff
-.quad	0x3ffffff, 0x3ffffff
+.quad	0x0000000003ffffff,0x0000000003ffffff
+.quad	0x0000000003ffffff,0x0000000003ffffff
 #ifndef __APPLE__
 .data
 #else
@@ -685,8 +685,8 @@ L_poly1305_avx2_blocks_mask:
 .p2align	5
 #endif /* __APPLE__ */
 L_poly1305_avx2_blocks_hibit:
-.quad	0x1000000, 0x1000000
-.quad	0x1000000, 0x1000000
+.quad	0x0000000001000000,0x0000000001000000
+.quad	0x0000000001000000,0x0000000001000000
 #ifndef __APPLE__
 .text
 .globl	poly1305_blocks_avx2

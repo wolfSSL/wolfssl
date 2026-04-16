@@ -1941,20 +1941,21 @@ L_fe_invert8:
 #if !defined(HAVE_ED25519) && !defined(WOLFSSL_CURVE25519_USE_ED25519)
 #ifndef __APPLE__
 	.text
-	.type	L_curve25519_base_x2, %object
 	.section	.rodata
+	.type	L_curve25519_base_x2, %object
 	.size	L_curve25519_base_x2, 32
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
-	.align	5
+	.align	4
 #else
-	.p2align	5
+	.p2align	4
 #endif /* __APPLE__ */
 L_curve25519_base_x2:
-.xword	0x5cae469cdd684efb, 0x8f3f5ced1e350b5c
-.xword	0xd9750c687d157114, 0x20d342d51873f1b7
+	.quad	0x5cae469cdd684efb,0x8f3f5ced1e350b5c
+	.quad	0xd9750c687d157114,0x20d342d51873f1b7
 #ifndef __APPLE__
 .text
 .globl	curve25519_base

@@ -2343,8 +2343,8 @@ _fe_invert_x64:
 .p2align	5
 #endif /* __APPLE__ */
 L_curve25519_base_x64_x2:
-.quad	0x5cae469cdd684efb, 0x8f3f5ced1e350b5c
-.quad	0xd9750c687d157114, 0x20d342d51873f1b7
+.quad	0x5cae469cdd684efb,0x8f3f5ced1e350b5c
+.quad	0xd9750c687d157114,0x20d342d51873f1b7
 #ifndef __APPLE__
 .text
 .globl	curve25519_base_x64
@@ -8852,7 +8852,7 @@ _ge_p2_dbl_x64:
         shldq	$0x01, %r11, %r12
         shldq	$0x01, %r10, %r11
         shldq	$0x01, %r9, %r10
-        shlq	$0x01, %r9
+        shlq	$1, %r9
         movq	$0x7fffffffffffffff, %r8
         shrq	$62, %rax
         andq	%r8, %r12
@@ -11629,7 +11629,7 @@ _fe_sq2_x64:
         shldq	$0x01, %r9, %r10
         shldq	$0x01, %r8, %r9
         shldq	$0x01, %rcx, %r8
-        shlq	$0x01, %rcx
+        shlq	$1, %rcx
         movq	$0x7fffffffffffffff, %r15
         shrq	$62, %rax
         andq	%r15, %r10
@@ -12157,10 +12157,10 @@ _fe_invert_nct_x64:
         testb	$0x01, %r11b
         jnz	fe_invert_nct_v_even_end
 fe_invert_nct_v_even_start:
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrq	$0x01, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrq	$1, %r14
         movb	$0x01, (%rsp,%r15,1)
         incq	%r15
         testb	$0x01, %r11b
@@ -12185,17 +12185,17 @@ L_fe_invert_nct_uv_u:
         sbbq	%r12, %r8
         sbbq	%r13, %r9
         sbbq	%r14, %r10
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrq	$0x01, %r10
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrq	$1, %r10
         testb	$0x01, %cl
         jnz	fe_invert_nct_usubv_even_end
 fe_invert_nct_usubv_even_start:
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrq	$0x01, %r10
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrq	$1, %r10
         movb	$0x00, (%rsp,%r15,1)
         incq	%r15
         testb	$0x01, %cl
@@ -12217,17 +12217,17 @@ L_fe_invert_nct_uv_v:
         sbbq	%r8, %r12
         sbbq	%r9, %r13
         sbbq	%r10, %r14
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrq	$0x01, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrq	$1, %r14
         testb	$0x01, %r11b
         jnz	fe_invert_nct_vsubu_even_end
 fe_invert_nct_vsubu_even_start:
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrq	$0x01, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrq	$1, %r14
         movb	$0x01, (%rsp,%r15,1)
         incq	%r15
         testb	$0x01, %r11b
@@ -12282,10 +12282,10 @@ L_fe_invert_nct_op_div2_b:
         movq	$0x7fffffffffffffff, %rdx
         adcq	%rdx, %r10
 L_fe_invert_nct_op_div2_b_mod:
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrq	$0x01, %r10
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrq	$1, %r10
         movb	(%rsp,%r15,1), %dl
         incq	%r15
         cmpb	$0x01, %dl
@@ -12317,10 +12317,10 @@ L_fe_invert_nct_op_div2_d:
         movq	$0x7fffffffffffffff, %rdx
         adcq	%rdx, %r14
 L_fe_invert_nct_op_div2_d_mod:
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrq	$0x01, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrq	$1, %r14
         movb	(%rsp,%r15,1), %dl
         incq	%r15
         cmpb	$0x01, %dl
@@ -13201,8 +13201,8 @@ _fe_invert_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_curve25519_base_avx2_x2:
-.quad	0x5cae469cdd684efb, 0x8f3f5ced1e350b5c
-.quad	0xd9750c687d157114, 0x20d342d51873f1b7
+.quad	0x5cae469cdd684efb,0x8f3f5ced1e350b5c
+.quad	0xd9750c687d157114,0x20d342d51873f1b7
 #ifndef __APPLE__
 .text
 .globl	curve25519_base_avx2
@@ -18609,7 +18609,7 @@ _ge_p2_dbl_avx2:
         shldq	$0x01, %r12, %r13
         shldq	$0x01, %r11, %r12
         shldq	$0x01, %r10, %r11
-        shlq	$0x01, %r10
+        shlq	$1, %r10
         movq	$0x7fffffffffffffff, %rcx
         shrq	$62, %r9
         andq	%rcx, %r13
@@ -20979,7 +20979,7 @@ _fe_sq2_avx2:
         shldq	$0x01, %r10, %r11
         shldq	$0x01, %r9, %r10
         shldq	$0x01, %r8, %r9
-        shlq	$0x01, %r8
+        shlq	$1, %r8
         movq	$0x7fffffffffffffff, %rcx
         shrq	$62, %rax
         andq	%rcx, %r11
@@ -21415,7 +21415,12 @@ _sc_muladd_avx2:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__prime:
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_fe_invert_nct_avx2_prime:
 .long	0x03ffffed,0x03ffffff,0x03ffffff,0x03ffffff
 .long	0x03ffffff,0x00000000,0x00000000,0x00000000
 .long	0x03ffffff,0x03ffffff,0x03ffffff,0x03ffffff
@@ -21430,15 +21435,20 @@ L_sp_mod_inv_avx2__prime:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__one:
-.quad	0x1, 0x0
-.quad	0x0, 0x0
+L_fe_invert_nct_avx2_one:
+.quad	0x0000000000000001,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
 .data
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__all_one:
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_fe_invert_nct_avx2_all_one:
 .long	0x00000001,0x00000001,0x00000001,0x00000001
 .long	0x00000001,0x00000001,0x00000001,0x00000001
 #ifndef __APPLE__
@@ -21446,7 +21456,12 @@ L_sp_mod_inv_avx2__all_one:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__mask01111:
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_fe_invert_nct_avx2_mask01111:
 .long	0x00000000,0x00000001,0x00000001,0x00000001
 .long	0x00000001,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
@@ -21454,7 +21469,12 @@ L_sp_mod_inv_avx2__mask01111:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__down_one_dword:
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_fe_invert_nct_avx2_down_one_dword:
 .long	0x00000001,0x00000002,0x00000003,0x00000004
 .long	0x00000005,0x00000006,0x00000007,0x00000007
 #ifndef __APPLE__
@@ -21462,7 +21482,12 @@ L_sp_mod_inv_avx2__down_one_dword:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__neg:
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_fe_invert_nct_avx2_neg:
 .long	0x00000000,0x00000000,0x00000000,0x00000000
 .long	0x80000000,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
@@ -21470,7 +21495,12 @@ L_sp_mod_inv_avx2__neg:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__up_one_dword:
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_fe_invert_nct_avx2_up_one_dword:
 .long	0x00000007,0x00000000,0x00000001,0x00000002
 .long	0x00000003,0x00000007,0x00000007,0x00000007
 #ifndef __APPLE__
@@ -21478,7 +21508,12 @@ L_sp_mod_inv_avx2__up_one_dword:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_sp_mod_inv_avx2__mask26:
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_fe_invert_nct_avx2_mask26:
 .long	0x03ffffff,0x03ffffff,0x03ffffff,0x03ffffff
 .long	0x03ffffff,0x00000000,0x00000000,0x00000000
 /* Non-constant time modular inversion.
@@ -21513,39 +21548,39 @@ _fe_invert_nct_avx2:
         movq	8(%rsi), %r11
         movq	16(%rsi), %r12
         movq	24(%rsi), %r13
-        leaq	L_sp_mod_inv_avx2__prime(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_prime(%rip), %rbx
         vmovupd	(%rbx), %ymm6
         vmovupd	32(%rbx), %ymm7
-        leaq	L_sp_mod_inv_avx2__one(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_one(%rip), %rbx
         vmovupd	(%rbx), %ymm8
-        leaq	L_sp_mod_inv_avx2__mask01111(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_mask01111(%rip), %rbx
         vmovupd	(%rbx), %ymm9
-        leaq	L_sp_mod_inv_avx2__all_one(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_all_one(%rip), %rbx
         vmovupd	(%rbx), %ymm10
-        leaq	L_sp_mod_inv_avx2__down_one_dword(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_down_one_dword(%rip), %rbx
         vmovupd	(%rbx), %ymm11
-        leaq	L_sp_mod_inv_avx2__neg(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_neg(%rip), %rbx
         vmovupd	(%rbx), %ymm12
-        leaq	L_sp_mod_inv_avx2__up_one_dword(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_up_one_dword(%rip), %rbx
         vmovupd	(%rbx), %ymm13
-        leaq	L_sp_mod_inv_avx2__mask26(%rip), %rbx
+        leaq	L_fe_invert_nct_avx2_mask26(%rip), %rbx
         vmovupd	(%rbx), %ymm14
         vpxor	%xmm0, %xmm0, %xmm0
         vpxor	%xmm1, %xmm1, %xmm1
         vmovdqu	%ymm8, %ymm2
         vpxor	%xmm3, %xmm3, %xmm3
         testb	$0x01, %r10b
-        jnz	L__mod_inv_avx2__v_even_end
-L__mod_inv_avx2__v_even_start:
-        shrdq	$0x01, %r11, %r10
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrq	$0x01, %r13
+        jnz	L_fe_invert_nct_avx2_v_even_end
+L_fe_invert_nct_avx2_v_even_start:
+        shrdq	$1, %r11, %r10
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrq	$1, %r13
         vptest	%ymm8, %ymm2
-        jz	L__mod_inv_avx2__v_even_shr1
+        jz	L_fe_invert_nct_avx2_v_even_shr1
         vpaddd	%ymm6, %ymm2, %ymm2
         vpaddd	%ymm7, %ymm3, %ymm3
-L__mod_inv_avx2__v_even_shr1:
+L_fe_invert_nct_avx2_v_even_shr1:
         vpand	%ymm9, %ymm2, %ymm4
         vpand	%ymm10, %ymm3, %ymm5
         vpermd	%ymm4, %ymm11, %ymm4
@@ -21556,21 +21591,21 @@ L__mod_inv_avx2__v_even_shr1:
         vpaddd	%ymm5, %ymm2, %ymm2
         vpaddd	%ymm4, %ymm3, %ymm3
         testb	$0x01, %r10b
-        jz	L__mod_inv_avx2__v_even_start
-L__mod_inv_avx2__v_even_end:
-L__mod_inv_avx2__uv_start:
+        jz	L_fe_invert_nct_avx2_v_even_start
+L_fe_invert_nct_avx2_v_even_end:
+L_fe_invert_nct_avx2_uv_start:
         cmpq	%r13, %r9
-        jb	L__mod_inv_avx2__uv_v
-        ja	L__mod_inv_avx2__uv_u
+        jb	L_fe_invert_nct_avx2_uv_v
+        ja	L_fe_invert_nct_avx2_uv_u
         cmpq	%r12, %r8
-        jb	L__mod_inv_avx2__uv_v
-        ja	L__mod_inv_avx2__uv_u
+        jb	L_fe_invert_nct_avx2_uv_v
+        ja	L_fe_invert_nct_avx2_uv_u
         cmpq	%r11, %rcx
-        jb	L__mod_inv_avx2__uv_v
-        ja	L__mod_inv_avx2__uv_u
+        jb	L_fe_invert_nct_avx2_uv_v
+        ja	L_fe_invert_nct_avx2_uv_u
         cmpq	%r10, %rax
-        jb	L__mod_inv_avx2__uv_v
-L__mod_inv_avx2__uv_u:
+        jb	L_fe_invert_nct_avx2_uv_v
+L_fe_invert_nct_avx2_uv_u:
         subq	%r10, %rax
         sbbq	%r11, %rcx
         vpsubd	%ymm2, %ymm0, %ymm0
@@ -21578,20 +21613,20 @@ L__mod_inv_avx2__uv_u:
         vpsubd	%ymm3, %ymm1, %ymm1
         sbbq	%r13, %r9
         vptest	%ymm12, %ymm1
-        jz	L__mod_inv_avx2__usubv_done_neg
+        jz	L_fe_invert_nct_avx2_usubv_done_neg
         vpaddd	%ymm6, %ymm0, %ymm0
         vpaddd	%ymm7, %ymm1, %ymm1
-L__mod_inv_avx2__usubv_done_neg:
-L__mod_inv_avx2__usubv_shr1:
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrq	$0x01, %r9
+L_fe_invert_nct_avx2_usubv_done_neg:
+L_fe_invert_nct_avx2_usubv_shr1:
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrq	$1, %r9
         vptest	%ymm8, %ymm0
-        jz	L__mod_inv_avx2__usubv_sub_shr1
+        jz	L_fe_invert_nct_avx2_usubv_sub_shr1
         vpaddd	%ymm6, %ymm0, %ymm0
         vpaddd	%ymm7, %ymm1, %ymm1
-L__mod_inv_avx2__usubv_sub_shr1:
+L_fe_invert_nct_avx2_usubv_sub_shr1:
         vpand	%ymm9, %ymm0, %ymm4
         vpand	%ymm10, %ymm1, %ymm5
         vpermd	%ymm4, %ymm11, %ymm4
@@ -21602,14 +21637,14 @@ L__mod_inv_avx2__usubv_sub_shr1:
         vpaddd	%ymm5, %ymm0, %ymm0
         vpaddd	%ymm4, %ymm1, %ymm1
         testb	$0x01, %al
-        jz	L__mod_inv_avx2__usubv_shr1
+        jz	L_fe_invert_nct_avx2_usubv_shr1
         cmpq	$0x01, %rax
-        jne	L__mod_inv_avx2__uv_start
+        jne	L_fe_invert_nct_avx2_uv_start
         movq	%rcx, %rdx
         orq	%r8, %rdx
-        jne	L__mod_inv_avx2__uv_start
+        jne	L_fe_invert_nct_avx2_uv_start
         orq	%r9, %rdx
-        jne	L__mod_inv_avx2__uv_start
+        jne	L_fe_invert_nct_avx2_uv_start
         vpextrd	$0x00, %xmm0, %eax
         vpextrd	$0x01, %xmm0, %r8d
         vpextrd	$2, %xmm0, %r10d
@@ -21622,8 +21657,8 @@ L__mod_inv_avx2__usubv_sub_shr1:
         vextracti128	$0x01, %ymm1, %xmm1
         vpextrd	$0x00, %xmm0, %r14d
         vpextrd	$0x00, %xmm1, %r15d
-        jmp	L__mod_inv_avx2__store_done
-L__mod_inv_avx2__uv_v:
+        jmp	L_fe_invert_nct_avx2_store_done
+L_fe_invert_nct_avx2_uv_v:
         subq	%rax, %r10
         sbbq	%rcx, %r11
         vpsubd	%ymm0, %ymm2, %ymm2
@@ -21631,20 +21666,20 @@ L__mod_inv_avx2__uv_v:
         vpsubd	%ymm1, %ymm3, %ymm3
         sbbq	%r9, %r13
         vptest	%ymm12, %ymm3
-        jz	L__mod_inv_avx2__vsubu_done_neg
+        jz	L_fe_invert_nct_avx2_vsubu_done_neg
         vpaddd	%ymm6, %ymm2, %ymm2
         vpaddd	%ymm7, %ymm3, %ymm3
-L__mod_inv_avx2__vsubu_done_neg:
-L__mod_inv_avx2__vsubu_shr1:
-        shrdq	$0x01, %r11, %r10
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrq	$0x01, %r13
+L_fe_invert_nct_avx2_vsubu_done_neg:
+L_fe_invert_nct_avx2_vsubu_shr1:
+        shrdq	$1, %r11, %r10
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrq	$1, %r13
         vptest	%ymm8, %ymm2
-        jz	L__mod_inv_avx2__vsubu_sub_shr1
+        jz	L_fe_invert_nct_avx2_vsubu_sub_shr1
         vpaddd	%ymm6, %ymm2, %ymm2
         vpaddd	%ymm7, %ymm3, %ymm3
-L__mod_inv_avx2__vsubu_sub_shr1:
+L_fe_invert_nct_avx2_vsubu_sub_shr1:
         vpand	%ymm9, %ymm2, %ymm4
         vpand	%ymm10, %ymm3, %ymm5
         vpermd	%ymm4, %ymm11, %ymm4
@@ -21655,14 +21690,14 @@ L__mod_inv_avx2__vsubu_sub_shr1:
         vpaddd	%ymm5, %ymm2, %ymm2
         vpaddd	%ymm4, %ymm3, %ymm3
         testb	$0x01, %r10b
-        jz	L__mod_inv_avx2__vsubu_shr1
+        jz	L_fe_invert_nct_avx2_vsubu_shr1
         cmpq	$0x01, %r10
-        jne	L__mod_inv_avx2__uv_start
+        jne	L_fe_invert_nct_avx2_uv_start
         movq	%r11, %rdx
         orq	%r12, %rdx
-        jne	L__mod_inv_avx2__uv_start
+        jne	L_fe_invert_nct_avx2_uv_start
         orq	%r13, %rdx
-        jne	L__mod_inv_avx2__uv_start
+        jne	L_fe_invert_nct_avx2_uv_start
         vpextrd	$0x00, %xmm2, %eax
         vpextrd	$0x01, %xmm2, %r8d
         vpextrd	$2, %xmm2, %r10d
@@ -21675,7 +21710,7 @@ L__mod_inv_avx2__vsubu_sub_shr1:
         vextracti128	$0x01, %ymm3, %xmm3
         vpextrd	$0x00, %xmm2, %r14d
         vpextrd	$0x00, %xmm3, %r15d
-L__mod_inv_avx2__store_done:
+L_fe_invert_nct_avx2_store_done:
         movl	%eax, %edx
         andl	$0x3ffffff, %eax
         sarl	$26, %edx
@@ -21732,7 +21767,7 @@ L__mod_inv_avx2__store_done:
         adcq	%r13, %r12
         movslq	%r14d, %r14
         adcq	%r15, %r14
-        jge	L__mod_inv_avx2__3_no_add_prime
+        jge	L_fe_invert_nct_avx2_uv_start_no_add_prime
         movq	$0xfffffffffffed, %rcx
         movq	$0xfffffffffffff, %r9
         movq	$0xfffffffffffff, %r11
@@ -21760,7 +21795,7 @@ L__mod_inv_avx2__store_done:
         andq	%rdx, %r12
         sarq	$52, %r13
         addq	%r13, %r14
-L__mod_inv_avx2__3_no_add_prime:
+L_fe_invert_nct_avx2_uv_start_no_add_prime:
         movq	%r8, %rcx
         movq	%r10, %r9
         movq	%r12, %r11

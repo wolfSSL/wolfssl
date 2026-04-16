@@ -41,11 +41,16 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
 #ifdef WOLFSSL_WC_MLKEM
-XALIGNED(16) static const word16 L_mlkem_thumb2_ntt_zetas[] = {
+XALIGNED(4) static const word16 L_mlkem_thumb2_ntt_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
     0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
@@ -74,11 +79,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
     register sword16* r __asm__ ("r0") = (sword16*)r_p;
     register word16* L_mlkem_thumb2_ntt_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_thumb2_ntt_zetas;
-
 #else
     register word16* L_mlkem_thumb2_ntt_zetas_c =
         (word16*)&L_mlkem_thumb2_ntt_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1360,15 +1363,21 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
         "BNE.N	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
 #endif
         "ADD	sp, sp, #0x8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
           [L_mlkem_thumb2_ntt_zetas] "+r" (L_mlkem_thumb2_ntt_zetas_c)
         :
+#else
+        :
+        : [r] "r" (r),
+          [L_mlkem_thumb2_ntt_zetas] "r" (L_mlkem_thumb2_ntt_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
 }
 
-XALIGNED(16) static const word16 L_mlkem_invntt_zetas_inv[] = {
+XALIGNED(4) static const word16 L_mlkem_invntt_zetas_inv[] = {
     0x06a5, 0x070f, 0x05b4, 0x0943, 0x0922, 0x091d, 0x0134, 0x006c,
     0x0b23, 0x0366, 0x0356, 0x05e6, 0x09e7, 0x04fe, 0x05fa, 0x04a1,
     0x067b, 0x04a3, 0x0c25, 0x036a, 0x0537, 0x083f, 0x0088, 0x04bf,
@@ -1397,11 +1406,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
     register sword16* r __asm__ ("r0") = (sword16*)r_p;
     register word16* L_mlkem_invntt_zetas_inv_c __asm__ ("r1") =
         (word16*)&L_mlkem_invntt_zetas_inv;
-
 #else
     register word16* L_mlkem_invntt_zetas_inv_c =
         (word16*)&L_mlkem_invntt_zetas_inv;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3050,15 +3057,21 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
         "BNE.N	L_mlkem_invntt_loop_321_%=\n\t"
 #endif
         "ADD	sp, sp, #0x8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
           [L_mlkem_invntt_zetas_inv] "+r" (L_mlkem_invntt_zetas_inv_c)
         :
+#else
+        :
+        : [r] "r" (r),
+          [L_mlkem_invntt_zetas_inv] "r" (L_mlkem_invntt_zetas_inv_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
 }
 
-XALIGNED(16) static const word16 L_mlkem_basemul_mont_zetas[] = {
+XALIGNED(4) static const word16 L_mlkem_basemul_mont_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
     0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
@@ -3091,11 +3104,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r,
     register const sword16* b __asm__ ("r2") = (const sword16*)b_p;
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3220,9 +3231,15 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r,
 #else
         "BNE.N	L_mlkem_basemul_mont_loop_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
     );
@@ -3242,11 +3259,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
     register const sword16* b __asm__ ("r2") = (const sword16*)b_p;
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3383,9 +3398,15 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
 #else
         "BNE.N	L_mlkem_thumb2_basemul_mont_add_loop_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
     );
@@ -3401,11 +3422,9 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
     register sword16* p __asm__ ("r0") = (sword16*)p_p;
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3496,9 +3515,15 @@ WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
 #else
         "BNE.N	L_mlkem_thumb2_csubq_loop_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [p] "r" (p),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -3519,11 +3544,9 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     register unsigned int rLen __asm__ ("r3") = (unsigned int)rLen_p;
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r4") =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3847,9 +3870,15 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     "L_mlkem_thumb2_rej_uniform_done_%=:\n\t"
 #endif
         "LSR	r0, r9, #1\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [p] "r" (p), [len] "r" (len), [r] "r" (r), [rLen] "r" (rLen),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)p;

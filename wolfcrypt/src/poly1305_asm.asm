@@ -18,6 +18,7 @@
 ;  * along with this program; if not, write to the Free Software
 ;  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 ;  */
+
 IF @Version LT 1200
 ; AVX2 instructions not recognized by old versions of MASM
 IFNDEF NO_AVX2_SUPPORT
@@ -41,7 +42,7 @@ _WIN64 = 1
 ENDIF
 
 IFDEF HAVE_INTEL_AVX1
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 poly1305_setkey_avx PROC
         push	r12
         push	r13
@@ -93,8 +94,8 @@ poly1305_setkey_avx PROC
         pop	r12
         ret
 poly1305_setkey_avx ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 poly1305_block_avx PROC
         push	r15
         push	rbx
@@ -166,8 +167,8 @@ poly1305_block_avx PROC
         pop	r15
         ret
 poly1305_block_avx ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 poly1305_blocks_avx PROC
         push	rdi
         push	rsi
@@ -249,8 +250,8 @@ L_poly1305_avx_blocks_start:
         pop	rdi
         ret
 poly1305_blocks_avx ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 poly1305_final_avx PROC
         push	rdi
         push	rbx
@@ -318,10 +319,10 @@ L_poly1305_avx_final_no_more:
         pop	rdi
         ret
 poly1305_final_avx ENDP
-_text ENDS
+_TEXT ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 poly1305_calc_powers_avx2 PROC
         push	r12
         push	r13
@@ -581,8 +582,8 @@ poly1305_calc_powers_avx2 PROC
         pop	r12
         ret
 poly1305_calc_powers_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 poly1305_setkey_avx2 PROC
         call	poly1305_setkey_avx
         vpxor	ymm0, ymm0, ymm0
@@ -595,20 +596,22 @@ poly1305_setkey_avx2 PROC
         mov	WORD PTR [rcx+616], 0
         ret
 poly1305_setkey_avx2 ENDP
-_text ENDS
+_TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_poly1305_avx2_blocks_mask QWORD 67108863, 67108863,
-    67108863, 67108863
+L_poly1305_avx2_blocks_mask QWORD \
+     0000000003ffffffh,  0000000003ffffffh,
+     0000000003ffffffh,  0000000003ffffffh
 ptr_L_poly1305_avx2_blocks_mask QWORD L_poly1305_avx2_blocks_mask
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_poly1305_avx2_blocks_hibit QWORD 16777216, 16777216,
-    16777216, 16777216
+L_poly1305_avx2_blocks_hibit QWORD \
+     0000000001000000h,  0000000001000000h,
+     0000000001000000h,  0000000001000000h
 ptr_L_poly1305_avx2_blocks_hibit QWORD L_poly1305_avx2_blocks_hibit
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 poly1305_blocks_avx2 PROC
         push	r12
         push	rdi
@@ -990,8 +993,8 @@ L_poly1305_avx2_blocks_complete:
         pop	r12
         ret
 poly1305_blocks_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 poly1305_final_avx2 PROC
         push	rdi
         push	rsi
@@ -1055,6 +1058,6 @@ L_poly1305_avx2_final_cmp_copy:
         pop	rdi
         ret
 poly1305_final_avx2 ENDP
-_text ENDS
+_TEXT ENDS
 ENDIF
 END

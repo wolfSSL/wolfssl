@@ -53,19 +53,22 @@ wc_chacha_setiv:
 	POP	{r4, r5, r6, pc}
 	/* Cycle Count = 26 */
 	.size	wc_chacha_setiv,.-wc_chacha_setiv
+#ifndef __APPLE__
 	.text
 	.type	L_chacha_thumb2_constants, %object
 	.size	L_chacha_thumb2_constants, 32
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 8-byte aligned, 64-bit aligned */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_chacha_thumb2_constants:
-	.word	0x61707865
-	.word	0x3120646e
-	.word	0x79622d36
-	.word	0x6b206574
-	.word	0x61707865
-	.word	0x3320646e
-	.word	0x79622d32
-	.word	0x6b206574
+	.long	0x61707865,0x3120646e,0x79622d36,0x6b206574
+	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574
 	.text
 	.align	4
 	.globl	wc_chacha_setkey
@@ -568,6 +571,6 @@ L_chacha_thumb2_over_done:
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
-.section        .note.GNU-stack,"",%progbits
+.section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */

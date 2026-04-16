@@ -303,10 +303,10 @@ static void sp_2048_to_bin_64(sp_digit* r, byte* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mul_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mul_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -650,8 +650,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r,
         "SUB	%[r], %[r], #0x20\n\t"
         "STM	%[r], {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "ADD	sp, sp, #0x24\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -665,10 +670,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mul_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mul_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -790,8 +795,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r,
         "LDM	sp, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "ADD	sp, sp, #0x2c\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r10", "r11", "r12", "r7",
             "r8", "r9", "lr"
     );
@@ -835,8 +845,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_8(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -890,8 +905,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_16(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -948,8 +968,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_16(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -1096,8 +1121,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -1182,8 +1212,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_32(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -1390,8 +1425,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -1532,8 +1572,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_64(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -1615,10 +1660,10 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_sqr_8(sp_digit* r_p,
     const sp_digit* a_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_sqr_8(sp_digit* r,
     const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -1853,8 +1898,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r,
         "SUB	%[r], %[r], #0x20\n\t"
         "STM	%[r], {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -1867,10 +1917,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_sqr_8(sp_digit* r_p,
     const sp_digit* a_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_sqr_8(sp_digit* r,
     const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -1973,8 +2023,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r,
         "LDM	sp, {r0, r1, r2, r3, r4, r5, r6}\n\t"
         "STM	lr, {r0, r1, r2, r3, r4, r5, r6}\n\t"
         "ADD	sp, sp, #0x20\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -2017,8 +2072,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_8(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -2110,8 +2170,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_16(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -2231,8 +2296,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_32(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -2324,8 +2394,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_64(sp_digit* r,
         "BNE.N	L_sp_2048_add_64_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -2379,8 +2454,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
         "BNE.N	L_sp_2048_sub_in_place_64_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -2510,8 +2590,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_2048_mul_64_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -2629,8 +2714,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_2048_sqr_64_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -2704,8 +2794,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_32(sp_digit* r,
         "BNE.N	L_sp_2048_add_32_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -2759,8 +2854,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
         "BNE.N	L_sp_2048_sub_in_place_32_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -2890,8 +2990,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_2048_mul_32_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -3009,8 +3114,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_2048_sqr_32_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -3094,8 +3204,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_64(sp_digit* r,
         "BLT.N	L_sp_2048_mul_d_64_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #256]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -3442,8 +3557,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_64(sp_digit* r,
         "UMLAL	r3, r4, %[b], r8\n\t"
         "STM	%[r]!, {r3}\n\t"
         "STR	r4, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -3515,8 +3635,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_32(sp_digit* r,
         "BLT.N	L_sp_2048_cond_sub_32_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -3661,8 +3786,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_32(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -3678,10 +3808,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_32(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -3976,8 +4106,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -3992,10 +4127,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -4097,8 +4232,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -4115,10 +4255,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -4323,8 +4463,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -4339,10 +4484,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_32(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -4432,8 +4577,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -4527,8 +4677,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_32(sp_digit* r,
         "BLT.N	L_sp_2048_mul_d_32_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #128]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -4715,8 +4870,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_32(sp_digit* r,
         "UMLAL	r4, r5, %[b], r8\n\t"
         "STM	%[r]!, {r4}\n\t"
         "STR	r5, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -4733,10 +4893,10 @@ WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_32(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_32(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_32(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -4782,8 +4942,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -4800,10 +4965,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_32(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_32(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -4866,8 +5031,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -5281,8 +5451,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_2048_cmp_32(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -5705,8 +5880,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_64(sp_digit* r,
         "BLT.N	L_sp_2048_cond_sub_64_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -5963,8 +6143,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_64(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -5980,10 +6165,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_64(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -6534,8 +6719,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -6550,10 +6740,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -6655,8 +6845,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -6673,10 +6868,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -7041,8 +7236,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -7057,10 +7257,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_2048_mont_reduce_64(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -7150,8 +7350,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -7238,8 +7443,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_64(sp_digit* r,
         "BNE.N	L_sp_2048_sub_64_word_%=\n\t"
 #endif
         "MOV	%[r], r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -7381,8 +7591,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_64(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -7400,10 +7615,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_64(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_64(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_64(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -7449,8 +7664,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -7467,10 +7687,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_64(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_2048_word_64(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -7533,8 +7753,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -8403,8 +8628,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_2048_cmp_64(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -8936,8 +9166,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_add_32(sp_digit* r,
         "BLT.N	L_sp_2048_cond_add_32_words_%=\n\t"
 #endif
         "MOV	%[r], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -9082,8 +9317,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_add_32(sp_digit* r,
         "ADCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "ADC	%[r], r10, r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -9763,8 +10003,13 @@ WC_OMIT_FRAME_POINTER static void sp_2048_lshift_64(sp_digit* r,
         "ORR	r6, r6, r3\n\t"
         "STR	r5, [%[r]]\n\t"
         "STR	r6, [%[r], #4]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [n] "+r" (n)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r3", "r7"
     );
 }
@@ -11196,8 +11441,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_12(sp_digit* r, const sp_digit* a,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "LDM	sp!, {r3, r4, r5, r6}\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r11",
             "r12"
     );
@@ -11247,8 +11497,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_12(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -11316,8 +11571,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_24(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -11388,8 +11648,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_24(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -11568,8 +11833,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -11682,8 +11952,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_48(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -11946,8 +12221,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -12144,8 +12424,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_96(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -12915,8 +13200,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
         "STM	%[r]!, {r2, r3, r4, r8}\n\t"
         "LDM	sp!, {r2, r3, r4, r8}\n\t"
         "STM	%[r]!, {r2, r3, r4, r8}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r12"
     );
@@ -12965,8 +13255,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_12(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -13072,8 +13367,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_24(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -13221,8 +13521,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_48(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -13314,8 +13619,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_96(sp_digit* r,
         "BNE.N	L_sp_3072_add_96_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -13369,8 +13679,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
         "BNE.N	L_sp_3072_sub_in_place_96_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -13500,8 +13815,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_3072_mul_96_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -13619,8 +13939,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_3072_sqr_96_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -13694,8 +14019,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_48(sp_digit* r,
         "BNE.N	L_sp_3072_add_48_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -13749,8 +14079,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
         "BNE.N	L_sp_3072_sub_in_place_48_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -13880,8 +14215,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_3072_mul_48_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -13999,8 +14339,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_3072_sqr_48_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -14084,8 +14429,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_96(sp_digit* r,
         "BLT.N	L_sp_3072_mul_d_96_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #384]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -14592,8 +14942,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_96(sp_digit* r,
         "UMLAL	r5, r3, %[b], r8\n\t"
         "STM	%[r]!, {r5}\n\t"
         "STR	r3, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -14665,8 +15020,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_48(sp_digit* r,
         "BLT.N	L_sp_3072_cond_sub_48_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -14867,8 +15227,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_48(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -14884,10 +15249,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_48(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -15310,8 +15675,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -15326,10 +15696,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -15431,8 +15801,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -15449,10 +15824,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -15737,8 +16112,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -15753,10 +16133,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_48(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -15846,8 +16226,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -15941,8 +16326,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_48(sp_digit* r,
         "BLT.N	L_sp_3072_mul_d_48_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #192]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -16209,8 +16599,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_48(sp_digit* r,
         "UMLAL	r5, r3, %[b], r8\n\t"
         "STM	%[r]!, {r5}\n\t"
         "STR	r3, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -16227,10 +16622,10 @@ WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_48(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_48(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_48(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -16276,8 +16671,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -16294,10 +16694,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_48(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_48(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -16360,8 +16760,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -16951,8 +17356,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_3072_cmp_48(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -17375,8 +17785,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_96(sp_digit* r,
         "BLT.N	L_sp_3072_cond_sub_96_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -17745,8 +18160,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_96(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -17762,10 +18182,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_96(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -18572,8 +18992,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -18588,10 +19013,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -18693,8 +19118,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -18711,10 +19141,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -19239,8 +19669,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -19255,10 +19690,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_3072_mont_reduce_96(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -19348,8 +19783,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -19436,8 +19876,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_96(sp_digit* r,
         "BNE.N	L_sp_3072_sub_96_word_%=\n\t"
 #endif
         "MOV	%[r], r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -19635,8 +20080,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_96(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -19654,10 +20104,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_96(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_96(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_96(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -19703,8 +20153,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -19721,10 +20176,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_96(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_3072_word_96(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -19787,8 +20242,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -21009,8 +21469,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_3072_cmp_96(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -21542,8 +22007,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_add_48(sp_digit* r,
         "BLT.N	L_sp_3072_cond_add_48_words_%=\n\t"
 #endif
         "MOV	%[r], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -21744,8 +22214,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_add_48(sp_digit* r,
         "ADCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "ADC	%[r], r10, r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -22617,8 +23092,13 @@ WC_OMIT_FRAME_POINTER static void sp_3072_lshift_96(sp_digit* r,
         "ORR	r4, r4, r3\n\t"
         "STR	r6, [%[r]]\n\t"
         "STR	r4, [%[r], #4]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [n] "+r" (n)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r3", "r7"
     );
 }
@@ -23271,8 +23751,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -23525,8 +24010,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_add_128(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -23657,8 +24147,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_add_128(sp_digit* r,
         "BNE.N	L_sp_4096_add_128_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -23712,8 +24207,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a,
         "BNE.N	L_sp_4096_sub_in_place_128_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -23843,8 +24343,13 @@ WC_OMIT_FRAME_POINTER static void sp_4096_mul_128(sp_digit* r,
 #else
         "BGT.N	L_sp_4096_mul_128_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -23963,8 +24468,13 @@ WC_OMIT_FRAME_POINTER static void sp_4096_sqr_128(sp_digit* r,
 #else
         "BGT.N	L_sp_4096_sqr_128_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -24046,8 +24556,13 @@ WC_OMIT_FRAME_POINTER static void sp_4096_mul_d_128(sp_digit* r,
         "BLT.N	L_sp_4096_mul_d_128_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #512]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -24714,8 +25229,13 @@ WC_OMIT_FRAME_POINTER static void sp_4096_mul_d_128(sp_digit* r,
         "UMLAL	r4, r5, %[b], r8\n\t"
         "STM	%[r]!, {r4}\n\t"
         "STR	r5, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -24788,8 +25308,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_sub_128(sp_digit* r,
         "BLT.N	L_sp_4096_cond_sub_128_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -25270,8 +25795,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_sub_128(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -25287,10 +25817,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_sub_128(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -26353,8 +26883,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -26369,10 +26904,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -26474,8 +27009,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -26492,10 +27032,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -27180,8 +27720,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -27196,10 +27741,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_4096_mont_reduce_128(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -27289,8 +27834,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -27377,8 +27927,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_128(sp_digit* r,
         "BNE.N	L_sp_4096_sub_128_word_%=\n\t"
 #endif
         "MOV	%[r], r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -27632,8 +28187,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_128(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -27651,10 +28211,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_128(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_4096_word_128(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_4096_word_128(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -27700,8 +28260,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -27718,10 +28283,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_4096_word_128(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_4096_word_128(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -27784,8 +28349,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -29358,8 +29928,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_4096_cmp_128(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -29891,8 +30466,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_add_64(sp_digit* r,
         "BLT.N	L_sp_4096_cond_add_64_words_%=\n\t"
 #endif
         "MOV	%[r], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -30149,8 +30729,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_add_64(sp_digit* r,
         "ADCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "ADC	%[r], r10, r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -31214,8 +31799,13 @@ WC_OMIT_FRAME_POINTER static void sp_4096_lshift_128(sp_digit* r,
         "ORR	r5, r5, r3\n\t"
         "STR	r4, [%[r]]\n\t"
         "STR	r5, [%[r], #4]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [n] "+r" (n)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r3", "r7"
     );
 }
@@ -31612,8 +32202,13 @@ WC_OMIT_FRAME_POINTER static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_256_mul_8_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -31628,10 +32223,10 @@ WC_OMIT_FRAME_POINTER static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mul_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mul_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -31975,8 +32570,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r,
         "SUB	%[r], %[r], #0x20\n\t"
         "STM	%[r], {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "ADD	sp, sp, #0x24\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -31990,10 +32590,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mul_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mul_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -32115,8 +32715,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r,
         "LDM	sp, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "ADD	sp, sp, #0x2c\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r10", "r11", "r12", "r7",
             "r8", "r9", "lr"
     );
@@ -32237,8 +32842,13 @@ WC_OMIT_FRAME_POINTER static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_256_sqr_8_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -32252,10 +32862,10 @@ WC_OMIT_FRAME_POINTER static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_sqr_8(sp_digit* r_p,
     const sp_digit* a_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_sqr_8(sp_digit* r,
     const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -32490,8 +33100,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r,
         "SUB	%[r], %[r], #0x20\n\t"
         "STM	%[r], {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -32504,10 +33119,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_sqr_8(sp_digit* r_p,
     const sp_digit* a_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_sqr_8(sp_digit* r,
     const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -32610,8 +33225,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r,
         "LDM	sp, {r0, r1, r2, r3, r4, r5, r6}\n\t"
         "STM	lr, {r0, r1, r2, r3, r4, r5, r6}\n\t"
         "ADD	sp, sp, #0x20\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -32668,8 +33288,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_add_8(sp_digit* r,
         "BNE.N	L_sp_256_add_8_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -32714,8 +33339,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_add_8(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -32958,8 +33588,13 @@ WC_OMIT_FRAME_POINTER static int sp_256_mod_mul_norm_8(sp_digit* r,
         "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r11}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADD	sp, sp, #0x18\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -33177,11 +33812,11 @@ static int sp_256_point_to_ecc_point_8(const sp_point_256* p, ecc_point* pm)
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_mul_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p,
     sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_mul_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -33644,8 +34279,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
         "LDR	%[r], [sp, #64]\n\t"
         "STM	%[r], {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -33672,11 +34312,11 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_mul_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p,
     sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_mul_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -33917,8 +34557,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
         "LDR	%[r], [sp, #68]\n\t"
         "STM	%[r], {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x4c\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r10", "r11", "r12", "r7",
             "r8", "r9", "lr"
     );
@@ -33944,10 +34589,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sqr_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sqr_8(sp_digit* r,
     const sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -34301,8 +34946,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r,
         "LDR	%[r], [sp, #64]\n\t"
         "STM	%[r], {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -34327,10 +34977,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sqr_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sqr_8(sp_digit* r,
     const sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -34553,8 +35203,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r,
         "LDR	%[r], [sp, #64]\n\t"
         "STM	%[r], {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -34810,8 +35465,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_256_cmp_8(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -34874,8 +35534,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_cond_sub_8(sp_digit* r,
         "BLT.N	L_sp_256_cond_sub_8_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -34936,8 +35601,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_cond_sub_8(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -34955,10 +35625,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_cond_sub_8(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(sp_digit* a,
     const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35061,8 +35731,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -35077,10 +35752,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(sp_digit* a,
     const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35165,8 +35840,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -35182,10 +35862,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_8(sp_digit* a,
     const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35325,8 +36005,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
         "LDR	%[a], [sp, #64]\n\t"
         "STM	%[a], {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "ADD	sp, sp, #0x44\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12", "lr"
     );
@@ -35350,10 +36035,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_order_8(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_order_8(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35456,8 +36141,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -35472,10 +36162,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_order_8(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_reduce_order_8(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35560,8 +36250,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -35618,10 +36313,10 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_add_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_add_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35667,8 +36362,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r,
         "SBCS	r11, r11, lr, LSR #31\n\t"
         "SBC	r12, r12, lr\n\t"
         "STM	%[r], {r5, r6, r7, r8, r9, r10, r11, r12}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -35686,10 +36386,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_dbl_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_dbl_8(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35730,8 +36430,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r,
         "SBCS	r10, r10, r2, LSR #31\n\t"
         "SBC	r11, r11, r2\n\t"
         "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r2"
     );
@@ -35749,10 +36454,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_tpl_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_tpl_8(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35825,8 +36530,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r,
         "SBCS	r10, r10, r12, LSR #31\n\t"
         "SBC	r11, r11, r12\n\t"
         "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r2", "r3", "r12"
     );
@@ -35845,10 +36555,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sub_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_sub_8(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35893,8 +36603,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r,
         "ADCS	r11, r11, lr, LSR #31\n\t"
         "ADC	r12, r12, lr\n\t"
         "STM	%[r], {r5, r6, r7, r8, r9, r10, r11, r12}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
     );
@@ -35907,10 +36622,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r,
  * m  Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_div2_8(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_256_mont_div2_8(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -35958,8 +36673,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r,
         "ORR	r10, r10, r7, LSL #31\n\t"
         "ORR	r11, r11, r3, LSL #31\n\t"
         "STM	%[r], {r8, r9, r10, r11}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3"
     );
@@ -39291,8 +40011,13 @@ WC_OMIT_FRAME_POINTER static void sp_256_add_one_8(sp_digit* a)
         "ADCS	r3, r3, #0x0\n\t"
         "ADCS	r4, r4, #0x0\n\t"
         "STM	%[a]!, {r1, r2, r3, r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4"
     );
 }
@@ -39686,8 +40411,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a,
         "BNE.N	L_sp_256_sub_in_place_8_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -39729,8 +40459,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -39792,8 +40527,13 @@ WC_OMIT_FRAME_POINTER static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "BLT.N	L_sp_256_mul_d_8_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #32]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -39860,8 +40600,13 @@ WC_OMIT_FRAME_POINTER static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "UMLAL	r4, r5, %[b], r8\n\t"
         "STM	%[r]!, {r4}\n\t"
         "STR	r5, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -39878,10 +40623,10 @@ WC_OMIT_FRAME_POINTER static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_256_word_8(sp_digit d1_p,
     sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_256_word_8(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -39927,8 +40672,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -39945,10 +40695,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_256_word_8(sp_digit d1_p,
     sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_256_word_8(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -40011,8 +40761,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -40678,8 +41433,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_8(sp_digit* r,
         "BNE.N	L_sp_256_sub_8_word_%=\n\t"
 #endif
         "MOV	%[r], r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -40723,8 +41483,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_8(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -40771,8 +41536,13 @@ WC_OMIT_FRAME_POINTER static void sp_256_rshift1_8(sp_digit* r,
         "ORR	r9, r9, r10, LSL #31\n\t"
         "STRD	r6, r7, [%[r]]\n\t"
         "STRD	r8, r9, [%[r], #8]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -40866,8 +41636,13 @@ WC_OMIT_FRAME_POINTER static void sp_256_div2_mod_8(sp_digit* r,
         "ORR	r10, r10, r7, LSL #31\n\t"
         "ORR	r11, r11, r3, LSL #31\n\t"
         "STM	%[r], {r8, r9, r10, r11}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -41070,8 +41845,13 @@ WC_OMIT_FRAME_POINTER static int sp_256_num_bits_8(const sp_digit* a)
     "L_sp_256_num_bits_8_9_%=:\n\t"
 #endif
         "MOV	%[a], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5"
     );
     return (word32)(size_t)a;
@@ -42127,8 +42907,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_mul_12(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_384_mul_12_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -43158,8 +43943,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_mul_12(sp_digit* r, const sp_digit* a,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "LDM	sp!, {r3, r4, r5, r6}\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r11",
             "r12"
     );
@@ -43279,8 +44069,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_384_sqr_12_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -43982,8 +44777,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "STM	%[r]!, {r2, r3, r4, r8}\n\t"
         "LDM	sp!, {r2, r3, r4, r8}\n\t"
         "STM	%[r]!, {r2, r3, r4, r8}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r12"
     );
@@ -44039,8 +44839,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_add_12(sp_digit* r,
         "BNE.N	L_sp_384_add_12_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -44092,8 +44897,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_add_12(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -44435,8 +45245,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_sub_12(sp_digit* r,
         "BLT.N	L_sp_384_cond_sub_12_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -44511,8 +45326,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_sub_12(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -44529,10 +45349,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_sub_12(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_reduce_12(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_reduce_12(sp_digit* a,
     const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -44667,8 +45487,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a,
         "STR	r4, [%[a]]\n\t"
         "STR	r5, [%[a], #4]\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -44683,10 +45508,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_reduce_12(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_reduce_12(sp_digit* a,
     const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -44791,8 +45616,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a,
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -45129,8 +45959,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_384_cmp_12(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -45190,10 +46025,10 @@ static void sp_384_map_12(sp_point_384* r, const sp_point_384* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_add_12(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_add_12(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -45271,8 +46106,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r,
         "SBCS	r10, r10, r3\n\t"
         "SBC	r11, r11, r3\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );
@@ -45285,10 +46125,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_dbl_12(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_dbl_12(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -45356,8 +46196,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r,
         "SBCS	r8, r8, r2\n\t"
         "SBC	r9, r9, r2\n\t"
         "STM	%[r]!, {r4, r5, r6, r7, r8, r9}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r3"
     );
 }
@@ -45369,10 +46214,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_tpl_12(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_tpl_12(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -45504,8 +46349,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r,
         "SBCS	r8, r8, r2\n\t"
         "SBC	r9, r9, r2\n\t"
         "STM	%[r]!, {r4, r5, r6, r7, r8, r9}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -45555,8 +46405,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_12(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -45614,8 +46469,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_add_12(sp_digit* r,
         "BLT.N	L_sp_384_cond_add_12_words_%=\n\t"
 #endif
         "MOV	%[r], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -45690,8 +46550,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_add_12(sp_digit* r,
         "ADCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "ADC	%[r], r10, r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -45706,10 +46571,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_add_12(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_sub_12(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_384_mont_sub_12(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -45785,8 +46650,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r,
         "ADCS	r10, r10, %[m]\n\t"
         "ADC	r11, r11, %[m]\n\t"
         "STM	%[r]!, {r8, r9, r10, r11}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );
@@ -45855,8 +46725,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_rshift1_12(sp_digit* r,
         "LSR	r4, r4, #1\n\t"
         "STR	r3, [%[r], #40]\n\t"
         "STR	r4, [%[r], #44]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4"
     );
 }
@@ -49266,8 +50141,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_add_one_12(sp_digit* a)
         "ADCS	r3, r3, #0x0\n\t"
         "ADCS	r4, r4, #0x0\n\t"
         "STM	%[a]!, {r1, r2, r3, r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4"
     );
 }
@@ -49661,8 +50541,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a,
         "BNE.N	L_sp_384_sub_in_place_12_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -49711,8 +50596,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -49774,8 +50664,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_mul_d_12(sp_digit* r,
         "BLT.N	L_sp_384_mul_d_12_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #48]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -49862,8 +50757,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_mul_d_12(sp_digit* r,
         "UMLAL	r5, r3, %[b], r8\n\t"
         "STM	%[r]!, {r5}\n\t"
         "STR	r3, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -49880,10 +50780,10 @@ WC_OMIT_FRAME_POINTER static void sp_384_mul_d_12(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_384_word_12(sp_digit d1_p,
     sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_384_word_12(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -49929,8 +50829,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -49947,10 +50852,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_384_word_12(sp_digit d1_p,
     sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_384_word_12(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -50013,8 +50918,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -50729,8 +51639,13 @@ WC_OMIT_FRAME_POINTER static void sp_384_div2_mod_12(sp_digit* r,
         "ORR	r10, r10, r3, LSL #31\n\t"
         "STR	r9, [%[r], #40]\n\t"
         "STR	r10, [%[r], #44]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -51033,8 +51948,13 @@ WC_OMIT_FRAME_POINTER static int sp_384_num_bits_12(const sp_digit* a)
     "L_sp_384_num_bits_12_13_%=:\n\t"
 #endif
         "MOV	%[a], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5"
     );
     return (word32)(size_t)a;
@@ -52140,8 +53060,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_mul_17(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_521_mul_17_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -54185,8 +55110,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_mul_17(sp_digit* r, const sp_digit* a,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "LDM	sp!, {r3}\n\t"
         "STM	%[r]!, {r3}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r11",
             "r12"
     );
@@ -54309,8 +55239,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_521_sqr_17_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -55596,8 +56531,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "STM	%[r]!, {r2, r3, r4, r8}\n\t"
         "LDM	sp!, {r2}\n\t"
         "STM	%[r]!, {r2}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r12"
     );
@@ -55659,8 +56599,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_add_17(sp_digit* r,
         "STM	%[r]!, {r4}\n\t"
         "MOV	r4, #0x0\n\t"
         "ADC	%[r], r4, #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -55723,8 +56668,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_add_17(sp_digit* r,
         "STM	%[r]!, {r3}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -55995,8 +56945,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_cond_sub_17(sp_digit* r,
         "BLT.N	L_sp_521_cond_sub_17_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -56090,8 +57045,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_cond_sub_17(sp_digit* r,
         "SBCS	r6, r6, r8\n\t"
         "STR	r6, [%[r]]\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -56105,10 +57065,10 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_cond_sub_17(sp_digit* r,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_17(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_17(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_17(sp_digit* a,
     const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -56220,8 +57180,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a,
         "ADCS	r7, r7, #0x0\n\t"
         "ADCS	r8, r8, #0x0\n\t"
         "STM	%[a]!, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12", "lr"
     );
@@ -56245,10 +57210,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_order_17(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_order_17(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -56510,8 +57475,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
         "LSR	r3, r6, #9\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -56526,10 +57496,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_order_17(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_reduce_order_17(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -56746,8 +57716,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
         "LSR	r5, r12, #9\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -57136,8 +58111,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_521_cmp_17(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -57197,10 +58177,10 @@ static void sp_521_map_17(sp_point_521* r, const sp_point_521* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_add_17(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_add_17(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -57271,8 +58251,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r,
         "LDM	%[r], {r4}\n\t"
         "ADCS	r4, r4, #0x0\n\t"
         "STM	%[r]!, {r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -57290,10 +58275,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_dbl_17(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_dbl_17(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -57354,8 +58339,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r,
         "LDM	%[r], {r4}\n\t"
         "ADCS	r4, r4, #0x0\n\t"
         "STM	%[r]!, {r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r2", "r3"
     );
@@ -57373,10 +58363,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_tpl_17(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_tpl_17(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -57471,8 +58461,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r,
         "LDM	%[r], {r4}\n\t"
         "ADCS	r4, r4, #0x0\n\t"
         "STM	%[r]!, {r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r2", "r3"
     );
@@ -57491,10 +58486,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_sub_17(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_521_mont_sub_17(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -57567,8 +58562,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r,
         "LDM	%[r], {r4}\n\t"
         "SBCS	r4, r4, #0x0\n\t"
         "STM	%[r]!, {r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );
@@ -57654,8 +58654,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_rshift1_17(sp_digit* r,
         "LSR	r3, r3, #1\n\t"
         "STR	r2, [%[r], #60]\n\t"
         "STR	r3, [%[r], #64]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4"
     );
 }
@@ -61706,8 +62711,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_add_one_17(sp_digit* a)
         "LDM	%[a], {r1}\n\t"
         "ADCS	r1, r1, #0x0\n\t"
         "STM	%[a]!, {r1}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4"
     );
 }
@@ -62151,8 +63161,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_rshift_17(sp_digit* r,
         "LSR	r5, r5, %[n]\n\t"
         "ORR	r4, r4, r3\n\t"
         "STRD	r4, r5, [%[r], #60]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [n] "+r" (n)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r3", "r7"
     );
 }
@@ -62279,8 +63294,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_lshift_17(sp_digit* r,
         "ORR	r5, r5, r3\n\t"
         "STR	r4, [%[r]]\n\t"
         "STR	r5, [%[r], #4]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [n] "+r" (n)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r3", "r7"
     );
 }
@@ -62505,8 +63525,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_lshift_34(sp_digit* r,
         "ORR	r6, r6, r3\n\t"
         "STR	r5, [%[r]]\n\t"
         "STR	r6, [%[r], #4]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [n] "+r" (n)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r3", "r7"
     );
 }
@@ -62562,8 +63587,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a,
         "SBCS	r2, r2, r6\n\t"
         "STM	%[a]!, {r2}\n\t"
         "SBC	%[a], %[a], %[a]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -62623,8 +63653,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a,
         "SBCS	r2, r2, r6\n\t"
         "STM	%[a]!, {r2}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -62686,8 +63721,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_mul_d_17(sp_digit* r,
         "BLT.N	L_sp_521_mul_d_17_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #68]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -62799,8 +63839,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_mul_d_17(sp_digit* r,
         "UMLAL	r4, r5, %[b], r8\n\t"
         "STM	%[r]!, {r4}\n\t"
         "STR	r5, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -62817,10 +63862,10 @@ WC_OMIT_FRAME_POINTER static void sp_521_mul_d_17(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_521_word_17(sp_digit d1_p,
     sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_521_word_17(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -62866,8 +63911,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -62884,10 +63934,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_521_word_17(sp_digit d1_p,
     sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_521_word_17(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -62950,8 +64000,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -63623,8 +64678,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_17(sp_digit* r,
         "SBCS	r3, r3, r7\n\t"
         "STM	%[r]!, {r3}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12"
     );
@@ -63686,8 +64746,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_17(sp_digit* r,
         "SBCS	r3, r3, r7\n\t"
         "STM	%[r]!, {r3}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -63855,8 +64920,13 @@ WC_OMIT_FRAME_POINTER static void sp_521_div2_mod_17(sp_digit* r,
         "ORR	r9, r9, r3, LSL #31\n\t"
         "STR	r8, [%[r], #60]\n\t"
         "STR	r9, [%[r], #64]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -64284,8 +65354,13 @@ WC_OMIT_FRAME_POINTER static int sp_521_num_bits_17(const sp_digit* a)
     "L_sp_521_num_bits_17_18_%=:\n\t"
 #endif
         "MOV	%[a], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
+#else
+        :
+        : [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5"
     );
     return (word32)(size_t)a;
@@ -66952,8 +68027,13 @@ WC_OMIT_FRAME_POINTER static void sp_1024_mul_16(sp_digit* r, const sp_digit* a,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "LDM	sp!, {r3, r4, r5, r6}\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r11",
             "r12"
     );
@@ -68106,8 +69186,13 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "STM	%[r]!, {r2, r3, r4, r8}\n\t"
         "LDM	sp!, {r2, r3, r4, r8}\n\t"
         "STM	%[r]!, {r2, r3, r4, r8}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r12"
     );
@@ -68164,8 +69249,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_16(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -68247,8 +69337,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
         "SBCS	r5, r5, r9\n\t"
         "STM	%[a]!, {r2, r3, r4, r5}\n\t"
         "SBC	%[a], r9, r9\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)a;
@@ -68333,8 +69428,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_32(sp_digit* r,
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "MOV	%[r], #0x0\n\t"
         "ADC	%[r], %[r], #0x0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -68459,8 +69559,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_16(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "STM	%[r]!, {r3, r4, r5, r6}\n\t"
         "SBC	%[r], r6, r6\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -68624,8 +69729,13 @@ WC_OMIT_FRAME_POINTER static void sp_1024_mul_32(sp_digit* r, const sp_digit* a,
 #else
         "BGT.N	L_sp_1024_mul_32_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -68743,8 +69853,13 @@ WC_OMIT_FRAME_POINTER static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
 #else
         "BGT.N	L_sp_1024_sqr_32_store_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "lr",
             "r11"
     );
@@ -68882,8 +69997,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
         "BNE.N	L_sp_1024_sub_in_place_32_word_%=\n\t"
 #endif
         "MOV	%[a], r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -68942,8 +70062,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_sub_32(sp_digit* r,
         "BLT.N	L_sp_1024_cond_sub_32_words_%=\n\t"
 #endif
         "MOV	%[r], r4\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -69088,8 +70213,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_sub_32(sp_digit* r,
         "SBCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SBC	%[r], r5, r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9"
     );
     return (word32)(size_t)r;
@@ -69145,8 +70275,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_32(sp_digit* r,
         "BNE.N	L_sp_1024_add_32_word_%=\n\t"
 #endif
         "MOV	%[r], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12"
     );
@@ -69209,8 +70344,13 @@ WC_OMIT_FRAME_POINTER static void sp_1024_mul_d_32(sp_digit* r,
         "BLT.N	L_sp_1024_mul_d_32_word_%=\n\t"
 #endif
         "STR	r3, [%[r], #128]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
@@ -69397,8 +70537,13 @@ WC_OMIT_FRAME_POINTER static void sp_1024_mul_d_32(sp_digit* r,
         "UMLAL	r4, r5, %[b], r8\n\t"
         "STM	%[r]!, {r4}\n\t"
         "STR	r5, [%[r]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -69415,10 +70560,10 @@ WC_OMIT_FRAME_POINTER static void sp_1024_mul_d_32(sp_digit* r,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_1024_word_32(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_1024_word_32(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -69464,8 +70609,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1,
         "SUB	%[d0], %[d0], r3\n\t"
         "UDIV	r3, %[d0], %[div]\n\t"
         "ADD	%[d1], r6, r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -69482,10 +70632,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_1024_word_32(
     sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE sp_digit div_1024_word_32(sp_digit d1,
     sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -69548,8 +70698,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1,
         "SUBS	r8, %[div], r9\n\t"
         "SBC	r8, r8, r8\n\t"
         "SUB	%[d1], r3, r8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [d1] "+r" (d1), [d0] "+r" (d0), [div] "+r" (div)
         :
+#else
+        :
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)d1;
@@ -69993,8 +71148,13 @@ WC_OMIT_FRAME_POINTER static sp_int32 sp_1024_cmp_32(const sp_digit* a,
         "EOR	r2, r2, r3\n\t"
 #endif /*WOLFSSL_SP_SMALL */
         "MOV	%[a], r2\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [b] "+r" (b)
         :
+#else
+        :
+        : [a] "r" (a), [b] "r" (b)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)a;
@@ -70336,10 +71496,10 @@ static int sp_1024_point_to_ecc_point_32(const sp_point_1024* p, ecc_point* pm)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_reduce_32(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_reduce_32(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -70639,8 +71799,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
         "SBC	r12, r12, r12\n\t"
         "ORR	r3, r3, r12\n\t"
         "MOV	%[mp], r3\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -70655,10 +71820,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_reduce_32(
     sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_reduce_32(
     sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -70868,8 +72033,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
         "SBC	r3, r3, r3\n\t"
         "ORR	r5, r5, r3\n\t"
         "MOV	%[mp], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
+#else
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
     );
@@ -71022,10 +72192,10 @@ static void sp_1024_map_32(sp_point_1024* r, const sp_point_1024* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_add_32(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_add_32(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -71189,8 +72359,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "SBC	r7, r7, r11\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );
@@ -71203,10 +72378,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_dbl_32(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_dbl_32(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -71353,8 +72528,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "SBC	r7, r7, r11\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r8", "r9", "r10", "r11", "r4", "r5", "r6", "r7",
             "r12"
     );
@@ -71367,10 +72547,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_tpl_32(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_tpl_32(sp_digit* r,
     const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -71672,8 +72852,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r,
         "SBCS	r6, r6, r10\n\t"
         "SBC	r7, r7, r11\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r8", "r9", "r10", "r11", "r4", "r5", "r6", "r7",
             "r12"
     );
@@ -71687,10 +72872,10 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r_p,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_sub_32(sp_digit* r_p,
     const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r,
+WC_OMIT_FRAME_POINTER static SP_NOINLINE void sp_1024_mont_sub_32(sp_digit* r,
     const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -71848,8 +73033,13 @@ WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r,
         "ADCS	r6, r6, r10\n\t"
         "ADC	r7, r7, r11\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );
@@ -71906,8 +73096,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_add_32(sp_digit* r,
         "BLT.N	L_sp_1024_cond_add_32_words_%=\n\t"
 #endif
         "MOV	%[r], r5\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)r;
@@ -72052,8 +73247,13 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_add_32(sp_digit* r,
         "ADCS	r7, r7, r9\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "ADC	%[r], r10, r10\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)r;
@@ -72200,8 +73400,13 @@ WC_OMIT_FRAME_POINTER static void sp_1024_rshift1_32(sp_digit* r,
         "LSR	r3, r3, #1\n\t"
         "STR	r2, [%[r], #120]\n\t"
         "STR	r3, [%[r], #124]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4"
     );
 }

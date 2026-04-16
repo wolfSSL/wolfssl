@@ -18,6 +18,7 @@
 ;  * along with this program; if not, write to the Free Software
 ;  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 ;  */
+
 IF @Version LT 1200
 ; AVX2 instructions not recognized by old versions of MASM
 IFNDEF NO_AVX2_SUPPORT
@@ -42,15 +43,17 @@ ENDIF
 
 _DATA SEGMENT
 ALIGN 16
-L_GCM_generate_m0_aesni_rev8 QWORD 579005069656919567, 283686952306183
+L_GCM_generate_m0_aesni_rev8 QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
 ptr_L_GCM_generate_m0_aesni_rev8 QWORD L_GCM_generate_m0_aesni_rev8
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_GCM_generate_m0_aesni_mod2_128 QWORD 0, 16212958658533785600
+L_GCM_generate_m0_aesni_mod2_128 QWORD \
+     0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_aesni_mod2_128 QWORD L_GCM_generate_m0_aesni_mod2_128
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 GCM_generate_m0_aesni PROC
         sub	rsp, 80
         movdqu	OWORD PTR [rsp], xmm6
@@ -292,63 +295,74 @@ GCM_generate_m0_aesni PROC
         add	rsp, 80
         ret
 GCM_generate_m0_aesni ENDP
-_text ENDS
+_TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_one QWORD 0, 1
+L_aes_gcm_one QWORD \
+     0000000000000000h,  0000000000000001h
 ptr_L_aes_gcm_one QWORD L_aes_gcm_one
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_two QWORD 0, 2
+L_aes_gcm_two QWORD \
+     0000000000000000h,  0000000000000002h
 ptr_L_aes_gcm_two QWORD L_aes_gcm_two
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_three QWORD 0, 3
+L_aes_gcm_three QWORD \
+     0000000000000000h,  0000000000000003h
 ptr_L_aes_gcm_three QWORD L_aes_gcm_three
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_four QWORD 0, 4
+L_aes_gcm_four QWORD \
+     0000000000000000h,  0000000000000004h
 ptr_L_aes_gcm_four QWORD L_aes_gcm_four
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_five QWORD 0, 5
+L_aes_gcm_five QWORD \
+     0000000000000000h,  0000000000000005h
 ptr_L_aes_gcm_five QWORD L_aes_gcm_five
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_six QWORD 0, 6
+L_aes_gcm_six QWORD \
+     0000000000000000h,  0000000000000006h
 ptr_L_aes_gcm_six QWORD L_aes_gcm_six
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_seven QWORD 0, 7
+L_aes_gcm_seven QWORD \
+     0000000000000000h,  0000000000000007h
 ptr_L_aes_gcm_seven QWORD L_aes_gcm_seven
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_eight QWORD 0, 8
+L_aes_gcm_eight QWORD \
+     0000000000000000h,  0000000000000008h
 ptr_L_aes_gcm_eight QWORD L_aes_gcm_eight
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_bswap_epi64 QWORD 283686952306183, 579005069656919567
+L_aes_gcm_bswap_epi64 QWORD \
+     0001020304050607h,  08090a0b0c0d0e0fh
 ptr_L_aes_gcm_bswap_epi64 QWORD L_aes_gcm_bswap_epi64
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_bswap_mask QWORD 579005069656919567, 283686952306183
+L_aes_gcm_bswap_mask QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
 ptr_L_aes_gcm_bswap_mask QWORD L_aes_gcm_bswap_mask
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_gcm_mod2_128 QWORD 1, 13979173243358019584
+L_aes_gcm_mod2_128 QWORD \
+     0000000000000001h, 0c200000000000000h
 ptr_L_aes_gcm_mod2_128 QWORD L_aes_gcm_mod2_128
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_aesni PROC
         push	r13
         push	rdi
@@ -2218,8 +2232,8 @@ L_AES_GCM_encrypt_aesni_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_aesni PROC
         push	r13
         push	rdi
@@ -3641,8 +3655,8 @@ L_AES_GCM_decrypt_aesni_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_init_aesni PROC
         push	rdi
         push	rsi
@@ -3999,8 +4013,8 @@ L_AES_GCM_init_aesni_iv_done:
         pop	rdi
         ret
 AES_GCM_init_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_aad_update_aesni PROC
         mov	rax, rcx
         sub	rsp, 32
@@ -4076,8 +4090,8 @@ L_AES_GCM_aad_update_aesni_16_loop:
         add	rsp, 32
         ret
 AES_GCM_aad_update_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_block_aesni PROC
         mov	r10, r8
         mov	r11, r9
@@ -4116,8 +4130,8 @@ L_AES_GCM_encrypt_block_aesni_aesenc_block_aesenc_avx_last:
         pshufb	xmm0, OWORD PTR L_aes_gcm_bswap_mask
         ret
 AES_GCM_encrypt_block_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_aesni PROC
         sub	rsp, 32
         movdqu	OWORD PTR [rsp], xmm6
@@ -4187,8 +4201,8 @@ AES_GCM_ghash_block_aesni PROC
         add	rsp, 32
         ret
 AES_GCM_ghash_block_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_update_aesni PROC
         push	r13
         push	r12
@@ -5426,8 +5440,8 @@ L_AES_GCM_encrypt_update_aesni_done_enc:
         pop	r13
         ret
 AES_GCM_encrypt_update_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_final_aesni PROC
         push	r13
         push	r12
@@ -5538,8 +5552,8 @@ L_AES_GCM_encrypt_final_aesni_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_final_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_update_aesni PROC
         push	r13
         push	r12
@@ -6321,8 +6335,8 @@ L_AES_GCM_decrypt_update_aesni_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_final_aesni PROC
         push	r13
         push	r12
@@ -6454,19 +6468,21 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_final_aesni ENDP
-_text ENDS
+_TEXT ENDS
 IFDEF HAVE_INTEL_AVX1
 _DATA SEGMENT
 ALIGN 16
-L_GCM_generate_m0_avx1_rev8 QWORD 579005069656919567, 283686952306183
+L_GCM_generate_m0_avx1_rev8 QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
 ptr_L_GCM_generate_m0_avx1_rev8 QWORD L_GCM_generate_m0_avx1_rev8
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_GCM_generate_m0_avx1_mod2_128 QWORD 0, 16212958658533785600
+L_GCM_generate_m0_avx1_mod2_128 QWORD \
+     0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_avx1_mod2_128 QWORD L_GCM_generate_m0_avx1_mod2_128
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 GCM_generate_m0_avx1 PROC
         sub	rsp, 80
         vmovdqu	OWORD PTR [rsp], xmm6
@@ -6674,63 +6690,74 @@ GCM_generate_m0_avx1 PROC
         add	rsp, 80
         ret
 GCM_generate_m0_avx1 ENDP
-_text ENDS
+_TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_one QWORD 0, 1
+L_avx1_aes_gcm_one QWORD \
+     0000000000000000h,  0000000000000001h
 ptr_L_avx1_aes_gcm_one QWORD L_avx1_aes_gcm_one
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_two QWORD 0, 2
+L_avx1_aes_gcm_two QWORD \
+     0000000000000000h,  0000000000000002h
 ptr_L_avx1_aes_gcm_two QWORD L_avx1_aes_gcm_two
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_three QWORD 0, 3
+L_avx1_aes_gcm_three QWORD \
+     0000000000000000h,  0000000000000003h
 ptr_L_avx1_aes_gcm_three QWORD L_avx1_aes_gcm_three
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_four QWORD 0, 4
+L_avx1_aes_gcm_four QWORD \
+     0000000000000000h,  0000000000000004h
 ptr_L_avx1_aes_gcm_four QWORD L_avx1_aes_gcm_four
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_five QWORD 0, 5
+L_avx1_aes_gcm_five QWORD \
+     0000000000000000h,  0000000000000005h
 ptr_L_avx1_aes_gcm_five QWORD L_avx1_aes_gcm_five
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_six QWORD 0, 6
+L_avx1_aes_gcm_six QWORD \
+     0000000000000000h,  0000000000000006h
 ptr_L_avx1_aes_gcm_six QWORD L_avx1_aes_gcm_six
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_seven QWORD 0, 7
+L_avx1_aes_gcm_seven QWORD \
+     0000000000000000h,  0000000000000007h
 ptr_L_avx1_aes_gcm_seven QWORD L_avx1_aes_gcm_seven
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_eight QWORD 0, 8
+L_avx1_aes_gcm_eight QWORD \
+     0000000000000000h,  0000000000000008h
 ptr_L_avx1_aes_gcm_eight QWORD L_avx1_aes_gcm_eight
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_bswap_epi64 QWORD 283686952306183, 579005069656919567
+L_avx1_aes_gcm_bswap_epi64 QWORD \
+     0001020304050607h,  08090a0b0c0d0e0fh
 ptr_L_avx1_aes_gcm_bswap_epi64 QWORD L_avx1_aes_gcm_bswap_epi64
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_bswap_mask QWORD 579005069656919567, 283686952306183
+L_avx1_aes_gcm_bswap_mask QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
 ptr_L_avx1_aes_gcm_bswap_mask QWORD L_avx1_aes_gcm_bswap_mask
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_gcm_mod2_128 QWORD 1, 13979173243358019584
+L_avx1_aes_gcm_mod2_128 QWORD \
+     0000000000000001h, 0c200000000000000h
 ptr_L_avx1_aes_gcm_mod2_128 QWORD L_avx1_aes_gcm_mod2_128
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_avx1 PROC
         push	r13
         push	rdi
@@ -8328,8 +8355,8 @@ L_AES_GCM_encrypt_avx1_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_avx1 PROC
         push	r13
         push	rdi
@@ -9521,8 +9548,8 @@ L_AES_GCM_decrypt_avx1_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_init_avx1 PROC
         push	rdi
         push	rsi
@@ -9843,8 +9870,8 @@ L_AES_GCM_init_avx1_iv_done:
         pop	rdi
         ret
 AES_GCM_init_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_aad_update_avx1 PROC
         mov	rax, rcx
         sub	rsp, 32
@@ -9909,8 +9936,8 @@ L_AES_GCM_aad_update_avx1_16_loop:
         add	rsp, 32
         ret
 AES_GCM_aad_update_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_block_avx1 PROC
         mov	r10, r8
         mov	r11, r9
@@ -9949,8 +9976,8 @@ L_AES_GCM_encrypt_block_avx1_aesenc_block_last:
         vzeroupper
         ret
 AES_GCM_encrypt_block_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_avx1 PROC
         sub	rsp, 32
         vmovdqu	OWORD PTR [rsp], xmm6
@@ -10010,8 +10037,8 @@ AES_GCM_ghash_block_avx1 PROC
         add	rsp, 32
         ret
 AES_GCM_ghash_block_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_update_avx1 PROC
         push	r13
         push	r12
@@ -11052,8 +11079,8 @@ L_AES_GCM_encrypt_update_avx1_done_enc:
         pop	r13
         ret
 AES_GCM_encrypt_update_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_final_avx1 PROC
         push	r13
         push	r12
@@ -11153,8 +11180,8 @@ L_AES_GCM_encrypt_final_avx1_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_final_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_update_avx1 PROC
         push	r13
         push	r12
@@ -11779,8 +11806,8 @@ L_AES_GCM_decrypt_update_avx1_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_final_avx1 PROC
         push	r13
         push	r12
@@ -11901,20 +11928,22 @@ L_AES_GCM_decrypt_final_avx1_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_final_avx1 ENDP
-_text ENDS
+_TEXT ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
 _DATA SEGMENT
 ALIGN 16
-L_GCM_generate_m0_avx2_rev8 QWORD 579005069656919567, 283686952306183
+L_GCM_generate_m0_avx2_rev8 QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
 ptr_L_GCM_generate_m0_avx2_rev8 QWORD L_GCM_generate_m0_avx2_rev8
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_GCM_generate_m0_avx2_mod2_128 QWORD 0, 16212958658533785600
+L_GCM_generate_m0_avx2_mod2_128 QWORD \
+     0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_avx2_mod2_128 QWORD L_GCM_generate_m0_avx2_mod2_128
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 GCM_generate_m0_avx2 PROC
         sub	rsp, 80
         vmovdqu	OWORD PTR [rsp], xmm6
@@ -12122,68 +12151,80 @@ GCM_generate_m0_avx2 PROC
         add	rsp, 80
         ret
 GCM_generate_m0_avx2 ENDP
-_text ENDS
+_TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_one QWORD 0, 1
+L_avx2_aes_gcm_one QWORD \
+     0000000000000000h,  0000000000000001h
 ptr_L_avx2_aes_gcm_one QWORD L_avx2_aes_gcm_one
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_two QWORD 0, 2
+L_avx2_aes_gcm_two QWORD \
+     0000000000000000h,  0000000000000002h
 ptr_L_avx2_aes_gcm_two QWORD L_avx2_aes_gcm_two
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_three QWORD 0, 3
+L_avx2_aes_gcm_three QWORD \
+     0000000000000000h,  0000000000000003h
 ptr_L_avx2_aes_gcm_three QWORD L_avx2_aes_gcm_three
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_four QWORD 0, 4
+L_avx2_aes_gcm_four QWORD \
+     0000000000000000h,  0000000000000004h
 ptr_L_avx2_aes_gcm_four QWORD L_avx2_aes_gcm_four
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_five QWORD 0, 5
+L_avx2_aes_gcm_five QWORD \
+     0000000000000000h,  0000000000000005h
 ptr_L_avx2_aes_gcm_five QWORD L_avx2_aes_gcm_five
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_six QWORD 0, 6
+L_avx2_aes_gcm_six QWORD \
+     0000000000000000h,  0000000000000006h
 ptr_L_avx2_aes_gcm_six QWORD L_avx2_aes_gcm_six
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_seven QWORD 0, 7
+L_avx2_aes_gcm_seven QWORD \
+     0000000000000000h,  0000000000000007h
 ptr_L_avx2_aes_gcm_seven QWORD L_avx2_aes_gcm_seven
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_eight QWORD 0, 8
+L_avx2_aes_gcm_eight QWORD \
+     0000000000000000h,  0000000000000008h
 ptr_L_avx2_aes_gcm_eight QWORD L_avx2_aes_gcm_eight
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_bswap_one QWORD 0, 72057594037927936
+L_avx2_aes_gcm_bswap_one QWORD \
+     0000000000000000h,  0100000000000000h
 ptr_L_avx2_aes_gcm_bswap_one QWORD L_avx2_aes_gcm_bswap_one
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_bswap_epi64 QWORD 283686952306183, 579005069656919567
+L_avx2_aes_gcm_bswap_epi64 QWORD \
+     0001020304050607h,  08090a0b0c0d0e0fh
 ptr_L_avx2_aes_gcm_bswap_epi64 QWORD L_avx2_aes_gcm_bswap_epi64
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_bswap_mask QWORD 579005069656919567, 283686952306183
+L_avx2_aes_gcm_bswap_mask QWORD \
+     08090a0b0c0d0e0fh,  0001020304050607h
 ptr_L_avx2_aes_gcm_bswap_mask QWORD L_avx2_aes_gcm_bswap_mask
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx2_aes_gcm_mod2_128 QWORD 1, 13979173243358019584
+L_avx2_aes_gcm_mod2_128 QWORD \
+     0000000000000001h, 0c200000000000000h
 ptr_L_avx2_aes_gcm_mod2_128 QWORD L_avx2_aes_gcm_mod2_128
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_avx2 PROC
         push	r13
         push	rdi
@@ -13504,8 +13545,8 @@ L_AES_GCM_encrypt_avx2_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_avx2 PROC
         push	r13
         push	rdi
@@ -14489,8 +14530,8 @@ L_AES_GCM_decrypt_avx2_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_init_avx2 PROC
         push	rbx
         push	rdi
@@ -14763,8 +14804,8 @@ L_AES_GCM_init_avx2_iv_done:
         pop	rbx
         ret
 AES_GCM_init_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_aad_update_avx2 PROC
         mov	rax, rcx
         sub	rsp, 16
@@ -14815,8 +14856,8 @@ L_AES_GCM_aad_update_avx2_16_loop:
         add	rsp, 16
         ret
 AES_GCM_aad_update_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_block_avx2 PROC
         mov	r10, r8
         mov	r11, r9
@@ -14870,8 +14911,8 @@ L_AES_GCM_encrypt_block_avx2_aesenc_block_last:
         add	rsp, 152
         ret
 AES_GCM_encrypt_block_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_ghash_block_avx2 PROC
         sub	rsp, 16
         vmovdqu	OWORD PTR [rsp], xmm6
@@ -14916,8 +14957,8 @@ AES_GCM_ghash_block_avx2 PROC
         add	rsp, 16
         ret
 AES_GCM_ghash_block_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_update_avx2 PROC
         push	r12
         push	r13
@@ -15791,8 +15832,8 @@ L_AES_GCM_encrypt_update_avx2_done_enc:
         pop	r12
         ret
 AES_GCM_encrypt_update_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_encrypt_final_avx2 PROC
         push	r12
         push	r13
@@ -15862,8 +15903,8 @@ L_AES_GCM_encrypt_final_avx2_store_tag_done:
         pop	r12
         ret
 AES_GCM_encrypt_final_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_update_avx2 PROC
         push	r13
         push	r12
@@ -16390,8 +16431,8 @@ L_AES_GCM_decrypt_update_avx2_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_avx2 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_GCM_decrypt_final_avx2 PROC
         push	r12
         push	r13
@@ -16475,6 +16516,6 @@ L_AES_GCM_decrypt_final_avx2_cmp_tag_done:
         pop	r12
         ret
 AES_GCM_decrypt_final_avx2 ENDP
-_text ENDS
+_TEXT ENDS
 ENDIF
 END

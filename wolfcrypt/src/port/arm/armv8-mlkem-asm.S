@@ -31,32 +31,34 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_consts, %object
 	.section	.rodata
+	.type	L_mlkem_aarch64_consts, %object
 	.size	L_mlkem_aarch64_consts, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_aarch64_consts:
 	.short	0x0d01,0xf301,0x4ebf,0x0549,0x5049,0x0000,0x0000,0x0000
 #ifdef WOLFSSL_WC_MLKEM
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_zetas, %object
 	.section	.rodata
+	.type	L_mlkem_aarch64_zetas, %object
 	.size	L_mlkem_aarch64_zetas, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_aarch64_zetas:
 	.short	0x08ed,0x0a0b,0x0b9a,0x0714,0x05d5,0x058e,0x011f,0x00ca
@@ -97,16 +99,17 @@ L_mlkem_aarch64_zetas:
 	.short	0x03be,0x03be,0x074d,0x074d,0x05f2,0x05f2,0x065c,0x065c
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_zetas_qinv, %object
 	.section	.rodata
+	.type	L_mlkem_aarch64_zetas_qinv, %object
 	.size	L_mlkem_aarch64_zetas_qinv, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_aarch64_zetas_qinv:
 	.short	0xffed,0x7b0b,0x399a,0x0314,0x34d5,0xcf8e,0x6e1f,0xbeca
@@ -1441,16 +1444,17 @@ _mlkem_ntt:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_zetas_inv, %object
 	.section	.rodata
+	.type	L_mlkem_aarch64_zetas_inv, %object
 	.size	L_mlkem_aarch64_zetas_inv, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_aarch64_zetas_inv:
 	.short	0x06a5,0x06a5,0x070f,0x070f,0x05b4,0x05b4,0x0943,0x0943
@@ -1491,16 +1495,17 @@ L_mlkem_aarch64_zetas_inv:
 	.short	0x0c37,0x0be2,0x0773,0x072c,0x05ed,0x0167,0x02f6,0x05a1
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_zetas_inv_qinv, %object
 	.section	.rodata
+	.type	L_mlkem_aarch64_zetas_inv_qinv, %object
 	.size	L_mlkem_aarch64_zetas_inv_qinv, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_aarch64_zetas_inv_qinv:
 	.short	0xa5a5,0xa5a5,0x440f,0x440f,0xe1b4,0xe1b4,0xa243,0xa243
@@ -5481,16 +5486,17 @@ _mlkem_invntt_sqrdmlsh:
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_zetas_mul, %object
 	.section	.rodata
+	.type	L_mlkem_aarch64_zetas_mul, %object
 	.size	L_mlkem_aarch64_zetas_mul, 256
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_aarch64_zetas_mul:
 	.short	0x08b2,0xf74e,0x01ae,0xfe52,0x022b,0xfdd5,0x034b,0xfcb5
@@ -6955,16 +6961,17 @@ _mlkem_basemul_mont_add:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_q, %object
 	.section	.rodata
+	.type	L_mlkem_aarch64_q, %object
 	.size	L_mlkem_aarch64_q, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_aarch64_q:
 	.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
@@ -8160,46 +8167,49 @@ _mlkem_to_mont_sqrdmlsh:
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_to_msg_low, %object
 	.section	.rodata
+	.type	L_mlkem_to_msg_low, %object
 	.size	L_mlkem_to_msg_low, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_to_msg_low:
 	.short	0x0373,0x0373,0x0373,0x0373,0x0373,0x0373,0x0373,0x0373
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_to_msg_high, %object
 	.section	.rodata
+	.type	L_mlkem_to_msg_high, %object
 	.size	L_mlkem_to_msg_high, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_to_msg_high:
 	.short	0x09c0,0x09c0,0x09c0,0x09c0,0x09c0,0x09c0,0x09c0,0x09c0
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_to_msg_bits, %object
 	.section	.rodata
+	.type	L_mlkem_to_msg_bits, %object
 	.size	L_mlkem_to_msg_bits, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_to_msg_bits:
 	.short	0x0001,0x0002,0x0004,0x0008,0x0010,0x0020,0x0040,0x0080
@@ -8456,31 +8466,33 @@ _mlkem_to_msg_neon:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_from_msg_q1half, %object
 	.section	.rodata
+	.type	L_mlkem_from_msg_q1half, %object
 	.size	L_mlkem_from_msg_q1half, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_from_msg_q1half:
 	.short	0x0681,0x0681,0x0681,0x0681,0x0681,0x0681,0x0681,0x0681
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_from_msg_bits, %object
 	.section	.rodata
+	.type	L_mlkem_from_msg_bits, %object
 	.size	L_mlkem_from_msg_bits, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	1
+	.align	3
 #else
-	.p2align	1
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_from_msg_bits:
 	.byte	0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
@@ -8941,46 +8953,49 @@ L_mlkem_aarch64_cmp_neon_done:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_rej_uniform_mask, %object
 	.section	.rodata
+	.type	L_mlkem_rej_uniform_mask, %object
 	.size	L_mlkem_rej_uniform_mask, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_rej_uniform_mask:
 	.short	0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_rej_uniform_bits, %object
 	.section	.rodata
+	.type	L_mlkem_rej_uniform_bits, %object
 	.size	L_mlkem_rej_uniform_bits, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	2
+	.align	3
 #else
-	.p2align	2
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_rej_uniform_bits:
 	.short	0x0001,0x0002,0x0004,0x0008,0x0010,0x0020,0x0040,0x0080
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_rej_uniform_indices, %object
 	.section	.rodata
+	.type	L_mlkem_rej_uniform_indices, %object
 	.size	L_mlkem_rej_uniform_indices, 4096
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
-	.align	1
+	.align	3
 #else
-	.p2align	1
+	.p2align	3
 #endif /* __APPLE__ */
 L_mlkem_rej_uniform_indices:
 	.byte	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
@@ -9688,42 +9703,31 @@ L_mlkem_rej_uniform_done:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_sha3_aarch64_r, %object
 	.section	.rodata
+	.type	L_sha3_aarch64_r, %object
 	.size	L_sha3_aarch64_r, 192
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
-	.align	3
+	.align	4
 #else
-	.p2align	3
+	.p2align	4
 #endif /* __APPLE__ */
 L_sha3_aarch64_r:
-	.xword	0x0000000000000001
-	.xword	0x0000000000008082
-	.xword	0x800000000000808a
-	.xword	0x8000000080008000
-	.xword	0x000000000000808b
-	.xword	0x0000000080000001
-	.xword	0x8000000080008081
-	.xword	0x8000000000008009
-	.xword	0x000000000000008a
-	.xword	0x0000000000000088
-	.xword	0x0000000080008009
-	.xword	0x000000008000000a
-	.xword	0x000000008000808b
-	.xword	0x800000000000008b
-	.xword	0x8000000000008089
-	.xword	0x8000000000008003
-	.xword	0x8000000000008002
-	.xword	0x8000000000000080
-	.xword	0x000000000000800a
-	.xword	0x800000008000000a
-	.xword	0x8000000080008081
-	.xword	0x8000000000008080
-	.xword	0x0000000080000001
-	.xword	0x8000000080008008
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text

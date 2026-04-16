@@ -41,12 +41,17 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 
 #ifdef HAVE_AES_DECRYPT
-XALIGNED(16) static const word32 L_AES_Thumb2_td_data[] = {
+XALIGNED(8) static const word32 L_AES_Thumb2_td_data[] = {
     0x5051f4a7, 0x537e4165, 0xc31a17a4, 0x963a275e,
     0xcb3bab6b, 0xf11f9d45, 0xabacfa58, 0x934be303,
     0x552030fa, 0xf6ad766d, 0x9188cc76, 0x25f5024c,
@@ -117,7 +122,7 @@ XALIGNED(16) static const word32 L_AES_Thumb2_td_data[] = {
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
     defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
     defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
-XALIGNED(16) static const word32 L_AES_Thumb2_te_data[] = {
+XALIGNED(8) static const word32 L_AES_Thumb2_te_data[] = {
     0xa5c66363, 0x84f87c7c, 0x99ee7777, 0x8df67b7b,
     0x0dfff2f2, 0xbdd66b6b, 0xb1de6f6f, 0x5491c5c5,
     0x50603030, 0x03020101, 0xa9ce6767, 0x7d562b2b,
@@ -196,7 +201,7 @@ static const word32* L_AES_Thumb2_te = L_AES_Thumb2_te_data;
 #endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
         * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-void AES_invert_key(unsigned char* ks, word32 rounds);
+void AES_invert_key(unsigned char* ks_p, word32 rounds_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
 #else
@@ -208,15 +213,11 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
     register word32 rounds __asm__ ("r1") = (word32)rounds_p;
     register word32* L_AES_Thumb2_te_c __asm__ ("r2") =
         (word32*)L_AES_Thumb2_te;
-
     register word32* L_AES_Thumb2_td_c __asm__ ("r3") =
         (word32*)L_AES_Thumb2_td;
-
 #else
     register word32* L_AES_Thumb2_te_c = (word32*)L_AES_Thumb2_te;
-
     register word32* L_AES_Thumb2_td_c = (word32*)L_AES_Thumb2_td;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -325,24 +326,31 @@ WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
 #else
         "BNE.W	L_AES_invert_key_mix_loop_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ks] "+r" (ks), [rounds] "+r" (rounds),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c),
           [L_AES_Thumb2_td] "+r" (L_AES_Thumb2_td_c)
         :
+#else
+        :
+        : [ks] "r" (ks), [rounds] "r" (rounds),
+          [L_AES_Thumb2_te] "r" (L_AES_Thumb2_te_c),
+          [L_AES_Thumb2_td] "r" (L_AES_Thumb2_td_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
 }
 
 #endif /* HAVE_AES_DECRYPT */
-XALIGNED(16) static const word32 L_AES_Thumb2_rcon[] = {
+XALIGNED(8) static const word32 L_AES_Thumb2_rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
     0x1b000000, 0x36000000
 };
 
-void AES_set_encrypt_key(const unsigned char* key, word32 len,
-        unsigned char* ks);
+void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
+    unsigned char* ks_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key_p,
     word32 len_p, unsigned char* ks_p)
@@ -358,15 +366,11 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
     register unsigned char* ks __asm__ ("r2") = (unsigned char*)ks_p;
     register word32* L_AES_Thumb2_te_c __asm__ ("r3") =
         (word32*)L_AES_Thumb2_te;
-
     register word32* L_AES_Thumb2_rcon_c __asm__ ("r4") =
         (word32*)&L_AES_Thumb2_rcon;
-
 #else
     register word32* L_AES_Thumb2_te_c = (word32*)L_AES_Thumb2_te;
-
     register word32* L_AES_Thumb2_rcon_c = (word32*)&L_AES_Thumb2_rcon;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -629,16 +633,24 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 #else
     "L_AES_set_encrypt_key_end_%=:\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c),
           [L_AES_Thumb2_rcon] "+r" (L_AES_Thumb2_rcon_c)
         :
+#else
+        :
+        : [key] "r" (key), [len] "r" (len), [ks] "r" (ks),
+          [L_AES_Thumb2_te] "r" (L_AES_Thumb2_te_c),
+          [L_AES_Thumb2_rcon] "r" (L_AES_Thumb2_rcon_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10"
     );
 }
 
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
-void AES_encrypt_block(const word32* te, int nr, int len, const word32* ks);
+void AES_encrypt_block(const word32* te_p, int nr_p, int len_p,
+    const word32* ks_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te_p, int nr_p,
     int len_p, const word32* ks_p)
@@ -869,8 +881,13 @@ WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te, int nr, int len,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [te] "+r" (te), [nr] "+r" (nr), [len] "+r" (len), [ks] "+r" (ks)
         :
+#else
+        :
+        : [te] "r" (te), [nr] "r" (nr), [len] "r" (len), [ks] "r" (ks)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -884,8 +901,8 @@ static const word32* L_AES_Thumb2_te_ecb = L_AES_Thumb2_te_data;
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
     defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AES_ECB)
-void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
-        unsigned long len, const unsigned char* ks, int nr);
+void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in_p,
     unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
@@ -905,10 +922,8 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
     register int nr __asm__ ("r4") = (int)nr_p;
     register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r5") =
         (word32*)L_AES_Thumb2_te_ecb;
-
 #else
     register word32* L_AES_Thumb2_te_ecb_c = (word32*)L_AES_Thumb2_te_ecb;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1749,9 +1764,15 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
     "L_AES_ECB_encrypt_end_%=:\n\t"
 #endif
         "POP	{%[ks]}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }
@@ -1759,8 +1780,9 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
         * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
 #ifdef HAVE_AES_CBC
-void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
-        unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
+void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* iv_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in_p,
     unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
@@ -1782,10 +1804,8 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
     register unsigned char* iv __asm__ ("r5") = (unsigned char*)iv_p;
     register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_ecb;
-
 #else
     register word32* L_AES_Thumb2_te_ecb_c = (word32*)L_AES_Thumb2_te_ecb;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -2645,10 +2665,17 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
 #endif
         "POP	{%[ks], r9}\n\t"
         "STM	r9, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [iv] "r" (iv),
+          [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
@@ -2656,8 +2683,9 @@ WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
 static const word32* L_AES_Thumb2_te_ctr = L_AES_Thumb2_te_data;
-void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
-        unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
+void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* ctr_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in_p,
     unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
@@ -2679,10 +2707,8 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
     register unsigned char* ctr __asm__ ("r5") = (unsigned char*)ctr_p;
     register word32* L_AES_Thumb2_te_ctr_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_ctr;
-
 #else
     register word32* L_AES_Thumb2_te_ctr_c = (word32*)L_AES_Thumb2_te_ctr;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3563,10 +3589,17 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_Thumb2_te_ctr] "+r" (L_AES_Thumb2_te_ctr_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [ctr] "r" (ctr),
+          [L_AES_Thumb2_te_ctr] "r" (L_AES_Thumb2_te_ctr_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
@@ -3576,7 +3609,7 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
-void AES_decrypt_block(const word32* td, int nr, const byte* td4);
+void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td_p, int nr_p,
     const byte* td4_p)
@@ -3806,15 +3839,20 @@ WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td, int nr,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [td] "+r" (td), [nr] "+r" (nr), [td4] "+r" (td4)
         :
+#else
+        :
+        : [td] "r" (td), [nr] "r" (nr), [td4] "r" (td4)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
 
 #endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
 static const word32* L_AES_Thumb2_td_ecb = L_AES_Thumb2_td_data;
-static const byte L_AES_Thumb2_td4[] = {
+XALIGNED(4) static const word8 L_AES_Thumb2_td4[] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
     0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87,
@@ -3849,9 +3887,10 @@ static const byte L_AES_Thumb2_td4[] = {
     0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 };
 
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
-void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
-        unsigned long len, const unsigned char* ks, int nr);
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(HAVE_AES_ECB)
+void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in_p,
     unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
@@ -3871,15 +3910,11 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
     register int nr __asm__ ("r4") = (int)nr_p;
     register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r5") =
         (word32*)L_AES_Thumb2_td_ecb;
-
-    register byte* L_AES_Thumb2_td4_c __asm__ ("r6") =
-        (byte*)&L_AES_Thumb2_td4;
-
+    register word8* L_AES_Thumb2_td4_c __asm__ ("r6") =
+        (word8*)&L_AES_Thumb2_td4;
 #else
     register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
-
-    register byte* L_AES_Thumb2_td4_c = (byte*)&L_AES_Thumb2_td4;
-
+    register word8* L_AES_Thumb2_td4_c = (word8*)&L_AES_Thumb2_td4;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -4717,18 +4752,26 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
 #else
     "L_AES_ECB_decrypt_end_%=:\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c),
           [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb_c),
+          [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
 #ifdef HAVE_AES_CBC
-void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
-        unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
+void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* iv_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in_p,
     unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
@@ -4750,15 +4793,11 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
     register unsigned char* iv __asm__ ("r5") = (unsigned char*)iv_p;
     register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_td_ecb;
-
-    register byte* L_AES_Thumb2_td4_c __asm__ ("r7") =
-        (byte*)&L_AES_Thumb2_td4;
-
+    register word8* L_AES_Thumb2_td4_c __asm__ ("r7") =
+        (word8*)&L_AES_Thumb2_td4;
 #else
     register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
-
-    register byte* L_AES_Thumb2_td4_c = (byte*)&L_AES_Thumb2_td4;
-
+    register word8* L_AES_Thumb2_td4_c = (word8*)&L_AES_Thumb2_td4;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -6431,11 +6470,19 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
     "L_AES_CBC_decrypt_end_%=:\n\t"
 #endif
         "POP	{%[ks], r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c),
           [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [iv] "r" (iv),
+          [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb_c),
+          [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r8", "r9", "r10", "r11"
     );
 }
@@ -6445,15 +6492,15 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
         * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
-XALIGNED(16) static const word32 L_GCM_gmult_len_r[] = {
+XALIGNED(8) static const word32 L_GCM_gmult_len_r[] = {
     0x00000000, 0x1c200000, 0x38400000, 0x24600000,
     0x70800000, 0x6ca00000, 0x48c00000, 0x54e00000,
     0xe1000000, 0xfd200000, 0xd9400000, 0xc5600000,
     0x91800000, 0x8da00000, 0xa9c00000, 0xb5e00000,
 };
 
-void GCM_gmult_len(unsigned char* x, const unsigned char** m,
-        const unsigned char* data, unsigned long len);
+void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
+    const unsigned char* data_p, unsigned long len_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x_p,
     const unsigned char** m_p, const unsigned char* data_p, unsigned long len_p)
@@ -6471,10 +6518,8 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
     register unsigned long len __asm__ ("r3") = (unsigned long)len_p;
     register word32* L_GCM_gmult_len_r_c __asm__ ("r4") =
         (word32*)&L_GCM_gmult_len_r;
-
 #else
     register word32* L_GCM_gmult_len_r_c = (word32*)&L_GCM_gmult_len_r;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -7036,17 +7081,24 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
 #else
         "BNE.W	L_GCM_gmult_len_start_block_%=\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
           [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
+#else
+        :
+        : [x] "r" (x), [m] "r" (m), [data] "r" (data), [len] "r" (len),
+          [L_GCM_gmult_len_r] "r" (L_GCM_gmult_len_r_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
 }
 
 static const word32* L_AES_Thumb2_te_gcm = L_AES_Thumb2_te_data;
-void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
-        unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
+void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* ctr_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in_p,
     unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
@@ -7068,10 +7120,8 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
     register unsigned char* ctr __asm__ ("r5") = (unsigned char*)ctr_p;
     register word32* L_AES_Thumb2_te_gcm_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_gcm;
-
 #else
     register word32* L_AES_Thumb2_te_gcm_c = (word32*)L_AES_Thumb2_te_gcm;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -7943,10 +7993,17 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
         "REV	r6, r6\n\t"
         "REV	r7, r7\n\t"
         "STM	r8, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_Thumb2_te_gcm] "+r" (L_AES_Thumb2_te_gcm_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [ctr] "r" (ctr),
+          [L_AES_Thumb2_te_gcm] "r" (L_AES_Thumb2_te_gcm_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }

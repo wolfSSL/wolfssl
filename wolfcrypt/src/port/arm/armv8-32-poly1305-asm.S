@@ -246,15 +246,21 @@ L_poly1305_arm32_16_done:
 	add	sp, sp, #28
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	poly1305_arm32_blocks_16,.-poly1305_arm32_blocks_16
+#ifndef __APPLE__
 	.text
 	.type	L_poly1305_arm32_clamp, %object
 	.size	L_poly1305_arm32_clamp, 16
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_poly1305_arm32_clamp:
-	.word	0xfffffff
-	.word	0xffffffc
-	.word	0xffffffc
-	.word	0xffffffc
+	.long	0x0fffffff,0x0ffffffc,0x0ffffffc,0x0ffffffc
 	.text
 	.align	4
 	.globl	poly1305_set_key
@@ -822,7 +828,7 @@ L_poly1305_arm32_blocks_start_1:
 	adcs	r9, r9, r4
 	adcs	r10, r10, r5
 	adc	r11, r11, r12
-	push	{r0, r1}
+	push	{r0-r1}
 	add	r1, r0, #0
 	add	lr, r0, #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
@@ -996,7 +1002,7 @@ L_poly1305_arm32_blocks_start_1:
 	adcs	r9, r9, r5
 	adcs	r10, r10, r6
 	adc	r11, r11, r12
-	pop	{r0, r1}
+	pop	{r0-r1}
 	pop	{r2}
 	add	r12, r0, #16
 	stm	r12, {r7, r8, r9, r10, r11}
@@ -1004,15 +1010,21 @@ L_poly1305_arm32_blocks_done:
 	vpop	{d8-d15}
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	poly1305_arm32_blocks,.-poly1305_arm32_blocks
+#ifndef __APPLE__
 	.text
 	.type	L_poly1305_arm32_clamp, %object
 	.size	L_poly1305_arm32_clamp, 16
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_poly1305_arm32_clamp:
-	.word	0xfffffff
-	.word	0xffffffc
-	.word	0xffffffc
-	.word	0xffffffc
+	.long	0x0fffffff,0x0ffffffc,0x0ffffffc,0x0ffffffc
 	.text
 	.align	4
 	.globl	poly1305_set_key
@@ -1059,7 +1071,7 @@ poly1305_set_key:
 	vmov.i32	s5, r9
 	vmov.i32	s7, r10
 	vmov.i32	s9, r11
-	push	{r0, r1}
+	push	{r0-r1}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# Square r
 	umull	r1, r6, r2, r3
@@ -1158,7 +1170,7 @@ poly1305_set_key:
 	vmov.i32	s4, r4
 	vmov.i32	s6, r5
 	vmov.i32	s8, r10
-	pop	{r0, r1}
+	pop	{r0-r1}
 	add	lr, r0, #0x7c
 	vstm.32	lr, {d0-d4}
 	# Multiply r^2, r by r^2
