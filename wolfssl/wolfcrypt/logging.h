@@ -582,6 +582,9 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
     WOLFSSL_API int wc_debug_trace_error_codes_enabled(void);
     WOLFSSL_API int wc_debug_trace_error_codes_set(int state);
+    #ifdef XFILE
+        WOLFSSL_API XFILE wc_backtrace_set_fp(XFILE new_fp);
+    #endif
 #endif
 
 #ifdef __cplusplus

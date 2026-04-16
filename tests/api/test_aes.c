@@ -8754,7 +8754,8 @@ int test_wc_AesCtr_MonteCarlo(void)
 int test_wc_AesGcm_MonteCarlo(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO)
     static const word32 keySizes[] = {
 #ifdef WOLFSSL_AES_128
         16,
@@ -8815,7 +8816,9 @@ int test_wc_AesGcm_MonteCarlo(void)
     WC_FREE_VAR(plain,     NULL);
     WC_FREE_VAR(cipher,    NULL);
     WC_FREE_VAR(decrypted, NULL);
-#endif
+#endif /* !NO_AES && HAVE_AESGCM && HAVE_AES_DECRYPT && !WOLFSSL_AFALG && */
+       /* !WOLFSSL_DEVCRYPTO                                              */
+
     return EXPECT_RESULT();
 }
 
