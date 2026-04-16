@@ -14298,6 +14298,10 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         }
 
         ret = SetRetryConfigs(ssl, readBuf, (word32)size);
+        if (ret == UNSUPPORTED_SUITE || ret == UNSUPPORTED_PROTO_VERSION) {
+            WOLFSSL_ERROR_VERBOSE(ret);
+            ret = 0;
+        }
 
         if (ssl->echConfigs == NULL) {
             /* on GREASE connection configs must be checked syntactically and
@@ -16324,8 +16328,7 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     WC_ALLOC_VAR_EX(serverName, char, WOLFSSL_HOST_NAME_MAX, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
     r = TLSX_EchChangeSNI(ssl, &echX, serverName, &serverNameX, &extensions);
-    /* If ECH won't be written (mirrors guard in TLSX_WriteWithEch), exclude it
-     * from the size calculation to avoid a size/write mismatch */
+    /* If ECH won't be written exclude it from the size calculation */
     if (r == 0 && echX != NULL &&
             !ssl->options.echAccepted &&
             ((WOLFSSL_ECH*)echX->data)->innerCount != 0) {

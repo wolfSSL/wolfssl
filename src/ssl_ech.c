@@ -513,6 +513,7 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen)
 {
     int ret = 0;
+    int unsupportedAlgos = 0;
     word32 configIdx;
     word32 idx;
     int j;
@@ -704,6 +705,7 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
          * config and then try to parse another */
         if (ret > 0 || EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
             ret = 0;
+            unsupportedAlgos = 1;
             XFREE(workingConfig->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(workingConfig->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(workingConfig->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -739,8 +741,11 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         XFREE(lastConfig, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
+    /* syntactically correct but configs are not supported */
+    if (ret == 0 && unsupportedAlgos)
+        return UNSUPPORTED_SUITE;
     if (ret == 0)
-        return WOLFSSL_FATAL_ERROR;
+        return UNSUPPORTED_PROTO_VERSION;
 
     return ret;
 }

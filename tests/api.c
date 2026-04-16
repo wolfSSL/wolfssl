@@ -14641,6 +14641,8 @@ static int test_wolfSSL_Tls13_ECH_params_b64(void)
 #if !defined(NO_WOLFSSL_CLIENT)
     /* base64 ech configs from cloudflare-ech.com (these are good configs) */
     const char* b64Valid = "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
+    /* ech configs with bad version */
+    const char* b64BadVers = "AEX+/gBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
     /* ech configs with bad/unsupported algorithm */
     const char* b64BadAlgo = "AEX+DQBBFP7+ACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
     /* ech configs with bad/unsupported ciphersuite */
@@ -14678,16 +14680,22 @@ static int test_wolfSSL_Tls13_ECH_params_b64(void)
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
         b64Valid, 0));
 
+    /* bad version */
+    ExpectIntEQ(UNSUPPORTED_PROTO_VERSION, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64BadVers, (word32)XSTRLEN(b64BadVers)));
+    ExpectIntEQ(UNSUPPORTED_PROTO_VERSION, wolfSSL_SetEchConfigsBase64(ssl,
+        b64BadVers, (word32)XSTRLEN(b64BadVers)));
+
     /* bad algorithm */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+    ExpectIntEQ(UNSUPPORTED_SUITE, wolfSSL_CTX_SetEchConfigsBase64(ctx,
         b64BadAlgo, (word32)XSTRLEN(b64BadAlgo)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+    ExpectIntEQ(UNSUPPORTED_SUITE, wolfSSL_SetEchConfigsBase64(ssl,
         b64BadAlgo, (word32)XSTRLEN(b64BadAlgo)));
 
     /* bad ciphersuite */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+    ExpectIntEQ(UNSUPPORTED_SUITE, wolfSSL_CTX_SetEchConfigsBase64(ctx,
         b64BadCiph, (word32)XSTRLEN(b64BadCiph)));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+    ExpectIntEQ(UNSUPPORTED_SUITE, wolfSSL_SetEchConfigsBase64(ssl,
         b64BadCiph, (word32)XSTRLEN(b64BadCiph)));
 
     /* unrecognized mandatory extension */
