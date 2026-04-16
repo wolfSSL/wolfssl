@@ -14353,7 +14353,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
              * send ech_required alert and abort before returning to the app */
             if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
                     !ssl->options.echAccepted) {
-                ssl->echRetryConfigsAccepted = 1;
+                if (ssl->echRetryConfigs != NULL) {
+                    ssl->options.echRetryConfigsAccepted = 1;
+                }
                 SendAlert(ssl, alert_fatal, ech_required);
                 ssl->error = ECH_REQUIRED_E;
                 WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);

@@ -13928,7 +13928,7 @@ static const byte* TLSX_ECH_FindOuterExtension(const byte* outerCh,
  * newInnerCh       The inner ClientHello buffer.
  * newInnerChLen    Inner ClientHello length.
  * numOuterRefs     Number of references described by OuterExtensions extension.
- * numOuterTypes    References described by OuterExtensions extension.
+ * OuterRefTypes    References described by OuterExtensions extension.
  * returns 0 on success and otherwise failure.
  */
 static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
@@ -13942,6 +13942,10 @@ static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
     word16 extsStart = 0;
     word16 extsLen = 0;
     const byte* outerExtData;
+
+    if (newInnerCh == NULL) {
+        *newInnerChLen = 0;
+    }
 
     while (numOuterRefs-- > 0) {
         ato16(outerRefTypes, &refType);
@@ -14008,7 +14012,7 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     int foundEchOuter = 0;
     word16 numOuterRefs = 0;
     const byte* outerRefTypes = NULL;
-    word32 extraSize = 0;
+    word32 extraSize;
     byte* newInnerCh = NULL;
     byte* newInnerChRef;
     word32 newInnerChLen;
@@ -14182,6 +14186,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
 {
     int ret = 0;
     int i;
+    int allocatedHpke = 0;
     word32 rawConfigLen = 0;
     byte* info = NULL;
     word32 infoLen = 0;
@@ -14202,6 +14207,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
     }
     /* check if hpke already exists, may if HelloRetryRequest */
     if (ech->hpke == NULL) {
+        allocatedHpke = 1;
         ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (ech->hpke == NULL)
             ret = MEMORY_E;
@@ -14250,8 +14256,9 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
             ech->outerClientPayload, ech->innerClientHelloLen,
             ech->innerClientHello + HANDSHAKE_HEADER_SZ);
     }
-    /* free the hpke and context on failure */
-    if (ret != 0) {
+    /* only free hpke/hpkeContext if allocated in this call; otherwise preserve
+     * them for clientHello2 */
+    if (ret != 0 && allocatedHpke) {
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
         ech->hpke = NULL;
         XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14312,7 +14319,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 
         /* retry configs may only be accepted at the point when ECH_REQUIRED is
          * sent */
-        ssl->echRetryConfigsAccepted = 0;
+        ssl->options.echRetryConfigsAccepted = 0;
     }
     /* HRR with special confirmation */
     else if (msgType == hello_retry_request && ssl->echConfigs != NULL) {

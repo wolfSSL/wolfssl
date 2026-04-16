@@ -15341,7 +15341,8 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(int hrr)
     WOLFSSL_CTX* tempCtx = NULL;
     byte badConfigs[256];
     word32 badConfigsLen = sizeof(badConfigs);
-    word32 retryConfigsLen = sizeof(badConfigs); /* non-zero sentinel */
+    word32 retryConfigsLen = sizeof(badConfigs);
+    const char* badPublicName = "ech-public-name.com";
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
@@ -15350,10 +15351,8 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(int hrr)
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
 
-    /* wrong ECH config so server sends retry_configs in EncryptedExtensions;
-     * use a public name that does NOT appear in the server cert so that the
-     * outer handshake cert check fails with DOMAIN_NAME_MISMATCH */
-    const char* badPublicName = "ech-public-name.com";
+    /* generate mismatched ECH configs so retry_configs are sent
+     * and use a bad public name so auth fails in outer hello */
     ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
     ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, badPublicName,
         0, 0, 0), WOLFSSL_SUCCESS);
@@ -15373,7 +15372,7 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(int hrr)
     wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
     wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
 
-    /* outer handshake uses badPublicName, which doesn't match the server cert */
+    /* use badPublicName so ECH public name matches */
     ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
         badPublicName, (word16)XSTRLEN(badPublicName)),
         WOLFSSL_SUCCESS);
@@ -15381,7 +15380,7 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(int hrr)
     if (hrr)
         ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
 
-    /* handshake fails due to auth failure in outer handshake, not ech_required */
+    /* auth failure in outer handshake, not ech_required */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
         WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH));
@@ -15682,14 +15681,8 @@ static int test_wolfSSL_Tls13_ECH_long_SNI(void)
 }
 
 /* Test the HRR ECH rejection fallback path:
- * client offers ECH, HRR is triggered, server sends HRR without ECH extension
- * (confBuf == NULL), client frees hsHashesEch and falls back to the outer
- * transcript, then aborts with ech_required.
- *
- * When disableECH is set on the server the ECH-aware SNI matching in
- * TLSX_SNI_Parse (which normally accepts the ECH public name) is bypassed, so
- * the server SNI must be set explicitly to avoid an unrecognized_name fatal
- * alert before HRR is even sent. */
+ * client offers ECH, HRR is triggered, server sends HRR without ECH extension,
+ * client falls back to the outer transcript, then aborts with ech_required. */
 static int test_wolfSSL_Tls13_ECH_HRR_rejection(void)
 {
     EXPECT_DECLS;
@@ -15700,9 +15693,7 @@ static int test_wolfSSL_Tls13_ECH_HRR_rejection(void)
     test_ctx.s_cb.method = wolfTLSv1_3_server_method;
     test_ctx.c_cb.method = wolfTLSv1_3_client_method;
 
-    /* Server generates ECH config (public name = echCbTestPublicName =
-     * "example.com", which appears in the server cert SAN so cert
-     * verification passes when ECH is rejected and the outer name is used) */
+    /* Server generates ECH config with good public name */
     test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
     /* Client sets the correct ECH config and private SNI */
     test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
@@ -15714,20 +15705,18 @@ static int test_wolfSSL_Tls13_ECH_HRR_rejection(void)
     wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
 
     /* Disable ECH on the server SSL object: the server ignores ECH in CH1 and
-     * sends HRR without an ECH extension (confBuf stays NULL on the client).
-     * Because ECH is disabled, the SNI code's ECH-aware public-name fallback
-     * is skipped; set the server SNI to the public name explicitly. */
+     * sends HRR without an ECH extension (confBuf stays NULL on the client) */
     wolfSSL_SetEchEnable(test_ctx.s_ssl, 0);
     ExpectIntEQ(wolfSSL_UseSNI(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
         echCbTestPublicName, (word16)XSTRLEN(echCbTestPublicName)),
         WOLFSSL_SUCCESS);
 
-    /* Force HRR so the code path at tls13.c:5717-5725 is exercised:
-     * client receives HRR with no ECH extension, detects confBuf == NULL
-     * and frees hsHashesEch, falling back to the outer transcript */
+    /* Force HRR so client receives HRR with no ECH extension,
+     * detects confBuf == NULL and frees hsHashesEch, falling back to the
+     * outer transcript */
     ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
 
-    /* Handshake must fail: client aborts with ech_required after Finished */
+    /* Handshake must fail: client aborts with ech_required */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
     /* hsHashesEch must have been freed by the HRR rejection code path */
@@ -15740,9 +15729,9 @@ static int test_wolfSSL_Tls13_ECH_HRR_rejection(void)
     return EXPECT_RESULT();
 }
 
-/* RFC 9849 §6.1.5: server must abort if CH2 omits the ECH extension after the
- * server accepted ECH in the HRR round. */
-static int test_wolfSSL_Tls13_ECH_HRR_ch2_no_ech(void)
+/* verify the server aborts if CH2 omits the ECH extension after the server
+ * accepted ECH in the HRR round */
+static int test_wolfSSL_Tls13_ECH_ch2_no_ech(void)
 {
     EXPECT_DECLS;
     test_ssl_memio_ctx test_ctx;
@@ -15772,10 +15761,69 @@ static int test_wolfSSL_Tls13_ECH_HRR_ch2_no_ech(void)
     /* disable ECH on the client so CH2 omits the ECH extension entirely */
     wolfSSL_SetEchEnable(test_ctx.c_ssl, 0);
 
-    /* rest of handshake must fail: server enforces RFC 9849 §6.1.5 */
+    /* rest of handshake must fail */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, 0),
         WC_NO_ERR_TRACE(INCOMPLETE_DATA));
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+/* verify that a decryption failure in CH2 is caught
+ * this also verifies that HPKE context is correctly reused */
+static int test_wolfSSL_Tls13_ECH_ch2_decrypt_error(void)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* Withhold key shares so the server is forced to send HRR */
+    ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+
+    /* One round: client sends CH1, server processes it and sends HRR */
+    (void)test_ssl_memio_do_handshake(&test_ctx, 1, NULL);
+
+    ExpectIntEQ(test_ctx.s_ssl->options.serverState,
+        SERVER_HELLO_RETRY_REQUEST_COMPLETE);
+    ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 1);
+
+    if (EXPECT_SUCCESS()) {
+        /* Client reads HRR and writes CH2 into s_buff */
+        (void)wolfSSL_connect(test_ctx.c_ssl);
+
+        /* Corrupt one byte of the ECH ciphertext in the CH2 record in s_buff.
+         * ECH outer extension layout after the 0xFE0D type marker:
+         *   extLen(2) + outerType(1) + kdfId(2) + aeadId(2) + configId(1)
+         *   + encLen(2, always 0 in CH2) + payloadLen(2) = 12 bytes, so the
+         * ciphertext starts 14 bytes past the first 0xFE byte. */
+        for (i = 0; i < test_ctx.s_len - 1; i++) {
+            if (test_ctx.s_buff[i] == 0xFE && test_ctx.s_buff[i + 1] == 0x0D) {
+                if (i + 14 < test_ctx.s_len)
+                    test_ctx.s_buff[i + 14] ^= 0xFF;
+                break;
+            }
+        }
+
+        /* Server processes the corrupted CH2.
+         * hpkeContext is preserved, TLSX_ECH_Parse correctly identifies the CH2
+         *   round and sends decrypt_error. */
+        (void)wolfSSL_accept(test_ctx.s_ssl);
+        ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, 0),
+            WC_NO_ERR_TRACE(DECRYPT_ERROR));
+    }
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -38299,7 +38347,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
     TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
     TEST_DECL(test_wolfSSL_Tls13_ECH_HRR_rejection),
-    TEST_DECL(test_wolfSSL_Tls13_ECH_HRR_ch2_no_ech),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_ch2_no_ech),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_ch2_decrypt_error),
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_cert_valid),
     TEST_DECL(test_wolfSSL_Tls13_ECH_rejected_empty_client_cert),
 #endif

@@ -5203,8 +5203,9 @@ struct Options {
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            echAccepted:1;
-    word16            disableECH:1;           /* Did the user disable ech */
-    word16            echProcessingInner:1;   /* Processing the inner hello */
+    word16            disableECH:1;             /* Did the user disable ech */
+    word16            echProcessingInner:1;     /* Processing the inner hello */
+    word16            echRetryConfigsAccepted:1;
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;
@@ -6525,7 +6526,6 @@ struct WOLFSSL {
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
     WOLFSSL_EchConfig* echRetryConfigs;
-    byte               echRetryConfigsAccepted:1;
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && defined(WOLFSSL_TEST_ECH)
     /* Test-only hook: called on the client before ECH encryption, after the

@@ -454,13 +454,14 @@ int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
 }
 
 /* wrapper function to get retry configs
+ * a client should only call this after the 'wolfSSL_connect()' call fails
  * returns error if retry configs were not received or were malformed */
 int wolfSSL_GetEchRetryConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
 {
     if (ssl == NULL || outputLen == NULL)
         return BAD_FUNC_ARG;
 
-    if (ssl->echRetryConfigs == NULL || !ssl->echRetryConfigsAccepted) {
+    if (ssl->echRetryConfigs == NULL || !ssl->options.echRetryConfigsAccepted) {
         return WOLFSSL_FATAL_ERROR;
     }
 
