@@ -2613,6 +2613,9 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
     if (extensions == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
+    if ((type == WOLFSSL_SNI_HOST_NAME) && (size >= WOLFSSL_HOST_NAME_MAX))
+        return BAD_LENGTH_E;
+
     if ((sni = TLSX_SNI_New(type, data, size, heap)) == NULL)
         return MEMORY_E;
 
@@ -13445,7 +13448,6 @@ void TLSX_Remove(TLSX** list, TLSX_Type type, void* heap)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 #define GREASE_ECH_SIZE 160
-#define MAX_PUBLIC_NAME_SZ 256
 #define TLS_INFO_CONST_STRING "tls ech"
 #define TLS_INFO_CONST_STRING_SZ 7
 
@@ -16101,14 +16103,10 @@ static int TLSX_EchChangeSNI(WOLFSSL* ssl, TLSX** pEchX,
             char* hostName = ((SNI*)serverNameX->data)->data.host_name;
             word32 hostNameSz = (word32)XSTRLEN(hostName) + 1;
 
-            /* truncate if too long */
-            if (hostNameSz > MAX_PUBLIC_NAME_SZ)
-                hostNameSz = MAX_PUBLIC_NAME_SZ;
-
-            XMEMCPY(serverName, hostName, hostNameSz);
-            /* Guarantee NUL termination after truncation so that
-             * TLSX_EchRestoreSNI's XSTRLEN cannot read past the buffer. */
-            serverName[hostNameSz - 1] = '\0';
+            if (hostNameSz > WOLFSSL_HOST_NAME_MAX)
+                ret = BAD_LENGTH_E;
+            else
+                XMEMCPY(serverName, hostName, hostNameSz);
         }
 
         /* only swap the SNI if one was found; extensions is non-NULL if an
@@ -16161,9 +16159,9 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     TLSX* echX = NULL;
     TLSX* serverNameX = NULL;
     TLSX** extensions = NULL;
-    WC_DECLARE_VAR(serverName, char, MAX_PUBLIC_NAME_SZ, 0);
+    WC_DECLARE_VAR(serverName, char, WOLFSSL_HOST_NAME_MAX, 0);
 
-    WC_ALLOC_VAR_EX(serverName, char, MAX_PUBLIC_NAME_SZ, NULL,
+    WC_ALLOC_VAR_EX(serverName, char, WOLFSSL_HOST_NAME_MAX, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
     r = TLSX_EchChangeSNI(ssl, &echX, serverName, &serverNameX, &extensions);
     if (r == 0 && ssl->extensions)
@@ -16303,9 +16301,9 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
     TLSX* echX = NULL;
     TLSX* serverNameX = NULL;
     TLSX** extensions = NULL;
-    WC_DECLARE_VAR(serverName, char, MAX_PUBLIC_NAME_SZ, 0);
+    WC_DECLARE_VAR(serverName, char, WOLFSSL_HOST_NAME_MAX, 0);
 
-    WC_ALLOC_VAR_EX(serverName, char, MAX_PUBLIC_NAME_SZ, NULL,
+    WC_ALLOC_VAR_EX(serverName, char, WOLFSSL_HOST_NAME_MAX, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
     r = TLSX_EchChangeSNI(ssl, &echX, serverName, &serverNameX, &extensions);
     ret = r;
