@@ -41506,31 +41506,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
 #ifdef WOLFSSL_SE050
-    #define RARE_ED_BAD_ENC_E   WC_HW_E
-    #define RARE_ED_BAD_SIG_E   WC_HW_E
+    #define RARE_ED_BAD_ENC_E   WC_NO_ERR_TRACE(WC_HW_E)
+    #define RARE_ED_BAD_SIG_E   WC_NO_ERR_TRACE(WC_HW_E)
 #else
-    #define RARE_ED_BAD_ENC_E   BAD_FUNC_ARG
-    #define RARE_ED_BAD_SIG_E   SIG_VERIFY_E
+    #define RARE_ED_BAD_ENC_E   WC_NO_ERR_TRACE(BAD_FUNC_ARG)
+    #define RARE_ED_BAD_SIG_E   WC_NO_ERR_TRACE(SIG_VERIFY_E)
 #endif
 
         ret = wc_ed25519_verify_msg(rareEd1, sizeof(rareEd1), msgs[0], msgSz[0],
                 &verify, key);
-        if (ret != WC_NO_ERR_TRACE(RARE_ED_BAD_ENC_E))
+        if (ret != RARE_ED_BAD_ENC_E)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
         ret = wc_ed25519_verify_msg(rareEd2, sizeof(rareEd2), msgs[0], msgSz[0],
                 &verify, key);
-        if (ret != WC_NO_ERR_TRACE(RARE_ED_BAD_ENC_E))
+        if (ret != RARE_ED_BAD_ENC_E)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
         ret = wc_ed25519_verify_msg(rareEd3, sizeof(rareEd3), msgs[0], msgSz[0],
                 &verify, key);
-        if (ret != WC_NO_ERR_TRACE(RARE_ED_BAD_ENC_E))
+        if (ret != RARE_ED_BAD_ENC_E)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
         ret = wc_ed25519_verify_msg(rareEd4, sizeof(rareEd4), msgs[0], msgSz[0],
                 &verify, key);
-        if (ret != WC_NO_ERR_TRACE(RARE_ED_BAD_SIG_E))
+        if (ret != RARE_ED_BAD_SIG_E)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
     #undef RARE_ED_BAD_ENC_E

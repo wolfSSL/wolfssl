@@ -18,9 +18,9 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
+          '--enable-all --enable-debug-trace-errcodes CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
           '--enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
-          '--enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
+          '--enable-smallstackcache --enable-smallstack --enable-all --enable-debug-trace-errcodes CFLAGS="-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
 # Note the below smallstackcache tests are crucial coverage for the Linux kernel
 # module, when targeting a kernel with the randomness patch (linuxkm/patches/)
 # applied.
