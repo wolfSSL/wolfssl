@@ -263,6 +263,48 @@ int test_tls12_curve_intersection(void) {
     return EXPECT_RESULT();
 }
 
+int test_tls12_dhe_rsa_pss_sigalg(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
+    defined(WC_RSA_PSS) && !defined(NO_SHA256) && defined(HAVE_AESGCM) && \
+    !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA)
+    /* Regression test for S1: SendServerKeyExchange had an inverted guard
+     * (#ifndef WC_RSA_PSS) that compiled out the rsa_pss_sa_algo case in the
+     * server-side signature self-check for the DHE key exchange path. This
+     * test drives a DHE-RSA handshake restricted to RSA-PSS+SHA256 so the
+     * server exercises that code path. The bug did not cause the handshake
+     * to fail, so we verify by asserting the negotiated sig algorithm. */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"), 1);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA-PSS+SHA256"), 1);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(ssl_s->options.sigAlgo, rsa_pss_sa_algo);
+    ExpectIntEQ(ssl_c->options.peerSigAlgo, rsa_pss_sa_algo);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_curve_intersection(void) {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \

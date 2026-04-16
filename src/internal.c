@@ -716,6 +716,8 @@ int IsDtlsNotSrtpMode(WOLFSSL* ssl)
     static void* myAlloc(void* opaque, unsigned int item, unsigned int size)
     {
         (void)opaque;
+        if (item != 0 && size > ((unsigned int)-1) / item)
+            return NULL;
         return (void *)XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
     }
 
@@ -1096,7 +1098,16 @@ static int ImportCipherSpecState(WOLFSSL* ssl, const byte* exp, word32 len,
 
     if (type == WOLFSSL_EXPORT_TLS &&
             ssl->specs.bulk_cipher_algorithm == wolfssl_aes) {
-        byte *pt = (byte*)ssl->encrypt.aes->reg;
+        byte *pt;
+        if ((idx + 2 * WC_AES_BLOCK_SIZE) > len) {
+            WOLFSSL_MSG("Buffer not large enough for AES state import");
+            return BUFFER_E;
+        }
+        if (ssl->encrypt.aes == NULL || ssl->decrypt.aes == NULL) {
+            WOLFSSL_MSG("AES cipher objects not allocated for import");
+            return BAD_STATE_E;
+        }
+        pt = (byte*)ssl->encrypt.aes->reg;
         XMEMCPY(pt, exp + idx, WC_AES_BLOCK_SIZE);
         idx += WC_AES_BLOCK_SIZE;
 
@@ -2054,7 +2065,11 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
     }
 
     if (ret == 0) {
-        rc = ImportCipherSpecState(ssl, buf + idx, length, version, type);
+        /* Pass remaining buffer size rather than the stored spec length:
+         * when TLS+AES is active, ExportCipherSpecState writes 2*AES_BLOCK_SIZE
+         * of extra state immediately after the 16-byte cipher-spec block, and
+         * the on-wire length prefix does not cover those bytes. */
+        rc = ImportCipherSpecState(ssl, buf + idx, sz - idx, version, type);
         if (rc < 0) {
             WOLFSSL_MSG("Import CipherSpecs struct error");
             ret = rc;
@@ -9378,13 +9393,13 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 {
     WOLFSSL_CTX* ctx = ssl->ctx;
     wolfSSL_ResourceFree(ssl);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(ssl, sizeof(*ssl));
+#endif
     XFREE(ssl, heap, DYNAMIC_TYPE_SSL);
     if (ctx)
         FreeSSL_Ctx(ctx); /* will decrement and free underlying CTX if 0 */
     (void)heap;
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(ssl, sizeof(*ssl));
-#endif
 }
 
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
@@ -9956,7 +9971,11 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
         if (cur == NULL) {
             cur = DtlsMsgNew(dataSz, 0, heap);
-            if (cur != NULL) {
+            if (cur == NULL) {
+                WOLFSSL_MSG("DtlsMsgNew allocation failed");
+                ssl->error = MEMORY_E;
+            }
+            else {
                 if (DtlsMsgSet(cur, seq, epoch, data, type,
                              fragOffset, fragSz, heap, dataSz, encrypted) < 0) {
                     DtlsMsgDelete(cur, heap);
@@ -9975,7 +9994,11 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
     }
     else {
         head = DtlsMsgNew(dataSz, 0, heap);
-        if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
+        if (head == NULL) {
+            WOLFSSL_MSG("DtlsMsgNew allocation failed");
+            ssl->error = MEMORY_E;
+        }
+        else if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
                     fragSz, heap, dataSz, encrypted) < 0) {
             DtlsMsgDelete(head, heap);
             head = NULL;
@@ -10625,6 +10648,9 @@ static int EdDSA_Update(WOLFSSL* ssl, const byte* data, int sz)
     byte* msgs;
 
     if (ssl->options.cacheMessages) {
+        if (sz < 0 || ssl->hsHashes->length < 0 ||
+                ssl->hsHashes->length > INT_MAX - sz)
+            return BUFFER_ERROR;
         msgs = (byte*)XMALLOC(ssl->hsHashes->length + sz, ssl->heap,
             DYNAMIC_TYPE_HASHES);
         if (msgs == NULL)
@@ -10777,6 +10803,9 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
         }
     }
 #endif
+
+    if (sz < 0)
+        return BUFFER_ERROR;
 
     return HashRaw(ssl, adj, sz);
 }
@@ -17129,6 +17158,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else {
                             ssl->peerEd25519KeyPresent = 1;
                     #ifdef HAVE_PK_CALLBACKS
+                            XFREE(ssl->buffers.peerEd25519Key.buffer,
+                                  ssl->heap, DYNAMIC_TYPE_ED25519);
                             ssl->buffers.peerEd25519Key.buffer =
                                    (byte*)XMALLOC(args->dCert->pubKeySize,
                                            ssl->heap, DYNAMIC_TYPE_ED25519);
@@ -17184,6 +17215,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else {
                             ssl->peerEd448KeyPresent = 1;
                     #ifdef HAVE_PK_CALLBACKS
+                            XFREE(ssl->buffers.peerEd448Key.buffer,
+                                  ssl->heap, DYNAMIC_TYPE_ED448);
                             ssl->buffers.peerEd448Key.buffer =
                                    (byte*)XMALLOC(args->dCert->pubKeySize,
                                            ssl->heap, DYNAMIC_TYPE_ED448);
@@ -17631,9 +17664,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             ssl->status_request_v2 = 0;
 
-                WC_FREE_VAR_EX(status, NULL, DYNAMIC_TYPE_OCSP_STATUS);
-                WC_FREE_VAR_EX(single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-                WC_FREE_VAR_EX(response, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+                WC_FREE_VAR_EX(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+                WC_FREE_VAR_EX(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+                WC_FREE_VAR_EX(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
 
         }
         break;
@@ -26216,8 +26249,6 @@ int SendAsyncData(WOLFSSL* ssl)
  */
 static int ssl_in_handshake(WOLFSSL *ssl, int sending_data)
 {
-int SendAsyncData = 1;
-(void)SendAsyncData;
     if (IsSCR(ssl)) {
         if (sending_data) {
             /* allow sending data in SCR */
@@ -29196,7 +29227,10 @@ static int ParseCipherList(Suites* suites,
             /* Restore user ciphers ahead of defaults */
             XMEMMOVE(suites->suites + idx, suites->suites,
                     min(suites->suiteSz, WOLFSSL_MAX_SUITE_SZ-idx));
-            suites->suiteSz += (word16)idx;
+            if ((word32)suites->suiteSz + idx > WOLFSSL_MAX_SUITE_SZ)
+                suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
+            else
+                suites->suiteSz += (word16)idx;
         }
         else
     #endif
@@ -35047,6 +35081,9 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
     word32 sessIdLen = ID_LEN;
 
+    if (length > WOLFSSL_MAX_16BIT)
+        return BUFFER_ERROR;
+
     if (!HaveUniqueSessionObj(ssl))
         return MEMORY_ERROR;
 
@@ -35825,6 +35862,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             args->output[args->idx++] = SetCurveId(ssl->eccTempKey);
     #endif
         }
+        if (args->exportSz > WOLFSSL_MAX_8BIT)
+            return BUFFER_ERROR;
         args->output[args->idx++] = (byte)args->exportSz;
         XMEMCPY(args->output + args->idx, args->exportBuf, args->exportSz);
         return 0;
@@ -35937,6 +35976,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
     static int SKE_AddDhPub(Buffers* buffers, byte* output, int idx)
     {   /* add p, g, pub */
+        if (buffers->serverDH_P.length > WOLFSSL_MAX_16BIT ||
+            buffers->serverDH_G.length > WOLFSSL_MAX_16BIT ||
+            buffers->serverDH_Pub.length > WOLFSSL_MAX_16BIT)
+            return BUFFER_ERROR;
         c16toa((word16)buffers->serverDH_P.length, output + idx);
         idx += LENGTH_SZ;
         XMEMCPY(output + idx, buffers->serverDH_P.buffer,
@@ -36403,8 +36446,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         AddHeaders(args->output, args->length,
                                                     server_key_exchange, ssl);
                         AddServerHint(ssl, args, hintLen);
-                        args->idx = SKE_AddDhPub(&ssl->buffers, args->output,
-                                                 args->idx);
+                        ret = SKE_AddDhPub(&ssl->buffers, args->output,
+                                           args->idx);
+                        if (ret < 0)
+                            goto exit_sske;
+                        args->idx = ret;
+                        ret = 0;
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_PSK) */
@@ -36590,8 +36637,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         CHECK_RET(ret, AllocArgsInput(ssl, args), exit_sske);
                         AddHeaders(args->output, args->length,
                                                     server_key_exchange, ssl);
-                        args->idx = SKE_AddDhPub(&ssl->buffers, args->output,
-                                                 args->idx);
+                        ret = SKE_AddDhPub(&ssl->buffers, args->output,
+                                           args->idx);
+                        if (ret < 0)
+                            goto exit_sske;
+                        args->idx = ret;
+                        ret = 0;
 
                     #ifdef HAVE_FUZZER
                         if (ssl->fuzzerCb) {
@@ -36984,8 +37035,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         switch (ssl->options.sigAlgo)
                         {
                         #ifndef NO_RSA
-                        #ifndef WC_RSA_PSS
+                        #ifdef WC_RSA_PSS
                             case rsa_pss_sa_algo:
+                            case rsa_pss_pss_algo:
                         #endif
                             case rsa_sa_algo:
                             {
@@ -37512,7 +37564,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         Suites          clSuites;
         int ret = -1;
 
-        (void)inSz;
         WOLFSSL_MSG("Got old format client hello");
 #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn)
@@ -37600,6 +37651,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                        TRUE, TRUE, TRUE, TRUE, ssl->options.side);
         }
 
+        /* Need at least 3 * OPAQUE16_LEN bytes for suiteSz/sessionSz/randomSz
+         * headers before reading the per-field bodies. */
+        if (idx + 3 * OPAQUE16_LEN > inSz)
+            return BUFFER_ERROR;
+
         /* suite size */
         ato16(&input[idx], &clSuites.suiteSz);
         idx += OPAQUE16_LEN;
@@ -37623,6 +37679,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         idx += OPAQUE16_LEN;
 
         if (randomSz > RAN_LEN)
+            return BUFFER_ERROR;
+
+        /* Cumulative bounds check against actual input buffer length. */
+        if ((word32)clSuites.suiteSz + (word32)sessionSz + (word32)randomSz
+                > inSz - idx)
             return BUFFER_ERROR;
 
         /* suites */
@@ -39671,6 +39732,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
+            if (ssl->arrays == NULL)
+                return;
             XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
             /* Copy the haveExtendedMasterSecret property from the ticket to
              * the saved session, so the property may be checked later. */
