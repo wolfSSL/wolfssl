@@ -1870,6 +1870,33 @@ int wc_backtrace_render(void) {
 
 #include <backtrace.h>
 
+#ifdef XFILE
+
+static XFILE wolfssl_backtrace_file = XBADFILE;
+
+XFILE wc_backtrace_set_fp(XFILE new_fp) {
+    XFILE old_fp = wolfssl_backtrace_file;
+    if (new_fp == NULL)
+        wolfssl_backtrace_file = XBADFILE;
+    else
+        wolfssl_backtrace_file = new_fp;
+    return old_fp;
+}
+
+#define WOLFSSL_BACKTRACE_PRINTF(...) (                             \
+    (wolfssl_backtrace_file == XBADFILE) ?                          \
+     WOLFSSL_DEBUG_PRINTF(__VA_ARGS__) :                            \
+     WOLFSSL_DEBUG_PRINTF_FN(wolfssl_backtrace_file, __VA_ARGS__))
+
+#else /* !XFILE */
+
+/* libbacktrace doesn't support any targets with no XFILE, but keep it buildable
+ * just in case.
+ */
+#define WOLFSSL_BACKTRACE_PRINTF(...) WOLFSSL_DEBUG_PRINTF(__VA_ARGS__)
+
+#endif /* !XFILE */
+
 static int backtrace_callback(void *data, uintptr_t pc, const char *filename,
                               int lineno, const char *function)
 {
@@ -1880,20 +1907,20 @@ static int backtrace_callback(void *data, uintptr_t pc, const char *filename,
         *(int *)data = 1;
         return 0;
     }
-    WOLFSSL_DEBUG_PRINTF("    #%d %p in %s %s:%d\n", (*(int *)data)++,
+    WOLFSSL_BACKTRACE_PRINTF("    #%d %p in %s %s:%d\n", (*(int *)data)++,
                          (void *)pc, function, filename, lineno);
     return 0;
 }
 
 static void backtrace_error(void *data, const char *msg, int errnum) {
     (void)data;
-    WOLFSSL_DEBUG_PRINTF("ERR TRACE: error %d while backtracing: %s",
+    WOLFSSL_BACKTRACE_PRINTF("ERR TRACE: error %d while backtracing: %s",
                          errnum, msg);
 }
 
 static void backtrace_creation_error(void *data, const char *msg, int errnum) {
     (void)data;
-    WOLFSSL_DEBUG_PRINTF("ERR TRACE: internal error %d "
+    WOLFSSL_BACKTRACE_PRINTF("ERR TRACE: internal error %d "
             "while initializing backtrace facility: %s", errnum, msg);
 }
 
