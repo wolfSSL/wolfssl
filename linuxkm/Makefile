@@ -163,7 +163,7 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 	    print "\#include <wolfssl/wolfcrypt/libwolfssl_sources.h>";			\
 	    print "\#include <wolfssl/wolfcrypt/memory.h>";				\
 	    printf("%s\n    ",								\
-		"WOLFSSL_LOCAL const struct wc_reloc_table_ent wc_linuxkm_pie_reloc_tab[] = { ");	\
+		"WOLFSSL_LOCAL const struct wc_reloc_table_ent wc_linuxkm_pie_text_reloc_tab[] = { ");	\
 	    if ("SECTION_MAP" in ENVIRON) {						\
 		while (getline <ENVIRON["SECTION_MAP"] > 0)				\
 		    section_map[$$1] = $$2;						\
@@ -232,7 +232,7 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		exit(1);								\
 	    }										\
 	    print "    { .offset = ~0U, .dest_offset = ~0U, .dest_addend = 0, .dest_segment = WC_R_SEG_NONE, .reloc_type = WC_R_NONE } };"; \
-	    print "WOLFSSL_LOCAL const unsigned int wc_linuxkm_pie_reloc_tab_length = (unsigned int)(sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0]);"; \
+	    print "WOLFSSL_LOCAL const unsigned int wc_linuxkm_pie_text_reloc_tab_length = (unsigned int)(sizeof wc_linuxkm_pie_text_reloc_tab / sizeof wc_linuxkm_pie_text_reloc_tab[0]);"; \
 	}'
 
 ifeq "$(V)" "1"

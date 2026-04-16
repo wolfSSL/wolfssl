@@ -621,7 +621,7 @@ static int wolfssl_init(void)
 #ifdef HAVE_FIPS
     /* The compiled-in verifycore must be the right length, else the module
      * geometry will change when the correct value is passed in, destabilizing
-     * wc_linuxkm_pie_reloc_tab.  It also must be the right length for the
+     * wc_linuxkm_pie_text_reloc_tab.  It also must be the right length for the
      * module-update-fips-hash recipe (in-place overwrite) to work, and for
      * updateFipsHash() (WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) to be safe from
      * overruns.
@@ -1118,17 +1118,17 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
 #ifdef WC_SYM_RELOC_TABLES
 
-extern const struct wc_reloc_table_ent wc_linuxkm_pie_reloc_tab[];
-extern const unsigned int wc_linuxkm_pie_reloc_tab_length;
+extern const struct wc_reloc_table_ent wc_linuxkm_pie_text_reloc_tab[];
+extern const unsigned int wc_linuxkm_pie_text_reloc_tab_length;
 
 static const struct wc_reloc_table_segments seg_map = {
     .start = 0, .end = 0,
     .text_start = (size_t)(uintptr_t)__wc_text_start,
     .text_end = (size_t)(uintptr_t)__wc_text_end,
-    .reloc_tab_start = (size_t)(uintptr_t)wc_linuxkm_pie_reloc_tab,
-    .reloc_tab_end = 0,
-    .reloc_tab_len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_reloc_tab_length,
-    .reloc_tab_len_end = 0,
+    .text_reloc_tab.start = (size_t)(uintptr_t)wc_linuxkm_pie_text_reloc_tab,
+    .text_reloc_tab.end = 0,
+    .text_reloc_tab.len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_text_reloc_tab_length,
+    .text_reloc_tab.len_end = 0,
 #ifdef HAVE_FIPS
 #ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
     .fips_text_start = (size_t)(uintptr_t)__wc_text_start,

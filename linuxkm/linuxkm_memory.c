@@ -140,8 +140,8 @@ ssize_t wc_reloc_normalize_text(
     size_t text_in_offset;
     const struct wc_reloc_table_ent *last_reloc; /* for error-checking order in reloc_tab[] */
     int n_text_r = 0, n_rodata_r = 0, n_rwdata_r = 0, n_bss_r = 0, n_other_r = 0, n_oob_r = 0;
-    const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->reloc_tab_start;
-    const word32 reloc_tab_len = *(const word32 *)seg_map->reloc_tab_len_start;
+    const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->text_reloc_tab.start;
+    const word32 reloc_tab_len = *(const word32 *)seg_map->text_reloc_tab.len_start;
 
     if ((text_in_len == 0) ||
         ((uintptr_t)text_in < seg_map->text_start) ||
@@ -553,16 +553,16 @@ int wc_fips_generate_hash(
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
     if (seg_map->text_is_live) {
-        if ((seg_map->reloc_tab_start == 0) ||
-            (seg_map->reloc_tab_len_start == 0))
+        if ((seg_map->text_reloc_tab.start == 0) ||
+            (seg_map->text_reloc_tab.len_start == 0))
         {
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
         }
     }
     else {
-        if ((seg_map->reloc_tab_end == 0) ||
-            (seg_map->reloc_tab_len_end == 0))
+        if ((seg_map->text_reloc_tab.end == 0) ||
+            (seg_map->text_reloc_tab.len_end == 0))
         {
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
@@ -575,8 +575,8 @@ int wc_fips_generate_hash(
         (seg_map->fips_rodata_start >= seg_map->fips_rodata_end)
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
         ||
-        ((seg_map->reloc_tab_end != 0) && (seg_map->reloc_tab_start >= seg_map->reloc_tab_end)) ||
-        ((seg_map->reloc_tab_len_end != 0) && (seg_map->reloc_tab_len_start >= seg_map->reloc_tab_len_end)) ||
+        ((seg_map->text_reloc_tab.end != 0) && (seg_map->text_reloc_tab.start >= seg_map->text_reloc_tab.end)) ||
+        ((seg_map->text_reloc_tab.len_end != 0) && (seg_map->text_reloc_tab.len_start >= seg_map->text_reloc_tab.len_end)) ||
         (seg_map->text_start >= seg_map->text_end) ||
         (seg_map->rodata_start >= seg_map->rodata_end) ||
         (seg_map->data_start >= seg_map->data_end) ||
@@ -594,8 +594,8 @@ int wc_fips_generate_hash(
             (seg_map->verifyCore_start < seg_map->start)
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
             ||
-            (seg_map->reloc_tab_start < seg_map->start) ||
-            (seg_map->reloc_tab_len_start < seg_map->start) ||
+            (seg_map->text_reloc_tab.start < seg_map->start) ||
+            (seg_map->text_reloc_tab.len_start < seg_map->start) ||
             (seg_map->text_start < seg_map->start) ||
             (seg_map->rodata_start < seg_map->start) ||
             (seg_map->data_start < seg_map->start) ||
@@ -614,10 +614,10 @@ int wc_fips_generate_hash(
             (seg_map->verifyCore_end > seg_map->end)
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
             ||
-            ((seg_map->reloc_tab_end != 0) &&
-             (seg_map->reloc_tab_end > seg_map->end)) ||
-            ((seg_map->reloc_tab_len_end != 0) &&
-             (seg_map->reloc_tab_len_end > seg_map->end)) ||
+            ((seg_map->text_reloc_tab.end != 0) &&
+             (seg_map->text_reloc_tab.end > seg_map->end)) ||
+            ((seg_map->text_reloc_tab.len_end != 0) &&
+             (seg_map->text_reloc_tab.len_end > seg_map->end)) ||
             (seg_map->text_end > seg_map->end) ||
             (seg_map->rodata_end > seg_map->end) ||
             (seg_map->data_end > seg_map->end) ||
@@ -631,15 +631,15 @@ int wc_fips_generate_hash(
     }
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
-    if ((seg_map->reloc_tab_len_end != 0) &&
-        (seg_map->reloc_tab_len_end - seg_map->reloc_tab_len_start != sizeof(word32)))
+    if ((seg_map->text_reloc_tab.len_end != 0) &&
+        (seg_map->text_reloc_tab.len_end - seg_map->text_reloc_tab.len_start != sizeof(word32)))
     {
         RELOC_DEBUG_PRINTF("assert failed.\n");
         return BAD_FUNC_ARG;
     }
-    else if (seg_map->reloc_tab_len_start & (sizeof(word32) - 1)) {
-        /* fprintf(stderr, "%s: seg_map->reloc_tab_len_start isn't properly aligned: 0x%llx.\n", progname, (
-           unsigned long long)seg_map->reloc_tab_len_start); */
+    else if (seg_map->text_reloc_tab.len_start & (sizeof(word32) - 1)) {
+        /* fprintf(stderr, "%s: seg_map->text_reloc_tab.len_start isn't properly aligned: 0x%llx.\n", progname, (
+           unsigned long long)seg_map->text_reloc_tab.len_start); */
         RELOC_DEBUG_PRINTF("assert failed.\n");
         return BAD_ALIGN_E;
     }
@@ -649,8 +649,8 @@ int wc_fips_generate_hash(
          * a nonsense byte-swapped value, or the final reloc_tab ent has
          * nonsense flags.
          */
-        word32 reloc_tab_len = *(const word32 *)seg_map->reloc_tab_len_start;
-        const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->reloc_tab_start;
+        word32 reloc_tab_len = *(const word32 *)seg_map->text_reloc_tab.len_start;
+        const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->text_reloc_tab.start;
         if (reloc_tab_len == 0) {
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
@@ -667,14 +667,14 @@ int wc_fips_generate_hash(
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
         }
-        else if ((seg_map->reloc_tab_end != 0) &&
-            (seg_map->reloc_tab_end - seg_map->reloc_tab_start != sizeof(struct wc_reloc_table_ent) * *(const word32 *)seg_map->reloc_tab_len_start))
+        else if ((seg_map->text_reloc_tab.end != 0) &&
+            (seg_map->text_reloc_tab.end - seg_map->text_reloc_tab.start != sizeof(struct wc_reloc_table_ent) * *(const word32 *)seg_map->text_reloc_tab.len_start))
         {
             /*
-              fprintf(stderr, "%s: wc_linuxkm_pie_reloc_tab_length from module (%u) is inconsistent with actual reloc_tab size %llu.\n",
+              fprintf(stderr, "%s: wc_linuxkm_pie_text_reloc_tab_length from module (%u) is inconsistent with actual text_reloc_tab size %llu.\n",
               progname,
-              *(const word32 *)seg_map->reloc_tab_len_start,
-              (unsigned long long)(seg_map->reloc_tab_end - seg_map->reloc_tab_start));
+              *(const word32 *)seg_map->text_reloc_tab.len_start,
+              (unsigned long long)(seg_map->text_reloc_tab.end - seg_map->text_reloc_tab.start));
             */
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
