@@ -7087,9 +7087,12 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             output + acceptOffset);
 
     if (ret == 0) {
+        WOLFSSL_MSG("ECH accepted");
+
         tmpHashes = ssl->hsHashes;
         ssl->hsHashes = ssl->hsHashesEch;
 
+        ssl->options.echAccepted = 1;
         /* after HRR, hsHashesEch must contain:
          * message_hash(ClientHelloInner1) || HRR (actual, not zeros) */
         if (msgType == hello_retry_request) {
@@ -7097,9 +7100,6 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
         }
         /* normal TLS code will calculate transcript of ServerHello */
         else {
-            WOLFSSL_MSG("ECH accepted");
-            ssl->options.echAccepted = 1;
-
             ssl->hsHashes = tmpHashes;
             FreeHandshakeHashes(ssl);
             tmpHashes = ssl->hsHashesEch;
@@ -8070,6 +8070,10 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
                     if (extMsgType == hello_retry_request) {
                         /* reset the ech state for round 2 */
                         ((WOLFSSL_ECH*)echX->data)->state = ECH_WRITE_NONE;
+                        /* inner hello no longer needed, free it */
+                        XFREE(((WOLFSSL_ECH*)echX->data)->innerClientHello,
+                              ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        ((WOLFSSL_ECH*)echX->data)->innerClientHello = NULL;
                     }
                     else {
                         if (ret == 0) {
