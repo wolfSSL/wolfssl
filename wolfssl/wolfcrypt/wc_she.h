@@ -108,7 +108,7 @@ typedef struct wc_SHE {
     byte   m4pOverride;
 #endif
 
-#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123)
     byte   m1[WC_SHE_M1_SZ];
     byte   m2[WC_SHE_M2_SZ];
     byte   m3[WC_SHE_M3_SZ];
@@ -227,7 +227,7 @@ WOLFSSL_API int wc_SHE_SetM4Header(wc_SHE* she,
  *   m2Sz - must be WC_SHE_M2_SZ (32)
  *   m3   - 16-byte M3 message (CMAC over M1|M2)
  *   m3Sz - must be WC_SHE_M3_SZ (16) */
-#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123)
 WOLFSSL_API int wc_SHE_ImportM1M2M3(wc_SHE* she,
                           const byte* m1, word32 m1Sz,
                           const byte* m2, word32 m2Sz,
@@ -301,7 +301,7 @@ WOLFSSL_API int wc_SHE_GenerateM4M5(wc_SHE* she,
  *   m1-m3 - input: externally-provided SHE key update messages
  *   m4,m5 - output: verification messages returned by the HSM */
 #ifndef NO_WC_SHE_LOADKEY
-#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123)
 WOLFSSL_API int wc_SHE_LoadKey(
     void* heap, int devId,
     const byte* m1, word32 m1Sz,
@@ -371,7 +371,7 @@ WOLFSSL_API int wc_SHE_LoadKey_Verify_Label(
     const byte* m5Expected, word32 m5ExpectedSz);
 #endif /* WOLF_PRIVATE_KEY_ID */
 
-#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
+#endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_IMPORT_M123 */
 #endif /* !NO_WC_SHE_LOADKEY */
 
 /* Export a key from hardware in SHE loadable format (M1-M5).

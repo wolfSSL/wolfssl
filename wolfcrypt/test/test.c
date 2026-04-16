@@ -56909,7 +56909,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         goto exit_SHE_Test;
     }
 
-#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123)
     /* ---- Import M1/M2/M3 and generate M4/M5 (only NewKey needed) ---- */
     wc_SHE_Free(she);
     ret = wc_SHE_Init(she, HEAP_HINT, devId);
@@ -56944,7 +56944,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
         ret = WC_TEST_RET_ENC_NC;
         goto exit_SHE_Test;
     }
-#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
+#endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_IMPORT_M123 */
 
     /* ---- One-shot M1/M2/M3 ---- */
     wc_SHE_Free(she);
@@ -57062,7 +57062,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
     }
 
 #if !defined(NO_WC_SHE_LOADKEY) && !defined(NO_WC_SHE_LOADKEY_TEST) && \
-    (defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123))
+    (defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123))
     /* ---- LoadKey_Verify ---- */
     /* Override WC_TEST_SHE_LOADKEY_VERIFY to use a platform-specific variant.
      * Platforms with hardware SHE (HSM/HSE) cannot use static test vectors

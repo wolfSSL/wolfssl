@@ -146,7 +146,7 @@ int test_wc_SHE_ImportM1M2M3(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHE) && !defined(NO_AES) && \
-    (defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123))
+    (defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123))
     wc_SHE she;
     byte m1[WC_SHE_M1_SZ] = {0};
     byte m2[WC_SHE_M2_SZ] = {0};

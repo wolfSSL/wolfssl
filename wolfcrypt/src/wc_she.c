@@ -359,7 +359,7 @@ int wc_SHE_SetKdfConstants(wc_SHE* she,
 
 #endif /* WOLFSSL_SHE_EXTENDED */
 
-#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123)
 /* -------------------------------------------------------------------------- */
 /* Import M1/M2/M3                                                            */
 /*                                                                            */
@@ -384,7 +384,7 @@ int wc_SHE_ImportM1M2M3(wc_SHE* she,
     she->generated = 1;
     return 0;
 }
-#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
+#endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_IMPORT_M123 */
 
 /* -------------------------------------------------------------------------- */
 /* Portable big-endian 32-bit store                                           */
@@ -776,7 +776,7 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
 /* and frees the context.                                                      */
 /* -------------------------------------------------------------------------- */
 #ifndef NO_WC_SHE_LOADKEY
-#if defined(WOLF_CRYPTO_CB) || !defined(NO_WC_SHE_IMPORT_M123)
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_WC_SHE_IMPORT_M123)
 static int wc_SHE_LoadKey_Internal(wc_SHE* she,
     const byte* m1, word32 m1Sz,
     const byte* m2, word32 m2Sz,
@@ -1080,7 +1080,7 @@ int wc_SHE_LoadKey_Verify_Label(
 }
 #endif /* WOLF_PRIVATE_KEY_ID */
 
-#endif /* WOLF_CRYPTO_CB || !NO_WC_SHE_IMPORT_M123 */
+#endif /* WOLF_CRYPTO_CB && !NO_WC_SHE_IMPORT_M123 */
 #endif /* !NO_WC_SHE_LOADKEY */
 
 /* -------------------------------------------------------------------------- */
