@@ -1009,7 +1009,8 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24)) {
+            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1103,7 +1104,8 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24)) {
+            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1194,7 +1196,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
             (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
-            (outKey == NULL)) {
+            (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1267,7 +1269,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
             (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
-            (outKey == NULL)) {
+            (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 

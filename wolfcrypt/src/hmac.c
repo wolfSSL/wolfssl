@@ -1590,6 +1590,10 @@ int wolfSSL_GetHmacMaxSize(void)
         const  byte* localSalt;  /* either points to user input or tmp */
         word32 hashSz;
 
+        if (out == NULL || (inKey == NULL && inKeySz > 0)) {
+            return BAD_FUNC_ARG;
+        }
+
         ret = wc_HmacSizeByType(type);
         if (ret < 0) {
             return ret;

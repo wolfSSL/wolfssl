@@ -31466,7 +31466,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !NO_SHA256 */
 #endif /* !NO_SHA || !NO_SHA256 */
 
-    return ret;
+#ifndef NO_SHA256
+    /* wc_HKDF_Extract bad arg: NULL out */
+    ret = wc_HKDF_Extract(WC_SHA256, NULL, 0, ikm1, (word32)sizeof(ikm1), NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    /* wc_HKDF_Extract bad arg: NULL inKey with non-zero inKeySz */
+    ret = wc_HKDF_Extract(WC_SHA256, NULL, 0, NULL, 5, okm1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+#endif /* !NO_SHA256 */
+
+    return 0;
 }
 
 #endif /* HAVE_HKDF */
@@ -33399,6 +33410,24 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         -2, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* kdrIdx >= 0 requires non-NULL idx. */
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        0, NULL, keyE, tv[i].keSz, keyA, tv[i].kaSz, keyS, tv[i].ksSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        0, NULL, keyE, tv[i].keSz, keyA, tv[i].kaSz, keyS, tv[i].ksSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        0, NULL, WC_SRTP_LABEL_ENCRYPTION, keyE, tv[i].keSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        0, NULL, WC_SRTCP_LABEL_ENCRYPTION, keyE, tv[i].keSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
