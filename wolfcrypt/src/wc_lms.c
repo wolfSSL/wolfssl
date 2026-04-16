@@ -1052,6 +1052,9 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
             HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
 #endif
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
+            /* Write to NV storage failed. Erase the signature from
+             * memory to prevent OTS key reuse if state is rolled back. */
+            ForceZero(sig, key->params->sig_len);
             ret = IO_FAILED_E;
         }
     }
