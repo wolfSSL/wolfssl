@@ -8546,14 +8546,17 @@ static int sp_lshb(sp_int* a, int n)
     if (a->used != 0) {
         /* Calculate number of digits to shift. */
         sp_size_t s = (sp_size_t)n >> SP_WORD_SHIFT;
+        /* Get count of bits to move in digit. */
+        n &= (int)SP_WORD_MASK;
 
         /* Ensure number has enough digits for result. */
-        if (a->used + s >= a->size) {
+        if ((n != 0) && (a->used + s >= a->size)) {
+            err = MP_VAL;
+        }
+        else if ((s > 0) && (a->used + s > a->size)) {
             err = MP_VAL;
         }
         if (err == MP_OKAY) {
-            /* Get count of bits to move in digit. */
-            n &= (int)SP_WORD_MASK;
             /* Check whether this is a complicated case. */
             if (n != 0) {
                 unsigned int i;
@@ -12258,24 +12261,30 @@ static int _sp_mulmod_tmp(const sp_int* a, const sp_int* b, const sp_int* m,
     sp_int* r)
 {
     int err = MP_OKAY;
-    /* Create temporary for multiplication result. */
-    DECL_SP_INT(t, a->used + b->used);
 
-    ALLOC_SP_INT(t, a->used + b->used, err, NULL);
-    if (err == MP_OKAY) {
-        err = sp_init_size(t, (sp_size_t)(a->used + b->used));
+    if (sp_iszero(a) || sp_iszero(b)) {
+        _sp_zero(r);
     }
+    else {
+        /* Create temporary for multiplication result. */
+        DECL_SP_INT(t, a->used + b->used);
 
-    /* Multiply and reduce. */
-    if (err == MP_OKAY) {
-        err = sp_mul(a, b, t);
-    }
-    if (err == MP_OKAY) {
-        err = sp_mod(t, m, r);
-    }
+        ALLOC_SP_INT(t, a->used + b->used, err, NULL);
+        if (err == MP_OKAY) {
+            err = sp_init_size(t, (sp_size_t)(a->used + b->used));
+        }
 
-    /* Dispose of an allocated SP int. */
-    FREE_SP_INT(t, NULL);
+        /* Multiply and reduce. */
+        if (err == MP_OKAY) {
+            err = sp_mul(a, b, t);
+        }
+        if (err == MP_OKAY) {
+            err = sp_mod(t, m, r);
+        }
+
+        /* Dispose of an allocated SP int. */
+        FREE_SP_INT(t, NULL);
+    }
 
     return err;
 }
@@ -14851,7 +14860,8 @@ int sp_mod_2d(const sp_int* a, int e, sp_int* r)
     if (err == MP_OKAY) {
         /* Copy a into r if not same pointer. */
         if (a != r) {
-            XMEMCPY(r->dp, a->dp, digits * (word32)SP_WORD_SIZEOF);
+            sp_size_t cnt = (a->used < digits) ? a->used : digits;
+            XMEMCPY(r->dp, a->dp, cnt * (word32)SP_WORD_SIZEOF);
             r->used = a->used;
         #ifdef WOLFSSL_SP_INT_NEGATIVE
             r->sign = a->sign;
@@ -14870,9 +14880,10 @@ int sp_mod_2d(const sp_int* a, int e, sp_int* r)
             if (a->sign == MP_NEG) {
                 unsigned int i;
                 sp_int_digit carry = 0;
+                sp_size_t cnt = (r->used < digits) ? r->used : digits;
 
                 /* Negate value. */
-                for (i = 0; i < r->used; i++) {
+                for (i = 0; i < cnt; i++) {
                     sp_int_digit next = r->dp[i] > 0;
                     r->dp[i] = (sp_int_digit)0 - r->dp[i] - carry;
                     carry |= next;
@@ -17401,24 +17412,31 @@ int sp_sqr(const sp_int* a, sp_int* r)
 static int _sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
-    /* Create temporary for multiplication result. */
-    DECL_SP_INT(t, a->used * 2);
 
-    ALLOC_SP_INT(t, a->used * 2, err, NULL);
-    if (err == MP_OKAY) {
-        err = sp_init_size(t, a->used * 2U);
+    if (sp_iszero(a)) {
+        _sp_zero(r);
+    }
+    else {
+        /* Create temporary for multiplication result. */
+        DECL_SP_INT(t, a->used * 2);
+
+        ALLOC_SP_INT(t, a->used * 2, err, NULL);
+        if (err == MP_OKAY) {
+            err = sp_init_size(t, a->used * 2U);
+        }
+
+        /* Square and reduce. */
+        if (err == MP_OKAY) {
+            err = sp_sqr(a, t);
+        }
+        if (err == MP_OKAY) {
+            err = sp_mod(t, m, r);
+        }
+
+        /* Dispose of an allocated SP int. */
+        FREE_SP_INT(t, NULL);
     }
 
-    /* Square and reduce. */
-    if (err == MP_OKAY) {
-        err = sp_sqr(a, t);
-    }
-    if (err == MP_OKAY) {
-        err = sp_mod(t, m, r);
-    }
-
-    /* Dispose of an allocated SP int. */
-    FREE_SP_INT(t, NULL);
     return err;
 }
 
