@@ -5807,7 +5807,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else {
 #if defined(HAVE_ECH)
-            /* do not resume when outerHandshake will be negotiated  */
+            /* do not resume when outerHandshake will be negotiated */
             if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
                     !ssl->options.echAccepted) {
                 WOLFSSL_MSG("ECH rejected but server negotiated PSK");

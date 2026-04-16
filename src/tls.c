@@ -14012,7 +14012,7 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     int foundEchOuter = 0;
     word16 numOuterRefs = 0;
     const byte* outerRefTypes = NULL;
-    word32 extraSize;
+    word32 extraSize = 0;
     byte* newInnerCh = NULL;
     byte* newInnerChRef;
     word32 newInnerChLen;
@@ -14341,6 +14341,14 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         if (echX == NULL)
             return BAD_FUNC_ARG;
         ech = (WOLFSSL_ECH*)echX->data;
+
+        /* if the first ECH was rejected or CH1 did not have ECH then there is
+         * no need to decrypt this one */
+        if (!ssl->options.echAccepted && ssl->options.serverState ==
+                SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+            ech->state = ECH_WRITE_RETRY_CONFIGS;
+            return 0;
+        }
 
         /* read the ech parameters before the payload */
         ech->type = *readBuf_p;

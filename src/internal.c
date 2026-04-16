@@ -16940,7 +16940,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 domainName = (char*)ssl->buffers.domainName.buffer;
             #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_ECH)
-                /* RFC 9849 s6.1.7: ECH was offered but rejected by the server..
+                /* RFC 9849 s6.1.7: ECH offered but rejected by the server...
                  * verify cert is valid for ECHConfig.public_name */
                 if (ssl->options.side == WOLFSSL_CLIENT_END &&
                         ssl->echConfigs != NULL &&

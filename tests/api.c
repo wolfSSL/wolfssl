@@ -15399,9 +15399,9 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail(void)
     EXPECT_DECLS;
 
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(0),
-        WOLFSSL_SUCCESS);
+        TEST_SUCCESS);
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(1),
-        WOLFSSL_SUCCESS);
+        TEST_SUCCESS);
 
     return EXPECT_RESULT();
 }
