@@ -1059,6 +1059,9 @@ int test_tls12_corrupted_finished(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 
 int test_wolfSSL_alert_type_string(void)
 {
