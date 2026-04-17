@@ -1446,6 +1446,11 @@ enum {
 
 #define TLS13_TICKET_NONCE_MAX_SZ 255
 
+#ifndef WOLFSSL_COOKIE_LEN
+/* Maximum size for a DTLS cookie */
+#define WOLFSSL_COOKIE_LEN 32 
+#endif 
+
 #if (defined(HAVE_FIPS) &&                                                     \
     !(defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))) &&                    \
     defined(TLS13_TICKET_NONCE_STATIC_SZ)
@@ -1569,7 +1574,7 @@ enum Misc {
     SEED_LEN     = RAN_LEN * 2, /* tls prf seed length    */
     ID_LEN       = 32,         /* session id length       */
     COOKIE_SECRET_SZ = 14,     /* dtls cookie secret size */
-    MAX_COOKIE_LEN = 254,      /* max dtls cookie size per RFC 6347 (opaque<0..2^8-1>) more than 254 can be malformed / malicious  */
+    MAX_COOKIE_LEN = WOLFSSL_COOKIE_LEN, /* max dtls cookie size */
     COOKIE_SZ    = 20,         /* use a 20 byte cookie    */
     SUITE_LEN    =  2,         /* cipher suite sz length  */
     ENUM_LEN     =  1,         /* always a byte           */
