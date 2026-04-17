@@ -14552,11 +14552,56 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
 
 #if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
     defined(HAVE_SECRET_CALLBACK)
+#ifdef HAVE_ECH
+static int test_ech_server_ctx_ready(WOLFSSL_CTX* ctx);
+static int test_ech_server_ssl_ready(WOLFSSL* ssl);
+static int test_ech_client_ssl_ready(WOLFSSL* ssl);
+#endif
+
 static int test_wolfSSL_Tls13_Key_Logging_client_ctx_ready(WOLFSSL_CTX* ctx)
 {
     /* set keylog callback */
     wolfSSL_CTX_set_keylog_callback(ctx, keyLog_callback);
     return TEST_SUCCESS;
+}
+
+static int test_wolfSSL_Tls13_Key_Logging_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+#ifdef HAVE_ECH
+    if (test_ech_server_ctx_ready(ctx) != TEST_SUCCESS)
+        return TEST_FAIL;
+#endif
+    /* set keylog callback */
+    wolfSSL_CTX_set_keylog_callback(ctx, keyLog_callback);
+    return TEST_SUCCESS;
+}
+
+static int test_wolfSSL_Tls13_Key_Logging_client_ssl_ready(WOLFSSL* ssl)
+{
+#ifdef HAVE_KEYING_MATERIAL
+    /* retain arrays so EXPORTER_SECRET is logged */
+    wolfSSL_KeepArrays(ssl);
+#endif
+#ifdef HAVE_ECH
+    return test_ech_client_ssl_ready(ssl);
+#else
+    (void)ssl;
+    return TEST_SUCCESS;
+#endif
+}
+
+static int test_wolfSSL_Tls13_Key_Logging_server_ssl_ready(WOLFSSL* ssl)
+{
+#ifdef HAVE_KEYING_MATERIAL
+    /* retain arrays so EXPORTER_SECRET is logged */
+    wolfSSL_KeepArrays(ssl);
+#endif
+#ifdef HAVE_ECH
+    return test_ech_server_ssl_ready(ssl);
+#else
+    (void)ssl;
+    return TEST_SUCCESS;
+#endif
 }
 #endif
 
@@ -14566,16 +14611,26 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
 #if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
     defined(HAVE_SECRET_CALLBACK)
 /* This test is intended for checking whether keylog callback is called
- * in client during TLS handshake between the client and a server.
+ * in the client/server during a TLS handshake.
  */
     test_ssl_cbf server_cbf;
     test_ssl_cbf client_cbf;
     XFILE fp = XBADFILE;
+    int label_count = 4;
+#ifdef HAVE_KEYING_MATERIAL
+    label_count += 1;
+#endif
+#ifdef HAVE_ECH
+    label_count += 2;
+#endif
 
     XMEMSET(&server_cbf, 0, sizeof(test_ssl_cbf));
     XMEMSET(&client_cbf, 0, sizeof(test_ssl_cbf));
     server_cbf.method    = wolfTLSv1_3_server_method;  /* TLS1.3 */
     client_cbf.ctx_ready = &test_wolfSSL_Tls13_Key_Logging_client_ctx_ready;
+    client_cbf.ssl_ready = &test_wolfSSL_Tls13_Key_Logging_client_ssl_ready;
+    server_cbf.ctx_ready = &test_wolfSSL_Tls13_Key_Logging_server_ctx_ready;
+    server_cbf.ssl_ready = &test_wolfSSL_Tls13_Key_Logging_server_ssl_ready;
 
     /* clean up keylog file */
     ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "w")) != XBADFILE);
@@ -14590,7 +14645,7 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
     /* check if the keylog file exists */
     {
         char buff[300] = {0};
-        int  found[4]   = {0};
+        int  found[7]  = {0};
         int  numfnd = 0;
         int  i;
 
@@ -14600,34 +14655,137 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
                 XFGETS(buff, (int)sizeof(buff), fp) != NULL) {
             if (0 == strncmp(buff, "CLIENT_HANDSHAKE_TRAFFIC_SECRET ",
                     sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
-                found[0] = 1;
+                found[0]++;
                 continue;
             }
             else if (0 == strncmp(buff, "SERVER_HANDSHAKE_TRAFFIC_SECRET ",
                     sizeof("SERVER_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
-                found[1] = 1;
+                found[1]++;
                 continue;
             }
             else if (0 == strncmp(buff, "CLIENT_TRAFFIC_SECRET_0 ",
                     sizeof("CLIENT_TRAFFIC_SECRET_0 ")-1)) {
-                found[2] = 1;
+                found[2]++;
                 continue;
             }
             else if (0 == strncmp(buff, "SERVER_TRAFFIC_SECRET_0 ",
                     sizeof("SERVER_TRAFFIC_SECRET_0 ")-1)) {
-                found[3] = 1;
+                found[3]++;
                 continue;
             }
+#ifdef HAVE_KEYING_MATERIAL
+            else if (0 == strncmp(buff, "EXPORTER_SECRET ",
+                    sizeof("EXPORTER_SECRET ")-1)) {
+                found[4]++;
+                continue;
+            }
+#endif
+#ifdef HAVE_ECH
+            else if (0 == strncmp(buff, "ECH_SECRET ",
+                    sizeof("ECH_SECRET ")-1)) {
+                found[5]++;
+                continue;
+            }
+            else if (0 == strncmp(buff, "ECH_CONFIG ",
+                    sizeof("ECH_CONFIG ")-1)) {
+                found[6]++;
+                continue;
+            }
+#endif
         }
         if (fp != XBADFILE)
             XFCLOSE(fp);
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < (int)(sizeof(found) / sizeof(found[0])); i++) {
             if (found[i] != 0)
                 numfnd++;
         }
-        ExpectIntEQ(numfnd, 4);
+        ExpectIntEQ(numfnd, label_count);
+        /* the four traffic secrets are derived by both client and server, so
+         * each label should appear twice with the callback set on both sides */
+        ExpectIntEQ(found[0], 2);
+        ExpectIntEQ(found[1], 2);
+        ExpectIntEQ(found[2], 2);
+        ExpectIntEQ(found[3], 2);
+#ifdef HAVE_KEYING_MATERIAL
+        /* both sides retain arrays via KeepArrays, so EXPORTER_SECRET fires
+         * on each */
+        ExpectIntEQ(found[4], 2);
+#endif
+#ifdef HAVE_ECH
+        /* both sides also log ECH_SECRET and ECH_CONFIG (seal on client,
+         * open on server) */
+        ExpectIntEQ(found[5], 2);
+        ExpectIntEQ(found[6], 2);
+#endif
     }
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_SECRET_CALLBACK) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+/* Fails only when the derive site fires with an id matching *ctx, so the
+ * caller can drive each Derive*Secret call site's failure path in isolation. */
+static int keylog_fail_cb(WOLFSSL* ssl, int id, const unsigned char* secret,
+    int secretSz, void* ctx)
+{
+    (void)ssl;
+    (void)secret;
+    (void)secretSz;
+    return (ctx != NULL && id == *(const int*)ctx) ? -1 : 0;
+}
+#endif
+
+static int test_wolfSSL_Tls13_Key_Logging_callback_fail(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_SECRET_CALLBACK) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    /* A non-zero return from Tls13SecretCb at any derive site must surface as
+     * TLS13_SECRET_CB_E and fail the handshake. */
+    const int labels[] = {
+        CLIENT_HANDSHAKE_TRAFFIC_SECRET,
+        SERVER_HANDSHAKE_TRAFFIC_SECRET,
+        CLIENT_TRAFFIC_SECRET,
+        SERVER_TRAFFIC_SECRET,
+#ifdef HAVE_KEYING_MATERIAL
+        EXPORTER_SECRET,
+#endif
+#ifdef HAVE_ECH
+        ECH_SECRET,
+        ECH_CONFIG,
+#endif
+    };
+    struct test_ssl_memio_ctx test_ctx;
+    int fail_id;
+    int i;
+
+    for (i = 0; i < (int)(sizeof(labels) / sizeof(labels[0])); i++) {
+        fail_id = labels[i];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+        test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+        test_ctx.c_cb.ctx_ready = &test_wolfSSL_Tls13_Key_Logging_client_ctx_ready;
+        test_ctx.c_cb.ssl_ready = &test_wolfSSL_Tls13_Key_Logging_client_ssl_ready;
+        test_ctx.s_cb.ctx_ready = &test_wolfSSL_Tls13_Key_Logging_server_ctx_ready;
+        test_ctx.s_cb.ssl_ready = &test_wolfSSL_Tls13_Key_Logging_server_ssl_ready;
+
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_tls13_secret_cb(test_ctx.c_ssl,
+            keylog_fail_cb, &fail_id), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_tls13_secret_cb(test_ctx.s_ssl,
+            keylog_fail_cb, &fail_id), WOLFSSL_SUCCESS);
+        ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+        /* either peer may surface the error first depending on derive order */
+        ExpectTrue(wolfSSL_get_error(test_ctx.c_ssl, 0)
+                    == WC_NO_ERR_TRACE(TLS13_SECRET_CB_E) ||
+                   wolfSSL_get_error(test_ctx.s_ssl, 0)
+                    == WC_NO_ERR_TRACE(TLS13_SECRET_CB_E));
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+#endif
     return EXPECT_RESULT();
 }
 
@@ -40709,6 +40867,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls12_Key_Logging_test),
     /* Can't memory test as server hangs. */
     TEST_DECL(test_wolfSSL_Tls13_Key_Logging_test),
+    TEST_DECL(test_wolfSSL_Tls13_Key_Logging_callback_fail),
     TEST_DECL(test_wolfSSL_Tls13_postauth),
     TEST_DECL(test_wolfSSL_set_ecdh_auto),
     TEST_DECL(test_wolfSSL_CTX_set_ecdh_auto),
