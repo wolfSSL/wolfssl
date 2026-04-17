@@ -10730,10 +10730,12 @@ dilithium_key* wc_dilithium_new(void* heap, int devId)
 
 int wc_dilithium_delete(dilithium_key* key, dilithium_key** key_p)
 {
+    void* heap;
     if (key == NULL)
         return BAD_FUNC_ARG;
+    heap = key->heap;
     wc_dilithium_free(key);
-    XFREE(key, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(key, heap, DYNAMIC_TYPE_DILITHIUM);
     if (key_p != NULL)
         *key_p = NULL;
 
