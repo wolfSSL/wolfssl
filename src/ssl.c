@@ -18645,6 +18645,7 @@ static int SetStaticEphemeralKey(WOLFSSL_CTX* ctx,
 #ifndef NO_FILESYSTEM
     /* done with keyFile buffer */
     if (keyFile && keyBuf) {
+        ForceZero(keyBuf, keySz);
         XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
