@@ -779,6 +779,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
 {
     int ret = 1;
     int derSz = 0;
+    int derAllocSz = 0;
     byte* derBuf = NULL;
 
     WOLFSSL_ENTER("wolfSSL_RSA_To_Der");
@@ -820,6 +821,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
         }
     }
 
+    derAllocSz = derSz;
     if ((ret == 1) && (outBuf != NULL)) {
         derBuf = *outBuf;
         if (derBuf == NULL) {
@@ -863,6 +865,9 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
 
     if ((outBuf != NULL) && (*outBuf != derBuf)) {
         /* Not returning buffer, needs to be disposed of. */
+        if ((derBuf != NULL) && (publicKey == 0)) {
+            ForceZero(derBuf, (word32)derAllocSz);
+        }
         XFREE(derBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     WOLFSSL_LEAVE("wolfSSL_RSA_To_Der", ret);
