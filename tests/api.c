@@ -15447,7 +15447,7 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_bad(void)
         test_ctx.s_ctx->echConfigs->cipherSuites[0].aeadId = 0xFEFE;
     }
 
-    /* bad retry configs are discarded — failure must be ECH_REQUIRED_E,
+    /* bad retry configs are discarded - failure must be ECH_REQUIRED_E,
      * not a retry-config parse error */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
