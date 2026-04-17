@@ -906,6 +906,11 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
             infoSz);
     }
 
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH)
+    if (ret == 0 && hpke->echSecret != NULL) {
+        XMEMCPY(hpke->echSecret, sharedSecret, hpke->Nsecret);
+    }
+#endif
     ForceZero(sharedSecret, hpke->Nsecret);
     WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -1148,6 +1153,11 @@ static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
             infoSz);
     }
 
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH)
+    if (ret == 0 && hpke->echSecret != NULL) {
+        XMEMCPY(hpke->echSecret, sharedSecret, hpke->Nsecret);
+    }
+#endif
     ForceZero(sharedSecret, hpke->Nsecret);
     WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -1343,5 +1353,27 @@ WOLFSSL_LOCAL int wc_HpkeAeadIsSupported(word16 aeadId)
         return 0;
     }
 }
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH)
+WOLFSSL_LOCAL int wc_HpkeInitEchSecret(Hpke* hpke)
+{
+    if (hpke == NULL)
+        return BAD_FUNC_ARG;
+    hpke->echSecret = (byte*)XMALLOC(hpke->Nsecret, hpke->heap,
+        DYNAMIC_TYPE_SECRET);
+    if (hpke->echSecret == NULL)
+        return MEMORY_E;
+    return 0;
+}
+
+WOLFSSL_LOCAL void wc_HpkeFreeEchSecret(Hpke* hpke)
+{
+    if (hpke == NULL || hpke->echSecret == NULL)
+        return;
+    ForceZero(hpke->echSecret, hpke->Nsecret);
+    XFREE(hpke->echSecret, hpke->heap, DYNAMIC_TYPE_SECRET);
+    hpke->echSecret = NULL;
+}
+#endif /* HAVE_SECRET_CALLBACK && HAVE_ECH */
 
 #endif /* HAVE_HPKE && (HAVE_ECC || HAVE_CURVE25519) && HAVE_AESGCM */

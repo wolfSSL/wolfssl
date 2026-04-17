@@ -14157,6 +14157,12 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
 
 #if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
     defined(HAVE_SECRET_CALLBACK)
+#ifdef HAVE_ECH
+static int test_ech_server_ctx_ready(WOLFSSL_CTX* ctx);
+static int test_ech_server_ssl_ready(WOLFSSL* ssl);
+static int test_ech_client_ssl_ready(WOLFSSL* ssl);
+#endif
+
 static int test_wolfSSL_Tls13_Key_Logging_client_ctx_ready(WOLFSSL_CTX* ctx)
 {
     /* set keylog callback */
@@ -14176,11 +14182,21 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
     test_ssl_cbf server_cbf;
     test_ssl_cbf client_cbf;
     XFILE fp = XBADFILE;
+#ifdef HAVE_ECH
+    const int label_count = 7;
+#else
+    const int label_count = 5;
+#endif
 
     XMEMSET(&server_cbf, 0, sizeof(test_ssl_cbf));
     XMEMSET(&client_cbf, 0, sizeof(test_ssl_cbf));
     server_cbf.method    = wolfTLSv1_3_server_method;  /* TLS1.3 */
     client_cbf.ctx_ready = &test_wolfSSL_Tls13_Key_Logging_client_ctx_ready;
+#ifdef HAVE_ECH
+    server_cbf.ctx_ready = &test_ech_server_ctx_ready;
+    server_cbf.ssl_ready = &test_ech_server_ssl_ready;
+    client_cbf.ssl_ready = &test_ech_client_ssl_ready;
+#endif
 
     /* clean up keylog file */
     ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "w")) != XBADFILE);
@@ -14195,7 +14211,7 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
     /* check if the keylog file exists */
     {
         char buff[300] = {0};
-        int  found[4]   = {0};
+        int  found[7]   = {0};
         int  numfnd = 0;
         int  i;
 
@@ -14223,14 +14239,31 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
                 found[3] = 1;
                 continue;
             }
+            else if (0 == strncmp(buff, "EXPORTER_SECRET ",
+                    sizeof("EXPORTER_SECRET ")-1)) {
+                found[4] = 1;
+                continue;
+            }
+#ifdef HAVE_ECH
+            else if (0 == strncmp(buff, "ECH_SECRET ",
+                    sizeof("ECH_SECRET ")-1)) {
+                found[5] = 1;
+                continue;
+            }
+            else if (0 == strncmp(buff, "ECH_CONFIG ",
+                    sizeof("ECH_CONFIG ")-1)) {
+                found[6] = 1;
+                continue;
+            }
+#endif
         }
         if (fp != XBADFILE)
             XFCLOSE(fp);
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < label_count; i++) {
             if (found[i] != 0)
                 numfnd++;
         }
-        ExpectIntEQ(numfnd, 4);
+        ExpectIntEQ(numfnd, label_count);
     }
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
     return EXPECT_RESULT();

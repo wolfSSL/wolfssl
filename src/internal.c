@@ -535,6 +535,12 @@ void wolfssl_priv_der_unblind_free(DerBuffer* key)
      #define SSC_TLS13_EES      "EARLY_EXPORTER_SECRET"
      /* Label string for exporter secret. */
      #define SSC_TLS13_ES       "EXPORTER_SECRET"
+#ifdef HAVE_ECH
+     /* Label string for ECH KEM shared secret. */
+     #define SSC_TLS13_ECH_S    "ECH_SECRET"
+     /* Label string for ECHConfig used to construct ECH. */
+     #define SSC_TLS13_ECH_C    "ECH_CONFIG"
+#endif
 
     /*
      * This function builds up string for key-logging then call user's
@@ -593,6 +599,18 @@ void wolfssl_priv_der_unblind_free(DerBuffer* key)
                 labelSz = sizeof(SSC_TLS13_ES);
                 label = SSC_TLS13_ES;
                 break;
+
+#ifdef HAVE_ECH
+            case ECH_SECRET:
+                labelSz = sizeof(SSC_TLS13_ECH_S);
+                label = SSC_TLS13_ECH_S;
+                break;
+
+            case ECH_CONFIG:
+                labelSz = sizeof(SSC_TLS13_ECH_C);
+                label = SSC_TLS13_ECH_C;
+                break;
+#endif
 
             default:
                 return BAD_FUNC_ARG;
