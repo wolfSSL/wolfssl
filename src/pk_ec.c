@@ -4095,6 +4095,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
         derSz = wc_EccKeyToDer((ecc_key*)ec->internal, derBuf, der_max_len);
         if (derSz < 0) {
             WOLFSSL_MSG("wc_EccKeyToDer failed");
+            ForceZero(derBuf, der_max_len);
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
             ret = 0;
         }
