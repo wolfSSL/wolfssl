@@ -1164,7 +1164,7 @@ int test_wolfSSL_alert_desc_string(void)
     ExpectStrEQ(wolfSSL_alert_desc_string(user_canceled), "US");
     ExpectStrEQ(wolfSSL_alert_desc_string(no_renegotiation), "NR");
     ExpectStrEQ(wolfSSL_alert_desc_string(missing_extension), "ME");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "XE");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "UE");
     ExpectStrEQ(wolfSSL_alert_desc_string(unrecognized_name), "UN");
     ExpectStrEQ(wolfSSL_alert_desc_string(bad_certificate_status_response), "BR");
     ExpectStrEQ(wolfSSL_alert_desc_string(unknown_psk_identity), "UP");
