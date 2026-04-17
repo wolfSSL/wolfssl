@@ -480,6 +480,7 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
     byte* tmp = NULL;
     byte* cipherInfo = NULL;
     int pemSz = 0;
+    int derAllocSz = derSz;
     int hashType = WC_HASH_TYPE_NONE;
 #if !defined(NO_MD5)
     hashType = WC_MD5;
@@ -515,6 +516,7 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
         }
         else {
             der = tmpBuf;
+            derAllocSz = derSz + blockSz;
 
             /* Encrypt DER inline. */
             ret = EncryptDerKey(der, &derSz, cipher, passwd, passwdSz,
@@ -562,7 +564,10 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
 
     XFREE(tmp, NULL, DYNAMIC_TYPE_KEY);
     XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
-    XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der != NULL) {
+        ForceZero(der, (word32)derAllocSz);
+        XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
 }
