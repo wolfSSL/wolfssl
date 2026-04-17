@@ -719,6 +719,9 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
         key = NULL;
     }
     /* Dispose of allocated data. */
+    if (der != NULL) {
+        ForceZero(der, (word32)derLen);
+    }
     XFREE(der, bio ? bio->heap : NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return key;
 }
