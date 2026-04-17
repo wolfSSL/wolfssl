@@ -52,7 +52,7 @@ jobs:
 
       - name: Init wycheproof vectors submodule
         working-directory: wychcheck
-        run: git submodule update --init wycheproof
+        run: git submodule update --init --depth 1 wycheproof
 
       - name: Build wolfcrypt-check
         working-directory: wychcheck
