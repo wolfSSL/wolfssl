@@ -7117,6 +7117,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
     char password[NAME_SZ];
     byte* key = NULL;
     word32 keySz = 0;
+    word32 allocSz = 0;
     int type = PKCS8_PRIVATEKEY_TYPE;
 
     /* Validate parameters. */
@@ -7155,6 +7156,10 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
             res = 0;
         }
         else {
+            /* Remember the allocation size before *pemSz is updated to the
+             * actual PEM output length, so we can zero any unused tail that
+             * held the DER staging area. */
+            allocSz = (word32)*pemSz;
             /* Use end of PEM buffer for key data. */
             key = *pem + *pemSz - keySz;
         }
@@ -7208,10 +7213,18 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
         }
     }
 
-    /* Zero the DER staging area at the tail of the buffer so the plaintext
-     * private key material is not left in freed heap memory. */
-    if (key != NULL && keySz > 0) {
-        ForceZero(key, keySz);
+    /* Zero any remnants of the DER staging area that persist after PEM
+     * conversion so plaintext private key material is not left in freed heap
+     * memory. On success, only the bytes past the actual PEM output need
+     * clearing; on failure, the whole buffer is zeroed since its state is
+     * indeterminate. */
+    if (*pem != NULL) {
+        if (res == 1 && (word32)*pemSz < allocSz) {
+            ForceZero(*pem + *pemSz, allocSz - (word32)*pemSz);
+        }
+        else if (res != 1) {
+            ForceZero(*pem, allocSz);
+        }
     }
 
     /* Return appropriate return code. */
