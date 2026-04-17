@@ -457,3 +457,7 @@ fi
 # Cleanup temporaries
 do_cleanup
 
+if [ "$TEST_FAIL_CNT" != "0" ]; then
+    exit 1
+fi
+
