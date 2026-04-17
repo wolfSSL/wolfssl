@@ -1,0 +1,75 @@
+name: Wycheproof Vectors
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  wycheproof:
+    name: wycheproof vectors
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Build wolfSSL
+        run: |
+          autoreconf -i
+          ./configure \
+            --enable-cryptocb \
+            --enable-ecc \
+            --enable-aesgcm \
+            --enable-aesccm \
+            --enable-aeseax \
+            --enable-aessiv \
+            --enable-aesxts \
+            --enable-keywrap \
+            --enable-siphash \
+            --enable-hkdf \
+            --enable-mldsa \
+            --enable-mlkem \
+            --enable-slhdsa \
+            --disable-examples
+          make -j$(nproc)
+
+      - name: Checkout wychcheck
+        uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wychcheck
+          path: wychcheck
+
+      - name: Init wycheproof vectors submodule
+        working-directory: wychcheck
+        run: git submodule update --init wycheproof
+
+      - name: Build wolfcrypt-check
+        working-directory: wychcheck
+        run: |
+          cmake -B build -DWOLFSSL_DIR=${{ github.workspace }}
+          cmake --build build -j$(nproc)
+
+      - name: Run wycheproof tests
+        working-directory: wychcheck
+        run: |
+          ctest --test-dir build \
+            --output-on-failure \
+            --parallel $(nproc) \
+            --output-junit test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wycheproof-results
+          path: wychcheck/test-results.xml
