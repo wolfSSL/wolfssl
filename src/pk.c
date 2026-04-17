@@ -2109,6 +2109,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     derSz = wc_DsaKeyToDer((DsaKey*)dsa->internal, derBuf, (word32)der_max_len);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_DsaKeyToDer failed");
+        ForceZero(derBuf, (word32)der_max_len);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         return 0;
     }
@@ -2121,6 +2122,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
             &cipherInfo, der_max_len, WC_MD5);
         if (ret != 1) {
             WOLFSSL_MSG("EncryptDerKey failed");
+            ForceZero(derBuf, (word32)der_max_len);
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
             return ret;
         }
@@ -2136,6 +2138,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     tmp = (byte*)XMALLOC((size_t)*pLen, NULL, DYNAMIC_TYPE_PEM);
     if (tmp == NULL) {
         WOLFSSL_MSG("malloc failed");
+        ForceZero(derBuf, (word32)der_max_len);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return 0;
@@ -2146,11 +2149,13 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         type);
     if (*pLen <= 0) {
         WOLFSSL_MSG("wc_DerToPemEx failed");
+        ForceZero(derBuf, (word32)der_max_len);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_PEM);
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return 0;
     }
+    ForceZero(derBuf, (word32)der_max_len);
     XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
     XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
 
