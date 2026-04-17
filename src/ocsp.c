@@ -759,7 +759,7 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
         single = single->next;
     }
 
-    if (single == NULL || single->status == NULL)
+    if (single == NULL)
         return WOLFSSL_FAILURE;
 
     if (status != NULL)

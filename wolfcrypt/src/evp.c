@@ -4317,11 +4317,6 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
 #ifndef NO_DSA
     case WC_EVP_PKEY_DSA: {
         int bytes;
-        unsigned char tmpSig[DSA_MAX_SIG_SIZE];
-        ret = wolfSSL_DSA_do_sign(md, tmpSig, pkey->dsa);
-        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
-        if (ret != WOLFSSL_SUCCESS)
-            return ret;
         bytes = wolfSSL_BN_num_bytes(pkey->dsa->q);
         if (bytes == WC_NO_ERR_TRACE(WOLFSSL_FAILURE) ||
             bytes > DSA_MAX_HALF_SIZE ||
@@ -4329,7 +4324,10 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         {
             return WOLFSSL_FAILURE;
         }
-        XMEMCPY(sigret, tmpSig, bytes * 2);
+        ret = wolfSSL_DSA_do_sign(md, sigret, pkey->dsa);
+        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
         *siglen = (unsigned int)(bytes * 2);
         return WOLFSSL_SUCCESS;
     }
