@@ -899,3 +899,225 @@ int test_tls_set_curves_list_ecc_fallback(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+static int test_tls12_find_client_finished(const struct test_memio_ctx* test_ctx,
+    int* finishedMsgPos, int* finishedOffInMsg, int* finishedLen)
+{
+    int i;
+    const char* msg = NULL;
+    int msgSz = 0;
+    int ccsPos = -1;
+
+    *finishedMsgPos = -1;
+    *finishedOffInMsg = -1;
+    *finishedLen = 0;
+
+    for (i = 0; i < test_ctx->s_msg_count; i++) {
+        if (test_memio_get_message(test_ctx, 0, &msg, &msgSz, i) != 0 ||
+                msgSz < RECORD_HEADER_SZ) {
+            return -1;
+        }
+
+        if ((byte)msg[0] == change_cipher_spec) {
+            ccsPos = i;
+            break;
+        }
+    }
+
+    if (ccsPos >= 0 &&
+            test_memio_get_message(test_ctx, 0, &msg, &msgSz, ccsPos + 1) == 0 &&
+            msgSz >= RECORD_HEADER_SZ && (byte)msg[0] == handshake) {
+        *finishedMsgPos = ccsPos + 1;
+        *finishedOffInMsg = 0;
+        *finishedLen = msgSz;
+        return 0;
+    }
+
+    if (test_ctx->s_msg_count == 1) {
+        int off = 0;
+
+        while (off + RECORD_HEADER_SZ <= test_ctx->s_len) {
+            word16 recLen;
+            int totalLen;
+
+            ato16(test_ctx->s_buff + off + 3, &recLen);
+            totalLen = RECORD_HEADER_SZ + recLen;
+            if (off + totalLen > test_ctx->s_len) {
+                return -1;
+            }
+
+            if (test_ctx->s_buff[off] == change_cipher_spec) {
+                int nextOff = off + totalLen;
+
+                if (nextOff + RECORD_HEADER_SZ > test_ctx->s_len ||
+                        test_ctx->s_buff[nextOff] != handshake) {
+                    return -1;
+                }
+
+                ato16(test_ctx->s_buff + nextOff + 3, &recLen);
+                totalLen = RECORD_HEADER_SZ + recLen;
+                if (nextOff + totalLen > test_ctx->s_len) {
+                    return -1;
+                }
+
+                *finishedMsgPos = 0;
+                *finishedOffInMsg = nextOff;
+                *finishedLen = totalLen;
+                return 0;
+            }
+
+            off += totalLen;
+        }
+    }
+
+    return -1;
+}
+#endif
+
+/* Test that a corrupted TLS 1.2 Finished verify_data is properly rejected
+ * with VERIFY_FINISHED_ERROR. We let the client queue its second flight,
+ * remove the Finished record from the memio queue, allow the server to
+ * process up through CCS, then inject a corrupted Finished record. */
+int test_tls12_corrupted_finished(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char finishedMsg[1024];
+    int finishedSz = (int)sizeof(finishedMsg);
+    int finishedMsgPos = -1;
+    int finishedOffInMsg = -1;
+    int finishedLen = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Step 1: Client sends ClientHello */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Step 2: Server sends ServerHello..ServerHelloDone */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Step 3: Client processes server flight and queues its second flight. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_tls12_find_client_finished(&test_ctx, &finishedMsgPos,
+            &finishedOffInMsg, &finishedLen), 0);
+        ExpectIntGT(finishedLen, 0);
+
+        if (finishedOffInMsg == 0) {
+            ExpectIntEQ(test_memio_copy_message(&test_ctx, 0, finishedMsg,
+                &finishedSz, finishedMsgPos), 0);
+            ExpectIntEQ(test_memio_drop_message(&test_ctx, 0, finishedMsgPos), 0);
+        }
+        else {
+            ExpectIntGE(finishedSz, finishedLen);
+            XMEMCPY(finishedMsg, test_ctx.s_buff + finishedOffInMsg, finishedLen);
+            finishedSz = finishedLen;
+            ExpectIntEQ(test_memio_modify_message_len(&test_ctx, 0,
+                finishedMsgPos, finishedOffInMsg), 0);
+        }
+    }
+
+    /* Step 4: Server processes up through CCS but blocks waiting for Finished. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(ssl_s->msgsReceived.got_change_cipher, 1);
+        ExpectNotNull(ssl_s->hsHashes);
+        XMEMSET(&ssl_s->hsHashes->verifyHashes, 0xA5,
+            sizeof(ssl_s->hsHashes->verifyHashes));
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, finishedMsg,
+            finishedSz), 0);
+    }
+
+    /* Step 5: Server processes corrupted Finished and must reject it. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(VERIFY_FINISHED_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the TLS 1.2 peerAuthGood fail-safe checks directly on both sides.
+ * The client branch sets NO_PEER_VERIFY; the server branch returns a generic
+ * fatal error from TICKET_SENT before sending its Finished. */
+int test_tls12_peerauth_failsafe(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        ssl_c->options.connectState = FIRST_REPLY_SECOND;
+        ssl_c->options.peerAuthGood = 0;
+        ssl_c->options.sendVerify = 0;
+        ret = wolfSSL_connect(ssl_c);
+        ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+            WC_NO_ERR_TRACE(NO_PEER_VERIFY));
+        ExpectIntEQ(ssl_c->options.connectState, FIRST_REPLY_SECOND);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ctx_c = NULL;
+    ctx_s = NULL;
+    ssl_c = NULL;
+    ssl_s = NULL;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    if (EXPECT_SUCCESS()) {
+        ssl_s->options.acceptState = TICKET_SENT;
+        ssl_s->options.peerAuthGood = 0;
+        ret = wolfSSL_accept(ssl_s);
+        ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(ssl_s->options.acceptState, TICKET_SENT);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
