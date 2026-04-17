@@ -7208,6 +7208,12 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
         }
     }
 
+    /* Zero the DER staging area at the tail of the buffer so the plaintext
+     * private key material is not left in freed heap memory. */
+    if (key != NULL && keySz > 0) {
+        ForceZero(key, keySz);
+    }
+
     /* Return appropriate return code. */
     return (res == 0) ? 0 : ret;
 
