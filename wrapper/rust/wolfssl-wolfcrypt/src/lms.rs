@@ -528,14 +528,15 @@ impl Lms {
         if sig.len() < expected_sig_len {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let mut sig_sz = sig.len() as u32;
+        let mut sig_sz = crate::buffer_len_to_u32(sig.len())?;
+        let msg_sz = crate::buffer_len_to_i32(msg.len())?;
         let rc = unsafe {
             sys::wc_LmsKey_Sign(
                 &mut self.ws_key,
                 sig.as_mut_ptr(),
                 &mut sig_sz,
                 msg.as_ptr(),
-                msg.len() as core::ffi::c_int,
+                msg_sz,
             )
         };
         if rc != 0 {
@@ -670,7 +671,7 @@ impl Lms {
     /// }
     /// ```
     pub fn export_pub_raw(&self, out: &mut [u8]) -> Result<usize, i32> {
-        let mut out_len = out.len() as u32;
+        let mut out_len = crate::buffer_len_to_u32(out.len())?;
         let rc = unsafe {
             sys::wc_LmsKey_ExportPubRaw(&self.ws_key, out.as_mut_ptr(), &mut out_len)
         };
@@ -704,8 +705,9 @@ impl Lms {
     /// key.import_pub_raw(&pub_buf).expect("Error with import_pub_raw()");
     /// ```
     pub fn import_pub_raw(&mut self, data: &[u8]) -> Result<(), i32> {
+        let data_size = crate::buffer_len_to_u32(data.len())?;
         let rc = unsafe {
-            sys::wc_LmsKey_ImportPubRaw(&mut self.ws_key, data.as_ptr(), data.len() as u32)
+            sys::wc_LmsKey_ImportPubRaw(&mut self.ws_key, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -735,13 +737,15 @@ impl Lms {
         if sig.len() != expected_sig_len {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
+        let sig_sz = crate::buffer_len_to_u32(sig.len())?;
+        let msg_sz = crate::buffer_len_to_i32(msg.len())?;
         let rc = unsafe {
             sys::wc_LmsKey_Verify(
                 &mut self.ws_key,
                 sig.as_ptr(),
-                sig.len() as u32,
+                sig_sz,
                 msg.as_ptr(),
-                msg.len() as core::ffi::c_int,
+                msg_sz,
             )
         };
         if rc != 0 {
@@ -752,13 +756,17 @@ impl Lms {
 
     /// Get the Key ID (I value) for this LMS/HSS key.
     ///
-    /// Returns a slice pointing into the key's internal storage.
+    /// Copies the key ID into the provided buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `kid`: Buffer in which to store the key ID.
     ///
     /// # Returns
     ///
-    /// Returns either Ok(&[u8]) containing the key ID on success, or Err(e)
-    /// containing the wolfSSL library error code value.
-    pub fn get_kid(&mut self) -> Result<&[u8], i32> {
+    /// Returns either Ok(usize) containing the key ID length on success,
+    /// or Err(e) containing the wolfSSL library error code value.
+    pub fn get_kid(&mut self, kid: &mut [u8]) -> Result<usize, i32> {
         let mut kid_ptr: *const u8 = core::ptr::null();
         let mut kid_sz: u32 = 0;
         let rc = unsafe {
@@ -767,8 +775,18 @@ impl Lms {
         if rc != 0 {
             return Err(rc);
         }
-        let slice = unsafe { core::slice::from_raw_parts(kid_ptr, kid_sz as usize) };
-        Ok(slice)
+        let src = unsafe { core::slice::from_raw_parts(kid_ptr, kid_sz as usize) };
+        if kid.len() < src.len() {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
+        kid[..src.len()].copy_from_slice(src);
+        Ok(src.len())
+    }
+}
+
+impl Lms {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_key); }
     }
 }
 
@@ -781,5 +799,6 @@ impl Drop for Lms {
         unsafe {
             sys::wc_LmsKey_Free(&mut self.ws_key);
         }
+        self.zeroize();
     }
 }

@@ -84,13 +84,11 @@ impl Dilithium {
 
     /// Required size in bytes of the seed passed to
     /// [`Dilithium::generate_from_seed()`] (`DILITHIUM_SEED_SZ`).
-    #[cfg(dilithium_make_key_seed_sz)]
     pub const DILITHIUM_SEED_SZ: usize = sys::DILITHIUM_SEED_SZ as usize;
 
     /// Required size in bytes of the seed passed to signing-with-seed
     /// functions such as [`Dilithium::sign_msg_with_seed()`]
     /// (`DILITHIUM_RND_SZ`).
-    #[cfg(dilithium_rnd_sz)]
     pub const SIGN_SEED_SIZE: usize = sys::DILITHIUM_RND_SZ as usize;
 
     /// Private (secret) key size in bytes for ML-DSA-44.
@@ -277,7 +275,6 @@ impl Dilithium {
         heap: Option<*mut core::ffi::c_void>,
         dev_id: Option<i32>,
     ) -> Result<Self, i32> {
-        #[cfg(dilithium_make_key_seed_sz)]
         if seed.len() != Self::DILITHIUM_SEED_SZ {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
@@ -598,7 +595,7 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_import)]
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
-        let public_size = public.len() as u32;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_dilithium_import_public(public.as_ptr(), public_size, &mut self.ws_key)
         };
@@ -641,7 +638,7 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_import)]
     pub fn import_private(&mut self, private: &[u8]) -> Result<(), i32> {
-        let private_size = private.len() as u32;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_dilithium_import_private(private.as_ptr(), private_size, &mut self.ws_key)
         };
@@ -683,8 +680,8 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_import)]
     pub fn import_key(&mut self, private: &[u8], public: &[u8]) -> Result<(), i32> {
-        let private_size = private.len() as u32;
-        let public_size = public.len() as u32;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_dilithium_import_key(
                 private.as_ptr(), private_size,
@@ -727,7 +724,7 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_export)]
     pub fn export_public(&mut self, public: &mut [u8]) -> Result<usize, i32> {
-        let mut public_size = public.len() as u32;
+        let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_dilithium_export_public(&mut self.ws_key, public.as_mut_ptr(), &mut public_size)
         };
@@ -766,7 +763,7 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_export)]
     pub fn export_private(&mut self, private: &mut [u8]) -> Result<usize, i32> {
-        let mut private_size = private.len() as u32;
+        let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_dilithium_export_private(
                 &mut self.ws_key, private.as_mut_ptr(), &mut private_size,
@@ -810,8 +807,8 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_export)]
     pub fn export_key(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
-        let mut private_size = private.len() as u32;
-        let mut public_size = public.len() as u32;
+        let mut private_size = crate::buffer_len_to_u32(private.len())?;
+        let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_dilithium_export_key(
                 &mut self.ws_key,
@@ -864,8 +861,8 @@ impl Dilithium {
         sig: &mut [u8],
         rng: &mut RNG,
     ) -> Result<usize, i32> {
-        let msg_len = msg.len() as u32;
-        let mut sig_len = sig.len() as u32;
+        let msg_len = crate::buffer_len_to_u32(msg.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_msg(
                 core::ptr::null(), 0,
@@ -926,8 +923,8 @@ impl Dilithium {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let ctx_len = ctx.len() as u8;
-        let msg_len = msg.len() as u32;
-        let mut sig_len = sig.len() as u32;
+        let msg_len = crate::buffer_len_to_u32(msg.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_msg(
                 ctx.as_ptr(), ctx_len,
@@ -975,8 +972,8 @@ impl Dilithium {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let ctx_len = ctx.len() as u8;
-        let hash_len = hash.len() as u32;
-        let mut sig_len = sig.len() as u32;
+        let hash_len = crate::buffer_len_to_u32(hash.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_hash(
                 ctx.as_ptr(), ctx_len,
@@ -1032,12 +1029,11 @@ impl Dilithium {
         sig: &mut [u8],
         seed: &[u8],
     ) -> Result<usize, i32> {
-        #[cfg(dilithium_rnd_sz)]
         if seed.len() != sys::DILITHIUM_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let msg_len = msg.len() as u32;
-        let mut sig_len = sig.len() as u32;
+        let msg_len = crate::buffer_len_to_u32(msg.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_msg_with_seed(
                 core::ptr::null(), 0,
@@ -1077,13 +1073,12 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        #[cfg(dilithium_rnd_sz)]
         if seed.len() != sys::DILITHIUM_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let ctx_len = ctx.len() as u8;
-        let msg_len = msg.len() as u32;
-        let mut sig_len = sig.len() as u32;
+        let msg_len = crate::buffer_len_to_u32(msg.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_msg_with_seed(
                 ctx.as_ptr(), ctx_len,
@@ -1126,13 +1121,12 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        #[cfg(dilithium_rnd_sz)]
         if seed.len() != sys::DILITHIUM_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let ctx_len = ctx.len() as u8;
-        let hash_len = hash.len() as u32;
-        let mut sig_len = sig.len() as u32;
+        let hash_len = crate::buffer_len_to_u32(hash.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
             sys::wc_dilithium_sign_ctx_hash_with_seed(
                 ctx.as_ptr(), ctx_len,
@@ -1182,8 +1176,8 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_verify)]
     pub fn verify_msg(&mut self, sig: &[u8], msg: &[u8]) -> Result<bool, i32> {
-        let sig_len = sig.len() as u32;
-        let msg_len = msg.len() as u32;
+        let sig_len = crate::buffer_len_to_u32(sig.len())?;
+        let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_dilithium_verify_ctx_msg(
@@ -1238,9 +1232,9 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let sig_len = sig.len() as u32;
+        let sig_len = crate::buffer_len_to_u32(sig.len())?;
         let ctx_len = ctx.len() as u8;
-        let msg_len = msg.len() as u32;
+        let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_dilithium_verify_ctx_msg(
@@ -1284,9 +1278,9 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        let sig_len = sig.len() as u32;
+        let sig_len = crate::buffer_len_to_u32(sig.len())?;
         let ctx_len = ctx.len() as u8;
-        let hash_len = hash.len() as u32;
+        let hash_len = crate::buffer_len_to_u32(hash.len())?;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_dilithium_verify_ctx_hash(
@@ -1305,6 +1299,12 @@ impl Dilithium {
     }
 }
 
+impl Dilithium {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_key); }
+    }
+}
+
 impl Drop for Dilithium {
     /// Safely free the underlying wolfSSL Dilithium key context.
     ///
@@ -1312,5 +1312,6 @@ impl Drop for Dilithium {
     /// is called when the `Dilithium` struct goes out of scope.
     fn drop(&mut self) {
         unsafe { sys::wc_dilithium_free(&mut self.ws_key); }
+        self.zeroize();
     }
 }

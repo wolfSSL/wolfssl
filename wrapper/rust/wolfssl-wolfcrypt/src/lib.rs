@@ -23,6 +23,23 @@
 /* bindgen-generated bindings to the C library */
 pub mod sys;
 
+/// Zeroize the raw bytes of a value. For use in `zeroize()` methods on C FFI
+/// structs where `#[derive(Zeroize)]` cannot be used.
+///
+/// # Safety
+///
+/// `val` must be a valid, initialized value whose entire `size_of_val` byte
+/// representation is safe to overwrite with zeroes.
+pub(crate) unsafe fn zeroize_raw<T>(val: &mut T) {
+    use zeroize::Zeroize;
+    unsafe {
+        core::slice::from_raw_parts_mut(
+            val as *mut T as *mut u8,
+            core::mem::size_of_val(val),
+        ).zeroize();
+    }
+}
+
 pub mod aes;
 pub mod blake2;
 pub mod chacha20_poly1305;
@@ -43,6 +60,16 @@ pub mod prf;
 pub mod random;
 pub mod rsa;
 pub mod sha;
+
+/// Convert a buffer length to `u32`, returning `BUFFER_E` if it overflows.
+pub(crate) fn buffer_len_to_u32(len: usize) -> Result<u32, i32> {
+    u32::try_from(len).map_err(|_| sys::wolfCrypt_ErrorCodes_BUFFER_E)
+}
+
+/// Convert a buffer length to `i32`, returning `BUFFER_E` if it overflows.
+pub(crate) fn buffer_len_to_i32(len: usize) -> Result<i32, i32> {
+    i32::try_from(len).map_err(|_| sys::wolfCrypt_ErrorCodes_BUFFER_E)
+}
 
 /// Initialize resources used by wolfCrypt.
 ///

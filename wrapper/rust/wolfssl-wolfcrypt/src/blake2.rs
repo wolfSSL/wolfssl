@@ -54,7 +54,7 @@ impl BLAKE2b {
     /// let blake2b = BLAKE2b::new(64).expect("Error with new()");
     /// ```
     pub fn new(digest_size: usize) -> Result<Self, i32> {
-        let digest_size = digest_size as u32;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2b: MaybeUninit<sys::Blake2b> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_InitBlake2b(wc_blake2b.as_mut_ptr(), digest_size)
@@ -87,9 +87,9 @@ impl BLAKE2b {
     /// let blake2b = BLAKE2b::new_with_key(64, &key).expect("Error with new()");
     /// ```
     pub fn new_with_key(digest_size: usize, key: &[u8]) -> Result<Self, i32> {
-        let digest_size = digest_size as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2b: MaybeUninit<sys::Blake2b> = MaybeUninit::uninit();
-        let key_size = key.len() as u32;
         let rc = unsafe {
             sys::wc_InitBlake2b_WithKey(wc_blake2b.as_mut_ptr(), digest_size,
                 key.as_ptr(), key_size)
@@ -124,7 +124,7 @@ impl BLAKE2b {
     /// blake2b.update(&[0u8; 16]).expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
-        let data_size = data.len() as u32;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
         let rc = unsafe {
             sys::wc_Blake2bUpdate(&mut self.wc_blake2b, data.as_ptr(), data_size)
         };
@@ -156,7 +156,13 @@ impl BLAKE2b {
     /// blake2b.finalize(&mut hash).expect("Error with finalize()");
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
-        let hash_size = hash.len() as u32;
+        let hash_size = crate::buffer_len_to_u32(hash.len())?;
+        if hash_size == 0 {
+            // The C function uses the internal state configured digest size
+            // if hash_size is passed in as 0. We do not want to allow a
+            // buffer overrun, so do not allow an empty hash buffer here.
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let rc = unsafe {
             sys::wc_Blake2bFinal(&mut self.wc_blake2b, hash.as_mut_ptr(), hash_size)
         };
@@ -167,6 +173,20 @@ impl BLAKE2b {
     }
 }
 
+
+#[cfg(blake2b)]
+impl BLAKE2b {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2b); }
+    }
+}
+
+#[cfg(blake2b)]
+impl Drop for BLAKE2b {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
 
 /// Context for HMAC-BLAKE2b computation.
 #[cfg(blake2b_hmac)]
@@ -305,6 +325,20 @@ impl BLAKE2bHmac {
 }
 
 
+#[cfg(blake2b_hmac)]
+impl BLAKE2bHmac {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2b); }
+    }
+}
+
+#[cfg(blake2b_hmac)]
+impl Drop for BLAKE2bHmac {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 /// Context for BLAKE2s computation.
 #[cfg(blake2s)]
 pub struct BLAKE2s {
@@ -331,7 +365,7 @@ impl BLAKE2s {
     /// let blake2s = BLAKE2s::new(32).expect("Error with new()");
     /// ```
     pub fn new(digest_size: usize) -> Result<Self, i32> {
-        let digest_size = digest_size as u32;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2s: MaybeUninit<sys::Blake2s> = MaybeUninit::uninit();
         let rc = unsafe {
             sys::wc_InitBlake2s(wc_blake2s.as_mut_ptr(), digest_size)
@@ -364,9 +398,9 @@ impl BLAKE2s {
     /// let blake2s = BLAKE2s::new_with_key(32, &key).expect("Error with new()");
     /// ```
     pub fn new_with_key(digest_size: usize, key: &[u8]) -> Result<Self, i32> {
-        let digest_size = digest_size as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
+        let digest_size = crate::buffer_len_to_u32(digest_size)?;
         let mut wc_blake2s: MaybeUninit<sys::Blake2s> = MaybeUninit::uninit();
-        let key_size = key.len() as u32;
         let rc = unsafe {
             sys::wc_InitBlake2s_WithKey(wc_blake2s.as_mut_ptr(), digest_size,
                 key.as_ptr(), key_size)
@@ -401,7 +435,7 @@ impl BLAKE2s {
     /// blake2s.update(&[0u8; 16]).expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
-        let data_size = data.len() as u32;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
         let rc = unsafe {
             sys::wc_Blake2sUpdate(&mut self.wc_blake2s, data.as_ptr(), data_size)
         };
@@ -433,7 +467,13 @@ impl BLAKE2s {
     /// blake2s.finalize(&mut hash).expect("Error with finalize()");
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
-        let hash_size = hash.len() as u32;
+        let hash_size = crate::buffer_len_to_u32(hash.len())?;
+        if hash_size == 0 {
+            // The C function uses the internal state configured digest size
+            // if hash_size is passed in as 0. We do not want to allow a
+            // buffer overrun, so do not allow an empty hash buffer here.
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let rc = unsafe {
             sys::wc_Blake2sFinal(&mut self.wc_blake2s, hash.as_mut_ptr(), hash_size)
         };
@@ -444,6 +484,20 @@ impl BLAKE2s {
     }
 }
 
+
+#[cfg(blake2s)]
+impl BLAKE2s {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2s); }
+    }
+}
+
+#[cfg(blake2s)]
+impl Drop for BLAKE2s {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
 
 /// Context for HMAC-BLAKE2s computation.
 #[cfg(blake2s_hmac)]
@@ -578,5 +632,19 @@ impl BLAKE2sHmac {
             return Err(rc);
         }
         Ok(())
+    }
+}
+
+#[cfg(blake2s_hmac)]
+impl BLAKE2sHmac {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_blake2s); }
+    }
+}
+
+#[cfg(blake2s_hmac)]
+impl Drop for BLAKE2sHmac {
+    fn drop(&mut self) {
+        self.zeroize();
     }
 }
