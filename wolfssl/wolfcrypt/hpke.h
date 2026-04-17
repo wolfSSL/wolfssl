@@ -96,6 +96,9 @@ typedef struct {
     word16 aead;
     byte kem_suite_id[KEM_SUITE_ID_LEN];
     byte hpke_suite_id[HPKE_SUITE_ID_LEN];
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH)
+    byte* echSecret;
+#endif
 } Hpke;
 
 typedef struct {
@@ -134,6 +137,11 @@ WOLFSSL_LOCAL word16 wc_HpkeKemGetEncLen(word16 kemId);
 WOLFSSL_LOCAL int wc_HpkeKemIsSupported(word16 kemId);
 WOLFSSL_LOCAL int wc_HpkeKdfIsSupported(word16 kdfId);
 WOLFSSL_LOCAL int wc_HpkeAeadIsSupported(word16 aeadId);
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH)
+WOLFSSL_LOCAL int wc_HpkeInitEchSecret(Hpke* hpke);
+WOLFSSL_LOCAL void wc_HpkeFreeEchSecret(Hpke* hpke);
+#endif
 
 #endif
 
