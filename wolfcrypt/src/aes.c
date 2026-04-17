@@ -59,6 +59,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef WOLFSSL_NXP_HASHCRYPT_AES
+#include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
+#endif
+
 #ifdef WOLFSSL_SECO_CAAM
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
@@ -4997,7 +5001,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
-        (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
+        (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)) || \
+        defined(WOLFSSL_NXP_HASHCRYPT_AES)
         #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID)
         #endif
@@ -6371,6 +6376,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_DEVCRYPTO_CBC)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
+#elif defined(WOLFSSL_NXP_HASHCRYPT_AES)
+    /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
+
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
@@ -7038,7 +7046,11 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         #define NEED_AES_CTR_SOFT
 
     #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
-    /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
+        /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
+
+    #elif defined(WOLFSSL_NXP_HASHCRYPT_AES)
+        /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
+
     #else
 
         /* Use software based AES counter */
@@ -13763,6 +13775,9 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implemented in wolfcrypt/src/port/riscv/riscv-64-aes.c */
 
+#elif defined(WOLFSSL_NXP_HASHCRYPT_AES)
+    /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
+
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
@@ -14058,7 +14073,10 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 #if defined(WOLFSSL_AES_CFB)
 
-#if defined(WOLFSSL_PSOC6_CRYPTO)
+#if defined(WOLFSSL_NXP_HASHCRYPT_AES)
+    /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
+
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
 
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
@@ -14507,6 +14525,10 @@ int wc_AesCfb8Decrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* WOLFSSL_AES_CFB */
 
 #ifdef WOLFSSL_AES_OFB
+#ifdef WOLFSSL_NXP_HASHCRYPT_AES
+    /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
+
+#else /* software */
 /* OFB AES mode
  *
  * aes structure holding key to use for encryption
@@ -14609,6 +14631,7 @@ int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return AesOfbCrypt_C(aes, out, in, sz);
 }
 #endif /* HAVE_AES_DECRYPT */
+#endif /* software */
 #endif /* WOLFSSL_AES_OFB */
 
 
