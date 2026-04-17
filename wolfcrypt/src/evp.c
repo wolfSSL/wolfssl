@@ -4319,7 +4319,6 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         int bytes;
         bytes = wolfSSL_BN_num_bytes(pkey->dsa->q);
         if (bytes == WC_NO_ERR_TRACE(WOLFSSL_FAILURE) ||
-            bytes > DSA_MAX_HALF_SIZE ||
             bytes * 2 > (int)*siglen)
         {
             return WOLFSSL_FAILURE;
