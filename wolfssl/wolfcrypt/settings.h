@@ -5100,6 +5100,14 @@ extern void uITRON4_free(void *p) ;
     !defined(HAVE_SESSION_TICKET) && defined(NO_PSK)
     #error "Early data requires session tickets (HAVE_SESSION_TICKET) or PSK"
 #endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
+    !defined(WOLFSSL_TLS13)
+    #error "cert_with_extern_psk requires TLS 1.3 (WOLFSSL_TLS13)"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
+    defined(NO_PSK)
+    #error "cert_with_extern_psk requires PSK support"
+#endif
 
 /* DES3 TLS Suite Rule - auto-disable DES3 TLS suites when DES3 is disabled */
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_DES3_TLS_SUITES) && \

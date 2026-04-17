@@ -2847,6 +2847,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #if defined(WOLFSSL_TLS13) && !defined(HAVE_SUPPORTED_CURVES)
     ctx->noPskDheKe = 1;
 #endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    /* Disabled by default - opt in through API. */
+    ctx->certWithExternPsk = 0;
+#endif
 #endif
 
 #if defined(WOLFSSL_QT) && !defined(NO_PSK)
@@ -7961,6 +7965,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #ifdef HAVE_SUPPORTED_CURVES
         ssl->options.onlyPskDheKe = ctx->onlyPskDheKe;
     #endif /* HAVE_SUPPORTED_CURVES */
+    #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
+        ssl->options.certWithExternPsk = ctx->certWithExternPsk;
+    #endif
     #endif /* HAVE_SESSION_TICKET || !NO_PSK */
     #if defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         ssl->options.postHandshakeAuth = ctx->postHandshakeAuth;

@@ -8087,6 +8087,27 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.useAnon, TRUE, TRUE, TRUE, TRUE, ssl->options.side);
     }
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    int wolfSSL_CTX_set_cert_with_extern_psk(WOLFSSL_CTX* ctx, int state)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_set_cert_with_extern_psk");
+        if (ctx == NULL)
+            return WOLFSSL_FAILURE;
+        ctx->certWithExternPsk = (byte)(state != 0);
+        return WOLFSSL_SUCCESS;
+    }
+
+    int wolfSSL_set_cert_with_extern_psk(WOLFSSL* ssl, int state)
+    {
+        WOLFSSL_ENTER("wolfSSL_set_cert_with_extern_psk");
+        if (ssl == NULL)
+            return WOLFSSL_FAILURE;
+        ssl->options.certWithExternPsk = (word16)(state != 0);
+        return WOLFSSL_SUCCESS;
+    }
+#endif
+
     #ifdef OPENSSL_EXTRA
     /**
      * set call back function for psk session use

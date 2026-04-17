@@ -376,6 +376,24 @@ if(WOLFSSL_POSTAUTH)
     endif()
 endif()
 
+# Certificate Authentication with External PSK (RFC 8773bis)
+add_option("WOLFSSL_CERT_WITH_EXTERN_PSK"
+    "Enable Certificate Authentication with External PSKs for TLS 1.3 (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    if(NOT WOLFSSL_TLS13)
+        message(WARNING "TLS 1.3 is disabled - disabling cert-with-extern-psk")
+        override_cache(WOLFSSL_CERT_WITH_EXTERN_PSK "no")
+    elseif(NOT WOLFSSL_PSK)
+        message(WARNING "PSK is disabled - disabling cert-with-extern-psk")
+        override_cache(WOLFSSL_CERT_WITH_EXTERN_PSK "no")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_CERT_WITH_EXTERN_PSK")
+    endif()
+endif()
+
 # Hello Retry Request Cookie
 add_option("WOLFSSL_HRR_COOKIE"
     "Enable the server to send Cookie Extension in HRR with state (default: disabled)"

@@ -2965,6 +2965,7 @@ typedef struct Options Options;
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
 #define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
+#define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 8773bis */
 #define TLSXT_SESSION_TICKET             0x0023
 #define TLSXT_PRE_SHARED_KEY             0x0029
 #define TLSXT_EARLY_DATA                 0x002a
@@ -3020,6 +3021,9 @@ typedef enum {
     TLSX_COOKIE                     = TLSXT_COOKIE,
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PSK_KEY_EXCHANGE_MODES     = TLSXT_PSK_KEY_EXCHANGE_MODES,
+    #if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    TLSX_CERT_WITH_EXTERN_PSK       = TLSXT_CERT_WITH_EXTERN_PSK,
+    #endif
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
     TLSX_CERTIFICATE_AUTHORITIES    = TLSXT_CERTIFICATE_AUTHORITIES,
@@ -3743,6 +3747,9 @@ WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(TLSX** extensions, const byte* identity,
                                         void* heap);
 WOLFSSL_LOCAL int TLSX_PreSharedKey_Parse_ClientHello(TLSX** extensions,
                                   const byte* input, word16 length, void* heap);
+#if defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && defined(WOLFSSL_TLS13)
+WOLFSSL_LOCAL int TLSX_CertWithExternPsk_Use(WOLFSSL* ssl);
+#endif
 
 /* The possible Pre-Shared Key key exchange modes. */
 enum PskKeyExchangeMode {
@@ -3941,6 +3948,9 @@ struct WOLFSSL_CTX {
     byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
 #ifdef HAVE_SUPPORTED_CURVES
     byte        onlyPskDheKe:1;   /* Only use (EC)DHE with PSK */
+#endif
+#if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    byte        certWithExternPsk:1; /* Use tls_cert_with_extern_psk extension */
 #endif
 #endif
 #endif /* WOLFSSL_TLS13 */
@@ -5067,6 +5077,9 @@ struct Options {
     word16            noPskDheKe:1;       /* Don't use (EC)DHE with PSK */
 #ifdef HAVE_SUPPORTED_CURVES
     word16            onlyPskDheKe:1;     /* Only use (EC)DHE with PSK */
+#endif
+#if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    word16            certWithExternPsk:1; /* Cert auth with external PSK */
 #endif
 #endif
     word16            partialWrite:1;     /* only one msg per write call */

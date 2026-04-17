@@ -308,6 +308,8 @@ extern "C" {
 #cmakedefine WOLFSSL_DTLS13
 #undef WOLFSSL_DTLS_CH_FRAG
 #cmakedefine WOLFSSL_DTLS_CH_FRAG
+#undef WOLFSSL_CERT_WITH_EXTERN_PSK
+#cmakedefine WOLFSSL_CERT_WITH_EXTERN_PSK
 #undef WOLFSSL_EITHER_SIDE
 #cmakedefine WOLFSSL_EITHER_SIDE
 #undef WOLFSSL_ENCRYPTED_KEYS
@@ -427,4 +429,3 @@ extern "C" {
 
 
 #endif /* WOLFSSL_OPTIONS_H */
-

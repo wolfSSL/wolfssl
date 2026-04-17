@@ -14724,6 +14724,75 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
 /*!
     \ingroup Setup
 
+    \brief Enable or disable TLS 1.3 certificate authentication with external
+    PSK (RFC8773bis) on a context.
+
+    When enabled, wolfSSL advertises and accepts the
+    `tls_cert_with_extern_psk` extension for TLS 1.3 handshakes using external
+    PSKs. Any non-zero \p state value enables the feature and zero disables it.
+
+    Availability:
+      - Built with `--enable-tls13 --enable-psk --enable-cert-with-extern-psk`
+      - Or with `WOLFSSL_TLS13` and `WOLFSSL_CERT_WITH_EXTERN_PSK` defined
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created with
+                        wolfSSL_CTX_new().
+    \param [in] state 0 to disable, non-zero to enable.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return WOLFSSL_FAILURE when \p ctx is NULL.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    if (wolfSSL_CTX_set_cert_with_extern_psk(ctx, 1) != WOLFSSL_SUCCESS) {
+        /* handle error */
+    }
+    \endcode
+
+    \sa wolfSSL_set_cert_with_extern_psk
+    \sa wolfSSL_CTX_set_psk_client_tls13_callback
+    \sa wolfSSL_CTX_set_psk_server_tls13_callback
+*/
+int wolfSSL_CTX_set_cert_with_extern_psk(WOLFSSL_CTX* ctx, int state);
+
+/*!
+    \ingroup Setup
+
+    \brief Enable or disable TLS 1.3 certificate authentication with external
+    PSK (RFC8773bis) on a connection.
+
+    This call applies to a single WOLFSSL object. Any non-zero \p state value
+    enables the feature and zero disables it.
+
+    Availability:
+      - Built with `--enable-tls13 --enable-psk --enable-cert-with-extern-psk`
+      - Or with `WOLFSSL_TLS13` and `WOLFSSL_CERT_WITH_EXTERN_PSK` defined
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+                        wolfSSL_new().
+    \param [in] state 0 to disable, non-zero to enable.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return WOLFSSL_FAILURE when \p ssl is NULL.
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    if (wolfSSL_set_cert_with_extern_psk(ssl, 1) != WOLFSSL_SUCCESS) {
+        /* handle error */
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_cert_with_extern_psk
+    \sa wolfSSL_set_psk_client_tls13_callback
+    \sa wolfSSL_set_psk_server_tls13_callback
+*/
+int wolfSSL_set_cert_with_extern_psk(WOLFSSL* ssl, int state);
+
+/*!
+    \ingroup Setup
+
     \brief This function creates a key share entry from the group including
     generating a key pair.
     The KeyShare extension contains all the generated public keys for key

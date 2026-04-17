@@ -3213,6 +3213,11 @@ enum { /* ssl Constants */
     WOLFSSL_API void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
         wc_psk_server_tls13_callback cb);
 #endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    WOLFSSL_API int wolfSSL_CTX_set_cert_with_extern_psk(WOLFSSL_CTX* ctx,
+        int state);
+    WOLFSSL_API int wolfSSL_set_cert_with_extern_psk(WOLFSSL* ssl, int state);
+#endif
     WOLFSSL_API void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl);
     WOLFSSL_API int   wolfSSL_set_psk_callback_ctx(WOLFSSL* ssl, void* psk_ctx);
 
@@ -6299,6 +6304,12 @@ WOLFSSL_API const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg
 #endif
 #ifndef WOLFSSL_PKM_MIN_SIZE_SERVER
     #define WOLFSSL_PKM_MIN_SIZE_SERVER   0
+#endif
+#ifndef WOLFSSL_CWEP_MIN_SIZE_CLIENT
+    #define WOLFSSL_CWEP_MIN_SIZE_CLIENT  0
+#endif
+#ifndef WOLFSSL_CWEP_MIN_SIZE_SERVER
+    #define WOLFSSL_CWEP_MIN_SIZE_SERVER  0
 #endif
 #ifndef WOLFSSL_CSR2_MIN_SIZE_CLIENT
     #define WOLFSSL_CSR2_MIN_SIZE_CLIENT  7
