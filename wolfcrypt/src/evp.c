@@ -4960,7 +4960,7 @@ int wolfSSL_EVP_DigestSign(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         return WOLFSSL_FAILURE;
 
     if (sigret != NULL) {
-        if (tbs == NULL || tbslen == 0)
+        if (tbs == NULL)
             return WOLFSSL_FAILURE;
         if (wolfSSL_EVP_DigestSignUpdate(ctx, tbs, (unsigned int)tbslen)
                 != WOLFSSL_SUCCESS)
