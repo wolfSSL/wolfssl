@@ -296,7 +296,7 @@ impl Drop for ECCPoint {
 /// `import_x963_ex()`, `import_private_key()`, `import_private_key_ex()`,
 /// `import_raw()`, or `import_raw_ex()`.
 pub struct ECC {
-    wc_ecc_key: sys::ecc_key,
+    pub(crate) wc_ecc_key: sys::ecc_key,
 }
 
 #[cfg(ecc_curve_ids)]

@@ -1368,3 +1368,127 @@ impl Drop for Ed448 {
         self.zeroize();
     }
 }
+
+/// RustCrypto `signature` crate trait implementations.
+///
+/// Provides a fixed-size [`Signature`] and a [`VerifyingKey`] type so that
+/// [`Ed448`] can be used wherever the `signature` crate's
+/// [`signature::SignerMut`], [`signature::Keypair`], and
+/// [`signature::Verifier`] traits are accepted.
+///
+/// These impls use the plain Ed448 (pure) signature variant with no context;
+/// the context-, hashed-, and streaming-signature variants remain accessible
+/// via the inherent methods on [`Ed448`].
+#[cfg(feature = "signature")]
+mod signature_impl {
+    use super::Ed448;
+    use signature::Error;
+
+    /// Ed448 signature in its standard 114-byte encoded form.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub struct Signature([u8; Ed448::SIG_SIZE]);
+
+    impl Signature {
+        /// Construct a signature from its raw bytes.
+        pub const fn from_bytes(bytes: [u8; Ed448::SIG_SIZE]) -> Self {
+            Self(bytes)
+        }
+
+        /// Return the raw signature bytes.
+        pub const fn to_bytes(&self) -> [u8; Ed448::SIG_SIZE] {
+            self.0
+        }
+    }
+
+    impl AsRef<[u8]> for Signature {
+        fn as_ref(&self) -> &[u8] {
+            &self.0
+        }
+    }
+
+    impl TryFrom<&[u8]> for Signature {
+        type Error = Error;
+        fn try_from(bytes: &[u8]) -> Result<Self, Error> {
+            let arr: [u8; Ed448::SIG_SIZE] = bytes.try_into().map_err(|_| Error::new())?;
+            Ok(Self(arr))
+        }
+    }
+
+    impl From<Signature> for [u8; Ed448::SIG_SIZE] {
+        fn from(sig: Signature) -> Self {
+            sig.0
+        }
+    }
+
+    impl signature::SignatureEncoding for Signature {
+        type Repr = [u8; Ed448::SIG_SIZE];
+    }
+
+    /// Ed448 verifying (public) key.
+    ///
+    /// Owns a copy of the 57-byte compressed public key and instantiates a
+    /// short-lived wolfCrypt `ed448_key` on each verification.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub struct VerifyingKey([u8; Ed448::PUB_KEY_SIZE]);
+
+    impl VerifyingKey {
+        /// Construct a verifying key from its raw public key bytes.
+        pub const fn from_bytes(bytes: [u8; Ed448::PUB_KEY_SIZE]) -> Self {
+            Self(bytes)
+        }
+
+        /// Return the raw public key bytes.
+        pub const fn to_bytes(&self) -> [u8; Ed448::PUB_KEY_SIZE] {
+            self.0
+        }
+    }
+
+    impl AsRef<[u8]> for VerifyingKey {
+        fn as_ref(&self) -> &[u8] {
+            &self.0
+        }
+    }
+
+    impl TryFrom<&[u8]> for VerifyingKey {
+        type Error = Error;
+        fn try_from(bytes: &[u8]) -> Result<Self, Error> {
+            let arr: [u8; Ed448::PUB_KEY_SIZE] =
+                bytes.try_into().map_err(|_| Error::new())?;
+            Ok(Self(arr))
+        }
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl signature::Keypair for Ed448 {
+        type VerifyingKey = VerifyingKey;
+        fn verifying_key(&self) -> Self::VerifyingKey {
+            let mut pub_key = [0u8; Ed448::PUB_KEY_SIZE];
+            self.export_public(&mut pub_key).expect("ed448 export_public failed");
+            VerifyingKey(pub_key)
+        }
+    }
+
+    #[cfg(ed448_sign)]
+    impl signature::SignerMut<Signature> for Ed448 {
+        fn try_sign(&mut self, msg: &[u8]) -> Result<Signature, Error> {
+            let mut sig = [0u8; Ed448::SIG_SIZE];
+            self.sign_msg(msg, None, &mut sig).map_err(|_| Error::new())?;
+            Ok(Signature(sig))
+        }
+    }
+
+    #[cfg(all(ed448_import, ed448_verify))]
+    impl signature::Verifier<Signature> for VerifyingKey {
+        fn verify(&self, msg: &[u8], signature: &Signature) -> Result<(), Error> {
+            let mut key = Ed448::new().map_err(|_| Error::new())?;
+            key.import_public(&self.0).map_err(|_| Error::new())?;
+            let valid = key
+                .verify_msg(&signature.0, msg, None)
+                .map_err(|_| Error::new())?;
+            if valid { Ok(()) } else { Err(Error::new()) }
+        }
+    }
+}
+
+#[cfg(feature = "signature")]
+pub use signature_impl::{Signature, VerifyingKey};

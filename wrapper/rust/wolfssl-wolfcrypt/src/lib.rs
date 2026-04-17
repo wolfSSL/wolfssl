@@ -48,6 +48,8 @@ pub mod curve25519;
 pub mod dh;
 pub mod dilithium;
 pub mod ecc;
+#[cfg(feature = "signature")]
+pub mod ecdsa;
 pub mod ed25519;
 pub mod ed448;
 pub mod fips;
@@ -59,6 +61,8 @@ pub mod mlkem;
 pub mod prf;
 pub mod random;
 pub mod rsa;
+#[cfg(feature = "signature")]
+pub mod rsa_pkcs1v15;
 pub mod sha;
 #[cfg(feature = "digest")]
 mod sha_digest;
