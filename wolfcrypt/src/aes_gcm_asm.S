@@ -59,7 +59,7 @@
 .p2align	4
 #endif /* __APPLE__ */
 L_GCM_generate_m0_aesni_rev8:
-.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+.quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
 .data
 #else
@@ -71,7 +71,7 @@ L_GCM_generate_m0_aesni_rev8:
 .p2align	4
 #endif /* __APPLE__ */
 L_GCM_generate_m0_aesni_mod2_128:
-.quad	0x0, 0xe100000000000000
+.quad	0x0000000000000000,0xe100000000000000
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_aesni
@@ -325,7 +325,7 @@ _GCM_generate_m0_aesni:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_one:
-.quad	0x0, 0x1
+.quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
 .data
 #else
@@ -337,7 +337,7 @@ L_aes_gcm_one:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_two:
-.quad	0x0, 0x2
+.quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
 .data
 #else
@@ -349,7 +349,7 @@ L_aes_gcm_two:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_three:
-.quad	0x0, 0x3
+.quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
 .data
 #else
@@ -361,7 +361,7 @@ L_aes_gcm_three:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_four:
-.quad	0x0, 0x4
+.quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
 .data
 #else
@@ -373,7 +373,7 @@ L_aes_gcm_four:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_five:
-.quad	0x0, 0x5
+.quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
 .data
 #else
@@ -385,7 +385,7 @@ L_aes_gcm_five:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_six:
-.quad	0x0, 0x6
+.quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
 .data
 #else
@@ -397,7 +397,7 @@ L_aes_gcm_six:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_seven:
-.quad	0x0, 0x7
+.quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
 .data
 #else
@@ -409,7 +409,7 @@ L_aes_gcm_seven:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_eight:
-.quad	0x0, 0x8
+.quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
 .data
 #else
@@ -421,7 +421,7 @@ L_aes_gcm_eight:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_bswap_epi64:
-.quad	0x1020304050607, 0x8090a0b0c0d0e0f
+.quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
 .data
 #else
@@ -433,7 +433,7 @@ L_aes_gcm_bswap_epi64:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_bswap_mask:
-.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+.quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
 .data
 #else
@@ -445,7 +445,7 @@ L_aes_gcm_bswap_mask:
 .p2align	4
 #endif /* __APPLE__ */
 L_aes_gcm_mod2_128:
-.quad	0x1, 0xc200000000000000
+.quad	0x0000000000000001,0xc200000000000000
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_aesni
@@ -6490,7 +6490,7 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_done:
 .p2align	4
 #endif /* __APPLE__ */
 L_GCM_generate_m0_avx1_rev8:
-.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+.quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
 .data
 #else
@@ -6502,7 +6502,7 @@ L_GCM_generate_m0_avx1_rev8:
 .p2align	4
 #endif /* __APPLE__ */
 L_GCM_generate_m0_avx1_mod2_128:
-.quad	0x0, 0xe100000000000000
+.quad	0x0000000000000000,0xe100000000000000
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_avx1
@@ -6722,7 +6722,7 @@ _GCM_generate_m0_avx1:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_one:
-.quad	0x0, 0x1
+.quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
 .data
 #else
@@ -6734,7 +6734,7 @@ L_avx1_aes_gcm_one:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_two:
-.quad	0x0, 0x2
+.quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
 .data
 #else
@@ -6746,7 +6746,7 @@ L_avx1_aes_gcm_two:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_three:
-.quad	0x0, 0x3
+.quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
 .data
 #else
@@ -6758,7 +6758,7 @@ L_avx1_aes_gcm_three:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_four:
-.quad	0x0, 0x4
+.quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
 .data
 #else
@@ -6770,7 +6770,7 @@ L_avx1_aes_gcm_four:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_five:
-.quad	0x0, 0x5
+.quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
 .data
 #else
@@ -6782,7 +6782,7 @@ L_avx1_aes_gcm_five:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_six:
-.quad	0x0, 0x6
+.quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
 .data
 #else
@@ -6794,7 +6794,7 @@ L_avx1_aes_gcm_six:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_seven:
-.quad	0x0, 0x7
+.quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
 .data
 #else
@@ -6806,7 +6806,7 @@ L_avx1_aes_gcm_seven:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_eight:
-.quad	0x0, 0x8
+.quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
 .data
 #else
@@ -6818,7 +6818,7 @@ L_avx1_aes_gcm_eight:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_bswap_epi64:
-.quad	0x1020304050607, 0x8090a0b0c0d0e0f
+.quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
 .data
 #else
@@ -6830,7 +6830,7 @@ L_avx1_aes_gcm_bswap_epi64:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_bswap_mask:
-.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+.quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
 .data
 #else
@@ -6842,7 +6842,7 @@ L_avx1_aes_gcm_bswap_mask:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_gcm_mod2_128:
-.quad	0x1, 0xc200000000000000
+.quad	0x0000000000000001,0xc200000000000000
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_avx1
@@ -11953,7 +11953,7 @@ L_AES_GCM_decrypt_final_avx1_cmp_tag_done:
 .p2align	4
 #endif /* __APPLE__ */
 L_GCM_generate_m0_avx2_rev8:
-.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+.quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
 .data
 #else
@@ -11965,7 +11965,7 @@ L_GCM_generate_m0_avx2_rev8:
 .p2align	4
 #endif /* __APPLE__ */
 L_GCM_generate_m0_avx2_mod2_128:
-.quad	0x0, 0xe100000000000000
+.quad	0x0000000000000000,0xe100000000000000
 #ifndef __APPLE__
 .text
 .globl	GCM_generate_m0_avx2
@@ -12185,7 +12185,7 @@ _GCM_generate_m0_avx2:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_one:
-.quad	0x0, 0x1
+.quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
 .data
 #else
@@ -12197,7 +12197,7 @@ L_avx2_aes_gcm_one:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_two:
-.quad	0x0, 0x2
+.quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
 .data
 #else
@@ -12209,7 +12209,7 @@ L_avx2_aes_gcm_two:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_three:
-.quad	0x0, 0x3
+.quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
 .data
 #else
@@ -12221,7 +12221,7 @@ L_avx2_aes_gcm_three:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_four:
-.quad	0x0, 0x4
+.quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
 .data
 #else
@@ -12233,7 +12233,7 @@ L_avx2_aes_gcm_four:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_five:
-.quad	0x0, 0x5
+.quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
 .data
 #else
@@ -12245,7 +12245,7 @@ L_avx2_aes_gcm_five:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_six:
-.quad	0x0, 0x6
+.quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
 .data
 #else
@@ -12257,7 +12257,7 @@ L_avx2_aes_gcm_six:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_seven:
-.quad	0x0, 0x7
+.quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
 .data
 #else
@@ -12269,7 +12269,7 @@ L_avx2_aes_gcm_seven:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_eight:
-.quad	0x0, 0x8
+.quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
 .data
 #else
@@ -12281,7 +12281,7 @@ L_avx2_aes_gcm_eight:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_bswap_one:
-.quad	0x0, 0x100000000000000
+.quad	0x0000000000000000,0x0100000000000000
 #ifndef __APPLE__
 .data
 #else
@@ -12293,7 +12293,7 @@ L_avx2_aes_gcm_bswap_one:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_bswap_epi64:
-.quad	0x1020304050607, 0x8090a0b0c0d0e0f
+.quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
 .data
 #else
@@ -12305,7 +12305,7 @@ L_avx2_aes_gcm_bswap_epi64:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_bswap_mask:
-.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+.quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
 .data
 #else
@@ -12317,7 +12317,7 @@ L_avx2_aes_gcm_bswap_mask:
 .p2align	4
 #endif /* __APPLE__ */
 L_avx2_aes_gcm_mod2_128:
-.quad	0x1, 0xc200000000000000
+.quad	0x0000000000000001,0xc200000000000000
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_avx2

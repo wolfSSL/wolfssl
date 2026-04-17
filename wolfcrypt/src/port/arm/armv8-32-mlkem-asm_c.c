@@ -30,8 +30,6 @@
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
-#include <stdint.h>
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -52,50 +50,34 @@
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
 #ifdef WOLFSSL_WC_MLKEM
-static const word16 L_mlkem_arm32_ntt_zetas[] = {
-    0x08ed, 0x0a0b, 0x0b9a, 0x0714,
-    0x05d5, 0x058e, 0x011f, 0x00ca,
-    0x0c56, 0x026e, 0x0629, 0x00b6,
-    0x03c2, 0x084f, 0x073f, 0x05bc,
-    0x023d, 0x07d4, 0x0108, 0x017f,
-    0x09c4, 0x05b2, 0x06bf, 0x0c7f,
-    0x0a58, 0x03f9, 0x02dc, 0x0260,
-    0x06fb, 0x019b, 0x0c34, 0x06de,
-    0x04c7, 0x028c, 0x0ad9, 0x03f7,
-    0x07f4, 0x05d3, 0x0be7, 0x06f9,
-    0x0204, 0x0cf9, 0x0bc1, 0x0a67,
-    0x06af, 0x0877, 0x007e, 0x05bd,
-    0x09ac, 0x0ca7, 0x0bf2, 0x033e,
-    0x006b, 0x0774, 0x0c0a, 0x094a,
-    0x0b73, 0x03c1, 0x071d, 0x0a2c,
-    0x01c0, 0x08d8, 0x02a5, 0x0806,
-    0x08b2, 0x01ae, 0x022b, 0x034b,
-    0x081e, 0x0367, 0x060e, 0x0069,
-    0x01a6, 0x024b, 0x00b1, 0x0c16,
-    0x0bde, 0x0b35, 0x0626, 0x0675,
-    0x0c0b, 0x030a, 0x0487, 0x0c6e,
-    0x09f8, 0x05cb, 0x0aa7, 0x045f,
-    0x06cb, 0x0284, 0x0999, 0x015d,
-    0x01a2, 0x0149, 0x0c65, 0x0cb6,
-    0x0331, 0x0449, 0x025b, 0x0262,
-    0x052a, 0x07fc, 0x0748, 0x0180,
-    0x0842, 0x0c79, 0x04c2, 0x07ca,
-    0x0997, 0x00dc, 0x085e, 0x0686,
-    0x0860, 0x0707, 0x0803, 0x031a,
-    0x071b, 0x09ab, 0x099b, 0x01de,
-    0x0c95, 0x0bcd, 0x03e4, 0x03df,
-    0x03be, 0x074d, 0x05f2, 0x065c,
+XALIGNED(4) static const word16 L_mlkem_arm32_ntt_zetas[] = {
+    0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
+    0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
+    0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
+    0x0a58, 0x03f9, 0x02dc, 0x0260, 0x06fb, 0x019b, 0x0c34, 0x06de,
+    0x04c7, 0x028c, 0x0ad9, 0x03f7, 0x07f4, 0x05d3, 0x0be7, 0x06f9,
+    0x0204, 0x0cf9, 0x0bc1, 0x0a67, 0x06af, 0x0877, 0x007e, 0x05bd,
+    0x09ac, 0x0ca7, 0x0bf2, 0x033e, 0x006b, 0x0774, 0x0c0a, 0x094a,
+    0x0b73, 0x03c1, 0x071d, 0x0a2c, 0x01c0, 0x08d8, 0x02a5, 0x0806,
+    0x08b2, 0x01ae, 0x022b, 0x034b, 0x081e, 0x0367, 0x060e, 0x0069,
+    0x01a6, 0x024b, 0x00b1, 0x0c16, 0x0bde, 0x0b35, 0x0626, 0x0675,
+    0x0c0b, 0x030a, 0x0487, 0x0c6e, 0x09f8, 0x05cb, 0x0aa7, 0x045f,
+    0x06cb, 0x0284, 0x0999, 0x015d, 0x01a2, 0x0149, 0x0c65, 0x0cb6,
+    0x0331, 0x0449, 0x025b, 0x0262, 0x052a, 0x07fc, 0x0748, 0x0180,
+    0x0842, 0x0c79, 0x04c2, 0x07ca, 0x0997, 0x00dc, 0x085e, 0x0686,
+    0x0860, 0x0707, 0x0803, 0x031a, 0x071b, 0x09ab, 0x099b, 0x01de,
+    0x0c95, 0x0bcd, 0x03e4, 0x03df, 0x03be, 0x074d, 0x05f2, 0x065c,
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r_p)
 #else
 WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register sword16* r asm ("r0") = (sword16*)r_p;
-    register word16* L_mlkem_arm32_ntt_zetas_c asm ("r1") =
+    register sword16* r __asm__ ("r0") = (sword16*)r_p;
+    register word16* L_mlkem_arm32_ntt_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_arm32_ntt_zetas;
 #else
     register word16* L_mlkem_arm32_ntt_zetas_c =
@@ -121,7 +103,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r2, #16\n\t"
         "\n"
-    "L_mlkem_arm32_ntt_loop_123_%=: \n\t"
+    "L_mlkem_arm32_ntt_loop_123_%=:\n\t"
         "str	r2, [sp]\n\t"
         "ldrh	r11, [r1, #2]\n\t"
         "ldr	r2, [%[r]]\n\t"
@@ -1238,13 +1220,13 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
         "sub	%[r], %[r], #0x40\n\t"
         "mov	r3, #0\n\t"
         "\n"
-    "L_mlkem_arm32_ntt_loop_4_j_%=: \n\t"
+    "L_mlkem_arm32_ntt_loop_4_j_%=:\n\t"
         "str	r3, [sp, #4]\n\t"
         "add	r11, r1, r3, lsr #4\n\t"
         "mov	r2, #4\n\t"
         "ldr	r11, [r11, #16]\n\t"
         "\n"
-    "L_mlkem_arm32_ntt_loop_4_i_%=: \n\t"
+    "L_mlkem_arm32_ntt_loop_4_i_%=:\n\t"
         "str	r2, [sp]\n\t"
         "ldr	r2, [%[r]]\n\t"
         "ldr	r3, [%[r], #16]\n\t"
@@ -1639,7 +1621,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
         "sub	%[r], %[r], #0x200\n\t"
         "mov	r3, #0\n\t"
         "\n"
-    "L_mlkem_arm32_ntt_loop_567_%=: \n\t"
+    "L_mlkem_arm32_ntt_loop_567_%=:\n\t"
         "add	r11, r1, r3, lsr #3\n\t"
         "str	r3, [sp, #4]\n\t"
         "ldrh	r11, [r11, #32]\n\t"
@@ -3104,50 +3086,34 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_ntt(sword16* r)
     );
 }
 
-static const word16 L_mlkem_invntt_zetas_inv[] = {
-    0x06a5, 0x070f, 0x05b4, 0x0943,
-    0x0922, 0x091d, 0x0134, 0x006c,
-    0x0b23, 0x0366, 0x0356, 0x05e6,
-    0x09e7, 0x04fe, 0x05fa, 0x04a1,
-    0x067b, 0x04a3, 0x0c25, 0x036a,
-    0x0537, 0x083f, 0x0088, 0x04bf,
-    0x0b81, 0x05b9, 0x0505, 0x07d7,
-    0x0a9f, 0x0aa6, 0x08b8, 0x09d0,
-    0x004b, 0x009c, 0x0bb8, 0x0b5f,
-    0x0ba4, 0x0368, 0x0a7d, 0x0636,
-    0x08a2, 0x025a, 0x0736, 0x0309,
-    0x0093, 0x087a, 0x09f7, 0x00f6,
-    0x068c, 0x06db, 0x01cc, 0x0123,
-    0x00eb, 0x0c50, 0x0ab6, 0x0b5b,
-    0x0c98, 0x06f3, 0x099a, 0x04e3,
-    0x09b6, 0x0ad6, 0x0b53, 0x044f,
-    0x04fb, 0x0a5c, 0x0429, 0x0b41,
-    0x02d5, 0x05e4, 0x0940, 0x018e,
-    0x03b7, 0x00f7, 0x058d, 0x0c96,
-    0x09c3, 0x010f, 0x005a, 0x0355,
-    0x0744, 0x0c83, 0x048a, 0x0652,
-    0x029a, 0x0140, 0x0008, 0x0afd,
-    0x0608, 0x011a, 0x072e, 0x050d,
-    0x090a, 0x0228, 0x0a75, 0x083a,
-    0x0623, 0x00cd, 0x0b66, 0x0606,
-    0x0aa1, 0x0a25, 0x0908, 0x02a9,
-    0x0082, 0x0642, 0x074f, 0x033d,
-    0x0b82, 0x0bf9, 0x052d, 0x0ac4,
-    0x0745, 0x05c2, 0x04b2, 0x093f,
-    0x0c4b, 0x06d8, 0x0a93, 0x00ab,
-    0x0c37, 0x0be2, 0x0773, 0x072c,
-    0x05ed, 0x0167, 0x02f6, 0x05a1,
+XALIGNED(4) static const word16 L_mlkem_invntt_zetas_inv[] = {
+    0x06a5, 0x070f, 0x05b4, 0x0943, 0x0922, 0x091d, 0x0134, 0x006c,
+    0x0b23, 0x0366, 0x0356, 0x05e6, 0x09e7, 0x04fe, 0x05fa, 0x04a1,
+    0x067b, 0x04a3, 0x0c25, 0x036a, 0x0537, 0x083f, 0x0088, 0x04bf,
+    0x0b81, 0x05b9, 0x0505, 0x07d7, 0x0a9f, 0x0aa6, 0x08b8, 0x09d0,
+    0x004b, 0x009c, 0x0bb8, 0x0b5f, 0x0ba4, 0x0368, 0x0a7d, 0x0636,
+    0x08a2, 0x025a, 0x0736, 0x0309, 0x0093, 0x087a, 0x09f7, 0x00f6,
+    0x068c, 0x06db, 0x01cc, 0x0123, 0x00eb, 0x0c50, 0x0ab6, 0x0b5b,
+    0x0c98, 0x06f3, 0x099a, 0x04e3, 0x09b6, 0x0ad6, 0x0b53, 0x044f,
+    0x04fb, 0x0a5c, 0x0429, 0x0b41, 0x02d5, 0x05e4, 0x0940, 0x018e,
+    0x03b7, 0x00f7, 0x058d, 0x0c96, 0x09c3, 0x010f, 0x005a, 0x0355,
+    0x0744, 0x0c83, 0x048a, 0x0652, 0x029a, 0x0140, 0x0008, 0x0afd,
+    0x0608, 0x011a, 0x072e, 0x050d, 0x090a, 0x0228, 0x0a75, 0x083a,
+    0x0623, 0x00cd, 0x0b66, 0x0606, 0x0aa1, 0x0a25, 0x0908, 0x02a9,
+    0x0082, 0x0642, 0x074f, 0x033d, 0x0b82, 0x0bf9, 0x052d, 0x0ac4,
+    0x0745, 0x05c2, 0x04b2, 0x093f, 0x0c4b, 0x06d8, 0x0a93, 0x00ab,
+    0x0c37, 0x0be2, 0x0773, 0x072c, 0x05ed, 0x0167, 0x02f6, 0x05a1,
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r_p)
 #else
 WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register sword16* r asm ("r0") = (sword16*)r_p;
-    register word16* L_mlkem_invntt_zetas_inv_c asm ("r1") =
+    register sword16* r __asm__ ("r0") = (sword16*)r_p;
+    register word16* L_mlkem_invntt_zetas_inv_c __asm__ ("r1") =
         (word16*)&L_mlkem_invntt_zetas_inv;
 #else
     register word16* L_mlkem_invntt_zetas_inv_c =
@@ -3173,7 +3139,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r3, #0\n\t"
         "\n"
-    "L_mlkem_invntt_loop_765_%=: \n\t"
+    "L_mlkem_invntt_loop_765_%=:\n\t"
         "add	r11, r1, r3, lsr #1\n\t"
         "str	r3, [sp, #4]\n\t"
         "ldr	r2, [%[r]]\n\t"
@@ -4774,13 +4740,13 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
         "sub	%[r], %[r], #0x200\n\t"
         "mov	r3, #0\n\t"
         "\n"
-    "L_mlkem_invntt_loop_4_j_%=: \n\t"
+    "L_mlkem_invntt_loop_4_j_%=:\n\t"
         "str	r3, [sp, #4]\n\t"
         "add	r11, r1, r3, lsr #4\n\t"
         "mov	r2, #4\n\t"
         "ldr	r11, [r11, #224]\n\t"
         "\n"
-    "L_mlkem_invntt_loop_4_i_%=: \n\t"
+    "L_mlkem_invntt_loop_4_i_%=:\n\t"
         "str	r2, [sp]\n\t"
         "ldr	r2, [%[r]]\n\t"
         "ldr	r3, [%[r], #16]\n\t"
@@ -5279,7 +5245,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
         "sub	%[r], %[r], #0x200\n\t"
         "mov	r2, #16\n\t"
         "\n"
-    "L_mlkem_invntt_loop_321_%=: \n\t"
+    "L_mlkem_invntt_loop_321_%=:\n\t"
         "str	r2, [sp]\n\t"
         "ldrh	r11, [r1, #2]\n\t"
         "ldr	r2, [%[r]]\n\t"
@@ -7550,39 +7516,23 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
     );
 }
 
-static const word16 L_mlkem_basemul_mont_zetas[] = {
-    0x08ed, 0x0a0b, 0x0b9a, 0x0714,
-    0x05d5, 0x058e, 0x011f, 0x00ca,
-    0x0c56, 0x026e, 0x0629, 0x00b6,
-    0x03c2, 0x084f, 0x073f, 0x05bc,
-    0x023d, 0x07d4, 0x0108, 0x017f,
-    0x09c4, 0x05b2, 0x06bf, 0x0c7f,
-    0x0a58, 0x03f9, 0x02dc, 0x0260,
-    0x06fb, 0x019b, 0x0c34, 0x06de,
-    0x04c7, 0x028c, 0x0ad9, 0x03f7,
-    0x07f4, 0x05d3, 0x0be7, 0x06f9,
-    0x0204, 0x0cf9, 0x0bc1, 0x0a67,
-    0x06af, 0x0877, 0x007e, 0x05bd,
-    0x09ac, 0x0ca7, 0x0bf2, 0x033e,
-    0x006b, 0x0774, 0x0c0a, 0x094a,
-    0x0b73, 0x03c1, 0x071d, 0x0a2c,
-    0x01c0, 0x08d8, 0x02a5, 0x0806,
-    0x08b2, 0x01ae, 0x022b, 0x034b,
-    0x081e, 0x0367, 0x060e, 0x0069,
-    0x01a6, 0x024b, 0x00b1, 0x0c16,
-    0x0bde, 0x0b35, 0x0626, 0x0675,
-    0x0c0b, 0x030a, 0x0487, 0x0c6e,
-    0x09f8, 0x05cb, 0x0aa7, 0x045f,
-    0x06cb, 0x0284, 0x0999, 0x015d,
-    0x01a2, 0x0149, 0x0c65, 0x0cb6,
-    0x0331, 0x0449, 0x025b, 0x0262,
-    0x052a, 0x07fc, 0x0748, 0x0180,
-    0x0842, 0x0c79, 0x04c2, 0x07ca,
-    0x0997, 0x00dc, 0x085e, 0x0686,
-    0x0860, 0x0707, 0x0803, 0x031a,
-    0x071b, 0x09ab, 0x099b, 0x01de,
-    0x0c95, 0x0bcd, 0x03e4, 0x03df,
-    0x03be, 0x074d, 0x05f2, 0x065c,
+XALIGNED(4) static const word16 L_mlkem_basemul_mont_zetas[] = {
+    0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
+    0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
+    0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
+    0x0a58, 0x03f9, 0x02dc, 0x0260, 0x06fb, 0x019b, 0x0c34, 0x06de,
+    0x04c7, 0x028c, 0x0ad9, 0x03f7, 0x07f4, 0x05d3, 0x0be7, 0x06f9,
+    0x0204, 0x0cf9, 0x0bc1, 0x0a67, 0x06af, 0x0877, 0x007e, 0x05bd,
+    0x09ac, 0x0ca7, 0x0bf2, 0x033e, 0x006b, 0x0774, 0x0c0a, 0x094a,
+    0x0b73, 0x03c1, 0x071d, 0x0a2c, 0x01c0, 0x08d8, 0x02a5, 0x0806,
+    0x08b2, 0x01ae, 0x022b, 0x034b, 0x081e, 0x0367, 0x060e, 0x0069,
+    0x01a6, 0x024b, 0x00b1, 0x0c16, 0x0bde, 0x0b35, 0x0626, 0x0675,
+    0x0c0b, 0x030a, 0x0487, 0x0c6e, 0x09f8, 0x05cb, 0x0aa7, 0x045f,
+    0x06cb, 0x0284, 0x0999, 0x015d, 0x01a2, 0x0149, 0x0c65, 0x0cb6,
+    0x0331, 0x0449, 0x025b, 0x0262, 0x052a, 0x07fc, 0x0748, 0x0180,
+    0x0842, 0x0c79, 0x04c2, 0x07ca, 0x0997, 0x00dc, 0x085e, 0x0686,
+    0x0860, 0x0707, 0x0803, 0x031a, 0x071b, 0x09ab, 0x099b, 0x01de,
+    0x0c95, 0x0bcd, 0x03e4, 0x03df, 0x03be, 0x074d, 0x05f2, 0x065c,
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7591,13 +7541,13 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont(sword16* r_p,
 #else
 WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont(sword16* r,
     const sword16* a, const sword16* b)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register sword16* r asm ("r0") = (sword16*)r_p;
-    register const sword16* a asm ("r1") = (const sword16*)a_p;
-    register const sword16* b asm ("r2") = (const sword16*)b_p;
-    register word16* L_mlkem_basemul_mont_zetas_c asm ("r3") =
+    register sword16* r __asm__ ("r0") = (sword16*)r_p;
+    register const sword16* a __asm__ ("r1") = (const sword16*)a_p;
+    register const sword16* b __asm__ ("r2") = (const sword16*)b_p;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
@@ -7623,7 +7573,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont(sword16* r,
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r8, #0\n\t"
         "\n"
-    "L_mlkem_basemul_mont_loop_%=: \n\t"
+    "L_mlkem_basemul_mont_loop_%=:\n\t"
         "ldm	%[a]!, {r4, r5}\n\t"
         "ldm	%[b]!, {r6, r7}\n\t"
         "ldr	lr, [r3, r8]\n\t"
@@ -7896,13 +7846,13 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont_add(sword16* r_p,
 #else
 WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont_add(sword16* r,
     const sword16* a, const sword16* b)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register sword16* r asm ("r0") = (sword16*)r_p;
-    register const sword16* a asm ("r1") = (const sword16*)a_p;
-    register const sword16* b asm ("r2") = (const sword16*)b_p;
-    register word16* L_mlkem_basemul_mont_zetas_c asm ("r3") =
+    register sword16* r __asm__ ("r0") = (sword16*)r_p;
+    register const sword16* a __asm__ ("r1") = (const sword16*)a_p;
+    register const sword16* b __asm__ ("r2") = (const sword16*)b_p;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
@@ -7928,7 +7878,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont_add(sword16* r,
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "mov	r8, #0\n\t"
         "\n"
-    "L_mlkem_arm32_basemul_mont_add_loop_%=: \n\t"
+    "L_mlkem_arm32_basemul_mont_add_loop_%=:\n\t"
         "ldm	%[a]!, {r4, r5}\n\t"
         "ldm	%[b]!, {r6, r7}\n\t"
         "ldr	lr, [r3, r8]\n\t"
@@ -8233,11 +8183,11 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_basemul_mont_add(sword16* r,
 WC_OMIT_FRAME_POINTER void mlkem_arm32_csubq(sword16* p_p)
 #else
 WC_OMIT_FRAME_POINTER void mlkem_arm32_csubq(sword16* p)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register sword16* p asm ("r0") = (sword16*)p_p;
-    register word16* L_mlkem_basemul_mont_zetas_c asm ("r1") =
+    register sword16* p __asm__ ("r0") = (sword16*)p_p;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
@@ -8273,7 +8223,7 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_csubq(sword16* p)
 #endif
         "mov	r1, #0x100\n\t"
         "\n"
-    "L_mlkem_arm32_csubq_loop_%=: \n\t"
+    "L_mlkem_arm32_csubq_loop_%=:\n\t"
         "ldm	%[p], {r2, r3, r4, r5}\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
         "ssub16	r2, r2, lr\n\t"
@@ -8429,14 +8379,14 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p_p,
 #else
 WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register sword16* p asm ("r0") = (sword16*)p_p;
-    register unsigned int len asm ("r1") = (unsigned int)len_p;
-    register const byte* r asm ("r2") = (const byte*)r_p;
-    register unsigned int rLen asm ("r3") = (unsigned int)rLen_p;
-    register word16* L_mlkem_basemul_mont_zetas_c asm ("r12") =
+    register sword16* p __asm__ ("r0") = (sword16*)p_p;
+    register unsigned int len __asm__ ("r1") = (unsigned int)len_p;
+    register const byte* r __asm__ ("r2") = (const byte*)r_p;
+    register unsigned int rLen __asm__ ("r3") = (unsigned int)rLen_p;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r12") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 #else
     register word16* L_mlkem_basemul_mont_zetas_c =
@@ -8453,7 +8403,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
 #endif
         "mov	r12, #0\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_loop_no_fail_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_loop_no_fail_%=:\n\t"
         "cmp	%[len], #8\n\t"
         "blt	L_mlkem_arm32_rej_uniform_done_no_fail_%=\n\t"
         "ldm	%[r]!, {r4, r5, r6}\n\t"
@@ -8562,11 +8512,11 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "bne	L_mlkem_arm32_rej_uniform_loop_no_fail_%=\n\t"
         "b	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_done_no_fail_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_done_no_fail_%=:\n\t"
         "cmp	%[len], #0\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_loop_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_loop_%=:\n\t"
         "ldm	%[r]!, {r4, r5, r6}\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r7, r4, #20\n\t"
@@ -8581,7 +8531,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_0_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_0_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r7, r4, #8\n\t"
         "lsr	r7, r7, #20\n\t"
@@ -8595,7 +8545,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_1_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_1_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsr	r7, r4, #24\n\t"
 #else
@@ -8616,7 +8566,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_2_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_2_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r7, r5, #16\n\t"
         "lsr	r7, r7, #20\n\t"
@@ -8630,7 +8580,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_3_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_3_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r7, r5, #4\n\t"
         "lsr	r7, r7, #20\n\t"
@@ -8644,7 +8594,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_4_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_4_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsr	r7, r5, #28\n\t"
 #else
@@ -8665,7 +8615,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_5_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_5_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r7, r6, #12\n\t"
         "lsr	r7, r7, #20\n\t"
@@ -8679,7 +8629,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_6_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_6_%=:\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsr	r7, r6, #20\n\t"
 #else
@@ -8692,11 +8642,11 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_arm32_rej_uniform(sword16* p,
         "add	r12, r12, #2\n\t"
         "beq	L_mlkem_arm32_rej_uniform_done_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_fail_7_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_fail_7_%=:\n\t"
         "subs	%[rLen], %[rLen], #12\n\t"
         "bgt	L_mlkem_arm32_rej_uniform_loop_%=\n\t"
         "\n"
-    "L_mlkem_arm32_rej_uniform_done_%=: \n\t"
+    "L_mlkem_arm32_rej_uniform_done_%=:\n\t"
         "lsr	r0, r12, #1\n\t"
         "pop	{%[L_mlkem_basemul_mont_zetas]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

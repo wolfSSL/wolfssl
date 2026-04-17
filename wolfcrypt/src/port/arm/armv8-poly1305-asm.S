@@ -438,22 +438,20 @@ L_poly1305_arm64_blocks_done_all:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_poly1305_set_key_arm64_clamp, %object
 	.section	.rodata
+	.type	L_poly1305_set_key_arm64_clamp, %object
 	.size	L_poly1305_set_key_arm64_clamp, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
 	.align	3
 #else
 	.p2align	3
 #endif /* __APPLE__ */
 L_poly1305_set_key_arm64_clamp:
-	.word	0x0fffffff
-	.word	0x0ffffffc
-	.word	0x0ffffffc
-	.word	0x0ffffffc
+	.long	0x0fffffff,0x0ffffffc,0x0ffffffc,0x0ffffffc
 #ifndef __APPLE__
 .text
 .globl	poly1305_set_key

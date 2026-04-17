@@ -30,8 +30,6 @@
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
-#include <stdint.h>
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -53,7 +51,7 @@
 
 #ifndef NO_SHA256
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const word32 L_SHA256_transform_len_k[] = {
+XALIGNED(8) static const word32 L_SHA256_transform_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -80,13 +78,13 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256_p,
 #else
 WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
     const byte* data, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
-    register const byte* data asm ("r1") = (const byte*)data_p;
-    register word32 len asm ("r2") = (word32)len_p;
-    register word32* L_SHA256_transform_len_k_c asm ("r3") =
+    register wc_Sha256* sha256 __asm__ ("r0") = (wc_Sha256*)sha256_p;
+    register const byte* data __asm__ ("r1") = (const byte*)data_p;
+    register word32 len __asm__ ("r2") = (word32)len_p;
+    register word32* L_SHA256_transform_len_k_c __asm__ ("r3") =
         (word32*)&L_SHA256_transform_len_k;
 #else
     register word32* L_SHA256_transform_len_k_c =
@@ -146,7 +144,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
 #endif
         /* Start of loop processing a block */
         "\n"
-    "L_SHA256_transform_len_begin_%=: \n\t"
+    "L_SHA256_transform_len_begin_%=:\n\t"
         /* Load, Reverse and Store W - 64 bytes */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "ldr	r4, [%[data]]\n\t"
@@ -364,7 +362,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "mov	r3, #3\n\t"
         /* Start of 16 rounds */
         "\n"
-    "L_SHA256_transform_len_start_fast_%=: \n\t"
+    "L_SHA256_transform_len_start_fast_%=:\n\t"
         /* Round 0 */
         "ldr	r5, [%[sha256], #16]\n\t"
         "ldr	r6, [%[sha256], #20]\n\t"
@@ -1636,7 +1634,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "mov	r3, #4\n\t"
         /* Start of 16 rounds */
         "\n"
-    "L_SHA256_transform_len_start_small_%=: \n\t"
+    "L_SHA256_transform_len_start_small_%=:\n\t"
         "sub	r3, r3, #1\n\t"
         /* Round 0 */
         "ldr	r5, [%[sha256], #16]\n\t"
@@ -1688,7 +1686,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_0_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_0_%=:\n\t"
         /* Round 1 */
         "ldr	r5, [%[sha256], #12]\n\t"
         "ldr	r6, [%[sha256], #16]\n\t"
@@ -1739,7 +1737,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #4]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_1_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_1_%=:\n\t"
         /* Round 2 */
         "ldr	r5, [%[sha256], #8]\n\t"
         "ldr	r6, [%[sha256], #12]\n\t"
@@ -1790,7 +1788,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #8]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_2_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_2_%=:\n\t"
         /* Round 3 */
         "ldr	r5, [%[sha256], #4]\n\t"
         "ldr	r6, [%[sha256], #8]\n\t"
@@ -1841,7 +1839,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #12]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_3_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_3_%=:\n\t"
         /* Round 4 */
         "ldr	r5, [%[sha256]]\n\t"
         "ldr	r6, [%[sha256], #4]\n\t"
@@ -1892,7 +1890,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #16]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_4_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_4_%=:\n\t"
         /* Round 5 */
         "ldr	r5, [%[sha256], #28]\n\t"
         "ldr	r6, [%[sha256]]\n\t"
@@ -1943,7 +1941,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #20]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_5_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_5_%=:\n\t"
         /* Round 6 */
         "ldr	r5, [%[sha256], #24]\n\t"
         "ldr	r6, [%[sha256], #28]\n\t"
@@ -1994,7 +1992,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #24]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_6_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_6_%=:\n\t"
         /* Round 7 */
         "ldr	r5, [%[sha256], #20]\n\t"
         "ldr	r6, [%[sha256], #24]\n\t"
@@ -2045,7 +2043,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #28]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_7_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_7_%=:\n\t"
         /* Round 8 */
         "ldr	r5, [%[sha256], #16]\n\t"
         "ldr	r6, [%[sha256], #20]\n\t"
@@ -2096,7 +2094,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #32]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_8_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_8_%=:\n\t"
         /* Round 9 */
         "ldr	r5, [%[sha256], #12]\n\t"
         "ldr	r6, [%[sha256], #16]\n\t"
@@ -2147,7 +2145,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #36]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_9_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_9_%=:\n\t"
         /* Round 10 */
         "ldr	r5, [%[sha256], #8]\n\t"
         "ldr	r6, [%[sha256], #12]\n\t"
@@ -2198,7 +2196,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #40]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_10_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_10_%=:\n\t"
         /* Round 11 */
         "ldr	r5, [%[sha256], #4]\n\t"
         "ldr	r6, [%[sha256], #8]\n\t"
@@ -2249,7 +2247,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #44]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_11_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_11_%=:\n\t"
         /* Round 12 */
         "ldr	r5, [%[sha256]]\n\t"
         "ldr	r6, [%[sha256], #4]\n\t"
@@ -2300,7 +2298,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #48]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_12_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_12_%=:\n\t"
         /* Round 13 */
         "ldr	r5, [%[sha256], #28]\n\t"
         "ldr	r6, [%[sha256]]\n\t"
@@ -2351,7 +2349,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #52]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_13_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_13_%=:\n\t"
         /* Round 14 */
         "ldr	r5, [%[sha256], #24]\n\t"
         "ldr	r6, [%[sha256], #28]\n\t"
@@ -2402,7 +2400,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #56]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_14_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_14_%=:\n\t"
         /* Round 15 */
         "ldr	r5, [%[sha256], #20]\n\t"
         "ldr	r6, [%[sha256], #24]\n\t"
@@ -2453,7 +2451,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "add	r9, r9, r4\n\t"
         "str	r9, [sp, #60]\n\t"
         "\n"
-    "L_SHA256_transform_len_blk_end_15_%=: \n\t"
+    "L_SHA256_transform_len_blk_end_15_%=:\n\t"
         "cmp	r3, #0\n\t"
         "add	r12, r12, #0x40\n\t"
         "bne	L_SHA256_transform_len_start_small_%=\n\t"
@@ -2586,7 +2584,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
 
 #else
 #ifdef WOLFSSL_ARMASM_NO_HW_CRYPTO
-static const word32 L_SHA256_transform_neon_len_k[] = {
+XALIGNED(8) static const word32 L_SHA256_transform_neon_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -2613,13 +2611,13 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_neon(wc_Sha256* sha256_p,
 #else
 WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_neon(wc_Sha256* sha256,
     const byte* data, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
-    register const byte* data asm ("r1") = (const byte*)data_p;
-    register word32 len asm ("r2") = (word32)len_p;
-    register word32* L_SHA256_transform_neon_len_k_c asm ("r3") =
+    register wc_Sha256* sha256 __asm__ ("r0") = (wc_Sha256*)sha256_p;
+    register const byte* data __asm__ ("r1") = (const byte*)data_p;
+    register word32 len __asm__ ("r2") = (word32)len_p;
+    register word32* L_SHA256_transform_neon_len_k_c __asm__ ("r3") =
         (word32*)&L_SHA256_transform_neon_len_k;
 #else
     register word32* L_SHA256_transform_neon_len_k_c =
@@ -2661,7 +2659,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_neon(wc_Sha256* sha256,
 #endif
         /* Start of loop processing a block */
         "\n"
-    "L_SHA256_transform_neon_len_begin_%=: \n\t"
+    "L_SHA256_transform_neon_len_begin_%=:\n\t"
         /* Load W */
         "vld1.8	{d0-d3}, [%[data]]!\n\t"
         "vld1.8	{d4-d7}, [%[data]]!\n\t"
@@ -2684,7 +2682,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_neon(wc_Sha256* sha256,
         "mov	lr, #3\n\t"
         /* Start of 16 rounds */
         "\n"
-    "L_SHA256_transform_neon_len_start_%=: \n\t"
+    "L_SHA256_transform_neon_len_start_%=:\n\t"
         /* Round 0 */
         "vmov.32	r10, d0[0]\n\t"
         "ror	%[sha256], r6, #6\n\t"
@@ -3663,7 +3661,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_neon(wc_Sha256* sha256,
 }
 
 #else
-static const word32 L_SHA256_trans_crypto_len_k[] = {
+XALIGNED(8) static const word32 L_SHA256_trans_crypto_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -3690,13 +3688,13 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_crypto(wc_Sha256* sha256_p,
 #else
 WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_crypto(wc_Sha256* sha256,
     const byte* data, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
-    register const byte* data asm ("r1") = (const byte*)data_p;
-    register word32 len asm ("r2") = (word32)len_p;
-    register word32* L_SHA256_trans_crypto_len_k_c asm ("r3") =
+    register wc_Sha256* sha256 __asm__ ("r0") = (wc_Sha256*)sha256_p;
+    register const byte* data __asm__ ("r1") = (const byte*)data_p;
+    register word32 len __asm__ ("r2") = (word32)len_p;
+    register word32* L_SHA256_trans_crypto_len_k_c __asm__ ("r3") =
         (word32*)&L_SHA256_trans_crypto_len_k;
 #else
     register word32* L_SHA256_trans_crypto_len_k_c =
@@ -3712,7 +3710,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_crypto(wc_Sha256* sha256,
         "vldm	%[sha256], {q0-q1}\n\t"
         /* Start of loop processing a block */
         "\n"
-    "L_sha256_len_crypto_begin_%=: \n\t"
+    "L_sha256_len_crypto_begin_%=:\n\t"
         /* Load W */
         "vld1.8	{q4-q5}, [%[data]]!\n\t"
         "vld1.8	{q6-q7}, [%[data]]!\n\t"

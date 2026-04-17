@@ -41,6 +41,11 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 #ifdef HAVE_CHACHA
 #include <wolfssl/wolfcrypt/chacha.h>
@@ -71,13 +76,18 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x, const byte* iv,
         "REV	r6, r6\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "STM	r3, {r4, r5, r6}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [iv] "+r" (iv), [counter] "+r" (counter)
         :
+#else
+        :
+        : [x] "r" (x), [iv] "r" (iv), [counter] "r" (counter)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6"
     );
 }
 
-XALIGNED(16) static const word32 L_chacha_thumb2_constants[] = {
+XALIGNED(8) static const word32 L_chacha_thumb2_constants[] = {
     0x61707865, 0x3120646e, 0x79622d36, 0x6b206574,
     0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
 };
@@ -96,11 +106,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
     register word32 keySz __asm__ ("r2") = (word32)keySz_p;
     register word32* L_chacha_thumb2_constants_c __asm__ ("r3") =
         (word32*)&L_chacha_thumb2_constants;
-
 #else
     register word32* L_chacha_thumb2_constants_c =
         (word32*)&L_chacha_thumb2_constants;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -143,9 +151,15 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
     "L_chacha_thumb2_setkey_same_key_bytes_%=:\n\t"
 #endif
         "STM	%[x], {r3, r4, r5, r6}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz),
           [L_chacha_thumb2_constants] "+r" (L_chacha_thumb2_constants_c)
         :
+#else
+        :
+        : [x] "r" (x), [key] "r" (key), [keySz] "r" (keySz),
+          [L_chacha_thumb2_constants] "r" (L_chacha_thumb2_constants_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7"
     );
 }
@@ -583,8 +597,13 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
     "L_chacha_thumb2_crypt_done_%=:\n\t"
 #endif
         "ADD	sp, sp, #0x34\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [c] "+r" (c), [m] "+r" (m), [len] "+r" (len)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [c] "r" (c), [m] "r" (m), [len] "r" (len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
     );
@@ -727,9 +746,15 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
 #else
     "L_chacha_thumb2_over_done_%=:\n\t"
 #endif
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [over] "+r" (over), [output] "+r" (output), [input] "+r" (input),
           [len] "+r" (len)
         :
+#else
+        :
+        : [over] "r" (over), [output] "r" (output), [input] "r" (input),
+          [len] "r" (len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }

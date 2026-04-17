@@ -107,6 +107,11 @@ L_AES_XTS_init_aesni_tweak_aes_enc_block_last:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_aes_xts_gc_xts:
 .long	0x00000087,0x00000001,0x00000001,0x00000001
 #ifndef __APPLE__
@@ -1489,6 +1494,11 @@ L_AES_XTS_init_avx1_tweak_aes_enc_block_last:
 .data
 #else
 .section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
 #endif /* __APPLE__ */
 L_avx1_aes_xts_gc_xts:
 .long	0x00000087,0x00000001,0x00000001,0x00000001

@@ -51,19 +51,22 @@ wc_chacha_setiv:
 	pop	{r4, pc}
 	.size	wc_chacha_setiv,.-wc_chacha_setiv
 #ifdef WOLFSSL_ARMASM_NO_NEON
+#ifndef __APPLE__
 	.text
 	.type	L_chacha_arm32_constants, %object
 	.size	L_chacha_arm32_constants, 32
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_chacha_arm32_constants:
-	.word	0x61707865
-	.word	0x3120646e
-	.word	0x79622d36
-	.word	0x6b206574
-	.word	0x61707865
-	.word	0x3320646e
-	.word	0x79622d32
-	.word	0x6b206574
+	.long	0x61707865,0x3120646e,0x79622d36,0x6b206574
+	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574
 	.text
 	.align	4
 	.globl	wc_chacha_setkey
@@ -969,8 +972,8 @@ L_chacha_crypt_bytes_arm32_round_start_128:
 	vext.8	q6, q6, q6, #8
 	bne	L_chacha_crypt_bytes_arm32_round_start_128
 	# Add back state, XOR in message and store (load next block)
-	vld1.8	{q8, q9}, [r2]!
-	vld1.8	{q10, q11}, [r2]!
+	vld1.8	{q8-q9}, [r2]!
+	vld1.8	{q10-q11}, [r2]!
 	vadd.i32	q0, q0, q12
 	vadd.i32	q1, q1, q13
 	vadd.i32	q2, q2, q14
@@ -979,10 +982,10 @@ L_chacha_crypt_bytes_arm32_round_start_128:
 	veor	q1, q1, q9
 	veor	q2, q2, q10
 	veor	q3, q3, q11
-	vld1.8	{q8, q9}, [r2]!
-	vld1.8	{q10, q11}, [r2]!
-	vst1.8	{q0, q1}, [r1]!
-	vst1.8	{q2, q3}, [r1]!
+	vld1.8	{q8-q9}, [r2]!
+	vld1.8	{q10-q11}, [r2]!
+	vst1.8	{q0-q1}, [r1]!
+	vst1.8	{q2-q3}, [r1]!
 	veor	q0, q0, q0
 	mov	r12, #1
 	vmov.i32	d0[0], r12
@@ -995,8 +998,8 @@ L_chacha_crypt_bytes_arm32_round_start_128:
 	veor	q5, q5, q9
 	veor	q6, q6, q10
 	veor	q7, q7, q11
-	vst1.8	{q4, q5}, [r1]!
-	vst1.8	{q6, q7}, [r1]!
+	vst1.8	{q4-q5}, [r1]!
+	vst1.8	{q6-q7}, [r1]!
 	vadd.i32	q15, q15, q0
 	sub	r3, r3, #0x80
 	# Done 128-byte block
@@ -1075,14 +1078,14 @@ L_chacha_crypt_bytes_arm32_round_64:
 	vadd.i32	q15, q15, q9
 	blt	L_chacha_crypt_bytes_arm32_lt_64
 	# Encipher 64 bytes
-	vld1.8	{q4, q5}, [r2]!
-	vld1.8	{q6, q7}, [r2]!
+	vld1.8	{q4-q5}, [r2]!
+	vld1.8	{q6-q7}, [r2]!
 	veor	q4, q4, q0
 	veor	q5, q5, q1
 	veor	q6, q6, q2
 	veor	q7, q7, q3
-	vst1.8	{q4, q5}, [r1]!
-	vst1.8	{q6, q7}, [r1]!
+	vst1.8	{q4-q5}, [r1]!
+	vst1.8	{q6-q7}, [r1]!
 	# Check for more bytes to be enciphered
 	subs	r3, r3, #0x40
 	bne	L_chacha_crypt_bytes_arm32_loop_64
@@ -1097,10 +1100,10 @@ L_chacha_crypt_bytes_arm32_lt_64:
 	# Encipher 32 bytes
 	cmp	r3, #32
 	blt	L_chacha_crypt_bytes_arm32_lt_32
-	vld1.8	{q4, q5}, [r2]!
+	vld1.8	{q4-q5}, [r2]!
 	veor	q4, q4, q0
 	veor	q5, q5, q1
-	vst1.8	{q4, q5}, [r1]!
+	vst1.8	{q4-q5}, [r1]!
 	subs	r3, r3, #32
 	vmov	q0, q2
 	vmov	q1, q3
@@ -1153,19 +1156,22 @@ L_chacha_crypt_bytes_arm32_done_all:
 	vpop	{d8-d15}
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	wc_chacha_crypt_bytes,.-wc_chacha_crypt_bytes
+#ifndef __APPLE__
 	.text
 	.type	L_chacha_setkey_arm32_constant, %object
 	.size	L_chacha_setkey_arm32_constant, 32
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_chacha_setkey_arm32_constant:
-	.word	0x61707865
-	.word	0x3120646e
-	.word	0x79622d36
-	.word	0x6b206574
-	.word	0x61707865
-	.word	0x3320646e
-	.word	0x79622d32
-	.word	0x6b206574
+	.long	0x61707865,0x3120646e,0x79622d36,0x6b206574
+	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574
 	.text
 	.align	4
 	.globl	wc_chacha_setkey
@@ -1180,7 +1186,7 @@ wc_chacha_setkey:
 #ifdef BIG_ENDIAN_ORDER
 	vrev32.16	q1, q1
 #endif /* BIG_ENDIAN_ORDER */
-	vstm	r0!, {q0, q1}
+	vstm	r0!, {q0-q1}
 	beq	L_chacha_setkey_arm32_done
 	vld1.8	{q1}, [r1]
 #ifdef BIG_ENDIAN_ORDER

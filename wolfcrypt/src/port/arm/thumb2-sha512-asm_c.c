@@ -41,12 +41,17 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const word64 L_SHA512_transform_len_k[] = {
+XALIGNED(16) static const word64 L_SHA512_transform_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
     0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
@@ -89,7 +94,8 @@ static const word64 L_SHA512_transform_len_k[] = {
     0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
-void Transform_Sha512_Len_base(wc_Sha512* sha512, const byte* data, word32 len);
+void Transform_Sha512_Len_base(wc_Sha512* sha512_p, const byte* data_p,
+    word32 len_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512_p,
     const byte* data_p, word32 len_p)
@@ -104,11 +110,9 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
     register word32 len __asm__ ("r2") = (word32)len_p;
     register word64* L_SHA512_transform_len_k_c __asm__ ("r3") =
         (word64*)&L_SHA512_transform_len_k;
-
 #else
     register word64* L_SHA512_transform_len_k_c =
         (word64*)&L_SHA512_transform_len_k;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3582,9 +3586,15 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
 #endif
         "EOR	r0, r0, r0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len),
           [L_SHA512_transform_len_k] "+r" (L_SHA512_transform_len_k_c)
         :
+#else
+        :
+        : [sha512] "r" (sha512), [data] "r" (data), [len] "r" (len),
+          [L_SHA512_transform_len_k] "r" (L_SHA512_transform_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );

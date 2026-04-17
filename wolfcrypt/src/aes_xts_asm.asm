@@ -18,6 +18,7 @@
 ;  * along with this program; if not, write to the Free Software
 ;  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 ;  */
+
 IF @Version LT 1200
 ; AVX2 instructions not recognized by old versions of MASM
 IFNDEF NO_AVX2_SUPPORT
@@ -40,7 +41,7 @@ IFNDEF _WIN64
 _WIN64 = 1
 ENDIF
 
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 AES_XTS_init_aesni PROC
         movdqu	xmm0, OWORD PTR [rcx]
         ; aes_enc_block
@@ -81,13 +82,14 @@ L_AES_XTS_init_aesni_tweak_aes_enc_block_last:
         movdqu	OWORD PTR [rcx], xmm0
         ret
 AES_XTS_init_aesni ENDP
-_text ENDS
+_TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_xts_gc_xts DWORD 135,1,1,1
+L_aes_xts_gc_xts DWORD \
+     00000087h,  00000001h,  00000001h,  00000001h
 ptr_L_aes_xts_gc_xts QWORD L_aes_xts_gc_xts
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 AES_XTS_encrypt_aesni PROC
         push	rdi
         push	rsi
@@ -419,8 +421,8 @@ L_AES_XTS_encrypt_aesni_done_enc:
         pop	rdi
         ret
 AES_XTS_encrypt_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_XTS_encrypt_update_aesni PROC
         push	rdi
         push	rsi
@@ -715,8 +717,8 @@ L_AES_XTS_encrypt_update_aesni_done_enc:
         pop	rdi
         ret
 AES_XTS_encrypt_update_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_XTS_decrypt_aesni PROC
         push	rdi
         push	rsi
@@ -1102,8 +1104,8 @@ L_AES_XTS_decrypt_aesni_done_dec:
         pop	rdi
         ret
 AES_XTS_decrypt_aesni ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_XTS_decrypt_update_aesni PROC
         push	rdi
         push	rsi
@@ -1452,9 +1454,9 @@ L_AES_XTS_decrypt_update_aesni_done_dec:
         pop	rdi
         ret
 AES_XTS_decrypt_update_aesni ENDP
-_text ENDS
+_TEXT ENDS
 IFDEF HAVE_INTEL_AVX1
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 AES_XTS_init_avx1 PROC
         vmovdqu	xmm0, OWORD PTR [rcx]
         ; aes_enc_block
@@ -1495,13 +1497,14 @@ L_AES_XTS_init_avx1_tweak_aes_enc_block_last:
         vmovdqu	OWORD PTR [rcx], xmm0
         ret
 AES_XTS_init_avx1 ENDP
-_text ENDS
+_TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_avx1_aes_xts_gc_xts DWORD 135,1,1,1
+L_avx1_aes_xts_gc_xts DWORD \
+     00000087h,  00000001h,  00000001h,  00000001h
 ptr_L_avx1_aes_xts_gc_xts QWORD L_avx1_aes_xts_gc_xts
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 AES_XTS_encrypt_avx1 PROC
         push	rdi
         push	rsi
@@ -1824,8 +1827,8 @@ L_AES_XTS_encrypt_avx1_done_enc:
         pop	rdi
         ret
 AES_XTS_encrypt_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_XTS_encrypt_update_avx1 PROC
         push	rdi
         push	rsi
@@ -2111,8 +2114,8 @@ L_AES_XTS_encrypt_update_avx1_done_enc:
         pop	rdi
         ret
 AES_XTS_encrypt_update_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_XTS_decrypt_avx1 PROC
         push	rdi
         push	rsi
@@ -2487,8 +2490,8 @@ L_AES_XTS_decrypt_avx1_done_dec:
         pop	rdi
         ret
 AES_XTS_decrypt_avx1 ENDP
-_text ENDS
-_text SEGMENT READONLY PARA
+_TEXT ENDS
+_TEXT SEGMENT READONLY PARA
 AES_XTS_decrypt_update_avx1 PROC
         push	rdi
         push	rsi
@@ -2826,6 +2829,6 @@ L_AES_XTS_decrypt_update_avx1_done_dec:
         pop	rdi
         ret
 AES_XTS_decrypt_update_avx1 ENDP
-_text ENDS
+_TEXT ENDS
 ENDIF
 END

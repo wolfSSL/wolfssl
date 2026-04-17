@@ -53,9 +53,9 @@
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_avx2_r:
 .quad	0x0000000000000001,0x0000000000000001
@@ -112,9 +112,9 @@ L_sha3_avx2_r:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_x4_avx2_r:
 .quad	0x0000000000000001,0x0000000000000001
@@ -9314,9 +9314,9 @@ L_sha3_block_n_bmi2_rounds:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_avx2_rotl:
 .quad	0x0000000000000001,0x000000000000003e
@@ -9337,9 +9337,9 @@ L_sha3_block_avx2_rotl:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_avx2_rotr:
 .quad	0x000000000000003f,0x0000000000000002
@@ -9533,9 +9533,9 @@ L_sha3_block_avx2_start:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_n_avx2_rotl:
 .quad	0x0000000000000001,0x000000000000003e
@@ -9556,9 +9556,9 @@ L_sha3_block_n_avx2_rotl:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_n_avx2_rotr:
 .quad	0x000000000000003f,0x0000000000000002
@@ -15298,8 +15298,8 @@ _sha3_blocksx4_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_sha3_128_blockx4_seed_avx2_end_mark:
-.quad	0x8000000000000000, 0x8000000000000000
-.quad	0x8000000000000000, 0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
 .text
 .globl	sha3_128_blocksx4_seed_avx2
@@ -20677,8 +20677,8 @@ _sha3_128_blocksx4_seed_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_sha3_256_blockx4_seed_avx2_end_mark:
-.quad	0x8000000000000000, 0x8000000000000000
-.quad	0x8000000000000000, 0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx4_seed_avx2
@@ -26057,8 +26057,8 @@ _sha3_256_blocksx4_seed_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_sha3_256_blockx4_seed_64_avx2_end_mark:
-.quad	0x8000000000000000, 0x8000000000000000
-.quad	0x8000000000000000, 0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx4_seed_64_avx2

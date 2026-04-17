@@ -30,14 +30,14 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifdef WOLFSSL_ARMASM_INLINE
-static const word16 L_mlkem_aarch64_consts[] = {
+XALIGNED(4) static const word16 L_mlkem_aarch64_consts[] = {
     0x0d01, 0xf301, 0x4ebf, 0x0549, 0x5049, 0x0000, 0x0000, 0x0000,
 };
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
 #ifdef WOLFSSL_WC_MLKEM
-static const word16 L_mlkem_aarch64_zetas[] = {
+XALIGNED(4) static const word16 L_mlkem_aarch64_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
     0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
@@ -76,7 +76,7 @@ static const word16 L_mlkem_aarch64_zetas[] = {
     0x03be, 0x03be, 0x074d, 0x074d, 0x05f2, 0x05f2, 0x065c, 0x065c,
 };
 
-static const word16 L_mlkem_aarch64_zetas_qinv[] = {
+XALIGNED(4) static const word16 L_mlkem_aarch64_zetas_qinv[] = {
     0xffed, 0x7b0b, 0x399a, 0x0314, 0x34d5, 0xcf8e, 0x6e1f, 0xbeca,
     0xae56, 0x6c6e, 0xf129, 0xc2b6, 0x29c2, 0x054f, 0xd43f, 0x79bc,
     0xe93d, 0x43d4, 0x9908, 0x8e7f, 0x15c4, 0xfbb2, 0x53bf, 0x997f,
@@ -1376,7 +1376,7 @@ void mlkem_ntt(sword16* r)
     );
 }
 
-static const word16 L_mlkem_aarch64_zetas_inv[] = {
+XALIGNED(4) static const word16 L_mlkem_aarch64_zetas_inv[] = {
     0x06a5, 0x06a5, 0x070f, 0x070f, 0x05b4, 0x05b4, 0x0943, 0x0943,
     0x0922, 0x0922, 0x091d, 0x091d, 0x0134, 0x0134, 0x006c, 0x006c,
     0x0b23, 0x0b23, 0x0366, 0x0366, 0x0356, 0x0356, 0x05e6, 0x05e6,
@@ -1415,7 +1415,7 @@ static const word16 L_mlkem_aarch64_zetas_inv[] = {
     0x0c37, 0x0be2, 0x0773, 0x072c, 0x05ed, 0x0167, 0x02f6, 0x05a1,
 };
 
-static const word16 L_mlkem_aarch64_zetas_inv_qinv[] = {
+XALIGNED(4) static const word16 L_mlkem_aarch64_zetas_inv_qinv[] = {
     0xa5a5, 0xa5a5, 0x440f, 0x440f, 0xe1b4, 0xe1b4, 0xa243, 0xa243,
     0x4f22, 0x4f22, 0x901d, 0x901d, 0x5d34, 0x5d34, 0x846c, 0x846c,
     0x4423, 0x4423, 0xd566, 0xd566, 0xa556, 0xa556, 0x57e6, 0x57e6,
@@ -5295,7 +5295,7 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
 }
 
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
-static const word16 L_mlkem_aarch64_zetas_mul[] = {
+XALIGNED(4) static const word16 L_mlkem_aarch64_zetas_mul[] = {
     0x08b2, 0xf74e, 0x01ae, 0xfe52, 0x022b, 0xfdd5, 0x034b, 0xfcb5,
     0x081e, 0xf7e2, 0x0367, 0xfc99, 0x060e, 0xf9f2, 0x0069, 0xff97,
     0x01a6, 0xfe5a, 0x024b, 0xfdb5, 0x00b1, 0xff4f, 0x0c16, 0xf3ea,
@@ -6703,7 +6703,7 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
     );
 }
 
-static const word16 L_mlkem_aarch64_q[] = {
+XALIGNED(4) static const word16 L_mlkem_aarch64_q[] = {
     0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01,
 };
 
@@ -7761,15 +7761,15 @@ void mlkem_to_mont_sqrdmlsh(sword16* p)
 }
 
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
-static const word16 L_mlkem_to_msg_low[] = {
+XALIGNED(4) static const word16 L_mlkem_to_msg_low[] = {
     0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373,
 };
 
-static const word16 L_mlkem_to_msg_high[] = {
+XALIGNED(4) static const word16 L_mlkem_to_msg_high[] = {
     0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0,
 };
 
-static const word16 L_mlkem_to_msg_bits[] = {
+XALIGNED(4) static const word16 L_mlkem_to_msg_bits[] = {
     0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
 };
 
@@ -7990,11 +7990,11 @@ void mlkem_to_msg_neon(byte* msg, sword16* p)
     );
 }
 
-static const word16 L_mlkem_from_msg_q1half[] = {
+XALIGNED(4) static const word16 L_mlkem_from_msg_q1half[] = {
     0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681,
 };
 
-static const word8 L_mlkem_from_msg_bits[] = {
+XALIGNED(4) static const word8 L_mlkem_from_msg_bits[] = {
     0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
     0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
 };
@@ -8400,7 +8400,7 @@ int mlkem_cmp_neon(const byte* a, const byte* b, int sz)
         "orr	v8.16b, v8.16b, v0.16b\n\t"
         "orr	v9.16b, v9.16b, v1.16b\n\t"
         "\n"
-    "L_mlkem_aarch64_cmp_neon_done_%=: \n\t"
+    "L_mlkem_aarch64_cmp_neon_done_%=:\n\t"
         "orr	v8.16b, v8.16b, v9.16b\n\t"
         "orr	v10.16b, v10.16b, v11.16b\n\t"
         "orr	v8.16b, v8.16b, v10.16b\n\t"
@@ -8417,15 +8417,15 @@ int mlkem_cmp_neon(const byte* a, const byte* b, int sz)
     return (word32)(size_t)a;
 }
 
-static const word16 L_mlkem_rej_uniform_mask[] = {
+XALIGNED(4) static const word16 L_mlkem_rej_uniform_mask[] = {
     0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff,
 };
 
-static const word16 L_mlkem_rej_uniform_bits[] = {
+XALIGNED(4) static const word16 L_mlkem_rej_uniform_bits[] = {
     0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
 };
 
-static const word8 L_mlkem_rej_uniform_indices[] = {
+XALIGNED(4) static const word8 L_mlkem_rej_uniform_indices[] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0x00, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -8963,7 +8963,7 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "subs	wzr, %w[len], #16\n\t"
         "b.lt	L_mlkem_rej_uniform_loop_4_%=\n\t"
         "\n"
-    "L_mlkem_rej_uniform_loop_16_%=: \n\t"
+    "L_mlkem_rej_uniform_loop_16_%=:\n\t"
         "ld3	{v4.8b, v5.8b, v6.8b}, [%x[r]], #24\n\t"
         "zip1	v4.16b, v4.16b, v1.16b\n\t"
         "zip1	v5.16b, v5.16b, v1.16b\n\t"
@@ -9010,7 +9010,7 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "b.lt	L_mlkem_rej_uniform_loop_4_%=\n\t"
         "b	L_mlkem_rej_uniform_loop_16_%=\n\t"
         "\n"
-    "L_mlkem_rej_uniform_loop_4_%=: \n\t"
+    "L_mlkem_rej_uniform_loop_4_%=:\n\t"
         "subs	w10, %w[len], w12\n\t"
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
         "subs	x10, x10, #4\n\t"
@@ -9047,7 +9047,7 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
         "b	L_mlkem_rej_uniform_loop_4_%=\n\t"
         "\n"
-    "L_mlkem_rej_uniform_loop_lt_4_%=: \n\t"
+    "L_mlkem_rej_uniform_loop_lt_4_%=:\n\t"
         "ldr	%[mask], [%x[r]], #6\n\t"
         "lsr	%[q], %[mask], #12\n\t"
         "lsr	%[bits], %[mask], #24\n\t"
@@ -9088,7 +9088,7 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "b.eq	L_mlkem_rej_uniform_done_%=\n\t"
         "b	L_mlkem_rej_uniform_loop_lt_4_%=\n\t"
         "\n"
-    "L_mlkem_rej_uniform_done_%=: \n\t"
+    "L_mlkem_rej_uniform_done_%=:\n\t"
         "mov	x0, x12\n\t"
         : [p] "+r" (p), [len] "+r" (len), [rLen] "+r" (rLen)
         : [r] "r" (r), [mask] "r" (mask), [q] "r" (q), [bits] "r" (bits),
@@ -9100,19 +9100,19 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
     return (word32)(size_t)p;
 }
 
-static const word64 L_sha3_aarch64_r[] = {
-    0x0000000000000001, 0x0000000000008082,
-    0x800000000000808a, 0x8000000080008000,
-    0x000000000000808b, 0x0000000080000001,
-    0x8000000080008081, 0x8000000000008009,
-    0x000000000000008a, 0x0000000000000088,
-    0x0000000080008009, 0x000000008000000a,
-    0x000000008000808b, 0x800000000000008b,
-    0x8000000000008089, 0x8000000000008003,
-    0x8000000000008002, 0x8000000000000080,
-    0x000000000000800a, 0x800000008000000a,
-    0x8000000080008081, 0x8000000000008080,
-    0x0000000080000001, 0x8000000080008008,
+XALIGNED(16) static const word64 L_sha3_aarch64_r[] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL,
 };
 
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
@@ -9155,7 +9155,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "mov	x28, #24\n\t"
         /* Start of 24 rounds */
         "\n"
-    "L_SHA3_transform_blocksx3_neon_begin_%=: \n\t"
+    "L_SHA3_transform_blocksx3_neon_begin_%=:\n\t"
         "stp	%[r], x28, [x29, #48]\n\t"
         /* Col Mix */
         "eor3	v31.16b, v0.16b, v5.16b, v10.16b\n\t"
@@ -9476,7 +9476,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "mov	%x[seed], #24\n\t"
         /* Start of 24 rounds */
         "\n"
-    "L_SHA3_shake128_blocksx3_seed_neon_begin_%=: \n\t"
+    "L_SHA3_shake128_blocksx3_seed_neon_begin_%=:\n\t"
         "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix */
         "eor3	v31.16b, v0.16b, v5.16b, v10.16b\n\t"
@@ -9797,7 +9797,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "mov	%x[seed], #24\n\t"
         /* Start of 24 rounds */
         "\n"
-    "L_SHA3_shake256_blocksx3_seed_neon_begin_%=: \n\t"
+    "L_SHA3_shake256_blocksx3_seed_neon_begin_%=:\n\t"
         "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix */
         "eor3	v31.16b, v0.16b, v5.16b, v10.16b\n\t"
@@ -10097,7 +10097,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "mov	x28, #24\n\t"
         /* Start of 24 rounds */
         "\n"
-    "L_SHA3_transform_blocksx3_neon_begin_%=: \n\t"
+    "L_SHA3_transform_blocksx3_neon_begin_%=:\n\t"
         "stp	%[r], x28, [x29, #48]\n\t"
         /* Col Mix NEON */
         "eor	v30.16b, v4.16b, v9.16b\n\t"
@@ -10503,7 +10503,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "mov	%x[seed], #24\n\t"
         /* Start of 24 rounds */
         "\n"
-    "L_SHA3_shake128_blocksx3_seed_neon_begin_%=: \n\t"
+    "L_SHA3_shake128_blocksx3_seed_neon_begin_%=:\n\t"
         "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix NEON */
         "eor	v30.16b, v4.16b, v9.16b\n\t"
@@ -10909,7 +10909,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "mov	%x[seed], #24\n\t"
         /* Start of 24 rounds */
         "\n"
-    "L_SHA3_shake256_blocksx3_seed_neon_begin_%=: \n\t"
+    "L_SHA3_shake256_blocksx3_seed_neon_begin_%=:\n\t"
         "stp	%[r], %x[seed], [x29, #48]\n\t"
         /* Col Mix NEON */
         "eor	v30.16b, v4.16b, v9.16b\n\t"
