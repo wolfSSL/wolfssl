@@ -987,29 +987,33 @@ static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
 static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-    wc_HashAlg hash;
+    WC_DECLARE_VAR(hash, wc_HashAlg, 1, hmac ? hmac->heap : NULL);
     enum wc_HashType hashType = (enum wc_HashType)hmac->macType;
     int digestSz = wc_HashGetDigestSize(hashType);
     int blockSz = wc_HashGetBlockSize(hashType);
 
+    WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, hmac->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
+
     if ((digestSz >= 0) && (blockSz >= 0)) {
-        ret = wc_HashInit(&hash, hashType);
+        ret = wc_HashInit(hash, hashType);
     }
     else {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
-        ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->opad,
+        ret = wc_HashUpdate(hash, hashType, (byte*)hmac->opad,
             (word32)blockSz);
         if (ret == 0)
-            ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->innerHash,
+            ret = wc_HashUpdate(hash, hashType, (byte*)hmac->innerHash,
                 (word32)digestSz);
         if (ret == 0)
-            ret = wc_HashFinal(&hash, hashType, mac);
-        wc_HashFree(&hash, hashType);
+            ret = wc_HashFinal(hash, hashType, mac);
+        wc_HashFree(hash, hashType);
     }
 
+    WC_FREE_VAR_EX(hash, hmac->heap, DYNAMIC_TYPE_HASHES);
     return ret;
 }
 
@@ -1382,7 +1386,7 @@ static int TLS_hmac_SetInner(WOLFSSL* ssl, byte* inner, word32* innerSz,
 int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
              int content, int verify, int epochOrder)
 {
-    Hmac   hmac;
+    WC_DECLARE_VAR(hmac, Hmac, 1, ssl ? ssl->heap : NULL);
     byte   myInner[TLS_HMAC_INNER_SZ];
     word32 innerSz = TLS_HMAC_INNER_SZ;
     int    ret = 0;
@@ -1392,6 +1396,9 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
+
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, ssl->heap, DYNAMIC_TYPE_HMAC,
+                    return MEMORY_E);
 
 #ifdef HAVE_TRUNCATED_HMAC
     hashSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
@@ -1407,6 +1414,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         if (!WC_SAFE_SUM_WORD32(sz, hashSz, hmacSz) ||
             !WC_SAFE_SUM_WORD32(hmacSz, (word32)padSz, hmacSz) ||
             !WC_SAFE_SUM_WORD32(hmacSz, 1, hmacSz)) {
+            WC_FREE_VAR_EX(hmac, ssl->heap, DYNAMIC_TYPE_HMAC);
             return BUFFER_E;
         }
         totalSz = hmacSz;
@@ -1427,12 +1435,16 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 
     ret = TLS_hmac_SetInner(ssl, myInner, &innerSz, sz, content, verify,
                             epochOrder);
-    if (ret != 0)
+    if (ret != 0) {
+        WC_FREE_VAR_EX(hmac, ssl->heap, DYNAMIC_TYPE_HMAC);
         return ret;
+    }
 
-    ret = wc_HmacInit(&hmac, ssl->heap, ssl->devId);
-    if (ret != 0)
+    ret = wc_HmacInit(hmac, ssl->heap, ssl->devId);
+    if (ret != 0) {
+        WC_FREE_VAR_EX(hmac, ssl->heap, DYNAMIC_TYPE_HMAC);
         return ret;
+    }
 
 
 #ifdef WOLFSSL_DTLS
@@ -1441,7 +1453,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     else
 #endif
         macSecret = wolfSSL_GetMacSecret(ssl, verify);
-    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+    ret = wc_HmacSetKey(hmac, wolfSSL_GetHmacType(ssl),
                                               macSecret,
                                               ssl->specs.hash_size);
 
@@ -1452,32 +1464,33 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     !defined(HAVE_SELFTEST)
     #ifdef HAVE_BLAKE2B
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
-                ret = Hmac_UpdateFinal(&hmac, digest, in,
+                ret = Hmac_UpdateFinal(hmac, digest, in,
                         totalSz, myInner, innerSz);
             }
             else
     #endif
             {
-                ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
+                ret = Hmac_UpdateFinal_CT(hmac, digest, in,
                                       totalSz,
                                       (int)hashSz, myInner, innerSz);
 
             }
 #else
-            ret = Hmac_UpdateFinal(&hmac, digest, in, totalSz,
+            ret = Hmac_UpdateFinal(hmac, digest, in, totalSz,
                                         myInner, innerSz);
 #endif
         }
         else {
-            ret = wc_HmacUpdate(&hmac, myInner, innerSz);
+            ret = wc_HmacUpdate(hmac, myInner, innerSz);
             if (ret == 0)
-                ret = wc_HmacUpdate(&hmac, in, sz);                /* content */
+                ret = wc_HmacUpdate(hmac, in, sz);                /* content */
             if (ret == 0)
-                ret = wc_HmacFinal(&hmac, digest);
+                ret = wc_HmacFinal(hmac, digest);
         }
     }
 
-    wc_HmacFree(&hmac);
+    wc_HmacFree(hmac);
+    WC_FREE_VAR_EX(hmac, ssl->heap, DYNAMIC_TYPE_HMAC);
 
     return ret;
 }

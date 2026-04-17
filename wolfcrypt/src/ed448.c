@@ -152,7 +152,7 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
 {
     int ret;
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
-    wc_Shake sha[1];
+    WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
 #else
     wc_Shake *sha;
 #endif
@@ -165,10 +165,16 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
     sha = &key->sha;
     ret = ed448_hash_reset(key);
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Shake, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed448_hash_init(key, sha);
 #endif
-    if (ret < 0)
+    if (ret < 0) {
+    #ifndef WOLFSSL_ED448_PERSISTENT_SHA
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+    #endif
         return ret;
+    }
 
     ret = ed448_hash_update(key, sha, in, inLen);
     if (ret == 0)
@@ -176,6 +182,7 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
 
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
     ed448_hash_free(key, sha);
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
 
     return ret;
@@ -358,6 +365,9 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
     byte     orig_k[ED448_KEY_SIZE];
 #endif
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+    WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
+#endif
 
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL) ||
@@ -397,8 +407,10 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
         wc_Shake *sha = &key->sha;
 #else
-        wc_Shake sha[1];
-        ret = ed448_hash_init(key, sha);
+        WC_ALLOC_VAR_EX(sha, wc_Shake, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                        ret = MEMORY_E);
+        if (ret == 0)
+            ret = ed448_hash_init(key, sha);
 #endif
         /* apply clamp */
         az[0]  &= 0xfc;
@@ -434,7 +446,6 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
         wc_Shake *sha = &key->sha;
 #else
-        wc_Shake sha[1];
         ret = ed448_hash_init(key, sha);
 #endif
         if (ret == 0)
@@ -476,6 +487,9 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         ed448_hash_free(key, sha);
 #endif
     }
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#endif
 
     if (ret == 0) {
         sc448_reduce(hram);
@@ -807,7 +821,7 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     wc_Shake *sha;
 #else
-    wc_Shake sha[1];
+    WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
 #endif
 
     if (key == NULL)
@@ -822,9 +836,13 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     sha = &key->sha;
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Shake, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed448_hash_init(key, sha);
-    if (ret < 0)
+    if (ret < 0) {
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
         return ret;
+    }
 #endif
 
     ret = ed448_verify_msg_init_with_sha(sig, sigLen, key, sha,
@@ -836,6 +854,7 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
     ed448_hash_free(key, sha);
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
 
     return ret;

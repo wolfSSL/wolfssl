@@ -3800,24 +3800,30 @@ int wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         int hashSz;
         enum wc_HashType hashType;
         byte hashBuf[WC_MAX_DIGEST_SIZE];
-        wc_HashAlg hash;
+        WC_DECLARE_VAR(hash, wc_HashAlg, 1, pkcs7->heap);
+
+        WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, pkcs7->heap, DYNAMIC_TYPE_HASHES,
+                        return MEMORY_E);
 
         /* get hash type and size, validate hashOID */
         hashType = wc_OidGetHash(pkcs7->hashOID);
         hashSz = wc_HashGetDigestSize(hashType);
-        if (hashSz < 0)
+        if (hashSz < 0) {
+            WC_FREE_VAR_EX(hash, pkcs7->heap, DYNAMIC_TYPE_HASHES);
             return hashSz;
+        }
 
         /* calculate hash for content */
-        ret = wc_HashInit(&hash, hashType);
+        ret = wc_HashInit(hash, hashType);
         if (ret == 0) {
-            ret = wc_HashUpdate(&hash, hashType,
+            ret = wc_HashUpdate(hash, hashType,
                             pkcs7->content, pkcs7->contentSz);
             if (ret == 0) {
-                ret = wc_HashFinal(&hash, hashType, hashBuf);
+                ret = wc_HashFinal(hash, hashType, hashBuf);
             }
-            wc_HashFree(&hash, hashType);
+            wc_HashFree(hash, hashType);
         }
+        WC_FREE_VAR_EX(hash, pkcs7->heap, DYNAMIC_TYPE_HASHES);
         if (ret == 0) {
             ret = PKCS7_EncodeSigned(pkcs7, hashBuf, (word32)hashSz,
                 output, &outputSz, NULL, NULL);
@@ -4709,8 +4715,7 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
     byte algoId[MAX_ALGO_SZ];
     word32 digestInfoSeqSz, digestStrSz, algoIdSz;
     WC_DECLARE_VAR(digestInfo, byte, MAX_PKCS7_DIGEST_SZ, 0);
-
-    wc_HashAlg hash;
+    WC_DECLARE_VAR(hash, wc_HashAlg, 1, pkcs7 ? pkcs7->heap : NULL);
     enum wc_HashType hashType;
 
     /* check arguments */
@@ -4740,6 +4745,9 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
 
     WC_ALLOC_VAR_EX(digestInfo, byte, MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
         DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+    WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, pkcs7->heap, DYNAMIC_TYPE_HASHES,
+        { WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+          return MEMORY_E; });
 
     XMEMSET(pkcs7Digest, 0, *pkcs7DigestSz);
     XMEMSET(digest,      0, WC_MAX_DIGEST_SIZE);
@@ -4751,9 +4759,10 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
         XMEMCPY(digest, hashBuf, hashBufSz);
     }
     else {
-        ret = wc_HashInit(&hash, hashType);
+        ret = wc_HashInit(hash, hashType);
         if (ret < 0) {
             WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(hash, pkcs7->heap, DYNAMIC_TYPE_HASHES);
             return ret;
         }
 
@@ -4761,20 +4770,21 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
             attribSetSz = SetSet(signedAttribSz, attribSet);
 
             /* calculate digest */
-            ret = wc_HashUpdate(&hash, hashType, attribSet, attribSetSz);
+            ret = wc_HashUpdate(hash, hashType, attribSet, attribSetSz);
             if (ret == 0)
-                ret = wc_HashUpdate(&hash, hashType, signedAttrib, signedAttribSz);
+                ret = wc_HashUpdate(hash, hashType, signedAttrib, signedAttribSz);
             if (ret == 0)
-                ret = wc_HashFinal(&hash, hashType, digest);
+                ret = wc_HashFinal(hash, hashType, digest);
         } else {
-            ret = wc_HashUpdate(&hash, hashType, pkcs7->content, pkcs7->contentSz);
+            ret = wc_HashUpdate(hash, hashType, pkcs7->content, pkcs7->contentSz);
             if (ret == 0)
-                ret = wc_HashFinal(&hash, hashType, digest);
+                ret = wc_HashFinal(hash, hashType, digest);
         }
 
-        wc_HashFree(&hash, hashType);
+        wc_HashFree(hash, hashType);
         if (ret < 0) {
             WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(hash, pkcs7->heap, DYNAMIC_TYPE_HASHES);
             return ret;
         }
     }
@@ -4804,6 +4814,7 @@ static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
     *plainDigestSz = hashSz;
 
     WC_FREE_VAR_EX(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(hash, pkcs7->heap, DYNAMIC_TYPE_HASHES);
     return 0;
 }
 

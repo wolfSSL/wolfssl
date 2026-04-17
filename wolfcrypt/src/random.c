@@ -891,12 +891,22 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
      * all counts to prevent timing side-channels.
      */
     {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+        word16* byteCounts = NULL;
+    #else
         word16 byteCounts[MAX_ENTROPY_BITS];
+    #endif
         word32 windowSize = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
         word32 windowStart = 0;
         word32 newIdx;
 
-        XMEMSET(byteCounts, 0, sizeof(byteCounts));
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+        byteCounts = (word16*)XMALLOC(MAX_ENTROPY_BITS * sizeof(word16), NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+        if (byteCounts == NULL)
+            return MEMORY_E;
+    #endif
+        XMEMSET(byteCounts, 0, MAX_ENTROPY_BITS * sizeof(word16));
 
         /* Initialize counts for first window */
         for (i = 0; i < windowSize; i++) {
@@ -921,6 +931,10 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             /* Accumulate failure flag for new byte's count */
             aptFailed |= (byteCounts[seed[newIdx]] >= WC_RNG_SEED_APT_CUTOFF);
         }
+
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+        XFREE(byteCounts, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 
     /* Set return code based on accumulated failure flags */

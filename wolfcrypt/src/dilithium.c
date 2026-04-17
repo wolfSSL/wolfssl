@@ -3617,7 +3617,10 @@ static int dilithium_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
 #else
     int ret;
     unsigned int j = 0;
-    byte z[DILITHIUM_GEN_S_BYTES];
+    WC_DECLARE_VAR(z, byte, DILITHIUM_GEN_S_BYTES, NULL);
+
+    WC_ALLOC_VAR_EX(z, byte, DILITHIUM_GEN_S_BYTES, NULL, DYNAMIC_TYPE_DILITHIUM,
+                    return MEMORY_E);
 
     /* Absorb seed and squeeze out some blocks. */
     ret = dilithium_squeeze256(shake256, seed, DILITHIUM_GEN_S_SEED_SZ, z,
@@ -3638,6 +3641,7 @@ static int dilithium_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
         }
     }
 
+    WC_FREE_VAR_EX(z, NULL, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #endif
 }
@@ -4444,7 +4448,10 @@ static int dilithium_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
 {
     int ret = 0;
     byte r;
-    byte v[DILITHIUM_MAX_V];
+    WC_DECLARE_VAR(v, byte, DILITHIUM_MAX_V, NULL);
+
+    WC_ALLOC_VAR_EX(v, byte, DILITHIUM_MAX_V, NULL, DYNAMIC_TYPE_DILITHIUM,
+                    return MEMORY_E);
 
     /* Step 2: For each polynomial of vector. */
     for (r = 0; (ret == 0) && (r < l); r++) {
@@ -4464,6 +4471,7 @@ static int dilithium_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
         }
     }
 
+    WC_FREE_VAR_EX(v, NULL, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 }
 

@@ -212,7 +212,7 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
                               byte* cookie)
 {
     int ret;
-    Hmac cookieHmac;
+    WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
 
     if (ssl->buffers.dtlsCookieSecret.buffer == NULL ||
             ssl->buffers.dtlsCookieSecret.length == 0) {
@@ -220,38 +220,42 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
         return COOKIE_ERROR;
     }
 
-    ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
+    WC_ALLOC_VAR_EX(cookieHmac, Hmac, 1, ssl->heap, DYNAMIC_TYPE_HMAC,
+                    return MEMORY_E);
+
+    ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
-        ret = wc_HmacSetKey(&cookieHmac, DTLS_COOKIE_TYPE,
+        ret = wc_HmacSetKey(cookieHmac, DTLS_COOKIE_TYPE,
             ssl->buffers.dtlsCookieSecret.buffer,
             ssl->buffers.dtlsCookieSecret.length);
         if (ret == 0) {
             /* peerLock not necessary. Still in handshake phase. */
-            ret = wc_HmacUpdate(&cookieHmac,
+            ret = wc_HmacUpdate(cookieHmac,
                    (const byte*)ssl->buffers.dtlsCtx.peer.sa,
                                 ssl->buffers.dtlsCtx.peer.sz);
         }
         if (ret == 0)
-            ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->pv, OPAQUE16_LEN);
+            ret = wc_HmacUpdate(cookieHmac, (byte*)ch->pv, OPAQUE16_LEN);
         if (ret == 0)
-            ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->random, RAN_LEN);
+            ret = wc_HmacUpdate(cookieHmac, (byte*)ch->random, RAN_LEN);
         if (ret == 0) {
-            ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->sessionId.elements,
+            ret = wc_HmacUpdate(cookieHmac, (byte*)ch->sessionId.elements,
                     ch->sessionId.size);
         }
         if (ret == 0) {
-            ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->cipherSuite.elements,
+            ret = wc_HmacUpdate(cookieHmac, (byte*)ch->cipherSuite.elements,
                 ch->cipherSuite.size);
         }
         if (ret == 0) {
-            ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->compression.elements,
+            ret = wc_HmacUpdate(cookieHmac, (byte*)ch->compression.elements,
                 ch->compression.size);
         }
         if (ret == 0)
-            ret = wc_HmacFinal(&cookieHmac, cookie);
-        wc_HmacFree(&cookieHmac);
+            ret = wc_HmacFinal(cookieHmac, cookie);
+        wc_HmacFree(cookieHmac);
     }
 
+    WC_FREE_VAR_EX(cookieHmac, ssl->heap, DYNAMIC_TYPE_HMAC);
     return ret;
 }
 
