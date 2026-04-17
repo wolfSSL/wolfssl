@@ -275,7 +275,8 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
     if (aead == NULL || outAuthTag == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (aead->state != CHACHA20_POLY1305_STATE_AAD &&
+    if (aead->state != CHACHA20_POLY1305_STATE_READY &&
+        aead->state != CHACHA20_POLY1305_STATE_AAD &&
         aead->state != CHACHA20_POLY1305_STATE_DATA) {
         return BAD_STATE_E;
     }
