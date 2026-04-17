@@ -3524,6 +3524,9 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
 
         /* Dispose of any allocated buffer on error. */
         if (err && (*out == buf)) {
+            if (buf != NULL) {
+                ForceZero(buf, len);
+            }
             XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             *out = NULL;
         }
