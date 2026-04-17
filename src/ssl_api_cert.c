@@ -1542,7 +1542,10 @@ void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
          * X509_STORE_add_cert only go into store->certs, not the
          * CertManager. Push them into the CM now so that all
          * verification paths can find them. */
-        X509StorePushCertsToCM(str);
+        if (X509StorePushCertsToCM(str) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_CTX_set_cert_store: failed to push some "
+                        "certs to CertManager");
+        }
 #endif
     }
 }
