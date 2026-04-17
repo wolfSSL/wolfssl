@@ -1,3 +1,17 @@
+# wolfSSL Release (unreleased)
+
+## Enhancements
+
+* TLS 1.3: zero traffic key staging buffers in `SetKeysSide()` once a
+  CryptoCB callback has imported the AES key into a Secure Element
+  (`aes->devCtx != NULL`).  Clears `keys->{client,server}_write_key`
+  on the provisioned side(s) after cipher init succeeds.  The static
+  IV buffers (`keys->{client,server}_write_IV`,
+  `keys->aead_{enc,dec}_imp_IV`) are intentionally left intact because
+  `BuildTls13Nonce()` reads them on every AEAD record to construct the
+  per-record nonce.  Scoped to TLS 1.3, non-DTLS, non-QUIC; requires
+  `WOLF_CRYPTO_CB` and `WOLF_CRYPTO_CB_AES_SETKEY`.
+
 # wolfSSL Release 5.9.1 (Apr. 8, 2026)
 
 Release 5.9.1 has been developed according to wolfSSL's development and QA

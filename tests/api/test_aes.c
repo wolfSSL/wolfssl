@@ -31,8 +31,16 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/types.h>
+/* <wolfssl/internal.h> is required because the CryptoCB TLS 1.3 key-zeroing
+ * tests below inspect session state (ssl->keys.*_write_key,
+ * ssl->encrypt.aes->devCtx) to verify that the TLS-layer staging buffers are
+ * zeroed after a CryptoCB-driven AES-GCM key offload.  The tests live here
+ * rather than in test_tls13.c because they exercise a CryptoCB-AES
+ * interaction and share the existing AES test harness. */
+#include <wolfssl/internal.h>
 #include <tests/api/api.h>
 #include <tests/api/test_aes.h>
+#include <tests/utils.h>
 
 #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS_VERSION) && \
     (HAVE_FIPS_VERSION <= 2))
@@ -5447,7 +5455,7 @@ int test_wc_AesXtsStream(void)
     };
     const word32 tweakLen = (word32)sizeof(tweak);
     XtsAes aes;
-    XtsAesStreamData stream;
+    XtsAesStreamData xtsStream;
     byte plain3[WC_AES_BLOCK_SIZE * 3];  /* block-aligned plaintext */
     byte expEnc[sizeof(vector)];          /* expected ciphertext (non-aligned) */
     byte expEnc3[WC_AES_BLOCK_SIZE * 3];  /* expected ciphertext (3 blocks) */
@@ -5473,90 +5481,90 @@ int test_wc_AesXtsStream(void)
 
     /* --- Stream encrypt: Init + Final(non-aligned, 24 bytes) --- */
     XMEMSET(enc, 0, sizeof(enc));
-    XMEMSET(&stream, 0, sizeof(stream));
+    XMEMSET(&xtsStream, 0, sizeof(xtsStream));
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
         AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen, &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, enc, vector, sizeof(vector),
-        &stream), 0);
+        &xtsStream), 0);
     ExpectBufEQ(enc, expEnc, sizeof(expEnc));
     wc_AesXtsFree(&aes);
 
     /* --- Stream encrypt: Init + Update(2 blocks) + Final(1 block) --- */
     XMEMSET(enc, 0, sizeof(enc));
-    XMEMSET(&stream, 0, sizeof(stream));
+    XMEMSET(&xtsStream, 0, sizeof(xtsStream));
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
         AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen, &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, enc, plain3,
-        WC_AES_BLOCK_SIZE * 2, &stream), 0);
+        WC_AES_BLOCK_SIZE * 2, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes,
         enc + WC_AES_BLOCK_SIZE * 2,
         plain3 + WC_AES_BLOCK_SIZE * 2,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectBufEQ(enc, expEnc3, sizeof(expEnc3));
     wc_AesXtsFree(&aes);
 
     /* --- Stream encrypt: Init + Update(1 block) x3 via individual calls +
      *     Final(0 bytes) --- */
     XMEMSET(enc, 0, sizeof(enc));
-    XMEMSET(&stream, 0, sizeof(stream));
+    XMEMSET(&xtsStream, 0, sizeof(xtsStream));
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
         AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen, &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, enc,
-        plain3, WC_AES_BLOCK_SIZE, &stream), 0);
+        plain3, WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes,
         enc + WC_AES_BLOCK_SIZE,
-        plain3 + WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE, &stream), 0);
+        plain3 + WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes,
         enc + WC_AES_BLOCK_SIZE * 2,
-        plain3 + WC_AES_BLOCK_SIZE * 2, WC_AES_BLOCK_SIZE, &stream), 0);
-    ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, NULL, NULL, 0, &stream), 0);
+        plain3 + WC_AES_BLOCK_SIZE * 2, WC_AES_BLOCK_SIZE, &xtsStream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, NULL, NULL, 0, &xtsStream), 0);
     ExpectBufEQ(enc, expEnc3, sizeof(expEnc3));
     wc_AesXtsFree(&aes);
 
 #ifdef HAVE_AES_DECRYPT
     /* --- Stream decrypt: Init + Final(non-aligned, 24 bytes) --- */
     XMEMSET(dec, 0, sizeof(dec));
-    XMEMSET(&stream, 0, sizeof(stream));
+    XMEMSET(&xtsStream, 0, sizeof(xtsStream));
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
         AES_DECRYPTION, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, tweakLen, &stream), 0);
+    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, tweakLen, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptFinal(&aes, dec, expEnc, sizeof(expEnc),
-        &stream), 0);
+        &xtsStream), 0);
     ExpectBufEQ(dec, vector, sizeof(vector));
     wc_AesXtsFree(&aes);
 
     /* --- Stream decrypt: Init + Update(2 blocks) + Final(1 block) --- */
     XMEMSET(dec, 0, sizeof(dec));
-    XMEMSET(&stream, 0, sizeof(stream));
+    XMEMSET(&xtsStream, 0, sizeof(xtsStream));
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key32, sizeof(key32),
         AES_DECRYPTION, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, tweakLen, &stream), 0);
+    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, tweakLen, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, dec, expEnc3,
-        WC_AES_BLOCK_SIZE * 2, &stream), 0);
+        WC_AES_BLOCK_SIZE * 2, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptFinal(&aes,
         dec + WC_AES_BLOCK_SIZE * 2,
         expEnc3 + WC_AES_BLOCK_SIZE * 2,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectBufEQ(dec, plain3, sizeof(plain3));
     wc_AesXtsFree(&aes);
 #endif /* HAVE_AES_DECRYPT */
 
     /* --- Bad args --- */
-    XMEMSET(&stream, 0, sizeof(stream));
+    XMEMSET(&xtsStream, 0, sizeof(xtsStream));
     /* NULL aes */
-    ExpectIntEQ(wc_AesXtsEncryptInit(NULL, tweak, tweakLen, &stream),
+    ExpectIntEQ(wc_AesXtsEncryptInit(NULL, tweak, tweakLen, &xtsStream),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* NULL tweak */
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, NULL, tweakLen, &stream),
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, NULL, tweakLen, &xtsStream),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* NULL stream */
     ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, tweakLen, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* sz not a multiple of block size */
-    ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, enc, plain3, 1, &stream),
+    ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, enc, plain3, 1, &xtsStream),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* NULL stream to Update */
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, enc, plain3,
@@ -5566,9 +5574,9 @@ int test_wc_AesXtsStream(void)
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, enc, vector, sizeof(vector), NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifdef HAVE_AES_DECRYPT
-    ExpectIntEQ(wc_AesXtsDecryptInit(NULL, tweak, tweakLen, &stream),
+    ExpectIntEQ(wc_AesXtsDecryptInit(NULL, tweak, tweakLen, &xtsStream),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, NULL, tweakLen, &stream),
+    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, NULL, tweakLen, &xtsStream),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, tweakLen, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -5625,9 +5633,9 @@ int test_wc_AesXtsStream_MidStreamState(void)
         0x66,0x6f,0x72,0x20, 0x61,0x6c,0x6c,0x20
     };
     /* One full block for the subsequent (illegal) Update call. */
-    static const byte block[WC_AES_BLOCK_SIZE] = { 0 };
+    static const byte oneBlock[WC_AES_BLOCK_SIZE] = { 0 };
     XtsAes aes;
-    XtsAesStreamData stream;
+    XtsAesStreamData xtsStream;
     byte enc[24];
     byte dummy[WC_AES_BLOCK_SIZE];
 
@@ -5638,14 +5646,14 @@ int test_wc_AesXtsStream_MidStreamState(void)
      * ------------------------------------------------------------------ */
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key64, sizeof(key64),
         AES_ENCRYPTION, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, sizeof(tweak), &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak, sizeof(tweak), &xtsStream), 0);
     /* Final processes all 24 bytes; bytes_crypted_with_this_tweak becomes 24
      * (not a multiple of WC_AES_BLOCK_SIZE=16). */
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, enc, plain24, sizeof(plain24),
-        &stream), 0);
+        &xtsStream), 0);
     /* The subsequent Update must be rejected because the stream is "done". */
-    ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, dummy, block, sizeof(block),
-        &stream), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, dummy, oneBlock, sizeof(oneBlock),
+        &xtsStream), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     wc_AesXtsFree(&aes);
 
 #ifdef HAVE_AES_DECRYPT
@@ -5655,11 +5663,11 @@ int test_wc_AesXtsStream_MidStreamState(void)
     XMEMSET(&aes, 0, sizeof(aes));
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key64, sizeof(key64),
         AES_DECRYPTION, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, sizeof(tweak), &stream), 0);
+    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak, sizeof(tweak), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptFinal(&aes, enc, enc, sizeof(enc),
-        &stream), 0);
-    ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, dummy, block, sizeof(block),
-        &stream), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        &xtsStream), 0);
+    ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, dummy, oneBlock, sizeof(oneBlock),
+        &xtsStream), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     wc_AesXtsFree(&aes);
 #endif
 #endif
@@ -5716,7 +5724,7 @@ int test_wc_AesXtsStream_ReinitAfterFinal(void)
         0x20,0x74,0x6f,0x20, 0x63,0x6f,0x6d,0x65
     };
     XtsAes aes;
-    XtsAesStreamData stream;
+    XtsAesStreamData xtsStream;
     byte ct1[sizeof(plain)], ct2[sizeof(plain)], ct3[sizeof(plain)];
 #ifdef HAVE_AES_DECRYPT
     byte pt[sizeof(plain)];
@@ -5730,42 +5738,42 @@ int test_wc_AesXtsStream_ReinitAfterFinal(void)
      * One full block via Update, the remaining 24 bytes via Final.
      * Note: AesXtsEncryptFinal forwards to the Update path, so the Final
      * size must be >= WC_AES_BLOCK_SIZE when sz > 0. */
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak1, sizeof(tweak1), &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak1, sizeof(tweak1), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, ct1, plain,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, ct1 + WC_AES_BLOCK_SIZE,
         plain + WC_AES_BLOCK_SIZE,
-        sizeof(plain) - WC_AES_BLOCK_SIZE, &stream), 0);
+        sizeof(plain) - WC_AES_BLOCK_SIZE, &xtsStream), 0);
 
     /* ---- Session 2: re-init with same tweak -> must match ---- */
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak1, sizeof(tweak1), &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak1, sizeof(tweak1), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, ct2, plain,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, ct2 + WC_AES_BLOCK_SIZE,
         plain + WC_AES_BLOCK_SIZE,
-        sizeof(plain) - WC_AES_BLOCK_SIZE, &stream), 0);
+        sizeof(plain) - WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectBufEQ(ct2, ct1, sizeof(ct1));
 
     /* ---- Session 3: re-init with different tweak -> must differ ---- */
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak2, sizeof(tweak2), &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak2, sizeof(tweak2), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, ct3, plain,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, ct3 + WC_AES_BLOCK_SIZE,
         plain + WC_AES_BLOCK_SIZE,
-        sizeof(plain) - WC_AES_BLOCK_SIZE, &stream), 0);
+        sizeof(plain) - WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntNE(XMEMCMP(ct3, ct1, sizeof(ct1)), 0);
 
     /* ---- Session 4: re-init after abandoned (no Final) session ---- */
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak2, sizeof(tweak2), &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak2, sizeof(tweak2), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, ct3, plain,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     /* Abandon - re-init with tweak1, must give session-1 output. */
-    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak1, sizeof(tweak1), &stream), 0);
+    ExpectIntEQ(wc_AesXtsEncryptInit(&aes, tweak1, sizeof(tweak1), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptUpdate(&aes, ct2, plain,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsEncryptFinal(&aes, ct2 + WC_AES_BLOCK_SIZE,
         plain + WC_AES_BLOCK_SIZE,
-        sizeof(plain) - WC_AES_BLOCK_SIZE, &stream), 0);
+        sizeof(plain) - WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectBufEQ(ct2, ct1, sizeof(ct1));
 
     wc_AesXtsFree(&aes);
@@ -5777,21 +5785,21 @@ int test_wc_AesXtsStream_ReinitAfterFinal(void)
         AES_DECRYPTION, NULL, INVALID_DEVID), 0);
 
     /* Session A: decrypt ct1 with tweak1 -> plaintext. */
-    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak1, sizeof(tweak1), &stream), 0);
+    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak1, sizeof(tweak1), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, pt, ct1,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptFinal(&aes, pt + WC_AES_BLOCK_SIZE,
         ct1 + WC_AES_BLOCK_SIZE,
-        sizeof(ct1) - WC_AES_BLOCK_SIZE, &stream), 0);
+        sizeof(ct1) - WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectBufEQ(pt, plain, sizeof(plain));
 
     /* Session B: re-init and decrypt again -> same plaintext. */
-    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak1, sizeof(tweak1), &stream), 0);
+    ExpectIntEQ(wc_AesXtsDecryptInit(&aes, tweak1, sizeof(tweak1), &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptUpdate(&aes, pt, ct1,
-        WC_AES_BLOCK_SIZE, &stream), 0);
+        WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectIntEQ(wc_AesXtsDecryptFinal(&aes, pt + WC_AES_BLOCK_SIZE,
         ct1 + WC_AES_BLOCK_SIZE,
-        sizeof(ct1) - WC_AES_BLOCK_SIZE, &stream), 0);
+        sizeof(ct1) - WC_AES_BLOCK_SIZE, &xtsStream), 0);
     ExpectBufEQ(pt, plain, sizeof(plain));
 
     wc_AesXtsFree(&aes);
@@ -7867,6 +7875,9 @@ int test_wc_AesSivEncryptDecrypt(void)
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
+/* Test CryptoCB device IDs (must be unique across test_aes.c):
+ *   7 = AES setkey + AES-GCM offload (see TEST_CRYPTOCB_AES_DEVID)
+ *   9 = TLS 1.3 key-zeroing offload   (see TEST_TLS13_ZERO_DEVID) */
 #define TEST_CRYPTOCB_AES_DEVID  7
 
 /* Test state tracking */
@@ -8596,6 +8607,394 @@ out:
 }
 
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_AES_SETKEY && !NO_AES && HAVE_AESGCM */
+
+
+/*----------------------------------------------------------------------------*
+ | CryptoCB AES-GCM TLS 1.3 Key Zeroing Tests
+ *----------------------------------------------------------------------------*/
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+
+#define TEST_TLS13_ZERO_DEVID  9
+#define TEST_TLS13_ZERO_MAX_SLOTS  16
+
+typedef struct {
+    byte key[AES_256_KEY_SIZE];
+    word32 keySz;
+    int valid;
+} Tls13ZeroKeySlot;
+
+static Tls13ZeroKeySlot tls13ZeroSlots[TEST_TLS13_ZERO_MAX_SLOTS];
+static word32 tls13ZeroSlotCount = 0;
+
+/* Try to reclaim a slot previously invalidated by the FREE path
+ * (valid == 0) before expanding the pool.  Without this, a long-running
+ * handshake + multiple KeyUpdate cycles can exhaust TEST_TLS13_ZERO_MAX_SLOTS
+ * even though most slots have been freed. */
+static Tls13ZeroKeySlot* tls13Zero_AllocSlot(void)
+{
+    word32 i;
+    for (i = 0; i < tls13ZeroSlotCount; i++) {
+        if (!tls13ZeroSlots[i].valid)
+            return &tls13ZeroSlots[i];
+    }
+    if (tls13ZeroSlotCount >= (word32)TEST_TLS13_ZERO_MAX_SLOTS)
+        return NULL;
+    return &tls13ZeroSlots[tls13ZeroSlotCount++];
+}
+
+static int test_Tls13Zero_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)ctx;
+
+    if (devId != TEST_TLS13_ZERO_DEVID)
+        return CRYPTOCB_UNAVAILABLE;
+
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER &&
+        info->cipher.type == WC_CIPHER_AES &&
+        info->cipher.aessetkey.aes != NULL) {
+
+        Aes* aes = info->cipher.aessetkey.aes;
+        const byte* key = info->cipher.aessetkey.key;
+        word32 keySz = info->cipher.aessetkey.keySz;
+        Tls13ZeroKeySlot* slot;
+
+        if (key == NULL || keySz == 0 || keySz > AES_256_KEY_SIZE)
+            return BAD_FUNC_ARG;
+
+        slot = tls13Zero_AllocSlot();
+        if (slot == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(slot->key, key, keySz);
+        slot->keySz = keySz;
+        slot->valid = 1;
+        aes->devCtx = slot;
+        return 0;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER &&
+        info->cipher.type == WC_CIPHER_AES_GCM &&
+        info->cipher.enc) {
+
+        Aes* aes = info->cipher.aesgcm_enc.aes;
+        Tls13ZeroKeySlot* slot;
+        Aes tempAes;
+        int ret;
+
+        if (aes == NULL || aes->devCtx == NULL)
+            return BAD_FUNC_ARG;
+
+        slot = (Tls13ZeroKeySlot*)aes->devCtx;
+        if (!slot->valid)
+            return BAD_STATE_E;
+
+        ret = wc_AesInit(&tempAes, NULL, INVALID_DEVID);
+        if (ret != 0) return ret;
+        ret = wc_AesGcmSetKey(&tempAes, slot->key, slot->keySz);
+        if (ret != 0) { wc_AesFree(&tempAes); return ret; }
+        ret = wc_AesGcmEncrypt(&tempAes,
+            info->cipher.aesgcm_enc.out,
+            info->cipher.aesgcm_enc.in,
+            info->cipher.aesgcm_enc.sz,
+            info->cipher.aesgcm_enc.iv,
+            info->cipher.aesgcm_enc.ivSz,
+            info->cipher.aesgcm_enc.authTag,
+            info->cipher.aesgcm_enc.authTagSz,
+            info->cipher.aesgcm_enc.authIn,
+            info->cipher.aesgcm_enc.authInSz);
+        wc_AesFree(&tempAes);
+        return ret;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER &&
+        info->cipher.type == WC_CIPHER_AES_GCM &&
+        !info->cipher.enc) {
+
+        Aes* aes = info->cipher.aesgcm_dec.aes;
+        Tls13ZeroKeySlot* slot;
+        Aes tempAes;
+        int ret;
+
+        if (aes == NULL || aes->devCtx == NULL)
+            return BAD_FUNC_ARG;
+
+        slot = (Tls13ZeroKeySlot*)aes->devCtx;
+        if (!slot->valid)
+            return BAD_STATE_E;
+
+        ret = wc_AesInit(&tempAes, NULL, INVALID_DEVID);
+        if (ret != 0) return ret;
+        ret = wc_AesGcmSetKey(&tempAes, slot->key, slot->keySz);
+        if (ret != 0) { wc_AesFree(&tempAes); return ret; }
+        ret = wc_AesGcmDecrypt(&tempAes,
+            info->cipher.aesgcm_dec.out,
+            info->cipher.aesgcm_dec.in,
+            info->cipher.aesgcm_dec.sz,
+            info->cipher.aesgcm_dec.iv,
+            info->cipher.aesgcm_dec.ivSz,
+            info->cipher.aesgcm_dec.authTag,
+            info->cipher.aesgcm_dec.authTagSz,
+            info->cipher.aesgcm_dec.authIn,
+            info->cipher.aesgcm_dec.authInSz);
+        wc_AesFree(&tempAes);
+        return ret;
+    }
+
+#ifdef WOLF_CRYPTO_CB_FREE
+    if (info->algo_type == WC_ALGO_TYPE_FREE &&
+        info->free.algo == WC_ALGO_TYPE_CIPHER &&
+        info->free.type == WC_CIPHER_AES) {
+
+        Aes* aes = (Aes*)info->free.obj;
+        if (aes != NULL && aes->devCtx != NULL) {
+            Tls13ZeroKeySlot* slot = (Tls13ZeroKeySlot*)aes->devCtx;
+            ForceZero(slot, sizeof(*slot));
+            aes->devCtx = NULL;
+        }
+        return 0;
+    }
+#endif
+
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+/* Test helper; not constant-time.  Fine for zero-fill assertions in unit
+ * tests, NOT for comparing secrets. */
+static int isBufferAllZero(const byte* buf, word32 sz)
+{
+    word32 i;
+    for (i = 0; i < sz; i++) {
+        if (buf[i] != 0)
+            return 0;
+    }
+    return 1;
+}
+
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_AES_SETKEY && !NO_AES && HAVE_AESGCM
+        * && WOLFSSL_TLS13 && HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
+        * && !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
+
+int test_wc_CryptoCb_Tls13_Key_Zero_After_Offload(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte msg[] = "hello";
+    byte reply[sizeof(msg)];
+    word32 keySz;
+    word32 ivSz;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(tls13ZeroSlots, 0, sizeof(tls13ZeroSlots));
+    tls13ZeroSlotCount = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS13_ZERO_DEVID,
+                test_Tls13Zero_CryptoCb, NULL), 0);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_c, TEST_TLS13_ZERO_DEVID),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_s, TEST_TLS13_ZERO_DEVID),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_c, TEST_TLS13_ZERO_DEVID),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_s, TEST_TLS13_ZERO_DEVID),
+                WOLFSSL_SUCCESS);
+
+    /* Pin the ciphersuite to AES-GCM.  The zeroing under test is gated on
+     * AES offload (devCtx set by our CryptoCB); negotiating ChaCha20 or
+     * any non-AES suite leaves encrypt.aes / decrypt.aes unset and turns
+     * the test into either a no-op (offload never runs) or a crash when
+     * we later dereference ssl_c->encrypt.aes.  Offer both AES-GCM sizes
+     * so the pin succeeds regardless of WOLFSSL_AES_128 / WOLFSSL_AES_256
+     * build configuration. */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c,
+        "TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s,
+        "TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384"), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (ssl_c != NULL && ssl_s != NULL) {
+        keySz = ssl_c->specs.key_size;
+        ivSz  = ssl_c->specs.iv_size;
+        ExpectTrue(keySz > 0);
+        ExpectTrue(ivSz  > 0);
+
+        ExpectTrue(isBufferAllZero(ssl_c->keys.client_write_key, keySz));
+        ExpectTrue(isBufferAllZero(ssl_c->keys.server_write_key, keySz));
+        ExpectTrue(isBufferAllZero(ssl_s->keys.client_write_key, keySz));
+        ExpectTrue(isBufferAllZero(ssl_s->keys.server_write_key, keySz));
+
+        /* The static IVs must be preserved: BuildTls13Nonce() reads
+         * keys->aead_{enc,dec}_imp_IV on every AEAD record to build the
+         * per-record nonce (RFC 8446 Section 5.3).  If a future change
+         * starts zeroing these, both peers in this memio test would
+         * silently agree on a degenerate all-zero IV and the handshake
+         * would still pass, but the resulting wire format is
+         * non-interoperable with any unpatched TLS 1.3 peer.  Assert
+         * both the source buffers (client/server_write_IV) and the
+         * AEAD copies BuildTls13Nonce() actually reads stay populated,
+         * so a regression that zeroes either one is caught here. */
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.client_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.server_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.client_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.server_write_IV, ivSz));
+
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.aead_enc_imp_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.aead_dec_imp_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.aead_enc_imp_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.aead_dec_imp_IV, ivSz));
+
+        /* Guard the Aes pointer dereferences: even though the Expect*
+         * macros short-circuit after a prior failure via EXPECT_SUCCESS(),
+         * a handshake that succeeded but negotiated a non-AES suite
+         * would leave these NULL while _ret is still TEST_SUCCESS. */
+        ExpectNotNull(ssl_c->encrypt.aes);
+        ExpectNotNull(ssl_c->decrypt.aes);
+        ExpectNotNull(ssl_s->encrypt.aes);
+        ExpectNotNull(ssl_s->decrypt.aes);
+        if (ssl_c->encrypt.aes && ssl_c->decrypt.aes &&
+            ssl_s->encrypt.aes && ssl_s->decrypt.aes) {
+            ExpectPtrNE(ssl_c->encrypt.aes->devCtx, NULL);
+            ExpectPtrNE(ssl_c->decrypt.aes->devCtx, NULL);
+            ExpectPtrNE(ssl_s->encrypt.aes->devCtx, NULL);
+            ExpectPtrNE(ssl_s->decrypt.aes->devCtx, NULL);
+        }
+
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, sizeof(msg)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, sizeof(reply)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(XMEMCMP(msg, reply, sizeof(msg)), 0);
+
+        ExpectIntEQ(wolfSSL_write(ssl_s, msg, sizeof(msg)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_c, reply, sizeof(reply)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(XMEMCMP(msg, reply, sizeof(msg)), 0);
+
+        /* Force a KeyUpdate so SetKeysSide runs again with a fresh
+         * offload and we can re-check that the staging buffers remain
+         * zeroed.  wolfSSL_update_keys is always available when
+         * WOLFSSL_TLS13 is defined, which is part of the test gate. */
+        ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, sizeof(msg)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, sizeof(reply)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(XMEMCMP(msg, reply, sizeof(msg)), 0);
+
+        ExpectIntEQ(wolfSSL_write(ssl_s, msg, sizeof(msg)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_c, reply, sizeof(reply)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(XMEMCMP(msg, reply, sizeof(msg)), 0);
+
+        keySz = ssl_c->specs.key_size;
+        ivSz  = ssl_c->specs.iv_size;
+        ExpectTrue(isBufferAllZero(ssl_c->keys.client_write_key, keySz));
+        ExpectTrue(isBufferAllZero(ssl_c->keys.server_write_key, keySz));
+        ExpectTrue(isBufferAllZero(ssl_s->keys.client_write_key, keySz));
+        ExpectTrue(isBufferAllZero(ssl_s->keys.server_write_key, keySz));
+
+        /* Same invariant as the post-handshake block above: the static
+         * IVs (both the source *_write_IV buffers and the AEAD copies
+         * BuildTls13Nonce() actually reads) are required on every
+         * record and must survive SetKeysSide after KeyUpdate. */
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.client_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.server_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.client_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.server_write_IV, ivSz));
+
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.aead_enc_imp_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.aead_dec_imp_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.aead_enc_imp_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.aead_dec_imp_IV, ivSz));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wc_CryptoCb_UnRegisterDevice(TEST_TLS13_ZERO_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    word32 keySz;
+    word32 ivSz;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Pin the ciphersuite for the same reason as the offload test: so the
+     * regression assertions below reference the same buffers the offload
+     * test expects to see zeroed (or not zeroed, here).  See the companion
+     * comment in test_wc_CryptoCb_Tls13_Key_Zero_After_Offload. */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c,
+        "TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s,
+        "TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384"), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (ssl_c != NULL && ssl_s != NULL) {
+        keySz = ssl_c->specs.key_size;
+        ivSz = ssl_c->specs.iv_size;
+        ExpectTrue(keySz > 0);
+        ExpectTrue(ivSz > 0);
+
+        /* Check each buffer independently.  AND-combining these would
+         * mask the case where one buffer was never populated, which
+         * would produce a confusing "regression, keys were zeroed"
+         * failure when the real issue is upstream. */
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.client_write_key, keySz));
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.server_write_key, keySz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.client_write_key, keySz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.server_write_key, keySz));
+
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.client_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_c->keys.server_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.client_write_IV, ivSz));
+        ExpectTrue(!isBufferAllZero(ssl_s->keys.server_write_IV, ivSz));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 
 
 /*******************************************************************************
