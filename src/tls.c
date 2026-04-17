@@ -14305,8 +14305,9 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         }
 
         ret = SetRetryConfigs(ssl, readBuf, (word32)size);
-        if (ret == UNSUPPORTED_SUITE || ret == UNSUPPORTED_PROTO_VERSION) {
-            WOLFSSL_ERROR_VERBOSE(ret);
+        if (ret == WC_NO_ERR_TRACE(UNSUPPORTED_SUITE) ||
+                ret == WC_NO_ERR_TRACE(UNSUPPORTED_PROTO_VERSION)) {
+            WOLFSSL_MSG("ECH retry configs had 'bad version' or 'bad suite'");
             ret = 0;
         }
 

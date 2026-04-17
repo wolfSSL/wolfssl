@@ -612,15 +612,18 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
         }
         ato16(echConfig + idx, &hpkePubkeyLen);
         idx += 2;
-        if (hpkePubkeyLen == 0 || hpkePubkeyLen > HPKE_Npk_MAX) {
-            ret = BUFFER_E;
-            break;
-        }
         if (idx + hpkePubkeyLen > length) {
             ret = BUFFER_E;
             break;
         }
-        XMEMCPY(workingConfig->receiverPubkey, echConfig + idx, hpkePubkeyLen);
+        /* unsupported KEM: skip pubkey; end of loop will free this config */
+        if (wc_HpkeKemIsSupported(workingConfig->kemId)) {
+            if (hpkePubkeyLen != wc_HpkeKemGetEncLen(workingConfig->kemId)) {
+                ret = BUFFER_E;
+                break;
+            }
+            XMEMCPY(workingConfig->receiverPubkey, echConfig + idx, hpkePubkeyLen);
+        }
         idx += hpkePubkeyLen;
 
         /* cipher suites */
@@ -764,7 +767,6 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
             (output != NULL && *outputLen < totalLen)) {
         return BAD_FUNC_ARG;
     }
-
 
     /* skip over total length which we fill in later */
     if (output != NULL) {

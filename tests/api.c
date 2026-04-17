@@ -14645,6 +14645,10 @@ static int test_wolfSSL_Tls13_ECH_params_b64(void)
     const char* b64BadVers = "AEX+/gBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
     /* ech configs with bad/unsupported algorithm */
     const char* b64BadAlgo = "AEX+DQBBFP7+ACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
+    /* ech configs with 0 length algorithm */
+    const char* b64BadAlgo0 = "ACX+DQAhFAAgAAAABAABAAEAEmNsb3VkZmxhcmUtZWNoLmNvbQAA";
+    /* ech configs with long algorithm */
+    const char* b64BadAlgo33 = "AEb+DQBCFAAgACEBbgKECPPpYhFWEG1ygQ3lYE5hdq317ijtpJ4cKze44E4ABAABAAEAEmNsb3VkZmxhcmUtZWNoLmNvbQAA";
     /* ech configs with bad/unsupported ciphersuite */
     const char* b64BadCiph = "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAE/v4AAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
     /* ech configs with unrecognized mandatory extension */
@@ -14691,6 +14695,18 @@ static int test_wolfSSL_Tls13_ECH_params_b64(void)
         b64BadAlgo, (word32)XSTRLEN(b64BadAlgo)));
     ExpectIntEQ(UNSUPPORTED_SUITE, wolfSSL_SetEchConfigsBase64(ssl,
         b64BadAlgo, (word32)XSTRLEN(b64BadAlgo)));
+
+    /* bad algorithm with 0 length key */
+    ExpectIntEQ(BUFFER_E, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64BadAlgo0, (word32)XSTRLEN(b64BadAlgo0)));
+    ExpectIntEQ(BUFFER_E, wolfSSL_SetEchConfigsBase64(ssl,
+        b64BadAlgo0, (word32)XSTRLEN(b64BadAlgo0)));
+
+    /* bad algorithm with long key */
+    ExpectIntEQ(BUFFER_E, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64BadAlgo33, (word32)XSTRLEN(b64BadAlgo33)));
+    ExpectIntEQ(BUFFER_E, wolfSSL_SetEchConfigsBase64(ssl,
+        b64BadAlgo33, (word32)XSTRLEN(b64BadAlgo33)));
 
     /* bad ciphersuite */
     ExpectIntEQ(UNSUPPORTED_SUITE, wolfSSL_CTX_SetEchConfigsBase64(ctx,
@@ -15402,6 +15418,47 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_auth_fail(void)
         TEST_SUCCESS);
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail_ex(1),
         TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+/* Test that bad retry configs (unsupported cipher suite) from the server are
+ * ignored rather than propagating an error */
+static int test_wolfSSL_Tls13_ECH_retry_configs_bad(void)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    word32 retryConfigsLen = sizeof(echCbTestConfigs);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* corrupt the server's cipher suite -> ECH decrypt will fail, and retry
+     * configs will have an unsupported KDF/AEAD pair.
+     * This will trigger the UNSUPPORTED_SUITE path in TLSX_ECH_Parse */
+    if (EXPECT_SUCCESS() && test_ctx.s_ctx->echConfigs != NULL &&
+            test_ctx.s_ctx->echConfigs->cipherSuites != NULL) {
+        test_ctx.s_ctx->echConfigs->cipherSuites[0].aeadId = 0xFEFE;
+    }
+
+    /* bad retry configs are discarded — failure must be ECH_REQUIRED_E,
+     * not a retry-config parse error */
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(ECH_REQUIRED_E));
+
+    /* no retry configs should be stored since they were all unsupported */
+    ExpectIntNE(wolfSSL_GetEchRetryConfigs(test_ctx.c_ssl, NULL,
+        &retryConfigsLen), WOLFSSL_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
 
     return EXPECT_RESULT();
 }
@@ -38341,6 +38398,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_no_private_name),
     TEST_DECL(test_wolfSSL_Tls13_ECH_bad_configs),
     TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs_bad),
     TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail),
     TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
