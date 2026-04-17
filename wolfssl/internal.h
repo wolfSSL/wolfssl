@@ -1442,14 +1442,14 @@ enum {
  */
 #define AEAD_SM4_CCM_LIMIT                       w64From32(0, (1 << 10) - 1)
 
-#if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
-
-#define TLS13_TICKET_NONCE_MAX_SZ 255
-
 #ifndef WOLFSSL_COOKIE_LEN
 /* Maximum size for a DTLS cookie */
 #define WOLFSSL_COOKIE_LEN 32 
 #endif 
+
+#if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
+
+#define TLS13_TICKET_NONCE_MAX_SZ 255
 
 #if (defined(HAVE_FIPS) &&                                                     \
     !(defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))) &&                    \
