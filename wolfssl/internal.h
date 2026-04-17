@@ -1444,8 +1444,12 @@ enum {
 
 #ifndef WOLFSSL_COOKIE_LEN
 /* Maximum size for a DTLS cookie */
-#define WOLFSSL_COOKIE_LEN 32 
+#define WOLFSSL_COOKIE_LEN 32
 #endif 
+
+#if WOLFSSL_COOKIE_LEN > 255
+#error "WOLFSSL_COOKIE_LEN must be <= 255 per RFC 6347 (opaque<0..2^8-1>)"
+#endif
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
 
