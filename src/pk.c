@@ -5516,6 +5516,9 @@ ed25519_key* wolfSSL_ED25519_new(void* heap, int devId)
 
     WOLFSSL_ENTER("wolfSSL_ED25519_new");
 
+#ifndef WC_NO_CONSTRUCTORS
+    key = wc_ed25519_new(heap, devId, NULL);
+#else
     key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
         DYNAMIC_TYPE_ED25519);
     if (key == NULL) {
@@ -5526,6 +5529,7 @@ ed25519_key* wolfSSL_ED25519_new(void* heap, int devId)
         XFREE(key, heap, DYNAMIC_TYPE_ED25519);
         key = NULL;
     }
+#endif
 
     return key;
 }
@@ -5537,10 +5541,16 @@ ed25519_key* wolfSSL_ED25519_new(void* heap, int devId)
 void wolfSSL_ED25519_free(ed25519_key* key)
 {
     if (key != NULL) {
-        void* heap = key->heap;
         WOLFSSL_ENTER("wolfSSL_ED25519_free");
-        wc_ed25519_free(key);
-        XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+    #ifndef WC_NO_CONSTRUCTORS
+        wc_ed25519_delete(key, NULL);
+    #else
+        {
+            void* heap = key->heap;
+            wc_ed25519_free(key);
+            XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+        }
+    #endif
     }
 }
 #endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && HAVE_ED25519 */
@@ -6013,6 +6023,10 @@ ed448_key* wolfSSL_ED448_new(void* heap, int devId)
 
     WOLFSSL_ENTER("wolfSSL_ED448_new");
 
+#if !defined(WC_NO_CONSTRUCTORS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
+    key = wc_ed448_new(heap, devId, NULL);
+#else
     key = (ed448_key*)XMALLOC(sizeof(ed448_key), heap, DYNAMIC_TYPE_ED448);
     if (key == NULL) {
         WOLFSSL_ERROR_MSG("wolfSSL_ED448_new malloc failure");
@@ -6022,6 +6036,7 @@ ed448_key* wolfSSL_ED448_new(void* heap, int devId)
         XFREE(key, heap, DYNAMIC_TYPE_ED448);
         key = NULL;
     }
+#endif
 
     return key;
 }
@@ -6033,10 +6048,17 @@ ed448_key* wolfSSL_ED448_new(void* heap, int devId)
 void wolfSSL_ED448_free(ed448_key* key)
 {
     if (key != NULL) {
-        void* heap = key->heap;
         WOLFSSL_ENTER("wolfSSL_ED448_free");
-        wc_ed448_free(key);
-        XFREE(key, heap, DYNAMIC_TYPE_ED448);
+    #if !defined(WC_NO_CONSTRUCTORS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
+        wc_ed448_delete(key, NULL);
+    #else
+        {
+            void* heap = key->heap;
+            wc_ed448_free(key);
+            XFREE(key, heap, DYNAMIC_TYPE_ED448);
+        }
+    #endif
     }
 }
 #endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && HAVE_ED448 */
