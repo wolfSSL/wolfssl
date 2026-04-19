@@ -68,6 +68,21 @@
 #ifndef OPENSSL_VERSION
     #define OPENSSL_VERSION 0
 #endif
+#ifndef OPENSSL_CFLAGS
+    #define OPENSSL_CFLAGS 1
+#endif
+#ifndef OPENSSL_BUILT_ON
+    #define OPENSSL_BUILT_ON 2
+#endif
+#ifndef OPENSSL_PLATFORM
+    #define OPENSSL_PLATFORM 3
+#endif
+#ifndef OPENSSL_DIR
+    #define OPENSSL_DIR 4
+#endif
+#ifndef OPENSSL_ENGINES_DIR
+    #define OPENSSL_ENGINES_DIR 5
+#endif
 
 #ifndef OPENSSL_IS_WOLFSSL
     #define OPENSSL_IS_WOLFSSL
