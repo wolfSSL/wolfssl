@@ -2077,6 +2077,30 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     return WOLFSSL_SUCCESS;
 }
 
+/* Returns a unique index for a new custom BIO type.
+ * In OpenSSL, custom BIO types start at BIO_TYPE_START (128|0x0200).
+ * wolfSSL uses a simpler scheme starting at 128.
+ *
+ * @return  New unique BIO type index on success.
+ * @return  -1 when the index space is exhausted.
+ */
+int wolfSSL_BIO_get_new_index(void)
+{
+    static int bio_type_idx = WOLFSSL_BIO_TYPE_START;
+    int idx;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_get_new_index");
+
+    idx = bio_type_idx;
+    if (idx > WOLFSSL_BIO_TYPE_MAX + WOLFSSL_BIO_TYPE_START) {
+        WOLFSSL_MSG("BIO type index space exhausted");
+        return -1;
+    }
+    bio_type_idx++;
+
+    return idx;
+}
+
 /* creates a new custom WOLFSSL_BIO_METHOD */
 WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
 {
