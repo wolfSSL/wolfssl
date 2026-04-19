@@ -866,12 +866,14 @@ wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId,
 
 int wc_HashDelete(wc_HashAlg *hash, wc_HashAlg **hash_p) {
     int ret;
+    void* heap;
     if (hash == NULL)
         return BAD_FUNC_ARG;
+    heap = hash->heap;
     ret = wc_HashFree(hash, hash->type);
     if (ret < 0)
         return ret;
-    XFREE(hash, hash->heap, DYNAMIC_TYPE_HASHES);
+    XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
     if (hash_p != NULL)
         *hash_p = NULL;
     return 0;

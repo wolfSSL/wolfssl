@@ -861,6 +861,10 @@ int wc_LmsKey_Sign(LmsKey* key, byte * sig, word32 * sigSz, const byte * msg,
                                     sig, len, &key->info);
 
     if (!result) {
+        /* Erase any partial signature to prevent OTS key reuse if state
+         * is rolled back. */
+        ForceZero(sig, len);
+
         if (wc_LmsKey_SigsLeft(key) == 0) {
             WOLFSSL_MSG("error: LMS signatures exhausted");
             key->state = WC_LMS_STATE_NOSIGS;
