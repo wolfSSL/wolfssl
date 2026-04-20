@@ -54195,6 +54195,28 @@ out:
 }
 #endif
 
+/* True iff slhdsa_test() actually emits at least one `goto out;` /
+ * ERROR_OUT(..., out). The SHAKE128S block has a couple of ERROR_OUTs
+ * gated only on PARAM_128S; everything else (other SHAKE variants, all
+ * SHA-2 KATs, slhdsa_test_param dispatch) lives inside `#ifndef
+ * WOLFSSL_SLHDSA_VERIFY_ONLY`. So the label is needed when 128S is
+ * built, OR when any other variant is built without VERIFY_ONLY. */
+#if defined(WOLFSSL_SLHDSA_PARAM_128S) || \
+    (!defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+     (defined(WOLFSSL_SLHDSA_PARAM_128F) || \
+      defined(WOLFSSL_SLHDSA_PARAM_192S) || \
+      defined(WOLFSSL_SLHDSA_PARAM_192F) || \
+      defined(WOLFSSL_SLHDSA_PARAM_256S) || \
+      defined(WOLFSSL_SLHDSA_PARAM_256F) || \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) || \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F) || \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S) || \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F) || \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S) || \
+      defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)))
+    #define SLHDSA_TEST_HAVE_ANY_PARAM
+#endif
+
 wc_test_ret_t slhdsa_test(void)
 {
     int ret = 0;
@@ -56006,11 +56028,8 @@ wc_test_ret_t slhdsa_test(void)
 
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
-#if defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || \
-    defined(WOLFSSL_SLHDSA_PARAM_128S)
-
+#ifdef SLHDSA_TEST_HAVE_ANY_PARAM
 out:
-
 #endif
 
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
@@ -56021,7 +56040,9 @@ out:
         wc_SlhDsaKey_Free(key_vfy);
     }
     WC_FREE_VAR_EX(key_vfy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    /* key, sig, sk, pk are declared inside #ifdef WOLFSSL_SLHDSA_PARAM_128S
+     * (alongside the SHAKE-128s test data) so they only exist when 128S is
+     * built. Their cleanup must match. */
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key)
@@ -56034,6 +56055,7 @@ out:
     WC_FREE_VAR_EX(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(pk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+#endif /* WOLFSSL_SLHDSA_PARAM_128S */
 
     return ret;
 }

@@ -23,6 +23,13 @@
 #define WOLF_CRYPT_WC_SLHDSA_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#if FIPS_VERSION3_GE(7,0,0)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif
+
+#ifdef WOLFSSL_HAVE_SLHDSA
+
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 
@@ -31,12 +38,6 @@
     #include <wolfssl/wolfcrypt/sha512.h>
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
-
-#if FIPS_VERSION3_GE(7,0,0)
-    #include <wolfssl/wolfcrypt/fips.h>
-#endif
-
-#ifdef WOLFSSL_HAVE_SLHDSA
 
 /* ======== SHAKE parameter guards ======== */
 #ifdef WOLFSSL_SLHDSA_NO_SHAKE
@@ -692,6 +693,27 @@ WOLFSSL_API int  wc_SlhDsaKey_SigSize(SlhDsaKey* key);
 WOLFSSL_API int  wc_SlhDsaKey_PrivateSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
+
+/* DER encode/decode */
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyDecode(const byte* input,
+    word32* inOutIdx, SlhDsaKey* key, word32 inSz);
+#endif
+WOLFSSL_API int  wc_SlhDsaKey_PublicKeyDecode(const byte* input,
+    word32* inOutIdx, SlhDsaKey* key, word32 inSz);
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+WOLFSSL_API int  wc_SlhDsaKey_KeyToDer(SlhDsaKey* key, byte* output,
+    word32 inLen);
+/* SLH-DSA has no separate private-only encoding based on RFC 9909. This
+ * function is an intentional alias of wc_SlhDsaKey_KeyToDer, kept for API
+ * parity with other algorithms which do have a distinct private form. */
+WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyToDer(SlhDsaKey* key, byte* output,
+    word32 inLen);
+#endif
+WOLFSSL_API int  wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output,
+    word32 inLen, int withAlg);
+#endif
 
 #endif /* WOLFSSL_HAVE_SLHDSA */
 

@@ -99,8 +99,6 @@ fi
 - Add include of kyber headers
 * Tue Aug 30 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add include of QUIC documentation
-* Wed Aug 17 2022 Anthony Hu <anthony@wolfssl.com>
-- Add a new header sphincs.h.
 * Wed Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
 - Add a new header dilithium.h.
 * Fri Jul 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>

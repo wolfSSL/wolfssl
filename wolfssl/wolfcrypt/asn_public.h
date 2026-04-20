@@ -81,9 +81,9 @@ This library defines the interface APIs for X509 certificates.
     typedef struct dilithium_key dilithium_key;
     #define WC_DILITHIUMKEY_TYPE_DEFINED
 #endif
-#ifndef WC_SPHINCSKEY_TYPE_DEFINED
-    typedef struct sphincs_key sphincs_key;
-    #define WC_SPHINCSKEY_TYPE_DEFINED
+#ifndef WC_SLHDSAKEY_TYPE_DEFINED
+    typedef struct SlhDsaKey SlhDsaKey;
+    #define WC_SLHDSAKEY_TYPE_DEFINED
 #endif
 
 enum EncPkcs8Types {
@@ -143,12 +143,18 @@ enum CertType {
     ML_DSA_LEVEL2_TYPE,
     ML_DSA_LEVEL3_TYPE,
     ML_DSA_LEVEL5_TYPE,
-    SPHINCS_FAST_LEVEL1_TYPE,
-    SPHINCS_FAST_LEVEL3_TYPE,
-    SPHINCS_FAST_LEVEL5_TYPE,
-    SPHINCS_SMALL_LEVEL1_TYPE,
-    SPHINCS_SMALL_LEVEL3_TYPE,
-    SPHINCS_SMALL_LEVEL5_TYPE,
+    SLH_DSA_SHA2_128S_TYPE,
+    SLH_DSA_SHA2_128F_TYPE,
+    SLH_DSA_SHA2_192S_TYPE,
+    SLH_DSA_SHA2_192F_TYPE,
+    SLH_DSA_SHA2_256S_TYPE,
+    SLH_DSA_SHA2_256F_TYPE,
+    SLH_DSA_SHAKE_128S_TYPE,
+    SLH_DSA_SHAKE_128F_TYPE,
+    SLH_DSA_SHAKE_192S_TYPE,
+    SLH_DSA_SHAKE_192F_TYPE,
+    SLH_DSA_SHAKE_256S_TYPE,
+    SLH_DSA_SHAKE_256F_TYPE,
     ECC_PARAM_TYPE,
     CHAIN_CERT_TYPE,
     PKCS7_TYPE,
