@@ -64,6 +64,8 @@ pub mod rsa;
 #[cfg(feature = "signature")]
 pub mod rsa_pkcs1v15;
 pub mod sha;
+#[cfg(feature = "password-hash")]
+pub mod pbkdf2_password_hash;
 #[cfg(feature = "digest")]
 pub mod sha_digest;
 
