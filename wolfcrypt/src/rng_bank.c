@@ -52,7 +52,7 @@ WOLFSSL_API int wc_rng_bank_init(
 
 #ifdef WC_RNG_BANK_STATIC
     if (n_rngs > WC_RNG_BANK_STATIC_SIZE)
-        return BAD_LENGTH_E;
+        ret = BAD_LENGTH_E;
 #else
     ctx->rngs = (struct wc_rng_bank_inst *)
         XMALLOC(sizeof(*ctx->rngs) * (size_t)n_rngs,
