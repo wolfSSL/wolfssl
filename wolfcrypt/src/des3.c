@@ -2002,6 +2002,7 @@ void wc_Des3Free(Des3* des3)
         (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES))
     ForceZero(des3->devKey, sizeof(des3->devKey));
 #endif
+    ForceZero(des3, sizeof(Des3));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(des3, sizeof(Des3));
 #endif

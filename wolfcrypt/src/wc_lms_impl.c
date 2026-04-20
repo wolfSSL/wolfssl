@@ -2855,6 +2855,7 @@ static int wc_hss_next_subtree_inc(LmsState* state, HssPrivKey* priv_key,
         q64_hi = cq64_hi;
     }
 
+    ForceZero(tmp_priv, sizeof(tmp_priv));
     return ret;
 }
 
