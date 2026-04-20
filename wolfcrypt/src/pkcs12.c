@@ -1546,8 +1546,13 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                             *pkeySz = (word32)size;
                         }
                         else {
-                            *pkeySz = (word32)ToTraditional_ex(*pkey,
+                            ret = ToTraditional_ex(*pkey,
                                 (word32)size, &algId);
+                            if (ret < 0) {
+                                goto exit_pk12par;
+                            } else {
+                                *pkeySz = (word32)ret;
+                            }
                         }
                     }
 
