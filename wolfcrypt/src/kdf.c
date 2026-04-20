@@ -229,13 +229,8 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     const byte* md5_half;
     const byte* sha_half;
     byte*      md5_result;
-#ifdef WOLFSSL_SMALL_STACK
-    byte*      sha_result;
-    byte*      labelSeed;
-#else
-    byte       sha_result[MAX_PRF_DIG];    /* digLen is real size */
-    byte       labelSeed[MAX_PRF_LABSEED];
-#endif
+    WC_DECLARE_VAR(sha_result, byte, MAX_PRF_DIG, heap); /* digLen is real size */
+    WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
 
     if (half > MAX_PRF_HALF ||
         labLen + seedLen > MAX_PRF_LABSEED ||
@@ -244,15 +239,11 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
         return BUFFER_E;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    sha_result = (byte*)XMALLOC(MAX_PRF_DIG, heap, DYNAMIC_TYPE_DIGEST);
-    labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST);
-    if (sha_result == NULL || labelSeed == NULL) {
-        XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
-        XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sha_result, byte, MAX_PRF_DIG, heap, DYNAMIC_TYPE_DIGEST,
+                    return MEMORY_E);
+    WC_ALLOC_VAR_EX(labelSeed, byte, MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST,
+                    { WC_FREE_VAR_EX(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+                      return MEMORY_E; });
 
     md5_half = secret;
     sha_half = secret + half - secLen % 2;
@@ -1335,24 +1326,30 @@ static int wc_KDA_KDF_iteration(const byte* z, word32 zSz, word32 counter,
     byte* output)
 {
     byte counterBuf[4];
-    wc_HashAlg hash;
+    WC_DECLARE_VAR(hash, wc_HashAlg, 1, NULL);
     int ret;
 
-    ret = wc_HashInit(&hash, hashType);
-    if (ret != 0)
+    WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, NULL, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
+
+    ret = wc_HashInit(hash, hashType);
+    if (ret != 0) {
+        WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHES);
         return ret;
+    }
     c32toa(counter, counterBuf);
-    ret = wc_HashUpdate(&hash, hashType, counterBuf, 4);
+    ret = wc_HashUpdate(hash, hashType, counterBuf, 4);
     if (ret == 0) {
-        ret = wc_HashUpdate(&hash, hashType, z, zSz);
+        ret = wc_HashUpdate(hash, hashType, z, zSz);
     }
     if (ret == 0 && fixedInfoSz > 0) {
-        ret = wc_HashUpdate(&hash, hashType, fixedInfo, fixedInfoSz);
+        ret = wc_HashUpdate(hash, hashType, fixedInfo, fixedInfoSz);
     }
     if (ret == 0) {
-        ret = wc_HashFinal(&hash, hashType, output);
+        ret = wc_HashFinal(hash, hashType, output);
     }
-    wc_HashFree(&hash, hashType);
+    wc_HashFree(hash, hashType);
+    WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHES);
     return ret;
 }
 

@@ -172,7 +172,7 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
 {
     int ret;
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
-    wc_Sha512 sha[1];
+    WC_DECLARE_VAR(sha, wc_Sha512, 1, key ? key->heap : NULL);
 #else
     wc_Sha512 *sha;
 #endif
@@ -185,6 +185,8 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
     sha = &key->sha;
     ret = ed25519_hash_reset(key);
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed25519_hash_init(key, sha);
 #endif
     if (ret == 0) {
@@ -197,6 +199,9 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
     #endif
     }
 
+#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#endif
     return ret;
 }
 
@@ -429,8 +434,11 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
         wc_Sha512 *sha = &key->sha;
 #else
-        wc_Sha512 sha[1];
-        ret = ed25519_hash_init(key, sha);
+        WC_DECLARE_VAR(sha, wc_Sha512, 1, key->heap);
+        WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                        ret = MEMORY_E);
+        if (ret == 0)
+            ret = ed25519_hash_init(key, sha);
 #endif
 
         /* apply clamp */
@@ -457,6 +465,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
             ret = ed25519_hash_final(key, sha, nonce);
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
         ed25519_hash_free(key, sha);
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
     }
 
@@ -485,8 +494,11 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
         wc_Sha512 *sha = &key->sha;
 #else
-        wc_Sha512 sha[1];
-        ret = ed25519_hash_init(key, sha);
+        WC_DECLARE_VAR(sha, wc_Sha512, 1, key->heap);
+        WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                        ret = MEMORY_E);
+        if (ret == 0)
+            ret = ed25519_hash_init(key, sha);
 #endif
 
         if (ret == 0 && (type == Ed25519ctx || type == Ed25519ph)) {
@@ -509,6 +521,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
             ret = ed25519_hash_final(key, sha, hram);
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
         ed25519_hash_free(key, sha);
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
     }
 
@@ -895,7 +908,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 *sha;
 #else
-    wc_Sha512 sha[1];
+    WC_DECLARE_VAR(sha, wc_Sha512, 1, key ? key->heap : NULL);
 #endif
 
     /* sanity check on arguments */
@@ -922,8 +935,11 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     sha = &key->sha;
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed25519_hash_init(key, sha);
     if (ret < 0) {
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
         return ret;
     }
 #endif /* WOLFSSL_ED25519_PERSISTENT_SHA */
@@ -937,6 +953,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
     ed25519_hash_free(key, sha);
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
 #endif /* WOLFSSL_SE050 */
     return ret;

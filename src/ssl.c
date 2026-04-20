@@ -18602,55 +18602,75 @@ static int SetStaticEphemeralKey(WOLFSSL_CTX* ctx,
         #ifdef HAVE_ECC
             if (keyAlgo == WC_PK_TYPE_NONE) {
                 word32 idx = 0;
-                ecc_key eccKey;
-                ret = wc_ecc_init_ex(&eccKey, heap, INVALID_DEVID);
+                WC_DECLARE_VAR(eccKey, ecc_key, 1, heap);
+                WC_ALLOC_VAR_EX(eccKey, ecc_key, 1, heap, DYNAMIC_TYPE_ECC,
+                                ret = MEMORY_E);
+                if (ret == 0)
+                    ret = wc_ecc_init_ex(eccKey, heap, INVALID_DEVID);
                 if (ret == 0) {
-                    ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &eccKey, keySz);
+                    ret = wc_EccPrivateKeyDecode(keyBuf, &idx, eccKey, keySz);
                     if (ret == 0)
                         keyAlgo = WC_PK_TYPE_ECDH;
-                    wc_ecc_free(&eccKey);
+                    wc_ecc_free(eccKey);
+                    ret = 0; /* clear error to enable key-type detect cascade */
                 }
+                WC_FREE_VAR_EX(eccKey, heap, DYNAMIC_TYPE_ECC);
             }
         #endif
         #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
             if (keyAlgo == WC_PK_TYPE_NONE) {
                 word32 idx = 0;
-                DhKey dhKey;
-                ret = wc_InitDhKey_ex(&dhKey, heap, INVALID_DEVID);
+                WC_DECLARE_VAR(dhKey, DhKey, 1, heap);
+                WC_ALLOC_VAR_EX(dhKey, DhKey, 1, heap, DYNAMIC_TYPE_DH,
+                                ret = MEMORY_E);
+                if (ret == 0)
+                    ret = wc_InitDhKey_ex(dhKey, heap, INVALID_DEVID);
                 if (ret == 0) {
-                    ret = wc_DhKeyDecode(keyBuf, &idx, &dhKey, keySz);
+                    ret = wc_DhKeyDecode(keyBuf, &idx, dhKey, keySz);
                     if (ret == 0)
                         keyAlgo = WC_PK_TYPE_DH;
-                    wc_FreeDhKey(&dhKey);
+                    wc_FreeDhKey(dhKey);
+                    ret = 0; /* clear error to enable key-type detect cascade */
                 }
+                WC_FREE_VAR_EX(dhKey, heap, DYNAMIC_TYPE_DH);
             }
         #endif
         #ifdef HAVE_CURVE25519
             if (keyAlgo == WC_PK_TYPE_NONE) {
                 word32 idx = 0;
-                curve25519_key x25519Key;
-                ret = wc_curve25519_init_ex(&x25519Key, heap, INVALID_DEVID);
+                WC_DECLARE_VAR(x25519Key, curve25519_key, 1, heap);
+                WC_ALLOC_VAR_EX(x25519Key, curve25519_key, 1, heap,
+                                DYNAMIC_TYPE_CURVE25519, ret = MEMORY_E);
+                if (ret == 0)
+                    ret = wc_curve25519_init_ex(x25519Key, heap, INVALID_DEVID);
                 if (ret == 0) {
                     ret = wc_Curve25519PrivateKeyDecode(keyBuf, &idx,
-                        &x25519Key, keySz);
+                        x25519Key, keySz);
                     if (ret == 0)
                         keyAlgo = WC_PK_TYPE_CURVE25519;
-                    wc_curve25519_free(&x25519Key);
+                    wc_curve25519_free(x25519Key);
+                    ret = 0; /* clear error to enable key-type detect cascade */
                 }
+                WC_FREE_VAR_EX(x25519Key, heap, DYNAMIC_TYPE_CURVE25519);
             }
         #endif
         #ifdef HAVE_CURVE448
             if (keyAlgo == WC_PK_TYPE_NONE) {
                 word32 idx = 0;
-                curve448_key x448Key;
-                ret = wc_curve448_init(&x448Key);
+                WC_DECLARE_VAR(x448Key, curve448_key, 1, heap);
+                WC_ALLOC_VAR_EX(x448Key, curve448_key, 1, heap,
+                                DYNAMIC_TYPE_CURVE448, ret = MEMORY_E);
+                if (ret == 0)
+                    ret = wc_curve448_init(x448Key);
                 if (ret == 0) {
-                    ret = wc_Curve448PrivateKeyDecode(keyBuf, &idx, &x448Key,
+                    ret = wc_Curve448PrivateKeyDecode(keyBuf, &idx, x448Key,
                         keySz);
                     if (ret == 0)
                         keyAlgo = WC_PK_TYPE_CURVE448;
-                    wc_curve448_free(&x448Key);
+                    wc_curve448_free(x448Key);
+                    ret = 0; /* clear error to enable key-type detect cascade */
                 }
+                WC_FREE_VAR_EX(x448Key, heap, DYNAMIC_TYPE_CURVE448);
             }
         #endif
 

@@ -1354,16 +1354,21 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
 {
     int ret;
-    wc_Sha3 tmpSha3;
+    WC_DECLARE_VAR(tmpSha3, wc_Sha3, 1, sha3 ? sha3->heap : NULL);
 
     if (sha3 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMSET(&tmpSha3, 0, sizeof(tmpSha3));
-    ret = wc_Sha3Copy(sha3, &tmpSha3);
+    WC_ALLOC_VAR_EX(tmpSha3, wc_Sha3, 1, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER,
+                    return MEMORY_E);
+
+    XMEMSET(tmpSha3, 0, sizeof(*tmpSha3));
+    ret = wc_Sha3Copy(sha3, tmpSha3);
     if (ret == 0) {
-        ret = wc_Sha3Final(&tmpSha3, hash, p, len);
+        ret = wc_Sha3Final(tmpSha3, hash, p, len);
     }
+
+    WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 

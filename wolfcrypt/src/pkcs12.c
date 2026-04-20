@@ -532,14 +532,15 @@ exit_gsd:
 static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
                          const byte* psw, word32 pswSz, byte* out, word32 outSz)
 {
-    Hmac     hmac;
+    WC_DECLARE_VAR(hmac, Hmac, 1, pkcs12 ? pkcs12->heap : NULL);
+    WC_DECLARE_VAR(unicodePasswd, byte, MAX_UNICODE_SZ,
+                   pkcs12 ? pkcs12->heap : NULL);
     MacData* mac;
     int ret, kLen;
     enum wc_HashType hashT;
     int idx = 0;
     int id  = 3; /* value from RFC 7292 indicating key is used for MAC */
     word32 i;
-    byte unicodePasswd[MAX_UNICODE_SZ];
     byte key[PKCS_MAX_KEY_SIZE];
 
     if (pkcs12 == NULL || pkcs12->signData == NULL || data == NULL ||
@@ -549,10 +550,18 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 
     mac = pkcs12->signData;
 
+    WC_ALLOC_VAR_EX(unicodePasswd, byte, MAX_UNICODE_SZ, pkcs12->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, pkcs12->heap, DYNAMIC_TYPE_HMAC,
+                    { WC_FREE_VAR_EX(unicodePasswd, pkcs12->heap,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+                      return MEMORY_E; });
+
     /* unicode set up from asn.c */
-    if ((pswSz * 2 + 2) > (int)sizeof(unicodePasswd)) {
+    if ((pswSz * 2 + 2) > MAX_UNICODE_SZ) {
         WOLFSSL_MSG("PKCS12 max unicode size too small");
-        return UNICODE_SIZE_E;
+        ret = UNICODE_SIZE_E;
+        goto exit_mac;
     }
 
     for (i = 0; i < pswSz; i++) {
@@ -566,41 +575,44 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     /* get hash type used and resulting size of HMAC key */
     hashT = wc_OidGetHash((int)mac->oid);
     if (hashT == WC_HASH_TYPE_NONE) {
-        ForceZero(unicodePasswd, MAX_UNICODE_SZ);
         WOLFSSL_MSG("Unsupported hash used");
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
+        goto exit_mac;
     }
     kLen = wc_HashGetDigestSize(hashT);
 
     /* check out buffer is large enough */
     if (kLen < 0 || outSz < (word32)kLen) {
-        ForceZero(unicodePasswd, MAX_UNICODE_SZ);
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
+        goto exit_mac;
     }
 
     /* idx contains size of unicodePasswd */
     ret = wc_PKCS12_PBKDF_ex(key, unicodePasswd, idx, mac->salt, (int)mac->saltSz,
                                   mac->itt, kLen, (int)hashT, id, pkcs12->heap);
-    ForceZero(unicodePasswd, MAX_UNICODE_SZ);
     if (ret < 0) {
-        return ret;
+        goto exit_mac;
     }
 
     /* now that key has been created use it to get HMAC hash on data */
-    if ((ret = wc_HmacInit(&hmac, pkcs12->heap, INVALID_DEVID)) != 0) {
-        return ret;
+    if ((ret = wc_HmacInit(hmac, pkcs12->heap, INVALID_DEVID)) != 0) {
+        goto exit_mac;
     }
-    ret = wc_HmacSetKey(&hmac, (int)hashT, key, (word32)kLen);
+    ret = wc_HmacSetKey(hmac, (int)hashT, key, (word32)kLen);
     if (ret == 0)
-        ret = wc_HmacUpdate(&hmac, data, dataSz);
+        ret = wc_HmacUpdate(hmac, data, dataSz);
     if (ret == 0)
-        ret = wc_HmacFinal(&hmac, out);
-    wc_HmacFree(&hmac);
+        ret = wc_HmacFinal(hmac, out);
+    wc_HmacFree(hmac);
 
-    if (ret != 0)
-        return ret;
+    if (ret == 0)
+        ret = kLen; /* same as digest size */
 
-    return kLen; /* same as digest size */
+exit_mac:
+    ForceZero(unicodePasswd, MAX_UNICODE_SZ);
+    WC_FREE_VAR_EX(unicodePasswd, pkcs12->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(hmac, pkcs12->heap, DYNAMIC_TYPE_HMAC);
+    return ret;
 }
 
 /* check mac on pkcs12, pkcs12->mac has been sanity checked before entering *

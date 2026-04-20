@@ -3611,7 +3611,7 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
 {
     int  ret;
     byte mac[WC_MAX_DIGEST_SIZE] = {0};
-    Hmac cookieHmac;
+    WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
     byte cookieType = 0;
     byte macSz = 0;
     byte cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
@@ -3661,29 +3661,33 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
     #error "No digest to available to use with HMAC for cookies."
 #endif /* NO_SHA */
 
-    ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
+    WC_ALLOC_VAR_EX(cookieHmac, Hmac, 1, ssl->heap, DYNAMIC_TYPE_HMAC,
+                    return MEMORY_E);
+
+    ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
-        ret = wc_HmacSetKey(&cookieHmac, cookieType,
+        ret = wc_HmacSetKey(cookieHmac, cookieType,
                             ssl->buffers.tls13CookieSecret.buffer,
                             ssl->buffers.tls13CookieSecret.length);
     }
     if (ret == 0)
-        ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz);
+        ret = wc_HmacUpdate(cookieHmac, cookie, cookieSz);
 #ifdef WOLFSSL_DTLS13
     /* Tie cookie to peer address */
     if (ret == 0) {
         /* peerLock not necessary. Still in handshake phase. */
         if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0) {
-            ret = wc_HmacUpdate(&cookieHmac,
+            ret = wc_HmacUpdate(cookieHmac,
                 (byte*)ssl->buffers.dtlsCtx.peer.sa,
                 ssl->buffers.dtlsCtx.peer.sz);
         }
     }
 #endif
     if (ret == 0)
-        ret = wc_HmacFinal(&cookieHmac, mac);
+        ret = wc_HmacFinal(cookieHmac, mac);
 
-    wc_HmacFree(&cookieHmac);
+    wc_HmacFree(cookieHmac);
+    WC_FREE_VAR_EX(cookieHmac, ssl->heap, DYNAMIC_TYPE_HMAC);
     if (ret != 0)
         return ret;
 
@@ -6672,7 +6676,7 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
 {
     int  ret;
     byte mac[WC_MAX_DIGEST_SIZE] = {0};
-    Hmac cookieHmac;
+    WC_DECLARE_VAR(cookieHmac, Hmac, 1, ssl->heap);
     byte cookieType = 0;
     byte macSz = 0;
 
@@ -6702,29 +6706,33 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
         return HRR_COOKIE_ERROR;
     cookieSz -= macSz;
 
-    ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
+    WC_ALLOC_VAR_EX(cookieHmac, Hmac, 1, ssl->heap, DYNAMIC_TYPE_HMAC,
+                    return MEMORY_E);
+
+    ret = wc_HmacInit(cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
-        ret = wc_HmacSetKey(&cookieHmac, cookieType,
+        ret = wc_HmacSetKey(cookieHmac, cookieType,
                             ssl->buffers.tls13CookieSecret.buffer,
                             ssl->buffers.tls13CookieSecret.length);
     }
     if (ret == 0)
-        ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz);
+        ret = wc_HmacUpdate(cookieHmac, cookie, cookieSz);
 #ifdef WOLFSSL_DTLS13
     /* Tie cookie to peer address */
     if (ret == 0) {
         /* peerLock not necessary. Still in handshake phase. */
         if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0) {
-            ret = wc_HmacUpdate(&cookieHmac,
+            ret = wc_HmacUpdate(cookieHmac,
                 (byte*)ssl->buffers.dtlsCtx.peer.sa,
                 ssl->buffers.dtlsCtx.peer.sz);
         }
     }
 #endif
     if (ret == 0)
-        ret = wc_HmacFinal(&cookieHmac, mac);
+        ret = wc_HmacFinal(cookieHmac, mac);
 
-    wc_HmacFree(&cookieHmac);
+    wc_HmacFree(cookieHmac);
+    WC_FREE_VAR_EX(cookieHmac, ssl->heap, DYNAMIC_TYPE_HMAC);
     if (ret != 0)
         return ret;
 

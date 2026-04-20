@@ -5210,9 +5210,13 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                             byte* out, word32 *outlen)
 {
     int err;
-    ecc_key public_key;
+    WC_DECLARE_VAR(public_key, ecc_key, 1,
+                   private_key ? private_key->heap : NULL);
 
-    err = wc_ecc_init_ex(&public_key, private_key->heap, INVALID_DEVID);
+    WC_ALLOC_VAR_EX(public_key, ecc_key, 1, private_key->heap, DYNAMIC_TYPE_ECC,
+                    return MEMORY_E);
+
+    err = wc_ecc_init_ex(public_key, private_key->heap, INVALID_DEVID);
     if (err == MP_OKAY) {
         #if FIPS_VERSION3_GE(6,0,0)
         /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
@@ -5233,24 +5237,25 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         }
         if (err == 0) { /* FIPS specific check */
         #endif
-        err = wc_ecc_set_curve(&public_key, private_key->dp->size,
+        err = wc_ecc_set_curve(public_key, private_key->dp->size,
                                private_key->dp->id);
         if (err == MP_OKAY) {
-            err = mp_copy(point->x, public_key.pubkey.x);
+            err = mp_copy(point->x, public_key->pubkey.x);
         }
         #if FIPS_VERSION3_GE(6,0,0)
         } /* end FIPS specific check */
         #endif
         if (err == MP_OKAY) {
-            err = mp_copy(point->y, public_key.pubkey.y);
+            err = mp_copy(point->y, public_key->pubkey.y);
         }
         if (err == MP_OKAY) {
-            err = wc_ecc_shared_secret(private_key, &public_key, out, outlen);
+            err = wc_ecc_shared_secret(private_key, public_key, out, outlen);
         }
 
-        wc_ecc_free(&public_key);
+        wc_ecc_free(public_key);
     }
 
+    WC_FREE_VAR_EX(public_key, private_key->heap, DYNAMIC_TYPE_ECC);
     return err;
 }
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL && !WOLFSSL_KCAPI_ECC */
@@ -7529,31 +7534,35 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
         const byte* h1, word32 h1Sz, byte* x, word32 xSz, byte* oct,
         byte* out, enum wc_HashType hashType, void* heap)
 {
-    Hmac hmac;
+    WC_DECLARE_VAR(hmac, Hmac, 1, heap);
     int  ret, init;
 
-    ret = init = wc_HmacInit(&hmac, heap, INVALID_DEVID);
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, heap, DYNAMIC_TYPE_HMAC,
+                    return MEMORY_E);
+
+    ret = init = wc_HmacInit(hmac, heap, INVALID_DEVID);
     if (ret == 0)
-        ret = wc_HmacSetKey(&hmac, (int)hashType, K, KSz);
+        ret = wc_HmacSetKey(hmac, (int)hashType, K, KSz);
 
     if (ret == 0)
-        ret = wc_HmacUpdate(&hmac, V, VSz);
+        ret = wc_HmacUpdate(hmac, V, VSz);
 
     if (ret == 0 && oct != NULL)
-        ret = wc_HmacUpdate(&hmac, oct, 1);
+        ret = wc_HmacUpdate(hmac, oct, 1);
 
     if (ret == 0)
-        ret = wc_HmacUpdate(&hmac, x, xSz);
+        ret = wc_HmacUpdate(hmac, x, xSz);
 
     if (ret == 0)
-        ret = wc_HmacUpdate(&hmac, h1, h1Sz);
+        ret = wc_HmacUpdate(hmac, h1, h1Sz);
 
     if (ret == 0)
-        ret = wc_HmacFinal(&hmac, out);
+        ret = wc_HmacFinal(hmac, out);
 
     if (init == 0)
-        wc_HmacFree(&hmac);
+        wc_HmacFree(hmac);
 
+    WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_HMAC);
     return ret;
 }
 
