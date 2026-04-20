@@ -1624,7 +1624,7 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
 #ifdef HAVE_SOCKADDR
 int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr, XSOCKLENT* peer_len)
 {
-    return wc_accept_cloexec((int)sockfd, peer_addr, peer_len);
+    return (int)wc_accept_cloexec((int)sockfd, peer_addr, peer_len);
 }
 #endif /* HAVE_SOCKADDR */
 
