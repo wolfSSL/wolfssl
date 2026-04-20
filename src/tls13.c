@@ -3823,6 +3823,7 @@ int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
 }
 
 /* Hash the inner client hello, initializing the hsHashesEch field if needed.
+ * This should receive the client hello without outer_extensions 'encoding'
  *
  * ssl      SSL/TLS object.
  * ech      ECH object.
@@ -3850,11 +3851,6 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 #endif
 
     realSz = ech->innerClientHelloLen;
-#ifndef NO_WOLFSSL_CLIENT
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        realSz -= ech->paddingLen + ech->hpke->Nt;
-    }
-#endif
 
     tmpHashes = ssl->hsHashes;
 
@@ -3863,7 +3859,6 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
         ret = InitHandshakeHashes(ssl);
         if (ret == 0) {
             ssl->hsHashesEch = ssl->hsHashes;
-            ech->innerCount = 1;
         }
     }
 
@@ -4569,6 +4564,7 @@ typedef struct Sch13Args {
 #if defined(HAVE_ECH)
     int clientRandomOffset;
     int preXLength;
+    word32 expandedInnerLen;
     WOLFSSL_ECH* ech;
 #endif
 } Sch13Args;
@@ -4770,24 +4766,42 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
         /* only prepare if we have a chance at acceptance */
         if (ssl->options.echAccepted || args->ech->innerCount == 0) {
+            word32 encodedLen;
+
             /* set the type to inner */
             args->ech->type = ECH_TYPE_INNER;
             args->preXLength = (int)args->length;
 
-            /* get size for inner */
-            ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
+            /* get encoded inner size */
+            args->ech->writeEncoded = 1;
+            encodedLen = args->length;
+            ret = TLSX_GetRequestSize(ssl, client_hello, &encodedLen);
+            args->ech->writeEncoded = 0;
+            if (ret != 0) {
+                args->ech->type = ECH_TYPE_OUTER;
+                return ret;
+            }
 
+            /* innerClientHelloLen and padding are based on the
+             * encoded (sealed) inner */
+            args->ech->paddingLen = 31 - ((encodedLen - 1) % 32);
+            args->ech->innerClientHelloLen = encodedLen +
+                args->ech->paddingLen + args->ech->hpke->Nt;
+
+            /* get expanded inner size (used for transcript) */
+            ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
             /* set the type to outer */
             args->ech->type = ECH_TYPE_OUTER;
             if (ret != 0)
                 return ret;
 
-            /* set innerClientHelloLen to ClientHelloInner + padding + tag */
-            args->ech->paddingLen = 31 - ((args->length - 1) % 32);
-            args->ech->innerClientHelloLen = args->length +
-                args->ech->paddingLen + args->ech->hpke->Nt;
-            if (args->ech->innerClientHelloLen > 0xFFFF)
+            /* args->expandedInnerLen carries the length for the hash */
+            args->expandedInnerLen = args->length;
+
+            if (args->ech->innerClientHelloLen > 0xFFFF ||
+                    args->expandedInnerLen > 0xFFFF)
                 return BUFFER_E;
+
             /* set the length back to before we computed ClientHelloInner size */
             args->length = (word32)args->preXLength;
         }
@@ -4915,9 +4929,16 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     args->output[args->idx++] = NO_COMPRESSION;
 
 #if defined(HAVE_ECH)
-    /* write inner then outer */
+    /* Build the expanded inner ClientHello */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-        (ssl->options.echAccepted || args->ech->innerCount == 0)) {
+            (ssl->options.echAccepted || args->ech->innerCount == 0)) {
+        /* calculate maximum buffer size needed */
+        word16 encodedBodyLen = (word16)(args->ech->innerClientHelloLen -
+            args->ech->hpke->Nt);
+        word16 innerBufSize = args->expandedInnerLen;
+        if (encodedBodyLen > innerBufSize)
+            innerBufSize = encodedBodyLen;
+
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
         /* innerClientHello may already exist from hrr, free if it does */
@@ -4927,21 +4948,16 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         }
         /* allocate the inner */
         args->ech->innerClientHello =
-            (byte*)XMALLOC(args->ech->innerClientHelloLen - args->ech->hpke->Nt,
-            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            (byte*)XMALLOC(innerBufSize, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (args->ech->innerClientHello == NULL) {
             args->ech->type = ECH_TYPE_OUTER;
             return MEMORY_E;
         }
-        /* set the padding bytes to 0 */
-        XMEMSET(args->ech->innerClientHello + args->ech->innerClientHelloLen -
-            args->ech->hpke->Nt - args->ech->paddingLen, 0,
-            args->ech->paddingLen);
-        /* copy the client hello to the ech innerClientHello, exclude record */
-        /* and handshake headers */
+        /* copy everything before extensions into the innerClientHello
+         * ignore record and handshake headers */
         XMEMCPY(args->ech->innerClientHello,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
-            args->idx - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ));
+            args->preXLength);
         /* copy the client random to inner - only for first CH, not after HRR */
         if (!ssl->options.echAccepted) {
             XMEMCPY(ssl->arrays->clientRandomInner, ssl->arrays->clientRandom,
@@ -4962,11 +4978,35 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         /* copy the new client random */
         XMEMCPY(ssl->arrays->clientRandom, args->output +
             args->clientRandomOffset, RAN_LEN);
-        /* write the extensions for inner */
+        /* write the expanded extensions into the inner buffer */
         args->length = 0;
-        ret = TLSX_WriteRequest(ssl, args->ech->innerClientHello + args->idx -
-            (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ), client_hello,
+        ret = TLSX_WriteRequest(ssl,
+            args->ech->innerClientHello + args->preXLength, client_hello,
             &args->length);
+        if (ret != 0) {
+            args->ech->type = ECH_TYPE_OUTER;
+            return ret;
+        }
+
+        /* hash expanded form */
+        args->ech->innerClientHelloLen = args->expandedInnerLen;
+        ret = EchHashHelloInner(ssl, args->ech);
+        args->ech->innerClientHelloLen = encodedBodyLen + args->ech->hpke->Nt;
+        if (ret != 0) {
+            args->ech->type = ECH_TYPE_OUTER;
+            return ret;
+        }
+
+        /* Rewrite inner buffer with the encoded form for sealing */
+        XMEMSET(args->ech->innerClientHello +
+            args->ech->innerClientHelloLen - args->ech->hpke->Nt -
+            args->ech->paddingLen, 0, args->ech->paddingLen);
+        args->ech->writeEncoded = 1;
+        args->length = 0;
+        ret = TLSX_WriteRequest(ssl,
+            args->ech->innerClientHello + args->preXLength, client_hello,
+            &args->length);
+        args->ech->writeEncoded = 0;
         /* set the type to outer */
         args->ech->type = ECH_TYPE_OUTER;
         if (ret != 0)
@@ -4984,15 +5024,18 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     args->idx += args->length;
 
 #if defined(HAVE_ECH)
-    /* encrypt and pack the ech innerClientHello */
+    /* HPKE-seal inner hello and place into outer ECH extension's payload */
     if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-        (ssl->options.echAccepted || args->ech->innerCount == 0)) {
+            (ssl->options.echAccepted || args->ech->innerCount == 0)) {
         ret = TLSX_FinalizeEch(args->ech,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
             (word32)(args->sendSz - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)));
 
         if (ret != 0)
             return ret;
+
+        /* innerCount gates HRR re-prep and the server's copyRandom logic. */
+        args->ech->innerCount = 1;
     }
 #endif
 
@@ -5014,16 +5057,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         else
 #endif /* WOLFSSL_DTLS13 */
         {
-#if defined(HAVE_ECH)
-            /* compute the inner hash */
-            if (ssl->echConfigs != NULL && !ssl->options.disableECH &&
-                    (ssl->options.echAccepted || args->ech->innerCount == 0)) {
-                ret = EchHashHelloInner(ssl, args->ech);
-            }
-#endif
-            /* compute the outer hash */
-            if (ret == 0)
-                ret = HashOutput(ssl, args->output, (int)args->idx, 0);
+            /* compute the outer hash (the inner hash was fed into
+             * hsHashesEch earlier, before the inner buffer was overwritten
+             * with the encoded form for HPKE sealing) */
+            ret = HashOutput(ssl, args->output, (int)args->idx, 0);
         }
     }
     if (ret != 0)
@@ -7500,6 +7537,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             !ssl->options.disableECH &&
             ((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
         ret = EchHashHelloInner(ssl, (WOLFSSL_ECH*)echX->data);
+        ((WOLFSSL_ECH*)echX->data)->innerCount = 1;
         if (ret != 0)
             goto exit_dch;
     }

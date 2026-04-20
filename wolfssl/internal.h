@@ -3152,6 +3152,7 @@ typedef struct WOLFSSL_ECH {
     byte configId;
     byte enc[HPKE_Npk_MAX];
     byte innerCount;
+    byte writeEncoded;
 } WOLFSSL_ECH;
 
 WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
