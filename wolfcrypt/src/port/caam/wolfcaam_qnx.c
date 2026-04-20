@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <devctl.h>
+#include <errno.h>
 
 
 /* for devctl use */

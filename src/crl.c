@@ -1807,12 +1807,6 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 #include <fcntl.h>
 #include <errno.h>
 
-/* Fall back to no-op if EFD_CLOEXEC is unavailable. */
-#ifndef EFD_CLOEXEC
-    #define EFD_CLOEXEC 0
-#endif
-
-
 #ifndef max
     static WC_INLINE int max(int a, int b)
     {
@@ -1846,12 +1840,15 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 
     WOLFSSL_ENTER("DoMonitor");
 
+#ifdef EFD_CLOEXEC
     crl->mfd = eventfd(0, EFD_CLOEXEC);  /* our custom shutdown event */
-#ifdef FD_CLOEXEC
-    if (crl->mfd < 0 && errno == EINVAL) {
+    if (crl->mfd < 0 && (errno == ENOSYS || errno == EINVAL)) {
         crl->mfd = eventfd(0, 0);
         wc_set_cloexec(crl->mfd);
     }
+#else
+    crl->mfd = eventfd(0, 0);  /* our custom shutdown event */
+    wc_set_cloexec(crl->mfd);
 #endif
     if (crl->mfd < 0) {
         WOLFSSL_MSG("eventfd failed");
