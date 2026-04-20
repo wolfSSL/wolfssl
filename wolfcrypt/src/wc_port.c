@@ -215,7 +215,7 @@ Threading/Mutex options:
 #endif
 
 #if defined(WOLFSSL_ZEPHYR)
-#if defined(CONFIG_BOARD_NATIVE_POSIX)
+#if defined(CONFIG_BOARD_NATIVE_POSIX) || defined(CONFIG_BOARD_NATIVE_SIM)
 #include "native_rtc.h"
 #define CONFIG_RTC
 #endif
@@ -4088,7 +4088,7 @@ time_t z_time(time_t * timer)
     #if defined(CONFIG_RTC) && \
         (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
 
-    #if defined(CONFIG_BOARD_NATIVE_POSIX)
+    #if defined(CONFIG_BOARD_NATIVE_POSIX) || defined(CONFIG_BOARD_NATIVE_SIM)
 
     /* When using native sim, get time from simulator rtc */
     uint32_t nsec = 0;
@@ -4120,7 +4120,7 @@ time_t z_time(time_t * timer)
             return epochTime;
         }
     }
-    #endif /* defined(CONFIG_BOARD_NATIVE_POSIX) */
+    #endif /* CONFIG_BOARD_NATIVE_POSIX || CONFIG_BOARD_NATIVE_SIM */
     #endif
 
     /* Fallback to uptime since boot. This works for relative times, but
