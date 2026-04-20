@@ -1,6 +1,7 @@
 #![cfg(chacha20_poly1305)]
 
 use wolfssl_wolfcrypt::chacha20_poly1305::*;
+use wolfssl_wolfcrypt::sys;
 
 #[test]
 fn test_chacha20_poly1305_1() {
@@ -272,6 +273,34 @@ fn test_xchacha20_poly1305() {
     let mut plaintext_buffer = [0u8; PLAINTEXT.len()];
     XChaCha20Poly1305::decrypt(&key, &iv, &aad, &ciphertext_buffer, &mut plaintext_buffer).expect("Error with decrypt()");
     assert_eq!(plaintext_buffer, PLAINTEXT);
+}
+
+#[test]
+fn test_chacha20_poly1305_encrypt_short_ciphertext_buffer() {
+    let key = [0x55u8; ChaCha20Poly1305::KEYSIZE];
+    let iv = [0x66u8; ChaCha20Poly1305::IV_SIZE];
+    let aad = [];
+    let plaintext = [0u8; 32];
+    let mut ciphertext = [0u8; 16]; /* shorter than plaintext */
+    let mut auth_tag = [0u8; ChaCha20Poly1305::AUTH_TAG_SIZE];
+    let rc = ChaCha20Poly1305::encrypt(&key, &iv, &aad, &plaintext,
+        &mut ciphertext, &mut auth_tag)
+        .expect_err("encrypt() should fail with short ciphertext buffer");
+    assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BUFFER_E);
+}
+
+#[test]
+fn test_chacha20_poly1305_decrypt_short_plaintext_buffer() {
+    let key = [0x55u8; ChaCha20Poly1305::KEYSIZE];
+    let iv = [0x66u8; ChaCha20Poly1305::IV_SIZE];
+    let aad = [];
+    let ciphertext = [0u8; 32];
+    let mut plaintext = [0u8; 16]; /* shorter than ciphertext */
+    let auth_tag = [0u8; ChaCha20Poly1305::AUTH_TAG_SIZE];
+    let rc = ChaCha20Poly1305::decrypt(&key, &iv, &aad, &ciphertext,
+        &auth_tag, &mut plaintext)
+        .expect_err("decrypt() should fail with short plaintext buffer");
+    assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BUFFER_E);
 }
 
 // ---------------------------------------------------------------------------
