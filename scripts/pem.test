@@ -31,6 +31,12 @@ if ! "$ASN1_EXE" --help >/dev/null 2>&1; then
     exit 77
 fi
 
+SRC_DIR="$(dirname "$0")/.."
+if [ ! -d "${SRC_DIR}/certs" ]; then
+    echo "certs not found at ${SRC_DIR}/certs -- skipping pem.test."
+    exit 77
+fi
+
 if grep -q -E '^#define HAVE_FIPS$' wolfssl/options.h; then
     HAVE_FIPS=1
 fi
@@ -355,7 +361,7 @@ der_pem_enc() {
         return 0
     fi
     PEM_TYPE="ENCRYPTED PRIVATE KEY"
-    convert_to_pem -in ./certs/server-key.der -p yassl123 "$@" || return $?
+    convert_to_pem -in "${SRC_DIR}/certs/server-key.der" -p yassl123 "$@" || return $?
     convert_to_der -in $tmp_pem_file -p yassl123 || return $?
 }
 
@@ -387,17 +393,17 @@ done
 
 
 test_setup "Convert PEM certificate (first of many) to DER"
-convert_to_der -in ./certs/server-cert.pem
+convert_to_der -in "${SRC_DIR}/certs/server-cert.pem"
 
 test_setup "Convert PEM certificate (second of many) to DER"
-convert_to_der -in ./certs/server-cert.pem --offset 6000
+convert_to_der -in "${SRC_DIR}/certs/server-cert.pem" --offset 6000
 
 if [ "$HAVE_RSA" = 1 ]; then
     test_setup "RSA private key"
-    pem_der_exp ./certs/server-key.pem \
-		./certs/server-key.der "RSA PRIVATE KEY"
+    pem_der_exp "${SRC_DIR}/certs/server-key.pem" \
+                "${SRC_DIR}/certs/server-key.der" "RSA PRIVATE KEY"
 else
-    echo '  Skipping RSA test'
+    echo -e '\nSkipping RSA test'
     TEST_CNT=$((TEST_CNT+1))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
 fi
@@ -405,19 +411,19 @@ fi
 # failing 20260417:
 #
 # test_setup "RSA public key"
-# pem_der_exp ./certs/server-keyPub.pem \
-#             ./certs/server-keyPub.der "RSA PUBLIC KEY"
+# pem_der_exp "${SRC_DIR}/certs/server-keyPub.pem" \
+#             "${SRC_DIR}/certs/server-keyPub.der" "RSA PUBLIC KEY"
 
 if [ "$HAVE_DH" = 1 ]; then
     test_setup "DH parameters"
-    pem_der_exp ./certs/dh3072.pem \
-		./certs/dh3072.der "DH PARAMETERS"
+    pem_der_exp "${SRC_DIR}/certs/dh3072.pem" \
+                "${SRC_DIR}/certs/dh3072.der" "DH PARAMETERS"
 
     test_setup "X9.42 parameters"
-    pem_der_exp ./certs/x942dh2048.pem \
-		./certs/x942dh2048.der "X9.42 DH PARAMETERS"
+    pem_der_exp "${SRC_DIR}/certs/x942dh2048.pem" \
+                "${SRC_DIR}/certs/x942dh2048.der" "X9.42 DH PARAMETERS"
 else
-    echo '  Skipping DH tests'
+    echo -e '\nSkipping DH tests'
     TEST_CNT=$((TEST_CNT+2))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+2))
 fi
@@ -425,15 +431,15 @@ fi
 if [ "$HAVE_DSA" = 1 ]; then
     USAGE_STRING="  DSA PARAMETERS"
     test_setup "DSA parameters"
-    pem_der_exp ./certs/dsaparams.pem \
-		./certs/dsaparams.der "DSA PARAMETERS"
+    pem_der_exp "${SRC_DIR}/certs/dsaparams.pem" \
+                "${SRC_DIR}/certs/dsaparams.der" "DSA PARAMETERS"
 
     USAGE_STRING="  DSA PRIVATE KEY"
     test_setup "DSA private key"
-    pem_der_exp ./certs/1024/dsa1024.pem \
-		./certs/1024/dsa1024.der "DSA PRIVATE KEY"
+    pem_der_exp "${SRC_DIR}/certs/1024/dsa1024.pem" \
+                "${SRC_DIR}/certs/1024/dsa1024.der" "DSA PRIVATE KEY"
 else
-    echo '  Skipping DSA tests'
+    echo -e '\nSkipping DSA tests'
     TEST_CNT=$((TEST_CNT+2))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+2))
 fi
@@ -441,57 +447,57 @@ fi
 if [ "$HAVE_ECC" = 1 ]; then
     USAGE_STRING="  EC PRIVATE KEY"
     test_setup "ECC private key"
-    pem_der_exp ./certs/ecc-keyPkcs8.pem \
-		./certs/ecc-keyPkcs8.der "PRIVATE KEY"
+    pem_der_exp "${SRC_DIR}/certs/ecc-keyPkcs8.pem" \
+                "${SRC_DIR}/certs/ecc-keyPkcs8.der" "PRIVATE KEY"
 
     USAGE_STRING="  EC PRIVATE KEY"
     test_setup "EC PRIVATE KEY"
-    pem_der_exp ./certs/ecc-privkey.pem \
-		./certs/ecc-privkey.der "EC PRIVATE KEY"
+    pem_der_exp "${SRC_DIR}/certs/ecc-privkey.pem" \
+                "${SRC_DIR}/certs/ecc-privkey.der" "EC PRIVATE KEY"
 
     USAGE_STRING="  EC PARAMETERS"
     test_setup "ECC parameters"
-    pem_der_exp ./certs/ecc-params.pem \
-		./certs/ecc-params.der "EC PARAMETERS"
+    pem_der_exp "${SRC_DIR}/certs/ecc-params.pem" \
+                "${SRC_DIR}/certs/ecc-params.der" "EC PARAMETERS"
 
     test_setup "ECC public key"
-    pem_der_exp ./certs/ecc-keyPub.pem \
-		./certs/ecc-keyPub.der "PUBLIC KEY"
+    pem_der_exp "${SRC_DIR}/certs/ecc-keyPub.pem" \
+                "${SRC_DIR}/certs/ecc-keyPub.der" "PUBLIC KEY"
 else
-    echo '  Skipping ECC tests'
+    echo -e '\nSkipping ECC tests'
     TEST_CNT=$((TEST_CNT+4))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+4))
 fi
 
 if [ "$HAVE_ED25519" = 1 ]; then
     test_setup "Ed25519 public key"
-    pem_der_exp ./certs/ed25519/client-ed25519-key.pem \
-		./certs/ed25519/client-ed25519-key.der 'PUBLIC KEY'
+    pem_der_exp "${SRC_DIR}/certs/ed25519/client-ed25519-key.pem" \
+                "${SRC_DIR}/certs/ed25519/client-ed25519-key.der" 'PUBLIC KEY'
 
     test_setup "Ed25519 private key"
-    pem_der_exp ./certs/ed25519/client-ed25519-priv.pem \
-		./certs/ed25519/client-ed25519-priv.der 'PRIVATE KEY'
+    pem_der_exp "${SRC_DIR}/certs/ed25519/client-ed25519-priv.pem" \
+                "${SRC_DIR}/certs/ed25519/client-ed25519-priv.der" 'PRIVATE KEY'
 
     USAGE_STRING="  EDDSA PRIVATE KEY"
     test_setup "EdDSA private key"
-    pem_der_exp ./certs/ed25519/eddsa-ed25519.pem \
-		./certs/ed25519/eddsa-ed25519.der 'EDDSA PRIVATE KEY'
+    pem_der_exp "${SRC_DIR}/certs/ed25519/eddsa-ed25519.pem" \
+                "${SRC_DIR}/certs/ed25519/eddsa-ed25519.der" 'EDDSA PRIVATE KEY'
 else
-    echo '  Skipping ED25519 tests'
+    echo -e '\nSkipping ED25519 tests'
     TEST_CNT=$((TEST_CNT+3))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+3))
 fi
 
 if [ "$HAVE_ED448" = 1 ]; then
     test_setup "Ed448 public key"
-    pem_der_exp ./certs/ed448/client-ed448-key.pem \
-		./certs/ed448/client-ed448-key.der 'PUBLIC KEY'
+    pem_der_exp "${SRC_DIR}/certs/ed448/client-ed448-key.pem" \
+                "${SRC_DIR}/certs/ed448/client-ed448-key.der" 'PUBLIC KEY'
 
     test_setup "Ed448 private key"
-    pem_der_exp ./certs/ed448/client-ed448-priv.pem \
-		./certs/ed448/client-ed448-priv.der 'PRIVATE KEY'
+    pem_der_exp "${SRC_DIR}/certs/ed448/client-ed448-priv.pem" \
+                "${SRC_DIR}/certs/ed448/client-ed448-priv.der" 'PRIVATE KEY'
 else
-    echo '  Skipping ED448 tests'
+    echo -e '\nSkipping ED448 tests'
     TEST_CNT=$((TEST_CNT+2))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+2))
 fi
@@ -499,10 +505,10 @@ fi
 if [ "$WOLFSSL_CERT_REQ" = 1 ]; then
     USAGE_STRING="  CERTIFICATE REQUEST"
     test_setup "Certificate Request"
-    pem_der_exp ./certs/csr.dsa.pem \
-		./certs/csr.dsa.der 'CERTIFICATE REQUEST'
+    pem_der_exp "${SRC_DIR}/certs/csr.dsa.pem" \
+                "${SRC_DIR}/certs/csr.dsa.der" 'CERTIFICATE REQUEST'
 else
-    echo '  Skipping certificate request test'
+    echo -e '\nSkipping certificate request test'
     TEST_CNT=$((TEST_CNT+1))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
 fi
@@ -511,55 +517,55 @@ fi
 #
 # USAGE_STRING="  X509 CRL"
 # test_setup "X509 CRL"
-# pem_der_exp ./certs/crl/caEccCrl.pem \
-#             ./certs/crl/caEccCrl.der 'X509 CRL'
+# pem_der_exp "${SRC_DIR}/certs/crl/caEccCrl.pem" \
+#             "${SRC_DIR}/certs/crl/caEccCrl.der" 'X509 CRL'
 
 if [ "$HAVE_FIPS" != 1 ] && [ "$HAVE_DES3" = 1 ]; then
     if [ "$HAVE_RSA" = 1 ]; then
         USAGE_STRING=$ENC_STRING
         test_setup "Encrypted Key with header"
-        convert_to_der -in ./certs/server-keyEnc.pem -p yassl123 --padding
+        convert_to_der -in "${SRC_DIR}/certs/server-keyEnc.pem" -p yassl123 --padding
     else
-	echo '  Skipping DES && RSA test'
-	TEST_CNT=$((TEST_CNT+1))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        echo -e '\nSkipping DES && RSA test'
+        TEST_CNT=$((TEST_CNT+1))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
     fi
 
     if [ "$HAVE_MD5" = 1 ] && [ "$HAVE_RSA" = 1 ]; then
         USAGE_STRING=$ENC_STRING
         test_setup "Encrypted Key - PKCS#8"
-        convert_to_der -in ./certs/server-keyPkcs8Enc.pem -p yassl123
+        convert_to_der -in "${SRC_DIR}/certs/server-keyPkcs8Enc.pem" -p yassl123
 
         USAGE_STRING=$ENC_STRING
         test_setup "Encrypted Key - PKCS#8 (PKCS#12 PBE)"
-        convert_to_der -in ./certs/server-keyPkcs8Enc12.pem -p yassl123
+        convert_to_der -in "${SRC_DIR}/certs/server-keyPkcs8Enc12.pem" -p yassl123
     else
-	echo '  Skipping DES && MD5 && RSA tests'
-	TEST_CNT=$((TEST_CNT+2))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+2))
+        echo -e '\nSkipping DES && MD5 && RSA tests'
+        TEST_CNT=$((TEST_CNT+2))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+2))
     fi
 
     if [ "$HAVE_MD5" = 1 ]; then
         USAGE_STRING="PBES1_MD5_DES"
         test_setup "Encrypted Key - PKCS#8 (PKCS#5 PBES1-MD5-DES)"
-        convert_to_der -in ./certs/ecc-keyPkcs8Enc.pem -p yassl123
+        convert_to_der -in "${SRC_DIR}/certs/ecc-keyPkcs8Enc.pem" -p yassl123
     else
-	echo '  Skipping DES && MD5 test'
-	TEST_CNT=$((TEST_CNT+1))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        echo -e '\nSkipping DES && MD5 test'
+        TEST_CNT=$((TEST_CNT+1))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
     fi
 
     if [ "$HAVE_SHA" = 1 ]; then
         USAGE_STRING=" DES3"
         test_setup "Encrypted Key - PKCS#8 (PKCS#5v2 PBE-SHA1-DES3)"
-        convert_to_der -in ./certs/server-keyPkcs8Enc2.pem -p yassl123
+        convert_to_der -in "${SRC_DIR}/certs/server-keyPkcs8Enc2.pem" -p yassl123
     else
-	echo '  Skipping DES && SHA-1 test'
-	TEST_CNT=$((TEST_CNT+1))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        echo -e '\nSkipping DES && SHA-1 test'
+        TEST_CNT=$((TEST_CNT+1))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
     fi
 else
-    echo '  Skipping DES tests'
+    echo -e '\nSkipping DES tests'
     TEST_CNT=$((TEST_CNT+5))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+5))
 fi
@@ -608,9 +614,9 @@ if [ "$HAVE_FIPS" != 1 ]; then
         test_setup "Encrypt Key - PKCS#8 (PKCS#5 PBES1-MD5-DES)"
         der_pem_enc --pbe PBES1_MD5_DES
     else
-	echo '  Skipping DES && MD5 DER-to-PEM test'
-	TEST_CNT=$((TEST_CNT+1))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        echo -e '\nSkipping DES && MD5 DER-to-PEM test'
+        TEST_CNT=$((TEST_CNT+1))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
     fi
 
     if [ "$HAVE_DES3" = 1 ] && [ "$HAVE_SHA" = 1 ]; then
@@ -624,9 +630,9 @@ if [ "$HAVE_FIPS" != 1 ]; then
         test_setup "Encrypt Key - PKCS#8 (PKCS#12 PBE-SHA1-DES3)"
         der_pem_enc --pbe-ver PKCS12 --pbe SHA1_DES3
     else
-	echo '  Skipping DES && SHA-1 DER-to-PEM tests'
-	TEST_CNT=$((TEST_CNT+2))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+2))
+        echo -e '\nSkipping DES && SHA-1 DER-to-PEM tests'
+        TEST_CNT=$((TEST_CNT+2))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+2))
     fi
 
     if [ "$HAVE_RC4" = 1 ] && [ "$HAVE_SHA" = 1 ]; then
@@ -635,9 +641,9 @@ if [ "$HAVE_FIPS" != 1 ]; then
         test_setup "Encrypt Key - PKCS#8 (PKCS#12 PBE-SHA1-RC4-128)"
         der_pem_enc --pbe-ver PKCS12 --pbe SHA1_RC4_128
     else
-	echo '  Skipping RC4 && SHA-1 DER-to-PEM test'
-	TEST_CNT=$((TEST_CNT+1))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        echo -e '\nSkipping RC4 && SHA-1 DER-to-PEM test'
+        TEST_CNT=$((TEST_CNT+1))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
     fi
 
     if [ "$HAVE_RC2" = 1 ] && [ "$HAVE_SHA" = 1 ]; then
@@ -646,12 +652,12 @@ if [ "$HAVE_FIPS" != 1 ]; then
         test_setup "Encrypt Key - PKCS#8 (PKCS#12 PBE-SHA1-40RC2-CBC)"
         der_pem_enc --pbe-ver PKCS12 --pbe SHA1_40RC2_CBC
     else
-	echo '  Skipping RC2 && SHA-1 DER-to-PEM test'
-	TEST_CNT=$((TEST_CNT+1))
-	TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        echo -e '\nSkipping RC2 && SHA-1 DER-to-PEM test'
+        TEST_CNT=$((TEST_CNT+1))
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
     fi
 else
-    echo '  Skipping DES/RC4/RC2 DER-to-PEM tests'
+    echo -e '\nSkipping DES/RC4/RC2 DER-to-PEM tests'
     TEST_CNT=$((TEST_CNT+5))
     TEST_SKIP_CNT=$((TEST_SKIP_CNT+5))
 fi
