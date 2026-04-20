@@ -925,8 +925,11 @@ static int wolfssl_init(void)
     #endif
 
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
-    for (i = 0; i < FIPS_CAST_COUNT; ++i)
-        fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+    {
+        int i;
+        for (i = 0; i < FIPS_CAST_COUNT; ++i)
+            fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+    }
     /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
      * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
      * anymore.
