@@ -14544,9 +14544,12 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         }
         else if (a->type == WOLFSSL_GEN_DNS || a->type == WOLFSSL_GEN_EMAIL ||
                  a->type == WOLFSSL_GEN_URI) {
-            bufSz = (int)XSTRLEN((const char*)a->obj);
-            if (bufSz >= bufLen) {
+            size_t objLen = XSTRLEN((const char*)a->obj);
+            if (objLen >= (size_t)bufLen) {
                 bufSz = bufLen - 1;
+            }
+            else {
+                bufSz = (int)objLen;
             }
             XMEMCPY(buf, a->obj, (size_t)bufSz);
         }

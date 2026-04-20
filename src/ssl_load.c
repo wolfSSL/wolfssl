@@ -4290,7 +4290,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
         }
     }
     if (ret == 1) {
-        XMEMCPY(ctx->altPrivateKey->buffer, id, sz);
+        XMEMCPY(ctx->altPrivateKey->buffer, id, (word32)sz);
         ctx->altPrivateKeyId = 1;
         if (devId != INVALID_DEVID) {
             ctx->altPrivateKeyDevId = devId;
@@ -4704,12 +4704,12 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
         #endif
         }
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
-                ssl->heap) == 0) {
+                ssl->heap) != 0) {
             ret = 0;
         }
     }
     if (ret == 1) {
-        XMEMCPY(ssl->buffers.altKey->buffer, id, sz);
+        XMEMCPY(ssl->buffers.altKey->buffer, id, (word32)sz);
         ssl->buffers.weOwnAltKey = 1;
         ssl->buffers.altKeyId = 1;
         if (devId != INVALID_DEVID) {
@@ -4752,7 +4752,7 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
         #endif
         }
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
-                ssl->heap) == 0) {
+                ssl->heap) != 0) {
             ret = 0;
         }
     }
