@@ -749,7 +749,9 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
 
     single = bs->single;
     while (single != NULL) {
-        if ((XMEMCMP(single->status->serial, id->status->serial, (size_t)single->status->serialSz) == 0)
+        if (single->status != NULL && id->status != NULL &&
+            (XMEMCMP(single->status->serial, id->status->serial,
+                     (size_t)single->status->serialSz) == 0)
          && (XMEMCMP(single->issuerHash, id->issuerHash, OCSP_DIGEST_SIZE) == 0)
          && (XMEMCMP(single->issuerKeyHash, id->issuerKeyHash, OCSP_DIGEST_SIZE) == 0)) {
             break;
@@ -1108,6 +1110,9 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP* bs,
     int embedded;
     DecodedCert *cert = NULL;
 
+    if (bs == NULL)
+        return WOLFSSL_FAILURE;
+
     ret = OcspFindSigner(bs, certs, &cert, &embedded, flags);
     if (ret != 0) {
         WOLFSSL_MSG("OCSP no signer found");
@@ -1300,15 +1305,31 @@ int wolfSSL_i2d_OCSP_RESPONSE(OcspResponse* response,
     if (response == NULL)
         return BAD_FUNC_ARG;
 
+    if (response->source == NULL)
+        return BAD_FUNC_ARG;
+
     if (data == NULL)
         return (int)response->maxIdx;
 
-    XMEMCPY(*data, response->source, response->maxIdx);
+    if (*data == NULL) {
+        *data = (unsigned char*)XMALLOC(response->maxIdx, NULL,
+                                        DYNAMIC_TYPE_OPENSSL);
+        if (*data == NULL)
+            return -1;
+        XMEMCPY(*data, response->source, response->maxIdx);
+    }
+    else {
+        XMEMCPY(*data, response->source, response->maxIdx);
+        *data += response->maxIdx;
+    }
+
     return (int)response->maxIdx;
 }
 
 int wolfSSL_OCSP_response_status(OcspResponse *response)
 {
+    if (response == NULL)
+        return -1;
     return response->responseStatus;
 }
 
@@ -1335,8 +1356,12 @@ const char *wolfSSL_OCSP_response_status_str(long s)
 WOLFSSL_OCSP_BASICRESP* wolfSSL_OCSP_response_get1_basic(OcspResponse* response)
 {
     WOLFSSL_OCSP_BASICRESP* bs;
-    const unsigned char *ptr = response->source;
+    const unsigned char *ptr;
 
+    if (response == NULL || response->source == NULL)
+        return NULL;
+
+    ptr = response->source;
     bs = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, response->maxIdx);
     return bs;
 }
@@ -1637,8 +1662,8 @@ int wolfSSL_OCSP_single_get0_status(WOLFSSL_OCSP_SINGLERESP *single,
                                     WOLFSSL_ASN1_TIME **thisupd,
                                     WOLFSSL_ASN1_TIME **nextupd)
 {
-    if (single == NULL)
-        return WOLFSSL_FAILURE;
+    if (single == NULL || single->status == NULL)
+        return -1;
 
 #ifdef WOLFSSL_OCSP_PARSE_STATUS
     if (thisupd != NULL)
@@ -1784,7 +1809,7 @@ int wolfSSL_OCSP_REQ_CTX_add1_header(WOLFSSL_OCSP_REQ_CTX *ctx,
 {
     WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_add1_header");
 
-    if (name == NULL) {
+    if (ctx == NULL || name == NULL) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }

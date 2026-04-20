@@ -76,6 +76,9 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         return BAD_FUNC_ARG;
     }
 
+    if (keyLen > INT_MAX - ivLen)
+        return BAD_FUNC_ARG;
+
     if (iterations <= 0)
         iterations = 1;
 
