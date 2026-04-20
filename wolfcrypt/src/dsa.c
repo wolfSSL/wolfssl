@@ -174,8 +174,8 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     SAVE_VECTOR_REGISTERS(;);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), NULL,
-            DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)
+    if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), dsa->heap,
+            DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         err = MEMORY_E;
     else
         err = MP_OKAY;
