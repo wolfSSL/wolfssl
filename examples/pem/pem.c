@@ -755,6 +755,7 @@ int main(int argc, char* argv[])
 #ifdef DEBUG_WOLFSSL
     int log = 0;
 #endif
+    int wolfcrypt_inited = 0;
 
     progname = strrchr(argv[0], '/');
     if (progname)
@@ -979,6 +980,7 @@ int main(int argc, char* argv[])
                 progname, wc_GetErrorString(ret));
         exit(1);
     }
+    wolfcrypt_inited = 1;
 
     /* Convert PEM type string to value. */
     if (type_str != NULL) {
@@ -1075,10 +1077,12 @@ out:
     if ((out_file != stdout) && (out_file != NULL))
         (void)fclose(out_file);
 
-    ret = wolfCrypt_Cleanup();
-    if (ret != 0) {
-        fprintf(stderr, "%s: wolfCrypt_Cleanup() failed: %s.\n",
-                progname, wc_GetErrorString(ret));
+    if (wolfcrypt_inited) {
+        ret = wolfCrypt_Cleanup();
+        if (ret != 0) {
+            fprintf(stderr, "%s: wolfCrypt_Cleanup() failed: %s.\n",
+                    progname, wc_GetErrorString(ret));
+        }
     }
 
     return (ret == 0) ? 0 : 1;

@@ -19,6 +19,16 @@ CR=$'\n'
 ENC_STRING="encrypt"
 DER_TO_PEM_STRING="input is DER and output is PEM"
 
+if ! "$PEM_EXE" --help >/dev/null 2>&1; then
+    echo "$PEM_EXE not found -- skipping pem.test."
+    exit 77
+fi
+
+if ! "$ASN1_EXE" --help >/dev/null 2>&1; then
+    echo "$ASN1_EXE not found -- skipping pem.test."
+    exit 77
+fi
+
 if grep -q -E '^#define HAVE_FIPS$' wolfssl/options.h; then
     HAVE_FIPS=1
 fi
@@ -50,6 +60,41 @@ fi
 if ! grep -q -E '^#define NO_DH$' wolfssl/options.h; then
     HAVE_DH=1
 fi
+
+if grep -q -E '^#define WOLFSSL_KEY_GEN$' wolfssl/options.h; then
+    WOLFSSL_KEY_GEN=1
+fi
+
+if grep -q -E '^#define WOLFSSL_CERT_GEN$' wolfssl/options.h; then
+    WOLFSSL_CERT_GEN=1
+fi
+
+if grep -q -E '^#define OPENSSL_EXTRA$' wolfssl/options.h; then
+    OPENSSL_EXTRA=1
+fi
+
+if [[ ! -v WOLFSSL_KEY_GEN && ! -v WOLFSSL_CERT_GEN && ! -v OPENSSL_EXTRA ]]; then
+    WOLFSSL_NO_DER_TO_PEM=1
+fi
+
+if grep -q -E '^#define WOLFSSL_NO_PEM$' wolfssl/options.h; then
+    WOLFSSL_NO_PEM=1
+fi
+
+if grep -q -E '^#define NO_CODING$' wolfssl/options.h; then
+    NO_CODING=1
+fi
+
+if [[ -v WOLFSSL_NO_PEM ]]; then
+    echo "WOLFSSL_NO_PEM is configured -- skipping pem.test."
+    exit 77
+fi
+
+if [[ -v NO_CODING ]]; then
+    echo "NO_CODING is configured -- skipping pem.test."
+    exit 77
+fi
+
 
 # Cleanup temporaries created during testing.
 do_cleanup() {
@@ -210,6 +255,11 @@ compare_der() {
 #
 # @param [in] $*  Command line parameters to pem example.
 convert_to_pem() {
+    if [[ -v WOLFSSL_NO_DER_TO_PEM ]]; then
+        echo '  Skipping -- WOLFSSL_NO_DER_TO_PEM'
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        return 0
+    fi
     if [ "$SKIP" = "" -a "$FAILED" = "" ]; then
         echo "    $PEM_EXE --der -t \"$PEM_TYPE\" $* -out $tmp_pem_file"
         $PEM_EXE --der "$@" -t "$PEM_TYPE" -out $tmp_pem_file
@@ -239,6 +289,11 @@ compare_pem() {
 # @param [in] $3  PEM type expected in PEM file and to place in created PEM
 #                 file.
 pem_der_exp() {
+    if [[ -v WOLFSSL_NO_DER_TO_PEM ]]; then
+        echo '  Skipping -- WOLFSSL_NO_DER_TO_PEM'
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        return 0
+    fi
     if [ "$SKIP" = "" -a "$FAILED" = "" ]; then
         PEM_FILE=$1
         DER_FILE=$2
@@ -269,6 +324,11 @@ pem_der_exp() {
 #
 # @param [in] $@  Command line parameters to pem example when encrypting.
 der_pem_enc() {
+    if [[ -v WOLFSSL_NO_DER_TO_PEM ]]; then
+        echo '  Skipping -- WOLFSSL_NO_DER_TO_PEM'
+        TEST_SKIP_CNT=$((TEST_SKIP_CNT+1))
+        return 0
+    fi
     PEM_TYPE="ENCRYPTED PRIVATE KEY"
     convert_to_pem -in ./certs/server-key.der -p yassl123 "$@" || return $?
     convert_to_der -in $tmp_pem_file -p yassl123 || return $?
