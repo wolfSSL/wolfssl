@@ -7150,16 +7150,14 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
             *pemSz += 54;
         }
 
+        allocSz = (word32)*pemSz;
         /* Allocate enough memory to hold PEM encoded encrypted key. */
-        *pem = (byte*)XMALLOC((size_t)*pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *pem = (byte*)XMALLOC((size_t)allocSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (*pem == NULL) {
+            allocSz = 0;
             res = 0;
         }
         else {
-            /* Remember the allocation size before *pemSz is updated to the
-             * actual PEM output length, so we can zero any unused tail that
-             * held the DER staging area. */
-            allocSz = (word32)*pemSz;
             /* Use end of PEM buffer for key data. */
             key = *pem + *pemSz - keySz;
         }
