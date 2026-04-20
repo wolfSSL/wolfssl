@@ -81,6 +81,9 @@ int wc_Compress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
     z_stream stream;
     int result = 0;
 
+    if (out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
+
     stream.next_in = (Bytef*)in;
     stream.avail_in = (uInt)inSz;
 #ifdef MAXSEG_64K
@@ -148,6 +151,9 @@ int wc_DeCompress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
 {
     z_stream stream;
     int result = 0;
+
+    if (out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
 
     stream.next_in = (Bytef*)in;
     stream.avail_in = (uInt)inSz;

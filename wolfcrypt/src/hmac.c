@@ -1395,7 +1395,7 @@ int  wc_HmacInit_Id(Hmac* hmac, unsigned char* id, int len, void* heap,
 
     if (ret == 0)
         ret = wc_HmacInit(hmac, heap, devId);
-    if (ret == 0) {
+    if (ret == 0 && id != NULL && len != 0) {
         XMEMCPY(hmac->id, id, (size_t)len);
         hmac->idLen = len;
     }

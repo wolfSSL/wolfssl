@@ -1159,7 +1159,8 @@ int wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out, word32* outLen)
     int ret = 0;
 
     /* Validate parameters. */
-    if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
+    if ((key == NULL) || (out == NULL) || (outLen == NULL) ||
+            (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     /* Check size of out is sufficient. */
