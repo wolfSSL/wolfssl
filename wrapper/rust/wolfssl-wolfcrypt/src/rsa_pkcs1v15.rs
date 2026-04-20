@@ -336,6 +336,9 @@ impl<H: Hash, const N: usize> Keypair for SigningKey<H, N> {
         if rc != 0 {
             panic!("wc_RsaFlattenPublicKey failed: {rc}");
         }
+        if (n_len as usize) != N || e_len == 0 || (e_len as usize) > MAX_E_LEN {
+            panic!("wc_RsaFlattenPublicKey failed: e_len: {e_len}, n_len: {n_len}");
+        }
         VerifyingKey {
             n,
             e,
