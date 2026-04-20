@@ -31479,7 +31479,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #endif /* !NO_SHA256 */
 #endif /* !NO_SHA || !NO_SHA256 */
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     /* wc_HKDF_Extract bad arg: NULL out */
     ret = wc_HKDF_Extract(WC_SHA256, NULL, 0, ikm1, (word32)sizeof(ikm1), NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -31488,7 +31489,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     ret = wc_HKDF_Extract(WC_SHA256, NULL, 0, NULL, 5, okm1);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
-#endif /* !NO_SHA256 */
+#endif /* !NO_SHA256 && !HAVE_SELFTEST &&         */
+       /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
     return 0;
 }
@@ -33426,6 +33428,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     /* kdrIdx >= 0 requires non-NULL idx. */
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         0, NULL, keyE, tv[i].keSz, keyA, tv[i].kaSz, keyS, tv[i].ksSz);
@@ -33443,6 +33446,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         0, NULL, WC_SRTCP_LABEL_ENCRYPTION, keyE, tv[i].keSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, NULL, tv[i].keSz, keyA, tv[i].kaSz,
