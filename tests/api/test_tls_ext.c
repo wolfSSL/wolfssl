@@ -439,6 +439,9 @@ int test_tls13_ticket_age_out_of_window(void)
     (void)wolfSSL_read(ssl_c, &tmp, sizeof(tmp));
 
     ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    /* The test only exercises the age window check if the client actually
+     * received a NewSessionTicket and the session carries ticket material. */
+    ExpectIntGT(session->ticketLen, 0);
 
     /* Flip the high bit to push the unobfuscated age out of window. */
     if (session != NULL)
