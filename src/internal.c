@@ -13894,9 +13894,30 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             }
 
             wolfSSL_EVP_PKEY_free(x509->key.pkey);
-            if (!(x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
-                                                      &dCert->publicKey,
-                                                      dCert->pubKeySize))) {
+            x509->key.pkey = NULL;
+
+            switch (dCert->keyOID) {
+            #ifdef HAVE_ED25519
+                case ED25519k:
+                    x509->key.pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+                        WC_EVP_PKEY_ED25519, NULL, dCert->publicKey,
+                        dCert->pubKeySize);
+                    break;
+            #endif
+            #ifdef HAVE_ED448
+                case ED448k:
+                    x509->key.pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+                        WC_EVP_PKEY_ED448, NULL, dCert->publicKey,
+                        dCert->pubKeySize);
+                    break;
+            #endif
+                default:
+                    x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
+                        &dCert->publicKey, dCert->pubKeySize);
+                    break;
+            }
+
+            if (x509->key.pkey == NULL) {
                 ret = PUBLIC_KEY_E;
                 WOLFSSL_ERROR_VERBOSE(ret);
             }

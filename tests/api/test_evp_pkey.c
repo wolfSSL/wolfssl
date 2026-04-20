@@ -2400,10 +2400,9 @@ int test_wolfSSL_EVP_PKEY_ed25519(void)
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 
-    /* Exercise d2iTryEd25519Key's raw fallback where the caller passes 
-     * the raw bytes from the SPKI BIT STRING rather than a wrapped SPKI. */
-    p = rawPub;
-    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p, (long)sizeof(rawPub)));
+    /* Exercise EVP_PKEY_new_raw_public_key to parse 32 raw BIT STRING bytes */
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+        WC_EVP_PKEY_ED25519, NULL, rawPub, sizeof(rawPub)));
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -2490,9 +2489,9 @@ int test_wolfSSL_EVP_PKEY_ed448(void)
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 
-    /* Raw 57-byte fallback path. */
-    p = rawPub;
-    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p, (long)sizeof(rawPub)));
+    /* Parse raw bytes */
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+        WC_EVP_PKEY_ED448, NULL, rawPub, sizeof(rawPub)));
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED448);
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;

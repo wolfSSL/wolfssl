@@ -262,13 +262,8 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return 0;
     }
 
-    /* Try decoding data as an Ed25519 private/public key. Private keys must
-     * be PKCS#8 PrivateKeyInfo DER (matching OpenSSL d2i_PrivateKey
-     * semantics). Public keys may be DER-encoded SubjectPublicKeyInfo (the
-     * normal d2i_PUBKEY input) or raw 32-byte key material (as passed from
-     * CopyDecodedToX509 where dCert->publicKey is the raw bytes from the
-     * SPKI BIT STRING); the structured form is tried first, then the raw
-     * import as fallback. */
+    /* Decode data as an Ed25519 key in DER form (SubjectPublicKeyInfo for
+     * public keys, PKCS#8 PrivateKeyInfo for private keys). */
     if (priv) {
         isEdKey = (wc_Ed25519PrivateKeyDecode(mem, &keyIdx, edKey,
             (word32)memSz) == 0);
@@ -276,11 +271,6 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     else {
         isEdKey = (wc_Ed25519PublicKeyDecode(mem, &keyIdx, edKey,
             (word32)memSz) == 0);
-        if (!isEdKey && memSz == ED25519_PUB_KEY_SIZE) {
-            keyIdx = (word32)memSz;
-            isEdKey = (wc_ed25519_import_public(mem, (word32)memSz, edKey)
-                == 0);
-        }
     }
 
     if (!isEdKey) {
@@ -288,10 +278,9 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Create an EVP PKEY object holding the input bytes. These are the
-     * SPKI / PKCS#8 DER on the structured path, or the raw 32-byte key
-     * on the raw fallback path. If the caller already populated the EVP
-     * PKEY with the input bytes (pkey.ptr set), skip the allocate/copy. */
+    /* Create an EVP PKEY object holding the input DER bytes. If the caller
+     * already populated the EVP PKEY with the input bytes (pkey.ptr set),
+     * skip the allocate/copy. */
     if (*out == NULL || (*out)->pkey.ptr == NULL) {
         ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_ED25519);
     }
@@ -338,13 +327,8 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return 0;
     }
 
-    /* Try decoding data as an Ed448 private/public key. Private keys must
-     * be PKCS#8 PrivateKeyInfo DER (matching OpenSSL d2i_PrivateKey
-     * semantics). Public keys may be DER-encoded SubjectPublicKeyInfo (the
-     * normal d2i_PUBKEY input) or raw 57-byte key material (as passed from
-     * CopyDecodedToX509 where dCert->publicKey is the raw bytes from the
-     * SPKI BIT STRING); the structured form is tried first, then the raw
-     * import as fallback. */
+    /* Decode data as an Ed448 key in DER form (SubjectPublicKeyInfo for
+     * public keys, PKCS#8 PrivateKeyInfo for private keys). */
     if (priv) {
         isEdKey = (wc_Ed448PrivateKeyDecode(mem, &keyIdx, edKey,
             (word32)memSz) == 0);
@@ -352,11 +336,6 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     else {
         isEdKey = (wc_Ed448PublicKeyDecode(mem, &keyIdx, edKey,
             (word32)memSz) == 0);
-        if (!isEdKey && memSz == ED448_PUB_KEY_SIZE) {
-            keyIdx = (word32)memSz;
-            isEdKey = (wc_ed448_import_public(mem, (word32)memSz, edKey)
-                == 0);
-        }
     }
 
     if (!isEdKey) {
@@ -364,10 +343,9 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    /* Create an EVP PKEY object holding the input bytes. These are the
-     * SPKI / PKCS#8 DER on the structured path, or the raw 57-byte key
-     * on the raw fallback path. If the caller already populated the EVP
-     * PKEY with the input bytes (pkey.ptr set), skip the allocate/copy. */
+    /* Create an EVP PKEY object holding the input DER bytes. If the caller
+     * already populated the EVP PKEY with the input bytes (pkey.ptr set),
+     * skip the allocate/copy. */
     if (*out == NULL || (*out)->pkey.ptr == NULL) {
         ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_ED448);
     }
@@ -382,6 +360,186 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     return ret;
 }
 #endif /* HAVE_ED448 */
+
+/* Create a new EVP_PKEY from raw Ed25519 or Ed448 key material.
+ *
+ * Used for for callers who already have the raw key bytes and shouldn't need
+ * to rewrap them in an SPKI just to decode.
+ *
+ * @param [in] type  WC_EVP_PKEY_ED25519 or WC_EVP_PKEY_ED448.
+ * @param [in] e     Engine. Ignored; accepted for OpenSSL API parity.
+ * @param [in] pub   Raw public key bytes.
+ * @param [in] len   Length of pub. Must match the curve's public key size
+ *                   (ED25519_PUB_KEY_SIZE or ED448_PUB_KEY_SIZE).
+ * @return  WOLFSSL_EVP_PKEY on success, NULL on failure.
+ */
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
+    WOLFSSL_ENGINE* e, const unsigned char* pub, size_t len)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    int ok = 0;
+
+    (void)e;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new_raw_public_key");
+
+    if (pub == NULL || len == 0) {
+        return NULL;
+    }
+
+    pkey = wolfSSL_EVP_PKEY_new();
+    if (pkey == NULL) {
+        return NULL;
+    }
+
+    switch (type) {
+    #ifdef HAVE_ED25519
+        case WC_EVP_PKEY_ED25519: {
+            ed25519_key* edKey;
+            if (len != ED25519_PUB_KEY_SIZE) {
+                break;
+            }
+            edKey = wolfSSL_ED25519_new(pkey->heap, INVALID_DEVID);
+            if (edKey == NULL) {
+                break;
+            }
+            if (wc_ed25519_import_public(pub, (word32)len, edKey) != 0) {
+                wolfSSL_ED25519_free(edKey);
+                break;
+            }
+            pkey->type       = WC_EVP_PKEY_ED25519;
+            pkey->ed25519    = edKey;
+            pkey->ownEd25519 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_ED448
+        case WC_EVP_PKEY_ED448: {
+            ed448_key* edKey;
+            if (len != ED448_PUB_KEY_SIZE) {
+                break;
+            }
+            edKey = wolfSSL_ED448_new(pkey->heap, INVALID_DEVID);
+            if (edKey == NULL) {
+                break;
+            }
+            if (wc_ed448_import_public(pub, (word32)len, edKey) != 0) {
+                wolfSSL_ED448_free(edKey);
+                break;
+            }
+            pkey->type     = WC_EVP_PKEY_ED448;
+            pkey->ed448    = edKey;
+            pkey->ownEd448 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+        default:
+            break;
+    }
+
+    if (!ok) {
+        wolfSSL_EVP_PKEY_free(pkey);
+        return NULL;
+    }
+
+    /* Stash the raw bytes so callers that later serialize the EVP_PKEY see
+     * consistent state. */
+    pkey->pkey.ptr = (char*)XMALLOC(len, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (pkey->pkey.ptr == NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+        return NULL;
+    }
+    XMEMCPY(pkey->pkey.ptr, pub, len);
+    pkey->pkey_sz = (int)len;
+
+    return pkey;
+}
+
+/* Private-key counterpart to wolfSSL_EVP_PKEY_new_raw_public_key. The raw
+ * input is the 32-byte seed (Ed25519) or 57-byte seed (Ed448).
+ */
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
+    WOLFSSL_ENGINE* e, const unsigned char* priv, size_t len)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    int ok = 0;
+
+    (void)e;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new_raw_private_key");
+
+    if (priv == NULL || len == 0) {
+        return NULL;
+    }
+
+    pkey = wolfSSL_EVP_PKEY_new();
+    if (pkey == NULL) {
+        return NULL;
+    }
+
+    switch (type) {
+    #ifdef HAVE_ED25519
+        case WC_EVP_PKEY_ED25519: {
+            ed25519_key* edKey;
+            if (len != ED25519_KEY_SIZE) {
+                break;
+            }
+            edKey = wolfSSL_ED25519_new(pkey->heap, INVALID_DEVID);
+            if (edKey == NULL) {
+                break;
+            }
+            if (wc_ed25519_import_private_only(priv, (word32)len, edKey)
+                    != 0) {
+                wolfSSL_ED25519_free(edKey);
+                break;
+            }
+            pkey->type       = WC_EVP_PKEY_ED25519;
+            pkey->ed25519    = edKey;
+            pkey->ownEd25519 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_ED448
+        case WC_EVP_PKEY_ED448: {
+            ed448_key* edKey;
+            if (len != ED448_KEY_SIZE) {
+                break;
+            }
+            edKey = wolfSSL_ED448_new(pkey->heap, INVALID_DEVID);
+            if (edKey == NULL) {
+                break;
+            }
+            if (wc_ed448_import_private_only(priv, (word32)len, edKey) != 0) {
+                wolfSSL_ED448_free(edKey);
+                break;
+            }
+            pkey->type     = WC_EVP_PKEY_ED448;
+            pkey->ed448    = edKey;
+            pkey->ownEd448 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+        default:
+            break;
+    }
+
+    if (!ok) {
+        wolfSSL_EVP_PKEY_free(pkey);
+        return NULL;
+    }
+
+    pkey->pkey.ptr = (char*)XMALLOC(len, pkey->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (pkey->pkey.ptr == NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+        return NULL;
+    }
+    XMEMCPY(pkey->pkey.ptr, priv, len);
+    pkey->pkey_sz = (int)len;
+
+    return pkey;
+}
 
 #if !defined(NO_DSA)
 /**
