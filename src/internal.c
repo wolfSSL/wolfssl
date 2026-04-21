@@ -13334,6 +13334,22 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
         return 1;
 #endif
 
+    if (leftWildcardOnly && (! wolfssl_local_IsValidFQDN(str, strLen))) {
+        /* Not a valid FQDN -- require byte-exact match, no case folding, no
+         * wildcard interpretation.  This is appropriate for an IPv4 match, for
+         * example, but also matches improvised names like "localhost", albeit
+         * case-sensitively.
+         */
+        return (((word32)patternLen == strLen) &&
+                (XMEMCMP(pattern, str, patternLen) == 0));
+    }
+
+    /* strip trailing dots if necessary (FQDN designator). */
+    if (str[strLen-1] == '.')
+        --strLen;
+    if (pattern[patternLen-1] == '.')
+        --patternLen;
+
     while (patternLen > 0) {
         /* Get the next pattern char to evaluate */
         char p = (char)XTOLOWER((unsigned char)*pattern);
