@@ -51,6 +51,7 @@ fi
 %{__make} install  DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl@LIBSUFFIX@.la
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl.a
+%{__cp} wolfssl/options.h %{buildroot}/%{_includedir}/%{name}/
 
 %check
 
@@ -66,8 +67,6 @@ fi
 %defattr(-,root,root,-)
 %doc AUTHORS ChangeLog.md COPYING README README.md
 %{_docdir}/wolfssl/taoCert.txt
-%{_docdir}/wolfssl/example/async_client.c
-%{_docdir}/wolfssl/example/async_server.c
 %{_docdir}/wolfssl/example/client.c
 %{_docdir}/wolfssl/example/server.c
 %{_docdir}/wolfssl/example/echoclient.c
@@ -77,6 +76,7 @@ fi
 %{_docdir}/wolfssl/example/sctp-client-dtls.c
 %{_docdir}/wolfssl/example/sctp-server-dtls.c
 %{_docdir}/wolfssl/example/tls_bench.c
+%{_docdir}/wolfssl/example/ocsp_responder.c
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 %{_libdir}/libwolfssl@LIBSUFFIX@.so.*
@@ -90,6 +90,7 @@ fi
 %{_includedir}/wolfssl/openssl/*.h
 %{_libdir}/pkgconfig/wolfssl.pc
 %{_libdir}/libwolfssl@LIBSUFFIX@.so
+%{_libdir}/cmake/wolfssl
 
 %changelog
 * Mon Oct 17 2022 Juliusz Sosinowicz <juliusz@wolfssl.com>
