@@ -786,9 +786,15 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #ifdef HAVE_NETX
     WOLFSSL_LOCAL int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx);
     WOLFSSL_LOCAL int NetX_Send(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+    WOLFSSL_LOCAL int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+    WOLFSSL_LOCAL int NetX_SendTo(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 
     WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
+    WOLFSSL_API void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket, 
+                                        NXD_ADDRESS *nxdip, 
+                                        UINT16* nxport, 
+                                        ULONG waitoption);
 #endif /* HAVE_NETX */
 
 #ifdef MICRIUM

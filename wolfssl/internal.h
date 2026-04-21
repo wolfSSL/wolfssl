@@ -5680,10 +5680,13 @@ typedef struct DtlsMsg {
 
     /* NETX I/O Callback default */
     typedef struct NetX_Ctx {
-        NX_TCP_SOCKET* nxSocket;    /* send/recv socket handle */
+        NX_TCP_SOCKET* nxTcpSocket; /* send/recv tcp socket handle */
+        NX_UDP_SOCKET* nxUdpSocket; /* send/recv udp socket handle */
         NX_PACKET*     nxPacket;    /* incoming packet handle for short reads */
         ULONG          nxOffset;    /* offset already read from nxPacket */
         ULONG          nxWait;      /* wait option flag */
+        NXD_ADDRESS*   nxdIp;       /* IP address for udp send*/
+        UINT16*        nxPort;      /* Port number for udp recv*/
     } NetX_Ctx;
 
 #endif
