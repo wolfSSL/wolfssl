@@ -42,6 +42,7 @@ int test_wolfSSL_CRL_static_revoked_list(void);
 int test_wolfSSL_CRL_duplicate_extensions(void);
 int test_wolfSSL_CRL_critical_idp(void);
 int test_wolfSSL_CRL_unknown_critical_ext(void);
+int test_wolfSSL_CRL_unknown_critical_entry_ext(void);
 int test_wolfSSL_CertManagerCheckOCSPResponse(void);
 int test_various_pathlen_chains(void);
 int test_wolfSSL_CertManagerRejectMD5Cert(void);
@@ -65,6 +66,7 @@ int test_wolfSSL_CertManagerRejectMD5Cert(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_duplicate_extensions),      \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_critical_idp),             \
     TEST_DECL_GROUP("certman", test_wolfSSL_CRL_unknown_critical_ext),     \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CRL_unknown_critical_entry_ext), \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCheckOCSPResponse),  \
     TEST_DECL_GROUP("certman", test_various_pathlen_chains),                \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerRejectMD5Cert)

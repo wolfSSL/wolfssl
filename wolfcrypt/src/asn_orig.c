@@ -9113,18 +9113,17 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
         XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         return ret;
     }
-    /* add to list */
-    rc->next = dcrl->certs;
-    dcrl->certs = rc;
 
     (void)rcert;
 #endif /* CRL_STATIC_REVOKED_LIST */
-    dcrl->totalCerts++;
     /* get date */
 #ifndef NO_ASN_TIME
     ret = GetBasicDate(buff, idx, rc->revDate, &rc->revDateFormat, maxIdx);
     if (ret < 0) {
         WOLFSSL_MSG("Expecting Date");
+#ifndef CRL_STATIC_REVOKED_LIST
+        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
         return ret;
     }
 #endif
@@ -9158,10 +9157,29 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
                 }
 #endif
 
-                ParseCRL_ReasonCode(buff, seqIdx, extEnd, &rc->reasonCode);
+                ret = ParseCRL_EntryExtensions(buff, seqIdx, extEnd,
+                    &rc->reasonCode);
+                if (ret != 0) {
+#if defined(OPENSSL_EXTRA)
+                    XFREE(rc->extensions, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+                    rc->extensions = NULL;
+                    rc->extensionsSz = 0;
+#endif
+#ifndef CRL_STATIC_REVOKED_LIST
+                    XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
+                    return ret;
+                }
             }
         }
     }
+
+#ifndef CRL_STATIC_REVOKED_LIST
+    /* add to list only after all parsing succeeded */
+    rc->next = dcrl->certs;
+    dcrl->certs = rc;
+#endif
+    dcrl->totalCerts++;
 
     *idx = end;
 
