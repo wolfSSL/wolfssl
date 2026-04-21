@@ -97,6 +97,7 @@ typedef enum {
 /* holds information about the signers */
 struct PKCS7SignerInfo {
     int version;
+    int sidType;    /* CMS_ISSUER_AND_SERIAL_NUMBER or CMS_SKID */
     byte  *sid;
     word32 sidSz;
 };
@@ -4292,6 +4293,94 @@ int wc_PKCS7_SetEccSignRawDigestCb(wc_PKCS7* pkcs7, CallbackEccSignRawDigest cb)
 #endif /* HAVE_ECC */
 
 
+#if !defined(NO_RSA) || defined(HAVE_ECC)
+/* Check whether the given decoded certificate matches the SignerIdentifier
+ * (sid) field of the currently parsed SignerInfo. Per RFC 5652 Section 5.3,
+ * the sid selects which certificate's public key must be used to verify the
+ * signature. Returns 1 on match, 0 on no match or when the sid is not
+ * available for comparison. */
+static int wc_PKCS7_CertMatchesSignerInfo(wc_PKCS7* pkcs7, DecodedCert* dCert)
+{
+    PKCS7SignerInfo* signerInfo;
+
+    if (pkcs7 == NULL || dCert == NULL)
+        return 0;
+
+    signerInfo = pkcs7->signerInfo;
+    if (signerInfo == NULL || signerInfo->sid == NULL ||
+            signerInfo->sidSz == 0) {
+        /* No SID parsed, cannot perform an identity binding check. */
+        return 0;
+    }
+
+    if (signerInfo->sidType == CMS_ISSUER_AND_SERIAL_NUMBER) {
+        /* IssuerAndSerialNumber: SID blob stores the content of the outer
+         * SEQUENCE (issuer Name followed by INTEGER serialNumber). */
+        word32 idx = 0;
+        byte sidIssuerHash[KEYID_SIZE];
+        WC_DECLARE_VAR(sidSerial, mp_int, 1, pkcs7->heap);
+        WC_DECLARE_VAR(certSerial, mp_int, 1, pkcs7->heap);
+        int cmp;
+        int match = 0;
+
+        if (GetNameHash_ex(signerInfo->sid, &idx, sidIssuerHash,
+                (int)signerInfo->sidSz, dCert->signatureOID) < 0) {
+            return 0;
+        }
+        if (XMEMCMP(sidIssuerHash, dCert->issuerHash, KEYID_SIZE) != 0)
+            return 0;
+
+        WC_ALLOC_VAR_EX(sidSerial, mp_int, 1, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER,
+            { return 0; });
+        WC_ALLOC_VAR_EX(certSerial, mp_int, 1, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER,
+            { WC_FREE_VAR_EX(sidSerial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+              return 0; });
+
+        if (mp_init(sidSerial) != MP_OKAY) {
+            WC_FREE_VAR_EX(sidSerial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(certSerial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return 0;
+        }
+        if (mp_init(certSerial) != MP_OKAY) {
+            mp_clear(sidSerial);
+            WC_FREE_VAR_EX(sidSerial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(certSerial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return 0;
+        }
+
+        if (GetInt(sidSerial, signerInfo->sid, &idx, signerInfo->sidSz) == 0 &&
+                mp_read_unsigned_bin(certSerial, dCert->serial,
+                                     (word32)dCert->serialSz) == MP_OKAY) {
+            cmp = mp_cmp(sidSerial, certSerial);
+            if (cmp == MP_EQ)
+                match = 1;
+        }
+
+        mp_clear(sidSerial);
+        mp_clear(certSerial);
+        WC_FREE_VAR_EX(sidSerial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(certSerial, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return match;
+    }
+    else if (signerInfo->sidType == CMS_SKID) {
+        /* SubjectKeyIdentifier: SID blob is the raw SKID octet string
+         * content. Normalize the same way the certificate side does so
+         * that comparisons between SHA-1 SKIDs and other lengths match. */
+        byte sidKid[KEYID_SIZE];
+
+        if (GetHashId(signerInfo->sid, (int)signerInfo->sidSz, sidKid,
+                      HashIdAlg(dCert->signatureOID)) != 0) {
+            return 0;
+        }
+        if (XMEMCMP(sidKid, dCert->extSubjKeyId, KEYID_SIZE) == 0)
+            return 1;
+        return 0;
+    }
+
+    return 0;
+}
+#endif /* !NO_RSA || HAVE_ECC */
+
 #ifndef NO_RSA
 
 /* returns size of signature put into out, negative on error */
@@ -4366,6 +4455,31 @@ static int wc_PKCS7_RsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
             WOLFSSL_MSG("ASN RSA cert parse error");
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        /* If the SignerInfo sid was parsed, only try the certificate whose
+         * identity matches it. This binds the verifying public key to the
+         * signer identity advertised in the CMS message and prevents signer
+         * confusion when multiple certificates are embedded. */
+        if (pkcs7->signerInfo != NULL && pkcs7->signerInfo->sid != NULL &&
+                !wc_PKCS7_CertMatchesSignerInfo(pkcs7, dCert)) {
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        /* Defense in depth: the sid-matched cert must actually carry an
+         * RSA-family key before we feed its SPKI to the RSA key decoder.
+         * Rejecting here avoids depending on wc_RsaPublicKeyDecode to reject
+         * wrong-type SPKIs. */
+        if (dCert->keyOID != RSAk
+        #ifdef WC_RSA_PSS
+                && dCert->keyOID != RSAPSSk
+        #endif
+                ) {
             FreeDecodedCert(dCert);
             wc_FreeRsaKey(key);
             continue;
@@ -4476,6 +4590,24 @@ static int wc_PKCS7_RsaPssVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        /* Only try the certificate identified by the SignerInfo sid (see
+         * matching comment in wc_PKCS7_RsaVerify). */
+        if (pkcs7->signerInfo != NULL && pkcs7->signerInfo->sid != NULL &&
+                !wc_PKCS7_CertMatchesSignerInfo(pkcs7, dCert)) {
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        /* Defense in depth: reject non-RSA SPKIs before key decode. RSA
+         * rsaEncryption certs (keyOID=RSAk) are accepted for PSS signatures
+         * per RFC 8017 - a RSASSA-PSS cert is not required. */
+        if (dCert->keyOID != RSAk && dCert->keyOID != RSAPSSk) {
             FreeDecodedCert(dCert);
             wc_FreeRsaKey(key);
             continue;
@@ -4641,6 +4773,22 @@ static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
             WOLFSSL_MSG("ASN ECC cert parse error");
+            FreeDecodedCert(dCert);
+            wc_ecc_free(key);
+            continue;
+        }
+
+        /* Only try the certificate identified by the SignerInfo sid (see
+         * matching comment in wc_PKCS7_RsaVerify). */
+        if (pkcs7->signerInfo != NULL && pkcs7->signerInfo->sid != NULL &&
+                !wc_PKCS7_CertMatchesSignerInfo(pkcs7, dCert)) {
+            FreeDecodedCert(dCert);
+            wc_ecc_free(key);
+            continue;
+        }
+
+        /* Defense in depth: reject non-ECDSA SPKIs before key decode. */
+        if (dCert->keyOID != ECDSAk) {
             FreeDecodedCert(dCert);
             wc_ecc_free(key);
             continue;
@@ -5359,11 +5507,16 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 ret = ASN_PARSE_E;
 
             if (ret == 0) {
+                pkcs7->signerInfo->sidType = CMS_ISSUER_AND_SERIAL_NUMBER;
                 ret = wc_PKCS7_SignerInfoSetSID(pkcs7, in + idx, length);
                 idx += (word32)length;
             }
 
         } else if (ret == 0 && version == 3) {
+            /* Default: SignerInfo version 3 carries SubjectKeyIdentifier.
+             * May be overridden below if the parser instead finds a
+             * SEQUENCE (IssuerAndSerialNumber fallback). */
+            pkcs7->signerInfo->sidType = CMS_SKID;
             /* Get the sequence of SubjectKeyIdentifier */
             if (idx + 1 > inSz)
                 ret = BUFFER_E;
@@ -5406,6 +5559,12 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
                     if (ret == 0 && GetSequence(in, &idx, &length, inSz) < 0)
                         ret = ASN_PARSE_E;
+
+                    if (ret == 0) {
+                        /* v3 carrying IssuerAndSerialNumber fallback */
+                        pkcs7->signerInfo->sidType =
+                                CMS_ISSUER_AND_SERIAL_NUMBER;
+                    }
                 }
             }
 
