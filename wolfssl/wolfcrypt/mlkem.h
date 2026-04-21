@@ -301,9 +301,13 @@ enum {
     WC_ML_KEM_ENC_RAND_SZ       = WC_ML_KEM_SYM_SZ,
 
     /* Encoded polynomial size. */
-    WC_ML_KEM_POLY_SIZE         = 384,
+    WC_ML_KEM_POLY_SIZE         = 384
 };
 
+#ifdef WOLF_PRIVATE_KEY_ID
+    #define MLKEM_MAX_ID_LEN    32
+    #define MLKEM_MAX_LABEL_LEN 32
+#endif
 
 /* Different structures for different implementations. */
 typedef struct MlKemKey MlKemKey;
@@ -319,6 +323,12 @@ WOLFSSL_API int  wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
 WOLFSSL_API int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap,
     int devId);
 WOLFSSL_API int wc_MlKemKey_Free(MlKemKey* key);
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_WC_MLKEM)
+WOLFSSL_API int wc_MlKemKey_Init_Id(MlKemKey* key, int type,
+    const unsigned char* id, int len, void* heap, int devId);
+WOLFSSL_API int wc_MlKemKey_Init_Label(MlKemKey* key, int type,
+    const char* label, void* heap, int devId);
+#endif
 
 WOLFSSL_API int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng);
 WOLFSSL_API int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key,
@@ -352,6 +362,10 @@ WOLFSSL_API int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out,
 #define wc_KyberKey_Init(type, key, heap, devId) \
         wc_MlKemKey_Init(key, type, heap, devId)
 #define wc_KyberKey_Free                    wc_MlKemKey_Free
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WOLFSSL_WC_MLKEM)
+#define wc_KyberKey_Init_Id                 wc_MlKemKey_Init_Id
+#define wc_KyberKey_Init_Label              wc_MlKemKey_Init_Label
+#endif
 #define wc_KyberKey_MakeKey                 wc_MlKemKey_MakeKey
 #define wc_KyberKey_MakeKeyWithRandom       wc_MlKemKey_MakeKeyWithRandom
 #define wc_KyberKey_CipherTextSize          wc_MlKemKey_CipherTextSize
@@ -374,4 +388,3 @@ WOLFSSL_API int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out,
 #endif /* WOLFSSL_HAVE_MLKEM */
 
 #endif /* WOLF_CRYPT_MLKEM_H */
-

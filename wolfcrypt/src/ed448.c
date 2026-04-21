@@ -152,7 +152,7 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
 {
     int ret;
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
-    wc_Shake sha[1];
+    WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
 #else
     wc_Shake *sha;
 #endif
@@ -165,10 +165,16 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
     sha = &key->sha;
     ret = ed448_hash_reset(key);
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Shake, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed448_hash_init(key, sha);
 #endif
-    if (ret < 0)
+    if (ret < 0) {
+    #ifndef WOLFSSL_ED448_PERSISTENT_SHA
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+    #endif
         return ret;
+    }
 
     ret = ed448_hash_update(key, sha, in, inLen);
     if (ret == 0)
@@ -176,6 +182,7 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
 
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
     ed448_hash_free(key, sha);
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
 
     return ret;
@@ -358,6 +365,9 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
     byte     orig_k[ED448_KEY_SIZE];
 #endif
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+    WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
+#endif
 
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL) ||
@@ -366,6 +376,14 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->privKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE))
+    {
+        ret = BAD_LENGTH_E;
     }
 
     /* check and set up out length */
@@ -389,8 +407,10 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
         wc_Shake *sha = &key->sha;
 #else
-        wc_Shake sha[1];
-        ret = ed448_hash_init(key, sha);
+        WC_ALLOC_VAR_EX(sha, wc_Shake, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                        ret = MEMORY_E);
+        if (ret == 0)
+            ret = ed448_hash_init(key, sha);
 #endif
         /* apply clamp */
         az[0]  &= 0xfc;
@@ -426,7 +446,6 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
         wc_Shake *sha = &key->sha;
 #else
-        wc_Shake sha[1];
         ret = ed448_hash_init(key, sha);
 #endif
         if (ret == 0)
@@ -468,6 +487,9 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         ed448_hash_free(key, sha);
 #endif
     }
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#endif
 
     if (ret == 0) {
         sc448_reduce(hram);
@@ -708,6 +730,18 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     if (i == -1)
         return BAD_FUNC_ARG;
 
+    /* Reject identity public key (0,1): 0x01 followed by 56 zero bytes. */
+    {
+        int isIdentity = (key->p[0] == 0x01);
+        int j;
+        for (j = 1; j < ED448_PUB_KEY_SIZE && isIdentity; j++) {
+            if (key->p[j] != 0x00)
+                isIdentity = 0;
+        }
+        if (isIdentity)
+            return BAD_FUNC_ARG;
+    }
+
     /* uncompress A (public key), test if valid, and negate it */
     if (ge448_from_bytes_negate_vartime(&A, key->p) != 0)
         return BAD_FUNC_ARG;
@@ -787,18 +821,28 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     wc_Shake *sha;
 #else
-    wc_Shake sha[1];
+    WC_DECLARE_VAR(sha, wc_Shake, 1, key ? key->heap : NULL);
 #endif
 
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+    if ((type == Ed448ph) &&
+        (msgLen != ED448_PREHASH_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     sha = &key->sha;
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Shake, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed448_hash_init(key, sha);
-    if (ret < 0)
+    if (ret < 0) {
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
         return ret;
+    }
 #endif
 
     ret = ed448_verify_msg_init_with_sha(sig, sigLen, key, sha,
@@ -810,6 +854,7 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 
 #ifndef WOLFSSL_ED448_PERSISTENT_SHA
     ed448_hash_free(key, sha);
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
 
     return ret;
@@ -1332,14 +1377,28 @@ int wc_ed448_check_key(ed448_key* key)
     }
     /* No private key, check Y is valid. */
     else if ((ret == 0) && (!key->privKeySet)) {
-        /* Verify that Q is not identity element 0.
-         * 0 has no representation for Ed448. */
+        /* Reject the identity element (0, 1).
+         * Encoding: 0x01 followed by 56 zero bytes. */
+        {
+            int isIdentity = 1;
+            int i;
+            if (key->p[0] != 0x01)
+                isIdentity = 0;
+            for (i = 1; i < ED448_PUB_KEY_SIZE && isIdentity; i++) {
+                if (key->p[i] != 0x00)
+                    isIdentity = 0;
+            }
+            if (isIdentity) {
+                WOLFSSL_MSG("Ed448 public key is the identity element");
+                ret = PUBLIC_KEY_E;
+            }
+        }
 
         /* Verify that xQ and yQ are integers in the interval [0, p - 1].
          * Only have yQ so check that ordinate.
          * p = 2^448-2^224-1 = 0xff..fe..ff
          */
-        {
+        if (ret == 0) {
             int i;
             ret = PUBLIC_KEY_E;
 

@@ -38,6 +38,7 @@ jobs:
         with:
           repository: wolfssl/wolfsm
           path: wolfsm
+          fetch-depth: 1
 
       - name: Install wolfsm
         working-directory: wolfsm
@@ -47,7 +48,7 @@ jobs:
         run: |
           ./autogen.sh
           ./configure ${{ matrix.config }}
-          make
+          make -j
           make check
 
       - name: Print errors

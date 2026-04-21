@@ -136,16 +136,11 @@ static unsigned int hash_span(const u8 *start, const u8 *end, unsigned int sum) 
     return sum;
 }
 
-#ifdef WC_SYM_RELOC_TABLES
 struct wc_reloc_counts reloc_counts = {};
-#endif
 
 #endif /* DEBUG_LINUXKM_PIE_SUPPORT */
 
-#ifdef WC_SYM_RELOC_TABLES
-extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
-#endif /* WC_SYM_RELOC_TABLES */
 
 #ifdef HAVE_FIPS
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
@@ -930,8 +925,11 @@ static int wolfssl_init(void)
     #endif
 
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
-    for (i = 0; i < FIPS_CAST_COUNT; ++i)
-        fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+    {
+        int i;
+        for (i = 0; i < FIPS_CAST_COUNT; ++i)
+            fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+    }
     /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
      * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
      * anymore.
@@ -1733,9 +1731,11 @@ static int updateFipsHash(void)
         FIPS_IN_CORE_DIGEST_SIZE,
         coreKey,
         desc,
+        /* NOLINTBEGIN(clang-diagnostic-cast-function-type-strict) */
         (wc_fips_verifyCore_hmac_setkey_fn)linux_fips_hmac_setkey,
         (wc_fips_verifyCore_hmac_update_fn)linux_fips_hmac_update,
         (wc_fips_verifyCore_hmac_final_fn)linux_fips_hmac_final,
+        /* NOLINTEND(clang-diagnostic-cast-function-type-strict) */
         verifyCore,
         &verifyCore_size,
 #if defined(DEBUG_LINUXKM_PIE_SUPPORT) && defined(WC_SYM_RELOC_TABLES)

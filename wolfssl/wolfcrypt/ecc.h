@@ -84,13 +84,6 @@
     WOLFSSL_LOCAL int wolfCrypt_FIPS_ECC_sanity(void);
 #endif
 
-/* Enable curve B parameter if needed */
-#if defined(HAVE_COMP_KEY) || defined(ECC_CACHE_CURVE)
-    #ifndef USE_ECC_B_PARAM /* Allow someone to force enable */
-        #define USE_ECC_B_PARAM
-    #endif
-#endif
-
 
 /* Use this as the key->idx if a custom ecc_set is used for key->dp */
 #define ECC_CUSTOM_IDX    (-1)
@@ -769,7 +762,7 @@ int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId);
 #endif
 #ifdef WOLFSSL_CUSTOM_CURVES
 WOLFSSL_LOCAL
-void wc_ecc_free_curve(const ecc_set_type* curve, void* heap);
+void wc_ecc_free_curve(ecc_set_type* curve, void* heap);
 #endif
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_free(ecc_key* key);

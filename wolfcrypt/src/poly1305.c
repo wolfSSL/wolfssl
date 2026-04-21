@@ -38,6 +38,14 @@ and Daniel J. Bernstein
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+/*
+ * Poly1305 Build Options:
+ *
+ * HAVE_POLY1305:            Enable Poly1305 authenticator          default: off
+ * POLY130564:               Use 64-bit Poly1305 implementation    default: auto
+ * USE_INTEL_POLY1305_SPEEDUP: Intel AVX/AVX2 Poly1305 accel      default: off
+ */
+
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
@@ -100,10 +108,10 @@ static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
     #if defined(_MSC_VER) && !(__WATCOMC__)
         #include <intrin.h>
 
-        typedef struct word128 {
+        typedef struct poly1305_word128 {
             word64 lo;
             word64 hi;
-        } word128;
+        } poly1305_word128;
 
         #define MUL(out, x, y) out.lo = _umul128((x), (y), &out.hi)
         #define ADD(out, in) { word64 t = out.lo; out.lo += in.lo; \
@@ -115,12 +123,12 @@ static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
 
     #elif defined(__GNUC__)
         #if defined(__SIZEOF_INT128__)
-            PEDANTIC_EXTENSION typedef unsigned __int128 word128;
+            PEDANTIC_EXTENSION typedef unsigned __int128 poly1305_word128;
         #else
-            typedef unsigned word128 __attribute__((mode(TI)));
+            typedef unsigned poly1305_word128 __attribute__((mode(TI)));
         #endif
 
-        #define MUL(out, x, y) out = ((word128)(x) * (y))
+        #define MUL(out, x, y) out = ((poly1305_word128)(x) * (y))
         #define ADD(out, in) (out) += (in)
         #define ADDLO(out, in) (out) += (in)
         #define SHR(in, shift) (word64)((in) >> (shift))
@@ -298,7 +306,7 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     word64 s1,s2;
     word64 h0,h1,h2;
     word64 c;
-    word128 d0,d1,d2,d;
+    poly1305_word128 d0,d1,d2,d;
 
     r0 = ctx->r[0];
     r1 = ctx->r[1];

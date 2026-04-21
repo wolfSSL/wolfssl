@@ -51,6 +51,12 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Download lib
         uses: actions/download-artifact@v4
         with:
@@ -64,12 +70,12 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Install dependencies
-        run: |
-            export DEBIAN_FRONTEND=noninteractive
-            sudo apt-get update
-            sudo apt-get install -y libevent-dev libevent-2.1-7 automake pkg-config make libio-socket-ssl-perl
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libevent-dev libevent-2.1-7 automake pkg-config make libio-socket-ssl-perl
 
       - name: Checkout memcached
         uses: actions/checkout@v4
@@ -77,6 +83,7 @@ jobs:
           repository: memcached/memcached
           ref: 1.6.22
           path: memcached
+          fetch-depth: 1
 
       - name: Configure and build memcached
         run: |

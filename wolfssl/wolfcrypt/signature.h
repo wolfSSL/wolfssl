@@ -49,35 +49,35 @@ WOLFSSL_API int wc_SignatureVerifyHash(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* hash_data, word32 hash_len,
     const byte* sig, word32 sig_len,
-    const void* key, word32 key_len);
+    void* key, word32 key_len);
 
 WOLFSSL_API int wc_SignatureVerify(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     const byte* sig, word32 sig_len,
-    const void* key, word32 key_len);
+    void* key, word32 key_len);
 
 WOLFSSL_API int wc_SignatureGenerateHash(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* hash_data, word32 hash_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len, WC_RNG* rng);
+    void* key, word32 key_len, WC_RNG* rng);
 WOLFSSL_API int wc_SignatureGenerateHash_ex(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* hash_data, word32 hash_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len, WC_RNG* rng, int verify);
+    void* key, word32 key_len, WC_RNG* rng, int verify);
 WOLFSSL_API int wc_SignatureGenerate(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len,
+    void* key, word32 key_len,
     WC_RNG* rng);
 WOLFSSL_API int wc_SignatureGenerate_ex(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len,
+    void* key, word32 key_len,
     WC_RNG* rng, int verify);
 
 #ifdef __cplusplus

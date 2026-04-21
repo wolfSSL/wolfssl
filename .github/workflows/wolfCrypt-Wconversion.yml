@@ -18,17 +18,17 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
-          '--enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
-          '--enable-smallstack --disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
-          '--enable-smallstack --enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion" --enable-32bit CFLAGS=-m32',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,small CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,no-large-code CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"',
-          '--enable-smallstack --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"',
-          '--disable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion" --enable-32bit CFLAGS=-m32',
-          '--disable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,small CPPFLAGS="-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"',
+          '--disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
+          '--enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
+          '--enable-smallstack --disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
+          '--enable-smallstack --enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128 -Wcast-qual"',
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual" --enable-32bit CFLAGS=-m32',
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,small CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,no-large-code CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
+          '--enable-smallstack --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
+          '--disable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem CPPFLAGS="-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual" --enable-32bit CFLAGS=-m32',
+          '--disable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,small CPPFLAGS="-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
         ]
     name: build library
     if: github.repository_owner == 'wolfssl'
@@ -39,11 +39,10 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout wolfSSL
 
-      - name: install_multilib
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y gcc-multilib
+      - name: Install multilib
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: gcc-multilib
 
       - name: Build wolfCrypt with extra type conversion warnings
         run: |

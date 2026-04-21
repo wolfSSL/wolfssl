@@ -199,23 +199,29 @@ static int ConvertPemToDer(const byte* pem, word32 pemSz,
                            byte** der, word32* derSz, int type)
 {
     int ret;
-    DerBuffer* derBuf = NULL;
 
-    ret = wc_PemToDer(pem, pemSz, type, &derBuf, NULL, NULL, NULL);
-    if (ret != 0 || derBuf == NULL) {
-        return ret;
-    }
-
-    *der = (byte*)XMALLOC(derBuf->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Allocate buffer large enough for DER (always smaller than PEM) */
+    *der = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*der == NULL) {
-        wc_FreeDer(&derBuf);
         return MEMORY_E;
     }
 
-    XMEMCPY(*der, derBuf->buffer, derBuf->length);
-    *derSz = derBuf->length;
-    wc_FreeDer(&derBuf);
+    if (type == PRIVATEKEY_TYPE) {
+        ret = wc_KeyPemToDer(pem, (int)pemSz, *der, (int)pemSz, NULL);
+    }
+    else {
+        ret = wc_CertPemToDer(pem, (int)pemSz, *der, (int)pemSz, type);
+    }
 
+    if (ret <= 0) {
+        XFREE(*der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *der = NULL;
+        if (ret == 0)
+            ret = BAD_FUNC_ARG;
+        return ret;
+    }
+
+    *derSz = (word32)ret;
     return 0;
 }
 
@@ -428,7 +434,7 @@ static int PopulateResponderFromIndex(OcspResponder* responder,
         word32 serialLen = 0;
         enum Ocsp_Cert_Status status;
         time_t revTime = 0;
-        enum WC_CRL_Reason revReason = CRL_REASON_UNSPECIFIED;
+        enum WC_CRL_Reason revReason = WC_CRL_REASON_UNSPECIFIED;
         word32 validity = 86400;
         char* p = entry->serial;
         word32 i;
@@ -481,7 +487,7 @@ static int PopulateResponderFromIndex(OcspResponder* responder,
         else if (entry->status == 'R') {
             status = CERT_REVOKED;
             revTime = entry->revocationTime;
-            revReason = CRL_REASON_UNSPECIFIED;
+            revReason = WC_CRL_REASON_UNSPECIFIED;
             validity = 0;
         }
         else {

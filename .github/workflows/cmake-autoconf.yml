@@ -9,17 +9,16 @@ on:
 jobs:
   build:
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
 # pull wolfSSL
     - uses: actions/checkout@v4
 
-# install cmake and autotools
-    - name: Install cmake
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake autoconf automake libtool
+    - name: Install cmake and autotools
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: cmake autoconf automake libtool
 
 # build and install wolfssl via autotools for CMake consumer test
     - name: Build wolfssl with autotools

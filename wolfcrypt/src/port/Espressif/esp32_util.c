@@ -1007,6 +1007,7 @@ int show_binary(byte* theVar, size_t dataSz) {
     return 0;
 }
 
+/* Assume toVar is big enough. */
 int hexToBinary(byte* toVar, const char* fromHexString, size_t szHexString ) {
     int ret = 0;
     /* Calculate the actual binary length of the hex string */
@@ -1018,6 +1019,7 @@ int hexToBinary(byte* toVar, const char* fromHexString, size_t szHexString ) {
     }
     if ((szHexString % 2 != 0)) {
         ESP_LOGE("ssh", "fromHexString length not even!");
+        return -1;
     }
 
     ESP_LOGW(TAG, "Replacing %d bytes at %x", byteLen, (word32)toVar);

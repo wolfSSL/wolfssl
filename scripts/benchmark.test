@@ -2,6 +2,21 @@
 
 #benchmark.test
 
+# if we can, isolate the network namespace to eliminate port collisions.
+if [ -n "$NETWORK_UNSHARE_HELPER" ]; then
+     if [ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]; then
+         export NETWORK_UNSHARE_HELPER_CALLED=yes
+         exec "$NETWORK_UNSHARE_HELPER" "$0" "$@" || exit $?
+     fi
+elif [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+    fi
+    unset AM_BWRAPPED
+fi
+
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
                                   && exit 1
 
@@ -45,8 +60,10 @@ remove_ready_file() {
 do_cleanup() {
     echo "in cleanup"
 
-    if  [ $server_pid != $no_pid ]
+    if [ $server_pid != $no_pid ] && kill -0 $server_pid 2>&-
     then
+        # sleep to give sanitizers time to dump backtraces.
+        sleep 1
         echo "killing server"
         kill -9 $server_pid
     fi

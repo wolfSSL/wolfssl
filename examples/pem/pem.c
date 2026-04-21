@@ -39,6 +39,8 @@
 
 #if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM)
 
+static const char *progname;
+
 /* Increment allocated data by this much. */
 #define DATA_INC_LEN        256
 /* Maximum block size of a cipher. */
@@ -554,15 +556,20 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
         if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             ret = 0;
         }
-        else if (ret == 0) {
-            ret = 1;
+        else {
+            fprintf(stderr,
+                    "%s: wc_CreateEncryptedPKCS8Key() with enc_alg_id %d: "
+                    "unexpected retval: %s.\n",
+                    progname, enc_alg_id, wc_GetErrorString(ret));
+            if (ret == 0)
+                ret = 1;
         }
     }
     if (ret == 0) {
         /* Allocate memory for encrypted DER data. */
         *enc = (unsigned char*)XMALLOC(*enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (*enc == NULL) {
-            ret = 1;
+            ret = MEMORY_E;
         }
     }
     if (ret == 0) {
@@ -748,6 +755,13 @@ int main(int argc, char* argv[])
 #ifdef DEBUG_WOLFSSL
     int log = 0;
 #endif
+    int wolfcrypt_inited = 0;
+
+    progname = strrchr(argv[0], '/');
+    if (progname)
+        ++progname;
+    else
+        progname = argv[0];
 
     memset(&info, 0, sizeof(info));
 
@@ -951,6 +965,23 @@ int main(int argc, char* argv[])
     }
 #endif
 
+#ifdef WC_RNG_SEED_CB
+    ret = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
+    if (ret != 0) {
+        fprintf(stderr, "%s: wc_SetSeed_Cb() failed: %s.\n",
+                progname, wc_GetErrorString(ret));
+        exit(1);
+    }
+#endif
+
+    ret = wolfCrypt_Init();
+    if (ret != 0) {
+        fprintf(stderr, "%s: wolfCrypt_Init() failed: %s.\n",
+                progname, wc_GetErrorString(ret));
+        exit(1);
+    }
+    wolfcrypt_inited = 1;
+
     /* Convert PEM type string to value. */
     if (type_str != NULL) {
         ret = StringToType(type_str, &type);
@@ -1037,7 +1068,7 @@ out:
         XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (ret < 0) {
-        fprintf(stderr, "%s\n", wc_GetErrorString(ret));
+        fprintf(stderr, "%s: %s\n", progname, wc_GetErrorString(ret));
     }
 
     if ((in_file != stdin) && (in_file != NULL))
@@ -1045,6 +1076,14 @@ out:
 
     if ((out_file != stdout) && (out_file != NULL))
         (void)fclose(out_file);
+
+    if (wolfcrypt_inited) {
+        ret = wolfCrypt_Cleanup();
+        if (ret != 0) {
+            fprintf(stderr, "%s: wolfCrypt_Cleanup() failed: %s.\n",
+                    progname, wc_GetErrorString(ret));
+        }
+    }
 
     return (ret == 0) ? 0 : 1;
 }

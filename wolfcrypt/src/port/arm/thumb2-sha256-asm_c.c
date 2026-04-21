@@ -41,12 +41,17 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-XALIGNED(16) static const word32 L_SHA256_transform_len_k[] = {
+XALIGNED(8) static const word32 L_SHA256_transform_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -65,7 +70,8 @@ XALIGNED(16) static const word32 L_SHA256_transform_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len_base(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len_base(wc_Sha256* sha256_p, const byte* data_p,
+    word32 len_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256_p,
     const byte* data_p, word32 len_p)
@@ -80,11 +86,9 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
     register word32 len __asm__ ("r2") = (word32)len_p;
     register word32* L_SHA256_transform_len_k_c __asm__ ("r3") =
         (word32*)&L_SHA256_transform_len_k;
-
 #else
     register word32* L_SHA256_transform_len_k_c =
         (word32*)&L_SHA256_transform_len_k;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -2468,9 +2472,15 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
         "BNE.W	L_SHA256_transform_len_begin_%=\n\t"
 #endif
         "ADD	sp, sp, #0xc0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
           [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
         :
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );

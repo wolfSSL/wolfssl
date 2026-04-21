@@ -5768,7 +5768,7 @@ static void slhdsakey_set_ha_from_md(SlhDsaKey* key, const byte* md,
     /* Step 9/12: Mask off any extra high bits. */
     bits = key->params->h  - (key->params->h / key->params->d);
     if (bits < 64) {
-        t[1] &= (1 << (bits - 32)) - 1;
+        t[1] &= ((word32)1 << (bits - 32)) - 1;
     }
 
     /* Step 8/11: Get pointer to tree leaf index data. */
@@ -5777,7 +5777,7 @@ static void slhdsakey_set_ha_from_md(SlhDsaKey* key, const byte* md,
     ato32(p, l);
     /* Step 10/13: Mask off any extra high bits. */
     bits = key->params->h / key->params->d;
-    *l &= (1 << bits) - 1;
+    *l &= ((word32)1 << bits) - 1;
 
     /* Step 11/14: Set the tree index into address. */
     HA_SetTreeAddress(adrs, t);

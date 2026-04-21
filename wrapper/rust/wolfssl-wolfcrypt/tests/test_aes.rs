@@ -863,3 +863,563 @@ fn test_xtsstream_big_msg() {
 
     assert_eq!(plain_out, BIG_MSG);
 }
+
+// ---------------------------------------------------------------------------
+// AES aead trait implementations
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "aead")]
+use aead::{Aead, AeadInPlace, KeyInit, Payload};
+
+/// NIST SP 800-38D, Test Case 2:
+/// Key  = 00000000000000000000000000000000
+/// IV   = 000000000000000000000000
+/// PT   = 00000000000000000000000000000000
+/// AAD  = (empty)
+/// CT   = 0388dace60b6a392f328c2b971b2fe78
+/// Tag  = ab6e47d42cec13bdf53a67b21257bddf
+#[test]
+#[cfg(all(feature = "aead", aes_gcm))]
+fn test_aes128gcm_nist_tc2_encrypt() {
+    let key = [0u8; 16];
+    let nonce = [0u8; 12];
+    let expected_ciphertext = [
+        0x03u8, 0x88, 0xda, 0xce, 0x60, 0xb6, 0xa3, 0x92,
+        0xf3, 0x28, 0xc2, 0xb9, 0x71, 0xb2, 0xfe, 0x78,
+    ];
+    let expected_tag = [
+        0xabu8, 0x6e, 0x47, 0xd4, 0x2c, 0xec, 0x13, 0xbd,
+        0xf5, 0x3a, 0x67, 0xb2, 0x12, 0x57, 0xbd, 0xdf,
+    ];
+
+    let cipher = Aes128Gcm::new_from_slice(&key).unwrap();
+    let nonce_arr: aead::Nonce<Aes128Gcm> = nonce.into();
+    let mut buffer = [0u8; 16];
+    let tag = cipher
+        .encrypt_in_place_detached(&nonce_arr, &[], &mut buffer)
+        .expect("AES-128-GCM encrypt failed");
+
+    assert_eq!(buffer, expected_ciphertext);
+    assert_eq!(&tag[..], &expected_tag);
+}
+
+#[test]
+#[cfg(all(feature = "aead", aes_gcm))]
+fn test_aes128gcm_nist_tc2_decrypt() {
+    let key = [0u8; 16];
+    let nonce = [0u8; 12];
+    let mut ciphertext = [
+        0x03u8, 0x88, 0xda, 0xce, 0x60, 0xb6, 0xa3, 0x92,
+        0xf3, 0x28, 0xc2, 0xb9, 0x71, 0xb2, 0xfe, 0x78,
+    ];
+    let tag_bytes = [
+        0xabu8, 0x6e, 0x47, 0xd4, 0x2c, 0xec, 0x13, 0xbd,
+        0xf5, 0x3a, 0x67, 0xb2, 0x12, 0x57, 0xbd, 0xdf,
+    ];
+
+    let cipher = Aes128Gcm::new_from_slice(&key).unwrap();
+    let nonce_arr: aead::Nonce<Aes128Gcm> = nonce.into();
+    let tag: aead::Tag<Aes128Gcm> = tag_bytes.into();
+    cipher
+        .decrypt_in_place_detached(&nonce_arr, &[], &mut ciphertext, &tag)
+        .expect("AES-128-GCM decrypt failed");
+
+    assert_eq!(ciphertext, [0u8; 16]);
+}
+
+/// Test AES-128-GCM roundtrip using the `aead::Aead` blanket impl.
+#[test]
+#[cfg(all(feature = "aead", aes_gcm))]
+fn test_aes128gcm_aead_roundtrip() {
+    let key = [0x42u8; 16];
+    let nonce_bytes = [0x11u8; 12];
+    let aad = b"associated data";
+    let plaintext = b"Hello, AEAD world!";
+
+    let cipher = Aes128Gcm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes128Gcm> = nonce_bytes.into();
+
+    let ciphertext = cipher
+        .encrypt(&nonce, Payload { msg: plaintext, aad })
+        .expect("AES-128-GCM Aead::encrypt failed");
+
+    let recovered = cipher
+        .decrypt(&nonce, Payload { msg: &ciphertext, aad })
+        .expect("AES-128-GCM Aead::decrypt failed");
+
+    assert_eq!(recovered, plaintext);
+}
+
+/// Verify that decryption rejects a tampered tag.
+#[test]
+#[cfg(all(feature = "aead", aes_gcm))]
+fn test_aes128gcm_reject_bad_tag() {
+    let key = [0u8; 16];
+    let nonce_bytes = [0u8; 12];
+    let plaintext = b"some plaintext!";
+
+    let cipher = Aes128Gcm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes128Gcm> = nonce_bytes.into();
+
+    let mut ct = cipher.encrypt(&nonce, plaintext.as_ref()).expect("encrypt failed");
+    let last = ct.len() - 1;
+    ct[last] ^= 0xff;
+    assert!(cipher.decrypt(&nonce, ct.as_slice()).is_err());
+}
+
+/// NIST SP 800-38D, Test Case 14 (256-bit key):
+/// Key  = feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308
+/// IV   = cafebabefacedbaddecaf888
+/// PT   = d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a7
+///        21c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39 (60 B)
+/// AAD  = feedfacedeadbeeffeedfacedeadbeefabaddad2
+/// CT   = 522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1a
+///        a8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0a (60 B)
+/// Tag  = 76fc6ece0f4e1768cddf8853bb2d551b
+#[test]
+#[cfg(all(feature = "aead", aes_gcm))]
+fn test_aes256gcm_nist_tc14_encrypt() {
+    let key = [
+        0xfeu8, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
+        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
+    ];
+    let nonce = [
+        0xcau8, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
+        0xde, 0xca, 0xf8, 0x88,
+    ];
+    let aad = [
+        0xfeu8, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xab, 0xad, 0xda, 0xd2,
+    ];
+    let plaintext = [
+        0xd9u8, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
+        0xa5, 0x59, 0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a,
+        0x86, 0xa7, 0xa9, 0x53, 0x15, 0x34, 0xf7, 0xda,
+        0x2e, 0x4c, 0x30, 0x3d, 0x8a, 0x31, 0x8a, 0x72,
+        0x1c, 0x3c, 0x0c, 0x95, 0x95, 0x68, 0x09, 0x53,
+        0x2f, 0xcf, 0x0e, 0x24, 0x49, 0xa6, 0xb5, 0x25,
+        0xb1, 0x6a, 0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57,
+        0xba, 0x63, 0x7b, 0x39,
+    ];
+    let expected_ciphertext = [
+        0x52u8, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
+        0xf4, 0x7f, 0x37, 0xa3, 0x2a, 0x84, 0x42, 0x7d,
+        0x64, 0x3a, 0x8c, 0xdc, 0xbf, 0xe5, 0xc0, 0xc9,
+        0x75, 0x98, 0xa2, 0xbd, 0x25, 0x55, 0xd1, 0xaa,
+        0x8c, 0xb0, 0x8e, 0x48, 0x59, 0x0d, 0xbb, 0x3d,
+        0xa7, 0xb0, 0x8b, 0x10, 0x56, 0x82, 0x88, 0x38,
+        0xc5, 0xf6, 0x1e, 0x63, 0x93, 0xba, 0x7a, 0x0a,
+        0xbc, 0xc9, 0xf6, 0x62,
+    ];
+    let expected_tag = [
+        0x76u8, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
+        0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b,
+    ];
+
+    let cipher = Aes256Gcm::new_from_slice(&key).unwrap();
+    let nonce_arr: aead::Nonce<Aes256Gcm> = nonce.into();
+    let mut buffer = plaintext;
+    let tag = cipher
+        .encrypt_in_place_detached(&nonce_arr, &aad, &mut buffer)
+        .expect("AES-256-GCM encrypt failed");
+
+    assert_eq!(buffer, expected_ciphertext);
+    assert_eq!(&tag[..], &expected_tag);
+}
+
+/// Roundtrip test for AES-256-GCM using `aead::Aead`.
+#[test]
+#[cfg(all(feature = "aead", aes_gcm))]
+fn test_aes256gcm_aead_roundtrip() {
+    let key = [0xabu8; 32];
+    let nonce_bytes = [0xbcu8; 12];
+    let aad = b"test aad";
+    let plaintext = b"AES-256-GCM roundtrip test";
+
+    let cipher = Aes256Gcm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes256Gcm> = nonce_bytes.into();
+
+    let ciphertext = cipher
+        .encrypt(&nonce, Payload { msg: plaintext, aad })
+        .expect("encrypt failed");
+
+    let recovered = cipher
+        .decrypt(&nonce, Payload { msg: &ciphertext, aad })
+        .expect("decrypt failed");
+
+    assert_eq!(recovered, plaintext);
+}
+
+/// Roundtrip test for AES-128-CCM using `aead::Aead`.
+#[test]
+#[cfg(all(feature = "aead", aes_ccm))]
+fn test_aes128ccm_aead_roundtrip() {
+    let key = [0x01u8; 16];
+    let nonce_bytes = [0x02u8; 12];
+    let aad = b"ccm aad";
+    let plaintext = b"AES-128-CCM plaintext!";
+
+    let cipher = Aes128Ccm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes128Ccm> = nonce_bytes.into();
+
+    let ciphertext = cipher
+        .encrypt(&nonce, Payload { msg: plaintext, aad })
+        .expect("AES-128-CCM encrypt failed");
+
+    let recovered = cipher
+        .decrypt(&nonce, Payload { msg: &ciphertext, aad })
+        .expect("AES-128-CCM decrypt failed");
+
+    assert_eq!(recovered, plaintext);
+}
+
+/// Verify that AES-128-CCM decryption rejects a tampered ciphertext.
+#[test]
+#[cfg(all(feature = "aead", aes_ccm))]
+fn test_aes128ccm_reject_tampered() {
+    let key = [0x01u8; 16];
+    let nonce_bytes = [0x02u8; 12];
+    let plaintext = b"AES-128-CCM tamper test!";
+
+    let cipher = Aes128Ccm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes128Ccm> = nonce_bytes.into();
+
+    let mut ct = cipher.encrypt(&nonce, plaintext.as_ref()).expect("encrypt failed");
+    ct[0] ^= 0x01;
+    assert!(cipher.decrypt(&nonce, ct.as_slice()).is_err());
+}
+
+/// Roundtrip test for AES-256-CCM using `aead::Aead`.
+#[test]
+#[cfg(all(feature = "aead", aes_ccm))]
+fn test_aes256ccm_aead_roundtrip() {
+    let key = [0xddu8; 32];
+    let nonce_bytes = [0xeeu8; 12];
+    let aad = b"aes-256-ccm test";
+    let plaintext = b"AES-256-CCM plaintext data";
+
+    let cipher = Aes256Ccm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes256Ccm> = nonce_bytes.into();
+
+    let ciphertext = cipher
+        .encrypt(&nonce, Payload { msg: plaintext, aad })
+        .expect("AES-256-CCM encrypt failed");
+
+    let recovered = cipher
+        .decrypt(&nonce, Payload { msg: &ciphertext, aad })
+        .expect("AES-256-CCM decrypt failed");
+
+    assert_eq!(recovered, plaintext);
+}
+
+// ---------------------------------------------------------------------------
+// AES cipher crate trait tests
+// ---------------------------------------------------------------------------
+
+/// Test AES-128-ECB encryption against the known test vector used in the
+/// existing `test_ecb_encrypt_decrypt` test.
+#[test]
+#[cfg(all(feature = "cipher", aes_ecb))]
+fn test_aes128_ecb_enc_block_encrypt() {
+    use cipher::{BlockModeEncrypt, KeyInit};
+    use wolfssl_wolfcrypt::aes::Aes128EcbEnc;
+
+    let key: [u8; 16] = *b"0123456789abcdef";
+    let plaintext: [u8; 16] = [
+        0x6e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
+        0x68, 0x65, 0x20, 0x74, 0x69, 0x6d, 0x65, 0x20,
+    ];
+    let expected: [u8; 16] = [
+        0xd0, 0xc9, 0xd9, 0xc9, 0x40, 0xe8, 0x97, 0xb6,
+        0xc8, 0x8c, 0x33, 0x3b, 0xb5, 0x8f, 0x85, 0xd1,
+    ];
+
+    let mut enc = Aes128EcbEnc::new_from_slice(&key).expect("key init failed");
+    let mut block = cipher::Block::<Aes128EcbEnc>::try_from(&plaintext[..]).unwrap();
+    enc.encrypt_block(&mut block);
+    assert_eq!(block.as_slice(), &expected);
+}
+
+/// Test AES-128-ECB decryption matches the plaintext after encryption.
+#[test]
+#[cfg(all(feature = "cipher", aes_ecb))]
+fn test_aes128_ecb_dec_block_decrypt() {
+    use cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyInit};
+    use wolfssl_wolfcrypt::aes::{Aes128EcbDec, Aes128EcbEnc};
+
+    let key: [u8; 16] = *b"0123456789abcdef";
+    let plaintext: [u8; 16] = [
+        0x6e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
+        0x68, 0x65, 0x20, 0x74, 0x69, 0x6d, 0x65, 0x20,
+    ];
+
+    let mut enc = Aes128EcbEnc::new_from_slice(&key).expect("enc init failed");
+    let mut dec = Aes128EcbDec::new_from_slice(&key).expect("dec init failed");
+
+    let mut block = cipher::Block::<Aes128EcbEnc>::try_from(&plaintext[..]).unwrap();
+    enc.encrypt_block(&mut block);
+
+    let mut block2 = cipher::Block::<Aes128EcbDec>::try_from(block.as_slice()).unwrap();
+    dec.decrypt_block(&mut block2);
+
+    assert_eq!(block2.as_slice(), &plaintext);
+}
+
+/// Test AES-256-ECB encryption and decryption roundtrip.
+#[test]
+#[cfg(all(feature = "cipher", aes_ecb))]
+fn test_aes256_ecb_roundtrip() {
+    use cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyInit};
+    use wolfssl_wolfcrypt::aes::{Aes256EcbDec, Aes256EcbEnc};
+
+    let key = [0xabu8; 32];
+    let plaintext = [0x5cu8; 16];
+
+    let mut enc = Aes256EcbEnc::new_from_slice(&key).expect("enc init failed");
+    let mut dec = Aes256EcbDec::new_from_slice(&key).expect("dec init failed");
+
+    let mut block = cipher::Block::<Aes256EcbEnc>::try_from(&plaintext[..]).unwrap();
+    enc.encrypt_block(&mut block);
+    assert_ne!(block.as_slice(), &plaintext, "encrypted block should differ from plaintext");
+
+    let mut block2 = cipher::Block::<Aes256EcbDec>::try_from(block.as_slice()).unwrap();
+    dec.decrypt_block(&mut block2);
+    assert_eq!(block2.as_slice(), &plaintext);
+}
+
+/// Test AES-128-CTR `apply_keystream` against the NIST CTR test vector.
+#[test]
+#[cfg(all(feature = "cipher", aes_ctr))]
+fn test_aes128_ctr_apply_keystream() {
+    use cipher::{KeyIvInit, StreamCipher};
+    use wolfssl_wolfcrypt::aes::Aes128Ctr;
+
+    let key: [u8; 16] = [
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
+    ];
+    let iv: [u8; 16] = [
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+        0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+    ];
+    let plaintext: [u8; 64] = [
+        0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+        0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
+        0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c,
+        0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
+        0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11,
+        0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
+        0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
+        0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
+    ];
+    let expected_ciphertext: [u8; 64] = [
+        0x87, 0x4d, 0x61, 0x91, 0xb6, 0x20, 0xe3, 0x26,
+        0x1b, 0xef, 0x68, 0x64, 0x99, 0x0d, 0xb6, 0xce,
+        0x98, 0x06, 0xf6, 0x6b, 0x79, 0x70, 0xfd, 0xff,
+        0x86, 0x17, 0x18, 0x7b, 0xb9, 0xff, 0xfd, 0xff,
+        0x5a, 0xe4, 0xdf, 0x3e, 0xdb, 0xd5, 0xd3, 0x5e,
+        0x5b, 0x4f, 0x09, 0x02, 0x0d, 0xb0, 0x3e, 0xab,
+        0x1e, 0x03, 0x1d, 0xda, 0x2f, 0xbe, 0x03, 0xd1,
+        0x79, 0x21, 0x70, 0xa0, 0xf3, 0x00, 0x9c, 0xee,
+    ];
+
+    let key_arr = cipher::Key::<Aes128Ctr>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes128Ctr>::try_from(&iv[..]).unwrap();
+    let mut enc = Aes128Ctr::new(&key_arr, &iv_arr);
+    let mut data = plaintext;
+    enc.apply_keystream(&mut data);
+    assert_eq!(data, expected_ciphertext);
+
+    // apply_keystream is self-inverse: applying again must recover plaintext.
+    let mut dec = Aes128Ctr::new(&key_arr, &iv_arr);
+    dec.apply_keystream(&mut data);
+    assert_eq!(data, plaintext);
+}
+
+/// Test AES-256-CTR roundtrip via `apply_keystream`.
+#[test]
+#[cfg(all(feature = "cipher", aes_ctr))]
+fn test_aes256_ctr_roundtrip() {
+    use cipher::{KeyIvInit, StreamCipher};
+    use wolfssl_wolfcrypt::aes::Aes256Ctr;
+
+    let key = [0x01u8; 32];
+    let iv = [0x02u8; 16];
+    let plaintext = [0x55u8; 48];
+
+    let key_arr = cipher::Key::<Aes256Ctr>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes256Ctr>::try_from(&iv[..]).unwrap();
+
+    let mut enc = Aes256Ctr::new(&key_arr, &iv_arr);
+    let mut data = plaintext;
+    enc.apply_keystream(&mut data);
+    assert_ne!(data, plaintext);
+
+    let mut dec = Aes256Ctr::new(&key_arr, &iv_arr);
+    dec.apply_keystream(&mut data);
+    assert_eq!(data, plaintext);
+}
+
+/// Test AES-256-OFB `apply_keystream` against the known OFB test vector.
+#[test]
+#[cfg(all(feature = "cipher", aes_ofb))]
+fn test_aes256_ofb_apply_keystream() {
+    use cipher::{KeyIvInit, StreamCipher};
+    use wolfssl_wolfcrypt::aes::Aes256Ofb;
+
+    let key: [u8; 32] = [
+        0xc4, 0xc7, 0xfa, 0xd6, 0x53, 0x5c, 0xb8, 0x71,
+        0x4a, 0x5c, 0x40, 0x77, 0x9a, 0x8b, 0xa1, 0xd2,
+        0x53, 0x3e, 0x23, 0xb4, 0xb2, 0x58, 0x73, 0x2a,
+        0x5b, 0x78, 0x01, 0xf4, 0xe3, 0x71, 0xa7, 0x94,
+    ];
+    let iv: [u8; 16] = [
+        0x5e, 0xb9, 0x33, 0x13, 0xb8, 0x71, 0xff, 0x16,
+        0xb9, 0x8a, 0x9b, 0xcb, 0x43, 0x33, 0x0d, 0x6f,
+    ];
+    let plaintext: [u8; 48] = [
+        0x6d, 0x0b, 0xb0, 0x79, 0x63, 0x84, 0x71, 0xe9,
+        0x39, 0xd4, 0x53, 0x14, 0x86, 0xc1, 0x4c, 0x25,
+        0x9a, 0xee, 0xc6, 0xf3, 0xc0, 0x0d, 0xfd, 0xd6,
+        0xc0, 0x50, 0xa8, 0xba, 0xa8, 0x20, 0xdb, 0x71,
+        0xcc, 0x12, 0x2c, 0x4e, 0x0c, 0x17, 0x15, 0xef,
+        0x55, 0xf3, 0x99, 0x5a, 0x6b, 0xf0, 0x2a, 0x4c,
+    ];
+    let expected_ciphertext: [u8; 48] = [
+        0x0f, 0x54, 0x61, 0x71, 0x59, 0xd0, 0x3f, 0xfc,
+        0x1b, 0xfa, 0xfb, 0x60, 0x29, 0x30, 0xd7, 0x00,
+        0xf4, 0xa4, 0xa8, 0xe6, 0xdd, 0x93, 0x94, 0x46,
+        0x64, 0xd2, 0x19, 0xc4, 0xc5, 0x4d, 0xde, 0x1b,
+        0x04, 0x53, 0xe1, 0x73, 0xf5, 0x18, 0x74, 0xae,
+        0xfd, 0x64, 0xa2, 0xe1, 0xe2, 0x76, 0x13, 0xb0,
+    ];
+
+    let key_arr = cipher::Key::<Aes256Ofb>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes256Ofb>::try_from(&iv[..]).unwrap();
+    let mut enc = Aes256Ofb::new(&key_arr, &iv_arr);
+    let mut data = plaintext;
+    enc.apply_keystream(&mut data);
+    assert_eq!(data, expected_ciphertext);
+
+    // apply_keystream is self-inverse for OFB (same keystream for enc/dec).
+    let mut dec = Aes256Ofb::new(&key_arr, &iv_arr);
+    dec.apply_keystream(&mut data);
+    assert_eq!(data, plaintext);
+}
+
+/// Test AES-128-OFB roundtrip via `apply_keystream`.
+#[test]
+#[cfg(all(feature = "cipher", aes_ofb))]
+fn test_aes128_ofb_roundtrip() {
+    use cipher::{KeyIvInit, StreamCipher};
+    use wolfssl_wolfcrypt::aes::Aes128Ofb;
+
+    let key = [0xddu8; 16];
+    let iv = [0xeeu8; 16];
+    let plaintext = [0x42u8; 32];
+
+    let key_arr = cipher::Key::<Aes128Ofb>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes128Ofb>::try_from(&iv[..]).unwrap();
+
+    let mut enc = Aes128Ofb::new(&key_arr, &iv_arr);
+    let mut data = plaintext;
+    enc.apply_keystream(&mut data);
+    assert_ne!(data, plaintext);
+
+    let mut dec = Aes128Ofb::new(&key_arr, &iv_arr);
+    dec.apply_keystream(&mut data);
+    assert_eq!(data, plaintext);
+}
+
+/// Test AES-128-CBC encryption against a known vector (same as test_cbc_encrypt_decrypt).
+#[test]
+#[cfg(all(feature = "cipher", aes_cbc))]
+fn test_aes128_cbc_enc_block_mode() {
+    use cipher::{BlockModeEncrypt, KeyIvInit};
+    use wolfssl_wolfcrypt::aes::Aes128CbcEnc;
+
+    let key: [u8; 16] = *b"0123456789abcdef";
+    let iv: [u8; 16] = *b"1234567890abcdef";
+    let plaintext: [u8; 16] = [
+        0x6e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
+        0x68, 0x65, 0x20, 0x74, 0x69, 0x6d, 0x65, 0x20,
+    ];
+    let expected: [u8; 16] = [
+        0x95, 0x94, 0x92, 0x57, 0x5f, 0x42, 0x81, 0x53,
+        0x2c, 0xcc, 0x9d, 0x46, 0x77, 0xa2, 0x33, 0xcb,
+    ];
+
+    let key_arr = cipher::Key::<Aes128CbcEnc>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes128CbcEnc>::try_from(&iv[..]).unwrap();
+    let mut enc = Aes128CbcEnc::new(&key_arr, &iv_arr);
+    let mut block = cipher::Block::<Aes128CbcEnc>::try_from(&plaintext[..]).unwrap();
+    enc.encrypt_block(&mut block);
+    assert_eq!(block.as_slice(), &expected);
+}
+
+/// Test AES-128-CBC decryption roundtrip.
+#[test]
+#[cfg(all(feature = "cipher", aes_cbc))]
+fn test_aes128_cbc_dec_block_mode() {
+    use cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyIvInit};
+    use wolfssl_wolfcrypt::aes::{Aes128CbcDec, Aes128CbcEnc};
+
+    let key: [u8; 16] = *b"0123456789abcdef";
+    let iv: [u8; 16] = *b"1234567890abcdef";
+    let plaintext: [u8; 16] = [
+        0x6e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
+        0x68, 0x65, 0x20, 0x74, 0x69, 0x6d, 0x65, 0x20,
+    ];
+
+    let key_arr = cipher::Key::<Aes128CbcEnc>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes128CbcEnc>::try_from(&iv[..]).unwrap();
+    let mut enc = Aes128CbcEnc::new(&key_arr, &iv_arr);
+    let mut block = cipher::Block::<Aes128CbcEnc>::try_from(&plaintext[..]).unwrap();
+    enc.encrypt_block(&mut block);
+
+    let key_arr = cipher::Key::<Aes128CbcDec>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes128CbcDec>::try_from(&iv[..]).unwrap();
+    let mut dec = Aes128CbcDec::new(&key_arr, &iv_arr);
+    dec.decrypt_block(&mut block);
+    assert_eq!(block.as_slice(), &plaintext);
+}
+
+/// Test AES-256-CBC encryption/decryption roundtrip across multiple blocks.
+#[test]
+#[cfg(all(feature = "cipher", aes_cbc))]
+fn test_aes256_cbc_roundtrip() {
+    use cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyIvInit};
+    use wolfssl_wolfcrypt::aes::{Aes256CbcDec, Aes256CbcEnc};
+
+    let key = [0xabu8; 32];
+    let iv = [0xcdu8; 16];
+    let plaintext = [[0x5cu8; 16], [0x3au8; 16], [0x1eu8; 16]];
+
+    let key_arr = cipher::Key::<Aes256CbcEnc>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes256CbcEnc>::try_from(&iv[..]).unwrap();
+    let mut enc = Aes256CbcEnc::new(&key_arr, &iv_arr);
+    let mut blocks: [cipher::Block<Aes256CbcEnc>; 3] = plaintext
+        .iter()
+        .map(|b| cipher::Block::<Aes256CbcEnc>::try_from(b.as_ref()).unwrap())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    for block in blocks.iter_mut() {
+        enc.encrypt_block(block);
+    }
+    // Ciphertext must differ from plaintext due to key and IV mixing.
+    assert!(blocks.iter().zip(plaintext.iter()).any(|(c, p)| c.as_slice() != p));
+
+    let key_arr = cipher::Key::<Aes256CbcDec>::try_from(&key[..]).unwrap();
+    let iv_arr = cipher::Iv::<Aes256CbcDec>::try_from(&iv[..]).unwrap();
+    let mut dec = Aes256CbcDec::new(&key_arr, &iv_arr);
+    for block in blocks.iter_mut() {
+        dec.decrypt_block(block);
+    }
+    for (block, expected) in blocks.iter().zip(plaintext.iter()) {
+        assert_eq!(block.as_slice(), expected);
+    }
+}

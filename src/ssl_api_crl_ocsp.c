@@ -424,7 +424,7 @@ int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {
 
     if (ExtractDate(ssl->ocspProducedDate,
             (unsigned char)ssl->ocspProducedDateFormat, produced_tm, &idx,
-            MAX_DATE_SZ))
+            MAX_DATE_SIZE))
         return 0;
     else
         return ASN_PARSE_E;

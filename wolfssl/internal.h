@@ -2471,10 +2471,6 @@ struct WOLFSSL_OCSP {
 };
 #endif
 
-#ifndef MAX_DATE_SIZE
-#define MAX_DATE_SIZE 32
-#endif
-
 typedef struct CRL_Entry CRL_Entry;
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -2651,6 +2647,14 @@ struct WOLFSSL_CERT_MANAGER {
 ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     byte            ocspMustStaple:1;      /* server must respond with staple */
 #endif
+    /* Tracks which resources were successfully initialized so that
+     * DoCertManagerFree can dispose of them safely even when construction
+     * fails partway through. */
+    WC_BITFIELD     caLockInit:1;          /* caLock has been initialized */
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    WC_BITFIELD     tpLockInit:1;          /* tpLock has been initialized */
+#endif
+    WC_BITFIELD     refInit:1;             /* ref has been initialized */
 
 #ifndef NO_RSA
     short           minRsaKeySz;         /* minimum allowed RSA key size */
@@ -2823,7 +2827,7 @@ struct WOLFSSL_BIO {
     } num;
     int          eof;           /* eof flag */
     int          flags;
-    byte         type;          /* method type */
+    int          type;          /* method type */
     byte         init:1;        /* bio has been initialized */
     byte         shutdown:1;    /* close flag */
     byte         connected:1;   /* connected state, for datagram BIOs -- as for
@@ -2961,6 +2965,7 @@ typedef struct Options Options;
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
 #define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
+#define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 8773bis */
 #define TLSXT_SESSION_TICKET             0x0023
 #define TLSXT_PRE_SHARED_KEY             0x0029
 #define TLSXT_EARLY_DATA                 0x002a
@@ -3013,11 +3018,12 @@ typedef enum {
     TLSX_EARLY_DATA                 = TLSXT_EARLY_DATA,
     #endif
     TLSX_SUPPORTED_VERSIONS         = TLSXT_SUPPORTED_VERSIONS,
-    #ifdef WOLFSSL_SEND_HRR_COOKIE
     TLSX_COOKIE                     = TLSXT_COOKIE,
-    #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PSK_KEY_EXCHANGE_MODES     = TLSXT_PSK_KEY_EXCHANGE_MODES,
+    #if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    TLSX_CERT_WITH_EXTERN_PSK       = TLSXT_CERT_WITH_EXTERN_PSK,
+    #endif
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
     TLSX_CERTIFICATE_AUTHORITIES    = TLSXT_CERTIFICATE_AUTHORITIES,
@@ -3425,6 +3431,7 @@ WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
 
 WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
                                                                     void* heap);
+WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
@@ -3675,6 +3682,8 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input,
         word16 length, byte msgType);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
         const byte* input, word16 length, TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
+        KeyShareEntry* keyShareEntry, byte* data, word16 len);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input,
                                  word16 length, TLSX** extensions);
@@ -3738,6 +3747,9 @@ WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(TLSX** extensions, const byte* identity,
                                         void* heap);
 WOLFSSL_LOCAL int TLSX_PreSharedKey_Parse_ClientHello(TLSX** extensions,
                                   const byte* input, word16 length, void* heap);
+#if defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && defined(WOLFSSL_TLS13)
+WOLFSSL_LOCAL int TLSX_CertWithExternPsk_Use(WOLFSSL* ssl);
+#endif
 
 /* The possible Pre-Shared Key key exchange modes. */
 enum PskKeyExchangeMode {
@@ -3936,6 +3948,9 @@ struct WOLFSSL_CTX {
     byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
 #ifdef HAVE_SUPPORTED_CURVES
     byte        onlyPskDheKe:1;   /* Only use (EC)DHE with PSK */
+#endif
+#if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    byte        certWithExternPsk:1; /* Use tls_cert_with_extern_psk extension */
 #endif
 #endif
 #endif /* WOLFSSL_TLS13 */
@@ -4689,10 +4704,7 @@ struct WOLFSSL_SESSION {
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */
 #endif
-#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
     ProtocolVersion    version;           /* which version was used   */
-#endif
 #if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
                         (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
     byte               cipherSuite0;      /* first byte, normally 0   */
@@ -4888,6 +4900,7 @@ typedef struct Buffers {
     ThreadCrypt     encrypt[WOLFSSL_THREADED_CRYPT_CNT];
 #endif
     buffer          domainName;            /* for client check */
+    buffer          ipasc;                 /* for client IP SAN check */
     buffer          clearOutputBuffer;
     buffer          sig;                   /* signature data */
     buffer          digest;                /* digest data */
@@ -5064,6 +5077,9 @@ struct Options {
     word16            noPskDheKe:1;       /* Don't use (EC)DHE with PSK */
 #ifdef HAVE_SUPPORTED_CURVES
     word16            onlyPskDheKe:1;     /* Only use (EC)DHE with PSK */
+#endif
+#if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
+    word16            certWithExternPsk:1; /* Cert auth with external PSK */
 #endif
 #endif
     word16            partialWrite:1;     /* only one msg per write call */
@@ -5306,10 +5322,6 @@ typedef struct Arrays {
             #define ASN_NAME_MAX 256
         #endif
     #endif
-#endif
-
-#ifndef MAX_DATE_SZ
-#define MAX_DATE_SZ 32
 #endif
 
 typedef enum {
@@ -5767,9 +5779,47 @@ typedef struct BuildMsgArgs {
     #define READ_DUP_SIDE 2
 
     typedef struct WriteDup {
-        wolfSSL_Mutex   dupMutex;       /* reference count mutex */
+        wolfSSL_Mutex   dupMutex;       /* field access mutex */
         int             dupCount;       /* reference count */
         int             dupErr;         /* under dupMutex, pass to other side */
+#ifdef WOLFSSL_DTLS13
+        struct Dtls13RecordNumber* sendAckList; /* ownership transferred */
+        /* Key update ACK tracking: write side stores the (epoch, seq) of its
+         * in-flight KeyUpdate; read side sets keyUpdateAcked when the ACK for
+         * that exact record arrives.  Both epoch and seq are checked to avoid
+         * false positives from data records in the same epoch. */
+        w64wrapper keyUpdateEpoch;     /* epoch of the KeyUpdate */
+        w64wrapper keyUpdateSeq;       /* seq num of the KeyUpdate */
+#endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        /* Post-handshake certificate request delegation: the read side received
+         * a CertificateRequest but cannot write; it saves state here and the
+         * write side sends Certificate+CertificateVerify+Finished. */
+        struct HS_Hashes* postHandshakeHashState;    /* transcript at CR time */
+        struct CertReqCtx* postHandshakeCertReqCtx; /* context from CR */
+        byte postHandshakeSendVerify;    /* ssl->options.sendVerify */
+        byte postHandshakeSigAlgo;       /* ssl->options.sigAlgo */
+        byte postHandshakeHashAlgo;      /* ssl->options.hashAlgo */
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+#endif /* WOLFSSL_TLS13 */
+
+        /* Flags */
+#ifdef WOLFSSL_DTLS13
+        WC_BITFIELD keyUpdateWaiting:1; /* write side has an unACKed KeyUpdate */
+        WC_BITFIELD keyUpdateAcked:1;   /* read side confirmed the ACK arrived */
+        /* DTLS 1.3: read side cannot write, so it passes ACK work to the
+         * write side. */
+        WC_BITFIELD sendAcks:1;
+#endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_TLS13
+        /* TLS 1.3 (and DTLS 1.3): read side received a KeyUpdate(update_requested)
+         * but cannot send the response; write side handles it. */
+        WC_BITFIELD keyUpdateRespond:1; /* write side must send a KeyUpdate response */
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        WC_BITFIELD postHandshakeAuthPending:1; /* write side must respond */
+#endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
+#endif /* WOLFSSL_TLS13 */
     } WriteDup;
 
     WOLFSSL_LOCAL void FreeWriteDup(WOLFSSL* ssl);
@@ -5814,6 +5864,20 @@ enum  {
     DTLS13_EPOCH_HANDSHAKE = 2,
     DTLS13_EPOCH_TRAFFIC0 = 3
 };
+
+/* 64-bit epoch + 64-bit sequence number */
+#define DTLS13_RN_SIZE (OPAQUE64_LEN + OPAQUE64_LEN)
+/* Maximum number of ACK records allowed in an ACK message */
+#ifndef DTLS13_ACK_MAX_RECORDS
+#define DTLS13_ACK_MAX_RECORDS 128
+#endif
+/* WOLFSSL_MAX_16BIT / DTLS13_RN_SIZE (0xffff / (OPAQUE64_LEN + OPAQUE64_LEN))
+ * Literals are used because OPAQUE64_LEN is an enum value, invisible to the
+ * preprocessor. */
+#if DTLS13_ACK_MAX_RECORDS > 0xffff / 16
+#error "DTLS13_ACK_MAX_RECORDS exceeds the maximum encodable in the word16 length field"
+#endif
+
 
 typedef struct Dtls13Epoch {
     w64wrapper epochNumber;
@@ -5883,6 +5947,7 @@ typedef struct Dtls13Rtx {
     Dtls13RtxRecord *rtxRecords;
     Dtls13RtxRecord **rtxRecordTailPtr;
     Dtls13RecordNumber *seenRecords;
+    word16 seenRecordsCount;
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 lastRtx;
 #else
@@ -6174,6 +6239,9 @@ struct WOLFSSL {
     byte dtls13SendingFragments:1;
     byte dtls13SendingAckOrRtx;
     byte dtls13FastTimeout:1;
+#ifdef HAVE_WRITE_DUP
+    byte dtls13KeyUpdateAcked:1;
+#endif
     byte dtls13WaitKeyUpdateAck;
     byte dtls13DoKeyUpdate;
     word32 dtls13MessageLength;
@@ -6267,7 +6335,7 @@ struct WOLFSSL {
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_OCSP
         void*       ocspIOCtx;
-        byte ocspProducedDate[MAX_DATE_SZ];
+        byte ocspProducedDate[MAX_DATE_SIZE];
         int ocspProducedDateFormat;
         buffer      ocspCsrResp[1 + MAX_CHAIN_DEPTH];
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
@@ -6449,6 +6517,13 @@ struct WOLFSSL {
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
     defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
     WC_BITFIELD          scr_check_enabled:1;  /* enable/disable SCR check */
+#endif
+#ifdef HAVE_WRITE_DUP
+#ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    WC_BITFIELD postHandshakeAuthPending:1;
+#endif
+#endif
 #endif
 };
 
@@ -7084,6 +7159,7 @@ WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 #endif
 
 WOLFSSL_LOCAL int InitHandshakeHashes(WOLFSSL* ssl);
+WOLFSSL_LOCAL void Free_HS_Hashes(HS_Hashes* hsHashes, void* heap);
 WOLFSSL_LOCAL void FreeHandshakeHashes(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
     HS_Hashes** destination);
@@ -7171,6 +7247,7 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
         #define Dtls13CheckEpoch wolfSSL_Dtls13CheckEpoch
         #define Dtls13WriteAckMessage wolfSSL_Dtls13WriteAckMessage
         #define Dtls13RtxAddAck wolfSSL_Dtls13RtxAddAck
+        #define Dtls13DoScheduledWork wolfSSL_Dtls13DoScheduledWork
     #endif
 
 WOLFSSL_TEST_VIS struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
@@ -7183,7 +7260,9 @@ WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
     enum encrypt_side side);
 WOLFSSL_LOCAL int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq,
     byte increment);
-WOLFSSL_LOCAL int Dtls13DoScheduledWork(WOLFSSL* ssl);
+WOLFSSL_LOCAL void Dtls13RtxRemoveRecord(WOLFSSL* ssl, w64wrapper epoch,
+    w64wrapper seq);
+WOLFSSL_TEST_VIS int Dtls13DoScheduledWork(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
     enum encrypt_side side);
@@ -7224,7 +7303,7 @@ WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
 WOLFSSL_LOCAL int Dtls13ReconstructSeqNumber(WOLFSSL* ssl,
     Dtls13UnifiedHdrInfo* hdrInfo, w64wrapper* out);
 WOLFSSL_TEST_VIS int Dtls13WriteAckMessage(WOLFSSL* ssl,
-    Dtls13RecordNumber* recordNumberList, word32* length);
+    Dtls13RecordNumber* recordNumberList, word16 recordsCount, word32* length);
 WOLFSSL_LOCAL int SendDtls13Ack(WOLFSSL* ssl);
 WOLFSSL_TEST_VIS int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq);
 WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
@@ -7278,7 +7357,7 @@ WOLFSSL_LOCAL void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
         WOLFSSL_CRYPTO_EX_DATA* ex_data);
 WOLFSSL_LOCAL int crypto_ex_cb_dup_data(const WOLFSSL_CRYPTO_EX_DATA *in,
         WOLFSSL_CRYPTO_EX_DATA *out, CRYPTO_EX_cb_ctx* cb_ctx);
-WOLFSSL_LOCAL int wolfssl_get_ex_new_index(int class_index, long ctx_l,
+WOLFSSL_LOCAL int wolfssl_local_get_ex_new_index(int class_index, long ctx_l,
         void* ctx_ptr, WOLFSSL_CRYPTO_EX_new* new_func,
         WOLFSSL_CRYPTO_EX_dup* dup_func, WOLFSSL_CRYPTO_EX_free* free_func);
 #endif /* HAVE_EX_DATA_CRYPTO */

@@ -1019,7 +1019,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #if (defined(__MINGW32__) || defined(__MINGW64__)) && !defined(UNICODE)
             #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
         #else
-            #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
+            #define XINET_PTON(a,b,c)   InetPtonA((a),(b),(c))
         #endif
     #elif defined(FREESCALE_MQX)
         #define XINET_PTON(a,b,c,d) inet_pton((a),(b),(c),(d))

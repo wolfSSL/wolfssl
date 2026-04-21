@@ -51,12 +51,16 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install libpam-dev ninja-build meson
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libpam-dev ninja-build meson
 
       - name: Download lib
         uses: actions/download-artifact@v4
@@ -71,6 +75,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout pam-ipmi
         uses: actions/checkout@v4
@@ -78,6 +83,7 @@ jobs:
           repository: openbmc/pam-ipmi
           path: pam-ipmi
           ref: ${{ matrix.git_ref }}
+          fetch-depth: 1
 
       - name: Build pam-ipmi
         working-directory: pam-ipmi

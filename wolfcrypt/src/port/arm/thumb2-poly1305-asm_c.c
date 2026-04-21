@@ -41,6 +41,11 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
@@ -289,15 +294,21 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
     "L_poly1305_thumb2_16_done_%=:\n\t"
 #endif
         "ADD	sp, sp, #0x1c\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len),
           [notLast] "+r" (notLast)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [m] "r" (m), [len] "r" (len),
+          [notLast] "r" (notLast)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
     );
 }
 
-XALIGNED(16) static const word32 L_poly1305_thumb2_clamp[] = {
+XALIGNED(8) static const word32 L_poly1305_thumb2_clamp[] = {
     0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc,
 };
 
@@ -312,11 +323,9 @@ WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx, const byte* key)
     register const byte* key __asm__ ("r1") = (const byte*)key_p;
     register word32* L_poly1305_thumb2_clamp_c __asm__ ("r2") =
         (word32*)&L_poly1305_thumb2_clamp;
-
 #else
     register word32* L_poly1305_thumb2_clamp_c =
         (word32*)&L_poly1305_thumb2_clamp;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -351,9 +360,15 @@ WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx, const byte* key)
         "STM	r10, {r5, r6, r7, r8, r9}\n\t"
         /* Zero leftover */
         "STR	r5, [%[ctx], #52]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [key] "+r" (key),
           [L_poly1305_thumb2_clamp] "+r" (L_poly1305_thumb2_clamp_c)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [key] "r" (key),
+          [L_poly1305_thumb2_clamp] "r" (L_poly1305_thumb2_clamp_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
 }
@@ -413,8 +428,13 @@ WC_OMIT_FRAME_POINTER void poly1305_final(Poly1305* ctx, byte* mac)
         /* Zero out padding. */
         "ADD	r11, %[ctx], #0x24\n\t"
         "STM	r11, {r2, r3, r4, r5}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [mac] "+r" (mac)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [mac] "r" (mac)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );

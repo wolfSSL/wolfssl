@@ -45,24 +45,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-const int hpkeSupportedKem[HPKE_SUPPORTED_KEM_LEN] = {
-    DHKEM_P256_HKDF_SHA256,
-    DHKEM_P384_HKDF_SHA384,
-    DHKEM_P521_HKDF_SHA512,
-    DHKEM_X25519_HKDF_SHA256,
-};
-
-const int hpkeSupportedKdf[HPKE_SUPPORTED_KDF_LEN] = {
-    HKDF_SHA256,
-    HKDF_SHA384,
-    HKDF_SHA512,
-};
-
-const int hpkeSupportedAead[HPKE_SUPPORTED_AEAD_LEN] = {
-    HPKE_AES_128_GCM,
-    HPKE_AES_256_GCM,
-};
-
 static const char* KEM_STR = "KEM";
 static const int   KEM_STR_LEN = 3;
 
@@ -132,9 +114,9 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     }
 
     XMEMSET(hpke, 0, sizeof(*hpke));
-    hpke->kem = (word32)kem;
-    hpke->kdf = (word32)kdf;
-    hpke->aead = (word32)aead;
+    hpke->kem = (word16)kem;
+    hpke->kdf = (word16)kdf;
+    hpke->aead = (word16)aead;
     hpke->heap = heap;
 
     /* set kem_suite_id */
@@ -166,52 +148,67 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     if (ret == 0) {
         switch (kem) {
 #if defined(HAVE_ECC)
-#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_SHA256)
         case DHKEM_P256_HKDF_SHA256:
-            hpke->curve_id = ECC_SECP256R1;
+            hpke->curveId = ECC_SECP256R1;
             hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
-            hpke->Nh = WC_SHA256_DIGEST_SIZE;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curve_id);
+            hpke->kemDigest = WC_SHA256;
+            ret = wc_ecc_get_curve_size_from_id(hpke->curveId);
+            if (ret < 0) {
+                break;
+            }
+            hpke->Ndh = (word32)ret;
+            ret = 0;
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
 
-#ifdef WOLFSSL_SHA384
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA384)
         case DHKEM_P384_HKDF_SHA384:
-            hpke->curve_id = ECC_SECP384R1;
+            hpke->curveId = ECC_SECP384R1;
             hpke->Nsecret = WC_SHA384_DIGEST_SIZE;
-            hpke->Nh = WC_SHA384_DIGEST_SIZE;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curve_id);
+            hpke->kemDigest = WC_SHA384;
+            ret = wc_ecc_get_curve_size_from_id(hpke->curveId);
+            if (ret < 0) {
+                break;
+            }
+            hpke->Ndh = (word32)ret;
+            ret = 0;
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
 
-#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA512)
         case DHKEM_P521_HKDF_SHA512:
-            hpke->curve_id = ECC_SECP521R1;
+            hpke->curveId = ECC_SECP521R1;
             hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
-            hpke->Nh = WC_SHA512_DIGEST_SIZE;
-            hpke->Ndh = (word32)wc_ecc_get_curve_size_from_id(hpke->curve_id);
+            hpke->kemDigest = WC_SHA512;
+            ret = wc_ecc_get_curve_size_from_id(hpke->curveId);
+            if (ret < 0) {
+                break;
+            }
+            hpke->Ndh = (word32)ret;
+            ret = 0;
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 #endif
-#endif
+#endif /* HAVE_ECC */
 
-#if defined(HAVE_CURVE25519) &&\
-    (defined(WOLFSSL_SHA224) || !defined(NO_SHA256))
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
         case DHKEM_X25519_HKDF_SHA256:
             hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
-            hpke->Nh = WC_SHA256_DIGEST_SIZE;
+            hpke->kemDigest = WC_SHA256;
             hpke->Ndh = CURVE25519_KEYSIZE;
             hpke->Npk = CURVE25519_PUB_KEY_SIZE;
             break;
 #endif
 
-#if defined(HAVE_CURVE448) &&\
-    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_SHA512)
         case DHKEM_X448_HKDF_SHA512:
             hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
-            hpke->Nh = WC_SHA512_DIGEST_SIZE;
+            hpke->kemDigest = WC_SHA512;
             /* size of x448 shared secret */
             hpke->Ndh = 64;
             hpke->Npk = CURVE448_PUB_KEY_SIZE;
@@ -227,17 +224,26 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
 
     if (ret == 0) {
         switch (kdf) {
+#if !defined(NO_SHA256)
         case HKDF_SHA256:
-            hpke->kdf_digest = WC_SHA256;
+            hpke->Nh = WC_SHA256_DIGEST_SIZE;
+            hpke->kdfDigest = WC_SHA256;
             break;
+#endif
 
+#ifdef WOLFSSL_SHA384
         case HKDF_SHA384:
-            hpke->kdf_digest = WC_SHA384;
+            hpke->Nh = WC_SHA384_DIGEST_SIZE;
+            hpke->kdfDigest = WC_SHA384;
             break;
+#endif
 
+#ifdef WOLFSSL_SHA512
         case HKDF_SHA512:
-            hpke->kdf_digest = WC_SHA512;
+            hpke->Nh = WC_SHA512_DIGEST_SIZE;
+            hpke->kdfDigest = WC_SHA512;
             break;
+#endif
 
         default:
             ret = BAD_FUNC_ARG;
@@ -247,26 +253,26 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
 
     if (ret == 0) {
         switch (aead) {
+#ifdef WOLFSSL_AES_128
         case HPKE_AES_128_GCM:
             hpke->Nk = AES_128_KEY_SIZE;
             hpke->Nn = GCM_NONCE_MID_SZ;
             hpke->Nt = WC_AES_BLOCK_SIZE;
             break;
+#endif
 
+#ifdef WOLFSSL_AES_256
         case HPKE_AES_256_GCM:
             hpke->Nk = AES_256_KEY_SIZE;
             hpke->Nn = GCM_NONCE_MID_SZ;
             hpke->Nt = WC_AES_BLOCK_SIZE;
             break;
+#endif
 
         default:
             ret = BAD_FUNC_ARG;
             break;
         }
-    }
-
-    if ((int)hpke->Ndh < 0) {
-        return (int)hpke->Ndh;
     }
 
     return ret;
@@ -283,26 +289,34 @@ int wc_HpkeGenerateKeyPair(Hpke* hpke, void** keypair, WC_RNG* rng)
 
     switch (hpke->kem) {
 #if defined(HAVE_ECC)
+    #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_SHA256)
         case DHKEM_P256_HKDF_SHA256:
             *keypair = wc_ecc_key_new(hpke->heap);
             if (*keypair != NULL)
                 ret = wc_ecc_make_key_ex(rng, 32, (ecc_key*)*keypair,
                     ECC_SECP256R1);
             break;
+#endif
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+        defined(WOLFSSL_SHA384)
         case DHKEM_P384_HKDF_SHA384:
             *keypair = wc_ecc_key_new(hpke->heap);
             if (*keypair != NULL)
                 ret = wc_ecc_make_key_ex(rng, 48, (ecc_key*)*keypair,
                     ECC_SECP384R1);
             break;
+    #endif
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+        defined(WOLFSSL_SHA512)
         case DHKEM_P521_HKDF_SHA512:
             *keypair = wc_ecc_key_new(hpke->heap);
             if (*keypair != NULL)
                 ret = wc_ecc_make_key_ex(rng, 66, (ecc_key*)*keypair,
                   ECC_SECP521R1);
             break;
+    #endif
 #endif
-#if defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
         case DHKEM_X25519_HKDF_SHA256:
             *keypair = XMALLOC(sizeof(curve25519_key), hpke->heap,
                 DYNAMIC_TYPE_CURVE25519);
@@ -315,8 +329,10 @@ int wc_HpkeGenerateKeyPair(Hpke* hpke, void** keypair, WC_RNG* rng)
             }
             break;
 #endif
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_SHA512)
         case DHKEM_X448_HKDF_SHA512:
             /* TODO: Add X448 */
+#endif
         default:
             ret = BAD_FUNC_ARG;
             break;
@@ -326,7 +342,7 @@ int wc_HpkeGenerateKeyPair(Hpke* hpke, void** keypair, WC_RNG* rng)
         ret = MEMORY_E;
 
     if (ret != 0 && *keypair != NULL) {
-        wc_HpkeFreeKey(hpke, (word16)hpke->kem, *keypair, hpke->heap);
+        wc_HpkeFreeKey(hpke, hpke->kem, *keypair, hpke->heap);
         *keypair = NULL;
     }
 
@@ -355,13 +371,16 @@ int wc_HpkeSerializePublicKey(Hpke* hpke, void* key, byte* out, word16* outSz)
             ret = wc_ecc_export_x963_ex((ecc_key*)key, out, &tmpOutSz, 0);
             break;
 #endif
-#if defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
         case DHKEM_X25519_HKDF_SHA256:
             ret = wc_curve25519_export_public_ex((curve25519_key*)key, out,
                 &tmpOutSz, EC25519_LITTLE_ENDIAN);
             break;
 #endif
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_SHA512)
         case DHKEM_X448_HKDF_SHA512:
+            /* TODO: Add X448 */
+#endif
         default:
             ret = -1;
             break;
@@ -397,11 +416,11 @@ int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key, const byte* in,
             if (*key != NULL) {
                 /* import the x963 key */
                 ret = wc_ecc_import_x963_ex(in, inSz, (ecc_key*)*key,
-                    hpke->curve_id);
+                    hpke->curveId);
             }
             break;
 #endif
-#if defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
         case DHKEM_X25519_HKDF_SHA256:
             *key = XMALLOC(sizeof(curve25519_key), hpke->heap,
                 DYNAMIC_TYPE_CURVE25519);
@@ -414,7 +433,10 @@ int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key, const byte* in,
             }
             break;
 #endif
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_SHA512)
         case DHKEM_X448_HKDF_SHA512:
+            /* TODO: Add X448 */
+#endif
         default:
             ret = -1;
             break;
@@ -424,7 +446,7 @@ int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key, const byte* in,
         ret = MEMORY_E;
 
     if (ret != 0 && *key != NULL) {
-        wc_HpkeFreeKey(hpke, (word16)hpke->kem, *key, hpke->heap);
+        wc_HpkeFreeKey(hpke, hpke->kem, *key, hpke->heap);
         *key = NULL;
     }
 
@@ -443,14 +465,16 @@ void wc_HpkeFreeKey(Hpke* hpke, word16 kem, void* keypair, void* heap)
             wc_ecc_key_free((ecc_key*)keypair);
             break;
 #endif
-#if defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
         case DHKEM_X25519_HKDF_SHA256:
             wc_curve25519_free((curve25519_key*)keypair);
             XFREE(keypair, heap, DYNAMIC_TYPE_CURVE25519);
             break;
 #endif
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_SHA512)
         case DHKEM_X448_HKDF_SHA512:
             /* TODO: Add X448 */
+#endif
         default:
             break;
     }
@@ -459,7 +483,7 @@ void wc_HpkeFreeKey(Hpke* hpke, word16 kem, void* keypair, void* heap)
 }
 
 static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
-    word32 suite_id_len, byte* salt, word32 salt_len, byte* label,
+    word32 suite_id_len, int digest, byte* salt, word32 salt_len, byte* label,
     word32 label_len, byte* ikm, word32 ikm_len, byte* out)
 {
     int ret;
@@ -516,7 +540,7 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
 
     /* call extract */
     PRIVATE_KEY_UNLOCK();
-    ret = wc_HKDF_Extract(hpke->kdf_digest, salt, salt_len, labeled_ikm,
+    ret = wc_HKDF_Extract(digest, salt, salt_len, labeled_ikm,
         (word32)(size_t)(labeled_ikm_p - labeled_ikm), out);
     PRIVATE_KEY_LOCK();
 
@@ -528,8 +552,8 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
 /* do hkdf expand with the format specified in the hpke rfc, return 0 or
  * error */
 static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
-    byte* prk, word32 prk_len, byte* label, word32 label_len, byte* info,
-    word32 infoSz, word32 L, byte* out)
+    int digest, byte* prk, word32 prk_len, byte* label, word32 label_len,
+    byte* info, word32 infoSz, word32 L, byte* out)
 {
     int ret;
     byte* labeled_info_p;
@@ -587,10 +611,8 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
 
         /* call expand */
         PRIVATE_KEY_UNLOCK();
-        ret = wc_HKDF_Expand(hpke->kdf_digest,
-            prk, prk_len,
-            labeled_info, (word32)(size_t)(labeled_info_p - labeled_info),
-            out, L);
+        ret = wc_HKDF_Expand(digest, prk, prk_len, labeled_info,
+                (word32)(size_t)(labeled_info_p - labeled_info), out, L);
         PRIVATE_KEY_LOCK();
     }
 
@@ -638,15 +660,16 @@ static int wc_HpkeExtractAndExpand( Hpke* hpke, byte* dh, word32 dh_len,
 
     /* extract */
     ret = wc_HpkeLabeledExtract(hpke, hpke->kem_suite_id,
-        sizeof( hpke->kem_suite_id ), NULL, 0, (byte*)EAE_PRK_LABEL_STR,
-        EAE_PRK_LABEL_STR_LEN, dh, dh_len, eae_prk);
+        sizeof( hpke->kem_suite_id ), hpke->kemDigest, NULL, 0,
+        (byte*)EAE_PRK_LABEL_STR, EAE_PRK_LABEL_STR_LEN, dh, dh_len, eae_prk);
 
     /* expand */
     if ( ret == 0 ) {
         ret = wc_HpkeLabeledExpand(hpke, hpke->kem_suite_id,
-            sizeof( hpke->kem_suite_id ), eae_prk, hpke->Nh,
-            (byte*)SHARED_SECRET_LABEL_STR, SHARED_SECRET_LABEL_STR_LEN,
-            kemContext, kem_context_length, hpke->Nsecret, sharedSecret);
+            sizeof( hpke->kem_suite_id ), hpke->kemDigest, eae_prk,
+            hpke->Nsecret, (byte*)SHARED_SECRET_LABEL_STR,
+            SHARED_SECRET_LABEL_STR_LEN, kemContext, kem_context_length,
+            hpke->Nsecret, sharedSecret);
     }
 
     ForceZero(eae_prk, WC_MAX_DIGEST_SIZE);
@@ -696,35 +719,37 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
 
     /* extract psk_id, which for base is null */
     ret = wc_HpkeLabeledExtract(hpke, hpke->hpke_suite_id,
-        sizeof( hpke->hpke_suite_id ), NULL, 0, (byte*)PSK_ID_HASH_LABEL_STR,
-        PSK_ID_HASH_LABEL_STR_LEN, NULL, 0, key_schedule_context + 1);
+        sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, NULL, 0,
+        (byte*)PSK_ID_HASH_LABEL_STR, PSK_ID_HASH_LABEL_STR_LEN, NULL, 0,
+        key_schedule_context + 1);
 
     /* extract info */
     if (ret == 0) {
         ret = wc_HpkeLabeledExtract(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), NULL, 0, (byte*)INFO_HASH_LABEL_STR,
-            INFO_HASH_LABEL_STR_LEN, info, infoSz,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, NULL, 0,
+            (byte*)INFO_HASH_LABEL_STR, INFO_HASH_LABEL_STR_LEN, info, infoSz,
             key_schedule_context + 1 + hpke->Nh);
     }
 
     /* extract secret */
     if (ret == 0) {
         ret = wc_HpkeLabeledExtract(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), sharedSecret, hpke->Nsecret,
-            (byte*)SECRET_LABEL_STR, SECRET_LABEL_STR_LEN, NULL, 0, secret);
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, sharedSecret,
+            hpke->Nsecret, (byte*)SECRET_LABEL_STR, SECRET_LABEL_STR_LEN,
+            NULL, 0, secret);
     }
 
     /* expand key */
     if (ret == 0)
         ret = wc_HpkeLabeledExpand(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), secret, hpke->Nh,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, secret, hpke->Nh,
             (byte*)KEY_LABEL_STR, KEY_LABEL_STR_LEN, key_schedule_context,
             1 + 2 * hpke->Nh, hpke->Nk, context->key);
 
     /* expand nonce */
     if (ret == 0) {
         ret = wc_HpkeLabeledExpand(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), secret, hpke->Nh,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, secret, hpke->Nh,
             (byte*)BASE_NONCE_LABEL_STR, BASE_NONCE_LABEL_STR_LEN,
             key_schedule_context, 1 + 2 * hpke->Nh, hpke->Nn,
             context->base_nonce);
@@ -733,7 +758,7 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
     /* expand exporter_secret */
     if (ret == 0) {
         ret = wc_HpkeLabeledExpand(hpke, hpke->hpke_suite_id,
-            sizeof( hpke->hpke_suite_id ), secret, hpke->Nh,
+            sizeof( hpke->hpke_suite_id ), hpke->kdfDigest, secret, hpke->Nh,
             (byte*)EXP_LABEL_STR, EXP_LABEL_STR_LEN, key_schedule_context,
             1 + 2 * hpke->Nh, hpke->Nh, context->exporter_secret);
     }
@@ -752,7 +777,7 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     byte* sharedSecret)
 {
     int ret;
-#ifdef ECC_TIMING_RESISTANT
+#if defined(ECC_TIMING_RESISTANT) && defined(HAVE_ECC)
     WC_RNG* rng;
 #endif
     word32 dh_len;
@@ -813,15 +838,17 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
 #endif
             break;
 #endif
-#if defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
         case DHKEM_X25519_HKDF_SHA256:
             ret = wc_curve25519_shared_secret_ex((curve25519_key*)ephemeralKey,
                 (curve25519_key*)receiverKey, dh, &dh_len,
                 EC25519_LITTLE_ENDIAN);
             break;
 #endif
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_SHA512)
         case DHKEM_X448_HKDF_SHA512:
             /* TODO: Add X448 */
+#endif
         default:
             ret = -1;
             break;
@@ -1046,7 +1073,7 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
 #endif
                 break;
 #endif
-#if defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
             case DHKEM_X25519_HKDF_SHA256:
             #ifdef WOLFSSL_CURVE25519_BLINDING
                 rng = wc_rng_new(NULL, 0, hpke->heap);
@@ -1066,15 +1093,17 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
             #endif
                 break;
 #endif
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_SHA512)
             case DHKEM_X448_HKDF_SHA512:
                 /* TODO: Add X448 */
+#endif
             default:
                 ret = -1;
                 break;
         }
 
     if (ephemeralKey != NULL)
-        wc_HpkeFreeKey(hpke, (word16)hpke->kem, ephemeralKey, hpke->heap);
+        wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
 
     if (ret == 0) {
         /* copy pubKey into kemContext */
@@ -1146,7 +1175,7 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
     int ret;
     byte nonce[HPKE_Nn_MAX];
     WC_DECLARE_VAR(aes, Aes, 1, 0);
-    if (hpke == NULL) {
+    if (hpke == NULL || context == NULL || ciphertext == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -1215,6 +1244,104 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
     WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
+}
+
+/* return the encrypted length of the KEM
+ * return 0 otherwise */
+WOLFSSL_LOCAL word16 wc_HpkeKemGetEncLen(word16 kemId)
+{
+    switch (kemId)
+    {
+#if defined(HAVE_ECC)
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_SHA256)
+    case DHKEM_P256_HKDF_SHA256:
+        return DHKEM_P256_ENC_LEN;
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA384)
+    case DHKEM_P384_HKDF_SHA384:
+        return DHKEM_P384_ENC_LEN;
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA512)
+    case DHKEM_P521_HKDF_SHA512:
+        return DHKEM_P521_ENC_LEN;
+#endif
+#endif /* HAVE_ECC */
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
+    case DHKEM_X25519_HKDF_SHA256:
+        return DHKEM_X25519_ENC_LEN;
+#endif
+    default:
+        return 0;
+    }
+}
+
+/* return true if hpke is compiled with support for the given KEM
+ * return false otherwise */
+WOLFSSL_LOCAL int wc_HpkeKemIsSupported(word16 kemId)
+{
+    switch (kemId) {
+#if defined(HAVE_ECC)
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && !defined(NO_SHA256)
+    case DHKEM_P256_HKDF_SHA256:
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA384)
+    case DHKEM_P384_HKDF_SHA384:
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    defined(WOLFSSL_SHA512)
+    case DHKEM_P521_HKDF_SHA512:
+#endif
+#endif /* HAVE_ECC */
+#if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
+    case DHKEM_X25519_HKDF_SHA256:
+#endif
+        return 1;
+
+    default:
+        return 0;
+    }
+}
+
+/* return true if hpke is compiled with support for the given KDF
+ * return false otherwise */
+WOLFSSL_LOCAL int wc_HpkeKdfIsSupported(word16 kdfId)
+{
+    switch (kdfId) {
+#if !defined(NO_SHA256)
+    case HKDF_SHA256:
+#endif
+#ifdef WOLFSSL_SHA384
+    case HKDF_SHA384:
+#endif
+#ifdef WOLFSSL_SHA512
+    case HKDF_SHA512:
+#endif
+        return 1;
+
+    default:
+        return 0;
+    }
+}
+
+/* return true if hpke is compiled with support for the given AEAD
+ * return false otherwise */
+WOLFSSL_LOCAL int wc_HpkeAeadIsSupported(word16 aeadId)
+{
+    switch (aeadId) {
+#ifdef WOLFSSL_AES_128
+    case HPKE_AES_128_GCM:
+#endif
+#ifdef WOLFSSL_AES_256
+    case HPKE_AES_256_GCM:
+#endif
+        return 1;
+
+    default:
+        return 0;
+    }
 }
 
 #endif /* HAVE_HPKE && (HAVE_ECC || HAVE_CURVE25519) && HAVE_AESGCM */

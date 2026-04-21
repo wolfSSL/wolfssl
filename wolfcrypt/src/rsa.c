@@ -69,29 +69,62 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 /*
-Possible RSA enable options:
- * NO_RSA:                Overall control of RSA                    default: on
- *                                                                 (not defined)
- * WC_RSA_BLINDING:       Uses Blinding w/ Private Ops              default: on
-                          Note: slower by ~20%
- * WOLFSSL_KEY_GEN:       Allows Private Key Generation             default: off
- * RSA_LOW_MEM:           NON CRT Private Operations, less memory   default: off
- * WC_NO_RSA_OAEP:        Disables RSA OAEP padding                 default: on
- *                                                                 (not defined)
- * WC_RSA_NONBLOCK:       Enables support for RSA non-blocking      default: off
- * WC_RSA_NONBLOCK_TIME:  Enables support for time based blocking   default: off
- *                        time calculation.
- * WC_RSA_NO_FERMAT_CHECK:Don't check for small difference in       default: off
- *                        p and q (Fermat's factorization is       (not defined)
- *                        possible when small difference).
-*/
-
-/*
-RSA Key Size Configuration:
- * FP_MAX_BITS:         With USE_FAST_MATH only                     default: 4096
-    If USE_FAST_MATH then use this to override default.
-    Value is key size * 2. Example: RSA 3072 = 6144
-*/
+ * RSA Build Options:
+ *
+ * Core:
+ * NO_RSA:                  Disable RSA support entirely            default: off
+ * WOLFSSL_RSA_PUBLIC_ONLY: Only include RSA public key operations  default: off
+ * WOLFSSL_RSA_VERIFY_ONLY: Only include RSA verify operation       default: off
+ * WOLFSSL_RSA_VERIFY_INLINE: RSA verify inline (no output copy)   default: off
+ * WC_RSA_DIRECT:           Enable direct RSA encrypt/decrypt API   default: off
+ * WC_RSA_NO_PADDING:       Enable no-padding RSA mode              default: off
+ * WOLFSSL_RSA_KEY_CHECK:   Enable RSA key pair consistency check   default: off
+ * WOLFSSL_RSA_CHECK_D_ON_DECRYPT: Validate private exponent d     default: off
+ *                           before each decrypt operation
+ * WOLFSSL_RSA_DECRYPT_TO_0_LEN: Allow RSA decrypt result of 0     default: off
+ *                           length (empty plaintext)
+ * NO_RSA_BOUNDS_CHECK:     Disable RSA bounds checking on input    default: off
+ * SHOW_GEN:                Show key generation progress dots        default: off
+ *
+ * Padding:
+ * WC_RSA_PSS:              Enable RSA-PSS signature support        default: off
+ * WC_NO_RSA_OAEP:          Disable RSA OAEP padding                default: off
+ * WOLFSSL_PSS_LONG_SALT:   Allow PSS salt longer than hash length  default: off
+ * WOLFSSL_PSS_SALT_LEN_DISCOVER: Auto-discover PSS salt length    default: off
+ *                           during verification
+ *
+ * Performance:
+ * WC_RSA_BLINDING:         Use blinding with private key ops       default: on
+ *                           Note: ~20% slower, protects against
+ *                           timing side-channels
+ * RSA_LOW_MEM:             Non-CRT private ops, less memory        default: off
+ * WC_RSA_NONBLOCK:         Non-blocking RSA operations             default: off
+ * WC_RSA_NONBLOCK_TIME:    Time-based non-blocking RSA             default: off
+ * WOLFSSL_MP_INVMOD_CONSTANT_TIME: Constant-time modular inverse  default: off
+ * WC_RSA_NO_FERMAT_CHECK:  Skip Fermat factorization check on     default: off
+ *                           key generation (p and q closeness)
+ *
+ * Key Generation:
+ * WOLFSSL_KEY_GEN:         Enable RSA private key generation       default: off
+ * FP_MAX_BITS:             Max key bits with USE_FAST_MATH         default: 4096
+ *                           Value is key size * 2 (e.g. RSA 3072 = 6144)
+ *
+ * SP Math:
+ * WOLFSSL_HAVE_SP_RSA:     Use SP math for RSA operations          default: off
+ * WOLFSSL_SP_MATH:         Use SP math only (no multi-precision)   default: off
+ * WOLFSSL_SP_MATH_ALL:     SP math for all key sizes               default: off
+ * WOLFSSL_SP_NO_2048:      Disable SP RSA 2048-bit support         default: off
+ * WOLFSSL_SP_NO_3072:      Disable SP RSA 3072-bit support         default: off
+ * WOLFSSL_SP_4096:         Enable SP RSA 4096-bit support          default: off
+ * WOLFSSL_SP_ASM:          Use SP assembly optimizations           default: off
+ *
+ * Hardware Acceleration (RSA-specific):
+ * WC_ASYNC_ENABLE_RSA:     Enable async RSA operations             default: off
+ * WOLFSSL_KCAPI_RSA:       Linux kernel crypto API for RSA         default: off
+ * WOLFSSL_AFALG_XILINX_RSA: AF_ALG Xilinx RSA acceleration        default: off
+ * WOLFSSL_SE050_NO_RSA:    Disable SE050 RSA                       default: off
+ * WOLFSSL_XILINX_CRYPT:    Xilinx crypto RSA acceleration          default: off
+ */
 
 
 #include <wolfssl/wolfcrypt/random.h>
@@ -154,7 +187,16 @@ static void wc_RsaCleanup(RsaKey* key)
 }
 
 #ifndef WC_NO_CONSTRUCTORS
-RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
+
+#define RSA_NEW_INIT_PLAIN  0
+#ifdef WOLF_PRIVATE_KEY_ID
+#define RSA_NEW_INIT_ID     1
+#define RSA_NEW_INIT_LABEL  2
+#endif
+
+static RsaKey* _NewRsaKey_common(void* heap, int devId, int *result_code,
+                                  int rsaInitType, unsigned char* id,
+                                  int idLen, const char* label)
 {
     int ret;
     RsaKey* key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
@@ -162,27 +204,85 @@ RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
         ret = MEMORY_E;
     }
     else {
-        ret = wc_InitRsaKey_ex(key, heap, devId);
+        switch (rsaInitType) {
+#ifdef WOLF_PRIVATE_KEY_ID
+        case RSA_NEW_INIT_ID:
+            if (id == NULL || idLen == 0 || label != NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                ret = wc_InitRsaKey_Id(key, id, idLen, heap, devId);
+            }
+            break;
+        case RSA_NEW_INIT_LABEL:
+            if (label == NULL || id != NULL || idLen != 0) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                ret = wc_InitRsaKey_Label(key, label, heap, devId);
+            }
+            break;
+#endif
+        default:
+            if (id != NULL || idLen != 0 || label != NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else {
+                ret = wc_InitRsaKey_ex(key, heap, devId);
+            }
+            break;
+        }
         if (ret != 0) {
             XFREE(key, heap, DYNAMIC_TYPE_RSA);
             key = NULL;
         }
     }
+    (void)rsaInitType;
+    (void)id;
+    (void)idLen;
+    (void)label;
 
-    if (result_code != NULL)
+    if (result_code != NULL) {
         *result_code = ret;
+    }
 
     return key;
 }
 
+RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
+{
+    return _NewRsaKey_common(heap, devId, result_code,
+                             RSA_NEW_INIT_PLAIN, NULL, 0, NULL);
+}
+
+#ifdef WOLF_PRIVATE_KEY_ID
+RsaKey* wc_NewRsaKey_Id(unsigned char* id, int len, void* heap, int devId,
+                         int *result_code)
+{
+    return _NewRsaKey_common(heap, devId, result_code,
+                             RSA_NEW_INIT_ID, id, len, NULL);
+}
+
+RsaKey* wc_NewRsaKey_Label(const char* label, void* heap, int devId,
+                            int *result_code)
+{
+    return _NewRsaKey_common(heap, devId, result_code,
+                             RSA_NEW_INIT_LABEL, NULL, 0, label);
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
+
 int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 {
-    if (key == NULL)
+    void* heap;
+    if (key == NULL) {
         return BAD_FUNC_ARG;
+    }
+    heap = key->heap;
     wc_FreeRsaKey(key);
-    XFREE(key, key->heap, DYNAMIC_TYPE_RSA);
-    if (key_p != NULL)
+    XFREE(key, heap, DYNAMIC_TYPE_RSA);
+    if (key_p != NULL) {
         *key_p = NULL;
+    }
     return 0;
 }
 #endif /* !WC_NO_CONSTRUCTORS */
@@ -559,6 +659,26 @@ int wc_FreeRsaKey(RsaKey* key)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                               WC_PK_TYPE_RSA, 0, key);
+        /* If callback wants standard free, it returns CRYPTOCB_UNAVAILABLE.
+         * Otherwise assume the callback handled cleanup. */
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through to software cleanup */
+        ret = 0;
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
+
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
+    se050_rsa_free_key(key);
+#endif
 
     wc_RsaCleanup(key);
 
@@ -1817,7 +1937,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
 static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
-                    byte **output, byte padValue)
+                    const byte **output, byte padValue)
 {
     int    ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     word16 i;
@@ -1846,7 +1966,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
             return RSA_PAD_E;
         }
 
-        *output = (byte *)(pkcsBlock + i);
+        *output = (const byte *)(pkcsBlock + i);
         ret = (int)pkcsBlockLen - i;
     }
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
@@ -1856,6 +1976,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         volatile byte   invalid = 0;
         volatile byte   minPad;
         volatile int    invalidMask;
+        byte inv;
+        word16 sep;
 
         i = 0;
         /* Decrypted with private key - unpad must be constant time. */
@@ -1866,18 +1988,24 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
             pastSep |= ctMask16Eq(pkcsBlock[j], 0x00);
         }
 
+        /* Snapshot volatiles to avoid multiple volatile accesses per
+         * expression. */
+        inv = invalid;
+        sep = pastSep;
+
         /* Minimum of 11 bytes of pre-message data - including leading 0x00. */
         minPad = ctMaskLT(i, RSA_MIN_PAD_SZ);
-        invalid |= minPad;
+        inv |= minPad;
         /* Must have seen separator. */
-        invalid |= (byte)~pastSep;
+        inv |= (byte)~sep;
         /* First byte must be 0x00. */
-        invalid |= ctMaskNotEq(pkcsBlock[0], 0x00);
+        inv |= ctMaskNotEq(pkcsBlock[0], 0x00);
         /* Check against expected block type: padValue */
-        invalid |= ctMaskNotEq(pkcsBlock[1], padValue);
+        inv |= ctMaskNotEq(pkcsBlock[1], padValue);
 
-        *output = (byte *)(pkcsBlock + i);
-        invalidMask = (int)-1 + (int)(invalid >> 7);
+        invalid = inv;
+        *output = (const byte *)(pkcsBlock + i);
+        invalidMask = (int)-1 + (int)(inv >> 7);
         ret = invalidMask & ((int)pkcsBlockLen - i);
     }
 #endif
@@ -1899,7 +2027,8 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     switch (padType) {
         case WC_RSA_PKCSV15_PAD:
             /*WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 un-padding");*/
-            ret = RsaUnPad(pkcsBlock, pkcsBlockLen, out, padValue);
+            ret = RsaUnPad(pkcsBlock, pkcsBlockLen, (const byte **)(void *)out,
+                           padValue);
             break;
 
     #ifndef WC_NO_RSA_OAEP
@@ -1994,27 +2123,17 @@ int wc_hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_MD4:
     case WC_HASH_TYPE_MD5:
     case WC_HASH_TYPE_MD5_SHA:
-    #ifndef WOLFSSL_NOSHA512_224
-        case WC_HASH_TYPE_SHA512_224:
-    #endif
-    #ifndef WOLFSSL_NOSHA512_256
-        case WC_HASH_TYPE_SHA512_256:
-    #endif
+    case WC_HASH_TYPE_SHA512_224:
+    case WC_HASH_TYPE_SHA512_256:
     case WC_HASH_TYPE_SHA3_224:
     case WC_HASH_TYPE_SHA3_256:
     case WC_HASH_TYPE_SHA3_384:
     case WC_HASH_TYPE_SHA3_512:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
-#ifdef WOLFSSL_SM3
     case WC_HASH_TYPE_SM3:
-#endif
-    #ifdef WOLFSSL_SHAKE128
-        case WC_HASH_TYPE_SHAKE128:
-    #endif
-    #ifdef WOLFSSL_SHAKE256
-        case WC_HASH_TYPE_SHAKE256:
-    #endif
+    case WC_HASH_TYPE_SHAKE128:
+    case WC_HASH_TYPE_SHAKE256:
     default:
         break;
     }
@@ -3402,7 +3521,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                             mgf, label, labelSz, sz);
         }
         else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
-                                              pad_value == RSA_BLOCK_TYPE_1) {
+                 pad_value == RSA_BLOCK_TYPE_1 &&
+                 pad_type != WC_RSA_PSS_PAD) {
+            /* SE050 handles PKCS#1 v1.5 signing directly. PSS signing falls
+             * through to software path because the SE050 PSS sign API
+             * (Se05x_API_RSASign) is hash-then-sign and does not support
+             * signing a pre-computed digest without double-hashing. */
             return se050_rsa_sign(in, inLen, out, outLen, key, rsa_type,
                                   pad_value, pad_type, hash, mgf, label,
                                   labelSz, sz);
@@ -3567,8 +3691,14 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
+    #if !defined(WOLFSSL_SE050_NO_RSA_VERIFY)
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
-                                                pad_value == RSA_BLOCK_TYPE_1) {
+                 pad_value == RSA_BLOCK_TYPE_1 &&
+                 pad_type != WC_RSA_PSS_PAD) {
+            /* SE050 handles PKCS#1 v1.5 verification directly. PSS
+             * verification falls through to software path to match the
+             * software PSS signing path (SE050 PSS sign uses hash-then-sign
+             * which double-hashes a pre-computed digest). */
             ret = se050_rsa_verify(in, inLen, out, outLen, key, rsa_type,
                                    pad_value, pad_type, hash, mgf, label,
                                    labelSz);
@@ -3577,6 +3707,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
+    #endif /* !WOLFSSL_SE050_NO_RSA_VERIFY */
     #endif /* RSA CRYPTO HW */
 
 
@@ -4419,9 +4550,10 @@ int wc_RsaEncryptSize(const RsaKey* key)
 }
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-/* flatten RsaKey structure into individual elements (e, n) */
-int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
-                                                                   word32* nSz)
+/* Software-only export of RSA public key elements from RsaKey.
+ * This internal helper avoids recursion when called from the EXPORT_KEY path. */
+static int _RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz,
+                                byte* n, word32* nSz)
 {
     int sz, ret;
 
@@ -4430,22 +4562,76 @@ int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
     }
 
     sz = mp_unsigned_bin_size(&key->e);
-    if ((word32)sz > *eSz)
+    if ((word32)sz > *eSz) {
         return RSA_BUFFER_E;
+    }
     ret = mp_to_unsigned_bin(&key->e, e);
-    if (ret != MP_OKAY)
+    if (ret != MP_OKAY) {
         return ret;
+    }
     *eSz = (word32)sz;
 
     sz = wc_RsaEncryptSize(key);
-    if ((word32)sz > *nSz)
+    if ((word32)sz > *nSz) {
         return RSA_BUFFER_E;
+    }
     ret = mp_to_unsigned_bin(&key->n, n);
-    if (ret != MP_OKAY)
+    if (ret != MP_OKAY) {
         return ret;
+    }
     *nSz = (word32)sz;
 
     return 0;
+}
+
+/* flatten RsaKey structure into individual elements (e, n) */
+int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
+                                                                   word32* nSz)
+{
+    if (key == NULL || e == NULL || eSz == NULL || n == NULL || nSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+#endif
+    {
+        int ret;
+        WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+
+        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+        ret = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (ret != 0) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return ret;
+        }
+
+        ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_RSA,
+                                     key, tmpKey);
+        if (ret == 0) {
+            /* Call software helper (no callback recursion) */
+            ret = _RsaFlattenPublicKey(tmpKey, e, eSz, n, nSz);
+        }
+        /* wc_FreeRsaKey calls mp_forcezero on all private key components,
+         * so no separate ForceZero of the struct is needed here. Calling
+         * ForceZero before wc_FreeRsaKey would zero the mp_int metadata
+         * and cause a crash. */
+        wc_FreeRsaKey(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+        /* fall through to software */
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_EXPORT_KEY */
+
+    return _RsaFlattenPublicKey(key, e, eSz, n, nSz);
 }
 #endif
 
@@ -4471,27 +4657,37 @@ static int RsaGetValue(const mp_int* in, byte* out, word32* outSz)
 }
 
 
-int wc_RsaExportKey(const RsaKey* key,
-                    byte* e, word32* eSz, byte* n, word32* nSz,
-                    byte* d, word32* dSz, byte* p, word32* pSz,
-                    byte* q, word32* qSz)
+/* Software-only export of RSA key elements from RsaKey.
+ * This internal helper avoids recursion when called from the EXPORT_KEY path. */
+static int _RsaExportKey(const RsaKey* key,
+                         byte* e, word32* eSz, byte* n, word32* nSz,
+                         byte* d, word32* dSz, byte* p, word32* pSz,
+                         byte* q, word32* qSz)
 {
-    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int ret = 0;
 
-    if (key && e && eSz && n && nSz && d && dSz && p && pSz && q && qSz)
-        ret = 0;
+    if (key == NULL || e == NULL || eSz == NULL || n == NULL || nSz == NULL
+            || d == NULL || dSz == NULL || p == NULL || pSz == NULL
+            || q == NULL || qSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-    if (ret == 0)
+    if (ret == 0) {
         ret = RsaGetValue(&key->e, e, eSz);
-    if (ret == 0)
+    }
+    if (ret == 0) {
         ret = RsaGetValue(&key->n, n, nSz);
+    }
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    if (ret == 0)
+    if (ret == 0) {
         ret = RsaGetValue(&key->d, d, dSz);
-    if (ret == 0)
+    }
+    if (ret == 0) {
         ret = RsaGetValue(&key->p, p, pSz);
-    if (ret == 0)
+    }
+    if (ret == 0) {
         ret = RsaGetValue(&key->q, q, qSz);
+    }
 #else
     /* no private parts to key */
     if (d == NULL || p == NULL || q == NULL || dSz == NULL || pSz == NULL
@@ -4504,6 +4700,63 @@ int wc_RsaExportKey(const RsaKey* key,
         *qSz = 0;
     }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
+    return ret;
+}
+
+int wc_RsaExportKey(const RsaKey* key,
+                    byte* e, word32* eSz, byte* n, word32* nSz,
+                    byte* d, word32* dSz, byte* p, word32* pSz,
+                    byte* q, word32* qSz)
+{
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+
+    if (key && e && eSz && n && nSz && d && dSz && p && pSz && q && qSz) {
+        ret = 0;
+    }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_EXPORT_KEY)
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+
+            WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+            if (!WC_VAR_OK(tmpKey)) {
+                return MEMORY_E;
+            }
+            XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+            ret = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+            if (ret != 0) {
+                WC_FREE_VAR(tmpKey, key->heap);
+                return ret;
+            }
+
+            ret = wc_CryptoCb_ExportKey(key->devId, WC_PK_TYPE_RSA,
+                                         key, tmpKey);
+            if (ret == 0) {
+                /* Call software helper (no callback recursion) */
+                ret = _RsaExportKey(tmpKey, e, eSz, n, nSz,
+                                    d, dSz, p, pSz, q, qSz);
+            }
+            /* wc_FreeRsaKey calls mp_forcezero on all private key components,
+             * so no separate ForceZero of the struct is needed here. */
+            wc_FreeRsaKey(tmpKey);
+            WC_FREE_VAR(tmpKey, key->heap);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                return ret;
+            }
+            ret = 0; /* fall through to software */
+        }
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_EXPORT_KEY */
+
+    if (ret == 0) {
+        ret = _RsaExportKey(key, e, eSz, n, nSz, d, dSz, p, pSz, q, qSz);
+    }
 
     return ret;
 }
@@ -5353,6 +5606,93 @@ static int CalcDX(mp_int* y, mp_int* x, mp_int* d)
 }
 #endif
 
+/* Software-only import of RSA private key elements into RsaKey.
+ * This internal helper avoids recursion when called from the SETKEY path. */
+static int _RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
+        const byte* e, word32 eSz, const byte* d, word32 dSz,
+        const byte* u, word32 uSz, const byte* p, word32 pSz,
+        const byte* q, word32 qSz, const byte* dP, word32 dPSz,
+        const byte* dQ, word32 dQSz, RsaKey* key)
+{
+    int err = MP_OKAY;
+
+    if (n == NULL || nSz == 0 || e == NULL || eSz == 0
+            || d == NULL || dSz == 0 || p == NULL || pSz == 0
+            || q == NULL || qSz == 0 || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    if ((u == NULL || uSz == 0)
+            || (dP != NULL && dPSz == 0)
+            || (dQ != NULL && dQSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    (void)u;
+    (void)uSz;
+    (void)dP;
+    (void)dPSz;
+    (void)dQ;
+    (void)dQSz;
+#endif
+
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->n, n, nSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->e, e, eSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->d, d, dSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->p, p, pSz);
+    }
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->q, q, qSz);
+    }
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    if (err == MP_OKAY) {
+        err = mp_read_unsigned_bin(&key->u, u, uSz);
+    }
+    if (err == MP_OKAY) {
+        if (dP != NULL) {
+            err = mp_read_unsigned_bin(&key->dP, dP, dPSz);
+        }
+        else {
+            err = CalcDX(&key->dP, &key->p, &key->d);
+        }
+    }
+    if (err == MP_OKAY) {
+        if (dQ != NULL) {
+            err = mp_read_unsigned_bin(&key->dQ, dQ, dQSz);
+        }
+        else {
+            err = CalcDX(&key->dQ, &key->q, &key->d);
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        key->type = RSA_PRIVATE;
+    }
+    else {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
+        mp_forcezero(&key->d);
+        mp_forcezero(&key->p);
+        mp_forcezero(&key->q);
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+        mp_forcezero(&key->u);
+        mp_forcezero(&key->dP);
+        mp_forcezero(&key->dQ);
+#endif
+    }
+
+    return err;
+}
+
 int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
         const byte* e, word32 eSz, const byte* d, word32 dSz,
         const byte* u, word32 uSz, const byte* p, word32 pSz,
@@ -5360,6 +5700,10 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
         const byte* dQ, word32 dQSz, RsaKey* key)
 {
     int err = MP_OKAY;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int cbRet = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    WC_DECLARE_VAR(tmpKey, RsaKey, 1, NULL);
+#endif
 
     if (n == NULL || nSz == 0 || e == NULL || eSz == 0
             || d == NULL || dSz == 0 || p == NULL || pSz == 0
@@ -5384,47 +5728,55 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
     (void)dQSz;
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (err == MP_OKAY && key->devId != INVALID_DEVID)
+    #else
     if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->n, n, nSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->e, e, eSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->d, d, dSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->p, p, pSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->q, q, qSz);
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(&key->u, u, uSz);
-    if (err == MP_OKAY) {
-        if (dP != NULL)
-            err = mp_read_unsigned_bin(&key->dP, dP, dPSz);
-        else
-            err = CalcDX(&key->dP, &key->p, &key->d);
+    #endif
+    {
+        /* Allocate temp key for callback to export from */
+        WC_ALLOC_VAR(tmpKey, RsaKey, 1, key->heap);
+        if (!WC_VAR_OK(tmpKey)) {
+            return MEMORY_E;
+        }
+        XMEMSET(tmpKey, 0, sizeof(RsaKey));
+
+        /* Init temp with INVALID_DEVID to prevent callback recursion */
+        err = wc_InitRsaKey_ex(tmpKey, key->heap, INVALID_DEVID);
+        if (err != MP_OKAY) {
+            WC_FREE_VAR(tmpKey, key->heap);
+            return err;
+        }
+
+        /* Import into temp via software helper (no callback recursion) */
+        err = _RsaPrivateKeyDecodeRaw(n, nSz, e, eSz, d, dSz,
+            u, uSz, p, pSz, q, qSz, dP, dPSz, dQ, dQSz, tmpKey);
+        if (err == MP_OKAY) {
+            cbRet = wc_CryptoCb_SetKey(key->devId,
+                WC_SETKEY_RSA_PRIV, key, tmpKey,
+                wc_RsaEncryptSize(tmpKey), NULL, 0, 0);
+        }
+
+        /* wc_FreeRsaKey calls mp_forcezero on all private key components,
+         * so no separate ForceZero of the struct is needed here. */
+        wc_FreeRsaKey(tmpKey);
+        WC_FREE_VAR(tmpKey, key->heap);
+
+        if (err != MP_OKAY) {
+            return err;
+        }
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return cbRet;
+        }
+        /* CRYPTOCB_UNAVAILABLE: fall through to software import */
+        err = MP_OKAY;
     }
-    if (err == MP_OKAY) {
-        if (dQ != NULL)
-            err = mp_read_unsigned_bin(&key->dQ, dQ, dQSz);
-        else
-            err = CalcDX(&key->dQ, &key->q, &key->d);
-    }
-#endif
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_SETKEY */
 
     if (err == MP_OKAY) {
-        key->type = RSA_PRIVATE;
-    }
-    else if (key != NULL) {
-        mp_clear(&key->n);
-        mp_clear(&key->e);
-        mp_forcezero(&key->d);
-        mp_forcezero(&key->p);
-        mp_forcezero(&key->q);
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-        mp_forcezero(&key->u);
-        mp_forcezero(&key->dP);
-        mp_forcezero(&key->dQ);
-#endif
+        err = _RsaPrivateKeyDecodeRaw(n, nSz, e, eSz, d, dSz,
+            u, uSz, p, pSz, q, qSz, dP, dPSz, dQ, dQSz, key);
     }
 
     return err;

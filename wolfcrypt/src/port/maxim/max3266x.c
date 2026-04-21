@@ -562,7 +562,7 @@ int wc_MxcCb_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (status == 0) {
         XMEMCPY(iv, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     }
-    return (status == 0) ? 0 : -1;
+    return status;
 }
 #endif /* HAVE_AES_CBC */
 #endif /* WOLF_CRYPTO_CB */
@@ -682,7 +682,7 @@ int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (status == 0) {
         XMEMCPY(iv, temp_block, WC_AES_BLOCK_SIZE);
     }
-    return (status == 0) ? 0 : -1;
+    return status;
 }
 #endif /* HAVE_AES_CBC */
 #endif /* WOLF_CRYPTO_CB */
@@ -808,7 +808,7 @@ int wc_MXC_TPU_SHA_Copy(void* src, void* dst, word32 ctxSz,
                                 byte** dstMsg, word32* dstUsed, word32* dstLen,
                                 void* dstHeap, void* srcHeap)
 {
-    byte* srcBuf;
+    byte* srcBuf = NULL;
 
     if (src == NULL || dst == NULL || dstMsg == NULL ||
         dstUsed == NULL || dstLen == NULL || ctxSz == 0) {
@@ -821,7 +821,11 @@ int wc_MXC_TPU_SHA_Copy(void* src, void* dst, word32 ctxSz,
     /* Shallow copy the full context struct */
     XMEMCPY(dst, src, ctxSz);
 
-    /* Deep copy src msg buffer if present, allocate using src's heap */
+    /* Deep copy src msg buffer if present. Since dstMsg points into the dst
+     * struct, the XMEMCPY above overwrites it with the src's msg pointer.
+     * Save that pointer, allocate a new buffer for dst, and copy the data.
+     * Do NOT move srcBuf assignment before XMEMCPY - it must capture the
+     * src msg pointer that lands in *dstMsg after the shallow copy. */
     if (*dstMsg != NULL) {
         srcBuf = *dstMsg;
         *dstMsg = (byte*)XMALLOC(*dstLen, srcHeap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1361,9 +1365,6 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
         ForceZero(result->dp, sizeof(int)*(length));
         result->used = length;
     }
-    else if (result == NULL) {
-        return BAD_FUNC_ARG; /* Cannot be null */
-    }
     return 0;
 }
 
@@ -1426,7 +1427,8 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     MAX3266X_MSG("Starting Computation in MAA");
     ret = MXC_TPU_MAA_Compute(clc, (char *)(multiplier->dp),
                                     (char *)(multiplicand->dp),
-                                    (char *)(exp->dp), (char *)(mod->dp),
+                                    (char *)((exp == NULL) ? NULL: exp->dp),
+                                    (char *)(mod->dp),
                                     (int *)(result_tmp_ptr->dp),
                                     (length*sizeof(mp_digit)));
     MAX3266X_MSG("MAA Finished Computation");
@@ -1448,7 +1450,7 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     if ((multiplier == result) || (multiplicand == result) || (exp == result) ||
             (mod == result)) {
         mp_copy(result_tmp_ptr, result);
-        ForceZero(result_tmp_ptr, sizeof(result_tmp_ptr)); /* force zero */
+        ForceZero(result_tmp_ptr, sizeof(mp_int)); /* force zero */
     }
 
     result->used = wc_MXC_MAA_adjustUsed(result->dp, length);

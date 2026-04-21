@@ -63,7 +63,7 @@ enum {
     MLKEM_COMP_4BITS    =  4,
     MLKEM_COMP_5BITS    =  5,
     MLKEM_COMP_10BITS   = 10,
-    MLKEM_COMP_11BITS   = 11,
+    MLKEM_COMP_11BITS   = 11
 };
 
 
@@ -104,24 +104,44 @@ enum {
 struct MlKemKey {
     /* Type of key: WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024 */
     int type;
+#ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
+    /* Allocated size of priv buffer in bytes. */
+    word32 privAllocSz;
+#endif
     /* Dynamic memory allocation hint. */
     void* heap;
 #if defined(WOLF_CRYPTO_CB)
+    /* Device context for hardware key handle. */
+    void* devCtx;
     /* Device Id. */
     int devId;
 #endif
     /* Flags indicating what is stored in the key. */
     int flags;
 
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[MLKEM_MAX_ID_LEN];
+    int  idLen;
+    char label[MLKEM_MAX_LABEL_LEN];
+    int  labelLen;
+#endif
+
     /* A pseudo-random function object. */
     MLKEM_HASH_T hash;
     /* A pseudo-random function object. */
     MLKEM_PRF_T prf;
 
+#ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
     /* Private key as a vector. */
     sword16 priv[WC_ML_KEM_MAX_K * MLKEM_N];
     /* Public key as a vector. */
     sword16 pub[WC_ML_KEM_MAX_K * MLKEM_N];
+#else
+    /* Private key as a vector (dynamically allocated). */
+    sword16* priv;
+    /* Public key as a vector (dynamically allocated). */
+    sword16* pub;
+#endif
     /* Public seed. */
     byte pubSeed[WC_ML_KEM_SYM_SZ];
     /* Public hash - hash of encoded public key. */
@@ -129,8 +149,13 @@ struct MlKemKey {
     /* Randomizer for decapsulation. */
     byte z[WC_ML_KEM_SYM_SZ];
 #ifdef WOLFSSL_MLKEM_CACHE_A
+#ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
     /* A matrix from key generation. */
     sword16 a[WC_ML_KEM_MAX_K * WC_ML_KEM_MAX_K * MLKEM_N];
+#else
+    /* A matrix from key generation (dynamically allocated). */
+    sword16* a;
+#endif
 #endif
 };
 

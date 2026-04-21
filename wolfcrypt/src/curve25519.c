@@ -314,7 +314,8 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
 #else
     fe_init();
 
-    ret = curve25519_smul_blind(pub, priv, (byte*)kCurve25519BasePoint, rng);
+    ret = curve25519_smul_blind(pub, priv, (const byte*)kCurve25519BasePoint,
+                                rng);
 #endif
 
     if (ret == 0) {
@@ -1112,10 +1113,12 @@ curve25519_key* wc_curve25519_new(void* heap, int devId, int *result_code)
 }
 
 int wc_curve25519_delete(curve25519_key* key, curve25519_key** key_p) {
+    void* heap;
     if (key == NULL)
         return BAD_FUNC_ARG;
+    heap = key->heap;
     wc_curve25519_free(key);
-    XFREE(key, key->heap, DYNAMIC_TYPE_CURVE25519);
+    XFREE(key, heap, DYNAMIC_TYPE_CURVE25519);
     if (key_p != NULL)
         *key_p = NULL;
     return 0;

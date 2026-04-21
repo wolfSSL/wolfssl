@@ -20,6 +20,21 @@
  */
 
 
+/*
+ * HMAC Build Options:
+ *
+ * NO_HMAC:                  Disable HMAC support entirely         default: off
+ * HAVE_HKDF:                Enable HKDF (RFC 5869) key derivation default: off
+ * WOLFSSL_HMAC_COPY_HASH:   Copy hash state instead of re-init   default: off
+ *                            for HMAC operations (performance)
+ * STM32_HMAC:               STM32 hardware HMAC acceleration     default: off
+ *
+ * Hardware Acceleration (HMAC-specific):
+ * WC_ASYNC_ENABLE_HMAC:     Enable async HMAC operations          default: off
+ * WOLFSSL_DEVCRYPTO_HMAC:   /dev/crypto HMAC acceleration        default: off
+ * WOLFSSL_KCAPI_HMAC:       Linux kernel crypto API for HMAC     default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_HMAC
@@ -455,6 +470,9 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
 #endif
     int    ret = 0;
     void*  heap = NULL;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    int    cbRet;
+#endif
 
     if (hmac == NULL || (key == NULL && length != 0) ||
        !(type == WC_MD5 || type == WC_SHA ||
@@ -527,6 +545,19 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
             return HMAC_MIN_KEYLEN_E;
         }
     }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (hmac->devId != INVALID_DEVID)
+    #endif
+    {
+        cbRet = wc_CryptoCb_SetKey(hmac->devId,
+            WC_SETKEY_HMAC, hmac, (void*)key, length, NULL, 0, 0);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through to software when unavailable */
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     hmac->keyRaw = key; /* use buffer directly */
@@ -1558,6 +1589,10 @@ int wolfSSL_GetHmacMaxSize(void)
         int    ret;
         const  byte* localSalt;  /* either points to user input or tmp */
         word32 hashSz;
+
+        if (out == NULL || (inKey == NULL && inKeySz > 0)) {
+            return BAD_FUNC_ARG;
+        }
 
         ret = wc_HmacSizeByType(type);
         if (ret < 0) {

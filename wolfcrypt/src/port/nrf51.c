@@ -45,26 +45,28 @@
 
 /* RTC */
 #ifndef NO_CRYPT_BENCHMARK
-static byte mRtcInitDone = 0;
-static int mRtcSec = 0;
+static volatile byte mRtcInitDone = 0;
+static volatile int mRtcSec = 0;
 const nrf_drv_rtc_t rtc = NRF_DRV_RTC_INSTANCE(0); /**< Declaring an instance of nrf_drv_rtc for RTC0. */
 #endif /* !NO_CRYPT_BENCHMARK */
 
 /* AES */
 #if !defined(NO_AES) && defined(WOLFSSL_NRF51_AES) && !defined(SOFTDEVICE_PRESENT)
-    static byte mAesInitDone = 0;
+    static volatile byte mAesInitDone = 0;
 #endif
 
 /** @brief Function for getting vector of random numbers.
  *
- * @param[out] p_buff   Pointer to unit8_t buffer for storing the bytes.
- * @param[in]  length   Number of bytes to take from pool and place in p_buff.
+ * @param[out] p_buff   Pointer to uint8_t buffer for storing the bytes.
+ * @param[in]  size     Number of bytes to take from pool and place in p_buff.
  *
  * @retval     0 = Success, else error
  */
 int nrf51_random_generate(byte* output, word32 size)
 {
-    int remaining = size, length, pos = 0;
+    word32 remaining = size;
+    word32 pos = 0;
+    uint8_t length;
     uint8_t available;
     uint32_t err_code;
 
@@ -73,18 +75,23 @@ int nrf51_random_generate(byte* output, word32 size)
     if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
         return -1;
     }
+    err_code = NRF_SUCCESS;
 
     while (remaining > 0) {
         available = 0;
         nrf_drv_rng_bytes_available(&available); /* is void */
-        length = (remaining < available) ? remaining : available;
+        length = (remaining < (word32)available) ? (uint8_t)remaining :
+                                                   available;
         if (length > 0) {
             err_code = nrf_drv_rng_rand(&output[pos], length);
+            if (err_code != NRF_SUCCESS) {
+                break;
+            }
             remaining -= length;
             pos += length;
         }
-        if (err_code != NRF_SUCCESS) {
-            break;
+        else {
+            nrf_delay_us(100);
         }
     }
 
@@ -110,14 +117,16 @@ int nrf51_aes_set_key(const byte* key)
     return 0;
 }
 
-
+/* returns 0 on success and -1 on failure. */
 int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out)
 {
     int ret;
-    uint32_t err_code = 0;
 #ifdef SOFTDEVICE_PRESENT
+    uint32_t err_code = 0;
     nrf_ecb_hal_data_t ecb_hal_data;
 #endif
+
+    (void)rounds;
 
     /* Set key */
     ret = nrf51_aes_set_key(key);
@@ -140,11 +149,14 @@ int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out)
     /* Grab result */
     XMEMCPY(out, ecb_hal_data.ciphertext, SOC_ECB_CIPHERTEXT_LENGTH);
 #else
-    err_code = nrf_ecb_crypt(out, in);
-    err_code = err_code ? 0 : -1;
+    /* Returns true or false depending on operation success. */
+    if (nrf_ecb_crypt(out, in))
+        ret = 0;
+    else
+        ret = -1;
 #endif
 
-    return err_code;
+    return ret;
 }
 
 #endif /* !NO_AES && WOLFSSL_NRF51_AES */
@@ -153,8 +165,7 @@ int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out)
 #ifndef NO_CRYPT_BENCHMARK
 static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
 {
-    if (int_type == NRF_DRV_RTC_INT_COMPARE0)
-    {
+    if (int_type == NRF_DRV_RTC_INT_COMPARE0) {
         mRtcSec++;
         nrf_drv_rtc_counter_clear(&rtc);
         nrf_drv_rtc_int_enable(&rtc, RTC_CHANNEL_INT_MASK(0));
@@ -202,24 +213,30 @@ static void rtc_config(void)
 static int rtc_get_ms(void)
 {
     /* Prescaler is 12-bit for COUNTER: frequency = (32768/(PRESCALER+1)) */
-    int frequency = (32768 / (rtc_prescaler_get(rtc.p_reg) + 1));
-    int counter = nrf_drv_rtc_counter_get(&rtc);
+    uint32_t frequency = (32768 / (rtc_prescaler_get(rtc.p_reg) + 1));
+    /* Only 24-bits returned by call. */
+    uint32_t counter = nrf_drv_rtc_counter_get(&rtc);
 
     /* Convert with rounding frequency to milliseconds */
-    return ((counter * 1000) + (frequency / 2) ) / frequency;
+    return (int)((((uint64_t)counter * 1000) + (frequency / 2)) / frequency);
 }
 
 double current_time(int reset)
 {
     double time;
+    int sec;
+
+    (void)reset;
 
     if (!mRtcInitDone) {
         rtc_config();
         mRtcInitDone = 1;
     }
 
-    time = mRtcSec;
-    time += (double)rtc_get_ms() / 1000;
+    do {
+      sec = mRtcSec;
+      time = sec + ((double)rtc_get_ms() / 1000);
+    } while (sec != mRtcSec);
 
     return time;
 }

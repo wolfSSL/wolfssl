@@ -236,7 +236,6 @@ extern "C" {
 #define HAVE_X963_KDF
 #define WOLFSSL_CMAC
 #define WOLFSSL_DES_ECB
-#define HAVE_BLAKE2
 #define HAVE_BLAKE2B
 #define HAVE_BLAKE2S
 #define WOLFSSL_SIPHASH

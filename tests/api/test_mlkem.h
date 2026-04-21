@@ -27,10 +27,14 @@
 int test_wc_mlkem_make_key_kats(void);
 int test_wc_mlkem_encapsulate_kats(void);
 int test_wc_mlkem_decapsulate_kats(void);
+int test_wc_mlkem_decapsulate_pubonly_fails(void);
+int test_wc_mlkem_decap_fo_reject(void);
 
-#define TEST_MLKEM_DECLS                                      \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_kats),    \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_encapsulate_kats), \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decapsulate_kats)
+#define TEST_MLKEM_DECLS                                                \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_kats),              \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_encapsulate_kats),           \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decapsulate_kats),           \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decapsulate_pubonly_fails),  \
+    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decap_fo_reject)
 
 #endif /* WOLFCRYPT_TEST_MLKEM_H */

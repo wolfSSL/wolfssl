@@ -255,6 +255,23 @@ typedef const char wcchar[];
         #endif
 #endif
 
+#if defined(HAVE___UINT128_T) && !defined(NO_INT128)
+    #ifndef WOLFSSL_UINT128_T_DEFINED
+        #ifdef __SIZEOF_INT128__
+            typedef __uint128_t uint128_t;
+            typedef __int128_t   int128_t;
+            typedef __uint128_t   word128;
+            typedef __int128_t   sword128;
+        #else
+            typedef unsigned long uint128_t __attribute__ ((mode(TI)));
+            typedef long           int128_t __attribute__ ((mode(TI)));
+            typedef uint128_t       word128;
+            typedef int128_t       sword128;
+        #endif
+        #define WOLFSSL_UINT128_T_DEFINED
+    #endif
+#endif
+
 #if (defined(_MSC_VER) && (_MSC_VER == 1200)) ||  /* MSVC6 */ \
     (defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
         defined(__BCPLUSPLUS__) || \
@@ -1407,7 +1424,10 @@ enum wc_AlgoType {
     WC_ALGO_TYPE_KDF = 9,
     WC_ALGO_TYPE_COPY = 10,
     WC_ALGO_TYPE_FREE = 11,
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_FREE
+    WC_ALGO_TYPE_SETKEY = 12,
+    WC_ALGO_TYPE_EXPORT_KEY = 13,
+    WC_ALGO_TYPE_SHE = 14,
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_SHE
 };
 
 /* KDF types */
@@ -1442,19 +1462,13 @@ enum wc_HashType {
     WC_HASH_TYPE_SHA3_512 = 13,
     WC_HASH_TYPE_BLAKE2B = 14,
     WC_HASH_TYPE_BLAKE2S = 19,
-#ifdef WOLFSSL_SHAKE128
+    WC_HASH_TYPE_SHA512_224 = 22,
+    WC_HASH_TYPE_SHA512_256 = 23,
     WC_HASH_TYPE_SHAKE128 = 20,
-#endif
-#ifdef WOLFSSL_SHAKE256
     WC_HASH_TYPE_SHAKE256 = 21,
-#endif
-#if defined(WOLFSSL_SHAKE256)
-    WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256,
-#elif defined(WOLFSSL_SHAKE128)
-    WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE128,
-#else
-    WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S,
-#endif
+    WC_HASH_TYPE_SM3     = 24,
+    WC_HASH_TYPE_MAX = WC_HASH_TYPE_SM3
+
     #ifndef WOLFSSL_NOSHA512_224
         #define WOLFSSL_NOSHA512_224
     #endif
@@ -1478,34 +1492,12 @@ enum wc_HashType {
     WC_HASH_TYPE_SHA3_512 = 13,
     WC_HASH_TYPE_BLAKE2B = 14,
     WC_HASH_TYPE_BLAKE2S = 15,
-    #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_BLAKE2S
-    #ifndef WOLFSSL_NOSHA512_224
-        WC_HASH_TYPE_SHA512_224 = 16,
-        #undef _WC_HASH_TYPE_MAX
-        #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_224
-    #endif
-    #ifndef WOLFSSL_NOSHA512_256
-        WC_HASH_TYPE_SHA512_256 = 17,
-        #undef _WC_HASH_TYPE_MAX
-        #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_256
-    #endif
-    #ifdef WOLFSSL_SHAKE128
-        WC_HASH_TYPE_SHAKE128 = 18,
-        #undef _WC_HASH_TYPE_MAX
-        #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE128
-    #endif
-    #ifdef WOLFSSL_SHAKE256
-        WC_HASH_TYPE_SHAKE256 = 19,
-        #undef _WC_HASH_TYPE_MAX
-        #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE256
-    #endif
-    #ifdef WOLFSSL_SM3
-        WC_HASH_TYPE_SM3     = 20,
-        #undef _WC_HASH_TYPE_MAX
-        #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SM3
-    #endif
-    WC_HASH_TYPE_MAX = _WC_HASH_TYPE_MAX
-    #undef _WC_HASH_TYPE_MAX
+    WC_HASH_TYPE_SHA512_224 = 16,
+    WC_HASH_TYPE_SHA512_256 = 17,
+    WC_HASH_TYPE_SHAKE128 = 18,
+    WC_HASH_TYPE_SHAKE256 = 19,
+    WC_HASH_TYPE_SM3     = 20,
+    WC_HASH_TYPE_MAX = WC_HASH_TYPE_SM3
 
 #endif /* HAVE_SELFTEST */
 };
@@ -1577,6 +1569,10 @@ enum wc_PkType {
     WC_PK_TYPE_RSA_PKCS = 25,
     WC_PK_TYPE_RSA_PSS = 26,
     WC_PK_TYPE_RSA_OAEP = 27,
+    WC_PK_TYPE_EC_GET_SIZE = 28,
+    WC_PK_TYPE_EC_GET_SIG_SIZE = 29,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_EC_GET_SIG_SIZE
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
@@ -2326,7 +2322,7 @@ enum Max_ASN {
     MAX_ENCODED_SIG_SZ  = 5120,
 #elif !defined(NO_RSA)
 #if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
-    MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 8,
+    MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 16,
 #elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
     defined(SP_INT_BITS)
     MAX_ENCODED_SIG_SZ  = WC_BITS_TO_BYTES(SP_INT_BITS),
@@ -2433,7 +2429,6 @@ enum Max_ASN {
     } CertSignCtx;
 
 #endif /* WOLFSSL_CERT_GEN */
-
 
 #ifdef __cplusplus
     }   /* extern "C" */

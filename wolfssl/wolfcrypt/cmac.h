@@ -28,7 +28,12 @@
 #ifdef WOLFSSL_CMAC
 
 #ifndef NO_AES
-#include <wolfssl/wolfcrypt/aes.h>
+    /* Inhibit definition of struct AesEax, with its circular dependency on the
+     * below definition of struct Cmac.
+     */
+    #define WC_AES_INCLUDE_FOR_CMAC_H
+    #include <wolfssl/wolfcrypt/aes.h>
+    #undef WC_AES_INCLUDE_FOR_CMAC_H
 #endif
 
 #if defined(HAVE_FIPS) && \
@@ -71,6 +76,13 @@ struct Cmac {
     byte   initialized;
     #endif
 #endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[AES_MAX_ID_LEN];
+    int  idLen;
+    char label[AES_MAX_LABEL_LEN];
+    int  labelLen;
+    int  aesInitType;
+#endif
 #if defined(WOLFSSL_HASH_KEEP)
     byte*  msg;
     word32 used;
@@ -110,6 +122,17 @@ WOLFSSL_API
 int wc_InitCmac_ex(Cmac* cmac,
                 const byte* key, word32 keySz,
                 int type, void* unused, void* heap, int devId);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API
+int wc_InitCmac_Id(Cmac* cmac, const byte* key, word32 keySz,
+                   int type, void* unused, unsigned char* id, int len,
+                   void* heap, int devId);
+WOLFSSL_API
+int wc_InitCmac_Label(Cmac* cmac, const byte* key, word32 keySz,
+                      int type, void* unused, const char* label,
+                      void* heap, int devId);
+#endif
 
 WOLFSSL_API
 int wc_CmacUpdate(Cmac* cmac,

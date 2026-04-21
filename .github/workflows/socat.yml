@@ -52,9 +52,16 @@ jobs:
           - socat_version: "1.8.0.3"
             expect_fail: "146,386,399,402,459,460,467,468,475,478,491,492,495,528"
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install prereqs
-        run:
-          sudo apt-get install build-essential autoconf libtool pkg-config clang libc++-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf libtool pkg-config clang libc++-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4
@@ -72,6 +79,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Build socat
         working-directory: ./socat-${{ matrix.socat_version }}
@@ -79,7 +87,7 @@ jobs:
           patch -p1 < ../osp/socat/${{ matrix.socat_version }}/socat-${{ matrix.socat_version }}.patch
           autoreconf -vfi
           ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir --enable-default-ipv=4
-          make
+          make -j
 
       - name: Run socat tests
         working-directory: ./socat-${{ matrix.socat_version }}

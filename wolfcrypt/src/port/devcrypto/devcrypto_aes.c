@@ -44,8 +44,11 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return BAD_FUNC_ARG;
     }
 
-    /* encrypt only up to AES block size of date */
+    /* encrypt only up to AES block size of data */
     sz = sz - (sz % WC_AES_BLOCK_SIZE);
+    if (sz == 0) {
+        return 0;
+    }
     if (aes->ctx.cfd == -1) {
             ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CBC,
                     (byte*)aes->devKey, aes->keylen);
@@ -73,6 +76,9 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if (aes == NULL || out == NULL || in == NULL || sz % WC_AES_BLOCK_SIZE != 0) {
         return BAD_FUNC_ARG;
+    }
+    if (sz == 0) {
+        return 0;
     }
 
     XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);

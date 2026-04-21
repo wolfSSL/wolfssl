@@ -99,7 +99,7 @@ static int mlkem_get_noise_eta2_c(MLKEM_PRF_T* prf, sword16* p,
 #endif
 
 /* Declared in wc_mlkem.c to stop compiler optimizer from simplifying. */
-extern volatile sword16 mlkem_opt_blocker;
+extern sword16 wc_mlkem_opt_blocker(void);
 
 #if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM))
@@ -126,7 +126,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
  * f is the normalizer = 2^k % m.
  * 16-bit value cast to sword32 in use.
  */
-#define MLKEM_F          ((1ULL << 32) % MLKEM_Q)
+#define MLKEM_F          (((word64)1 << 32) % MLKEM_Q)
 
 /* Number of bytes in an output block of SHA-3-128 */
 #define SHA3_128_BYTES   (WC_SHA3_128_COUNT * 8)
@@ -2292,7 +2292,7 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * GEN_MATRIX_SIZE + 2];
+    byte rand[4 * GEN_MATRIX_SIZE + 4];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -2302,7 +2302,7 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
     byte* p;
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 2, NULL,
+    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -2313,9 +2313,11 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
     }
 #endif
 
-    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
     rand[4 * GEN_MATRIX_SIZE + 0] = 0xff;
     rand[4 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 3] = 0xff;
 
     if (!transposed) {
         state[4*4 + 0] = 0x1f0000 + 0x000;
@@ -2403,7 +2405,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * GEN_MATRIX_SIZE + 2];
+    byte rand[4 * GEN_MATRIX_SIZE + 4];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -2413,7 +2415,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     byte* p;
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 2, NULL,
+    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -2424,9 +2426,11 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     }
 #endif
 
-    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
     rand[4 * GEN_MATRIX_SIZE + 0] = 0xff;
     rand[4 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 3] = 0xff;
 
     for (k = 0; k < 2; k++) {
         for (i = 0; i < 4; i++) {
@@ -2559,7 +2563,7 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * GEN_MATRIX_SIZE + 2];
+    byte rand[4 * GEN_MATRIX_SIZE + 4];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -2569,7 +2573,7 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     byte* p;
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 2, NULL,
+    rand = (byte*)XMALLOC(4 * GEN_MATRIX_SIZE + 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -2580,9 +2584,11 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     }
 #endif
 
-    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    /* Loading 64 bits, only using 48 bits. Loading 4 bytes more than used. */
     rand[4 * GEN_MATRIX_SIZE + 0] = 0xff;
     rand[4 * GEN_MATRIX_SIZE + 1] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 2] = 0xff;
+    rand[4 * GEN_MATRIX_SIZE + 3] = 0xff;
 
     for (k = 0; k < 4; k++) {
         for (i = 0; i < 4; i++) {
@@ -5758,8 +5764,8 @@ void mlkem_decompress_5(sword16* p, const byte* b)
 /* Convert bit from byte to 0 or (MLKEM_Q + 1) / 2.
  *
  * Constant time implementation.
- * XOR in mlkem_opt_blocker to ensure optimizer doesn't know what will be ANDed
- * with MLKEM_Q_1_HALF and can't optimize to non-constant time code.
+ * XOR in wc_mlkem_opt_blocker() to ensure optimizer doesn't know what will be
+ * ANDed with MLKEM_Q_1_HALF and can't optimize to non-constant time code.
  *
  * FIPS 203, Algorithm 6: ByteDecode_d(B)
  *
@@ -5770,7 +5776,7 @@ void mlkem_decompress_5(sword16* p, const byte* b)
  */
 #define FROM_MSG_BIT(p, msg, i, j) \
     ((p)[8 * (i) + (j)] = (((sword16)0 - (sword16)(((msg)[i] >> (j)) & 1)) ^ \
-                          mlkem_opt_blocker) & MLKEM_Q_1_HALF)
+                          wc_mlkem_opt_blocker()) & MLKEM_Q_1_HALF)
 
 /* Convert message to polynomial.
  *

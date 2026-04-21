@@ -25,10 +25,20 @@
 int test_x509_rfc2818_verification_callback(void);
 int test_x509_GetCAByAKID(void);
 int test_x509_set_serialNumber(void);
+int test_x509_verify_cert_hostname_check(void);
+int test_x509_time_field_overread_via_tls(void);
+int test_x509_CertFromX509_akid_overflow(void);
+int test_x509_ReqCertFromX509_skid_overflow(void);
+int test_x509_ReqCertFromX509_skid_boundary(void);
 
 #define TEST_X509_DECLS                                                        \
     TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
     TEST_DECL_GROUP("x509", test_x509_GetCAByAKID),                            \
-    TEST_DECL_GROUP("x509", test_x509_set_serialNumber)
+    TEST_DECL_GROUP("x509", test_x509_set_serialNumber),                       \
+    TEST_DECL_GROUP("x509", test_x509_verify_cert_hostname_check),             \
+    TEST_DECL_GROUP("x509", test_x509_time_field_overread_via_tls),             \
+    TEST_DECL_GROUP("x509", test_x509_CertFromX509_akid_overflow),             \
+    TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_overflow),          \
+    TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_boundary)
 
 #endif /* WOLFCRYPT_TEST_X509_H */

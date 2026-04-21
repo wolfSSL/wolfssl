@@ -30,8 +30,6 @@
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
-#include <stdint.h>
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -58,12 +56,12 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x_p, const byte* iv_p,
 #else
 WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x, const byte* iv,
     word32 counter)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register word32* x asm ("r0") = (word32*)x_p;
-    register const byte* iv asm ("r1") = (const byte*)iv_p;
-    register word32 counter asm ("r2") = (word32)counter_p;
+    register word32* x __asm__ ("r0") = (word32*)x_p;
+    register const byte* iv __asm__ ("r1") = (const byte*)iv_p;
+    register word32 counter __asm__ ("r2") = (word32)counter_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -90,7 +88,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x, const byte* iv,
 }
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const word32 L_chacha_arm32_constants[] = {
+XALIGNED(8) static const word32 L_chacha_arm32_constants[] = {
     0x61707865, 0x3120646e, 0x79622d36, 0x6b206574,
     0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
 };
@@ -101,13 +99,13 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x_p, const byte* key_p,
 #else
 WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
     word32 keySz)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register word32* x asm ("r0") = (word32*)x_p;
-    register const byte* key asm ("r1") = (const byte*)key_p;
-    register word32 keySz asm ("r2") = (word32)keySz_p;
-    register word32* L_chacha_arm32_constants_c asm ("r3") =
+    register word32* x __asm__ ("r0") = (word32*)x_p;
+    register const byte* key __asm__ ("r1") = (const byte*)key_p;
+    register word32 keySz __asm__ ("r2") = (word32)keySz_p;
+    register word32* L_chacha_arm32_constants_c __asm__ ("r3") =
         (word32*)&L_chacha_arm32_constants;
 #else
     register word32* L_chacha_arm32_constants_c =
@@ -134,7 +132,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
 #endif /* BIG_ENDIAN_ORDER */
         "stm	%[x]!, {r4, r5, r12, lr}\n\t"
         /* Next 16 bytes of key. */
-        "beq	L_chacha_arm32_setkey_same_keyb_ytes_%=\n\t"
+        "beq	L_chacha_arm32_setkey_same_key_bytes_%=\n\t"
         /* Update key pointer for next 16 bytes. */
         "add	%[key], %[key], %[keySz]\n\t"
         "ldr	r4, [%[key]]\n\t"
@@ -142,7 +140,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
         "ldr	r12, [%[key], #8]\n\t"
         "ldr	lr, [%[key], #12]\n\t"
         "\n"
-    "L_chacha_arm32_setkey_same_keyb_ytes_%=: \n\t"
+    "L_chacha_arm32_setkey_same_key_bytes_%=:\n\t"
         "stm	%[x], {r4, r5, r12, lr}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz),
@@ -163,13 +161,13 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p,
 #else
 WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
     const byte* m, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register ChaCha* ctx asm ("r0") = (ChaCha*)ctx_p;
-    register byte* c asm ("r1") = (byte*)c_p;
-    register const byte* m asm ("r2") = (const byte*)m_p;
-    register word32 len asm ("r3") = (word32)len_p;
+    register ChaCha* ctx __asm__ ("r0") = (ChaCha*)ctx_p;
+    register byte* c __asm__ ("r1") = (byte*)c_p;
+    register const byte* m __asm__ ("r2") = (const byte*)m_p;
+    register word32 len __asm__ ("r3") = (word32)len_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -188,7 +186,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "strd	%[m], %[len], [sp, #40]\n\t"
 #endif
         "\n"
-    "L_chacha_arm32_crypt_block_%=: \n\t"
+    "L_chacha_arm32_crypt_block_%=:\n\t"
         /* Put x[12]..x[15] onto stack. */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [lr, #48]\n\t"
@@ -220,7 +218,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "mov	lr, #10\n\t"
         "str	lr, [sp, #48]\n\t"
         "\n"
-    "L_chacha_arm32_crypt_loop_%=: \n\t"
+    "L_chacha_arm32_crypt_loop_%=:\n\t"
         /* 0, 4,  8, 12 */
         /* 1, 5,  9, 13 */
         "ldr	lr, [sp, #20]\n\t"
@@ -449,7 +447,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "bne	L_chacha_arm32_crypt_block_%=\n\t"
         "b	L_chacha_arm32_crypt_done_%=\n\t"
         "\n"
-    "L_chacha_arm32_crypt_lt_block_%=: \n\t"
+    "L_chacha_arm32_crypt_lt_block_%=:\n\t"
         /* Store in over field of ChaCha. */
         "ldr	lr, [sp, #32]\n\t"
         "add	r12, lr, #0x44\n\t"
@@ -467,7 +465,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "str	r12, [lr, #64]\n\t"
         "add	lr, lr, #0x44\n\t"
         "\n"
-    "L_chacha_arm32_crypt_16byte_loop_%=: \n\t"
+    "L_chacha_arm32_crypt_16byte_loop_%=:\n\t"
         "cmp	%[len], #16\n\t"
         "blt	L_chacha_arm32_crypt_word_loop_%=\n\t"
         /* 16 bytes of state XORed into message. */
@@ -490,7 +488,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "add	%[c], %[c], #16\n\t"
         "b	L_chacha_arm32_crypt_16byte_loop_%=\n\t"
         "\n"
-    "L_chacha_arm32_crypt_word_loop_%=: \n\t"
+    "L_chacha_arm32_crypt_word_loop_%=:\n\t"
         "cmp	%[len], #4\n\t"
         "blt	L_chacha_arm32_crypt_byte_start_%=\n\t"
         /* 4 bytes of state XORed into message. */
@@ -505,10 +503,10 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "add	%[c], %[c], #4\n\t"
         "b	L_chacha_arm32_crypt_word_loop_%=\n\t"
         "\n"
-    "L_chacha_arm32_crypt_byte_start_%=: \n\t"
+    "L_chacha_arm32_crypt_byte_start_%=:\n\t"
         "ldr	r4, [lr]\n\t"
         "\n"
-    "L_chacha_arm32_crypt_byte_loop_%=: \n\t"
+    "L_chacha_arm32_crypt_byte_loop_%=:\n\t"
         "ldrb	r8, [%[m]]\n\t"
         "eor	r8, r8, r4\n\t"
         "subs	%[len], %[len], #1\n\t"
@@ -519,7 +517,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "add	%[c], %[c], #1\n\t"
         "b	L_chacha_arm32_crypt_byte_loop_%=\n\t"
         "\n"
-    "L_chacha_arm32_crypt_done_%=: \n\t"
+    "L_chacha_arm32_crypt_done_%=:\n\t"
         "add	sp, sp, #52\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [c] "+r" (c), [m] "+r" (m), [len] "+r" (len)
@@ -539,18 +537,18 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over_p, byte* output_p,
 #else
 WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
     const byte* input, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register byte* over asm ("r0") = (byte*)over_p;
-    register byte* output asm ("r1") = (byte*)output_p;
-    register const byte* input asm ("r2") = (const byte*)input_p;
-    register word32 len asm ("r3") = (word32)len_p;
+    register byte* over __asm__ ("r0") = (byte*)over_p;
+    register byte* output __asm__ ("r1") = (byte*)output_p;
+    register const byte* input __asm__ ("r2") = (const byte*)input_p;
+    register word32 len __asm__ ("r3") = (word32)len_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
-    "L_chacha_arm32_over_16byte_loop_%=: \n\t"
+    "L_chacha_arm32_over_16byte_loop_%=:\n\t"
         "cmp	%[len], #16\n\t"
         "blt	L_chacha_arm32_over_word_loop_%=\n\t"
         /* 16 bytes of state XORed into message. */
@@ -577,7 +575,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "add	%[output], %[output], #16\n\t"
         "b	L_chacha_arm32_over_16byte_loop_%=\n\t"
         "\n"
-    "L_chacha_arm32_over_word_loop_%=: \n\t"
+    "L_chacha_arm32_over_word_loop_%=:\n\t"
         "cmp	%[len], #4\n\t"
         "blt	L_chacha_arm32_over_byte_loop_%=\n\t"
         /* 4 bytes of state XORed into message. */
@@ -592,7 +590,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "add	%[output], %[output], #4\n\t"
         "b	L_chacha_arm32_over_word_loop_%=\n\t"
         "\n"
-    "L_chacha_arm32_over_byte_loop_%=: \n\t"
+    "L_chacha_arm32_over_byte_loop_%=:\n\t"
         /* 4 bytes of state XORed into message. */
         "ldrb	r12, [%[over]]\n\t"
         "ldrb	r6, [%[input]]\n\t"
@@ -605,7 +603,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "add	%[output], %[output], #1\n\t"
         "b	L_chacha_arm32_over_byte_loop_%=\n\t"
         "\n"
-    "L_chacha_arm32_over_done_%=: \n\t"
+    "L_chacha_arm32_over_done_%=:\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [over] "+r" (over), [output] "+r" (output), [input] "+r" (input),
           [len] "+r" (len)
@@ -627,13 +625,13 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p,
 #else
 WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
     const byte* m, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register ChaCha* ctx asm ("r0") = (ChaCha*)ctx_p;
-    register byte* c asm ("r1") = (byte*)c_p;
-    register const byte* m asm ("r2") = (const byte*)m_p;
-    register word32 len asm ("r3") = (word32)len_p;
+    register ChaCha* ctx __asm__ ("r0") = (ChaCha*)ctx_p;
+    register byte* c __asm__ ("r1") = (byte*)c_p;
+    register const byte* m __asm__ ("r2") = (const byte*)m_p;
+    register word32 len __asm__ ("r3") = (word32)len_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -644,7 +642,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "blt	L_chacha_crypt_bytes_arm32_lt_256_%=\n\t"
         "str	%[ctx], [sp, #28]\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_start_256_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_start_256_%=:\n\t"
         "str	%[m], [sp, #32]\n\t"
         "str	%[c], [sp, #36]\n\t"
         "str	%[len], [sp, #40]\n\t"
@@ -676,7 +674,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         /* Set number of odd+even rounds to perform */
         "mov	lr, #10\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_round_start_256_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_round_start_256_%=:\n\t"
         "subs	lr, lr, #1\n\t"
         /* Round odd */
         /* a += b; d ^= a; d <<<= 16; */
@@ -693,11 +691,11 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "ror	r11, r11, #16\n\t"
         "veor	q7, q7, q4\n\t"
         "add	r8, r8, r10\n\t"
-        "vrev32.i16	q15, q15\n\t"
+        "vrev32.16	q15, q15\n\t"
         "add	r9, r9, r11\n\t"
-        "vrev32.i16	q3, q3\n\t"
+        "vrev32.16	q3, q3\n\t"
         "eor	r4, r4, r8\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q7, q7\n\t"
         "eor	r5, r5, r9\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q14, q14, q15\n\t"
@@ -806,11 +804,11 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "ror	r10, r10, #16\n\t"
         "veor	q7, q7, q4\n\t"
         "add	r8, r8, r11\n\t"
-        "vrev32.i16	q15, q15\n\t"
+        "vrev32.16	q15, q15\n\t"
         "add	r9, r9, r10\n\t"
-        "vrev32.i16	q3, q3\n\t"
+        "vrev32.16	q3, q3\n\t"
         "eor	r5, r5, r8\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q7, q7\n\t"
         "eor	r6, r6, r9\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q14, q14, q15\n\t"
@@ -986,7 +984,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "cmp	%[len], #0x100\n\t"
         "bge	L_chacha_crypt_bytes_arm32_start_256_%=\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_lt_256_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_lt_256_%=:\n\t"
         "cmp	%[len], #0x80\n\t"
         "blt	L_chacha_crypt_bytes_arm32_lt_128_%=\n\t"
         /* Move state into vector registers */
@@ -1006,7 +1004,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         /* Set number of odd+even rounds to perform */
         "mov	lr, #10\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_round_start_128_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_round_start_128_%=:\n\t"
         "subs	lr, lr, #1\n\t"
         /* Round odd */
         /* a += b; d ^= a; d <<<= 16; */
@@ -1014,8 +1012,8 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vadd.i32	q4, q4, q5\n\t"
         "veor	q3, q3, q0\n\t"
         "veor	q7, q7, q4\n\t"
-        "vrev32.i16	q3, q3\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q3, q3\n\t"
+        "vrev32.16	q7, q7\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q2, q2, q3\n\t"
         "vadd.i32	q6, q6, q7\n\t"
@@ -1055,8 +1053,8 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vadd.i32	q4, q4, q5\n\t"
         "veor	q3, q3, q0\n\t"
         "veor	q7, q7, q4\n\t"
-        "vrev32.i16	q3, q3\n\t"
-        "vrev32.i16	q7, q7\n\t"
+        "vrev32.16	q3, q3\n\t"
+        "vrev32.16	q7, q7\n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "vadd.i32	q2, q2, q3\n\t"
         "vadd.i32	q6, q6, q7\n\t"
@@ -1124,7 +1122,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "sub	%[len], %[len], #0x80\n\t"
         /* Done 128-byte block */
         "\n"
-    "L_chacha_crypt_bytes_arm32_lt_128_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_lt_128_%=:\n\t"
         "cmp	%[len], #0\n\t"
         "beq	L_chacha_crypt_bytes_arm32_done_all_%=\n\t"
         "mov	r12, #1\n\t"
@@ -1133,7 +1131,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vmov	d18[0], r12\n\t"
         "mov	r12, #0x40\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_loop_64_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_loop_64_%=:\n\t"
         /* Move state into vector registers */
         "vmov	q0, q12\n\t"
         "vmov	q1, q13\n\t"
@@ -1142,7 +1140,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         /* Set number of odd+even rounds to perform */
         "mov	lr, #10\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_round_64_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_round_64_%=:\n\t"
         "subs	lr, lr, #1\n\t"
         /* Round odd */
         /* a += b; d ^= a; d <<<= 16; */
@@ -1214,7 +1212,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "bne	L_chacha_crypt_bytes_arm32_loop_64_%=\n\t"
         "b	L_chacha_crypt_bytes_arm32_done_%=\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_lt_64_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_lt_64_%=:\n\t"
         /* Calculate bytes left in block not used */
         "sub	r12, r12, %[len]\n\t"
         /* Store encipher block in over for further operations and left */
@@ -1233,7 +1231,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vmov	q1, q3\n\t"
         "beq	L_chacha_crypt_bytes_arm32_done_%=\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_lt_32_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_lt_32_%=:\n\t"
         "cmp	%[len], #16\n\t"
         "blt	L_chacha_crypt_bytes_arm32_lt_16_%=\n\t"
         /* Encipher 16 bytes */
@@ -1244,7 +1242,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vmov	q0, q1\n\t"
         "beq	L_chacha_crypt_bytes_arm32_done_%=\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_lt_16_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_lt_16_%=:\n\t"
         "cmp	%[len], #8\n\t"
         "blt	L_chacha_crypt_bytes_arm32_lt_8_%=\n\t"
         /* Encipher 8 bytes */
@@ -1255,7 +1253,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vmov	d0, d1\n\t"
         "beq	L_chacha_crypt_bytes_arm32_done_%=\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_lt_8_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_lt_8_%=:\n\t"
         "cmp	%[len], #4\n\t"
         "blt	L_chacha_crypt_bytes_arm32_lt_4_%=\n\t"
         /* Encipher 8 bytes */
@@ -1267,10 +1265,10 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "vshr.u64	d0, d0, #32\n\t"
         "beq	L_chacha_crypt_bytes_arm32_done_%=\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_lt_4_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_lt_4_%=:\n\t"
         "vmov	r12, s0\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32loop_lt_4_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32loop_lt_4_%=:\n\t"
         /* Encipher 1 byte at a time */
         "ldrb	r4, [%[m]], #1\n\t"
         "eor	r4, r4, r12\n\t"
@@ -1279,9 +1277,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "lsr	r12, r12, #8\n\t"
         "bgt	L_chacha_crypt_bytes_arm32loop_lt_4_%=\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_done_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_done_%=:\n\t"
         "\n"
-    "L_chacha_crypt_bytes_arm32_done_all_%=: \n\t"
+    "L_chacha_crypt_bytes_arm32_done_all_%=:\n\t"
         "vstm.32	%[ctx], {q12-q15}\n\t"
         "add	sp, sp, #44\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1297,7 +1295,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
     );
 }
 
-static const word32 L_chacha_setkey_arm32_constant[] = {
+XALIGNED(8) static const word32 L_chacha_setkey_arm32_constant[] = {
     0x61707865, 0x3120646e, 0x79622d36, 0x6b206574,
     0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
 };
@@ -1308,13 +1306,13 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x_p, const byte* key_p,
 #else
 WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
     word32 keySz)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register word32* x asm ("r0") = (word32*)x_p;
-    register const byte* key asm ("r1") = (const byte*)key_p;
-    register word32 keySz asm ("r2") = (word32)keySz_p;
-    register word32* L_chacha_setkey_arm32_constant_c asm ("r3") =
+    register word32* x __asm__ ("r0") = (word32*)x_p;
+    register const byte* key __asm__ ("r1") = (const byte*)key_p;
+    register word32 keySz __asm__ ("r2") = (word32)keySz_p;
+    register word32* L_chacha_setkey_arm32_constant_c __asm__ ("r3") =
         (word32*)&L_chacha_setkey_arm32_constant;
 #else
     register word32* L_chacha_setkey_arm32_constant_c =
@@ -1329,16 +1327,16 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
         "vldm	r3, {q0}\n\t"
         "vld1.8	{q1}, [%[key]]!\n\t"
 #ifdef BIG_ENDIAN_ORDER
-        "vrev32.i16	q1, q1\n\t"
+        "vrev32.16	q1, q1\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "vstm	%[x]!, {q0-q1}\n\t"
         "beq	L_chacha_setkey_arm32_done_%=\n\t"
         "vld1.8	{q1}, [%[key]]\n\t"
 #ifdef BIG_ENDIAN_ORDER
-        "vrev32.i16	q1, q1\n\t"
+        "vrev32.16	q1, q1\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "\n"
-    "L_chacha_setkey_arm32_done_%=: \n\t"
+    "L_chacha_setkey_arm32_done_%=:\n\t"
         "vstm	%[x], {q1}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz),
@@ -1359,14 +1357,14 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over_p, byte* output_p,
 #else
 WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
     const byte* input, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register byte* over asm ("r0") = (byte*)over_p;
-    register byte* output asm ("r1") = (byte*)output_p;
-    register const byte* input asm ("r2") = (const byte*)input_p;
-    register word32 len asm ("r3") = (word32)len_p;
-    register word32* L_chacha_setkey_arm32_constant_c asm ("r12") =
+    register byte* over __asm__ ("r0") = (byte*)over_p;
+    register byte* output __asm__ ("r1") = (byte*)output_p;
+    register const byte* input __asm__ ("r2") = (const byte*)input_p;
+    register word32 len __asm__ ("r3") = (word32)len_p;
+    register word32* L_chacha_setkey_arm32_constant_c __asm__ ("r12") =
         (word32*)&L_chacha_setkey_arm32_constant;
 #else
     register word32* L_chacha_setkey_arm32_constant_c =
@@ -1376,7 +1374,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
     __asm__ __volatile__ (
         "push	{%[L_chacha_setkey_arm32_constant]}\n\t"
         "\n"
-    "L_chacha_use_over_arm32_16byte_loop_%=: \n\t"
+    "L_chacha_use_over_arm32_16byte_loop_%=:\n\t"
         "cmp	%[len], #16\n\t"
         "blt	L_chacha_use_over_arm32_word_loop_%=\n\t"
         /* 16 bytes of state XORed into message. */
@@ -1388,7 +1386,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "beq	L_chacha_use_over_arm32_done_%=\n\t"
         "b	L_chacha_use_over_arm32_16byte_loop_%=\n\t"
         "\n"
-    "L_chacha_use_over_arm32_word_loop_%=: \n\t"
+    "L_chacha_use_over_arm32_word_loop_%=:\n\t"
         "cmp	%[len], #4\n\t"
         "blt	L_chacha_use_over_arm32_byte_loop_%=\n\t"
         /* 4 bytes of state XORed into message. */
@@ -1400,7 +1398,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "beq	L_chacha_use_over_arm32_done_%=\n\t"
         "b	L_chacha_use_over_arm32_word_loop_%=\n\t"
         "\n"
-    "L_chacha_use_over_arm32_byte_loop_%=: \n\t"
+    "L_chacha_use_over_arm32_byte_loop_%=:\n\t"
         /* 1 bytes of state XORed into message. */
         "ldrb	r12, [%[over]], #1\n\t"
         "ldrb	lr, [%[input]], #1\n\t"
@@ -1410,7 +1408,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "beq	L_chacha_use_over_arm32_done_%=\n\t"
         "b	L_chacha_use_over_arm32_byte_loop_%=\n\t"
         "\n"
-    "L_chacha_use_over_arm32_done_%=: \n\t"
+    "L_chacha_use_over_arm32_done_%=:\n\t"
         "pop	{%[L_chacha_setkey_arm32_constant]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [over] "+r" (over), [output] "+r" (output), [input] "+r" (input),

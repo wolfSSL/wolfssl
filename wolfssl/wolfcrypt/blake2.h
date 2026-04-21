@@ -28,7 +28,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S)
 
 #include <wolfssl/wolfcrypt/blake2-int.h>
 
@@ -51,18 +51,16 @@
 #endif
 
 /* in bytes, variable digest size up to 512 bits (64 bytes) */
-enum {
 #ifdef HAVE_BLAKE2B
-    BLAKE2B_ID  = WC_HASH_TYPE_BLAKE2B,
-    BLAKE2B_256 = 32,  /* 256 bit type, SSL default */
-    WC_BLAKE2B_DIGEST_SIZE = 64,
+    #define BLAKE2B_ID  WC_HASH_TYPE_BLAKE2B
+    #define BLAKE2B_256 32  /* 256 bit type, SSL default */
+    #define WC_BLAKE2B_DIGEST_SIZE 64
 #endif
 #ifdef HAVE_BLAKE2S
-    BLAKE2S_ID  = WC_HASH_TYPE_BLAKE2S,
-    BLAKE2S_256 = 32,  /* 256 bit type */
-    WC_BLAKE2S_DIGEST_SIZE = 32
+    #define BLAKE2S_ID WC_HASH_TYPE_BLAKE2S
+    #define BLAKE2S_256 32  /* 256 bit type */
+    #define WC_BLAKE2S_DIGEST_SIZE 32
 #endif
-};
 
 
 #ifdef HAVE_BLAKE2B
@@ -123,6 +121,6 @@ WOLFSSL_API int wc_Blake2sHmac(const byte* in, size_t in_len,
     }
 #endif
 
-#endif  /* HAVE_BLAKE2 || HAVE_BLAKE2S */
+#endif  /* HAVE_BLAKE2B || HAVE_BLAKE2S */
 #endif  /* WOLF_CRYPT_BLAKE2_H */
 

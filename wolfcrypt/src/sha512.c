@@ -19,6 +19,41 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * SHA-512/384 Build Options:
+ *
+ * Core:
+ * WOLFSSL_SHA512:           Enable SHA-512 support                default: off
+ * WOLFSSL_SHA384:           Enable SHA-384 support                default: off
+ * WOLFSSL_NOSHA512_224:     Disable SHA-512/224 variant           default: off
+ * WOLFSSL_NOSHA512_256:     Disable SHA-512/256 variant           default: off
+ *
+ * Performance:
+ * USE_SLOW_SHA512:          Disable SHA-512 loop unrolling        default: off
+ * USE_SLOW_SHA2:            Disable SHA-2 loop unrolling          default: off
+ * WOLFSSL_HASH_FLAGS:       Enable hash flags for state tracking  default: off
+ * WOLFSSL_HASH_KEEP:        Keep hash input data for reuse        default: off
+ * WOLFSSL_SMALL_STACK_CACHE: Cache hash state on small stack      default: off
+ * WC_NO_INTERNAL_FUNCTION_POINTERS: Disable internal func ptrs   default: off
+ *
+ * Hardware Acceleration (SHA-512-specific):
+ * WC_ASYNC_ENABLE_SHA512:   Enable async SHA-512 operations       default: off
+ * WC_ASYNC_ENABLE_SHA384:   Enable async SHA-384 operations       default: off
+ * WOLFSSL_KCAPI_HASH:       Linux kernel crypto API for hashing  default: off
+ * WOLFSSL_SE050_HASH:       SE050 hardware hashing               default: off
+ * WOLFSSL_SILABS_SHA384:    Silicon Labs SHA-384 acceleration    default: off
+ * WOLFSSL_SILABS_SHA512:    Silicon Labs SHA-512 acceleration    default: off
+ * NO_IMX6_CAAM_HASH:        Disable i.MX6 CAAM hash             default: off
+ * NO_WOLFSSL_ESP32_CRYPT_HASH: Disable ESP32 hash acceleration   default: off
+ * WOLFSSL_ARMASM_CRYPTO_SHA512: ARM crypto SHA-512 instructions  default: off
+ * STM32_HASH_SHA384:        STM32 hardware SHA-384               default: off
+ * STM32_HASH_SHA512:        STM32 hardware SHA-512               default: off
+ * WOLFSSL_SHA512_HASHTYPE:  SHA-512 hash type for hw dispatch    default: off
+ * MAX3266X_SHA:             MAX3266X hardware SHA                 default: off
+ * PSOC6_HASH_SHA2:          PSoC6 hardware SHA-2                 default: off
+ * WOLFSSL_RENESAS_RSIP:     Renesas RSIP SHA acceleration        default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && \
@@ -687,7 +722,9 @@ static int InitSha512_256(wc_Sha512* sha512)
     static int (*Transform_Sha512_p)(wc_Sha512* sha512) = _Transform_Sha512;
     static int (*Transform_Sha512_Len_p)(wc_Sha512* sha512, word32 len) = NULL;
     static int transform_check = 0;
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     static int Transform_Sha512_is_vectorized = 0;
+    #endif
 
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
         int ret;
@@ -729,14 +766,18 @@ static int InitSha512_256(wc_Sha512* sha512)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha512_p = Transform_Sha512_AVX2_RORX;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_RORX_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
             else
         #endif
             {
                 Transform_Sha512_p = Transform_Sha512_AVX2;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
         }
         else
@@ -747,14 +788,18 @@ static int InitSha512_256(wc_Sha512* sha512)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha512_p = Transform_Sha512_AVX1_RORX;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX1_RORX_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
             else
         #endif
             {
                 Transform_Sha512_p = Transform_Sha512_AVX1;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX1_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha512_is_vectorized = 1;
+            #endif
             }
         }
         else
@@ -762,7 +807,9 @@ static int InitSha512_256(wc_Sha512* sha512)
         {
             Transform_Sha512_p = _Transform_Sha512;
             Transform_Sha512_Len_p = NULL;
+        #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
             Transform_Sha512_is_vectorized = 0;
+        #endif
         }
 
         transform_check = 1;

@@ -68,6 +68,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout krb5
         uses: actions/checkout@v4
@@ -75,6 +76,7 @@ jobs:
           repository: krb5/krb5
           ref: krb5-${{ matrix.ref }}-final
           path: krb5
+          fetch-depth: 1
 
       - name: Apply patch
         working-directory: ./krb5

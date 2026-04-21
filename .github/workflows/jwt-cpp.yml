@@ -54,12 +54,16 @@ jobs:
     runs-on: ${{ matrix.config.runner }}
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install libgtest-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libgtest-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4
@@ -79,6 +83,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout jwt-cpp
         uses: actions/checkout@v4
@@ -86,6 +91,7 @@ jobs:
           repository: Thalhammer/jwt-cpp
           path: jwt-cpp
           ref: v${{ matrix.config.ref }}
+          fetch-depth: 1
 
       - name: Build pam-ipmi
         working-directory: jwt-cpp

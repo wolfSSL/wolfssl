@@ -810,9 +810,10 @@ int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                      falcon_key* key, word32 inSz)
 {
     int ret = 0;
-    byte privKey[FALCON_MAX_PRV_KEY_SIZE], pubKey[FALCON_MAX_PUB_KEY_SIZE];
-    word32 privKeyLen = (word32)sizeof(privKey);
-    word32 pubKeyLen = (word32)sizeof(pubKey);
+    byte* privKey = NULL;
+    byte* pubKey = NULL;
+    word32 privKeyLen = FALCON_MAX_PRV_KEY_SIZE;
+    word32 pubKeyLen = FALCON_MAX_PUB_KEY_SIZE;
     int keytype = 0;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
@@ -829,6 +830,17 @@ int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
+    privKey = (byte*)XMALLOC(FALCON_MAX_PRV_KEY_SIZE, NULL,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+    if (privKey == NULL)
+        return MEMORY_E;
+    pubKey = (byte*)XMALLOC(FALCON_MAX_PUB_KEY_SIZE, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubKey == NULL) {
+        XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+
     ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
                         pubKey, &pubKeyLen, keytype);
     if (ret == 0) {
@@ -840,6 +852,9 @@ int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                                pubKeyLen, key);
         }
     }
+
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -847,8 +862,8 @@ int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
                                     falcon_key* key, word32 inSz)
 {
     int ret = 0;
-    byte pubKey[FALCON_MAX_PUB_KEY_SIZE];
-    word32 pubKeyLen = (word32)sizeof(pubKey);
+    WC_DECLARE_VAR(pubKey, byte, FALCON_MAX_PUB_KEY_SIZE, NULL);
+    word32 pubKeyLen = FALCON_MAX_PUB_KEY_SIZE;
     int keytype = 0;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
@@ -870,11 +885,16 @@ int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
+    WC_ALLOC_VAR_EX(pubKey, byte, FALCON_MAX_PUB_KEY_SIZE, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+
     ret = DecodeAsymKeyPublic(input, inOutIdx, inSz, pubKey, &pubKeyLen,
                               keytype);
     if (ret == 0) {
         ret = wc_falcon_import_public(pubKey, pubKeyLen, key);
     }
+
+    WC_FREE_VAR_EX(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -895,8 +915,8 @@ int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
                              int withAlg)
 {
     int    ret;
-    byte   pubKey[FALCON_MAX_PUB_KEY_SIZE];
-    word32 pubKeyLen = (word32)sizeof(pubKey);
+    WC_DECLARE_VAR(pubKey, byte, FALCON_MAX_PUB_KEY_SIZE, NULL);
+    word32 pubKeyLen = FALCON_MAX_PUB_KEY_SIZE;
     int    keytype = 0;
 
     if (key == NULL) {
@@ -913,12 +933,16 @@ int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
         return BAD_FUNC_ARG;
     }
 
+    WC_ALLOC_VAR_EX(pubKey, byte, FALCON_MAX_PUB_KEY_SIZE, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+
     ret = wc_falcon_export_public(key, pubKey, &pubKeyLen);
     if (ret == 0) {
         ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen, keytype,
                                   withAlg);
     }
 
+    WC_FREE_VAR_EX(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif

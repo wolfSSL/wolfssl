@@ -69,6 +69,7 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
+#undef WC_ALLOC_DO_ON_FAILURE
 #define WC_ALLOC_DO_ON_FAILURE() do { printf("out of memory at benchmark.c L %d\n", __LINE__); ret = MEMORY_E; goto exit; } while (0)
 
 #include <wolfssl/wolfcrypt/types.h>
@@ -327,17 +328,18 @@ static WC_INLINE void bench_heap_checkpoint_measure(long* allocs,
 static WC_INLINE void bench_stack_checkpoint_prepare(void)
 {
     (void)StackSizeHWMReset();
+    bench_last_stack_bytes = (long)StackSizeHWM_OffsetCorrected();
 }
 
 static WC_INLINE long bench_stack_checkpoint_measure(void)
 {
     long used = (long)StackSizeHWM_OffsetCorrected();
+
+    used -= bench_last_stack_bytes;
     if (used < 0)
         used = 0;
     (void)StackSizeHWMReset();
-#ifdef WC_BENCH_STACK_TRACKING
     bench_last_stack_bytes = used;
-#endif
     return used;
 }
 #else
@@ -1166,7 +1168,7 @@ static const bench_alg bench_digest_opt[] = {
 #ifdef WOLFSSL_RIPEMD
     { "-ripemd",             BENCH_RIPEMD            },
 #endif
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     { "-blake2b",            BENCH_BLAKE2B           },
 #endif
 #ifdef HAVE_BLAKE2S
@@ -1345,7 +1347,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 };
 #endif /* BENCH_PQ_STATEFUL_HBS */
 
-#ifndef WOLFSSL_BENCHMARK_ALL
+#if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
     defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
 /* The post-quantum-specific mapping of command line option to bit values and
@@ -1516,12 +1518,13 @@ static const char* bench_result_words1[][5] = {
 #endif
 };
 
-#if !defined(NO_RSA) || \
-    defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
-    defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
-    defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM)
+#if ((!defined(NO_RSA) || \
+      defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
+      defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
+      defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
+      defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448) || \
+      defined(HAVE_DILITHIUM)) && !defined(WC_NO_RNG)) || \
+     defined(WOLFSSL_HAVE_MLKEM)
 
 static const char* bench_desc_words[][15] = {
     /* 0           1          2         3        4        5         6            7            8          9        10        11       12          13       14 */
@@ -2011,7 +2014,7 @@ static const char* bench_result_words3[][5] = {
     #include <wolfssl/certs_test.h>
 #endif
 
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 
@@ -2056,11 +2059,11 @@ static const char* bench_result_words3[][5] = {
 #endif
 
 #if defined(BENCH_ASYM)
-#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || \
-    defined(WOLFSSL_HAVE_LMS)
+#if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
+      defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
+      defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
+      defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_LMS)) && \
+      !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
 static const char* bench_result_words2[][6] = {
 #ifdef BENCH_MICROSECOND
     { "ops took", "μsec"     , "avg" , "ops/μsec", "cycles/op",
@@ -2250,7 +2253,7 @@ static const char* bench_result_words2[][6] = {
 
 /* maximum runtime for each benchmark */
 #ifndef BENCH_MIN_RUNTIME_SEC
-    #define BENCH_MIN_RUNTIME_SEC   1.0F
+    #define BENCH_MIN_RUNTIME_SEC   (double)1.0F
 #endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
@@ -2349,8 +2352,12 @@ static int    numBlocks  = NUM_BLOCKS;
 static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
+#ifndef NO_HMAC
 static int mac_stream = 1;
+#endif
+#ifdef HAVE_AESGCM
 static int aead_set_key = 0;
+#endif
 #ifdef HAVE_CHACHA
 static int encrypt_only = 0;
 #endif
@@ -3036,8 +3043,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #ifdef WC_BENCH_STACK_TRACKING
     {
         long stackUsed = bench_stack_checkpoint_measure();
-        stackUsed += bench_stats_stack_setup_bytes;
-        bench_last_stack_bytes = stackUsed;
+        bench_last_stack_bytes = MAX(stackUsed, bench_stats_stack_setup_bytes);
     }
     bench_stats_stack_setup_bytes = 0;
 #else
@@ -3197,11 +3203,11 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 } /* bench_stats_sym_finish */
 
 #ifdef BENCH_ASYM
-#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || \
-    defined(WOLFSSL_HAVE_LMS)
+#if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
+      defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
+      defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
+      defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_LMS)) && \
+      !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
     double start, int ret)
@@ -3276,8 +3282,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #ifdef WC_BENCH_STACK_TRACKING
     {
         long stackUsed = bench_stack_checkpoint_measure();
-        stackUsed += bench_stats_stack_setup_bytes;
-        bench_last_stack_bytes = stackUsed;
+        bench_last_stack_bytes = MAX(stackUsed, bench_stats_stack_setup_bytes);
     }
     bench_stats_stack_setup_bytes = 0;
 #else
@@ -4128,7 +4133,7 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_digest_algs & BENCH_RIPEMD))
         bench_ripemd();
 #endif
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
     if (bench_all || (bench_digest_algs & BENCH_BLAKE2B))
         bench_blake2b();
 #endif
@@ -4226,6 +4231,8 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_kdf_algs & BENCH_SRTP_KDF)) {
         bench_srtpkdf();
     }
+#else
+    (void)bench_kdf_algs;
 #endif
 
 #ifdef HAVE_SCRYPT
@@ -4395,6 +4402,7 @@ static void* benchmarks_do(void* args)
     }
 #endif
 #endif
+    (void)bench_pq_hash_sig_algs;
 
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY) ||
@@ -4564,7 +4572,7 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
         bench_falconKeySign(5);
 #endif
-#ifdef HAVE_DILITHIUM
+#if defined(HAVE_DILITHIUM) && !defined(WC_NO_RNG)
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL2_SIGN))
         bench_dilithiumKeySign(2);
@@ -4988,6 +4996,145 @@ exit_rng:
 #endif /* WC_NO_RNG */
 
 
+/* ============================================================================
+ * Benchmark init helpers -- use id[] when WC_TEST_*_ID is defined and
+ * useDeviceID is true, else plain init.
+ * ========================================================================= */
+
+/* --- AES CBC --- */
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_CBC_ID)
+static unsigned char benchAesCbcId[] = WC_TEST_AES_CBC_ID;
+static int benchAesCbcIdLen = (int)sizeof(benchAesCbcId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_AesCbcInit(Aes* aes, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_CBC_ID)
+    return wc_AesInit_Id(aes, benchAesCbcId, benchAesCbcIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+#endif /* !NO_AES && HAVE_AES_CBC */
+
+/* --- AES GCM --- */
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_GCM_ID)
+static unsigned char benchAesGcmId[] = WC_TEST_AES_GCM_ID;
+static int benchAesGcmIdLen = (int)sizeof(benchAesGcmId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_AesGcmInit(Aes* aes, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_GCM_ID)
+    return wc_AesInit_Id(aes, benchAesGcmId, benchAesGcmIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+#endif /* !NO_AES && HAVE_AESGCM */
+
+/* --- RSA --- */
+#if !defined(NO_RSA)
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_RSA_PRIV_ID)
+static unsigned char benchRsaPrivId[] = WC_TEST_RSA_PRIV_ID;
+static int benchRsaPrivIdLen = (int)sizeof(benchRsaPrivId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_RsaInit(RsaKey* key, void* heap,
+                                          int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_RSA_PRIV_ID)
+    return wc_InitRsaKey_Id(key, benchRsaPrivId, benchRsaPrivIdLen, heap,
+                            declaredDevId);
+#else
+    return wc_InitRsaKey_ex(key, heap, declaredDevId);
+#endif
+}
+#endif /* !NO_RSA */
+
+/* --- CMAC --- */
+#ifdef WOLFSSL_CMAC
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_CMAC_ID)
+static unsigned char benchCmacId[] = WC_TEST_CMAC_ID;
+static int benchCmacIdLen = (int)sizeof(benchCmacId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_CmacInit(Cmac* cmac, const byte* key,
+                                           word32 keySz, int type,
+                                           void* unused, void* heap,
+                                           int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_CMAC_ID)
+    return wc_InitCmac_Id(cmac, key, keySz, type, unused,
+                          benchCmacId, benchCmacIdLen, heap, declaredDevId);
+#elif !defined(HAVE_FIPS)
+    return wc_InitCmac_ex(cmac, key, keySz, type, unused, heap, declaredDevId);
+#else
+    (void)heap;
+    (void)declaredDevId;
+    return wc_InitCmac(cmac, key, keySz, type, unused);
+#endif
+}
+#endif /* WOLFSSL_CMAC */
+
+/* --- AES ECB --- */
+#if defined(HAVE_AES_ECB) || \
+    (defined(HAVE_FIPS) && defined(WOLFSSL_AES_DIRECT))
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+static unsigned char benchAesEcbId[] = WC_TEST_AES_ECB_ID;
+static int benchAesEcbIdLen = (int)sizeof(benchAesEcbId);
+#endif
+
+static WC_MAYBE_UNUSED int bench_AesEcbInit(Aes* aes, void* heap,
+                                             int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_AES_ECB_ID)
+    return wc_AesInit_Id(aes, benchAesEcbId, benchAesEcbIdLen, heap,
+                         declaredDevId);
+#else
+    return wc_AesInit(aes, heap, declaredDevId);
+#endif
+}
+#endif /* HAVE_AES_ECB || (HAVE_FIPS && WOLFSSL_AES_DIRECT) */
+
+/* --- ECC --- */
+#ifdef HAVE_ECC
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P256_ID)
+static unsigned char benchEccPairP256Id[] = WC_TEST_ECC_PAIR_P256_ID;
+static int benchEccPairP256IdLen = (int)sizeof(benchEccPairP256Id);
+#endif
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P521_ID)
+static unsigned char benchEccPairP521Id[] = WC_TEST_ECC_PAIR_P521_ID;
+static int benchEccPairP521IdLen = (int)sizeof(benchEccPairP521Id);
+#endif
+
+static WC_MAYBE_UNUSED int bench_EccInit_Pair(ecc_key* key, int keySize,
+                                               void* heap, int declaredDevId)
+{
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P256_ID)
+    if (keySize == 32) {
+        return wc_ecc_init_id(key, benchEccPairP256Id,
+                               benchEccPairP256IdLen, heap, declaredDevId);
+    }
+#endif
+#if defined(WOLF_PRIVATE_KEY_ID) && defined(WC_TEST_ECC_PAIR_P521_ID)
+    if (keySize == 66) {
+        return wc_ecc_init_id(key, benchEccPairP521Id,
+                               benchEccPairP521IdLen, heap, declaredDevId);
+    }
+#endif
+    (void)keySize;
+    return wc_ecc_init_ex(key, heap, declaredDevId);
+}
+#endif /* HAVE_ECC */
+
+
 #ifndef NO_AES
 
 #ifdef HAVE_AES_CBC
@@ -5011,8 +5158,9 @@ static void bench_aescbc_internal(int useDeviceID,
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(enc[i], HEAP_HINT,
-                                useDeviceID ? devId: INVALID_DEVID)) != 0) {
+        ret = bench_AesCbcInit(enc[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
+        if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
         }
@@ -5080,8 +5228,8 @@ exit_aes_enc:
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        ret = wc_AesInit(enc[i], HEAP_HINT,
-                         useDeviceID ? devId: INVALID_DEVID);
+        ret = bench_AesCbcInit(enc[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
         if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
@@ -5202,8 +5350,9 @@ static void bench_aesgcm_internal(int useDeviceID,
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(enc[i], HEAP_HINT,
-                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+        ret = bench_AesGcmInit(enc[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
+        if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
         }
@@ -5287,8 +5436,9 @@ exit_aes_gcm:
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(dec[i], HEAP_HINT,
-                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+        ret = bench_AesGcmInit(dec[i], HEAP_HINT,
+                              useDeviceID ? devId : INVALID_DEVID);
+        if (ret != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
         }
@@ -5700,7 +5850,7 @@ static void bench_aesecb_internal(int useDeviceID,
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_AesInit(enc[i], HEAP_HINT,
+        if ((ret = bench_AesEcbInit(enc[i], HEAP_HINT,
                                 useDeviceID ? devId: INVALID_DEVID)) != 0) {
             printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
             goto exit;
@@ -8846,7 +8996,7 @@ void bench_ripemd(void)
 #endif
 
 
-#ifdef HAVE_BLAKE2
+#ifdef HAVE_BLAKE2B
 void bench_blake2b(void)
 {
     Blake2b b2b;
@@ -9095,7 +9245,7 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
     #ifdef HAVE_FIPS
         ret = wc_InitCmac(&cmac, bench_key, keySz, WC_CMAC_AES, NULL);
     #else
-        ret = wc_InitCmac_ex(&cmac, bench_key, keySz, WC_CMAC_AES, NULL,
+        ret = bench_CmacInit(&cmac, bench_key, keySz, WC_CMAC_AES, NULL,
             HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
     #endif
         if (ret != 0) {
@@ -9640,7 +9790,7 @@ void bench_srtpkdf(void)
 }
 #endif
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WC_NO_RNG)
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
@@ -10159,7 +10309,7 @@ void bench_rsa(int useDeviceID)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an async context for each key */
-        ret = wc_InitRsaKey_ex(rsaKey[i], HEAP_HINT,
+        ret = bench_RsaInit(rsaKey[i], HEAP_HINT,
             useDeviceID ? devId : INVALID_DEVID);
         if (ret < 0) {
             goto exit;
@@ -10282,7 +10432,7 @@ exit:
     }
 }
 #endif /* WOLFSSL_KEY_GEN */
-#endif /* !NO_RSA */
+#endif /* !NO_RSA && !WC_NO_RNG */
 
 
 #if !defined(NO_DH) && !defined(WC_NO_RNG)
@@ -12343,7 +12493,8 @@ void bench_ecc(int useDeviceID, int curveId)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an context for each key */
-        if ((ret = wc_ecc_init_ex(genKey[i], HEAP_HINT, deviceID)) < 0) {
+        if ((ret = bench_EccInit_Pair(genKey[i], keySize, HEAP_HINT,
+                                      deviceID)) < 0) {
             goto exit;
         }
         ret = wc_ecc_make_key_ex(&gRng, keySize, genKey[i], curveId);
@@ -14326,7 +14477,7 @@ void bench_falconKeySign(byte level)
 }
 #endif /* HAVE_FALCON */
 
-#ifdef HAVE_DILITHIUM
+#if defined(HAVE_DILITHIUM) && !defined(WC_NO_RNG)
 
 #if defined(WOLFSSL_DILITHIUM_NO_SIGN) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
 
@@ -15474,9 +15625,9 @@ void bench_dilithiumKeySign(byte level)
     }
 #endif
 
-    ret = wc_dilithium_init(key);
+    ret = wc_dilithium_init_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
-        printf("wc_dilithium_init failed %d\n", ret);
+        printf("wc_dilithium_init_ex failed %d\n", ret);
         goto out;
     }
 
@@ -15554,10 +15705,10 @@ void bench_dilithiumKeySign(byte level)
     do {
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
-                ret = wc_dilithium_sign_msg(msg, DILITHIUM_BENCH_MSG_SIZE, sig, &x, key,
-                                            GLOBAL_RNG);
+                ret = wc_dilithium_sign_ctx_msg(NULL, 0, msg,
+                    DILITHIUM_BENCH_MSG_SIZE, sig, &x, key, GLOBAL_RNG);
                 if (ret != 0) {
-                    printf("wc_dilithium_sign_msg failed\n");
+                    printf("wc_dilithium_sign_ctx_msg failed\n");
                 }
             }
             RECORD_MULTI_VALUE_STATS();
@@ -15628,11 +15779,11 @@ void bench_dilithiumKeySign(byte level)
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
                 int verify = 0;
-                ret = wc_dilithium_verify_msg(sig, x, msg, DILITHIUM_BENCH_MSG_SIZE,
-                                              &verify, key);
+                ret = wc_dilithium_verify_ctx_msg(sig, x, NULL, 0, msg,
+                    DILITHIUM_BENCH_MSG_SIZE, &verify, key);
 
                 if (ret != 0 || verify != 1) {
-                    printf("wc_dilithium_verify_msg failed %d, verify %d\n",
+                    printf("wc_dilithium_verify_ctx_msg failed %d, verify %d\n",
                            ret, verify);
                     ret = -1;
                 }
@@ -15672,7 +15823,7 @@ out:
     #endif
 #endif
 }
-#endif /* HAVE_DILITHIUM */
+#endif /* HAVE_DILITHIUM && !WC_NO_RNG */
 
 #ifdef HAVE_SPHINCS
 void bench_sphincsKeySign(byte level, byte optim)
@@ -16417,8 +16568,16 @@ static void Usage(void)
     e += 3;
 #endif
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -dgst_full */
+#ifndef NO_HMAC
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -mac_final */
+#else
+    e++;
+#endif
+#ifdef HAVE_AESGCM
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -aead_set_key */
+#else
+    e++;
+#endif
 #ifndef NO_RSA
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -rsa_sign */
     #ifdef WOLFSSL_KEY_GEN
@@ -16625,10 +16784,14 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
 #endif
         else if (string_matches(argv[1], "-dgst_full"))
             digest_stream = 0;
+#ifndef NO_HMAC
         else if (string_matches(argv[1], "-mac_final"))
             mac_stream = 0;
+#endif
+#ifdef HAVE_AESGCM
         else if (string_matches(argv[1], "-aead_set_key"))
             aead_set_key = 1;
+#endif
 #ifdef HAVE_CHACHA
         else if (string_matches(argv[1], "-enc_only"))
             encrypt_only = 1;

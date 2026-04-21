@@ -349,7 +349,11 @@
     ((defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
      (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
      !defined(EXTERNAL_OPTS_OPENVPN)))
-    #warning wolfssl/options.h included in compiled wolfssl library object.
+    #if !defined(_MSC_VER) && !defined(__TASKING__)
+        #warning wolfssl/options.h included in compiled wolfssl library object.
+    #else
+        #pragma message("Warning: wolfssl/options.h included in compiled wolfssl library object.")
+    #endif
 #endif
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -369,7 +373,11 @@
      * an application build -- then your application can avoid this warning by
      * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
      */
-    #warning "No configuration for wolfSSL detected, check header order"
+    #if !defined(_MSC_VER) && !defined(__TASKING__)
+        #warning "No configuration for wolfSSL detected, check header order"
+    #else
+        #pragma message("Warning: No configuration for wolfSSL detected, check header order")
+    #endif
 #endif
 
 /* Ensure WOLFSSL_DEBUG_CERTS is set when DEBUG_WOLFSSL is enabled, unless
@@ -459,6 +467,29 @@
     (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+
+#if defined(HAVE_FIPS) && !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
+    #if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
+        #ifndef WC_FIPS_186_5
+            #define WC_FIPS_186_5
+        #endif
+    #else
+        #ifndef WC_FIPS_186_4
+            #define WC_FIPS_186_4
+        #endif
+    #endif
+#endif
+#if defined(WC_FIPS_186_4) && defined(WC_FIPS_186_5)
+    #error Conflicting FIPS 186 settings.
+#endif
+#if (defined(WC_FIPS_186_4) || defined(WC_FIPS_186_5)) && \
+        !defined(WC_FIPS_186_4_PLUS)
+    #define WC_FIPS_186_4_PLUS
+#endif
+#if defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_5_PLUS)
+    #define WC_FIPS_186_5_PLUS
+#endif
+
 /*------------------------------------------------------------*/
 
 
@@ -746,7 +777,6 @@
      * the "enable all" feature: */
     #if defined(TEST_ESPIDF_ALL_WOLFSSL)
         #define WOLFSSL_MD2
-        #define HAVE_BLAKE2
         #define HAVE_BLAKE2B
         #define HAVE_BLAKE2S
 
@@ -3161,13 +3191,15 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* HAVE_ECC */
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
-    #undef  USE_ECC_B_PARAM
-    #define USE_ECC_B_PARAM
+/* The FIPS-validated ecc.c gates wc_ecc_point_is_on_curve behind
+ * USE_ECC_B_PARAM. That guard was removed from the non-FIPS tree (the
+ * function is now unconditionally compiled in). Force-define the flag
+ * when building with any FIPS module so the certified file still
+ * provides the symbol. */
+ #if defined(HAVE_FIPS) && !defined(USE_ECC_B_PARAM)
+ #define USE_ECC_B_PARAM
 #endif
+
 
 /* Curve25519 Configs */
 #ifdef HAVE_CURVE25519
@@ -3404,6 +3436,12 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/*  For setting.h/user_settings.h */
+#if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH) && \
+    !defined(WOLFSSL_SP_4096) && (MIN_FFDHE_BITS >= 4096)
+    #define WOLFSSL_SP_4096
+#endif
+
 /* if desktop type system and fastmath increase default max bits */
 #if defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_AARCH64_BUILD) || \
     defined(OPENSSL_EXTRA)
@@ -3435,6 +3473,8 @@ extern void uITRON4_free(void *p) ;
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12
+#elif WOLFSSL_MIN_AUTH_TAG_SZ < 1
+    #error WOLFSSL_MIN_AUTH_TAG_SZ must be at least 1
 #endif
 
 
@@ -4140,7 +4180,7 @@ extern void uITRON4_free(void *p) ;
         (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS) && \
             !defined(WC_NO_RNG))
 
-        #ifndef _MSC_VER
+        #if !defined(_MSC_VER) && !defined(__TASKING__)
             #warning "For timing resistance / side-channel attack prevention consider using harden options"
         #else
             #pragma message("Warning: For timing resistance / side-channel attack prevention consider using harden options")
@@ -4328,8 +4368,14 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_BASE64_DECODE
 #endif
 
-#if defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) && !defined(WOLFSSL_BASE16)
-    #define WOLFSSL_BASE16
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_FIPS) || \
+    defined(HAVE_ECC_CDH) || defined(HAVE_SELFTEST) || \
+    defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) || \
+    defined(WOLFSSL_ENCRYPTED_KEYS)
+    #ifndef WOLFSSL_BASE16
+        #define WOLFSSL_BASE16
+    #endif
 #endif
 
 #if defined(FORTRESS) && !defined(HAVE_EX_DATA)
@@ -4485,7 +4531,7 @@ extern void uITRON4_free(void *p) ;
 #if defined(HAVE_SECURE_RENEGOTIATION) && !defined(HAVE_EXTENDED_MASTER) && \
     (defined(HAVE_SESSION_TICKET) || !defined(NO_SESSION_CACHE))
     /* secure renegotiation requires extended master secret with resumption */
-    #ifndef _MSC_VER
+    #if !defined(_MSC_VER) && !defined(__TASKING__)
         #warning Extended master secret must be enabled with secure renegotiation and session resumption
     #else
         #pragma message("Warning: Extended master secret must be enabled with secure renegotiation and session resumption")
@@ -4568,6 +4614,13 @@ extern void uITRON4_free(void *p) ;
 #endif
 #if !defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
 #error "WOLFSSL_DTLS_CH_FRAG only works with DTLS 1.3"
+#endif
+
+#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_PQC_HYBRIDS) && \
+    defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) && !defined(WOLFCRYPT_ONLY)
+#error "Neither PQ/T hybrid combinations nor ML-KEM as standalone TLS key " \
+    "exchange are enabled"
 #endif
 
 /* SRTP requires DTLS */
@@ -4824,6 +4877,11 @@ extern void uITRON4_free(void *p) ;
     #error "OPENSSL_ALL can not be defined with OPENSSL_COEXIST"
 #endif
 
+/* OPENSSL_ALL requires WOLFSSL_IP_ALT_NAME for IP SAN verification. */
+#if defined(OPENSSL_ALL) && !defined(WOLFSSL_IP_ALT_NAME)
+    #error "OPENSSL_ALL requires WOLFSSL_IP_ALT_NAME"
+#endif
+
 #if !defined(NO_DSA) && defined(NO_SHA)
     #error "Please disable DSA if disabling SHA-1"
 #endif
@@ -5019,6 +5077,14 @@ extern void uITRON4_free(void *p) ;
            " requires ED448 (HAVE_ED448)"
 #endif
 
+/* Accommodate legacy BLAKE gate. */
+#ifdef HAVE_BLAKE2
+    #ifndef HAVE_BLAKE2B
+        #define HAVE_BLAKE2B
+    #endif
+    #undef HAVE_BLAKE2
+#endif
+
 /* QUIC Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_QUIC) && \
     !defined(WOLFSSL_TLS13)
@@ -5053,6 +5119,14 @@ extern void uITRON4_free(void *p) ;
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
     !defined(HAVE_SESSION_TICKET) && defined(NO_PSK)
     #error "Early data requires session tickets (HAVE_SESSION_TICKET) or PSK"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
+    !defined(WOLFSSL_TLS13)
+    #error "cert_with_extern_psk requires TLS 1.3 (WOLFSSL_TLS13)"
+#endif
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
+    defined(NO_PSK)
+    #error "cert_with_extern_psk requires PSK support"
 #endif
 
 /* DES3 TLS Suite Rule - auto-disable DES3 TLS suites when DES3 is disabled */

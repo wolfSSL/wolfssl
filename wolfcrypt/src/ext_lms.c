@@ -840,11 +840,31 @@ int wc_LmsKey_Sign(LmsKey* key, byte * sig, word32 * sigSz, const byte * msg,
         return -1;
     }
 
+    if ((size_t)*sigSz < len) {
+        /* Signature buffer too small. */
+        WOLFSSL_MSG("error: LMS sig buffer too small");
+        return BUFFER_E;
+    }
+
+    if (key->write_private_key == NULL) {
+        WOLFSSL_MSG("error: LmsKey write/read callbacks are not set");
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->context == NULL) {
+        WOLFSSL_MSG("error: LmsKey context is not set");
+        return BAD_FUNC_ARG;
+    }
+
     result = hss_generate_signature(key->working_key, LmsWritePrivKey,
                                     key, (const void *) msg, msgSz,
                                     sig, len, &key->info);
 
     if (!result) {
+        /* Erase any partial signature to prevent OTS key reuse if state
+         * is rolled back. */
+        ForceZero(sig, len);
+
         if (wc_LmsKey_SigsLeft(key) == 0) {
             WOLFSSL_MSG("error: LMS signatures exhausted");
             key->state = WC_LMS_STATE_NOSIGS;

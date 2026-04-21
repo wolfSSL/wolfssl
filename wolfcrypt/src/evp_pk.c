@@ -525,6 +525,8 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 #endif /* HAVE_FALCON */
 
 #ifdef HAVE_DILITHIUM
+
+#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 /**
  * Attempt to import a private Dilithium key at a specified level.
  *
@@ -541,6 +543,7 @@ static int d2i_dilithium_priv_key_level(dilithium_key* dilithium, byte level,
     return (wc_dilithium_set_level(dilithium, level) == 0) &&
            (wc_dilithium_import_private(mem, (word32)memSz, dilithium) == 0);
 }
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
 /**
  * Attempt to import a public Dilithium key at a specified level.
@@ -586,6 +589,7 @@ static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     /* Try decoding data as a Dilithium private/public key. */
     if (priv) {
+#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
         isDilithium = d2i_dilithium_priv_key_level(dilithium, WC_ML_DSA_44,
             mem, memSz);
         if (!isDilithium) {
@@ -596,6 +600,7 @@ static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
             isDilithium = d2i_dilithium_priv_key_level(dilithium, WC_ML_DSA_87,
                 mem, memSz);
         }
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
     }
     else {
         isDilithium = d2i_dilithium_pub_key_level(dilithium, WC_ML_DSA_44,

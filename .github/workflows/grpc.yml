@@ -62,9 +62,16 @@ jobs:
           ip addr list lo | grep 'inet '
           ip addr list lo | grep 'inet6 '
 
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install prereqs
-        run:
-          sudo apt-get install build-essential autoconf libtool pkg-config cmake clang libc++-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf libtool pkg-config cmake clang libc++-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4
@@ -84,6 +91,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout grpc
         uses: actions/checkout@v4
@@ -91,6 +99,7 @@ jobs:
           repository: grpc/grpc
           path: grpc
           ref: ${{ matrix.ref }}
+          fetch-depth: 1
 
       - name: Build grpc
         working-directory: ./grpc

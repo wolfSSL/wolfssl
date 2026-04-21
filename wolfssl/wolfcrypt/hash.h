@@ -40,7 +40,7 @@
 #if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+#if defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef WOLFSSL_SHA3
@@ -131,7 +131,7 @@ typedef struct {
 #elif defined(WOLFSSL_SHA512)
     #define WC_MAX_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
     #define WC_MAX_BLOCK_SIZE  WC_SHA512_BLOCK_SIZE
-#elif defined(HAVE_BLAKE2)
+#elif defined(HAVE_BLAKE2B)
     #define WC_MAX_DIGEST_SIZE BLAKE2B_OUTBYTES
     #define WC_MAX_BLOCK_SIZE  BLAKE2B_BLOCKBYTES
 #elif defined(WOLFSSL_SHA384)
@@ -158,6 +158,78 @@ typedef struct {
 #else
     #define WC_MAX_DIGEST_SIZE 64 /* default to max size of 64 */
     #define WC_MAX_BLOCK_SIZE  128
+#endif
+
+#if defined(WC_HASH_CUSTOM_MAX_DIGEST_SIZE) && \
+    defined(WC_HASH_CUSTOM_MIN_DIGEST_SIZE)
+    #if WC_HASH_CUSTOM_MAX_DIGEST_SIZE < \
+        WC_HASH_CUSTOM_MIN_DIGEST_SIZE
+        #error HASH_CUSTOM_MAX_DIGEST_SIZE < WC_HASH_CUSTOM_MIN_DIGEST_SIZE
+    #endif
+#endif
+#ifdef WC_HASH_CUSTOM_MAX_DIGEST_SIZE
+    #undef WC_MAX_DIGEST_SIZE
+    #define WC_MAX_DIGEST_SIZE WC_HASH_CUSTOM_MAX_DIGEST_SIZE
+#endif
+#ifdef WC_HASH_CUSTOM_MAX_BLOCK_SIZE
+    #undef WC_MAX_BLOCK_SIZE
+    #define WC_MAX_BLOCK_SIZE WC_HASH_CUSTOM_MAX_BLOCK_SIZE
+#endif
+
+#if defined(WC_HASH_CUSTOM_MIN_DIGEST_SIZE)
+    #if defined(WC_FIPS_186_5_PLUS) && \
+            (WC_HASH_CUSTOM_MIN_DIGEST_SIZE < 224 / 8)
+        #error FIPS 186-5 requires a minimum hash size >= SHA-224.
+    #elif defined(WC_FIPS_186_4) && \
+            (WC_HASH_CUSTOM_MIN_DIGEST_SIZE < 160 / 8)
+        #error FIPS 186-4 requires a minimum hash size >= SHA-1.
+    #elif (WC_HASH_CUSTOM_MIN_DIGEST_SIZE < 128 / 8)
+        #error WC_HASH_CUSTOM_MIN_DIGEST_SIZE is too small.
+    #endif
+    /* Let the user override the minimum digest size */
+    #define WC_MIN_DIGEST_SIZE WC_HASH_CUSTOM_MIN_DIGEST_SIZE
+#elif defined(WOLFSSL_MD2) && !defined(WC_FIPS_186_4_PLUS)
+    #define WC_MIN_DIGEST_SIZE WC_MD2_DIGEST_SIZE /* 16 */
+#elif !defined(NO_MD4) && !defined(WC_FIPS_186_4_PLUS)
+    #define WC_MIN_DIGEST_SIZE WC_MD4_DIGEST_SIZE /* 16 */
+#elif !defined(NO_MD5) && !defined(WC_FIPS_186_4_PLUS)
+    #define WC_MIN_DIGEST_SIZE WC_MD5_DIGEST_SIZE /* 16 */
+#elif !defined(NO_SHA) && !defined(WC_FIPS_186_5_PLUS)
+    #define WC_MIN_DIGEST_SIZE WC_SHA_DIGEST_SIZE /* 20 */
+#elif defined(WOLFSSL_SHA224)
+    #define WC_MIN_DIGEST_SIZE WC_SHA224_DIGEST_SIZE
+#elif !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
+    #define WC_MIN_DIGEST_SIZE WC_SHA512_224_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+    #define WC_MIN_DIGEST_SIZE WC_SHA3_224_DIGEST_SIZE
+#elif !defined(NO_SHA256)
+    #define WC_MIN_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+#elif !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
+    #define WC_MIN_DIGEST_SIZE WC_SHA512_256_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    #define WC_MIN_DIGEST_SIZE WC_SHA3_256_DIGEST_SIZE
+#elif defined(HAVE_BLAKE2S)
+    #define WC_MIN_DIGEST_SIZE BLAKE2S_OUTBYTES /* 32 */
+#elif defined(WOLFSSL_SM3)
+    #define WC_MIN_DIGEST_SIZE WC_SM3_DIGEST_SIZE /* 32 */
+#elif defined(WOLFSSL_SHA384)
+    #define WC_MIN_DIGEST_SIZE WC_SHA384_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    #define WC_MIN_DIGEST_SIZE WC_SHA3_384_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA512)
+    #define WC_MIN_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+    #define WC_MIN_DIGEST_SIZE WC_SHA3_512_DIGEST_SIZE
+#elif defined(HAVE_BLAKE2B)
+    #define WC_MIN_DIGEST_SIZE BLAKE2B_OUTBYTES /* 64 */
+#elif defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+    #error SHAKE enabled without SHA-3.
+    #define WC_MIN_DIGEST_SIZE 64
+#else
+    #error No builtin hashes enabled and no WC_HASH_CUSTOM_MIN_DIGEST_SIZE.
+    #define WC_MIN_DIGEST_SIZE 64
 #endif
 
 #if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)

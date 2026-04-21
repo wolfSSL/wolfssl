@@ -229,13 +229,8 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     const byte* md5_half;
     const byte* sha_half;
     byte*      md5_result;
-#ifdef WOLFSSL_SMALL_STACK
-    byte*      sha_result;
-    byte*      labelSeed;
-#else
-    byte       sha_result[MAX_PRF_DIG];    /* digLen is real size */
-    byte       labelSeed[MAX_PRF_LABSEED];
-#endif
+    WC_DECLARE_VAR(sha_result, byte, MAX_PRF_DIG, heap); /* digLen is real size */
+    WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
 
     if (half > MAX_PRF_HALF ||
         labLen + seedLen > MAX_PRF_LABSEED ||
@@ -244,15 +239,11 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
         return BUFFER_E;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    sha_result = (byte*)XMALLOC(MAX_PRF_DIG, heap, DYNAMIC_TYPE_DIGEST);
-    labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST);
-    if (sha_result == NULL || labelSeed == NULL) {
-        XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
-        XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sha_result, byte, MAX_PRF_DIG, heap, DYNAMIC_TYPE_DIGEST,
+                    return MEMORY_E);
+    WC_ALLOC_VAR_EX(labelSeed, byte, MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST,
+                    { WC_FREE_VAR_EX(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+                      return MEMORY_E; });
 
     md5_half = secret;
     sha_half = secret + half - secLen % 2;
@@ -984,7 +975,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
  * @param [in]  saltSz   Size of random in bytes.
  * @param [in]  kdrIdx   Key derivation rate. kdr = 0 when -1, otherwise
  *                       kdr = 2^kdrIdx.
- * @param [in]  index    Index value to XOR in.
+ * @param [in]  idx      Index value to XOR in.
  * @param [out] key1     First key. Label value of 0x00.
  * @param [in]  key1Sz   Size of first key in bytes.
  * @param [out] key2     Second key. Label value of 0x01.
@@ -1009,7 +1000,8 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24)) {
+            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1069,7 +1061,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  saltSz   Size of random in bytes.
  * @param [in]  kdrIdx   Key derivation rate index. kdr = 0 when -1, otherwise
  *                       kdr = 2^kdrIdx. See wc_SRTP_KDF_kdr_to_idx()
- * @param [in]  index    Index value to XOR in.
+ * @param [in]  idx      Index value to XOR in.
  * @param [out] key1     First key. Label value of 0x03.
  * @param [in]  key1Sz   Size of first key in bytes.
  * @param [out] key2     Second key. Label value of 0x04.
@@ -1103,7 +1095,8 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24)) {
+            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1171,7 +1164,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  saltSz    Size of random in bytes.
  * @param [in]  kdrIdx    Key derivation rate index. kdr = 0 when -1, otherwise
  *                        kdr = 2^kdrIdx. See wc_SRTP_KDF_kdr_to_idx()
- * @param [in]  index     Index value to XOR in.
+ * @param [in]  idx       Index value to XOR in.
  * @param [in]  label     Label to use when deriving key.
  * @param [out] outKey    Derived key.
  * @param [in]  outKeySz  Size of derived key in bytes.
@@ -1194,7 +1187,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
             (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
-            (outKey == NULL)) {
+            (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1244,7 +1237,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
  * @param [in]  saltSz    Size of random in bytes.
  * @param [in]  kdrIdx    Key derivation rate index. kdr = 0 when -1, otherwise
  *                        kdr = 2^kdrIdx. See wc_SRTP_KDF_kdr_to_idx()
- * @param [in]  index     Index value to XOR in.
+ * @param [in]  idx       Index value to XOR in.
  * @param [in]  label     Label to use when deriving key.
  * @param [out] outKey    Derived key.
  * @param [in]  outKeySz  Size of derived key in bytes.
@@ -1267,7 +1260,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
             (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
-            (outKey == NULL)) {
+            (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1333,24 +1326,30 @@ static int wc_KDA_KDF_iteration(const byte* z, word32 zSz, word32 counter,
     byte* output)
 {
     byte counterBuf[4];
-    wc_HashAlg hash;
+    WC_DECLARE_VAR(hash, wc_HashAlg, 1, NULL);
     int ret;
 
-    ret = wc_HashInit(&hash, hashType);
-    if (ret != 0)
+    WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, NULL, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
+
+    ret = wc_HashInit(hash, hashType);
+    if (ret != 0) {
+        WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHES);
         return ret;
+    }
     c32toa(counter, counterBuf);
-    ret = wc_HashUpdate(&hash, hashType, counterBuf, 4);
+    ret = wc_HashUpdate(hash, hashType, counterBuf, 4);
     if (ret == 0) {
-        ret = wc_HashUpdate(&hash, hashType, z, zSz);
+        ret = wc_HashUpdate(hash, hashType, z, zSz);
     }
     if (ret == 0 && fixedInfoSz > 0) {
-        ret = wc_HashUpdate(&hash, hashType, fixedInfo, fixedInfoSz);
+        ret = wc_HashUpdate(hash, hashType, fixedInfo, fixedInfoSz);
     }
     if (ret == 0) {
-        ret = wc_HashFinal(&hash, hashType, output);
+        ret = wc_HashFinal(hash, hashType, output);
     }
-    wc_HashFree(&hash, hashType);
+    wc_HashFree(hash, hashType);
+    WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHES);
     return ret;
 }
 

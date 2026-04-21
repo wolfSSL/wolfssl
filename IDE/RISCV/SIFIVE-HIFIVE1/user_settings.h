@@ -330,9 +330,9 @@ extern "C" {
 #endif
 
 /* Blake2B */
-#undef HAVE_BLAKE2
+#undef HAVE_BLAKE2B
 #if 0
-    #define HAVE_BLAKE2
+    #define HAVE_BLAKE2B
 #endif
 
 /* Blake2S */

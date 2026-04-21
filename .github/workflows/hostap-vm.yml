@@ -117,6 +117,7 @@ jobs:
           repository: torvalds/linux
           path: linux
           ref: ${{ env.LINUX_REF }}
+          fetch-depth: 1
 
       - name: Compile linux
         if: steps.cache.outputs.cache-hit != 'true'
@@ -211,15 +212,12 @@ jobs:
         run: tar -xf build-dir.tgz
 
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          # hostap dependencies
-          sudo apt-get install -y libpcap0.8 libpcap-dev curl libcurl4-openssl-dev \
-            libnl-3-dev binutils-dev libssl-dev libiberty-dev libnl-genl-3-dev \
-            libnl-route-3-dev libdbus-1-dev bridge-utils tshark python3-pycryptodome
-          sudo pip install pycryptodome
+        uses: ./wolfssl/.github/actions/install-apt-deps
+        with:
+          packages: libpcap0.8 libpcap-dev curl libcurl4-openssl-dev libnl-3-dev binutils-dev libssl-dev libiberty-dev libnl-genl-3-dev libnl-route-3-dev libdbus-1-dev bridge-utils tshark python3-pycryptodome
+
+      - name: Install pip dependencies
+        run: sudo pip install pycryptodome
 
       - name: Checking if we have hostap in cache
         uses: actions/cache/restore@v4
@@ -249,6 +247,7 @@ jobs:
           repository: wolfssl/osp
           path: osp
           ref: ${{ matrix.config.osp_ref }}
+          fetch-depth: 1
 
       - if: ${{ matrix.config.osp_ref }}
         name: Apply patch files

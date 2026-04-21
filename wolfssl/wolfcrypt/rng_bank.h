@@ -121,6 +121,18 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx);
 WOLFSSL_API int wc_rng_bank_free(struct wc_rng_bank **ctx);
 #endif
 
+#ifdef WC_RNG_BANK_NO_DEFAULT_SUPPORT
+#undef WC_RNG_BANK_DEFAULT_SUPPORT
+#else /* !WC_RNG_BANK_NO_DEFAULT_SUPPORT */
+#ifndef WC_RNG_BANK_DEFAULT_SUPPORT
+#define WC_RNG_BANK_DEFAULT_SUPPORT
+#endif
+WOLFSSL_API int wc_rng_bank_default_set(struct wc_rng_bank *bank);
+WOLFSSL_API int wc_rng_bank_default_checkout(struct wc_rng_bank **bank);
+WOLFSSL_API int wc_rng_bank_default_checkin(struct wc_rng_bank **bank);
+WOLFSSL_API int wc_rng_bank_default_clear(struct wc_rng_bank *bank);
+#endif /* !WC_RNG_BANK_NO_DEFAULT_SUPPORT */
+
 WOLFSSL_API int wc_rng_bank_checkout(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst **rng_inst,

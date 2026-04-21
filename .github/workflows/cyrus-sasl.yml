@@ -53,13 +53,16 @@ jobs:
     timeout-minutes: 4
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install krb5-kdc krb5-otp libkrb5-dev \
-            libsocket-wrapper libnss-wrapper krb5-admin-server libdb5.3-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: krb5-kdc krb5-otp libkrb5-dev libsocket-wrapper libnss-wrapper krb5-admin-server libdb5.3-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4
@@ -74,6 +77,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout sasl
         uses: actions/checkout@v4
@@ -81,6 +85,7 @@ jobs:
           repository: cyrusimap/cyrus-sasl
           ref: cyrus-sasl-${{ matrix.ref }}
           path: sasl
+          fetch-depth: 1
 
       - name: Build cyrus-sasl
         working-directory: sasl

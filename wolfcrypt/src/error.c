@@ -37,6 +37,9 @@ const char* wc_GetErrorString(int error)
 {
     switch ((enum wolfCrypt_ErrorCodes)error) {
 
+    case WC_SUCCESS:
+        return "wolfCrypt generic success";
+
     case WC_FAILURE:
         return "wolfCrypt generic failure";
 

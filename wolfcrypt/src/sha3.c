@@ -19,6 +19,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * SHA-3 Build Options:
+ *
+ * Core:
+ * WOLFSSL_SHA3:             Enable SHA-3 support                  default: off
+ * WOLFSSL_SHA3_SMALL:       Use smaller SHA-3 implementation      default: off
+ * WOLFSSL_SHAKE128:         Enable SHAKE128 XOF                   default: off
+ * WOLFSSL_SHAKE256:         Enable SHAKE256 XOF                   default: off
+ * SHA3_BY_SPEC:             Use specification Keccak-f order      default: off
+ * WC_SHA3_NO_ASM:           Disable SHA-3 assembly optimizations  default: off
+ * WC_SHA3_FAULT_HARDEN:     Harden SHA-3 against fault attacks    default: off
+ *
+ * Hardware Acceleration (SHA-3-specific):
+ * WC_ASYNC_ENABLE_SHA3:     Enable async SHA-3 operations         default: off
+ * WOLFSSL_ARMASM_CRYPTO_SHA3: ARM crypto SHA-3 instructions       default: off
+ * STM32_HASH_SHA3:          STM32 hardware SHA-3                  default: off
+ * PSOC6_HASH_SHA3:          PSoC6 hardware SHA-3                  default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WC_SHA3_NO_ASM
@@ -596,19 +615,8 @@ static word64 Load64BitLittleEndian(const byte* a)
     return n;
 }
 #elif defined(WC_SHA3_FAULT_HARDEN)
-static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
-{
-#ifdef WC_64BIT_CPU
-    return *(word64*)a;
-#elif defined(WC_32BIT_CPU)
-    return (((word64)((word32*)a)[1]) << 32) |
-                     ((word32*)a)[0];
-#else
-    return (((word64)((word16*)a)[3]) << 48) |
-           (((word64)((word16*)a)[2]) << 32) |
-           (((word64)((word16*)a)[1]) << 16) |
-                     ((word16*)a)[0];
-#endif
+static WC_INLINE word64 Load64Unaligned(const unsigned char *a) {
+    return readUnalignedWord64(a);
 }
 
 /* Convert the array of bytes, in little-endian order, to a 64-bit integer.
@@ -637,6 +645,12 @@ static int InitSha3(wc_Sha3* sha3)
     sha3->i = 0;
 #ifdef WOLFSSL_HASH_FLAGS
     sha3->flags = 0;
+#endif
+#ifdef WOLF_CRYPTO_CB
+    /* Cached hash variant is tied to sponge state; clear it whenever the
+     * state is reset so reuse for a different SHA3 variant dispatches
+     * correctly through the crypto callback. */
+    sha3->hashType = WC_HASH_TYPE_NONE;
 #endif
 
 #ifdef USE_INTEL_SPEEDUP
@@ -1340,16 +1354,21 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
 {
     int ret;
-    wc_Sha3 tmpSha3;
+    WC_DECLARE_VAR(tmpSha3, wc_Sha3, 1, sha3 ? sha3->heap : NULL);
 
     if (sha3 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMSET(&tmpSha3, 0, sizeof(tmpSha3));
-    ret = wc_Sha3Copy(sha3, &tmpSha3);
+    WC_ALLOC_VAR_EX(tmpSha3, wc_Sha3, 1, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER,
+                    return MEMORY_E);
+
+    XMEMSET(tmpSha3, 0, sizeof(*tmpSha3));
+    ret = wc_Sha3Copy(sha3, tmpSha3);
     if (ret == 0) {
-        ret = wc_Sha3Final(&tmpSha3, hash, p, len);
+        ret = wc_Sha3Final(tmpSha3, hash, p, len);
     }
+
+    WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 

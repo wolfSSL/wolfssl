@@ -674,6 +674,311 @@ public class wolfCrypt_Test_CSharp
         if (publicKeyB != IntPtr.Zero) wolfcrypt.Curve25519FreeKey(publicKeyB);
     } /* END curve25519_test */
 
+    private static void mlkem_test(wolfcrypt.MlKemTypes type)
+    {
+        int ret = 0;
+        IntPtr keyA = IntPtr.Zero;
+        IntPtr keyB = IntPtr.Zero;
+        IntPtr heap = IntPtr.Zero;
+        int devId = wolfcrypt.INVALID_DEVID;
+        byte[] pubA = null;
+        byte[] privA = null;
+        byte[] cipherText = null;
+        byte[] sharedSecretA = null;
+        byte[] sharedSecretB = null;
+
+        try
+        {
+            Console.WriteLine("\nStarting " + type + " shared secret test ...");
+
+            /* Generate Key Pair */
+            Console.WriteLine("Testing ML-KEM Key Generation...");
+
+            Console.WriteLine("Generate Key Pair A...");
+            keyA = wolfcrypt.MlKemMakeKey(type, heap, devId);
+            if (keyA == IntPtr.Zero)
+            {
+                ret = -1;
+                Console.Error.WriteLine("Failed to generate key pair A.");
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("Initialize Key B for decode...");
+                keyB = wolfcrypt.MlKemNew(type, heap, devId);
+                if (keyB == IntPtr.Zero)
+                {
+                    ret = -1;
+                    Console.Error.WriteLine("Failed to initialize key B for decode.");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-KEM Key Generation test passed.");
+            }
+
+            /* Encode */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-KEM Key Encode...");
+                ret = wolfcrypt.MlKemEncodePublicKey(keyA, out pubA);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to encode public key of A. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                ret = wolfcrypt.MlKemEncodePrivateKey(keyA, out privA);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to encode private key of A. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-KEM Key Encode test passed.");
+            }
+
+            /* Encapsulate */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-KEM Encapsulation...");
+                ret = wolfcrypt.MlKemEncapsulate(keyA, out cipherText, out sharedSecretA);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to encapsulate. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-KEM Encapsulation test passed.");
+            }
+            
+            /* Decode */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-KEM Decode...");
+                ret = wolfcrypt.MlKemDecodePrivateKey(keyB, privA);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to decode private key of A. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                ret = wolfcrypt.MlKemDecodePublicKey(keyB, pubA);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to decode public key of A. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-KEM Decode test passed.");
+            }
+
+            /* Decapsulate */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-KEM Decapsulation...");
+                ret = wolfcrypt.MlKemDecapsulate(keyB, cipherText, out sharedSecretB);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to decapsulate. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-KEM Decapsulation test passed.");
+            }
+
+            /* Check */
+            if (ret == 0)
+            {
+                Console.WriteLine("Comparing Shared Secrets...");
+                if (!wolfcrypt.ByteArrayVerify(sharedSecretA, sharedSecretB))
+                {
+                    ret = -1;
+                    Console.Error.WriteLine($"Shared secrets do not match. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-KEM shared secret match.");
+            }
+
+            if (ret != 0)
+            {
+                throw new Exception("ML-KEM test failed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ML-KEM test failed: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            /* Cleanup */
+            if (keyA != IntPtr.Zero)
+            {
+                ret = wolfcrypt.MlKemFreeKey(ref keyA);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to free MlKem key A. Error code: {ret}");
+                }
+            }
+            if (keyB != IntPtr.Zero)
+            {
+                ret = wolfcrypt.MlKemFreeKey(ref keyB);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to free MlKem key B. Error code: {ret}");
+                }
+            }
+        }
+    } /* END mlkem_test */
+
+    private static void mldsa_test(wolfcrypt.MlDsaLevels level)
+    {
+        int ret = 0;
+        IntPtr key = IntPtr.Zero;
+        IntPtr importKey = IntPtr.Zero;
+        IntPtr heap = IntPtr.Zero;
+        int devId = wolfcrypt.INVALID_DEVID;
+        byte[] privateKey = null;
+        byte[] publicKey = null;
+        byte[] message = Encoding.UTF8.GetBytes("This is some data to sign with ML-DSA");
+        byte[] signature = null;
+
+        try
+        {
+            Console.WriteLine("\nStarting " + level + " key generation and signature test ...");
+
+            /* Generate Key */
+            Console.WriteLine("Testing ML-DSA Key Generation...");
+            key = wolfcrypt.MlDsaMakeKey(heap, devId, level);
+            if (key == IntPtr.Zero)
+            {
+                ret = -1;
+                Console.Error.WriteLine("Failed to generate keypair.");
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-DSA Key Generation test passed.");
+            }
+
+            /* Export */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-DSA Key Export...");
+                ret = wolfcrypt.MlDsaExportPrivateKey(key, out privateKey);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to export private key. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                ret = wolfcrypt.MlDsaExportPublicKey(key, out publicKey);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to export public key. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-DSA Key Export test passed.");
+            }
+
+            /* Import into a fresh key to test the full import workflow */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-DSA Key Import...");
+                /* Free the keygen key and create a fresh one for import */
+                wolfcrypt.MlDsaFreeKey(ref key);
+                importKey = wolfcrypt.MlDsaNew(heap, devId, level);
+                if (importKey == IntPtr.Zero)
+                {
+                    ret = -1;
+                    Console.Error.WriteLine("Failed to allocate key for import.");
+                }
+            }
+            if (ret == 0)
+            {
+                ret = wolfcrypt.MlDsaImportPrivateKey(privateKey, importKey);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to import private key. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                ret = wolfcrypt.MlDsaImportPublicKey(publicKey, importKey);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to import public key. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-DSA Key Import test passed.");
+            }
+
+            /* Sign with imported key */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-DSA Signature Creation...");
+                ret = wolfcrypt.MlDsaSignMsg(importKey, message, out signature);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to sign. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine($"ML-DSA Signature Creation test passed. Signature Length: {signature.Length}");
+            }
+
+            /* Verify with imported key */
+            if (ret == 0)
+            {
+                Console.WriteLine("Testing ML-DSA Signature Verification...");
+                ret = wolfcrypt.MlDsaVerifyMsg(importKey, message, signature);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine($"Failed to verify message. Error code: {ret}");
+                }
+            }
+            if (ret == 0)
+            {
+                Console.WriteLine("ML-DSA Signature Verification test passed.");
+            }
+
+            if (ret != 0)
+            {
+                throw new Exception("ML-DSA test failed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ML-DSA test failed: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            if (key != IntPtr.Zero)
+            {
+                wolfcrypt.MlDsaFreeKey(ref key);
+            }
+            if (importKey != IntPtr.Zero)
+            {
+                wolfcrypt.MlDsaFreeKey(ref importKey);
+            }
+        }
+
+    } /* END mldsa_test */
+
     private static void aes_gcm_test()
     {
         IntPtr aes = IntPtr.Zero;
@@ -880,6 +1185,202 @@ public class wolfCrypt_Test_CSharp
         }
     } /* END hash_test */
 
+    private static void hpke_test(wolfcrypt.HpkeKem kem,
+        wolfcrypt.HpkeKdf kdf, wolfcrypt.HpkeAead aead)
+    {
+        IntPtr hpke = IntPtr.Zero;
+        IntPtr receiverKey = IntPtr.Zero;
+        IntPtr deserializedKey = IntPtr.Zero;
+        IntPtr ephemeralKey = IntPtr.Zero;
+
+        try
+        {
+            Console.WriteLine("\nStarting HPKE Base mode test...");
+
+            /* Initialize HPKE context */
+            Console.WriteLine("Initializing HPKE context...");
+            hpke = wolfcrypt.HpkeInit(kem, kdf, aead);
+            if (hpke == IntPtr.Zero)
+            {
+                throw new Exception("HpkeInit failed");
+            }
+            Console.WriteLine("HPKE context initialization passed.");
+
+            /* Generate receiver keypair */
+            Console.WriteLine("Generating receiver keypair...");
+            receiverKey = wolfcrypt.HpkeGenerateKeyPair(hpke);
+            if (receiverKey == IntPtr.Zero)
+            {
+                throw new Exception("HpkeGenerateKeyPair (receiver) failed");
+            }
+            Console.WriteLine("Receiver keypair generation passed.");
+
+            /* Serialize and deserialize public key (round-trip) */
+            Console.WriteLine("Testing public key serialize/deserialize round-trip...");
+            byte[] pubKeyBytes = wolfcrypt.HpkeSerializePublicKey(hpke, receiverKey);
+            if (pubKeyBytes == null)
+            {
+                throw new Exception("HpkeSerializePublicKey failed");
+            }
+            Console.WriteLine($"Serialized public key length: {pubKeyBytes.Length}");
+
+            deserializedKey = wolfcrypt.HpkeDeserializePublicKey(hpke, pubKeyBytes);
+            if (deserializedKey == IntPtr.Zero)
+            {
+                throw new Exception("HpkeDeserializePublicKey failed");
+            }
+
+            /* Verify round-trip by re-serializing */
+            byte[] pubKeyBytes2 = wolfcrypt.HpkeSerializePublicKey(hpke, deserializedKey);
+            if (pubKeyBytes2 == null || !wolfcrypt.ByteArrayVerify(pubKeyBytes, pubKeyBytes2))
+            {
+                throw new Exception("Public key round-trip verification failed");
+            }
+            Console.WriteLine("Public key round-trip test passed.");
+
+            /* Generate ephemeral keypair for sender */
+            Console.WriteLine("Generating ephemeral keypair...");
+            ephemeralKey = wolfcrypt.HpkeGenerateKeyPair(hpke);
+            if (ephemeralKey == IntPtr.Zero)
+            {
+                throw new Exception("HpkeGenerateKeyPair (ephemeral) failed");
+            }
+            Console.WriteLine("Ephemeral keypair generation passed.");
+
+            /* Define test data */
+            byte[] info = Encoding.UTF8.GetBytes("HPKE .NET Test");
+            byte[] aad = Encoding.UTF8.GetBytes("additional data");
+            byte[] plaintext = Encoding.UTF8.GetBytes("Hello HPKE from wolfCrypt .NET!");
+
+            /* Seal (encrypt) */
+            Console.WriteLine("Testing HpkeSealBase...");
+            byte[] encCiphertext = wolfcrypt.HpkeSealBase(hpke, ephemeralKey,
+                receiverKey, info, aad, plaintext);
+            if (encCiphertext == null)
+            {
+                throw new Exception("HpkeSealBase failed");
+            }
+            Console.WriteLine($"HpkeSealBase passed. Output length: {encCiphertext.Length}");
+
+            /* Open (decrypt) */
+            Console.WriteLine("Testing HpkeOpenBase...");
+            byte[] decrypted = wolfcrypt.HpkeOpenBase(hpke, receiverKey,
+                encCiphertext, info, aad, plaintext.Length);
+            if (decrypted == null)
+            {
+                throw new Exception("HpkeOpenBase failed");
+            }
+            Console.WriteLine("HpkeOpenBase passed.");
+
+            /* Compare plaintext and decrypted */
+            if (!wolfcrypt.ByteArrayVerify(plaintext, decrypted))
+            {
+                throw new Exception("Decrypted text does not match original plaintext");
+            }
+            Console.WriteLine("HPKE Base mode test PASSED.");
+
+            /* Test convenience overload (no ephemeral key) */
+            Console.WriteLine("Testing HpkeSealBase convenience overload...");
+            byte[] encCiphertext2 = wolfcrypt.HpkeSealBase(hpke, receiverKey,
+                info, aad, plaintext, kem);
+            if (encCiphertext2 == null)
+            {
+                throw new Exception("HpkeSealBase (convenience) failed");
+            }
+            Console.WriteLine($"HpkeSealBase convenience passed. Output length: {encCiphertext2.Length}");
+
+            byte[] decrypted2 = wolfcrypt.HpkeOpenBase(hpke, receiverKey,
+                encCiphertext2, info, aad, kem);
+            if (decrypted2 == null)
+            {
+                throw new Exception("HpkeOpenBase (convenience) failed");
+            }
+            if (!wolfcrypt.ByteArrayVerify(plaintext, decrypted2))
+            {
+                throw new Exception("Convenience seal/open: decrypted text does not match");
+            }
+            Console.WriteLine("HPKE convenience overload test PASSED.");
+
+            /* Empty plaintext round-trip - native API accepts ptSz == 0 */
+            Console.WriteLine("Testing HpkeSealBase/OpenBase with empty plaintext...");
+            byte[] emptyPt = new byte[0];
+            byte[] encEmpty = wolfcrypt.HpkeSealBase(hpke, receiverKey,
+                info, aad, emptyPt, kem);
+            if (encEmpty == null)
+            {
+                throw new Exception("HpkeSealBase with empty plaintext failed");
+            }
+            byte[] decEmpty = wolfcrypt.HpkeOpenBase(hpke, receiverKey,
+                encEmpty, info, aad, kem);
+            if (decEmpty == null || decEmpty.Length != 0)
+            {
+                throw new Exception("HpkeOpenBase with empty plaintext: round-trip failed");
+            }
+            Console.WriteLine("Empty plaintext round-trip test PASSED.");
+
+            /* Negative test: tampered ciphertext should fail */
+            Console.WriteLine("Testing HpkeOpenBase with tampered ciphertext...");
+            byte[] tampered = (byte[])encCiphertext.Clone();
+            tampered[tampered.Length - 1] ^= 0xFF; /* flip last byte (in tag) */
+            byte[] badResult = wolfcrypt.HpkeOpenBase(hpke, receiverKey,
+                tampered, info, aad, plaintext.Length);
+            if (badResult != null)
+            {
+                throw new Exception("HpkeOpenBase should fail with tampered ciphertext");
+            }
+            Console.WriteLine("Tampered ciphertext test PASSED (correctly rejected).");
+
+            /* Negative test: mismatched AAD should fail */
+            Console.WriteLine("Testing HpkeOpenBase with mismatched AAD...");
+            byte[] wrongAad = Encoding.UTF8.GetBytes("wrong aad");
+            badResult = wolfcrypt.HpkeOpenBase(hpke, receiverKey,
+                encCiphertext, info, wrongAad, plaintext.Length);
+            if (badResult != null)
+            {
+                throw new Exception("HpkeOpenBase should fail with mismatched AAD");
+            }
+            Console.WriteLine("Mismatched AAD test PASSED (correctly rejected).");
+
+            /* Null info/aad round-trip - exercises the null-marshaling path through P/Invoke */
+            Console.WriteLine("Testing HpkeSealBase/OpenBase with null info and aad...");
+            byte[] encNull = wolfcrypt.HpkeSealBase(hpke, receiverKey,
+                null, null, plaintext, kem);
+            if (encNull == null)
+            {
+                throw new Exception("HpkeSealBase with null info/aad failed");
+            }
+            byte[] decNull = wolfcrypt.HpkeOpenBase(hpke, receiverKey,
+                encNull, null, null, kem);
+            if (decNull == null || !wolfcrypt.ByteArrayVerify(plaintext, decNull))
+            {
+                throw new Exception("HpkeOpenBase with null info/aad: round-trip failed");
+            }
+            Console.WriteLine("Null info/aad round-trip test PASSED.");
+
+            /* Negative test: invalid ptLen should fail */
+            Console.WriteLine("Testing HpkeOpenBase with invalid ptLen...");
+            badResult = wolfcrypt.HpkeOpenBase(hpke, receiverKey,
+                encCiphertext, info, aad, plaintext.Length + 1);
+            if (badResult != null)
+            {
+                throw new Exception("HpkeOpenBase should fail with incorrect ptLen");
+            }
+            Console.WriteLine("Invalid ptLen test PASSED (correctly rejected).");
+        }
+        finally
+        {
+            /* Cleanup */
+            if (ephemeralKey != IntPtr.Zero)
+                wolfcrypt.HpkeFreeKey(hpke, ephemeralKey, kem);
+            if (deserializedKey != IntPtr.Zero)
+                wolfcrypt.HpkeFreeKey(hpke, deserializedKey, kem);
+            if (receiverKey != IntPtr.Zero)
+                wolfcrypt.HpkeFreeKey(hpke, receiverKey, kem);
+            if (hpke != IntPtr.Zero)
+                wolfcrypt.HpkeFree(hpke);
+        }
+    } /* END hpke_test */
+
     public static void standard_log(int lvl, StringBuilder msg)
     {
         Console.WriteLine(msg);
@@ -930,6 +1431,18 @@ public class wolfCrypt_Test_CSharp
 
             curve25519_test(); /* curve25519 shared secret test */
 
+            Console.WriteLine("\nStarting ML-KEM test");
+
+            mlkem_test(wolfcrypt.MlKemTypes.ML_KEM_512); /* ML-KEM test */
+            mlkem_test(wolfcrypt.MlKemTypes.ML_KEM_768); /* ML-KEM test */
+            mlkem_test(wolfcrypt.MlKemTypes.ML_KEM_1024); /* ML-KEM test */
+
+            Console.WriteLine("\nStarting ML-DSA test");
+
+            mldsa_test(wolfcrypt.MlDsaLevels.ML_DSA_44); /* ML-DSA test */
+            mldsa_test(wolfcrypt.MlDsaLevels.ML_DSA_65); /* ML-DSA test */
+            mldsa_test(wolfcrypt.MlDsaLevels.ML_DSA_87); /* ML-DSA test */
+
             Console.WriteLine("\nStarting AES-GCM test");
 
             aes_gcm_test(); /* AES_GCM test */
@@ -940,6 +1453,15 @@ public class wolfCrypt_Test_CSharp
             hash_test((uint)wolfcrypt.hashType.WC_HASH_TYPE_SHA384); /* SHA-384 HASH test */
             hash_test((uint)wolfcrypt.hashType.WC_HASH_TYPE_SHA512); /* SHA-512 HASH test */
             hash_test((uint)wolfcrypt.hashType.WC_HASH_TYPE_SHA3_256); /* SHA3_256 HASH test */
+
+            Console.WriteLine("\nStarting HPKE tests");
+
+            hpke_test(wolfcrypt.HpkeKem.DHKEM_P256_HKDF_SHA256,
+                wolfcrypt.HpkeKdf.HKDF_SHA256,
+                wolfcrypt.HpkeAead.AES_128_GCM);
+            hpke_test(wolfcrypt.HpkeKem.DHKEM_X25519_HKDF_SHA256,
+                wolfcrypt.HpkeKdf.HKDF_SHA256,
+                wolfcrypt.HpkeAead.AES_128_GCM);
 
             wolfcrypt.Cleanup();
 

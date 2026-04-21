@@ -785,7 +785,7 @@ int wc_Sha512_256Final(wc_Sha512* sha, byte* hash)
 }
 int wc_Sha512_256GetHash(wc_Sha512* sha, byte* hash)
 {
-    return FSPSM_HashGet(sha, hash, WC_SHA512_224_DIGEST_SIZE);
+    return FSPSM_HashGet(sha, hash, WC_SHA512_256_DIGEST_SIZE);
 }
 
 int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst)

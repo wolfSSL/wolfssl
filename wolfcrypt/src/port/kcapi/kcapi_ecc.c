@@ -120,6 +120,7 @@ int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw, word32* pubkey_sz,
             if (ret == 0) {
                 ret = kcapi_kpp_setkey(key->handle, priv, keySz);
             }
+            ForceZero(priv, sizeof(priv));
         }
         else {
             /* generate new ephemeral key */
@@ -166,7 +167,7 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
 
     /* check arguments */
     if (key == NULL || key->dp == NULL) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
     ret = KcapiEcc_LoadKey(key, key->pubkey_raw, &pubkey_sz, 0);
@@ -241,6 +242,7 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
                 ret = 0;
             }
         }
+        ForceZero(priv, sizeof(priv));
     }
     if (ret == 0) {
     #ifdef KCAPI_USE_XMALLOC
@@ -317,6 +319,7 @@ static int KcapiEcc_SetPrivKey(ecc_key* key)
         }
     }
 
+    ForceZero(priv, sizeof(priv));
     return ret;
 }
 
@@ -389,7 +392,7 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
 
     if (handleInit) {
-        kcapi_kpp_destroy(key->handle);
+        kcapi_akcipher_destroy(key->handle);
         key->handle = NULL;
     }
 
@@ -489,7 +492,7 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
 
     if (handleInit) {
-        kcapi_kpp_destroy(key->handle);
+        kcapi_akcipher_destroy(key->handle);
         key->handle = NULL;
     }
     return ret;

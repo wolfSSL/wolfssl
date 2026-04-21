@@ -720,6 +720,9 @@ struct dilithium_key {
     byte pubKeySet;
     byte prvKeySet;
     byte level; /* 2,3 or 5 */
+#if defined(WOLFSSL_DILITHIUM_DYNAMIC_KEYS)
+    word32 kSz; /* allocated size of secret key buffer */
+#endif
 
     void* heap; /* heap hint */
 
@@ -734,7 +737,10 @@ struct dilithium_key {
     int  labelLen;
 #endif
 
-#ifndef WOLFSSL_DILITHIUM_ASSIGN_KEY
+#if defined(WOLFSSL_DILITHIUM_DYNAMIC_KEYS)
+    byte* p;    /* heap-allocated, right-sized public key */
+    byte* k;    /* heap-allocated, right-sized secret key */
+#elif !defined(WOLFSSL_DILITHIUM_ASSIGN_KEY)
 #ifdef USE_INTEL_SPEEDUP
     byte p[DILITHIUM_MAX_PUB_KEY_SIZE+8];
     byte k[DILITHIUM_MAX_KEY_SIZE+8];
@@ -803,6 +809,13 @@ struct dilithium_key {
     #define WC_DILITHIUMKEY_TYPE_DEFINED
 #endif
 
+/* When WOLFSSL_DILITHIUM_FIPS204_DRAFT is enabled the legacy (pre-FIPS 204)
+ * no-context sign/verify API is required to handle draft-format signatures. */
+#if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT) && \
+    !defined(WOLFSSL_DILITHIUM_NO_CTX)
+    #define WOLFSSL_DILITHIUM_NO_CTX
+#endif
+
 /* Functions */
 
 #ifndef WOLFSSL_DILITHIUM_VERIFY_ONLY
@@ -811,9 +824,15 @@ int wc_dilithium_make_key(dilithium_key* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed);
 
+/* Legacy sign API without context parameter (pre-FIPS 204).
+ * Only available when WOLFSSL_DILITHIUM_NO_CTX is defined.
+ * New code should use wc_dilithium_sign_ctx_msg() with ctx=NULL/ctxLen=0
+ * for FIPS 204 compliant signing with an empty context. */
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 WOLFSSL_API
 int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
     word32* sigLen, dilithium_key* key, WC_RNG* rng);
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 WOLFSSL_API
 int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
     word32 msgLen, byte* sig, word32* sigLen, dilithium_key* key, WC_RNG* rng);
@@ -821,9 +840,14 @@ WOLFSSL_API
 int wc_dilithium_sign_ctx_hash(const byte* ctx, byte ctxLen, int hashAlg,
     const byte* hash, word32 hashLen, byte* sig, word32* sigLen,
     dilithium_key* key, WC_RNG* rng);
+/* Legacy seed-based sign API without context parameter (pre-FIPS 204).
+ * Only available when WOLFSSL_DILITHIUM_NO_CTX is defined.
+ * New code should use wc_dilithium_sign_ctx_msg_with_seed() instead. */
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 WOLFSSL_API
 int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
     word32 *sigLen, dilithium_key* key, const byte* seed);
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 WOLFSSL_API
 int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
     const byte* msg, word32 msgLen, byte* sig, word32 *sigLen,
@@ -832,17 +856,23 @@ WOLFSSL_API
 int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
     int hashAlg, const byte* hash, word32 hashLen, byte* sig, word32 *sigLen,
     dilithium_key* key, const byte* seed);
-#endif
+#endif /* !WOLFSSL_DILITHIUM_VERIFY_ONLY */
+/* Legacy verify API without context parameter (pre-FIPS 204).
+ * Only available when WOLFSSL_DILITHIUM_NO_CTX is defined.
+ * New code should use wc_dilithium_verify_ctx_msg() with ctx=NULL/ctxLen=0
+ * for FIPS 204 compliant verification with an empty context. */
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 WOLFSSL_API
 int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     word32 msgLen, int* res, dilithium_key* key);
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 WOLFSSL_API
 int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
-    word32 ctxLen, const byte* msg, word32 msgLen, int* res,
+    byte ctxLen, const byte* msg, word32 msgLen, int* res,
     dilithium_key* key);
 WOLFSSL_API
 int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
-    const byte* ctx, word32 ctxLen, int hashAlg, const byte* hash,
+    const byte* ctx, byte ctxLen, int hashAlg, const byte* hash,
     word32 hashLen, int* res, dilithium_key* key);
 
 #ifndef WC_NO_CONSTRUCTORS
@@ -1074,8 +1104,12 @@ WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
     wc_dilithium_export_private_only(key, out, outLen)
 #define wc_MlDsaKey_ImportPrivRaw(key, in, inLen)                              \
     wc_dilithium_import_private_only(in, inLen, key)
+/* Legacy no-context sign alias: only available with WOLFSSL_DILITHIUM_NO_CTX.
+ * Prefer wc_MlDsaKey_SignCtx() with empty context for FIPS 204 compliance. */
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 #define wc_MlDsaKey_Sign(key, sig, sigSz, msg, msgSz, rng)                     \
     wc_dilithium_sign_msg(msg, msgSz, sig, sigSz, key, rng)
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 #define wc_MlDsaKey_SignCtx(key, ctx, ctxSz, sig, sigSz, msg, msgSz, rng)      \
     wc_dilithium_sign_ctx_msg(ctx, ctxSz, msg, msgSz, sig, sigSz, key, rng)
 #define wc_MlDsaKey_SignCtxHash(key, ctx, ctxSz, sig, sigSz, hash, hashSz,     \
@@ -1088,8 +1122,12 @@ WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
     wc_dilithium_export_public(key, out, outLen)
 #define wc_MlDsaKey_ImportPubRaw(key, in, inLen)                               \
     wc_dilithium_import_public(in, inLen, key)
+/* Legacy no-context verify alias: only available with WOLFSSL_DILITHIUM_NO_CTX.
+ * Prefer wc_MlDsaKey_VerifyCtx() with empty context for FIPS 204 compliance. */
+#ifdef WOLFSSL_DILITHIUM_NO_CTX
 #define wc_MlDsaKey_Verify(key, sig, sigSz, msg, msgSz, res)                   \
     wc_dilithium_verify_msg(sig, sigSz, msg, msgSz, res, key)
+#endif /* WOLFSSL_DILITHIUM_NO_CTX */
 #define wc_MlDsaKey_VerifyCtx(key, sig, sigSz, ctx, ctxSz, msg, msgSz, res)    \
     wc_dilithium_verify_ctx_msg(sig, sigSz, ctx, ctxSz, msg, msgSz, res, key)
 #define wc_MlDsaKey_VerifyCtxHash(key, sig, sigSz, ctx, ctxSz, hash, hashSz,   \
@@ -1112,6 +1150,16 @@ WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
 WOLFSSL_API int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
 WOLFSSL_API int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len);
 WOLFSSL_API int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len);
+
+#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#ifndef WOLFSSL_NO_ML_DSA_44
+WOLFSSL_TEST_VIS void wc_dilithium_encode_w1_88(const sword32* w1, byte* w1e);
+#endif
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+WOLFSSL_TEST_VIS void wc_dilithium_encode_w1_32(const sword32* w1, byte* w1e);
+#endif
+#endif
 
 #ifdef __cplusplus
     }    /* extern "C" */

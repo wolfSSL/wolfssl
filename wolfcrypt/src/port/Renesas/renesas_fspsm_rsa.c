@@ -248,7 +248,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
     message_hash.data_type =
             info->keyflgs_crypt.bits.message_type;/* message 0, hash 1 */
     signature.pdata = out;
-    signature.data_length = (word32*)outLen;
+    signature.data_length = *outLen;
 
     #if defined(WOLFSSL_RENESAS_RSIP)
     message_hash.hash_type = signature.hash_type =

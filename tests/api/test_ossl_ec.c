@@ -476,8 +476,7 @@ int test_wolfSSL_EC_POINT(void)
     /* check if point X coordinate is zero */
     ExpectIntEQ(BN_is_zero(new_point->X), 0);
 
-#if defined(USE_ECC_B_PARAM) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
     ExpectIntEQ(EC_POINT_is_on_curve(group, new_point, ctx), 1);
 #endif
 

@@ -19,6 +19,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * SHA-1 Build Options:
+ *
+ * Core:
+ * NO_SHA:                   Disable SHA-1 support entirely        default: off
+ * USE_SLOW_SHA:             Disable SHA-1 loop unrolling          default: off
+ * WC_HASH_DATA_ALIGNMENT:   Required data alignment for hashing   default: off
+ *
+ * Hardware Acceleration (SHA-1-specific):
+ * WC_ASYNC_ENABLE_SHA:      Enable async SHA-1 operations         default: off
+ * WOLFSSL_PIC32MZ_HASH:     PIC32MZ hardware SHA                  default: off
+ * WOLFSSL_PSA_NO_HASH:      Disable PSA hash                      default: off
+ * WOLFSSL_TI_HASH:          TI hardware hash                      default: off
+ * WOLFSSL_RENESAS_RX64_HASH: Renesas RX64 hardware hash           default: off
+ * FREESCALE_LTC_SHA:        Freescale LTC SHA acceleration        default: off
+ * FREESCALE_MMCAU_SHA:      Freescale MMCAU SHA acceleration      default: off
+ * STM32_HASH:               STM32 hardware hash                   default: off
+ * PSOC6_HASH_SHA1:          PSoC6 hardware SHA-1                  default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef DEBUG_WOLFSSL_VERBOSE
@@ -437,7 +457,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 #ifndef XTRANSFORM
     #define XTRANSFORM(S,B)   Transform((S),(B))
 
-    #define blk0(i) (W[i] = *((word32*)&data[(i)*sizeof(word32)]))
+    #define blk0(i) (W[i] = *((const word32*)&data[(i)*sizeof(word32)]))
     #define blk1(i) (W[(i)&15] = \
         rotlFixed(W[((i)+13)&15]^W[((i)+8)&15]^W[((i)+2)&15]^W[(i)&15],1))
 

@@ -113,7 +113,7 @@ impl HMAC {
     /// let mut hmac = HMAC::new_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(typ: i32, key: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let key_size = key.len() as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
         let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -191,7 +191,7 @@ impl HMAC {
     /// ```
     #[cfg(hmac_setkey_ex)]
     pub fn new_allow_short_key_ex(typ: i32, key: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let key_size = key.len() as u32;
+        let key_size = crate::buffer_len_to_u32(key.len())?;
         let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -241,7 +241,7 @@ impl HMAC {
     /// hmac.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
-        let data_size = data.len() as u32;
+        let data_size = crate::buffer_len_to_u32(data.len())?;
         let rc = unsafe {
             sys::wc_HmacUpdate(&mut self.wc_hmac, data.as_ptr(), data_size)
         };
@@ -324,6 +324,12 @@ impl HMAC {
     }
 }
 
+impl HMAC {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.wc_hmac); }
+    }
+}
+
 impl Drop for HMAC {
     /// Safely free the underlying wolfSSL Hmac context.
     ///
@@ -334,5 +340,6 @@ impl Drop for HMAC {
     /// resources and preventing memory leaks.
     fn drop(&mut self) {
         unsafe { sys::wc_HmacFree(&mut self.wc_hmac); }
+        self.zeroize();
     }
 }

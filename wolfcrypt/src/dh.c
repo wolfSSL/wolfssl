@@ -1032,13 +1032,13 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
 #ifndef WOLFSSL_DH_CONST
     #define WOLFSSL_DH_ROUND(x) WC_DO_NOTHING
 #else
-    #define WOLFSSL_DH_ROUND(x) \
-        do {                    \
-            if (x % 128) {      \
-                x &= 0xffffff80;\
-                x += 128;       \
-            }                   \
-        }                       \
+    #define WOLFSSL_DH_ROUND(x)   \
+        do {                      \
+            if ((x) % 128) {      \
+                (x) &= 0xffffff80;\
+                (x) += 128;       \
+            }                     \
+        }                         \
         while (0)
 #endif
 
@@ -2030,12 +2030,13 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         WOLFSSL_MSG("wc_DhAgree wc_DhCheckPrivKey failed");
         return DH_CHECK_PRIV_E;
     }
+#endif
 
+    /* Always validate peer public key (2 <= y <= p-2) per SP 800-56A */
     if (wc_DhCheckPubKey(key, otherPub, pubSz) != 0) {
         WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
         return DH_CHECK_PUB_E;
     }
-#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     y = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
@@ -2227,8 +2228,10 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
     XFREE(y, key->heap, DYNAMIC_TYPE_DH);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+#if !defined(WOLFSSL_SP_MATH)
     mp_memzero_check(x);
     mp_memzero_check(z);
+#endif
 #endif
 
     return ret;

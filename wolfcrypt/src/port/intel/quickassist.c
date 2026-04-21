@@ -2214,9 +2214,7 @@ static void IntelQaSymCipherCallback(void *pCallbackTag, CpaStatus status,
     int ret = ASYNC_OP_E;
 
     (void)opData;
-    (void)verifyResult;
     (void)pDstBuffer;
-    (void)operationType;
 
 #ifdef QAT_DEBUG
     printf("IntelQaSymCipherCallback: dev %p, type %d, status %d, "
@@ -2270,6 +2268,18 @@ static void IntelQaSymCipherCallback(void *pCallbackTag, CpaStatus status,
 
             /* mark event result */
             ret = 0; /* success */
+
+            /* check verify result for authenticated ciphers (AES-GCM).
+             * Note: ALGORITHM_CHAINING is only used by AES-GCM in this
+             * code path. For encrypt verifyResult will be CPA_TRUE. */
+            if (operationType == CPA_CY_SYM_OP_ALGORITHM_CHAINING &&
+                    verifyResult == CPA_FALSE) {
+                /* wipe output - do not return unauthenticated plaintext */
+                if (dev->qat.out) {
+                    ForceZero(dev->qat.out, dev->qat.outLen);
+                }
+                ret = AES_GCM_AUTH_E;
+            }
         }
     }
 
@@ -2399,6 +2409,9 @@ static int IntelQaSymCipher(WC_ASYNC_DEV* dev, byte* out, const byte* in,
         setup.hashSetupData.authModeSetupData.aadLenInBytes = authInSz;
 
         setup.digestIsAppended = CPA_TRUE;
+        if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT) {
+            setup.verifyDigest = CPA_TRUE;
+        }
     }
 
     /* open session */
@@ -3431,7 +3444,7 @@ int IntelQaSymSha3(WC_ASYNC_DEV* dev, byte* out, const byte* in, word32 sz)
                 }
                 break;
         #endif
-        #ifdef HAVE_BLAKE2
+        #ifdef HAVE_BLAKE2B
             case BLAKE2B_ID:
         #endif
         #ifdef WOLFSSL_SHA3

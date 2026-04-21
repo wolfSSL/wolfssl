@@ -25,6 +25,17 @@
  * Reworked for curve448 by Sean Parkinson.
  */
 
+/*
+ * Curve448 Build Options:
+ *
+ * HAVE_CURVE448:            Enable Curve448 support                default: off
+ * HAVE_CURVE448_SHARED_SECRET: Enable Curve448 shared secret      default: on
+ *                            (when HAVE_CURVE448 is enabled)
+ * HAVE_CURVE448_KEY_EXPORT: Enable Curve448 key export            default: on
+ * HAVE_CURVE448_KEY_IMPORT: Enable Curve448 key import            default: on
+ * WOLFSSL_ECDHX_SHARED_NOT_ZERO: Check ECDH shared secret != 0   default: off
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_CURVE448

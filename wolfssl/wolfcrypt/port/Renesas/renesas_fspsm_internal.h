@@ -91,7 +91,7 @@ typedef struct FSPSM_RSA_CTX {
 } FSPSM_RSA_CTX;
 
 
-#if (!defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SH224) || \
+#if (!defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SHA224) || \
     defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)) && \
     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
 

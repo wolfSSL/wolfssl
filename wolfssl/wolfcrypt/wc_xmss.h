@@ -34,6 +34,12 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 
+/* When raw hash access APIs are disabled or unavailable (WOLFSSL_NO_HASH_RAW),
+ * fall back to using the full hash API calls. */
+#if defined(WOLFSSL_NO_HASH_RAW) && !defined(WC_XMSS_FULL_HASH)
+    #define WC_XMSS_FULL_HASH
+#endif
+
 #if !defined(WOLFSSL_WC_XMSS)
     #error "This code is incompatible with external implementation of XMSS."
 #endif

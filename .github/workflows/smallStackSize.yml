@@ -21,19 +21,19 @@ jobs:
           '--disable-asm',
 
           # defaults + native PQ, no asm
-          '--disable-asm --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium',
+          '--disable-asm --enable-mlkem --enable-lms --enable-xmss --enable-mldsa',
 
           # all-crypto + native PQ, no asm
-          '--disable-asm --enable-all-crypto --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium',
+          '--disable-asm --enable-all-crypto --enable-mlkem --enable-lms --enable-xmss --enable-mldsa',
 
           # defaults, intelasm + sp-asm
           '--enable-intelasm --enable-sp-asm',
 
           # defaults + native PQ, intelasm + sp-asm
-          '--enable-intelasm --enable-sp-asm --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium',
+          '--enable-intelasm --enable-sp-asm --enable-mlkem --enable-lms --enable-xmss --enable-mldsa',
 
           # all-crypto + native PQ, intelasm + sp-asm
-          '--enable-intelasm --enable-sp-asm --enable-all-crypto --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium'
+          '--enable-intelasm --enable-sp-asm --enable-all-crypto --enable-mlkem --enable-lms --enable-xmss --enable-mldsa'
         ]
     name: build library
     if: github.repository_owner == 'wolfssl'

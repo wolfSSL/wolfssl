@@ -29,6 +29,7 @@
     #endif
 
     #include <linux/version.h>
+    #include <linux/kconfig.h>
 
     #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
         #error Unsupported kernel.
@@ -37,6 +38,25 @@
     #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
         /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS expects AES-XTS-384 to work, even when CONFIG_CRYPTO_FIPS, but FIPS 140-3 only allows AES-XTS-256 and AES-XTS-512. */
         #error CONFIG_CRYPTO_MANAGER_EXTRA_TESTS is incompatible with FIPS wolfCrypt AES-XTS -- please reconfigure the target kernel to disable CONFIG_CRYPTO_MANAGER_EXTRA_TESTS.
+    #endif
+
+    /* The first vector set in /usr/src/linux/crypto/testmgr.h
+     * ecdsa_nist_p192_tv_template[], ecdsa_nist_p256_tv_template[], and
+     * ecdsa_nist_p384_tv_template[] use SHA-1 (even if CONFIG_CRYPTO_SHA1 is
+     * disabled), and kernel module signatures frequently use SHA-1 until quite
+     * recently (dependent on CONFIG_CRYPTO_SHA1).  If either is enabled, force
+     * downgrade to 186-4.
+     */
+    #if defined(WC_FIPS_186_5_PLUS) && \
+        (defined(CONFIG_CRYPTO_SHA1) || (defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))) && \
+        (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) || defined(CONFIG_CRYPTO_ECDSA))
+        #undef WC_FIPS_186_5_PLUS
+        #ifdef WC_FIPS_186_5
+            #undef WC_FIPS_186_5
+        #else
+            #error Unknown and incompatible FIPS 186 is enabled.
+        #endif
+        #define WC_FIPS_186_4
     #endif
 
     #ifdef HAVE_CONFIG_H
@@ -276,14 +296,14 @@
     _Pragma("GCC diagnostic ignored \"-Wsign-compare\"");
     _Pragma("GCC diagnostic ignored \"-Wpointer-sign\"");
     _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
+#ifndef __clang__
     _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
+#endif
     _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
     _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
     _Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\""); /* needed for kernel 4.9.282 */
     _Pragma("GCC diagnostic ignored \"-Wattributes\"");
-
-    #include <linux/kconfig.h>
 
     #ifdef CONFIG_KASAN
         #ifndef WC_SANITIZE_DISABLE
@@ -1870,8 +1890,10 @@
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
     #if BITS_PER_LONG == 64
+        /* NOLINTBEGIN(bugprone-sizeof-expression) */
         static_assert(sizeof(ULONG_MAX) == 8,
                        "BITS_PER_LONG is 64, but ULONG_MAX is not.");
+        /* NOLINTEND(bugprone-sizeof-expression) */
 
         #undef UCHAR_MAX
         #define UCHAR_MAX 255

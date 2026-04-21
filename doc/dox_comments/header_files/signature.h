@@ -4,13 +4,24 @@
     \brief This function returns the maximum size of the resulting signature.
 
     \return Returns SIG_TYPE_E if sig_type is not supported. Returns
-    BAD_FUNC_ARG if sig_type was invalid. A positive return value indicates
+    BAD_FUNC_ARG if sig_type was invalid or key_len does not exactly match
+    the size of the expected key structure. A positive return value indicates
     the maximum size of a signature.
 
     \param sig_type A signature type enum value such as
     WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
-    \param key Pointer to a key structure such as ecc_key or RsaKey.
-    \param key_len Size of the key structure.
+    \param key Pointer to the key structure corresponding to sig_type:
+    pass an ecc_key* for WC_SIGNATURE_TYPE_ECC, or a RsaKey* for
+    WC_SIGNATURE_TYPE_RSA / WC_SIGNATURE_TYPE_RSA_W_ENC.
+    The caller is responsible for ensuring the pointer refers to the correct
+    type; this function cannot verify the actual runtime type of the object.
+    \param key_len If key is non-NULL, key_len must be exactly sizeof(ecc_key)
+    or sizeof(RsaKey) matching the sig_type. Passing any other value
+    causes the function to return BAD_FUNC_ARG without dereferencing key.
+    Always pass the size of the concrete key type at the call site: if you
+    have a typed pointer (e.g., ecc_key* k), use sizeof(*k); otherwise use
+    sizeof(ecc_key) or sizeof(RsaKey) directly.  Do not use sizeof(*key)
+    on the const void* parameter itself, as dereferencing void is invalid.
 
     _Example_
     \code
@@ -43,16 +54,19 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     \return BAD_FUNC_ARG -173, bad function argument provided
     \return BUFFER_E -132, output buffer too small or input too large.
 
-    \param hash_type A hash type from the “enum  wc_HashType” such as
-    “WC_HASH_TYPE_SHA256”.
+    \param hash_type A hash type from the "enum  wc_HashType" such as
+    "WC_HASH_TYPE_SHA256".
     \param sig_type A signature type enum value such as
     WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
     \param data Pointer to buffer containing the data to hash.
     \param data_len Length of the data buffer.
     \param sig Pointer to buffer to output signature.
     \param sig_len Length of the signature output buffer.
-    \param key Pointer to a key structure such as ecc_key or RsaKey.
-    \param key_len Size of the key structure.
+    \param key Pointer to the key structure corresponding to sig_type.
+    See wc_SignatureGetSize() for the type-safety constraints that apply
+    to this parameter.
+    \param key_len Must be exactly sizeof(ecc_key) or
+    sizeof(RsaKey) matching sig_type. See wc_SignatureGetSize().
 
     _Example_
     \code
@@ -80,7 +94,7 @@ int wc_SignatureVerify(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     const byte* sig, word32 sig_len,
-    const void* key, word32 key_len);
+    void* key, word32 key_len);
 
 /*!
     \ingroup Signature
@@ -93,16 +107,19 @@ int wc_SignatureVerify(
     \return BAD_FUNC_ARG -173, bad function argument provided
     \return BUFFER_E -132, output buffer too small or input too large.
 
-    \param hash_type A hash type from the “enum  wc_HashType”
-    such as “WC_HASH_TYPE_SHA256”.
+    \param hash_type A hash type from the "enum  wc_HashType"
+    such as "WC_HASH_TYPE_SHA256".
     \param sig_type A signature type enum value such as
     WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
     \param data Pointer to buffer containing the data to hash.
     \param data_len Length of the data buffer.
     \param sig Pointer to buffer to output signature.
     \param sig_len Length of the signature output buffer.
-    \param key Pointer to a key structure such as ecc_key or RsaKey.
-    \param key_len Size of the key structure.
+    \param key Pointer to the key structure corresponding to sig_type.
+    See wc_SignatureGetSize() for the type-safety constraints that apply
+    to this parameter.
+    \param key_len Must be exactly sizeof(ecc_key) or
+    sizeof(RsaKey) matching sig_type. See wc_SignatureGetSize().
     \param rng Pointer to an initialized RNG structure.
 
     _Example_
@@ -143,7 +160,7 @@ int wc_SignatureGenerate(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len,
+    void* key, word32 key_len,
     WC_RNG* rng);
 
 /*!
@@ -166,8 +183,11 @@ int wc_SignatureGenerate(
     \param hash_len Length of the hash buffer
     \param sig Pointer to buffer containing the signature
     \param sig_len Length of the signature buffer
-    \param key Pointer to a key structure such as ecc_key or RsaKey
-    \param key_len Size of the key structure
+    \param key Pointer to the key structure corresponding to sig_type.
+    See wc_SignatureGetSize() for the type-safety constraints that apply
+    to this parameter.
+    \param key_len Must be exactly sizeof(ecc_key) or
+    sizeof(RsaKey) matching sig_type. See wc_SignatureGetSize().
 
     _Example_
     \code
@@ -194,7 +214,7 @@ int wc_SignatureVerifyHash(enum wc_HashType hash_type,
                            enum wc_SignatureType sig_type,
                            const byte* hash_data, word32 hash_len,
                            const byte* sig, word32 sig_len,
-                           const void* key, word32 key_len);
+                           void* key, word32 key_len);
 
 /*!
     \ingroup Signature
@@ -216,8 +236,11 @@ int wc_SignatureVerifyHash(enum wc_HashType hash_type,
     \param hash_len Length of the hash buffer
     \param sig Pointer to buffer to output signature
     \param sig_len Pointer to length of signature output buffer
-    \param key Pointer to a key structure such as ecc_key or RsaKey
-    \param key_len Size of the key structure
+    \param key Pointer to the key structure corresponding to sig_type.
+    See wc_SignatureGetSize() for the type-safety constraints that apply
+    to this parameter.
+    \param key_len Must be exactly sizeof(ecc_key) or
+    sizeof(RsaKey) matching sig_type. See wc_SignatureGetSize().
     \param rng Pointer to an initialized RNG structure
 
     _Example_
@@ -245,7 +268,7 @@ int wc_SignatureGenerateHash(enum wc_HashType hash_type,
                              enum wc_SignatureType sig_type,
                              const byte* hash_data, word32 hash_len,
                              byte* sig, word32 *sig_len,
-                             const void* key, word32 key_len,
+                             void* key, word32 key_len,
                              WC_RNG* rng);
 
 /*!
@@ -266,8 +289,11 @@ int wc_SignatureGenerateHash(enum wc_HashType hash_type,
     \param hash_len Length of the hash buffer
     \param sig Pointer to buffer to output signature
     \param sig_len Pointer to length of signature output buffer
-    \param key Pointer to a key structure such as ecc_key or RsaKey
-    \param key_len Size of the key structure
+    \param key Pointer to the key structure corresponding to sig_type.
+    See wc_SignatureGetSize() for the type-safety constraints that apply
+    to this parameter.
+    \param key_len Must be exactly sizeof(ecc_key) or
+    sizeof(RsaKey) matching sig_type. See wc_SignatureGetSize().
     \param rng Pointer to an initialized RNG structure
     \param verify If non-zero, verify the signature after generation
 
@@ -296,7 +322,7 @@ int wc_SignatureGenerateHash_ex(enum wc_HashType hash_type,
                                 enum wc_SignatureType sig_type,
                                 const byte* hash_data, word32 hash_len,
                                 byte* sig, word32 *sig_len,
-                                const void* key, word32 key_len,
+                                void* key, word32 key_len,
                                 WC_RNG* rng, int verify);
 
 /*!
@@ -317,8 +343,11 @@ int wc_SignatureGenerateHash_ex(enum wc_HashType hash_type,
     \param data_len Length of the data buffer
     \param sig Pointer to buffer to output signature
     \param sig_len Pointer to length of signature output buffer
-    \param key Pointer to a key structure such as ecc_key or RsaKey
-    \param key_len Size of the key structure
+    \param key Pointer to the key structure corresponding to sig_type.
+    See wc_SignatureGetSize() for the type-safety constraints that apply
+    to this parameter.
+    \param key_len Must be exactly sizeof(ecc_key) or
+    sizeof(RsaKey) matching sig_type. See wc_SignatureGetSize().
     \param rng Pointer to an initialized RNG structure
     \param verify If non-zero, verify the signature after generation
 
@@ -346,5 +375,5 @@ int wc_SignatureGenerate_ex(enum wc_HashType hash_type,
                             enum wc_SignatureType sig_type,
                             const byte* data, word32 data_len,
                             byte* sig, word32 *sig_len,
-                            const void* key, word32 key_len,
+                            void* key, word32 key_len,
                             WC_RNG* rng, int verify);

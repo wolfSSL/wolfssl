@@ -963,6 +963,11 @@ int wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, sig, sigSz or msg is NULL.
  * @return  BAD_FUNC_ARG when msgSz is not greater than 0.
+ * @return  BAD_FUNC_ARG when a write private key is not set.
+ * @return  BAD_FUNC_ARG when a read/write private key context is not set.
+ * @return  BUFFER_E when sigSz is too small.
+ * @return  BAD_STATE_E when wrong state for operation.
+ * @return  IO_FAILED_E when reading or writing private key failed.
  */
 int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
     int msgSz)
@@ -986,6 +991,22 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
         * can't guarantee its state. */
         WOLFSSL_MSG("error: can't sign, LMS key not in good state");
         ret = BAD_STATE_E;
+    }
+    /* Check signature buffer size. */
+    if ((ret == 0) && (*sigSz < key->params->sig_len)) {
+        /* Signature buffer too small. */
+        WOLFSSL_MSG("error: LMS sig buffer too small");
+        ret = BUFFER_E;
+    }
+    /* Check read and write callbacks available. */
+    if ((ret == 0) && (key->write_private_key == NULL)) {
+        WOLFSSL_MSG("error: LmsKey write/read callbacks are not set");
+        ret = BAD_FUNC_ARG;
+    }
+    /* Check read/write callback context available. */
+    if ((ret == 0) && (key->context == NULL)) {
+        WOLFSSL_MSG("error: LmsKey context is not set");
+        ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
@@ -1031,6 +1052,9 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
             HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
 #endif
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
+            /* Write to NV storage failed. Erase the signature from
+             * memory to prevent OTS key reuse if state is rolled back. */
+            ForceZero(sig, key->params->sig_len);
             ret = IO_FAILED_E;
         }
     }

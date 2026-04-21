@@ -10,7 +10,7 @@ jobs:
   build:
 
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
     - uses: actions/checkout@v4
@@ -56,11 +56,14 @@ jobs:
       if: ${{ failure() && steps.examples.outcome == 'failure' }}
       run: cat ./wrapper/Ada/examples/server.log
 
+    - name: Install valgrind
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: valgrind
+
     - name: Run Ada wrapper tests (valgrind)
       working-directory: ./wrapper/Ada/tests
       run: |
-        sudo apt-get update
-        sudo apt-get install -y valgrind
         valgrind --leak-check=full --error-exitcode=1 \
           --suppressions=valgrind.supp ./bin/tests
 

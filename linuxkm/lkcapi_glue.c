@@ -379,7 +379,7 @@ static int linuxkm_lkcapi_register(void)
                            "with return code %d.\n",                         \
                            (alg).base.cra_driver_name, ret);                 \
                     (crypto_unregister_ ## alg_class)(&(alg));               \
-                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {          \
+                    if (! ((alg).base.cra_flags & CRYPTO_ALG_DEAD)) {        \
                         pr_err("ERROR: alg %s not _DEAD "                    \
                                "after crypto_unregister_%s -- "              \
                                "marking as loaded despite test failure.",    \
@@ -431,7 +431,7 @@ static int linuxkm_lkcapi_register(void)
                                (alg).base.cra_driver_name, ret);             \
                     }                                                        \
                     (crypto_unregister_ ## alg_class)(&(alg));               \
-                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {          \
+                    if (! ((alg).base.cra_flags & CRYPTO_ALG_DEAD)) {        \
                         pr_err("ERROR: alg %s not _DEAD "                    \
                                "after crypto_unregister_%s -- "              \
                                "marking as loaded despite test failure.",    \
@@ -459,6 +459,12 @@ static int linuxkm_lkcapi_register(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM
     REGISTER_ALG(gcmAesAead, aead, linuxkm_test_aesgcm);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309
+    REGISTER_ALG(ccmAesAead_rfc4309, aead, linuxkm_test_aesccm_rfc4309);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM
+    REGISTER_ALG(ccmAesAead, aead, linuxkm_test_aesccm);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     REGISTER_ALG(xtsAesAlg, skcipher, linuxkm_test_aesxts);
@@ -787,18 +793,18 @@ static int linuxkm_lkcapi_unregister(void)
 #define UNREGISTER_ALG(alg, alg_class)                                   \
     do {                                                                 \
         if (alg ## _loaded) {                                            \
-            if (alg.base.cra_flags & CRYPTO_ALG_DEAD) {                  \
+            if ((alg).base.cra_flags & CRYPTO_ALG_DEAD) {                \
                 pr_err("alg %s already CRYPTO_ALG_DEAD.",                \
-                       alg.base.cra_driver_name);                        \
+                       (alg).base.cra_driver_name);                      \
                 alg ## _loaded = 0;                                      \
                 ++n_deregistered;                                        \
             }                                                            \
             else {                                                       \
                 int cur_refcnt =                                         \
-                    WC_LKM_REFCOUNT_TO_INT(alg.base.cra_refcnt);         \
+                    WC_LKM_REFCOUNT_TO_INT((alg).base.cra_refcnt);       \
                 if (cur_refcnt == 1) {                                   \
                     (crypto_unregister_ ## alg_class)(&(alg));           \
-                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {      \
+                    if (! ((alg).base.cra_flags & CRYPTO_ALG_DEAD)) {    \
                         pr_err("ERROR: alg %s not _DEAD after "          \
                                "crypto_unregister_%s -- "                \
                                "leaving marked as loaded.",              \
@@ -812,7 +818,7 @@ static int linuxkm_lkcapi_unregister(void)
                 }                                                        \
                 else {                                                   \
                     pr_err("alg %s cannot be uninstalled (refcnt = %d)", \
-                           alg.base.cra_driver_name, cur_refcnt);        \
+                           (alg).base.cra_driver_name, cur_refcnt);      \
                     if (cur_refcnt > 0) { seen_err = -EBUSY; }           \
                 }                                                        \
             }                                                            \
@@ -830,6 +836,12 @@ static int linuxkm_lkcapi_unregister(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     UNREGISTER_ALG(gcmAesAead_rfc4106, aead);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM
+    UNREGISTER_ALG(ccmAesAead, aead);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309
+    UNREGISTER_ALG(ccmAesAead_rfc4309, aead);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     UNREGISTER_ALG(xtsAesAlg, skcipher);

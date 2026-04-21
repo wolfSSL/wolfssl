@@ -52,12 +52,16 @@ jobs:
     timeout-minutes: 20
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y libcppunit-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libcppunit-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4
@@ -72,6 +76,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout SoftHSMv2
         uses: actions/checkout@v4
@@ -79,6 +84,7 @@ jobs:
           repository: opendnssec/SoftHSMv2
           path: softhsm
           ref: ${{ matrix.ref }}
+          fetch-depth: 1
 
       # Not using wolfSSL/actions-build-autotools-project@v1 because autogen.sh doesn't work
       - name: Build softhsm

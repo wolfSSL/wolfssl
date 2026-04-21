@@ -165,11 +165,11 @@ int test_wolfSSL_EVP_sm3(void)
 int test_EVP_blake2(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && (defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S))
+#if defined(OPENSSL_EXTRA) && (defined(HAVE_BLAKE2B) || defined(HAVE_BLAKE2S))
     const EVP_MD* md = NULL;
     (void)md;
 
-#if defined(HAVE_BLAKE2)
+#if defined(HAVE_BLAKE2B)
     ExpectNotNull(md = EVP_blake2b512());
     ExpectIntEQ(XSTRNCMP(md, "BLAKE2b512", XSTRLEN("BLAKE2b512")), 0);
 #endif
