@@ -10215,7 +10215,7 @@ static int test_wolfSSL_clear_secure_renegotiation(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
-    int          support;
+    long         support;
 
     ExpectNotNull(ctx);
     ExpectNotNull(ssl);
