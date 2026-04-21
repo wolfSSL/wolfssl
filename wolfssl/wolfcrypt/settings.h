@@ -349,7 +349,11 @@
     ((defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
      (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
      !defined(EXTERNAL_OPTS_OPENVPN)))
-    #warning wolfssl/options.h included in compiled wolfssl library object.
+    #if !defined(_MSC_VER) && !defined(__TASKING__)
+        #warning wolfssl/options.h included in compiled wolfssl library object.
+    #else
+        #pragma message("Warning: wolfssl/options.h included in compiled wolfssl library object.")
+    #endif
 #endif
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -369,7 +373,11 @@
      * an application build -- then your application can avoid this warning by
      * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
      */
-    #warning "No configuration for wolfSSL detected, check header order"
+    #if !defined(_MSC_VER) && !defined(__TASKING__)
+        #warning "No configuration for wolfSSL detected, check header order"
+    #else
+        #pragma message("Warning: No configuration for wolfSSL detected, check header order")
+    #endif
 #endif
 
 /* Ensure WOLFSSL_DEBUG_CERTS is set when DEBUG_WOLFSSL is enabled, unless
