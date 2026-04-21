@@ -1669,6 +1669,12 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         if (res < 0)
             err_sys_with_errno("setsockopt SO_REUSEADDR failed\n");
     }
+/* glibc hides SO_REUSEPORT under strict C99 feature-test visibility
+ * (no _DEFAULT_SOURCE/__USE_MISC). Fall back to the Linux numeric value
+ * so concurrent binds on the same port remain supported. */
+#if defined(__linux__) && !defined(SO_REUSEPORT)
+    #define SO_REUSEPORT 15
+#endif
 #ifdef SO_REUSEPORT
     {
         int       res, on  = 1;
