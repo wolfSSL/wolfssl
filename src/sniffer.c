@@ -7242,12 +7242,16 @@ int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
     ret = LoadKeyFile(&keyBuf, &keyBufSz, keyFile, 0, keyType, password);
     if (ret < 0) {
         SetError(KEY_FILE_STR, error, NULL, 0);
+        if (keyBuf != NULL) {
+            ForceZero(keyBuf, keyBufSz);
+        }
         XFREE(keyBuf, NULL, DYNAMIC_TYPE_X509);
         return WOLFSSL_FATAL_ERROR;
     }
 
     ret = ssl_SetWatchKey_buffer(vSniffer, keyBuf, keyBufSz, FILETYPE_DER,
             error);
+    ForceZero(keyBuf, keyBufSz);
     XFREE(keyBuf, NULL, DYNAMIC_TYPE_X509);
 
     return ret;

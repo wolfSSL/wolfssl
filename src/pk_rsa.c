@@ -719,6 +719,9 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
         key = NULL;
     }
     /* Dispose of allocated data. */
+    if (der != NULL) {
+        ForceZero(der, (word32)derLen);
+    }
     XFREE(der, bio ? bio->heap : NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return key;
 }
@@ -779,6 +782,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
 {
     int ret = 1;
     int derSz = 0;
+    word32 derAllocSz = 0;
     byte* derBuf = NULL;
 
     WOLFSSL_ENTER("wolfSSL_RSA_To_Der");
@@ -830,6 +834,9 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
                 WOLFSSL_ERROR_MSG("Memory allocation failed");
                 ret = MEMORY_ERROR;
             }
+            else {
+                derAllocSz = (word32)derSz;
+            }
         }
     }
     if ((ret == 1) && (outBuf != NULL)) {
@@ -863,6 +870,9 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
 
     if ((outBuf != NULL) && (*outBuf != derBuf)) {
         /* Not returning buffer, needs to be disposed of. */
+        if ((derBuf != NULL) && (publicKey == 0) && (derAllocSz > 0)) {
+            ForceZero(derBuf, derAllocSz);
+        }
         XFREE(derBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     WOLFSSL_LEAVE("wolfSSL_RSA_To_Der", ret);
