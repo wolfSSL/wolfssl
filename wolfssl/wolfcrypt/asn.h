@@ -2452,6 +2452,7 @@ WOLFSSL_LOCAL int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byt
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                 wolfssl_tm* certTime, int* idx, int len);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
+WOLFSSL_LOCAL int ValidateGmtime(struct tm* inTime);
 WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType,
                                   int len);
 #ifndef NO_ASN_TIME

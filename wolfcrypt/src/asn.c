@@ -14664,7 +14664,7 @@ int GetTimeString(byte* date, int format, char* buf, int len, int dateLen)
 #endif /* WOLFSSL_ASN_TIME_STRING */
 
 /* Check time struct for valid values. Returns 0 for success */
-static int ValidateGmtime(struct tm* inTime)
+int ValidateGmtime(struct tm* inTime)
 {
     int ret = 1;
     if ((inTime != NULL) &&

@@ -4294,6 +4294,14 @@ static int wolfssl_utctime_year(const unsigned char* str, int len, int* year)
     }
 
     if (ret == 1) {
+        if ((str[0] < '0') || (str[0] > '9') ||
+            (str[1] < '0') || (str[1] > '9')) {
+            WOLFSSL_MSG("Invalid characters in UTC year.");
+            ret = 0;
+        }
+    }
+
+    if (ret == 1) {
         int tm_year;
         /* 2-digit year. */
         tm_year =  (str[0] - '0') * 10;
@@ -4335,6 +4343,16 @@ static int wolfssl_gentime_year(const unsigned char* str, int len, int* year)
     }
 
     if (ret == 1) {
+        if ((str[0] < '0') || (str[0] > '9') ||
+            (str[1] < '0') || (str[1] > '9') ||
+            (str[2] < '0') || (str[2] > '9') ||
+            (str[3] < '0') || (str[3] > '9')) {
+            WOLFSSL_MSG("Invalid characters in generalized year.");
+            ret = 0;
+        }
+    }
+
+    if (ret == 1) {
         int tm_year;
         /* 4-digit year. */
         tm_year =  (str[0] - '0') * 1000;
@@ -4363,11 +4381,12 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
     const unsigned char* asn1TimeBuf;
     int asn1TimeBufLen;
     int i = 0;
-#ifdef XMKTIME
+    /* Parse into a local struct so the caller's tm is only written on
+     * success. Avoids leaving a partially-populated struct behind when
+     * the input fails validation. */
     struct tm localTm;
 
-    XMEMSET(&localTm, 0, sizeof localTm);
-#endif
+    XMEMSET(&localTm, 0, sizeof(localTm));
 
     /* Get the string buffer - fixed array, can't fail. */
     asn1TimeBuf = wolfSSL_ASN1_TIME_get_data(asnTime);
@@ -4378,15 +4397,12 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
         ret = 0;
     }
     if (ret == 1) {
-        /* Zero out values in broken-down time. */
-        XMEMSET(tm, 0, sizeof(struct tm));
-
         if (asnTime->type == WOLFSSL_V_ASN1_UTCTIME) {
             /* Get year from UTC TIME string. */
             int tm_year;
             if ((ret = wolfssl_utctime_year(asn1TimeBuf, asn1TimeBufLen,
                     &tm_year)) == 1) {
-                tm->tm_year = tm_year;
+                localTm.tm_year = tm_year;
                 /* Month starts after year - 2 characters. */
                 i = 2;
             }
@@ -4396,7 +4412,7 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
             int tm_year;
             if ((ret = wolfssl_gentime_year(asn1TimeBuf, asn1TimeBufLen,
                     &tm_year)) == 1) {
-                tm->tm_year = tm_year;
+                localTm.tm_year = tm_year;
                 /* Month starts after year - 4 characters. */
                 i = 4;
             }
@@ -4406,26 +4422,51 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
             WOLFSSL_MSG("asnTime->type is invalid.");
             ret = 0;
         }
-     }
-     if (ret == 1) {
+    }
+
+    if (ret == 1) {
+        int j;
+        /* Validate 10 digits: MMDDHHMMSS. Length was already checked
+         * (>= UTCTIME_LEN or >= GENTIME_LEN), so i+10 is in range. */
+        for (j = i; j < i + 10; j++) {
+            if (asn1TimeBuf[j] < '0' || asn1TimeBuf[j] > '9') {
+                WOLFSSL_MSG("Non-digit in ASN.1 TIME.");
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+    if (ret == 1) {
         /* Fill in rest of broken-down time from string. */
         /* January is 0 not 1 */
-        tm->tm_mon   = (asn1TimeBuf[i] - '0') * 10; i++;
-        tm->tm_mon  += (asn1TimeBuf[i] - '0') - 1;  i++;
-        tm->tm_mday  = (asn1TimeBuf[i] - '0') * 10; i++;
-        tm->tm_mday += (asn1TimeBuf[i] - '0');      i++;
-        tm->tm_hour  = (asn1TimeBuf[i] - '0') * 10; i++;
-        tm->tm_hour += (asn1TimeBuf[i] - '0');      i++;
-        tm->tm_min   = (asn1TimeBuf[i] - '0') * 10; i++;
-        tm->tm_min  += (asn1TimeBuf[i] - '0');      i++;
-        tm->tm_sec   = (asn1TimeBuf[i] - '0') * 10; i++;
-        tm->tm_sec  += (asn1TimeBuf[i] - '0');
+        localTm.tm_mon   = (asn1TimeBuf[i] - '0') * 10; i++;
+        localTm.tm_mon  += (asn1TimeBuf[i] - '0') - 1;  i++;
+        localTm.tm_mday  = (asn1TimeBuf[i] - '0') * 10; i++;
+        localTm.tm_mday += (asn1TimeBuf[i] - '0');      i++;
+        localTm.tm_hour  = (asn1TimeBuf[i] - '0') * 10; i++;
+        localTm.tm_hour += (asn1TimeBuf[i] - '0');      i++;
+        localTm.tm_min   = (asn1TimeBuf[i] - '0') * 10; i++;
+        localTm.tm_min  += (asn1TimeBuf[i] - '0');      i++;
+        localTm.tm_sec   = (asn1TimeBuf[i] - '0') * 10; i++;
+        localTm.tm_sec  += (asn1TimeBuf[i] - '0');
+    }
 
+    if (ret == 1) {
+        /* Range-check broken-down fields. ValidateGmtime returns 0 on
+         * success. */
+        if (ValidateGmtime(&localTm)) {
+            WOLFSSL_MSG("Out-of-range field in ASN.1 TIME.");
+            ret = 0;
+        }
+    }
+
+    if (ret == 1) {
+        /* Publish to caller. */
+        XMEMCPY(tm, &localTm, sizeof(*tm));
     #ifdef XMKTIME
-        XMEMCPY(&localTm, tm, sizeof(struct tm));
-        /* Call XMKTIME on tm to get tm_wday and tm_yday fields populated.
-           Note that localTm is used here to avoid modifying other fields,
-           such as tm_isdst/tm_gmtoff. */
+        /* XMKTIME may set tm_isdst/tm_gmtoff on localTm; call after the
+         * copy so those fields stay zero in the caller's tm. */
         XMKTIME(&localTm);
         tm->tm_wday = localTm.tm_wday;
         tm->tm_yday = localTm.tm_yday;
