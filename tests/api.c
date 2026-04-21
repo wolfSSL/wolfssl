@@ -10215,6 +10215,7 @@ static int test_wolfSSL_clear_secure_renegotiation(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
+    int          support;
 
     ExpectNotNull(ctx);
     ExpectNotNull(ssl);
@@ -10225,9 +10226,9 @@ static int test_wolfSSL_clear_secure_renegotiation(void)
         ssl->secure_renegotiation->enabled = 1;
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_clear(ssl));
+    support = wolfSSL_SSL_get_secure_renegotiation_support(ssl);
     ExpectNull(ssl->secure_renegotiation);
-    ExpectIntEQ(WOLFSSL_FAILURE,
-        wolfSSL_SSL_get_secure_renegotiation_support(ssl));
+    ExpectIntEQ(WOLFSSL_FAILURE, support);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
