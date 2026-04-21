@@ -34564,14 +34564,17 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     mp_free(m);
                     FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 }
+                else if (critical) {
+                    WOLFSSL_MSG("Unknown critical CRL extension");
+                    ret = ASN_CRIT_EXT_E;
+                }
             }
-            /* TODO: check criticality */
             /* Move index on to next extension. */
             idx += (word32)length;
         }
     }
 
-    if (ret < 0) {
+    if (ret < 0 && ret != WC_NO_ERR_TRACE(ASN_CRIT_EXT_E)) {
         ret = ASN_PARSE_E;
     }
 

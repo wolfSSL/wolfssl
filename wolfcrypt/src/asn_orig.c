@@ -9327,6 +9327,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
     while (idx < (word32)ext_bound) {
         word32 localIdx;
         int ret;
+        int critical = 0;
 
         if (GetSequence(buf, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -9346,11 +9347,13 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
         }
 
         localIdx = idx;
-        if (GetASNTag(buf, &localIdx, &tag, sz) == 0 && tag == ASN_BOOLEAN) {
+        if (GetASNTag(buf, &localIdx, &tag, sz) == 0 &&
+                tag == ASN_BOOLEAN) {
             WOLFSSL_MSG("\tfound optional critical flag, moving past");
             ret = GetBoolean(buf, &idx, sz);
             if (ret < 0)
                 return ret;
+            critical = ret;
         }
 
         ret = GetOctetString(buf, &idx, &length, sz);
@@ -9427,6 +9430,10 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                     ret = BUFFER_E;
                 }
             }
+        }
+        else if (critical) {
+            WOLFSSL_MSG("Unknown critical CRL extension");
+            return ASN_CRIT_EXT_E;
         }
 
         idx += length;
