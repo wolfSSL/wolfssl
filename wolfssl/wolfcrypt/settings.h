@@ -2106,9 +2106,7 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_NXP_HASHCRYPT_SHA
         #define WOLFSSL_NXP_HASHCRYPT_SHA256
         #define WOLFSSL_NXP_CASPER
-        #define WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD
-        // #define WOLFSSL_NXP_CASPER_ECC_MUL2ADD
-        // #define WOLFSSL_SP_MULMOD
+        // #define WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD
     #endif
 #endif /* WOLFSSL_NXP_LPC55S69 */
 

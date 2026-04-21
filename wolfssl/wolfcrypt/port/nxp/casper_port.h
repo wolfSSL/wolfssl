@@ -30,8 +30,26 @@ int wc_casper_init(void);
 #include <wolfssl/wolfcrypt/rsa.h>
 
 int casper_rsa_public_exptmod(
-    const byte* in, word32 inLen, byte* out, word32 outLen, RsaKey* key
+    const byte* in, word32 inLen, byte* out, word32* outLen, RsaKey* key
 );
+#endif
+
+
+#if defined(HAVE_ECC)
+#include <wolfssl/wolfcrypt/ecc.h>
+
+#ifdef WOLFSSL_NXP_CASPER_ECC_MULMOD
+int casper_ecc_mulmod(
+    const mp_int *m, ecc_point *P, ecc_point *R, int curve_id
+);
+#endif
+
+#ifdef WOLFSSL_NXP_CASPER_ECC_MUL2ADD
+int casper_ecc_mul2add(
+    const mp_int *m, ecc_point *P, const mp_int *n, ecc_point *Q,
+    ecc_point *R, int curve_id
+);
+#endif
 #endif
 
 #endif

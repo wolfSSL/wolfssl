@@ -2522,7 +2522,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     if ( (ret = aesofb_test()) != 0)
         TEST_FAIL("AES-OFB  test failed!\n", ret);
     else
-        TEST_PASS("AES-OFB   test passed!\n");
+        TEST_PASS("AES-OFB  test passed!\n");
 #endif
 
 #ifdef HAVE_AESGCM

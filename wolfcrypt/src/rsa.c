@@ -2415,20 +2415,6 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     return ret;
 }
 
-#elif defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
-static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
-                              word32* outLen, int type, RsaKey* key,
-                              WC_RNG* rng)
-{
-    (void)rng;
-
-    if (type == RSA_PUBLIC_DECRYPT || type == RSA_PUBLIC_ENCRYPT) {
-        return casper_rsa_public_exptmod(in, inLen, out, *outLen, key);
-    }
-
-    return RSA_WRONG_TYPE_E;
-}
-
 #else
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
 #ifdef WOLFSSL_HAVE_SP_RSA
@@ -2844,6 +2830,15 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         WOLFSSL_MSG("MP_VAL is even");
         return MP_VAL;
     }
+
+#if defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
+    if (type == RSA_PUBLIC_DECRYPT || type == RSA_PUBLIC_ENCRYPT) {
+        ret = casper_rsa_public_exptmod(in, inLen, out, outLen, key);
+        if (ret == 0)
+            return MP_OKAY;
+        /* else fall through for software fallback */
+    }
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_RSA
     ret = RsaFunction_SP(in, inLen, out, outLen, type, key, rng);
