@@ -14726,6 +14726,11 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
             }
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
+
+            /* Restore encOID across WANT_READ re-entries so the nonce
+             * length validation below always sees the content-cipher
+             * algorithm parsed in AUTHENV_3. */
+            wc_PKCS7_StreamGetVar(pkcs7, &encOID, &blockKeySz, NULL);
         #endif
             /* get length of optional parameter sequence */
             if (ret == 0 && GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
@@ -14741,6 +14746,46 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret == 0 && nonceSz > (int)sizeof(nonce)) {
                 WOLFSSL_MSG("AuthEnvelopedData nonce too large for buffer");
                 ret = ASN_PARSE_E;
+            }
+
+            /* Enforce algorithm-specific nonce length bounds at the parser
+             * layer so malformed lengths (notably zero-length, which would
+             * catastrophically break AEAD uniqueness on HW backends that
+             * skip their own checks) cannot reach the cipher engine.
+             *   - AES-GCM in CMS: RFC 5084 Sec. 3.2 mandates a 12-octet IV.
+             *   - AES-CCM: RFC 3610 Sec. 2.3 requires 7..13 octets.
+             * Any other encOID here is a parser-state invariant violation. */
+            if (ret == 0) {
+                int nonceMin = 0, nonceMax = 0;
+                switch (encOID) {
+                #ifdef HAVE_AESGCM
+                    case AES128GCMb:
+                    case AES192GCMb:
+                    case AES256GCMb:
+                        nonceMin = GCM_NONCE_MID_SZ;
+                        nonceMax = GCM_NONCE_MID_SZ;
+                        break;
+                #endif
+                #ifdef HAVE_AESCCM
+                    case AES128CCMb:
+                    case AES192CCMb:
+                    case AES256CCMb:
+                        nonceMin = CCM_NONCE_MIN_SZ;
+                        nonceMax = CCM_NONCE_MAX_SZ;
+                        break;
+                #endif
+                    default:
+                        WOLFSSL_MSG(
+                            "AuthEnvelopedData unexpected content cipher");
+                        ret = ALGO_ID_E;
+                        break;
+                }
+                if (ret == 0 &&
+                        (nonceSz < nonceMin || nonceSz > nonceMax)) {
+                    WOLFSSL_MSG(
+                        "AuthEnvelopedData nonce length invalid for cipher");
+                    ret = ASN_PARSE_E;
+                }
             }
 
             if (ret == 0) {
