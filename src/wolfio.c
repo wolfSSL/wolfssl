@@ -3286,7 +3286,7 @@ int LwIPNativeSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     err_t ret;
     WOLFSSL_LWIP_NATIVE_STATE* nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;
 
-    if (sz > UINT16_MAX || sz < 0) {
+    if (sz < 0 || sz > (int)WOLFSSL_MAX_16BIT) {
         return BAD_FUNC_ARG;
     }
 
