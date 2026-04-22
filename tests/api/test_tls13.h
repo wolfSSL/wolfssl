@@ -36,6 +36,7 @@ int test_tls13_ch2_different_cs(void);
 int test_tls13_sg_missing(void);
 int test_tls13_ks_missing(void);
 int test_tls13_duplicate_extension(void);
+int test_tls13_duplicate_ech_extension(void);
 int test_key_share_mismatch(void);
 int test_tls13_middlebox_compat_empty_session_id(void);
 int test_tls13_plaintext_alert(void);
@@ -44,6 +45,7 @@ int test_tls13_unknown_ext_rejected(void);
 int test_tls13_cert_req_sigalgs(void);
 int test_tls13_derive_keys_no_key(void);
 int test_tls13_pqc_hybrid_truncated_keyshare(void);
+int test_tls13_empty_record_limit(void);
 int test_tls13_short_session_ticket(void);
 int test_tls13_early_data_0rtt_replay(void);
 int test_tls13_corrupted_finished(void);
@@ -72,6 +74,7 @@ int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
     TEST_DECL_GROUP("tls13", test_tls13_sg_missing),            \
     TEST_DECL_GROUP("tls13", test_tls13_ks_missing),            \
     TEST_DECL_GROUP("tls13", test_tls13_duplicate_extension),   \
+    TEST_DECL_GROUP("tls13", test_tls13_duplicate_ech_extension), \
     TEST_DECL_GROUP("tls13", test_key_share_mismatch),          \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_empty_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
@@ -79,6 +82,7 @@ int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
     TEST_DECL_GROUP("tls13", test_tls13_derive_keys_no_key),    \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_truncated_keyshare), \
+    TEST_DECL_GROUP("tls13", test_tls13_empty_record_limit),    \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_0rtt_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \

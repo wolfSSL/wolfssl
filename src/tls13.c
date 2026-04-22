@@ -2638,7 +2638,8 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         #endif
 
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
-            if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) {
+            if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
+                    dataSz > 0) {
                 XMEMCPY(ssl->encrypt.sanityCheck, input,
                     min(dataSz, sizeof(ssl->encrypt.sanityCheck)));
             }
@@ -2824,6 +2825,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
             if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
+                    dataSz > 0 &&
                 XMEMCMP(output, ssl->encrypt.sanityCheck,
                     min(dataSz, sizeof(ssl->encrypt.sanityCheck))) == 0) {
 
