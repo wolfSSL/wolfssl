@@ -196,6 +196,8 @@ impl<H: Hash, const N: usize> SignerMut<Signature<N>> for SigningKey<H, N> {
     }
 }
 
+/// Maximum number of bytes that the E exponent can use. An error is returned
+/// if longer exponent byte arrays are provided.
 const MAX_E_LEN: usize = 8;
 
 /// RSA PKCS#1 v1.5 verifying key.
