@@ -5109,6 +5109,22 @@ extern void uITRON4_free(void *p) ;
            " (WOLF_CRYPTO_CB_COPY/WOLF_CRYPTO_CB_FREE)" \
            " require WOLF_CRYPTO_CB"
 #endif
+/*
+ * WOLF_CRYPTO_CB_ONLY_* assumes no hardware crypto port is compiled in for
+ * the selected algorithm. Crypto Callback is expected to be the only provider.
+ */
+#if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_RSA requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_ECC requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA256 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_AES) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_AES requires WOLF_CRYPTO_CB"
+#endif
 
 /* Early Data / Session Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \
