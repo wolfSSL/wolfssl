@@ -24118,7 +24118,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     if (ret != WC_NO_ERR_TRACE(SIG_TYPE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_sig);
 #endif
-#if defined(WOLF_CRYPTO_CB_ONLY_RSA)
+#if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_SWDEV)
     ret = 0;
     goto exit_rsa_sig;
 #endif
@@ -24601,7 +24601,7 @@ done:
     !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-!defined(WOLF_CRYPTO_CB_ONLY_RSA)
+(!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
 static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
     byte             digest[WC_MAX_DIGEST_SIZE];
@@ -25983,7 +25983,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     int    keySz = 2048;
 #endif
 
-#ifdef WOLF_CRYPTO_CB_ONLY_RSA
+#if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_SWDEV)
     if (devId == INVALID_DEVID) {
         /* must call keygen with devId */
         return 0;
@@ -26086,7 +26086,7 @@ exit_rsa:
 #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG) && \
     (!defined(HAVE_FIPS) || \
       (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) \
-      && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+      && (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
 static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
@@ -26623,7 +26623,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 #endif
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    !defined(WC_NO_RNG) && (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
     /* Reload the key so the public-encrypt below is the first operation
      * against it. Exercises backends that distinguish public-only material
      * from full-keypair bindings: a public-encrypt on a freshly-loaded key
@@ -26751,7 +26751,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
 #if !defined(WC_NO_RNG) && !defined(WC_NO_RSA_OAEP) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && defined(WOLFSSL_PUBLIC_MP) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
     idx = (word32)ret;
     XMEMSET(plain, 0, plainSz);
     do {
@@ -26798,7 +26798,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
     #if (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) \
-         && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+         && (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
     ret = rsa_oaep_padding_test(key, &rng);
     if (ret != 0)
         goto exit_rsa;
@@ -27064,7 +27064,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) || defined(WOLFSSL_SWDEV))
     ret = rsa_pss_test(&rng, key);
     if (ret != 0)
         goto exit_rsa;

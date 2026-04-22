@@ -7,6 +7,9 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 
+#ifndef NO_RSA
+#include <wolfssl/wolfcrypt/rsa.h>
+#endif
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -23,6 +26,31 @@ static int swdev_ensure_init(void)
     }
     return 0;
 }
+
+#ifndef NO_RSA
+static int swdev_rsa(wc_CryptoInfo* info)
+{
+    switch (info->pk.rsa.type) {
+    case RSA_PUBLIC_ENCRYPT:
+    case RSA_PUBLIC_DECRYPT:
+    case RSA_PRIVATE_ENCRYPT:
+    case RSA_PRIVATE_DECRYPT:
+        return wc_RsaFunction(info->pk.rsa.in, info->pk.rsa.inLen,
+            info->pk.rsa.out, info->pk.rsa.outLen, info->pk.rsa.type,
+            info->pk.rsa.key, info->pk.rsa.rng);
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+
+#ifdef WOLFSSL_KEY_GEN
+static int swdev_rsa_keygen(wc_CryptoInfo* info)
+{
+    return wc_MakeRsaKey(info->pk.rsakg.key, info->pk.rsakg.size,
+        info->pk.rsakg.e, info->pk.rsakg.rng);
+}
+#endif
+#endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
 static int swdev_ecc_keygen(wc_CryptoInfo* info)
@@ -108,9 +136,18 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         return ret;
 
     switch (info->algo_type) {
-#ifdef HAVE_ECC
+#if !defined(NO_RSA) || defined(HAVE_ECC)
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
+    #ifndef NO_RSA
+        case WC_PK_TYPE_RSA:
+            return swdev_rsa(info);
+        #ifdef WOLFSSL_KEY_GEN
+        case WC_PK_TYPE_RSA_KEYGEN:
+            return swdev_rsa_keygen(info);
+        #endif
+    #endif /* !NO_RSA */
+    #ifdef HAVE_ECC
         case WC_PK_TYPE_EC_KEYGEN:
             return swdev_ecc_keygen(info);
         case WC_PK_TYPE_ECDH:
@@ -123,10 +160,11 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_ecc_get_size(info);
         case WC_PK_TYPE_EC_GET_SIG_SIZE:
             return swdev_ecc_get_sig_size(info);
+    #endif /* HAVE_ECC */
         default:
             return CRYPTOCB_UNAVAILABLE;
         }
-#endif /* HAVE_ECC */
+#endif
     default:
         return CRYPTOCB_UNAVAILABLE;
     }
