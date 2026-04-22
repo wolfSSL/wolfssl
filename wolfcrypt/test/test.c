@@ -64,6 +64,10 @@
     #undef err_sys
 #endif
 
+#ifdef WOLFSSL_SWDEV
+    #include "../../tests/swdev/swdev_loader.h"
+#endif
+
 #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_PUBLIC_MP) && \
     defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
     !defined(NO_STDINT_H)
@@ -3512,6 +3516,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             err_sys("Error with wolfCrypt_Init!\n", args.return_code);
         }
 
+#ifdef WOLFSSL_SWDEV
+        if ((ret = wc_SwDev_Init()) != 0) {
+            printf("wc_SwDev_Init failed %d\n", (int)ret);
+            args.return_code = WC_TEST_RET_ENC_EC(ret);
+            err_sys("Error with wc_SwDev_Init!\n", args.return_code);
+        }
+#endif
+
 #ifdef HAVE_WC_INTROSPECTION
         printf("Math: %s\n", wc_GetMathInfo());
 #endif
@@ -3523,6 +3535,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             wolfcrypt_test(&args);
 #endif
         }
+
+#ifdef WOLFSSL_SWDEV
+        wc_SwDev_Cleanup();
+#endif
 
         if ((ret = wolfCrypt_Cleanup()) != 0) {
             printf("wolfCrypt_Cleanup failed %d\n", (int)ret);
@@ -69801,9 +69817,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     ret = wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, &myCtx);
     if (ret != 0)
         ret = WC_TEST_RET_ENC_EC(ret);
-#ifdef WOLF_CRYPTO_CB_FIND
+    /* don't overwrite find cb when using WOLFSSL_SWDEV */
+#if defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_SWDEV)
     wc_CryptoCb_SetDeviceFindCb(myCryptoCbFind);
-#endif /* WOLF_CRYPTO_CB_FIND */
+#endif
 #ifndef WC_NO_RNG
     if (ret == 0)
         ret = random_test();
@@ -69814,7 +69831,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = rsa_test();
     PRIVATE_KEY_LOCK();
 #endif
-#if defined(WOLF_CRYPTO_CB_ONLY_RSA)
+#if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_SWDEV)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = rsa_onlycb_test(&myCtx);

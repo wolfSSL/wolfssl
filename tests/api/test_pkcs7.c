@@ -2203,7 +2203,7 @@ int test_wc_PKCS7_VerifySignedData_RSA(void)
     /* verify using pre-computed content digest only (no content) */
     {
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-        ExpectIntEQ(wc_PKCS7_Init(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, NULL, testDevId), 0);
         ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
             output, outputSz, NULL, 0), 0);
         wc_PKCS7_Free(pkcs7);
@@ -2473,7 +2473,7 @@ int test_wc_PKCS7_VerifySignedData_ECC(void)
         ExpectIntEQ(wc_HashFree(&hash, hashType), 0);
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-        ExpectIntEQ(wc_PKCS7_Init(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, NULL, testDevId), 0);
         ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
             output, outputSz, NULL, 0), 0);
         wc_PKCS7_Free(pkcs7);
@@ -4645,7 +4645,7 @@ int test_wc_PKCS7_signed_enveloped(void)
     ExpectIntGT(keySz = wolfSSL_KeyPemToDer(key, keySz, key, keySz, NULL), 0);
 
     /* sign cert for envelope */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
     if (pkcs7 != NULL) {
@@ -4665,7 +4665,7 @@ int test_wc_PKCS7_signed_enveloped(void)
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
     /* create envelope */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
     if (pkcs7 != NULL) {
         pkcs7->content   = sig;
@@ -4683,7 +4683,7 @@ int test_wc_PKCS7_signed_enveloped(void)
 
     /* create bad signed enveloped data */
     sigSz = FOURK_BUF * 2;
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
     if (pkcs7 != NULL) {
@@ -4708,7 +4708,7 @@ int test_wc_PKCS7_signed_enveloped(void)
     pkcs7 = NULL;
 
     /* check verify fails */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, (word32)sigSz),
             WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
@@ -4735,7 +4735,7 @@ int test_wc_PKCS7_signed_enveloped(void)
     pkcs7 = NULL;
 
     /* initializing the PKCS7 struct with the signing certificate should pass */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, (word32)sigSz), 0);
 
@@ -4761,7 +4761,7 @@ int test_wc_PKCS7_signed_enveloped(void)
 
     /* create valid degenerate bundle */
     sigSz = FOURK_BUF * 2;
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     if (pkcs7 != NULL) {
         pkcs7->content    = env;
         pkcs7->contentSz  = (word32)envSz;
@@ -4779,7 +4779,7 @@ int test_wc_PKCS7_signed_enveloped(void)
     wc_FreeRng(&rng);
 
     /* check verify */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, (word32)sigSz), 0);
     ExpectNotNull(pkcs7->content);
@@ -4790,7 +4790,7 @@ int test_wc_PKCS7_signed_enveloped(void)
 
     /* create valid degenerate bundle */
     sigSz = FOURK_BUF * 2;
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     if (pkcs7 != NULL) {
         pkcs7->content    = env;
         pkcs7->contentSz  = (word32)envSz;
@@ -4808,7 +4808,7 @@ int test_wc_PKCS7_signed_enveloped(void)
     wc_FreeRng(&rng);
 
     /* check verify */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
     /* test for streaming */
     ret = -1;
@@ -4823,7 +4823,7 @@ int test_wc_PKCS7_signed_enveloped(void)
 
 #ifdef HAVE_AES_CBC
     /* check decode */
-    ExpectNotNull(inner = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(inner = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(inner, cert, (word32)certSz), 0);
     if (inner != NULL) {
         inner->privateKey   = key;
@@ -4839,7 +4839,7 @@ int test_wc_PKCS7_signed_enveloped(void)
 
 #ifdef HAVE_AES_CBC
     /* check cert set */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, decoded, (word32)decodedSz), 0);
     ExpectNotNull(pkcs7->singleCert);
@@ -4848,7 +4848,7 @@ int test_wc_PKCS7_signed_enveloped(void)
     pkcs7 = NULL;
 
 #ifndef NO_PKCS7_STREAM
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     /* test for streaming */
     ret = -1;
