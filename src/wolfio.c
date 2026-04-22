@@ -3286,7 +3286,11 @@ int LwIPNativeSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     err_t ret;
     WOLFSSL_LWIP_NATIVE_STATE* nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;
 
-    ret = tcp_write(nlwip->pcb, buf, sz, TCP_WRITE_FLAG_COPY);
+    if (sz > UINT16_MAX || sz < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = tcp_write(nlwip->pcb, buf, (u16_t)sz, TCP_WRITE_FLAG_COPY);
     if (ret != ERR_OK) {
         sz = WOLFSSL_FATAL_ERROR;
     }

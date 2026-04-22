@@ -8577,7 +8577,7 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             break;
     #endif
         case NEW_SA_MAJOR:
-            *hashAlgo = GetNewSAHashAlgo(input[1]);
+            *hashAlgo = (byte)GetNewSAHashAlgo(input[1]);
 
             /* PSS encryption: 0x080[4-6] */
             if (input[1] >= RSA_PSS_RSAE_SHA256_MINOR &&
