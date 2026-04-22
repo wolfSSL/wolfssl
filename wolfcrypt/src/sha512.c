@@ -179,17 +179,31 @@
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     int wc_InitSha512(wc_Sha512* sha512)
     {
+        int ret;
         if (sha512 == NULL)
             return BAD_FUNC_ARG;
-        return se050_hash_init(&sha512->se050Ctx, NULL);
+        ret = se050_hash_init(&sha512->se050Ctx, NULL);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+        if (ret == 0) {
+            sha512->hashType = WC_HASH_TYPE_SHA512;
+        }
+#endif
+        return ret;
     }
     int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     {
+        int ret;
         if (sha512 == NULL) {
             return BAD_FUNC_ARG;
         }
         (void)devId;
-        return se050_hash_init(&sha512->se050Ctx, heap);
+        ret = se050_hash_init(&sha512->se050Ctx, heap);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+        if (ret == 0) {
+            sha512->hashType = WC_HASH_TYPE_SHA512;
+        }
+#endif
+        return ret;
     }
     int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     {
@@ -252,6 +266,9 @@
 
         XMEMSET(sha512, 0, sizeof(wc_Sha512));
         wc_Stm32_Hash_Init(&sha512->stmCtx);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+        sha512->hashType = WC_HASH_TYPE_SHA512;
+#endif
         return 0;
     }
 
@@ -2375,6 +2392,9 @@ int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
 
     XMEMSET(sha512, 0, sizeof(wc_Sha512));
     wc_Stm32_Hash_Init(&sha512->stmCtx);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    sha512->hashType = WC_HASH_TYPE_SHA512_224;
+#endif
     return 0;
 }
 
@@ -2518,6 +2538,9 @@ int wc_Sha512_224Transform(wc_Sha512* sha, const unsigned char* data)
 
         XMEMSET(sha512, 0, sizeof(wc_Sha512));
         wc_Stm32_Hash_Init(&sha512->stmCtx);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+        sha512->hashType = WC_HASH_TYPE_SHA512_256;
+#endif
         return 0;
     }
 
