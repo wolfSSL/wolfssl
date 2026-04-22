@@ -57626,6 +57626,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
     ret = wc_SHE_Init(she2, HEAP_HINT, devId);
     if (ret != 0) {
         WC_FREE_VAR(she2, HEAP_HINT);
+    #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        she2 = NULL;
+    #endif
         goto exit_SHE_Test;
     }
 
@@ -57639,6 +57642,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
     if (ret != 0) {
         wc_SHE_Free(she2);
         WC_FREE_VAR(she2, HEAP_HINT);
+    #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        she2 = NULL;
+    #endif
         goto exit_SHE_Test;
     }
 
@@ -57652,6 +57658,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t she_test(void)
 
     wc_SHE_Free(she2);
     WC_FREE_VAR(she2, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    she2 = NULL;
+#endif
 
     if (ret != 0) {
         goto exit_SHE_Test;
