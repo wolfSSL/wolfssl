@@ -1,0 +1,75 @@
+name: cryptocb-only Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # WOLF_CRYPTO_CB_ONLY_ECC: strips software ECC; swdev provides the
+          # software path via cryptocb.  FP_ECC / ECCSI / SAKKE / deterministic-k
+          # test / OPENSSL_EXTRA compat layer all reference stripped primitives
+          # directly, so they stay off.
+          - name: ECC
+            cppflags: -DWOLF_CRYPTO_CB_ONLY_ECC
+          # WOLF_CRYPTO_CB_ONLY_RSA: strips software RSA; swdev provides the
+          # software path via cryptocb.
+          - name: RSA
+            cppflags: -DWOLF_CRYPTO_CB_ONLY_RSA
+    name: make check (${{ matrix.name }})
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Common feature set for every entry.  SHA-224 is left at the platform
+      # default (on for x86_64/aarch64); entries that need it off pass
+      # --disable-sha224 in extra_config.
+      BASE_CONFIG: >-
+        --enable-swdev --enable-cryptocb --enable-ecc --enable-rsa --enable-dh
+        --enable-aesgcm --enable-aesccm --enable-aesctr --enable-aescfb
+        --enable-aeskeywrap --enable-aessiv --enable-aesofb --enable-aesxts
+        --enable-camellia --enable-chacha --enable-poly1305
+        --enable-sha --enable-sha3 --enable-shake128 --enable-shake256
+        --enable-blake2 --enable-blake2s
+        --enable-hkdf --enable-hashdrbg --enable-hashflags
+        --enable-curve25519 --enable-ed25519 --enable-curve448 --enable-ed448
+        --enable-mlkem --enable-dilithium
+        --enable-scrypt --enable-pwdbased --enable-pkcs7 --enable-pkcs12
+        --enable-certgen --enable-certreq --enable-certext
+        --enable-keygen --enable-asn=all
+        --enable-cmac --enable-xchacha
+        --enable-crl --enable-ocsp --enable-ocspstapling --enable-ocspstapling2
+        --enable-dtls --enable-dtls13 --enable-tls13
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL
+        run: |
+          ./autogen.sh
+          ./configure $BASE_CONFIG ${{ matrix.extra_config }} CPPFLAGS="${{ matrix.cppflags }}"
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+              fi
+          done
