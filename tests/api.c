@@ -65,6 +65,10 @@
 #include <tests/utils.h>
 #include <testsuite/utils.h>
 
+#ifdef WOLFSSL_SWDEV
+#include "swdev/swdev_loader.h"
+#endif
+
 /* for testing compatibility layer callbacks */
 #include "examples/server/server.h"
 
@@ -37709,7 +37713,9 @@ TEST_CASE testCases[] = {
 
 static void TestSetup(void)
 {
-/* Stub, for now. Add common test setup code here. */
+#ifdef WOLFSSL_SWDEV
+    (void)wc_SwDev_Init();
+#endif
 }
 
 static void TestCleanup(void)
@@ -37931,20 +37937,24 @@ int ApiTest(void)
     printf(" Begin API Tests\n");
     fflush(stdout);
 
-    /* we must perform init and cleanup if not all tests are running */
-    if (!testAll) {
-    #ifdef WOLFCRYPT_ONLY
-        if (wolfCrypt_Init() != 0) {
-            printf("wolfCrypt Initialization failed\n");
-            res = 1;
-        }
-    #else
-        if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
-            printf("wolfSSL Initialization failed\n");
-            res = 1;
-        }
-    #endif
+#ifdef WOLFCRYPT_ONLY
+    if (wolfCrypt_Init() != 0) {
+        printf("wolfCrypt Initialization failed\n");
+        res = 1;
     }
+#else
+    if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
+        printf("wolfSSL Initialization failed\n");
+        res = 1;
+    }
+#endif
+
+#ifdef WOLFSSL_SWDEV
+    if (res == 0 && wc_SwDev_Init() != 0) {
+        printf("wc_SwDev_Init failed\n");
+        res = 1;
+    }
+#endif
 
     #ifdef WOLFSSL_DUMP_MEMIO_STREAM
     if (res == 0) {
@@ -38036,13 +38046,15 @@ int ApiTest(void)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-    if (!testAll) {
-    #ifdef WOLFCRYPT_ONLY
-        wolfCrypt_Cleanup();
-    #else
-        wolfSSL_Cleanup();
-    #endif
-    }
+#ifdef WOLFSSL_SWDEV
+    wc_SwDev_Cleanup();
+#endif
+
+#ifdef WOLFCRYPT_ONLY
+    wolfCrypt_Cleanup();
+#else
+    wolfSSL_Cleanup();
+#endif
 
     (void)testDevId;
 

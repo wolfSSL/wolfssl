@@ -67,6 +67,10 @@ static const char *wolfsentry_config_path = NULL;
 #include <wolfssl/test.h>
 #include <wolfssl/error-ssl.h>
 
+#ifdef WOLFSSL_SWDEV
+    #include "tests/swdev/swdev_loader.h"
+#endif
+
 #ifdef USE_FLAT_TEST_H
     #include "server.h"
 #else
@@ -4259,6 +4263,12 @@ exit:
 #ifdef WC_RNG_SEED_CB
         wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
+#ifdef WOLFSSL_SWDEV
+        if (wc_SwDev_Init() != 0) {
+            fprintf(stderr, "wc_SwDev_Init failed\n");
+            return EXIT_FAILURE;
+        }
+#endif
         ChangeToWolfRoot();
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
@@ -4271,6 +4281,9 @@ exit:
         fprintf(stderr, "Server not compiled in!\n");
 #endif
 
+#ifdef WOLFSSL_SWDEV
+        wc_SwDev_Cleanup();
+#endif
         wolfSSL_Cleanup();
         FreeTcpReady(&ready);
 

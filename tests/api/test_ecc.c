@@ -785,9 +785,12 @@ int test_wc_ecc_import_x963(void)
 int test_wc_ecc_import_x963_off_curve(void)
 {
     EXPECT_DECLS;
+/* point-on-curve validation inside wc_ecc_import_x963 is raw math stripped
+ * by WOLF_CRYPTO_CB_ONLY_ECC; swdev cannot reach below the dispatch layer. */
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
     !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(HAVE_SELFTEST)
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ecc_key pubKey;
     /* Uncompressed X9.63 P-256 point: 0x04 || Gx || Gy with the last byte
      * of Gy flipped by 1. Gx/Gy are the NIST P-256 generator coordinates;
