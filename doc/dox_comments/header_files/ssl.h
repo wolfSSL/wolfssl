@@ -14407,6 +14407,10 @@ wolfSSL_accept_TLSv13(WOLFSSL* ssl);
     A server value of zero indicates no early data is to be sent by client using
     session tickets. A client value of zero indicates that the client will
     not send any early data.
+    The default value is zero: per RFC 8446 Appendix E.5, TLS implementations
+    "MUST NOT enable 0-RTT (either sending or accepting) unless specifically
+    requested by the application." Servers must call this function (or the
+    per-SSL equivalent) with a non-zero value to opt in.
     It is recommended that the number of early data bytes be kept as low as
     practically possible in the application.
 

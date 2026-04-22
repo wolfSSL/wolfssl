@@ -48,6 +48,10 @@ int test_tls13_pqc_hybrid_truncated_keyshare(void);
 int test_tls13_empty_record_limit(void);
 int test_tls13_short_session_ticket(void);
 int test_tls13_early_data_0rtt_replay(void);
+int test_tls13_0rtt_default_off(void);
+int test_tls13_0rtt_stateless_replay(void);
+int test_tls13_remove_session_return(void);
+int test_tls13_0rtt_ext_cache_eviction(void);
 int test_tls13_corrupted_finished(void);
 int test_tls13_peerauth_failsafe(void);
 int test_tls13_hrr_bad_cookie(void);
@@ -85,6 +89,10 @@ int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
     TEST_DECL_GROUP("tls13", test_tls13_empty_record_limit),    \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_0rtt_replay), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_default_off),      \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_stateless_replay), \
+    TEST_DECL_GROUP("tls13", test_tls13_remove_session_return), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_eviction), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
     TEST_DECL_GROUP("tls13", test_tls13_corrupted_finished),     \
     TEST_DECL_GROUP("tls13", test_tls13_peerauth_failsafe),    \

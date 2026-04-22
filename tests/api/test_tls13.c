@@ -2831,6 +2831,11 @@ int test_tls13_early_data(void)
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
                 &ssl_s, params[i].client_meth, params[i].server_meth), 0);
 
+        /* Opt the server into 0-RTT (off by default per RFC 8446 E.5). */
+        ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ),
+            0);
+        ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+
         if (params[i].isUdp) {
             /* Early data is incompatible with HRR usage. Hence, we have to make
              * sure a group is negotiated that does not cause a fragemented CH.
@@ -3202,6 +3207,276 @@ int test_tls13_early_data_0rtt_replay(void)
     return EXPECT_RESULT();
 }
 #endif
+
+/* Verify that maxEarlyDataSz defaults to 0 (RFC 8446 E.5): a server that
+ * has not called wolfSSL_set_max_early_data must not advertise 0-RTT in its
+ * NewSessionTicket. Fails without the ctx->maxEarlyDataSz=0 default fix
+ * because the old default was MAX_EARLY_DATA_SZ (4096). */
+int test_tls13_0rtt_default_off(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+    int written = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Step 1: handshake WITHOUT opting into 0-RTT on the server. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    /* Deliberately do NOT call wolfSSL_set_max_early_data. */
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Consume NewSessionTicket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: resume - early data write must fail because the ticket
+     * was issued without max_early_data_size. Without the default-to-0
+     * fix the old default (4096) would let this succeed. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "test", 4, &written),
+                WOLFSSL_FATAL_ERROR);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify that a stateless self-encrypted ticket can carry 0-RTT exactly
+ * once: the first resumption succeeds with early data, the second (replay)
+ * refuses it because wolfSSL_SSL_CTX_remove_session evicted the cache entry.
+ * Fails without the WOLFSSL_TICKET_HAVE_ID implication + the
+ * remove_session-based gate because the old code either never populated
+ * the cache for stateless tickets or never checked the return value. */
+int test_tls13_0rtt_stateless_replay(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+    int round;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Step 1: full handshake to get a stateless ticket with 0-RTT. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    /* Do NOT set WOLFSSL_OP_NO_TICKET - keep stateless tickets. */
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_SessionIsSetup(sess), 1);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Suppress ticket reissuance on resume so the eviction from round 0
+     * is not undone by AddSession from a new NewSessionTicket. */
+    ExpectIntEQ(wolfSSL_CTX_set_num_tickets(ctx_s, 0), WOLFSSL_SUCCESS);
+
+    /* Step 2: resume twice. Round 0 = first use, round 1 = replay. */
+    for (round = 0; round < 2 && !EXPECT_FAIL(); round++) {
+        const char earlyMsg[] = "stateless-0rtt";
+        int written = 0;
+        int earlyRead = 0;
+        char earlyBuf[sizeof(earlyMsg)];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(earlyBuf, 0, sizeof(earlyBuf));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                        &ssl_s, wolfTLSv1_3_client_method,
+                        wolfTLSv1_3_server_method), 0);
+        ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c,
+                        earlyMsg, (int)sizeof(earlyMsg), &written),
+                    sizeof(earlyMsg));
+        ExpectIntEQ(written, sizeof(earlyMsg));
+
+        (void)test_tls13_early_data_read_until_write_ok(ssl_s, earlyBuf,
+                sizeof(earlyBuf), &earlyRead);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        if (round == 0) {
+            /* First use: 0-RTT accepted. */
+            ExpectIntEQ(earlyRead, sizeof(earlyMsg));
+            ExpectStrEQ(earlyMsg, earlyBuf);
+        }
+        else {
+            /* Replay: 0-RTT refused, handshake still completes (1-RTT). */
+            ExpectIntEQ(earlyRead, 0);
+        }
+
+        wolfSSL_free(ssl_c); ssl_c = NULL;
+        wolfSSL_free(ssl_s); ssl_s = NULL;
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify wolfSSL_SSL_CTX_remove_session returns OpenSSL-compatible values:
+ * 1 when the session was in the cache and removed, 0 otherwise.
+ * Fails without the return-value fix because the old code returned 0/
+ * BAD_FUNC_ARG. */
+int test_tls13_remove_session_return(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Consume NewSessionTicket so the cache is populated (AddSession fires
+     * because WOLFSSL_TICKET_HAVE_ID is defined). */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_s));
+    /* Session is in the cache - first remove returns 1. */
+    ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(ctx_s, sess), 1);
+    /* Already removed - second remove returns 0. */
+    ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(ctx_s, sess), 0);
+    /* NULL args - returns 0 (not BAD_FUNC_ARG). */
+    ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(NULL, sess), 0);
+    ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(ctx_s, NULL), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_EXT_CACHE)
+/* Thin external cache: only tracks rem_calls to verify that
+ * wolfSSL_SSL_CTX_remove_session counts the callback as "found". */
+static int test_0rtt_ext_only_rem_calls;
+
+static int test_0rtt_ext_only_new_cb(WOLFSSL* ssl, WOLFSSL_SESSION* s)
+{
+    (void)ssl; (void)s;
+    return 0; /* don't retain */
+}
+
+static WOLFSSL_SESSION* test_0rtt_ext_only_get_cb(WOLFSSL* ssl,
+        const byte* id, int idLen, int* ref)
+{
+    (void)ssl; (void)id; (void)idLen;
+    *ref = 0;
+    return NULL;
+}
+
+static void test_0rtt_ext_only_rem_cb(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* s)
+{
+    (void)ctx; (void)s;
+    test_0rtt_ext_only_rem_calls++;
+}
+#endif
+
+/* Verify that when the internal cache is off but an external cache callback
+ * is registered, wolfSSL_SSL_CTX_remove_session returns 1 (the ext callback
+ * fired, so we assume the session was present). Fails without the fix
+ * because the old code only set found=1 on an internal-cache hit. */
+int test_tls13_0rtt_ext_cache_eviction(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_EXT_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_0rtt_ext_only_rem_calls = 0;
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    /* Turn off internal cache; rely on external callbacks only. */
+    ExpectIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx_s,
+                    WOLFSSL_SESS_CACHE_NO_INTERNAL), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_sess_set_new_cb(ctx_s, test_0rtt_ext_only_new_cb);
+    wolfSSL_CTX_sess_set_get_cb(ctx_s, test_0rtt_ext_only_get_cb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx_s, test_0rtt_ext_only_rem_cb);
+
+    ExpectTrue(wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET) != 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* remove_session on an ext-cache-only server: rem_cb should fire and
+     * the function should return 1 (assumes the ext cache had it). */
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_s));
+    ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(ctx_s, sess), 1);
+    ExpectIntGT(test_0rtt_ext_only_rem_calls, 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 
 
 /* Check that the client won't send the same CH after a HRR. An HRR without

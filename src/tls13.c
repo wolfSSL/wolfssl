@@ -61,6 +61,7 @@
  *
  * TLS 1.3 Session Tickets:
  * WOLFSSL_TICKET_HAVE_ID:   Session tickets include ID            default: off
+ *                            Forced on when WOLFSSL_EARLY_DATA is set.
  * WOLFSSL_TICKET_NONCE_MALLOC: Dynamically allocate ticket nonce  default: off
  *
  * TLS 1.3 Key Exchange:
@@ -80,6 +81,14 @@
  */
 
 #if !defined(NO_TLS) && defined(WOLFSSL_TLS13)
+
+/* 0-RTT anti-replay eviction needs the session cache. */
+#if defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET) && \
+    defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_EARLY_DATA_NO_ANTI_REPLAY)
+#error "WOLFSSL_EARLY_DATA with tickets requires !NO_SESSION_CACHE, or " \
+       "define WOLFSSL_EARLY_DATA_NO_ANTI_REPLAY to opt out."
+#endif
 
 #ifndef WOLFCRYPT_ONLY
 
@@ -5901,8 +5910,11 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data) {
         TLSX* ext = TLSX_Find(ssl->extensions, TLSX_EARLY_DATA);
-        if (ext == NULL || !ext->val)
+        if (ext == NULL || !ext->val) {
+            WOLFSSL_MSG("Early data rejected by server (no early_data "
+                        "EncryptedExtensions response)");
             ssl->earlyData = no_early_data;
+        }
     }
 
     if (ssl->earlyData == no_early_data) {
@@ -6377,18 +6389,6 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         /* This PSK works, no need to try any more. */
         current->chosen = 1;
         ext->resp = 1;
-#if defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET) && \
-    !defined(NO_SESSION_CACHE)
-        /* RFC 8446 section 8: accept 0-RTT for a given handshake at most
-         * once. Evict the session from both the internal cache (under a
-         * write lock) and any external cache (via ctx->rem_sess_cb) so
-         * the same ClientHello cannot replay early data. Only when the
-         * client offered 0-RTT on a session that permits it. */
-        if (ssl->earlyData != no_early_data &&
-                ssl->session->maxEarlyDataSz != 0) {
-            (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
-        }
-#endif
         break;
     }
 
@@ -6549,8 +6549,16 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
              * RFC 8773bis: early_data is not compatible with
              * cert_with_extern_psk, so skip key derivation in that case. */
             if (ssl->earlyData != no_early_data && first
+                && ssl->options.maxEarlyDataSz > 0
     #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
                 && !hasCertWithExternPsk
+    #endif
+    #if defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+                /* RFC 8446 section 8: evict the session from the cache.
+                 * Accept 0-RTT only when the eviction found the entry
+                 * (single-use). */
+                && wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session)
+                    == 1
     #endif
             ) {
                 extEarlyData->resp = 1;
@@ -6613,6 +6621,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
              * combination in the ClientHello, but clear the response flag
              * here as a defense-in-depth measure. */
             if (extEarlyData != NULL) {
+                WOLFSSL_MSG("Rejecting early data: "
+                            "cert_with_extern_psk is not 0-RTT compatible");
                 extEarlyData->resp = 0;
                 ssl->earlyData = no_early_data;
             }
@@ -15388,7 +15398,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #ifdef HAVE_SESSION_TICKET
     #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
             if (!ssl->options.verifyPeer && !ssl->options.noTicketTls13 &&
-                                                ssl->ctx->ticketEncCb != NULL) {
+                    ssl->ctx->ticketEncCb != NULL &&
+                    ssl->options.maxTicketTls13 > 0) {
                 if ((ssl->error = SendTls13NewSessionTicket(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
@@ -15528,6 +15539,11 @@ int wolfSSL_send_SessionTicket(WOLFSSL* ssl)
  * session tickets for resumption.
  * A value of zero indicates no early data is to be sent by client using session
  * tickets.
+ *
+ * The default value is zero: per RFC 8446 Appendix E.5, TLS implementations
+ * "MUST NOT enable 0-RTT (either sending or accepting) unless specifically
+ * requested by the application." Servers must explicitly opt in by calling
+ * this function (or the per-SSL equivalent) with a non-zero value.
  *
  * ctx  The SSL/TLS CTX object.
  * sz   Maximum size of the early data.

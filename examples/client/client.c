@@ -602,21 +602,23 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 #endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
 #ifdef WOLFSSL_EARLY_DATA
-static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
-                      int msgSz, char* buffer)
+static int EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
+                     int msgSz, char* buffer)
 {
     int err;
     int ret;
 
+    (void)ctx;
+    (void)buffer;
     WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz),
                                 ret <= 0);
     if (ret != msgSz) {
+        err = wolfSSL_get_error(ssl, ret);
         LOG_ERROR("SSL_write_early_data msg error %d, %s\n", err,
-                                         wolfSSL_ERR_error_string((unsigned long)err, buffer));
-        wolfSSL_free(ssl); ssl = NULL;
-        wolfSSL_CTX_free(ctx); ctx = NULL;
-        err_sys("SSL_write_early_data failed");
+                  wolfSSL_ERR_error_string((unsigned long)err, buffer));
+        return -1;
     }
+    return 0;
 }
 #endif
 

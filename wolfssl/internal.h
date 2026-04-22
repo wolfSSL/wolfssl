@@ -1288,6 +1288,12 @@ enum {
     #define MAX_EARLY_DATA_SZ  4096
 #endif
 
+/* Anti-replay eviction keys off the ticket's session ID. */
+#if defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_TICKET_HAVE_ID)
+    #define WOLFSSL_TICKET_HAVE_ID
+#endif
+
 
 #if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC)
     /* MySQL wants to be able to use 8192-bit numbers. */
