@@ -2197,7 +2197,6 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
 #endif
     word32 idx    = 0;
     word32 atrIdx = 0;
-    word32 cannedAttribsCount;
 
     if (pkcs7 == NULL || esd == NULL || contentType == NULL ||
         contentTypeOid == NULL || messageDigestOid == NULL ||
@@ -2219,8 +2218,6 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
         if (timeSz < 0)
             return timeSz;
     #endif
-
-        cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
         XMEMSET(&cannedAttribs[idx], 0, sizeof(cannedAttribs[idx]));
 
@@ -2253,10 +2250,10 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
             idx++;
         }
 
-        esd->signedAttribsCount += cannedAttribsCount;
+        esd->signedAttribsCount += idx;
         esd->signedAttribsSz += (word32)EncodeAttributes(
             &esd->signedAttribs[atrIdx], (int)idx, cannedAttribs,
-            (int)cannedAttribsCount);
+            (int)idx);
         atrIdx += idx;
     } else {
         esd->signedAttribsCount = 0;
@@ -13242,6 +13239,13 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
                 wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
             } else {
+                word32 tmpSum;
+                if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentTotalSz, tmpSum) ||
+                    tmpSum > pkiMsgSz) {
+                    ret = BUFFER_E;
+                    break;
+                }
+
                 pkcs7->cachedEncryptedContentSz =
                     (word32)encryptedContentTotalSz;
                 pkcs7->totalEncryptedContentSz =
@@ -14387,9 +14391,17 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
             if (ret == 0) {
-                XMEMCPY(encryptedContent, &pkiMsg[idx],
+                word32 tmpSum;
+                if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentSz,
+                                        tmpSum) ||
+                    tmpSum > pkiMsgSz) {
+                    ret = BUFFER_E;
+                    break;
+                } else {
+                    XMEMCPY(encryptedContent, &pkiMsg[idx],
                                                     (word32)encryptedContentSz);
-                idx += (word32)encryptedContentSz;
+                    idx += (word32)encryptedContentSz;
+                }
             }
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->bufferPt = encryptedContent;
@@ -15323,16 +15335,22 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             if (ret == 0) {
-                XMEMCPY(encryptedContent, &pkiMsg[idx],
-                    (unsigned int)encryptedContentSz);
-                idx += (word32)encryptedContentSz;
+                word32 tmpSum;
+                if (!WC_SAFE_SUM_WORD32(idx, (word32)encryptedContentSz, tmpSum) ||
+                    tmpSum > pkiMsgSz) {
+                    ret = BUFFER_E;
+                } else {
+                    XMEMCPY(encryptedContent, &pkiMsg[idx],
+                        (unsigned int)encryptedContentSz);
+                    idx += (word32)encryptedContentSz;
 
-                /* decrypt encryptedContent */
-                ret = wc_PKCS7_DecryptContent(pkcs7, encOID,
-                              pkcs7->encryptionKey, pkcs7->encryptionKeySz,
-                              tmpIv, expBlockSz, NULL, 0, NULL, 0,
-                              encryptedContent, encryptedContentSz,
-                              encryptedContent, pkcs7->devId, pkcs7->heap);
+                    /* decrypt encryptedContent */
+                    ret = wc_PKCS7_DecryptContent(pkcs7, encOID,
+                                pkcs7->encryptionKey, pkcs7->encryptionKeySz,
+                                tmpIv, expBlockSz, NULL, 0, NULL, 0,
+                                encryptedContent, encryptedContentSz,
+                                encryptedContent, pkcs7->devId, pkcs7->heap);
+                }
                 if (ret != 0) {
                     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 }
