@@ -2638,10 +2638,18 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         #endif
 
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
+            /* The compare in CIPHER_STATE_END compares dataSz bytes of
+             * ciphertext against the saved plaintext. For very small AEAD
+             * records (e.g. a 1-byte empty TLS 1.3 app-data record, whose
+             * plaintext is just the content-type byte) that makes the glitch
+             * check statistically unreliable. With only 1 byte compared,
+             * legitimate encryption collides roughly 1/256 of the time. Only
+             * do the check when there is a full sanityCheck buffer of
+             * plaintext to compare against. */
             if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
-                    dataSz > 0) {
+                    dataSz >= sizeof(ssl->encrypt.sanityCheck)) {
                 XMEMCPY(ssl->encrypt.sanityCheck, input,
-                    min(dataSz, sizeof(ssl->encrypt.sanityCheck)));
+                    sizeof(ssl->encrypt.sanityCheck));
             }
         #endif
 
@@ -2824,10 +2832,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         #endif
 
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
+            /* Only compare when CIPHER_STATE_BEGIN prepared the check with a
+             * full sanityCheck buffer of plaintext (see rationale there). */
             if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
-                    dataSz > 0 &&
+                    dataSz >= sizeof(ssl->encrypt.sanityCheck) &&
                 XMEMCMP(output, ssl->encrypt.sanityCheck,
-                    min(dataSz, sizeof(ssl->encrypt.sanityCheck))) == 0) {
+                    sizeof(ssl->encrypt.sanityCheck)) == 0) {
 
                 WOLFSSL_MSG("EncryptTls13 sanity check failed! Glitch?");
                 return ENCRYPT_ERROR;

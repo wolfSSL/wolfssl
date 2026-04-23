@@ -20673,9 +20673,16 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
             }
 
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
-            if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) {
+            /* The compare in CIPHER_STATE_END compares sz bytes of ciphertext
+             * against the saved plaintext. For very small records that makes
+             * the glitch check statistically unreliable (e.g. a 1-byte
+             * compare legitimately collides roughly 1/256 of the time). Only
+             * dothe check when there is a full sanityCheck buffer of
+             * plaintext to compare against. */
+            if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
+                    sz >= sizeof(ssl->encrypt.sanityCheck)) {
                 XMEMCPY(ssl->encrypt.sanityCheck, input,
-                    min(sz, sizeof(ssl->encrypt.sanityCheck)));
+                    sizeof(ssl->encrypt.sanityCheck));
             }
         #endif
 
@@ -20761,9 +20768,12 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
         case CIPHER_STATE_END:
         {
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
+            /* Only compare when CIPHER_STATE_BEGIN prepared the check with a
+             * full sanityCheck buffer of plaintext (see rationale there). */
             if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
+                    sz >= sizeof(ssl->encrypt.sanityCheck) &&
                 XMEMCMP(out, ssl->encrypt.sanityCheck,
-                    min(sz, sizeof(ssl->encrypt.sanityCheck))) == 0) {
+                    sizeof(ssl->encrypt.sanityCheck)) == 0) {
 
                 WOLFSSL_MSG("Encrypt sanity check failed! Glitch?");
                 WOLFSSL_ERROR_VERBOSE(ENCRYPT_ERROR);
