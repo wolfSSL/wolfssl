@@ -160,51 +160,7 @@ The following are not proofs-of-concept and will not satisfy this requirement:
 
 ---
 
-## 8. Caller API Usage
-
-**Does triggering the defect require the caller to use wolfSSL APIs outside
-their documented behavior?** _required_: answer yes or no, then describe the
-specific API calls, options, and sequences used.
-
----
-
-## 9. Severity Self-Assessment
-
-**Reporter-proposed severity** _required_: Critical, High, Medium, or Low.
-
-**CVSS 3.1 vector string** _optional_: e.g., `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`.
-
-**Justification** _required_: in two to three sentences, map the severity to
-the realistic attacker model and impact described above.
-
-wolfSSL performs its own severity assessment per the published rubric. Your
-assessment is input, not the final classification.
-
----
-
-## 10. Disclosure Coordination
-
-**Requested embargo period** _required_: state your preferred embargo
-duration. Longer embargoes for ecosystem coordination may be requested.
-
-**Downstream coordination** _required_: identify any downstream integrators,
-certification bodies, or other parties whose involvement affects disclosure
-timing.
-
-**Public disclosure plans** _required_: describe any planned blog post,
-conference talk, paper, or other public disclosure, with tentative timing,
-so we can coordinate the advisory release.
-
----
-
-## 11. Suggested Fix _(optional)_
-
-If you have a proposed patch, attach it. Patches are not required, but they
-accelerate the fix timeline.
-
----
-
-## 12. Related Work Check
+## 8. Related Work Check
 
 **Have you verified this defect is not already being addressed?** _required_:
 describe your review of open pull requests and recent commits in the
@@ -220,6 +176,50 @@ or a different attacker reachability.
 
 Reports of issues already being addressed in open work are treated as
 duplicates and do not receive CVE consideration.
+
+---
+
+## 9. Caller API Usage
+
+**Does triggering the defect require the caller to use wolfSSL APIs outside
+their documented behavior?** _required_: answer yes or no, then describe the
+specific API calls, options, and sequences used.
+
+---
+
+## 10. Severity Self-Assessment
+
+**Reporter-proposed severity** _required_: Critical, High, Medium, or Low.
+
+**CVSS 3.1 vector string** _optional_: e.g., `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`.
+
+**Justification** _required_: in two to three sentences, map the severity to
+the realistic attacker model and impact described above.
+
+wolfSSL performs its own severity assessment per the published rubric. Your
+assessment is input, not the final classification.
+
+---
+
+## 11. Disclosure Coordination
+
+**Requested embargo period** _required_: state your preferred embargo
+duration. Longer embargoes for ecosystem coordination may be requested.
+
+**Downstream coordination** _required_: identify any downstream integrators,
+certification bodies, or other parties whose involvement affects disclosure
+timing.
+
+**Public disclosure plans** _required_: describe any planned blog post,
+conference talk, paper, or other public disclosure, with tentative timing,
+so we can coordinate the advisory release.
+
+---
+
+## 12. Suggested Fix _(optional)_
+
+If you have a proposed patch, attach it. Patches are not required, but they
+accelerate the fix timeline.
 
 ---
 
