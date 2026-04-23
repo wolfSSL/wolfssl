@@ -124,6 +124,7 @@ static void wc_xmss_digest_free(XmssState* state)
  *
  * @param [in, out] state   XMSS/MT state including digest and parameters.
  * @param [in]      params  Parameters for key.
+ * @param [in]      heap    Dynamic memory hint.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when digest algorithm not supported.
  * @return  Other negative when digest algorithm initialization failed.
@@ -810,7 +811,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
  * Call this before setting the parms of an XMSS key.
  *
  * @param [in] key    The XMSS key to init.
- * @param [in] heap   Unused.
+ * @param [in] heap   Dynamic memory hint used by subsequent allocations.
  * @param [in] devId  Unused.
  *
  * @return  0 on success.
