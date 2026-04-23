@@ -12,15 +12,16 @@ concurrency:
   cancel-in-progress: true
 # END OF COMMON SECTION
 
-# Build the SE050 software simulator (https://github.com/LinuxJedi/SE050Sim),
-# build wolfSSL against its NXP Plug&Trust SDK + simulator bridge, and run the
-# wolfCrypt SE050 test binary against the simulator TCP server.
+# Build the SE050 software simulator (https://github.com/wolfSSL/simulators,
+# SE050Sim/ subdirectory), build wolfSSL against its NXP Plug&Trust SDK +
+# simulator bridge, and run the wolfCrypt SE050 test binary against the
+# simulator TCP server.
 #
 # The simulator's own Dockerfile (Dockerfile.wolfcrypt) clones wolfSSL master.
 # We patch it to COPY the PR checkout instead so CI reflects the PR's source.
 
 env:
-  SE050SIM_REF: 8fda9212c306fbee0dcd66f2dd52b13f65f13e00
+  SIMULATORS_REF: 745893640e21a15b7df8c70567c522953aba2f2c
 
 jobs:
   se050_sim:
@@ -36,14 +37,14 @@ jobs:
 
       - name: Clone SE050 simulator
         run: |
-          git clone https://github.com/LinuxJedi/SE050Sim se050sim
-          cd se050sim && git checkout "$SE050SIM_REF"
+          git clone https://github.com/wolfSSL/simulators simulators
+          cd simulators && git checkout "$SIMULATORS_REF"
 
       - name: Stage PR wolfSSL into simulator build context
-        run: mv wolfssl-src se050sim/wolfssl
+        run: mv wolfssl-src simulators/SE050Sim/wolfssl
 
       - name: Patch Dockerfile to use PR wolfSSL instead of upstream master
-        working-directory: se050sim
+        working-directory: simulators/SE050Sim
         run: |
           sed -i 's|^RUN git clone --depth 1 https://github.com/wolfSSL/wolfssl.git /app/wolfssl$|COPY wolfssl /app/wolfssl|' Dockerfile.wolfcrypt
           # Fail fast if the pattern drifted upstream -- better a clear error
@@ -56,8 +57,8 @@ jobs:
       - name: Build wolfCrypt-SE050 test image
         uses: docker/build-push-action@v5
         with:
-          context: se050sim
-          file: se050sim/Dockerfile.wolfcrypt
+          context: simulators/SE050Sim
+          file: simulators/SE050Sim/Dockerfile.wolfcrypt
           push: false
           load: true
           tags: wolfssl-se050-sim:ci
