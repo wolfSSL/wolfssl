@@ -151,8 +151,12 @@ static WC_INLINE int wolfSSL_LastError(int err, SOCKET_T sd)
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
-#elif defined(WOLFSSL_LINUXKM) || defined(WOLFSSL_EMNET)
+#elif defined(WOLFSSL_LINUXKM)
     return -err; /* Return provided error value with corrected sign. */
+#elif defined(WOLFSSL_EMNET)
+    /* emNET BSD sockets return the IP_ERR_* value (negative) directly
+     * from send/recv on failure; no translation needed. */
+    return err;
 #elif defined(FUSION_RTOS)
     #include <fclerrno.h>
     return FCL_GET_ERRNO;
@@ -170,10 +174,6 @@ static WC_INLINE int wolfSSL_LastError(int err, SOCKET_T sd)
         }
         return err;
     }
-#elif defined(WOLFSSL_EMNET)
-    /* Get the real socket error */
-    IP_SOCK_getsockopt(sd, SOL_SOCKET, SO_ERROR, &err, (int)sizeof(old));
-    return err;
 #else
     return errno;
 #endif
