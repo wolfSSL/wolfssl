@@ -25993,6 +25993,10 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
                         if (idx > chain->length)
                             break;
+                        if ((i + 1) >= (1 + MAX_CHAIN_DEPTH)) {
+                            ret = MAX_CERT_EXTENSIONS_ERR;
+                            break;
+                        }
                         ret = CreateOcspRequest(ssl, request, cert, der.buffer,
                                                 der.length, &ctxOwnsRequest);
                         if (ret == 0) {
@@ -26021,6 +26025,11 @@ int SendCertificateStatus(WOLFSSL* ssl)
             else {
                 while (ret == 0 &&
                             NULL != (request = ssl->ctx->chainOcspRequest[i])) {
+                    if ((i + 1) >= MAX_CERT_EXTENSIONS) {
+                        ret = MAX_CERT_EXTENSIONS_ERR;
+                        break;
+                    }
+
                     request->ssl = ssl;
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
                                            request, &responses[++i], ssl->heap);

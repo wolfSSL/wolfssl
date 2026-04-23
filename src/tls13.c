@@ -9072,7 +9072,7 @@ static word32 NextCert(byte* data, word32 length, word32* idx)
  * extIdx    The index number of certificate status request data
  *           for the certificate.
  * offset    index offset
- * returns   Total number of bytes written.
+ * returns   Total number of bytes written on success or negative value on error.
  */
 static int WriteCSRToBuffer(WOLFSSL* ssl, DerBuffer** certExts,
                                 word16* extSz,  word16 extSz_num)
@@ -9086,6 +9086,9 @@ static int WriteCSRToBuffer(WOLFSSL* ssl, DerBuffer** certExts,
     word32 tmpSz;
     word32 extIdx;
     DerBuffer* der;
+
+    if (extSz_num > MAX_CERT_EXTENSIONS)
+        return MAX_CERT_EXTENSIONS_ERR;
 
     ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
     csr = ext ? (CertificateStatusRequest*)ext->data : NULL;
@@ -9338,8 +9341,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             if (ret != 0)
                 return ret;
 
-            ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0], &extSz[0],
-                    1 /* +1 for leaf */ + (word16)ssl->buffers.certChainCnt);
+            if ((1 + ssl->buffers.certChainCnt) > MAX_CERT_EXTENSIONS)
+                ret = MAX_CERT_EXTENSIONS_ERR;
+            if (ret == 0)
+                ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0], &extSz[0],
+                        1 /* +1 for leaf */ + (word16)ssl->buffers.certChainCnt);
             if (ret < 0)
                 return ret;
             totalextSz += ret;

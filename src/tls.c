@@ -2816,6 +2816,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         } else {
             word16 listLen;
 
+            if (extLen < OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
             ato16(clientHello + offset, &listLen);
             offset += OPAQUE16_LEN;
 
@@ -3627,6 +3630,14 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
 
     if (chain && chain->buffer) {
         while (ret == 0 && pos + OPAQUE24_LEN < chain->length) {
+            if (i >= MAX_CERT_EXTENSIONS) {
+                WOLFSSL_MSG_EX(
+                    "OCSP request cert chain exceeds maximum length: "
+                    "i=%d, MAX_CERT_EXTENSIONS=%d", i, MAX_CERT_EXTENSIONS);
+                ret = MAX_CERT_EXTENSIONS_ERR;
+                break;
+            }
+
             c24to32(chain->buffer + pos, &der.length);
             pos += OPAQUE24_LEN;
             der.buffer = chain->buffer + pos;
