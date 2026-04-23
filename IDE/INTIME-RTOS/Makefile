@@ -287,7 +287,6 @@ INCL_TARGS := 	wolfssl/callbacks.h \
 	wolfssl/wolfcrypt/integer.h \
 	wolfssl/wolfcrypt/kdf.h \
 	wolfssl/wolfcrypt/kyber.h \
-	wolfssl/wolfcrypt/lms.h \
 	wolfssl/wolfcrypt/logging.h \
 	wolfssl/wolfcrypt/md2.h \
 	wolfssl/wolfcrypt/md4.h \
@@ -327,11 +326,12 @@ INCL_TARGS := 	wolfssl/callbacks.h \
 	wolfssl/wolfcrypt/visibility.h \
 	wolfssl/wolfcrypt/wc_encrypt.h \
 	wolfssl/wolfcrypt/wc_kyber.h \
+	wolfssl/wolfcrypt/wc_lms.h \
 	wolfssl/wolfcrypt/wc_pkcs11.h \
 	wolfssl/wolfcrypt/wc_port.h \
+	wolfssl/wolfcrypt/wc_xmss.h \
 	wolfssl/wolfcrypt/wolfevent.h \
 	wolfssl/wolfcrypt/wolfmath.h \
-	wolfssl/wolfcrypt/xmss.h \
 	wolfssl/wolfcrypt/port/nrf51.h \
 	wolfssl/wolfcrypt/port/af_alg/afalg_hash.h \
 	wolfssl/wolfcrypt/port/af_alg/wc_afalg.h \

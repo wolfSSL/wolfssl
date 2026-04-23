@@ -296,11 +296,7 @@ The wolfssl port in vcpkg is kept up to date by wolfSSL.
 
 We also have vcpkg ports for wolftpm, wolfmqtt and curl.
 
-17. Building with hash-sigs lib for LMS/HSS support [EXPERIMENTAL]
-
-    Deprecated. wolfSSL now has its own LMS/HSS implementation in wolfCrypt.
-
-18. Building for Debian, Ubuntu, Linux Mint, and derivatives
+17. Building for Debian, Ubuntu, Linux Mint, and derivatives
 
     To generate a .deb package, configure wolfSSL with the desired
     configuration. Then run `make deb` to generate a Debian package
@@ -309,7 +305,7 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     resulting packages are placed in the root directory of the
     project.
 
-19. Building for RHEL, Fedora, CentOS, SUSE, and openSUSE
+18. Building for RHEL, Fedora, CentOS, SUSE, and openSUSE
 
     To generate a .rpm package, configure wolfSSL with the desired
     configuration. Then run `make rpm` to generate a .rpm package
@@ -317,8 +313,3 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     Docker container, use `make rpm-docker`. In both cases the
     resulting packages are placed in the root directory of the
     project.
-
-20. Building with xmss-reference lib for XMSS/XMSS^MT support [EXPERIMENTAL]
-
-    Deprecated. wolfSSL now has its own XMMS/XMSS^MT implementation in
-    wolfCrypt.

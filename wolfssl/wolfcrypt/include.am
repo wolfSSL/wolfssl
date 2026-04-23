@@ -83,12 +83,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/sm2.h \
                          wolfssl/wolfcrypt/sm3.h \
                          wolfssl/wolfcrypt/sm4.h \
-                         wolfssl/wolfcrypt/lms.h \
                          wolfssl/wolfcrypt/wc_lms.h \
-                         wolfssl/wolfcrypt/ext_lms.h \
-                         wolfssl/wolfcrypt/xmss.h \
                          wolfssl/wolfcrypt/wc_xmss.h \
-                         wolfssl/wolfcrypt/ext_xmss.h \
                          wolfssl/wolfcrypt/wc_slhdsa.h \
                          wolfssl/wolfcrypt/puf.h \
                          wolfssl/wolfcrypt/oid_sum.h

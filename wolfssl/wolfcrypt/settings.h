@@ -4596,8 +4596,6 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if (defined(HAVE_LIBOQS) ||                                            \
-     defined(HAVE_LIBXMSS) ||                                           \
-     defined(HAVE_LIBLMS) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS) ||                                 \
      defined(HAVE_ASCON)) &&                                            \
     !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
@@ -4658,15 +4656,15 @@ extern void uITRON4_free(void *p) ;
 
 /* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. */
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS) || \
-    (defined(WOLFSSL_WC_XMSS) && (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || \
-    WOLFSSL_XMSS_MAX_HEIGHT > 32)) || (defined(WOLFSSL_WC_LMS) && \
+    (defined(WOLFSSL_HAVE_XMSS) && (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || \
+    WOLFSSL_XMSS_MAX_HEIGHT > 32)) || (defined(WOLFSSL_HAVE_LMS) && \
     !defined(WOLFSSL_LMS_VERIFY_ONLY))
     #undef WOLFSSL_W64_WRAPPER
     #define WOLFSSL_W64_WRAPPER
 #endif
 
 /* wc_xmss and wc_lms require these misc.c functions. */
-#if defined(WOLFSSL_WC_XMSS) || defined(WOLFSSL_WC_LMS)
+#if defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_LMS)
     #undef  WOLFSSL_NO_INT_ENCODE
     #undef  WOLFSSL_NO_INT_DECODE
 #endif
