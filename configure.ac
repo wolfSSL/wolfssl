@@ -7222,6 +7222,32 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ASCON"
 fi
 
+# PUF
+AC_ARG_ENABLE([puf],
+    [AS_HELP_STRING([--enable-puf],[Enable SRAM PUF support (default: disabled)])],
+    [ ENABLED_PUF=$enableval ],
+    [ ENABLED_PUF=no ]
+    )
+
+if test "$ENABLED_PUF" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUF -DWOLFSSL_PUF_SRAM"
+    AS_IF([test "$ENABLED_HKDF" != "yes"],
+          [ENABLED_HKDF="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+fi
+
+# PUF test mode
+AC_ARG_ENABLE([puf-test],
+    [AS_HELP_STRING([--enable-puf-test],[Enable PUF test mode with synthetic data (default: disabled)])],
+    [ ENABLED_PUF_TEST=$enableval ],
+    [ ENABLED_PUF_TEST=no ]
+    )
+
+if test "$ENABLED_PUF_TEST" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUF_TEST"
+fi
+
 # Hash DRBG
 AC_ARG_ENABLE([hashdrbg],
     [AS_HELP_STRING([--enable-hashdrbg],[Enable Hash DRBG support (default: enabled)])],
@@ -11610,6 +11636,7 @@ AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_CHACHA_NOASM],[test "$ENABLED_CHACHA" = "noasm"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ASCON],[test "x$ENABLED_ASCON" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_PUF],[test "x$ENABLED_PUF" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SM2],[test "x$ENABLED_SM2" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SM3],[test "x$ENABLED_SM3" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SM4],[test "x$ENABLED_SM4" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -12276,6 +12303,7 @@ echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
 echo "   * ML-KEM  standalone:         $ENABLED_MLKEM_STANDALONE"
 echo "   * PQ/T hybrids:               $ENABLED_PQC_HYBRIDS"
 echo "   * Extra PQ/T hybrids:         $ENABLED_EXTRA_PQC_HYBRIDS"
+echo "   * PUF:                        $ENABLED_PUF"
 echo ""
 echo "---"
 

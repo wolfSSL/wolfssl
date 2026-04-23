@@ -348,6 +348,9 @@ function(generate_build_flags)
     if(WOLFSSL_SHE AND NOT WOLFSSL_SHE STREQUAL "no")
         set(BUILD_SHE "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_PUF OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_PUF "yes" PARENT_SCOPE)
+    endif()
 
     set(BUILD_FLAGS_GENERATED "yes" PARENT_SCOPE)
 endfunction()
@@ -1207,6 +1210,10 @@ function(generate_lib_src_list LIB_SOURCES)
 
     if(BUILD_HPKE)
         list(APPEND LIB_SOURCES wolfcrypt/src/hpke.c)
+    endif()
+
+    if(BUILD_PUF)
+        list(APPEND LIB_SOURCES wolfcrypt/src/puf.c)
     endif()
 
     set(LIB_SOURCES ${LIB_SOURCES} PARENT_SCOPE)

@@ -437,6 +437,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFSSL_SM4
     #include <wolfssl/wolfcrypt/sm4.h>
 #endif
+#ifdef WOLFSSL_PUF
+    #include <wolfssl/wolfcrypt/puf.h>
+#endif
 #ifdef HAVE_LIBZ
     #include <wolfssl/wolfcrypt/compress.h>
 #endif
@@ -888,6 +891,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aeskeywrap_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  camellia_test(void);
 #ifdef WOLFSSL_SM4
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sm4_test(void);
+#endif
+#ifdef WOLFSSL_PUF
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  puf_test(void);
 #endif
 #ifdef WC_RSA_NO_PADDING
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_no_pad_test(void);
@@ -2938,6 +2944,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("SM-4     test failed!\n", ret);
     else
         TEST_PASS("SM-4     test passed!\n");
+#endif
+
+#ifdef WOLFSSL_PUF
+    if ( (ret = puf_test()) != 0)
+        return err_sys("PUF      test failed!\n", ret);
+    else
+        TEST_PASS("PUF      test passed!\n");
 #endif
 
 #if !defined(NO_RSA) && !defined(HAVE_RENESAS_SYNC)
@@ -20536,6 +20549,228 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sm4_test(void)
     return 0;
 }
 #endif
+
+#ifdef WOLFSSL_PUF
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t puf_test(void)
+{
+#if defined(WOLFSSL_PUF_TEST) && defined(HAVE_HKDF) && \
+    (!defined(NO_SHA256) || defined(WOLFSSL_SHA3))
+    wc_test_ret_t ret = 0;
+    wc_PufCtx ctx;
+    byte key1[WC_PUF_KEY_SZ];
+    byte key2[WC_PUF_KEY_SZ];
+    byte id1[WC_PUF_ID_SZ];
+    byte id2[WC_PUF_ID_SZ];
+
+    /* deterministic test SRAM pattern: 256 bytes */
+    WOLFSSL_SMALL_STACK_STATIC const byte testSram[WC_PUF_RAW_BYTES] = {
+        0xA5, 0x3C, 0x7E, 0x19, 0xF0, 0x82, 0x4D, 0xBB,
+        0x6A, 0xC1, 0x55, 0x93, 0xE7, 0x2F, 0xD8, 0x04,
+        0x91, 0x68, 0xAE, 0x3B, 0xFC, 0xD7, 0x42, 0x0E,
+        0x85, 0x5A, 0xC9, 0x76, 0x1D, 0xB3, 0xEF, 0x60,
+        0x4C, 0x87, 0xDA, 0x25, 0xF1, 0x6E, 0x09, 0xB2,
+        0x73, 0xAC, 0x58, 0xE4, 0x3F, 0x96, 0xCB, 0x17,
+        0x8D, 0x62, 0xA0, 0x4E, 0xFB, 0xD5, 0x31, 0x79,
+        0xC6, 0x14, 0xBE, 0x8A, 0x47, 0xF3, 0x2D, 0x98,
+        0x5B, 0xE6, 0x0C, 0xA7, 0x64, 0xDF, 0x39, 0x80,
+        0xB5, 0x52, 0xCD, 0x18, 0x7B, 0xE1, 0x46, 0x9F,
+        0x23, 0xAA, 0x6D, 0xD0, 0x84, 0xF7, 0x3E, 0xB9,
+        0x51, 0xC2, 0x0F, 0x75, 0xEC, 0x48, 0x97, 0x2A,
+        0xDE, 0x63, 0xBC, 0x10, 0x86, 0xF9, 0x43, 0xAD,
+        0x5E, 0xC8, 0x27, 0x94, 0x6B, 0xD1, 0x3A, 0xB0,
+        0x7C, 0xE5, 0x08, 0xA1, 0x56, 0xCF, 0x4A, 0x8E,
+        0x35, 0xFD, 0x61, 0xB7, 0x22, 0x99, 0xD4, 0x1C,
+        0x70, 0xEE, 0x4B, 0x83, 0x2E, 0xA6, 0x5D, 0xF4,
+        0x36, 0xBD, 0x69, 0xC0, 0x15, 0x9B, 0xE8, 0x41,
+        0x8C, 0x53, 0xAB, 0x07, 0x74, 0xDC, 0x28, 0x95,
+        0x6F, 0xD3, 0x3D, 0xBA, 0x50, 0xC4, 0x1E, 0x89,
+        0xF6, 0x44, 0xAE, 0x5F, 0xC7, 0x12, 0x9A, 0xE3,
+        0x37, 0xB1, 0x66, 0xDB, 0x29, 0x8B, 0x54, 0xA2,
+        0x0D, 0x78, 0xED, 0x40, 0x93, 0x2C, 0xBF, 0x67,
+        0xD6, 0x3C, 0xA9, 0x57, 0xCE, 0x1A, 0x81, 0xF5,
+        0x49, 0x9E, 0x24, 0xB8, 0x6C, 0xD2, 0x38, 0xA4,
+        0x5C, 0xE9, 0x01, 0x7A, 0xDD, 0x45, 0x90, 0x2B,
+        0xBB, 0x62, 0xC3, 0x16, 0x8F, 0xF8, 0x4E, 0xA3,
+        0x34, 0xB6, 0x6E, 0xD9, 0x20, 0x9C, 0x59, 0xE2,
+        0x0B, 0x77, 0xEA, 0x42, 0x8D, 0x33, 0xCA, 0x5B,
+        0xFE, 0x11, 0x7F, 0xA8, 0x46, 0xD4, 0x2F, 0x96,
+        0x65, 0xBC, 0x03, 0x9D, 0xE0, 0x58, 0xAF, 0x71,
+        0xC5, 0x1B, 0x87, 0xFA, 0x4D, 0xB4, 0x26, 0xDF
+    };
+
+    /* noisy SRAM: same as testSram but with a few flipped bits */
+    byte noisySram[WC_PUF_RAW_BYTES];
+    byte helperBuf[WC_PUF_HELPER_BYTES];
+    const byte info[] = "puf-test-context";
+
+    WOLFSSL_ENTER("puf_test");
+
+    /* ---- Test 1: Init ---- */
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* ---- Test 2: SetTestData + Enroll ---- */
+    ret = wc_PufSetTestData(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_PufEnroll(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* save helper data and identity */
+    XMEMCPY(helperBuf, ctx.helperData, WC_PUF_HELPER_BYTES);
+
+    ret = wc_PufGetIdentity(&ctx, id1, sizeof(id1));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* derive a key */
+    ret = wc_PufDeriveKey(&ctx, info, sizeof(info), key1, sizeof(key1));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* ---- Test 3: Reconstruct with same data (no noise) ---- */
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_PufSetTestData(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* need to call ReadSram to populate rawSram (test data already set) */
+    ret = wc_PufReadSram(&ctx, testSram, sizeof(testSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_PufGetIdentity(&ctx, id2, sizeof(id2));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* identity must match */
+    if (XMEMCMP(id1, id2, WC_PUF_ID_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* derive key again - must match */
+    ret = wc_PufDeriveKey(&ctx, info, sizeof(info), key2, sizeof(key2));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(key1, key2, WC_PUF_KEY_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* ---- Test 4: Reconstruct with noisy data (few bit flips) ---- */
+    XMEMCPY(noisySram, testSram, sizeof(testSram));
+    /* flip a few bits in each 128-bit block (within BCH correction limit) */
+    noisySram[0]  ^= 0x01;  /* block 0: 1 bit flip */
+    noisySram[16] ^= 0x03;  /* block 1: 2 bit flips */
+    noisySram[32] ^= 0x05;  /* block 2: 2 bit flips */
+    noisySram[48] ^= 0x11;  /* block 3: 2 bit flips */
+    noisySram[64] ^= 0x80;  /* block 4: 1 bit flip */
+
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_PufSetTestData(&ctx, noisySram, sizeof(noisySram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_PufReadSram(&ctx, noisySram, sizeof(noisySram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* identity should still match after error correction */
+    ret = wc_PufGetIdentity(&ctx, id2, sizeof(id2));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(id1, id2, WC_PUF_ID_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* derived key should still match */
+    ret = wc_PufDeriveKey(&ctx, info, sizeof(info), key2, sizeof(key2));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(key1, key2, WC_PUF_KEY_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* ---- Test 4b: Reconstruct with too many bit errors (should fail) ---- */
+    {
+        byte tooNoisySram[WC_PUF_RAW_BYTES];
+        XMEMCPY(tooNoisySram, testSram, sizeof(testSram));
+        /* flip 12 bits in block 0 (exceeds t=10 correction limit) */
+        tooNoisySram[0] ^= 0xFF;  /* 8 flips */
+        tooNoisySram[1] ^= 0x0F;  /* 4 flips = 12 total > t=10 */
+
+        ret = wc_PufInit(&ctx);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PufSetTestData(&ctx, tooNoisySram, sizeof(tooNoisySram));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PufReadSram(&ctx, tooNoisySram, sizeof(tooNoisySram));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES)
+                != WC_NO_ERR_TRACE(PUF_RECONSTRUCT_E))
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    /* ---- Test 5: Bad argument checks ---- */
+    if (wc_PufInit(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    if (wc_PufReadSram(NULL, testSram, sizeof(testSram))
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    if (wc_PufDeriveKey(&ctx, info, sizeof(info), NULL, 32)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    if (wc_PufEnroll(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    if (wc_PufReconstruct(NULL, helperBuf, WC_PUF_HELPER_BYTES)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    if (wc_PufZeroize(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    /* too-small identity buffer */
+    if (wc_PufGetIdentity(&ctx, id1, WC_PUF_ID_SZ - 1)
+            != WC_NO_ERR_TRACE(PUF_IDENTITY_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* ---- Test 6: Zeroize ---- */
+    ret = wc_PufZeroize(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* after zeroize, derive should fail (not ready) */
+    if (wc_PufDeriveKey(&ctx, info, sizeof(info), key1, sizeof(key1))
+            != WC_NO_ERR_TRACE(PUF_DERIVE_KEY_E))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+#else
+    return 0;
+#endif /* WOLFSSL_PUF_TEST && HAVE_HKDF && (!NO_SHA256 || WOLFSSL_SHA3) */
+}
+#endif /* WOLFSSL_PUF */
 
 #ifdef HAVE_XCHACHA
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha_test(void) {

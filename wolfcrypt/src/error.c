@@ -671,6 +671,24 @@ const char* wc_GetErrorString(int error)
     case SEQ_OVERFLOW_E:
         return "Sequence counter would overflow";
 
+    case PUF_INIT_E:
+        return "PUF initialization failed";
+
+    case PUF_READ_E:
+        return "PUF SRAM read failed";
+
+    case PUF_ENROLL_E:
+        return "PUF enrollment failed";
+
+    case PUF_RECONSTRUCT_E:
+        return "PUF reconstruction failed";
+
+    case PUF_DERIVE_KEY_E:
+        return "PUF key derivation failed";
+
+    case PUF_IDENTITY_E:
+        return "PUF identity retrieval failed";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

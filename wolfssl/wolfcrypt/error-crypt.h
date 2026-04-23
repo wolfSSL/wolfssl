@@ -314,8 +314,16 @@ enum wolfCrypt_ErrorCodes {
     ALREADY_E           = -1007, /* Operation was redundant or preempted */
 
     SEQ_OVERFLOW_E      = -1008, /* Sequence counter would overflow */
-    WC_SPAN2_LAST_E     = -1008, /* Update to indicate last used error code */
-    WC_LAST_E           = -1008, /* the last code used either here or in
+
+    PUF_INIT_E          = -1009, /* PUF initialization failed (reserved) */
+    PUF_READ_E          = -1010, /* PUF SRAM read failed */
+    PUF_ENROLL_E        = -1011, /* PUF enrollment failed */
+    PUF_RECONSTRUCT_E   = -1012, /* PUF reconstruction failed */
+    PUF_DERIVE_KEY_E    = -1013, /* PUF key derivation failed */
+    PUF_IDENTITY_E      = -1014, /* PUF identity retrieval failed */
+
+    WC_SPAN2_LAST_E     = -1014, /* Update to indicate last used error code */
+    WC_LAST_E           = -1014, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
