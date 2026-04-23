@@ -58,6 +58,8 @@ pub mod hmac;
 pub mod kdf;
 pub mod lms;
 pub mod mlkem;
+#[cfg(feature = "kem")]
+pub mod mlkem_kem;
 pub mod prf;
 pub mod random;
 pub mod rsa;

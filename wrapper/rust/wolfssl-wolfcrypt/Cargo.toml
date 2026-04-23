@@ -18,6 +18,7 @@ cipher = ["dep:cipher"]
 digest = ["dep:digest"]
 signature = ["dep:signature"]
 password-hash = ["dep:password-hash", "password-hash/phc"]
+kem = ["dep:kem", "hybrid-array/extra-sizes"]
 
 [dependencies]
 rand_core = { version = "0.10", optional = true, default-features = false }
@@ -27,6 +28,8 @@ digest = { version = "0.11", optional = true, default-features = false, features
 signature = { version = "2.2", optional = true, default-features = false }
 zeroize = { version = "1.3", default-features = false, features = ["derive"] }
 password-hash = { version = "0.6.1", optional = true, default-features = false }
+kem = { version = "0.3", optional = true, default-features = false }
+hybrid-array = { version = "0.4.7", optional = true, default-features = false }
 
 [dev-dependencies]
 aead = { version = "0.5", features = ["alloc", "dev"] }
@@ -34,6 +37,7 @@ cipher = "0.5"
 digest = { version = "0.11", features = ["dev"] }
 signature = "2.2"
 password-hash = { version = "0.6.1", features = ["phc"] }
+kem = "0.3"
 
 [build-dependencies]
 bindgen = "0.72.1"
