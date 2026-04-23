@@ -26,6 +26,7 @@
 
 int test_wc_InitRng(void);
 int test_wc_RNG_GenerateBlock_Reseed(void);
+int test_wc_RNG_ReseedBoundary(void);
 int test_wc_RNG_GenerateBlock(void);
 int test_wc_RNG_GenerateByte(void);
 int test_wc_InitRngNonce(void);
@@ -39,6 +40,7 @@ int test_wc_RNG_HealthTest(void);
 #define TEST_RANDOM_DECLS                                           \
     TEST_DECL_GROUP("random", test_wc_InitRng),                     \
     TEST_DECL_GROUP("random", test_wc_RNG_GenerateBlock_Reseed),    \
+    TEST_DECL_GROUP("random", test_wc_RNG_ReseedBoundary),          \
     TEST_DECL_GROUP("random", test_wc_RNG_GenerateBlock),           \
     TEST_DECL_GROUP("random", test_wc_RNG_GenerateByte),            \
     TEST_DECL_GROUP("random", test_wc_InitRngNonce),                \

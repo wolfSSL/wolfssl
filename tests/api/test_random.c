@@ -94,6 +94,41 @@ int test_wc_RNG_GenerateBlock_Reseed(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_RNG_ReseedBoundary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WC_RNG rng;
+    struct DRBG_internal* drbg;
+    byte   out[32];
+#ifdef WORD64_AVAILABLE
+    word64 startCtr;
+#else
+    word32 startCtr;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    drbg = (struct DRBG_internal*)rng.drbg;
+    if (drbg != NULL && rng.status == WC_DRBG_OK) {
+        startCtr = drbg->reseedCtr;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+        if (drbg->reseedCtr == startCtr + 1) {
+            drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+            ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+            ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+            ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+            ExpectTrue(drbg->reseedCtr == 2);
+        }
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_RNG_GenerateBlock(void)
 {
     EXPECT_DECLS;
