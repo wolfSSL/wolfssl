@@ -47,7 +47,7 @@
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
 
-#ifdef WOLFSSL_WC_DILITHIUM
+#ifdef HAVE_DILITHIUM
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .data
@@ -35284,7 +35284,7 @@ _wc_mldsa_poly_make_pos_avx2:
 .size	wc_mldsa_poly_make_pos_avx2,.-wc_mldsa_poly_make_pos_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_WC_DILITHIUM */
+#endif /* HAVE_DILITHIUM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

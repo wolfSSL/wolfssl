@@ -19789,8 +19789,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if (!defined(NO_PUBLIC_GCM_SET_IV) && \
     ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))) || \
-    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA)) || \
-    defined(HAVE_ARIA) || \
+    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA) && \
+     !defined(NO_CHAPOL_AEAD)) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
 static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
@@ -30801,9 +30801,9 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is a Falcon private key. */
-        ret = wc_falcon_import_private_only(key->buffer,
-                                            key->length,
-                                            (falcon_key*)*hsKey);
+        ret = wc_Falcon_PrivateKeyDecode(key->buffer, &idx,
+                                          (falcon_key*)*hsKey,
+                                          key->length);
         if (ret == 0) {
             WOLFSSL_MSG("Using Falcon private key");
 

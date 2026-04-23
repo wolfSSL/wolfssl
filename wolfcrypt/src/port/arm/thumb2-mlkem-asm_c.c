@@ -49,7 +49,7 @@
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 XALIGNED(4) static const word16 L_mlkem_thumb2_ntt_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
@@ -3884,7 +3884,7 @@ WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     return (word32)(size_t)p;
 }
 
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 

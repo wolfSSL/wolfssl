@@ -201,6 +201,10 @@ sub print_header {
 #ifndef WOLF_CRYPT_OID_SUM_H
 #define WOLF_CRYPT_OID_SUM_H
 
+/* Note for some CPUs smaller than 32 bit, the upper 16 bits of new OID
+ * values may be ignored. If collisions are encountered, consider WC_16BIT_CPU
+ * and/or WOLFSSL_OLD_OID_SUM to force smaller, old OID values. */
+
 "
 }
 
@@ -290,8 +294,8 @@ my @x25519 = ( 1, 3, 101, 110 );
 my @ed448 = ( 1, 3, 101, 113 );
 my @x448 = ( 1, 3, 101, 111 );
 my @dh = ( 1, 2, 840, 113549, 1, 3, 1 );
-my @falcon_1 = ( 1, 3, 9999, 3, 6 );
-my @falcon_5 = ( 1, 3, 9999, 3, 9 );
+my @falcon_1 = ( 1, 3, 9999, 3, 11 );
+my @falcon_5 = ( 1, 3, 9999, 3, 14 );
 my @dilithium_2 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 4, 4 );
 my @dilithium_3 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 6, 5 );
 my @dilithium_5 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 8, 7 );
@@ -1149,6 +1153,7 @@ my @p7t_encrypted_data = ( 1, 2, 840, 113549, 1, 7, 6 );
 my @p7t_compressed_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 9 );
 my @p7t_firmware_pkg_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 16 );
 my @p7t_auth_env_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 23 );
+my @p7t_encrypted_key_package = ( 2, 16, 840, 1, 101, 2, 1, 2, 78, 2 );
 
 my @pkcs7_types = (
     { name => "PKCS7_MSG",                  oid => \@p7t_pkcs7_msg          },
@@ -1161,6 +1166,7 @@ my @pkcs7_types = (
     { name => "ENCRYPTED_DATA",             oid => \@p7t_encrypted_data     },
     { name => "FIRMWARE_PKG_DATA",          oid => \@p7t_firmware_pkg_data  },
     { name => "AUTH_ENVELOPED_DATA",        oid => \@p7t_auth_env_data      },
+    { name => "ENCRYPTED_KEY_PACKAGE",      oid => \@p7t_encrypted_key_package },
 );
 
 print_enum("PKCS7_TYPES", "", \@pkcs7_types, 32, 46);

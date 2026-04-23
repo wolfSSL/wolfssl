@@ -88,7 +88,6 @@ extern "C" {
 /* ------------------------------------------------- */
 #if 1 /* ML-DSA (FIPS 204) */
     #define HAVE_DILITHIUM
-    #define WOLFSSL_WC_DILITHIUM
     #define DILITHIUM_LEVEL2   /* Level 2: ~128-bit security */
     #define DILITHIUM_LEVEL3   /* Level 3: ~192-bit security */
     #define DILITHIUM_LEVEL5   /* Level 5: ~256-bit security */

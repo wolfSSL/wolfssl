@@ -32,7 +32,7 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 	.text
 	.type	L_mlkem_thumb2_ntt_zetas, %object
@@ -3582,7 +3582,7 @@ L_mlkem_thumb2_rej_uniform_done:
 	POP	{r4, r5, r6, r7, r8, r9, r10, pc}
 	/* Cycle Count = 225 */
 	.size	mlkem_thumb2_rej_uniform,.-mlkem_thumb2_rej_uniform
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 

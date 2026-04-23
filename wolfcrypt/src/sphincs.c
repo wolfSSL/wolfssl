@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/asn.h>
 
-#if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+#if defined(HAVE_SPHINCS)
 
 #ifdef HAVE_LIBOQS
 #include <oqs/oqs.h>
@@ -1054,4 +1054,4 @@ int wc_Sphincs_PrivateKeyToDer(sphincs_key* key, byte* output, word32 inLen)
 
     return BAD_FUNC_ARG;
 }
-#endif /* HAVE_PQC && HAVE_SPHINCS */
+#endif /* HAVE_SPHINCS */

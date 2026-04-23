@@ -4577,11 +4577,11 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutI
     static const byte sigEd448Oid[] = {43, 101, 113};
 #endif /* HAVE_ED448 */
 #ifdef HAVE_FALCON
-    /* Falcon Level 1: 1 3 9999 3 6 */
-    static const byte sigFalcon_Level1Oid[] = {43, 206, 15, 3, 6};
+    /* Falcon Level 1: 1 3 9999 3 11 */
+    static const byte sigFalcon_Level1Oid[] = {43, 206, 15, 3, 11};
 
-    /* Falcon Level 5: 1 3 9999 3 9 */
-    static const byte sigFalcon_Level5Oid[] = {43, 206, 15, 3, 9};
+    /* Falcon Level 5: 1 3 9999 3 14 */
+    static const byte sigFalcon_Level5Oid[] = {43, 206, 15, 3, 14};
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
 #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
@@ -4665,11 +4665,11 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutI
     static const byte keyDhOid[] = {42, 134, 72, 134, 247, 13, 1, 3, 1};
 #endif /* !NO_DH */
 #ifdef HAVE_FALCON
-    /* Falcon Level 1: 1 3 9999 3 6 */
-    static const byte keyFalcon_Level1Oid[] = {43, 206, 15, 3, 6};
+    /* Falcon Level 1: 1 3 9999 3 11 */
+    static const byte keyFalcon_Level1Oid[] = {43, 206, 15, 3, 11};
 
-    /* Falcon Level 5: 1 3 9999 3 9 */
-    static const byte keyFalcon_Level5Oid[] = {43, 206, 15, 3, 9};
+    /* Falcon Level 5: 1 3 9999 3 14 */
+    static const byte keyFalcon_Level5Oid[] = {43, 206, 15, 3, 14};
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
 #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT

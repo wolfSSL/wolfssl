@@ -704,7 +704,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
     #endif
         }
         else if (usePqc == 1) {
-    #ifdef HAVE_PQC
+    #ifdef WOLFSSL_HAVE_MLKEM
             groups[count] = 0;
     #ifndef WOLFSSL_NO_ML_KEM
         #if !defined(WOLFSSL_NO_ML_KEM_512) && \
@@ -1082,7 +1082,7 @@ static const char* server_usage_msg[][71] = {
         "-7          Set minimum downgrade protocol version [0-4] "
            " SSLv3(0) - TLS1.3(4)\n",                                   /* 59 */
 #endif
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
         "--pqc <alg> Key Share with specified post-quantum algorithm only:\n"
 #ifndef WOLFSSL_NO_ML_KEM
             "            ML_KEM_512, ML_KEM_768, ML_KEM_1024,\n"
@@ -1309,7 +1309,7 @@ static const char* server_usage_msg[][71] = {
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
         " SSLv3(0) - TLS1.3(4)\n",                          /* 59 */
 #endif
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
         "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ:\n"
 #ifndef WOLFSSL_NO_ML_KEM
             "            ML_KEM_512, ML_KEM_768, ML_KEM_1024,"
@@ -1510,7 +1510,7 @@ static void Usage(void)
     printf("%s", msg[++msgId]); /* --wolfsentry-config */
 #endif
     printf("%s", msg[++msgId]); /* -7 */
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
     printf("%s", msg[++msgId]);     /* --pqc */
     printf("%s", msg[++msgId]);     /* --pqc options */
     printf("%s", msg[++msgId]);     /* more --pqc options */
@@ -1633,7 +1633,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifndef NO_MULTIBYTE_PRINT
         { "ヘルプ", 0, 258 },
 #endif
-#if defined(HAVE_PQC)
+#if defined(WOLFSSL_HAVE_MLKEM)
         { "pqc", 1, 259 },
 #endif
 #ifdef WOLFSSL_SRTP
@@ -2453,7 +2453,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 #endif
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
             case 259:
             {
                 usePqc = 1;
@@ -2688,7 +2688,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                    "file");
 #endif
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
     if (usePqc) {
         if (version == SERVER_DOWNGRADE_VERSION ||
             version == EITHER_DOWNGRADE_VERSION) {

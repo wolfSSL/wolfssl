@@ -83,7 +83,6 @@
     #define FIPS_NO_WRAPPERS
 #endif
 
-#include <wolfssl/wolfcrypt/mlkem.h>
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/memory.h>
@@ -121,7 +120,7 @@
     #error "Cannot use dynamic key buffers without malloc"
 #endif
 
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 
 #ifdef DEBUG_MLKEM
 void print_polys(const char* name, const sword16* a, int d1, int d2);
@@ -2567,4 +2566,4 @@ int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out, word32 len)
     return ret;
 }
 
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */

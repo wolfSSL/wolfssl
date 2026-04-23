@@ -35,12 +35,14 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
-#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+#if defined(HAVE_FALCON)
 
-#ifdef HAVE_LIBOQS
+#ifndef HAVE_LIBOQS
+#error "HAVE_FALCON requires HAVE_LIBOQS."
+#endif
+
 #include <oqs/oqs.h>
 #include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
-#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -48,7 +50,6 @@
 
 /* Macros Definitions */
 
-#ifdef HAVE_LIBOQS
 #define FALCON_LEVEL1_KEY_SIZE     OQS_SIG_falcon_512_length_secret_key
 #define FALCON_LEVEL1_SIG_SIZE     OQS_SIG_falcon_512_length_signature
 #define FALCON_LEVEL1_PUB_KEY_SIZE OQS_SIG_falcon_512_length_public_key
@@ -58,7 +59,6 @@
 #define FALCON_LEVEL5_SIG_SIZE     OQS_SIG_falcon_1024_length_signature
 #define FALCON_LEVEL5_PUB_KEY_SIZE OQS_SIG_falcon_1024_length_public_key
 #define FALCON_LEVEL5_PRV_KEY_SIZE (FALCON_LEVEL5_PUB_KEY_SIZE+FALCON_LEVEL5_KEY_SIZE)
-#endif
 
 #define FALCON_MAX_KEY_SIZE     FALCON_LEVEL5_KEY_SIZE
 #define FALCON_MAX_SIG_SIZE     FALCON_LEVEL5_SIG_SIZE
@@ -176,5 +176,5 @@ WOLFSSL_API int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output,
     }    /* extern "C" */
 #endif
 
-#endif /* HAVE_PQC && HAVE_FALCON */
+#endif /* HAVE_FALCON */
 #endif /* WOLF_CRYPT_FALCON_H */

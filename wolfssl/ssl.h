@@ -1037,7 +1037,7 @@ enum SNICbReturn {
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 /* Maximum number of groups that can be set */
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
 #define WOLFSSL_MAX_GROUP_COUNT       36
 #else
 #define WOLFSSL_MAX_GROUP_COUNT       10
@@ -4767,7 +4767,7 @@ enum {
     WOLFSSL_FFDHE_8192    = 260,
     WOLFSSL_FFDHE_END     = 511,
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
 
 #ifdef WOLFSSL_MLKEM_KYBER
     /* Old code points to keep compatibility with Kyber Round 3.
@@ -4817,7 +4817,7 @@ enum {
     WOLFSSL_X25519MLKEM512        = 12214,
     WOLFSSL_X448MLKEM768          = 12215,
 #endif /* WOLFSSL_NO_ML_KEM */
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_MLKEM */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(SSL_H)
 };
 

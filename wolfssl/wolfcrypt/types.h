@@ -1581,11 +1581,9 @@ enum wc_PkType {
     enum wc_PqcKemType {
         WC_PQC_KEM_TYPE_NONE = 0,
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_NONE
-    #if defined(WOLFSSL_HAVE_MLKEM)
         WC_PQC_KEM_TYPE_KYBER = 1,
         #undef _WC_PQC_KEM_TYPE_MAX
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_KYBER
-    #endif
         WC_PQC_KEM_TYPE_MAX = _WC_PQC_KEM_TYPE_MAX
     };
 #endif

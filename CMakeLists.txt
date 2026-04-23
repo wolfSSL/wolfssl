@@ -625,6 +625,11 @@ add_option(WOLFSSL_OQS
     "Enable integration with the OQS (Open Quantum Safe) liboqs library (default: disabled)"
     "no" "yes;no")
 
+# Falcon (provided via liboqs)
+add_option(WOLFSSL_FALCON
+    "Enable Falcon post-quantum signatures via liboqs (default: disabled)"
+    "no" "yes;no")
+
 # ML-KEM/Kyber
 add_option(WOLFSSL_MLKEM
     "Enable the wolfSSL PQ ML-KEM library (default: disabled)"
@@ -632,13 +637,11 @@ add_option(WOLFSSL_MLKEM
 
 if (WOLFSSL_MLKEM)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_MLKEM")
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WC_MLKEM")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE128")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
 
     set_wolfssl_definitions("WOLFSSL_HAVE_MLKEM" RESULT)
-    set_wolfssl_definitions("WOLFSSL_WC_MLKEM"   RESULT)
     set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
@@ -677,13 +680,11 @@ add_option(WOLFSSL_DILITHIUM
 
 if (WOLFSSL_DILITHIUM)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_DILITHIUM")
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WC_DILITHIUM")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE128")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
 
     set_wolfssl_definitions("HAVE_DILITHIUM"       RESULT)
-    set_wolfssl_definitions("WOLFSSL_WC_DILITHIUM" RESULT)
     set_wolfssl_definitions("WOLFSSL_SHA3"         RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE128"     RESULT)
     set_wolfssl_definitions("WOLFSSL_SHAKE256"     RESULT)
@@ -733,6 +734,15 @@ if (WOLFSSL_EXPERIMENTAL)
 
     set_wolfssl_definitions("WOLFSSL_EXPERIMENTAL_SETTINGS" RESULT)
 
+    # Cross-validate WOLFSSL_OQS and WOLFSSL_FALCON: liboqs is only linked
+    # when a liboqs-backed algorithm (Falcon) is actually enabled.
+    if (WOLFSSL_FALCON AND NOT WOLFSSL_OQS)
+        message(FATAL_ERROR "WOLFSSL_FALCON requires WOLFSSL_OQS.")
+    endif()
+    if (WOLFSSL_OQS AND NOT WOLFSSL_FALCON)
+        message(FATAL_ERROR "WOLFSSL_OQS requires WOLFSSL_FALCON.")
+    endif()
+
     # Checking for experimental feature: OQS
     message(STATUS "Looking for WOLFSSL_OQS")
     if (WOLFSSL_OQS)
@@ -749,6 +759,7 @@ if (WOLFSSL_EXPERIMENTAL)
             set_wolfssl_definitions("HAVE_LIBOQS"          RESULT)
             set_wolfssl_definitions("HAVE_TLS_EXTENSIONS"  RESULT)
             set_wolfssl_definitions("OPENSSL_EXTRA"        RESULT)
+            set_wolfssl_definitions("HAVE_FALCON"          RESULT)
 
         else()
             message(STATUS "Checking OQS - not found")
@@ -777,18 +788,14 @@ if (WOLFSSL_EXPERIMENTAL)
         message(STATUS "Warning: WOLFSSL_EXPERIMENTAL enabled, but no experimental features enabled.")
     endif()
 
-    # Sanity checks
-    if(WOLFSSL_OQS AND WOLFSSL_MLKEM)
-        message(FATAL_ERROR "Error: cannot enable both WOLFSSL_OQS and WOLFSSL_MLKEM at the same time.")
-    endif()
-    if(WOLFSSL_OQS AND WOLFSSL_DILITHIUM)
-        message(FATAL_ERROR "Error: cannot enable both WOLFSSL_OQS and WOLFSSL_DILITHIUM at the same time.")
-    endif()
 else()
     # Experimental mode not enabled, but were any experimental features enabled? Error out if so:
     message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - not found")
     if (WOLFSSL_OQS)
         message(FATAL_ERROR "Error: WOLFSSL_OQS requires WOLFSSL_EXPERIMENTAL at this time.")
+    endif()
+    if (WOLFSSL_FALCON)
+        message(FATAL_ERROR "Error: WOLFSSL_FALCON requires WOLFSSL_EXPERIMENTAL at this time.")
     endif()
 endif()
 

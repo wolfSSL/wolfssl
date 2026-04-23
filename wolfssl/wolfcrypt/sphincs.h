@@ -37,7 +37,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+#if defined(HAVE_SPHINCS)
 
 #ifdef HAVE_LIBOQS
 #include <oqs/oqs.h>
@@ -163,5 +163,5 @@ WOLFSSL_API int wc_Sphincs_PublicKeyToDer(sphincs_key* key, byte* output,
     }    /* extern "C" */
 #endif
 
-#endif /* HAVE_PQC && HAVE_SPHINCS */
+#endif /* HAVE_SPHINCS */
 #endif /* WOLF_CRYPT_SPHINCS_H */

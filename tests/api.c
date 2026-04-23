@@ -169,7 +169,7 @@
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
 #if defined(WOLFSSL_HAVE_MLKEM)
-    #include <wolfssl/wolfcrypt/mlkem.h>
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #if defined(HAVE_PKCS7)
     #include <wolfssl/wolfcrypt/pkcs7.h>
@@ -1559,7 +1559,6 @@ static int test_dual_alg_ecdsa_mldsa(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(HAVE_DILITHIUM) && \
     defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
-    defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
@@ -35911,7 +35910,7 @@ static int test_DhAgree_rejects_p_minus_1(void)
 static int test_mldsa_verify_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     dilithium_key key;
@@ -36829,7 +36828,7 @@ static int test_pkcs7_enveloped_content_size_overflow(void)
 static int test_dilithium_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     dilithium_key key;

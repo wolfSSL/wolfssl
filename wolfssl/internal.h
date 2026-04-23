@@ -1776,9 +1776,9 @@ enum Misc {
 
     /* These values for falcon match what OQS has defined. */
     FALCON_LEVEL1_SA_MAJOR = 0xFE,
-    FALCON_LEVEL1_SA_MINOR = 0xAE,
+    FALCON_LEVEL1_SA_MINOR = 0xD7,
     FALCON_LEVEL5_SA_MAJOR = 0xFE,
-    FALCON_LEVEL5_SA_MINOR = 0xB1,
+    FALCON_LEVEL5_SA_MINOR = 0xDA,
 
     /* these values for MLDSA (Dilithium) correspond to what is proposed in the
      * IETF. */

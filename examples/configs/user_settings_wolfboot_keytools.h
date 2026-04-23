@@ -117,7 +117,6 @@ extern "C" {
 
 #if 1 /* ML-DSA / Dilithium */
     #define HAVE_DILITHIUM
-    #define WOLFSSL_WC_DILITHIUM
     /* Builds to FIPS 204 final standard by default.
      * Set to 1 for draft version. */
     #if 0 /* FIPS 204 Draft */
