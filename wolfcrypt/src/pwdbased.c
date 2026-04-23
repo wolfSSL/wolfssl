@@ -453,7 +453,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     }
     iLen = sLen + pLen;
 
-    if (iLen > 0xFFFFFFFFU - v) {
+    if (iLen > 0xFFFFFFFFU - dLen) {
         WC_FREE_VAR_EX(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return BAD_FUNC_ARG;

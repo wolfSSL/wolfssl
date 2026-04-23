@@ -272,6 +272,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     WOLFSSL_ENTER("wolfSSL_BIO_read");
     }
 
+    if (len < 0) {
+        return WOLFSSL_BIO_ERROR;
+    }
+
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {
         ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_READ, (const char*)buf,
@@ -279,10 +283,6 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         if (ret <= 0) {
             return ret;
         }
-    }
-
-    if (len < 0) {
-        return WOLFSSL_BIO_ERROR;
     }
 
     /* start at end of list (or a WOLFSSL_BIO_SSL object since it takes care of
@@ -694,6 +694,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 
     WOLFSSL_ENTER("wolfSSL_BIO_write");
 
+    if (len < 0) {
+        return WOLFSSL_BIO_ERROR;
+    }
+
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {
         ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_WRITE,
@@ -701,10 +705,6 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         if (ret <= 0) {
             return ret;
         }
-    }
-
-    if (len < 0) {
-        return WOLFSSL_BIO_ERROR;
     }
 
     while (bio != NULL && ret >= 0) {
