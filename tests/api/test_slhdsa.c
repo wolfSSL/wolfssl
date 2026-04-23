@@ -1524,6 +1524,10 @@ int test_wc_slhdsa_check_key(void)
     ExpectIntEQ(wc_SlhDsaKey_ImportPublic(&key, pubKey, pubKeyLen), 0);
     ExpectIntEQ(wc_SlhDsaKey_ImportPrivate(&key, privKey, privKeyLen), 0);
     ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), 0);
+
+    key.sk[0] ^= 0x01;
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key),
+        WC_NO_ERR_TRACE(WC_KEY_MISMATCH_E));
     wc_SlhDsaKey_Free(&key);
 
     /* Regression: Private-then-Public order. ImportPrivate sets
