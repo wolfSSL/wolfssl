@@ -40,7 +40,9 @@ int test_wc_PKCS7_EnvelopedData_KTRI_RSA_PSS(void);
 #endif
 int test_wc_PKCS7_EncodeSignedData_ex(void);
 int test_wc_PKCS7_VerifySignedData_RSA(void);
+int test_wc_PKCS7_VerifySignedData_TamperedAttribs(void);
 int test_wc_PKCS7_VerifySignedData_ECC(void);
+int test_wc_PKCS7_VerifySignedData_ECC_TamperedAttribs(void);
 int test_wc_PKCS7_DecodeEnvelopedData_stream(void);
 int test_wc_PKCS7_EncodeDecodeEnvelopedData(void);
 int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void);
@@ -89,7 +91,9 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
     TEST_PKCS7_RSA_PSS_SD_DECL                                           \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_ex),     \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_RSA),    \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TamperedAttribs), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ECC),    \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ECC_TamperedAttribs), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_Degenerate),              \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_BER),                     \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_NoDefaultSignedAttribs),  \
