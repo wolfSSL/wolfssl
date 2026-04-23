@@ -536,6 +536,11 @@ int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devid)
         /* Release the lock */
         wolfSSL_CryptHwMutexUnLock();
     }
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    if (ret == 0) {
+        sha->hashType = WC_HASH_TYPE_SHA512;
+    }
+#endif
     return ret;
 }
 
@@ -606,6 +611,11 @@ int wc_InitSha512_224_ex(wc_Sha512* sha, void* heap, int devid)
         /* Release the lock */
         wolfSSL_CryptHwMutexUnLock();
     }
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    if (ret == 0) {
+        sha->hashType = WC_HASH_TYPE_SHA512_224;
+    }
+#endif
     return ret;
 }
 
@@ -658,6 +668,11 @@ int wc_InitSha512_256_ex(wc_Sha512* sha, void* heap, int devid)
         /* Release the lock */
         wolfSSL_CryptHwMutexUnLock();
     }
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    if (ret == 0) {
+        sha->hashType = WC_HASH_TYPE_SHA512_256;
+    }
+#endif
     return ret;
 }
 
