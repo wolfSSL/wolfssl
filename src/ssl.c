@@ -10762,7 +10762,7 @@ const char* wolfSSL_OpenSSL_version(int type)
         case OPENSSL_PLATFORM:
             return "platform: information not available";
         case OPENSSL_DIR:
-            return "OPENSSLDIR: \"\"";
+            return "OPENSSLDIR: N/A";
         case OPENSSL_ENGINES_DIR:
             return "ENGINESDIR: N/A";
         default:
@@ -10774,8 +10774,8 @@ const char* wolfSSL_OpenSSL_version(void)
 {
     return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
 }
-#endif /* WOLFSSL_QT */
-#endif
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+#endif /* OPENSSL_EXTRA */
 
 
 /* current library version in hex */

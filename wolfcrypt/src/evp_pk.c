@@ -1926,8 +1926,10 @@ int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
         return WOLFSSL_FAILURE;
     }
 
+    /* Let wolfSSL_i2d_PUBKEY allocate the buffer (pass NULL to trigger
+     * internal allocation). We free it ourselves after writing to the BIO. */
     derSz = wolfSSL_i2d_PUBKEY(key, &der);
-    if (derSz <= 0) {
+    if (derSz <= 0 || der == NULL) {
         WOLFSSL_MSG("wolfSSL_i2d_PUBKEY failed");
         return WOLFSSL_FAILURE;
     }
@@ -1939,7 +1941,7 @@ int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
     ret = WOLFSSL_SUCCESS;
 
 cleanup:
-    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* !NO_BIO */
