@@ -10062,8 +10062,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     int ret;
 
     /* argument checks */
-    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 ||
-        ((authTagSz > 0) && (authTag == NULL)) ||
+    /* If sz is non-zero, both in and out must be set; if sz is 0, in and
+     * out are don't cares (GMAC case), matching wc_AesGcmDecrypt. */
+    if (aes == NULL || iv == NULL || ivSz == 0 ||
+        (sz != 0 && (in == NULL || out == NULL)) ||
+        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE ||
         ((authInSz > 0) && (authIn == NULL)))
     {
         return BAD_FUNC_ARG;
@@ -17140,7 +17143,8 @@ int wc_AesEaxEncryptFinal(AesEax* eax, byte* authTag, word32 authTagSz)
     int ret;
     word32 i;
 
-    if (eax == NULL || authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE) {
+    if (eax == NULL || authTag == NULL || authTagSz == 0 ||
+            authTagSz > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 
@@ -17197,7 +17201,8 @@ int wc_AesEaxDecryptFinal(AesEax* eax,
     byte authTag[WC_AES_BLOCK_SIZE];
 #endif
 
-    if (eax == NULL || authIn == NULL || authInSz > WC_AES_BLOCK_SIZE) {
+    if (eax == NULL || authIn == NULL || authInSz == 0 ||
+            authInSz > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 
