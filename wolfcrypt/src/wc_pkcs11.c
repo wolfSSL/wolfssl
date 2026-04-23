@@ -6528,6 +6528,9 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     }
                     break;
         #endif
+                default:
+                    ret = NOT_COMPILED_IN;
+                    break;
                 }
     #else
             ret = NOT_COMPILED_IN;
