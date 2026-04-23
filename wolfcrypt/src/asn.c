@@ -22527,7 +22527,22 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                  * max_path_length, but the issuer's constraint still
                  * applies. A self-issued cert from a CA with maxPathLen=0
                  * cannot act as an intermediate CA. */
-                if (cert->ca->maxPathLen == 0) {
+                if (cert->publicKey != NULL &&
+                        cert->ca->publicKey != NULL &&
+                        cert->pubKeySize > 0 &&
+                        cert->pubKeySize == cert->ca->pubKeySize &&
+                        XMEMCMP(cert->publicKey, cert->ca->publicKey,
+                                cert->pubKeySize) == 0) {
+                    /* Exclude the trust anchor itself from step (l). Per
+                     * RFC 5280 6.1, when the trust anchor is supplied as a
+                     * self-signed certificate it "is not included as part
+                     * of the prospective certification path" */
+
+                    /* Trust anchor: honor issuer's constraint */
+                    cert->maxPathLen = (word16)min(cert->ca->maxPathLen,
+                                           cert->maxPathLen);
+                }
+                else if (cert->ca->maxPathLen == 0) {
                     cert->maxPathLen = 0;
                     if (verify != NO_VERIFY) {
                         WOLFSSL_MSG("\tSelf-issued cert, maxPathLen is 0");

@@ -21763,6 +21763,15 @@ static int test_PathLenSelfIssued(void)
         cm), WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E));
     wc_FreeDecodedCert(&decodedCert);
 
+    /* Step 6: Parse the trust anchor itself as a chain cert.
+     * A peer is allowed to include the root in the chain it sends.
+     * Per RFC 5280 6.1 the trust anchor is not part of the prospective
+     * certification path, so its own pathLen=0 must not fire against
+     * itself. */
+    wc_InitDecodedCert(&decodedCert, rootDer, (word32)rootDerSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&decodedCert, CHAIN_CERT_TYPE, VERIFY, cm), 0);
+    wc_FreeDecodedCert(&decodedCert);
+
     wolfSSL_CertManagerFree(cm);
     wc_ecc_free(&entityKey);
     wc_ecc_free(&icaKey);
