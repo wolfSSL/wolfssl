@@ -2712,6 +2712,72 @@ int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
 
 
 /*
+ * Regression test: a PKCS#7 EnvelopedData with a forged RecipientInfo SET
+ * length (parsed via GetSet_ex with NO_USER_CHECK) must not drive an
+ * uncapped heap allocation through wc_PKCS7_GrowStream(). The decoder
+ * must reject the oversized allocation rather than attempting it.
+ */
+int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_PKCS7_STREAM)
+    /* Crafted ContentInfo/EnvelopedData header. All lengths use the
+     * 4-byte long form for clarity. The RecipientInfo SET length is
+     * forged to 0x01000001 (16 MB + 1), which exceeds the default
+     * WOLFSSL_PKCS7_MAX_STREAM_ALLOC cap and should be rejected before
+     * any allocation succeeds. The body after the SET header is never
+     * consumed because the decoder fails at the GrowStream() cap. */
+    static const byte forged[] = {
+        /* ContentInfo SEQUENCE, body length 0x01000021 */
+        0x30, 0x84, 0x01, 0x00, 0x00, 0x21,
+        /* OID 1.2.840.113549.1.7.3 (id-envelopedData) */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x07, 0x03,
+        /* [0] EXPLICIT content, body length 0x01000016 */
+        0xA0, 0x84, 0x01, 0x00, 0x00, 0x16,
+        /* EnvelopedData SEQUENCE, body length 0x01000010 */
+        0x30, 0x84, 0x01, 0x00, 0x00, 0x10,
+        /* version INTEGER 0 */
+        0x02, 0x01, 0x00,
+        /* Forged RecipientInfo SET header: length = 0x01000001 */
+        0x31, 0x84, 0x01, 0x00, 0x00, 0x01,
+        /* Padding so that header-parsing states can buffer their
+         * required lookahead without returning WC_PKCS7_WANT_READ_E.
+         * These bytes are never interpreted. */
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+    };
+    PKCS7* pkcs7 = NULL;
+    byte   out[32];
+    int    ret;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+        sizeof_client_key_der_2048), 0);
+
+    ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, (byte*)forged,
+        (word32)sizeof(forged), out, (word32)sizeof(out));
+    /* Must NOT return WC_PKCS7_WANT_READ_E (which would imply the
+     * oversized allocation succeeded and the decoder is waiting for
+     * the around 16 MB of SET body). Must NOT return 0 / positive length.
+     * Expected: BUFFER_E from the GrowStream cap. */
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BUFFER_E));
+
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen() */
+
+
+/*
  * Testing wc_PKCS7_DecodeEnvelopedData with streaming
  */
 int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)

@@ -113,6 +113,17 @@ struct PKCS7SignerInfo {
 
 #ifndef NO_PKCS7_STREAM
 
+/* Hard upper bound on a single PKCS7 streaming buffer allocation. Guards
+ * wc_PKCS7_GrowStream against attacker-controlled ASN.1 lengths that were
+ * parsed with NO_USER_CHECK and would otherwise drive allocations up to
+ * around 2GB (e.g. via a forged RecipientInfo SET length). 16 MB is well above
+ * any legitimate RecipientInfo / encoded-attribute size but small enough
+ * that a forged length fails allocation on constrained targets and is
+ * rejected on larger ones. */
+#ifndef WOLFSSL_PKCS7_MAX_STREAM_ALLOC
+    #define WOLFSSL_PKCS7_MAX_STREAM_ALLOC (16 * 1024 * 1024)
+#endif
+
 #define MAX_PKCS7_STREAM_BUFFER 256
 struct PKCS7State {
     byte* tmpCert;
@@ -274,6 +285,16 @@ static void wc_PKCS7_FreeStream(wc_PKCS7* pkcs7)
 static int wc_PKCS7_GrowStream(wc_PKCS7* pkcs7, word32 newSz)
 {
     byte* pt;
+
+    /* Guard against attacker-controlled ASN.1 lengths reaching this
+     * allocation. Several callers parse lengths with NO_USER_CHECK and
+     * pass them here unvalidated (e.g. wc_PKCS7_ParseToRecipientInfoSet
+     * on a forged RecipientInfo SET header). */
+    if (newSz > WOLFSSL_PKCS7_MAX_STREAM_ALLOC) {
+        WOLFSSL_MSG("PKCS7 streaming allocation exceeds maximum");
+        return BUFFER_E;
+    }
+
     pt = (byte*)XMALLOC(newSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     if (pt == NULL) {
         return MEMORY_E;
@@ -13095,6 +13116,22 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
             if (ret == 0 && GetSet_ex(pkiMsg, idx, &length, pkiMsgSz,
                         NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
+
+            /* GetSet_ex is called with NO_USER_CHECK, which skips the
+             * (idx + length > maxIdx) bounds check in GetLength_ex. In
+             * non-streaming mode, validate the SET length against the
+             * remaining input buffer; in streaming mode the length flows
+             * into pkcs7->stream->expected and then wc_PKCS7_GrowStream,
+             * where it is capped by WOLFSSL_PKCS7_MAX_STREAM_ALLOC. */
+            if (ret == 0 && length < 0)
+                ret = ASN_PARSE_E;
+        #ifdef NO_PKCS7_STREAM
+            if (ret == 0 &&
+                    (*idx > pkiMsgSz ||
+                     (word32)length > pkiMsgSz - *idx)) {
+                ret = ASN_PARSE_E;
+            }
+        #endif
 
             if (ret < 0)
                 break;
