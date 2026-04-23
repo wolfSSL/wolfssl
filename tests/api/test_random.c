@@ -94,6 +94,72 @@ int test_wc_RNG_GenerateBlock_Reseed(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_RNG_ReseedBoundary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WC_RNG rng;
+    byte   out[32];
+    int    drbgChecked = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+#ifndef NO_SHA256
+    if (rng.drbgType == WC_DRBG_SHA256) {
+        struct DRBG_internal* drbg = (struct DRBG_internal*)rng.drbg;
+        if (drbg != NULL && rng.status == WC_DRBG_OK) {
+        #ifdef WORD64_AVAILABLE
+            word64 startCtr = drbg->reseedCtr;
+        #else
+            word32 startCtr = drbg->reseedCtr;
+        #endif
+            ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+            if (drbg->reseedCtr == startCtr + 1) {
+                drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+                ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+                ExpectTrue(drbg->reseedCtr == 2);
+                drbgChecked = 1;
+            }
+        }
+    }
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    if (!drbgChecked && rng.drbgType == WC_DRBG_SHA512) {
+        struct DRBG_SHA512_internal* drbg =
+            (struct DRBG_SHA512_internal*)rng.drbg512;
+        if (drbg != NULL && rng.status == WC_DRBG_OK) {
+            word64 startCtr = drbg->reseedCtr;
+            ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+            if (drbg->reseedCtr == startCtr + 1) {
+                drbg->reseedCtr = WC_RESEED_INTERVAL - 1;
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+                ExpectTrue(drbg->reseedCtr == WC_RESEED_INTERVAL);
+                ExpectIntEQ(wc_RNG_GenerateBlock(&rng, out, sizeof(out)), 0);
+                ExpectTrue(drbg->reseedCtr == 2);
+                drbgChecked = 1;
+            }
+        }
+    }
+#endif
+    /* Some build configurations (e.g. --enable-intelrand) bypass the
+     * Hash_DRBG generate path entirely, so reseedCtr does not increment
+     * after wc_RNG_GenerateBlock; in that case both branches above
+     * legitimately decline to exercise the boundary. Only emit a debug
+     * note rather than failing the test. */
+    if (drbgChecked == 0) {
+        WOLFSSL_MSG("RNG_ReseedBoundary: DRBG path not exercised in this "
+                    "config");
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_RNG_GenerateBlock(void)
 {
     EXPECT_DECLS;
