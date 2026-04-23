@@ -4392,6 +4392,72 @@ int test_wc_AesGcmStream_ReinitAfterFinal(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesGcmStream_ReinitAfterFinal */
 
+int test_wc_AesGcmStream_BadAuthTag(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_128) && defined(WOLFSSL_AESGCM_STREAM)
+    static const byte key[AES_128_KEY_SIZE] = {
+        0xfe,0xff,0xe9,0x92, 0x86,0x65,0x73,0x1c,
+        0x6d,0x6a,0x8f,0x94, 0x67,0x30,0x83,0x08
+    };
+    static const byte iv[GCM_NONCE_MID_SZ] = {
+        0xca,0xfe,0xba,0xbe, 0xfa,0xce,0xdb,0xad,
+        0xde,0xca,0xf8,0x88
+    };
+    static const byte aad[20] = {
+        0xfe,0xed,0xfa,0xce, 0xde,0xad,0xbe,0xef,
+        0xfe,0xed,0xfa,0xce, 0xde,0xad,0xbe,0xef,
+        0xab,0xad,0xda,0xd2
+    };
+    static const byte plain[16] = {
+        0xd9,0x31,0x32,0x25, 0xf8,0x84,0x06,0xe5,
+        0xa5,0x59,0x09,0xc5, 0xaf,0xf5,0x26,0x9a
+    };
+    Aes enc[1];
+    Aes dec[1];
+    byte ct[sizeof(plain)];
+    byte pt[sizeof(plain)];
+    byte tag[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(enc, 0, sizeof(Aes));
+    XMEMSET(dec, 0, sizeof(Aes));
+    XMEMSET(tag, 0, sizeof(tag));
+
+    ExpectIntEQ(wc_AesInit(enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(enc, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(enc, ct, plain, sizeof(plain),
+        aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(enc, tag, sizeof(tag)), 0);
+    wc_AesFree(enc);
+
+    tag[0] ^= 0x01;
+
+    ExpectIntEQ(wc_AesInit(dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, key, sizeof(key), iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, pt, ct, sizeof(ct),
+        aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(dec, tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    wc_AesFree(dec);
+
+    tag[0] ^= 0x01;
+    ExpectIntEQ(wc_AesInit(dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, key, sizeof(key), iv, sizeof(iv)), 0);
+    {
+        byte bad_aad[sizeof(aad)];
+        XMEMCPY(bad_aad, aad, sizeof(aad));
+        bad_aad[0] ^= 0x01;
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, pt, ct, sizeof(ct),
+            bad_aad, sizeof(bad_aad)), 0);
+    }
+    ExpectIntEQ(wc_AesGcmDecryptFinal(dec, tag, sizeof(tag)),
+        WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    wc_AesFree(dec);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*******************************************************************************
  * GMAC
  ******************************************************************************/
