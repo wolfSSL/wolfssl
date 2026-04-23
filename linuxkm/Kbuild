@@ -364,11 +364,22 @@ $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_
 	else
 	    ns='$(WOLFSSL_NS)'
 	fi
+# When --enable-linuxkm-wolfentropy-ko is in effect the wc_Entropy_*
+# symbols are provided by the separate wolfentropy.ko module, so filter
+# them out of libwolfssl.ko's auto-generated export list (they would
+# otherwise be undefined at link time, since wolfentropy.c is not
+# compiled into libwolfssl.ko in that configuration).  In the default/
+# legacy build, wolfentropy.c is compiled into libwolfssl.ko and these
+# symbols must be exported -- so the extra awk filter is only emitted
+# when configure set -DWC_LINUXKM_WOLFENTROPY_EXTERNAL, which is the
+# precise signal for "wolfentropy.c is in an external .ko".
+ENTROPY_EXPORT_FILTER_AWK := $(if $(findstring -DWC_LINUXKM_WOLFENTROPY_EXTERNAL,$(WOLFSSL_CFLAGS)),if ($$8 ~ /^wc_Entropy_(Get|GetRawEntropy|OnDemandTest)$$/){next;},)
+
 ifndef NO_EXPORTS
 	$(READELF) --symbols --wide $(filter %.o,$^) |
 		$(AWK) '/^ *[0-9]+: / {
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}
-		  if ($$8 ~ /^wc_Entropy_(Get|GetRawEntropy|OnDemandTest)$$/){next;}
+		  $(ENTROPY_EXPORT_FILTER_AWK)
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {
 		    print "$(EXPORT_SYMBOL)(" $$8 ", '"$$ns"');";
 		  }

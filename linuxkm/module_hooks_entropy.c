@@ -10,16 +10,23 @@
  * registered via wc_SetSeed_Cb().
  *
  * Load order: wolfentropy.ko must be loaded BEFORE libwolfssl.ko.  The
- * kernel's module dependency resolution enforces this automatically when
- * libwolfssl.ko carries an unresolved reference to wc_Entropy_Get.
+ * reference to wc_Entropy_Get in libwolfssl.ko is declared weak (see
+ * module_hooks.c), which means modpost does NOT record wolfentropy as a
+ * hard dependency and modules.dep will not list it.  MODULE_SOFTDEP("pre:
+ * wolfentropy") in libwolfssl.ko is what directs modprobe to load the
+ * two modules in the right order -- note it is only a hint, honoured by
+ * modprobe but ignored by insmod.  wc_linuxkm_GenerateSeed_wolfEntropy()
+ * also NULL-checks the weak pointer at runtime and fails the seed
+ * callback cleanly if wolfentropy.ko was not loaded first.
  *
- * On the FIPS module side (libwolfssl.ko built from a FIPS source tree):
- * linuxkm_wc_port.h defines WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER when
- * HAVE_FIPS + HAVE_ENTROPY_MEMUSE are both set.  Alternatively, pass
- * KERNEL_EXTRA_CFLAGS="-DWC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER" when
- * building the FIPS module without HAVE_ENTROPY_MEMUSE, and add
- * MODULE_IMPORT_NS(WOLFSSL) to its module_hooks.c so the kernel accepts
- * the wc_Entropy_Get symbol import.
+ * On the libwolfssl.ko side: configure --enable-linuxkm-wolfentropy-ko
+ * arranges the whole contract -- it defines both WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
+ * (to route DRBG seeding through wc_linuxkm_GenerateSeed_wolfEntropy)
+ * and WC_LINUXKM_WOLFENTROPY_EXTERNAL (to select the weak-extern code
+ * path and activate MODULE_SOFTDEP / MODULE_IMPORT_NS(WOLFSSL)).  The
+ * legacy in-tree path (wolfentropy.c compiled into libwolfssl.ko) is
+ * auto-detected by linuxkm_wc_port.h when HAVE_FIPS + HAVE_ENTROPY_MEMUSE
+ * are both set, and in that path no external module is needed.
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *

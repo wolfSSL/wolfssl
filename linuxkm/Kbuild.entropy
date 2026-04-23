@@ -7,20 +7,23 @@
 # FIPS libwolfssl.ko.
 #
 # Build flow:
-#   ./configure --enable-linuxkm --enable-wolfentropy [KERNEL_ROOT=...]
+#   ./configure --enable-linuxkm --enable-linuxkm-wolfentropy-ko [KERNEL_ROOT=...]
 #   make wolfentropy          # produces wolfentropy.ko
 #
 # Usage at runtime:
 #   modprobe wolfentropy      # must load before libwolfssl.ko
 #   modprobe libwolfssl
 #
-# When libwolfssl.ko is built with WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
-# (auto-set by linuxkm_wc_port.h when HAVE_FIPS + HAVE_ENTROPY_MEMUSE are
-# both present, or manually via KERNEL_EXTRA_CFLAGS), its module_init
-# registers wc_linuxkm_GenerateSeed_wolfEntropy as the DRBG seed callback.
-# That function calls wc_Entropy_Get(), exported from this module.
-# The kernel's module dependency resolution enforces load order automatically
-# because libwolfssl.ko has an unresolved reference to wc_Entropy_Get.
+# When libwolfssl.ko is built with --enable-linuxkm-wolfentropy-ko,
+# configure defines WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER (to route the
+# DRBG seed callback through wc_linuxkm_GenerateSeed_wolfEntropy) AND
+# WC_LINUXKM_WOLFENTROPY_EXTERNAL (to declare wc_Entropy_Get as a weak
+# extern resolved from this module).  The weak extern does NOT create a
+# modpost/modules.dep dependency -- libwolfssl.ko relies on
+# MODULE_SOFTDEP("pre: wolfentropy") to direct modprobe, and
+# wc_linuxkm_GenerateSeed_wolfEntropy also NULL-checks the symbol at
+# runtime and fails the seed callback with -1 if this module was not
+# loaded first.
 #
 # Note for ARM platforms: if sha3_asm.S acceleration is enabled
 # (WOLFSSL_ARMASM / WOLFSSL_SP_ARM64_ASM), add

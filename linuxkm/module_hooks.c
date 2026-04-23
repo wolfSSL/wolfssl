@@ -397,25 +397,28 @@ void wc_linuxkm_relax_long_loop(void) {
 
 #if defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
 
-/* When building without the wolfentropy source (HAVE_ENTROPY_MEMUSE not set),
- * wc_Entropy_Get and MAX_ENTROPY_BITS are not declared via the normal header
- * chain.  Provide the declarations here at file scope so the compiler sees
- * them before the call below.
+/* WC_LINUXKM_WOLFENTROPY_EXTERNAL indicates wolfentropy.c is NOT linked
+ * into libwolfssl.ko -- wc_Entropy_Get is expected to be resolved at
+ * module load time from an externally-loaded wolfentropy.ko.  Declare
+ * the symbol as a weak extern so link succeeds even if the module is
+ * missing, and NULL-check before calling.
  */
-#ifndef HAVE_ENTROPY_MEMUSE
-    #ifndef MAX_ENTROPY_BITS
-        #define MAX_ENTROPY_BITS 256
-    #endif
+#ifdef WC_LINUXKM_WOLFENTROPY_EXTERNAL
     extern int wc_Entropy_Get(int bits, unsigned char *entropy, word32 len) __attribute__((weak));
-#endif /* !HAVE_ENTROPY_MEMUSE */
+#endif
 
 int wc_linuxkm_GenerateSeed_wolfEntropy(OS_Seed* os, byte* output, word32 sz)
 {
     (void)os;
-#ifndef HAVE_ENTROPY_MEMUSE
+#ifdef WC_LINUXKM_WOLFENTROPY_EXTERNAL
     if (!wc_Entropy_Get) {
         pr_err("wolfentropy: wc_Entropy_Get unavailable -- is wolfentropy.ko loaded?\n");
-        return -ENODEV;
+        /* -1 matches the failure-return convention of the sibling
+         * wc_linuxkm_GenerateSeed_IntelRD, so the downstream RNG seed
+         * plumbing in random.c treats this the same as any other
+         * non-zero seed callback failure.
+         */
+        return -1;
     }
 #endif
     return wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
@@ -1131,14 +1134,24 @@ MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
-#ifdef WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
+/* Only soft-depend on and import from the external wolfentropy.ko when
+ * wolfentropy.c is NOT linked into libwolfssl.ko.  That is exactly the
+ * --enable-linuxkm-wolfentropy-ko build, signalled by configure via
+ * -DWC_LINUXKM_WOLFENTROPY_EXTERNAL.  In the legacy in-tree build
+ * (wolfentropy.c inside libwolfssl.ko) WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
+ * is still defined -- either auto-defined by linuxkm_wc_port.h in the
+ * FIPS+HASHDRBG+HAVE_ENTROPY_MEMUSE case, or passed manually via
+ * KERNEL_EXTRA_CFLAGS -- but no external module exists to soft-depend
+ * on, so these module-meta directives must be suppressed.
+ */
+#ifdef WC_LINUXKM_WOLFENTROPY_EXTERNAL
 MODULE_SOFTDEP("pre: wolfentropy");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
 MODULE_IMPORT_NS("WOLFSSL");
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 MODULE_IMPORT_NS(WOLFSSL);
 #endif
-#endif /* WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER */
+#endif /* WC_LINUXKM_WOLFENTROPY_EXTERNAL */
 
 #ifdef WC_SYM_RELOC_TABLES
 

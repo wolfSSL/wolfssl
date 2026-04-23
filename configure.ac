@@ -6048,10 +6048,47 @@ AC_ARG_ENABLE([pwdbased],
 # MemUse Entropy
 # wolfEntropy Software Jitter SP800-90B certifiable entropy source
 
+# Opt-in: build wolfEntropy as a standalone out-of-tree wolfentropy.ko
+# module rather than compiling wolfentropy.c into libwolfssl.ko.  When
+# enabled, libwolfssl.ko is configured to resolve wc_Entropy_Get at load
+# time via a weak extern (WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER), and
+# wolfentropy.c is excluded from libwolfssl.ko's sources (it is built
+# into wolfentropy.ko instead, via linuxkm/Kbuild.entropy).  wolfEntropy
+# support itself (HAVE_ENTROPY_MEMUSE) is still required -- every source
+# that gates on it, including wolfentropy.c itself, needs it defined --
+# so enabling this flag auto-enables wolfEntropy unless the user
+# explicitly passed --disable-wolfEntropy.  Purely additive relative to
+# legacy --enable-linuxkm: default off, existing default-on behavior of
+# wolfEntropy in libwolfssl.ko is unchanged when this flag is not set.
+AC_ARG_ENABLE([linuxkm-wolfentropy-ko],
+    [AS_HELP_STRING([--enable-linuxkm-wolfentropy-ko],[Build wolfEntropy as a separate out-of-tree wolfentropy.ko module, and configure libwolfssl.ko to import its symbols at load time (default: disabled)])],
+    [ ENABLED_LINUXKM_WOLFENTROPY_KO=$enableval ],
+    [ ENABLED_LINUXKM_WOLFENTROPY_KO=no ]
+    )
+
+if test "$KERNEL_MODE_DEFAULTS" = "yes" && \
+   test "$ENABLED_AMDRDSEED" != "yes" && \
+   test "$ENABLED_INTELRDRAND" != "yes" && \
+   test "$ENABLED_INTELRDSEED" != "yes"
+then
+    ENABLED_ENTROPY_MEMUSE_DEFAULT=yes
+else
+    ENABLED_ENTROPY_MEMUSE_DEFAULT=no
+fi
+
+# --enable-linuxkm-wolfentropy-ko implies wolfEntropy.  Override the
+# default so that a bare "./configure --enable-linuxkm-wolfentropy-ko"
+# (e.g. with a non-kernel-mode or Intel-RDSEED configuration) still
+# defines HAVE_ENTROPY_MEMUSE for wolfentropy.c and its callers.
+if test "x$ENABLED_LINUXKM_WOLFENTROPY_KO" != "xno"
+then
+    ENABLED_ENTROPY_MEMUSE_DEFAULT=yes
+fi
+
 AC_ARG_ENABLE([wolfEntropy],
     [AS_HELP_STRING([--enable-wolfEntropy],[Enable memuse entropy support (default: disabled)])],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ],
-    [ ENABLED_ENTROPY_MEMUSE=no ]
+    [ ENABLED_ENTROPY_MEMUSE=$ENABLED_ENTROPY_MEMUSE_DEFAULT ]
     )
 AC_ARG_ENABLE([wolfentropy],
     [AS_HELP_STRING([--enable-wolfentropy],[Alias for --enable-wolfEntropy])],
@@ -6062,18 +6099,19 @@ AC_ARG_ENABLE([entropy-memuse],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ]
     )
 
-# Default --enable-linuxkm to seed its FIPS DRBG from a separately-built
-# wolfentropy.ko module via WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER (resolved
-# at module load time via a weak extern on wc_Entropy_Get).  Skipped if
-# wolfEntropy is being compiled into libwolfssl.ko itself, or if Intel/AMD
-# RDSEED/RDRAND was explicitly requested as the entropy source.
-if test "$KERNEL_MODE_DEFAULTS" = "yes" && \
-   test "x$ENABLED_ENTROPY_MEMUSE" = "xno" && \
-   test "$ENABLED_AMDRDSEED" != "yes" && \
-   test "$ENABLED_INTELRDRAND" != "yes" && \
-   test "$ENABLED_INTELRDSEED" != "yes"
+if test "x$ENABLED_LINUXKM_WOLFENTROPY_KO" != "xno"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER"
+    if test "x$ENABLED_ENTROPY_MEMUSE" = "xno"
+    then
+        AC_MSG_ERROR([--enable-linuxkm-wolfentropy-ko requires wolfEntropy to be enabled (for HAVE_ENTROPY_MEMUSE); do not pass --disable-wolfEntropy.])
+    fi
+    # WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER routes libwolfssl.ko's DRBG
+    # seed callback through wc_Entropy_Get.  WC_LINUXKM_WOLFENTROPY_EXTERNAL
+    # indicates additionally that wolfentropy.c is NOT linked into
+    # libwolfssl.ko -- wc_Entropy_Get must be resolved from the external
+    # wolfentropy.ko at module load time (via weak extern + NULL safety
+    # check in module_hooks.c, plus MODULE_SOFTDEP to direct modprobe).
+    AM_CFLAGS="$AM_CFLAGS -DWC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER -DWC_LINUXKM_WOLFENTROPY_EXTERNAL"
 fi
 
 # AES key wrap
@@ -7217,6 +7255,7 @@ then
         ;;
       random_c)
         WOLFENTROPY_IN_RANDOM_C=yes
+        AM_CFLAGS="$AM_CFLAGS -DWC_WOLFENTROPY_IN_RANDOM_C"
         ;;
       *)
         AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, nofallback, random_c. Seen: $ENABLED_ENTROPY_MEMUSE.])
@@ -11527,7 +11566,8 @@ AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_WOLFENTROPY_C],[test "x$WOLFENTROPY_IN_RANDOM_C" != "xyes" && test "x$ENABLED_ENTROPY_MEMUSE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WOLFENTROPY_IN_RANDOM_C],[test "x$WOLFENTROPY_IN_RANDOM_C" = "xyes"])
+AM_CONDITIONAL([BUILD_LINUXKM_WOLFENTROPY_KO],[test "x$ENABLED_LINUXKM_WOLFENTROPY_KO" != "xno"])
 AM_CONDITIONAL([BUILD_RNG_BANK],[test "$ENABLED_RNG_BANK" = "yes" || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -11625,7 +11665,7 @@ AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
-AM_CONDITIONAL([BUILD_WOLFENTROPY_KO],[test "$ENABLED_LINUXKM" = "yes" && test "x$ENABLED_ENTROPY_MEMUSE" != "xno"])
+AM_CONDITIONAL([BUILD_WOLFENTROPY_KO],[test "$ENABLED_LINUXKM" = "yes" && test "x$ENABLED_LINUXKM_WOLFENTROPY_KO" != "xno"])
 AM_CONDITIONAL([BUILD_KERNEL_MODE_DEFAULTS],[test "$KERNEL_MODE_DEFAULTS" != "no"])
 AM_CONDITIONAL([BUILD_BSDKM],[test "$ENABLED_BSDKM" = "yes"])
 AM_CONDITIONAL([BUILD_KERNEL_MODULE],[test "$ENABLED_BSDKM" = "yes" || test "$ENABLED_LINUXKM" = "yes"])

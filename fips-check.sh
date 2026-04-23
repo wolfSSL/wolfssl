@@ -63,6 +63,11 @@ while [ "$1" ]; do
   shift
 done
 
+# Extra configure flags that individual flavors may append to the main
+# ./configure invocation below.  Default empty so flavors that don't set
+# it expand to nothing and the command line stays unchanged.
+FIPS_EXTRA_CONFIGURE_OPTS=()
+
 case "$FLAVOR" in
 linuxv2|fipsv2-OE-ready|solaris)
   FIPS_OPTION='v2'
@@ -368,8 +373,14 @@ wolfentropy)
   FIPS_REPO_TAG='WCv6.0.0-RC4'
   ASM_PICKUPS_TAG='WCv6.0.0-RC4'
   WOLF_ENTROPY_TAG='wolfEntropy2'
-  FIPS_OPTION='disabled --enable-wolfentropy=random_c'\
-' --disable-shake128 --disable-shake256'
+  FIPS_OPTION='disabled'
+  # Extra configure flags spliced in alongside --enable-fips below.
+  # Kept in an array so the command line stays quote-safe and readable.
+  FIPS_EXTRA_CONFIGURE_OPTS=(
+    '--enable-wolfentropy=random_c'
+    '--disable-shake128'
+    '--disable-shake256'
+  )
   FIPS_FILES=(
   )
   WOLFCRYPT_FILES=(
@@ -592,7 +603,7 @@ if [ "$DOCONFIGURE" = "yes" ]; then
         ./configure --enable-selftest=v2
         ;;
     *)
-        ./configure --enable-fips=$FIPS_OPTION
+        ./configure --enable-fips="$FIPS_OPTION" "${FIPS_EXTRA_CONFIGURE_OPTS[@]}"
         ;;
     esac
 

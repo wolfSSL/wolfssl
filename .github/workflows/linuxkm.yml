@@ -18,7 +18,8 @@ jobs:
       matrix:
         config: [
           'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-wolfentropy --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-testcert --enable-all-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384',
-          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-wolfentropy --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -DDEBUG_LINUXKM_PIE_SUPPORT -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384'
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-wolfentropy --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -DDEBUG_LINUXKM_PIE_SUPPORT -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384',
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-linuxkm-wolfentropy-ko --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-testcert --enable-all-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384'
         ]
     name: build module
     if: github.repository_owner == 'wolfssl'
@@ -51,4 +52,9 @@ jobs:
           # try to remove profiling (-pg) because it leads to "_mcleanup: gmon.out: Permission denied"
           make -j 4 KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 || $(exit 11)
           ls -l linuxkm/libwolfssl.ko || $(exit 12)
+          # Exercise the standalone wolfentropy.ko target when the config opted in.
+          if grep -q '^BUILD_WOLFENTROPY_KO_TRUE =$' Makefile 2>/dev/null; then
+              make -j 4 wolfentropy KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 || $(exit 13)
+              ls -l linuxkm/wolfentropy.ko || $(exit 14)
+          fi
           echo "Successful linuxkm build."

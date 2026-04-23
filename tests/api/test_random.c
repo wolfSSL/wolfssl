@@ -346,8 +346,12 @@ int test_wc_RNG_TestSeed(void)
     XMEMSET(seed, 0xa5, sizeof(seed));
     /* Return value is DRBG_CONT_FAILURE which is not public. */
     /* Moving forward with the RCT test check LT instead of GT */
-#if !defined(HAVE_ENTROPY_MEMUSE) && (!defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)))
+    /* WC_WOLFENTROPY_IN_RANDOM_C: wolfEntropy is compiled directly into
+     * random.c (the --enable-wolfentropy=random_c ESV build), which
+     * reshapes the seed-health return values; fall back to the legacy
+     * GT expectation for that specific configuration. */
+#if !defined(WC_WOLFENTROPY_IN_RANDOM_C) && \
+    (!defined(HAVE_FIPS) || ( defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) ))
     ExpectIntLT(wc_RNG_TestSeed(seed, sizeof(seed)), 0);
 #else
     ExpectIntGT(wc_RNG_TestSeed(seed, sizeof(seed)), 0);

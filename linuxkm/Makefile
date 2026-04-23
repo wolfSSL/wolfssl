@@ -466,11 +466,17 @@ install modules_install:
 # wolfentropy.ko -- minimal SP 800-90B entropy source module.
 #
 # Built from a fixed, minimal set of wolfcrypt sources compiled with the same
-# WOLFSSL_CFLAGS as the main module (which already carries -DHAVE_ENTROPY_MEMUSE
-# when --enable-wolfentropy was passed to configure).  Only wc_Entropy_Get,
-# wc_Entropy_GetRawEntropy, and wc_Entropy_OnDemandTest are exported; all other
-# wolfcrypt symbols (SHA3, mutexes, wolfCrypt_Init, ...) remain unexported, so
-# loading wolfentropy.ko alongside libwolfssl.ko causes no symbol collisions.
+# WOLFSSL_CFLAGS as the main module.  configure.ac enforces that
+# --enable-linuxkm-wolfentropy-ko implies --enable-wolfEntropy, so
+# WOLFSSL_CFLAGS always carries -DHAVE_ENTROPY_MEMUSE in this build flow --
+# wolfentropy.c's #ifdef HAVE_ENTROPY_MEMUSE guard is therefore satisfied
+# and it provides the real definitions of wc_Entropy_Get,
+# wc_Entropy_GetRawEntropy, wc_Entropy_OnDemandTest, Entropy_Init, and
+# Entropy_Final.  Only the three public wc_Entropy_* symbols are exported
+# (via linuxkm/module_exports_entropy.c); every other wolfcrypt symbol
+# (SHA3, mutexes, wolfCrypt_Init, ...) compiled into wolfentropy.ko
+# remains unexported, so loading wolfentropy.ko alongside libwolfssl.ko
+# causes no symbol collisions.
 #
 # The build runs in a separate subdirectory ($(MODULE_TOP)/wolfentropy/) that
 # mirrors the layout used by the main module build.
@@ -478,20 +484,24 @@ install modules_install:
 WOLFENTROPY_MODULE_TOP := $(MODULE_TOP)/wolfentropy
 
 # Minimal set of wolfcrypt objects needed for Entropy_Init / wc_Entropy_Get.
-# random.c uses SHA256 internally for the DRBG counter-mode update, so
-# sha256.o must be included.
+# wolfentropy.o contains the actual SP 800-90B entropy source implementation
+# (Entropy_Init / Entropy_Final / wc_Entropy_Get / wc_Entropy_GetRawEntropy /
+# wc_Entropy_OnDemandTest).  sha3.o provides the SHA3 conditioning used
+# inside wolfentropy.c.  wc_port.o provides wc_InitMutex / wc_FreeMutex.
+# memory.o + logging.o cover XMALLOC/XFREE and wolfSSL_Debug.
 # Add wolfcrypt/src/sha3_asm.o here for platforms with SHA3 ASM acceleration.
 WOLFENTROPY_OBJ_FILES := \
-    wolfcrypt/src/random.o \
-    wolfcrypt/src/sha256.o \
+    wolfcrypt/src/wolfentropy.o \
     wolfcrypt/src/sha3.o \
     wolfcrypt/src/wc_port.o \
     wolfcrypt/src/memory.o \
     wolfcrypt/src/logging.o \
     linuxkm/linuxkm_memory.o
 
-# Inherit the same compiler flags as the main module; configure already added
-# -DHAVE_ENTROPY_MEMUSE (and -DWOLFSSL_SHA3) when --enable-wolfentropy was set.
+# Inherit the same compiler flags as the main module.  configure.ac's
+# --enable-linuxkm-wolfentropy-ko path guarantees -DHAVE_ENTROPY_MEMUSE is
+# present in WOLFSSL_CFLAGS (it errors out on --disable-wolfEntropy), so
+# wolfentropy.c and module_exports_entropy.c both compile non-empty.
 # WOLFSSL_LINUXKM_USE_MUTEXES: use kernel mutexes directly; wolfentropy.ko
 # does not have the PIE redirect table that wc_lkm_LockMutex requires.
 WOLFENTROPY_CFLAGS := $(WOLFSSL_CFLAGS) -DWOLFSSL_LINUXKM_USE_MUTEXES
