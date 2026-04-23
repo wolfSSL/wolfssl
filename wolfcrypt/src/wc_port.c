@@ -170,9 +170,6 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #endif
 
-#ifdef WOLFSSL_NXP_RNG_1
-    #include <wolfssl/wolfcrypt/port/nxp/rng_port.h>
-#endif
 #ifdef WOLFSSL_NXP_CASPER
     #include <wolfssl/wolfcrypt/port/nxp/casper_port.h>
 #endif
@@ -522,11 +519,6 @@ int wolfCrypt_Init(void)
         }
 #endif
 
-#ifdef WOLFSSL_NXP_RNG_1
-        if ((ret = wc_nxp_rng_init()) != 0) {
-            return ret;
-        }
-#endif
 #ifdef WOLFSSL_NXP_CASPER
         if ((ret = wc_casper_init()) != 0) {
             return ret;

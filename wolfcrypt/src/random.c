@@ -227,10 +227,6 @@ This library contains implementation for the random number generator.
 #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
-#if defined(WOLFSSL_NXP_RNG_1)
-    #include "wolfssl/wolfcrypt/port/nxp/rng_port.h"
-#endif
-
 #if FIPS_VERSION3_GE(6,0,0)
     const unsigned int wolfCrypt_FIPS_drbg_ro_sanity[2] =
                                                      { 0x1a2b3c4d, 0x00000011 };
@@ -3605,6 +3601,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_NXP_RNG_1)
+    #include "fsl_rng.h"
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
         (void)os;
@@ -3612,7 +3609,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         if (output == NULL) {
             return BUFFER_E;
         }
-        return wc_nxp_rng_get_random_data(output, sz);
+
+        if (RNG_GetRandomData(RNG, output, sz) != kStatus_Success)
+            return RNG_FAILURE_E;
+
+        return 0;
     }
 
 #elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)
