@@ -10296,11 +10296,15 @@ static int test_wolfSSL_clear_secure_renegotiation(void)
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl));
     ExpectNotNull(ssl->secure_renegotiation);
-    if (ssl->secure_renegotiation != NULL)
-        ssl->secure_renegotiation->enabled = 1;
+    if (EXPECT_SUCCESS()) {
+        if (ssl->secure_renegotiation != NULL)
+            ssl->secure_renegotiation->enabled = 1;
+    }
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_clear(ssl));
-    support = wolfSSL_SSL_get_secure_renegotiation_support(ssl);
+    if (EXPECT_SUCCESS()) {
+        support = wolfSSL_SSL_get_secure_renegotiation_support(ssl);
+    }
     ExpectNull(ssl->secure_renegotiation);
     ExpectIntEQ(WOLFSSL_FAILURE, support);
 
