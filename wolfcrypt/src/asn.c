@@ -20988,6 +20988,13 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         ret = badDate;
     }
 
+    /* Note: serial-0 rejection is performed in ParseCertRelative (after
+     * basicConstraints has been parsed and isCA is authoritative), not
+     * here. Checking isCA at this point would fail-open on a forged
+     * isCA flag. Callers that invoke DecodeCert/DecodeToKey/wc_GetPubX509
+     * directly are pubkey-extraction paths and do not make trust
+     * decisions; trust-bearing flows go through ParseCertRelative. */
+
     return ret;
 }
 
@@ -22390,18 +22397,28 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 
 #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
     !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
-        /* Check for serial number of 0. RFC 5280 section 4.1.2.2 requires
-         * positive serial numbers. However, allow zero for self-signed CA
-         * certificates (root CAs) being loaded as trust anchors since they
-         * are explicitly trusted and some legacy root CAs in real-world
-         * trust stores have serial number 0. */
+        /* RFC 5280 section 4.1.2.2 requires conforming CAs to issue
+         * positive serial numbers; the same section notes that verifiers
+         * SHOULD gracefully handle non-conforming certs with zero or
+         * negative serials. wolfSSL's policy is to reject as a security
+         * guard, with an exemption for self-signed CA certs loaded as
+         * explicitly-trusted anchors (some legacy real-world roots have
+         * serial 0).
+         *
+         * Note: cert->selfSigned is a subject/issuer name-hash compare
+         * (see DecodeCertInternal where it's set), not a validated
+         * self-signature. That is acceptable here because the trust
+         * decision is user-driven via CertManagerLoadCA; this check is
+         * only a structural sanity guard. */
         if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-            if (!((type == CA_TYPE || type == TRUSTED_PEER_TYPE) &&
-                  cert->isCA && cert->selfSigned)
-#ifdef WOLFSSL_CERT_REQ
-                && !cert->isCSR
-#endif
-            ) {
+            int isTrustAnchorLoad =
+                (type == CA_TYPE || type == TRUSTED_PEER_TYPE)
+                && cert->isCA && cert->selfSigned;
+            int isCsr = 0;
+        #ifdef WOLFSSL_CERT_REQ
+            isCsr = cert->isCSR;
+        #endif
+            if (!isTrustAnchorLoad && !isCsr) {
                 WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
                 return ASN_PARSE_E;
             }

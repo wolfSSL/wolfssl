@@ -1073,9 +1073,6 @@ int test_SerialNumber0_RootCA(void)
         wolfSSL_CertManagerFree(cm);
         cm = NULL;
     }
-    /* Balance the wolfSSL_Init refcount incremented by internal
-     * wolfSSL_CTX_new_ex calls in CertManagerLoadCA/Verify. */
-    wolfSSL_Cleanup();
 
     /* Test 4: Self-signed non-CA certificate with serial 0 should be rejected */
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
@@ -1086,7 +1083,21 @@ int test_SerialNumber0_RootCA(void)
         wolfSSL_CertManagerFree(cm);
         cm = NULL;
     }
-    wolfSSL_Cleanup();
+
+    /* Test 5: Intermediate CA (CA:TRUE but issuer != subject) with serial 0
+     * must be rejected when loaded as CA_TYPE. Exercises the selfSigned
+     * half of the ParseCertRelative exemption predicate. */
+    {
+        const char* intermediateSerial0File =
+            "./certs/test-serial0/intermediate_serial0.pem";
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, intermediateSerial0File,
+                    NULL), WOLFSSL_SUCCESS);
+        if (cm != NULL) {
+            wolfSSL_CertManagerFree(cm);
+            cm = NULL;
+        }
+    }
 #endif /* !WOLFSSL_NO_ASN_STRICT && !WOLFSSL_PYTHON &&
           !WOLFSSL_ASN_ALLOW_0_SERIAL &&
           !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
