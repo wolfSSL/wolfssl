@@ -1823,7 +1823,7 @@ impl ECC {
             sys::wc_ecc_shared_secret(&mut self.wc_ecc_key,
                 &mut peer_key.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
-        if rc < 0 {
+        if rc != 0 {
             return Err(rc);
         }
         Ok(out_len as usize)
