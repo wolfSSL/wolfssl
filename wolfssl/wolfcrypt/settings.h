@@ -3954,6 +3954,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_LIMITS_H
     #define NO_STRING_H
     #define NO_LIMITS_H
+    #define NO_STDDEF_H
     #define NO_STDLIB_H
     #define NO_STDINT_H
     #define NO_CTYPE_H
