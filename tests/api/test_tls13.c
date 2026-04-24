@@ -2667,6 +2667,101 @@ int test_tls13_pq_groups(void)
     return EXPECT_RESULT();
 }
 
+/* Regression test handling multiple PQC key shares in the ClientHello.
+ *
+ * Previously, the server eagerly ran KEM encapsulation on every PQC/hybrid
+ * key_share entry while parsing the ClientHello, clobbering
+ * ssl->arrays->preMasterSecret with whichever entry was parsed last.
+ * When the ClientHello offers both SecP384R1_MLKEM1024 and pure
+ * ML_KEM_1024, the resulting handshake either produces keys that the
+ * client cannot decrypt (hybrid chosen, pure-ML-KEM secret written) or
+ * trips a BUFFER_E inside the second encapsulation. Either ordering
+ * causes the handshake to fail.
+ *
+ * The test runs a memio TLS 1.3 handshake for both orderings and
+ * expects the handshake to complete successfully with the hybrid group
+ * selected (higher server preference rank). */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
+    !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) && \
+    !defined(WOLFSSL_NO_ML_KEM_1024) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    defined(HAVE_ECC) && (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 384 && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#define TEST_TLS13_MULTI_PQC_KEY_SHARE_ENABLED
+
+/* Run one TLS 1.3 memio handshake where the client offers both
+ * WOLFSSL_SECP384R1MLKEM1024 and WOLFSSL_ML_KEM_1024 in the key_share
+ * extension, in the order dictated by `hybridFirst`. */
+static int test_tls13_multi_pqc_key_share_once(int hybridFirst)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    /* Force the client to include both PQC key shares in the ClientHello
+     * by calling UseKeyShare twice. The order of the UseKeyShare calls
+     * determines the order of the entries in the key_share extension. */
+    if (hybridFirst) {
+        ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_SECP384R1MLKEM1024),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ML_KEM_1024),
+            WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ML_KEM_1024),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_SECP384R1MLKEM1024),
+            WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The server ranks SecP384R1_MLKEM1024 higher than ML_KEM_1024, so
+     * the hybrid group must be selected regardless of client ordering. */
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "SecP384r1MLKEM1024");
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "SecP384r1MLKEM1024");
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif /* TEST_TLS13_MULTI_PQC_KEY_SHARE_ENABLED */
+
+int test_tls13_multi_pqc_key_share(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_MULTI_PQC_KEY_SHARE_ENABLED
+    /* Hybrid first, then pure ML-KEM: pre-fix the server selected the
+     * hybrid but had overwritten preMasterSecret with the pure-KEM
+     * result, producing 32-byte KE Secret instead of 80 and causing the
+     * client to fail to decrypt the server's first encrypted record. */
+    ExpectIntEQ(test_tls13_multi_pqc_key_share_once(1), TEST_SUCCESS);
+
+    /* Pure ML-KEM first, then hybrid: pre-fix the server tripped
+     * BUFFER_E inside the second encapsulation because preMasterSz was
+     * left at 32 from the first call, and the hybrid handler then
+     * overflowed the preMasterSecret buffer. */
+    ExpectIntEQ(test_tls13_multi_pqc_key_share_once(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
     defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET)
 static int test_tls13_read_until_write_ok(WOLFSSL* ssl, void* buf, int bufLen)

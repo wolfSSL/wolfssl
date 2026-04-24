@@ -9164,16 +9164,18 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             wc_curve448_free((curve448_key*)current->key);
 #endif
         }
-#ifdef WOLFSSL_HAVE_MLKEM
         else if (WOLFSSL_NAMED_GROUP_IS_PQC(current->group)) {
+#ifdef WOLFSSL_HAVE_MLKEM
             wc_KyberKey_Free((KyberKey*)current->key);
         #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
             if (current->privKey != NULL) {
                 ForceZero(current->privKey, current->privKeyLen);
             }
         #endif
+#endif
         }
         else if (WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(current->group)) {
+#ifdef WOLFSSL_HAVE_MLKEM
             int ecc_group = 0;
             findEccPqc(&ecc_group, NULL, NULL, current->group);
 
@@ -9211,8 +9213,8 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
                 wc_ecc_free((ecc_key*)current->key);
             #endif
             }
-        }
 #endif
+        }
         else {
 #ifdef HAVE_ECC
         #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
@@ -10373,42 +10375,16 @@ static int TLSX_KeyShareEntry_Parse(const WOLFSSL* ssl, const byte* input,
         *seenGroupsCnt = i + 1;
     }
 
-#if defined(WOLFSSL_HAVE_MLKEM)
-    if ((WOLFSSL_NAMED_GROUP_IS_PQC(group)
-    #if !defined(WOLFSSL_ASYNC_CRYPT)
-         || WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)
-    #endif
-        ) && ssl->options.side == WOLFSSL_SERVER_END) {
-        /* When handling a key share containing a KEM public key on the server
-         * end, we have to perform the encapsulation immediately in order to
-         * send the resulting ciphertext back to the client in the ServerHello
-         * message. As the public key is not stored and we do not modify it, we
-         * don't have to create a copy of it.
-         * In case of a hybrid key exchange, the ECDH part is also performed
-         * immediately (to not split the generation of the master secret).
-         * Hence, we also don't have to store this public key either.
-         *
-         * When WOLFSSL_ASYNC_CRYPT is enabled, this handling is not possible
-         * for the hybrid case, as the ECC part is performed asynchronously,
-         * requiring the key share data to be stored.
-         */
-        ke = (byte *)&input[offset];
-    } else
-#endif
-    {
-        /* Store a copy in the key share object. */
-        ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        if (ke == NULL)
-            return MEMORY_E;
-        XMEMCPY(ke, &input[offset], keLen);
-    }
+    /* Store a copy in the key share object. */
+    ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (ke == NULL)
+        return MEMORY_E;
+    XMEMCPY(ke, &input[offset], keLen);
 
     /* Populate a key share object in the extension. */
     ret = TLSX_KeyShare_Use(ssl, group, keLen, ke, kse, extensions);
     if (ret != 0) {
-        if (ke != &input[offset]) {
-            XFREE(ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        }
+        XFREE(ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         return ret;
     }
 
@@ -11135,46 +11111,8 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
             return ret;
     }
 
-
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-            WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
-        if (TLSX_IsGroupSupported(group)) {
-            ret = TLSX_KeyShare_HandlePqcKeyServer((WOLFSSL*)ssl,
-                                                   keyShareEntry,
-                                                   data, len,
-                                                   ssl->arrays->preMasterSecret,
-                                                   &ssl->arrays->preMasterSz);
-            if (ret != 0)
-                return ret;
-        }
-        else {
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            keyShareEntry->ke = NULL;
-            keyShareEntry->keLen = 0;
-        }
-    }
-    else
-#if !defined(WOLFSSL_ASYNC_CRYPT)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-             WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) {
-        if (TLSX_IsGroupSupported(group)) {
-            ret = TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
-                                                         keyShareEntry,
-                                                         data, len);
-            if (ret != 0)
-                return ret;
-        }
-        else {
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            keyShareEntry->ke = NULL;
-            keyShareEntry->keLen = 0;
-        }
-    }
-    else
-#endif
-#endif
     if (data != NULL) {
+        /* Store the peer data in the key share object. */
         XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->ke = data;
         keyShareEntry->keLen = len;
@@ -11362,7 +11300,10 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
     byte numGroups;
 
     if (ssl->numGroups == 0) {
-        return 0;
+        /* If the user didn't specify a group list with a preferred order,
+         * use the internal preferred group list. */
+        groups = preferredGroup;
+        numGroups = PREFERRED_GROUP_SZ;
     }
     else {
         groups = ssl->group;
@@ -11664,9 +11605,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
 
     /* Use server's preference order. */
     for (clientKSE = list; clientKSE != NULL; clientKSE = clientKSE->next) {
-        if ((clientKSE->ke == NULL) &&
-            (!WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group)) &&
-            (!WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(clientKSE->group)))
+        if (clientKSE->ke == NULL)
             continue;
 
 #ifdef WOLFSSL_SM2
@@ -11755,26 +11694,17 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
         return ret;
 
     if (clientKSE->key == NULL) {
-#ifdef WOLFSSL_HAVE_MLKEM
-        if (WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group)
-    #if !defined(WOLFSSL_ASYNC_CRYPT)
-            || WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(clientKSE->group)
-    #endif
-        ) {
-            /* Going to need the public key (AKA ciphertext). */
-            serverKSE->pubKey = clientKSE->pubKey;
-            clientKSE->pubKey = NULL;
-            serverKSE->pubKeyLen = clientKSE->pubKeyLen;
-            clientKSE->pubKeyLen = 0;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
+        if (WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group)) {
+            ret = TLSX_KeyShare_HandlePqcKeyServer(ssl, serverKSE,
+                    clientKSE->ke, clientKSE->keLen,
+                    ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz);
         }
-        else
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        if (WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(clientKSE->group)) {
+        else if (WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(clientKSE->group)) {
             ret = TLSX_KeyShare_HandlePqcHybridKeyServer(ssl, serverKSE,
                     clientKSE->ke, clientKSE->keLen);
         }
         else
-    #endif
 #endif
         {
             ret = TLSX_KeyShare_GenKey(ssl, serverKSE);
