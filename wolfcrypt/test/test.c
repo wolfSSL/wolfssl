@@ -900,8 +900,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_no_pad_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dh_test(void);
+#ifndef NO_DSA
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dsa_test(void);
+#endif
+#ifdef WOLFCRYPT_HAVE_SRP
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
+#endif
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 #ifdef WC_RNG_BANK_SUPPORT
