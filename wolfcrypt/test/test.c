@@ -1272,7 +1272,7 @@ static void myFipsCb(int ok, int err, const char* hash)
          * fail, fire this callback, and produce millions of lines of
          * redundant output. Exit now -- the hash has been printed for
          * fips-hash.sh to extract, and no test can possibly pass. */
-        exit(IN_CORE_FIPS_E);
+        exit(IN_CORE_FIPS_E); /* NOLINT(concurrency-mt-unsafe) */
 #endif
     }
 #ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
