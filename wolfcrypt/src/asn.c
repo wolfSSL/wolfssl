@@ -18026,6 +18026,19 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
  * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+/* Reject IA5String SAN content that cannot legally appear in
+ * dNSName / rfc822Name / URI per RFC 5280 4.2.1.6. Currently just NUL. */
+static int DecodeGeneralNameCheckChars(const byte* input, int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        if (input[i] == 0) {
+            return ASN_PARSE_E;
+        }
+    }
+    return 0;
+}
+
 static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
                              int len, DecodedCert* cert)
 {
@@ -18034,6 +18047,10 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
 
     /* GeneralName choice: dnsName */
     if (tag == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
+        ret = DecodeGeneralNameCheckChars(input + idx, len);
+        if (ret != 0) {
+            return ret;
+        }
         ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
                 ASN_DNS_TYPE, &cert->altNames);
         if (ret == 0) {
@@ -18061,6 +18078,10 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     }
     /* GeneralName choice: rfc822Name */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
+        ret = DecodeGeneralNameCheckChars(input + idx, len);
+        if (ret != 0) {
+            return ret;
+        }
         ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
                 ASN_RFC822_TYPE, &cert->altEmailNames);
         if (ret == 0) {
@@ -18069,6 +18090,10 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     }
     /* GeneralName choice: uniformResourceIdentifier */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
+        ret = DecodeGeneralNameCheckChars(input + idx, len);
+        if (ret != 0) {
+            return ret;
+        }
         WOLFSSL_MSG("\tPutting URI into list but not using");
 
     #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)

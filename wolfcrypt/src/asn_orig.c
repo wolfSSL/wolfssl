@@ -3200,6 +3200,19 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
     return ret;
 }
 
+/* Reject IA5String SAN content that cannot legally appear in
+ * dNSName / rfc822Name / URI per RFC 5280 4.2.1.6. Currently just NUL. */
+static int DecodeGeneralNameCheckChars(const byte* input, int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        if (input[i] == 0) {
+            return ASN_PARSE_E;
+        }
+    }
+    return 0;
+}
+
 static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -3258,6 +3271,13 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
             length -= (int)(idx - lenStartIdx);
+
+            if ((word32)strLen + idx > sz) {
+                return BUFFER_E;
+            }
+            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
+                return ASN_PARSE_E;
+            }
 
             dnsEntry = AltNameNew(cert->heap);
             if (dnsEntry == NULL) {
@@ -3344,6 +3364,13 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             }
             length -= (int)(idx - lenStartIdx);
 
+            if ((word32)strLen + idx > sz) {
+                return BUFFER_E;
+            }
+            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
+                return ASN_PARSE_E;
+            }
+
             emailEntry = AltNameNew(cert->heap);
             if (emailEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
@@ -3387,6 +3414,10 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             /* check that strLen at index is not past input buffer */
             if ((word32)strLen + idx > sz) {
                 return BUFFER_E;
+            }
+
+            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
+                return ASN_PARSE_E;
             }
 
         #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
