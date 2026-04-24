@@ -1964,7 +1964,7 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(res != 0)
+        Ok(res == 1)
     }
 }
 
