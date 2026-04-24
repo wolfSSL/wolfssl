@@ -5685,9 +5685,14 @@ static int wolfssl_ctx_set_tmp_dh(WOLFSSL_CTX* ctx, unsigned char* p, int pSz,
 
     WOLFSSL_ENTER("wolfSSL_CTX_SetTmpDH");
 
+    if ((ctx == NULL) || (p == NULL) || (g == NULL))
+        ret = BAD_FUNC_ARG;
+
     /* Check the size of the prime meets the requirements of the SSL context. */
-    if (((word16)pSz < ctx->minDhKeySz) || ((word16)pSz > ctx->maxDhKeySz)) {
-        ret = DH_KEY_SIZE_E;
+    if (ret == 1) {
+        if (((word16)pSz < ctx->minDhKeySz) || ((word16)pSz > ctx->maxDhKeySz)) {
+            ret = DH_KEY_SIZE_E;
+        }
     }
 
 #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \

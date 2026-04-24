@@ -35421,7 +35421,7 @@ done:
 
 #ifdef WOLFSSL_PUBLIC_MP
 
-static wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
+static WC_MAYBE_UNUSED wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
     enum wc_HashType hashType, const char* msg, WC_RNG* rng,
     mp_int* r, mp_int* s,
     mp_int* expR, mp_int* expS)
