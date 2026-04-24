@@ -79,6 +79,9 @@ fi
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 %{_libdir}/libwolfssl@LIBSUFFIX@.so.*
+%{_libdir}/cmake/wolfssl/wolfssl-config-version.cmake
+%{_libdir}/cmake/wolfssl/wolfssl-config.cmake
+%{_libdir}/cmake/wolfssl/wolfssl-targets.cmake
 
 %files devel
 %defattr(-,root,root,-)
