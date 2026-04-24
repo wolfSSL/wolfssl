@@ -1442,6 +1442,15 @@ enum {
  */
 #define AEAD_SM4_CCM_LIMIT                       w64From32(0, (1 << 10) - 1)
 
+#ifndef WOLFSSL_COOKIE_LEN
+/* Maximum size for a DTLS cookie */
+#define WOLFSSL_COOKIE_LEN 32
+#endif
+
+#if WOLFSSL_COOKIE_LEN > 255
+#error "WOLFSSL_COOKIE_LEN must be <= 255 per RFC 6347 (opaque<0..2^8-1>)"
+#endif
+
 #if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
 
 #define TLS13_TICKET_NONCE_MAX_SZ 255
@@ -1569,7 +1578,7 @@ enum Misc {
     SEED_LEN     = RAN_LEN * 2, /* tls prf seed length    */
     ID_LEN       = 32,         /* session id length       */
     COOKIE_SECRET_SZ = 14,     /* dtls cookie secret size */
-    MAX_COOKIE_LEN = 32,       /* max dtls cookie size    */
+    MAX_COOKIE_LEN = WOLFSSL_COOKIE_LEN, /* max dtls cookie size */
     COOKIE_SZ    = 20,         /* use a 20 byte cookie    */
     SUITE_LEN    =  2,         /* cipher suite sz length  */
     ENUM_LEN     =  1,         /* always a byte           */
