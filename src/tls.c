@@ -7592,21 +7592,28 @@ static word16 TLSX_CA_Names_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    word16 size = 0;
+    word32 size = OPAQUE16_LEN;
 
-    /* Length of names */
-    size += OPAQUE16_LEN;
     for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL; names = names->next) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
 
         if (name != NULL) {
             /* 16-bit length | SEQ | Len | DER of name */
-            size += (word16)(OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
-                             name->rawLen);
+            word32 entrySz = (word32)OPAQUE16_LEN +
+                             (word32)SetSequence(name->rawLen, seq) +
+                             (word32)name->rawLen;
+            /* Truncate at the 16-bit wire limit rather than overflowing
+             * a word16 and producing a heap over-write. Write() must
+             * mirror this truncation exactly. */
+            if (size + entrySz > WOLFSSL_MAX_16BIT) {
+                WOLFSSL_MSG("CA Names truncated at 16-bit wire limit");
+                break;
+            }
+            size += entrySz;
         }
     }
-    return size;
+    return (word16)size;
 }
 
 static word16 TLSX_CA_Names_Write(void* data, byte* output)
@@ -7614,6 +7621,7 @@ static word16 TLSX_CA_Names_Write(void* data, byte* output)
     WOLFSSL* ssl = (WOLFSSL*)data;
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
     byte* len;
+    word32 written = OPAQUE16_LEN;
 
     /* Reserve space for the length value */
     len = output;
@@ -7623,6 +7631,14 @@ static word16 TLSX_CA_Names_Write(void* data, byte* output)
         WOLFSSL_X509_NAME* name = names->data.name;
 
         if (name != NULL) {
+            word32 entrySz = (word32)OPAQUE16_LEN +
+                             (word32)SetSequence(name->rawLen, seq) +
+                             (word32)name->rawLen;
+            /* Must match GetSize() truncation exactly. */
+            if (written + entrySz > WOLFSSL_MAX_16BIT)
+                break;
+            written += entrySz;
+
             c16toa((word16)name->rawLen +
                    (word16)SetSequence(name->rawLen, seq), output);
             output += OPAQUE16_LEN;
@@ -17770,6 +17786,20 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #ifdef WOLFSSL_SRTP
             case TLSX_USE_SRTP:
                 WOLFSSL_MSG("Use SRTP extension received");
+
+#if defined(WOLFSSL_TLS13)
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions)
+                        return EXT_NOT_ALLOWED;
+                }
+                else
+#endif
+                {
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = SRTP_PARSE(ssl, input + offset, size, isRequest);
                 break;
 #endif
@@ -17864,6 +17894,15 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
                 WOLFSSL_MSG("ECH extension received");
+                if (!IsAtLeastTLSv1_3(ssl->version))
+                    break;
+
+                if (msgType != client_hello &&
+                    msgType != encrypted_extensions &&
+                    msgType != hello_retry_request) {
+                    return EXT_NOT_ALLOWED;
+                }
+
                 ret = ECH_PARSE(ssl, input + offset, size, msgType);
                 break;
 #endif
