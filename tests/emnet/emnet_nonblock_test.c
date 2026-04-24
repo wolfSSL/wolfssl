@@ -1,15 +1,17 @@
 /* emnet_nonblock_test.c -- non-blocking TLS 1.3 handshake over a
- * socketpair, with wolfSSL built for WOLFSSL_EMNET and the recv/send
- * error surface translated by emnet_shim.c.
+ * socketpair, with wolfSSL built for WOLFSSL_EMNET and the canonical
+ * IP_ERR_* lookup provided by IP_SOCK_getsockopt in emnet_shim.c.
+ *
+ * recv/send fall through to glibc's POSIX implementation, returning
+ * -1 with errno set on would-block. This reproduces the integrator
+ * convention in ticket #21673, where wolfSSL_LastError must consult
+ * IP_SOCK_getsockopt(SO_ERROR) rather than trusting the raw recv/send
+ * return value.
  *
  * Asserts the steady-state contract of wolfSSL's WOLFSSL_EMNET path:
  * when the underlying socket would block, wolfSSL_get_error returns
  * WOLFSSL_ERROR_WANT_READ / WOLFSSL_ERROR_WANT_WRITE and the handshake
- * completes without spurious fatal errors. Guards against regressions
- * of a prior bug where the WOLFSSL_EMNET branch in wolfSSL_LastError()
- * was shadowed by a combined WOLFSSL_LINUXKM||WOLFSSL_EMNET arm that
- * inverted the sign of IP_ERR_WOULD_BLOCK, causing TranslateIoReturnCode
- * to surface WOLFSSL_CBIO_ERR_GENERAL on would-block.
+ * completes without spurious fatal errors.
  */
 
 #include <errno.h>
@@ -61,8 +63,13 @@ static void set_nonblock(int fd)
  * success (ready or timeout, caller retries), -1 on hard failure. */
 static int wait_io(struct side *s, short events, int iter)
 {
-    struct pollfd pfd = { .fd = s->fd, .events = events };
-    int r = poll(&pfd, 1, POLL_MS);
+    struct pollfd pfd;
+    int r;
+
+    pfd.fd = s->fd;
+    pfd.events = events;
+    pfd.revents = 0;
+    r = poll(&pfd, 1, POLL_MS);
     if (r >= 0)
         return 0;
     if (errno == EINTR)
@@ -76,15 +83,17 @@ static void *run_side(void *arg)
 {
     struct side *s = (struct side *)arg;
     int iter;
+    int ret;
+    int err;
 
     for (iter = 0; iter < MAX_ITERS; iter++) {
-        int ret = s->fn(s->ssl);
+        ret = s->fn(s->ssl);
         if (ret == WOLFSSL_SUCCESS) {
             s->completed = 1;
             return NULL;
         }
 
-        int err = wolfSSL_get_error(s->ssl, ret);
+        err = wolfSSL_get_error(s->ssl, ret);
         s->last_err = err;
 
         if (err == WOLFSSL_ERROR_WANT_READ) {
@@ -125,6 +134,16 @@ static void *run_side(void *arg)
 int main(void)
 {
     int sv[2];
+    WOLFSSL_CTX *sctx;
+    WOLFSSL_CTX *cctx;
+    WOLFSSL *server_ssl;
+    WOLFSSL *client_ssl;
+    struct side server;
+    struct side client;
+    pthread_t st, ct;
+    int prc;
+    int rc;
+
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0) {
         perror("socketpair");
         return 2;
@@ -134,8 +153,8 @@ int main(void)
 
     wolfSSL_Init();
 
-    WOLFSSL_CTX *sctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-    WOLFSSL_CTX *cctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    sctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    cctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     if (!sctx || !cctx) {
         fprintf(stderr, "wolfSSL_CTX_new failed\n");
         return 2;
@@ -157,8 +176,8 @@ int main(void)
         return 2;
     }
 
-    WOLFSSL *server_ssl = wolfSSL_new(sctx);
-    WOLFSSL *client_ssl = wolfSSL_new(cctx);
+    server_ssl = wolfSSL_new(sctx);
+    client_ssl = wolfSSL_new(cctx);
     if (!server_ssl || !client_ssl) {
         fprintf(stderr, "wolfSSL_new failed\n");
         return 2;
@@ -167,13 +186,17 @@ int main(void)
     wolfSSL_set_fd(server_ssl, sv[0]);
     wolfSSL_set_fd(client_ssl, sv[1]);
 
-    struct side server = { .fd = sv[0], .name = "server",
-                           .ssl = server_ssl, .fn = wolfSSL_accept };
-    struct side client = { .fd = sv[1], .name = "client",
-                           .ssl = client_ssl, .fn = wolfSSL_connect };
+    memset(&server, 0, sizeof(server));
+    memset(&client, 0, sizeof(client));
+    server.fd = sv[0];
+    server.name = "server";
+    server.ssl = server_ssl;
+    server.fn = wolfSSL_accept;
+    client.fd = sv[1];
+    client.name = "client";
+    client.ssl = client_ssl;
+    client.fn = wolfSSL_connect;
 
-    pthread_t st, ct;
-    int prc;
     prc = pthread_create(&st, NULL, run_side, &server);
     if (prc != 0) {
         fprintf(stderr, "FAIL: pthread_create(server): %s\n", strerror(prc));
@@ -196,7 +219,7 @@ int main(void)
         return 2;
     }
 
-    int rc = 0;
+    rc = 0;
     if (server.failed || client.failed) {
         rc = 1;
     } else if (!server.completed || !client.completed) {

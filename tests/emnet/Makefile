@@ -9,6 +9,12 @@
 #               -I$$(pwd)/tests/emnet"
 #   make
 #   make -C tests/emnet run
+#
+# recv/send fall through to glibc's POSIX implementation (-1 + errno
+# on would-block); wolfSSL_LastError then retrieves the canonical
+# IP_ERR_* via IP_SOCK_getsockopt in the shim. This is the integrator
+# convention that reproduces ticket #21673 and the one wolfSSL's
+# WOLFSSL_EMNET error path must handle correctly.
 
 CURDIR     := $(shell pwd)
 WOLFSSL_ROOT := $(abspath $(CURDIR)/../..)
@@ -19,7 +25,6 @@ CFLAGS_TEST := -Wall -Wextra -O2 -g \
     -DWOLFSSL_EMNET \
     -I$(CURDIR) \
     -I$(WOLFSSL_ROOT)
-LDFLAGS_TEST := -Wl,--wrap=recv,--wrap=send
 LIBS_TEST := $(WOLFSSL_LIB) -lpthread -lm
 
 TEST_BIN := emnet_nonblock_test
@@ -35,8 +40,10 @@ check-lib:
 	    exit 1; \
 	fi
 
-$(TEST_BIN): emnet_nonblock_test.o emnet_shim.o check-lib
-	$(CC) $(LDFLAGS_TEST) -o $@ emnet_nonblock_test.o emnet_shim.o $(LIBS_TEST)
+# check-lib is an order-only dependency (after |) so its phony status
+# does not force the binary to relink on every `make` invocation.
+$(TEST_BIN): emnet_nonblock_test.o emnet_shim.o | check-lib
+	$(CC) -o $@ emnet_nonblock_test.o emnet_shim.o $(LIBS_TEST)
 
 emnet_nonblock_test.o: emnet_nonblock_test.c
 	$(CC) $(CFLAGS_TEST) -c $< -o $@

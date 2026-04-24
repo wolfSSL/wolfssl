@@ -1,20 +1,12 @@
 /* emnet_shim.c -- POSIX-backed shim for the emNET (embOS/IP) socket ABI
  * used by wolfSSL when WOLFSSL_EMNET is defined.
  *
- * The goal is to reproduce the error-reporting contract of emNET on top
- * of stock Linux BSD sockets: when the underlying socket signals
- * would-block, connection reset, etc., the shim surfaces the
- * corresponding IP_ERR_* negative constant (emNET convention) instead
- * of -1/errno (POSIX convention). This is exactly what wolfSSL's
- * WOLFSSL_EMNET branch in wolfio.h/wolfio.c was written to consume, so
- * CI can drive the non-blocking handshake paths without the real
- * SEGGER stack.
- *
- * Linker wrapping:
- *   -Wl,--wrap=recv,--wrap=send
- * hooks wolfSSL's RECV_FUNCTION/SEND_FUNCTION (which are the
- * unqualified POSIX send/recv on the WOLFSSL_EMNET build) without
- * patching any wolfSSL source.
+ * Provides the canonical error lookup path wolfSSL's wolfSSL_LastError
+ * relies on: IP_SOCK_getsockopt(SO_ERROR) returns the pending IP_ERR_*
+ * for a socket, as required by UM07001's emNET API contract. On top of
+ * Linux BSD sockets this is emulated by consulting POSIX SO_ERROR plus
+ * the thread-local errno (because Linux does not store transient
+ * would-block conditions in SO_ERROR).
  */
 
 #include "IP/IP.h"
@@ -24,10 +16,6 @@
 #include <errno.h>
 #include <stddef.h>
 #include <string.h>
-
-/* Forward declarations for the linker's --wrap mechanism. */
-ssize_t __real_recv(int sd, void *buf, size_t len, int flags);
-ssize_t __real_send(int sd, const void *buf, size_t len, int flags);
 
 /* Translate a POSIX errno value into the emNET IP_ERR_* space. */
 static int emnet_errno_to_ip_err(int err)
@@ -50,54 +38,45 @@ static int emnet_errno_to_ip_err(int err)
     }
 }
 
-/* recv wrapper: preserve success/close semantics; on error return the
- * emNET-style negative error code in place of -1/errno. wolfSSL's
- * TranslateIoReturnCode uses err < 0 to branch into error handling and
- * then compares against SOCKET_EWOULDBLOCK == IP_ERR_WOULD_BLOCK. */
-ssize_t __wrap_recv(int sd, void *buf, size_t len, int flags)
+/* IP_SOCK_getsockopt: emulates the emNET ABI on top of POSIX. This is
+ * the canonical error source for WOLFSSL_EMNET code paths - wolfSSL
+ * calls it after a negative recv/send return to retrieve the real
+ * IP_ERR_* value.
+ *
+ * For SO_ERROR we deliberately diverge from a pure POSIX pass-through:
+ * Linux stores sticky socket errors (ECONNRESET etc.) in SO_ERROR but
+ * does NOT store transient would-block conditions (EAGAIN/EWOULDBLOCK)
+ * there - those live only in thread-local errno after the failing
+ * syscall. Real emNET's SO_ERROR does carry would-block. To reproduce
+ * that contract here, read POSIX SO_ERROR first, fall back to errno
+ * when SO_ERROR is empty, then translate into the IP_ERR_* space. */
+int IP_SOCK_getsockopt(int hSock, int Level, int Name,
+                       void *pVal, int ValLen)
 {
-    ssize_t ret = __real_recv(sd, buf, len, flags);
-    if (ret < 0) {
-        return (ssize_t)emnet_errno_to_ip_err(errno);
-    }
-    return ret;
-}
-
-ssize_t __wrap_send(int sd, const void *buf, size_t len, int flags)
-{
-    ssize_t ret = __real_send(sd, buf, len, flags);
-    if (ret < 0) {
-        return (ssize_t)emnet_errno_to_ip_err(errno);
-    }
-    return ret;
-}
-
-/* IP_SOCK_getsockopt: kept to satisfy the emNET ABI surface expected
- * by WOLFSSL_EMNET-linked code. Delegates to POSIX getsockopt and, for
- * SO_ERROR, maps the returned POSIX errno value into emNET's IP_ERR_*
- * space so callers see emNET-style error reporting. */
-int IP_SOCK_getsockopt(int sd, int level, int optname,
-                       void *optval, int *optlen)
-{
-    socklen_t posix_len;
-    int rc;
-
-    if (optlen == NULL) {
+    if (pVal == NULL || ValLen <= 0) {
         errno = EINVAL;
         return -1;
     }
-    posix_len = (socklen_t)*optlen;
-    rc = getsockopt(sd, level, optname, optval, &posix_len);
-    *optlen = (int)posix_len;
 
-    if (rc == 0 && level == SOL_SOCKET && optname == SO_ERROR
-            && optval != NULL && posix_len >= (socklen_t)sizeof(int)) {
-        int so_err;
-        memcpy(&so_err, optval, sizeof(so_err));
-        if (so_err != 0) {
-            so_err = emnet_errno_to_ip_err(so_err);
-            memcpy(optval, &so_err, sizeof(so_err));
-        }
+    if (Level == SOL_SOCKET && Name == SO_ERROR
+            && ValLen >= (int)sizeof(int)) {
+        int       saved_errno = errno;
+        int       so_err      = 0;
+        socklen_t posix_len   = (socklen_t)sizeof(so_err);
+        int       ip_err;
+
+        (void)getsockopt(hSock, SOL_SOCKET, SO_ERROR, &so_err, &posix_len);
+        if (so_err == 0)
+            so_err = saved_errno;
+
+        ip_err = emnet_errno_to_ip_err(so_err);
+        memcpy(pVal, &ip_err, sizeof(ip_err));
+        return 0;
     }
-    return rc;
+
+    /* Pass-through for other options. */
+    {
+        socklen_t posix_len = (socklen_t)ValLen;
+        return getsockopt(hSock, Level, Name, pVal, &posix_len);
+    }
 }

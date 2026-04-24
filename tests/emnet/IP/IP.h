@@ -4,9 +4,10 @@
  * source.
  *
  * Scope: enough to build wolfSSL with -DWOLFSSL_EMNET on a POSIX host
- * for CI test purposes. Only error constants and IP_SOCK_getsockopt are
- * provided here; the runtime behaviour of send/recv under emNET is
- * emulated by emnet_shim.c via linker --wrap.
+ * for CI test purposes. Only error constants and IP_SOCK_getsockopt
+ * are provided here; send/recv fall through to glibc's POSIX
+ * implementation, and the canonical IP_ERR_* lookup is emulated by
+ * IP_SOCK_getsockopt in emnet_shim.c.
  */
 
 #ifndef WOLFSSL_EMNET_SHIM_IP_H
@@ -32,10 +33,11 @@ extern "C" {
 #define IP_ERR_PIPE          (-13)
 #define IP_ERR_FAULT         (-25)
 
-/* BSD-style socket option retrieval. Signature matches the SEGGER API:
- * length is passed by pointer of type int*, unlike POSIX socklen_t*. */
-int IP_SOCK_getsockopt(int sd, int level, int optname,
-                       void *optval, int *optlen);
+/* BSD-style socket option retrieval. Signature matches the SEGGER
+ * emNET API (UM07001, IP_Socket.h): the length is passed by value as
+ * a plain int, not a POSIX socklen_t* / int*. */
+int IP_SOCK_getsockopt(int hSock, int Level, int Name,
+                       void *pVal, int ValLen);
 
 #ifdef __cplusplus
 }
