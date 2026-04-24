@@ -15266,6 +15266,62 @@ static int test_wolfSSL_Tls13_ECH_long_SNI(void)
 
     return EXPECT_RESULT();
 }
+
+/* Client ctx_ready callback: disable OuterExtensions encoding at CTX level */
+static int test_ech_client_ctx_ready_disable_oe(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_SetEchEncodeOE(ctx, 0);
+    if (ctx->disableEchEncodeOE != 1)
+        return TEST_FAIL;
+    return TEST_SUCCESS;
+}
+
+/* check that OuterExtensions encoding for ECH can be disabled */
+static int test_wolfSSL_Tls13_ECH_outer_extensions(void)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+
+    /* test CTX-level disable */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ctx_ready = test_ech_client_ctx_ready_disable_oe;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.disableEchEncodeOE, 1);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* test SSL-level disable */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.disableEchEncodeOE, 0);
+
+    wolfSSL_SetEchEncodeOE(test_ctx.c_ssl, 0);
+    ExpectIntEQ(test_ctx.c_ssl->options.disableEchEncodeOE, 1);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 /* verify that ECH can be enabled/disabled without issue */
@@ -36682,6 +36738,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
     TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_outer_extensions),
 #endif
     TEST_DECL(test_wolfSSL_Tls13_ECH_enable_disable),
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */

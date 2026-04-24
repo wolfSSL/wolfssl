@@ -1230,6 +1230,8 @@ WOLFSSL_API int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
 
 WOLFSSL_API void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable);
 
+WOLFSSL_API void wolfSSL_CTX_SetEchEncodeOE(WOLFSSL_CTX* ctx, byte enable);
+
 WOLFSSL_API int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl,
     const char* echConfigs64, word32 echConfigs64Len);
 
@@ -1240,6 +1242,8 @@ WOLFSSL_API int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* echConfigs,
     word32* echConfigsLen);
 
 WOLFSSL_API void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable);
+
+WOLFSSL_API void wolfSSL_SetEchEncodeOE(WOLFSSL* ssl, byte enable);
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 #ifdef HAVE_POLY1305

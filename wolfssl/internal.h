@@ -3984,6 +3984,7 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     byte        disableECH:1;
+    byte        disableEchEncodeOE:1;
 #endif
     word16      minProto:1; /* sets min to min available */
     word16      maxProto:1; /* sets max to max available */
@@ -5183,6 +5184,7 @@ struct Options {
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            echAccepted:1;
     byte              disableECH:1;           /* Did the user disable ech */
+    word16            disableEchEncodeOE:1;   /* OuterExtensions encoding */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;

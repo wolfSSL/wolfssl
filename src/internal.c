@@ -8020,6 +8020,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     ssl->options.disableECH         = ctx->disableECH;
+    ssl->options.disableEchEncodeOE = ctx->disableEchEncodeOE;
 #endif
 
     /* default alert state (none) */

@@ -244,6 +244,14 @@ void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable)
     }
 }
 
+/* set/unset OuterExtensions usage on the client-side
+ * OuterExtensions can dramatically decrease the size of the inner hello */
+void wolfSSL_CTX_SetEchEncodeOE(WOLFSSL_CTX* ctx, byte enable)
+{
+    if (ctx != NULL)
+        ctx->disableEchEncodeOE = !enable;
+}
+
 /* set the ech config from base64 for our client ssl object, base64 is the
  * format ech configs are sent using dns records */
 int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, const char* echConfigs64,
@@ -444,6 +452,14 @@ void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable)
             ssl->echConfigs = NULL;
         }
     }
+}
+
+/* set/unset OuterExtensions usage on the client-side
+ * OuterExtensions can dramatically decrease the size of the inner hello */
+void wolfSSL_SetEchEncodeOE(WOLFSSL* ssl, byte enable)
+{
+    if (ssl != NULL)
+        ssl->options.disableEchEncodeOE = !enable;
 }
 
 int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
