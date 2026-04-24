@@ -4590,7 +4590,7 @@ int test_tls13_empty_record_limit(void)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    int recSz;
+    int recSz = 0;
     /* Send exactly WOLFSSL_MAX_EMPTY_RECORDS to pin the boundary check.
      * The Nth record increments the counter to N, and `N >= N` triggers
      * the error. Sending one more would let a `>=` -> `>` mutation survive
@@ -4608,16 +4608,18 @@ int test_tls13_empty_record_limit(void)
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
-    /* Consume any post-handshake messages (e.g. NewSessionTicket). */
-    wolfSSL_read(ssl_c, buf, sizeof(buf));
-    test_memio_clear_buffer(&test_ctx, 0);
-    test_memio_clear_buffer(&test_ctx, 1);
+    if (EXPECT_SUCCESS()) {
+        /* Consume any post-handshake messages (e.g. NewSessionTicket). */
+        wolfSSL_read(ssl_c, buf, sizeof(buf));
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
 
-    /* Get the size of an encrypted zero-length app data record. */
-    recSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 0,
-                              application_data, 0, 1, 0);
-    ExpectIntGT(recSz, 0);
-    ExpectIntLE(recSz, (int)sizeof(rec));
+        /* Get the size of an encrypted zero-length app data record. */
+        recSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 0,
+                                  application_data, 0, 1, 0);
+        ExpectIntGT(recSz, 0);
+        ExpectIntLE(recSz, (int)sizeof(rec));
+    }
 
     /* Build all empty records into one contiguous buffer. */
     if (EXPECT_SUCCESS()) {
@@ -4664,15 +4666,17 @@ int test_tls13_empty_record_limit(void)
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
-    wolfSSL_read(ssl_c, buf, sizeof(buf));
-    test_memio_clear_buffer(&test_ctx, 0);
-    test_memio_clear_buffer(&test_ctx, 1);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_read(ssl_c, buf, sizeof(buf));
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
 
-    recSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 0,
-                              application_data, 0, 1, 0);
-    ExpectIntGT(recSz, 0);
+        recSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 0,
+                                  application_data, 0, 1, 0);
+        ExpectIntGT(recSz, 0);
+    }
 
-    {
+    if (EXPECT_SUCCESS()) {
         int emptyBefore = WOLFSSL_MAX_EMPTY_RECORDS - 1;
         int emptyAfter = WOLFSSL_MAX_EMPTY_RECORDS - 1;
         int dataRecSz;
