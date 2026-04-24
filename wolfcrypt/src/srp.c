@@ -378,6 +378,8 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (srp->salt) {
         ForceZero(srp->salt, srp->saltSz);
         XFREE(srp->salt, srp->heap, DYNAMIC_TYPE_SRP);
+        srp->salt = NULL;
+        srp->saltSz = 0;
     }
 
     srp->salt = (byte*)XMALLOC(saltSz, srp->heap, DYNAMIC_TYPE_SRP);
