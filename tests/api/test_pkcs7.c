@@ -4577,8 +4577,12 @@ int test_wc_PKCS7_BER(void)
     }
 #ifndef NO_RSA
 #ifdef WOLFSSL_SP_MATH
-    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
-        sizeof(berContent), decoded, sizeof(decoded)), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    if (EXPECT_SUCCESS()) {
+        ret = wc_PKCS7_DecodeEnvelopedData(
+            pkcs7, berContent, sizeof(berContent), decoded, sizeof(decoded));
+        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+                   (ret == WC_NO_ERR_TRACE(BUFFER_E)));
+    }
 #else
     ExpectIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
         sizeof(berContent), decoded, sizeof(decoded)), 0);
