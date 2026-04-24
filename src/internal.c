@@ -8665,6 +8665,9 @@ void FreeKeyExchange(WOLFSSL* ssl)
 {
     /* Cleanup signature buffer */
     if (ssl->buffers.sig.buffer) {
+        /* May transiently hold the client's DH private exponent in the
+         * TLS 1.2 diffie_hellman_kea / dhe_psk_kea paths. */
+        ForceZero(ssl->buffers.sig.buffer, ssl->buffers.sig.length);
         XFREE(ssl->buffers.sig.buffer, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         ssl->buffers.sig.buffer = NULL;
         ssl->buffers.sig.length = 0;

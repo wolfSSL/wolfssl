@@ -2459,11 +2459,15 @@ static void FreeSetupKeysArgs(WOLFSSL* ssl, void* pArgs)
         args->key->type = WC_PK_TYPE_NONE;
         args->key->initPriv = 0; args->key->initPub = 0;
 
+        /* Scrub the raw DH private exponent (and any other key material
+         * embedded in the union) before release. wc_FreeDhKey above only
+         * clears the mp_int DhKey, not the separate privKey byte array.
+         * Use ForceZero (rather than XMEMSET) so the wipe cannot be
+         * elided by the optimizer. */
+        ForceZero(args->key, sizeof(*args->key));
 #ifdef WOLFSSL_ASYNC_CRYPT
         XFREE(args->key, NULL, DYNAMIC_TYPE_SNIFFER_KEY);
         args->key = NULL;
-#else
-        XMEMSET(args->key, 0, sizeof(args->key));
 #endif
     }
 

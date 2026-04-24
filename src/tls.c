@@ -9161,6 +9161,9 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
         if (WOLFSSL_NAMED_GROUP_IS_FFDHE(current->group)) {
 #ifndef NO_DH
             wc_FreeDhKey((DhKey*)current->key);
+            if (current->privKey != NULL && current->privKeyLen > 0) {
+                ForceZero(current->privKey, current->privKeyLen);
+            }
 #endif
         }
         else if (current->group == WOLFSSL_ECC_X25519) {
