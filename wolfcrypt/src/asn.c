@@ -22546,17 +22546,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         }
 
         #ifdef HAVE_OCSP
-        if (type != CA_TYPE &&
-                                                type != TRUSTED_PEER_TYPE) {
-            /* Need the CA's public key hash for OCSP */
-            if (cert->ca) {
-                XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
-                    KEYID_SIZE);
-            }
-            else if (cert->selfSigned) {
-                XMEMCPY(cert->issuerKeyHash, cert->subjectKeyHash,
-                    KEYID_SIZE);
-            }
+        /* Needed for OCSP requests, and for binding responder authorization
+         * to CertID's issuerKeyHash when this cert becomes a Signer. */
+        if (cert->ca) {
+            XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
+                KEYID_SIZE);
+        }
+        else if (cert->selfSigned) {
+            XMEMCPY(cert->issuerKeyHash, cert->subjectKeyHash,
+                KEYID_SIZE);
         }
         #endif /* HAVE_OCSP */
     }
@@ -22858,6 +22856,8 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
     #endif
     #ifdef HAVE_OCSP
         XMEMCPY(signer->subjectKeyHash, cert->subjectKeyHash,
+                KEYID_SIZE);
+        XMEMCPY(signer->issuerKeyHash, cert->issuerKeyHash,
                 KEYID_SIZE);
     #endif
         signer->keyUsage = cert->extKeyUsageSet ? cert->extKeyUsage
@@ -32876,7 +32876,8 @@ static int OcspRespCheck(OcspResponse *resp, Signer *responder, void* vp)
         return -1;
 
     ret = CheckOcspResponder(resp, responder->subjectNameHash,
-            responder->extKeyUsage, responder->issuerNameHash, vp);
+            responder->subjectKeyHash, responder->extKeyUsage,
+            responder->issuerNameHash, responder->issuerKeyHash, vp);
     if (ret != 0)
         return -1;
 
@@ -32964,8 +32965,9 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
     if (ret == 0 && !noVerify) {
-        ret = CheckOcspResponder(resp, cert->subjectHash, cert->extExtKeyUsage,
-                cert->issuerHash, cm);
+        ret = CheckOcspResponder(resp, cert->subjectHash, cert->subjectKeyHash,
+                cert->extExtKeyUsage, cert->issuerHash,
+                (cert->ca != NULL) ? cert->ca->subjectKeyHash : NULL, cm);
         if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate issuer check failed");
             goto err;
