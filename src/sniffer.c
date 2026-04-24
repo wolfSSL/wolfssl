@@ -7810,8 +7810,8 @@ int ssl_RemoveSession(const char* clientIp, int clientPort,
         if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6,
                        sizeof(serverAddr.ip6)) == 1)
     #elif defined(FREESCALE_MQX)
-        if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
-                       sizeof(clientAddr.ip6)) == RTCS_OK)
+        if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6,
+                       sizeof(serverAddr.ip6)) == RTCS_OK)
     #else
         if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6) == 1)
     #endif
