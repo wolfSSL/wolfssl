@@ -15125,11 +15125,20 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 {
     int    ret = 0;
     TLSX*  extension;
-    word16 offset = 0;
-    word16 length_offset = 0;
+    /* Use word32 to symmetrize with TLSX_GetSize -- a single extension can
+     * contribute up to 0x10003 bytes (4-byte type/length header + 0xFFFF
+     * payload), which would word16-overflow undetectably (e.g. wrap to a
+     * value still above prevOffset). Per-iteration and aggregate bounds are
+     * checked below before truncating back into the word16 wire fields.
+     * Callees that take a word16* offset use the cbShim pattern (init to 0,
+     * then add the returned delta to the word32 accumulator). */
+    word32 offset = 0;
+    word32 length_offset = 0;
     word32 prevOffset;
+    word16 cbShim = 0;
     byte   isRequest = (msgType == client_hello ||
                         msgType == certificate_request);
+    (void)cbShim;
 
     while ((extension = list)) {
         list = extension->next;
@@ -15249,7 +15258,9 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             case TLSX_ENCRYPT_THEN_MAC:
                 WOLFSSL_MSG("Encrypt-Then-Mac extension to write");
-                ret = ETM_WRITE(extension->data, output, msgType, &offset);
+                cbShim = 0;
+                ret = ETM_WRITE(extension->data, output, msgType, &cbShim);
+                offset += cbShim;
                 break;
 #endif /* HAVE_ENCRYPT_THEN_MAC */
 
@@ -15257,20 +15268,26 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             case TLSX_PRE_SHARED_KEY:
                 WOLFSSL_MSG("Pre-Shared Key extension to write");
+                cbShim = 0;
                 ret = PSK_WRITE((PreSharedKey*)extension->data, output + offset,
-                                                              msgType, &offset);
+                                                              msgType, &cbShim);
+                offset += cbShim;
                 break;
 
         #ifdef WOLFSSL_TLS13
             case TLSX_PSK_KEY_EXCHANGE_MODES:
                 WOLFSSL_MSG("PSK Key Exchange Modes extension to write");
+                cbShim = 0;
                 ret = PKM_WRITE((byte)extension->val, output + offset, msgType,
-                                                                       &offset);
+                                                                       &cbShim);
+                offset += cbShim;
                 break;
         #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
             case TLSX_CERT_WITH_EXTERN_PSK:
                 WOLFSSL_MSG("Cert with external PSK extension to write");
-                ret = PSK_WITH_CERT_WRITE(output + offset, msgType, &offset);
+                cbShim = 0;
+                ret = PSK_WITH_CERT_WRITE(output + offset, msgType, &cbShim);
+                offset += cbShim;
                 break;
         #endif
         #endif
@@ -15284,28 +15301,36 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Supported Versions extension to write");
+                cbShim = 0;
                 ret = SV_WRITE(extension->data, output + offset, msgType,
-                                                                       &offset);
+                                                                       &cbShim);
+                offset += cbShim;
                 break;
 
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension to write");
+                cbShim = 0;
                 ret = CKE_WRITE((Cookie*)extension->data, output + offset,
-                                msgType, &offset);
+                                msgType, &cbShim);
+                offset += cbShim;
                 break;
 
     #ifdef WOLFSSL_EARLY_DATA
             case TLSX_EARLY_DATA:
                 WOLFSSL_MSG("Early Data extension to write");
+                cbShim = 0;
                 ret = EDI_WRITE(extension->val, output + offset, msgType,
-                                                                       &offset);
+                                                                       &cbShim);
+                offset += cbShim;
                 break;
     #endif
 
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
                 WOLFSSL_MSG("Post-Handshake Authentication extension to write");
-                ret = PHA_WRITE(output + offset, msgType, &offset);
+                cbShim = 0;
+                ret = PHA_WRITE(output + offset, msgType, &cbShim);
+                offset += cbShim;
                 break;
     #endif
 
@@ -15361,16 +15386,26 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
                 WOLFSSL_MSG("ECH extension to write");
+                cbShim = 0;
                 ret = ECH_WRITE((WOLFSSL_ECH*)extension->data, msgType,
-                    output + offset, &offset);
+                    output + offset, &cbShim);
+                offset += cbShim;
                 break;
 #endif
             default:
                 break;
         }
 
+        /* Per-extension data length is a 2-byte wire field; reject any
+         * single extension whose payload exceeds that before truncating. */
+        if (offset - length_offset > WOLFSSL_MAX_16BIT) {
+            WOLFSSL_MSG("TLSX_Write single extension length exceeds word16");
+            return BUFFER_E;
+        }
+
         /* writes extension data length. */
-        c16toa(offset - length_offset, output + length_offset - OPAQUE16_LEN);
+        c16toa((word16)(offset - length_offset),
+               output + length_offset - OPAQUE16_LEN);
 
         /* marks the extension as processed so ctx level */
         /* extensions don't overlap with ssl level ones. */
@@ -15381,7 +15416,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             break;
 
         if (offset <= prevOffset) {
-            WOLFSSL_MSG("TLSX_Write extension length exceeds word16");
+            WOLFSSL_MSG("TLSX_Write extension made no progress");
             return BUFFER_E;
         }
     }
@@ -15391,11 +15426,11 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
      * unchanged and return the original failure reason so callers
      * see the real error instead of a masking BUFFER_E. */
     if (ret == 0) {
-        if ((word32)*pOffset + (word32)offset > WOLFSSL_MAX_16BIT) {
+        if ((word32)*pOffset + offset > WOLFSSL_MAX_16BIT) {
             WOLFSSL_MSG("TLSX_Write total extensions length exceeds word16");
             return BUFFER_E;
         }
-        *pOffset += offset;
+        *pOffset += (word16)offset;
     }
 
     return ret;
