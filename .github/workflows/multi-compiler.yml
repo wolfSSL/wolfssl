@@ -51,7 +51,7 @@ jobs:
         env:
             CC: ${{ matrix.CC }}
             CXX: ${{ matrix.CXX }}
-        run: ./autogen.sh && ./configure CFLAGS="-pedantic -Wdeclaration-after-statement" && make && make dist
+        run: ./autogen.sh && ./configure CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference" && make && make dist
       - name: Show log on errors
         if: ${{ failure() }}
         run: |
