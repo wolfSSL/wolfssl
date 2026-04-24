@@ -11232,7 +11232,8 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
 int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                           int curve_id)
 {
-    return wc_ecc_import_x963_ex2(in, inLen, key, curve_id, 0);
+    /* treat as untrusted: validate the point is on the curve */
+    return wc_ecc_import_x963_ex2(in, inLen, key, curve_id, 1);
 }
 
 WOLFSSL_ABI
