@@ -917,7 +917,7 @@ int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
     void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz)
 {
     if (hpke == NULL || context == NULL || ephemeralKey == NULL ||
-        receiverKey == NULL || (info == NULL && infoSz > 0)) {
+        receiverKey == NULL || (info == NULL && infoSz != 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -935,7 +935,7 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     int ret;
     byte nonce[HPKE_Nn_MAX];
     WC_DECLARE_VAR(aes, Aes, 1, 0);
-    if (hpke == NULL || context == NULL || (aad == NULL && aadSz > 0) ||
+    if (hpke == NULL || context == NULL || (aad == NULL && aadSz != 0) ||
         plaintext == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -1160,7 +1160,7 @@ int wc_HpkeInitOpenContext(Hpke* hpke, HpkeBaseContext* context,
     word32 infoSz)
 {
     if (hpke == NULL || context == NULL || receiverKey == NULL || pubKey == NULL
-        || (info == NULL && infoSz > 0)) {
+        || (info == NULL && infoSz != 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -1175,7 +1175,8 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
     int ret;
     byte nonce[HPKE_Nn_MAX];
     WC_DECLARE_VAR(aes, Aes, 1, 0);
-    if (hpke == NULL || context == NULL || ciphertext == NULL || out == NULL) {
+    if (hpke == NULL || context == NULL || (aad == NULL && aadSz != 0) ||
+        ciphertext == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
 

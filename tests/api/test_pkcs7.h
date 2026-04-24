@@ -38,6 +38,14 @@ int test_wc_PKCS7_EncodeSignedData_RSA_PSS(void);
     !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
 int test_wc_PKCS7_EnvelopedData_KTRI_RSA_PSS(void);
 #endif
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_AES_256) && !defined(NO_HMAC) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
+    (defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024) || \
+     !defined(NO_FILESYSTEM))
+int test_wc_PKCS7_EnvelopedData_KTRI_BadRsaPad(void);
+#endif
 int test_wc_PKCS7_EncodeSignedData_ex(void);
 int test_wc_PKCS7_VerifySignedData_RSA(void);
 int test_wc_PKCS7_VerifySignedData_ECC(void);
@@ -57,6 +65,7 @@ int test_wc_PKCS7_SetOriEncryptCtx(void);
 int test_wc_PKCS7_SetOriDecryptCtx(void);
 int test_wc_PKCS7_DecodeCompressedData(void);
 int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void);
+int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void);
 int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
 
@@ -82,6 +91,18 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
 #define TEST_PKCS7_RSA_PSS_ED_DECL
 #endif
 
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_AES_256) && !defined(NO_HMAC) && \
+    !defined(WOLFSSL_NO_MALLOC) && \
+    (defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024) || \
+     !defined(NO_FILESYSTEM))
+#define TEST_PKCS7_KTRI_BADRSAPAD_DECL \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_EnvelopedData_KTRI_BadRsaPad),
+#else
+#define TEST_PKCS7_KTRI_BADRSAPAD_DECL
+#endif
+
 #define TEST_PKCS7_SIGNED_DATA_DECLS                                    \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_InitWithCert),            \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeData),              \
@@ -100,6 +121,7 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_EncodeDecodeEnvelopedData),   \
     TEST_PKCS7_RSA_PSS_ED_DECL                                              \
+    TEST_PKCS7_KTRI_BADRSAPAD_DECL                                          \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_SetAESKeyWrapUnwrapCb),       \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_GetEnvelopedDataKariRid),     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_EncodeEncryptedData),         \
@@ -108,7 +130,8 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeOneSymmetricKey),       \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_SetOriEncryptCtx),            \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_SetOriDecryptCtx),            \
-    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients)
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients), \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen)
 
 #define TEST_PKCS7_SIGNED_ENCRYPTED_DATA_DECLS                              \
     TEST_DECL_GROUP("pkcs7_sed", test_wc_PKCS7_signed_enveloped)

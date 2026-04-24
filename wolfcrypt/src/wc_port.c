@@ -106,6 +106,9 @@ Threading/Mutex options:
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG)
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 #ifdef FREESCALE_LTC_TFM
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
@@ -337,6 +340,16 @@ int wolfCrypt_Init(void)
         ret = wolfSSL_CryptHwMutexInit();
         if (ret != 0) {
             WOLFSSL_MSG("Hw crypt mutex init failed");
+            return ret;
+        }
+    #endif
+
+    #if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+        !defined(HAVE_SELFTEST) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+        ret = wc_DrbgState_MutexInit();
+        if (ret != 0) {
+            WOLFSSL_MSG("DRBG state mutex init failed");
             return ret;
         }
     #endif
@@ -657,6 +670,12 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WOLF_CRYPTO_CB
         wc_CryptoCb_Cleanup();
+    #endif
+
+    #if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+        !defined(HAVE_SELFTEST) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+        wc_DrbgState_MutexFree();
     #endif
 
     #if defined(WOLFSSL_MEM_FAIL_COUNT) && defined(WOLFCRYPT_ONLY)

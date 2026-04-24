@@ -94,6 +94,24 @@ int test_wc_CryptoCb_AesSetKey(void);
 int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void);
 #endif
 
+/* These test functions always have a (possibly empty) definition in
+ * test_aes.c so that callers can reference them unconditionally.  Declare
+ * the prototypes unconditionally to satisfy -Wmissing-prototypes.  The
+ * TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL macro below, however, only registers
+ * them with the test harness when the real bodies are compiled in. */
+int test_wc_CryptoCb_Tls13_Key_Zero_After_Offload(void);
+int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void);
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#define TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_Tls13_Key_Zero_After_Offload) \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload)
+#else
+#define TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL
+#endif
+
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_AES_SETKEY) && \
     !defined(NO_AES) && defined(HAVE_AESGCM)
 #define TEST_CRYPTOCB_AES_SETKEY_DECL , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesSetKey), \
@@ -153,7 +171,8 @@ int test_wc_CryptoCb_AesGcm_EncryptDecrypt(void);
     TEST_DECL_GROUP("aes", test_wc_AesCcm_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCfb_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesOfb_MonteCarlo)     \
-    TEST_CRYPTOCB_AES_SETKEY_DECL
+    TEST_CRYPTOCB_AES_SETKEY_DECL                         \
+    TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL
 
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)

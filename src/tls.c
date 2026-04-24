@@ -2816,6 +2816,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         } else {
             word16 listLen;
 
+            if (extLen < OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
             ato16(clientHello + offset, &listLen);
             offset += OPAQUE16_LEN;
 
@@ -3627,6 +3630,14 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
 
     if (chain && chain->buffer) {
         while (ret == 0 && pos + OPAQUE24_LEN < chain->length) {
+            if (i >= MAX_CERT_EXTENSIONS) {
+                WOLFSSL_MSG_EX(
+                    "OCSP request cert chain exceeds maximum length: "
+                    "i=%d, MAX_CERT_EXTENSIONS=%d", i, MAX_CERT_EXTENSIONS);
+                ret = MAX_CERT_EXTENSIONS_ERR;
+                break;
+            }
+
             c24to32(chain->buffer + pos, &der.length);
             pos += OPAQUE24_LEN;
             der.buffer = chain->buffer + pos;
@@ -8881,7 +8892,9 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
 
 #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_KyberKey_EncodePrivateKey(kem, privKey, privSz);
+        PRIVATE_KEY_LOCK();
     }
 #endif
 
@@ -9964,7 +9977,9 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_KyberKey_DecodePrivateKey(kem, keyShareEntry->privKey, privSz);
+        PRIVATE_KEY_LOCK();
     }
 #endif
 
@@ -9973,8 +9988,10 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
         ret = BUFFER_E;
     }
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_KyberKey_Decapsulate(kem, ssOutput,
                                       keyShareEntry->ke, ctSz);
+        PRIVATE_KEY_LOCK();
         if (ret != 0) {
             WOLFSSL_MSG("wc_KyberKey decapsulation failure.");
             ret = BAD_FUNC_ARG;
@@ -13800,7 +13817,7 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
                 writeBuf_p += ech->encLen;
             }
             /* innerClientHelloLen */
-            c16toa(ech->innerClientHelloLen, writeBuf_p);
+            c16toa((word16)ech->innerClientHelloLen, writeBuf_p);
             writeBuf_p += 2;
             /* set payload offset for when we finalize */
             ech->outerClientPayload = writeBuf_p;
@@ -14195,6 +14212,9 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
 
     newInnerChLen = innerChLen - echOuterExtLen + extraSize - sessionIdLen +
                         ssl->session->sessionIDSz;
+    if (newInnerChLen > 0xFFFF) {
+        return BUFFER_E;
+    }
 
     if (!foundEchOuter && sessionIdLen == ssl->session->sessionIDSz) {
         /* no extensions + no sessionID to copy */
@@ -14259,7 +14279,7 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     if (ret == 0) {
         XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
         ech->innerClientHello = newInnerCh;
-        ech->innerClientHelloLen = (word16)newInnerChLen;
+        ech->innerClientHelloLen = newInnerChLen;
         newInnerCh = NULL;
     }
 
@@ -14373,6 +14393,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     word32 offset = 0;
     word16 len;
     word16 tmpVal16;
+    word16 lenCh;
 
     WOLFSSL_MSG("TLSX_ECH_Parse");
     if (ssl->options.disableECH) {
@@ -14489,7 +14510,8 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         readBuf_p += len;
         offset += len;
         /* read payload (encrypted CH) len */
-        ato16(readBuf_p, &ech->innerClientHelloLen);
+        ato16(readBuf_p, &lenCh);
+        ech->innerClientHelloLen = lenCh;
         readBuf_p += 2;
         offset += 2;
         /* Check payload is no bigger than remaining bytes. */
@@ -17205,6 +17227,9 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         if ((type <= 62) || (type == TLSX_RENEGOTIATION_INFO)
         #ifdef WOLFSSL_QUIC
             || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
+        #endif
+        #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+            || (type == TLSX_ECH)
         #endif
         #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
             || (type == TLSX_CKS)

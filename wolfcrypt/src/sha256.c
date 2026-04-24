@@ -253,6 +253,7 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->digest[7] = 0x5BE0CD19L;
 
     sha256->buffLen = 0;
+    XMEMSET(sha256->buffer, 0, sizeof(sha256->buffer));
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
 #ifdef WOLFSSL_HASH_FLAGS
@@ -2105,6 +2106,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         sha224->digest[7] = 0xbefa4fa4;
 
         sha224->buffLen = 0;
+        XMEMSET(sha224->buffer, 0, sizeof(sha224->buffer));
         sha224->loLen   = 0;
         sha224->hiLen   = 0;
 

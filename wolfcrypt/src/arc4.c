@@ -25,6 +25,13 @@
 
 #include <wolfssl/wolfcrypt/arc4.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 
 int wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
 {
@@ -137,6 +144,10 @@ void wc_Arc4Free(Arc4* arc4)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4)
     wolfAsync_DevCtxFree(&arc4->asyncDev, WOLFSSL_ASYNC_MARKER_ARC4);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+    ForceZero(arc4->state, sizeof(arc4->state));
+    arc4->x = 0;
+    arc4->y = 0;
 }
 
 #endif /* NO_RC4 */

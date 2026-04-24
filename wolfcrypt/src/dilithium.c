@@ -138,6 +138,11 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
 #include <wolfssl/wolfcrypt/asn.h>
 #endif
@@ -814,6 +819,15 @@ static int dilithium_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
         oid = sha512Oid;
     }
     else
+#ifndef WOLFSSL_NOSHA512_224
+    if (hash == WC_HASH_TYPE_SHA512_224) {
+        static byte sha512_224Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x05
+        };
+        oid = sha512_224Oid;
+    }
+    else
+#endif
 #ifndef WOLFSSL_NOSHA512_256
     if (hash == WC_HASH_TYPE_SHA512_256) {
         static byte sha512_256Oid[DILITHIUM_HASH_OID_LEN] = {
@@ -9520,7 +9534,7 @@ static void dilithium_make_pub_vec(dilithium_key* key, sword32* t1)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
+static int dilithium_verify_with_mu(dilithium_key* key, const byte* mu,
     const byte* sig, word32 sigLen, int* res)
 {
 #ifndef WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM
@@ -9979,7 +9993,7 @@ static int dilithium_verify_ctx_msg(dilithium_key* key, const byte* ctx,
             ctx, (byte)ctxLen, msg, msgLen, mu, DILITHIUM_MU_SZ);
     }
     if (ret == 0) {
-        ret = dilithium_verify_mu(key, mu, sig, sigLen, res);
+        ret = dilithium_verify_with_mu(key, mu, sig, sigLen, res);
     }
 
     return ret;
@@ -10023,7 +10037,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
             mu, DILITHIUM_MU_SZ);
     }
     if (ret == 0) {
-        ret = dilithium_verify_mu(key, mu, sig, sigLen, res);
+        ret = dilithium_verify_with_mu(key, mu, sig, sigLen, res);
     }
 
     return ret;
@@ -10085,7 +10099,7 @@ static int dilithium_verify_ctx_hash(dilithium_key* key, const byte* ctx,
             ctx, (byte)ctxLen, oidMsgHash, oidMsgHashLen, mu, DILITHIUM_MU_SZ);
     }
     if (ret == 0) {
-        ret = dilithium_verify_mu(key, mu, sig, sigLen, res);
+        ret = dilithium_verify_with_mu(key, mu, sig, sigLen, res);
     }
 
     return ret;
@@ -10310,6 +10324,45 @@ int wc_dilithium_make_key(dilithium_key* key, WC_RNG* rng)
 #endif
     }
 
+#ifdef HAVE_FIPS
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 / ISO 19790:2012
+     * Section 7.10.3.3 (TE10.35.02): sign with new sk, verify with pk.
+     * Runs on every key generation. */
+    if (ret == 0) {
+        static const byte pct_msg[] = "wolfSSL ML-DSA PCT";
+        WC_DECLARE_VAR(pct_sig, byte, DILITHIUM_MAX_SIG_SIZE, key->heap);
+        word32 pct_sigSz = DILITHIUM_MAX_SIG_SIZE;
+        int pct_res = 0;
+
+        WC_ALLOC_VAR_EX(pct_sig, byte, DILITHIUM_MAX_SIG_SIZE, key->heap,
+            DYNAMIC_TYPE_DILITHIUM, ret = MEMORY_E);
+
+        if (ret == 0) {
+            ret = wc_dilithium_sign_ctx_msg(NULL, 0, pct_msg, sizeof(pct_msg),
+                pct_sig, &pct_sigSz, key, rng);
+        }
+
+        if (ret == 0)
+            ret = wc_dilithium_verify_ctx_msg(pct_sig, pct_sigSz,
+                NULL, 0, pct_msg, sizeof(pct_msg), &pct_res, key);
+
+        if (ret == 0 && pct_res != 1)
+            ret = ML_DSA_PCT_E;
+
+        if (WC_VAR_OK(pct_sig))
+            ForceZero(pct_sig, DILITHIUM_MAX_SIG_SIZE);
+
+        WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_DILITHIUM);
+
+        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
+         * must be rendered unusable.  Zeroize the generated key material so
+         * a caller that ignores the return value cannot use it. */
+        if (ret != 0) {
+            wc_dilithium_free(key);
+        }
+    }
+#endif /* HAVE_FIPS */
+
     return ret;
 }
 
@@ -10337,6 +10390,9 @@ int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         ret = NOT_COMPILED_IN;
 #endif
     }
+
+    /* Note: PCT is performed in wc_dilithium_make_key() which calls this
+     * function and has the RNG parameter needed for signing. */
 
     return ret;
 }
@@ -10627,7 +10683,8 @@ int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((hash == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((hash == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
@@ -10649,6 +10706,60 @@ int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
     }
 
     return ret;
+}
+
+/* Sign using the ML-DSA internal interface with a pre-computed mu value.
+ *
+ * This implements ML-DSA.Sign_internal from FIPS 204 Section 6.2.
+ * The caller provides mu directly (already computed from tr||M'), bypassing
+ * the external message hashing step. Used by ACVP internal interface tests.
+ *
+ *  mu          [in]      Pre-computed mu value (64 bytes).
+ *  muLen       [in]      Length of mu in bytes (must be 64).
+ *  sig         [out]     Buffer to write signature into.
+ *  sigLen      [in/out]  On in, size of buffer.
+ *                        On out, the length of the signature in bytes.
+ *  key         [in]      Dilithium key to use when signing.
+ *  seed        [in]      32-byte random seed (rnd).
+ *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
+ *          BUFFER_E when sigLen is too small,
+ *          0 otherwise.
+ */
+int wc_dilithium_sign_mu_with_seed(const byte* mu, word32 muLen,
+    byte* sig, word32 *sigLen, dilithium_key* key, const byte* seed)
+{
+#ifdef WOLFSSL_WC_DILITHIUM
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((mu == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (muLen != DILITHIUM_MU_SZ)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Build [seed||mu] buffer and call internal sign function. */
+        byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
+        XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
+        XMEMCPY(seedMu + DILITHIUM_RND_SZ, mu, DILITHIUM_MU_SZ);
+        ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
+        ForceZero(seedMu, sizeof(seedMu));
+    }
+
+    return ret;
+#else
+    /* Internal interface not supported with liboqs backend. */
+    (void)mu;
+    (void)muLen;
+    (void)sig;
+    (void)sigLen;
+    (void)key;
+    (void)seed;
+    return NOT_COMPILED_IN;
+#endif
 }
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -10829,6 +10940,52 @@ int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
     }
 
     return ret;
+}
+
+/* Verify using the ML-DSA internal interface with a pre-computed mu value.
+ *
+ * This implements ML-DSA.Verify_internal from FIPS 204 Section 6.3.
+ * The caller provides mu directly (already computed from tr||M'), bypassing
+ * the external message hashing step. Used by ACVP internal interface tests.
+ *
+ *  sig         [in]  Signature to verify.
+ *  sigLen      [in]  Size of signature in bytes.
+ *  mu          [in]  Pre-computed mu value (64 bytes).
+ *  muLen       [in]  Length of mu in bytes (must be 64).
+ *  res         [out] *res is set to 1 on successful verification.
+ *  key         [in]  Dilithium key to use to verify.
+ *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
+ *          0 otherwise.
+ */
+int wc_dilithium_verify_mu(const byte* sig, word32 sigLen, const byte* mu,
+    word32 muLen, int* res, dilithium_key* key)
+{
+#ifdef WOLFSSL_WC_DILITHIUM
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (sig == NULL) || (mu == NULL) || (res == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (muLen != DILITHIUM_MU_SZ)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        ret = dilithium_verify_with_mu(key, mu, sig, sigLen, res);
+    }
+
+    return ret;
+#else
+    /* Internal interface not supported with liboqs backend. */
+    (void)sig;
+    (void)sigLen;
+    (void)mu;
+    (void)muLen;
+    (void)res;
+    (void)key;
+    return NOT_COMPILED_IN;
+#endif
 }
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 

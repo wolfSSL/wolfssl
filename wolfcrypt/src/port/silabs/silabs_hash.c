@@ -277,6 +277,7 @@ int wc_Sha384Final(wc_Sha384* sha, byte* hash)
 #ifdef WOLFSSL_SILABS_SHA512
 int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
 {
+    int ret;
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -284,7 +285,13 @@ int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
     (void)devId;
     (void)heap;
 
-    return wc_silabs_se_hash_init(&sha->silabsCtx, WC_HASH_TYPE_SHA512);
+    ret = wc_silabs_se_hash_init(&sha->silabsCtx, WC_HASH_TYPE_SHA512);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    if (ret == 0) {
+        sha->hashType = WC_HASH_TYPE_SHA512;
+    }
+#endif
+    return ret;
 }
 
 

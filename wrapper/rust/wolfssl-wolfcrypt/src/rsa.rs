@@ -71,7 +71,7 @@ use core::mem::{MaybeUninit};
 /// An instance can be created with `new_from_der()`, `new_public_from_der()`,
 /// or `generate()`.
 pub struct RSA {
-    wc_rsakey: sys::RsaKey,
+    pub(crate) wc_rsakey: sys::RsaKey,
 }
 
 impl RSA {
@@ -360,6 +360,58 @@ impl RSA {
         }
         let rsa = RSA { wc_rsakey };
         Ok(rsa)
+    }
+
+    /// Create a new RSA public key from raw modulus (`n`) and public
+    /// exponent (`e`) bytes in big-endian form.
+    ///
+    /// # Parameters
+    ///
+    /// * `n`: Big-endian modulus bytes.
+    /// * `e`: Big-endian public exponent bytes.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    pub fn new_public_from_raw(n: &[u8], e: &[u8]) -> Result<Self, i32> {
+        Self::new_public_from_raw_ex(n, e, None, None)
+    }
+
+    /// Create a new RSA public key from raw modulus (`n`) and public
+    /// exponent (`e`) bytes with optional heap and device ID.
+    pub fn new_public_from_raw_ex(
+        n: &[u8], e: &[u8],
+        heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>,
+    ) -> Result<Self, i32> {
+        let n_size = crate::buffer_len_to_u32(n.len())?;
+        let e_size = crate::buffer_len_to_u32(e.len())?;
+        let mut wc_rsakey: MaybeUninit<sys::RsaKey> = MaybeUninit::uninit();
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => sys::INVALID_DEVID,
+        };
+        let rc = unsafe { sys::wc_InitRsaKey_ex(wc_rsakey.as_mut_ptr(), heap, dev_id) };
+        if rc != 0 {
+            return Err(rc);
+        }
+        let mut wc_rsakey = unsafe { wc_rsakey.assume_init() };
+        let rc = unsafe {
+            sys::wc_RsaPublicKeyDecodeRaw(
+                n.as_ptr(), n_size,
+                e.as_ptr(), e_size,
+                &mut wc_rsakey,
+            )
+        };
+        if rc != 0 {
+            unsafe { sys::wc_FreeRsaKey(&mut wc_rsakey); }
+            return Err(rc);
+        }
+        Ok(RSA { wc_rsakey })
     }
 
     /// Generate a new RSA key using the given size and exponent.

@@ -1772,6 +1772,28 @@ endif()
 
 # TODO: - XCHACHA
 
+# SRAM PUF
+add_option("WOLFSSL_PUF"
+    "Enable SRAM PUF support (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_PUF)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_PUF"
+        "-DWOLFSSL_PUF_SRAM"
+        "-DHAVE_HKDF")
+    override_cache(WOLFSSL_HKDF "yes")
+endif()
+
+# PUF test mode (synthetic SRAM data injection)
+add_option("WOLFSSL_PUF_TEST"
+    "Enable PUF test mode with synthetic data (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_PUF_TEST)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PUF_TEST")
+endif()
+
 # Hash DRBG
 add_option("WOLFSSL_HASH_DRBG"
     "Enable Hash DRBG support (default: enabled)"

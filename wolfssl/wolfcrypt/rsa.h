@@ -299,6 +299,7 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 #ifndef WC_NO_CONSTRUCTORS
+#define WC_RSA_NEW_API_AVAILABLE
 WOLFSSL_API RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code);
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API RsaKey* wc_NewRsaKey_Id(unsigned char* id, int len, void* heap,
@@ -432,6 +433,14 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #define WC_MGF1SHA512     3
 #define WC_MGF1SHA512_224 5
 #define WC_MGF1SHA512_256 6
+#define WC_MGF1SHA3_224   7
+#define WC_MGF1SHA3_256   8
+#define WC_MGF1SHA3_384   9
+#define WC_MGF1SHA3_512   10
+#define WC_MGF1SHAKE128   11
+#define WC_MGF1SHAKE256   12
+#define WC_MGFSHAKE128    13
+#define WC_MGFSHAKE256    14
 
 /* Padding types */
 #define WC_RSA_PKCSV15_PAD 0
