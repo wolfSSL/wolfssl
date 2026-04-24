@@ -48,6 +48,8 @@ pub mod curve25519;
 pub mod dh;
 pub mod dilithium;
 pub mod ecc;
+#[cfg(feature = "signature")]
+pub mod ecdsa;
 pub mod ed25519;
 pub mod ed448;
 pub mod fips;
@@ -59,7 +61,11 @@ pub mod mlkem;
 pub mod prf;
 pub mod random;
 pub mod rsa;
+#[cfg(feature = "signature")]
+pub mod rsa_pkcs1v15;
 pub mod sha;
+#[cfg(feature = "digest")]
+pub mod sha_digest;
 
 /// Convert a buffer length to `u32`, returning `BUFFER_E` if it overflows.
 pub(crate) fn buffer_len_to_u32(len: usize) -> Result<u32, i32> {
