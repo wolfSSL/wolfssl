@@ -17180,8 +17180,8 @@ static word16 TLSX_GetMinSize_Server(const word16 *type)
 
 
 /** Parses a buffer of TLS extensions. */
-int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
-                                                                 Suites *suites)
+WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
+                                byte msgType, Suites *suites)
 {
     int ret = 0;
     word16 offset = 0;

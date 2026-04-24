@@ -3208,7 +3208,10 @@ WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, const byte* input,
 WOLFSSL_LOCAL int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl,
         const byte* input, word16 length, byte msgType, ProtocolVersion* pv,
         Options* opts, TLSX** exts);
-WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_Parse wolfSSL_TLSX_Parse
+#endif
+WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                byte msgType, Suites *suites);
 WOLFSSL_LOCAL int TLSX_Push(TLSX** list, TLSX_Type type,
                             const void* data, void* heap);
