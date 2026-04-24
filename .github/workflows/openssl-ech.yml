@@ -24,7 +24,8 @@ jobs:
         with:
           path: wolfssl
           configure: >-
-            --enable-ech --enable-sha512 --enable-aes CFLAGS='-DUSE_FLAT_TEST_H'
+            --enable-ech --enable-sha512 --enable-aes --enable-mlkem
+            CFLAGS='-DUSE_FLAT_TEST_H'
           install: true
 
       - name: tar build-dir
@@ -140,14 +141,14 @@ jobs:
 
           # default suite (DHKEM_X25519_HKDF_SHA256, HKDF_SHA256, HPKE_AES_128_GCM)
           echo -e "\nTesting default suite with OpenSSL server and wolfSSL client\n" &>> "$LOG_FILE"
-          bash ./openssl-ech.sh server &>> "$LOG_FILE"
+          bash ./openssl-ech.sh server --pqc SecP384r1MLKEM1024 &>> "$LOG_FILE"
 
           echo -e "\nTesting default suite with OpenSSL client and wolfSSL server\n" &>> "$LOG_FILE"
           bash ./openssl-ech.sh client &>> "$LOG_FILE"
 
           # weird suite (DHKEM_P521_HKDF_SHA512, HKDF_SHA256, HPKE_AES_256_GCM)
           echo -e "\nTesting weird suite with OpenSSL server and wolfSSL client\n" &>> "$LOG_FILE"
-          bash ./openssl-ech.sh server --suite "18,1,2" &>> "$LOG_FILE"
+          bash ./openssl-ech.sh server --suite "18,1,2" --pqc SecP384r1MLKEM1024 &>> "$LOG_FILE"
 
           echo -e "\nTesting weird suite with OpenSSL client and wolfSSL server\n" &>> "$LOG_FILE"
           bash ./openssl-ech.sh client --suite "18,1,2" &>> "$LOG_FILE"
