@@ -2639,9 +2639,9 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
             if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
-                    dataSz > 0) {
+                    dataSz >= sizeof(ssl->encrypt.sanityCheck)) {
                 XMEMCPY(ssl->encrypt.sanityCheck, input,
-                    min(dataSz, sizeof(ssl->encrypt.sanityCheck)));
+                    sizeof(ssl->encrypt.sanityCheck));
             }
         #endif
 
@@ -2825,9 +2825,9 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         #ifdef WOLFSSL_CIPHER_TEXT_CHECK
             if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
-                    dataSz > 0 &&
+                    dataSz >= sizeof(ssl->encrypt.sanityCheck) &&
                 XMEMCMP(output, ssl->encrypt.sanityCheck,
-                    min(dataSz, sizeof(ssl->encrypt.sanityCheck))) == 0) {
+                    sizeof(ssl->encrypt.sanityCheck)) == 0) {
 
                 WOLFSSL_MSG("EncryptTls13 sanity check failed! Glitch?");
                 return ENCRYPT_ERROR;
