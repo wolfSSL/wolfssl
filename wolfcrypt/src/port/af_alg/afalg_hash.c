@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+    #define _GNU_SOURCE 1
+#endif
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_AFALG_HASH) || (defined(WOLFSSL_AFALG_XILINX_SHA3) \
@@ -26,6 +30,8 @@
 
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #include <wolfssl/wolfcrypt/port/af_alg/afalg_hash.h>
+#include <errno.h>
+#include <fcntl.h>
 
 static const char WC_TYPE_HASH[] = "hash";
 
@@ -223,8 +229,8 @@ static int AfalgHashCopy(wolfssl_AFALG_Hash* src, wolfssl_AFALG_Hash* dst)
     }
 #endif
 
-    dst->rdFd = accept(src->rdFd, NULL, 0);
-    dst->alFd = accept(src->alFd, NULL, 0);
+    dst->rdFd = wc_accept_cloexec(src->rdFd, NULL, NULL);
+    dst->alFd = wc_accept_cloexec(src->alFd, NULL, NULL);
 
     if (dst->rdFd == WC_SOCK_NOTSET || dst->alFd == WC_SOCK_NOTSET) {
         AfalgHashFree(dst);
