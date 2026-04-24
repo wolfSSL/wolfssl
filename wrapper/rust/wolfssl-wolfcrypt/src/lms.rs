@@ -545,17 +545,17 @@ impl Lms {
         Ok(sig_sz as usize)
     }
 
-    /// Return the number of signatures remaining for this key.
+    /// Return whether there are more signatures remaining for this key.
     ///
     /// Returns `Ok(true)` if at least one signature remains, `Ok(false)` if
     /// exhausted, or `Err(e)` on error. This is a conservative check only.
     ///
     /// # Returns
     ///
-    /// Returns either Ok(count) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok(true) if any signatures remain, Ok(false) if
+    /// exhausted, or Err(e) containing the wolfSSL library error code value.
     #[cfg(lms_make_key)]
-    pub fn sigs_left(&mut self) -> Result<bool, i32> {
+    pub fn has_sigs_left(&mut self) -> Result<bool, i32> {
         let rc = unsafe { sys::wc_LmsKey_SigsLeft(&mut self.ws_key) };
         if rc < 0 {
             return Err(rc);
