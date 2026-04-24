@@ -219,7 +219,6 @@ ap_wpa2_eap_sim
 ap_wpa2_eap_sim_imsi_identity
 ap_wpa2_eap_sim_imsi_privacy_key
 ap_wpa2_eap_sim_imsi_privacy_attr
-ap_wpa2_eap_sim_sql
 ap_wpa2_eap_sim_config
 ap_wpa2_eap_sim_id_0
 ap_wpa2_eap_sim_id_1
