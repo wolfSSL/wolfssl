@@ -73,6 +73,9 @@
     #ifndef CCM_NONCE_MIN_SZ
         #define CCM_NONCE_MIN_SZ 7
     #endif
+    #ifndef CCM_NONCE_MAX_SZ
+        #define CCM_NONCE_MAX_SZ 13
+    #endif
 #endif
 
 
