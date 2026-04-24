@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [ master, release/2.6, v2.6.19 ]
+        ref: [ release/2.6, v2.6.19 ]
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
