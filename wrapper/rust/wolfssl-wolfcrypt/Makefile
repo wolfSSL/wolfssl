@@ -1,4 +1,4 @@
-FEATURES := rand_core,aead,cipher,digest,signature,password-hash,kem
+FEATURES := rand_core,aead,cipher,digest,mac,signature,password-hash,kem
 CARGO_FEATURE_FLAGS := --features $(FEATURES)
 
 .PHONY: all

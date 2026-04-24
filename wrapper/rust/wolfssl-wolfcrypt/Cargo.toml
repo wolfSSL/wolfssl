@@ -15,6 +15,7 @@ std = []
 rand_core = ["dep:rand_core"]
 aead = ["dep:aead"]
 cipher = ["dep:cipher"]
+mac = ["digest/mac"]
 digest = ["dep:digest"]
 signature = ["dep:signature"]
 password-hash = ["dep:password-hash", "password-hash/phc"]
@@ -34,7 +35,7 @@ hybrid-array = { version = "0.4.7", optional = true, default-features = false }
 [dev-dependencies]
 aead = { version = "0.5", features = ["alloc", "dev"] }
 cipher = "0.5"
-digest = { version = "0.11", features = ["dev"] }
+digest = { version = "0.11", features = ["dev", "mac"] }
 signature = "2.2"
 password-hash = { version = "0.6.1", features = ["phc"] }
 kem = "0.3"

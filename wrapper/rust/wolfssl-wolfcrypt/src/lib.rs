@@ -44,6 +44,8 @@ pub mod aes;
 pub mod blake2;
 pub mod chacha20_poly1305;
 pub mod cmac;
+#[cfg(all(cmac, feature = "mac"))]
+pub mod cmac_mac;
 pub mod curve25519;
 pub mod dh;
 pub mod dilithium;
@@ -55,6 +57,8 @@ pub mod ed448;
 pub mod fips;
 pub mod hkdf;
 pub mod hmac;
+#[cfg(all(hmac, feature = "mac"))]
+pub mod hmac_mac;
 pub mod kdf;
 pub mod lms;
 pub mod mlkem;

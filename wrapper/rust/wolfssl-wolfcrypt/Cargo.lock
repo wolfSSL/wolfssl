@@ -156,6 +156,7 @@ dependencies = [
  "blobby 0.4.0",
  "block-buffer",
  "crypto-common 0.2.1",
+ "ctutils",
 ]
 
 [[package]]
