@@ -94,6 +94,9 @@
 
 #include <wolfssl/wolfcrypt/lms.h>
 #include <wolfssl/wolfcrypt/sha256.h>
+#ifdef WOLFSSL_LMS_SHAKE256
+#include <wolfssl/wolfcrypt/sha3.h>
+#endif
 
 /* When raw hash access APIs are disabled or unavailable (WOLFSSL_NO_HASH_RAW),
  * fall back to using the full hash API calls. */
@@ -122,10 +125,10 @@
     #define LMS_MAX_HEIGHT          WOLFSSL_LMS_MAX_HEIGHT
 #else
     /* Maximum height of a tree supported by implementation. */
-    #define LMS_MAX_HEIGHT          20
+    #define LMS_MAX_HEIGHT          25
 #endif
-#if (LMS_MAX_HEIGHT < 5) || (LMS_MAX_HEIGHT > 20)
-    #error "LMS parameters only support heights 5-20."
+#if (LMS_MAX_HEIGHT < 5) || (LMS_MAX_HEIGHT > 25)
+    #error "LMS parameters only support heights 5-25."
 #endif
 
 /* Length of I in bytes. */
@@ -312,10 +315,16 @@
 #define LMS_SHA256                  0x0000
 /* Indicates using SHA-256/192 for hashing. */
 #define LMS_SHA256_192              0x1000
+/* Indicates using SHAKE256/256 for hashing. */
+#define LMS_SHAKE256                0x2000
+/* Indicates using SHAKE256/192 for hashing. */
+#define LMS_SHAKE256_192            0x3000
 /* Mask to get hashing algorithm from type. */
 #define LMS_HASH_MASK               0xf000
 /* Mask to get height or Winternitz width from type. */
 #define LMS_H_W_MASK                0x0fff
+/* Bit test: non-zero if type uses SHAKE256. */
+#define LMS_IS_SHAKE(type)          (((type) & 0x2000) != 0)
 
 /* LMS Parameters. */
 /* SHA-256 hash, 32-bytes of hash used, tree height of 5. */
@@ -349,14 +358,54 @@
 /* SHA-256 hash, 32-bytes of hash used, tree height of 25. */
 #define LMS_SHA256_M24_H25          (0x0e | LMS_SHA256_192)
 
-/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 1 bit. */
+/* SHA-256 hash, 24-bytes of hash used, Winternitz width of 1 bit. */
 #define LMOTS_SHA256_N24_W1         (0x05 | LMS_SHA256_192)
-/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 2 bits. */
+/* SHA-256 hash, 24-bytes of hash used, Winternitz width of 2 bits. */
 #define LMOTS_SHA256_N24_W2         (0x06 | LMS_SHA256_192)
-/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 4 bits. */
+/* SHA-256 hash, 24-bytes of hash used, Winternitz width of 4 bits. */
 #define LMOTS_SHA256_N24_W4         (0x07 | LMS_SHA256_192)
-/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 8 bits. */
+/* SHA-256 hash, 24-bytes of hash used, Winternitz width of 8 bits. */
 #define LMOTS_SHA256_N24_W8         (0x08 | LMS_SHA256_192)
+
+/* SHAKE256 hash, 32-bytes of hash used, tree height of 5. */
+#define LMS_SHAKE_M32_H5            (0x0f | LMS_SHAKE256)
+/* SHAKE256 hash, 32-bytes of hash used, tree height of 10. */
+#define LMS_SHAKE_M32_H10           (0x10 | LMS_SHAKE256)
+/* SHAKE256 hash, 32-bytes of hash used, tree height of 15. */
+#define LMS_SHAKE_M32_H15           (0x11 | LMS_SHAKE256)
+/* SHAKE256 hash, 32-bytes of hash used, tree height of 20. */
+#define LMS_SHAKE_M32_H20           (0x12 | LMS_SHAKE256)
+/* SHAKE256 hash, 32-bytes of hash used, tree height of 25. */
+#define LMS_SHAKE_M32_H25           (0x13 | LMS_SHAKE256)
+
+/* SHAKE256 hash, 32-bytes of hash used, Winternitz width of 1 bit. */
+#define LMOTS_SHAKE_N32_W1          (0x09 | LMS_SHAKE256)
+/* SHAKE256 hash, 32-bytes of hash used, Winternitz width of 2 bits. */
+#define LMOTS_SHAKE_N32_W2          (0x0a | LMS_SHAKE256)
+/* SHAKE256 hash, 32-bytes of hash used, Winternitz width of 4 bits. */
+#define LMOTS_SHAKE_N32_W4          (0x0b | LMS_SHAKE256)
+/* SHAKE256 hash, 32-bytes of hash used, Winternitz width of 8 bits. */
+#define LMOTS_SHAKE_N32_W8          (0x0c | LMS_SHAKE256)
+
+/* SHAKE256 hash, 24-bytes of hash used, tree height of 5. */
+#define LMS_SHAKE_M24_H5            (0x14 | LMS_SHAKE256_192)
+/* SHAKE256 hash, 24-bytes of hash used, tree height of 10. */
+#define LMS_SHAKE_M24_H10           (0x15 | LMS_SHAKE256_192)
+/* SHAKE256 hash, 24-bytes of hash used, tree height of 15. */
+#define LMS_SHAKE_M24_H15           (0x16 | LMS_SHAKE256_192)
+/* SHAKE256 hash, 24-bytes of hash used, tree height of 20. */
+#define LMS_SHAKE_M24_H20           (0x17 | LMS_SHAKE256_192)
+/* SHAKE256 hash, 24-bytes of hash used, tree height of 25. */
+#define LMS_SHAKE_M24_H25           (0x18 | LMS_SHAKE256_192)
+
+/* SHAKE256 hash, 24-bytes of hash used, Winternitz width of 1 bit. */
+#define LMOTS_SHAKE_N24_W1          (0x0d | LMS_SHAKE256_192)
+/* SHAKE256 hash, 24-bytes of hash used, Winternitz width of 2 bits. */
+#define LMOTS_SHAKE_N24_W2          (0x0e | LMS_SHAKE256_192)
+/* SHAKE256 hash, 24-bytes of hash used, Winternitz width of 4 bits. */
+#define LMOTS_SHAKE_N24_W4          (0x0f | LMS_SHAKE256_192)
+/* SHAKE256 hash, 24-bytes of hash used, Winternitz width of 8 bits. */
+#define LMOTS_SHAKE_N24_W8          (0x10 | LMS_SHAKE256_192)
 
 typedef struct LmsParams {
     /* Number of tree levels. */
@@ -408,11 +457,42 @@ typedef struct LmsState {
 #endif
     /* LMS parameters. */
     const LmsParams* params;
-    /* Hash algorithm. */
+#ifdef WOLFSSL_LMS_SHAKE256
+    /* The LMS instance uses exactly one hash family at a time, selected at
+     * init time by params->lmOtsType (see wc_lms.c LMS_IS_SHAKE dispatch).
+     * The two contexts are unionized to shrink LmsState; access via the
+     * LMS_STATE_HASH / LMS_STATE_SHAKE macros below. Anonymous unions
+     * would avoid the macros but require C11 (HAVE_ANONYMOUS_INLINE_AGGREGATES)
+     * gating that ends up uglier than the named form here. */
+    union {
+        wc_Sha256 sha256;
+        wc_Shake  shake;
+    } hash;
+    union {
+        wc_Sha256 sha256;
+        wc_Shake  shake;
+    } hash_k;
+#else
+    /* Hash algorithm (SHA-256). */
     wc_Sha256 hash;
-    /* Hash algorithm for calculating K. */
+    /* Hash algorithm for calculating K (SHA-256). */
     wc_Sha256 hash_k;
+#endif
 } LmsState;
+
+/* Access macros for the LmsState hash contexts. All call sites use the
+ * address-of form, so the macros yield pointers directly. In the
+ * SHAKE-disabled build the SHAKE macros are intentionally undefined --
+ * the only callers are themselves under #ifdef WOLFSSL_LMS_SHAKE256. */
+#ifdef WOLFSSL_LMS_SHAKE256
+    #define LMS_STATE_HASH(state)    (&(state)->hash.sha256)
+    #define LMS_STATE_HASH_K(state)  (&(state)->hash_k.sha256)
+    #define LMS_STATE_SHAKE(state)   (&(state)->hash.shake)
+    #define LMS_STATE_SHAKE_K(state) (&(state)->hash_k.shake)
+#else
+    #define LMS_STATE_HASH(state)    (&(state)->hash)
+    #define LMS_STATE_HASH_K(state)  (&(state)->hash_k)
+#endif
 
 #ifndef WOLFSSL_WC_LMS_SMALL
 /* Stack of interior node hashes. */
@@ -504,8 +584,9 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
 int wc_hss_sign(LmsState* state, byte* priv_raw, HssPrivKey* priv_key,
     byte* priv_data, const byte* msg, word32 msgSz, byte* sig);
 int wc_hss_sigsleft(const LmsParams* params, const byte* priv_raw);
+WOLFSSL_API
 int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
-    word32 msgSz, const byte* sig);
+    word32 msgSz, const byte* sig, word32 sigSz);
 
 #endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */
 

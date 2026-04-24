@@ -226,6 +226,20 @@ const char * wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm)
         return "LMS/HSS L4_H10_W4";
     case WC_LMS_PARM_L4_H10_W8:
         return "LMS/HSS L4_H10_W8";
+    case WC_LMS_PARM_L1_H25_W1:
+        return "LMS/HSS L1_H25_W1";
+    case WC_LMS_PARM_L1_H25_W2:
+        return "LMS/HSS L1_H25_W2";
+    case WC_LMS_PARM_L1_H25_W4:
+        return "LMS/HSS L1_H25_W4";
+    case WC_LMS_PARM_L1_H25_W8:
+        return "LMS/HSS L1_H25_W8";
+    case WC_LMS_PARM_L1_H10_W1:
+        return "LMS/HSS L1_H10_W1";
+    case WC_LMS_PARM_L1_H15_W1:
+        return "LMS/HSS L1_H15_W1";
+    case WC_LMS_PARM_L1_H20_W1:
+        return "LMS/HSS L1_H20_W1";
     default:
         WOLFSSL_MSG("error: invalid LMS parameter");
         break;
@@ -383,6 +397,20 @@ int wc_LmsKey_SetLmsParm(LmsKey * key, enum wc_LmsParm lmsParm)
         return wc_LmsKey_SetParameters(key, 4, 10, 4);
     case WC_LMS_PARM_L4_H10_W8:
         return wc_LmsKey_SetParameters(key, 4, 10, 8);
+    case WC_LMS_PARM_L1_H25_W1:
+        return wc_LmsKey_SetParameters(key, 1, 25, 1);
+    case WC_LMS_PARM_L1_H25_W2:
+        return wc_LmsKey_SetParameters(key, 1, 25, 2);
+    case WC_LMS_PARM_L1_H25_W4:
+        return wc_LmsKey_SetParameters(key, 1, 25, 4);
+    case WC_LMS_PARM_L1_H25_W8:
+        return wc_LmsKey_SetParameters(key, 1, 25, 8);
+    case WC_LMS_PARM_L1_H10_W1:
+        return wc_LmsKey_SetParameters(key, 1, 10, 1);
+    case WC_LMS_PARM_L1_H15_W1:
+        return wc_LmsKey_SetParameters(key, 1, 15, 1);
+    case WC_LMS_PARM_L1_H20_W1:
+        return wc_LmsKey_SetParameters(key, 1, 20, 1);
     default:
         WOLFSSL_MSG("error: invalid LMS parameter set");
         break;

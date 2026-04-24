@@ -856,6 +856,9 @@ WOLFSSL_API
 int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
     int hashAlg, const byte* hash, word32 hashLen, byte* sig, word32 *sigLen,
     dilithium_key* key, const byte* seed);
+WOLFSSL_API
+int wc_dilithium_sign_mu_with_seed(const byte* mu, word32 muLen,
+    byte* sig, word32 *sigLen, dilithium_key* key, const byte* seed);
 #endif /* !WOLFSSL_DILITHIUM_VERIFY_ONLY */
 /* Legacy verify API without context parameter (pre-FIPS 204).
  * Only available when WOLFSSL_DILITHIUM_NO_CTX is defined.
@@ -874,6 +877,9 @@ WOLFSSL_API
 int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
     const byte* ctx, byte ctxLen, int hashAlg, const byte* hash,
     word32 hashLen, int* res, dilithium_key* key);
+WOLFSSL_API
+int wc_dilithium_verify_mu(const byte* sig, word32 sigLen, const byte* mu,
+    word32 muLen, int* res, dilithium_key* key);
 
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API

@@ -976,16 +976,37 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define BENCH_SLHDSA_SHAKE192F          0x00000100
 #define BENCH_SLHDSA_SHAKE256S          0x00000200
 #define BENCH_SLHDSA_SHAKE256F          0x00000400
+#define BENCH_SLHDSA_SHA2_128S          0x00000800
+#define BENCH_SLHDSA_SHA2_128F          0x00001000
+#define BENCH_SLHDSA_SHA2_192S          0x00002000
+#define BENCH_SLHDSA_SHA2_192F          0x00004000
+#define BENCH_SLHDSA_SHA2_256S          0x00008000
+#define BENCH_SLHDSA_SHA2_256F          0x00010000
 #define BENCH_SLHDSA                    (BENCH_SLHDSA_SHAKE128S | \
                                          BENCH_SLHDSA_SHAKE128F | \
                                          BENCH_SLHDSA_SHAKE192S | \
                                          BENCH_SLHDSA_SHAKE192F | \
                                          BENCH_SLHDSA_SHAKE256S | \
-                                         BENCH_SLHDSA_SHAKE256F)
+                                         BENCH_SLHDSA_SHAKE256F | \
+                                         BENCH_SLHDSA_SHA2_128S | \
+                                         BENCH_SLHDSA_SHA2_128F | \
+                                         BENCH_SLHDSA_SHA2_192S | \
+                                         BENCH_SLHDSA_SHA2_192F | \
+                                         BENCH_SLHDSA_SHA2_256S | \
+                                         BENCH_SLHDSA_SHA2_256F)
 
 /* Other */
 #define BENCH_RNG                0x00000001
 #define BENCH_SCRYPT             0x00000002
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define BENCH_RNG_SHA512         0x00000004
+#endif
+#define BENCH_RNG_INIT               0x00000008
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define BENCH_RNG_SHA512_INIT    0x00000010
+#endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
@@ -1293,6 +1314,17 @@ static const bench_alg bench_other_opt[] = {
 #ifndef WC_NO_RNG
     { "-rng",                BENCH_RNG               },
 #endif
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    { "-rng-sha512",         BENCH_RNG_SHA512        },
+#endif
+#ifndef WC_NO_RNG
+    { "-rng-init",           BENCH_RNG_INIT          },
+#endif
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    { "-rng-sha512-init",   BENCH_RNG_SHA512_INIT   },
+#endif
 #ifdef HAVE_SCRYPT
     { "-scrypt",             BENCH_SCRYPT            },
 #endif
@@ -1341,6 +1373,12 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
     { "-slhdsa-shake192f",     BENCH_SLHDSA_SHAKE192F},
     { "-slhdsa-shake256s",     BENCH_SLHDSA_SHAKE256S},
     { "-slhdsa-shake256f",     BENCH_SLHDSA_SHAKE256F},
+    { "-slhdsa-sha2-128s",    BENCH_SLHDSA_SHA2_128S},
+    { "-slhdsa-sha2-128f",    BENCH_SLHDSA_SHA2_128F},
+    { "-slhdsa-sha2-192s",    BENCH_SLHDSA_SHA2_192S},
+    { "-slhdsa-sha2-192f",    BENCH_SLHDSA_SHA2_192F},
+    { "-slhdsa-sha2-256s",    BENCH_SLHDSA_SHA2_256S},
+    { "-slhdsa-sha2-256f",    BENCH_SLHDSA_SHA2_256F},
     { "-slhdsa",               BENCH_SLHDSA          },
 #endif
     { NULL, 0}
@@ -2058,12 +2096,7 @@ static const char* bench_result_words3[][5] = {
     #define BENCH_ASYM
 #endif
 
-#if defined(BENCH_ASYM)
-#if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
-      defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-      defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-      defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_LMS)) && \
-      !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
+#if !defined(WC_NO_RNG) || defined(WOLFSSL_HAVE_MLKEM)
 static const char* bench_result_words2[][6] = {
 #ifdef BENCH_MICROSECOND
     { "ops took", "μsec"     , "avg" , "ops/μsec", "cycles/op",
@@ -2077,8 +2110,7 @@ static const char* bench_result_words2[][6] = {
       NULL },   /* 1 Japanese */
 #endif
 };
-#endif
-#endif
+#endif /* !WC_NO_RNG || WOLFSSL_HAVE_MLKEM */
 
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
@@ -3202,6 +3234,102 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     TEST_SLEEP();
 } /* bench_stats_sym_finish */
 
+#ifndef WC_NO_RNG
+/* Report ops/sec in the same format as bench_stats_asym_finish, but without
+ * requiring BENCH_ASYM to be defined.  Used for benchmarks like RNG init/free
+ * that measure operation counts rather than byte throughput. */
+static void bench_stats_ops_finish(const char* algo, int strength,
+    const char* desc, int count, double start, int ret)
+{
+    double total, each = 0, opsSec, milliEach;
+    const char **word = bench_result_words2[lng_index];
+    char msg[256];
+#ifdef BENCH_MICROSECOND
+    const int digits = 5;
+#else
+    const int digits = 3;
+#endif
+
+    XMEMSET(msg, 0, sizeof(msg));
+
+    total = current_time(0) - start;
+
+#ifdef WOLFSSL_ESPIDF
+    END_ESP_CYCLES
+#else
+    END_CYCLES
+#endif
+
+    if (count > 0)
+        each = total / count;
+    if (total > 0)
+        opsSec = count / total;
+    else
+        opsSec = 0;
+
+#ifdef BENCH_MICROSECOND
+    milliEach = each / 1000;
+#else
+    milliEach = each * 1000;
+#endif
+
+    SLEEP_ON_ERROR(ret);
+
+    if (csv_format == 1) {
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s," FLT_FMT_PREC ","
+                        FLT_FMT_PREC "," STATS_CLAUSE_SEPARATOR,
+                        algo, strength, desc,
+                        FLT_FMT_PREC_ARGS(3, milliEach),
+                        FLT_FMT_PREC_ARGS(digits, opsSec));
+    }
+    else {
+#ifdef HAVE_GET_CYCLES
+        (void)XSNPRINTF(msg, sizeof(msg),
+                        "%-6s %5d %8s %6d %s " FLT_FMT_PREC2 " %s, %s "
+                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC2 " %s, %lu cycles",
+                        algo, strength, desc,
+                        count, word[0],
+                        FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
+                        FLT_FMT_PREC2_ARGS(5, 3, milliEach),
+                        FLT_FMT_PREC2_ARGS(digits + 6, digits, opsSec),
+                        word[3], (unsigned long)total_cycles);
+#else
+        (void)XSNPRINTF(msg, sizeof(msg),
+                        "%-6s %5d %8s %6d %s " FLT_FMT_PREC2 " %s, %s "
+                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC2 " %s",
+                        algo, strength, desc,
+                        count, word[0],
+                        FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
+                        FLT_FMT_PREC2_ARGS(5, 3, milliEach),
+                        FLT_FMT_PREC2_ARGS(digits + 6, digits, opsSec),
+                        word[3]);
+#endif
+
+#ifdef WOLFSSL_ESPIDF
+        SHOW_ESP_CYCLES_OPS(msg, sizeof(msg));
+#else
+        SHOW_CYCLES_OPS(msg, sizeof(msg));
+#endif
+    }
+
+    printf("%s", msg);
+
+    if (ret < 0) {
+        printf("%sBenchmark %s %s %d failed: %d\n",
+               err_prefix, algo, desc, strength, ret);
+    }
+
+#ifndef WOLFSSL_SGX
+    XFFLUSH(stdout);
+#endif
+
+    (void)ret;
+
+    bench_stats_prepare();
+    TEST_SLEEP();
+} /* bench_stats_ops_finish */
+#endif /* !WC_NO_RNG */
+
 #ifdef BENCH_ASYM
 #if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
       defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
@@ -3839,6 +3967,12 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_other_algs & BENCH_RNG))
         bench_rng();
 #endif /* WC_NO_RNG */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    if (bench_all || (bench_other_algs & BENCH_RNG_SHA512))
+        bench_rng_sha512();
+#endif
 #ifndef NO_AES
 #ifdef HAVE_AES_CBC
     if (bench_all || (bench_cipher_algs & BENCH_AES_CBC)) {
@@ -4401,6 +4535,36 @@ static void* benchmarks_do(void* args)
         bench_slhdsa(SLHDSA_SHAKE256F);
     }
 #endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128S
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHA2_128S) {
+        bench_slhdsa(SLHDSA_SHA2_128S);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128F
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHA2_128F) {
+        bench_slhdsa(SLHDSA_SHA2_128F);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192S
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHA2_192S) {
+        bench_slhdsa(SLHDSA_SHA2_192S);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192F
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHA2_192F) {
+        bench_slhdsa(SLHDSA_SHA2_192F);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256S
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHA2_256S) {
+        bench_slhdsa(SLHDSA_SHA2_256S);
+    }
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256F
+    if (bench_pq_hash_sig_algs & BENCH_SLHDSA_SHA2_256F) {
+        bench_slhdsa(SLHDSA_SHA2_256F);
+    }
+#endif
 #endif
     (void)bench_pq_hash_sig_algs;
 
@@ -4601,6 +4765,16 @@ static void* benchmarks_do(void* args)
         bench_sphincsKeySign(5, SMALL_VARIANT);
 #endif
 
+#ifndef WC_NO_RNG
+    if (bench_all || (bench_other_algs & BENCH_RNG_INIT))
+        bench_rng_init();
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    if (bench_all || (bench_other_algs & BENCH_RNG_SHA512_INIT))
+        bench_rng_sha512_init();
+#endif
+#endif
+
 exit:
     /* free benchmark buffers */
     XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -4731,6 +4905,19 @@ int benchmark_init(void)
 
 #ifdef WC_RNG_SEED_CB
     wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    /* Pre-run all CASTs so their overhead is not captured in benchmark
+     * metrics. Without this, the first use of each algorithm triggers
+     * its CAST on-demand, inflating that algorithm's benchmark numbers. */
+    {
+        int castRet = wc_RunAllCast_fips();
+        if (castRet != 0) {
+            printf("%swc_RunAllCast_fips: %d CAST(s) failed, module in "
+                   "DEGRADED mode\n", err_prefix, castRet);
+        }
+    }
 #endif
 
     bench_stats_init();
@@ -4947,6 +5134,21 @@ void bench_rng(void)
     WC_RNG myrng;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
+    /* Force SHA-256 DRBG by temporarily disabling SHA-512 DRBG */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+  #if !defined(NO_SHA256)
+    ret = wc_Sha512Drbg_Disable();
+    if (ret != 0) {
+        printf("wc_Sha512Drbg_Disable failed %d\n", ret);
+        return;
+    }
+  #else
+    printf("RNG SHA-256 DRBG (Skipped: Disabled)\n");
+    return;
+  #endif
+#endif
+
     bench_stats_prepare();
 
 #ifndef HAVE_FIPS
@@ -4955,7 +5157,11 @@ void bench_rng(void)
     ret = wc_InitRng(&myrng);
 #endif
     if (ret < 0) {
-        printf("InitRNG failed %d\n", ret);
+        printf("InitRNG (SHA-256) failed %d\n", ret);
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+        wc_Sha512Drbg_Enable();
+#endif
         return;
     }
 
@@ -4986,15 +5192,204 @@ void bench_rng(void)
 #endif
            );
 exit_rng:
-    bench_stats_sym_finish("RNG", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish("RNG SHA-256 DRBG", 0, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeRng(&myrng);
+
+    /* Restore SHA-512 DRBG */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    wc_Sha512Drbg_Enable();
+#endif
 }
 #endif /* WC_NO_RNG */
 
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+void bench_rng_sha512(void)
+{
+    int    ret, i, count;
+    double start;
+    long   pos, len, remain;
+    WC_RNG myrng;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    /* Force SHA-512 DRBG by temporarily disabling SHA-256 DRBG */
+#ifndef NO_SHA256
+    ret = wc_Sha256Drbg_Disable();
+    if (ret != 0) {
+        printf("wc_Sha256Drbg_Disable failed %d\n", ret);
+        return;
+    }
+#endif
+
+    bench_stats_prepare();
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&myrng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&myrng);
+#endif
+    if (ret < 0) {
+        printf("InitRNG (SHA-512) failed %d\n", ret);
+#ifndef NO_SHA256
+        wc_Sha256Drbg_Enable();
+#endif
+        return;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            /* Split request to handle large RNG request */
+            pos = 0;
+            remain = (int)bench_size;
+            while (remain > 0) {
+                len = remain;
+                if (len > RNG_MAX_BLOCK_LEN)
+                    len = RNG_MAX_BLOCK_LEN;
+                ret = wc_RNG_GenerateBlock(&myrng, &bench_plain[pos],
+                                           (word32)len);
+                if (ret < 0)
+                    goto exit_rng_sha512;
+
+                remain -= len;
+                pos += len;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+exit_rng_sha512:
+    bench_stats_sym_finish("RNG SHA-512 DRBG", 0, count, bench_size, start,
+                           ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+    wc_FreeRng(&myrng);
+
+    /* Restore SHA-256 DRBG */
+#ifndef NO_SHA256
+    wc_Sha256Drbg_Enable();
+#endif
+}
+#endif /* WOLFSSL_DRBG_SHA512 && !WC_NO_RNG && !HAVE_SELFTEST && FIPS v7+ */
+
+#ifndef WC_NO_RNG
+void bench_rng_init(void)
+{
+    int    ret, count;
+    double start;
+    WC_RNG myrng;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    /* Force SHA-256 DRBG by temporarily disabling SHA-512 DRBG */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+  #if !defined(NO_SHA256)
+    ret = wc_Sha512Drbg_Disable();
+    if (ret != 0) {
+        printf("wc_Sha512Drbg_Disable failed %d\n", ret);
+        return;
+    }
+  #else
+    printf("RNG SHA-256 Init/Free (Skipped: Disabled)\n");
+    return;
+  #endif
+#endif
+
+    bench_stats_start(&count, &start);
+    do {
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&myrng, HEAP_HINT, devId);
+    #else
+        ret = wc_InitRng(&myrng);
+    #endif
+        if (ret < 0) {
+            printf("InitRNG (SHA-256 init bench) failed %d\n", ret);
+            goto exit_rng_init;
+        }
+        wc_FreeRng(&myrng);
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+exit_rng_init:
+    bench_stats_ops_finish("RNG", 256, "SHA256 Init/Free", count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+    /* Restore SHA-512 DRBG */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    wc_Sha512Drbg_Enable();
+#endif
+}
+
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+void bench_rng_sha512_init(void)
+{
+    int    ret, count;
+    double start;
+    WC_RNG myrng;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    /* Force SHA-512 DRBG by temporarily disabling SHA-256 DRBG */
+#ifndef NO_SHA256
+    ret = wc_Sha256Drbg_Disable();
+    if (ret != 0) {
+        printf("wc_Sha256Drbg_Disable failed %d\n", ret);
+        return;
+    }
+#endif
+
+    bench_stats_start(&count, &start);
+    do {
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&myrng, HEAP_HINT, devId);
+    #else
+        ret = wc_InitRng(&myrng);
+    #endif
+        if (ret < 0) {
+            printf("InitRNG (SHA-512 init bench) failed %d\n", ret);
+            goto exit_rng_sha512_init;
+        }
+        wc_FreeRng(&myrng);
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+exit_rng_sha512_init:
+    bench_stats_ops_finish("RNG", 512, "SHA512 Init/Free", count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+    /* Restore SHA-256 DRBG */
+#ifndef NO_SHA256
+    wc_Sha256Drbg_Enable();
+#endif
+}
+#endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
+#endif /* !WC_NO_RNG */
 
 /* ============================================================================
  * Benchmark init helpers -- use id[] when WC_TEST_*_ID is defined and
@@ -10851,6 +11246,7 @@ exit_encap:
     RESET_MULTI_VALUE_STATS_VARS();
 
     /* MLKEM Decapsulate */
+    PRIVATE_KEY_UNLOCK();
     bench_stats_start(&count, &start);
     do {
         /* while free pending slots in queue, submit ops */
@@ -10868,6 +11264,7 @@ exit_encap:
        );
 
 exit_decap:
+    PRIVATE_KEY_LOCK();
     bench_stats_asym_finish(name, keySize, desc[13], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -11360,6 +11757,13 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     case WC_LMS_PARM_L4_H5_W4:
     case WC_LMS_PARM_L4_H10_W4:
     case WC_LMS_PARM_L4_H10_W8:
+    case WC_LMS_PARM_L1_H25_W1:
+    case WC_LMS_PARM_L1_H25_W2:
+    case WC_LMS_PARM_L1_H25_W4:
+    case WC_LMS_PARM_L1_H25_W8:
+    case WC_LMS_PARM_L1_H10_W1:
+    case WC_LMS_PARM_L1_H15_W1:
+    case WC_LMS_PARM_L1_H20_W1:
 #endif
 
 #ifdef WOLFSSL_LMS_SHA256_192
@@ -11383,6 +11787,57 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     case WC_LMS_PARM_SHA256_192_L3_H5_W8:
     case WC_LMS_PARM_SHA256_192_L3_H10_W4:
     case WC_LMS_PARM_SHA256_192_L4_H5_W8:
+    case WC_LMS_PARM_SHA256_192_L1_H25_W1:
+    case WC_LMS_PARM_SHA256_192_L1_H25_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H25_W4:
+    case WC_LMS_PARM_SHA256_192_L1_H25_W8:
+    case WC_LMS_PARM_SHA256_192_L1_H10_W1:
+    case WC_LMS_PARM_SHA256_192_L1_H15_W1:
+    case WC_LMS_PARM_SHA256_192_L1_H20_W1:
+    case WC_LMS_PARM_SHA256_192_L1_H15_W8:
+#endif
+
+#ifdef WOLFSSL_LMS_SHAKE256
+    case WC_LMS_PARM_SHAKE_L1_H5_W1:
+    case WC_LMS_PARM_SHAKE_L1_H5_W2:
+    case WC_LMS_PARM_SHAKE_L1_H5_W4:
+    case WC_LMS_PARM_SHAKE_L1_H5_W8:
+    case WC_LMS_PARM_SHAKE_L1_H10_W1:
+    case WC_LMS_PARM_SHAKE_L1_H10_W2:
+    case WC_LMS_PARM_SHAKE_L1_H10_W4:
+    case WC_LMS_PARM_SHAKE_L1_H10_W8:
+    case WC_LMS_PARM_SHAKE_L1_H15_W1:
+    case WC_LMS_PARM_SHAKE_L1_H15_W2:
+    case WC_LMS_PARM_SHAKE_L1_H15_W4:
+    case WC_LMS_PARM_SHAKE_L1_H15_W8:
+    case WC_LMS_PARM_SHAKE_L1_H20_W1:
+    case WC_LMS_PARM_SHAKE_L1_H20_W2:
+    case WC_LMS_PARM_SHAKE_L1_H20_W4:
+    case WC_LMS_PARM_SHAKE_L1_H20_W8:
+    case WC_LMS_PARM_SHAKE_L1_H25_W1:
+    case WC_LMS_PARM_SHAKE_L1_H25_W2:
+    case WC_LMS_PARM_SHAKE_L1_H25_W4:
+    case WC_LMS_PARM_SHAKE_L1_H25_W8:
+    case WC_LMS_PARM_SHAKE192_L1_H5_W1:
+    case WC_LMS_PARM_SHAKE192_L1_H5_W2:
+    case WC_LMS_PARM_SHAKE192_L1_H5_W4:
+    case WC_LMS_PARM_SHAKE192_L1_H5_W8:
+    case WC_LMS_PARM_SHAKE192_L1_H10_W1:
+    case WC_LMS_PARM_SHAKE192_L1_H10_W2:
+    case WC_LMS_PARM_SHAKE192_L1_H10_W4:
+    case WC_LMS_PARM_SHAKE192_L1_H10_W8:
+    case WC_LMS_PARM_SHAKE192_L1_H15_W1:
+    case WC_LMS_PARM_SHAKE192_L1_H15_W2:
+    case WC_LMS_PARM_SHAKE192_L1_H15_W4:
+    case WC_LMS_PARM_SHAKE192_L1_H15_W8:
+    case WC_LMS_PARM_SHAKE192_L1_H20_W1:
+    case WC_LMS_PARM_SHAKE192_L1_H20_W2:
+    case WC_LMS_PARM_SHAKE192_L1_H20_W4:
+    case WC_LMS_PARM_SHAKE192_L1_H20_W8:
+    case WC_LMS_PARM_SHAKE192_L1_H25_W1:
+    case WC_LMS_PARM_SHAKE192_L1_H25_W2:
+    case WC_LMS_PARM_SHAKE192_L1_H25_W4:
+    case WC_LMS_PARM_SHAKE192_L1_H25_W8:
 #endif
 
     default:
@@ -12207,9 +12662,17 @@ void bench_slhdsa(enum SlhDsaParam param)
     }
 
     len = wc_SlhDsaKey_PublicSize(key) / 2 * 8;
-    XMEMCPY(name, "SLH-DSA-S", 10);
-    if ((param & 1) == 1) {
-        name[8] = 'F';
+    if (SLHDSA_IS_SHA2(param)) {
+        XMEMCPY(name, "SLH-DSA-SHA2-S", 15);
+        if ((param & 1) == 1) {
+            name[13] = 'F';
+        }
+    }
+    else {
+        XMEMCPY(name, "SLH-DSA-S", 10);
+        if ((param & 1) == 1) {
+            name[8] = 'F';
+        }
     }
 
     bench_stats_start(&count, &start);
@@ -12227,6 +12690,7 @@ void bench_slhdsa(enum SlhDsaParam param)
        );
     bench_stats_asym_finish(name, len, "gen", 0, count, start, ret);
 
+    PRIVATE_KEY_UNLOCK();
     bench_stats_start(&count, &start);
     do {
         sigLen = WC_SLHDSA_MAX_SIG_LEN;
@@ -12242,6 +12706,7 @@ void bench_slhdsa(enum SlhDsaParam param)
        || runs < minimum_runs
 #endif
        );
+    PRIVATE_KEY_LOCK();
     bench_stats_asym_finish(name, len, "sign", 0, count, start, ret);
 
     outLen = (word32)sizeof(pk);
@@ -12273,6 +12738,78 @@ void bench_slhdsa(enum SlhDsaParam param)
 #endif
        );
     bench_stats_asym_finish(name, len, "verify", 0, count, start, ret);
+
+    /* Internal interface: sign M' directly (no M' construction). */
+    PRIVATE_KEY_UNLOCK();
+    bench_stats_start(&count, &start);
+    do {
+        sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        ret = wc_SlhDsaKey_SignMsgDeterministic(key, msg,
+            (word32)sizeof(msg), sig, &sigLen);
+        if (ret != 0) {
+            goto exit;
+        }
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    PRIVATE_KEY_LOCK();
+    bench_stats_asym_finish(name, len, "sign-msg", 0, count, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        ret = wc_SlhDsaKey_VerifyMsg(key_vfy, msg, (word32)sizeof(msg),
+            sig, sigLen);
+        if (ret != 0) {
+            goto exit;
+        }
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    bench_stats_asym_finish(name, len, "vrfy-msg", 0, count, start, ret);
+
+    /* Pre-hash interface: hash message, then sign the hash. */
+    PRIVATE_KEY_UNLOCK();
+    bench_stats_start(&count, &start);
+    do {
+        sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, msg,
+            (word32)sizeof(msg), WC_HASH_TYPE_SHA256, sig, &sigLen);
+        if (ret != 0) {
+            goto exit;
+        }
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    PRIVATE_KEY_LOCK();
+    bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, msg,
+            (word32)sizeof(msg), WC_HASH_TYPE_SHA256, sig, sigLen);
+        if (ret != 0) {
+            goto exit;
+        }
+        count++;
+        RECORD_MULTI_VALUE_STATS();
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
 
 exit:
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
@@ -15663,6 +16200,7 @@ void bench_dilithiumKeySign(byte level)
 
 #elif !defined WOLFSSL_DILITHIUM_NO_SIGN
 
+    PRIVATE_KEY_UNLOCK();
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (level == 2) {
         ret = wc_dilithium_import_private(bench_dilithium_level2_key,
@@ -15681,6 +16219,7 @@ void bench_dilithiumKeySign(byte level)
             sizeof_bench_dilithium_level5_key, key);
     }
 #endif
+    PRIVATE_KEY_LOCK();
     if (ret != 0) {
         printf("Failed to load private key\n");
         goto out;

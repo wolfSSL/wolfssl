@@ -1063,6 +1063,11 @@ static int CheckDhLN(word32 modLen, word32 divLen)
             if (divLen == 224 || divLen == 256)
                 ret = 0;
             break;
+        /* Per SP 800-56Ar3 Table 2 */
+        case 3072:
+            if (divLen == 256)
+                ret = 0;
+            break;
         default:
             break;
     }
