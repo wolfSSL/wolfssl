@@ -342,3 +342,24 @@ fn test_ecc_import() {
     ECC::import_raw(qx, qy, d, b"SECP256R1\0", None, None).expect("Error with import_raw()");
     ECC::import_raw_ex(qx, qy, d, ECC::SECP256R1, None, None).expect("Error with import_raw_ex()");
 }
+
+#[test]
+fn test_ecc_rs_hex_to_sig_not_null_terminated() {
+    let r_hex = b"AABB\0";
+    let s_hex = b"CCDD\0";
+    let r_hex_no_nul = b"AABB";
+    let s_hex_no_nul = b"CCDD";
+    let mut sig_out = [0u8; 128];
+
+    // Both null-terminated should succeed
+    assert!(ECC::rs_hex_to_sig(r_hex, s_hex, &mut sig_out).is_ok());
+
+    // r not null-terminated should fail
+    assert!(ECC::rs_hex_to_sig(r_hex_no_nul, s_hex, &mut sig_out).is_err());
+
+    // s not null-terminated should fail
+    assert!(ECC::rs_hex_to_sig(r_hex, s_hex_no_nul, &mut sig_out).is_err());
+
+    // Both not null-terminated should fail
+    assert!(ECC::rs_hex_to_sig(r_hex_no_nul, s_hex_no_nul, &mut sig_out).is_err());
+}

@@ -1219,6 +1219,9 @@ impl ECC {
     /// }
     /// ```
     pub fn rs_hex_to_sig(r: &[u8], s: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
+        if r[r.len() - 1] != 0 || s[s.len() - 1] != 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let r_ptr = r.as_ptr() as *const core::ffi::c_char;
         let s_ptr = s.as_ptr() as *const core::ffi::c_char;
