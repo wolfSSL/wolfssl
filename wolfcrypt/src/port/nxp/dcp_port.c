@@ -255,7 +255,7 @@ int  DCPAesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (ret)
         ret = WC_HW_E;
     else
-        XMEMCPY(aes->reg, out, WC_AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     dcp_unlock();
     return ret;
 }
@@ -265,12 +265,15 @@ int  DCPAesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     if (sz % 16)
         return BAD_FUNC_ARG;
+    /* Snapshot last ciphertext block before decrypt; in-place decryption
+     * (in == out) overwrites the input with plaintext. */
+    XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     dcp_lock();
     ret = DCP_AES_DecryptCbc(DCP, &aes->handle, in, out, sz, (const byte *)aes->reg);
     if (ret)
         ret = WC_HW_E;
     else
-        XMEMCPY(aes->reg, in, WC_AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
     dcp_unlock();
     return ret;
 }
