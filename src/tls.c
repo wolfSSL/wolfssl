@@ -16292,7 +16292,7 @@ static int TLSX_EchRestoreSNI(WOLFSSL* ssl, char* serverName,
 
 /* Returns 1 if the extension may be encoded into ech_outer_extensions,
  * 0 otherwise */
-static int TLSX_ECH_IsEncodeable(word16 type)
+static int TLSX_ECH_IsEncodable(word16 type)
 {
     switch (type) {
         case TLSX_SERVER_NAME:
@@ -16356,7 +16356,7 @@ static void TLSX_ECH_BuildOuterExtensions(WOLFSSL* ssl, const byte* semaphore,
             if (!IS_OFF(seen, semIdx))
                 continue;
             TURN_ON(seen, semIdx);
-            if (type == TLSX_ECH || !TLSX_ECH_IsEncodeable(type))
+            if (type == TLSX_ECH || !TLSX_ECH_IsEncodable(type))
                 continue;
 
             if (typesStart != NULL)
