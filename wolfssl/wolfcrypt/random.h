@@ -338,7 +338,7 @@ struct DRBG_SHA512_internal {
 #ifdef HAVE_HASHDRBG
 enum wc_DrbgType {
     WC_DRBG_SHA256 = 0,
-    WC_DRBG_SHA512 = 1,
+    WC_DRBG_SHA512 = 1
 };
 #endif
 
