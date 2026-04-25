@@ -6492,6 +6492,9 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
                 WOLFSSL_MSG("Process client ticket fatal error, not using");
             } else if (ret < 0) {
                 WOLFSSL_MSG("Process client ticket unknown error, not using");
+                ssl->options.rejectTicket = 1;
+                ret = 0;  /* not fatal, but ensure session cache is not
+                           * populated with a partially-decrypted entry */
             }
         }
     }
