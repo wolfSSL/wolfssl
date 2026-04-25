@@ -8983,6 +8983,8 @@ static int TLSX_KeyShare_GenPqcHybridKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
                    DYNAMIC_TYPE_TLSX);
         if (pqc_kse == NULL) {
             WOLFSSL_MSG("kse memory allocation failure");
+            XFREE(ecc_kse, ssl->heap, DYNAMIC_TYPE_TLSX);
+            ecc_kse = NULL;
             ret = MEMORY_ERROR;
         }
         else {
