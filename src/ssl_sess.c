@@ -56,7 +56,7 @@
        or systems where memory is at a premium.
        SessionCache takes about 400 bytes, ClientCache takes 576 bytes
 
-       default SESSION_CACHE stores 33 sessions (no XXX_SESSION_CACHE defined)
+       default SESSION_CACHE stores 33 sessions (no specific SESSION_CACHE size macro defined)
        SessionCache takes about 13K bytes, ClientCache takes 17K bytes
     */
     #if defined(TITAN_SESSION_CACHE)
