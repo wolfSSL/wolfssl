@@ -900,8 +900,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_no_pad_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dh_test(void);
+#ifndef NO_DSA
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dsa_test(void);
+#endif
+#ifdef WOLFCRYPT_HAVE_SRP
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
+#endif
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 #ifdef WC_RNG_BANK_SUPPORT
@@ -1268,7 +1272,7 @@ static void myFipsCb(int ok, int err, const char* hash)
          * fail, fire this callback, and produce millions of lines of
          * redundant output. Exit now -- the hash has been printed for
          * fips-hash.sh to extract, and no test can possibly pass. */
-        exit(IN_CORE_FIPS_E);
+        exit(IN_CORE_FIPS_E); /* NOLINT(concurrency-mt-unsafe) */
 #endif
     }
 #ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
@@ -21987,8 +21991,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     defined(WC_C_DYNAMIC_FALLBACK) &&     \
     defined(HAVE_HASHDRBG) &&             \
     defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
-    if (((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
-        ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method), out);
+#ifdef WOLFSSL_DRBG_SHA512
+    if (rng_inst->rng.drbgType == WC_DRBG_SHA512) {
+        if (((struct DRBG_SHA512_internal *)rng_inst->rng.drbg512)->sha512.sha_method != 5 /* SHA512_C */)
+            ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_SHA512_internal *)rng_inst->rng.drbg512)->sha512.sha_method), out);
+    }
+    else
+#endif /* WOLFSSL_DRBG_SHA512 */
+    {
+        if (((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
+            ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method), out);
+    }
 #endif
 
     ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
@@ -35408,7 +35421,7 @@ done:
 
 #ifdef WOLFSSL_PUBLIC_MP
 
-static wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
+static WC_MAYBE_UNUSED wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
     enum wc_HashType hashType, const char* msg, WC_RNG* rng,
     mp_int* r, mp_int* s,
     mp_int* expR, mp_int* expS)

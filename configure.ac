@@ -4509,7 +4509,6 @@ then
     then
         AC_MSG_NOTICE([MLKEM enabled (not explicitly disabled); overriding --disable-shake128 to enable SHAKE128])
         ENABLED_SHAKE128=yes
-        enable_shake128=yes
     fi
 fi
 
@@ -4527,7 +4526,6 @@ then
     then
         AC_MSG_NOTICE([MLKEM enabled (not explicitly disabled); overriding --disable-shake256 to enable SHAKE256])
         ENABLED_SHAKE256=yes
-        enable_shake256=yes
     fi
 fi
 
@@ -6350,14 +6348,14 @@ AS_CASE([$FIPS_VERSION],
              SLHDSA_PARAM_SHA2_256F="yes"])
 
 # SHA-256 DRBG -- cannot be disabled at build time in FIPS mode
-        AS_IF([test "$enable_sha256_drbg" = "no"],
-            [AC_MSG_WARN([Can not disable SHA256-DRBG at build time in FIPS mode, disable at run-time with wc_Sha256Drbg_Disable() or wc_Sha256Drbg_Disable_fips()])])
-        ENABLED_SHA256_DRBG="yes"
+        AS_IF([test "$ENABLED_SHA256_DRBG" != "yes" &&
+               test "$FIPS_VERSION" != "dev"],
+            [AC_MSG_ERROR([Can not disable SHA256-DRBG at build time in FIPS mode.  Disable at run-time with wc_Sha256Drbg_Disable() or wc_Sha256Drbg_Disable_fips()])])
 
 # SHA-512 DRBG -- cannot be disabled at build time in FIPS mode
-        AS_IF([test "$enable_sha512_drbg" = "no"],
-            [AC_MSG_WARN([Can not disable SHA512-DRBG at build time in FIPS mode, disable it at run-time with wc_Sha512Drbg_Disable() or wc_Sha512Drbg_Disable_fips()])])
-        ENABLED_SHA512_DRBG="yes"
+        AS_IF([test "$ENABLED_SHA512_DRBG" != "yes" &&
+               test "$FIPS_VERSION" != "dev"],
+            [AC_MSG_ERROR([Can not disable SHA512-DRBG at build time in FIPS mode.  Disable it at run-time with wc_Sha512Drbg_Disable() or wc_Sha512Drbg_Disable_fips()])])
 
 # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],
@@ -6480,7 +6478,8 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "dev" || test "$enable_sha512" != "no")],
             [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
 
-        # SHA512-224 and SHA512-256 are needed for HashML-DSA (FIPS 204)
+        # SHA512-224 and SHA512-256 are not in-boundary in FIPS v6.
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
 
         # Shake128 because we're testing SHAKE256
         AS_IF([test "x$ENABLED_SHAKE128" = "xno" &&
@@ -6673,6 +6672,14 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha3" != "yes")],
             [enable_sha3="no"; ENABLED_SHA3="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA3"])
 
+        AS_IF([test "$ENABLED_SHAKE128" != "no" &&
+               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_shake128" != "yes")],
+            [enable_shake128="no"; ENABLED_SHAKE128="no"])
+
+        AS_IF([test "$ENABLED_SHAKE256" != "no" &&
+               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_shake256" != "yes")],
+            [enable_shake256="no"; ENABLED_SHAKE256="no"])
+
         AS_IF([test "$ENABLED_SHA224" != "no" &&
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha224" != "yes")],
             [enable_sha224="no"; ENABLED_SHA224="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA224"])
@@ -6683,7 +6690,7 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "$ENABLED_SHA512" != "no" &&
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha512" != "yes")],
-            [enable_sha512="no"; ENABLED_SHA512="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA512 -UWOLFSSL_SHA384"])
+            [enable_sha512="no"; ENABLED_SHA512="no"; ENABLED_SHA512_DRBG="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA512 -UWOLFSSL_SHA384"])
 
         # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
@@ -7045,14 +7052,12 @@ then
     then
         AC_MSG_WARN([MLKEM enabled (not explicitly disabled); overriding --disable-shake128 to enable SHAKE128])
         ENABLED_SHAKE128=yes
-        enable_shake128=yes
     fi
 
     if test "$ENABLED_SHAKE256" = "no"
     then
         AC_MSG_WARN([MLKEM enabled (not explicitly disabled); overriding --disable-shake256 to enable SHAKE256])
         ENABLED_SHAKE256=yes
-        enable_shake256=yes
     fi
 fi
 
@@ -7813,7 +7818,8 @@ then
 fi
 
 # FIPS override: Hash DRBG is mandatory
-if test "x$ENABLED_HASHDRBG" != "xyes" && test "x$ENABLED_FIPS" = "xyes" && test "x$ENABLED_KCAPI" = "xno"
+if test "$ENABLED_HASHDRBG" != "yes" && test "$ENABLED_FIPS" = "yes" &&
+   test "$FIPS_VERSION" != "dev" && test "$ENABLED_KCAPI" = "no"
 then
     if test "$enable_hashdrbg" = "no"
     then
