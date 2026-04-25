@@ -6480,7 +6480,8 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "dev" || test "$enable_sha512" != "no")],
             [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
 
-        # SHA512-224 and SHA512-256 are needed for HashML-DSA (FIPS 204)
+        # SHA512-224 and SHA512-256 are not in-boundary in FIPS v6.
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
 
         # Shake128 because we're testing SHAKE256
         AS_IF([test "x$ENABLED_SHAKE128" = "xno" &&
