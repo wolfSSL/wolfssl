@@ -4509,7 +4509,6 @@ then
     then
         AC_MSG_NOTICE([MLKEM enabled (not explicitly disabled); overriding --disable-shake128 to enable SHAKE128])
         ENABLED_SHAKE128=yes
-        enable_shake128=yes
     fi
 fi
 
@@ -4527,7 +4526,6 @@ then
     then
         AC_MSG_NOTICE([MLKEM enabled (not explicitly disabled); overriding --disable-shake256 to enable SHAKE256])
         ENABLED_SHAKE256=yes
-        enable_shake256=yes
     fi
 fi
 
@@ -6674,6 +6672,14 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha3" != "yes")],
             [enable_sha3="no"; ENABLED_SHA3="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA3"])
 
+        AS_IF([test "$ENABLED_SHAKE128" != "no" &&
+               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_shake128" != "yes")],
+            [enable_shake128="no"; ENABLED_SHAKE128="no"])
+
+        AS_IF([test "$ENABLED_SHAKE256" != "no" &&
+               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_shake256" != "yes")],
+            [enable_shake256="no"; ENABLED_SHAKE256="no"])
+
         AS_IF([test "$ENABLED_SHA224" != "no" &&
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_sha224" != "yes")],
             [enable_sha224="no"; ENABLED_SHA224="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SHA224"])
@@ -7046,14 +7052,12 @@ then
     then
         AC_MSG_WARN([MLKEM enabled (not explicitly disabled); overriding --disable-shake128 to enable SHAKE128])
         ENABLED_SHAKE128=yes
-        enable_shake128=yes
     fi
 
     if test "$ENABLED_SHAKE256" = "no"
     then
         AC_MSG_WARN([MLKEM enabled (not explicitly disabled); overriding --disable-shake256 to enable SHAKE256])
         ENABLED_SHAKE256=yes
-        enable_shake256=yes
     fi
 fi
 
