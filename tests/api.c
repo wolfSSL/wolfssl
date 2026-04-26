@@ -18831,7 +18831,8 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
 static int test_wolfSSL_i2d_PUBKEY_bio(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED)
     BIO* bio = NULL;
     EVP_PKEY* pkey = NULL;
     EVP_PKEY* pkey2 = NULL;
