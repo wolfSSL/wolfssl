@@ -6234,11 +6234,6 @@ int wolfSSL_PEM_write_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* key,
         err = 1;
     }
 
-    if ((!err) && ((cipher != NULL) || (passwd != NULL) || (len != 0) ||
-            (cb != NULL) || (arg != NULL))) {
-        WOLFSSL_MSG("PEM private key encryption not supported here");
-    }
-
     if (!err) {
         /* Set PEM type based on key type, inverse of PEM_read_PrivateKey. */
         switch (key->type) {
@@ -6277,6 +6272,7 @@ int wolfSSL_PEM_write_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* key,
             fp, type, NULL) != 1)) {
         err = 1;
     }
+    
 
     WOLFSSL_LEAVE("wolfSSL_PEM_write_PrivateKey", err);
 
