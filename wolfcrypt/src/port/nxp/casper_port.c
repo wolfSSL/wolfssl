@@ -86,7 +86,7 @@ int casper_rsa_public_exptmod(
 
 
 /* 32 for 256 bits, 48 for 384 bits and 72 for 521 bits... */
-#define CASPER_MAX_ECC_SIZE_BYTES (72) 
+#define CASPER_MAX_ECC_SIZE_BYTES (72)
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_NXP_CASPER_ECC_MULMOD)
 /* calculates R = m*P[X, Y] */
@@ -156,7 +156,7 @@ int casper_ecc_mulmod(
     mp_set(R->z, 1);
 
     return 0;
-}    
+}
 #endif
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_NXP_CASPER_ECC_MUL2ADD)
@@ -247,7 +247,7 @@ int casper_ecc_mul2add(
     mp_set(R->z, 1);
 
     return 0;
-}    
+}
 #endif
 
 #endif /* WOLFSSL_NXP_CASPER */

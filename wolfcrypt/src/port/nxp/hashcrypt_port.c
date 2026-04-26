@@ -67,9 +67,6 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
-    // if (wolfSSL_CryptHwMutexLock() != 0)
-    //     return BAD_MUTEX_E;
-
     XMEMSET(sha256, 0, sizeof(wc_Sha256));
     if (HASHCRYPT_SHA_Init(HASHCRYPT, &hash_ctx, kHASHCRYPT_Sha256)
             != kStatus_Success)
@@ -199,13 +196,13 @@ static int _hashcrypt_set_key(Aes* aes)
     aes_handle.keyType = kHASHCRYPT_UserKey;
 
     if (aes->keylen == 128/8)
-        aes_handle.keySize = kHASHCRYPT_Aes128; 
+        aes_handle.keySize = kHASHCRYPT_Aes128;
     else if (aes->keylen == 192/8)
-        aes_handle.keySize = kHASHCRYPT_Aes192; 
+        aes_handle.keySize = kHASHCRYPT_Aes192;
     else if (aes->keylen == 256/8)
         aes_handle.keySize = kHASHCRYPT_Aes256;
     else
-        return BAD_FUNC_ARG; 
+        return BAD_FUNC_ARG;
 
     if (HASHCRYPT_AES_SetKey(
             HASHCRYPT, &aes_handle, (const uint8_t *)aes->devKey, aes->keylen
