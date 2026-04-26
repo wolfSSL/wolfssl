@@ -6165,6 +6165,125 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 }
 #endif /* !NO_BIO */
 
+#ifndef NO_FILESYSTEM
+/* Writes a public key to a file pointer encoded in PEM format.
+ *
+ * Mirrors wolfSSL_PEM_read_PUBKEY: convert the EVP_PKEY to public-key DER and
+ * write it with the generic PUBLIC KEY PEM type.
+ *
+ * @param [in] fp   File pointer to write to.
+ * @param [in] key  Public key to write in PEM format.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_PEM_write_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY* key)
+{
+    int ret = 0;
+#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+    unsigned char* der = NULL;
+    int derSz;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_PUBKEY");
+
+    if ((fp == XBADFILE) || (key == NULL)) {
+        WOLFSSL_MSG("Bad Function Arguments");
+        return 0;
+    }
+
+#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+    derSz = wolfSSL_i2d_PUBKEY(key, &der);
+    if (derSz > 0) {
+        ret = der_write_to_file_as_pem(der, derSz, fp, PUBLICKEY_TYPE, NULL);
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+#else
+    WOLFSSL_MSG("i2d_PUBKEY not supported in this build");
+#endif
+
+    return ret;
+}
+
+/* Writes a private key to a file pointer encoded in PEM format.
+ *
+ * Mirrors wolfSSL_PEM_read_PrivateKey's key-type switch and writes the stored
+ * DER as the matching PEM private key type.
+ *
+ * @param [in] fp      File pointer to write to.
+ * @param [in] key     Private key to write in PEM format.
+ * @param [in] cipher  Encryption cipher to use. May be NULL.
+ * @param [in] passwd  Password to use when encrypting. May be NULL.
+ * @param [in] len     Length of password.
+ * @param [in] cb      Password callback.
+ * @param [in] arg     Password callback argument.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_PEM_write_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* key,
+    const WOLFSSL_EVP_CIPHER* cipher, unsigned char* passwd, int len,
+    wc_pem_password_cb* cb, void* arg)
+{
+    int err = 0;
+    int type = 0;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_PrivateKey");
+
+    /* Validate parameters. */
+    if ((fp == XBADFILE) || (key == NULL)) {
+        WOLFSSL_MSG("Bad Function Arguments");
+        err = 1;
+    }
+
+    if ((!err) && ((cipher != NULL) || (passwd != NULL) || (len != 0) ||
+            (cb != NULL) || (arg != NULL))) {
+        WOLFSSL_MSG("PEM private key encryption not supported here");
+    }
+
+    if (!err) {
+        /* Set PEM type based on key type, inverse of PEM_read_PrivateKey. */
+        switch (key->type) {
+            #ifndef NO_RSA
+            case WC_EVP_PKEY_RSA:
+                type = PRIVATEKEY_TYPE;
+                break;
+            #endif
+            #ifndef NO_DSA
+            case WC_EVP_PKEY_DSA:
+                type = DSA_PRIVATEKEY_TYPE;
+                break;
+            #endif
+            #ifdef HAVE_ECC
+            case WC_EVP_PKEY_EC:
+                type = ECC_PRIVATEKEY_TYPE;
+                break;
+            #endif
+            #ifndef NO_DH
+            case WC_EVP_PKEY_DH:
+                type = DH_PRIVATEKEY_TYPE;
+                break;
+            #endif
+            default:
+                type = WOLFSSL_FATAL_ERROR;
+                break;
+        }
+    }
+
+    if ((!err) && (type == WOLFSSL_FATAL_ERROR)) {
+        err = 1;
+    }
+
+    /* Write DER data as the selected PEM private key type. */
+    if ((!err) && (der_write_to_file_as_pem((byte*)key->pkey.ptr, key->pkey_sz,
+            fp, type, NULL) != 1)) {
+        err = 1;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_PEM_write_PrivateKey", err);
+
+    return !err;
+}
+#endif /* !NO_FILESYSTEM */
+
 #ifndef NO_BIO
 /* Create a private key object from the data in the BIO.
  *

@@ -755,6 +755,104 @@ int test_wolfSSL_PEM_PrivateKey(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_PEM_write_PrivateKey_PUBKEY(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    const char* privFile = "./test-pem-write-private-key.pem";
+    const char* pubFile = "./test-pem-write-pubkey.pem";
+    const unsigned char* serverKey =
+        (const unsigned char*)server_key_der_2048;
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY* readPriv = NULL;
+    EVP_PKEY* readPub = NULL;
+    unsigned char* pubDer = NULL;
+    unsigned char* readPubDer = NULL;
+    XFILE fp = XBADFILE;
+    long privSz = 0;
+    long pubSz = 0;
+    int pubDerSz = 0;
+    int readPubDerSz = 0;
+
+    remove(privFile);
+    remove(pubFile);
+
+    ExpectNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &serverKey,
+        (long)sizeof_server_key_der_2048));
+
+    ExpectIntEQ(PEM_write_PrivateKey(XBADFILE, pkey, NULL, NULL, 0, NULL,
+        NULL), 0);
+    ExpectIntEQ(PEM_write_PrivateKey(stderr, NULL, NULL, NULL, 0, NULL,
+        NULL), 0);
+    ExpectIntEQ(PEM_write_PUBKEY(XBADFILE, pkey), 0);
+    ExpectIntEQ(PEM_write_PUBKEY(stderr, NULL), 0);
+
+    ExpectTrue((fp = XFOPEN(privFile, "wb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectIntEQ(PEM_write_PrivateKey(fp, pkey, NULL, NULL, 0, NULL, NULL),
+            1);
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectTrue((fp = XFOPEN(privFile, "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
+        ExpectIntGT(privSz = XFTELL(fp), 0);
+        ExpectTrue(XFSEEK(fp, 0, XSEEK_SET) == 0);
+        ExpectNotNull(readPriv = PEM_read_PrivateKey(fp, NULL, NULL, NULL));
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    if ((pkey != NULL) && (readPriv != NULL) && (pkey->pkey.ptr != NULL) &&
+            (readPriv->pkey.ptr != NULL)) {
+        ExpectIntEQ(pkey->pkey_sz, readPriv->pkey_sz);
+        ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, readPriv->pkey.ptr,
+            pkey->pkey_sz), 0);
+    }
+
+    ExpectIntGT(pubDerSz = wolfSSL_i2d_PUBKEY(pkey, &pubDer), 0);
+    ExpectTrue((fp = XFOPEN(pubFile, "wb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectIntEQ(PEM_write_PUBKEY(fp, pkey), 1);
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectTrue((fp = XFOPEN(pubFile, "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
+        ExpectIntGT(pubSz = XFTELL(fp), 0);
+        ExpectTrue(XFSEEK(fp, 0, XSEEK_SET) == 0);
+        ExpectNotNull(readPub = PEM_read_PUBKEY(fp, NULL, NULL, NULL));
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectIntGT(readPubDerSz = wolfSSL_i2d_PUBKEY(readPub, &readPubDer), 0);
+    ExpectIntEQ(pubDerSz, readPubDerSz);
+    if ((pubDer != NULL) && (readPubDer != NULL) && (pubDerSz > 0) &&
+            (pubDerSz == readPubDerSz)) {
+        ExpectIntEQ(XMEMCMP(pubDer, readPubDer, pubDerSz), 0);
+    }
+
+    ExpectIntGT(privSz, pubSz);
+
+    XFREE(readPubDer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(pubDer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    EVP_PKEY_free(readPub);
+    EVP_PKEY_free(readPriv);
+    EVP_PKEY_free(pkey);
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+    }
+    remove(privFile);
+    remove(pubFile);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_PEM_file_RSAKey(void)
 {
     EXPECT_DECLS;
