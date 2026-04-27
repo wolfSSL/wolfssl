@@ -33,8 +33,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <devctl.h>
-
 #include <errno.h>
+
 
 /* for devctl use */
 int caamFd = -1;
@@ -48,7 +48,7 @@ int wc_CAAMInitInterface()
         return -1;
     }
 
-    caamFd = open("/dev/wolfCrypt", O_RDWR);
+    caamFd = wc_open_cloexec("/dev/wolfCrypt", O_RDWR);
     if (caamFd < 0) {
         WOLFSSL_MSG("Could not open /dev/wolfCrypt");
         return -1;

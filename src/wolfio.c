@@ -42,6 +42,7 @@
 #include <wolfssl/wolfio.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+
 #ifdef NUCLEUS_PLUS_2_3
 /* Holds last Nucleus networking error number */
 int Nucleus_Net_Errno;
@@ -1494,7 +1495,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     }
 #endif
 
-    *sockfd = (SOCKET_T)socket(addr.ss_family, SOCK_STREAM, 0);
+    *sockfd = (SOCKET_T)wc_socket_cloexec(addr.ss_family, SOCK_STREAM, 0);
 #ifdef USE_WINDOWS_API
     if (*sockfd == SOCKET_INVALID)
 #else
@@ -1572,12 +1573,12 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
     sin->sin6_family = AF_INET6;
     sin->sin6_addr = in6addr_any;
     sin->sin6_port = XHTONS(port);
-    *sockfd = (SOCKET_T)socket(AF_INET6, SOCK_STREAM, 0);
+    *sockfd = (SOCKET_T)wc_socket_cloexec(AF_INET6, SOCK_STREAM, 0);
 #else
     sin->sin_family = AF_INET;
     sin->sin_addr.s_addr = INADDR_ANY;
     sin->sin_port = XHTONS(port);
-    *sockfd = (SOCKET_T)socket(AF_INET, SOCK_STREAM, 0);
+    *sockfd = (SOCKET_T)wc_socket_cloexec(AF_INET, SOCK_STREAM, 0);
 #endif
 
 #ifdef USE_WINDOWS_API
@@ -1623,7 +1624,7 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
 #ifdef HAVE_SOCKADDR
 int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr, XSOCKLENT* peer_len)
 {
-    return (int)accept(sockfd, peer_addr, peer_len);
+    return (int)wc_accept_cloexec((int)sockfd, peer_addr, peer_len);
 }
 #endif /* HAVE_SOCKADDR */
 
@@ -3286,7 +3287,11 @@ int LwIPNativeSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     err_t ret;
     WOLFSSL_LWIP_NATIVE_STATE* nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;
 
-    ret = tcp_write(nlwip->pcb, buf, sz, TCP_WRITE_FLAG_COPY);
+    if (sz < 0 || sz > (int)WOLFSSL_MAX_16BIT) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = tcp_write(nlwip->pcb, buf, (u16_t)sz, TCP_WRITE_FLAG_COPY);
     if (ret != ERR_OK) {
         sz = WOLFSSL_FATAL_ERROR;
     }

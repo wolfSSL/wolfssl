@@ -430,9 +430,15 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
 {
     int i;
     cache_header_t cache_header;
-    SessionRow*    row  = (SessionRow*)((byte*)mem + sizeof(cache_header));
+    SessionRow*    row;
 
     WOLFSSL_ENTER("wolfSSL_memsave_session_cache");
+
+    if (mem == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    row = (SessionRow*)((byte*)mem + sizeof(cache_header));
 
     if (sz < wolfSSL_get_session_cache_memsize()) {
         WOLFSSL_MSG("Memory buffer too small");
@@ -520,9 +526,15 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
 {
     int    i;
     cache_header_t cache_header;
-    SessionRow*    row  = (SessionRow*)((byte*)mem + sizeof(cache_header));
+    SessionRow*    row;
 
     WOLFSSL_ENTER("wolfSSL_memrestore_session_cache");
+
+    if (mem == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    row = (SessionRow*)((byte*)mem + sizeof(cache_header));
 
     if (sz < wolfSSL_get_session_cache_memsize()) {
         WOLFSSL_MSG("Memory buffer too small");

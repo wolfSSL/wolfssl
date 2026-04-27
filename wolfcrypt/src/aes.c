@@ -16875,6 +16875,11 @@ int  wc_AesEaxDecryptAuth(const byte* key, word32 keySz, byte* out,
         return BAD_FUNC_ARG;
     }
 
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ
+            || authTagSz > WC_AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK)
     if ((eax = (AesEax *)XMALLOC(sizeof(AesEax),
                                  NULL,
@@ -17224,8 +17229,8 @@ int wc_AesEaxDecryptFinal(AesEax* eax,
     byte authTag[WC_AES_BLOCK_SIZE];
 #endif
 
-    if (eax == NULL || authIn == NULL || authInSz == 0 ||
-            authInSz > WC_AES_BLOCK_SIZE) {
+    if (eax == NULL || authIn == NULL || authInSz > WC_AES_BLOCK_SIZE
+            || authInSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
         return BAD_FUNC_ARG;
     }
 

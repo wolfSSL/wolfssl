@@ -4637,14 +4637,18 @@ int test_tls13_empty_record_limit(void)
     }
 
     /* Inject all records as a single message. */
-    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)allRecs,
-                    recSz * numRecs), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+                        (const char*)allRecs, recSz * numRecs), 0);
+    }
 
     /* The server's wolfSSL_read should fail with EMPTY_RECORD_LIMIT_E. */
-    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
-                WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
-                WC_NO_ERR_TRACE(EMPTY_RECORD_LIMIT_E));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+                    WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WC_NO_ERR_TRACE(EMPTY_RECORD_LIMIT_E));
+    }
 
     XFREE(allRecs, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     allRecs = NULL;
@@ -4679,17 +4683,19 @@ int test_tls13_empty_record_limit(void)
     if (EXPECT_SUCCESS()) {
         int emptyBefore = WOLFSSL_MAX_EMPTY_RECORDS - 1;
         int emptyAfter = WOLFSSL_MAX_EMPTY_RECORDS - 1;
-        int dataRecSz;
+        int dataRecSz = 0;
         byte dataRec[128];
         byte payload[1] = { 'a' };
-        int totalSz;
+        int totalSz = 0;
 
-        dataRecSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 1,
-                                      application_data, 0, 1, 0);
-        ExpectIntGT(dataRecSz, 0);
-
-        totalSz = recSz * (emptyBefore + emptyAfter) + dataRecSz;
         if (EXPECT_SUCCESS()) {
+            dataRecSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 1,
+                                          application_data, 0, 1, 0);
+            ExpectIntGT(dataRecSz, 0);
+        }
+
+        if (EXPECT_SUCCESS()) {
+            totalSz = recSz * (emptyBefore + emptyAfter) + dataRecSz;
             allRecs = (byte*)XMALLOC((size_t)totalSz, NULL,
                                      DYNAMIC_TYPE_TMP_BUFFER);
             ExpectNotNull(allRecs);
@@ -4725,15 +4731,19 @@ int test_tls13_empty_record_limit(void)
                      rec, (size_t)recSz);
         }
 
-        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
-                        (const char*)allRecs, totalSz), 0);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+                            (const char*)allRecs, totalSz), 0);
+        }
     }
 
     /* wolfSSL_read should return the 1-byte payload. The counter resets
      * on the non-empty record so neither batch of (limit - 1) empties
      * triggers the error. */
-    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 1);
-    ExpectIntEQ(buf[0], 'a');
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 1);
+        ExpectIntEQ(buf[0], 'a');
+    }
 
     XFREE(allRecs, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_free(ssl_c);

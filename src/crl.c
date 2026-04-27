@@ -1678,12 +1678,14 @@ static int SwapLists(WOLFSSL_CRL* crl)
 #include <sys/time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #ifdef __MACH__
     #define XEVENT_MODE O_EVTONLY
 #elif defined(__FreeBSD__)
     #define XEVENT_MODE O_RDONLY
 #endif
+
 
 
 /* we need a unique kqueue user filter fd for crl in case user is doing custom
@@ -1729,6 +1731,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
         SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
+    wc_set_cloexec(crl->mfd);
 
     /* listen for custom shutdown event */
     EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, EV_ADD, 0, 0, NULL);
@@ -1743,7 +1746,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     fDER = -1;
 
     if (crl->monitors[0].path) {
-        fPEM = open(crl->monitors[0].path, XEVENT_MODE);
+        fPEM = wc_open_cloexec(crl->monitors[0].path, XEVENT_MODE);
         if (fPEM == -1) {
             WOLFSSL_MSG("PEM event dir open failed");
             SignalSetup(crl, MONITOR_SETUP_E);
@@ -1753,7 +1756,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     }
 
     if (crl->monitors[1].path) {
-        fDER = open(crl->monitors[1].path, XEVENT_MODE);
+        fDER = wc_open_cloexec(crl->monitors[1].path, XEVENT_MODE);
         if (fDER == -1) {
             WOLFSSL_MSG("DER event dir open failed");
             if (fPEM != -1)
@@ -1820,7 +1823,8 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 #include <sys/inotify.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
-
+#include <fcntl.h>
+#include <errno.h>
 
 #ifndef max
     static WC_INLINE int max(int a, int b)
@@ -1855,14 +1859,32 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 
     WOLFSSL_ENTER("DoMonitor");
 
+#ifdef EFD_CLOEXEC
+    crl->mfd = eventfd(0, EFD_CLOEXEC);  /* our custom shutdown event */
+    if (crl->mfd < 0 && (errno == ENOSYS || errno == EINVAL)) {
+        crl->mfd = eventfd(0, 0);
+        wc_set_cloexec(crl->mfd);
+    }
+#else
     crl->mfd = eventfd(0, 0);  /* our custom shutdown event */
+    wc_set_cloexec(crl->mfd);
+#endif
     if (crl->mfd < 0) {
         WOLFSSL_MSG("eventfd failed");
         SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
 
+#ifdef IN_CLOEXEC
+    notifyFd = inotify_init1(IN_CLOEXEC);
+    if (notifyFd < 0 && (errno == ENOSYS || errno == EINVAL)) {
+        notifyFd = inotify_init();
+        wc_set_cloexec(notifyFd);
+    }
+#else
     notifyFd = inotify_init();
+    wc_set_cloexec(notifyFd);
+#endif
     if (notifyFd < 0) {
         WOLFSSL_MSG("inotify failed");
         (void)close(crl->mfd);

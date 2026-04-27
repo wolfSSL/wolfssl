@@ -42,8 +42,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Pinned refs: avoid OpenVPN master until wolfSSL adds any new OpenSSL
-        # APIs it adopts (e.g. BN_bn2binpad). release/2.6 + latest stable tag.
         ref: [ release/2.6, v2.6.19 ]
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'

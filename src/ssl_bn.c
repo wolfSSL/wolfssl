@@ -468,6 +468,56 @@ int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM* bn, unsigned char* r)
 }
 
 
+/* Encode a big number as a big-endian byte array, zero-padded to toLen bytes.
+ *
+ * Returns toLen on success, -1 on error (including when the number is too
+ * large to fit in toLen bytes).
+ *
+ * @param [in]  bn     Big number to encode.
+ * @param [out] r      Buffer to place encoding into. Must be at least toLen
+ *                     bytes.
+ * @param [in]  toLen  Desired output length in bytes.
+ * @return  toLen on success.
+ * @return  -1 on error.
+ */
+int wolfSSL_BN_bn2binpad(const WOLFSSL_BIGNUM* bn, unsigned char* r, int toLen)
+{
+    int numBytes;
+
+    WOLFSSL_ENTER("wolfSSL_BN_bn2binpad");
+
+    /* Validate parameters. */
+    if (BN_IS_NULL(bn) || (r == NULL) || (toLen < 0)) {
+        WOLFSSL_MSG("NULL bn, r, or invalid toLen error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* Get the number of bytes needed to encode the big number. */
+    numBytes = mp_unsigned_bin_size((mp_int*)bn->internal);
+    if (numBytes < 0) {
+        WOLFSSL_MSG("mp_unsigned_bin_size error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+    if (numBytes > toLen) {
+        WOLFSSL_MSG("BN too large for toLen");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* Zero-pad leading bytes. */
+    XMEMSET(r, 0, (size_t)(toLen - numBytes));
+
+    /* Encode the big number into the remaining bytes. */
+    if (numBytes > 0 &&
+        mp_to_unsigned_bin((mp_int*)bn->internal, r + toLen - numBytes) !=
+            MP_OKAY) {
+        WOLFSSL_MSG("mp_to_unsigned_bin error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return toLen;
+}
+
+
 /* Return a big number with value of the decoding of the big-endian byte array.
  *
  * Returns ret when not NULL.

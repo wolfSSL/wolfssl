@@ -1510,10 +1510,22 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         if (wc_rng_bank_checkout(ctx, &drbg, n, 0, WC_RNG_BANK_FLAG_NONE) != 0)
             continue;
 
-        for (i = 0, V_offset = 0; i < len; ++i) {
-            ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V[V_offset++] += ((byte *)buf)[i];
-            if (V_offset == (int)sizeof ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V)
-                V_offset = 0;
+#ifdef WOLFSSL_DRBG_SHA512
+        if (WC_RNG_BANK_INST_TO_RNG(drbg)->drbgType == WC_DRBG_SHA512) {
+            for (i = 0, V_offset = 0; i < len; ++i) {
+                ((struct DRBG_SHA512_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg512)->V[V_offset++] += ((byte *)buf)[i];
+                if (V_offset == (int)sizeof ((struct DRBG_SHA512_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg512)->V)
+                    V_offset = 0;
+            }
+        }
+        else
+#endif /* WOLFSSL_DRBG_SHA512 */
+        {
+            for (i = 0, V_offset = 0; i < len; ++i) {
+                ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V[V_offset++] += ((byte *)buf)[i];
+                if (V_offset == (int)sizeof ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V)
+                    V_offset = 0;
+            }
         }
 
         wc_rng_bank_checkin(ctx, &drbg);

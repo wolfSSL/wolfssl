@@ -900,8 +900,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_no_pad_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rsa_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dh_test(void);
+#ifndef NO_DSA
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dsa_test(void);
+#endif
+#ifdef WOLFCRYPT_HAVE_SRP
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
+#endif
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 #ifdef WC_RNG_BANK_SUPPORT
@@ -1268,7 +1272,7 @@ static void myFipsCb(int ok, int err, const char* hash)
          * fail, fire this callback, and produce millions of lines of
          * redundant output. Exit now -- the hash has been printed for
          * fips-hash.sh to extract, and no test can possibly pass. */
-        exit(IN_CORE_FIPS_E);
+        exit(IN_CORE_FIPS_E); /* NOLINT(concurrency-mt-unsafe) */
 #endif
     }
 #ifdef REALLY_LONG_DRBG_CONTINUOUS_TEST
@@ -19558,6 +19562,115 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
         }
 
     }
+
+    /* Regression test: wc_AesEaxDecryptAuth must reject authTagSz below
+     * WOLFSSL_MIN_AUTH_TAG_SZ (including zero), otherwise an attacker could
+     * bypass tag verification by supplying an empty tag. */
+#if WOLFSSL_MIN_AUTH_TAG_SZ > 0
+    {
+        byte zero_ct[16];
+        byte zero_pt[16];
+        byte zero_tag[16];
+        XMEMSET(zero_ct, 0, sizeof(zero_ct));
+        XMEMSET(zero_tag, 0, sizeof(zero_tag));
+
+        ret = wc_AesEaxDecryptAuth(vectors[0].key,
+                                   (word32)vectors[0].key_length,
+                                   zero_pt,
+                                   zero_ct, (word32)sizeof(zero_ct),
+                                   vectors[0].iv,
+                                   (word32)vectors[0].iv_length,
+                                   zero_tag, 0,
+                                   vectors[0].aad,
+                                   (word32)vectors[0].aad_length);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+#if WOLFSSL_MIN_AUTH_TAG_SZ > 1
+        ret = wc_AesEaxDecryptAuth(vectors[0].key,
+                                   (word32)vectors[0].key_length,
+                                   zero_pt,
+                                   zero_ct, (word32)sizeof(zero_ct),
+                                   vectors[0].iv,
+                                   (word32)vectors[0].iv_length,
+                                   zero_tag, WOLFSSL_MIN_AUTH_TAG_SZ - 1,
+                                   vectors[0].aad,
+                                   (word32)vectors[0].aad_length);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+#endif
+
+        /* Upper bound: authTagSz > WC_AES_BLOCK_SIZE must be rejected.
+         * Pins the '>' operator in the validation against mutation to '>='
+         * and prevents an over-read of the caller-supplied tag buffer. */
+        ret = wc_AesEaxDecryptAuth(vectors[0].key,
+                                   (word32)vectors[0].key_length,
+                                   zero_pt,
+                                   zero_ct, (word32)sizeof(zero_ct),
+                                   vectors[0].iv,
+                                   (word32)vectors[0].iv_length,
+                                   zero_tag, WC_AES_BLOCK_SIZE + 1,
+                                   vectors[0].aad,
+                                   (word32)vectors[0].aad_length);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+        /* Direct incremental-API coverage: wc_AesEaxDecryptFinal must also
+         * reject authInSz of zero and below WOLFSSL_MIN_AUTH_TAG_SZ. The
+         * one-shot API above is a separate code path. Heap-allocate the
+         * AesEax context to keep stack usage within Linux kernel limits. */
+        {
+            WC_DECLARE_VAR(eax, AesEax, 1, HEAP_HINT);
+
+            WC_ALLOC_VAR(eax, AesEax, 1, HEAP_HINT);
+            if (!WC_VAR_OK(eax))
+                return WC_TEST_RET_ENC_EC(MEMORY_E);
+
+            XMEMSET(eax, 0, sizeof(*eax));
+            ret = wc_AesEaxInit(eax,
+                                vectors[0].key, (word32)vectors[0].key_length,
+                                vectors[0].iv, (word32)vectors[0].iv_length,
+                                vectors[0].aad,
+                                (word32)vectors[0].aad_length);
+            if (ret != 0) {
+                WC_FREE_VAR(eax, HEAP_HINT);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+
+            ret = wc_AesEaxDecryptFinal(eax, zero_tag, 0);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                wc_AesEaxFree(eax);
+                WC_FREE_VAR(eax, HEAP_HINT);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+
+#if WOLFSSL_MIN_AUTH_TAG_SZ > 1
+            ret = wc_AesEaxDecryptFinal(eax, zero_tag,
+                                        WOLFSSL_MIN_AUTH_TAG_SZ - 1);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                wc_AesEaxFree(eax);
+                WC_FREE_VAR(eax, HEAP_HINT);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+#endif
+
+            /* Upper bound: authInSz > WC_AES_BLOCK_SIZE must be rejected. */
+            ret = wc_AesEaxDecryptFinal(eax, zero_tag, WC_AES_BLOCK_SIZE + 1);
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                wc_AesEaxFree(eax);
+                WC_FREE_VAR(eax, HEAP_HINT);
+                return WC_TEST_RET_ENC_EC(ret);
+            }
+
+            wc_AesEaxFree(eax);
+            WC_FREE_VAR(eax, HEAP_HINT);
+        }
+    }
+#endif /* WOLFSSL_MIN_AUTH_TAG_SZ > 0 */
+
     return 0;
 }
 
@@ -21901,8 +22014,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     defined(WC_C_DYNAMIC_FALLBACK) &&     \
     defined(HAVE_HASHDRBG) &&             \
     defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
-    if (((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
-        ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method), out);
+#ifdef WOLFSSL_DRBG_SHA512
+    if (rng_inst->rng.drbgType == WC_DRBG_SHA512) {
+        if (((struct DRBG_SHA512_internal *)rng_inst->rng.drbg512)->sha512.sha_method != 5 /* SHA512_C */)
+            ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_SHA512_internal *)rng_inst->rng.drbg512)->sha512.sha_method), out);
+    }
+    else
+#endif /* WOLFSSL_DRBG_SHA512 */
+    {
+        if (((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
+            ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method), out);
+    }
 #endif
 
     ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
@@ -35322,7 +35444,7 @@ done:
 
 #ifdef WOLFSSL_PUBLIC_MP
 
-static wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
+static WC_MAYBE_UNUSED wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
     enum wc_HashType hashType, const char* msg, WC_RNG* rng,
     mp_int* r, mp_int* s,
     mp_int* expR, mp_int* expS)
@@ -55255,8 +55377,10 @@ wc_test_ret_t slhdsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_I(outLen), out);
     }
     if (XMEMCMP(sig, sig_shake128s, outLen) != 0) {
+#ifdef WC_SLHDSA_VERBOSE_DEBUG
         TestDumpData("SIG", sig, outLen);
         TestDumpData("EXP", sig_shake128s, outLen);
+#endif
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 #endif
