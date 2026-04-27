@@ -1121,3 +1121,182 @@ int test_tls12_peerauth_failsafe(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Verify that wolfssl_local_GetRecordSize agrees exactly with
+ * BuildMessage's size-only output. Iterates every cipher suite registered
+ * in internal.c via GetCipherNames(), tries each against every supported
+ * (D)TLS protocol version (with and without DTLS connection ID where
+ * applicable), and on successful handshake compares the two
+ * record-size calculations across a range of payload sizes. Logs each
+ * skipped combination so coverage gaps are visible. Handshake failures
+ * outside the explicit allow-list fail the test instead of being
+ * silently skipped. */
+int test_record_size_matches_build_message(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    const int sizes[] = {
+        1, 8, 15, 16, 17, 31, 32, 33, 64, 100, 256, 1000, 4096, 16000
+    };
+    struct {
+        method_provider client;
+        method_provider server;
+        int use_cid;
+        int is_tls13;
+        const char* label;
+    } versions[] = {
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, 0, 0,
+          "TLSv1.2" },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, 0, 0,
+          "DTLSv1.2" },
+#ifdef WOLFSSL_DTLS_CID
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, 1, 0,
+          "DTLSv1.2+CID" },
+#endif
+#endif
+#endif
+#ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, 0, 1,
+          "TLSv1.3" },
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, 0, 1,
+          "DTLSv1.3" },
+#ifdef WOLFSSL_DTLS_CID
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, 1, 1,
+          "DTLSv1.3+CID" },
+#endif
+#endif
+#endif
+    };
+    const CipherSuiteInfo* allCiphers = GetCipherNames();
+    int numCiphers = GetCipherNamesSize();
+    int tested = 0;
+    size_t v, j;
+    int i;
+
+    fprintf(stderr, "\n");
+    for (v = 0; v < XELEM_CNT(versions) && EXPECT_SUCCESS(); v++) {
+        for (i = 0; i < numCiphers && EXPECT_SUCCESS(); i++) {
+            WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+            WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+            struct test_memio_ctx test_ctx;
+            const char* name = allCiphers[i].name;
+            int isTls13Cipher = (XSTRSTR(name, "TLS13-") != NULL);
+            int handshakeRet;
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s, versions[v].client, versions[v].server), 0);
+
+            /* Skip ciphers that aren't valid for this version/build. */
+            if (wolfSSL_set_cipher_list(ssl_c, name) != 1 ||
+                    wolfSSL_set_cipher_list(ssl_s, name) != 1) {
+                fprintf(stderr,
+                        "  [SKIP %-12s %-40s] cipher not selectable\n",
+                        versions[v].label, name);
+                goto next_iter;
+            }
+
+#ifdef WOLFSSL_DTLS_CID
+            if (versions[v].use_cid) {
+                unsigned char cid_c[] = { 0, 1, 2, 3 };
+                unsigned char cid_s[] = { 4, 5, 6, 7, 8, 9 };
+                ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+                ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+                ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, cid_s,
+                        (int)sizeof(cid_s)), 1);
+                ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, cid_c,
+                        (int)sizeof(cid_c)), 1);
+            }
+#endif
+
+            handshakeRet = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+            if (handshakeRet != 0) {
+                /* Allow-list of ciphers that legitimately can't negotiate
+                 * with the default test_memio configuration. Anything else
+                 * is a real failure. */
+                int expected = 0;
+                const char* reason = NULL;
+
+                if (isTls13Cipher != versions[v].is_tls13) {
+                    expected = 1;
+                    reason = "version mismatch";
+                }
+                else if (XSTRSTR(name, "ECDSA") != NULL) {
+                    expected = 1;
+                    reason = "no ECDSA cert";
+                }
+                else if (XSTRSTR(name, "ECDH-") != NULL) {
+                    expected = 1;
+                    reason = "no static ECDH cert";
+                }
+                else if (XSTRSTR(name, "PSK") != NULL) {
+                    expected = 1;
+                    reason = "no PSK callback";
+                }
+                else if (XSTRSTR(name, "ANON") != NULL ||
+                         XSTRSTR(name, "anon") != NULL) {
+                    expected = 1;
+                    reason = "anon not enabled";
+                }
+                else if (XSTRSTR(name, "SRP") != NULL) {
+                    expected = 1;
+                    reason = "no SRP setup";
+                }
+                else if (XSTRSTR(name, "WDM-") != NULL) {
+                    expected = 1;
+                    reason = "multicast not configured";
+                }
+
+                if (!expected) {
+                    fprintf(stderr,
+                            "  [FAIL %-12s %-40s] unexpected handshake "
+                            "failure (%d)\n",
+                            versions[v].label, name, handshakeRet);
+                }
+                else {
+                    fprintf(stderr,
+                            "  [SKIP %-12s %-40s] %s\n",
+                            versions[v].label, name, reason);
+                }
+                ExpectIntEQ(expected, 1);
+                goto next_iter;
+            }
+
+            for (j = 0; j < XELEM_CNT(sizes) && EXPECT_SUCCESS(); j++) {
+                int payload = sizes[j];
+                int recordSz, buildSz;
+
+                recordSz = wolfssl_local_GetRecordSize(ssl_c, payload, 1);
+                buildSz = BuildMessage(ssl_c, NULL, 0, NULL, payload,
+                        application_data, 0, 1, 0, CUR_ORDER);
+
+                ExpectIntGE(recordSz, 0);
+                ExpectIntGE(buildSz, 0);
+                ExpectIntEQ(recordSz, buildSz);
+                if (recordSz != buildSz) {
+                    fprintf(stderr,
+                            "  [MISMATCH %-12s %-40s payload=%d]"
+                            " recordSz=%d buildSz=%d\n",
+                            versions[v].label, name, payload,
+                            recordSz, buildSz);
+                }
+            }
+            tested++;
+
+next_iter:
+            wolfSSL_free(ssl_c); wolfSSL_CTX_free(ctx_c);
+            wolfSSL_free(ssl_s); wolfSSL_CTX_free(ctx_s);
+        }
+    }
+
+    /* Sanity: at least one cipher/version combination must have been
+     * exercised per supported version, otherwise the test is silently a
+     * no-op. */
+    ExpectIntGE(tested, (int)XELEM_CNT(versions));
+#endif
+    return EXPECT_RESULT();
+}
