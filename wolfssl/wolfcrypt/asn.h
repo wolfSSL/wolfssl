@@ -2107,7 +2107,13 @@ struct DecodedCert {
     WC_BITFIELD extAltSigAlgCrit:1;
     WC_BITFIELD extAltSigValCrit:1;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
-
+#ifdef WOLFSSL_ACME_OID
+    /* id-pe-acmeIdentifier (TLS-ALPN-01 challenge cert) */
+    byte acmeIdentifier[WC_SHA256_DIGEST_SIZE];
+    int  acmeIdentifierSz;
+    WC_BITFIELD extAcmeIdentifierSet:1;
+    WC_BITFIELD extAcmeIdentifierCrit:1;
+#endif /* WOLFSSL_ACME_OID */
     WOLFSSL_AIA_ENTRY extAuthInfoList[WOLFSSL_MAX_AIA_ENTRIES];
     WC_BITFIELD extAuthInfoListSz:7;
     WC_BITFIELD extAuthInfoListOverflow:1;

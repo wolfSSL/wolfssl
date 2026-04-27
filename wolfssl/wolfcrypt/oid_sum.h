@@ -431,7 +431,11 @@ enum Extensions_Sum {
     /* 0x55,0x1d,0x49  */
     ALT_SIG_ALG_OID             = 187,           /* 2.5.29.73 */
     /* 0x55,0x1d,0x4a  */
-    ALT_SIG_VAL_OID             = 188            /* 2.5.29.74 */
+    ALT_SIG_VAL_OID             = 188,           /* 2.5.29.74 */
+#ifdef WOLFSSL_ACME_OID
+    /* 0x2b,0x06,0x01,0x05,0x05,0x07,0x01,0x1f  */
+    ACME_IDENTIFIER_OID         = 99             /* 1.3.6.1.5.5.7.1.31 */
+#endif
 #else
     /* 0x55,0x1d,0x13  */
     BASIC_CA_OID                = 0x7fec1daa,    /* 2.5.29.19 */
@@ -488,7 +492,11 @@ enum Extensions_Sum {
     /* 0x55,0x1d,0x49  */
     ALT_SIG_ALG_OID             = 0x7fb61daa,    /* 2.5.29.73 */
     /* 0x55,0x1d,0x4a  */
-    ALT_SIG_VAL_OID             = 0x7fb51daa     /* 2.5.29.74 */
+    ALT_SIG_VAL_OID             = 0x7fb51daa,    /* 2.5.29.74 */
+#ifdef WOLFSSL_ACME_OID
+    /* 0x2b,0x06,0x01,0x05,0x05,0x07,0x01,0x1f  */
+    ACME_IDENTIFIER_OID         = 0x1a00012e     /* 1.3.6.1.5.5.7.1.31 */
+#endif
 #endif
 };
 
