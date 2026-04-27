@@ -148,7 +148,8 @@ impl TryFrom<&PasswordHash> for Params {
 
         let output_len = if let Some(ref h) = hash.hash {
             h.len()
-        } else if let Some(l) = hash.params.get_decimal("l") {
+        } else if let Some(l) = hash.params.get_decimal("l") &&
+                0 < l && (l as usize) <= Output::MAX_LENGTH {
             l as usize
         } else {
             return Err(Error::ParamInvalid { name: "l" });
@@ -216,7 +217,7 @@ impl password_hash::CustomizedPasswordHasher<PasswordHash> for Pbkdf2 {
             None => self.algorithm,
         };
 
-        if params.rounds < MIN_ROUNDS {
+        if params.rounds < MIN_ROUNDS || params.output_len > Output::MAX_LENGTH {
             return Err(Error::ParamInvalid { name: "i" });
         }
 

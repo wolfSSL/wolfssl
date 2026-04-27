@@ -62,7 +62,7 @@ pub mod hmac_mac;
 pub mod kdf;
 pub mod lms;
 pub mod mlkem;
-#[cfg(feature = "kem")]
+#[cfg(all(feature = "kem", mlkem))]
 pub mod mlkem_kem;
 pub mod prf;
 pub mod random;
@@ -70,7 +70,7 @@ pub mod rsa;
 #[cfg(feature = "signature")]
 pub mod rsa_pkcs1v15;
 pub mod sha;
-#[cfg(feature = "password-hash")]
+#[cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
 pub mod pbkdf2_password_hash;
 #[cfg(feature = "digest")]
 pub mod sha_digest;
