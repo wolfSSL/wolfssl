@@ -26,6 +26,7 @@ int test_ocsp_certid_enc_dec(void);
 int test_ocsp_certid_dup(void);
 int test_ocsp_status_callback(void);
 int test_ocsp_basic_verify(void);
+int test_ocsp_responder_keyhash_binding(void);
 int test_ocsp_response_parsing(void);
 int test_ocsp_tls_cert_cb(void);
 int test_ocsp_cert_unknown_crl_fallback(void);
