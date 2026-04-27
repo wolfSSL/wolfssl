@@ -19601,11 +19601,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
          * one-shot API above is a separate code path. Heap-allocate the
          * AesEax context to keep stack usage within Linux kernel limits. */
         {
-            AesEax *eax = (AesEax *)XMALLOC(sizeof(*eax), HEAP_HINT,
-                                            DYNAMIC_TYPE_TMP_BUFFER);
-            if (eax == NULL) {
-                return WC_TEST_RET_ENC_NC;
-            }
+            WC_DECLARE_VAR(eax, AesEax, 1, HEAP_HINT);
+
+            WC_ALLOC_VAR(eax, AesEax, 1, HEAP_HINT);
+            if (!WC_VAR_OK(eax))
+                return WC_TEST_RET_ENC_EC(MEMORY_E);
+
             XMEMSET(eax, 0, sizeof(*eax));
             ret = wc_AesEaxInit(eax,
                                 vectors[0].key, (word32)vectors[0].key_length,
@@ -19613,14 +19614,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
                                 vectors[0].aad,
                                 (word32)vectors[0].aad_length);
             if (ret != 0) {
-                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                WC_FREE_VAR(eax, HEAP_HINT);
                 return WC_TEST_RET_ENC_EC(ret);
             }
 
             ret = wc_AesEaxDecryptFinal(eax, zero_tag, 0);
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
                 wc_AesEaxFree(eax);
-                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                WC_FREE_VAR(eax, HEAP_HINT);
                 return WC_TEST_RET_ENC_EC(ret);
             }
 
@@ -19629,7 +19630,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
                                         WOLFSSL_MIN_AUTH_TAG_SZ - 1);
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
                 wc_AesEaxFree(eax);
-                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                WC_FREE_VAR(eax, HEAP_HINT);
                 return WC_TEST_RET_ENC_EC(ret);
             }
 #endif
@@ -19638,12 +19639,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
             ret = wc_AesEaxDecryptFinal(eax, zero_tag, WC_AES_BLOCK_SIZE + 1);
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
                 wc_AesEaxFree(eax);
-                XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                WC_FREE_VAR(eax, HEAP_HINT);
                 return WC_TEST_RET_ENC_EC(ret);
             }
 
             wc_AesEaxFree(eax);
-            XFREE(eax, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR(eax, HEAP_HINT);
         }
     }
 #endif /* WOLFSSL_MIN_AUTH_TAG_SZ > 0 */
@@ -55354,8 +55355,10 @@ wc_test_ret_t slhdsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_I(outLen), out);
     }
     if (XMEMCMP(sig, sig_shake128s, outLen) != 0) {
+#ifdef WC_SLHDSA_VERBOSE_DEBUG
         TestDumpData("SIG", sig, outLen);
         TestDumpData("EXP", sig_shake128s, outLen);
+#endif
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 #endif

@@ -23,6 +23,9 @@
     !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR) && \
     !defined(_GNU_SOURCE)
     #define _GNU_SOURCE 1
+#elif defined(__FreeBSD__)
+    /* for __FreeBSD_version */
+    #include <sys/param.h>
 #endif
 
 /*
@@ -5210,7 +5213,9 @@ int wc_socket_cloexec(int domain, int type, int protocol)
 int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
 {
     int fd;
-#if defined(__linux__) || defined(__ANDROID__)
+#if (defined(__USE_GNU) && (defined(__linux__) || defined(__ANDROID__))) || \
+    (defined(__FreeBSD__) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
+     (__FreeBSD_version >= 1000000))
     fd = accept4(sockfd, (struct sockaddr*)addr, (socklen_t*)addrlen,
                  SOCK_CLOEXEC);
     if (fd >= 0)

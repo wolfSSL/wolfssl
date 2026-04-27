@@ -3339,6 +3339,12 @@ static void bench_stats_ops_finish(const char* algo, int strength,
 
     (void)ret;
 
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    RESTORE_VECTOR_REGISTERS();
+#elif defined(WOLFSSL_LINUXKM)
+    kernel_fpu_end();
+#endif
+
     bench_stats_prepare();
     TEST_SLEEP();
 } /* bench_stats_ops_finish */

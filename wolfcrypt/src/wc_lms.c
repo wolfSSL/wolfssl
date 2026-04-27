@@ -521,7 +521,6 @@ static const wc_LmsParamsMap wc_lms_map[] = {
 #endif
 #endif /* !WOLFSSL_NO_LMS_SHAKE256_256 */
 
-#ifdef WOLFSSL_LMS_SHAKE256
     /* SHAKE256/192 L1 H5 */
     { WC_LMS_PARM_SHAKE192_L1_H5_W1 , "LMS/HSS_SHAKE256/192_L1_H5_W1",
       LMS_PARAMS(1,  5, 1, 2, LMS_SHAKE_M24_H5 , LMOTS_SHAKE_N24_W1,
@@ -595,7 +594,6 @@ static const wc_LmsParamsMap wc_lms_map[] = {
       LMS_PARAMS(1, 25, 8, 4, LMS_SHAKE_M24_H25, LMOTS_SHAKE_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
-#endif /* WOLFSSL_LMS_SHAKE256 (M24 entries) */
 #endif /* WOLFSSL_LMS_SHAKE256 */
 };
 /* Number of parameter sets supported. */
