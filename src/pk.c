@@ -6208,9 +6208,6 @@ int wolfSSL_PEM_write_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY* key)
 
 /* Writes a private key to a file pointer encoded in PEM format.
  *
- * Mirrors wolfSSL_PEM_read_PrivateKey's key-type switch and writes the stored
- * DER as the matching PEM private key type.
- *
  * @param [in] fp      File pointer to write to.
  * @param [in] key     Private key to write in PEM format.
  * @param [in] cipher  Encryption cipher to use. May be NULL.
