@@ -1059,7 +1059,15 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
 #elif defined(WOLFSSL_SMALL_STACK)
     byte* digest;
 #else
+#if defined(__GNUC__) && !defined(__clang__) && defined(__AVX512F__)
+    /* Use a jumbo alignment to work around a gcc compiler/optimizer bug that
+     * assumes AVX512 alignment in an object sized correctly for AVX512 passed
+     * to builtin memcpy(), which promptly crashes if not thus aligned.
+     */
+    byte digest[WC_SHA512_DIGEST_SIZE] WOLFSSL_ALIGN(WC_SHA512_DIGEST_SIZE);
+#else
     byte digest[WC_SHA512_DIGEST_SIZE];
+#endif
 #endif
 
     if (drbg == NULL) {
@@ -1133,6 +1141,12 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
+#endif
+
+#ifdef WC_VERBOSE_RNG
+    if (ret != 0)
+        WOLFSSL_DEBUG_PRINTF("ERROR: %s failed with err = %d", __FUNCTION__,
+                             ret);
 #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
