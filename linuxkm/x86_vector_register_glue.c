@@ -162,16 +162,22 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
             __atomic_store_n(&slot->pid, my_pid, __ATOMIC_RELEASE);
             return slot;
         } else {
+            struct pid *slot_pid_struct;
+
             /* if the slot is already occupied, that can be benign-ish due to a
              * unwanted migration, or due to a process crashing in kernel mode.
              * it will require fixup either here, or by the thread that owns the
              * slot, which will happen when it releases its lock.
              */
-            if (find_get_pid(slot_pid) == NULL) {
+            slot_pid_struct = find_get_pid(slot_pid);
+            if (slot_pid_struct == NULL) {
                 if (__atomic_compare_exchange_n(&slot->pid, &slot_pid, my_pid, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
                     pr_warn("WARNING: wc_linuxkm_fpu_state_assoc_unlikely fixed up orphaned slot on CPU %d owned by dead PID %d.\n", my_cpu, slot_pid);
                     return slot;
                 }
+            } else {
+                /* drop the refcount bumped by find_get_pid(). */
+                put_pid(slot_pid_struct);
             }
 
             {
