@@ -33,6 +33,15 @@
 int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     word16 kemId, word16 kdfId, word16 aeadId)
 {
+    return wolfSSL_CTX_GenerateEchConfigEx(ctx, publicName, kemId, kdfId,
+            aeadId, 0);
+}
+
+/* create the hpke key and ech config to send to clients
+ * maximum_name_length may also be set for a more stable padding length */
+int wolfSSL_CTX_GenerateEchConfigEx(WOLFSSL_CTX* ctx, const char* publicName,
+    word16 kemId, word16 kdfId, word16 aeadId, byte maxNameLen)
+{
     int ret = 0;
     WOLFSSL_EchConfig* newConfig;
     word16 encLen = HPKE_Npk_MAX;
@@ -129,8 +138,8 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
             ret = MEMORY_E;
         }
         else {
-            XMEMCPY(newConfig->publicName, publicName,
-                XSTRLEN(publicName) + 1);
+            XMEMCPY(newConfig->publicName, publicName, XSTRLEN(publicName) + 1);
+            newConfig->maxNameLen = maxNameLen;
         }
     }
 
@@ -399,8 +408,8 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
         output += 2;
     }
 
-    /* set maximum name length to 0 */
-    *output = 0;
+    /* maximum name len */
+    *output = config->maxNameLen;
     output++;
 
     /* publicName len */
@@ -411,7 +420,7 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
     XMEMCPY(output, config->publicName, publicNameLen);
     output += publicNameLen;
 
-    /* terminating zeros */
+    /* no extensions, print zeros */
     c16toa(0, output);
     /* output += 2; */
 
@@ -599,12 +608,13 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
             echConfig += 4;
         }
 
-        /* ignore the maximum name length */
+        /* maxNameLen */
         idx++;
         if (idx >= length) {
             ret = BUFFER_E;
             break;
         }
+        workingConfig->maxNameLen = *echConfig;
         echConfig++;
 
         /* publicNameLen */
