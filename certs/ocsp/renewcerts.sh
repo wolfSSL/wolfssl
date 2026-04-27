@@ -54,6 +54,43 @@ check_result $? ""
 openssl rsa -in root-ca-key.pem -outform DER -out root-ca-key.der
 check_result $? ""
 
+# imposter-root-ca: self-signed cert sharing the legitimate root-ca DN but with
+# a different key. Used to test that OCSP responder authorization is bound to
+# the CertID issuerKeyHash, not just the issuer name.
+echo "OCSP renew certs imposter root step 1"
+openssl req                       \
+    -new                          \
+    -key  imposter-root-ca-key.pem \
+    -out  imposter-root-ca-cert.csr \
+    -config ../renewcerts/wolfssl.cnf \
+    -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Engineering/CN=wolfSSL root CA/emailAddress=info@wolfssl.com"
+check_result $? ""
+
+echo "OCSP renew certs imposter root step 2"
+openssl x509                            \
+    -req -in imposter-root-ca-cert.csr  \
+    -extfile openssl.cnf                \
+    -extensions v3_ca                   \
+    -days 1000                          \
+    -signkey imposter-root-ca-key.pem   \
+    -set_serial 199                     \
+    -out imposter-root-ca-cert.pem
+check_result $? ""
+
+rm imposter-root-ca-cert.csr
+echo "OCSP renew certs imposter root step 3"
+openssl x509 -in imposter-root-ca-cert.pem -text > tmp.pem
+check_result $? ""
+mv tmp.pem imposter-root-ca-cert.pem
+
+echo "OCSP renew certs imposter root step 4"
+openssl x509 -in imposter-root-ca-cert.pem -outform DER \
+    -out imposter-root-ca-cert.der
+check_result $? ""
+openssl rsa -in imposter-root-ca-key.pem -outform DER \
+    -out imposter-root-ca-key.der
+check_result $? ""
+
 # $1 cert, $2 name, $3 ca, $4 extensions, $5 serial
 update_cert() {
     echo "Updating certificate \"$1-cert.pem\""
