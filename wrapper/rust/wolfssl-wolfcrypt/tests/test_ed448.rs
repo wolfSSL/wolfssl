@@ -248,6 +248,43 @@ fn test_import_export() {
 }
 
 #[test]
+#[cfg(all(feature = "signature", ed448_import, ed448_export, ed448_sign, ed448_verify))]
+fn test_signature_traits() {
+    use signature::{Keypair, SignerMut, Verifier};
+
+    common::setup();
+
+    let mut rng = RNG::new().expect("Error creating RNG");
+    let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+
+    let message = b"message to sign via RustCrypto signature trait";
+    let sig: Signature = ed.sign(message);
+
+    // Round-trip the signature bytes through the SignatureEncoding machinery.
+    let bytes = sig.to_bytes();
+    assert_eq!(bytes.len(), Ed448::SIG_SIZE);
+    let sig_round_trip = Signature::try_from(bytes.as_ref()).expect("Signature::try_from bytes");
+    assert_eq!(sig, sig_round_trip);
+
+    // Reject signatures of the wrong length.
+    assert!(Signature::try_from(&bytes[..bytes.len() - 1]).is_err());
+
+    // VerifyingKey obtained via the Keypair trait verifies this signature.
+    let vk: VerifyingKey = ed.verifying_key();
+    vk.verify(message, &sig).expect("Verifier::verify failed");
+
+    // A tampered message must fail verification.
+    let mut tampered = *message;
+    tampered[0] ^= 0x01;
+    assert!(vk.verify(&tampered, &sig).is_err());
+
+    // VerifyingKey bytes round-trip.
+    let vk_bytes = vk.to_bytes();
+    let vk2 = VerifyingKey::try_from(vk_bytes.as_ref()).expect("VerifyingKey::try_from bytes");
+    assert_eq!(vk, vk2);
+}
+
+#[test]
 fn test_sizes() {
     let mut rng = RNG::new().expect("Error creating RNG");
     let ed = Ed448::generate(&mut rng).expect("Error with generate()");

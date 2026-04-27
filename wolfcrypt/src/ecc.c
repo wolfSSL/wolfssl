@@ -6091,6 +6091,12 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
         ) {
         err = _ecc_pairwise_consistency_test(key, rng);
     }
+    /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails post-
+     * generation validation or PCT must be rendered unusable so a caller
+     * that ignores the return value cannot use it. */
+    if (err != MP_OKAY) {
+        wc_ecc_free(key);
+    }
 #endif
 
     RESTORE_VECTOR_REGISTERS();
@@ -11226,7 +11232,8 @@ int wc_ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
 int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                           int curve_id)
 {
-    return wc_ecc_import_x963_ex2(in, inLen, key, curve_id, 0);
+    /* treat as untrusted: validate the point is on the curve */
+    return wc_ecc_import_x963_ex2(in, inLen, key, curve_id, 1);
 }
 
 WOLFSSL_ABI

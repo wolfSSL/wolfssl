@@ -773,6 +773,58 @@ int test_wc_ecc_import_x963(void)
 } /* END wc_ecc_import_x963 */
 
 /*
+ * testing wc_ecc_import_x963() rejects an off-curve public point.
+ *
+ * Regression coverage for the invalid-curve attack: the legacy wrapper
+ * wc_ecc_import_x963_ex (called by wc_ecc_import_x963()) must pass untrusted=1
+ * to wc_ecc_import_x963_ex2 so that ECIES, PKCS#7 KARI, and EVP ECDH callers
+ * validate that the imported point actually lies on the curve. Without that,
+ * an attacker can feed a point from a weak twist and leak the victim's private
+ * scalar modulo small primes (Biehl-Meyer-Mueller).
+ */
+int test_wc_ecc_import_x963_off_curve(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(HAVE_SELFTEST)
+    ecc_key pubKey;
+    /* Uncompressed X9.63 P-256 point: 0x04 || Gx || Gy with the last byte
+     * of Gy flipped by 1. Gx/Gy are the NIST P-256 generator coordinates;
+     * modifying a single bit of Gy produces a point that is not on the
+     * curve, so wc_ecc_import_x963 must reject it. */
+    static const byte offCurveX963[] = {
+        0x04,
+        0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47,
+        0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2,
+        0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0,
+        0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96,
+        0x4F, 0xE3, 0x42, 0xE2, 0xFE, 0x1A, 0x7F, 0x9B,
+        0x8E, 0xE7, 0xEB, 0x4A, 0x7C, 0x0F, 0x9E, 0x16,
+        0x2B, 0xCE, 0x33, 0x57, 0x6B, 0x31, 0x5E, 0xCE,
+        0xCB, 0xB6, 0x40, 0x68, 0x37, 0xBF, 0x51, 0xF4
+    };
+
+    XMEMSET(&pubKey, 0, sizeof(ecc_key));
+
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+
+    /* Importing an off-curve point must fail. wc_ecc_import_x963() calls
+     * wc_ecc_import_x963_ex() which ultimately calls wc_ecc_import_x963_ex2()
+     * with the required untrusted=1 flag. */
+    ExpectIntNE(wc_ecc_import_x963(offCurveX963, (word32)sizeof(offCurveX963),
+                                   &pubKey), 0);
+
+    wc_ecc_free(&pubKey);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_import_x963_off_curve */
+
+/*
  * testing wc_ecc_import_private_key()
  */
 int test_wc_ecc_import_private_key(void)

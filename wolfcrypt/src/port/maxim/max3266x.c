@@ -1136,6 +1136,9 @@ WOLFSSL_API int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     (void)devId;
     XMEMSET(sha512, 0, sizeof(*sha512));
     sha512->heap = heap;
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    sha512->hashType = WC_HASH_TYPE_SHA512;
+#endif
     return 0;
 }
 

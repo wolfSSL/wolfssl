@@ -74,6 +74,9 @@ impl ChaCha20Poly1305 {
         if auth_tag.len() != Self::AUTH_TAG_SIZE {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
+        if plaintext.len() < ciphertext.len() {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
         let aad_size = crate::buffer_len_to_u32(aad.len())?;
         let ciphertext_size = crate::buffer_len_to_u32(ciphertext.len())?;
         let rc = unsafe {
@@ -114,6 +117,9 @@ impl ChaCha20Poly1305 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         if auth_tag.len() != Self::AUTH_TAG_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
+        }
+        if ciphertext.len() < plaintext.len() {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let aad_size = crate::buffer_len_to_u32(aad.len())?;

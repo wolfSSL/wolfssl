@@ -189,6 +189,12 @@ enum {
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+/* Undefine the settings.h compat macro so it doesn't collide with the enum
+ * member below (settings.h may pre-define WC_AES_BLOCK_SIZE for old FIPS). */
+#ifdef WC_AES_BLOCK_SIZE
+    #undef WC_AES_BLOCK_SIZE
+#endif
+
 enum {
     AES_ENC_TYPE   = WC_CIPHER_AES,   /* cipher unique type */
     AES_ENCRYPTION = 0,
@@ -777,6 +783,7 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
 #endif
 WOLFSSL_API void wc_AesFree(Aes* aes);
 #ifndef WC_NO_CONSTRUCTORS
+#define WC_AES_NEW_API_AVAILABLE
 WOLFSSL_API Aes* wc_AesNew(void* heap, int devId, int *result_code);
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API Aes* wc_AesNew_Id(unsigned char* id, int len, void* heap,

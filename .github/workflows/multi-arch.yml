@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   my_matrix:
-    name: Multi-arch test
+    name: Multi-arch test (${{ matrix.ARCH }}, ${{ matrix.opts.name }})
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +37,20 @@ jobs:
             CFLAGS: -marm -DWOLFSSL_SP_ARM_ARCH=6
             ARCH: armel
             EXTRA_OPTS: --enable-sp-asm
-        opts: [ '-O2', '-O3', '-O1 -UFP_ECC', '-O0', '-Os', '-Ofast' ]
+        opts:
+          - name: '-O2'
+            OPT_CFLAGS: '-O2'
+          - name: '-O2 sp-math'
+            OPT_CFLAGS: '-O2'
+            OPT_EXTRA_OPTS: '--enable-sp-math'
+          - name: '-O1 -UFP_ECC'
+            OPT_CFLAGS: '-O1 -UFP_ECC'
+          - name: '-O0'
+            OPT_CFLAGS: '-O0'
+          - name: '-Os'
+            OPT_CFLAGS: '-Os'
+          - name: '-Ofast'
+            OPT_CFLAGS: '-Ofast'
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
@@ -48,12 +61,12 @@ jobs:
           sudo apt update
           sudo apt install -y crossbuild-essential-${{ matrix.ARCH }} qemu-user
       - uses: actions/checkout@v4
-      - name: Build for ${{ matrix.ARCH }} with Opt Level ${{ matrix.opts }}
+      - name: Build for ${{ matrix.ARCH }} with ${{ matrix.opts.name }}
         env:
             CC: ${{ matrix.CC }}
-            CFLAGS: ${{ matrix.CFLAGS }} ${{ matrix.opts }}
+            CFLAGS: ${{ matrix.CFLAGS }} ${{ matrix.opts.OPT_CFLAGS }}
             QEMU_LD_PREFIX: /usr/${{ matrix.HOST }}
-        run: ./autogen.sh && ./configure --host=${{ matrix.HOST }} --enable-all --disable-examples CPPFLAGS="-pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFCRYPT_TEST_LINT" ${{ matrix.EXTRA_OPTS }} && make
+        run: ./autogen.sh && ./configure --host=${{ matrix.HOST }} --enable-all --disable-examples CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFCRYPT_TEST_LINT" ${{ matrix.EXTRA_OPTS }} ${{ matrix.opts.OPT_EXTRA_OPTS }} && make
       - name: Print errors
         if: ${{ failure() }}
         run: |

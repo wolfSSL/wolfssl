@@ -4466,6 +4466,12 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutI
 #ifndef WOLFSSL_NOSHA3_512
     static const byte hashSha3_512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 10};
 #endif /* WOLFSSL_NOSHA3_512 */
+#ifdef WOLFSSL_SHAKE128
+    static const byte hashShake128hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 11};
+#endif /* WOLFSSL_SHAKE128 */
+#ifdef WOLFSSL_SHAKE256
+    static const byte hashShake256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 12};
+#endif /* WOLFSSL_SHAKE256 */
 #endif /* WOLFSSL_SHA3 */
 
 /* hmacType */
@@ -5339,6 +5345,18 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(hashSha3_512hOid);
                     break;
             #endif /* WOLFSSL_NOSHA3_512 */
+            #ifdef WOLFSSL_SHAKE128
+                case SHAKE128h:
+                    oid = hashShake128hOid;
+                    *oidSz = sizeof(hashShake128hOid);
+                    break;
+            #endif /* WOLFSSL_SHAKE128 */
+            #ifdef WOLFSSL_SHAKE256
+                case SHAKE256h:
+                    oid = hashShake256hOid;
+                    *oidSz = sizeof(hashShake256hOid);
+                    break;
+            #endif /* WOLFSSL_SHAKE256 */
             #endif /* WOLFSSL_SHA3 */
                 default:
                     break;
@@ -22491,16 +22509,24 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         if (cert->pathLengthSet)
             cert->maxPathLen = cert->pathLength;
 
-        if (!cert->selfSigned) {
-            /* Need to perform a pathlen check on anything that will be used
-             * to sign certificates later on. Otherwise, pathLen doesn't
-             * mean anything.
-             * Nothing to check if we don't have the issuer of this cert. */
-            if (type != CERT_TYPE && cert->isCA && cert->extKeyUsageSet &&
-                (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0 && cert->ca) {
+        /* RFC 5280 6.1.4: Check issuer's pathLen constraint.
+         * Need to perform a pathlen check on anything that will be used
+         * to sign certificates later on. Otherwise, pathLen doesn't
+         * mean anything.
+         * Nothing to check if we don't have the issuer of this cert.
+         *
+         * Per RFC 5280, when the KeyUsage extension is absent, all key
+         * uses are implicitly valid (including keyCertSign), so pathLen
+         * enforcement must not be gated on KeyUsage presence. */
+        if (type != CERT_TYPE && cert->isCA && cert->ca &&
+            (!cert->extKeyUsageSet ||
+             (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0)) {
+            if (!cert->selfSigned) {
+                /* RFC 5280 6.1.4(l): Non-self-issued cert decrements and
+                 * checks the issuer's max_path_length. */
                 if (cert->ca->maxPathLen == 0) {
-                    /* This cert CAN NOT be used as an intermediate cert. The
-                     * issuer does not allow it. */
+                    /* This cert CAN NOT be used as an intermediate cert.
+                     * The issuer does not allow it. */
                     cert->maxPathLen = 0;
                     if (verify != NO_VERIFY) {
                         WOLFSSL_MSG("\tNon-entity cert, maxPathLen is 0");
@@ -22510,7 +22536,43 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                     }
                 }
                 else {
-                    cert->maxPathLen = (byte)min(cert->ca->maxPathLen - 1U,
+                    cert->maxPathLen = (word16)min(cert->ca->maxPathLen - 1U,
+                                           cert->maxPathLen);
+                }
+            }
+            else {
+                /* RFC 5280 6.1.4(l): Self-issued certs do NOT decrement
+                 * max_path_length, but the issuer's constraint still
+                 * applies. A self-issued cert from a CA with maxPathLen=0
+                 * cannot act as an intermediate CA. */
+                if (cert->publicKey != NULL &&
+                        cert->ca->publicKey != NULL &&
+                        cert->pubKeySize > 0 &&
+                        cert->pubKeySize == cert->ca->pubKeySize &&
+                        XMEMCMP(cert->publicKey, cert->ca->publicKey,
+                                cert->pubKeySize) == 0) {
+                    /* Exclude the trust anchor itself from step (l). Per
+                     * RFC 5280 6.1, when the trust anchor is supplied as a
+                     * self-signed certificate it "is not included as part
+                     * of the prospective certification path" */
+
+                    /* Trust anchor: honor issuer's constraint */
+                    cert->maxPathLen = (word16)min(cert->ca->maxPathLen,
+                                           cert->maxPathLen);
+                }
+                else if (cert->ca->maxPathLen == 0) {
+                    cert->maxPathLen = 0;
+                    if (verify != NO_VERIFY) {
+                        WOLFSSL_MSG("\tSelf-issued cert, maxPathLen is 0");
+                        WOLFSSL_MSG("\tmaxPathLen status: ERROR");
+                        WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_INV_E);
+                        return ASN_PATHLEN_INV_E;
+                    }
+                }
+                else {
+                    /* Self-issued: honor issuer's constraint without
+                     * decrementing. */
+                    cert->maxPathLen = (word16)min(cert->ca->maxPathLen,
                                            cert->maxPathLen);
                 }
             }

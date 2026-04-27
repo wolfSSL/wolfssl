@@ -18,6 +18,10 @@ certificate #3389). FIPS 140-3 validated (Certificate #4718). For additional
 information, visit the [wolfCrypt FIPS FAQ](https://www.wolfssl.com/license/fips/)
 or contact fips@wolfssl.com.
 
+wolfCrypt also includes support for deriving device-unique keys from hardware entropy
+(`--enable-puf`). An example exists at
+[SRAM PUF](https://github.com/wolfSSL/wolfssl-examples/tree/master/puf).
+
 ## Why Choose wolfSSL?
 
 There are many reasons to choose wolfSSL as your embedded, desktop, mobile, or

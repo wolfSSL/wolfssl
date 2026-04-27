@@ -176,7 +176,6 @@ ap_wpa2_psk_ext_key_id_ptk_rekey_sta0
 ap_wpa2_psk_ext_key_id_ptk_rekey_sta1
 ap_wpa2_psk_ext_key_id_ptk_rekey_sta2
 ap_wpa2_eap_sim
-ap_wpa2_eap_sim_sql
 ap_wpa2_eap_sim_config
 ap_wpa2_eap_sim_id_0
 ap_wpa2_eap_sim_id_1

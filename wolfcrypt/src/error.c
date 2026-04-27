@@ -668,8 +668,50 @@ const char* wc_GetErrorString(int error)
     case ALREADY_E:
         return "Operation was redundant or preempted";
 
+    case ML_KEM_KAT_FIPS_E:
+        return "wolfCrypt FIPS ML-KEM Known Answer Test Failure";
+
+    case ML_DSA_KAT_FIPS_E:
+        return "wolfCrypt FIPS ML-DSA Known Answer Test Failure";
+
+    case LMS_KAT_FIPS_E:
+        return "wolfCrypt FIPS LMS Known Answer Test Failure";
+
+    case XMSS_KAT_FIPS_E:
+        return "wolfCrypt FIPS XMSS Known Answer Test Failure";
+
+    case ML_KEM_PCT_E:
+        return "wolfcrypt ML-KEM Pairwise Consistency Test Failure";
+
+    case ML_DSA_PCT_E:
+        return "wolfcrypt ML-DSA Pairwise Consistency Test Failure";
+
+    case DRBG_SHA512_KAT_FIPS_E:
+        return "SHA-512 DRBG Known Answer Test check FIPS error";
+
+    case SLH_DSA_KAT_FIPS_E:
+        return "SLH-DSA Known Answer Test check FIPS error";
+
     case SEQ_OVERFLOW_E:
         return "Sequence counter would overflow";
+
+    case PUF_INIT_E:
+        return "PUF initialization failed";
+
+    case PUF_READ_E:
+        return "PUF SRAM read failed";
+
+    case PUF_ENROLL_E:
+        return "PUF enrollment failed";
+
+    case PUF_RECONSTRUCT_E:
+        return "PUF reconstruction failed";
+
+    case PUF_DERIVE_KEY_E:
+        return "PUF key derivation failed";
+
+    case PUF_IDENTITY_E:
+        return "PUF identity retrieval failed";
 
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:

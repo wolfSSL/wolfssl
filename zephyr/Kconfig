@@ -98,6 +98,21 @@ config WOLFSSL_MAX_FRAGMENT_LEN
     Sets the maximum fragment length wolfSSL will use, values 1-6 correspond to enum values
     WOLFSSL_MFL_* in ssl.h
 
+config WOLFSSL_SESSION_EXPORT
+  bool "wolfSSL session export support"
+  help
+    Enable external session cache (HAVE_EXT_CACHE)
+
+config WOLFSSL_KEEP_PEER_CERT
+  bool "wolfSSL keep peer certificate support"
+  help
+    Retain peer certificate after handshake (KEEP_PEER_CERT)
+
+config WOLFSSL_ALWAYS_VERIFY_CB
+  bool "wolfSSL always invoke verify callback"
+  help
+    Invoke verify callback on success as well as failure (WOLFSSL_ALWAYS_VERIFY_CB)
+
 config WOLFCRYPT_ARMASM
 	bool "wolfCrypt ARM Assembly support"
 	depends on WOLFSSL_BUILTIN

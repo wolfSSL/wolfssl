@@ -3726,6 +3726,108 @@ int test_tls13_duplicate_extension(void)
 }
 
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
+static int DupEchSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+
+    return sz;
+}
+static int DupEchRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    WOLFSSL_BUFFER_INFO* msg = (WOLFSSL_BUFFER_INFO*)ctx;
+    int len = (int)msg->length;
+
+    (void)ssl;
+    (void)sz;
+
+    if (len > sz)
+        len = sz;
+    XMEMCPY(buf, msg->buffer, len);
+    msg->buffer += len;
+    msg->length -= len;
+
+    return len;
+}
+#endif
+
+/* Test detection of duplicate ECH extension (type 0xfe0d) in ClientHello.
+ * ECH has a semaphore mapping in TLSX_ToSemaphore() and needs to be included
+ * in the duplicate-detection gate in TLSX_Parse(). RFC 8446 section 4.2
+ * requires rejecting messages with duplicate extensions.
+ */
+int test_tls13_duplicate_ech_extension(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
+    /* TLS 1.3 ClientHello with two ECH extensions (type 0xfe0d).
+     * Extensions block contains: supported_versions + ECH + ECH (dup). */
+    const unsigned char clientHelloDupEch[] = {
+        0x16, 0x03, 0x03, 0x00, 0x40, 0x01, 0x00, 0x00,
+        0x3c, 0x03, 0x03, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x00, 0x00, 0x02, 0x13, 0x01,
+        0x01, 0x00, 0x00, 0x11, 0x00, 0x2b, 0x00, 0x03,
+        0x02, 0x03, 0x04, 0xfe, 0x0d, 0x00, 0x01, 0x00,
+        0xfe, 0x0d, 0x00, 0x01, 0x00
+    };
+    WOLFSSL_BUFFER_INFO msg;
+    const char* testCertFile;
+    const char* testKeyFile;
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
+
+#ifndef NO_RSA
+    testCertFile = svrCertFile;
+    testKeyFile = svrKeyFile;
+#elif defined(HAVE_ECC)
+    testCertFile = eccCertFile;
+    testKeyFile = eccKeyFile;
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
+        CERT_FILETYPE));
+
+    /* Read from 'msg'. */
+    wolfSSL_SetIORecv(ctx, DupEchRecv);
+    /* No where to send to - dummy sender. */
+    wolfSSL_SetIOSend(ctx, DupEchSend);
+
+    ssl = wolfSSL_new(ctx);
+    ExpectNotNull(ssl);
+
+    msg.buffer = (unsigned char*)clientHelloDupEch;
+    msg.length = (unsigned int)sizeof(clientHelloDupEch);
+    wolfSSL_SetIOReadCtx(ssl, &msg);
+
+    ExpectIntNE(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
+    /* Can return duplicate ext error or socket error if the peer closed
+     * down while sending alert. */
+    if (wolfSSL_get_error(ssl, 0) != WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0),
+            WC_NO_ERR_TRACE(DUPLICATE_TLS_EXT_E));
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 int test_key_share_mismatch(void)
 {
     EXPECT_DECLS;
@@ -4481,6 +4583,177 @@ int test_tls13_pqc_hybrid_truncated_keyshare(void)
  * (32 bytes) does not cause an unsigned integer underflow / OOB read in
  * SetTicket. Uses a full memio handshake, then injects a crafted
  * NewSessionTicket with a 5-byte ticket into the client's read path. */
+int test_tls13_empty_record_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int recSz = 0;
+    /* Send exactly WOLFSSL_MAX_EMPTY_RECORDS to pin the boundary check.
+     * The Nth record increments the counter to N, and `N >= N` triggers
+     * the error. Sending one more would let a `>=` -> `>` mutation survive
+     * (the extra record would still trip the mutated check). */
+    int numRecs = WOLFSSL_MAX_EMPTY_RECORDS;
+    byte rec[128]; /* buffer for one encrypted record */
+    byte *allRecs = NULL;
+    int i;
+    char buf[64];
+
+    /* Test 1: Exceeding the empty record limit returns an error. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (EXPECT_SUCCESS()) {
+        /* Consume any post-handshake messages (e.g. NewSessionTicket). */
+        wolfSSL_read(ssl_c, buf, sizeof(buf));
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+
+        /* Get the size of an encrypted zero-length app data record. */
+        recSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 0,
+                                  application_data, 0, 1, 0);
+        ExpectIntGT(recSz, 0);
+        ExpectIntLE(recSz, (int)sizeof(rec));
+    }
+
+    /* Build all empty records into one contiguous buffer. */
+    if (EXPECT_SUCCESS()) {
+        allRecs = (byte*)XMALLOC((size_t)(recSz * numRecs), NULL,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(allRecs);
+    }
+
+    for (i = 0; i < numRecs && EXPECT_SUCCESS(); i++) {
+        XMEMSET(rec, 0, sizeof(rec));
+        ExpectIntEQ(BuildTls13Message(ssl_c, rec, (int)sizeof(rec), rec +
+                        RECORD_HEADER_SZ, 0, application_data, 0, 0, 0),
+                    recSz);
+        XMEMCPY(allRecs + i * recSz, rec, (size_t)recSz);
+    }
+
+    /* Inject all records as a single message. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+                        (const char*)allRecs, recSz * numRecs), 0);
+    }
+
+    /* The server's wolfSSL_read should fail with EMPTY_RECORD_LIMIT_E. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+                    WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                    WC_NO_ERR_TRACE(EMPTY_RECORD_LIMIT_E));
+    }
+
+    XFREE(allRecs, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    allRecs = NULL;
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* Test 2: Counter resets on non-empty record.
+     * Send (limit - 1) empty records, then 1 non-empty, then (limit - 1)
+     * more empty records. Should succeed without hitting the limit. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_read(ssl_c, buf, sizeof(buf));
+        test_memio_clear_buffer(&test_ctx, 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+
+        recSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 0,
+                                  application_data, 0, 1, 0);
+        ExpectIntGT(recSz, 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        int emptyBefore = WOLFSSL_MAX_EMPTY_RECORDS - 1;
+        int emptyAfter = WOLFSSL_MAX_EMPTY_RECORDS - 1;
+        int dataRecSz = 0;
+        byte dataRec[128];
+        byte payload[1] = { 'a' };
+        int totalSz = 0;
+
+        if (EXPECT_SUCCESS()) {
+            dataRecSz = BuildTls13Message(ssl_c, NULL, 0, NULL, 1,
+                                          application_data, 0, 1, 0);
+            ExpectIntGT(dataRecSz, 0);
+        }
+
+        if (EXPECT_SUCCESS()) {
+            totalSz = recSz * (emptyBefore + emptyAfter) + dataRecSz;
+            allRecs = (byte*)XMALLOC((size_t)totalSz, NULL,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+            ExpectNotNull(allRecs);
+        }
+
+        /* Build (limit - 1) empty records */
+        for (i = 0; i < emptyBefore && EXPECT_SUCCESS(); i++) {
+            XMEMSET(rec, 0, sizeof(rec));
+            ExpectIntEQ(BuildTls13Message(ssl_c, rec, (int)sizeof(rec),
+                            rec + RECORD_HEADER_SZ, 0, application_data,
+                            0, 0, 0), recSz);
+            XMEMCPY(allRecs + i * recSz, rec, (size_t)recSz);
+        }
+
+        /* Build 1 non-empty record */
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(dataRec, 0, sizeof(dataRec));
+            XMEMCPY(dataRec + RECORD_HEADER_SZ, payload, sizeof(payload));
+            ExpectIntEQ(BuildTls13Message(ssl_c, dataRec, (int)sizeof(dataRec),
+                            dataRec + RECORD_HEADER_SZ, 1, application_data,
+                            0, 0, 0), dataRecSz);
+            XMEMCPY(allRecs + emptyBefore * recSz, dataRec,
+                     (size_t)dataRecSz);
+        }
+
+        /* Build (limit - 1) more empty records */
+        for (i = 0; i < emptyAfter && EXPECT_SUCCESS(); i++) {
+            XMEMSET(rec, 0, sizeof(rec));
+            ExpectIntEQ(BuildTls13Message(ssl_c, rec, (int)sizeof(rec),
+                            rec + RECORD_HEADER_SZ, 0, application_data,
+                            0, 0, 0), recSz);
+            XMEMCPY(allRecs + emptyBefore * recSz + dataRecSz + i * recSz,
+                     rec, (size_t)recSz);
+        }
+
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+                            (const char*)allRecs, totalSz), 0);
+        }
+    }
+
+    /* wolfSSL_read should return the 1-byte payload. The counter resets
+     * on the non-empty record so neither batch of (limit - 1) empties
+     * triggers the error. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 1);
+        ExpectIntEQ(buf[0], 'a');
+    }
+
+    XFREE(allRecs, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_short_session_ticket(void)
 {
     EXPECT_DECLS;

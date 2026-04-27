@@ -433,6 +433,22 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_RNG_DRBG_Reseed", "random_hashdrbg");
     check_cfg(&binding, "wc_InitRng", "random");
 
+    // When WOLFSSL_NO_MALLOC is set without WOLFSSL_STATIC_MEMORY, the
+    // WC_RNG struct contains an inline `drbg_data` field and wolfCrypt sets
+    // `rng->drbg = &rng->drbg_data` — a self-referential pointer.  Rust
+    // moves values by memcpy, which would silently invalidate that pointer.
+    // Detect this configuration and refuse to build.
+    if binding.contains("drbg_data") {
+        eprintln!(
+            "error: wolfSSL appears to be built with WOLFSSL_NO_MALLOC \
+             (without WOLFSSL_STATIC_MEMORY). This embeds a self-referential \
+             pointer inside WC_RNG (drbg -> drbg_data) that is incompatible \
+             with Rust move semantics. Please rebuild wolfSSL without \
+             WOLFSSL_NO_MALLOC, or enable WOLFSSL_STATIC_MEMORY."
+        );
+        std::process::exit(1);
+    }
+
     /* rsa */
     check_cfg(&binding, "wc_InitRsaKey", "rsa");
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");

@@ -1727,7 +1727,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    #include <stddef.h> /* for size_t */
+    #ifndef NO_STDDEF_H
+        #include <stddef.h> /* for size_t */
+    #endif /* NO_STDDEF_H */
     WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n);
 #endif
 
@@ -1859,6 +1861,24 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if defined(WC_RNG_SEED_CB) && !defined(WC_GENERATE_SEED_DEFAULT)
     #define WC_GENERATE_SEED_DEFAULT wc_GenerateSeed
+#endif
+
+#if (defined(__unix__) || defined(__APPLE__)) && \
+    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR)
+    WOLFSSL_LOCAL void wc_set_cloexec(int fd);
+    WOLFSSL_LOCAL int wc_open_cloexec(const char* path, int flags);
+    WOLFSSL_LOCAL int wc_socket_cloexec(int domain, int type, int protocol);
+    WOLFSSL_LOCAL int wc_accept_cloexec(int sockfd, void* addr, void* addrlen);
+#else
+    /* Platforms without POSIX close-on-exec semantics (Windows, OS/2 OW,
+     * Linux kernel module, Zephyr, etc.): pass through to plain syscalls
+     * where the underlying headers are available in the caller. */
+    #define wc_set_cloexec(fd) ((void)(fd))
+    #define wc_open_cloexec(path, flags) open((path), (flags))
+    #define wc_socket_cloexec(domain, type, protocol) \
+        socket((domain), (type), (protocol))
+    #define wc_accept_cloexec(sockfd, addr, addrlen) \
+        accept((sockfd), (addr), (addrlen))
 #endif
 
 #ifdef __cplusplus

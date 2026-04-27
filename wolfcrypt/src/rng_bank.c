@@ -26,6 +26,51 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
+/* Helpers to access reseedCtr / null-check the active DRBG. The shape of
+ * struct WC_RNG and the DRBG_*_internal types varies by which DRBGs are
+ * compiled in; random.h gates the SHA-256 side on !NO_SHA256 and the SHA-512
+ * side on WOLFSSL_DRBG_SHA512, so all three live combinations are handled
+ * separately here. */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256)
+    /* Both DRBGs compiled in: dispatch on the runtime drbgType. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+            ? ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+            : ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            if ((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+                ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                    = (val); \
+            else \
+                ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL && (rng_ptr)->drbg512 == NULL)
+#elif defined(WOLFSSL_DRBG_SHA512)
+    /* SHA-512 DRBG only (NO_SHA256 defined); the SHA-256 struct and
+     * rng->drbg field do not exist in this build. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg512 == NULL)
+#else
+    /* SHA-256 DRBG only (the historical default). */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL)
+#endif
+
 WOLFSSL_API int wc_rng_bank_init(
     struct wc_rng_bank *ctx,
     int n_rngs,
@@ -52,7 +97,7 @@ WOLFSSL_API int wc_rng_bank_init(
 
 #ifdef WC_RNG_BANK_STATIC
     if (n_rngs > WC_RNG_BANK_STATIC_SIZE)
-        return BAD_LENGTH_E;
+        ret = BAD_LENGTH_E;
 #else
     ctx->rngs = (struct wc_rng_bank_inst *)
         XMALLOC(sizeof(*ctx->rngs) * (size_t)n_rngs,
@@ -472,7 +517,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
             *rng_inst = &bank->rngs[preferred_inst_offset];
 
             if ((! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)) &&
-                (((struct DRBG_internal *)(*rng_inst)->rng.drbg)->reseedCtr >=
+                (WC_RNG_BANK_RESEED_CTR(&(*rng_inst)->rng) >=
                  WC_RESEED_INTERVAL) &&
                 (flags & WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST) &&
                 (n_rngs_tried < bank->n_rngs))
@@ -482,7 +527,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
             else {
 #ifdef WC_VERBOSE_RNG
                 if ((! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)) &&
-                    (((struct DRBG_internal *)(*rng_inst)->rng.drbg)->reseedCtr >=
+                    (WC_RNG_BANK_RESEED_CTR(&(*rng_inst)->rng) >=
                      WC_RESEED_INTERVAL))
                 {
                     WOLFSSL_DEBUG_PRINTF(
@@ -648,11 +693,12 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
         bank = default_rng_bank;
 #endif
 
+    /* rng_inst NULL check handled by rng_inst_matches_bank() */
     ret = rng_inst_matches_bank(bank, rng_inst);
     if (ret < 0)
         return BAD_FUNC_ARG;
 
-    if (rng_inst->rng.drbg == NULL)
+    if (WC_RNG_BANK_DRBG_NULL(&rng_inst->rng))
     {
         return BAD_FUNC_ARG;
     }
@@ -734,7 +780,7 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
 #endif
             break;
         }
-        else if (drbg->rng.drbg == NULL) {
+        else if (WC_RNG_BANK_DRBG_NULL(&drbg->rng)) {
 #ifdef WC_VERBOSE_RNG
             WOLFSSL_DEBUG_PRINTF(
                 "WARNING: wc_rng_bank_seed(): inst#%d has null .drbg.\n", n);
@@ -793,8 +839,7 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
         if (ret != 0)
             return ret;
 
-        ((struct DRBG_internal *)drbg->rng.drbg)->reseedCtr =
-            WC_RESEED_INTERVAL;
+        WC_RNG_BANK_SET_RESEED_CTR(&drbg->rng, WC_RESEED_INTERVAL);
 
         if (flags & WC_RNG_BANK_FLAG_CAN_WAIT) {
             byte scratch[4];
