@@ -32,7 +32,8 @@ int test_wolfSSL_PEM_PrivateKey_ecc(void);
 int test_wolfSSL_PEM_PrivateKey_dsa(void);
 int test_wolfSSL_PEM_PrivateKey_dh(void);
 int test_wolfSSL_PEM_PrivateKey(void);
-int test_wolfSSL_PEM_write_PrivateKey_PUBKEY(void);
+int test_wolfSSL_PEM_write_PrivateKey(void);
+int test_wolfSSL_PEM_write_PUBKEY(void);
 int test_wolfSSL_PEM_file_RSAKey(void);
 int test_wolfSSL_PEM_file_RSAPrivateKey(void);
 int test_wolfSSL_PEM_read_RSA_PUBKEY(void);
@@ -53,7 +54,8 @@ int test_wolfSSL_PEM_PUBKEY(void);
     TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_PrivateKey_dsa),       \
     TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_PrivateKey_dh),        \
     TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_PrivateKey),           \
-    TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_write_PrivateKey_PUBKEY), \
+    TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_write_PrivateKey),     \
+    TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_write_PUBKEY),         \
     TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_file_RSAKey),          \
     TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_file_RSAPrivateKey),   \
     TEST_DECL_GROUP("ossl_pem", test_wolfSSL_PEM_read_RSA_PUBKEY),      \
