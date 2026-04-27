@@ -10222,15 +10222,24 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
             ecc_kse->key = NULL;
             pqc_kse->privKey = NULL;
         }
+        else
     #endif
+        {
+            /* Re-sync keyShareEntry->key with ecc_kse->key. ecc_kse->key was
+             * aliased to keyShareEntry->key above. The inner Process*_ex
+             * either ran its end-of-function cleanup and set ecc_kse->key
+             * to NULL (so the outer pointer must also become NULL to avoid
+             * UAF/double-free in TLSX_KeyShare_FreeAll), or returned early
+             * before cleanup with ecc_kse->key still pointing at the live
+             * key (so the outer pointer must keep that pointer for later
+             * freeing). Mirroring whatever the inner left in ecc_kse->key
+             * handles both cases correctly. */
+            keyShareEntry->key = ecc_kse->key;
+        }
     }
 
     if (ret == 0) {
-        keyShareEntry->key = ecc_kse->key;
-        ecc_kse->key = NULL;
-
-        if ((ret == 0) &&
-            ((ssl->arrays->preMasterSz + ssSzPqc) > ENCRYPT_LEN)) {
+        if ((ssl->arrays->preMasterSz + ssSzPqc) > ENCRYPT_LEN) {
             WOLFSSL_MSG("shared secret is too long.");
             ret = LENGTH_ERROR;
         }
