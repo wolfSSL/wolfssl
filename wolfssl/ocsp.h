@@ -74,8 +74,8 @@ WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int resp
                                     OcspEntry *entry, OcspRequest *ocspRequest,
                                     void* heap);
 
-WOLFSSL_LOCAL int CheckOcspResponder(OcspResponse *bs, byte* subjectHash,
-        byte* subjectKeyHash, byte extExtKeyUsage, byte* issuerHash,
+WOLFSSL_LOCAL int CheckOcspResponder(OcspResponse *bs, byte* subjectNameHash,
+        byte* subjectKeyHash, byte extExtKeyUsage, byte* issuerNameHash,
         byte* issuerKeyHash, void* vp);
 
 /* Allocates and initializes a WOLFSSL_OCSP object */

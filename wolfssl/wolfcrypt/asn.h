@@ -2152,7 +2152,11 @@ struct Signer {
 #endif
 #ifdef HAVE_OCSP
     byte subjectKeyHash[KEYID_SIZE];
-    byte issuerKeyHash[KEYID_SIZE]; /* key hash of verifying parent CA */
+    byte issuerKeyHash[KEYID_SIZE]; /* subject key hash of the immediate
+                                     * issuer CA (i.e. the parent that signed
+                                     * this cert), used to bind OCSP CertID
+                                     * issuerKeyHash matching during responder
+                                     * authorization checks */
 #endif
 #if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
     byte serialHash[SIGNER_DIGEST_SIZE]; /* serial number hash */

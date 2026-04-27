@@ -584,7 +584,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 }
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK
-static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
+static int CheckOcspResponderChain(OcspEntry* single, byte* issuerNameHash,
         byte* issuerKeyHash, void* vp, Signer* pendingCAs) {
     /* Attempt to build a chain up to cert's issuer */
     WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
@@ -634,10 +634,10 @@ static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
         if (parent == NULL || parent == ca)
             break;
 
-        if (XMEMCMP(parent->subjectNameHash, issuerHash,
+        if (XMEMCMP(parent->subjectNameHash, issuerNameHash,
                     OCSP_DIGEST_SIZE) == 0 &&
             XMEMCMP(parent->subjectKeyHash, issuerKeyHash,
-                    OCSP_DIGEST_SIZE) == 0) {
+                    KEYID_SIZE) == 0) {
             WOLFSSL_MSG("\tOCSP Response signed by authorized "
                     "responder delegated by issuer "
                     "(found in chain)");
@@ -655,8 +655,8 @@ static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
  * of CertID (issuerNameHash and issuerKeyHash) must match; name-only matching
  * would authorize a same-DN / different-key CA. issuerKeyHash may be NULL when
  * unavailable, which disables the delegated branch. */
-int CheckOcspResponder(OcspResponse *bs, byte* subjectHash,
-        byte* subjectKeyHash, byte extExtKeyUsage, byte* issuerHash,
+int CheckOcspResponder(OcspResponse *bs, byte* subjectNameHash,
+        byte* subjectKeyHash, byte extExtKeyUsage, byte* issuerNameHash,
         byte* issuerKeyHash, void* vp)
 {
     int ret = 0;
@@ -672,33 +672,33 @@ int CheckOcspResponder(OcspResponse *bs, byte* subjectHash,
     /* In the future if this API is used more then it could be beneficial to
      * implement calling InitDecodedCert and ParseCertRelative here
      * automatically when cert == NULL. */
-    if (bs == NULL || subjectHash == NULL || issuerHash == NULL)
+    if (bs == NULL || subjectNameHash == NULL || issuerNameHash == NULL)
         return BAD_FUNC_ARG;
 
     for (single = bs->single; single != NULL; single = single->next) {
         int passed = 0;
 
         if (subjectKeyHash != NULL &&
-                XMEMCMP(subjectHash, single->issuerHash,
+                XMEMCMP(subjectNameHash, single->issuerHash,
                     OCSP_DIGEST_SIZE) == 0 &&
                 XMEMCMP(subjectKeyHash, single->issuerKeyHash,
-                    OCSP_DIGEST_SIZE) == 0) {
+                    KEYID_SIZE) == 0) {
             WOLFSSL_MSG("\tOCSP Response signed by issuer");
             passed = 1;
         }
         else if ((extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) != 0) {
             if (issuerKeyHash != NULL &&
-                    XMEMCMP(issuerHash, single->issuerHash,
+                    XMEMCMP(issuerNameHash, single->issuerHash,
                         OCSP_DIGEST_SIZE) == 0 &&
                     XMEMCMP(issuerKeyHash, single->issuerKeyHash,
-                        OCSP_DIGEST_SIZE) == 0) {
+                        KEYID_SIZE) == 0) {
                 WOLFSSL_MSG("\tOCSP Response signed by authorized responder "
                             "delegated by issuer");
                 passed = 1;
             }
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK
             else if (vp != NULL) {
-                passed = CheckOcspResponderChain(single, issuerHash,
+                passed = CheckOcspResponderChain(single, issuerNameHash,
                         issuerKeyHash, vp, bs->pendingCAs);
             }
 #endif
