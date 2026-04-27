@@ -4817,9 +4817,23 @@ int SendTls13ClientHello(WOLFSSL* ssl)
             if (ret != 0)
                 return ret;
 
+            /* calculate padding (RFC 9849, section 6.1.3) */
+            if (args->ech->privateName != NULL) {
+                word16 nameLen = (word16)XSTRLEN(args->ech->privateName);
+                if (nameLen > args->ech->echConfig->maxNameLen)
+                    args->ech->paddingLen = 0;
+                else
+                    args->ech->paddingLen =
+                        (word16)args->ech->echConfig->maxNameLen - nameLen;
+            }
+            else {
+                args->ech->paddingLen = args->ech->echConfig->maxNameLen + 9;
+            }
+
             /* innerClientHelloLen and padding are based on the
              * encoded (sealed) inner */
-            args->ech->paddingLen = 31 - ((encodedLen - 1) % 32);
+            args->ech->paddingLen += 31 -
+                ((encodedLen + args->ech->paddingLen - 1) % 32);
             args->ech->innerClientHelloLen = encodedLen +
                 args->ech->paddingLen + args->ech->hpke->Nt;
 
