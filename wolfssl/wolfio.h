@@ -793,7 +793,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
                                       ULONG waitoption);
     WOLFSSL_API void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket, 
                                         NXD_ADDRESS *nxdip, 
-                                        UINT16* nxport, 
+                                        USHORT* nxport, 
                                         ULONG waitoption);
 #endif /* HAVE_NETX */
 

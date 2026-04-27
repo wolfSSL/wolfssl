@@ -5686,7 +5686,7 @@ typedef struct DtlsMsg {
         ULONG          nxOffset;    /* offset already read from nxPacket */
         ULONG          nxWait;      /* wait option flag */
         NXD_ADDRESS*   nxdIp;       /* IP address for udp send*/
-        UINT16*        nxPort;      /* Port number for udp recv*/
+        USHORT*        nxPort;      /* Port number for udp recv*/
     } NetX_Ctx;
 
 #endif

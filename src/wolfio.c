@@ -2703,7 +2703,7 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket, ULONG waitoption)
     }
 }
 
-void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket, NXD_ADDRESS *nxdip, UINT16 *nxport, ULONG waitoption)
+void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket, NXD_ADDRESS *nxdip, USHORT *nxport, ULONG waitoption)
 {
     if (ssl) {
         ssl->nxCtx.nxUdpSocket              = nxsocket;  
