@@ -13320,6 +13320,66 @@ static int MatchIPv6(const char* pattern, int patternLen,
 }
 #endif /* WOLFSSL_IP_ALT_NAME && !WOLFSSL_USER_IO */
 
+/* IDNA A-label prefix (Punycode-encoded internationalized labels), used to
+ * gate wildcard matching per RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3. */
+static int LabelIsALabel(const char* label, word32 labelLen)
+{
+    if (labelLen < 4)
+        return 0;
+    return ((XTOLOWER((unsigned char)label[0]) == 'x') &&
+            (XTOLOWER((unsigned char)label[1]) == 'n') &&
+            (label[2] == '-') &&
+            (label[3] == '-'));
+}
+
+/* Returns 1 if any dot-separated label in name is an A-label. */
+static int NameHasALabel(const char* name, word32 nameLen)
+{
+    word32 labelStart = 0;
+    word32 i;
+
+    for (i = 0; i < nameLen; i++) {
+        if (name[i] == '.') {
+            if (LabelIsALabel(name + labelStart, i - labelStart))
+                return 1;
+            labelStart = i + 1;
+        }
+    }
+    if (labelStart < nameLen) {
+        if (LabelIsALabel(name + labelStart, nameLen - labelStart))
+            return 1;
+    }
+    return 0;
+}
+
+/* Returns 1 if any label of pattern that contains a wildcard ('*') is an
+ * A-label. RFC 6125 sec. 6.4.3 disallows wildcards embedded in A-labels. */
+static int PatternHasWildcardInALabel(const char* pattern, word32 patternLen)
+{
+    word32 labelStart = 0;
+    int labelHasWildcard = 0;
+    word32 i;
+
+    for (i = 0; i < patternLen; i++) {
+        if (pattern[i] == '.') {
+            if (labelHasWildcard &&
+                LabelIsALabel(pattern + labelStart, i - labelStart)) {
+                return 1;
+            }
+            labelStart = i + 1;
+            labelHasWildcard = 0;
+        }
+        else if (pattern[i] == '*') {
+            labelHasWildcard = 1;
+        }
+    }
+    if (labelHasWildcard &&
+        LabelIsALabel(pattern + labelStart, patternLen - labelStart)) {
+        return 1;
+    }
+    return 0;
+}
+
 /* Match names with wildcards, each wildcard can represent a single name
    component or fragment but not multiple names, i.e.,
    *.z.com matches y.z.com but not x.y.z.com
@@ -13343,6 +13403,38 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
     if (MatchIPv6(pattern, patternLen, str, strLen))
         return 1;
 #endif
+
+    if (leftWildcardOnly && (! wolfssl_local_IsValidFQDN(str, strLen))) {
+        /* Not a valid FQDN -- require byte-exact match, no case folding, no
+         * wildcard interpretation.  This is appropriate for an IPv4 match, for
+         * example, but also matches improvised names like "localhost", albeit
+         * case-sensitively.
+         */
+        return (((word32)patternLen == strLen) &&
+                (XMEMCMP(pattern, str, patternLen) == 0));
+    }
+
+    /* strip trailing dots if necessary (FQDN designator). */
+    if (str[strLen-1] == '.')
+        --strLen;
+    if (pattern[patternLen-1] == '.')
+        --patternLen;
+
+    /* RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3: do not perform wildcard
+     * matching when the pattern has a wildcard embedded in an A-label, nor
+     * when the reference identifier (hostname) contains any A-label. The
+     * existing single-label glob would otherwise match across the
+     * Punycode-encoded form (e.g., "x*.example.com" matching
+     * "xn--rger-koa.example.com"), which has no semantic meaning. */
+    if (PatternHasWildcardInALabel(pattern, (word32)patternLen))
+        return 0;
+    if (NameHasALabel(str, strLen)) {
+        int i;
+        for (i = 0; i < patternLen; i++) {
+            if (pattern[i] == '*')
+                return 0;
+        }
+    }
 
     while (patternLen > 0) {
         /* Get the next pattern char to evaluate */

@@ -3119,6 +3119,11 @@ WOLFSSL_TEST_VIS int  wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
                                                   int constraintSz);
 #endif
 
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+WOLFSSL_TEST_VIS int  wolfssl_local_IsValidFQDN(const char* name,
+                                                word32 nameSz);
+#endif
+
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \

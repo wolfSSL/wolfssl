@@ -1081,10 +1081,18 @@ int test_wolfSSL_X509_check_ip_asc(void)
         ExpectIntEQ(wolfSSL_X509_check_ip_asc(cn_lit, "127.0.0.1", 0), 0);
         /* CN=*.0.0.1 with no SAN must NOT wildcard-match "127.0.0.1". */
         ExpectIntEQ(wolfSSL_X509_check_ip_asc(cn_wild, "127.0.0.1", 0), 0);
+
         /* CN-based hostname matching must still work for hostname checks
          * (sanity check that the fix didn't over-correct). */
         ExpectIntEQ(wolfSSL_X509_check_host(cn_wild, "1.0.0.1",
             XSTRLEN("1.0.0.1"), 0, NULL), 1);
+
+        /* However, when WOLFSSL_LEFT_MOST_WILDCARD_ONLY, CN-based hostname
+         * matching must not apply wildcards when the supplied hostname isn't a
+         * well-formed FQDN.
+         */
+        ExpectIntEQ(wolfSSL_X509_check_host(cn_wild, "1.0.0.1",
+            XSTRLEN("1.0.0.1"), WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL), 0);
 
         wolfSSL_X509_free(cn_wild);
         wolfSSL_X509_free(cn_lit);
@@ -1607,6 +1615,183 @@ int test_wolfSSL_X509_name_match3(void)
     wolfSSL_X509_free(x509);
 
 #endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfssl_local_IsValidFQDN(void) {
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+    static const struct { const char *str; int is_FQDN; } test_cases[] = {
+        {"example.com",                  1},
+        {"example.com.",                 1},   /* trailing dot (absolute form) */
+        {"sub.example.com",              1},
+        {"a.b",                          1},   /* minimal two-label */
+        {"xn--nxasmq5b.com",             1},   /* punycode / IDN (ACE form) */
+        {"test_underscore.example.com",  1},   /* underscore in non-TLD label */
+        {"_leading.example.com",         1}, /* underscore at start of label */
+        {"trailing_.example.com",        1},/* underscore at end of non-TLD label */
+        {"123.numericlabel.example.com", 1},   /* numeric labels are fine */
+        {"example.12a3",                 1},   /* TLD with letters + digits */
+        {"ex--ample.com",                1},   /* double hyphen inside label (allowed) */
+        {"A.B.C",                        1},   /* uppercase OK (case-insensitive rules) */
+
+        {"example",                      0},   /* single label (not fully qualified) */
+        {"example.",                     0},   /* becomes single label after dot strip */
+        {".example.com",                 0},   /* leading dot -- empty first label */
+        {"example..com",                 0},   /* empty label (consecutive dots) */
+        {"-example.com",                 0},   /* label starts with '-' */
+        {"example-.com",                 0},   /* label ends with '-' */
+        {"example.com-",                 0},   /* final label ends with '-' */
+        {"example.com_",                 0},   /* underscore in TLD (forbidden) */
+        {"example._com",                 0},   /* underscore in TLD (forbidden) */
+        {"ex@mple.com",                  0},   /* illegal character '@' */
+        {"example com.com",              0},   /* illegal character ' ' */
+        {"",                             0},   /* empty string */
+        {NULL,                           0},   /* NULL pointer */
+        {"com",                          0},   /* single label */
+        {"123.456",                      0},   /* all-numeric final label (no alpha) */
+        {"example.123",                  0},   /* all-numeric TLD (no alpha) */
+        {"a",                            0},   /* single label, too short */
+        {"example.123a",                 1},   /* TLD with at least one letter -- valid */
+    };
+
+    int i;
+    for (i = 0; i < (int)(sizeof(test_cases) / sizeof(test_cases[0])); i++) {
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(
+                        test_cases[i].str,
+                        test_cases[i].str ? (word32)strlen(test_cases[i].str) : 0),
+                        test_cases[i].is_FQDN);
+        if (! EXPECT_SUCCESS()) {
+            fprintf(stderr, "wolfssl_local_IsValidFQDN() wrong result for "
+                    "case %d \"%s\"\n", i, test_cases[i].str);
+            break;
+        }
+    }
+
+    /* Additional corner cases (length & label-size boundaries) */
+    {
+        char buf[300];
+
+        /* 253 chars (max allowed), with 63 byte labels (max allowed) - valid */
+        memset(buf, 'a', 251);
+        for (i=63; i < 251; i+=64)
+            buf[i] = '.';
+        buf[251] = '.';
+        buf[252] = 'b';
+        buf[253] = '\0';
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(buf, (word32)strlen(buf)), 1);
+
+        /* 254 chars (one too long) - invalid */
+        memset(buf, 'a', 252);
+        for (i=63; i < 251; i+=64)
+            buf[i] = '.';
+        buf[252] = '.';
+        buf[253] = 'b';
+        buf[254] = '\0';
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(buf, (word32)strlen(buf)), 0);
+
+        /* 64-char label (one too long) */
+        memset(buf, 'a', 64);
+        buf[64] = '.';
+        buf[65] = 'c';
+        buf[66] = 'o';
+        buf[67] = 'm';
+        buf[68] = '\0';
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(buf, (word32)strlen(buf)), 0);
+
+        /* Explicit nameSz == 0 (even with non-NULL pointer) */
+        ExpectIntEQ(wolfssl_local_IsValidFQDN("example.com", 0), 0);
+    }
+
+#endif /* !NO_ASN && !WOLFCRYPT_ONLY && !NO_CERTS */
+    return EXPECT_RESULT();
+}
+
+/* Verify that MatchDomainName() refuses to expand wildcards across IDNA
+ * A-labels (xn-- prefix) per RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3.
+ *
+ * MatchDomainName() is WOLFSSL_LOCAL but visible to the test binary because
+ * tests link against the in-tree library. */
+int test_wolfSSL_MatchDomainName_idn(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS)
+    static const struct {
+        const char* pattern;
+        const char* host;
+        unsigned int flags;
+        int expected; /* 1 = match, 0 = no match */
+        const char* note;
+    } cases[] = {
+        /* Partial wildcard whose literal prefix overlaps "xn--" must NOT
+         * match an A-label hostname. */
+        { "x*.example.com",      "xn--rger-koa.example.com", 0, 0,
+          "partial wildcard vs A-label" },
+        /* Wildcard embedded inside an A-label pattern must NOT match. */
+        { "xn--*.example.com",   "xn--rger-koa.example.com", 0, 0,
+          "wildcard inside A-label pattern" },
+        /* Full left-most wildcard MUST NOT match an A-label hostname
+         * (RFC 9525 sec. 6.3 strengthens RFC 6125 SHOULD NOT to MUST NOT). */
+        { "*.example.com",       "xn--rger-koa.example.com", 0, 0,
+          "full wildcard vs A-label hostname" },
+        /* A-label appearing in an inner label still disables wildcard
+         * matching against the entire reference identifier. */
+        { "*.example.com",       "foo.xn--bar.example.com",  0, 0,
+          "wildcard with A-label in inner label" },
+        /* Case-insensitive A-label detection: "XN--" is also an A-label. */
+        { "x*.example.com",      "XN--rger-koa.example.com", 0, 0,
+          "uppercase A-label prefix" },
+        /* Control: full wildcard SHOULD continue to match plain ASCII. */
+        { "*.example.com",       "foo.example.com",          0, 1,
+          "wildcard matches non-IDN" },
+        /* Control: exact A-label match (no wildcard in pattern) must work. */
+        { "xn--rger-koa.example.com", "xn--rger-koa.example.com", 0, 1,
+          "exact A-label match" },
+        /* Control: a label that merely begins with 'x' (not 'xn--') is not
+         * an A-label and must still wildcard-match. */
+        { "*.example.com",       "xyz.example.com",          0, 1,
+          "non-A-label x-prefix" },
+        /* Control: partial wildcard against a non-A-label still works. */
+        { "x*.example.com",      "xyz.example.com",          0, 1,
+          "partial wildcard non-IDN" },
+
+        /* Trailing-dot normalization: absolute-form FQDN ("example.com.")
+         * must match the same FQDN with or without the trailing dot, on
+         * either side of the comparison. RFC 1035 / RFC 6125. */
+        { "example.com",         "example.com.",             0, 1,
+          "trailing dot on host" },
+        { "example.com.",        "example.com",              0, 1,
+          "trailing dot on pattern" },
+        { "example.com.",        "example.com.",             0, 1,
+          "trailing dot on both" },
+        { "*.example.com",       "foo.example.com.",         0, 1,
+          "trailing dot on host with wildcard pattern" },
+        /* Trailing dot must not cause an A-label gate to misfire. */
+        { "*.example.com",       "xn--rger-koa.example.com.", 0, 0,
+          "trailing dot on A-label host" },
+        /* Same trailing-dot normalization under WOLFSSL_LEFT_MOST_WILDCARD_ONLY. */
+        { "*.example.com",       "foo.example.com.",
+          WOLFSSL_LEFT_MOST_WILDCARD_ONLY, 1,
+          "trailing dot, leftWildcardOnly" },
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        int got = MatchDomainName(
+                    cases[i].pattern, (int)XSTRLEN(cases[i].pattern),
+                    cases[i].host,    (word32)XSTRLEN(cases[i].host),
+                    cases[i].flags);
+        ExpectIntEQ(got, cases[i].expected);
+        if (! EXPECT_SUCCESS()) {
+            fprintf(stderr,
+                "MatchDomainName(\"%s\", \"%s\", flags=0x%x) = %d, "
+                "expected %d (%s)\n",
+                cases[i].pattern, cases[i].host, cases[i].flags,
+                got, cases[i].expected, cases[i].note);
+            break;
+        }
+    }
+#endif /* !NO_CERTS */
     return EXPECT_RESULT();
 }
 
