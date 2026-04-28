@@ -34824,6 +34824,188 @@ static int test_write_dup_want_write_simul(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_WRITE_DUP) && \
+    defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256) &&    \
+    (defined(HAVE_ECC) || defined(HAVE_CURVE25519) ||                           \
+     defined(HAVE_CURVE448)) &&                                                 \
+    !defined(NO_RSA) && defined(USE_WOLFSSL_MEMORY) &&                          \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) &&           \
+    !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_NO_TLS12) &&              \
+    !defined(NO_TLS)
+#include <wolfssl/wolfcrypt/poly1305.h>
+
+/* Custom allocator state for test_write_dup_oom.
+ * The allocator counts allocations of size oom_match_size (set to
+ * sizeof(Poly1305) by the test). The Nth such allocation is forced to
+ * fail if oom_fail_at_match == N; oom_failed is then set so callers can
+ * confirm the fault was actually injected. The test runs in two phases:
+ *   1) Measure: oom_fail_at_match = 0 (no failures), record oom_match_count
+ *      after a successful wolfSSL_write_dup(). The Poly1305 alloc in
+ *      DupSSL() is the LAST sizeof(Poly1305) allocation in the call path,
+ *      so that count is the index that targets it.
+ *   2) Trigger: oom_fail_at_match = recorded count, run write_dup again on
+ *      a fresh handshake. The Nth match is the Poly1305 alloc, so the
+ *      failure exercises exactly the bug under test. */
+static size_t oom_match_size = 0;
+static int    oom_match_count = 0;
+static int    oom_fail_at_match = 0;
+static int    oom_failed = 0;
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* oom_malloc_cb(size_t size, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* oom_malloc_cb(size_t size)
+{
+#endif
+    if (!oom_failed && oom_match_size != 0 && size == oom_match_size) {
+        oom_match_count++;
+        if (oom_fail_at_match != 0 && oom_match_count == oom_fail_at_match) {
+            oom_failed = 1;
+            return NULL;
+        }
+    }
+    return malloc(size);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void oom_free_cb(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void oom_free_cb(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* oom_realloc_cb(void* ptr, size_t size, const char* func,
+        unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* oom_realloc_cb(void* ptr, size_t size)
+{
+#endif
+    return realloc(ptr, size);
+}
+#endif
+
+/* Regression test for the DupSSL() error-path bug: an allocation failure on
+ * the Poly1305 alloc must not leave the original ssl object with a zeroed
+ * encrypt context or a non-NULL ssl->dupWrite.
+ *
+ * Pass 0 measures the count of sizeof(Poly1305) allocations during a
+ * successful wolfSSL_write_dup(); pass 1 fails the same-indexed allocation
+ * on a fresh handshake to deterministically target the DupSSL() Poly1305
+ * alloc regardless of any incidental size collisions. */
+static int test_write_dup_oom(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_WRITE_DUP) && \
+    defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256) &&    \
+    (defined(HAVE_ECC) || defined(HAVE_CURVE25519) ||                           \
+     defined(HAVE_CURVE448)) &&                                                 \
+    !defined(NO_RSA) && defined(USE_WOLFSSL_MEMORY) &&                          \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) &&           \
+    !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_NO_TLS12) &&              \
+    !defined(NO_TLS)
+    char hiWorld[] = "dup message";
+    char readData[sizeof(hiWorld) + 5];
+    wolfSSL_Malloc_cb  prev_mc = NULL;
+    wolfSSL_Free_cb    prev_fc = NULL;
+    wolfSSL_Realloc_cb prev_rc = NULL;
+    int allocators_set = 0;
+    int target_match = 0;
+    int pass;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &prev_fc, &prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(oom_malloc_cb, oom_free_cb,
+            oom_realloc_cb), 0);
+    if (EXPECT_SUCCESS())
+        allocators_set = 1;
+
+    for (pass = 0; pass < 2 && EXPECT_SUCCESS(); pass++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        WOLFSSL *ssl_c2 = NULL;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.c_ciphers = test_ctx.s_ciphers =
+                "ECDHE-RSA-CHACHA20-POLY1305";
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* Start counting sizeof(Poly1305) allocations only now, after the
+         * handshake, so the count reflects only allocations on the
+         * wolfSSL_write_dup() code path. */
+        oom_match_size = sizeof(Poly1305);
+        oom_match_count = 0;
+        oom_failed = 0;
+        oom_fail_at_match = (pass == 0) ? 0 : target_match;
+
+        if (pass == 0) {
+            ExpectNotNull(ssl_c2 = wolfSSL_write_dup(ssl_c));
+            target_match = oom_match_count;
+            /* Sanity: at least one Poly1305 alloc must occur on this path,
+             * otherwise the test setup was wrong (feature compiled out, or
+             * negotiated cipher does not use Poly1305). */
+            ExpectIntGE(target_match, 1);
+        }
+        else {
+            ExpectNull(wolfSSL_write_dup(ssl_c));
+            /* Confirm the targeted Poly1305 allocation actually failed. */
+            ExpectIntEQ(oom_failed, 1);
+            /* Stop further failures so the recovery path can run. */
+            oom_fail_at_match = 0;
+
+            /* The original ssl_c must NOT be poisoned: the WriteDup must have
+             * been cleaned up, the encrypt cipher context must still be
+             * intact, and a fresh wolfSSL_write_dup() must succeed. */
+            ExpectNull(ssl_c->dupWrite);
+            ExpectNotNull(ssl_c2 = wolfSSL_write_dup(ssl_c));
+
+            /* Round-trip data both directions to confirm both sides still
+             * encrypt with the original ssl_c context preserved. */
+            ExpectIntEQ(wolfSSL_write(ssl_s, hiWorld, sizeof(hiWorld)),
+                    sizeof(hiWorld));
+            ExpectIntEQ(wolfSSL_read(ssl_c, readData, sizeof(readData)),
+                    sizeof(hiWorld));
+            ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)),
+                    sizeof(hiWorld));
+            ExpectIntEQ(wolfSSL_read(ssl_s, readData, sizeof(readData)),
+                    sizeof(hiWorld));
+        }
+
+        /* Disable matching/failure during teardown so frees and any internal
+         * allocations of the same size during cleanup are unaffected. */
+        oom_match_size = 0;
+        oom_fail_at_match = 0;
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_c2);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+
+    /* Restore previous allocators only after every object allocated under the
+     * test allocators has been freed, so allocator bookkeeping (in builds
+     * that wrap the default allocators) is not desynchronised. */
+    if (allocators_set)
+        (void)wolfSSL_SetAllocators(prev_mc, prev_fc, prev_rc);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_read_write_hs(void)
 {
 
@@ -37660,6 +37842,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_write_dup),
     TEST_DECL(test_write_dup_want_write),
     TEST_DECL(test_write_dup_want_write_simul),
+    TEST_DECL(test_write_dup_oom),
     TEST_DECL(test_read_write_hs),
     TEST_DECL(test_get_signature_nid),
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
