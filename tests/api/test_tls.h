@@ -43,6 +43,7 @@ int test_wolfSSL_alert_type_string(void);
 int test_wolfSSL_alert_desc_string(void);
 int test_record_size_matches_build_message(void);
 int test_record_size_cache_invalidated_on_renegotiation(void);
+int test_wolfSSL_get_shared_ciphers(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
@@ -67,6 +68,7 @@ int test_record_size_cache_invalidated_on_renegotiation(void);
         TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \
         TEST_DECL_GROUP("tls", test_record_size_matches_build_message),        \
         TEST_DECL_GROUP("tls",                                                 \
-            test_record_size_cache_invalidated_on_renegotiation)
+            test_record_size_cache_invalidated_on_renegotiation),              \
+        TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers)
 
 #endif /* TESTS_API_TEST_TLS_H */
