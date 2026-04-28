@@ -350,3 +350,59 @@ merge-clean:
 
 .cu.lo:
 	$(LIBTOOL) --tag=CC --mode=compile $(COMPILE) --compile -o $@ $< -static
+
+# SBOM generation (CRA compliance)
+SBOM_CDX     = wolfssl-$(PACKAGE_VERSION).cdx.json
+SBOM_SPDX    = wolfssl-$(PACKAGE_VERSION).spdx.json
+SBOM_SPDX_TV = wolfssl-$(PACKAGE_VERSION).spdx
+sbomdir      = $(datadir)/doc/$(PACKAGE)
+
+.PHONY: sbom install-sbom uninstall-sbom
+
+sbom:
+	@if test -z "$(PYTHON3)"; then \
+	    echo ""; \
+	    echo "ERROR: 'python3' not found in PATH. Cannot generate SBOM."; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	@if test -z "$(PYSPDXTOOLS)"; then \
+	    echo ""; \
+	    echo "ERROR: 'pyspdxtools' not found in PATH. Cannot validate SBOM."; \
+	    echo "       Install: pip install spdx-tools"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	rm -rf $(abs_builddir)/_sbom_staging
+	$(MAKE) install DESTDIR=$(abs_builddir)/_sbom_staging
+	$(PYTHON3) $(srcdir)/scripts/gen-sbom \
+	    --name $(PACKAGE) \
+	    --version $(PACKAGE_VERSION) \
+	    --license-file $(srcdir)/LICENSING \
+	    --options-h $(abs_builddir)/wolfssl/options.h \
+	    --lib $(abs_builddir)/_sbom_staging$(libdir)/libwolfssl.so.$(WOLFSSL_LIBRARY_VERSION_FIRST).$(WOLFSSL_LIBRARY_VERSION_SECOND).$(WOLFSSL_LIBRARY_VERSION_THIRD) \
+	    --dep-liboqs $(ENABLED_LIBOQS) \
+	    --dep-libxmss $(ENABLED_LIBXMSS) \
+	    --dep-libxmss-root '$(XMSS_ROOT)' \
+	    --dep-liblms $(ENABLED_LIBLMS) \
+	    --dep-liblms-root '$(LIBLMS_ROOT)' \
+	    --dep-libz $(ENABLED_LIBZ) \
+	    --git '$(GIT)' \
+	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
+	    --spdx-out $(abs_builddir)/$(SBOM_SPDX)
+	rm -rf $(abs_builddir)/_sbom_staging
+	$(PYSPDXTOOLS) --infile $(abs_builddir)/$(SBOM_SPDX) \
+	    --outfile $(abs_builddir)/$(SBOM_SPDX_TV)
+
+install-sbom: sbom
+	$(MKDIR_P) $(DESTDIR)$(sbomdir)
+	$(INSTALL_DATA) $(SBOM_CDX) $(DESTDIR)$(sbomdir)/
+	$(INSTALL_DATA) $(SBOM_SPDX) $(DESTDIR)$(sbomdir)/
+	$(INSTALL_DATA) $(SBOM_SPDX_TV) $(DESTDIR)$(sbomdir)/
+
+uninstall-sbom:
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_CDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX_TV)
+
+CLEANFILES += $(SBOM_CDX) $(SBOM_SPDX) $(SBOM_SPDX_TV)

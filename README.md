@@ -30,6 +30,11 @@ applications which have previously used the OpenSSL package. For a complete
 feature list, see [Chapter 4](https://www.wolfssl.com/docs/wolfssl-manual/ch4/)
 of the wolfSSL manual.
 
+## SBOM / CRA Compliance
+
+wolfSSL provides a Software Bill of Materials (SBOM) for EU Cyber Resilience
+Act (CRA) compliance via `make sbom`. See `doc/SBOM.md` for details.
+
 ## Notes, Please Read
 
 ### Note 1

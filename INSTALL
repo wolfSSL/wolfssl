@@ -322,3 +322,39 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
 
     Deprecated. wolfSSL now has its own XMMS/XMSS^MT implementation in
     wolfCrypt.
+
+21. Generating an SBOM (Software Bill of Materials)
+
+    wolfSSL can generate a Software Bill of Materials for EU Cyber Resilience
+    Act (CRA) compliance after a normal build and install.
+
+    Prerequisites:
+      - python3 (detected automatically by configure)
+      - pyspdxtools (pip install spdx-tools)
+
+    Usage:
+
+      $ ./configure
+      $ make
+      $ make sbom
+
+    This produces three files in the build directory:
+
+      wolfssl-<version>.cdx.json   CycloneDX 1.6 JSON
+      wolfssl-<version>.spdx.json  SPDX 2.3 JSON
+      wolfssl-<version>.spdx       SPDX 2.3 tag-value (validated by pyspdxtools)
+
+    The SPDX JSON is validated by pyspdxtools before the tag-value file is
+    written; make sbom fails if validation fails.
+
+    To install the SBOM files to $(datadir)/doc/wolfssl/:
+
+      $ make install-sbom
+
+    To remove installed SBOM files:
+
+      $ make uninstall-sbom
+
+    The generated files are removed by make clean.
+
+    For details on the SBOM contents and CRA context, see doc/SBOM.md.
