@@ -108,6 +108,7 @@ fn test_sha384_algorithm() {
 }
 
 #[test]
+#[cfg(sha512)]
 fn test_sha512_algorithm() {
     common::setup();
 
@@ -159,6 +160,7 @@ fn test_customized_hash() {
 }
 
 #[test]
+#[cfg(sha512)]
 fn test_customized_hash_with_algorithm_override() {
     common::setup();
 
