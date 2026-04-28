@@ -170,13 +170,6 @@ WOLFSSL_API
 int wc_ed448_delete(ed448_key* key, ed448_key** key_p);
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-WOLFSSL_API
-ed448_key* wolfSSL_ED448_new(void* heap, int devId);
-WOLFSSL_API
-void wolfSSL_ED448_free(ed448_key* key);
-#endif
-
 #ifdef HAVE_ED448_KEY_IMPORT
 WOLFSSL_API
 int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key);
