@@ -14930,8 +14930,6 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                         msgType == certificate_request);
     (void)cbShim;
 
-    (void)hsz;
-
     while ((extension = list)) {
         list = extension->next;
 
