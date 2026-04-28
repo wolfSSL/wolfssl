@@ -635,7 +635,7 @@ WOLFSSL_API int wc_SetExtKeyUsage(Cert *cert, const char *value);
  * certificates.
  *
  * keyAuth is the ACME key authorization string (token "." JWK_thumbprint
- * per RFC 8555 8.1), as raw bytes — keyAuthSz is its byte length.
+ * per RFC 8555 8.1), as raw bytes - keyAuthSz is its byte length.
  * wc_SetAcmeIdentifierExt computes SHA-256 over keyAuth internally and
  * stores the digest as the extension value, emitted critical=TRUE per
  * RFC 8737 3.

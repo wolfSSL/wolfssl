@@ -11627,7 +11627,7 @@ static int test_wolfSSL_mcast(void)
  *----------------------------------------------------------------------------*/
 
 /*
- * Testing wc_SetAcmeIdentifierExt() round-trip — the RFC 8737
+ * Testing wc_SetAcmeIdentifierExt() round-trip - the RFC 8737
  * id-pe-acmeIdentifier (1.3.6.1.5.5.7.1.31) extension used by
  * TLS-ALPN-01 ACME challenge certs.
  */
