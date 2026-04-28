@@ -13499,36 +13499,35 @@ WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
             WOLFSSL_X509_CRL **x, wc_pem_password_cb *cb, void *u)
     {
 #if defined(WOLFSSL_PEM_TO_DER) && defined(HAVE_CRL)
-        unsigned char* pem = NULL;
-        int pemSz = 0;
-        int derSz = 0;
-        DerBuffer* der = NULL;
         WOLFSSL_X509_CRL* crl = NULL;
 
         WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509_CRL");
 
-        if ((pem = ReadPemFromBioToBuffer(bp, &pemSz)) == NULL) {
-            goto err;
+        /* OpenSSL's PEM_read_bio_X509_CRL skips intervening cert/key blocks
+         * and returns the next CRL in the stream (NULL only at EOF). Mirror
+         * that by looping over the per-block reader until we get a CRL or
+         * the BIO has nothing left to parse. */
+        for (;;) {
+            WOLFSSL_X509*      x509   = NULL;
+            WOLFSSL_X509_PKEY* x_pkey = NULL;
+            if (wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio(bp, cb,
+                        &x509, &crl, &x_pkey) != WOLFSSL_SUCCESS) {
+                break;
+            }
+            if (crl != NULL) {
+                break;
+            }
+            wolfSSL_X509_free(x509);
+            wolfSSL_X509_PKEY_free(x_pkey);
         }
 
-        if ((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0) {
-            goto err;
-        }
-        derSz = (int)der->length;
-        if ((crl = wolfSSL_d2i_X509_CRL(x, der->buffer, derSz)) == NULL) {
-            goto err;
-        }
-
-err:
-        if (pemSz == 0) {
-            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
-        }
-        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
-        if (der != NULL) {
-            FreeDer(&der);
+        if (x != NULL) {
+            if (*x != NULL && *x != crl) {
+                wolfSSL_X509_CRL_free(*x);
+            }
+            *x = crl;
         }
 
-        (void)cb;
         (void)u;
 
         return crl;
@@ -13691,7 +13690,7 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
 #endif /* !NO_FILESYSTEM */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
 #ifndef NO_BIO
     /* create and return a new WOLFSSL_X509_PKEY structure or NULL on failure */
@@ -13711,7 +13710,7 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
 
 
     /* free up all memory used by "xPkey" passed in */
-    static void wolfSSL_X509_PKEY_free(WOLFSSL_X509_PKEY* xPkey)
+    void wolfSSL_X509_PKEY_free(WOLFSSL_X509_PKEY* xPkey)
     {
         if (xPkey != NULL) {
             wolfSSL_EVP_PKEY_free(xPkey->dec_pkey);
@@ -13737,7 +13736,7 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
      * @param x_pkey Output
      * @return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE otherwise
      */
-    static int wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio(
+    int wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio(
             WOLFSSL_BIO* bio, wc_pem_password_cb* cb, WOLFSSL_X509** x509,
             WOLFSSL_X509_CRL** crl, WOLFSSL_X509_PKEY** x_pkey)
     {
@@ -13921,6 +13920,9 @@ err:
 #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
     }
 
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
+#ifdef OPENSSL_ALL
+
 #ifndef NO_FILESYSTEM
     WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read(
             XFILE fp, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
@@ -14058,7 +14060,7 @@ err:
         return localSk;
     }
 #endif /* !NO_BIO */
-#endif /* OPENSSL_ALL */
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 
     void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne)
     {

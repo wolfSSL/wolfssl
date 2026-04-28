@@ -7469,6 +7469,15 @@ WOLFSSL_LOCAL int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
         word32* keySz);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_BIO)
+WOLFSSL_LOCAL int wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio(
+        WOLFSSL_BIO* bio, wc_pem_password_cb* cb, WOLFSSL_X509** x509,
+        WOLFSSL_X509_CRL** crl, WOLFSSL_X509_PKEY** x_pkey);
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+WOLFSSL_LOCAL void wolfSSL_X509_PKEY_free(WOLFSSL_X509_PKEY* xPkey);
+#endif
+
 WOLFSSL_LOCAL void wolfssl_local_MaybeCheckAlertOnErr(WOLFSSL* ssl, int err);
 
 #ifdef __cplusplus
