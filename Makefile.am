@@ -350,3 +350,113 @@ merge-clean:
 
 .cu.lo:
 	$(LIBTOOL) --tag=CC --mode=compile $(COMPILE) --compile -o $@ $< -static
+
+# SBOM generation (CRA compliance)
+SBOM_CDX     = wolfssl-$(PACKAGE_VERSION).cdx.json
+SBOM_SPDX    = wolfssl-$(PACKAGE_VERSION).spdx.json
+SBOM_SPDX_TV = wolfssl-$(PACKAGE_VERSION).spdx
+sbomdir      = $(datadir)/doc/$(PACKAGE)
+
+.PHONY: sbom install-sbom uninstall-sbom
+
+sbom:
+	@if test -z "$(PYTHON3)"; then \
+	    echo ""; \
+	    echo "ERROR: 'python3' not found in PATH. Cannot generate SBOM."; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	@if test -z "$(PYSPDXTOOLS)"; then \
+	    echo ""; \
+	    echo "ERROR: 'pyspdxtools' not found in PATH. Cannot validate SBOM."; \
+	    echo "       Install: pip install spdx-tools"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	rm -rf $(abs_builddir)/_sbom_staging
+	$(MAKE) install DESTDIR=$(abs_builddir)/_sbom_staging
+	$(PYTHON3) $(srcdir)/scripts/gen-sbom \
+	    --name $(PACKAGE) \
+	    --version $(PACKAGE_VERSION) \
+	    --license-file $(srcdir)/LICENSING \
+	    --options-h $(abs_builddir)/wolfssl/options.h \
+	    --lib $(abs_builddir)/_sbom_staging$(libdir)/libwolfssl.so.$(WOLFSSL_LIBRARY_VERSION_FIRST).$(WOLFSSL_LIBRARY_VERSION_SECOND).$(WOLFSSL_LIBRARY_VERSION_THIRD) \
+	    --dep-liboqs $(ENABLED_LIBOQS) \
+	    --dep-libxmss $(ENABLED_LIBXMSS) \
+	    --dep-libxmss-root '$(XMSS_ROOT)' \
+	    --dep-liblms $(ENABLED_LIBLMS) \
+	    --dep-liblms-root '$(LIBLMS_ROOT)' \
+	    --dep-libz $(ENABLED_LIBZ) \
+	    --git '$(GIT)' \
+	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
+	    --spdx-out $(abs_builddir)/$(SBOM_SPDX)
+	rm -rf $(abs_builddir)/_sbom_staging
+	$(PYSPDXTOOLS) --infile $(abs_builddir)/$(SBOM_SPDX) \
+	    --outfile $(abs_builddir)/$(SBOM_SPDX_TV)
+
+install-sbom: sbom
+	$(MKDIR_P) $(DESTDIR)$(sbomdir)
+	$(INSTALL_DATA) $(SBOM_CDX) $(DESTDIR)$(sbomdir)/
+	$(INSTALL_DATA) $(SBOM_SPDX) $(DESTDIR)$(sbomdir)/
+	$(INSTALL_DATA) $(SBOM_SPDX_TV) $(DESTDIR)$(sbomdir)/
+
+uninstall-sbom:
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_CDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX_TV)
+
+CLEANFILES += $(SBOM_CDX) $(SBOM_SPDX) $(SBOM_SPDX_TV)
+
+# Bomsh (OmniBOR build artifact tracing + SBOM enrichment)
+BOMSH_RAWLOG_BASE = $(abs_builddir)/bomsh_raw_logfile
+BOMSH_RAWLOG      = $(BOMSH_RAWLOG_BASE).sha1
+BOMSH_CONF        = $(abs_builddir)/_bomsh.conf
+BOMSH_OMNIBORDIR  = $(abs_builddir)/omnibor
+BOMSH_SPDX_OUT    = omnibor.wolfssl-$(PACKAGE_VERSION).spdx.json
+bomshdir          = $(datadir)/doc/$(PACKAGE)
+
+.PHONY: bomsh install-bomsh uninstall-bomsh
+
+bomsh:
+	@if test -z "$(BOMTRACE3)"; then \
+	    echo ""; \
+	    echo "ERROR: 'bomtrace3' not found in PATH. Cannot generate OmniBOR data."; \
+	    echo "       Build bomtrace3 from: https://github.com/omnibor/bomsh"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	@if test -z "$(BOMSH_CREATE_BOM)"; then \
+	    echo ""; \
+	    echo "ERROR: 'bomsh_create_bom.py' not found in PATH. Cannot process OmniBOR data."; \
+	    echo "       Install from: https://github.com/omnibor/bomsh"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	$(MAKE) clean
+	@printf 'raw_logfile=%s\n' '$(BOMSH_RAWLOG_BASE)' > '$(BOMSH_CONF)'
+	$(BOMTRACE3) -c '$(BOMSH_CONF)' $(MAKE)
+	$(BOMSH_CREATE_BOM) -r '$(BOMSH_RAWLOG)' -b '$(BOMSH_OMNIBORDIR)'
+	@if test -n "$(BOMSH_SBOM)" && test -f '$(abs_builddir)/wolfssl-$(PACKAGE_VERSION).spdx.json'; then \
+	    echo "Enriching SPDX with OmniBOR ExternalRefs..."; \
+	    $(BOMSH_SBOM) \
+	        -b '$(BOMSH_OMNIBORDIR)' \
+	        -i '$(abs_builddir)/wolfssl-$(PACKAGE_VERSION).spdx.json' \
+	        -f '$(abs_builddir)/src/.libs/libwolfssl.so.$(WOLFSSL_LIBRARY_VERSION_FIRST).$(WOLFSSL_LIBRARY_VERSION_SECOND).$(WOLFSSL_LIBRARY_VERSION_THIRD)' \
+	        -s spdx-json \
+	        -O '$(abs_builddir)'; \
+	elif test -n "$(BOMSH_SBOM)"; then \
+	    echo "NOTE: run 'make sbom' first, then 'make bomsh' for OmniBOR-enriched SPDX."; \
+	fi
+
+install-bomsh: bomsh
+	$(MKDIR_P) $(DESTDIR)$(bomshdir)
+	cp -r '$(BOMSH_OMNIBORDIR)' '$(DESTDIR)$(bomshdir)/omnibor'
+	@if test -f '$(abs_builddir)/$(BOMSH_SPDX_OUT)'; then \
+	    $(INSTALL_DATA) '$(abs_builddir)/$(BOMSH_SPDX_OUT)' '$(DESTDIR)$(bomshdir)/'; \
+	fi
+
+uninstall-bomsh:
+	-rm -rf '$(DESTDIR)$(bomshdir)/omnibor'
+	-rm -f '$(DESTDIR)$(bomshdir)/$(BOMSH_SPDX_OUT)'
+
+CLEANFILES += $(BOMSH_RAWLOG) $(BOMSH_RAWLOG_BASE).sha256 $(BOMSH_CONF) $(BOMSH_SPDX_OUT)
