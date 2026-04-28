@@ -711,13 +711,15 @@ static int wolfssl_init(void)
     {
         unsigned int text_hash = hash_span((const u8 *)__wc_text_start, (const u8 *)__wc_text_end, 1);
         unsigned int rodata_hash = hash_span((const u8 *)__wc_rodata_start, (const u8 *)__wc_rodata_end, 1);
-        u8 *canon_buf = malloc(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ);
+        u8 *canon_buf = malloc(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ);
         ssize_t cur_reloc_index = -1;
         const u8 *text_p = (const u8 *)__wc_text_start;
+        const u8 *rodata_p = (const u8 *)__wc_rodata_start;
         unsigned int stabilized_text_hash = 1;
+        unsigned int stabilized_rodata_hash = 1;
 
         if (! canon_buf) {
-            pr_err("ERROR: malloc(%d) for WOLFSSL_TEXT_SEGMENT_CANONICALIZER failed: %ld.\n", WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ, PTR_ERR(canon_buf));
+            pr_err("ERROR: malloc(%d) for WOLFSSL_*_SEGMENT_CANONICALIZER failed: %ld.\n", WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ, PTR_ERR(canon_buf));
             return -ECANCELED;
         }
 
@@ -725,14 +727,15 @@ static int wolfssl_init(void)
             reloc_counts.other = 0;
 
         while (text_p < (const u8 *)__wc_text_end) {
+            size_t text_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
+                                         (size_t)((const u8 *)__wc_text_end - text_p));
             ssize_t progress =
-                WOLFSSL_TEXT_SEGMENT_CANONICALIZER(
+                WOLFSSL_SEGMENT_CANONICALIZER(
                     text_p,
-                    min(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ,
-                        (word32)((const u8 *)__wc_text_end - text_p)),
+                    &text_in_out_len,
                     canon_buf, &cur_reloc_index);
             if (progress <= 0) {
-                pr_err("ERROR: progress=%ld from WOLFSSL_TEXT_SEGMENT_CANONICALIZER() at offset %x (text=%x-%x).\n",
+                pr_err("ERROR: progress=%ld from WOLFSSL_SEGMENT_CANONICALIZER() at offset %x (text=%x-%x).\n",
                        (long)progress,
                        (unsigned)(uintptr_t)text_p,
                        (unsigned)(uintptr_t)__wc_text_start,
@@ -740,8 +743,30 @@ static int wolfssl_init(void)
                 free(canon_buf);
                 return -ECANCELED;
             }
-            stabilized_text_hash = hash_span(canon_buf, canon_buf + progress, stabilized_text_hash);
+            stabilized_text_hash = hash_span(canon_buf, canon_buf + text_in_out_len, stabilized_text_hash);
             text_p += progress;
+        }
+
+        /* note verifyCore is hashed along with the rest of .rodata_wolfcrypt. */
+        while (rodata_p < (const u8 *)__wc_rodata_end) {
+            size_t rodata_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
+                                         (size_t)((const u8 *)__wc_rodata_end - rodata_p));
+            ssize_t progress =
+                WOLFSSL_SEGMENT_CANONICALIZER(
+                    rodata_p,
+                    &rodata_in_out_len,
+                    canon_buf, &cur_reloc_index);
+            if (progress <= 0) {
+                pr_err("ERROR: progress=%ld from WOLFSSL_SEGMENT_CANONICALIZER() at offset %x (rodata=%x-%x).\n",
+                       (long)progress,
+                       (unsigned)(uintptr_t)rodata_p,
+                       (unsigned)(uintptr_t)__wc_rodata_start,
+                       (unsigned)(uintptr_t)__wc_rodata_end);
+                free(canon_buf);
+                return -ECANCELED;
+            }
+            stabilized_rodata_hash = hash_span(canon_buf, canon_buf + rodata_in_out_len, stabilized_rodata_hash);
+            rodata_p += progress;
         }
 
         free(canon_buf);
@@ -1120,6 +1145,8 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
 extern const struct wc_reloc_table_ent wc_linuxkm_pie_text_reloc_tab[];
 extern const unsigned int wc_linuxkm_pie_text_reloc_tab_length;
+extern const struct wc_reloc_table_ent wc_linuxkm_pie_rodata_reloc_tab[];
+extern const unsigned int wc_linuxkm_pie_rodata_reloc_tab_length;
 
 static const struct wc_reloc_table_segments seg_map = {
     .start = 0, .end = 0,
@@ -1129,6 +1156,10 @@ static const struct wc_reloc_table_segments seg_map = {
     .text_reloc_tab.end = 0,
     .text_reloc_tab.len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_text_reloc_tab_length,
     .text_reloc_tab.len_end = 0,
+    .rodata_reloc_tab.start = (size_t)(uintptr_t)wc_linuxkm_pie_rodata_reloc_tab,
+    .rodata_reloc_tab.end = 0,
+    .rodata_reloc_tab.len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_rodata_reloc_tab_length,
+    .rodata_reloc_tab.len_end = 0,
 #ifdef HAVE_FIPS
 #ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
     .fips_text_start = (size_t)(uintptr_t)__wc_text_start,
@@ -1161,18 +1192,40 @@ static const struct wc_reloc_table_segments seg_map = {
 };
 
 ssize_t wc_linuxkm_normalize_relocations(
-    const u8 *text_in,
-    size_t text_in_len,
-    u8 *text_out,
+    const u8 *seg_in,
+    size_t *seg_in_out_len,
+    u8 *seg_out,
     ssize_t *cur_index_p)
 {
-    return wc_reloc_normalize_text(text_in, text_in_len, text_out, cur_index_p, &seg_map,
+    return wc_reloc_normalize_segment(seg_in, seg_in_out_len, seg_out, cur_index_p, &seg_map,
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
                                    &reloc_counts
 #else
                                    NULL
 #endif
         );
+}
+
+ssize_t wc_linuxkm_normalize_relocations_noresize(
+    const u8 *seg_in,
+    size_t seg_in_len,
+    u8 *seg_out,
+    ssize_t *cur_index_p)
+{
+    ssize_t ret;
+    ret = wc_reloc_normalize_segment(seg_in, &seg_in_len, seg_out, cur_index_p, &seg_map,
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+                                   &reloc_counts
+#else
+                                   NULL
+#endif
+        );
+    if (ret < 0)
+        return ret;
+    if ((size_t)ret != seg_in_len)
+        return -EINVAL;
+    else
+        return seg_in_len;
 }
 
 #elif defined(HAVE_FIPS)
@@ -1227,6 +1280,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifdef HAVE_FIPS
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_normalize_relocations =
         wc_linuxkm_normalize_relocations;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_normalize_relocations_noresize =
+        wc_linuxkm_normalize_relocations_noresize;
 #endif
 
 #ifndef __ARCH_MEMCMP_NO_REDIRECT

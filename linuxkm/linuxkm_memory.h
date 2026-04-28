@@ -175,7 +175,7 @@ struct wc_reloc_counts {
 #elif defined(HAVE_FIPS)
 
 /* barebones FIPS fencepost representation -- no provision for
- * wc_reloc_normalize_text()
+ * wc_reloc_normalize_segment()
  */
 
 struct wc_reloc_table_segments {
@@ -216,18 +216,10 @@ struct wc_reloc_counts {
     #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ
 #endif
 
-WOLFSSL_API ssize_t wc_reloc_normalize_text(
-    const byte *text_in,
-    size_t text_in_len,
-    byte *text_out,
-    ssize_t *cur_index_p,
-    const struct wc_reloc_table_segments *seg_map,
-    struct wc_reloc_counts *reloc_counts);
-
-WOLFSSL_API ssize_t wc_reloc_normalize_rodata(
-    const byte *rodata_in,
-    size_t rodata_in_len,
-    byte *rodata_out,
+WOLFSSL_API ssize_t wc_reloc_normalize_segment(
+    const byte *seg_in,
+    size_t *seg_in_out_len,
+    byte *seg_out,
     ssize_t *cur_index_p,
     const struct wc_reloc_table_segments *seg_map,
     struct wc_reloc_counts *reloc_counts);

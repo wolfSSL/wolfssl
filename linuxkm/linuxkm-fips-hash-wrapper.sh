@@ -50,6 +50,8 @@ readarray -t fenceposts < <(readelf --wide --sections --symbols "$mod_path" | "$
 BEGIN {
     fips_fenceposts["wc_linuxkm_pie_text_reloc_tab"] = "text_reloc_tab.start";
     fips_fenceposts["wc_linuxkm_pie_text_reloc_tab_length"] = "text_reloc_tab.len_start";
+    fips_fenceposts["wc_linuxkm_pie_rodata_reloc_tab"] = "rodata_reloc_tab.start";
+    fips_fenceposts["wc_linuxkm_pie_rodata_reloc_tab_length"] = "rodata_reloc_tab.len_start";
     fips_fenceposts["verifyCore"] = "verifyCore_start";
     fips_fenceposts["wolfCrypt_FIPS_first"] = "fips_text_start";
     fips_fenceposts["wolfCrypt_FIPS_last"] = "fips_text_end";
@@ -57,6 +59,8 @@ BEGIN {
     fips_fenceposts["wolfCrypt_FIPS_ro_end"] = "fips_rodata_end";
     singleton_ends["wc_linuxkm_pie_text_reloc_tab"] = "text_reloc_tab.end";
     singleton_ends["wc_linuxkm_pie_text_reloc_tab_length"] = "text_reloc_tab.len_end";
+    singleton_ends["wc_linuxkm_pie_rodata_reloc_tab"] = "rodata_reloc_tab.end";
+    singleton_ends["wc_linuxkm_pie_rodata_reloc_tab_length"] = "rodata_reloc_tab.len_end";
     singleton_ends["verifyCore"] = "verifyCore_end";
 }
 
