@@ -1274,10 +1274,12 @@ const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
 {
     const char* cipher;
 
-    if (ssl == NULL || len <= 0)
+    if (ssl == NULL || buf == NULL || len <= 0)
         return NULL;
 
     cipher = wolfSSL_get_cipher_name_iana(ssl);
+    if (cipher == NULL)
+        return NULL;
     len = (int)min((word32)len, (word32)(XSTRLEN(cipher) + 1));
     XMEMCPY(buf, cipher, (size_t)len);
     return buf;
@@ -3302,8 +3304,8 @@ int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
     int i;
     int _groups[WOLFSSL_MAX_GROUP_COUNT];
     WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
-    if (count == 0) {
-        WOLFSSL_MSG("Group count is zero");
+    if (groups == NULL || count <= 0) {
+        WOLFSSL_MSG("Group count is zero or negative");
         return WOLFSSL_FAILURE;
     }
     if (count > WOLFSSL_MAX_GROUP_COUNT) {
@@ -3341,8 +3343,8 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
     int i;
     int _groups[WOLFSSL_MAX_GROUP_COUNT];
     WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
-    if (count == 0) {
-        WOLFSSL_MSG("Group count is zero");
+    if (groups == NULL || count <= 0) {
+        WOLFSSL_MSG("Group count is zero or negative");
         return WOLFSSL_FAILURE;
     }
     if (count > WOLFSSL_MAX_GROUP_COUNT) {

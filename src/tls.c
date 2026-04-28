@@ -405,7 +405,8 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
     int ret, i;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_groups");
-    if (ctx == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+    if (ctx == NULL || groups == NULL || count < 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsTLS_ex(ctx->method->version))
         return BAD_FUNC_ARG;
@@ -450,7 +451,8 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
     int ret, i;
 
     WOLFSSL_ENTER("wolfSSL_set_groups");
-    if (ssl == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+    if (ssl == NULL || groups == NULL || count < 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsTLS_ex(ssl->version))
         return BAD_FUNC_ARG;
