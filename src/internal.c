@@ -3706,14 +3706,17 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_SM4_GCM_SM3
-    if (tls1_3) {
+    /* RFC 8998 registers TLS_SM4_GCM_SM3 with DTLS-OK: No and provides no
+     * record-number-mask construction; RFC 9147 Section 4.2.3 forbids using
+     * non-AES / non-ChaCha20 ciphers over DTLS without one. */
+    if (tls1_3 && !dtls) {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_SM4_GCM_SM3;
     }
 #endif
 
 #ifdef BUILD_TLS_SM4_CCM_SM3
-    if (tls1_3) {
+    if (tls1_3 && !dtls) {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_SM4_CCM_SM3;
     }
@@ -4647,21 +4650,22 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif /* BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 */
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
-    if (tls && haveECC) {
+    /* RFC 8998 registers the SM4 cipher suites with DTLS-OK: No. */
+    if (tls && !dtls && haveECC) {
         suites->suites[idx++] = SM_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
-    if (tls && haveECC) {
+    if (tls && !dtls && haveECC) {
         suites->suites[idx++] = SM_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
-    if (tls && haveECC) {
+    if (tls && !dtls && haveECC) {
         suites->suites[idx++] = SM_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3;
     }
@@ -37282,6 +37286,22 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         first   = suites->suites[idx];
         second  = suites->suites[idx+1];
+
+#ifdef WOLFSSL_DTLS
+        /* RFC 8998 registers the SM4 cipher suites with DTLS-OK: No.
+         * RFC 9147 Section 4.2.3 forbids using non-AES / non-ChaCha20 ciphers
+         * over DTLS without a defined record-number-mask construction, which
+         * RFC 8998 does not provide. */
+        if (ssl->options.dtls) {
+            if ((first == CIPHER_BYTE && (second == TLS_SM4_GCM_SM3 ||
+                                          second == TLS_SM4_CCM_SM3)) ||
+                first == SM_BYTE) {
+                WOLFSSL_MSG("SM cipher suite not allowed over DTLS "
+                            "(RFC 8998)");
+                return 0;
+            }
+        }
+#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_TLS13
         /* When negotiating TLS 1.3, reject non-TLS 1.3 cipher suites */

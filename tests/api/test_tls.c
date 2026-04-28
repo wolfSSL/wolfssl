@@ -31,6 +31,9 @@
 #include <tests/utils.h>
 #include <tests/api/test_tls.h>
 #include <wolfssl/internal.h>
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && defined(WOLFSSL_SM4)
+#include <wolfssl/certs_test_sm.h>
+#endif
 
 
 int test_utils_memio_move_message(void)
@@ -1184,18 +1187,48 @@ int test_record_size_matches_build_message(void)
             struct test_memio_ctx test_ctx;
             const char* name = allCiphers[i].name;
             int isTls13Cipher = (XSTRSTR(name, "TLS13-") != NULL);
+            int isSmCipher = (XSTRSTR(name, "SM4") != NULL);
             int handshakeRet;
 
             XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
-            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
-                    &ssl_s, versions[v].client, versions[v].server), 0);
+            if (isSmCipher) {
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && defined(WOLFSSL_SM4)
+                ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s,
+                        &ssl_c, &ssl_s, versions[v].client, versions[v].server,
+                        (byte*)ca_sm2_der, (int)sizeof_ca_sm2_der,
+                        (byte*)server_sm2_der, (int)sizeof_server_sm2_der,
+                        (byte*)server_sm2_priv_der,
+                        (int)sizeof_server_sm2_priv_der), 0);
+                if (versions[v].is_tls13) {
+                    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c,
+                            WOLFSSL_ECC_SM2P256V1), 1);
+                }
+#else
+                fprintf(stderr,
+                        "  [SKIP %-12s %-40s] SM build not enabled\n",
+                        versions[v].label, name);
+                goto next_iter;
+#endif
+            }
+            else {
+                ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                        &ssl_s, versions[v].client, versions[v].server), 0);
+            }
 
             /* Skip ciphers that aren't valid for this version/build. */
             if (wolfSSL_set_cipher_list(ssl_c, name) != 1 ||
                     wolfSSL_set_cipher_list(ssl_s, name) != 1) {
                 fprintf(stderr,
                         "  [SKIP %-12s %-40s] cipher not selectable\n",
+                        versions[v].label, name);
+                goto next_iter;
+            }
+
+            if (isSmCipher &&
+                    XSTRNCMP(versions[v].label, "DTLS", 4) == 0) {
+                fprintf(stderr,
+                        "  [SKIP %-12s %-40s] RFC 8998 forbids SM suites over DTLS\n",
                         versions[v].label, name);
                 goto next_iter;
             }
@@ -1225,7 +1258,7 @@ int test_record_size_matches_build_message(void)
                     expected = 1;
                     reason = "version mismatch";
                 }
-                else if (XSTRSTR(name, "ECDSA") != NULL) {
+                else if (XSTRSTR(name, "ECDSA") != NULL && !isSmCipher) {
                     expected = 1;
                     reason = "no ECDSA cert";
                 }
