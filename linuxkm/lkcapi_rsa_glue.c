@@ -1172,7 +1172,7 @@ pkcs1pad_sign_out:
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_pkcs1pad_sign msg_len %d, enc_msg_len %d,"
-            " sig_len %d, err %d", req->src_len, enc_len, sig_len, err);
+            " sig_len %d, err %d\n", req->src_len, enc_len, sig_len, err);
     #endif /* WOLFKM_DEBUG_RSA */
     return err;
 }
@@ -1223,7 +1223,7 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     hash_enc_len = get_hash_enc_len(ctx->hash_oid);
     if (hash_enc_len <= 0) {
         #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: bad hash enc len %d",
+        pr_err("error: %s: bad hash enc len %d\n",
                WOLFKM_RSA_DRIVER, hash_enc_len);
         #endif /* WOLFKM_DEBUG_RSA */
         err = -EINVAL;
@@ -1233,7 +1233,7 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     if (msg_len != ctx->digest_len || sig_len != ctx->key_len) {
         /* invalid src or dst args */
         #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: got msg_len %d, expected %d",
+        pr_err("error: %s: got msg_len %d, expected %d\n",
                WOLFKM_RSA_DRIVER, msg_len, ctx->digest_len);
         #endif /* WOLFKM_DEBUG_RSA */
         err = -EINVAL;
@@ -1287,7 +1287,7 @@ pkcs1pad_verify_out:
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_pkcs1pad_verify msg_len %d, enc_msg_len %d,"
-            " sig_len %d, err %d", msg_len, enc_msg_len, sig_len, err);
+            " sig_len %d, err %d\n", msg_len, enc_msg_len, sig_len, err);
     #endif /* WOLFKM_DEBUG_RSA */
     return err;
 }
@@ -1420,7 +1420,7 @@ pkcs1_sign_out:
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_pkcs1_sign msg_len %d, enc_msg_len %d,"
-            " sig_len %d, err %d", slen, enc_msg_len, sig_len, err);
+            " sig_len %d, err %d\n", slen, enc_msg_len, sig_len, err);
     #endif /* WOLFKM_DEBUG_RSA */
     return err;
 }
@@ -1474,7 +1474,7 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
     hash_enc_len = get_hash_enc_len(ctx->hash_oid);
     if (hash_enc_len <= 0) {
         #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: bad hash enc len %d",
+        pr_err("error: %s: bad hash enc len %d\n",
                WOLFKM_RSA_DRIVER, hash_enc_len);
         #endif /* WOLFKM_DEBUG_RSA */
         err = -EINVAL;
@@ -1484,7 +1484,7 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
     if (msg_len != ctx->digest_len || sig_len != ctx->key_len) {
         /* invalid src or dst args */
         #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: got msg_len %d, expected %d",
+        pr_err("error: %s: got msg_len %d, expected %d\n",
                WOLFKM_RSA_DRIVER, msg_len, ctx->digest_len);
         #endif /* WOLFKM_DEBUG_RSA */
         err = -EINVAL;
@@ -1538,7 +1538,7 @@ pkcs1_verify_out:
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_pkcs1_verify msg_len %d, enc_msg_len %d,"
-            " sig_len %d, err %d", msg_len, enc_msg_len, sig_len, err);
+            " sig_len %d, err %d\n", msg_len, enc_msg_len, sig_len, err);
     #endif /* WOLFKM_DEBUG_RSA */
     return err;
 }
@@ -1817,7 +1817,7 @@ pkcs1_dec_out:
     if (dec != NULL) { free(dec); dec = NULL; }
 
     #ifdef WOLFKM_DEBUG_RSA
-    pr_info("info: exiting km_pkcs1pad_dec %d", err);
+    pr_info("info: exiting km_pkcs1pad_dec %d\n", err);
     #endif /* WOLFKM_DEBUG_RSA */
     return err;
 }

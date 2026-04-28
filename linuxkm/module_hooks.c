@@ -1115,7 +1115,7 @@ static void wolfssl_exit(void)
         pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d\n", ret);
     }
     else
-        pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.");
+        pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.\n");
 #endif
 
     (void)libwolfssl_cleanup();
@@ -1772,7 +1772,7 @@ static int updateFipsHash(void)
         size_t desc_size = crypto_shash_descsize(tfm) + sizeof *desc;
         desc = XMALLOC(desc_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (desc == NULL) {
-            pr_err("ERROR: failed allocating desc.");
+            pr_err("ERROR: failed allocating desc.\n");
             ret = MEMORY_E;
             goto out;
         }
@@ -1845,13 +1845,13 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
         int ret;
         kallsyms_lookup_name_kp.addr = NULL;
         if ((ret = register_kprobe(&kallsyms_lookup_name_kp)) != 0) {
-            pr_err_once("ERROR: register_kprobe(&kallsyms_lookup_name_kp) failed: %d", ret);
+            pr_err_once("ERROR: register_kprobe(&kallsyms_lookup_name_kp) failed: %d\n", ret);
             return 0;
         }
         kallsyms_lookup_name_ptr = (typeof(kallsyms_lookup_name_ptr))kallsyms_lookup_name_kp.addr;
         unregister_kprobe(&kallsyms_lookup_name_kp);
         if (! kallsyms_lookup_name_ptr) {
-            pr_err_once("ERROR: kallsyms_lookup_name_kp.addr is null.");
+            pr_err_once("ERROR: kallsyms_lookup_name_kp.addr is null.\n");
             return 0;
         }
     }
@@ -1880,7 +1880,7 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         return -EINVAL;
     }
 
-    pr_info("wolfCrypt: rerunning FIPS self-test on command.");
+    pr_info("wolfCrypt: rerunning FIPS self-test on command.\n");
 
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
         ret = wolfCrypt_IntegrityTest_fips();
@@ -1891,7 +1891,7 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         ret = -1;
     }
     if (ret != 0) {
-        pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d", ret);
+        pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d\n", ret);
         return -EINVAL;
     }
 
@@ -1910,7 +1910,7 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         return -EINVAL;
     }
 
-    pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.");
+    pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
 
     return count;
 }
