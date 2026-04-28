@@ -443,8 +443,8 @@ impl Lms {
     /// }
     /// ```
     #[cfg(all(lms_make_key, random))]
-    pub fn make_key(&mut self, rng: &mut RNG) -> Result<(), i32> {
-        let rc = unsafe { sys::wc_LmsKey_MakeKey(&mut self.ws_key, &mut rng.wc_rng) };
+    pub fn make_key(&mut self, rng: &RNG) -> Result<(), i32> {
+        let rc = unsafe { sys::wc_LmsKey_MakeKey(&mut self.ws_key, rng.wc_rng) };
         if rc != 0 {
             return Err(rc);
         }

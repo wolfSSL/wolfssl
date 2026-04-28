@@ -20,6 +20,9 @@
 
 #![no_std]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 /* bindgen-generated bindings to the C library */
 pub mod sys;
 

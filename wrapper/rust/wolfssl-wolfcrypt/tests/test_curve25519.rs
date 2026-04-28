@@ -1,5 +1,7 @@
 #![cfg(all(curve25519, random))]
 
+#[cfg(curve25519_blinding)]
+use std::sync::Arc;
 use wolfssl_wolfcrypt::curve25519::*;
 use wolfssl_wolfcrypt::random::RNG;
 
@@ -97,14 +99,17 @@ fn test_make_pub_blind() {
 
 #[test]
 fn test_shared_secret() {
-    let mut rng = RNG::new().expect("Error with new()");
-    let mut key1 = Curve25519Key::generate(&mut rng).expect("Error with generate()");
-    let mut key2 = Curve25519Key::generate(&mut rng).expect("Error with generate()");
+    #[cfg(curve25519_blinding)]
+    let rng = Arc::new(RNG::new().expect("Error with new()"));
+    #[cfg(not(curve25519_blinding))]
+    let rng = RNG::new().expect("Error with new()");
+    let mut key1 = Curve25519Key::generate(&rng).expect("Error with generate()");
+    let mut key2 = Curve25519Key::generate(&rng).expect("Error with generate()");
 
     #[cfg(curve25519_blinding)]
-    key1.set_rng(&mut rng).expect("Error with set_rng()");
+    key1.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
     #[cfg(curve25519_blinding)]
-    key2.set_rng(&mut rng).expect("Error with set_rng()");
+    key2.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
 
     let mut public_buffer = [0u8; Curve25519Key::KEYSIZE];
     key1.export_public(&mut public_buffer).expect("Error with export_public()");
@@ -122,14 +127,17 @@ fn test_shared_secret() {
 
 #[test]
 fn test_shared_secret_ex() {
-    let mut rng = RNG::new().expect("Error with new()");
-    let mut key1 = Curve25519Key::generate(&mut rng).expect("Error with generate()");
-    let mut key2 = Curve25519Key::generate(&mut rng).expect("Error with generate()");
+    #[cfg(curve25519_blinding)]
+    let rng = Arc::new(RNG::new().expect("Error with new()"));
+    #[cfg(not(curve25519_blinding))]
+    let rng = RNG::new().expect("Error with new()");
+    let mut key1 = Curve25519Key::generate(&rng).expect("Error with generate()");
+    let mut key2 = Curve25519Key::generate(&rng).expect("Error with generate()");
 
     #[cfg(curve25519_blinding)]
-    key1.set_rng(&mut rng).expect("Error with set_rng()");
+    key1.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
     #[cfg(curve25519_blinding)]
-    key2.set_rng(&mut rng).expect("Error with set_rng()");
+    key2.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
 
     let mut public_buffer = [0u8; Curve25519Key::KEYSIZE];
     key1.export_public(&mut public_buffer).expect("Error with export_public()");

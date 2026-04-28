@@ -254,7 +254,7 @@ macro_rules! define_ecdsa_curve {
                         der.as_mut_ptr(), &mut der_len,
                         &mut self.inner.wc_ecc_key as *mut _ as *mut c_void,
                         size_of::<sys::ecc_key>() as u32,
-                        &mut self.rng.wc_rng,
+                        self.rng.wc_rng,
                     )
                 };
                 if rc != 0 {

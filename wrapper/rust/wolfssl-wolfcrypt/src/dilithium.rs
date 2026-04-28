@@ -159,7 +159,7 @@ impl Dilithium {
     /// }
     /// ```
     #[cfg(all(dilithium_make_key, random))]
-    pub fn generate(level: u8, rng: &mut RNG) -> Result<Self, i32> {
+    pub fn generate(level: u8, rng: &RNG) -> Result<Self, i32> {
         Self::generate_ex(level, rng, None, None)
     }
 
@@ -193,7 +193,7 @@ impl Dilithium {
     #[cfg(all(dilithium_make_key, random))]
     pub fn generate_ex(
         level: u8,
-        rng: &mut RNG,
+        rng: &RNG,
         heap: Option<*mut core::ffi::c_void>,
         dev_id: Option<i32>,
     ) -> Result<Self, i32> {
@@ -202,7 +202,7 @@ impl Dilithium {
         if rc != 0 {
             return Err(rc);
         }
-        let rc = unsafe { sys::wc_dilithium_make_key(&mut key.ws_key, &mut rng.wc_rng) };
+        let rc = unsafe { sys::wc_dilithium_make_key(&mut key.ws_key, rng.wc_rng) };
         if rc != 0 {
             return Err(rc);
         }
@@ -859,7 +859,7 @@ impl Dilithium {
         &mut self,
         msg: &[u8],
         sig: &mut [u8],
-        rng: &mut RNG,
+        rng: &RNG,
     ) -> Result<usize, i32> {
         let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
@@ -869,7 +869,7 @@ impl Dilithium {
                 msg.as_ptr(), msg_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
-                &mut rng.wc_rng,
+                rng.wc_rng,
             )
         };
         if rc != 0 {
@@ -917,7 +917,7 @@ impl Dilithium {
         ctx: &[u8],
         msg: &[u8],
         sig: &mut [u8],
-        rng: &mut RNG,
+        rng: &RNG,
     ) -> Result<usize, i32> {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
@@ -931,7 +931,7 @@ impl Dilithium {
                 msg.as_ptr(), msg_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
-                &mut rng.wc_rng,
+                rng.wc_rng,
             )
         };
         if rc != 0 {
@@ -966,7 +966,7 @@ impl Dilithium {
         hash_alg: i32,
         hash: &[u8],
         sig: &mut [u8],
-        rng: &mut RNG,
+        rng: &RNG,
     ) -> Result<usize, i32> {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
@@ -981,7 +981,7 @@ impl Dilithium {
                 hash.as_ptr(), hash_len,
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.ws_key,
-                &mut rng.wc_rng,
+                rng.wc_rng,
             )
         };
         if rc != 0 {
