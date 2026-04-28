@@ -712,7 +712,7 @@ static int wolfssl_init(void)
         unsigned int text_hash = hash_span((const u8 *)__wc_text_start, (const u8 *)__wc_text_end, 1);
         unsigned int rodata_hash = hash_span((const u8 *)__wc_rodata_start, (const u8 *)__wc_rodata_end, 1);
         u8 *canon_buf = malloc(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ);
-        ssize_t cur_reloc_index = -1;
+        ssize_t cur_reloc_index;
         const u8 *text_p = (const u8 *)__wc_text_start;
         const u8 *rodata_p = (const u8 *)__wc_rodata_start;
         unsigned int stabilized_text_hash = 1;
@@ -726,6 +726,7 @@ static int wolfssl_init(void)
         reloc_counts.text = reloc_counts.rodata = reloc_counts.rwdata = reloc_counts.bss =
             reloc_counts.other = 0;
 
+        cur_reloc_index = -1;
         while (text_p < (const u8 *)__wc_text_end) {
             size_t text_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
                                          (size_t)((const u8 *)__wc_text_end - text_p));
@@ -748,6 +749,7 @@ static int wolfssl_init(void)
         }
 
         /* note verifyCore is hashed along with the rest of .rodata_wolfcrypt. */
+        cur_reloc_index = -1;
         while (rodata_p < (const u8 *)__wc_rodata_end) {
             size_t rodata_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
                                          (size_t)((const u8 *)__wc_rodata_end - rodata_p));
