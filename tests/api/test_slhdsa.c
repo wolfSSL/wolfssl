@@ -42,7 +42,7 @@
 int test_wc_slhdsa(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_HAVE_SLHDSA
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     SlhDsaKey key;
 
     /* Test NULL parameter handling for init. */
@@ -84,7 +84,7 @@ int test_wc_slhdsa(void)
     wc_SlhDsaKey_Free(&key);
 #endif
 
-#endif /* WOLFSSL_HAVE_SLHDSA */
+#endif /* WOLFSSL_HAVE_SLHDSA && !WOLFSSL_SLHDSA_NO_SHAKE */
     return EXPECT_RESULT();
 }
 
@@ -94,7 +94,7 @@ int test_wc_slhdsa(void)
 int test_wc_slhdsa_sizes(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_HAVE_SLHDSA
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_NO_SHAKE)
     SlhDsaKey key;
 
     /* Test NULL parameter handling for size functions. */
@@ -226,7 +226,7 @@ int test_wc_slhdsa_sizes(void)
         WC_SLHDSA_SHAKE256F_SIG_LEN);
 #endif
 
-#endif /* WOLFSSL_HAVE_SLHDSA */
+#endif /* WOLFSSL_HAVE_SLHDSA && !WOLFSSL_SLHDSA_NO_SHAKE */
     return EXPECT_RESULT();
 }
 
