@@ -21,6 +21,8 @@
 
 #include <tests/unit.h>
 
+#include <limits.h>
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -67,6 +69,116 @@ int test_wolfSSL_i2d_X509(void)
 #endif
 
     XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
+    X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_get_der_length_guards(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    const unsigned char* cert_buf = server_cert_der_2048;
+    const byte* der = NULL;
+    X509* cert = NULL;
+    const byte* origBuf = NULL;
+    word32 origLen = 0;
+    int derSz = 0;
+
+    ExpectNotNull(d2i_X509(&cert, &cert_buf, sizeof_server_cert_der_2048));
+    ExpectNotNull(cert);
+    ExpectNotNull(cert->derCert);
+    ExpectNotNull(cert->derCert->buffer);
+
+    if (EXPECT_SUCCESS()) {
+        origLen = cert->derCert->length;
+        origBuf = cert->derCert->buffer;
+        cert->derCert->length = (word32)INT_MAX;
+        der = wolfSSL_X509_get_der(cert, &derSz);
+        cert->derCert->length = origLen;
+        ExpectPtrEq(der, origBuf);
+        ExpectIntEQ(derSz, INT_MAX);
+
+        cert->derCert->length = ((word32)INT_MAX) + 1U;
+        der = wolfSSL_X509_get_der(cert, &derSz);
+        cert->derCert->length = origLen;
+        ExpectNull(der);
+
+        cert->derCert->length = 0;
+        der = wolfSSL_X509_get_der(cert, &derSz);
+        cert->derCert->length = origLen;
+        ExpectPtrEq(der, origBuf);
+        ExpectIntEQ(derSz, 0);
+
+        ExpectPtrEq(wolfSSL_X509_get_der(cert, &derSz), origBuf);
+        ExpectIntGT(derSz, 0);
+    }
+
+    X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_i2d_X509_der_length_guards(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    const unsigned char* cert_buf = server_cert_der_2048;
+    unsigned char* overflowOut = NULL;
+    unsigned char overflowBuf[4] = { 0x11, 0x22, 0x33, 0x44 };
+    const unsigned char overflowExpected[4] = { 0x11, 0x22, 0x33, 0x44 };
+    unsigned char* overflowCallerOut = overflowBuf;
+    unsigned char* zeroLenOut = NULL;
+    unsigned char zeroLenBuf[4] = { 0x55, 0x66, 0x77, 0x88 };
+    const unsigned char zeroLenExpected[4] = { 0x55, 0x66, 0x77, 0x88 };
+    unsigned char* zeroLenCallerOut = zeroLenBuf;
+    unsigned char* successOut = NULL;
+    X509* cert = NULL;
+    word32 origLen = 0;
+    int ret = 0;
+
+    ExpectNotNull(d2i_X509(&cert, &cert_buf, sizeof_server_cert_der_2048));
+    ExpectNotNull(cert);
+    ExpectNotNull(cert->derCert);
+    ExpectNotNull(cert->derCert->buffer);
+
+    if (EXPECT_SUCCESS()) {
+        origLen = cert->derCert->length;
+        cert->derCert->length = ((word32)INT_MAX) + 1U;
+        ret = i2d_X509(cert, &overflowOut);
+        cert->derCert->length = origLen;
+        ExpectIntEQ(ret, MEMORY_E);
+        ExpectNull(overflowOut);
+
+        cert->derCert->length = ((word32)INT_MAX) + 1U;
+        ret = i2d_X509(cert, &overflowCallerOut);
+        cert->derCert->length = origLen;
+        ExpectIntEQ(ret, MEMORY_E);
+        ExpectPtrEq(overflowCallerOut, overflowBuf);
+        ExpectIntEQ(XMEMCMP(overflowBuf, overflowExpected,
+            sizeof(overflowBuf)), 0);
+
+        cert->derCert->length = 0;
+        ret = i2d_X509(cert, &zeroLenOut);
+        cert->derCert->length = origLen;
+        ExpectIntEQ(ret, MEMORY_E);
+        ExpectNull(zeroLenOut);
+
+        cert->derCert->length = 0;
+        ret = i2d_X509(cert, &zeroLenCallerOut);
+        cert->derCert->length = origLen;
+        ExpectIntEQ(ret, MEMORY_E);
+        ExpectPtrEq(zeroLenCallerOut, zeroLenBuf);
+        ExpectIntEQ(XMEMCMP(zeroLenBuf, zeroLenExpected,
+            sizeof(zeroLenBuf)), 0);
+
+        ExpectIntGT(i2d_X509(cert, &successOut), 0);
+        ExpectNotNull(successOut);
+    }
+
+    XFREE(overflowOut, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(zeroLenOut, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(successOut, NULL, DYNAMIC_TYPE_OPENSSL);
     X509_free(cert);
 #endif
     return EXPECT_RESULT();
@@ -244,4 +356,3 @@ int test_wolfSSL_PEM_write_bio_X509(void)
 #endif
     return EXPECT_RESULT();
 }
-
