@@ -82,6 +82,7 @@ fn test_default_params() {
 }
 
 #[test]
+#[cfg(sha384)]
 fn test_sha384_algorithm() {
     common::setup();
 
