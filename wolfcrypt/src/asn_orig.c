@@ -3577,6 +3577,36 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             }
             length -= (int)(((word32)strLen + idx - lenStartIdx));
 
+        #ifndef IGNORE_NAME_CONSTRAINTS
+            /* Store the raw OtherName encoding (OID || [0] EXPLICIT value)
+             * on the dedicated altOtherNamesRaw list so
+             * ConfirmNameConstraints() can byte-match it against the
+             * issuing CA's subtree (RFC 5280 4.2.1.10). Kept separate from
+             * altNames so OpenSSL-compat APIs see exactly what the SAN
+             * extension carries. */
+            {
+                DNS_entry* rawEntry = AltNameNew(cert->heap);
+                if (rawEntry == NULL) {
+                    WOLFSSL_MSG("\tOut of Memory");
+                    return MEMORY_E;
+                }
+                rawEntry->type = ASN_OTHER_TYPE;
+                rawEntry->len  = strLen;
+                rawEntry->name = (char*)XMALLOC((size_t)strLen + 1,
+                    cert->heap, DYNAMIC_TYPE_ALTNAME);
+                if (rawEntry->name == NULL) {
+                    XFREE(rawEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                    return MEMORY_E;
+                }
+                rawEntry->nameStored = 1;
+                XMEMCPY((void*)(wc_ptr_t)rawEntry->name, &input[idx],
+                    (size_t)strLen);
+                ((char*)(wc_ptr_t)rawEntry->name)[strLen] = '\0';
+                rawEntry->next = cert->altOtherNamesRaw;
+                cert->altOtherNamesRaw = rawEntry;
+            }
+        #endif /* IGNORE_NAME_CONSTRAINTS */
+
             if (GetObjectId(input, &idx, &oid, oidCertAltNameType, sz) < 0) {
                 WOLFSSL_MSG("\tbad OID");
                 return ASN_PARSE_E;
@@ -4011,8 +4041,10 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
 }
 
 #ifndef IGNORE_NAME_CONSTRAINTS
+/* See doc on the WOLFSSL_ASN_TEMPLATE definition in asn.c. hasUnsupported
+ * must not be NULL. */
 static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
-                         word32 limit, void* heap)
+                         word32 limit, byte* hasUnsupported, void* heap)
 {
     word32 idx = 0;
     int ret = 0;
@@ -4056,11 +4088,15 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
 
         if (bType == ASN_DNS_TYPE || bType == ASN_RFC822_TYPE ||
             bType == ASN_DIR_TYPE || bType == ASN_IP_TYPE ||
-            bType == ASN_URI_TYPE) {
+            bType == ASN_URI_TYPE || bType == ASN_OTHER_TYPE) {
             Base_entry* entry;
 
-            /* if constructed has leading sequence */
-            if (b & ASN_CONSTRUCTED) {
+            /* directoryName is encoded as [4] CONSTRUCTED { Name } where
+             * Name is a SEQUENCE; strip the inner SEQUENCE header.
+             * otherName is encoded as [0] CONSTRUCTED { OID, [0] EXPLICIT
+             * value }; the inner content is NOT a SEQUENCE so keep it
+             * as-is (matches the WOLFSSL_ASN_TEMPLATE path). */
+            if ((b & ASN_CONSTRUCTED) && bType != ASN_OTHER_TYPE) {
                 if (GetSequence(input, &nameIdx, &strLength, sz) < 0) {
                     WOLFSSL_MSG("\tfail: constructed be a SEQUENCE");
                     return ASN_PARSE_E;
@@ -4090,6 +4126,13 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
             entry->next = *head;
             *head = entry;
         }
+        else {
+            /* GeneralName form (e.g. registeredID, x400Address,
+             * ediPartyName) we do not enforce. Record so the caller can
+             * fail-closed when the nameConstraints extension is critical
+             * (RFC 5280 4.2.1.10). */
+            *hasUnsupported = 1;
+        }
 
         idx += (word32)seqLength;
     }
@@ -4102,6 +4145,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
 {
     word32 idx = 0;
     int length = 0;
+    byte hasUnsupported = 0;
 
     WOLFSSL_ENTER("DecodeNameConstraints");
 
@@ -4129,13 +4173,17 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
         }
 
         if (DecodeSubtree(input + idx, (word32)length, subtree,
-                WOLFSSL_MAX_NAME_CONSTRAINTS, cert->heap) < 0) {
+                WOLFSSL_MAX_NAME_CONSTRAINTS, &hasUnsupported,
+                cert->heap) < 0) {
             WOLFSSL_MSG("\terror parsing subtree");
             return ASN_PARSE_E;
         }
 
         idx += (word32)length;
     }
+
+    if (hasUnsupported)
+        cert->extNameConstraintHasUnsupported = 1;
 
     return 0;
 }
