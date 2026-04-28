@@ -22193,7 +22193,8 @@ static int test_MakeCertWith0Ser(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
     defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
     defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
     defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
@@ -22409,7 +22410,8 @@ done:
 static int test_NameConstraints_OtherName(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
     defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
     defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
     defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
