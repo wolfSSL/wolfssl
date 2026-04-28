@@ -12178,6 +12178,21 @@ AC_SUBST([WOLFSSL_PREFIX_ABS])
 AC_SUBST([WOLFSSL_LIBDIR_ABS])
 AC_SUBST([WOLFSSL_INCLUDEDIR_ABS])
 
+# SBOM generation
+AC_PATH_PROG([PYTHON3], [python3])
+AC_PATH_PROG([PYSPDXTOOLS], [pyspdxtools])
+AC_PATH_PROG([GIT], [git])
+AC_SUBST([ENABLED_LIBOQS])
+AC_SUBST([ENABLED_LIBXMSS])
+AC_SUBST([ENABLED_LIBLMS])
+AC_SUBST([ENABLED_LIBZ])
+AC_SUBST([LIBLMS_ROOT])
+
+# Bomsh (OmniBOR build artifact tracing + SBOM enrichment)
+AC_PATH_PROG([BOMTRACE3], [bomtrace3])
+AC_PATH_PROG([BOMSH_CREATE_BOM], [bomsh_create_bom.py])
+AC_PATH_PROG([BOMSH_SBOM], [bomsh_sbom.py])
+
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile

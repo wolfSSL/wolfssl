@@ -313,3 +313,76 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     Docker container, use `make rpm-docker`. In both cases the
     resulting packages are placed in the root directory of the
     project.
+
+19. Generating an SBOM (Software Bill of Materials)
+
+    wolfSSL can generate a Software Bill of Materials for EU Cyber Resilience
+    Act (CRA) compliance after a normal build and install.
+
+    Prerequisites:
+      - python3 (detected automatically by configure)
+      - pyspdxtools (pip install spdx-tools)
+
+    Usage:
+
+      $ ./configure
+      $ make
+      $ make sbom
+
+    This produces three files in the build directory:
+
+      wolfssl-<version>.cdx.json   CycloneDX 1.6 JSON
+      wolfssl-<version>.spdx.json  SPDX 2.3 JSON
+      wolfssl-<version>.spdx       SPDX 2.3 tag-value (validated by pyspdxtools)
+
+    The SPDX JSON is validated by pyspdxtools before the tag-value file is
+    written; make sbom fails if validation fails.
+
+    To install the SBOM files to $(datadir)/doc/wolfssl/:
+
+      $ make install-sbom
+
+    To remove installed SBOM files:
+
+      $ make uninstall-sbom
+
+    The generated files are removed by make clean.
+
+    For details on the SBOM contents and CRA context, see doc/SBOM.md.
+
+20. Generating OmniBOR build artifact graph (Bomsh)
+
+    wolfSSL supports generating an OmniBOR artifact dependency graph using
+    the Bomsh project (https://github.com/omnibor/bomsh).  OmniBOR provides
+    cryptographic traceability from every binary artifact back to the exact
+    source files that produced it.
+
+    Prerequisites:
+      - bomtrace3 (build from https://github.com/omnibor/bomsh)
+      - bomsh_create_bom.py (from the bomsh scripts/ directory, in PATH)
+      - bomsh_sbom.py (optional; from bomsh scripts/, for SPDX enrichment)
+
+    Both bomtrace3 and the Python scripts are detected by configure.
+    make bomsh fails with a clear error message if either required tool
+    is missing.
+
+    Usage:
+
+      $ ./configure
+      $ make
+      $ make bomsh
+
+    This performs a clean rebuild of wolfSSL under bomtrace3 tracing,
+    then produces an OmniBOR artifact graph in omnibor/ in the build
+    directory.  If bomsh_sbom.py is available and a wolfssl-<ver>.spdx.json
+    exists (from 'make sbom'), it also produces an OmniBOR-enriched SPDX
+    document omnibor.wolfssl-<ver>.spdx.json.
+
+    To install:
+
+      $ make install-bomsh   # installs omnibor/ to $(datadir)/doc/wolfssl/
+      $ make uninstall-bomsh # removes installed files
+
+    The generated files are removed by make clean.
+
+    See doc/SBOM.md for full details.
