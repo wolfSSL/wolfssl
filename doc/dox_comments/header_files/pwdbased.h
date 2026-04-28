@@ -174,7 +174,8 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
     \brief Extended version of PBKDF1 with heap hint.
 
     \return 0 on success
-    \return BAD_FUNC_ARG on invalid arguments
+    \return BAD_FUNC_ARG on invalid arguments or iterations is greater than
+    WC_PBKDF_MAX_ITERATIONS
     \return MEMORY_E on memory allocation error
 
     \param key Output key buffer
@@ -209,7 +210,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     \brief Extended version of PBKDF2 with heap hint and device ID.
 
     \return 0 on success
-    \return BAD_FUNC_ARG on invalid arguments
+    \return BAD_FUNC_ARG on invalid arguments or iterations is greater than
+    WC_PBKDF_MAX_ITERATIONS
     \return MEMORY_E on memory allocation error
 
     \param output Output key buffer
@@ -244,7 +246,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen,
     \brief Extended version of PKCS12_PBKDF with heap hint.
 
     \return 0 on success
-    \return BAD_FUNC_ARG on invalid arguments
+    \return BAD_FUNC_ARG on invalid arguments or iterations is greater than
+    WC_PBKDF_MAX_ITERATIONS
     \return MEMORY_E on memory allocation error
 
     \param output Output key buffer
