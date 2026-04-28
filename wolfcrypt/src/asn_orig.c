@@ -5295,6 +5295,31 @@ static int SetAKID(byte* output, word32 outSz, byte *input, word32 length,
     return (int)idx + enc_valSz;
 }
 
+#ifdef WOLFSSL_ACME_OID
+/* encode RFC 8737 id-pe-acmeIdentifier extension, return total bytes written
+ * RFC8737 : critical */
+static int SetAcmeIdentifier(byte* output, word32 outSz, const byte* digest,
+                             word32 digestSz)
+{
+    byte inner[1 + MAX_LENGTH_SZ + WC_SHA256_DIGEST_SIZE];
+    word32 innerSz;
+    const byte acmeId_oid[] = { 0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07,
+                                0x01, 0x1F, 0x01, 0x01, 0xFF, 0x04 };
+
+    if (output == NULL || digest == NULL)
+        return BAD_FUNC_ARG;
+    if (digestSz != WC_SHA256_DIGEST_SIZE)
+        return BAD_FUNC_ARG;
+
+    innerSz = SetOctetString(digestSz, inner);
+    XMEMCPY(inner + innerSz, digest, digestSz);
+    innerSz += digestSz;
+
+    return SetOidValue(output, outSz, acmeId_oid, sizeof(acmeId_oid),
+                       inner, innerSz);
+}
+#endif /* WOLFSSL_ACME_OID */
+
 /* encode Key Usage, return total bytes written
  * RFC5280 : critical */
 static int SetKeyUsage(byte* output, word32 outSz, word16 input)
@@ -6340,6 +6365,22 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         der->certPoliciesSz = 0;
 #endif /* WOLFSSL_CERT_EXT */
 
+#ifdef WOLFSSL_ACME_OID
+    /* RFC 8737 id-pe-acmeIdentifier (TLS-ALPN-01 challenge cert).
+     * Always critical=TRUE. */
+    if (cert->acmeIdentifierSz == WC_SHA256_DIGEST_SIZE) {
+        der->acmeIdSz = SetAcmeIdentifier(der->acmeId, sizeof(der->acmeId),
+                                          cert->acmeIdentifier,
+                                          (word32)cert->acmeIdentifierSz);
+        if (der->acmeIdSz <= 0)
+            return EXTENSIONS_E;
+
+        der->extensionsSz += der->acmeIdSz;
+    }
+    else
+        der->acmeIdSz = 0;
+#endif
+
     /* put extensions */
     if (der->extensionsSz > 0) {
 
@@ -6436,6 +6477,17 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                 return EXTENSIONS_E;
         }
 #endif /* WOLFSSL_CERT_EXT */
+
+#ifdef WOLFSSL_ACME_OID
+        /* put ACME Identifier */
+        if (der->acmeIdSz) {
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
+                                der->acmeId, der->acmeIdSz);
+            if (ret <= 0)
+                return EXTENSIONS_E;
+        }
+#endif
     }
 
     der->total = der->versionSz + der->serialSz + der->sigAlgoSz +

@@ -25291,6 +25291,9 @@ typedef struct DerCert {
 #endif
     byte certPolicies[MAX_CERTPOL_NB*MAX_CERTPOL_SZ]; /* Certificate Policies */
     byte crlInfo[CTC_MAX_CRLINFO_SZ];  /* CRL Distribution Points */
+#ifdef WOLFSSL_ACME_OID
+    byte acmeId[MAX_ACMEID_SZ];        /* RFC 8737 id-pe-acmeIdentifier */
+#endif
 #endif
 #ifdef WOLFSSL_CERT_REQ
     byte attrib[MAX_ATTRIB_SZ];        /* Cert req attributes encoded */
@@ -25321,6 +25324,9 @@ typedef struct DerCert {
 #endif
     int  certPoliciesSz;               /* encoded CertPolicies extension length*/
     int  crlInfoSz;                    /* encoded CRL Dist Points length */
+#ifdef WOLFSSL_ACME_OID
+    int  acmeIdSz;                     /* encoded acmeIdentifier length */
+#endif
 #endif
 #ifdef WOLFSSL_ALT_NAMES
     int  altNamesSz;                   /* encoded AltNames extension length */
