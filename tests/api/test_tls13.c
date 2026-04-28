@@ -587,6 +587,8 @@ int test_tls13_apis(void)
 #endif
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups,
         WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, numGroups),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, bad_groups, numGroups),
@@ -614,6 +616,8 @@ int test_tls13_apis(void)
 #endif
     ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups,
         WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups, numGroups),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_groups(clientSsl, bad_groups, numGroups),
@@ -645,6 +649,10 @@ int test_tls13_apis(void)
         WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(wolfSSL_set1_groups(clientSsl, too_many_groups,
         WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set1_groups(clientCtx, NULL, 1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_groups(clientSsl, NULL, 1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 #endif
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
