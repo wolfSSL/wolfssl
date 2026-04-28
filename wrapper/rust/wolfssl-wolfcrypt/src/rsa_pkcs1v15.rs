@@ -149,9 +149,9 @@ pub struct SigningKey<H: Hash, const N: usize> {
 impl<H: Hash, const N: usize> SigningKey<H, N> {
     /// Generate a fresh `N * 8`-bit RSA key with public exponent 65537.
     #[cfg(rsa_keygen)]
-    pub fn generate(mut rng: RNG) -> Result<Self, i32> {
+    pub fn generate(rng: RNG) -> Result<Self, i32> {
         let bits: i32 = (N * 8).try_into().map_err(|_| sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
-        let rsa = RSA::generate(bits, 65537, &mut rng)?;
+        let rsa = RSA::generate(bits, 65537, &rng)?;
         Ok(Self { inner: rsa, rng, _hash: PhantomData })
     }
 
@@ -186,7 +186,7 @@ impl<H: Hash, const N: usize> SignerMut<Signature<N>> for SigningKey<H, N> {
                 sig.as_mut_ptr(), &mut sig_len,
                 &mut self.inner.wc_rsakey as *mut _ as *mut c_void,
                 size_of::<sys::RsaKey>() as u32,
-                &mut self.rng.wc_rng,
+                self.rng.wc_rng,
             )
         };
         if rc != 0 || sig_len as usize != N {

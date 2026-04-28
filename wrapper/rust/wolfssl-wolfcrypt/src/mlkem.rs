@@ -123,7 +123,7 @@ impl MlKem {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate(key_type: i32, rng: &mut RNG) -> Result<Self, i32> {
+    pub fn generate(key_type: i32, rng: &RNG) -> Result<Self, i32> {
         Self::generate_ex(key_type, rng, None, None)
     }
 
@@ -157,12 +157,12 @@ impl MlKem {
     #[cfg(random)]
     pub fn generate_ex(
         key_type: i32,
-        rng: &mut RNG,
+        rng: &RNG,
         heap: Option<*mut core::ffi::c_void>,
         dev_id: Option<i32>,
     ) -> Result<Self, i32> {
         let key = Self::new_ex(key_type, heap, dev_id)?;
-        let rc = unsafe { sys::wc_MlKemKey_MakeKey(key.ws_key, &mut rng.wc_rng) };
+        let rc = unsafe { sys::wc_MlKemKey_MakeKey(key.ws_key, rng.wc_rng) };
         if rc != 0 {
             return Err(rc);
         }
@@ -472,7 +472,7 @@ impl MlKem {
         &mut self,
         ct: &mut [u8],
         ss: &mut [u8],
-        rng: &mut RNG,
+        rng: &RNG,
     ) -> Result<(), i32> {
         // Verify the cipher text length is as expected based on the parameter
         // set (key type) in use.
@@ -489,7 +489,7 @@ impl MlKem {
                 self.ws_key,
                 ct.as_mut_ptr(),
                 ss.as_mut_ptr(),
-                &mut rng.wc_rng,
+                rng.wc_rng,
             )
         };
         if rc != 0 {
