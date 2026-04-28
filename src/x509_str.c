@@ -710,7 +710,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * but the leaf signature must still be verified against the
              * issuer below — never skip X509StoreVerifyCert. */
             if (!issuer->isCa) {
-                SetupStoreCtxError_ex(ctx, X509_V_ERR_INVALID_CA,
+                SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_INVALID_CA,
                                 (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
             #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
                 if (ctx->store->verify_cb) {

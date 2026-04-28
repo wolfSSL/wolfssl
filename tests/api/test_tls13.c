@@ -5276,7 +5276,7 @@ int test_tls13_ticket_peer_cert_reverify(void)
     defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
     defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     !defined(NO_CERT_IN_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
