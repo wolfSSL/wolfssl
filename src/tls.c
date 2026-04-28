@@ -15145,6 +15145,9 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 break;
         }
 
+        if (ret != 0)
+            return ret;
+
         /* Early exit: stop accumulating as soon as the running total
          * cannot possibly fit the 2-byte wire length. Check *before*
          * marking the extension as processed so the semaphore is not
