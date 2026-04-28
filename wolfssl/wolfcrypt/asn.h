@@ -1760,6 +1760,13 @@ struct DecodedCert {
 #ifndef IGNORE_NAME_CONSTRAINTS
     DNS_entry* altEmailNames;        /* alt names list of RFC822 entries */
     DNS_entry* altDirNames;          /* alt names list of DIR entries    */
+    /* Raw OtherName GeneralName encodings (OID || [0] EXPLICIT value)
+     * for any otherName SAN seen on this certificate. Used internally by
+     * ConfirmNameConstraints() for byte-exact matching against the
+     * issuing CA's nameConstraints subtrees (RFC 5280 4.2.1.10). Kept
+     * separate from altNames so OpenSSL-compat APIs that iterate
+     * altNames see exactly the entries the SAN extension carries. */
+    DNS_entry* altOtherNamesRaw;
     Base_entry* permittedNames;      /* Permitted name bases             */
     Base_entry* excludedNames;       /* Excluded name bases              */
 #endif /* IGNORE_NAME_CONSTRAINTS */
@@ -2062,11 +2069,22 @@ struct DecodedCert {
     WC_BITFIELD extSubjAltNameCrit:1;
     WC_BITFIELD extAuthKeyIdCrit:1;
 #ifndef IGNORE_NAME_CONSTRAINTS
+    /*!
+     * \brief Set when the certificate's nameConstraints extension was
+     *        present and marked critical.
+     */
     WC_BITFIELD extNameConstraintCrit:1;
-    /* Set when DecodeSubtree encountered a constraint form (e.g.
-     * registeredID, x400Address, ediPartyName) we cannot enforce. Used
-     * together with extNameConstraintCrit to implement the RFC 5280
-     * 4.2.1.10 fail-closed requirement. */
+    /*!
+     * \brief Set when decoding the nameConstraints extension encountered
+     *        at least one permittedSubtrees or excludedSubtrees entry whose
+     *        GeneralName form (e.g. registeredID, x400Address,
+     *        ediPartyName) wolfSSL does not enforce.
+     *
+     * During verification, ConfirmNameConstraints() implements the RFC
+     * 5280 4.2.1.10 fail-closed requirement: when both this flag and
+     * extNameConstraintCrit are set, the chain is rejected rather than
+     * the unsupported constraint form being silently ignored.
+     */
     WC_BITFIELD extNameConstraintHasUnsupported:1;
 #endif
     WC_BITFIELD extSubjKeyIdCrit:1;
@@ -2136,13 +2154,21 @@ struct Signer {
     word16  maxPathLen;
     WC_BITFIELD selfSigned:1;
 #ifndef IGNORE_NAME_CONSTRAINTS
-    /* Mirror of DecodedCert::extNameConstraintCrit and
-     * extNameConstraintHasUnsupported so ConfirmNameConstraints can
-     * implement the RFC 5280 4.2.1.10 fail-closed requirement when a
-     * critical nameConstraints extension imposes a constraint form we
-     * cannot fully enforce. Co-located with selfSigned to share its
-     * bitfield storage word and avoid growing sizeof(Signer), which is
-     * load-bearing for PERSIST_CERT_CACHE. */
+    /*!
+     * \brief Mirrors DecodedCert::extNameConstraintCrit and
+     *        DecodedCert::extNameConstraintHasUnsupported so the
+     *        nameConstraints state survives onto the CA Signer and is
+     *        available during chain verification.
+     *
+     * ConfirmNameConstraints() uses these flags to implement the RFC 5280
+     * 4.2.1.10 fail-closed requirement: when extNameConstraintCrit is set
+     * and extNameConstraintHasUnsupported is also set, verification fails
+     * rather than the unsupported constraint form being silently ignored.
+     *
+     * Co-located with selfSigned to share its bitfield storage word and
+     * avoid growing sizeof(Signer), which is load-bearing for
+     * PERSIST_CERT_CACHE.
+     */
     WC_BITFIELD extNameConstraintCrit:1;
     WC_BITFIELD extNameConstraintHasUnsupported:1;
 #endif

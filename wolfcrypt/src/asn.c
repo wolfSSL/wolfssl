@@ -12139,6 +12139,8 @@ void FreeDecodedCert(DecodedCert* cert)
         FreeAltNames(cert->altEmailNames, cert->heap);
     if (cert->altDirNames)
         FreeAltNames(cert->altDirNames, cert->heap);
+    if (cert->altOtherNamesRaw)
+        FreeAltNames(cert->altOtherNamesRaw, cert->heap);
     if (cert->permittedNames)
         FreeNameSubtrees(cert->permittedNames, cert->heap);
     if (cert->excludedNames)
@@ -17622,6 +17624,19 @@ int wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
     return match;
 }
 
+/* RFC 5280 4.2.1.10: otherName matching is byte-exact comparison of the
+ * full OtherName encoding (OID || [0] EXPLICIT value). Both the leaf SAN
+ * (cert->altOtherNamesRaw) and the constraint subtree (Base_entry from
+ * DecodeSubtree) store the same form, so a memcmp suffices. */
+static int MatchOtherNameConstraint(DNS_entry* name, Base_entry* current)
+{
+    if (name == NULL || current == NULL)
+        return 0;
+    if (name->len != current->nameSz)
+        return 0;
+    return XMEMCMP(name->name, current->name, (size_t)current->nameSz) == 0;
+}
+
 /* Search through the list to find if the name is permitted.
  * name     The DNS name to search for
  * dnsList  The list to search through
@@ -17656,21 +17671,7 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 }
             }
             else if (nameType == ASN_OTHER_TYPE) {
-                /* RFC 5280 4.2.1.10: otherName matching is byte-exact
-                 * comparison of the full OtherName encoding. The FPKI/SEP
-                 * path also stores entries that contain only the parsed
-                 * UPN/FASCN value and have oidSum != 0; those are not
-                 * byte-comparable with the OID || [0] EXPLICIT value form
-                 * stored for the constraint, so we explicitly skip them.
-                 * Without that guard, a coincidental length match could
-                 * mis-validate. */
-                if (
-                #ifdef WOLFSSL_FPKI
-                        name->oidSum == 0 &&
-                #endif
-                        name->len == current->nameSz &&
-                        XMEMCMP(name->name, current->name,
-                                (size_t)current->nameSz) == 0) {
+                if (MatchOtherNameConstraint(name, current)) {
                     match = 1;
                     break;
                 }
@@ -17723,14 +17724,7 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 }
             }
             else if (nameType == ASN_OTHER_TYPE) {
-                /* See note in PermittedListOk about byte-exact matching. */
-                if (
-                #ifdef WOLFSSL_FPKI
-                        name->oidSum == 0 &&
-                #endif
-                        name->len == current->nameSz &&
-                        XMEMCMP(name->name, current->name,
-                                (size_t)current->nameSz) == 0) {
+                if (MatchOtherNameConstraint(name, current)) {
                     ret = 1;
                     break;
                 }
@@ -17825,15 +17819,12 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 name = cert->altNames;
                 break;
             case ASN_OTHER_TYPE:
-                /* otherName SAN entries are stored on cert->altNames with
-                 * type ASN_OTHER_TYPE.  Match by byte-exact comparison of
-                 * the OtherName encoding (OID || [0] EXPLICIT value).  For
-                 * FPKI/SEP builds, altNames may also contain entries that
-                 * hold only the parsed UPN/FASCN value (oidSum != 0); the
-                 * explicit oidSum guard in IsInExcludedList /
-                 * PermittedListOk skips those so a coincidental length
-                 * match cannot mis-validate. */
-                name = cert->altNames;
+                /* otherName SAN entries are stored on cert->altOtherNamesRaw
+                 * (kept separate from altNames so the public altNames view
+                 * is unaffected). Each entry holds the raw OtherName
+                 * encoding (OID || [0] EXPLICIT value) and is byte-matched
+                 * against the issuing CA's subtree. */
+                name = cert->altOtherNamesRaw;
                 break;
             default:
                 return 0;
@@ -18192,37 +18183,37 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     }
     #endif /* WOLFSSL_RID_ALT_NAME */
 #endif /* IGNORE_NAME_CONSTRAINTS */
-#if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
-    /* GeneralName choice: otherName */
+#ifndef IGNORE_NAME_CONSTRAINTS
+    /* GeneralName choice: otherName.
+     * Store the raw OtherName encoding (OID || [0] EXPLICIT value) on a
+     * dedicated internal list so ConfirmNameConstraints() can byte-match
+     * it against the issuing CA's nameConstraints subtree (RFC 5280
+     * 4.2.1.10). The raw form is kept separate from cert->altNames so
+     * the public altNames view (used by OpenSSL-compat APIs) reflects
+     * exactly what the SAN extension carries. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
-        /* TODO: test data for code path */
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        /* Store the raw OtherName encoding so ConfirmNameConstraints() can
-         * byte-match it against the issuing CA's subtree (RFC 5280
-         * 4.2.1.10). DecodeOtherName() may also add an entry that holds
-         * only the parsed UPN/FASCN value with oidSum != 0; the explicit
-         * oidSum guard in IsInExcludedList()/PermittedListOk() ensures
-         * those parsed entries are skipped during byte-comparison. */
         ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
-                ASN_OTHER_TYPE, &cert->altNames);
+                ASN_OTHER_TYPE, &cert->altOtherNamesRaw);
         if (ret != 0) {
             return ret;
         }
-    #endif
+    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
+        /* FPKI/SEP also OID-decode the otherName into a separate altNames
+         * entry that holds the parsed UPN/FASCN value (with oidSum != 0).
+         * That parsed entry is consumed by wc_GetUUIDFromCert /
+         * wc_GetFASCNFromCert; ConfirmNameConstraints() does not look at
+         * it - it iterates altOtherNamesRaw instead. */
         ret = DecodeOtherName(cert, input, &idx, len);
+    #else
+        idx += (word32)len;
+    #endif
     }
-#elif !defined(IGNORE_NAME_CONSTRAINTS)
-    /* GeneralName choice: otherName.
-     * No OID-specific decoding in this build, but we store the raw
-     * OtherName encoding (OID || [0] EXPLICIT value) on altNames so
-     * ConfirmNameConstraints() can byte-match it against the issuing CA's
-     * nameConstraints subtree (RFC 5280 4.2.1.10). */
+#elif defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
+    /* No name constraints support in the build, but FPKI/SEP still need
+     * the parsed otherName entry for wc_GetUUIDFromCert /
+     * wc_GetFASCNFromCert. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
-                ASN_OTHER_TYPE, &cert->altNames);
-        if (ret == 0) {
-            idx += (word32)len;
-        }
+        ret = DecodeOtherName(cert, input, &idx, len);
     }
 #endif
     /* GeneralName choice: dNSName, x400Address, ediPartyName */

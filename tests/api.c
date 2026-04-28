@@ -22220,6 +22220,26 @@ static word32 build_otherName_san(byte* out, word32 outSz, const char* val7)
     return (word32)(sizeof(prefix) + 7);
 }
 
+/* Build a NameConstraints extension value with a single excludedSubtree
+ * carrying a registeredID GeneralName for OID 1.2.3.4. registeredID is a
+ * GeneralName form wolfSSL does not enforce, so DecodeSubtree() must
+ * record it as 'unsupported' and ConfirmNameConstraints() must fail
+ * closed when the extension is critical (RFC 5280 4.2.1.10). */
+static word32 build_registeredID_nameConstraints(byte* out, word32 outSz)
+{
+    static const byte ridNc[] = {
+        0x30, 0x09,                                     /* SEQUENCE, 9 */
+        0xA1, 0x07,                                     /* [1] excluded, 7 */
+        0x30, 0x05,                                     /* GeneralSubtree, 5 */
+        0x88, 0x03,                                     /* [8] regId, 3 */
+            0x2A, 0x03, 0x04                            /* OID 1.2.3.4 */
+    };
+    if (outSz < sizeof(ridNc))
+        return 0;
+    XMEMCPY(out, ridNc, sizeof(ridNc));
+    return (word32)sizeof(ridNc);
+}
+
 /* Build a NameConstraints extension value carrying a single subtree of
  * the given list type ([0] permitted or [1] excluded) for an otherName
  * UPN whose UTF8 value is the given 7-byte string. */
@@ -22334,9 +22354,11 @@ static int verify_with_otherName_chain(const byte* nameConstraintsDer,
         goto done;
     if (wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &leafKey) != 0)
         goto done;
-    if (sanDerSz > sizeof(cert.altNames)) goto done;
-    XMEMCPY(cert.altNames, sanDer, sanDerSz);
-    cert.altNamesSz = (int)sanDerSz;
+    if (sanDer != NULL && sanDerSz > 0) {
+        if (sanDerSz > sizeof(cert.altNames)) goto done;
+        XMEMCPY(cert.altNames, sanDer, sanDerSz);
+        cert.altNamesSz = (int)sanDerSz;
+    }
     if (wc_MakeCert(&cert, leafDer, FOURK_BUF, NULL, &leafKey, &rng) < 0)
         goto done;
     leafDerSz = wc_SignCert(cert.bodySz, cert.sigType, leafDer, FOURK_BUF,
@@ -22379,6 +22401,10 @@ done:
  *      (excluded is enforced regardless of criticality)
  *   4. Critical permitted subtree, leaf SAN matches           -> accept
  *   5. Critical permitted subtree, leaf SAN does NOT match    -> reject
+ *   6. Critical nameConstraints carrying an unsupported form
+ *      (registeredID), leaf has no relevant SAN              -> reject
+ *      (RFC 5280 4.2.1.10 fail-closed for unprocessed forms)
+ *   7. Same as (6) but non-critical                           -> accept
  */
 static int test_NameConstraints_OtherName(void)
 {
@@ -22392,8 +22418,9 @@ static int test_NameConstraints_OtherName(void)
     byte sanAllowed[64];
     byte ncExcludedBlocked[64];
     byte ncPermittedAllowed[64];
+    byte ncRegisteredID[16];
     word32 sanBlockedSz, sanAllowedSz;
-    word32 ncExcludedBlockedSz, ncPermittedAllowedSz;
+    word32 ncExcludedBlockedSz, ncPermittedAllowedSz, ncRegisteredIDSz;
 
     sanBlockedSz =
         build_otherName_san(sanBlocked, sizeof(sanBlocked), "blocked");
@@ -22403,10 +22430,13 @@ static int test_NameConstraints_OtherName(void)
         ncExcludedBlocked, sizeof(ncExcludedBlocked), 1, "blocked");
     ncPermittedAllowedSz = build_otherName_nameConstraints(
         ncPermittedAllowed, sizeof(ncPermittedAllowed), 0, "allowed");
+    ncRegisteredIDSz = build_registeredID_nameConstraints(
+        ncRegisteredID, sizeof(ncRegisteredID));
     ExpectIntGT((int)sanBlockedSz, 0);
     ExpectIntGT((int)sanAllowedSz, 0);
     ExpectIntGT((int)ncExcludedBlockedSz, 0);
     ExpectIntGT((int)ncPermittedAllowedSz, 0);
+    ExpectIntGT((int)ncRegisteredIDSz, 0);
 
     /* (1) Original bypass scenario: critical excluded otherName matches
      *     the leaf's otherName SAN. Must be rejected. */
@@ -22445,6 +22475,22 @@ static int test_NameConstraints_OtherName(void)
             ncPermittedAllowed, ncPermittedAllowedSz, 1,
             sanBlocked, sanBlockedSz),
         WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (6) Critical nameConstraints carrying a GeneralName form wolfSSL
+     *     does not enforce (registeredID). RFC 5280 4.2.1.10 requires the
+     *     verifier to either process the constraint or reject; we reject
+     *     fail-closed. The leaf needs no SAN to exercise this path. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncRegisteredID, ncRegisteredIDSz, 1, NULL, 0),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (7) Same as (6) but non-critical: RFC 5280 only mandates the
+     *     fail-closed reject when the extension is critical, so a
+     *     non-critical unsupported constraint form is silently ignored
+     *     and verification succeeds. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncRegisteredID, ncRegisteredIDSz, 0, NULL, 0),
+        0);
 #endif
     return EXPECT_RESULT();
 }
