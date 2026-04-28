@@ -726,6 +726,7 @@ static int slhdsakey_hash_f_sha2(SlhDsaKey* key, const byte* pk_seed,
     int ret;
     byte address[SLHDSA_HAC_SZ];
     byte digest[WC_SHA256_DIGEST_SIZE];
+    int copy_succeeded = 0;
 
     (void)pk_seed;
 
@@ -733,8 +734,10 @@ static int slhdsakey_hash_f_sha2(SlhDsaKey* key, const byte* pk_seed,
     HA_Encode_Compressed(adrs, address);
 
     /* Restore SHA-256 midstate. */
+
     ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid, &key->hash.sha2.sha256);
     if (ret == 0) {
+        copy_succeeded = 1;
         /* Update with compressed ADRS and message. */
         ret = wc_Sha256Update(&key->hash.sha2.sha256, address, SLHDSA_HAC_SZ);
     }
@@ -747,6 +750,9 @@ static int slhdsakey_hash_f_sha2(SlhDsaKey* key, const byte* pk_seed,
     if (ret == 0) {
         /* Truncate to n bytes. */
         XMEMCPY(hash, digest, n);
+    }
+    if (copy_succeeded) {
+        wc_Sha256Free(&key->hash.sha2.sha256);
     }
 
     return ret;
@@ -780,10 +786,12 @@ static int slhdsakey_hash_h_sha2(SlhDsaKey* key, const byte* pk_seed,
     if (n == WC_SLHDSA_N_128) {
         /* Category 1: use SHA-256. */
         byte digest[WC_SHA256_DIGEST_SIZE];
+        int copy_succeeded = 0;
 
         ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid,
             &key->hash.sha2.sha256);
         if (ret == 0) {
+            copy_succeeded = 1;
             ret = wc_Sha256Update(&key->hash.sha2.sha256, address,
                 SLHDSA_HAC_SZ);
         }
@@ -796,14 +804,19 @@ static int slhdsakey_hash_h_sha2(SlhDsaKey* key, const byte* pk_seed,
         if (ret == 0) {
             XMEMCPY(hash, digest, n);
         }
+        if (copy_succeeded) {
+            wc_Sha256Free(&key->hash.sha2.sha256);
+        }
     }
     else {
         /* Categories 3, 5: use SHA-512. */
         byte digest[WC_SHA512_DIGEST_SIZE];
+        int copy_succeeded = 0;
 
         ret = wc_Sha512Copy(&key->hash.sha2.sha512_mid,
             &key->hash.sha2.sha512);
         if (ret == 0) {
+            copy_succeeded = 1;
             ret = wc_Sha512Update(&key->hash.sha2.sha512, address,
                 SLHDSA_HAC_SZ);
         }
@@ -815,6 +828,9 @@ static int slhdsakey_hash_h_sha2(SlhDsaKey* key, const byte* pk_seed,
         }
         if (ret == 0) {
             XMEMCPY(hash, digest, n);
+        }
+        if (copy_succeeded) {
+            wc_Sha512Free(&key->hash.sha2.sha512);
         }
     }
 
@@ -848,10 +864,12 @@ static int slhdsakey_hash_h_2_sha2(SlhDsaKey* key, const byte* pk_seed,
     if (n == WC_SLHDSA_N_128) {
         /* Category 1: use SHA-256. */
         byte digest[WC_SHA256_DIGEST_SIZE];
+        int copy_succeeded = 0;
 
         ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid,
             &key->hash.sha2.sha256);
         if (ret == 0) {
+            copy_succeeded = 1;
             ret = wc_Sha256Update(&key->hash.sha2.sha256, address,
                 SLHDSA_HAC_SZ);
         }
@@ -867,14 +885,19 @@ static int slhdsakey_hash_h_2_sha2(SlhDsaKey* key, const byte* pk_seed,
         if (ret == 0) {
             XMEMCPY(hash, digest, n);
         }
+        if (copy_succeeded) {
+            wc_Sha256Free(&key->hash.sha2.sha256);
+        }
     }
     else {
         /* Categories 3, 5: use SHA-512. */
         byte digest[WC_SHA512_DIGEST_SIZE];
+        int copy_succeeded = 0;
 
         ret = wc_Sha512Copy(&key->hash.sha2.sha512_mid,
             &key->hash.sha2.sha512);
         if (ret == 0) {
+            copy_succeeded = 1;
             ret = wc_Sha512Update(&key->hash.sha2.sha512, address,
                 SLHDSA_HAC_SZ);
         }
@@ -889,6 +912,9 @@ static int slhdsakey_hash_h_2_sha2(SlhDsaKey* key, const byte* pk_seed,
         }
         if (ret == 0) {
             XMEMCPY(hash, digest, n);
+        }
+        if (copy_succeeded) {
+            wc_Sha512Free(&key->hash.sha2.sha512);
         }
     }
 
@@ -915,6 +941,7 @@ static int slhdsakey_hash_prf_sha2(SlhDsaKey* key, const byte* pk_seed,
     int ret;
     byte address[SLHDSA_HAC_SZ];
     byte digest[WC_SHA256_DIGEST_SIZE];
+    int copy_succeeded = 0;
 
     (void)pk_seed;
 
@@ -924,6 +951,7 @@ static int slhdsakey_hash_prf_sha2(SlhDsaKey* key, const byte* pk_seed,
     /* Restore SHA-256 midstate. */
     ret = wc_Sha256Copy(&key->hash.sha2.sha256_mid, &key->hash.sha2.sha256);
     if (ret == 0) {
+        copy_succeeded = 1;
         ret = wc_Sha256Update(&key->hash.sha2.sha256, address, SLHDSA_HAC_SZ);
     }
     if (ret == 0) {
@@ -934,6 +962,9 @@ static int slhdsakey_hash_prf_sha2(SlhDsaKey* key, const byte* pk_seed,
     }
     if (ret == 0) {
         XMEMCPY(hash, digest, n);
+    }
+    if (copy_succeeded) {
+        wc_Sha256Free(&key->hash.sha2.sha256);
     }
 
     return ret;
@@ -1031,6 +1062,24 @@ static int slhdsakey_hash_final_sha2(SlhDsaKey* key, byte* hash, word32 len)
     return ret;
 }
 
+/* SHA2 T_l streaming: free internal allocations.
+ *
+ * @param [in]  key   SLH-DSA key.
+ */
+static void slhdsakey_hash_free_sha2(SlhDsaKey* key)
+{
+    byte n = key->params->n;
+
+    if (n == WC_SLHDSA_N_128) {
+        wc_Sha256Free(&key->hash.sha2.sha256_2);
+    }
+    else {
+        wc_Sha512Free(&key->hash.sha2.sha512_2);
+    }
+
+    return;
+}
+
 /* Local MGF1 implementation for H_msg.
  *
  * FIPS 205. Section 11.2.
@@ -1063,9 +1112,11 @@ static int slhdsakey_mgf1_sha2(SlhDsaKey* key, const byte* seed,
             byte digest[WC_SHA256_DIGEST_SIZE];
             word32 cpLen = (left < WC_SHA256_DIGEST_SIZE) ?
                 left : WC_SHA256_DIGEST_SIZE;
+            int hash_inited = 0;
 
             ret = wc_InitSha256(&key->hash.sha2.sha256_2);
             if (ret == 0) {
+                hash_inited = 1;
                 ret = wc_Sha256Update(&key->hash.sha2.sha256_2, seed, seedLen);
             }
             if (ret == 0) {
@@ -1073,6 +1124,9 @@ static int slhdsakey_mgf1_sha2(SlhDsaKey* key, const byte* seed,
             }
             if (ret == 0) {
                 ret = wc_Sha256Final(&key->hash.sha2.sha256_2, digest);
+            }
+            if (hash_inited) {
+                wc_Sha256Free(&key->hash.sha2.sha256_2);
             }
             if (ret == 0) {
                 XMEMCPY(out + done, digest, cpLen);
@@ -1084,9 +1138,11 @@ static int slhdsakey_mgf1_sha2(SlhDsaKey* key, const byte* seed,
             byte digest[WC_SHA512_DIGEST_SIZE];
             word32 cpLen = (left < WC_SHA512_DIGEST_SIZE) ?
                 left : WC_SHA512_DIGEST_SIZE;
+            int hash_inited = 0;
 
             ret = wc_InitSha512(&key->hash.sha2.sha512_2);
             if (ret == 0) {
+                hash_inited = 1;
                 ret = wc_Sha512Update(&key->hash.sha2.sha512_2, seed, seedLen);
             }
             if (ret == 0) {
@@ -1094,6 +1150,9 @@ static int slhdsakey_mgf1_sha2(SlhDsaKey* key, const byte* seed,
             }
             if (ret == 0) {
                 ret = wc_Sha512Final(&key->hash.sha2.sha512_2, digest);
+            }
+            if (hash_inited) {
+                wc_Sha512Free(&key->hash.sha2.sha512_2);
             }
             if (ret == 0) {
                 XMEMCPY(out + done, digest, cpLen);
@@ -1199,10 +1258,12 @@ static int slhdsakey_h_msg_sha2(SlhDsaKey* key, const byte* r,
         byte innerHash[WC_SHA256_DIGEST_SIZE];
         /* Seed for MGF1: R || PK.seed || innerHash. */
         byte mgfSeed[32 + 16 + WC_SHA256_DIGEST_SIZE];
+        int sha_inited = 0;
 
         /* Step 1: innerHash = SHA-256(R || PK.seed || PK.root || M). */
         ret = wc_InitSha256(&key->hash.sha2.sha256_2);
         if (ret == 0) {
+            sha_inited = 1;
             ret = wc_Sha256Update(&key->hash.sha2.sha256_2, r, n);
         }
         if (ret == 0) {
@@ -1223,6 +1284,9 @@ static int slhdsakey_h_msg_sha2(SlhDsaKey* key, const byte* r,
         if (ret == 0) {
             ret = wc_Sha256Final(&key->hash.sha2.sha256_2, innerHash);
         }
+        if (sha_inited) {
+            wc_Sha256Free(&key->hash.sha2.sha256_2);
+        }
 
         /* Step 2: MGF1-SHA-256(R || PK.seed || innerHash, mdLen). */
         if (ret == 0) {
@@ -1238,10 +1302,12 @@ static int slhdsakey_h_msg_sha2(SlhDsaKey* key, const byte* r,
         byte innerHash[WC_SHA512_DIGEST_SIZE];
         /* Seed for MGF1: R || PK.seed || innerHash. */
         byte mgfSeed[32 + 32 + WC_SHA512_DIGEST_SIZE];
+        int sha_inited = 0;
 
         /* Step 1: innerHash = SHA-512(R || PK.seed || PK.root || M). */
         ret = wc_InitSha512(&key->hash.sha2.sha512_2);
         if (ret == 0) {
+            sha_inited = 1;
             ret = wc_Sha512Update(&key->hash.sha2.sha512_2, r, n);
         }
         if (ret == 0) {
@@ -1261,6 +1327,9 @@ static int slhdsakey_h_msg_sha2(SlhDsaKey* key, const byte* r,
         }
         if (ret == 0) {
             ret = wc_Sha512Final(&key->hash.sha2.sha512_2, innerHash);
+        }
+        if (sha_inited) {
+            wc_Sha512Free(&key->hash.sha2.sha512_2);
         }
 
         /* Step 2: MGF1-SHA-512(R || PK.seed || innerHash, mdLen). */
@@ -1424,6 +1493,11 @@ static int slhdsakey_hash_prf_shake(SlhDsaKey* key, const byte* pk_seed,
         slhdsakey_hash_final_sha2(k, o, l) :                                 \
         slhdsakey_hash_final(&(k)->hash.shk.shake2, o, l))
 
+#define HASH_T_FREE(k)                                                       \
+    (SLHDSA_IS_SHA2((k)->params->param) ?                                    \
+        slhdsakey_hash_free_sha2(k) :                                        \
+        slhdsakey_hash_free(&(k)->hash.shk.shake2))
+
 #else
 
 #define HASH_T_START_ADDR(k, pk_seed, adrs, n)                               \
@@ -1434,6 +1508,9 @@ static int slhdsakey_hash_prf_shake(SlhDsaKey* key, const byte* pk_seed,
 
 #define HASH_T_FINAL(k, o, l)                                                \
     slhdsakey_hash_final(&(k)->hash.shk.shake2, o, l)
+
+#define HASH_T_FREE(k)                                                       \
+    slhdsakey_hash_free(&(k)->hash.shk.shake2)
 
 #endif /* WOLFSSL_SLHDSA_SHA2 */
 
@@ -1532,6 +1609,15 @@ static int slhdsakey_hash_update(wc_Shake* shake, const byte* data, word32 len)
 static int slhdsakey_hash_final(wc_Shake* shake, byte* hash, word32 len)
 {
     return wc_Shake256_Final(shake, hash, len);
+}
+
+/* Free internal resources.
+ *
+ * @param [in]  shake  SHAKE-256 object.
+ */
+static void slhdsakey_hash_free(wc_Shake* shake)
+{
+    wc_Shake256_Free(shake);
 }
 
 /******************************************************************************
@@ -3173,6 +3259,7 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
 {
     int ret;
     byte n = key->params->n;
+    int hash_t_started = 0;
 
     {
         HashAddress wotspk_adrs;
@@ -3185,6 +3272,8 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
     }
     if (ret == 0) {
         HashAddress sk_adrs;
+
+        hash_t_started = 1;
 
         /* Steps 1-2. Copy address and set to WOTS PRF. */
         HA_Copy(sk_adrs, adrs);
@@ -3208,6 +3297,10 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
     if (ret == 0) {
         /* Step 13: Output hash of compressed public key. */
         ret = HASH_T_FINAL(key, node, n);
+    }
+
+    if (hash_t_started) {
+        HASH_T_FREE(key);
     }
 
     return ret;
@@ -3565,7 +3658,7 @@ static int slhdsakey_wots_sign_chain_x4(SlhDsaKey* key, const byte* msg,
 static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig)
 {
-    int ret;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     word16 csum;
     HashAddress sk_adrs;
     byte n = key->params->n;
@@ -3894,6 +3987,7 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
     byte n = key->params->n;
     byte len = key->params->len;
     WC_DECLARE_VAR(nodes, byte, SLHDSA_MAX_MSG_SZ * SLHDSA_MAX_N, key->heap);
+    int hash_t_started = 0;
 
     WC_ALLOC_VAR_EX(nodes, byte, SLHDSA_MAX_MSG_SZ * SLHDSA_MAX_N, key->heap,
         DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
@@ -3987,11 +4081,15 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
         ret = HASH_T_START_ADDR(key, pk_seed, wotspk_adrs, n);
     }
     if (ret == 0) {
+        hash_t_started = 1;
         ret = HASH_T_UPDATE(key, nodes, len * n);
         sig += len * n;
     }
     if (ret == 0) {
         ret = HASH_T_FINAL(key, pk_sig, n);
+    }
+    if (hash_t_started) {
+        HASH_T_FREE(key);
     }
 
     WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
@@ -4034,6 +4132,7 @@ static int slhdsakey_wots_pk_from_sig_c(SlhDsaKey* key, const byte* sig,
     byte len = key->params->len;
     HashAddress wotspk_adrs;
     WC_DECLARE_VAR(nodes, byte, SLHDSA_MAX_MSG_SZ * SLHDSA_MAX_N, key->heap);
+    int hash_t_started = 0;
 
     WC_ALLOC_VAR_EX(nodes, byte, SLHDSA_MAX_MSG_SZ * SLHDSA_MAX_N, key->heap,
         DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
@@ -4060,12 +4159,16 @@ static int slhdsakey_wots_pk_from_sig_c(SlhDsaKey* key, const byte* sig,
         ret = HASH_T_START_ADDR(key, pk_seed, wotspk_adrs, n);
     }
     if (ret == 0) {
+        hash_t_started = 1;
         /* Step 15: Update with the nodes ... */
         ret = HASH_T_UPDATE(key, nodes, len * n);
     }
     if (ret == 0) {
         /* Step 15: Generate root node - public key signature. */
         ret = HASH_T_FINAL(key, pk_sig, n);
+    }
+    if (hash_t_started) {
+        HASH_T_FREE(key);
     }
 
     WC_FREE_VAR_EX(nodes, key->heap, DYNAMIC_TYPE_SLHDSA);
@@ -4106,6 +4209,7 @@ static int slhdsakey_wots_pk_from_sig_c(SlhDsaKey* key, const byte* sig,
     byte len = key->params->len;
     HashAddress wotspk_adrs;
     byte* node = pk_sig;
+    int hash_t_started = 0;
 
     /* Step 12-14: Copy the address for WOTS PK. */
     HA_Copy(wotspk_adrs, adrs);
@@ -4113,6 +4217,7 @@ static int slhdsakey_wots_pk_from_sig_c(SlhDsaKey* key, const byte* sig,
     /* Step 15: Hash the public key seed and WOTS PK address ... */
     ret = HASH_T_START_ADDR(key, pk_seed, wotspk_adrs, n);
     if (ret == 0) {
+        hash_t_started = 1;
         /* Step 8: For each value in msg. */
         for (i = 0; i < len; i++) {
             /* Step 9: Set chain address for WOTS HASH. */
@@ -4135,6 +4240,9 @@ static int slhdsakey_wots_pk_from_sig_c(SlhDsaKey* key, const byte* sig,
     if (ret == 0) {
         /* Step 15: Generate root node - public key signature. */
         ret = HASH_T_FINAL(key, pk_sig, n);
+    }
+    if (hash_t_started) {
+        HASH_T_FREE(key);
     }
 
     return ret;
@@ -4422,7 +4530,7 @@ static int slhdsakey_xmss_sign(SlhDsaKey* key, const byte* m,
     const byte* sk_seed, word32 idx, const byte* pk_seed, word32* adrs,
     byte* sig_xmss)
 {
-    int ret;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     byte n = key->params->n;
     byte len = key->params->len;
     byte h_m = key->params->h_m;
@@ -5610,7 +5718,7 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
 static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
     const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors)
 {
-    int ret;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     word16 indices[SLHDSA_MAX_INDICES_SZ];
     int i;
     int j;
@@ -6293,6 +6401,7 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
     byte n = key->params->n;
     byte a = key->params->a;
     byte k = key->params->k;
+    int hash_t_started = 0;
 
     /* Step 1: Get indices from byte array. */
     slhdsakey_base_2b(md, a, k, indices);
@@ -6303,6 +6412,10 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
     HA_SetTypeAndClearNotKPA(forspk_adrs, HA_FORS_ROOTS);
     /* Step 24: Add public key seed and FORS roots address to hash ... */
     ret = HASH_T_START_ADDR(key, pk_seed, forspk_adrs, n);
+
+    if (ret == 0) {
+        hash_t_started = 1;
+    }
 
     /* Steps 2-20: Compute roots and add to hash. */
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
@@ -6323,6 +6436,10 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
     if (ret == 0) {
         /* Step 24. Compute FORS public key. */
         ret = HASH_T_FINAL(key, pk_fors, n);
+    }
+
+    if (hash_t_started) {
+        HASH_T_FREE(key);
     }
 
     return ret;
@@ -6385,14 +6502,8 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
         if (SLHDSA_IS_SHA2(param)) {
             /* Initialize SHA2 hash objects. */
             ret = wc_InitSha256(&key->hash.sha2.sha256);
-            if (ret == 0) {
-                ret = wc_InitSha256(&key->hash.sha2.sha256_2);
-            }
             if ((ret == 0) && (key->params->n > 16)) {
                 ret = wc_InitSha512(&key->hash.sha2.sha512);
-                if (ret == 0) {
-                    ret = wc_InitSha512(&key->hash.sha2.sha512_2);
-                }
             }
         }
         else
