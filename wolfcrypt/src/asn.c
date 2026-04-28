@@ -4375,7 +4375,8 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert);
 static int DecodeCrlDist(const byte* input, word32 sz, DecodedCert* cert);
 static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert);
 #ifndef IGNORE_NAME_CONSTRAINTS
-static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head, word32 limit, void* heap);
+static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
+                         word32 limit, byte* hasUnsupported, void* heap);
 static int DecodeNameConstraints(const byte* input, word32 sz, DecodedCert* cert);
 #endif
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
@@ -17654,6 +17655,26 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
+            else if (nameType == ASN_OTHER_TYPE) {
+                /* RFC 5280 4.2.1.10: otherName matching is byte-exact
+                 * comparison of the full OtherName encoding. The FPKI/SEP
+                 * path also stores entries that contain only the parsed
+                 * UPN/FASCN value and have oidSum != 0; those are not
+                 * byte-comparable with the OID || [0] EXPLICIT value form
+                 * stored for the constraint, so we explicitly skip them.
+                 * Without that guard, a coincidental length match could
+                 * mis-validate. */
+                if (
+                #ifdef WOLFSSL_FPKI
+                        name->oidSum == 0 &&
+                #endif
+                        name->len == current->nameSz &&
+                        XMEMCMP(name->name, current->name,
+                                (size_t)current->nameSz) == 0) {
+                    match = 1;
+                    break;
+                }
+            }
             else if (name->len >= current->nameSz &&
                 wolfssl_local_MatchBaseName(nameType, name->name, name->len,
                                             current->name, current->nameSz)) {
@@ -17701,6 +17722,19 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
+            else if (nameType == ASN_OTHER_TYPE) {
+                /* See note in PermittedListOk about byte-exact matching. */
+                if (
+                #ifdef WOLFSSL_FPKI
+                        name->oidSum == 0 &&
+                #endif
+                        name->len == current->nameSz &&
+                        XMEMCMP(name->name, current->name,
+                                (size_t)current->nameSz) == 0) {
+                    ret = 1;
+                    break;
+                }
+            }
             else if (name->len >= current->nameSz &&
                 wolfssl_local_MatchBaseName(nameType, name->name, name->len,
                                             current->name, current->nameSz)) {
@@ -17718,13 +17752,14 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
 static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 {
     const byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE,
-                              ASN_IP_TYPE, ASN_URI_TYPE};
+                              ASN_IP_TYPE, ASN_URI_TYPE, ASN_OTHER_TYPE};
     int i;
 
     if (signer == NULL || cert == NULL)
         return 0;
 
-    if (signer->excludedNames == NULL && signer->permittedNames == NULL)
+    if (signer->excludedNames == NULL && signer->permittedNames == NULL &&
+            !signer->extNameConstraintHasUnsupported)
         return 1;
 
     for (i=0; i < (int)sizeof(nameTypes); i++) {
@@ -17789,10 +17824,18 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             case ASN_URI_TYPE:
                 name = cert->altNames;
                 break;
+            case ASN_OTHER_TYPE:
+                /* otherName SAN entries are stored on cert->altNames with
+                 * type ASN_OTHER_TYPE.  Match by byte-exact comparison of
+                 * the OtherName encoding (OID || [0] EXPLICIT value).  For
+                 * FPKI/SEP builds, altNames may also contain entries that
+                 * hold only the parsed UPN/FASCN value (oidSum != 0); the
+                 * explicit oidSum guard in IsInExcludedList /
+                 * PermittedListOk skips those so a coincidental length
+                 * match cannot mis-validate. */
+                name = cert->altNames;
+                break;
             default:
-                /* Other types of names are ignored for now.
-                 * Shouldn't it be rejected if it there is a altNamesByType[nameType]
-                 * and signer->extNameConstraintCrit is set? */
                 return 0;
         }
 
@@ -17831,6 +17874,19 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 return 0;
             }
         }
+    }
+
+    /* RFC 5280 4.2.1.10: "If a name constraints extension that is marked as
+     * critical imposes constraints on a particular name form ... the
+     * application MUST either process the constraint or reject the
+     * certificate." otherName is processed by byte-comparison above; any
+     * remaining unsupported forms (registeredID, x400Address, ediPartyName)
+     * trigger the fail-closed reject below. */
+    if (signer->extNameConstraintCrit &&
+            signer->extNameConstraintHasUnsupported) {
+        WOLFSSL_MSG("Critical nameConstraints contains unsupported "
+                    "GeneralName form; rejecting");
+        return 0;
     }
 
     return 1;
@@ -18140,7 +18196,33 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     /* GeneralName choice: otherName */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
         /* TODO: test data for code path */
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        /* Store the raw OtherName encoding so ConfirmNameConstraints() can
+         * byte-match it against the issuing CA's subtree (RFC 5280
+         * 4.2.1.10). DecodeOtherName() may also add an entry that holds
+         * only the parsed UPN/FASCN value with oidSum != 0; the explicit
+         * oidSum guard in IsInExcludedList()/PermittedListOk() ensures
+         * those parsed entries are skipped during byte-comparison. */
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+                ASN_OTHER_TYPE, &cert->altNames);
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
         ret = DecodeOtherName(cert, input, &idx, len);
+    }
+#elif !defined(IGNORE_NAME_CONSTRAINTS)
+    /* GeneralName choice: otherName.
+     * No OID-specific decoding in this build, but we store the raw
+     * OtherName encoding (OID || [0] EXPLICIT value) on altNames so
+     * ConfirmNameConstraints() can byte-match it against the issuing CA's
+     * nameConstraints subtree (RFC 5280 4.2.1.10). */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+                ASN_OTHER_TYPE, &cert->altNames);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
     }
 #endif
     /* GeneralName choice: dNSName, x400Address, ediPartyName */
@@ -19249,8 +19331,14 @@ static int DecodeSubtreeGeneralName(const byte* input, word32 sz, byte tag,
 
     (void)heap;
 
-    /* if constructed has leading sequence */
-    if ((tag & ASN_CONSTRUCTED) == ASN_CONSTRUCTED) {
+    /* directoryName is encoded as [4] CONSTRUCTED { Name } where Name is a
+     * SEQUENCE - strip the inner SEQUENCE header.
+     * otherName is encoded as [0] CONSTRUCTED { OID, [0] EXPLICIT value }
+     * where the inner content is NOT a SEQUENCE; keep the bytes as-is so
+     * we can byte-match a leaf SAN otherName against the constraint.
+     */
+    if ((tag & ASN_CONSTRUCTED) == ASN_CONSTRUCTED &&
+            (tag & ASN_TYPE_MASK) != ASN_OTHER_TYPE) {
         ret = GetASN_Sequence(input, &nameIdx, &strLen, sz, 0);
         if (ret < 0) {
             ret = ASN_PARSE_E;
@@ -19309,8 +19397,17 @@ static int DecodeSubtreeGeneralName(const byte* input, word32 sz, byte tag,
  * @return  ASN_PARSE_E when SEQUENCE is not found as expected.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
+/* Decode a sub-tree of name constraints.
+ *
+ * @param [out]     hasUnsupported  Set to 1 when an entry with a GeneralName
+ *                                  form we cannot fully enforce was
+ *                                  encountered. Drives the RFC 5280 4.2.1.10
+ *                                  fail-closed requirement for critical
+ *                                  nameConstraints extensions; must not be
+ *                                  NULL.
+ */
 static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
-                         word32 limit, void* heap)
+                         word32 limit, byte* hasUnsupported, void* heap)
 {
     DECL_ASNGETDATA(dataASN, subTreeASN_Length);
     word32 idx = 0;
@@ -19352,13 +19449,21 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
                 t == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE) ||
-                t == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
+                t == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE) ||
+                t == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+                      ASN_OTHER_TYPE)) {
                 /* Parse the general name and store a new entry. */
                 ret = DecodeSubtreeGeneralName(input +
                     GetASNItem_DataIdx(dataASN[SUBTREEASN_IDX_BASE], input),
                     dataASN[SUBTREEASN_IDX_BASE].length, t, head, heap);
             }
-            /* Skip entry. */
+            else {
+                /* GeneralName form (e.g. registeredID, x400Address,
+                 * ediPartyName) we do not enforce. Record so the caller can
+                 * fail-closed when the nameConstraints extension is critical
+                 * (RFC 5280 4.2.1.10). */
+                *hasUnsupported = 1;
+            }
         }
     }
 
@@ -19406,6 +19511,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
     DECL_ASNGETDATA(dataASN, nameConstraintsASN_Length);
     word32 idx = 0;
     int    ret = 0;
+    byte   hasUnsupported = 0;
 
     CALLOC_ASNGETDATA(dataASN, nameConstraintsASN_Length, ret, cert->heap);
 
@@ -19421,7 +19527,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
                     dataASN[NAMECONSTRAINTSASN_IDX_PERMIT].data.ref.data,
                     dataASN[NAMECONSTRAINTSASN_IDX_PERMIT].data.ref.length,
                     &cert->permittedNames, WOLFSSL_MAX_NAME_CONSTRAINTS,
-                    cert->heap);
+                    &hasUnsupported, cert->heap);
         }
     }
     if (ret == 0) {
@@ -19431,8 +19537,12 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
                     dataASN[NAMECONSTRAINTSASN_IDX_EXCLUDE].data.ref.data,
                     dataASN[NAMECONSTRAINTSASN_IDX_EXCLUDE].data.ref.length,
                     &cert->excludedNames, WOLFSSL_MAX_NAME_CONSTRAINTS,
-                    cert->heap);
+                    &hasUnsupported, cert->heap);
         }
+    }
+
+    if (ret == 0 && hasUnsupported) {
+        cert->extNameConstraintHasUnsupported = 1;
     }
 
     FREE_ASNGETDATA(dataASN, cert->heap);
@@ -22878,6 +22988,9 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
     #ifndef IGNORE_NAME_CONSTRAINTS
         signer->permittedNames = cert->permittedNames;
         signer->excludedNames  = cert->excludedNames;
+        signer->extNameConstraintCrit = cert->extNameConstraintCrit;
+        signer->extNameConstraintHasUnsupported =
+            cert->extNameConstraintHasUnsupported;
     #endif
     #ifndef NO_SKID
         XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,

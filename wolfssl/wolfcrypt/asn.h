@@ -2063,6 +2063,11 @@ struct DecodedCert {
     WC_BITFIELD extAuthKeyIdCrit:1;
 #ifndef IGNORE_NAME_CONSTRAINTS
     WC_BITFIELD extNameConstraintCrit:1;
+    /* Set when DecodeSubtree encountered a constraint form (e.g.
+     * registeredID, x400Address, ediPartyName) we cannot enforce. Used
+     * together with extNameConstraintCrit to implement the RFC 5280
+     * 4.2.1.10 fail-closed requirement. */
+    WC_BITFIELD extNameConstraintHasUnsupported:1;
 #endif
     WC_BITFIELD extSubjKeyIdCrit:1;
     WC_BITFIELD extKeyUsageCrit:1;
@@ -2130,6 +2135,17 @@ struct Signer {
     byte    extKeyUsage;
     word16  maxPathLen;
     WC_BITFIELD selfSigned:1;
+#ifndef IGNORE_NAME_CONSTRAINTS
+    /* Mirror of DecodedCert::extNameConstraintCrit and
+     * extNameConstraintHasUnsupported so ConfirmNameConstraints can
+     * implement the RFC 5280 4.2.1.10 fail-closed requirement when a
+     * critical nameConstraints extension imposes a constraint form we
+     * cannot fully enforce. Co-located with selfSigned to share its
+     * bitfield storage word and avoid growing sizeof(Signer), which is
+     * load-bearing for PERSIST_CERT_CACHE. */
+    WC_BITFIELD extNameConstraintCrit:1;
+    WC_BITFIELD extNameConstraintHasUnsupported:1;
+#endif
     const byte* publicKey;
     int     nameLen;
     const char*
