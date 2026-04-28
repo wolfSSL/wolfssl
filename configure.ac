@@ -1298,6 +1298,7 @@ then
         AC_MSG_ERROR([--enable-all-osp is incompatible with --enable-linuxkm-defaults])
     fi
 
+    test "$enable_tailscale" = "" && enable_tailscale=yes
     test "$enable_wolfguard" = "" && enable_wolfguard=yes
     test "$enable_webserver" = "" && enable_webserver=yes
 
@@ -1646,6 +1647,31 @@ then
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+fi
+
+# Support for Tailscale port
+AC_ARG_ENABLE([tailscale],
+    [AS_HELP_STRING([--enable-tailscale],[Enable Tailscale build dependencies (default: disabled)])],
+    [ ENABLED_TAILSCALE=$enableval ],
+    [ ENABLED_TAILSCALE=no ]
+    )
+if test "$ENABLED_TAILSCALE" = "yes"
+then
+    enable_wolfguard=yes
+    test "x$enable_sp" = "x" && enable_sp="yes,256"
+    enable_compkey=yes
+    enable_opensslall=yes
+    enable_alpn=yes
+    enable_sni=yes
+    enable_certgen=yes
+    enable_certreq=yes
+    enable_certext=yes
+    enable_sessioncerts=yes
+    enable_cert_setup_cb=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_INIT_CTX_KEY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DWC_CTC_NAME_SIZE=128 -DWOLFSSL_ACME_OID"
 fi
 
 # wolfGuard
