@@ -22145,19 +22145,24 @@ static int test_ParseSerial0FixtureMatrix(void)
     defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_NO_PEM) && \
     !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
     !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    /* Each case asserts a policy outcome (accept vs reject), not a specific
+     * error code. wc_ParseCert can fail via several distinct codes
+     * (ASN_PARSE_E, ASN_UNKNOWN_OID_E, etc.) depending on which
+     * OID-recognition features are compiled into the build; matching any
+     * specific code is brittle across configs. */
     struct {
         const char* path;
-        int  expectedCertType; /* expected wc_ParseCert(..., CERT_TYPE) */
-        int  expectedCaType;   /* expected wc_ParseCert(..., CA_TYPE) */
+        int  certTypeShouldPass; /* 1: expect ret == 0; 0: expect ret != 0 */
+        int  caTypeShouldPass;
     } cases[] = {
-        { "./certs/test-serial0/root_serial0.pem",
-            WC_NO_ERR_TRACE(ASN_PARSE_E), 0 },
-        { "./certs/test-serial0/intermediate_serial0.pem",
-            WC_NO_ERR_TRACE(ASN_PARSE_E), WC_NO_ERR_TRACE(ASN_PARSE_E) },
-        { "./certs/test-serial0/selfsigned_nonca_serial0.pem",
-            WC_NO_ERR_TRACE(ASN_PARSE_E), WC_NO_ERR_TRACE(ASN_PARSE_E) },
-        { "./certs/test-serial0/ee_serial0.pem",
-            WC_NO_ERR_TRACE(ASN_PARSE_E), WC_NO_ERR_TRACE(ASN_PARSE_E) },
+        /* Root CA serial 0 is rejected as CERT_TYPE, accepted as trust
+         * anchor (CA_TYPE) per the exemption in ParseCertRelative. */
+        { "./certs/test-serial0/root_serial0.pem",         0, 1 },
+        /* Intermediate CA: CA:TRUE but issuer != subject, so the trust
+         * anchor exemption (cert->selfSigned) does not apply. */
+        { "./certs/test-serial0/intermediate_serial0.pem", 0, 0 },
+        { "./certs/test-serial0/selfsigned_nonca_serial0.pem", 0, 0 },
+        { "./certs/test-serial0/ee_serial0.pem",           0, 0 },
     };
     size_t i;
 
@@ -22167,6 +22172,7 @@ static int test_ParseSerial0FixtureMatrix(void)
         byte*  derBuf = NULL;
         int    derSz  = 0;
         DecodedCert dc;
+        int    ret;
 
         ExpectIntEQ(load_file(cases[i].path, &pemBuf, &pemSz), 0);
         ExpectNotNull(derBuf = (byte*)XMALLOC(pemSz, NULL,
@@ -22175,13 +22181,19 @@ static int test_ParseSerial0FixtureMatrix(void)
             (int)pemSz, CERT_TYPE), 0);
 
         wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
-        ExpectIntEQ(wc_ParseCert(&dc, CERT_TYPE, NO_VERIFY, NULL),
-            cases[i].expectedCertType);
+        ret = wc_ParseCert(&dc, CERT_TYPE, NO_VERIFY, NULL);
+        if (cases[i].certTypeShouldPass)
+            ExpectIntEQ(ret, 0);
+        else
+            ExpectIntNE(ret, 0);
         wc_FreeDecodedCert(&dc);
 
         wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
-        ExpectIntEQ(wc_ParseCert(&dc, CA_TYPE, NO_VERIFY, NULL),
-            cases[i].expectedCaType);
+        ret = wc_ParseCert(&dc, CA_TYPE, NO_VERIFY, NULL);
+        if (cases[i].caTypeShouldPass)
+            ExpectIntEQ(ret, 0);
+        else
+            ExpectIntNE(ret, 0);
         wc_FreeDecodedCert(&dc);
 
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
