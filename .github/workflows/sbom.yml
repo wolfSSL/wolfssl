@@ -33,7 +33,7 @@ jobs:
   # Tier 2 - integration: build wolfSSL, generate the SBOMs, and assert
   # everything an external auditor or vulnerability scanner relies on.
   integration:
-    name: SBOM integration
+    name: SBOM integration (linux)
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     needs: unit
@@ -51,6 +51,12 @@ jobs:
             'ntia-conformance-checker==5.*' \
             'cyclonedx-bom==7.*'
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Test fixture for the LicenseRef-+text matrix step. Using a fixture
+      # rather than $PWD/COPYING decouples the test from upstream file
+      # naming and makes the assertion exact ('FIXTURE LICENCE BODY').
+      - name: Create license-text fixture
+        run: echo 'FIXTURE LICENCE BODY' > /tmp/sbom-fixture-licence.txt
 
       - name: Configure wolfSSL (shared + static)
         run: autoreconf -ivf && ./configure --enable-shared --enable-static
@@ -73,7 +79,8 @@ jobs:
           from cyclonedx.schema import SchemaVersion
           v = JsonStrictValidator(SchemaVersion.V1_6)
           for path in glob.glob('wolfssl-*.cdx.json'):
-              errors = v.validate_str(open(path).read())
+              with open(path) as f:
+                  errors = v.validate_str(f.read())
               if errors:
                   print(f"INVALID: {path}: {errors}", file=sys.stderr)
                   sys.exit(1)
@@ -84,19 +91,29 @@ jobs:
 
       - name: Library hash matches the SBOM
         # `make sbom` cleans its private staging tree on exit, so we install
-        # to an independent prefix and re-hash the resulting library.  The
-        # autotools install is deterministic (identical bytes), so the hash
-        # the SBOM recorded must match.
+        # to an independent prefix and re-hash the resulting library.
+        # Search order matches gen-sbom's so we hash the same artefact.
         run: |
           rm -rf /tmp/_inst
           make install DESTDIR=/tmp/_inst >/dev/null
-          LIB=$(ls /tmp/_inst/usr/local/lib/libwolfssl.so* 2>/dev/null \
-                | grep -v '\.la$' | head -1)
-          test -n "$LIB" || (echo "no installed shared lib"; exit 1)
-          EXPECTED=$(sha256sum "$LIB" | cut -d' ' -f1)
+          LIB=""
+          for cand in /tmp/_inst/usr/local/lib/libwolfssl.so.[0-9]* \
+                      /tmp/_inst/usr/local/lib/libwolfssl.so \
+                      /tmp/_inst/usr/local/lib/libwolfssl.a; do
+              if [ -f "$cand" ]; then LIB="$cand"; break; fi
+          done
+          test -n "$LIB" || (echo "no installed library found"; exit 1)
+          EXPECTED=$(python3 -c "
+          import hashlib, sys
+          h = hashlib.sha256()
+          with open(sys.argv[1], 'rb') as f:
+              for chunk in iter(lambda: f.read(65536), b''):
+                  h.update(chunk)
+          print(h.hexdigest())" "$LIB")
           ACTUAL=$(python3 -c "
           import json, glob
-          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
           p = [x for x in d['packages'] if x['name'] == 'wolfssl'][0]
           print(p['checksums'][0]['checksumValue'])")
           test "$EXPECTED" = "$ACTUAL" || \
@@ -108,7 +125,8 @@ jobs:
         run: |
           python3 - <<'PY'
           import glob, json, re, sys
-          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
           refs = {r['referenceType']: r['referenceLocator']
                   for r in d['packages'][0]['externalRefs']}
           assert re.match(r'cpe:2\.3:a:wolfssl:wolfssl:[\d.]+:', refs['cpe23Type']), refs
@@ -141,11 +159,13 @@ jobs:
           make sbom
           python3 - <<'PY'
           import glob, json
-          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
           assert d['packages'][0]['licenseConcluded'].startswith('GPL-3.0-'), \
               d['packages'][0]['licenseConcluded']
           assert 'hasExtractedLicensingInfos' not in d
-          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
           lic = cdx['metadata']['component']['licenses']
           assert lic == [{'license': {'id': d['packages'][0]['licenseConcluded']}}], lic
           print('default GPL: ok ->', lic)
@@ -156,16 +176,19 @@ jobs:
           rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
           make sbom \
               SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
-              SBOM_LICENSE_TEXT="$PWD/COPYING"
+              SBOM_LICENSE_TEXT=/tmp/sbom-fixture-licence.txt
           python3 - <<'PY'
           import glob, json
-          expected = open('COPYING').read()
-          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          with open('/tmp/sbom-fixture-licence.txt') as f:
+              expected = f.read()
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
           infos = d['hasExtractedLicensingInfos']
           assert len(infos) == 1
           assert infos[0]['licenseId'] == 'LicenseRef-wolfSSL-Commercial'
           assert infos[0]['extractedText'] == expected
-          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
           lic = cdx['metadata']['component']['licenses'][0]['license']
           assert lic['name'] == 'LicenseRef-wolfSSL-Commercial'
           assert lic['text']['content'] == expected
@@ -173,25 +196,47 @@ jobs:
           PY
           # The output of this run must still pass NTIA and CDX validators.
           ntia-checker -c ntia wolfssl-*.spdx.json
-          python3 -c "
+          python3 - <<'PY'
+          import glob, sys
           from cyclonedx.validation.json import JsonStrictValidator
           from cyclonedx.schema import SchemaVersion
-          import glob, sys
           v = JsonStrictValidator(SchemaVersion.V1_6)
-          errs = v.validate_str(open(glob.glob('wolfssl-*.cdx.json')[0]).read())
-          sys.exit(1 if errs else 0)"
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              errs = v.validate_str(f.read())
+          sys.exit(1 if errs else 0)
+          PY
+
+      - name: License matrix - LicenseRef without text must FAIL
+        # gen-sbom must refuse to emit a SBOM that names a LicenseRef-*
+        # but doesn't embed its text - that combo is invalid per SPDX 2.3
+        # and any "successfully generated" output would mislead auditors.
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          if make sbom SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
+              2>/tmp/err; then
+              echo "FAIL: gen-sbom should have refused this configuration"
+              exit 1
+          fi
+          grep -q 'license-text was not provided' /tmp/err || \
+              { echo "FAIL: error message missing actionable hint"; \
+                cat /tmp/err; exit 1; }
+          test ! -f wolfssl-5.9.1.spdx.json || \
+              { echo "FAIL: SBOM file should not exist after refusal"; \
+                exit 1; }
 
       - name: License matrix - compound expression
         run: |
           rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
           make sbom \
               SBOM_LICENSE_OVERRIDE='GPL-3.0-only OR LicenseRef-wolfSSL-Commercial' \
-              SBOM_LICENSE_TEXT="$PWD/COPYING"
+              SBOM_LICENSE_TEXT=/tmp/sbom-fixture-licence.txt
           python3 - <<'PY'
           import glob, json
-          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
           assert len(d['hasExtractedLicensingInfos']) == 1
-          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
           entry = cdx['metadata']['component']['licenses'][0]
           assert 'expression' in entry, entry
           print('compound expression: ok')
@@ -203,9 +248,11 @@ jobs:
           make sbom SBOM_LICENSE_OVERRIDE=Apache-2.0
           python3 - <<'PY'
           import glob, json
-          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
           assert 'hasExtractedLicensingInfos' not in d
-          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
           lic = cdx['metadata']['component']['licenses'][0]['license']
           assert lic == {'id': 'Apache-2.0'}, lic
           print('simple SPDX override: ok')
@@ -243,3 +290,46 @@ jobs:
               echo "uninstall-hook did not remove SBOM artefacts"
               exit 1
           fi
+
+  # Tier 2 (macOS) - smoke test that gen-sbom finds .dylib artefacts and
+  # that the autotools target works on Mach-O.  Linux already exercises
+  # the heavy validation matrix; this job is intentionally minimal so the
+  # macOS runner minutes go to portability coverage, not duplicated checks.
+  integration-macos:
+    name: SBOM integration (macos)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: macos-latest
+    needs: unit
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps and SBOM validators
+        run: |
+          brew install autoconf automake libtool
+          python3 -m pip install --user --break-system-packages \
+            'spdx-tools==0.8.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # On some macOS runners pyspdxtools lands in
+          # Library/Python/<ver>/bin; symlink to a known-on-PATH location.
+          for d in "$HOME/Library/Python"/*/bin; do
+              [ -x "$d/pyspdxtools" ] && \
+                  echo "$d" >> "$GITHUB_PATH"
+          done
+
+      - name: Configure wolfSSL (shared)
+        run: autoreconf -ivf && ./configure --enable-shared
+
+      - name: Build + generate SBOM (verifies .dylib detection)
+        run: make sbom
+
+      - name: SBOM hashed a real .dylib
+        run: |
+          python3 - <<'PY'
+          import glob, json, re
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          checksum = d['packages'][0]['checksums'][0]['checksumValue']
+          assert re.fullmatch(r'[0-9a-f]{64}', checksum), checksum
+          print('macOS SBOM checksum well-formed:', checksum)
+          PY

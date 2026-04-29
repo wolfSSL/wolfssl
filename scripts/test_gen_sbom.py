@@ -122,6 +122,17 @@ class TestCdxLicenseBlock(unittest.TestCase):
             gs.cdx_license_block('GPL-3.0-only AND MIT', None),
             [{'expression': 'GPL-3.0-only AND MIT'}])
 
+    def test_noassertion_uses_name_not_expression(self):
+        # NOASSERTION is a reserved SPDX literal, not a parseable SPDX
+        # expression - shoving it into `expression` makes some CDX
+        # validators choke when they try to parse it.
+        self.assertEqual(
+            gs.cdx_license_block('NOASSERTION', None),
+            [{'license': {'name': 'NOASSERTION'}}])
+        self.assertEqual(
+            gs.cdx_license_block('NOASSERTION', 'ignored'),
+            [{'license': {'name': 'NOASSERTION'}}])
+
 
 class TestBuildExtractedLicensingInfos(unittest.TestCase):
     def test_no_refs_returns_none(self):
@@ -176,6 +187,18 @@ class TestDerivedUuid(unittest.TestCase):
         # Will raise if not a valid UUID.
         parsed = uuid.UUID(s)
         self.assertEqual(str(parsed), s)
+
+    def test_separator_does_not_alias_inputs(self):
+        # If the helper joined parts on a printable character (e.g. '/'),
+        # then ('a/b', 'c') would collide with ('a', 'b/c').  NUL is not
+        # representable in any of the call-site inputs, so the join must
+        # be unambiguous.  Regression guard for that contract.
+        self.assertNotEqual(
+            gs.derived_uuid('a/b', 'c'),
+            gs.derived_uuid('a', 'b/c'))
+        self.assertNotEqual(
+            gs.derived_uuid('a-b', 'c'),
+            gs.derived_uuid('a', 'b-c'))
 
 
 class TestBuildTimestamp(unittest.TestCase):
@@ -235,25 +258,51 @@ class TestLoadLicenseText(unittest.TestCase):
 
 
 class TestParseOptionsH(unittest.TestCase):
-    def test_parses_defines_sorted_and_deduped(self):
+    def _parse(self, body):
         with tempfile.NamedTemporaryFile('w', suffix='.h',
                                          delete=False) as f:
-            f.write(
-                "/* fake options.h */\n"
-                "#define HAVE_BAR\n"
-                "#define HAVE_AAA 1\n"
-                "#define HAVE_BAR  /* duplicate */\n"
-                "#define HAVE_FOO 42\n"
-            )
+            f.write(body)
             path = f.name
         try:
-            pairs = gs.parse_options_h(path)
+            return gs.parse_options_h(path)
         finally:
             os.unlink(path)
+
+    def test_parses_defines_sorted_and_deduped(self):
+        pairs = self._parse(
+            "/* fake options.h */\n"
+            "#define HAVE_BAR\n"
+            "#define HAVE_AAA 1\n"
+            "#define HAVE_FOO 42\n"
+        )
         names = [k for k, _ in pairs]
         self.assertEqual(names, sorted(set(names)))
-        self.assertIn(('HAVE_AAA', '1'), pairs)
-        self.assertIn(('HAVE_FOO', '42'), pairs)
+        self.assertEqual(dict(pairs)['HAVE_AAA'], '1')
+        self.assertEqual(dict(pairs)['HAVE_FOO'], '42')
+        self.assertEqual(dict(pairs)['HAVE_BAR'], '')
+
+    def test_strips_trailing_block_comment(self):
+        # Regression: an earlier version captured the comment text into
+        # the value, polluting the SBOM build properties.
+        pairs = dict(self._parse("#define HAVE_FOO 42 /* always */\n"))
+        self.assertEqual(pairs['HAVE_FOO'], '42')
+
+    def test_strips_trailing_line_comment(self):
+        pairs = dict(self._parse("#define HAVE_FOO 42 // always\n"))
+        self.assertEqual(pairs['HAVE_FOO'], '42')
+
+    def test_strips_comment_from_valueless_define(self):
+        pairs = dict(self._parse("#define HAVE_BAR  /* set elsewhere */\n"))
+        self.assertEqual(pairs['HAVE_BAR'], '')
+
+    def test_dedup_keeps_last_assignment(self):
+        # Last assignment wins (matches C preprocessor semantics for
+        # duplicate #defines after redefinition).
+        pairs = dict(self._parse(
+            "#define HAVE_X 1\n"
+            "#define HAVE_X 2\n"
+        ))
+        self.assertEqual(pairs['HAVE_X'], '2')
 
 
 if __name__ == '__main__':
