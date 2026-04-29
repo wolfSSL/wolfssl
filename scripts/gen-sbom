@@ -126,6 +126,10 @@ def build_extracted_licensing_infos(license_expr, license_text):
     `licenseDeclared` to be declared once at document level via
     `hasExtractedLicensingInfos`.  Returns None when no LicenseRef-* is
     present so the caller can omit the field entirely.
+
+    `license_text=None` produces a placeholder entry; main() rejects
+    that combination upfront, so this fallback is only reachable from
+    direct programmatic callers (e.g. tests, library reuse).
     """
     refs = extract_license_refs(license_expr)
     if not refs:

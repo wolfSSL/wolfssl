@@ -385,8 +385,8 @@ WOLFSSL_LIB_DSO_BASENAMES = \
 #   SBOM_LICENSE_TEXT      Path to the actual licence text for any
 #                          LicenseRef-* in SBOM_LICENSE_OVERRIDE.  Required
 #                          for SPDX 2.3 conformance whenever a custom
-#                          LicenseRef is in use; without it the SBOM embeds
-#                          a placeholder and validators may reject it.
+#                          LicenseRef is in use; `make sbom` exits with an
+#                          error if it is missing.
 sbom:
 	@if test -z "$(PYTHON3)"; then \
 	    echo ""; \
