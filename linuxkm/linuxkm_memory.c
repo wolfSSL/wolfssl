@@ -865,6 +865,11 @@ int wc_fips_generate_hash(
             text_p += progress;
         }
 
+        if (ret) {
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            goto out;
+        }
+
         cur_reloc_index = -1;
         while (rodata_p < (const byte *)seg_map->fips_rodata_end) {
             size_t rodata_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
@@ -905,6 +910,9 @@ int wc_fips_generate_hash(
         }
 
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (ret)
+            goto out;
     }
 
 #else /* ! (WC_SYM_RELOC_TABLES || WC_SYM_RELOC_TABLES_SUPPORT) */
@@ -936,13 +944,13 @@ int wc_fips_generate_hash(
 
     WC_SANITIZE_ENABLE();
 
-#endif /* ! (WC_SYM_RELOC_TABLES || WC_SYM_RELOC_TABLES_SUPPORT) */
-
     if (ret) {
         RELOC_DEBUG_PRINTF("ERROR: hmac_update failed: err %d\n", ret);
         ret = BAD_STATE_E;
         goto out;
     }
+
+#endif /* ! (WC_SYM_RELOC_TABLES || WC_SYM_RELOC_TABLES_SUPPORT) */
 
     ret = hmac_final(hmac_ctx, hash, digest_size);
     if (ret) {

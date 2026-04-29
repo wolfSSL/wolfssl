@@ -778,12 +778,13 @@ static int wolfssl_init(void)
          * the true module start address, which is potentially useful to an
          * attacker.
          */
-        pr_info("wolfCrypt segment hashes (spans): text 0x%x (%llu), rodata 0x%x (%llu), offset %c0x%llx, canon text 0x%x\n",
+        pr_info("wolfCrypt segment hashes (spans): text 0x%x (%llu), rodata 0x%x (%llu), offset %c0x%llx, canon text 0x%x, canon rodata 0x%x\n",
                 text_hash, (unsigned long long)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start),
                 rodata_hash, (unsigned long long)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start),
                 (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? '+' : '-',
                 (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? (unsigned long long)((uintptr_t)&__wc_rodata_start[0] - (uintptr_t)__wc_text_start) : (unsigned long long)((uintptr_t)__wc_text_start - (uintptr_t)&__wc_rodata_start[0]),
-                stabilized_text_hash);
+                stabilized_text_hash,
+                stabilized_rodata_hash);
 
         pr_info("wolfCrypt segments: text=%llx-%llx, rodata=%llx-%llx, "
                 "rwdata=%llx-%llx, bss=%llx-%llx\n",
@@ -1847,13 +1848,17 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
         int ret;
         kallsyms_lookup_name_kp.addr = NULL;
         if ((ret = register_kprobe(&kallsyms_lookup_name_kp)) != 0) {
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             pr_err_once("ERROR: register_kprobe(&kallsyms_lookup_name_kp) failed: %d\n", ret);
+#endif
             return 0;
         }
         kallsyms_lookup_name_ptr = (typeof(kallsyms_lookup_name_ptr))kallsyms_lookup_name_kp.addr;
         unregister_kprobe(&kallsyms_lookup_name_kp);
         if (! kallsyms_lookup_name_ptr) {
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             pr_err_once("ERROR: kallsyms_lookup_name_kp.addr is null.\n");
+#endif
             return 0;
         }
     }
