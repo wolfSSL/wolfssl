@@ -16333,6 +16333,9 @@ int wolfSSL_X509_set_subject_key_id_ex(WOLFSSL_X509* x509)
 #endif /* !NO_SHA */
 
 /* Set Authority Key Identifier from raw bytes.
+ * The bytes passed in are the keyIdentifier OCTET STRING contents only,
+ * they must not be a pre-encoded AuthorityKeyIdentifier SEQUENCE.
+ * The cert encoder wraps them in SEQUENCE { [0] keyIdentifier } at sign time.
  *
  * x509   - Certificate to modify
  * akid   - Raw AKID bytes
@@ -16343,27 +16346,38 @@ int wolfSSL_X509_set_subject_key_id_ex(WOLFSSL_X509* x509)
 int wolfSSL_X509_set_authority_key_id(WOLFSSL_X509* x509,
     const unsigned char* akid, int akidSz)
 {
+    byte* newAkid = NULL;
+
     WOLFSSL_ENTER("wolfSSL_X509_set_authority_key_id");
 
     if (x509 == NULL || akid == NULL || akidSz <= 0) {
         return WOLFSSL_FAILURE;
     }
 
-    /* Allocate/reallocate memory for authKeyIdSrc */
-    if (x509->authKeyIdSrc == NULL || (int)x509->authKeyIdSrcSz < akidSz) {
-        if (x509->authKeyIdSrc != NULL) {
-            XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        }
-        x509->authKeyIdSrc = (byte*)XMALLOC((word32)akidSz, x509->heap,
-                                             DYNAMIC_TYPE_X509_EXT);
-        if (x509->authKeyIdSrc == NULL) {
-            return WOLFSSL_FAILURE;
-        }
+    /* Allocate new buffer up front so failure leaves prior state intact */
+    newAkid = (byte*)XMALLOC((word32)akidSz, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    if (newAkid == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    XMEMCPY(newAkid, akid, (word32)akidSz);
+
+    /* Free any prior storage. authKeyIdSrc may be populated from a prior
+     * parse cert operation. authKeyId aliases inside that buffer, so
+     * authKeyIdSrc must be freed first to avoid a dangling authKeyId. */
+    if (x509->authKeyIdSrc != NULL) {
+        XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->authKeyIdSrc = NULL;
+        x509->authKeyIdSrcSz = 0;
+    }
+    else if (x509->authKeyId != NULL) {
+        XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
     }
 
-    XMEMCPY(x509->authKeyIdSrc, akid, (word32)akidSz);
-    x509->authKeyIdSrcSz = (word32)akidSz;
-    x509->authKeyId = x509->authKeyIdSrc;
+    /* Store newAkid as authKeyId only, do not populate authKeyIdSrc.
+     * When authKeyIdSrc is non-NULL, the encoder writes those bytes without
+     * SEQUENCE/[0] wrapper. authKeyIdSrc must be NULL here so encoder does
+     * wrap them. */
+    x509->authKeyId = newAkid;
     x509->authKeyIdSz = (word32)akidSz;
     x509->authKeyIdSet = 1;
 
