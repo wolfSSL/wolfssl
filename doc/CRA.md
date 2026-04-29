@@ -147,9 +147,9 @@ the document; conformant validators (e.g. `pyspdxtools`, `ntia-conformance-check
 will reject the SBOM otherwise.  The file should contain the plain-text
 licence agreement you received from wolfSSL.
 
-If you omit `SBOM_LICENSE_TEXT` the generator emits a placeholder and prints
-a warning — useful for quick experiments, but the result is **not** valid for
-distribution to customers or regulators.
+If `SBOM_LICENSE_OVERRIDE` is set to a `LicenseRef-*` and `SBOM_LICENSE_TEXT`
+is missing, `make sbom` exits with an error rather than emit an invalid SBOM
+that might end up in front of a regulator.
 
 For a stock SPDX-listed identifier (`Apache-2.0`, `MIT`, etc.) the
 `SBOM_LICENSE_TEXT` argument is unnecessary because validators already know

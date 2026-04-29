@@ -98,13 +98,12 @@ python3 scripts/gen-sbom \
     ... other flags ...
 ```
 
-`--license-text` is required whenever `--license-override` is a custom
+`--license-text` is **required** whenever `--license-override` is a custom
 `LicenseRef-*`: SPDX 2.3 mandates that any LicenseRef in `licenseConcluded`
 or `licenseDeclared` be backed by a `hasExtractedLicensingInfos` entry that
-embeds the actual licence text.  Without it, validators such as
-`pyspdxtools` and `ntia-conformance-checker` reject the document.  The
-generator emits a placeholder and a warning in that case so the bug is
-visible, but the SBOM is *not* valid for downstream consumers.
+embeds the actual licence text.  Running without it is a configuration
+error and the generator exits non-zero rather than emit a misleading SBOM
+that auditors might then circulate.
 
 For an SPDX-listed override (`Apache-2.0`, `MIT`, etc.), `--license-text`
 is unnecessary because validators already know the canonical text.

@@ -416,7 +416,7 @@ sbom:
 	fi; \
 	echo "SBOM: hashing $$sbom_lib"; \
 	if test -z "$${SOURCE_DATE_EPOCH:-}" && test -n "$(GIT)" && \
-	   test -d "$(srcdir)/.git"; then \
+	   $(GIT) -C "$(srcdir)" rev-parse --git-dir >/dev/null 2>&1; then \
 	    SOURCE_DATE_EPOCH=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null || echo`; \
 	    export SOURCE_DATE_EPOCH; \
 	fi; \
