@@ -102,6 +102,12 @@
 #define WOLFSSL_NO_HASH_RAW
 #endif
 
+/* no raw hash access when software transform is stripped */
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+#undef  WOLFSSL_NO_HASH_RAW
+#define WOLFSSL_NO_HASH_RAW
+#endif
+
 #define SHA256_NOINLINE WC_NO_INLINE
 
 #if !defined(NO_OLD_SHA_NAMES)

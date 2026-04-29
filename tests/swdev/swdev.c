@@ -13,6 +13,9 @@
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifndef NO_SHA256
+#include <wolfssl/wolfcrypt/sha256.h>
+#endif
 
 static int swdev_initialized = 0;
 
@@ -120,6 +123,62 @@ static int swdev_ecc_get_sig_size(wc_CryptoInfo* info)
 }
 #endif /* HAVE_ECC */
 
+#ifndef NO_SHA256
+/* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
+ * admin fields (heap, devId, devCtx, W, async, HW ctx) per-side. */
+static void swdev_sha256_copy_state(wc_Sha256* dst, const wc_Sha256* src)
+{
+    XMEMCPY(dst->digest, src->digest, sizeof(dst->digest));
+    XMEMCPY(dst->buffer, src->buffer, sizeof(dst->buffer));
+    dst->buffLen = src->buffLen;
+    dst->loLen   = src->loLen;
+    dst->hiLen   = src->hiLen;
+#ifdef WC_C_DYNAMIC_FALLBACK
+    dst->sha_method = src->sha_method;
+#endif
+#ifdef WOLFSSL_HASH_FLAGS
+    dst->flags = src->flags;
+#endif
+}
+
+/* Run the op on a per-call shadow wc_Sha256 owned by swdev, copying state
+ * in and out around it. The caller's struct, allocated by libwolfssl with
+ * the software init stripped, can't be used directly. */
+static int swdev_sha256(wc_CryptoInfo* info)
+{
+    wc_Sha256* sha256 = info->hash.sha256;
+    wc_Sha256 shadow;
+    int ret;
+
+    if (sha256 == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitSha256(&shadow);
+    if (ret != 0)
+        return ret;
+
+    swdev_sha256_copy_state(&shadow, sha256);
+
+    if (info->hash.in != NULL) {
+        ret = wc_Sha256Update(&shadow, info->hash.in, info->hash.inSz);
+        if (ret != 0)
+            goto out;
+    }
+
+    if (info->hash.digest != NULL) {
+        ret = wc_Sha256Final(&shadow, info->hash.digest);
+        if (ret != 0)
+            goto out;
+    }
+
+    swdev_sha256_copy_state(sha256, &shadow);
+
+out:
+    wc_Sha256Free(&shadow);
+    return ret;
+}
+#endif /* !NO_SHA256 */
+
 WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     void* ctx)
 {
@@ -161,6 +220,15 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_EC_GET_SIG_SIZE:
             return swdev_ecc_get_sig_size(info);
     #endif /* HAVE_ECC */
+        default:
+            return CRYPTOCB_UNAVAILABLE;
+        }
+#endif
+#ifndef NO_SHA256
+    case WC_ALGO_TYPE_HASH:
+        switch (info->hash.type) {
+        case WC_HASH_TYPE_SHA256:
+            return swdev_sha256(info);
         default:
             return CRYPTOCB_UNAVAILABLE;
         }

@@ -30609,6 +30609,7 @@ static int test_SSL_CIPHER_get_xxx(void)
 }
 
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
@@ -31612,6 +31613,7 @@ static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
 #if defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
     /* TODO: Add crypto callback API tests */
 

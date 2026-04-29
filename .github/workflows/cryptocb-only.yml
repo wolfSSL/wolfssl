@@ -28,6 +28,13 @@ jobs:
           # software path via cryptocb.
           - name: RSA
             cppflags: -DWOLF_CRYPTO_CB_ONLY_RSA
+          # WOLF_CRYPTO_CB_ONLY_SHA256: strips software SHA-256; swdev provides
+          # the software path via cryptocb.  SHA-224 piggybacks on the SHA-256
+          # software core so it is incompatible with this strip and must be
+          # explicitly disabled (it is default-on on x86_64/aarch64).
+          - name: SHA256
+            extra_config: --disable-sha224
+            cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA256
     name: make check (${{ matrix.name }})
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
