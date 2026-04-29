@@ -52,6 +52,7 @@ Crypto Callback Build Options:
  *                      and SHA-512 operations.
  * WOLF_CRYPTO_CB_ONLY_ECC: Use only callbacks for ECC          default: off
  * WOLF_CRYPTO_CB_ONLY_RSA: Use only callbacks for RSA          default: off
+ * WOLF_CRYPTO_CB_ONLY_SHA256: Use only callbacks for SHA-256   default: off
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

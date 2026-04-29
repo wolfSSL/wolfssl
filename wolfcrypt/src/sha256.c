@@ -60,6 +60,10 @@ on the specific device platform.
 
 #if !defined(NO_SHA256) && !defined(WOLFSSL_RISCV_ASM)
 
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && defined(WOLFSSL_SHA224)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA256 is incompatible with WOLFSSL_SHA224"
+#endif
+
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
@@ -290,7 +294,8 @@ static int InitSha256(wc_Sha256* sha256)
 
 /* Hardware Acceleration */
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
-                          (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
+    (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
     /* in case intel instructions aren't available, plus we need the K[] global */
     #define NEED_SOFT_SHA256
@@ -1080,7 +1085,7 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
-#elif defined(WOLFSSL_PPC32_ASM)
+#elif defined(WOLFSSL_PPC32_ASM) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
 extern void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     word32 len);
@@ -1110,7 +1115,7 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 #define XTRANSFORM Transform_Sha256
 #define XTRANSFORM_LEN Transform_Sha256_Len
 
-#elif defined(WOLFSSL_ARMASM)
+#elif defined(WOLFSSL_ARMASM) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
@@ -1165,6 +1170,21 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #define XTRANSFORM      Transform_Sha256
 #define XTRANSFORM_LEN  Transform_Sha256_Len
 
+#elif defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+    /* Software SHA-256 stripped; every op dispatches via cryptocb. */
+    int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
+    {
+        int ret;
+        if (sha256 == NULL)
+            return BAD_FUNC_ARG;
+        ret = InitSha256(sha256);
+        if (ret != 0)
+            return ret;
+        sha256->heap   = heap;
+        sha256->devId  = devId;
+        sha256->devCtx = NULL;
+        return ret;
+    }
 #else
     #define NEED_SOFT_SHA256
 
@@ -1396,7 +1416,6 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #endif /* SHA256_MANY_REGISTERS */
 #endif
 /* End wc_ software implementation */
-
 
 #ifdef XTRANSFORM
 
@@ -1774,6 +1793,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 
 #if !defined(WOLFSSL_KCAPI_HASH)
 
+#ifndef WOLFSSL_NO_HASH_RAW
     int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
     {
     #ifdef LITTLE_ENDIAN_ORDER
@@ -1797,6 +1817,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 
         return 0;
     }
+#endif /* !WOLFSSL_NO_HASH_RAW */
 
     int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     {
@@ -1959,6 +1980,55 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #endif /* !WOLFSSL_KCAPI_HASH */
 
 #endif /* XTRANSFORM */
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SHA256
+
+    int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
+    {
+        if (sha256 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha256->devId != INVALID_DEVID)
+        #endif
+        {
+            int ret = wc_CryptoCb_Sha256Hash(sha256, data, len, NULL);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+        }
+
+        return NO_VALID_DEVID;
+    }
+
+    int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
+    {
+        int ret;
+
+        if (sha256 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha256->devId != INVALID_DEVID)
+        #endif
+        {
+            ret = wc_CryptoCb_Sha256Hash(sha256, NULL, 0, hash);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+        }
+
+        return NO_VALID_DEVID;
+    }
+
+#endif /* WOLF_CRYPTO_CB_ONLY_SHA256 */
 
 
 #ifdef WOLFSSL_SHA224

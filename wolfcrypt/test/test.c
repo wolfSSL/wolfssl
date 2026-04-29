@@ -5665,7 +5665,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
     {
         WOLFSSL_SMALL_STACK_STATIC const unsigned char
             data_hb[WC_SHA256_BLOCK_SIZE] = {
@@ -68106,6 +68107,52 @@ exit_onlycb:
 }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_SHA256
+/* Exercise SHA-256 dispatch under CB_ONLY_SHA256: cb-handled then cb-delegated. */
+static wc_test_ret_t sha256_onlycb_test(myCryptoDevCtx *ctx)
+{
+    wc_test_ret_t ret = 0;
+#if !defined(NO_SHA256)
+    wc_Sha256 sha;
+    byte      hash[WC_SHA256_DIGEST_SIZE];
+    const byte in[] = "abc";
+
+    ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* cb handles the op, expects 0(success) */
+    ctx->exampleVar = 99;
+    ret = wc_Sha256Update(&sha, in, (word32)sizeof(in) - 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    ret = wc_Sha256Final(&sha, hash);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+    /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+    ctx->exampleVar = 1;
+    ret = wc_Sha256Update(&sha, in, (word32)sizeof(in) - 1);
+    if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    } else {
+        ret = 0;
+    }
+    ret = wc_Sha256Final(&sha, hash);
+    if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    } else {
+        ret = 0;
+    }
+
+exit_onlycb:
+    wc_Sha256Free(&sha);
+#endif /* !NO_SHA256 */
+    (void)ctx;
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB_ONLY_SHA256 */
+
 /* Example crypto dev callback function that calls software version */
 static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
@@ -68727,6 +68774,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             /* set devId to invalid, so software is used */
             info->hash.sha256->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha256->devId = devIdArg;
+                return 0;
+            }
+            #endif
 
             if (info->hash.in != NULL) {
                 ret = wc_Sha256Update(
@@ -69855,6 +69911,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = ecc_onlycb_test(&myCtx);
+    PRIVATE_KEY_LOCK();
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLFSSL_SWDEV)
+    PRIVATE_KEY_UNLOCK();
+    if (ret == 0)
+        ret = sha256_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
 #ifdef WOLFSSL_HAVE_MLKEM
