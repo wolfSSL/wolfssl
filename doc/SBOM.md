@@ -94,12 +94,28 @@ exposes this directly:
 ```sh
 python3 scripts/gen-sbom \
     --license-override LicenseRef-wolfSSL-Commercial \
+    --license-text /path/to/wolfssl-commercial-license.txt \
     ... other flags ...
 ```
 
-The override is also forwarded by `make sbom` if you set the
-`SBOM_LICENSE_OVERRIDE` make variable, e.g.
-`make sbom SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial`.
+`--license-text` is required whenever `--license-override` is a custom
+`LicenseRef-*`: SPDX 2.3 mandates that any LicenseRef in `licenseConcluded`
+or `licenseDeclared` be backed by a `hasExtractedLicensingInfos` entry that
+embeds the actual licence text.  Without it, validators such as
+`pyspdxtools` and `ntia-conformance-checker` reject the document.  The
+generator emits a placeholder and a warning in that case so the bug is
+visible, but the SBOM is *not* valid for downstream consumers.
+
+For an SPDX-listed override (`Apache-2.0`, `MIT`, etc.), `--license-text`
+is unnecessary because validators already know the canonical text.
+
+`make sbom` plumbs both knobs through the matching make variables:
+
+```sh
+make sbom \
+    SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
+    SBOM_LICENSE_TEXT=/path/to/wolfssl-commercial-license.txt
+```
 
 #### External dependency version detection
 

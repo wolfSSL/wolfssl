@@ -135,11 +135,29 @@ Pass `SBOM_LICENSE_OVERRIDE` to `make sbom` to bake your SPDX expression
 directly into the artefact (preferred — survives re-runs, no manual editing):
 
 ```sh
-make sbom SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial
+make sbom \
+    SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
+    SBOM_LICENSE_TEXT=/path/to/wolfssl-commercial-license.txt
 ```
 
-Or invoke the generator directly with `--license-override` if you are
-producing the SBOM outside the standard make target.
+`SBOM_LICENSE_TEXT` is **required** whenever `SBOM_LICENSE_OVERRIDE` uses a
+custom `LicenseRef-*` identifier.  SPDX 2.3 §10.1 requires the actual licence
+text to be embedded in `hasExtractedLicensingInfos` for any LicenseRef used in
+the document; conformant validators (e.g. `pyspdxtools`, `ntia-conformance-checker`)
+will reject the SBOM otherwise.  The file should contain the plain-text
+licence agreement you received from wolfSSL.
+
+If you omit `SBOM_LICENSE_TEXT` the generator emits a placeholder and prints
+a warning — useful for quick experiments, but the result is **not** valid for
+distribution to customers or regulators.
+
+For a stock SPDX-listed identifier (`Apache-2.0`, `MIT`, etc.) the
+`SBOM_LICENSE_TEXT` argument is unnecessary because validators already know
+the canonical text.
+
+Or invoke the generator directly with `--license-override` /
+`--license-text` if you are producing the SBOM outside the standard make
+target.
 
 ### Option 2: update your product SBOM's reference to wolfSSL
 

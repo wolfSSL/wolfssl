@@ -365,6 +365,16 @@ sbomdir      = $(datadir)/doc/$(PACKAGE)
 # unconditionally via `trap`, even if any step fails.  Honors SOURCE_DATE_EPOCH
 # for reproducible builds (set by the recipe to `git log -1 --format=%ct` when
 # unset and a git tree is available).
+#
+# User-overridable variables:
+#   SBOM_LICENSE_OVERRIDE  SPDX expression to use instead of the GPL ID
+#                          parsed from LICENSING (e.g. for commercial
+#                          licensees: LicenseRef-wolfSSL-Commercial).
+#   SBOM_LICENSE_TEXT      Path to the actual licence text for any
+#                          LicenseRef-* in SBOM_LICENSE_OVERRIDE.  Required
+#                          for SPDX 2.3 conformance whenever a custom
+#                          LicenseRef is in use; without it the SBOM embeds
+#                          a placeholder and validators may reject it.
 sbom:
 	@if test -z "$(PYTHON3)"; then \
 	    echo ""; \
@@ -415,6 +425,7 @@ sbom:
 	    --version $(PACKAGE_VERSION) \
 	    --license-file $(srcdir)/LICENSING \
 	    --license-override '$(SBOM_LICENSE_OVERRIDE)' \
+	    --license-text '$(SBOM_LICENSE_TEXT)' \
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
 	    --dep-liboqs $(ENABLED_LIBOQS) \
