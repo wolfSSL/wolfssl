@@ -79,6 +79,86 @@ DEP_META = {
 }
 
 
+# Matches a single SPDX `LicenseRef-` identifier as defined in SPDX 2.3
+# Annex D ("idstring = 1*(ALPHA / DIGIT / '-' / '.')").  We use this to
+# discover custom license refs inside an arbitrary SPDX expression and to
+# decide whether a `licenseConcluded` value needs an accompanying
+# `hasExtractedLicensingInfos` block.
+LICENSEREF_RE = re.compile(r'LicenseRef-[A-Za-z0-9.\-]+')
+
+# Matches a "simple" SPDX-listed license ID such as `GPL-2.0-or-later` or
+# `MIT` (no spaces, no operators, no LicenseRef-).  Anything that does not
+# match must be expressed via `licenses[].license.name` / `licenses[].expression`
+# in CycloneDX, since `license.id` is restricted to the SPDX licence list.
+SIMPLE_SPDX_ID_RE = re.compile(r'\A[A-Za-z0-9.+\-]+\Z')
+
+
+def is_simple_spdx_id(value):
+    return bool(SIMPLE_SPDX_ID_RE.match(value)) and \
+        not value.startswith('LicenseRef-') and value != 'NOASSERTION'
+
+
+def extract_license_refs(expr):
+    """Return a sorted, deduplicated list of LicenseRef-* IDs found in expr."""
+    return sorted(set(LICENSEREF_RE.findall(expr or '')))
+
+
+def load_license_text(path):
+    """Read the license text file given via --license-text, exit on error."""
+    if not path:
+        return None
+    try:
+        with open(path) as f:
+            return f.read()
+    except OSError as e:
+        sys.exit(f"ERROR: cannot read --license-text {path}: {e}")
+
+
+def build_extracted_licensing_infos(license_expr, license_text):
+    """Return SPDX `hasExtractedLicensingInfos` array for license_expr.
+
+    SPDX 2.3 §10 requires every LicenseRef-* used in `licenseConcluded`/
+    `licenseDeclared` to be declared once at document level via
+    `hasExtractedLicensingInfos`.  Returns None when no LicenseRef-* is
+    present so the caller can omit the field entirely.
+    """
+    refs = extract_license_refs(license_expr)
+    if not refs:
+        return None
+    if license_text is None:
+        license_text = (
+            'NOASSERTION. The text for this LicenseRef has not been '
+            'embedded in the SBOM. Provide it via the gen-sbom '
+            '--license-text PATH flag (or `make sbom SBOM_LICENSE_TEXT=...`).'
+        )
+    infos = []
+    for ref in refs:
+        infos.append({
+            'licenseId': ref,
+            'extractedText': license_text,
+            'name': ref[len('LicenseRef-'):].replace('-', ' ').strip(),
+        })
+    return infos
+
+
+def cdx_license_block(license_expr, license_text):
+    """Return the CycloneDX `licenses[]` entry for an arbitrary SPDX
+    expression.  CDX 1.6 distinguishes:
+      * `license.id`      - an entry from the SPDX licence list
+      * `license.name`    - a non-listed licence (e.g. a LicenseRef-*)
+      * `expression`      - a compound SPDX expression
+    Picking the wrong shape causes downstream tooling to reject the SBOM."""
+    if is_simple_spdx_id(license_expr):
+        return [{'license': {'id': license_expr}}]
+    refs = extract_license_refs(license_expr)
+    if len(refs) == 1 and refs[0] == license_expr:
+        block = {'name': license_expr}
+        if license_text:
+            block['text'] = {'contentType': 'text/plain', 'content': license_text}
+        return [{'license': block}]
+    return [{'expression': license_expr}]
+
+
 def detect_license(license_file):
     """Parse LICENSING file and return an SPDX license ID.
 
@@ -226,7 +306,7 @@ def spdx_dep_package(key):
     return spdx_id, pkg
 
 
-def generate_cdx(name, version, supplier, license_id, lib_hash,
+def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
                  timestamp, year, serial, enabled_deps, build_props):
     bom_ref = derived_uuid(name, version, 'package')
 
@@ -264,7 +344,7 @@ def generate_cdx(name, version, supplier, license_id, lib_hash,
                 'supplier': {'name': supplier},
                 'name': name,
                 'version': version,
-                'licenses': [{'license': {'id': license_id}}],
+                'licenses': cdx_license_block(license_id, license_text),
                 'copyright': f'Copyright (C) 2006-{year} wolfSSL Inc.',
                 'cpe': f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*',
                 'purl': f'pkg:generic/{name}@{version}',
@@ -284,7 +364,7 @@ def generate_cdx(name, version, supplier, license_id, lib_hash,
     }
 
 
-def generate_spdx(name, version, supplier, license_id, lib_hash,
+def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
                   timestamp, year, doc_ns_uuid, enabled_deps, build_props):
     build_defines = ', '.join(k for k, _ in build_props)
     wolfssl_pkg = {
@@ -331,7 +411,7 @@ def generate_spdx(name, version, supplier, license_id, lib_hash,
             'relationshipType': 'DEPENDS_ON',
         })
 
-    return {
+    doc = {
         'spdxVersion': 'SPDX-2.3',
         'dataLicense': 'CC0-1.0',
         'SPDXID': 'SPDXRef-DOCUMENT',
@@ -349,6 +429,12 @@ def generate_spdx(name, version, supplier, license_id, lib_hash,
         'packages': packages,
         'relationships': relationships,
     }
+
+    extracted = build_extracted_licensing_infos(license_id, license_text)
+    if extracted:
+        doc['hasExtractedLicensingInfos'] = extracted
+
+    return doc
 
 
 def main():
@@ -369,6 +455,13 @@ def main():
                              '(e.g. LicenseRef-wolfSSL-Commercial). Useful '
                              'for commercial licensees regenerating the SBOM '
                              'for their own product.')
+    parser.add_argument('--license-text', default='',
+                        help='Path to a plain-text licence file whose '
+                             'contents are embedded in the SBOM as the '
+                             '`extractedText` for any LicenseRef-* used in '
+                             '`--license-override`.  Required by SPDX 2.3 '
+                             'validators (e.g. pyspdxtools) for any custom '
+                             'licence reference.')
     parser.add_argument('--options-h', required=True,
                         help='Path to wolfssl/options.h for build config')
     parser.add_argument('--dep-liboqs', default='no',
@@ -418,6 +511,13 @@ def main():
                   file=sys.stderr)
             license_id = 'NOASSERTION'
 
+    license_text = load_license_text(args.license_text)
+    if extract_license_refs(license_id) and license_text is None:
+        print("WARNING: --license-override uses a LicenseRef-* but "
+              "--license-text was not provided; the SBOM will embed a "
+              "placeholder. Provide SBOM_LICENSE_TEXT=<path> for full "
+              "SPDX compliance.", file=sys.stderr)
+
     build_props = parse_options_h(args.options_h)
     lib_hash = sha256_file(args.lib)
     dt, timestamp = build_timestamp()
@@ -427,12 +527,12 @@ def main():
 
     cdx = generate_cdx(
         args.name, args.version, args.supplier,
-        license_id, lib_hash, timestamp, year, serial,
+        license_id, license_text, lib_hash, timestamp, year, serial,
         enabled_deps, build_props,
     )
     spdx = generate_spdx(
         args.name, args.version, args.supplier,
-        license_id, lib_hash, timestamp, year, doc_ns_uuid,
+        license_id, license_text, lib_hash, timestamp, year, doc_ns_uuid,
         enabled_deps, build_props,
     )
 
