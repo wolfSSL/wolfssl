@@ -357,6 +357,18 @@ SBOM_SPDX    = wolfssl-$(PACKAGE_VERSION).spdx.json
 SBOM_SPDX_TV = wolfssl-$(PACKAGE_VERSION).spdx
 sbomdir      = $(datadir)/doc/$(PACKAGE)
 
+# Shared-library / Mach-O basenames in priority order (versioned first).
+# Both `sbom:` and `bomsh:` glob for these under their own search prefixes;
+# adding a new platform-specific dynamic-library extension here updates
+# both targets at once.  Static (.a) and Windows (.dll/.lib) variants are
+# listed inline at each call-site because their ordering and prefixes
+# differ between the install tree and the build tree.
+WOLFSSL_LIB_DSO_BASENAMES = \
+    libwolfssl.so.[0-9]* \
+    libwolfssl.so \
+    libwolfssl.[0-9]*.dylib \
+    libwolfssl.dylib
+
 .PHONY: sbom install-sbom uninstall-sbom
 
 # Stage a `make install` into a private tree, discover the installed library
@@ -395,10 +407,7 @@ sbom:
 	$(MAKE) install DESTDIR=$(abs_builddir)/_sbom_staging; \
 	sbom_lib=""; \
 	for lib in \
-	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.so.[0-9]* \
-	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.so \
-	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.[0-9]*.dylib \
-	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dylib \
+	    $(addprefix "$(abs_builddir)/_sbom_staging$(libdir)"/,$(WOLFSSL_LIB_DSO_BASENAMES)) \
 	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dll \
 	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dll.a \
 	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.lib \
@@ -495,10 +504,7 @@ bomsh:
 	fi; \
 	bomsh_artifact=""; \
 	for lib in \
-	    $(abs_builddir)/src/.libs/libwolfssl.so.[0-9]* \
-	    $(abs_builddir)/src/.libs/libwolfssl.so \
-	    $(abs_builddir)/src/.libs/libwolfssl.[0-9]*.dylib \
-	    $(abs_builddir)/src/.libs/libwolfssl.dylib \
+	    $(addprefix $(abs_builddir)/src/.libs/,$(WOLFSSL_LIB_DSO_BASENAMES)) \
 	    $(abs_builddir)/src/.libs/libwolfssl.a \
 	    $(abs_builddir)/src/libwolfssl.a; do \
 	    if test -f "$$lib"; then bomsh_artifact="$$lib"; break; fi; \
