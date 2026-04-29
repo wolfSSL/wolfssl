@@ -1872,13 +1872,15 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             *processedSize = size;
             return 0;
         }
-        /* To be able to operate in stateless mode, we assume the ClientHello
-         * is in order and we use its Handshake Message number and Sequence
-         * Number for our Tx. */
-        ssl->keys.dtls_expected_peer_handshake_number =
-            ssl->keys.dtls_handshake_number =
-                ssl->keys.dtls_peer_handshake_number;
-        ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
+        if (!ssl->options.dtlsStateful) {
+            /* To be able to operate in stateless mode, we assume the
+             * ClientHello is in order and we use its Handshake Message number
+             * and Sequence Number for our Tx. */
+            ssl->keys.dtls_expected_peer_handshake_number =
+                ssl->keys.dtls_handshake_number =
+                    ssl->keys.dtls_peer_handshake_number;
+            ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
+        }
     }
 
     if (idx + fragLength > size) {
