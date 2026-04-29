@@ -1653,7 +1653,7 @@ fi
 AC_ARG_ENABLE([tailscale],
     [AS_HELP_STRING([--enable-tailscale],[Enable Tailscale build dependencies (default: disabled)])],
     [ ENABLED_TAILSCALE=$enableval ],
-    [ ENABLED_TAILSCALE=${enable_tailscale:-no} ]
+    [ ENABLED_TAILSCALE=no ]
     )
 if test "$ENABLED_TAILSCALE" = "yes"
 then
