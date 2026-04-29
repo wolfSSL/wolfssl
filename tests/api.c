@@ -22141,10 +22141,12 @@ static int test_PathLenNoKeyUsage(void)
 static int test_ParseSerial0FixtureMatrix(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
     defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_NO_PEM) && \
     !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
     !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    /* Fixture certs are RSA-2048; NO_RSA builds can't parse them. Mirrors
+     * the gate on the sibling test_SerialNumber0_RootCA. */
     /* Each case asserts a policy outcome (accept vs reject), not a specific
      * error code. wc_ParseCert can fail via several distinct codes
      * (ASN_PARSE_E, ASN_UNKNOWN_OID_E, etc.) depending on which
