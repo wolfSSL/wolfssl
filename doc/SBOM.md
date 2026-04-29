@@ -86,10 +86,20 @@ wrong value.
 #### Dual licensing
 
 wolfSSL is available under `GPL-3.0-only` for open-source use, with a
-commercial license for proprietary products.  The SBOM reflects the
-open-source license.  Commercial licensees should update the
-`licenseConcluded` field to `LicenseRef-wolfSSL-Commercial` or their
-applicable SPDX expression when distributing under a commercial agreement.
+commercial license for proprietary products.  The default SBOM reflects the
+open-source license.  Commercial licensees should regenerate the SBOM with
+`--license-override` set to their applicable SPDX expression — the generator
+exposes this directly:
+
+```sh
+python3 scripts/gen-sbom \
+    --license-override LicenseRef-wolfSSL-Commercial \
+    ... other flags ...
+```
+
+The override is also forwarded by `make sbom` if you set the
+`SBOM_LICENSE_OVERRIDE` make variable, e.g.
+`make sbom SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial`.
 
 #### External dependency version detection
 
@@ -101,8 +111,11 @@ typically built against a source checkout rather than an installed package.
 The generator falls back to `git describe --tags --always` on the source
 tree root (passed via `configure` as `XMSS_ROOT` / `LIBLMS_ROOT`).  If the
 source tree has no tags, `git describe` returns the short commit hash, which
-is recorded as-is.  If the source tree is unavailable or `git` is not found,
-version is recorded as `NOASSERTION`.
+is recorded as-is.  If the source tree is unavailable or `git` is not found:
+
+- SPDX records `versionInfo: NOASSERTION` and emits no `purl` external ref.
+- CycloneDX omits the `version` and `purl` fields entirely and the generator
+  prints a warning to stderr.
 
 ### Validating the SBOM manually
 
