@@ -3455,7 +3455,10 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#ifdef WOLFSSL_IP_ALT_NAME
+        /* iPAddress is parsed unconditionally so ConfirmNameConstraints
+         * can enforce permitted/excluded iPAddress subtrees
+         * (RFC 5280 Sec. 4.2.1.10). WOLFSSL_IP_ALT_NAME only gates the
+         * human-readable ipString form. */
         else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
             DNS_entry* ipAddr;
             int strLen;
@@ -3490,6 +3493,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             XMEMCPY((void *)(wc_ptr_t)ipAddr->name, &input[idx], strLen);
             ((char *)(wc_ptr_t)ipAddr->name)[strLen] = '\0';
 
+#ifdef WOLFSSL_IP_ALT_NAME
             if (GenerateDNSEntryIPString(ipAddr, cert->heap) != 0) {
                 WOLFSSL_MSG("\tOut of Memory for IP string");
                 XFREE((void *)(wc_ptr_t)ipAddr->name, cert->heap,
@@ -3497,6 +3501,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 XFREE(ipAddr, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
+#endif /* WOLFSSL_IP_ALT_NAME */
             AddAltName(cert, ipAddr);
 
             if (strLen > length) {
@@ -3505,8 +3510,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* WOLFSSL_IP_ALT_NAME */
-#ifdef WOLFSSL_RID_ALT_NAME
+        /* registeredID is parsed unconditionally so ConfirmNameConstraints
+         * can enforce permitted/excluded subtrees (RFC 5280 Sec. 4.2.1.10).
+         * WOLFSSL_RID_ALT_NAME only gates the human-readable ridString. */
         else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
             DNS_entry* rid;
             int strLen;
@@ -3542,6 +3548,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             XMEMCPY((void *)(wc_ptr_t)rid->name, &input[idx], strLen);
             ((char *)(wc_ptr_t)rid->name)[strLen] = '\0';
 
+#ifdef WOLFSSL_RID_ALT_NAME
             if (GenerateDNSEntryRIDString(rid, cert->heap) != 0) {
                 WOLFSSL_MSG("\tOut of Memory for registered Id string");
                 XFREE((void *)(wc_ptr_t)rid->name, cert->heap,
@@ -3549,6 +3556,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
+#endif /* WOLFSSL_RID_ALT_NAME */
 
             AddAltName(cert, rid);
 
@@ -3558,7 +3566,6 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* WOLFSSL_RID_ALT_NAME */
 #endif /* IGNORE_NAME_CONSTRAINTS */
         else if (current_byte ==
                 (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
@@ -4054,9 +4061,11 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         /* Get type, LSB 4-bits */
         bType = (byte)(b & ASN_TYPE_MASK);
 
+        /* registeredID is included so ConfirmNameConstraints can enforce
+         * permitted/excluded subtrees of OIDs (RFC 5280 Sec. 4.2.1.10). */
         if (bType == ASN_DNS_TYPE || bType == ASN_RFC822_TYPE ||
             bType == ASN_DIR_TYPE || bType == ASN_IP_TYPE ||
-            bType == ASN_URI_TYPE) {
+            bType == ASN_URI_TYPE || bType == ASN_RID_TYPE) {
             Base_entry* entry;
 
             /* if constructed has leading sequence */

@@ -37,6 +37,8 @@ int test_wolfSSL_CertManagerNameConstraint4(void);
 int test_wolfSSL_CertManagerNameConstraint5(void);
 int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void);
 int test_wolfSSL_CertManagerNameConstraint_IP_SAN(void);
+int test_wolfSSL_CertManagerNameConstraint_RID_SAN(void);
+int test_wolfSSL_X509_get_ext_d2i_RID_SAN(void);
 int test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback(void);
 int test_wolfSSL_CertManagerCRL(void);
 int test_wolfSSL_CRL_reason_extensions_cleanup(void);
@@ -62,6 +64,8 @@ int test_wolfSSL_CertManagerRejectMD5Cert(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint5),    \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint_DNS_CN), \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint_IP_SAN), \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint_RID_SAN), \
+    TEST_DECL_GROUP("certman", test_wolfSSL_X509_get_ext_d2i_RID_SAN),       \
     TEST_DECL_GROUP("certman",                                              \
         test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback),              \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCRL),                \

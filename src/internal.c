@@ -13470,7 +13470,9 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
          * cannot match anything here; treat them as absent so a cert
          * presenting only iPAddress SANs still falls back to CN as it
          * did before iPAddress entries were unconditionally added to
-         * altNames for name-constraint enforcement. */
+         * altNames for name-constraint enforcement. The same reasoning
+         * applies to registeredID entries: hostname matching against an
+         * OID is not meaningful, so they never count toward *checkCN. */
         DNS_entry* a = altName;
         *checkCN = 1;
         for (; a != NULL; a = a->next) {
@@ -13478,6 +13480,8 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
             if (a->type == ASN_IP_TYPE)
                 continue;
 #endif
+            if (a->type == ASN_RID_TYPE)
+                continue;
             *checkCN = 0;
             break;
         }
@@ -13501,6 +13505,13 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
         if ((isIP && (altName->type != ASN_IP_TYPE)) ||
                 (!isIP && (altName->type == ASN_IP_TYPE))) {
             WOLFSSL_MSG("\tAltName type mismatch, continue");
+            continue;
+        }
+
+        /* registeredID entries hold raw OID bytes; they are not eligible
+         * for hostname matching regardless of build flags. */
+        if (altName->type == ASN_RID_TYPE) {
+            WOLFSSL_MSG("\tAltName is registeredID, skipping for hostname");
             continue;
         }
 
