@@ -35,6 +35,19 @@ jobs:
           - name: SHA256
             extra_config: --disable-sha224
             cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA256
+          # WOLF_CRYPTO_CB_ONLY_AES: strips software AES; swdev provides the
+          # software path via cryptocb.
+          - name: AES
+            cppflags: -DWOLF_CRYPTO_CB_ONLY_AES
+          # All four ONLY_* macros at once: every supported software primitive
+          # is stripped and dispatched through cryptocb.  Catches any cross-
+          # algorithm call that a single-strip entry would still resolve via
+          # the remaining software paths.
+          - name: ALL
+            extra_config: --disable-sha224
+            cppflags: >-
+              -DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA
+              -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_AES
     name: make check (${{ matrix.name }})
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
