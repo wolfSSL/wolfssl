@@ -2,5 +2,15 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-EXTRA_DIST+= IDE/WICED-STUDIO/README
+EXTRA_DIST+= IDE/WICED-STUDIO/README.md
 EXTRA_DIST+= IDE/WICED-STUDIO/user_settings.h
+EXTRA_DIST+= IDE/WICED-STUDIO/wiced_patch.diff
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfssl_lib.mk
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfcrypt_test/wolfcrypt_test.mk
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfcrypt_test/wolfcrypt_test.c
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfssl_https_client/wolfssl_https_client.mk
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfssl_https_client/wolfssl_https_client.c
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfssl_tls_client/wolfssl_tls_client.mk
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfssl_tls_client/wolfssl_tls_client.c
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfssl_tls_server/wolfssl_tls_server.mk
+EXTRA_DIST+= IDE/WICED-STUDIO/wolfssl_tls_server/wolfssl_tls_server.c
