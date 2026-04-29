@@ -10621,7 +10621,8 @@ static int test_tls_ext_word16_overflow(void)
         ExpectIntEQ(TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap),
             WOLFSSL_SUCCESS);
         /* TLSX_UseSessionTicket takes ownership on success. */
-        ticket = NULL;
+        if (EXPECT_SUCCESS())
+            ticket = NULL;
     }
 
     /* TLSX_GetRequestSize must refuse to encode: 4-byte ext header +
@@ -10697,7 +10698,8 @@ static int test_tls_ext_word16_overflow(void)
         if (EXPECT_SUCCESS() && ticket2 != NULL) {
             ExpectIntEQ(TLSX_UseSessionTicket(&ssl2->extensions, ticket2,
                                               ssl2->heap), WOLFSSL_SUCCESS);
-            ticket2 = NULL;
+            if (EXPECT_SUCCESS())
+                ticket2 = NULL;
         }
 
         /* Exact boundary: internal sum == 0xFFFD must succeed, and the
