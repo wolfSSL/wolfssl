@@ -27897,37 +27897,40 @@ static int test_wolfSSL_OpenSSL_version(void)
 
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_VERSION));
-    ExpectIntEQ(XMEMCMP(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING,
-        XSTRLEN("wolfSSL " LIBWOLFSSL_VERSION_STRING)), 0);
+    ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
 
     /* Test OPENSSL_CFLAGS type */
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_CFLAGS));
-    ExpectNotNull(XSTRSTR(ver, "compiler:"));
+    ExpectStrEQ(ver, "compiler: information not available");
 
     /* Test OPENSSL_BUILT_ON type */
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_BUILT_ON));
-    ExpectNotNull(XSTRSTR(ver, "built on:"));
+#ifdef HAVE_REPRODUCIBLE_BUILD
+    ExpectStrEQ(ver, "built on: date not available");
+#else
+    /* __DATE__/__TIME__ differ between translation units, so just check
+     * the prefix is present. */
+    ExpectNotNull(XSTRSTR(ver, "built on: "));
+#endif
 
     /* Test OPENSSL_PLATFORM type */
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_PLATFORM));
-    ExpectNotNull(XSTRSTR(ver, "platform:"));
+    ExpectStrEQ(ver, "platform: information not available");
 
     /* Test OPENSSL_DIR type */
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_DIR));
-    ExpectNotNull(XSTRSTR(ver, "OPENSSLDIR:"));
+    ExpectStrEQ(ver, "OPENSSLDIR: N/A");
 
     /* Test OPENSSL_ENGINES_DIR type */
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_ENGINES_DIR));
-    ExpectNotNull(XSTRSTR(ver, "ENGINESDIR:"));
+    ExpectStrEQ(ver, "ENGINESDIR: N/A");
 
     /* Test unknown type falls back to version string */
     ExpectNotNull(ver = OpenSSL_version(99));
-    ExpectIntEQ(XMEMCMP(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING,
-        XSTRLEN("wolfSSL " LIBWOLFSSL_VERSION_STRING)), 0);
+    ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
 #else
     ExpectNotNull(ver = OpenSSL_version());
-    ExpectIntEQ(XMEMCMP(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING,
-        XSTRLEN("wolfSSL " LIBWOLFSSL_VERSION_STRING)), 0);
+    ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
 #endif
 #endif
     return EXPECT_RESULT();
