@@ -41,6 +41,7 @@ int test_dtls13_short_read(void);
 int test_records_span_network_boundaries(void);
 int test_dtls_record_cross_boundaries(void);
 int test_dtls_rtx_across_epoch_change(void);
+int test_dtls13_ch2_rtx_no_ch1(void);
 int test_dtls_drop_client_ack(void);
 int test_dtls_bogus_finished_epoch_zero(void);
 int test_dtls_replay(void);
@@ -75,6 +76,7 @@ int test_dtls13_oversized_cert_chain(void);
         TEST_DECL_GROUP("dtls", test_records_span_network_boundaries),         \
         TEST_DECL_GROUP("dtls", test_dtls_record_cross_boundaries),            \
         TEST_DECL_GROUP("dtls", test_dtls_rtx_across_epoch_change),            \
+        TEST_DECL_GROUP("dtls", test_dtls13_ch2_rtx_no_ch1),                   \
         TEST_DECL_GROUP("dtls", test_dtls_drop_client_ack),                    \
         TEST_DECL_GROUP("dtls", test_dtls_bogus_finished_epoch_zero),          \
         TEST_DECL_GROUP("dtls", test_dtls_replay),                             \

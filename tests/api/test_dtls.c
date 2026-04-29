@@ -1836,6 +1836,98 @@ int test_dtls_rtx_across_epoch_change(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS)
+static int test_dtls13_get_message_seq(const char* msg, int msgSz,
+    word16* msgSeq)
+{
+    int hsOff = DTLS_RECORD_HEADER_SZ;
+
+    if (msg == NULL || msgSeq == NULL ||
+            msgSz < DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    *msgSeq = ((word16)(byte)msg[hsOff + 4] << 8) |
+              (word16)(byte)msg[hsOff + 5];
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
+int test_dtls13_ch2_rtx_no_ch1(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* msg = NULL;
+    int msgSz = 0;
+    word16 ch1Seq = 0;
+    int i;
+    int foundCh1Seq = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method),
+        0);
+
+    /* To force HRR */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_get_message(&test_ctx, 0, &msg, &msgSz, 0), 0);
+    ExpectIntGE(msgSz, DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ);
+    ExpectIntEQ(test_dtls13_get_message_seq(msg, msgSz, &ch1Seq),
+        WOLFSSL_SUCCESS);
+
+    /* HRR */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(test_ctx.c_msg_count, 0);
+
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(test_ctx.s_msg_count, 0);
+
+    /* Drop CH2 and trigger the client retransmission timeout. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    if (wolfSSL_dtls13_use_quick_timeout(ssl_c))
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.s_msg_count, 0);
+
+    for (i = 0; i < test_ctx.s_msg_count && EXPECT_SUCCESS(); i++) {
+        int hsOff = DTLS_RECORD_HEADER_SZ;
+        word16 msgSeq = 0;
+
+        ExpectIntEQ(test_memio_get_message(&test_ctx, 0, &msg, &msgSz, i), 0);
+        /* memio stores one DTLS record per message in this handshake path. */
+        if (msgSz >= DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ &&
+                (byte)msg[0] == handshake && msg[hsOff] == client_hello) {
+            ExpectIntEQ(test_dtls13_get_message_seq(msg, msgSz, &msgSeq),
+                WOLFSSL_SUCCESS);
+            if (msgSeq == ch1Seq)
+                foundCh1Seq = 1;
+        }
+    }
+
+    ExpectIntEQ(foundCh1Seq, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls_drop_client_ack(void)
 {
     EXPECT_DECLS;
