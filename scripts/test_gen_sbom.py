@@ -18,6 +18,7 @@ import pathlib
 import tempfile
 import unittest
 import uuid
+from datetime import datetime, timedelta, timezone
 from importlib.machinery import SourceFileLoader
 
 
@@ -226,15 +227,24 @@ class TestBuildTimestamp(unittest.TestCase):
     def test_invalid_sde_falls_back_to_now(self):
         os.environ['SOURCE_DATE_EPOCH'] = 'not-a-number'
         dt, ts = gs.build_timestamp()
-        # Should still produce a UTC ISO-Z timestamp; we only check shape.
+        # Shape check.
         self.assertRegex(
             ts, r'\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z')
+        # Freshness check: regression guard against a future change that
+        # accidentally hard-codes the fallback (e.g. epoch zero).  Five
+        # seconds is generous for a unit test on slow runners.
+        self.assertLess(
+            abs(dt - datetime.now(tz=timezone.utc)),
+            timedelta(seconds=5))
 
     def test_no_sde_is_current_utc(self):
         os.environ.pop('SOURCE_DATE_EPOCH', None)
-        _, ts = gs.build_timestamp()
+        dt, ts = gs.build_timestamp()
         self.assertRegex(
             ts, r'\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z')
+        self.assertLess(
+            abs(dt - datetime.now(tz=timezone.utc)),
+            timedelta(seconds=5))
 
 
 class TestLoadLicenseText(unittest.TestCase):
@@ -255,6 +265,27 @@ class TestLoadLicenseText(unittest.TestCase):
     def test_missing_file_exits(self):
         with self.assertRaises(SystemExit):
             gs.load_license_text('/no/such/path/please.txt')
+
+
+class TestSha256File(unittest.TestCase):
+    def test_real_file_hashes_to_known_value(self):
+        # Empty file's SHA-256 is well-known; sanity-checks the chunked
+        # read path produces the same digest as a one-shot hash.
+        with tempfile.NamedTemporaryFile('wb', delete=False) as f:
+            path = f.name
+        try:
+            empty_sha256 = ('e3b0c44298fc1c149afbf4c8996fb924'
+                            '27ae41e4649b934ca495991b7852b855')
+            self.assertEqual(gs.sha256_file(path), empty_sha256)
+        finally:
+            os.unlink(path)
+
+    def test_missing_file_exits_cleanly(self):
+        # Regression guard: gen-sbom must surface a missing --lib path as
+        # a clean non-zero exit, not an unhandled OSError, so `make sbom`
+        # fails fast with a useful message instead of a Python traceback.
+        with self.assertRaises(SystemExit):
+            gs.sha256_file('/no/such/library/please.so')
 
 
 class TestParseOptionsH(unittest.TestCase):
