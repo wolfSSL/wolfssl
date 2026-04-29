@@ -713,7 +713,15 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * to restore the legacy permissive behavior.
              */
             if (!issuer->isCa) {
-                /* error depth is current depth + 1 */
+                /* error depth is current depth + 1.  The compat alias
+                 * X509_V_ERR_INVALID_CA (= 79) lives in wolfssl/openssl/x509.h
+                 * which is not always pulled into this translation unit
+                 * (e.g. some linuxkm build chains).  Define a local fallback
+                 * so callers reading X509_STORE_CTX_get_error() see the
+                 * OpenSSL-compatible value. */
+            #ifndef X509_V_ERR_INVALID_CA
+                #define X509_V_ERR_INVALID_CA 79
+            #endif
                 SetupStoreCtxError_ex(ctx, X509_V_ERR_INVALID_CA,
                                 (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
             #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
