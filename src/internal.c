@@ -38468,6 +38468,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 if((ret=ALPN_Select(ssl)))
                     goto out;
     #endif
+    #if defined(HAVE_SESSION_TICKET) && \
+        (defined(HAVE_SNI) || defined(HAVE_ALPN))
+                if((ret=VerifyTicketBinding(ssl)))
+                    goto out;
+    #endif
 
                 i += totalExtSz;
 #else
@@ -39250,8 +39255,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     }
 
 #ifdef HAVE_SNI
-    /* Hash the server-selected SNI into dst (TICKET_BINDING_HASH_SZ bytes).
-     * Zeros dst when no SNI is present. */
+    /* Hash server-selected SNI; zeros dst when none. */
     static int TicketSniHash(WOLFSSL* ssl, byte* dst)
     {
         char* name = NULL;
@@ -39271,8 +39275,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
 
 #ifdef HAVE_ALPN
-    /* Hash the negotiated ALPN protocol into dst (TICKET_BINDING_HASH_SZ
-     * bytes).  Zeros dst when no ALPN was negotiated. */
+    /* Hash negotiated ALPN; zeros dst when none. */
     static int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
     {
         char* proto = NULL;
@@ -39286,6 +39289,38 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
         XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
+        return 0;
+    }
+#endif
+
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
+    /* Server-side: verify the SNI/ALPN bindings carried on a resumed
+     * session match what was negotiated for the current connection.
+     * Must be called after extension parsing and ALPN_Select.
+     * Returns 0 on match, WOLFSSL_FATAL_ERROR on mismatch. */
+    int VerifyTicketBinding(WOLFSSL* ssl)
+    {
+        byte curHash[TICKET_BINDING_HASH_SZ];
+
+        if (!ssl->options.resuming || !ssl->options.useTicket)
+            return 0;
+
+#ifdef HAVE_SNI
+        if (TicketSniHash(ssl, curHash) != 0 ||
+                XMEMCMP(curHash, ssl->session->sniHash,
+                        TICKET_BINDING_HASH_SZ) != 0) {
+            WOLFSSL_MSG("Ticket SNI mismatch");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
+#ifdef HAVE_ALPN
+        if (TicketAlpnHash(ssl, curHash) != 0 ||
+                XMEMCMP(curHash, ssl->session->alpnHash,
+                        TICKET_BINDING_HASH_SZ) != 0) {
+            WOLFSSL_MSG("Ticket ALPN mismatch");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
         return 0;
     }
 #endif
@@ -39755,28 +39790,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         ssl->sessionCtxSz) != 0))
             return WOLFSSL_FATAL_ERROR;
 #endif
-#ifdef HAVE_SNI
-        {
-            byte curHash[TICKET_BINDING_HASH_SZ];
-            if (TicketSniHash((WOLFSSL*)ssl, curHash) != 0 ||
-                    XMEMCMP(curHash, psk->it->sniHash,
-                            TICKET_BINDING_HASH_SZ) != 0) {
-                WOLFSSL_MSG("Ticket SNI mismatch");
-                return WOLFSSL_FATAL_ERROR;
-            }
-        }
-#endif
-#ifdef HAVE_ALPN
-        {
-            byte curHash[TICKET_BINDING_HASH_SZ];
-            if (TicketAlpnHash((WOLFSSL*)ssl, curHash) != 0 ||
-                    XMEMCMP(curHash, psk->it->alpnHash,
-                            TICKET_BINDING_HASH_SZ) != 0) {
-                WOLFSSL_MSG("Ticket ALPN mismatch");
-                return WOLFSSL_FATAL_ERROR;
-            }
-        }
-#endif
+        /* SNI/ALPN binding is verified after ALPN_Select via
+         * VerifyTicketBinding(). */
         return 0;
     }
 #endif /* WOLFSSL_SLT13 */
@@ -39871,6 +39886,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                             " found in the ticket");
             }
         }
+#endif
+        /* Carry the ticket bindings on the session for the deferred
+         * VerifyTicketBinding() check. */
+#ifdef HAVE_SNI
+        XMEMCPY(ssl->session->sniHash, it->sniHash, TICKET_BINDING_HASH_SZ);
+#endif
+#ifdef HAVE_ALPN
+        XMEMCPY(ssl->session->alpnHash, it->alpnHash, TICKET_BINDING_HASH_SZ);
 #endif
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
@@ -40231,31 +40254,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             goto cleanup;
         }
 
-#ifdef HAVE_SNI
-        {
-            byte curHash[TICKET_BINDING_HASH_SZ];
-            if (TicketSniHash(ssl, curHash) != 0 ||
-                    XMEMCMP(curHash, it->sniHash,
-                            TICKET_BINDING_HASH_SZ) != 0) {
-                WOLFSSL_MSG("Ticket SNI mismatch");
-                decryptRet = WOLFSSL_TICKET_RET_REJECT;
-                goto cleanup;
-            }
-        }
-#endif
-#ifdef HAVE_ALPN
-        {
-            byte curHash[TICKET_BINDING_HASH_SZ];
-            if (TicketAlpnHash(ssl, curHash) != 0 ||
-                    XMEMCMP(curHash, it->alpnHash,
-                            TICKET_BINDING_HASH_SZ) != 0) {
-                WOLFSSL_MSG("Ticket ALPN mismatch");
-                decryptRet = WOLFSSL_TICKET_RET_REJECT;
-                goto cleanup;
-            }
-        }
-#endif
-
+        /* SNI/ALPN binding is verified after ALPN_Select via
+         * VerifyTicketBinding(). */
         DoClientTicketFinalize(ssl, it, NULL);
 
 cleanup:

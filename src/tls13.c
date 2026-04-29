@@ -7556,6 +7556,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if ((ret = ALPN_Select(ssl)) != 0)
         goto exit_dch;
 #endif
+#if defined(HAVE_SESSION_TICKET) && (defined(HAVE_SNI) || defined(HAVE_ALPN))
+    if ((ret = VerifyTicketBinding(ssl)) != 0)
+        goto exit_dch;
+#endif
     } /* case TLS_ASYNC_BEGIN */
     FALL_THROUGH;
 
