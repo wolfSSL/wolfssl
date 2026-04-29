@@ -1705,6 +1705,200 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_CertManagerNameConstraint_IP_SAN(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* Regression test for TALOS-2026-2409 (CVE-2026-28739).
+     *
+     * The CA at cert-ext-ncip.der declares a permittedSubtrees iPAddress
+     * constraint of 192.168.1.0/255.255.255.0. A leaf with an iPAddress
+     * SAN outside that subnet must be rejected. Prior to the fix, default
+     * builds (without WOLFSSL_IP_ALT_NAME) silently skipped iPAddress SANs
+     * during parsing, so the constraint loop saw no IP entries and the
+     * leaf was accepted.
+     *
+     * The bypass only existed when WOLFSSL_IP_ALT_NAME was undefined (the
+     * default). To exercise the regression target, this test must run in a
+     * configuration without --enable-ip-alt-name and without
+     * --enable-opensslall (which implies WOLFSSL_IP_ALT_NAME via
+     * settings.h). With WOLFSSL_IP_ALT_NAME defined the same assertions
+     * still hold, but the negative case there is enforcement of an
+     * already-working path rather than the regression itself.
+     *
+     * Scope: this test exercises the permittedSubtrees code path. The
+     * excludedSubtrees path uses the same parsing plumbing
+     * (DecodeGeneralName -> SetDNSEntry into cert->altNames) and the same
+     * ConfirmNameConstraints walk; the TALOS bug was strictly about
+     * iPAddress entries being absent from cert->altNames, so once that is
+     * fixed both directions are restored. The pre-existing
+     * test_wolfSSL_NAME_CONSTRAINTS_excluded test exercises the excluded
+     * direction more broadly. */
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_EVP_PKEY *priv = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    const char* ca_cert = "./certs/test/cert-ext-ncip.der";
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    /* Raw IPv4 bytes for SAN values (not dotted-quad strings). */
+    static const byte ip_inside[]  = { 192, 168, 1, 10 };  /* permitted */
+    static const byte ip_outside[] = {  10,   0, 0,  1 };  /* violates */
+
+    byte    *der = NULL;
+    int     derSz;
+    byte    *pt;
+    WOLFSSL_X509 *x509 = NULL;
+    WOLFSSL_X509 *ca = NULL;
+
+    pt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
+                WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* Negative case: leaf with IP SAN outside permitted subnet. Must be
+     * rejected with ASN_NAME_INVALID_E. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+
+    /* Use add_altname_ex with raw IP bytes so the test runs in default
+     * builds where add_altname (string form) requires WOLFSSL_IP_ALT_NAME. */
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)ip_outside,
+                sizeof(ip_outside), ASN_IP_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Positive case: leaf with IP SAN inside the permitted subnet must be
+     * accepted. Confirms the fix does not over-reject. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)ip_inside,
+                sizeof(ip_inside), ASN_IP_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CertManagerFree(cm);
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(ca);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256)
+    /* Companion regression test for the CheckForAltNames CN-fallback
+     * preservation introduced alongside TALOS-2026-2409.
+     *
+     * Once iPAddress SAN entries are unconditionally added to altNames
+     * (so name constraints can be enforced), a leaf that presents only
+     * iPAddress SANs would suppress CN fallback in CheckForAltNames in
+     * default builds, where the iPAddress matching path is compiled out.
+     * That would silently break TLS hostname verification for callers
+     * that previously relied on the CN fallback. The fix in
+     * src/internal.c treats iPAddress entries as absent for the
+     * *checkCN decision when WOLFSSL_IP_ALT_NAME is undefined.
+     *
+     * This test pins both directions:
+     *   - default build (no WOLFSSL_IP_ALT_NAME): IP-only-SAN cert with a
+     *     matching CN must succeed via CN fallback.
+     *   - WOLFSSL_IP_ALT_NAME defined: the same cert must fail because
+     *     the SAN presence suppresses CN fallback (RFC 6125 compliant).
+     * Independently, a cert with a non-matching DNS SAN must always fail
+     * regardless of build flags, since DNS SAN presence unambiguously
+     * suppresses CN fallback. */
+    WOLFSSL_EVP_PKEY *priv = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    const char hostName[] = "cnhost.local";
+    static const byte ip_san[] = { 10, 0, 0, 1 };
+    byte    *pt;
+    WOLFSSL_X509 *leafIp = NULL;
+    WOLFSSL_X509 *leafDns = NULL;
+
+    pt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    /* Leaf with CN matching hostName and only an iPAddress SAN. */
+    ExpectNotNull(leafIp = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                (byte*)hostName, (int)XSTRLEN(hostName), -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(leafIp, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(leafIp, (const char*)ip_san,
+                sizeof(ip_san), ASN_IP_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(leafIp, priv, EVP_sha256()), 0);
+
+#ifndef WOLFSSL_IP_ALT_NAME
+    /* Default build: iPAddress entries are present in altNames for
+     * constraint enforcement but treated as absent for *checkCN, so the
+     * lookup falls back to the Subject CN, which matches. */
+    ExpectIntEQ(wolfSSL_X509_check_host(leafIp, hostName, XSTRLEN(hostName),
+                0, NULL), WOLFSSL_SUCCESS);
+#else
+    /* IP_ALT_NAME build: SAN presence suppresses CN fallback per RFC 6125.
+     * The hostName ("cnhost.local") cannot match the iPAddress entry, so
+     * the check must fail. */
+    ExpectIntEQ(wolfSSL_X509_check_host(leafIp, hostName, XSTRLEN(hostName),
+                0, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#endif
+
+    /* Leaf with CN matching hostName but a non-matching DNS SAN. CN
+     * fallback must be suppressed in every build (DNS SAN unambiguously
+     * counts toward *checkCN), so the check must fail. This pins the
+     * other side of the boundary so a future change that broadly skips
+     * altNames in *checkCN does not silently regress. */
+    ExpectNotNull(leafDns = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                (byte*)hostName, (int)XSTRLEN(hostName), -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(leafDns, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname(leafDns, "other.example",
+                ASN_DNS_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(leafDns, priv, EVP_sha256()), 0);
+    ExpectIntEQ(wolfSSL_X509_check_host(leafDns, hostName, XSTRLEN(hostName),
+                0, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    wolfSSL_X509_free(leafIp);
+    wolfSSL_X509_free(leafDns);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CertManagerCRL(void)
 {
     EXPECT_DECLS;

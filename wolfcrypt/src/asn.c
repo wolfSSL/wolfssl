@@ -18115,8 +18115,32 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
-    #ifdef WOLFSSL_IP_ALT_NAME
-    /* GeneralName choice: iPAddress */
+    /* GeneralName choice: iPAddress
+     *
+     * Always parse iPAddress into cert->altNames so ConfirmNameConstraints
+     * can enforce permitted/excluded iPAddress subtrees (RFC 5280
+     * Sec. 4.2.1.10). The entry holds raw 4/16 octet payloads;
+     * WOLFSSL_IP_ALT_NAME still gates the human-readable ipString
+     * generation in SetDNSEntry.
+     *
+     * Consequences for downstream consumers when WOLFSSL_IP_ALT_NAME is
+     * undefined:
+     *   - wolfSSL_X509_get_next_altname (string iterator): explicitly
+     *     skips iPAddress entries, since returning raw bytes as a C
+     *     string would truncate at any embedded NUL. This preserves the
+     *     pre-fix behavior for that getter.
+     *   - CheckForAltNames (TLS hostname matching): the iPAddress branch
+     *     is compiled out, so iPAddress entries cannot match anything;
+     *     they are also excluded from the *checkCN decision so an
+     *     IP-only-SAN cert still falls back to CN matching as before.
+     *   - All other altNames walkers (e.g. ALT_NAMES_OID handling in
+     *     wolfSSL_X509_get_ext_d2i, wolfssl_x509_alt_names_to_gn,
+     *     FlattenAltNames in cert generation) now see iPAddress entries
+     *     unconditionally. This is intentional and brings wolfSSL closer
+     *     to OpenSSL's SAN-exposure semantics; the OPENSSL_EXTRA APIs
+     *     surface the raw octets as OCTET_STRING already (see the
+     *     ASN_IP_TYPE case under WOLFSSL_GEN_IPADD in src/x509.c).
+     */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
         ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
                 ASN_IP_TYPE, &cert->altNames);
@@ -18124,7 +18148,6 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
-    #endif /* WOLFSSL_IP_ALT_NAME */
     #ifdef WOLFSSL_RID_ALT_NAME
     /* GeneralName choice: registeredID */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
@@ -37018,7 +37041,15 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
     }
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
                                             defined(WOLFSSL_IP_ALT_NAME)
-    /* GeneralName choice: iPAddress */
+    /* GeneralName choice: iPAddress
+     *
+     * Asymmetric with the X.509 DecodeGeneralName path on purpose:
+     * attribute-certificate names (RFC 5755) are not consumed by
+     * ConfirmNameConstraints, which only walks DecodedCert lists. These
+     * entries flow into AC holder/issuer name fields where the iPAddress
+     * is only consumed by callers that opt in (Qt, OpenSSL_ALL, or the
+     * IP-SAN compat layer). If iPAddress name-constraint enforcement is
+     * ever extended to attribute certificates, this gate must drop. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
         ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
                           ASN_IP_TYPE, entries);
@@ -37026,7 +37057,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
             idx += (word32)len;
         }
     }
-    #endif /* WOLFSSL_QT || OPENSSL_ALL */
+    #endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
     #ifdef OPENSSL_ALL
     /* GeneralName choice: registeredID */

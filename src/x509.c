@@ -4262,6 +4262,25 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
         return NULL;
     }
 
+#ifndef WOLFSSL_IP_ALT_NAME
+    /* In default builds iPAddress entries hold raw 4/16 octet payloads
+     * (no human-readable ipString), so returning them as a C string would
+     * truncate at any embedded NUL byte. Such entries are still parsed
+     * into altNames for name-constraint enforcement; skip them here so
+     * string-iteration callers see the same set of entries as before.
+     *
+     * With WOLFSSL_MULTICIRCULATE_ALTNAMELIST, a list consisting only of
+     * iPAddress entries collapses to "no entries" on the first pass and
+     * resets to head on the next call; the cycle shape matches the
+     * pre-fix behavior where such entries were never parsed. */
+    while (cert->altNamesNext != NULL &&
+           cert->altNamesNext->type == ASN_IP_TYPE) {
+        cert->altNamesNext = cert->altNamesNext->next;
+    }
+    if (cert->altNamesNext == NULL)
+        return NULL;
+#endif
+
     /* unsafe cast required for ABI compatibility. */
     ret = (char *)(wc_ptr_t)cert->altNamesNext->name;
 #ifdef WOLFSSL_IP_ALT_NAME

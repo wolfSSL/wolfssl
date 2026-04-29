@@ -13463,8 +13463,25 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
     if (dCert != NULL)
         altName = dCert->altNames;
 
-    if (checkCN != NULL)
-        *checkCN = (altName == NULL) ? 1 : 0;
+    if (checkCN != NULL) {
+        /* CN fallback is suppressed when the cert presents any altName
+         * usable for hostname matching. Without WOLFSSL_IP_ALT_NAME the
+         * iPAddress branch below is compiled out, so iPAddress entries
+         * cannot match anything here; treat them as absent so a cert
+         * presenting only iPAddress SANs still falls back to CN as it
+         * did before iPAddress entries were unconditionally added to
+         * altNames for name-constraint enforcement. */
+        DNS_entry* a = altName;
+        *checkCN = 1;
+        for (; a != NULL; a = a->next) {
+#ifndef WOLFSSL_IP_ALT_NAME
+            if (a->type == ASN_IP_TYPE)
+                continue;
+#endif
+            *checkCN = 0;
+            break;
+        }
+    }
 
     for (; altName != NULL; altName = altName->next) {
         WOLFSSL_MSG("\tindividual AltName check");
