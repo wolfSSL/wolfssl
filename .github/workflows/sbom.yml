@@ -220,9 +220,10 @@ jobs:
           grep -q 'license-text was not provided' /tmp/err || \
               { echo "FAIL: error message missing actionable hint"; \
                 cat /tmp/err; exit 1; }
-          test ! -f wolfssl-5.9.1.spdx.json || \
-              { echo "FAIL: SBOM file should not exist after refusal"; \
-                exit 1; }
+          if ls wolfssl-*.spdx.json >/dev/null 2>&1; then
+              echo "FAIL: SBOM file should not exist after refusal"
+              exit 1
+          fi
 
       - name: License matrix - compound expression
         run: |
