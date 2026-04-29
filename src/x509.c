@@ -13766,7 +13766,11 @@ int wolfSSL_write_X509_CRL(WOLFSSL_X509_CRL* crl, const char* path, int type)
             return WOLFSSL_FAILURE;
         }
 
-        if (l <= pem_struct_min_sz) {
+        if (l == 0) {
+            /* Streaming BIO (pipe/FIFO/socket): size unknown, use the cap. */
+            l = MAX_BIO_READ_BUFFER;
+        }
+        else if (l <= pem_struct_min_sz) {
             /* No certificate in buffer */
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
             return WOLFSSL_FAILURE;
