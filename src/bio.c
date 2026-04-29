@@ -2077,6 +2077,23 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     return WOLFSSL_SUCCESS;
 }
 
+int wolfSSL_BIO_get_new_index(void)
+{
+    static int bio_type_idx = WOLFSSL_BIO_TYPE_START;
+    int idx;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_get_new_index");
+
+    idx = bio_type_idx;
+    if (idx > WOLFSSL_BIO_TYPE_MAX) {
+        WOLFSSL_MSG("BIO type index space exhausted");
+        return -1;
+    }
+    bio_type_idx++;
+
+    return idx;
+}
+
 /* creates a new custom WOLFSSL_BIO_METHOD */
 WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
 {

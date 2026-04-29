@@ -1803,5 +1803,45 @@ int test_wolfSSL_BIO_meth_type_large(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_BIO_get_new_index(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    int idx1, idx2, idx3;
+    BIO_METHOD* meth = NULL;
+    BIO* bio = NULL;
+
+    /* Get three consecutive indices - should be unique and in valid range */
+    idx1 = BIO_get_new_index();
+    idx2 = BIO_get_new_index();
+    idx3 = BIO_get_new_index();
+
+    ExpectIntGE(idx1, BIO_TYPE_START);
+    ExpectIntLE(idx1, WOLFSSL_BIO_TYPE_MAX);
+    ExpectIntGE(idx2, BIO_TYPE_START);
+    ExpectIntLE(idx2, WOLFSSL_BIO_TYPE_MAX);
+    ExpectIntGE(idx3, BIO_TYPE_START);
+    ExpectIntLE(idx3, WOLFSSL_BIO_TYPE_MAX);
+
+    /* Each index must be unique */
+    ExpectIntNE(idx1, idx2);
+    ExpectIntNE(idx2, idx3);
+    ExpectIntNE(idx1, idx3);
+
+    /* Each consecutive call must return a strictly increasing value */
+    ExpectIntGT(idx2, idx1);
+    ExpectIntGT(idx3, idx2);
+
+    /* Use returned index with BIO_meth_new */
+    ExpectNotNull(meth = BIO_meth_new(idx1, "custom_test"));
+    ExpectNotNull(bio = BIO_new(meth));
+    ExpectIntEQ(BIO_method_type(bio), idx1);
+
+    BIO_free(bio);
+    BIO_meth_free(meth);
+#endif
+    return EXPECT_RESULT();
+}
+
 #endif /* !NO_BIO */
 

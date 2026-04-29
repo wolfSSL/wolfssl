@@ -1905,6 +1905,47 @@ int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 {
     return wolfSSL_i2d_PublicKey(key, der);
 }
+
+#ifndef NO_BIO
+/* Encode public key as DER data and write to BIO.
+ *
+ * @param [in]  bio  BIO to write data to.
+ * @param [in]  key  Public key to encode.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on failure.
+ */
+int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int derSz = 0;
+    byte* der = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_PUBKEY_bio");
+
+    if (bio == NULL || key == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Let wolfSSL_i2d_PUBKEY allocate the buffer (pass NULL to trigger
+     * internal allocation). We free it ourselves after writing to the BIO. */
+    derSz = wolfSSL_i2d_PUBKEY(key, &der);
+    if (derSz <= 0 || der == NULL) {
+        WOLFSSL_MSG("wolfSSL_i2d_PUBKEY failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, der, derSz) != derSz) {
+        goto cleanup;
+    }
+
+    ret = WOLFSSL_SUCCESS;
+
+cleanup:
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* !NO_BIO */
+
 #endif /* !NO_ASN && !NO_PWDBASED */
 
 #endif /* OPENSSL_EXTRA */

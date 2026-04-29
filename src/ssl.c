@@ -10749,18 +10749,37 @@ const char* wolfSSL_lib_version(void)
 
 #ifdef OPENSSL_EXTRA
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-const char* wolfSSL_OpenSSL_version(int a)
+const char* wolfSSL_OpenSSL_version(int type)
 {
-    (void)a;
-    return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
+    WOLFSSL_ENTER("wolfSSL_OpenSSL_version");
+    switch (type) {
+        case OPENSSL_VERSION:
+            return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
+        case OPENSSL_CFLAGS:
+            return "compiler: information not available";
+        case OPENSSL_BUILT_ON:
+#ifdef HAVE_REPRODUCIBLE_BUILD
+            return "built on: date not available";
+#else
+            return "built on: " __DATE__ " " __TIME__;
+#endif
+        case OPENSSL_PLATFORM:
+            return "platform: information not available";
+        case OPENSSL_DIR:
+            return "OPENSSLDIR: N/A";
+        case OPENSSL_ENGINES_DIR:
+            return "ENGINESDIR: N/A";
+        default:
+            return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
+    }
 }
 #else
 const char* wolfSSL_OpenSSL_version(void)
 {
     return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
 }
-#endif /* WOLFSSL_QT */
-#endif
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+#endif /* OPENSSL_EXTRA */
 
 
 /* current library version in hex */
