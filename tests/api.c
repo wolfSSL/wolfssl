@@ -28472,7 +28472,7 @@ static int test_SSL_CIPHER_get_xxx(void)
 }
 
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
@@ -29476,7 +29476,7 @@ static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
 #if defined(WOLF_CRYPTO_CB) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
     /* TODO: Add crypto callback API tests */
 
@@ -36809,7 +36809,7 @@ static int test_pkcs7_padding(void)
 
     /* Encode EncryptedData */
     XMEMSET(&pkcs7, 0, sizeof(pkcs7));
-    ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID), 0);
     pkcs7.content      = plaintext;
     pkcs7.contentSz    = sizeof(plaintext);
     pkcs7.contentOID   = DATA;
@@ -36838,7 +36838,7 @@ static int test_pkcs7_padding(void)
 
         /* Decrypt modified ciphertext - must fail, not succeed */
         XMEMSET(&pkcs7, 0, sizeof(pkcs7));
-        ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID), 0);
         pkcs7.encryptionKey   = key;
         pkcs7.encryptionKeySz = sizeof(key);
 

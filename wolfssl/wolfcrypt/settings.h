@@ -5061,6 +5061,10 @@ extern void uITRON4_free(void *p) ;
     #error "AES-GCM streaming (WOLFSSL_AESGCM_STREAM)" \
            " requires AES-GCM (HAVE_AESGCM)"
 #endif
+#if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #error "AES-GCM streaming (WOLFSSL_AESGCM_STREAM)" \
+           " is not supported with WOLF_CRYPTO_CB_ONLY_AES"
+#endif
 #if defined(WOLFSSL_AESXTS_STREAM) && !defined(WOLFSSL_AES_XTS)
     #error "AES-XTS streaming (WOLFSSL_AESXTS_STREAM)" \
            " requires AES-XTS (WOLFSSL_AES_XTS)"

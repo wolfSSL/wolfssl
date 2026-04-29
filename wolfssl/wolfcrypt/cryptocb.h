@@ -384,14 +384,15 @@ typedef struct wc_CryptoInfo {
                 word32      sz;
             } aesctr;
         #endif /* WOLFSSL_AES_COUNTER */
-        #if defined(HAVE_AES_ECB)
+        #if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+            defined(WOLF_CRYPTO_CB_ONLY_AES)
             struct {
                 Aes*        aes;
                 byte*       out;
                 const byte* in;
                 word32      sz;
             } aesecb;
-        #endif /* HAVE_AES_ECB */
+        #endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT || WOLF_CRYPTO_CB_ONLY_AES */
         #ifndef NO_DES3
             struct {
                 Des3*       des;
@@ -783,12 +784,13 @@ WOLFSSL_LOCAL int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
 WOLFSSL_LOCAL int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);
 #endif /* WOLFSSL_AES_COUNTER */
-#ifdef HAVE_AES_ECB
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
 WOLFSSL_LOCAL int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);
 WOLFSSL_LOCAL int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);
-#endif /* HAVE_AES_ECB */
+#endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT || WOLF_CRYPTO_CB_ONLY_AES */
 #ifdef WOLF_CRYPTO_CB_AES_SETKEY
 WOLFSSL_API int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
 #endif /* WOLF_CRYPTO_CB_AES_SETKEY */

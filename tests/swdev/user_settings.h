@@ -16,6 +16,7 @@
 #undef WOLF_CRYPTO_CB_ONLY_RSA
 #undef WOLF_CRYPTO_CB_ONLY_ECC
 #undef WOLF_CRYPTO_CB_ONLY_SHA256
+#undef WOLF_CRYPTO_CB_ONLY_AES
 
 #ifndef WOLF_CRYPTO_CB
     #error "wc_swdev requires the main build to define WOLF_CRYPTO_CB"

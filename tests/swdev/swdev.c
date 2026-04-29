@@ -16,6 +16,9 @@
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 #endif
+#ifndef NO_AES
+#include <wolfssl/wolfcrypt/aes.h>
+#endif
 
 static int swdev_initialized = 0;
 
@@ -179,6 +182,253 @@ out:
 }
 #endif /* !NO_SHA256 */
 
+#ifndef NO_AES
+/* Rebuild a software AES shadow from the caller's raw devKey, since the
+ * caller's Aes has no software round-key schedule under CB_ONLY_AES. */
+static int swdev_aes_shadow_init(Aes* shadow, const Aes* aes, int dir)
+{
+    int ret;
+
+    if (shadow == NULL || aes == NULL)
+        return BAD_FUNC_ARG;
+    if (aes->keylen <= 0 || aes->keylen > (int)sizeof(aes->devKey))
+        return BAD_FUNC_ARG;
+
+    ret = wc_AesInit(shadow, aes->heap, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_AesSetKey(shadow, (const byte*)aes->devKey,
+        (word32)aes->keylen, (const byte*)aes->reg, dir);
+    if (ret != 0) {
+        wc_AesFree(shadow);
+        return ret;
+    }
+
+    XMEMCPY(shadow->tmp, aes->tmp, sizeof(shadow->tmp));
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+    defined(WOLFSSL_AES_CTS)
+    shadow->left = aes->left;
+#endif
+
+    return 0;
+}
+
+static void swdev_aes_shadow_sync(Aes* dst, const Aes* src)
+{
+    XMEMCPY(dst->reg, src->reg, sizeof(dst->reg));
+    XMEMCPY(dst->tmp, src->tmp, sizeof(dst->tmp));
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+    defined(WOLFSSL_AES_CTS)
+    dst->left = src->left;
+#endif
+}
+
+#ifdef HAVE_AES_CBC
+static int swdev_aes_cbc(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aescbc.aes;
+    byte* out = info->cipher.aescbc.out;
+    const byte* in = info->cipher.aescbc.in;
+    word32 sz = info->cipher.aescbc.sz;
+    Aes shadow;
+    int ret;
+
+    ret = swdev_aes_shadow_init(&shadow, aes,
+        info->cipher.enc ? AES_ENCRYPTION : AES_DECRYPTION);
+    if (ret != 0)
+        return ret;
+
+    if (info->cipher.enc)
+        ret = wc_AesCbcEncrypt(&shadow, out, in, sz);
+#ifdef HAVE_AES_DECRYPT
+    else
+        ret = wc_AesCbcDecrypt(&shadow, out, in, sz);
+#else
+    else
+        ret = CRYPTOCB_UNAVAILABLE;
+#endif
+    swdev_aes_shadow_sync(aes, &shadow);
+    wc_AesFree(&shadow);
+    return ret;
+}
+#endif /* HAVE_AES_CBC */
+
+#ifdef WOLFSSL_AES_COUNTER
+static int swdev_aes_ctr(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aesctr.aes;
+    Aes shadow;
+    int ret;
+
+    ret = swdev_aes_shadow_init(&shadow, aes, AES_ENCRYPTION);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_AesCtrEncrypt(&shadow, info->cipher.aesctr.out,
+        info->cipher.aesctr.in, info->cipher.aesctr.sz);
+    swdev_aes_shadow_sync(aes, &shadow);
+    wc_AesFree(&shadow);
+    return ret;
+}
+#endif
+
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)
+static int swdev_aes_ecb(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.aesecb.aes;
+    byte* out = info->cipher.aesecb.out;
+    const byte* in = info->cipher.aesecb.in;
+    word32 sz = info->cipher.aesecb.sz;
+    Aes shadow;
+    int ret;
+
+    ret = swdev_aes_shadow_init(&shadow, aes,
+        info->cipher.enc ? AES_ENCRYPTION : AES_DECRYPTION);
+    if (ret != 0)
+        return ret;
+
+#ifdef HAVE_AES_ECB
+    if (info->cipher.enc)
+        ret = wc_AesEcbEncrypt(&shadow, out, in, sz);
+#ifdef HAVE_AES_DECRYPT
+    else
+        ret = wc_AesEcbDecrypt(&shadow, out, in, sz);
+#else
+    else
+        ret = CRYPTOCB_UNAVAILABLE;
+#endif
+#elif defined(WOLFSSL_AES_DIRECT)
+    if (sz != WC_AES_BLOCK_SIZE) {
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+    else if (info->cipher.enc) {
+        ret = wc_AesEncryptDirect(&shadow, out, in);
+    }
+#ifdef HAVE_AES_DECRYPT
+    else {
+        ret = wc_AesDecryptDirect(&shadow, out, in);
+    }
+#else
+    else {
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+#endif
+#else
+    (void)out;
+    (void)in;
+    (void)sz;
+    ret = CRYPTOCB_UNAVAILABLE;
+#endif
+
+    wc_AesFree(&shadow);
+    return ret;
+}
+#endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT */
+
+#ifdef HAVE_AESGCM
+static int swdev_aes_gcm(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.enc ? info->cipher.aesgcm_enc.aes :
+        info->cipher.aesgcm_dec.aes;
+    Aes shadow;
+    int ret;
+
+    if (aes == NULL || aes->keylen <= 0 || aes->keylen > (int)sizeof(aes->devKey))
+        return BAD_FUNC_ARG;
+
+    ret = wc_AesInit(&shadow, aes->heap, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_AesGcmSetKey(&shadow, (const byte*)aes->devKey, (word32)aes->keylen);
+    if (ret != 0) {
+        wc_AesFree(&shadow);
+        return ret;
+    }
+
+    if (info->cipher.enc) {
+        ret = wc_AesGcmEncrypt(&shadow,
+            info->cipher.aesgcm_enc.out, info->cipher.aesgcm_enc.in,
+            info->cipher.aesgcm_enc.sz,
+            info->cipher.aesgcm_enc.iv, info->cipher.aesgcm_enc.ivSz,
+            info->cipher.aesgcm_enc.authTag,
+            info->cipher.aesgcm_enc.authTagSz,
+            info->cipher.aesgcm_enc.authIn,
+            info->cipher.aesgcm_enc.authInSz);
+    }
+    else {
+        ret = wc_AesGcmDecrypt(&shadow, info->cipher.aesgcm_dec.out,
+            info->cipher.aesgcm_dec.in, info->cipher.aesgcm_dec.sz,
+            info->cipher.aesgcm_dec.iv, info->cipher.aesgcm_dec.ivSz,
+            info->cipher.aesgcm_dec.authTag,
+            info->cipher.aesgcm_dec.authTagSz,
+            info->cipher.aesgcm_dec.authIn,
+            info->cipher.aesgcm_dec.authInSz);
+    }
+
+    wc_AesFree(&shadow);
+    return ret;
+}
+#endif /* HAVE_AESGCM */
+
+#ifdef HAVE_AESCCM
+static int swdev_aes_ccm(wc_CryptoInfo* info)
+{
+    Aes* aes = info->cipher.enc ? info->cipher.aesccm_enc.aes :
+        info->cipher.aesccm_dec.aes;
+    Aes shadow;
+    int ret;
+
+    if (aes == NULL || aes->keylen <= 0 || aes->keylen > (int)sizeof(aes->devKey))
+        return BAD_FUNC_ARG;
+
+    ret = wc_AesInit(&shadow, aes->heap, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_AesCcmSetKey(&shadow, (const byte*)aes->devKey, (word32)aes->keylen);
+    if (ret != 0) {
+        wc_AesFree(&shadow);
+        return ret;
+    }
+
+    if (info->cipher.enc) {
+        ret = wc_AesCcmEncrypt(&shadow,
+            info->cipher.aesccm_enc.out, info->cipher.aesccm_enc.in,
+            info->cipher.aesccm_enc.sz,
+            info->cipher.aesccm_enc.nonce,
+            info->cipher.aesccm_enc.nonceSz,
+            info->cipher.aesccm_enc.authTag,
+            info->cipher.aesccm_enc.authTagSz,
+            info->cipher.aesccm_enc.authIn,
+            info->cipher.aesccm_enc.authInSz);
+    }
+#ifdef HAVE_AES_DECRYPT
+    else {
+        ret = wc_AesCcmDecrypt(&shadow, info->cipher.aesccm_dec.out,
+            info->cipher.aesccm_dec.in, info->cipher.aesccm_dec.sz,
+            info->cipher.aesccm_dec.nonce,
+            info->cipher.aesccm_dec.nonceSz,
+            info->cipher.aesccm_dec.authTag,
+            info->cipher.aesccm_dec.authTagSz,
+            info->cipher.aesccm_dec.authIn,
+            info->cipher.aesccm_dec.authInSz);
+    }
+#else
+    else {
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+#endif
+
+    wc_AesFree(&shadow);
+    return ret;
+}
+#endif /* HAVE_AESCCM */
+#endif /* !NO_AES */
+
 WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     void* ctx)
 {
@@ -233,6 +483,33 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return CRYPTOCB_UNAVAILABLE;
         }
 #endif
+#ifndef NO_AES
+    case WC_ALGO_TYPE_CIPHER:
+        switch (info->cipher.type) {
+    #ifdef HAVE_AES_CBC
+        case WC_CIPHER_AES_CBC:
+            return swdev_aes_cbc(info);
+    #endif
+    #ifdef WOLFSSL_AES_COUNTER
+        case WC_CIPHER_AES_CTR:
+            return swdev_aes_ctr(info);
+    #endif
+    #if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)
+        case WC_CIPHER_AES_ECB:
+            return swdev_aes_ecb(info);
+    #endif
+    #ifdef HAVE_AESGCM
+        case WC_CIPHER_AES_GCM:
+            return swdev_aes_gcm(info);
+    #endif
+    #ifdef HAVE_AESCCM
+        case WC_CIPHER_AES_CCM:
+            return swdev_aes_ccm(info);
+    #endif
+        default:
+            return CRYPTOCB_UNAVAILABLE;
+        }
+#endif /* !NO_AES */
     default:
         return CRYPTOCB_UNAVAILABLE;
     }

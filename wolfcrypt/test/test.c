@@ -61757,7 +61757,7 @@ static wc_test_ret_t getFirmwareKey(wc_PKCS7* pkcs7, byte* key, word32 keySz)
                 return MEMORY_E;
             }
 
-            wc_PKCS7_Init(envPkcs7, NULL, 0);
+            wc_PKCS7_Init(envPkcs7, NULL, INVALID_DEVID);
             ret = wc_PKCS7_SetWrapCEKCb(envPkcs7, myCEKwrapFunc);
             if (ret == 0) {
                 /* expecting FIRMWARE_PKG_DATA content */
@@ -68153,6 +68153,58 @@ exit_onlycb:
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_SHA256 */
 
+#ifdef WOLF_CRYPTO_CB_ONLY_AES
+/* Exercise AES dispatch under CB_ONLY_AES: cb-handled then cb-delegated. */
+static wc_test_ret_t aes_onlycb_test(myCryptoDevCtx *ctx)
+{
+    wc_test_ret_t ret = 0;
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    Aes aes;
+    const byte key[16] = {
+        0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
+        0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
+    };
+    const byte iv[WC_AES_BLOCK_SIZE] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+    };
+    const byte plain[WC_AES_BLOCK_SIZE] = {
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+    byte out[WC_AES_BLOCK_SIZE];
+
+    ret = wc_AesInit(&aes, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_AesSetKey(&aes, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+    /* cb handles the op, expects 0(success) */
+    ctx->exampleVar = 99;
+    ret = wc_AesCbcEncrypt(&aes, out, plain, sizeof(plain));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+
+    /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+    ctx->exampleVar = 1;
+    ret = wc_AesCbcEncrypt(&aes, out, plain, sizeof(plain));
+    if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+    } else {
+        ret = 0;
+    }
+
+exit_onlycb:
+    wc_AesFree(&aes);
+#endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_128 */
+    (void)ctx;
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB_ONLY_AES */
+
 /* Example crypto dev callback function that calls software version */
 static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
@@ -68591,6 +68643,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* HAVE_AESGCM */
     #ifdef HAVE_AES_CBC
         if (info->cipher.type == WC_CIPHER_AES_CBC) {
+            #if defined(WOLF_CRYPTO_CB_ONLY_AES)
+            if (myCtx->exampleVar == 99)
+                return 0;
+            #endif
             if (info->cipher.enc) {
                 /* set devId to invalid, so software is used */
                 info->cipher.aescbc.aes->devId = INVALID_DEVID;
@@ -69919,6 +69975,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = sha256_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_AES) && !defined(WOLFSSL_SWDEV)
+    PRIVATE_KEY_UNLOCK();
+    if (ret == 0)
+        ret = aes_onlycb_test(&myCtx);
+    PRIVATE_KEY_LOCK();
+#endif
 #ifdef WOLFSSL_HAVE_MLKEM
     if (ret == 0)
         ret = mlkem_test();
@@ -69937,7 +69999,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = curve25519_test();
 #endif
-#ifndef NO_AES
+#if !defined(NO_AES) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
+    /* CB_ONLY_AES skips these (aes_onlycb_test covers that path). */
     #ifdef HAVE_AESGCM
     if (ret == 0)
         ret = aesgcm_test();
@@ -69954,7 +70017,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = aesccm_test();
     #endif
-#endif /* !NO_AES */
+#endif /* !NO_AES && !WOLF_CRYPTO_CB_ONLY_AES */
 #ifndef NO_DES3
     if (ret == 0)
         ret = des3_test();
