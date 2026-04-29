@@ -434,6 +434,7 @@ int test_wc_PKCS12_encrypted_content_bounds(void)
         word32 regPkeySz = 0;
         word32 regCertSz = 0;
 
+        XMEMSET(regCiphertext, 0, sizeof(regCiphertext));
         /* Derive AES-256 key with the same PBKDF2 that DecryptContent uses */
         ExpectIntEQ(wc_PBKDF2(regKey, (const byte*)regPassword,
             (int)XSTRLEN(regPassword), regSalt, (int)sizeof(regSalt),
