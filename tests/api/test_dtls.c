@@ -1928,6 +1928,133 @@ int test_dtls13_ch2_rtx_no_ch1(void)
     return EXPECT_RESULT();
 }
 
+int test_dtls13_frag_ch2_with_ch1_rtx(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS) &&                         \
+    defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char hrr[TEST_MEMIO_BUF_SZ];
+    int hrrSz = (int)sizeof(hrr);
+    char ch1Rtx[TEST_MEMIO_BUF_SZ];
+    int ch1RtxSz = (int)sizeof(ch1Rtx);
+    char ch2[TEST_MEMIO_BUF_SZ];
+    int ch2Sz = 0;
+    int ch2MsgCount = 0;
+    int ch2MsgSizes[TEST_MEMIO_MAX_MSGS] = {0};
+    /* The DTLS record sequence number occupies the last 8 bytes of the
+     * record header. */
+    int recordSeqOff = DTLS_RECORD_HEADER_SZ - 8;
+    int ch2Seq = 0;
+    int ch1RtxSeq = 0;
+    int off;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method),
+        0);
+
+    /* To force HRR */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* HRR */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_copy_message(&test_ctx, 1, hrr, &hrrSz, 0), 0);
+
+    /* Drop HRR, trigger CH1 retransmission, copy and drop it */
+    test_memio_clear_buffer(&test_ctx, 1);
+    if (wolfSSL_dtls13_use_quick_timeout(ssl_c))
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_copy_message(&test_ctx, 0, ch1Rtx, &ch1RtxSz, 0), 0);
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    /* Force CH2 fragmentation. MTU must be small enough to fragment but large
+     * enough that the cookie extension lands in the first fragment, otherwise
+     * the server can't validate it statelessly and the test scenario (server
+     * stateful after frag 1) does not hold. With --enable-all (PQ groups in
+     * supported_groups), the cookie extension can sit ~400 bytes into CH2; 600
+     * gives margin while still producing multiple fragments (CH2 is ~2KB). */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, 600), WOLFSSL_SUCCESS);
+
+    /* Forward HRR and let the client create fragmented CH2 */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, hrr, hrrSz), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntGT(test_ctx.s_msg_count, 1);
+    ExpectIntLE(test_ctx.s_msg_count, TEST_MEMIO_MAX_MSGS);
+    ExpectIntLE(test_ctx.s_len, (int)sizeof(ch2));
+    if (EXPECT_SUCCESS()) {
+        ch2Sz = test_ctx.s_len;
+        ch2MsgCount = test_ctx.s_msg_count;
+        XMEMCPY(ch2, test_ctx.s_buff, ch2Sz);
+        XMEMCPY(ch2MsgSizes, test_ctx.s_msg_sizes,
+            sizeof(ch2MsgSizes[0]) * (size_t)ch2MsgCount);
+
+        ch2Seq = ((byte)ch2[recordSeqOff + 4] << 8) |
+                 (byte)ch2[recordSeqOff + 5];
+        ch1RtxSeq = ch2Seq + ch2MsgCount;
+
+        /* Synthesize a CH1 retransmission that can pass the replay window after
+         * the first CH2 fragment makes the server stateful. The handshake
+         * message_seq remains the original CH1 value; only the DTLS record
+         * sequence is moved past the fragmented CH2 flight */
+        ch1Rtx[recordSeqOff + 0] = 0;
+        ch1Rtx[recordSeqOff + 1] = 0;
+        ch1Rtx[recordSeqOff + 2] = 0;
+        ch1Rtx[recordSeqOff + 3] = 0;
+        ch1Rtx[recordSeqOff + 4] = (byte)(ch1RtxSeq >> 8);
+        ch1Rtx[recordSeqOff + 5] = (byte)ch1RtxSeq;
+    }
+
+    test_memio_clear_buffer(&test_ctx, 0);
+
+    /* Deliver CH2 first fragment only. Now server is stateful */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, ch2, ch2MsgSizes[0]), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Deliver the retransmitted CH1 between CH2 fragments, it should be
+     * discarded as rtx */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, ch1Rtx, ch1RtxSz), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* Deliver the rest of CH2 */
+    off = ch2MsgSizes[0];
+    for (i = 1; i < ch2MsgCount && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, ch2 + off,
+            ch2MsgSizes[i]), 0);
+        off += ch2MsgSizes[i];
+    }
+
+    /* Restore MTU so the client's input buffer can hold the full server
+     * flight (e.g. an SH carrying a hybrid PQC key share). */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, 1500), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls_drop_client_ack(void)
 {
     EXPECT_DECLS;
