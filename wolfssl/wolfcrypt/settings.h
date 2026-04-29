@@ -4042,6 +4042,14 @@ extern void uITRON4_free(void *p) ;
         #undef WOLFSSL_GENERAL_ALIGNMENT
         #define WOLFSSL_GENERAL_ALIGNMENT SIZEOF_LONG
     #endif
+
+    /* SLH-DSA signature generation is too computationally intensive to be
+     * appropriate in typical kernel deployments.
+     */
+    #if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+        !defined(WOLFSSL_SLHDSA_NO_VERIFY_ONLY)
+        #define WOLFSSL_SLHDSA_VERIFY_ONLY
+    #endif
 #endif /* WOLFSSL_KERNEL_MODE */
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \

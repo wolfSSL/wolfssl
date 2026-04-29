@@ -758,6 +758,7 @@ static int slhdsakey_hash_f_sha2(SlhDsaKey* key, const byte* pk_seed,
     return ret;
 }
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 /* SHA2 H function.
  *
  * FIPS 205. Section 11.2.
@@ -836,6 +837,7 @@ static int slhdsakey_hash_h_sha2(SlhDsaKey* key, const byte* pk_seed,
 
     return ret;
 }
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* SHA2 H function with two separate n-byte halves.
  *
@@ -921,6 +923,7 @@ static int slhdsakey_hash_h_2_sha2(SlhDsaKey* key, const byte* pk_seed,
     return ret;
 }
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 /* SHA2 PRF function.
  *
  * FIPS 205. Section 11.2.
@@ -969,6 +972,7 @@ static int slhdsakey_hash_prf_sha2(SlhDsaKey* key, const byte* pk_seed,
 
     return ret;
 }
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* SHA2 T_l streaming: start with address.
  *
@@ -1165,6 +1169,7 @@ static int slhdsakey_mgf1_sha2(SlhDsaKey* key, const byte* seed,
     return ret;
 }
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 /* SHA2 PRF_msg function.
  *
  * FIPS 205. Section 11.2.
@@ -1226,6 +1231,7 @@ static int slhdsakey_prf_msg_sha2(SlhDsaKey* key, const byte* sk_prf,
 
     return ret;
 }
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* SHA2 H_msg function.
  *
@@ -1370,6 +1376,7 @@ static int slhdsakey_hash_f_shake(SlhDsaKey* key, const byte* pk_seed,
 #endif
 }
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 static int slhdsakey_hash_h_shake(SlhDsaKey* key, const byte* pk_seed,
     const word32* adrs, const byte* node, byte n, byte* hash)
 {
@@ -1381,6 +1388,7 @@ static int slhdsakey_hash_h_shake(SlhDsaKey* key, const byte* pk_seed,
         2 * n, NULL, 0, hash, n);
 #endif
 }
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 static int slhdsakey_hash_h_2_shake(SlhDsaKey* key, const byte* pk_seed,
     const word32* adrs, const byte* m1, const byte* m2, byte n, byte* hash)
@@ -1389,6 +1397,7 @@ static int slhdsakey_hash_h_2_shake(SlhDsaKey* key, const byte* pk_seed,
         n, m2, n, hash, n);
 }
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 static int slhdsakey_hash_prf_shake(SlhDsaKey* key, const byte* pk_seed,
     const byte* sk_seed, const word32* adrs, byte n, byte* hash)
 {
@@ -1400,6 +1409,7 @@ static int slhdsakey_hash_prf_shake(SlhDsaKey* key, const byte* pk_seed,
         sk_seed, n, NULL, 0, hash, n);
 #endif
 }
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #define HASH_PRF(k, pk_seed, sk_seed, adrs, n, o)                            \
     (SLHDSA_IS_SHA2((k)->params->param) ?                                    \
@@ -2014,7 +2024,7 @@ static int slhdsakey_shake256_set_seed_ha_hash_x4(word64* state,
 
     return ret;
 }
-#endif
+#endif /* WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Get the four SHAKE-256 n-byte hash results.
  *
@@ -2049,7 +2059,7 @@ do {                                                                        \
     ((word8*)((state) + (o) - 2))[3] = (a) + 2;                             \
     ((word8*)((state) + (o) - 1))[3] = (a) + 3;                             \
 } while (0)
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Set the chain address indices into the SHAKE-256 x4 state.
  *
@@ -2093,7 +2103,7 @@ do {                                                                        \
     c32toa((ti) + 2, (byte*)&((word32*)((state) + (o) - 2))[1]);            \
     c32toa((ti) + 3, (byte*)&((word32*)((state) + (o) - 1))[1]);            \
 } while (0)
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Set the tree indices into the SHAKE-256 x4 state.
  *
@@ -2435,7 +2445,7 @@ static int slhdsakey_chain_x4_16(byte* sk, const byte* pk_seed, byte* addr,
     WC_FREE_VAR_EX(fixed, heap, DYNAMIC_TYPE_SLHDSA);
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_192)
 /* Iterate the hash function 15 times with 4 hashes when n=24.
@@ -3979,10 +3989,6 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
     const byte* msg, const byte* pk_seed, word32* adrs, byte* pk_sig)
 {
     int ret = 0;
-    byte idx[4] = {0};
-    int i;
-    byte ii;
-    sword8 j;
     HashAddress wotspk_adrs;
     byte n = key->params->n;
     byte len = key->params->len;
@@ -3993,7 +3999,10 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
         DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
     if ((ret == 0) && (n == WC_SLHDSA_N_128)) {
-        ii = 0;
+        int i;
+        sword8 j;
+        byte ii = 0;
+        byte idx[4] = {0};
         for (j = 0; j <= SLHDSA_WM1; j++) {
             for (i = 0; i < len; i++) {
                 if ((sword8)msg[i] == j) {
@@ -4020,7 +4029,10 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
 #endif
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_192)
     if ((ret == 0) && (n == 24)) {
-        ii = 0;
+        int i;
+        sword8 j;
+        byte ii = 0;
+        byte idx[4] = {0};
         for (j = 0; j <= SLHDSA_WM1; j++) {
             for (i = 0; i < len; i++) {
                 if ((sword8)msg[i] == j) {
@@ -4047,7 +4059,10 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
 #endif
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_256)
     if ((ret == 0) && (n == 32)) {
-        ii = 0;
+        int i;
+        sword8 j;
+        byte ii = 0;
+        byte idx[4] = {0};
         for (j = 0; j <= SLHDSA_WM1; j++) {
             for (i = 0; i < len; i++) {
                 if ((sword8)msg[i] == j) {
@@ -4072,9 +4087,14 @@ static int slhdsakey_wots_pk_from_sig_x4(SlhDsaKey* key, const byte* sig,
     }
     else
 #endif
-    if (ret == 0) {
-        ret = NOT_COMPILED_IN;
+    {
+        (void)msg;
+        (void)key;
+        if (ret == 0) {
+            ret = NOT_COMPILED_IN;
+        }
     }
+
     if (ret == 0) {
         HA_Copy(wotspk_adrs, adrs);
         HA_SetTypeAndClearNotKPA(wotspk_adrs, HA_WOTS_PK);
@@ -4565,7 +4585,7 @@ static int slhdsakey_xmss_sign(SlhDsaKey* key, const byte* m,
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Compute XMSS public key from XMSS signature.
  *
@@ -4759,7 +4779,7 @@ static int slhdsakey_ht_sign(SlhDsaKey* key, const byte* pk_fors,
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Verify hypertree signature.
  *
@@ -5788,7 +5808,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
 /* F hash 4 simultaneously.
@@ -7223,7 +7243,7 @@ int wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key, const byte* mprime,
         addRnd);
 }
 
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Verify SLH-DSA signature.
  *
@@ -7968,7 +7988,7 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Verify SLH-DSA signature.
  *
@@ -8155,7 +8175,7 @@ int wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* priv, word32 privLen)
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Import public key from data.
  *
@@ -8268,7 +8288,7 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* priv, word32* privLen)
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Export the public key.
  *
@@ -8326,7 +8346,7 @@ int wc_SlhDsaKey_PrivateSize(SlhDsaKey* key)
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Return the size of the public key for the parameters.
  *
@@ -8429,7 +8449,7 @@ int wc_SlhDsaKey_PrivateSizeFromParam(enum SlhDsaParam param)
 
     return ret;
 }
-#endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 /* Return the size of the public key for the parameters.
  *

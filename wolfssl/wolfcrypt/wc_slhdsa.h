@@ -39,6 +39,16 @@
 #ifdef WOLFSSL_HAVE_SLHDSA
 
 /* ======== SHAKE parameter guards ======== */
+#ifdef WOLFSSL_SLHDSA_NO_SHAKE
+
+    #define WOLFSSL_SLHDSA_PARAM_NO_128S
+    #define WOLFSSL_SLHDSA_PARAM_NO_128F
+    #define WOLFSSL_SLHDSA_PARAM_NO_192S
+    #define WOLFSSL_SLHDSA_PARAM_NO_192F
+    #define WOLFSSL_SLHDSA_PARAM_NO_256S
+    #define WOLFSSL_SLHDSA_PARAM_NO_256F
+
+#else /* !WOLFSSL_SLHDSA_NO_SHAKE */
 
 /* When a bits/opt is defined then ensure 'NO' defines are off. */
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
@@ -71,6 +81,8 @@
     #undef WOLFSSL_SLHDSA_PARAM_NO_256
     #undef WOLFSSL_SLHDSA_PARAM_NO_FAST
 #endif
+
+#endif /* !WOLFSSL_SLHDSA_NO_SHAKE */
 
 /* When 'NO' defines are on then define no parameter set. */
 #if defined(WOLFSSL_SLHDSA_PARAM_NO_128S) && \
@@ -165,6 +177,12 @@
     defined(WOLFSSL_SLHDSA_PARAM_NO_256F)
     #undef WOLFSSL_SLHDSA_PARAM_NO_256
     #define WOLFSSL_SLHDSA_PARAM_NO_256
+#endif
+
+#if defined(WOLFSSL_SLHDSA_PARAM_NO_128) && \
+    defined(WOLFSSL_SLHDSA_PARAM_NO_192) && \
+    defined(WOLFSSL_SLHDSA_PARAM_NO_256)
+    #define WOLFSSL_SLHDSA_NO_SHAKE
 #endif
 
 /* ======== SHA2 parameter guards ======== */
@@ -298,7 +316,11 @@
     #define WOLFSSL_SLHDSA_PARAM_NO_SHA2_256
 #endif
 
-#endif /* WOLFSSL_SLHDSA_SHA2 */
+#else /* !WOLFSSL_SLHDSA_SHA2 */
+
+    #define WOLFSSL_SLHDSA_NO_SHA2
+
+#endif /* !WOLFSSL_SLHDSA_SHA2 */
 
 /* ======== Security parameter (n) per FIPS 205 Table 2 ======== */
 
@@ -474,26 +496,50 @@
     !defined(WOLFSSL_SLHDSA_PARAM_NO_FAST)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE256F_SIG_LEN
+#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256) && \
+    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_FAST)
+    /* Maximum signature length. */
+    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_256F_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_FAST)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE192F_SIG_LEN
+#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192) && \
+      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_FAST)
+    /* Maximum signature length. */
+    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_192F_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_256) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_SMALL)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE256S_SIG_LEN
+#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256) && \
+      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_SMALL)
+    /* Maximum signature length. */
+    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_256S_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_128) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_FAST)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE128F_SIG_LEN
+#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128) && \
+      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_FAST)
+    /* Maximum signature length. */
+    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_128F_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_SMALL)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE192S_SIG_LEN
+#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192) && \
+      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_SMALL)
+    /* Maximum signature length. */
+    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_192S_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_128) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_SMALL)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE128S_SIG_LEN
+#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128) && \
+      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_SMALL)
+    /* Maximum signature length. */
+    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_128S_SIG_LEN
 #else
     #error "No parameters defined"
 #endif
@@ -520,7 +566,7 @@ enum SlhDsaParam {
 #ifdef WOLFSSL_SLHDSA_SHA2
     #define SLHDSA_IS_SHA2(p)   ((p) >= SLHDSA_SHA2_128S)
 #else
-    #define SLHDSA_IS_SHA2(p)   (0)
+    #define SLHDSA_IS_SHA2(p)   0
 #endif
 
 /* Pre-defined parameter values. */

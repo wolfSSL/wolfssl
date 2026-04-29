@@ -54234,9 +54234,7 @@ out:
 
 wc_test_ret_t slhdsa_test(void)
 {
-#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || defined(WOLFSSL_SLHDSA_PARAM_128S)
-    int ret;
-#endif
+    int ret = 0;
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
@@ -55957,9 +55955,7 @@ wc_test_ret_t slhdsa_test(void)
         }
     }
 #endif
-#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     ret = slhdsa_test_param(SLHDSA_SHAKE128S);
     if (ret != 0) {
@@ -56044,10 +56040,17 @@ wc_test_ret_t slhdsa_test(void)
         goto out;
     }
 #endif
-#endif
+
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+#if defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || \
+    defined(WOLFSSL_SLHDSA_PARAM_128S)
 
 out:
 
+#endif
+
+#ifdef WOLFSSL_SLHDSA_PARAM_128S
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key_vfy)
 #endif
@@ -56055,6 +56058,7 @@ out:
         wc_SlhDsaKey_Free(key_vfy);
     }
     WC_FREE_VAR_EX(key_vfy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key)
