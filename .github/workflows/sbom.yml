@@ -1,0 +1,245 @@
+name: SBOM Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  # Tier 1 - pure-Python unit tests for scripts/gen-sbom.
+  # No build, no autotools, no external deps.  Runs in seconds and is the
+  # cheapest gate for licence/UUID/timestamp logic regressions.
+  unit:
+    name: gen-sbom unit tests
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check
+        run: python3 -m py_compile scripts/gen-sbom
+
+      - name: Unit tests
+        run: python3 -W error::ResourceWarning -m unittest scripts/test_gen_sbom.py -v
+
+  # Tier 2 - integration: build wolfSSL, generate the SBOMs, and assert
+  # everything an external auditor or vulnerability scanner relies on.
+  integration:
+    name: SBOM integration
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pin tool versions; drift in any of these silently changes what
+      # "valid" means and produces mystery CI failures.
+      - name: Install SBOM validators
+        run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user \
+            'spdx-tools==0.8.*' \
+            'ntia-conformance-checker==5.*' \
+            'cyclonedx-bom==7.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Configure wolfSSL (shared + static)
+        run: autoreconf -ivf && ./configure --enable-shared --enable-static
+
+      - name: Build + generate SBOM (default GPL)
+        run: make sbom
+
+      # ---- Format-level validators -----------------------------------------
+
+      - name: SPDX 2.3 - NTIA Minimum Elements (2021)
+        # Already validated structurally by pyspdxtools inside `make sbom`.
+        # NTIA conformance is the additional contract auditors rely on.
+        run: ntia-checker -c ntia wolfssl-*.spdx.json
+
+      - name: CycloneDX 1.6 - JSON schema validation
+        run: |
+          python3 - <<'PY'
+          import glob, sys
+          from cyclonedx.validation.json import JsonStrictValidator
+          from cyclonedx.schema import SchemaVersion
+          v = JsonStrictValidator(SchemaVersion.V1_6)
+          for path in glob.glob('wolfssl-*.cdx.json'):
+              errors = v.validate_str(open(path).read())
+              if errors:
+                  print(f"INVALID: {path}: {errors}", file=sys.stderr)
+                  sys.exit(1)
+              print(f"OK: {path}")
+          PY
+
+      # ---- Artefact-integrity assertions ----------------------------------
+
+      - name: Library hash matches the SBOM
+        # `make sbom` cleans its private staging tree on exit, so we install
+        # to an independent prefix and re-hash the resulting library.  The
+        # autotools install is deterministic (identical bytes), so the hash
+        # the SBOM recorded must match.
+        run: |
+          rm -rf /tmp/_inst
+          make install DESTDIR=/tmp/_inst >/dev/null
+          LIB=$(ls /tmp/_inst/usr/local/lib/libwolfssl.so* 2>/dev/null \
+                | grep -v '\.la$' | head -1)
+          test -n "$LIB" || (echo "no installed shared lib"; exit 1)
+          EXPECTED=$(sha256sum "$LIB" | cut -d' ' -f1)
+          ACTUAL=$(python3 -c "
+          import json, glob
+          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          p = [x for x in d['packages'] if x['name'] == 'wolfssl'][0]
+          print(p['checksums'][0]['checksumValue'])")
+          test "$EXPECTED" = "$ACTUAL" || \
+              { echo "hash mismatch: expected=$EXPECTED actual=$ACTUAL"; exit 1; }
+
+      - name: CPE 2.3 and PURL identifiers well-formed
+        # A typo in supplier or product name silently breaks every
+        # downstream OSV / Trivy / Grype scan.
+        run: |
+          python3 - <<'PY'
+          import glob, json, re, sys
+          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          refs = {r['referenceType']: r['referenceLocator']
+                  for r in d['packages'][0]['externalRefs']}
+          assert re.match(r'cpe:2\.3:a:wolfssl:wolfssl:[\d.]+:', refs['cpe23Type']), refs
+          assert re.match(r'pkg:generic/wolfssl@[\d.]+', refs['purl']), refs
+          print('identifiers ok:', refs)
+          PY
+
+      # ---- Reproducibility -------------------------------------------------
+
+      - name: Reproducibility under SOURCE_DATE_EPOCH
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          SOURCE_DATE_EPOCH=1700000000 make sbom
+          sha256sum wolfssl-*.cdx.json wolfssl-*.spdx.json > /tmp/a.sums
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          SOURCE_DATE_EPOCH=1700000000 make sbom
+          sha256sum wolfssl-*.cdx.json wolfssl-*.spdx.json > /tmp/b.sums
+          diff /tmp/a.sums /tmp/b.sums
+
+      # ---- Licence-override matrix ----------------------------------------
+
+      - name: License matrix - default GPL
+        # Detected from LICENSING.  The current upstream file reads
+        # "GNU General Public License version 3" without "or later", so
+        # detect_license returns GPL-3.0-only.  If LICENSING is updated to
+        # add "or any later version", switch this assertion to
+        # GPL-3.0-or-later.
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom
+          python3 - <<'PY'
+          import glob, json
+          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          assert d['packages'][0]['licenseConcluded'].startswith('GPL-3.0-'), \
+              d['packages'][0]['licenseConcluded']
+          assert 'hasExtractedLicensingInfos' not in d
+          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          lic = cdx['metadata']['component']['licenses']
+          assert lic == [{'license': {'id': d['packages'][0]['licenseConcluded']}}], lic
+          print('default GPL: ok ->', lic)
+          PY
+
+      - name: License matrix - LicenseRef + text
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom \
+              SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
+              SBOM_LICENSE_TEXT="$PWD/COPYING"
+          python3 - <<'PY'
+          import glob, json
+          expected = open('COPYING').read()
+          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          infos = d['hasExtractedLicensingInfos']
+          assert len(infos) == 1
+          assert infos[0]['licenseId'] == 'LicenseRef-wolfSSL-Commercial'
+          assert infos[0]['extractedText'] == expected
+          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          lic = cdx['metadata']['component']['licenses'][0]['license']
+          assert lic['name'] == 'LicenseRef-wolfSSL-Commercial'
+          assert lic['text']['content'] == expected
+          print('LicenseRef + text: ok')
+          PY
+          # The output of this run must still pass NTIA and CDX validators.
+          ntia-checker -c ntia wolfssl-*.spdx.json
+          python3 -c "
+          from cyclonedx.validation.json import JsonStrictValidator
+          from cyclonedx.schema import SchemaVersion
+          import glob, sys
+          v = JsonStrictValidator(SchemaVersion.V1_6)
+          errs = v.validate_str(open(glob.glob('wolfssl-*.cdx.json')[0]).read())
+          sys.exit(1 if errs else 0)"
+
+      - name: License matrix - compound expression
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom \
+              SBOM_LICENSE_OVERRIDE='GPL-3.0-only OR LicenseRef-wolfSSL-Commercial' \
+              SBOM_LICENSE_TEXT="$PWD/COPYING"
+          python3 - <<'PY'
+          import glob, json
+          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          assert len(d['hasExtractedLicensingInfos']) == 1
+          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          entry = cdx['metadata']['component']['licenses'][0]
+          assert 'expression' in entry, entry
+          print('compound expression: ok')
+          PY
+
+      - name: License matrix - simple SPDX override
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom SBOM_LICENSE_OVERRIDE=Apache-2.0
+          python3 - <<'PY'
+          import glob, json
+          d = json.load(open(glob.glob('wolfssl-*.spdx.json')[0]))
+          assert 'hasExtractedLicensingInfos' not in d
+          cdx = json.load(open(glob.glob('wolfssl-*.cdx.json')[0]))
+          lic = cdx['metadata']['component']['licenses'][0]['license']
+          assert lic == {'id': 'Apache-2.0'}, lic
+          print('simple SPDX override: ok')
+          PY
+
+      # ---- Distribution + install hooks -----------------------------------
+
+      - name: Tarball roundtrip (make dist -> ./configure -> make sbom)
+        # If a future change adds a new helper file but forgets EXTRA_DIST,
+        # the tarball will not contain it and this step fails.
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make dist
+          mkdir /tmp/tb
+          tar -xzf wolfssl-*.tar.gz -C /tmp/tb
+          cd /tmp/tb/wolfssl-*
+          ./configure --enable-shared
+          make sbom
+
+      - name: Install-sbom / uninstall hook
+        # `install-sbom` is a separate target (intentional - SBOM generation
+        # has heavy deps like pyspdxtools that we do not want firing on
+        # every `make install`).  `make uninstall` runs uninstall-hook,
+        # which removes both regular and SBOM artefacts idempotently.
+        run: |
+          rm -rf /tmp/_inst2
+          make install DESTDIR=/tmp/_inst2 >/dev/null
+          make install-sbom DESTDIR=/tmp/_inst2
+          ls /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.spdx.json \
+              /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.cdx.json \
+              /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.spdx
+          make uninstall DESTDIR=/tmp/_inst2
+          if ls /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.spdx.json \
+                  2>/dev/null; then
+              echo "uninstall-hook did not remove SBOM artefacts"
+              exit 1
+          fi

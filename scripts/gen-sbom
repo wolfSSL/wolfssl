@@ -167,7 +167,8 @@ def detect_license(license_file):
     prints a warning if the file cannot be parsed.
     """
     try:
-        text = open(license_file).read()
+        with open(license_file) as f:
+            text = f.read()
     except OSError as e:
         print(f"WARNING: cannot read license file {license_file}: {e}",
               file=sys.stderr)
@@ -247,7 +248,8 @@ def parse_options_h(path):
     """Parse wolfssl/options.h and return sorted deduplicated list of
     (name, value) pairs for every #define found."""
     try:
-        text = open(path).read()
+        with open(path) as f:
+            text = f.read()
     except OSError as e:
         print(f"WARNING: cannot read options.h {path}: {e}", file=sys.stderr)
         return []
