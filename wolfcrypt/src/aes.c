@@ -1920,8 +1920,9 @@ static WARN_UNUSED_RESULT word32 col_mul(
     return GETBYTE(t, ia) ^ GETBYTE(t, ib) ^ t3 ^ tm;
 }
 
-#if defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB) || \
-    defined(WOLFSSL_AES_DIRECT)
+#if defined(HAVE_AES_DECRYPT) && \
+    (defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB) || \
+     defined(WOLFSSL_AES_DIRECT))
 static WARN_UNUSED_RESULT word32 inv_col_mul(
     word32 t, int i9, int ib, int id, int ie)
 {
@@ -1932,7 +1933,7 @@ static WARN_UNUSED_RESULT word32 inv_col_mul(
     byte t0 = t9 ^ tb ^ td;
     return t0 ^ AES_XTIME(AES_XTIME(AES_XTIME(t0 ^ te) ^ td ^ te) ^ tb ^ te);
 }
-#endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
+#endif /* HAVE_AES_DECRYPT && (HAVE_AES_CBC || HAVE_AES_ECB || WOLFSSL_AES_DIRECT) */
 #endif /* WOLFSSL_AES_SMALL_TABLES */
 #endif
 #endif

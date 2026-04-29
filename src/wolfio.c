@@ -402,6 +402,7 @@ int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
 #ifdef USE_WOLFSSL_IO
 
+#ifndef WOLFSSL_DTLS_ONLY
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
@@ -450,6 +451,7 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     return sent;
 }
+#endif /* !WOLFSSL_DTLS_ONLY */
 
 
 #ifdef WOLFSSL_DTLS

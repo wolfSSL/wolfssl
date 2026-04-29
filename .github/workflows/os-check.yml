@@ -108,6 +108,18 @@ jobs:
           '--enable-lms=small,verify-only --enable-xmss=small,verify-only',
           '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK"',
           '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
+          # Minimal DTLS 1.3 client-only build. The SHA-224/384/512/3
+          # disables are deliberately omitted: --disable-sha384 alone
+          # trips a pre-existing wolfSSL bug in
+          # test_tls13_duplicate_extension (reproducible on clean master).
+          '--enable-dtls13 --disable-tlsv12 --disable-oldtls --disable-rsa --disable-dh
+            --disable-aescbc --disable-aesecb --disable-md5 --disable-chacha
+            --disable-poly1305 --disable-errorstrings --disable-asn-print
+            --disable-eccshamir --disable-base64encode --disable-coding --disable-sni
+            --enable-aesgcm=small --enable-sp-math --enable-sp=smallec256 --disable-sp-asm
+            CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_TLS12 -DNO_SESSION_CACHE
+            -DWOLFSSL_AES_NO_UNROLL -DUSE_SLOW_SHA256 -DWOLFSSL_NO_ASYNC_IO
+            -DWOLFSSL_DTLS_ONLY'' ',
         ]
     name: make check linux
     if: github.repository_owner == 'wolfssl'

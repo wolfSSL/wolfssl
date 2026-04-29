@@ -674,8 +674,10 @@ WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     /* default IO callbacks */
 
     #ifdef WOLFSSL_API_PREFIX_MAP
-        #define EmbedReceive wolfSSL_EmbedReceive
-        #define EmbedSend wolfSSL_EmbedSend
+        #ifndef WOLFSSL_DTLS_ONLY
+            #define EmbedReceive wolfSSL_EmbedReceive
+            #define EmbedSend wolfSSL_EmbedSend
+        #endif
         #ifdef WOLFSSL_DTLS
             #define EmbedReceiveFrom wolfSSL_EmbedReceiveFrom
             #define EmbedSendTo wolfSSL_EmbedSendTo
@@ -686,8 +688,10 @@ WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
         #endif /* WOLFSSL_DTLS */
     #endif /* WOLFSSL_API_PREFIX_MAP */
 
+    #ifndef WOLFSSL_DTLS_ONLY
     WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    #endif
 
     #ifdef WOLFSSL_DTLS
         #ifdef NUCLEUS_PLUS_2_3

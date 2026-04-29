@@ -2703,8 +2703,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         }
         #endif
     #else
-        ctx->CBIORecv = EmbedReceive;
-        ctx->CBIOSend = EmbedSend;
+        #ifndef WOLFSSL_DTLS_ONLY
+            ctx->CBIORecv = EmbedReceive;
+            ctx->CBIOSend = EmbedSend;
+        #endif
         #ifdef WOLFSSL_SESSION_EXPORT
             ctx->CBGetPeer = EmbedGetPeer;
             ctx->CBSetPeer = EmbedSetPeer;
