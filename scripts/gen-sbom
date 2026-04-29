@@ -20,8 +20,13 @@ SBOM_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'https://wolfssl.com/sbom/'
 def derived_uuid(*parts):
     """Deterministic UUID from joined parts under the wolfSSL SBOM namespace.
     Re-runs of `make sbom` against the same source produce identical UUIDs,
-    which is required for reproducible-build-style SBOM hashing."""
-    return str(uuid.uuid5(SBOM_UUID_NAMESPACE, '/'.join(parts)))
+    which is required for reproducible-build-style SBOM hashing.
+
+    Uses NUL as a separator so no aliasing is possible between e.g.
+    derived_uuid('a/b', 'c') and derived_uuid('a', 'b/c'); NUL cannot
+    appear in any of the call-site inputs (package name, version, role
+    label, dep key)."""
+    return str(uuid.uuid5(SBOM_UUID_NAMESPACE, '\x00'.join(parts)))
 
 
 def build_timestamp():
@@ -148,6 +153,11 @@ def cdx_license_block(license_expr, license_text):
       * `license.name`    - a non-listed licence (e.g. a LicenseRef-*)
       * `expression`      - a compound SPDX expression
     Picking the wrong shape causes downstream tooling to reject the SBOM."""
+    # NOASSERTION is a reserved SPDX value, not a parseable SPDX expression;
+    # emit it via license.name so CDX validators don't choke trying to parse
+    # it as one.
+    if license_expr == 'NOASSERTION':
+        return [{'license': {'name': 'NOASSERTION'}}]
     if is_simple_spdx_id(license_expr):
         return [{'license': {'id': license_expr}}]
     refs = extract_license_refs(license_expr)
@@ -246,7 +256,11 @@ def dep_version(key):
 
 def parse_options_h(path):
     """Parse wolfssl/options.h and return sorted deduplicated list of
-    (name, value) pairs for every #define found."""
+    (name, value) pairs for every #define found.
+
+    Trailing C/C++ comments on a #define line (`#define HAVE_FOO 42 /* x */`
+    or `// y`) are stripped; otherwise they would land verbatim in the
+    SBOM build properties."""
     try:
         with open(path) as f:
             text = f.read()
@@ -255,8 +269,10 @@ def parse_options_h(path):
         return []
 
     defines = {}
-    for m in re.finditer(r'^#define[ \t]+(\w+)(?:[ \t]+(.+))?$', text, re.MULTILINE):
-        defines[m.group(1)] = (m.group(2) or '').strip()
+    for m in re.finditer(r'^#define[ \t]+(\w+)(?:[ \t]+(.*))?$', text, re.MULTILINE):
+        raw = (m.group(2) or '')
+        raw = re.split(r'/\*|//', raw, maxsplit=1)[0]
+        defines[m.group(1)] = raw.strip()
     return sorted(defines.items())
 
 
@@ -515,10 +531,15 @@ def main():
 
     license_text = load_license_text(args.license_text)
     if extract_license_refs(license_id) and license_text is None:
-        print("WARNING: --license-override uses a LicenseRef-* but "
-              "--license-text was not provided; the SBOM will embed a "
-              "placeholder. Provide SBOM_LICENSE_TEXT=<path> for full "
-              "SPDX compliance.", file=sys.stderr)
+        sys.exit(
+            "ERROR: --license-override contains a LicenseRef-* identifier "
+            "but --license-text was not provided.\n"
+            "       SPDX 2.3 requires the licence text to be embedded in "
+            "hasExtractedLicensingInfos for any LicenseRef-* used in "
+            "licenseConcluded/licenseDeclared.\n"
+            "       Re-run with --license-text PATH (or "
+            "`make sbom SBOM_LICENSE_TEXT=PATH`)."
+        )
 
     build_props = parse_options_h(args.options_h)
     lib_hash = sha256_file(args.lib)
