@@ -4976,7 +4976,7 @@ WOLFSSL_ECDSA_SIG* wolfSSL_d2i_ECDSA_SIG(WOLFSSL_ECDSA_SIG** sig,
     WOLFSSL_ECDSA_SIG *s = NULL;
 
     /* Validate parameter. */
-    if (pp == NULL) {
+    if (pp == NULL || *pp == NULL) {
         err = 1;
     }
     if ((!err) && (len <= 0)) {

@@ -2371,6 +2371,28 @@ static int test_wolfSSL_CTX_use_certificate_buffer(void)
 
 } /* END test_wolfSSL_CTX_use_certificate_buffer */
 
+static int test_ProcessBuffer_negative_size(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx,
+        server_cert_der_2048, -1, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx,
+        server_cert_der_2048, sizeof_server_cert_der_2048,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_use_certificate_buffer(void)
 {
     EXPECT_DECLS;
@@ -11704,6 +11726,12 @@ static int test_wc_PemToDer(void)
 
     XMEMSET(&info, 0, sizeof(info));
 
+    {
+        const byte dummy = 'X';
+        ExpectIntEQ(wc_PemToDer(&dummy, -1, CERT_TYPE, &pDer, NULL,
+            &info, &eccKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
     ExpectIntEQ(ret = load_file(ca_cert, &cert_buf, &cert_sz), 0);
     ExpectIntEQ(ret = wc_PemToDer(cert_buf, (long int)cert_sz, CERT_TYPE, &pDer, NULL,
         &info, &eccKey), 0);
@@ -11798,6 +11826,8 @@ static int test_wc_CertPemToDer(void)
         (int)cert_dersz, CERT_TYPE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_CertPemToDer(cert_buf, (int)cert_sz, cert_der, -1,
         CERT_TYPE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_CertPemToDer(cert_buf, -1, cert_der, (int)cert_dersz,
+        CERT_TYPE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     if (cert_der != NULL)
         free(cert_der);
@@ -11854,6 +11884,10 @@ static int test_wc_KeyPemToDer(void)
     ExpectIntEQ(wc_KeyPemToDer(cert_buf, cert_sz, (byte*)&cert_der, 0, ""),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* Bad arg: negative pemSz */
+    ExpectIntEQ(wc_KeyPemToDer(cert_buf, -1, NULL, 0, ""),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
     /* Test normal operation */
     cert_dersz = cert_sz; /* DER will be smaller than PEM */
     ExpectNotNull(cert_der = (byte*)malloc((size_t)cert_dersz));
@@ -11897,6 +11931,9 @@ static int test_wc_PubKeyPemToDer(void)
     ExpectIntEQ(load_file(key, &cert_buf, &cert_sz), 0);
     cert_dersz = cert_sz; /* DER will be smaller than PEM */
     ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
+    /* Bad arg: negative pemSz */
+    ExpectIntEQ(wc_PubKeyPemToDer(cert_buf, -1, cert_der, (int)cert_dersz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntGE(wc_PubKeyPemToDer(cert_buf, (int)cert_sz, cert_der,
         (int)cert_dersz), 0);
     if (cert_der != NULL) {
@@ -21142,6 +21179,13 @@ static int test_wc_SetIssueBuffer(void)
 
     ExpectIntEQ(0, wc_SetIssuerBuffer(&forgedCert, peerCertBuf, peerCertSz));
 
+    /* Negative-size rejection: pin both wc_SetIssuerBuffer and
+     * wc_SetSubjectBuffer (representatives for the seven wc_Set* siblings). */
+    ExpectIntEQ(wc_SetIssuerBuffer(&forgedCert, peerCertBuf, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SetSubjectBuffer(&forgedCert, peerCertBuf, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
     wolfSSL_FreeX509(x509);
 #endif
     return EXPECT_RESULT();
@@ -24357,6 +24401,9 @@ static int test_wolfSSL_CTX_LoadCRL_largeCRLnum(void)
         WOLFSSL_SUCCESS);
     AssertIntEQ(XMEMCMP(
         crlInfo.crlNumber, exp_crlnum, XSTRLEN(exp_crlnum)), 0);
+    ExpectIntEQ(wolfSSL_CertManagerGetCRLInfo(
+        cm, &crlInfo, crlLrgCrlNumBuff, -1, WOLFSSL_FILETYPE_PEM),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Expect to fail loading CRL because of >21 octets CRL number */
     ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl_lrgcrlnum2,
                                                 WOLFSSL_FILETYPE_PEM),
@@ -35652,6 +35699,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),
+    TEST_DECL(test_ProcessBuffer_negative_size),
     TEST_DECL(test_wolfSSL_use_certificate_buffer),
     TEST_DECL(test_wolfSSL_CTX_use_PrivateKey_file),
     TEST_DECL(test_wolfSSL_CTX_use_RSAPrivateKey_file),

@@ -902,7 +902,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
     (void)opt;
 
     /* Validate parameters. */
-    if (in == NULL || inSz < 0) {
+    if (in == NULL || *in == NULL || inSz <= 0) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
     }
