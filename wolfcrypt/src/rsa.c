@@ -1154,39 +1154,31 @@ static int RsaMGF_SHAKE(enum wc_HashType shakeType, byte* seed, word32 seedSz,
         return MEMORY_E);
 
 #ifdef WOLFSSL_SHAKE128
-    if (shakeType == WC_HASH_TYPE_SHAKE128)
+    if (shakeType == WC_HASH_TYPE_SHAKE128) {
         ret = wc_InitShake128(shake, heap, INVALID_DEVID);
-    else
-#endif
-#ifdef WOLFSSL_SHAKE256
-    if (shakeType == WC_HASH_TYPE_SHAKE256)
-        ret = wc_InitShake256(shake, heap, INVALID_DEVID);
-    else
-#endif
-        ret = BAD_FUNC_ARG;
-
-    if (ret == 0) {
-#ifdef WOLFSSL_SHAKE128
-        if (shakeType == WC_HASH_TYPE_SHAKE128) {
+        if (ret == 0) {
             ret = wc_Shake128_Update(shake, seed, seedSz);
             if (ret == 0)
                 ret = wc_Shake128_Final(shake, out, outSz);
             wc_Shake128_Free(shake);
         }
-        else
+    }
+    else
 #endif
 #ifdef WOLFSSL_SHAKE256
-        if (shakeType == WC_HASH_TYPE_SHAKE256) {
+    if (shakeType == WC_HASH_TYPE_SHAKE256) {
+        ret = wc_InitShake256(shake, heap, INVALID_DEVID);
+        if (ret == 0) {
             ret = wc_Shake256_Update(shake, seed, seedSz);
             if (ret == 0)
                 ret = wc_Shake256_Final(shake, out, outSz);
             wc_Shake256_Free(shake);
         }
-        else
+    }
+    else
 #endif
-        {
-            ret = BAD_FUNC_ARG;
-        }
+    {
+        ret = BAD_FUNC_ARG;
     }
     WC_FREE_VAR_EX(shake, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
