@@ -1197,7 +1197,8 @@ int test_record_size_matches_build_message(void)
                 ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s,
                         &ssl_c, &ssl_s, versions[v].client, versions[v].server,
                         (byte*)ca_sm2_der, (int)sizeof_ca_sm2_der,
-                        (byte*)server_sm2_der, (int)sizeof_server_sm2_der,
+                        (byte*)server_sm2_cert_der,
+                        (int)sizeof_server_sm2_cert_der,
                         (byte*)server_sm2_priv_der,
                         (int)sizeof_server_sm2_priv_der), 0);
                 if (versions[v].is_tls13) {
