@@ -705,14 +705,18 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             /* We found our issuer in the non-trusted cert list, add it
              * to the CM and verify the current cert against it */
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            /* OpenSSL doesn't allow the cert as CA if it is not CA:TRUE for
-             * intermediate certs.
+        #ifndef WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE
+            /* RFC 5280 6.1.3(k): a non-self-issued intermediate must have
+             * basicConstraints CA:TRUE to be used as a signing authority.
+             * Reject CA:FALSE intermediates here; the verify_cb (if any)
+             * may override.  Define WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE
+             * to restore the legacy permissive behavior.
              */
             if (!issuer->isCa) {
                 /* error depth is current depth + 1 */
                 SetupStoreCtxError_ex(ctx, X509_V_ERR_INVALID_CA,
                                 (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
+            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
                 if (ctx->store->verify_cb) {
                     ret = ctx->store->verify_cb(0, ctx);
                     if (ret != WOLFSSL_SUCCESS) {
@@ -720,7 +724,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                         goto exit;
                     }
                 }
-                else {
+                else
+            #endif
+                {
                     ret = WOLFSSL_FAILURE;
                     goto exit;
                 }
