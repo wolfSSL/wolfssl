@@ -359,6 +359,12 @@ sbomdir      = $(datadir)/doc/$(PACKAGE)
 
 .PHONY: sbom install-sbom uninstall-sbom
 
+# Stage a `make install` into a private tree, discover the installed library
+# artifact (shared or static, ELF/Mach-O/PE), hash it, generate SPDX+CDX,
+# validate the SPDX, then convert to tag-value.  The staging tree is removed
+# unconditionally via `trap`, even if any step fails.  Honors SOURCE_DATE_EPOCH
+# for reproducible builds (set by the recipe to `git log -1 --format=%ct` when
+# unset and a git tree is available).
 sbom:
 	@if test -z "$(PYTHON3)"; then \
 	    echo ""; \
@@ -373,14 +379,44 @@ sbom:
 	    echo ""; \
 	    exit 1; \
 	fi
-	rm -rf $(abs_builddir)/_sbom_staging
-	$(MAKE) install DESTDIR=$(abs_builddir)/_sbom_staging
+	@rm -rf $(abs_builddir)/_sbom_staging
+	@set -e; \
+	trap 'rm -rf $(abs_builddir)/_sbom_staging' EXIT INT TERM HUP; \
+	$(MAKE) install DESTDIR=$(abs_builddir)/_sbom_staging; \
+	sbom_lib=""; \
+	for lib in \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.so.[0-9]* \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.so \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.[0-9]*.dylib \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dylib \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dll \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dll.a \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.lib \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/wolfssl.lib \
+	    "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.a; do \
+	    if test -f "$$lib"; then sbom_lib="$$lib"; break; fi; \
+	done; \
+	if test -z "$$sbom_lib"; then \
+	    echo ""; \
+	    echo "ERROR: No installed wolfSSL library artifact found for SBOM."; \
+	    echo "       Searched in $(abs_builddir)/_sbom_staging$(libdir)"; \
+	    echo "       (configure with --enable-shared or --enable-static)"; \
+	    echo ""; \
+	    exit 1; \
+	fi; \
+	echo "SBOM: hashing $$sbom_lib"; \
+	if test -z "$${SOURCE_DATE_EPOCH:-}" && test -n "$(GIT)" && \
+	   test -d "$(srcdir)/.git"; then \
+	    SOURCE_DATE_EPOCH=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null || echo`; \
+	    export SOURCE_DATE_EPOCH; \
+	fi; \
 	$(PYTHON3) $(srcdir)/scripts/gen-sbom \
 	    --name $(PACKAGE) \
 	    --version $(PACKAGE_VERSION) \
 	    --license-file $(srcdir)/LICENSING \
+	    --license-override '$(SBOM_LICENSE_OVERRIDE)' \
 	    --options-h $(abs_builddir)/wolfssl/options.h \
-	    --lib $(abs_builddir)/_sbom_staging$(libdir)/libwolfssl.so.$(WOLFSSL_LIBRARY_VERSION_FIRST).$(WOLFSSL_LIBRARY_VERSION_SECOND).$(WOLFSSL_LIBRARY_VERSION_THIRD) \
+	    --lib "$$sbom_lib" \
 	    --dep-liboqs $(ENABLED_LIBOQS) \
 	    --dep-libxmss $(ENABLED_LIBXMSS) \
 	    --dep-libxmss-root '$(XMSS_ROOT)' \
@@ -389,8 +425,7 @@ sbom:
 	    --dep-libz $(ENABLED_LIBZ) \
 	    --git '$(GIT)' \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
-	    --spdx-out $(abs_builddir)/$(SBOM_SPDX)
-	rm -rf $(abs_builddir)/_sbom_staging
+	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
 	$(PYSPDXTOOLS) --infile $(abs_builddir)/$(SBOM_SPDX) \
 	    --outfile $(abs_builddir)/$(SBOM_SPDX_TV)
 
@@ -417,6 +452,11 @@ bomshdir          = $(datadir)/doc/$(PACKAGE)
 
 .PHONY: bomsh install-bomsh uninstall-bomsh
 
+# Self-contained: the traced rebuild also regenerates the SBOM, so users
+# can run `make bomsh` directly without first running `make sbom`.  This is
+# also what makes the combined workflow correct: `make sbom` writes the SPDX,
+# but `make bomsh` issues `make clean` (which removes it via CLEANFILES), so
+# the only reliable way to enrich is to regenerate after the traced build.
 bomsh:
 	@if test -z "$(BOMTRACE3)"; then \
 	    echo ""; \
@@ -436,21 +476,41 @@ bomsh:
 	@printf 'raw_logfile=%s\n' '$(BOMSH_RAWLOG_BASE)' > '$(BOMSH_CONF)'
 	$(BOMTRACE3) -c '$(BOMSH_CONF)' $(MAKE)
 	$(BOMSH_CREATE_BOM) -r '$(BOMSH_RAWLOG)' -b '$(BOMSH_OMNIBORDIR)'
-	@if test -n "$(BOMSH_SBOM)" && test -f '$(abs_builddir)/wolfssl-$(PACKAGE_VERSION).spdx.json'; then \
-	    echo "Enriching SPDX with OmniBOR ExternalRefs..."; \
-	    $(BOMSH_SBOM) \
-	        -b '$(BOMSH_OMNIBORDIR)' \
-	        -i '$(abs_builddir)/wolfssl-$(PACKAGE_VERSION).spdx.json' \
-	        -f '$(abs_builddir)/src/.libs/libwolfssl.so.$(WOLFSSL_LIBRARY_VERSION_FIRST).$(WOLFSSL_LIBRARY_VERSION_SECOND).$(WOLFSSL_LIBRARY_VERSION_THIRD)' \
-	        -s spdx-json \
-	        -O '$(abs_builddir)'; \
-	elif test -n "$(BOMSH_SBOM)"; then \
-	    echo "NOTE: run 'make sbom' first, then 'make bomsh' for OmniBOR-enriched SPDX."; \
-	fi
+	$(MAKE) sbom
+	@if test -z "$(BOMSH_SBOM)"; then \
+	    echo "NOTE: bomsh_sbom.py not in PATH; skipping SPDX enrichment."; \
+	    echo "      The OmniBOR graph in $(BOMSH_OMNIBORDIR) is still produced."; \
+	    exit 0; \
+	fi; \
+	bomsh_artifact=""; \
+	for lib in \
+	    $(abs_builddir)/src/.libs/libwolfssl.so.[0-9]* \
+	    $(abs_builddir)/src/.libs/libwolfssl.so \
+	    $(abs_builddir)/src/.libs/libwolfssl.[0-9]*.dylib \
+	    $(abs_builddir)/src/.libs/libwolfssl.dylib \
+	    $(abs_builddir)/src/.libs/libwolfssl.a \
+	    $(abs_builddir)/src/libwolfssl.a; do \
+	    if test -f "$$lib"; then bomsh_artifact="$$lib"; break; fi; \
+	done; \
+	if test -z "$$bomsh_artifact"; then \
+	    echo "NOTE: no built libwolfssl artifact found in $(abs_builddir)/src/.libs/"; \
+	    echo "      OmniBOR graph produced; SPDX enrichment skipped."; \
+	    exit 0; \
+	fi; \
+	echo "Enriching SPDX with OmniBOR ExternalRefs (artifact: $$bomsh_artifact)..."; \
+	$(BOMSH_SBOM) \
+	    -b '$(BOMSH_OMNIBORDIR)' \
+	    -i '$(abs_builddir)/$(SBOM_SPDX)' \
+	    -f "$$bomsh_artifact" \
+	    -s spdx-json \
+	    -O '$(abs_builddir)'
 
 install-bomsh: bomsh
-	$(MKDIR_P) $(DESTDIR)$(bomshdir)
-	cp -r '$(BOMSH_OMNIBORDIR)' '$(DESTDIR)$(bomshdir)/omnibor'
+	$(MKDIR_P) '$(DESTDIR)$(bomshdir)/omnibor'
+	@if test -d '$(BOMSH_OMNIBORDIR)'; then \
+	    (cd '$(BOMSH_OMNIBORDIR)' && tar cf - .) | \
+	        (cd '$(DESTDIR)$(bomshdir)/omnibor' && tar xf -); \
+	fi
 	@if test -f '$(abs_builddir)/$(BOMSH_SPDX_OUT)'; then \
 	    $(INSTALL_DATA) '$(abs_builddir)/$(BOMSH_SPDX_OUT)' '$(DESTDIR)$(bomshdir)/'; \
 	fi
@@ -460,3 +520,13 @@ uninstall-bomsh:
 	-rm -f '$(DESTDIR)$(bomshdir)/$(BOMSH_SPDX_OUT)'
 
 CLEANFILES += $(BOMSH_RAWLOG) $(BOMSH_RAWLOG_BASE).sha256 $(BOMSH_CONF) $(BOMSH_SPDX_OUT)
+
+# Hook SBOM/Bomsh cleanup into `make uninstall` so packagers don't leave
+# stale artefacts behind after install-sbom/install-bomsh.  rm -f is
+# idempotent, so this is safe whether or not those targets were ever run.
+uninstall-hook:
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_CDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX)
+	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX_TV)
+	-rm -rf $(DESTDIR)$(bomshdir)/omnibor
+	-rm -f $(DESTDIR)$(bomshdir)/$(BOMSH_SPDX_OUT)

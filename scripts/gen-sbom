@@ -4,11 +4,41 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
 import uuid
 from datetime import datetime, timezone
+
+
+# Stable namespace for deterministic uuid5 derivation.  Anchored under
+# wolfssl.com so collisions with other projects' SBOM UUIDs are not a concern.
+SBOM_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'https://wolfssl.com/sbom/')
+
+
+def derived_uuid(*parts):
+    """Deterministic UUID from joined parts under the wolfSSL SBOM namespace.
+    Re-runs of `make sbom` against the same source produce identical UUIDs,
+    which is required for reproducible-build-style SBOM hashing."""
+    return str(uuid.uuid5(SBOM_UUID_NAMESPACE, '/'.join(parts)))
+
+
+def build_timestamp():
+    """Return (datetime, ISO-8601-Z string) honoring SOURCE_DATE_EPOCH.
+    Reproducible Builds convention: if the env var is set to a valid
+    integer, use it as the SBOM creation timestamp instead of wallclock."""
+    sde = os.environ.get('SOURCE_DATE_EPOCH', '').strip()
+    if sde:
+        try:
+            dt = datetime.fromtimestamp(int(sde), tz=timezone.utc)
+        except (ValueError, OverflowError, OSError) as e:
+            print(f"WARNING: ignoring invalid SOURCE_DATE_EPOCH={sde!r}: {e}",
+                  file=sys.stderr)
+            dt = datetime.now(timezone.utc)
+    else:
+        dt = datetime.now(timezone.utc)
+    return dt, dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
 # Known metadata for optional external dependencies.
@@ -148,11 +178,12 @@ def parse_options_h(path):
     return sorted(defines.items())
 
 
-def cdx_dep_component(key):
-    """Return (bom_ref, component_dict) for a CDX dependency component."""
+def cdx_dep_component(name, pkg_version, key):
+    """Return (bom_ref, component_dict) for a CDX dependency component.
+    bom_ref is deterministic for reproducibility."""
     meta = DEP_META[key]
     version = dep_version(key)
-    bom_ref = str(uuid.uuid4())
+    bom_ref = derived_uuid(name, pkg_version, 'dep', key)
     comp = {
         'bom-ref': bom_ref,
         'type': 'library',
@@ -196,14 +227,13 @@ def spdx_dep_package(key):
 
 
 def generate_cdx(name, version, supplier, license_id, lib_hash,
-                 timestamp, serial, enabled_deps, build_props):
-    year = datetime.now(timezone.utc).year
-    bom_ref = str(uuid.uuid4())
+                 timestamp, year, serial, enabled_deps, build_props):
+    bom_ref = derived_uuid(name, version, 'package')
 
     dep_bom_refs = []
     components = []
     for key in enabled_deps:
-        ref, comp = cdx_dep_component(key)
+        ref, comp = cdx_dep_component(name, version, key)
         dep_bom_refs.append(ref)
         components.append(comp)
 
@@ -255,9 +285,7 @@ def generate_cdx(name, version, supplier, license_id, lib_hash,
 
 
 def generate_spdx(name, version, supplier, license_id, lib_hash,
-                  timestamp, doc_ns_uuid, enabled_deps, build_props):
-    year = datetime.now(timezone.utc).year
-
+                  timestamp, year, doc_ns_uuid, enabled_deps, build_props):
     build_defines = ', '.join(k for k, _ in build_props)
     wolfssl_pkg = {
         'SPDXID': 'SPDXRef-Package-wolfssl',
@@ -312,7 +340,6 @@ def generate_spdx(name, version, supplier, license_id, lib_hash,
             f'https://wolfssl.com/sbom/{name}-{version}-{doc_ns_uuid}'
         ),
         'creationInfo': {
-            'licenseListVersion': '3.28',
             'creators': [
                 f'Organization: {supplier}',
                 'Tool: wolfssl-sbom-gen-1.0'
@@ -333,9 +360,15 @@ def main():
     parser.add_argument('--supplier', default='wolfSSL Inc.',
                         help='Supplier name (default: wolfSSL Inc.)')
     parser.add_argument('--lib', required=True,
-                        help='Path to libwolfssl.so.X.Y.Z for SHA-256 hashing')
+                        help='Path to the wolfSSL library artifact '
+                             '(shared or static) for SHA-256 hashing')
     parser.add_argument('--license-file', required=True,
                         help='Path to LICENSING file for SPDX ID detection')
+    parser.add_argument('--license-override', default='',
+                        help='Override the detected SPDX license expression '
+                             '(e.g. LicenseRef-wolfSSL-Commercial). Useful '
+                             'for commercial licensees regenerating the SBOM '
+                             'for their own product.')
     parser.add_argument('--options-h', required=True,
                         help='Path to wolfssl/options.h for build config')
     parser.add_argument('--dep-liboqs', default='no',
@@ -376,26 +409,30 @@ def main():
         if flag.lower() == 'yes'
     ]
 
-    license_id = detect_license(args.license_file)
-    if license_id is None:
-        print("WARNING: license could not be determined; using NOASSERTION",
-              file=sys.stderr)
-        license_id = 'NOASSERTION'
+    if args.license_override:
+        license_id = args.license_override
+    else:
+        license_id = detect_license(args.license_file)
+        if license_id is None:
+            print("WARNING: license could not be determined; using NOASSERTION",
+                  file=sys.stderr)
+            license_id = 'NOASSERTION'
 
     build_props = parse_options_h(args.options_h)
     lib_hash = sha256_file(args.lib)
-    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    serial = str(uuid.uuid4())
-    doc_ns_uuid = str(uuid.uuid4())
+    dt, timestamp = build_timestamp()
+    year = dt.year
+    serial = derived_uuid(args.name, args.version, 'serial')
+    doc_ns_uuid = derived_uuid(args.name, args.version, 'document')
 
     cdx = generate_cdx(
         args.name, args.version, args.supplier,
-        license_id, lib_hash, timestamp, serial,
+        license_id, lib_hash, timestamp, year, serial,
         enabled_deps, build_props,
     )
     spdx = generate_spdx(
         args.name, args.version, args.supplier,
-        license_id, lib_hash, timestamp, doc_ns_uuid,
+        license_id, lib_hash, timestamp, year, doc_ns_uuid,
         enabled_deps, build_props,
     )
 

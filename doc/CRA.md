@@ -125,18 +125,45 @@ wolfSSL CycloneDX document via an external reference of type `bom`:
 
 ## Commercial License Users
 
-wolfSSL's SBOM records `licenseConcluded: GPL-3.0-only`, which reflects the
-open-source license.  If you are distributing a product under a wolfSSL
-commercial license, update `licenseConcluded` in your copy of the package
-entry (or in your own SBOM's reference to the wolfSSL package) to reflect
-your actual license:
+wolfSSL's published SBOM records `licenseConcluded: GPL-3.0-only`, which
+reflects the open-source license.  If you are distributing a product under a
+wolfSSL commercial license, you have two options:
+
+### Option 1: regenerate the SBOM with your license expression
+
+Pass `SBOM_LICENSE_OVERRIDE` to `make sbom` to bake your SPDX expression
+directly into the artefact (preferred — survives re-runs, no manual editing):
+
+```sh
+make sbom SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial
+```
+
+Or invoke the generator directly with `--license-override` if you are
+producing the SBOM outside the standard make target.
+
+### Option 2: update your product SBOM's reference to wolfSSL
+
+Leave the upstream SBOM file alone and override `licenseConcluded` on the
+wolfSSL package entry in *your* product SBOM:
 
 ```json
 "licenseConcluded": "LicenseRef-wolfSSL-Commercial"
 ```
 
-Do not modify the wolfSSL-published SBOM file itself; update the concluded
-license in your product SBOM where you reference or embed the wolfSSL entry.
+Do not modify the wolfSSL-published SBOM file in place; either regenerate it
+with the override (Option 1) or override at the consumer level (Option 2).
+
+## Reproducible SBOMs
+
+The generator honors `SOURCE_DATE_EPOCH` for the SBOM creation timestamp and
+uses deterministic UUIDs derived from the package name and version, so two
+runs of `make sbom` against the same source tree, library binary, and build
+options produce byte-identical `.spdx.json` and `.cdx.json` files.  This
+matters for downstream attestation pipelines that hash SBOMs as part of a
+provenance chain.
+
+`make sbom` will derive `SOURCE_DATE_EPOCH` from `git log -1 --format=%ct` if
+you do not set it explicitly and the wolfSSL source tree is a git checkout.
 
 ## Build Provenance (OmniBOR)
 
