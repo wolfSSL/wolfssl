@@ -1298,6 +1298,7 @@ then
         AC_MSG_ERROR([--enable-all-osp is incompatible with --enable-linuxkm-defaults])
     fi
 
+    test "$enable_tailscale" = "" && enable_tailscale=yes
     test "$enable_wolfguard" = "" && enable_wolfguard=yes
     test "$enable_webserver" = "" && enable_webserver=yes
 
@@ -1648,6 +1649,30 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
 fi
 
+# Support for Tailscale port
+AC_ARG_ENABLE([tailscale],
+    [AS_HELP_STRING([--enable-tailscale],[Enable Tailscale build dependencies (default: disabled)])],
+    [ ENABLED_TAILSCALE=$enableval ],
+    [ ENABLED_TAILSCALE=no ]
+    )
+if test "$ENABLED_TAILSCALE" = "yes"
+then
+    enable_wolfguard=yes
+    test "x$enable_sp" = "x" && enable_sp="yes,256"
+    enable_opensslall=yes
+    enable_alpn=yes
+    enable_sni=yes
+    enable_certgen=yes
+    enable_certreq=yes
+    enable_certext=yes
+    enable_sessioncerts=yes
+    enable_cert_setup_cb=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_INIT_CTX_KEY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DWC_CTC_NAME_SIZE=128 -DWOLFSSL_ACME_OID"
+fi
+
 # wolfGuard
 AC_ARG_ENABLE([wolfguard],
     [AS_HELP_STRING([--enable-wolfguard],[Enable wolfGuard dependencies (default: disabled)])],
@@ -1661,9 +1686,9 @@ then
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_base16" = "" && enable_base16=yes
+    test "$enable_compkey" = "" && enable_compkey=yes
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
-        test "$enable_compkey" = "" && enable_compkey=yes
         test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     fi
 fi
@@ -4912,8 +4937,7 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
-if (test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes") &&
-   (test "$HAVE_FIPS_VERSION" != "5")
+if (test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes")
 then
     ENABLED_COMPKEY=yes
 fi
@@ -6809,11 +6833,6 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_KEYGEN" != "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_keygen" != "no")],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
-
-        AS_IF([test "$ENABLED_COMPKEY" = "yes" &&
-               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_compkey" = "yes")],
-            [AC_MSG_WARN([Forcing off compkey for FIPS ${FIPS_VERSION}.])
-             ENABLED_COMPKEY="no"])
 
         AS_IF([test "$ENABLED_SHA224" != "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha224" != "no")],

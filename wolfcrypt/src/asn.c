@@ -19014,6 +19014,39 @@ static int DecodeKeyUsageInternal(const byte* input, word32 sz,
     return DecodeKeyUsage(input, sz, &cert->extKeyUsage);
 }
 
+#ifdef WOLFSSL_ACME_OID
+/* Decodes the RFC 8737 id-pe-acmeIdentifier (1.3.6.1.5.5.7.1.31)
+ * extension value into cert->acmeIdentifier.
+ *
+ * The extnValue is an OCTET STRING wrapping a SHA-256 digest of the
+ * ACME keyAuth, per RFC 8737 3. Length is verified against
+ * WC_SHA256_DIGEST_SIZE.
+ *
+ * @param [in]      input  ASN.1 DER-encoded extension value.
+ * @param [in]      sz     Length of input in bytes.
+ * @param [in, out] cert   DecodedCert to populate (acmeIdentifier and
+ *                         acmeIdentifierSz fields).
+ *
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when the inner OCTET STRING is missing or not
+ *          exactly WC_SHA256_DIGEST_SIZE bytes.
+ */
+static int DecodeAcmeId(const byte* input, word32 sz, DecodedCert* cert)
+{
+    word32 hashIdx = 0;
+    int    hashLen = 0;
+
+    if (GetOctetString(input, &hashIdx, &hashLen, sz) < 0)
+        return ASN_PARSE_E;
+    if (hashLen != WC_SHA256_DIGEST_SIZE)
+        return ASN_PARSE_E;
+
+    XMEMCPY(cert->acmeIdentifier, &input[hashIdx], WC_SHA256_DIGEST_SIZE);
+    cert->acmeIdentifierSz = WC_SHA256_DIGEST_SIZE;
+    return 0;
+}
+#endif /* WOLFSSL_ACME_OID */
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for KeyPurposeId.
  * X.509: RFC 5280, 4.2.1.12 - Extended Key Usage.
@@ -20236,6 +20269,14 @@ int DecodeExtensionType(const byte* input, word32 length, word32 oid,
                 return ASN_PARSE_E;
             break;
     #endif /* WOLFSSL_DUAL_ALG_CERTS */
+    #ifdef WOLFSSL_ACME_OID
+        case ACME_IDENTIFIER_OID:
+            VERIFY_AND_SET_OID(cert->extAcmeIdentifierSet);
+            cert->extAcmeIdentifierCrit = critical ? 1 : 0;
+            if (DecodeAcmeId(&input[idx], length, cert) < 0)
+                return ASN_PARSE_E;
+            break;
+    #endif
         default:
             if (isUnknownExt != NULL)
                 *isUnknownExt = 1;
@@ -25250,6 +25291,9 @@ typedef struct DerCert {
 #endif
     byte certPolicies[MAX_CERTPOL_NB*MAX_CERTPOL_SZ]; /* Certificate Policies */
     byte crlInfo[CTC_MAX_CRLINFO_SZ];  /* CRL Distribution Points */
+#ifdef WOLFSSL_ACME_OID
+    byte acmeId[MAX_ACMEID_SZ];        /* RFC 8737 id-pe-acmeIdentifier */
+#endif
 #endif
 #ifdef WOLFSSL_CERT_REQ
     byte attrib[MAX_ATTRIB_SZ];        /* Cert req attributes encoded */
@@ -25280,6 +25324,9 @@ typedef struct DerCert {
 #endif
     int  certPoliciesSz;               /* encoded CertPolicies extension length*/
     int  crlInfoSz;                    /* encoded CRL Dist Points length */
+#ifdef WOLFSSL_ACME_OID
+    int  acmeIdSz;                     /* encoded acmeIdentifier length */
+#endif
 #endif
 #ifdef WOLFSSL_ALT_NAMES
     int  altNamesSz;                   /* encoded AltNames extension length */
@@ -26510,6 +26557,12 @@ static const ASNItem static_certExtsASN[] = {
 /* CRLINFO_SEQ   */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* CRLINFO_OID   */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
 /* CRLINFO_STR   */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+                                       /* RFC 8737 id-pe-acmeIdentifier */
+/* ACMEID_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* ACMEID_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* ACMEID_CRIT   */        { 1, ASN_BOOLEAN, 0, 0, 0 },
+/* ACMEID_STR    */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* ACMEID_HASH   */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 /* SAPKI_SEQ     */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* SAPKI_OID     */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
@@ -26568,6 +26621,11 @@ enum {
     CERTEXTSASN_IDX_CRLINFO_SEQ,
     CERTEXTSASN_IDX_CRLINFO_OID,
     CERTEXTSASN_IDX_CRLINFO_STR,
+    CERTEXTSASN_IDX_ACMEID_SEQ,
+    CERTEXTSASN_IDX_ACMEID_OID,
+    CERTEXTSASN_IDX_ACMEID_CRIT,
+    CERTEXTSASN_IDX_ACMEID_STR,
+    CERTEXTSASN_IDX_ACMEID_HASH,
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     CERTEXTSASN_IDX_SAPKI_SEQ,
     CERTEXTSASN_IDX_SAPKI_OID,
@@ -26623,6 +26681,10 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     static const byte nsCertOID[] = { 0x60, 0x86, 0x48, 0x01,
                                       0x86, 0xF8, 0x42, 0x01, 0x01 };
     static const byte crlInfoOID[] = { 0x55, 0x1D, 0x1F };
+#ifdef WOLFSSL_ACME_OID
+    static const byte acmeIdOID[] = { 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07,
+                                      0x01, 0x1F };
+#endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     static const byte sapkiOID[] = { 0x55, 0x1d, 0x48 };
     static const byte altSigAlgOID[] = { 0x55, 0x1d, 0x49 };
@@ -26876,6 +26938,24 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             /* Don't write out CRL Distribution Points. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_CRLINFO_SEQ,
                     CERTEXTSASN_IDX_CRLINFO_STR);
+        }
+
+    #ifdef WOLFSSL_ACME_OID
+        /* id-pe-acmeIdentifier (TLS-ALPN-01 challenge cert).
+         * Always critical=TRUE. */
+        if (cert->acmeIdentifierSz == WC_SHA256_DIGEST_SIZE) {
+            SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_ACMEID_OID],
+                    acmeIdOID, sizeof(acmeIdOID));
+            SetASN_Boolean(&dataASN[CERTEXTSASN_IDX_ACMEID_CRIT], 1);
+            SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_ACMEID_HASH],
+                    cert->acmeIdentifier, (word32)cert->acmeIdentifierSz);
+        }
+        else
+    #endif /* WOLFSSL_ACME_OID */
+        {
+            /* Don't write out the ACME identifier extension. */
+            SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_ACMEID_SEQ,
+                    CERTEXTSASN_IDX_ACMEID_HASH);
         }
 
     #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -29312,6 +29392,40 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value)
 
     return ret;
 }
+
+#ifdef WOLFSSL_ACME_OID
+/* Set the id-pe-acmeIdentifier extension value from the ACME
+ * keyAuth string. Computes SHA-256 over keyAuth and stores the digest
+ * as the extension value. RFC 8737 3 requires critical=TRUE; that's
+ * applied at encode time in EncodeExtensions.
+ *
+ * keyAuth is the raw bytes of the key authorization string per
+ * RFC 8555 8.1: token "." JWK_thumbprint.
+ */
+int wc_SetAcmeIdentifierExt(Cert *cert, const byte *keyAuth, word32 keyAuthSz)
+{
+    int    ret;
+    byte   digest[WC_SHA256_DIGEST_SIZE];
+    wc_Sha256 sha;
+
+    if (cert == NULL || keyAuth == NULL || keyAuthSz == 0)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitSha256(&sha);
+    if (ret != 0)
+        return ret;
+    ret = wc_Sha256Update(&sha, keyAuth, keyAuthSz);
+    if (ret == 0)
+        ret = wc_Sha256Final(&sha, digest);
+    wc_Sha256Free(&sha);
+    if (ret != 0)
+        return ret;
+
+    XMEMCPY(cert->acmeIdentifier, digest, WC_SHA256_DIGEST_SIZE);
+    cert->acmeIdentifierSz = WC_SHA256_DIGEST_SIZE;
+    return 0;
+}
+#endif /* WOLFSSL_ACME_OID */
 
 #ifdef WOLFSSL_EKU_OID
 /*

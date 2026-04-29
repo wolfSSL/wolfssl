@@ -1311,6 +1311,10 @@ enum Misc_ASN {
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
+#ifdef WOLFSSL_ACME_OID
+    MAX_ACMEID_SZ       = 19 + WC_SHA256_DIGEST_SIZE, /* Max encoded
+                                                         acmeIdentifier size */
+#endif
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
@@ -2107,7 +2111,13 @@ struct DecodedCert {
     WC_BITFIELD extAltSigAlgCrit:1;
     WC_BITFIELD extAltSigValCrit:1;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
-
+#ifdef WOLFSSL_ACME_OID
+    /* id-pe-acmeIdentifier (TLS-ALPN-01 challenge cert) */
+    byte acmeIdentifier[WC_SHA256_DIGEST_SIZE];
+    int  acmeIdentifierSz;
+    WC_BITFIELD extAcmeIdentifierSet:1;
+    WC_BITFIELD extAcmeIdentifierCrit:1;
+#endif /* WOLFSSL_ACME_OID */
     WOLFSSL_AIA_ENTRY extAuthInfoList[WOLFSSL_MAX_AIA_ENTRIES];
     WC_BITFIELD extAuthInfoListSz:7;
     WC_BITFIELD extAuthInfoListOverflow:1;

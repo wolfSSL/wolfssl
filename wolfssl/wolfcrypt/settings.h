@@ -558,6 +558,11 @@
     #define HAVE_OID_DECODING
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
+/* RFC 8737 id-pe-acmeIdentifier (TLS-ALPN-01) requires SHA-256. */
+#if defined(WOLFSSL_ACME_OID) && defined(NO_SHA256)
+    #undef WOLFSSL_ACME_OID
+#endif
+
 
 #if defined(_WIN32) && !defined(_M_X64) && \
     defined(HAVE_AESGCM) && defined(WOLFSSL_AESNI)
