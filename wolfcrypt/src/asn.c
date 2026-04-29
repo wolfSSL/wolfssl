@@ -17866,6 +17866,17 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
+            else if (nameType == ASN_RID_TYPE) {
+                /* registeredID matches when the OID bodies are bytewise
+                 * equal. RFC 5280 Sec. 4.2.1.10 does not define a
+                 * subtree relation for OIDs, so use exact-match. */
+                if (name->len == current->nameSz &&
+                    XMEMCMP(name->name, current->name,
+                            (size_t)name->len) == 0) {
+                    match = 1;
+                    break;
+                }
+            }
             else if (name->len >= current->nameSz &&
                 wolfssl_local_MatchBaseName(nameType, name->name, name->len,
                                             current->name, current->nameSz)) {
@@ -17919,6 +17930,16 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
+            else if (nameType == ASN_RID_TYPE) {
+                /* registeredID matches when the OID bodies are bytewise
+                 * equal. See PermittedListOk for the rationale. */
+                if (name->len == current->nameSz &&
+                    XMEMCMP(name->name, current->name,
+                            (size_t)name->len) == 0) {
+                    ret = 1;
+                    break;
+                }
+            }
             else if (name->len >= current->nameSz &&
                 wolfssl_local_MatchBaseName(nameType, name->name, name->len,
                                             current->name, current->nameSz)) {
@@ -17936,7 +17957,8 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
 static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 {
     const byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE,
-                              ASN_IP_TYPE, ASN_URI_TYPE, ASN_OTHER_TYPE};
+                              ASN_IP_TYPE, ASN_URI_TYPE, ASN_OTHER_TYPE,
+                              ASN_RID_TYPE};
     int i;
 
     if (signer == NULL || cert == NULL)
@@ -18015,6 +18037,11 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                  * encoding (OID || [0] EXPLICIT value) and is byte-matched
                  * against the issuing CA's subtree. */
                 name = cert->altOtherNamesRaw;
+                break;
+            case ASN_RID_TYPE:
+                /* registeredID entries also live on cert->altNames as
+                 * raw OID body bytes. */
+                name = cert->altNames;
                 break;
             default:
                 return 0;
@@ -18410,8 +18437,27 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
-    #ifdef WOLFSSL_RID_ALT_NAME
-    /* GeneralName choice: registeredID */
+    /* GeneralName choice: registeredID
+     *
+     * Always parse registeredID into cert->altNames so
+     * ConfirmNameConstraints can enforce permitted/excluded subtrees
+     * (RFC 5280 Sec. 4.2.1.10). The entry holds raw OID body bytes;
+     * WOLFSSL_RID_ALT_NAME only gates the human-readable ridString
+     * generation in SetDNSEntry. Downstream consumer treatment in
+     * default builds:
+     *   - wolfSSL_X509_get_next_altname (string iterator): skips
+     *     ASN_RID_TYPE entries (raw OID bytes are not a C string).
+     *   - CheckForAltNames (TLS hostname matching): skips ASN_RID_TYPE
+     *     unconditionally and excludes them from *checkCN, so a cert
+     *     with only registeredID SANs still falls back to CN.
+     *   - DNS_to_GENERAL_NAME (used by wolfSSL_X509_get_ext) and the
+     *     ALT_NAMES_OID arm of wolfSSL_X509_get_ext_d2i: build a proper
+     *     ASN1_OBJECT in d.registeredID from raw OID bytes regardless
+     *     of WOLFSSL_RID_ALT_NAME, so OPENSSL_EXTRA-style callers see
+     *     correctly-typed GENERAL_NAME entries.
+     *   - X509_print_name_entry: emits "Registered ID:<unavailable>"
+     *     when ridString is not generated, instead of failing the
+     *     whole print operation. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
         ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
                 ASN_RID_TYPE, &cert->altNames);
@@ -18419,7 +18465,6 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
-    #endif /* WOLFSSL_RID_ALT_NAME */
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #ifndef IGNORE_NAME_CONSTRAINTS
     /* GeneralName choice: otherName.
@@ -19706,14 +19751,18 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         if (ret == 0) {
             byte t = dataASN[SUBTREEASN_IDX_BASE].tag;
 
-            /* Check GeneralName tag is one of the types we can handle. */
+            /* Check GeneralName tag is one of the types we can handle.
+             * registeredID is included so that ConfirmNameConstraints can
+             * enforce permitted/excluded subtrees of OIDs (RFC 5280
+             * Sec. 4.2.1.10). */
             if (t == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE) ||
                 t == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
-                      ASN_OTHER_TYPE)) {
+                      ASN_OTHER_TYPE) ||
+                t == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
                 /* Parse the general name and store a new entry. */
                 ret = DecodeSubtreeGeneralName(input +
                     GetASNItem_DataIdx(dataASN[SUBTREEASN_IDX_BASE], input),

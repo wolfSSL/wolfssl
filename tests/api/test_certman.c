@@ -1713,7 +1713,7 @@ int test_wolfSSL_CertManagerNameConstraint_IP_SAN(void)
     defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
     !defined(NO_SHA256) && !defined(IGNORE_NAME_CONSTRAINTS)
-    /* Regression test for TALOS-2026-2409 (CVE-2026-28739).
+    /* Regression test for iPAddress name-constraint enforcement.
      *
      * The CA at cert-ext-ncip.der declares a permittedSubtrees iPAddress
      * constraint of 192.168.1.0/255.255.255.0. A leaf with an iPAddress
@@ -1806,6 +1806,215 @@ int test_wolfSSL_CertManagerNameConstraint_IP_SAN(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_CertManagerNameConstraint_RID_SAN(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* Regression test for registeredID name-constraint enforcement.
+     *
+     * The CA at cert-ext-ncrid.der declares a permittedSubtrees
+     * registeredID constraint of OID 1.2.3.4.5. A leaf with a
+     * registeredID SAN outside that permitted set must be rejected.
+     *
+     * Pre-fix, three independent failures hid the registeredID type from
+     * enforcement in all build configurations:
+     *   1. ConfirmNameConstraints' nameTypes[] array did not include
+     *      ASN_RID_TYPE, so the constraint loop never considered
+     *      registeredID entries.
+     *   2. DecodeSubtree's accepted-tag set excluded
+     *      ASN_CONTEXT_SPECIFIC|ASN_RID_TYPE, so registeredID subtrees
+     *      in the CA's nameConstraints were dropped during parsing and
+     *      never reached signer->permittedNames/excludedNames.
+     *   3. DecodeGeneralName gated registeredID SAN parsing on
+     *      WOLFSSL_RID_ALT_NAME; without that define cert->altNames had
+     *      no ASN_RID_TYPE entries.
+     * The bug was unconditional - WOLFSSL_RID_ALT_NAME alone did not
+     * fix it because layers 1 and 2 still discarded the data. */
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_EVP_PKEY *priv = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    const char* ca_cert = "./certs/test/cert-ext-ncrid.der";
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    /* DER-encoded OID body bytes (no tag/length, since registeredID is
+     * IMPLICIT [8] OBJECT IDENTIFIER inside a SAN). The first arc encodes
+     * 40*X + Y in one byte for X<=2,Y<=39, then each subsequent arc is
+     * base-128 with continuation bits. For values <128 the encoding is a
+     * single byte. */
+    static const byte rid_inside[]  = { 0x2A, 0x03, 0x04, 0x05 }; /* 1.2.3.4.5 - permitted */
+    static const byte rid_outside[] = { 0x2A, 0x03, 0x04, 0x63 }; /* 1.2.3.4.99 - violates */
+
+    byte    *der = NULL;
+    int     derSz;
+    byte    *pt;
+    WOLFSSL_X509 *x509 = NULL;
+    WOLFSSL_X509 *ca = NULL;
+
+    pt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
+                WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* Negative case: leaf with a registeredID SAN outside the permitted
+     * OID set. Must be rejected with ASN_NAME_INVALID_E. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)rid_outside,
+                sizeof(rid_outside), ASN_RID_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Positive case: leaf with a registeredID SAN matching the permitted
+     * OID exactly must be accepted. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    name = NULL;
+
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)rid_inside,
+                sizeof(rid_inside), ASN_RID_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CertManagerFree(cm);
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(ca);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_get_ext_d2i_RID_SAN(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256)
+    /* Regression test: a cert with a registeredID SAN must be exposable
+     * through the OPENSSL_EXTRA SAN APIs even when WOLFSSL_RID_ALT_NAME
+     * is undefined.
+     *
+     * The registeredID name-constraint fix adds registeredID entries to
+     * altNames unconditionally so name constraints can be enforced. The
+     * OPENSSL_EXTRA helpers DNS_to_GENERAL_NAME (used by
+     * wolfSSL_X509_get_ext) and the ALT_NAMES_OID arm of
+     * wolfSSL_X509_get_ext_d2i previously gated registeredID handling on
+     * WOLFSSL_RID_ALT_NAME, which is NOT auto-enabled by
+     * --enable-opensslextra. Without the fix, any cert with a
+     * registeredID SAN would cause those getters to return NULL or
+     * produce a malformed GENERAL_NAME (type==GEN_RID but
+     * d.dNSName-as-IA5STRING in the union). */
+    WOLFSSL_EVP_PKEY *priv = NULL;
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    static const byte rid_oid[] = { 0x2A, 0x03, 0x04, 0x05 };
+    byte    *pt;
+    byte    *der = NULL;
+    int      derSz;
+    WOLFSSL_X509 *leaf = NULL;
+    WOLFSSL_X509 *parsed = NULL;
+    WOLFSSL_STACK *altNames = NULL;
+    WOLFSSL_X509_EXTENSION *ext = NULL;
+    WOLFSSL_GENERAL_NAME *gn = NULL;
+    int found = 0;
+    int i;
+    int loc;
+
+    pt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    /* Build and sign a leaf with a registeredID SAN. */
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(leaf, (const char*)rid_oid,
+                sizeof(rid_oid), ASN_RID_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(leaf, priv, EVP_sha256()), 0);
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(leaf, &derSz)));
+
+    /* Re-parse the signed leaf so altNames are populated through
+     * DecodeGeneralName (the path the fix touches). */
+    ExpectNotNull(parsed = wolfSSL_X509_load_certificate_buffer(der, derSz,
+                WOLFSSL_FILETYPE_ASN1));
+
+    /* wolfSSL_X509_get_ext_d2i for SAN must return a non-NULL stack
+     * containing a registeredID GENERAL_NAME with the union populated
+     * via d.registeredID (not d.dNSName). */
+    ExpectNotNull(altNames = (WOLFSSL_STACK*)wolfSSL_X509_get_ext_d2i(parsed,
+                NID_subject_alt_name, NULL, NULL));
+    if (altNames != NULL) {
+        for (i = 0; i < wolfSSL_sk_num(altNames); i++) {
+            gn = (WOLFSSL_GENERAL_NAME*)wolfSSL_sk_value(altNames, i);
+            if (gn != NULL && gn->type == ASN_RID_TYPE) {
+                /* The union must hold a real ASN1_OBJECT, not the
+                 * default IA5 string the bypass path would produce.
+                 * Verify the encoded OID bytes match what we put on
+                 * the leaf so a future mis-encoding (wrong tag, off-by
+                 * -one length, swapped fields) is caught. */
+                ExpectNotNull(gn->d.registeredID);
+                if (gn->d.registeredID != NULL) {
+                    /* DER-wrapped: ASN_OBJECT_ID + length-byte + body */
+                    word32 expectedSz = 1 + 1 + sizeof(rid_oid);
+                    ExpectIntEQ(gn->d.registeredID->objSz, expectedSz);
+                    ExpectNotNull(gn->d.registeredID->obj);
+                    if (gn->d.registeredID->obj != NULL &&
+                        gn->d.registeredID->objSz == expectedSz) {
+                        ExpectIntEQ(gn->d.registeredID->obj[0], ASN_OBJECT_ID);
+                        ExpectIntEQ(gn->d.registeredID->obj[1],
+                                    (byte)sizeof(rid_oid));
+                        ExpectIntEQ(XMEMCMP(gn->d.registeredID->obj + 2,
+                                    rid_oid, sizeof(rid_oid)), 0);
+                    }
+                }
+                found = 1;
+                break;
+            }
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    if (altNames != NULL) {
+        wolfSSL_sk_pop_free(altNames,
+                (void (*)(void*))wolfSSL_GENERAL_NAME_free);
+    }
+
+    /* Also exercise wolfSSL_X509_get_ext, which routes through
+     * DNS_to_GENERAL_NAME. Pre-fix that helper would return WOLFSSL_FAILURE
+     * for any RID entry in default builds, causing X509_get_ext to return
+     * NULL even though the SAN extension is present. */
+    loc = wolfSSL_X509_get_ext_by_NID(parsed, NID_subject_alt_name, -1);
+    ExpectIntGE(loc, 0);
+    if (loc >= 0) {
+        ExpectNotNull(ext = wolfSSL_X509_get_ext(parsed, loc));
+    }
+
+    wolfSSL_X509_free(parsed);
+    wolfSSL_X509_free(leaf);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback(void)
 {
     EXPECT_DECLS;
@@ -1814,7 +2023,8 @@ int test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback(void)
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
     !defined(NO_SHA256)
     /* Companion regression test for the CheckForAltNames CN-fallback
-     * preservation introduced alongside TALOS-2026-2409.
+     * preservation introduced alongside the iPAddress name-constraint
+     * enforcement fix.
      *
      * Once iPAddress SAN entries are unconditionally added to altNames
      * (so name constraints can be enforced), a leaf that presents only
