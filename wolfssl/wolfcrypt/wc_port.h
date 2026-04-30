@@ -314,16 +314,12 @@
      * before Zephyr's posix_types.h can define a conflicting timer_t */
     #include <sys/types.h>
     #ifndef SINGLE_THREADED
-        #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
-            #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
-        #endif
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/kernel.h>
-            #ifndef CONFIG_ARCH_POSIX
-                #include <zephyr/posix/posix_types.h>
-                #include <zephyr/posix/pthread.h>
-            #endif
         #else
+            #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
+                #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
+            #endif
             #include <kernel.h>
             #ifndef CONFIG_ARCH_POSIX
                 #include <posix/posix_types.h>
@@ -1557,12 +1553,12 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #include <posix/time.h>
     #endif
 
-    #ifndef CLOCK_REALTIME
-        #ifdef SYS_CLOCK_REALTIME
+    #ifdef SYS_CLOCK_REALTIME
+        #ifndef CLOCK_REALTIME
             #define CLOCK_REALTIME  SYS_CLOCK_REALTIME
-            #define clock_gettime   sys_clock_gettime
-            #define clock_settime   sys_clock_settime
         #endif
+        #define clock_gettime   sys_clock_gettime
+        #define clock_settime   sys_clock_settime
     #endif
 
     #if defined(CONFIG_RTC)
