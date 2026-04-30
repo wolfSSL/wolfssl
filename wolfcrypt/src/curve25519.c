@@ -108,10 +108,14 @@ static WC_INLINE int curve25519_priv_clamp(byte* priv)
 }
 static WC_INLINE int curve25519_priv_clamp_check(const byte* priv)
 {
-    /* check that private part of key has been clamped */
+    /* check that private part of key has been clamped per RFC 7748 section 5:
+     *   bits 0-2 of byte 0 must be clear  (priv[0] &= 248)
+     *   bit 7 of byte 31 must be clear    (priv[31] &= 127)
+     *   bit 6 of byte 31 must be set      (priv[31] |= 64)  */
     int ret = 0;
     if ((priv[0] & ~248) ||
-        (priv[CURVE25519_KEYSIZE-1] & 128)) {
+        (priv[CURVE25519_KEYSIZE-1] & 128) ||
+        !(priv[CURVE25519_KEYSIZE-1] & 64)) {
         ret = ECC_BAD_ARG_E;
     }
     return ret;
