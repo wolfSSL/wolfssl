@@ -13016,6 +13016,21 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            /* RFC 8446 4.6.2: A client that receives a post-handshake
+             * CertificateRequest message without having sent the
+             * "post_handshake_auth" extension MUST send an
+             * "unexpected_message" fatal alert. The caller of
+             * SanityCheckTls13MsgReceived() converts OUT_OF_ORDER_E into an
+             * unexpected_message alert. */
+            if (ssl->options.serverState >= SERVER_FINISHED_COMPLETE &&
+                ssl->options.clientState == CLIENT_FINISHED_COMPLETE &&
+                !ssl->options.postHandshakeAuth) {
+                WOLFSSL_MSG("Post-handshake CertificateRequest received "
+                            "without having sent post_handshake_auth "
+                            "extension");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
         #endif
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             /* Server's authenticating with PSK must not send this. */

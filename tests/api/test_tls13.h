@@ -52,6 +52,7 @@ int test_tls13_corrupted_finished(void);
 int test_tls13_peerauth_failsafe(void);
 int test_tls13_hrr_bad_cookie(void);
 int test_tls13_zero_inner_content_type(void);
+int test_tls13_post_handshake_auth_no_ext(void);
 int test_tls13_downgrade_sentinel(void);
 int test_tls13_serverhello_bad_cipher_suites(void);
 int test_tls13_cert_with_extern_psk_apis(void);
@@ -90,6 +91,7 @@ int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
     TEST_DECL_GROUP("tls13", test_tls13_peerauth_failsafe),    \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_bad_cookie), \
     TEST_DECL_GROUP("tls13", test_tls13_zero_inner_content_type), \
+    TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_no_ext), \
     TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_apis), \
