@@ -37048,7 +37048,6 @@ TEST_CASE testCases[] = {
     TEST_MLKEM_DECLS,
     /* Dilithium */
     TEST_MLDSA_DECLS,
-    TEST_DECL(test_mldsa_x509_pubkey_sigtype),
     /* SLH-DSA */
     TEST_SLHDSA_DECLS,
     /* Signature API */

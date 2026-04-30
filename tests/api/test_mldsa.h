@@ -68,6 +68,7 @@ int test_mldsa_x509_pubkey_sigtype(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_import_OpenSSL_form),            \
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_export_import_wolfSSL_form),     \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_encode_w1_large_values),         \
-    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs12)
+    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs12),                                \
+    TEST_DECL_GROUP("mldsa", test_mldsa_x509_pubkey_sigtype)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */
