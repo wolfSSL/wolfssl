@@ -2326,6 +2326,54 @@ int test_wc_PKCS7_VerifySignedData_RSA(void)
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_VerifySignedData()_RSA */
 
+int test_wc_PKCS7_VerifySignedData_TamperedAttribs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    PKCS7* pkcs7 = NULL;
+    byte   output[6000];
+    word32 outputSz = sizeof(output);
+    byte   data[] = "Test data to encode.";
+    /* SCEP messageType OID + SET { PrintableString "19" } */
+    const byte pattern[] = {
+        0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8,
+        0x45, 0x01, 0x09, 0x02,
+        0x31, 0x04, 0x13, 0x02, 0x31, 0x39
+    };
+    word32 i;
+    int    found = -1;
+    int    matches = 0;
+
+    XMEMSET(output, 0, outputSz);
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz,
+        data, (word32)sizeof(data),
+        1 /* withAttribs */, 0 /* detached */, 0, RSA_TYPE)), 0);
+
+    if (outputSz > 0 && outputSz <= sizeof(output)) {
+        for (i = 0; i + sizeof(pattern) <= outputSz; i++) {
+            if (XMEMCMP(output + i, pattern, sizeof(pattern)) == 0) {
+                if (matches == 0)
+                    found = (int)i;
+                matches++;
+            }
+        }
+        ExpectIntEQ(matches, 1);
+    }
+
+    if (matches == 1 && found >= 0) {
+        output[found + (int)sizeof(pattern) - 1] ^= 0x01;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz),
+            WC_NO_ERR_TRACE(SIG_VERIFY_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Testing wc_PKCS_VerifySignedData()
  */
@@ -2514,6 +2562,54 @@ int test_wc_PKCS7_VerifySignedData_ECC(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_VerifySignedData_ECC() */
+
+int test_wc_PKCS7_VerifySignedData_ECC_TamperedAttribs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
+    PKCS7* pkcs7 = NULL;
+    byte   output[6000];
+    word32 outputSz = sizeof(output);
+    byte   data[] = "Test data to encode.";
+    /* SCEP messageType OID + SET { PrintableString "19" } */
+    const byte pattern[] = {
+        0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8,
+        0x45, 0x01, 0x09, 0x02,
+        0x31, 0x04, 0x13, 0x02, 0x31, 0x39
+    };
+    word32 i;
+    int    found = -1;
+    int    matches = 0;
+
+    XMEMSET(output, 0, outputSz);
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz,
+        data, (word32)sizeof(data),
+        1 /* withAttribs */, 0 /* detached */, 0, ECC_TYPE)), 0);
+
+    if (outputSz > 0 && outputSz <= sizeof(output)) {
+        for (i = 0; i + sizeof(pattern) <= outputSz; i++) {
+            if (XMEMCMP(output + i, pattern, sizeof(pattern)) == 0) {
+                if (matches == 0)
+                    found = (int)i;
+                matches++;
+            }
+        }
+        ExpectIntEQ(matches, 1);
+    }
+
+    if (matches == 1 && found >= 0) {
+        output[found + (int)sizeof(pattern) - 1] ^= 0x01;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz),
+            WC_NO_ERR_TRACE(SIG_VERIFY_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
 
 
 #if defined(HAVE_PKCS7) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \

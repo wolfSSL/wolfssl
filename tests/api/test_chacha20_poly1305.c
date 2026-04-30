@@ -284,6 +284,68 @@ int test_wc_XChaCha20Poly1305_aead(void)
     return EXPECT_RESULT();
 } /* END test_wc_XChaCha20Poly1305_aead */
 
+int test_wc_XChaCha20Poly1305_BadAuthTag(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_POLY1305) && defined(HAVE_XCHACHA)
+    const byte key[32] = {
+        0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+        0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+        0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+        0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f
+    };
+    const byte nonce[24] = {
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+        0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57
+    };
+    const byte plaintext[] = {
+        0x4c, 0x61, 0x64, 0x69, 0x65, 0x73, 0x20, 0x61,
+        0x6e, 0x64, 0x20, 0x47, 0x65, 0x6e, 0x74, 0x73
+    };
+    const byte aad[] = {
+        0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3
+    };
+    byte ct[sizeof(plaintext) + 16];
+    byte pt[sizeof(plaintext)];
+    byte ct_bad[sizeof(ct)];
+
+    XMEMSET(ct, 0, sizeof(ct));
+
+    ExpectIntEQ(wc_XChaCha20Poly1305_Encrypt(ct, sizeof(ct),
+        plaintext, sizeof(plaintext), aad, sizeof(aad),
+        nonce, sizeof(nonce), key, sizeof(key)), 0);
+
+    ExpectIntEQ(wc_XChaCha20Poly1305_Decrypt(pt, sizeof(pt), ct, sizeof(ct),
+        aad, sizeof(aad), nonce, sizeof(nonce), key, sizeof(key)), 0);
+
+    XMEMCPY(ct_bad, ct, sizeof(ct));
+    ct_bad[sizeof(ct) - 1] ^= 0x01;
+    ExpectIntEQ(wc_XChaCha20Poly1305_Decrypt(pt, sizeof(pt), ct_bad,
+        sizeof(ct_bad), aad, sizeof(aad), nonce, sizeof(nonce),
+        key, sizeof(key)),
+        WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+
+    XMEMCPY(ct_bad, ct, sizeof(ct));
+    ct_bad[0] ^= 0x01;
+    ExpectIntEQ(wc_XChaCha20Poly1305_Decrypt(pt, sizeof(pt), ct_bad,
+        sizeof(ct_bad), aad, sizeof(aad), nonce, sizeof(nonce),
+        key, sizeof(key)),
+        WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+
+    {
+        byte aad_bad[sizeof(aad)];
+        XMEMCPY(aad_bad, aad, sizeof(aad));
+        aad_bad[0] ^= 0x01;
+        ExpectIntEQ(wc_XChaCha20Poly1305_Decrypt(pt, sizeof(pt), ct, sizeof(ct),
+            aad_bad, sizeof(aad_bad), nonce, sizeof(nonce),
+            key, sizeof(key)),
+            WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 #include <wolfssl/wolfcrypt/random.h>
 
 #define MC_CIPHER_TEST_COUNT     100

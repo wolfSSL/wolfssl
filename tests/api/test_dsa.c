@@ -117,6 +117,16 @@ int test_wc_DsaSignVerify(void)
     ExpectIntEQ(wc_DsaVerify(hash, signature, NULL, &answer), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_DsaVerify(hash, signature, &key, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    {
+        byte badHash[WC_SHA_DIGEST_SIZE];
+
+        XMEMCPY(badHash, hash, sizeof(badHash));
+        badHash[0] ^= 0x01;
+        answer = 1;
+        ExpectIntEQ(wc_DsaVerify(badHash, signature, &key, &answer), 0);
+        ExpectIntEQ(answer, 0);
+    }
+
 #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && defined(WOLFSSL_PUBLIC_MP)
     /* hard set q to 0 and test fail case */
     mp_free(&key.q);

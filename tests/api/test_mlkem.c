@@ -4034,3 +4034,54 @@ int test_wc_mlkem_decap_fo_reject(void)
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_decap_fo_reject */
 
+int test_wc_mlkem_decode_privkey_bad_pubhash(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
+    !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+    MlKemKey* key = NULL;
+    WC_RNG rng;
+    byte   priv[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
+    word32 privLen = 0;
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(priv, 0, sizeof(priv));
+
+    key = (MlKemKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_MlKemKey_Init(key, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(wc_MlKemKey_PrivateKeySize(key, &privLen), 0);
+    ExpectTrue(privLen > (word32)(2 * WC_ML_KEM_SYM_SZ));
+    ExpectIntEQ(wc_MlKemKey_EncodePrivateKey(key, priv, privLen), 0);
+
+    wc_MlKemKey_Free(key);
+    ExpectIntEQ(wc_MlKemKey_Init(key, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(key, priv, privLen), 0);
+    wc_MlKemKey_Free(key);
+
+    /* Tamper H(ek) (32 bytes before z). */
+    if (privLen > (word32)(2 * WC_ML_KEM_SYM_SZ)) {
+        priv[privLen - 2 * WC_ML_KEM_SYM_SZ] ^= 0x01;
+    }
+
+    ExpectIntEQ(wc_MlKemKey_Init(key, mlkemType, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(key, priv, privLen),
+        WC_NO_ERR_TRACE(MLKEM_PUB_HASH_E));
+    wc_MlKemKey_Free(key);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_mlkem_decode_privkey_bad_pubhash */
+
