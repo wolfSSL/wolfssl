@@ -558,7 +558,8 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
                       return MEMORY_E; });
 
     /* unicode set up from asn.c */
-    if ((pswSz * 2 + 2) > MAX_UNICODE_SZ) {
+    if (pswSz >= MAX_UNICODE_SZ ||
+       (pswSz * 2 + 2) > MAX_UNICODE_SZ) {
         WOLFSSL_MSG("PKCS12 max unicode size too small");
         ret = UNICODE_SIZE_E;
         goto exit_mac;
