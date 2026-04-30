@@ -1793,7 +1793,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 
 #if !defined(WOLFSSL_KCAPI_HASH)
 
-#ifndef WOLFSSL_NO_HASH_RAW
+#ifndef WOLF_CRYPTO_CB_ONLY_SHA256
     int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
     {
     #ifdef LITTLE_ENDIAN_ORDER
@@ -1817,7 +1817,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 
         return 0;
     }
-#endif /* !WOLFSSL_NO_HASH_RAW */
+#endif /* !WOLF_CRYPTO_CB_ONLY_SHA256 */
 
     int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     {
