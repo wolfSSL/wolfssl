@@ -1616,6 +1616,85 @@ int test_ECDH_compute_key(void)
     return EXPECT_RESULT();
 }
 
+/* Test that d2i_ECPrivateKey derives the public point when the optional
+ * publicKey [1] field is absent from the RFC 5915 DER encoding.
+ *
+ * Without the fix, wc_EccPrivateKeyDecode sets type = ECC_PRIVATEKEY_ONLY and
+ * leaves pubkey uninitialised; every downstream operation (sign, ECDH, export)
+ * then runs against uninitialised memory.
+ *
+ * Test vector produced by pyca/cryptography and cross-checked with OpenSSL:
+ *   private scalar: 519b423d715f8b581f4fa8ee59f4771a5b44c8130b4e3eacca54a56dda72b464
+ *   expected pub x: 1ccbe91c075fc7f4f033bfa248db8fccd3565de94bbfb12f3c59ff46c271bf83
+ *   expected pub y: ce4014c68811f9a21a1fdb2c0e6113e06db7ca93b7404e78dc7ccd5ca89a4ca9
+ */
+int test_d2i_ECPrivateKey_no_pubkey(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    defined(HAVE_ECC_KEY_IMPORT)
+    /* RFC 5915 ECPrivateKey DER with version + privateKey + parameters [0]
+     * but NO publicKey [1] field. */
+    static const byte kPrivOnlyDer[] = {
+        0x30, 0x31,                               /* SEQUENCE (49 bytes)    */
+        0x02, 0x01, 0x01,                         /* version = 1            */
+        0x04, 0x20,                               /* privateKey (32 bytes)  */
+        0x51, 0x9b, 0x42, 0x3d, 0x71, 0x5f, 0x8b, 0x58,
+        0x1f, 0x4f, 0xa8, 0xee, 0x59, 0xf4, 0x77, 0x1a,
+        0x5b, 0x44, 0xc8, 0x13, 0x0b, 0x4e, 0x3e, 0xac,
+        0xca, 0x54, 0xa5, 0x6d, 0xda, 0x72, 0xb4, 0x64,
+        0xa0, 0x0a,                               /* [0] parameters         */
+        0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+    };
+    /* Expected uncompressed public key (04 || x || y), oracle: pyca/cryptography */
+    static const byte kExpectedPub[] = {
+        0x04,
+        0x1c, 0xcb, 0xe9, 0x1c, 0x07, 0x5f, 0xc7, 0xf4,
+        0xf0, 0x33, 0xbf, 0xa2, 0x48, 0xdb, 0x8f, 0xcc,
+        0xd3, 0x56, 0x5d, 0xe9, 0x4b, 0xbf, 0xb1, 0x2f,
+        0x3c, 0x59, 0xff, 0x46, 0xc2, 0x71, 0xbf, 0x83,
+        0xce, 0x40, 0x14, 0xc6, 0x88, 0x11, 0xf9, 0xa2,
+        0x1a, 0x1f, 0xdb, 0x2c, 0x0e, 0x61, 0x13, 0xe0,
+        0x6d, 0xb7, 0xca, 0x93, 0xb7, 0x40, 0x4e, 0x78,
+        0xdc, 0x7c, 0xcd, 0x5c, 0xa8, 0x9a, 0x4c, 0xa9
+    };
+    const byte* der = kPrivOnlyDer;
+    EC_KEY* key = NULL;
+    unsigned char* pub = NULL;
+    unsigned char* p = NULL;
+    byte hash[32];
+    byte sig[ECC_MAX_SIG_SIZE];
+    unsigned int sigSz = sizeof(sig);
+    int pubLen = 0;
+
+    XMEMSET(hash, 0xab, sizeof(hash));
+
+    /* Import private-only DER — must succeed and auto-derive the public key. */
+    ExpectNotNull(key = d2i_ECPrivateKey(NULL, &der, sizeof(kPrivOnlyDer)));
+
+    /* Structural validity: public point on curve, priv/pub consistent. */
+    ExpectIntEQ(EC_KEY_check_key(key), 1);
+
+    /* Public key bytes must match the oracle-computed expected value. */
+    ExpectIntEQ((pubLen = i2o_ECPublicKey(key, NULL)), (int)sizeof(kExpectedPub));
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(pub = (unsigned char*)XMALLOC(pubLen, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        p = pub;
+        ExpectIntEQ(i2o_ECPublicKey(key, &p), pubLen);
+        ExpectIntEQ(XMEMCMP(pub, kExpectedPub, (word32)pubLen), 0);
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    /* ECDSA sign + verify must work with the derived public key. */
+    ExpectIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
+    ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, (int)sigSz, key), 1);
+
+    EC_KEY_free(key);
+#endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP && HAVE_ECC_KEY_IMPORT */
+    return EXPECT_RESULT();
+}
+
 #endif /* HAVE_ECC && !OPENSSL_NO_PK */
 
 

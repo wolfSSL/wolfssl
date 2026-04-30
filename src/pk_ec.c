@@ -3431,6 +3431,20 @@ WOLFSSL_EC_KEY* wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY** key,
         /* Internal EC key setup. */
         ret->inSet = 1;
 
+        /* When the RFC 5915 DER encoding omits the optional publicKey field,
+         * wc_EccPrivateKeyDecode leaves type == ECC_PRIVATEKEY_ONLY with the
+         * public point uninitialised.  Derive the public point now so that
+         * all downstream operations (sign, ECDH, export) have a valid key,
+         * matching the behaviour of OpenSSL's d2i_ECPrivateKey. */
+        if (((ecc_key*)ret->internal)->type == ECC_PRIVATEKEY_ONLY) {
+            if (wc_ecc_make_pub((ecc_key*)ret->internal, NULL) != 0) {
+                WOLFSSL_MSG("wc_ecc_make_pub error deriving public key");
+                err = 1;
+            }
+        }
+    }
+
+    if (!err) {
         /* Set the EC key from the internal values. */
         if (SetECKeyExternal(ret) != 1) {
             WOLFSSL_MSG("SetECKeyExternal error");
