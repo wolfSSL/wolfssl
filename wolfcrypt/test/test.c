@@ -10766,6 +10766,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha20_poly1305_aead_test(void)
         0x39, 0x23, 0x36, 0xfe, 0xa1, 0x85, 0x1f, 0x38
     };
 
+    /* Wycheproof tc2: empty plaintext + empty AAD (valid per RFC 8439 §2.8) */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_tc2[] = {
+        0x80, 0xba, 0x31, 0x92, 0xc8, 0x03, 0xce, 0x96,
+        0x5e, 0xa3, 0x71, 0xd5, 0xff, 0x07, 0x3c, 0xf0,
+        0xf4, 0x3b, 0x6a, 0x2a, 0xb5, 0x76, 0xb2, 0x08,
+        0x42, 0x6e, 0x11, 0x40, 0x9c, 0x09, 0xb9, 0xb0
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv_tc2[] = {
+        0x4d, 0xa5, 0xbf, 0x8d, 0xfd, 0x58, 0x52, 0xc1,
+        0xea, 0x12, 0x37, 0x9d
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte authTag_tc2[] = {
+        0x76, 0xac, 0xb3, 0x42, 0xcf, 0x31, 0x66, 0xa5,
+        0xb6, 0x3c, 0x0c, 0x0e, 0xa1, 0x38, 0x3c, 0x8d
+    };
+
     byte generatedCiphertext[265]; /* max plaintext2/cipher2 */
     byte generatedPlaintext[265];  /* max plaintext2/cipher2 */
     byte generatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
@@ -10969,10 +10985,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha20_poly1305_aead_test(void)
     err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
     if (err != WC_NO_ERR_TRACE(BAD_STATE_E))
         return WC_TEST_RET_ENC_EC(err);
-    aead.state = CHACHA20_POLY1305_STATE_READY;
-    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
-    if (err != WC_NO_ERR_TRACE(BAD_STATE_E))
+    /* Wycheproof tc2: empty plaintext + empty AAD must succeed (RFC 8439 §2.8) */
+    err = wc_ChaCha20Poly1305_Init(&aead, key_tc2, iv_tc2,
+        CHACHA20_POLY1305_AEAD_ENCRYPT);
+    if (err != 0)
         return WC_TEST_RET_ENC_EC(err);
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    if (XMEMCMP(generatedAuthTag, authTag_tc2, sizeof(authTag_tc2)) != 0)
+        return WC_TEST_RET_ENC_NC;
 
     XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
     XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
