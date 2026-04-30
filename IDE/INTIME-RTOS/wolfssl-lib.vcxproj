@@ -87,8 +87,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\wolfcrypt\src\ext_kyber.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\ext_lms.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\ext_xmss.c" />
     <ClCompile Include="..\..\wolfcrypt\src\falcon.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fe_448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fips.c" />

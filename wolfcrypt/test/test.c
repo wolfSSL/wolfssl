@@ -401,20 +401,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
-    #include <wolfssl/wolfcrypt/xmss.h>
-#ifdef HAVE_LIBXMSS
-    #include <wolfssl/wolfcrypt/ext_xmss.h>
-#else
     #include <wolfssl/wolfcrypt/wc_xmss.h>
 #endif
-#endif
 #if defined(WOLFSSL_HAVE_LMS)
-    #include <wolfssl/wolfcrypt/lms.h>
-#ifdef HAVE_LIBLMS
-    #include <wolfssl/wolfcrypt/ext_lms.h>
-#else
     #include <wolfssl/wolfcrypt/wc_lms.h>
-#endif
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA)
     #include <wolfssl/wolfcrypt/wc_slhdsa.h>
@@ -978,11 +968,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
     #endif
 #endif
 #if defined(WOLFSSL_HAVE_LMS)
-    #if !defined(WOLFSSL_SMALL_STACK)
-        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
-             !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
+    #if !defined(WOLFSSL_SMALL_STACK) && (LMS_MAX_HEIGHT >= 10) && \
+        !defined(WOLFSSL_NO_LMS_SHA256_256)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test_verify_only(void);
-        #endif
     #endif
     #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test(void);
@@ -3178,14 +3166,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif /* if defined(WOLFSSL_HAVE_XMSS) */
 
 #if defined(WOLFSSL_HAVE_LMS)
-    #if !defined(WOLFSSL_SMALL_STACK)
-        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
-             !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
+    #if !defined(WOLFSSL_SMALL_STACK) && (LMS_MAX_HEIGHT >= 10) && \
+        !defined(WOLFSSL_NO_LMS_SHA256_256)
     if ( (ret = lms_test_verify_only()) != 0)
         TEST_FAIL("LMS Vfy  test failed!\n", ret);
     else
         TEST_PASS("LMS Vfy  test passed!\n");
-        #endif
     #endif
 
     #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
@@ -53463,10 +53449,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 #else
     byte          sig[WC_TEST_LMS_SIG_LEN];
 #endif
-#if !defined(HAVE_LIBLMS)
     const byte *  kid;
     word32        kidSz;
-#endif
 
     WOLFSSL_ENTER("lms_test");
 
@@ -53525,7 +53509,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 
     XMEMCPY(old_priv, priv, sizeof(priv));
 
-#if !defined(HAVE_LIBLMS)
     ret = wc_LmsKey_GetKid(NULL, NULL, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -53552,7 +53535,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     if (kidSz != WC_LMS_I_LEN) {
         ERROR_OUT(WC_TEST_RET_ENC_I(kidSz), out);
     }
-#endif
 
     ret = wc_LmsKey_ExportPub(&verifyKey, &signingKey);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
@@ -53663,9 +53645,8 @@ out:
 
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK)
-#if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
-     !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK) && \
+    (LMS_MAX_HEIGHT >= 10) && !defined(WOLFSSL_NO_LMS_SHA256_256)
 
 /* A simple LMS verify only test.
  *
@@ -54009,7 +53990,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     return ret;
 }
 
-#endif
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK) */
 
 #if defined(WOLFSSL_HAVE_SLHDSA)

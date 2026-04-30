@@ -48,7 +48,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS)
+#ifdef WOLFSSL_HAVE_LMS
 
 /* Length of R in bytes. */
 #define LMS_R_LEN           4
@@ -4108,5 +4108,5 @@ int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
     return ret;
 }
 
-#endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */
+#endif /* WOLFSSL_HAVE_LMS */
 

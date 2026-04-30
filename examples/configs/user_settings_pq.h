@@ -105,7 +105,6 @@ extern "C" {
 /* ------------------------------------------------- */
 #if 0 /* LMS signatures */
     #define WOLFSSL_HAVE_LMS
-    #define WOLFSSL_WC_LMS
     #ifndef LMS_LEVELS
         #define LMS_LEVELS 2
     #endif
@@ -122,7 +121,6 @@ extern "C" {
 /* ------------------------------------------------- */
 #if 0 /* XMSS signatures */
     #define WOLFSSL_HAVE_XMSS
-    #define WOLFSSL_WC_XMSS
     #ifndef WOLFSSL_XMSS_MAX_HEIGHT
         #define WOLFSSL_XMSS_MAX_HEIGHT 20
     #endif
