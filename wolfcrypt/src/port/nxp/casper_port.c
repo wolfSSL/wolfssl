@@ -56,7 +56,7 @@ int casper_rsa_public_exptmod(
     int res;
     int sig_sz = inLen;
     int key_sz = mp_unsigned_bin_size(&key->n);
-    word32 exp;
+    word32 exp = 0;
 
     if (inLen > CASPER_MAX_BUF_SZ || *outLen > CASPER_MAX_BUF_SZ)
         return BAD_FUNC_ARG;
