@@ -2418,10 +2418,12 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
         }
     }
 
-    if (!useRoot && (ret == 0)) {
-        /* Copy stack back. */
-        XMEMCPY(stackCache->stack, stack, params->height * params->hash_len);
-        stackCache->offset = (word32)((size_t)sp - (size_t)stack);
+    if (ret == 0) {
+        if (!useRoot) {
+            /* Copy stack back. */
+            XMEMCPY(stackCache->stack, stack, params->height * params->hash_len);
+            stackCache->offset = (word32)((size_t)sp - (size_t)stack);
+        }
     }
 
     WC_FREE_VAR_EX(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);

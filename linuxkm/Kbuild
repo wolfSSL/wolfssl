@@ -118,11 +118,11 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     ifndef NO_PIE_FLAG
       ifeq ($(KERNEL_ARCH),arm)
         ifeq ($(intcmp $(VERSION),5,1,0,0),1)
-          NO_PIE_FLAG :=
+          NO_PIE_FLAG := 1
           $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
         else
           ifeq ($(intcmp $(VERSION),5,0,1,0)-$(intcmp $(PATCHLEVEL),11,1,0,0),1-1)
-            NO_PIE_FLAG :=
+            NO_PIE_FLAG := 1
             $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
           endif
         endif

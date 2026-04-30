@@ -621,7 +621,7 @@ static int wolfssl_init(void)
 #ifdef HAVE_FIPS
     /* The compiled-in verifycore must be the right length, else the module
      * geometry will change when the correct value is passed in, destabilizing
-     * wc_linuxkm_pie_reloc_tab.  It also must be the right length for the
+     * wc_linuxkm_pie_text_reloc_tab.  It also must be the right length for the
      * module-update-fips-hash recipe (in-place overwrite) to work, and for
      * updateFipsHash() (WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) to be safe from
      * overruns.
@@ -711,28 +711,32 @@ static int wolfssl_init(void)
     {
         unsigned int text_hash = hash_span((const u8 *)__wc_text_start, (const u8 *)__wc_text_end, 1);
         unsigned int rodata_hash = hash_span((const u8 *)__wc_rodata_start, (const u8 *)__wc_rodata_end, 1);
-        u8 *canon_buf = malloc(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ);
-        ssize_t cur_reloc_index = -1;
+        u8 *canon_buf = malloc(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ);
+        ssize_t cur_reloc_index;
         const u8 *text_p = (const u8 *)__wc_text_start;
+        const u8 *rodata_p = (const u8 *)__wc_rodata_start;
         unsigned int stabilized_text_hash = 1;
+        unsigned int stabilized_rodata_hash = 1;
 
         if (! canon_buf) {
-            pr_err("ERROR: malloc(%d) for WOLFSSL_TEXT_SEGMENT_CANONICALIZER failed: %ld.\n", WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ, PTR_ERR(canon_buf));
+            pr_err("ERROR: malloc(%d) for WOLFSSL_*_SEGMENT_CANONICALIZER failed: %ld.\n", WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ, PTR_ERR(canon_buf));
             return -ECANCELED;
         }
 
         reloc_counts.text = reloc_counts.rodata = reloc_counts.rwdata = reloc_counts.bss =
             reloc_counts.other = 0;
 
+        cur_reloc_index = -1;
         while (text_p < (const u8 *)__wc_text_end) {
+            size_t text_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
+                                         (size_t)((const u8 *)__wc_text_end - text_p));
             ssize_t progress =
-                WOLFSSL_TEXT_SEGMENT_CANONICALIZER(
+                WOLFSSL_SEGMENT_CANONICALIZER(
                     text_p,
-                    min(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ,
-                        (word32)((const u8 *)__wc_text_end - text_p)),
+                    &text_in_out_len,
                     canon_buf, &cur_reloc_index);
             if (progress <= 0) {
-                pr_err("ERROR: progress=%ld from WOLFSSL_TEXT_SEGMENT_CANONICALIZER() at offset %x (text=%x-%x).\n",
+                pr_err("ERROR: progress=%ld from WOLFSSL_SEGMENT_CANONICALIZER() at offset %x (text=%x-%x).\n",
                        (long)progress,
                        (unsigned)(uintptr_t)text_p,
                        (unsigned)(uintptr_t)__wc_text_start,
@@ -740,8 +744,31 @@ static int wolfssl_init(void)
                 free(canon_buf);
                 return -ECANCELED;
             }
-            stabilized_text_hash = hash_span(canon_buf, canon_buf + progress, stabilized_text_hash);
+            stabilized_text_hash = hash_span(canon_buf, canon_buf + text_in_out_len, stabilized_text_hash);
             text_p += progress;
+        }
+
+        /* note verifyCore is hashed along with the rest of .rodata_wolfcrypt. */
+        cur_reloc_index = -1;
+        while (rodata_p < (const u8 *)__wc_rodata_end) {
+            size_t rodata_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
+                                         (size_t)((const u8 *)__wc_rodata_end - rodata_p));
+            ssize_t progress =
+                WOLFSSL_SEGMENT_CANONICALIZER(
+                    rodata_p,
+                    &rodata_in_out_len,
+                    canon_buf, &cur_reloc_index);
+            if (progress <= 0) {
+                pr_err("ERROR: progress=%ld from WOLFSSL_SEGMENT_CANONICALIZER() at offset %x (rodata=%x-%x).\n",
+                       (long)progress,
+                       (unsigned)(uintptr_t)rodata_p,
+                       (unsigned)(uintptr_t)__wc_rodata_start,
+                       (unsigned)(uintptr_t)__wc_rodata_end);
+                free(canon_buf);
+                return -ECANCELED;
+            }
+            stabilized_rodata_hash = hash_span(canon_buf, canon_buf + rodata_in_out_len, stabilized_rodata_hash);
+            rodata_p += progress;
         }
 
         free(canon_buf);
@@ -751,12 +778,13 @@ static int wolfssl_init(void)
          * the true module start address, which is potentially useful to an
          * attacker.
          */
-        pr_info("wolfCrypt segment hashes (spans): text 0x%x (%llu), rodata 0x%x (%llu), offset %c0x%llx, canon text 0x%x\n",
+        pr_info("wolfCrypt segment hashes (spans): text 0x%x (%llu), rodata 0x%x (%llu), offset %c0x%llx, canon text 0x%x, canon rodata 0x%x\n",
                 text_hash, (unsigned long long)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start),
                 rodata_hash, (unsigned long long)((uintptr_t)__wc_rodata_end - (uintptr_t)__wc_rodata_start),
                 (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? '+' : '-',
                 (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? (unsigned long long)((uintptr_t)&__wc_rodata_start[0] - (uintptr_t)__wc_text_start) : (unsigned long long)((uintptr_t)__wc_text_start - (uintptr_t)&__wc_rodata_start[0]),
-                stabilized_text_hash);
+                stabilized_text_hash,
+                stabilized_rodata_hash);
 
         pr_info("wolfCrypt segments: text=%llx-%llx, rodata=%llx-%llx, "
                 "rwdata=%llx-%llx, bss=%llx-%llx\n",
@@ -1090,7 +1118,7 @@ static void wolfssl_exit(void)
         pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d\n", ret);
     }
     else
-        pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.");
+        pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.\n");
 #endif
 
     (void)libwolfssl_cleanup();
@@ -1118,17 +1146,23 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
 #ifdef WC_SYM_RELOC_TABLES
 
-extern const struct wc_reloc_table_ent wc_linuxkm_pie_reloc_tab[];
-extern const unsigned int wc_linuxkm_pie_reloc_tab_length;
+extern const struct wc_reloc_table_ent wc_linuxkm_pie_text_reloc_tab[];
+extern const unsigned int wc_linuxkm_pie_text_reloc_tab_length;
+extern const struct wc_reloc_table_ent wc_linuxkm_pie_rodata_reloc_tab[];
+extern const unsigned int wc_linuxkm_pie_rodata_reloc_tab_length;
 
 static const struct wc_reloc_table_segments seg_map = {
     .start = 0, .end = 0,
     .text_start = (size_t)(uintptr_t)__wc_text_start,
     .text_end = (size_t)(uintptr_t)__wc_text_end,
-    .reloc_tab_start = (size_t)(uintptr_t)wc_linuxkm_pie_reloc_tab,
-    .reloc_tab_end = 0,
-    .reloc_tab_len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_reloc_tab_length,
-    .reloc_tab_len_end = 0,
+    .text_reloc_tab.start = (size_t)(uintptr_t)wc_linuxkm_pie_text_reloc_tab,
+    .text_reloc_tab.end = 0,
+    .text_reloc_tab.len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_text_reloc_tab_length,
+    .text_reloc_tab.len_end = 0,
+    .rodata_reloc_tab.start = (size_t)(uintptr_t)wc_linuxkm_pie_rodata_reloc_tab,
+    .rodata_reloc_tab.end = 0,
+    .rodata_reloc_tab.len_start = (size_t)(uintptr_t)&wc_linuxkm_pie_rodata_reloc_tab_length,
+    .rodata_reloc_tab.len_end = 0,
 #ifdef HAVE_FIPS
 #ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
     .fips_text_start = (size_t)(uintptr_t)__wc_text_start,
@@ -1161,18 +1195,40 @@ static const struct wc_reloc_table_segments seg_map = {
 };
 
 ssize_t wc_linuxkm_normalize_relocations(
-    const u8 *text_in,
-    size_t text_in_len,
-    u8 *text_out,
+    const u8 *seg_in,
+    size_t *seg_in_out_len,
+    u8 *seg_out,
     ssize_t *cur_index_p)
 {
-    return wc_reloc_normalize_text(text_in, text_in_len, text_out, cur_index_p, &seg_map,
+    return wc_reloc_normalize_segment(seg_in, seg_in_out_len, seg_out, cur_index_p, &seg_map,
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
                                    &reloc_counts
 #else
                                    NULL
 #endif
         );
+}
+
+ssize_t wc_linuxkm_normalize_relocations_noresize(
+    const u8 *seg_in,
+    size_t seg_in_len,
+    u8 *seg_out,
+    ssize_t *cur_index_p)
+{
+    ssize_t ret;
+    ret = wc_reloc_normalize_segment(seg_in, &seg_in_len, seg_out, cur_index_p, &seg_map,
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+                                   &reloc_counts
+#else
+                                   NULL
+#endif
+        );
+    if (ret < 0)
+        return ret;
+    if ((size_t)ret != seg_in_len)
+        return -EINVAL;
+    else
+        return seg_in_len;
 }
 
 #elif defined(HAVE_FIPS)
@@ -1227,6 +1283,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifdef HAVE_FIPS
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_normalize_relocations =
         wc_linuxkm_normalize_relocations;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_normalize_relocations_noresize =
+        wc_linuxkm_normalize_relocations_noresize;
 #endif
 
 #ifndef __ARCH_MEMCMP_NO_REDIRECT
@@ -1717,7 +1775,7 @@ static int updateFipsHash(void)
         size_t desc_size = crypto_shash_descsize(tfm) + sizeof *desc;
         desc = XMALLOC(desc_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (desc == NULL) {
-            pr_err("ERROR: failed allocating desc.");
+            pr_err("ERROR: failed allocating desc.\n");
             ret = MEMORY_E;
             goto out;
         }
@@ -1790,13 +1848,17 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
         int ret;
         kallsyms_lookup_name_kp.addr = NULL;
         if ((ret = register_kprobe(&kallsyms_lookup_name_kp)) != 0) {
-            pr_err_once("ERROR: register_kprobe(&kallsyms_lookup_name_kp) failed: %d", ret);
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            pr_err_once("ERROR: register_kprobe(&kallsyms_lookup_name_kp) failed: %d\n", ret);
+#endif
             return 0;
         }
         kallsyms_lookup_name_ptr = (typeof(kallsyms_lookup_name_ptr))kallsyms_lookup_name_kp.addr;
         unregister_kprobe(&kallsyms_lookup_name_kp);
         if (! kallsyms_lookup_name_ptr) {
-            pr_err_once("ERROR: kallsyms_lookup_name_kp.addr is null.");
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            pr_err_once("ERROR: kallsyms_lookup_name_kp.addr is null.\n");
+#endif
             return 0;
         }
     }
@@ -1825,7 +1887,7 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         return -EINVAL;
     }
 
-    pr_info("wolfCrypt: rerunning FIPS self-test on command.");
+    pr_info("wolfCrypt: rerunning FIPS self-test on command.\n");
 
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
         ret = wolfCrypt_IntegrityTest_fips();
@@ -1836,7 +1898,7 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         ret = -1;
     }
     if (ret != 0) {
-        pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d", ret);
+        pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d\n", ret);
         return -EINVAL;
     }
 
@@ -1855,7 +1917,7 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         return -EINVAL;
     }
 
-    pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.");
+    pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
 
     return count;
 }
