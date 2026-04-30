@@ -5288,6 +5288,48 @@ int test_tls13_short_session_ticket(void)
 }
 
 
+/* RFC 8446 Section 4.6.1: a NewSessionTicket lifetime greater than
+ * MAX_LIFETIME (604800 seconds, 7 days) must be rejected. The public
+ * wolfSSL_CTX_set_TicketHint setter clamps the value, so write the
+ * out-of-range hint directly into the server CTX to force the server to
+ * encode an over-limit lifetime onto the wire and confirm the client's
+ * DoTls13NewSessionTicket bound check fires. */
+int test_tls13_new_session_ticket_max_lifetime(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    char buf[64];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Bypass the public-API clamp at 604800. */
+    if (EXPECT_SUCCESS()) {
+        ctx_s->ticketHint = MAX_LIFETIME + 1;
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Reading the post-handshake NewSessionTicket should surface the
+     * over-limit lifetime as SERVER_HINT_ERROR. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WC_NO_ERR_TRACE(SERVER_HINT_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 /* Test that a corrupted TLS 1.3 Finished verify_data is properly rejected
  * with VERIFY_FINISHED_ERROR. We run the handshake step-by-step and corrupt
  * the server's client_write_MAC_secret before it processes the client's
