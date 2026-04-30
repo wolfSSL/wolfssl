@@ -30,7 +30,7 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 	.text
 	.type	L_mlkem_arm32_ntt_zetas, %object
@@ -8507,7 +8507,7 @@ L_mlkem_arm32_rej_uniform_done:
 	lsr	r0, r12, #1
 	pop	{r4, r5, r6, r7, r8, pc}
 	.size	mlkem_arm32_rej_uniform,.-mlkem_arm32_rej_uniform
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 

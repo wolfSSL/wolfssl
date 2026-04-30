@@ -215,7 +215,6 @@
 #ifdef CONFIG_ESP_WOLFSSL_ENABLE_MLKEM
     /* Kyber typically needs a minimum 10K stack */
     #define WOLFSSL_HAVE_MLKEM
-    #define WOLFSSL_WC_MLKEM
     #define WOLFSSL_SHAKE128
     #define WOLFSSL_SHAKE256
 
@@ -234,7 +233,7 @@
         #define WOLFSSL_NO_ML_KEM_768
         #define NO_SESSION_CACHE
     #else
-        /* Only needed for older wolfssl versions, see mlkem.h */
+        /* Only needed for older wolfssl versions, see wc_mlkem.h */
         #define WOLFSSL_KYBER1024
         /* optional alternative sizes:    */
         /* #define WOLFSSL_KYBER768       */

@@ -76,7 +76,6 @@
  *
  * Post-Quantum:
  * WOLFSSL_HAVE_MLKEM:       Enable ML-KEM (Kyber) support         default: off
- * WOLFSSL_WC_MLKEM:         Use wolfCrypt ML-KEM implementation   default: off
  * WOLFSSL_MLKEM_KYBER:      Use Kyber round 3 parameters          default: off
  * WOLFSSL_KYBER512:         Enable Kyber/ML-KEM-512               default: off
  * WOLFSSL_KYBER768:         Enable Kyber/ML-KEM-768               default: off
@@ -140,12 +139,7 @@
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
 #ifdef WOLFSSL_HAVE_MLKEM
-    #include <wolfssl/wolfcrypt/mlkem.h>
-#ifdef WOLFSSL_WC_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
-#elif defined(HAVE_LIBOQS)
-    #include <wolfssl/wolfcrypt/ext_mlkem.h>
-#endif
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -4578,12 +4572,6 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 #if defined(HAVE_SUPPORTED_CURVES) || \
     (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES))
 
-/* Functions needed by TLSX_IsGroupSupported */
-#ifdef HAVE_LIBOQS
-static int mlkem_id2type(int id, int *type);
-static void findEccPqc(int *ecc, int *pqc, int *pqc_first, int group);
-#endif
-
 /* Returns whether this group is supported.
  *
  * namedGroup  The named group to check.
@@ -4699,7 +4687,6 @@ int TLSX_IsGroupSupported(int namedGroup)
     #endif
 #ifdef WOLFSSL_HAVE_MLKEM
 #ifndef WOLFSSL_NO_ML_KEM
-    #ifdef WOLFSSL_WC_MLKEM
         #ifndef WOLFSSL_NO_ML_KEM_512
             #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
             case WOLFSSL_ML_KEM_512:
@@ -4750,50 +4737,8 @@ int TLSX_IsGroupSupported(int namedGroup)
             case WOLFSSL_P521_ML_KEM_1024_OLD:
                 break;
         #endif /* WOLFSSL_ML_KEM_USE_OLD_IDS && WOLFSSL_EXTRA_PQC_HYBRIDS */
-    #elif defined(HAVE_LIBOQS)
-        case WOLFSSL_ML_KEM_512:
-        case WOLFSSL_ML_KEM_768:
-        case WOLFSSL_ML_KEM_1024:
-        {
-            int ret;
-            int id;
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-
-        case WOLFSSL_SECP256R1MLKEM512:
-        case WOLFSSL_SECP384R1MLKEM768:
-        case WOLFSSL_SECP256R1MLKEM768:
-        case WOLFSSL_SECP521R1MLKEM1024:
-        case WOLFSSL_SECP384R1MLKEM1024:
-        case WOLFSSL_X25519MLKEM512:
-        case WOLFSSL_X448MLKEM768:
-        case WOLFSSL_X25519MLKEM768:
-        {
-            int ret;
-            int id;
-            findEccPqc(NULL, &namedGroup, NULL, namedGroup);
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-    #endif
 #endif /* WOLFSSL_NO_ML_KEM */
 #ifdef WOLFSSL_MLKEM_KYBER
-    #ifdef WOLFSSL_WC_MLKEM
         #ifdef WOLFSSL_KYBER512
             case WOLFSSL_KYBER_LEVEL1:
             case WOLFSSL_P256_KYBER_LEVEL1:
@@ -4817,45 +4762,6 @@ int TLSX_IsGroupSupported(int namedGroup)
             case WOLFSSL_P521_KYBER_LEVEL5:
         #endif
                 break;
-    #elif defined(HAVE_LIBOQS)
-        case WOLFSSL_KYBER_LEVEL1:
-        case WOLFSSL_KYBER_LEVEL3:
-        case WOLFSSL_KYBER_LEVEL5:
-        {
-            int ret;
-            int id;
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-        case WOLFSSL_P256_KYBER_LEVEL1:
-        case WOLFSSL_P384_KYBER_LEVEL3:
-        case WOLFSSL_P256_KYBER_LEVEL3:
-        case WOLFSSL_P521_KYBER_LEVEL5:
-        case WOLFSSL_X25519_KYBER_LEVEL1:
-        case WOLFSSL_X448_KYBER_LEVEL3:
-        case WOLFSSL_X25519_KYBER_LEVEL3:
-        {
-            int ret;
-            int id;
-            findEccPqc(NULL, &namedGroup, NULL, namedGroup);
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-    #endif
 #endif
 #endif /* WOLFSSL_HAVE_MLKEM */
         default:
@@ -8631,8 +8537,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
 #ifdef WOLFSSL_HAVE_MLKEM
 #if (defined(WOLFSSL_MLKEM_CACHE_A) || \
-    (defined(HAVE_PKCS11) && defined(WOLFSSL_WC_MLKEM) && \
-     !defined(NO_PKCS11_MLKEM))) && \
+    (defined(HAVE_PKCS11) && !defined(NO_PKCS11_MLKEM))) && \
     !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY)
     /* Store KyberKey object rather than private key bytes in key share entry.
      * Improves performance at cost of more dynamic memory being used. */
@@ -11374,11 +11279,6 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
         groups = ssl->group;
         numGroups = ssl->numGroups;
     }
-
-#ifdef HAVE_LIBOQS
-      if (!TLSX_IsGroupSupported(group))
-          return WOLFSSL_FATAL_ERROR;
-#endif
 
     for (i = 0; i < numGroups; i++) {
 #if defined(WOLFSSL_ML_KEM_USE_OLD_IDS) && \
@@ -15995,11 +15895,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     namedGroup = preferredGroup[0];
                     for (i = 0; i < ssl->numGroups && !set; i++) {
                         for (j = 0; preferredGroup[j] != WOLFSSL_NAMED_GROUP_INVALID; j++) {
-                            if (preferredGroup[j] == ssl->group[i]
-#ifdef HAVE_LIBOQS
-                                && TLSX_IsGroupSupported(preferredGroup[j])
-#endif
-                                                                ) {
+                            if (preferredGroup[j] == ssl->group[i]) {
                                 namedGroup = ssl->group[i];
                                 set = 1;
                                 break;
@@ -16012,17 +15908,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 else {
                     /* Choose the most preferred group. */
                     namedGroup = preferredGroup[0];
-#ifdef HAVE_LIBOQS
-                    if (!TLSX_IsGroupSupported(namedGroup)) {
-                        int i = 1;
-                        for (;preferredGroup[i] != WOLFSSL_NAMED_GROUP_INVALID;
-                              i++) {
-                            if (TLSX_IsGroupSupported(preferredGroup[i]))
-                                break;
-                        }
-                        namedGroup = preferredGroup[i];
-                    }
-#endif
                 }
             }
             else {

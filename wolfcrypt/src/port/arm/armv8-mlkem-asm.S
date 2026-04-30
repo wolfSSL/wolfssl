@@ -45,7 +45,7 @@
 #endif /* __APPLE__ */
 L_mlkem_aarch64_consts:
 	.short	0x0d01,0xf301,0x4ebf,0x0549,0x5049,0x0000,0x0000,0x0000
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -12024,7 +12024,7 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	.size	mlkem_shake256_blocksx3_seed_neon,.-mlkem_shake256_blocksx3_seed_neon
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 

@@ -448,8 +448,10 @@ static int d2iTryAltDhKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 static int d2i_falcon_priv_key_level(falcon_key* falcon, byte level,
     const unsigned char* mem, long memSz)
 {
+    word32 idx = 0;
     return (wc_falcon_set_level(falcon, level) == 0) &&
-           (wc_falcon_import_private_only(mem, (word32)memSz, falcon) == 0);
+           (wc_Falcon_PrivateKeyDecode(mem, &idx, falcon,
+                                        (word32)memSz) == 0);
 }
 
 /**

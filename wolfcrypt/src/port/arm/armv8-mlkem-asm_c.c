@@ -36,7 +36,7 @@ XALIGNED(4) static const word16 L_mlkem_aarch64_consts[] = {
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 XALIGNED(4) static const word16 L_mlkem_aarch64_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
@@ -11255,7 +11255,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
 }
 
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

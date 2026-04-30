@@ -147,14 +147,14 @@ my @fileList_sm2_der = (
         );
 
 #Falcon Post-Quantum Keys
-#Used with HAVE_PQC
+#Used with HAVE_FALCON
 my @fileList_falcon = (
         ["certs/falcon/bench_falcon_level1_key.der", "bench_falcon_level1_key" ],
         ["certs/falcon/bench_falcon_level5_key.der", "bench_falcon_level5_key" ],
         );
 
 #Sphincs+ Post-Quantum Keys
-#Used with HAVE_PQC
+#Used with HAVE_SPHINCS
 my @fileList_sphincs = (
         ["certs/sphincs/bench_sphincs_fast_level1_key.der", "bench_sphincs_fast_level1_key" ],
         ["certs/sphincs/bench_sphincs_fast_level3_key.der", "bench_sphincs_fast_level3_key" ],

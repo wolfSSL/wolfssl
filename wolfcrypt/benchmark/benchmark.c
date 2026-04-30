@@ -169,13 +169,7 @@
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
 #ifdef WOLFSSL_HAVE_MLKEM
-    #include <wolfssl/wolfcrypt/mlkem.h>
-    #ifdef WOLFSSL_WC_MLKEM
-        #include <wolfssl/wolfcrypt/wc_mlkem.h>
-    #endif
-    #if defined(HAVE_LIBOQS)
-        #include <wolfssl/wolfcrypt/ext_mlkem.h>
-    #endif
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     #include <wolfssl/wolfcrypt/wc_lms.h>
@@ -14918,19 +14912,20 @@ void bench_falconKeySign(byte level)
     }
 
     if (ret == 0) {
+        word32 idx = 0;
         if (level == 1) {
-            ret = wc_falcon_import_private_key(bench_falcon_level1_key,
-                                               sizeof_bench_falcon_level1_key,
-                                               NULL, 0, &key);
+            ret = wc_Falcon_PrivateKeyDecode(bench_falcon_level1_key, &idx,
+                                              &key,
+                                              sizeof_bench_falcon_level1_key);
         }
         else {
-            ret = wc_falcon_import_private_key(bench_falcon_level5_key,
-                                               sizeof_bench_falcon_level5_key,
-                                               NULL, 0, &key);
+            ret = wc_Falcon_PrivateKeyDecode(bench_falcon_level5_key, &idx,
+                                              &key,
+                                              sizeof_bench_falcon_level5_key);
         }
 
         if (ret != 0) {
-            printf("wc_falcon_import_private_key failed %d\n", ret);
+            printf("wc_Falcon_PrivateKeyDecode failed %d\n", ret);
         }
     }
 

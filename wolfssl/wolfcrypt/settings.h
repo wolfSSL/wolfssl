@@ -933,7 +933,6 @@
     #ifdef CONFIG_ESP_WOLFSSL_ENABLE_MLKEM
         /* Kyber typically needs a minimum 10K stack */
         #define WOLFSSL_HAVE_MLKEM
-        #define WOLFSSL_WC_MLKEM
         #define WOLFSSL_SHA3
         #if defined(CONFIG_IDF_TARGET_ESP8266)
             /* With limited RAM, we'll disable some of the Kyber sizes: */
@@ -4574,30 +4573,14 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef WOLFSSL_HAVE_MLKEM
-#define HAVE_PQC
+/* Falcon is the only algorithm we still pull from liboqs, so the two options
+ * go together: Falcon cannot be built without liboqs, and enabling liboqs
+ * without Falcon leaves nothing for it to do. */
+#if defined(HAVE_LIBOQS) && !defined(HAVE_FALCON)
+#error "HAVE_LIBOQS without HAVE_FALCON has no effect; enable Falcon or drop liboqs."
 #endif
-
-/* Enable Post-Quantum Cryptography if we have liboqs from the OpenQuantumSafe
- * group */
-#ifdef HAVE_LIBOQS
-#define HAVE_PQC
-#define HAVE_FALCON
-#ifndef HAVE_DILITHIUM
-    #define HAVE_DILITHIUM
-#endif
-#ifndef WOLFSSL_NO_SPHINCS
-    #define HAVE_SPHINCS
-#endif
-#ifndef WOLFSSL_HAVE_MLKEM
-    #define WOLFSSL_HAVE_MLKEM
-    #define WOLFSSL_KYBER512
-    #define WOLFSSL_KYBER768
-    #define WOLFSSL_KYBER1024
-    #define WOLFSSL_WC_ML_KEM_512
-    #define WOLFSSL_WC_ML_KEM_768
-    #define WOLFSSL_WC_ML_KEM_1024
-#endif
+#if defined(HAVE_FALCON) && !defined(HAVE_LIBOQS)
+#error "HAVE_FALCON requires HAVE_LIBOQS (enable liboqs via --with-liboqs)."
 #endif
 
 #if (defined(HAVE_LIBOQS) ||                                            \
@@ -4607,26 +4590,22 @@ extern void uITRON4_free(void *p) ;
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
 #endif
 
-#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(WOLFSSL_HAVE_MLKEM)
-#error Please do not define HAVE_PQC yourself.
-#endif
-
 /* If no malloc then make sure the valid Dilithium settings are used */
 #if defined(HAVE_DILITHIUM) && defined(WOLFSSL_NO_MALLOC)
     #undef  WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
     #define WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
 #endif
 
-#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_HAVE_MLKEM) && \
     defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS_CH_FRAG)
 #define WOLFSSL_DTLS_CH_FRAG
-#warning "WOLFSSL_DTLS_CH_FRAG is enabled to support PQC in DTLS 1.3"
+#warning "WOLFSSL_DTLS_CH_FRAG is enabled to support ML-KEM in DTLS 1.3"
 #endif
 #if !defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
 #error "WOLFSSL_DTLS_CH_FRAG only works with DTLS 1.3"
 #endif
 
-#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_PQC_HYBRIDS) && \
     defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) && !defined(WOLFCRYPT_ONLY)
 #error "Neither PQ/T hybrid combinations nor ML-KEM as standalone TLS key " \
@@ -4715,7 +4694,7 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_SHA3) && \
     ((defined(HAVE_FIPS) && FIPS_VERSION_LE(5,2)) || \
      (defined(HAVE_SELFTEST) && \
-      !defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_WC_DILITHIUM)))
+      !defined(WOLFSSL_HAVE_MLKEM) && !defined(HAVE_DILITHIUM)))
     #undef  WOLFSSL_NO_SHAKE128
     #define WOLFSSL_NO_SHAKE128
     #undef  WOLFSSL_NO_SHAKE256

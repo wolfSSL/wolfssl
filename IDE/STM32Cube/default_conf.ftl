@@ -660,9 +660,6 @@ extern ${variable.value} ${variable.name};
     #undef  WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_HAVE_MLKEM
 
-    #undef  WOLFSSL_WC_MLKEM
-    #define WOLFSSL_WC_MLKEM
-
     #undef  WOLFSSL_NO_SHAKE128
     #undef  WOLFSSL_SHAKE128
     #define WOLFSSL_SHAKE128

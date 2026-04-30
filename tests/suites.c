@@ -1127,7 +1127,7 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
     #endif
-    #ifdef HAVE_PQC
+    #ifdef WOLFSSL_HAVE_MLKEM
     #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
     /* add TLSv13 pq standalone tests */
     XSTRLCPY(argv0[1], "tests/test-tls13-pq-standalone.conf", sizeof(argv0[1]));
@@ -1162,7 +1162,7 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
     #endif
-    #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13)
+    #if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_DTLS13)
     #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
     /* add DTLSv13 pq standalone tests */
     XSTRLCPY(argv0[1], "tests/test-dtls13-pq-standalone.conf", sizeof(argv0[1]));

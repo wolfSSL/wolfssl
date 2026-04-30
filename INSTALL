@@ -250,16 +250,18 @@
     Congratulations! You have just achieved a fully quantum-safe TLS 1.3
     connection!
 
-    The following NIST Competition winning algorithms are supported:
+    The following NIST Competition winning algorithms are supported by the
+    native wolfSSL implementation:
     - ML-KEM (CRYSTALS-KYBER) (key encapsulation mechanism)
     - ML-DSA (CRYSTALS-Dilithium) (signature scheme)
 
-    The following NIST Competition winning algorithms were supported by our
-    liboqs integration. Support for their standardized specifications will
-    return when we write our own implementations.
+    Falcon (signature scheme) is still provided through liboqs integration.
+    To enable it, pass both --with-liboqs and --enable-falcon to configure
+    (CMake: -DWOLFSSL_OQS=yes -DWOLFSSL_FALCON=yes). Passing --with-liboqs
+    without --enable-falcon (or vice versa) is now an error.
 
-    - FALCON (signature scheme)
-    - SPHINCS+ (signature scheme)
+    SPHINCS+ is in the middle of being replaced with native SLH-DSA; see
+    PR #10261. Until that lands, SPHINCS+ continues to build via liboqs.
 
     The following NIST Competition Round 3 finalist algorithms were supported,
     but have been removed after 5.3.3

@@ -1741,6 +1741,23 @@ AC_ARG_WITH([liboqs],
     ]
 )
 
+# Falcon (provided via liboqs)
+AC_ARG_ENABLE([falcon],
+    [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures via liboqs (default: disabled)])],
+    [ ENABLED_FALCON=$enableval ],
+    [ ENABLED_FALCON=no ])
+
+if test "$ENABLED_FALCON" = "yes" && test "$ENABLED_LIBOQS" = "no"; then
+    AC_MSG_ERROR([--enable-falcon requires --with-liboqs.])
+fi
+if test "$ENABLED_LIBOQS" = "yes" && test "$ENABLED_FALCON" != "yes"; then
+    AC_MSG_ERROR([--with-liboqs requires --enable-falcon.])
+fi
+
+if test "$ENABLED_FALCON" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FALCON"
+fi
+
 
 # MLKEM
 # Used:
@@ -6958,7 +6975,6 @@ then
     fi
 fi
 
-ENABLED_WC_MLKEM=no
 ENABLED_ML_KEM=unset
 ENABLED_MLKEM_MAKE_KEY=no
 ENABLED_MLKEM_ENCAPSULATE=no
@@ -7024,99 +7040,6 @@ do
     break;;
   esac
 done
-
-if test "$ENABLED_MLKEM" != "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLKEM"
-    # Use liboqs if specified.
-    if test "$ENABLED_LIBOQS" = "no"; then
-        ENABLED_WC_MLKEM=yes
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_MLKEM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_MLKEM"
-    fi
-
-    if test "$ENABLED_ORIGINAL" = "yes"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_KYBER"
-        if test "$ENABLED_MLKEM512" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
-        fi
-        if test "$ENABLED_MLKEM768" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
-        fi
-        if test "$ENABLED_MLKEM1024" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
-        fi
-        if test "$ENABLED_ML_KEM" = "unset"; then
-            ENABLED_ML_KEM=no
-        fi
-    fi
-    if test "$ENABLED_ML_KEM" = "unset"; then
-        ENABLED_ML_KEM=yes
-    fi
-    if test "$ENABLED_ML_KEM" = "yes"; then
-        if test "$ENABLED_MLKEM512" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_512"
-        fi
-        if test "$ENABLED_MLKEM768" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_768"
-        fi
-        if test "$ENABLED_MLKEM1024" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_1024"
-        fi
-    else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM"
-    fi
-    if test "$ENABLED_MLKEM_MAKE_KEY" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_MAKE_KEY"
-    fi
-    if test "$ENABLED_MLKEM_ENCAPSULATE" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_ENCAPSULATE"
-    fi
-    if test "$ENABLED_MLKEM_DECAPSULATE" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_DECAPSULATE"
-    fi
-
-    if test "$ENABLED_WC_MLKEM" = "yes"
-    then
-        test "$enable_sha3" = "" && enable_sha3=yes
-        test "$enable_shake128" = "" && enable_shake128=yes
-        test "$enable_shake256" = "" && enable_shake256=yes
-    fi
-fi
-
-AS_IF([ test "$ENABLED_MLKEM_STANDALONE" = "yes" && test "$ENABLED_ML_KEM" = "no" ],[AC_MSG_ERROR([ML-KEM as standalone TLS key exchange (non-hybrid) requires ML-KEM.])])
-if test "$ENABLED_MLKEM_STANDALONE" != "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
-fi
-
-if test "$ENABLED_PQC_HYBRIDS" = "yes"
-then
-    if test "$ENABLED_ML_KEM" = "no" || test "$ENABLED_MLKEM" = "no"
-    then
-        ENABLED_PQC_HYBRIDS=no
-    elif test "$ENABLED_MLKEM768" = "" && test "$ENABLED_MLKEM1024" = ""; then
-        AC_MSG_NOTICE([PQC hybrid combinations require either ML-KEM 768 or ML-KEM 1024, but both disabled.])
-        ENABLED_PQC_HYBRIDS=no
-    else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PQC_HYBRIDS"
-    fi
-fi
-
-if test "$ENABLED_ML_KEM" != "no" && test "$ENABLED_MLKEM" != "no"
-then
-    if test "$ENABLED_PQC_HYBRIDS" = "no" && test "$ENABLED_MLKEM_STANDALONE" = "no" && test "$ENABLED_CRYPTONLY" = "no"
-    then
-        AC_MSG_ERROR([Both hybrid PQ/T and standalone ML-KEM are disabled, so no PQC hybrid combinations will be available.])
-    fi
-fi
-
-if test "$ENABLED_EXTRA_PQC_HYBRIDS" = "yes"
-then
-    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires --enable-experimental.]) ])
-    AS_IF([ test "$ENABLED_ML_KEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
-fi
 
 # Selftest uses its own random.c which doesn't support SHA-512 DRBG
 # or runtime DRBG disable/enable APIs
@@ -7230,13 +7153,13 @@ fi
 
 # ML-KEM and Dilithium require SHA-3 and SHAKE -- force them on before flag
 # processing so that the correct -D flags are emitted.
-if test "$ENABLED_MLKEM" != "no" && test "$ENABLED_LIBOQS" = "no"
+if test "$ENABLED_MLKEM" != "no"
 then
     ENABLED_SHA3=yes
     ENABLED_SHAKE128=yes
     ENABLED_SHAKE256=yes
 fi
-if test "$ENABLED_DILITHIUM" != "no" && test "$ENABLED_LIBOQS" = "no"
+if test "$ENABLED_DILITHIUM" != "no"
 then
     ENABLED_SHA3=yes
     ENABLED_SHAKE128=yes
@@ -7285,12 +7208,7 @@ fi
 if test "$ENABLED_MLKEM" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLKEM"
-    # Use liboqs if specified.
-    if test "$ENABLED_LIBOQS" = "no"; then
-        ENABLED_WC_MLKEM=yes
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_MLKEM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_MLKEM"
-    fi
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_MLKEM"
 
     if test "$ENABLED_ORIGINAL" = "yes"; then
         # FIPS 203 (ML-KEM) and Kyber use different implicit rejection.
@@ -7337,12 +7255,9 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_DECAPSULATE"
     fi
 
-    if test "$ENABLED_WC_MLKEM" = "yes"
-    then
-        test "$enable_sha3" = "" && enable_sha3=yes
-        test "$enable_shake128" = "" && enable_shake128=yes
-        test "$enable_shake256" = "" && enable_shake256=yes
-    fi
+    test "$enable_sha3" = "" && enable_sha3=yes
+    test "$enable_shake128" = "" && enable_shake128=yes
+    test "$enable_shake256" = "" && enable_shake256=yes
 fi
 
 AC_ARG_ENABLE([tls-mlkem-standalone],
@@ -7354,7 +7269,19 @@ AC_ARG_ENABLE([tls-mlkem-standalone],
 AS_IF([ test "$ENABLED_MLKEM_STANDALONE" = "yes" && test "$ENABLED_ML_KEM" = "no" ],[AC_MSG_ERROR([ML-KEM as standalone TLS key exchange (non-hybrid) requires ML-KEM.])])
 if test "$ENABLED_MLKEM_STANDALONE" != "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
+    # Hybrid PQ/T groups all combine ML-KEM with an ECC/Curve25519/Curve448
+    # base. If none of those is available, hybrids contribute no usable groups
+    # for TLS 1.3 key exchange. In that case, auto-enable standalone ML-KEM so
+    # TLS 1.3 has a functional KEM.
+    if test "$ENABLED_MLKEM" = "yes" && test "$ENABLED_ML_KEM" != "no" && \
+       test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && \
+       test "x$ENABLED_CURVE448" = "xno"
+    then
+        AC_MSG_NOTICE([No ECC/Curve25519/Curve448 base for ML-KEM hybrids; auto-enabling standalone ML-KEM for TLS 1.3.])
+        ENABLED_MLKEM_STANDALONE=yes
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
+    fi
 fi
 
 AC_ARG_ENABLE([pqc-hybrids],
@@ -7402,6 +7329,7 @@ fi
 if test "$ENABLED_DILITHIUM" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_DILITHIUM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_DILITHIUM"
 
     if test "$ENABLED_MLDSA44" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_44"
@@ -7422,13 +7350,10 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_VERIFY"
     fi
 
-    if test "$ENABLED_LIBOQS" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_DILITHIUM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_DILITHIUM"
-        test "$enable_sha3" = "" && enable_sha3=yes
-        test "$enable_shake128" = "" && enable_shake128=yes
-        test "$enable_shake256" = "" && enable_shake256=yes
-    fi
+    test "$enable_sha3" = "" && enable_sha3=yes
+    test "$enable_shake128" = "" && enable_shake128=yes
+    test "$enable_shake256" = "" && enable_shake256=yes
+
     ENABLED_CERTS=yes
 fi
 
@@ -8199,18 +8124,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
 
-# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448 or libOQS
+# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448 or ML-KEM
 if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ECC" = "xno" && \
     (test "x$ENABLED_RSA" = "xno" || test "x$ENABLED_DH" = "xno") && \
     (test "x$ENABLED_CURVE25519" = "xno" || test "x$ENABLED_ED25519" = "xno") && \
     (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno") && \
-    test "x$ENABLED_LIBOQS" = "xno"
+    test "x$ENABLED_MLKEM" = "xno"
 then
     # disable TLS 1.3
     ENABLED_TLS13=no
 fi
 if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
-    test "$ENABLED_DH" != "no")
+    test "$ENABLED_DH" != "no" || test "x$ENABLED_MLKEM" = "xyes")
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"
 fi
@@ -12070,7 +11995,7 @@ AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" 
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_SLHDSA],[test "x$ENABLED_SLHDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_WC_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -12623,7 +12548,6 @@ echo "   * LMS:                        $ENABLED_LMS"
 echo "   * XMSS:                       $ENABLED_XMSS"
 echo "   * SLH-DSA                     $ENABLED_SLHDSA"
 echo "   * MLKEM:                      $ENABLED_MLKEM"
-echo "   * MLKEM wolfSSL impl:         $ENABLED_WC_MLKEM"
 echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
@@ -12682,6 +12606,7 @@ echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
 echo "   * liboqs:                     $ENABLED_LIBOQS"
+echo "   * Falcon (via liboqs):        $ENABLED_FALCON"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
