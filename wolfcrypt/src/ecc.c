@@ -3733,7 +3733,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif
    int           i, err;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-   ecc_key       *key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC);
+   ecc_key       *key = NULL;
 #endif
    mp_digit      mp;
 
@@ -3753,6 +3753,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    }
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
+   key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC);
    if (key == NULL) {
        err = MP_MEM;
        goto exit;
@@ -3815,8 +3816,7 @@ exit:
    if (key) {
        if (R)
            R->key = NULL;
-       if (err == MP_OKAY)
-           ecc_key_tmp_final(key, heap);
+       ecc_key_tmp_final(key, heap);
        XFREE(key, heap, DYNAMIC_TYPE_ECC);
    }
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
