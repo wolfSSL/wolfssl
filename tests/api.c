@@ -37715,9 +37715,7 @@ TEST_CASE testCases[] = {
 
 static void TestSetup(void)
 {
-#ifdef WOLFSSL_SWDEV
-    (void)wc_SwDev_Init();
-#endif
+/* Stub, for now. Add common test setup code here. */
 }
 
 static void TestCleanup(void)
