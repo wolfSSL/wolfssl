@@ -330,8 +330,8 @@ impl Curve25519Key {
         let private_size = crate::buffer_len_to_i32(private.len())?;
         let public_size = crate::buffer_len_to_i32(public.len())?;
         let rc = unsafe {
-            sys::wc_curve25519_make_pub(public_size, public.as_mut_ptr(),
-                private_size, private.as_ptr())
+            sys::wc_curve25519_make_pub(private_size, private.as_ptr(),
+                public_size, public.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -357,8 +357,8 @@ impl Curve25519Key {
         let private_size = crate::buffer_len_to_i32(private.len())?;
         let public_size = crate::buffer_len_to_i32(public.len())?;
         let rc = unsafe {
-            sys::wc_curve25519_make_pub_blind(public_size, public.as_mut_ptr(),
-                private_size, private.as_ptr(), &mut rng.wc_rng)
+            sys::wc_curve25519_make_pub_blind(private_size, private.as_ptr(),
+                public_size, public.as_mut_ptr(), &mut rng.wc_rng)
         };
         if rc != 0 {
             return Err(rc);
@@ -384,8 +384,8 @@ impl Curve25519Key {
         let public_size = crate::buffer_len_to_i32(public.len())?;
         let basepoint_size = crate::buffer_len_to_i32(basepoint.len())?;
         let rc = unsafe {
-            sys::wc_curve25519_generic(public_size, public.as_mut_ptr(),
-                private_size, private.as_ptr(), basepoint_size, basepoint.as_ptr())
+            sys::wc_curve25519_generic(private_size, private.as_ptr(),
+                public_size, public.as_mut_ptr(), basepoint_size, basepoint.as_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -413,8 +413,8 @@ impl Curve25519Key {
         let public_size = crate::buffer_len_to_i32(public.len())?;
         let basepoint_size = crate::buffer_len_to_i32(basepoint.len())?;
         let rc = unsafe {
-            sys::wc_curve25519_generic_blind(public_size, public.as_mut_ptr(),
-                private_size, private.as_ptr(), basepoint_size, basepoint.as_ptr(),
+            sys::wc_curve25519_generic_blind(private_size, private.as_ptr(),
+                public_size, public.as_mut_ptr(), basepoint_size, basepoint.as_ptr(),
                 &mut rng.wc_rng)
         };
         if rc != 0 {

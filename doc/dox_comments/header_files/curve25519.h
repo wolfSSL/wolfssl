@@ -780,10 +780,10 @@ int wc_curve25519_size(curve25519_key* key);
     \return ECC_BAD_ARG_E If the key sizes are invalid
     \return BAD_FUNC_ARG If any input parameters are NULL
 
-    \param public_size Size of the public key buffer (must be 32)
-    \param pub Pointer to buffer to store the public key
     \param private_size Size of the private key (must be 32)
     \param priv Pointer to buffer containing the private key
+    \param public_size Size of the public key buffer (must be 32)
+    \param pub Pointer to buffer to store the public key
 
     _Example_
     \code
@@ -791,8 +791,8 @@ int wc_curve25519_size(curve25519_key* key);
     byte pub[CURVE25519_KEYSIZE];
 
     // initialize priv with private key
-    int ret = wc_curve25519_make_pub(sizeof(pub), pub, sizeof(priv),
-                                     priv);
+    int ret = wc_curve25519_make_pub(sizeof(priv), priv, sizeof(pub),
+                                     pub);
     if (ret != 0) {
         // error generating public key
     }
@@ -801,8 +801,8 @@ int wc_curve25519_size(curve25519_key* key);
     \sa wc_curve25519_make_key
     \sa wc_curve25519_make_pub_blind
 */
-int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
-                           const byte* priv);
+int wc_curve25519_make_pub(int private_size, const byte* priv,
+                           int public_size, byte* pub);
 
 /*!
     \ingroup Curve25519
@@ -814,10 +814,10 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
     \return ECC_BAD_ARG_E If the key sizes are invalid
     \return BAD_FUNC_ARG If any input parameters are NULL
 
-    \param public_size Size of the public key buffer (must be 32)
-    \param pub Pointer to buffer to store the public key
     \param private_size Size of the private key (must be 32)
     \param priv Pointer to buffer containing the private key
+    \param public_size Size of the public key buffer (must be 32)
+    \param pub Pointer to buffer to store the public key
     \param rng Pointer to initialized RNG for blinding
 
     _Example_
@@ -828,8 +828,8 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 
     wc_InitRng(&rng);
     // initialize priv with private key
-    int ret = wc_curve25519_make_pub_blind(sizeof(pub), pub,
-                                           sizeof(priv), priv, &rng);
+    int ret = wc_curve25519_make_pub_blind(sizeof(priv), priv,
+                                           sizeof(pub), pub, &rng);
     if (ret != 0) {
         // error generating public key
     }
@@ -838,8 +838,8 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
     \sa wc_curve25519_make_pub
     \sa wc_curve25519_generic_blind
 */
-int wc_curve25519_make_pub_blind(int public_size, byte* pub,
-                                 int private_size, const byte* priv,
+int wc_curve25519_make_pub_blind(int private_size, const byte* priv,
+                                 int public_size, byte* pub,
                                  WC_RNG* rng);
 
 /*!
@@ -853,10 +853,10 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub,
     \return ECC_BAD_ARG_E If the sizes are invalid
     \return BAD_FUNC_ARG If any input parameters are NULL
 
-    \param public_size Size of the output buffer (must be 32)
-    \param pub Pointer to buffer to store the result
     \param private_size Size of the scalar (must be 32)
     \param priv Pointer to buffer containing the scalar
+    \param public_size Size of the output buffer (must be 32)
+    \param pub Pointer to buffer to store the result
     \param basepoint_size Size of the basepoint (must be 32)
     \param basepoint Pointer to buffer containing the basepoint
 
@@ -867,8 +867,8 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub,
     byte result[CURVE25519_KEYSIZE];
 
     // initialize scalar and basepoint
-    int ret = wc_curve25519_generic(sizeof(result), result,
-                                    sizeof(scalar), scalar,
+    int ret = wc_curve25519_generic(sizeof(scalar), scalar,
+                                    sizeof(result), result,
                                     sizeof(basepoint), basepoint);
     if (ret != 0) {
         // error computing result
@@ -878,9 +878,9 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub,
     \sa wc_curve25519_shared_secret
     \sa wc_curve25519_generic_blind
 */
-int wc_curve25519_generic(int public_size, byte* pub, int private_size,
-                         const byte* priv, int basepoint_size,
-                         const byte* basepoint);
+int wc_curve25519_generic(int private_size, const byte* priv,
+                         int public_size, byte* pub,
+                         int basepoint_size, const byte* basepoint);
 
 /*!
     \ingroup Curve25519
@@ -892,10 +892,10 @@ int wc_curve25519_generic(int public_size, byte* pub, int private_size,
     \return ECC_BAD_ARG_E If the sizes are invalid
     \return BAD_FUNC_ARG If any input parameters are NULL
 
-    \param public_size Size of the output buffer (must be 32)
-    \param pub Pointer to buffer to store the result
     \param private_size Size of the scalar (must be 32)
     \param priv Pointer to buffer containing the scalar
+    \param public_size Size of the output buffer (must be 32)
+    \param pub Pointer to buffer to store the result
     \param basepoint_size Size of the basepoint (must be 32)
     \param basepoint Pointer to buffer containing the basepoint
     \param rng Pointer to initialized RNG for blinding
@@ -909,8 +909,8 @@ int wc_curve25519_generic(int public_size, byte* pub, int private_size,
 
     wc_InitRng(&rng);
     // initialize scalar and basepoint
-    int ret = wc_curve25519_generic_blind(sizeof(result), result,
-                                          sizeof(scalar), scalar,
+    int ret = wc_curve25519_generic_blind(sizeof(scalar), scalar,
+                                          sizeof(result), result,
                                           sizeof(basepoint), basepoint,
                                           &rng);
     \endcode
@@ -918,8 +918,8 @@ int wc_curve25519_generic(int public_size, byte* pub, int private_size,
     \sa wc_curve25519_generic
     \sa wc_curve25519_make_pub_blind
 */
-int wc_curve25519_generic_blind(int public_size, byte* pub,
-                                int private_size, const byte* priv,
+int wc_curve25519_generic_blind(int private_size, const byte* priv,
+                                int public_size, byte* pub,
                                 int basepoint_size, const byte* basepoint,
                                 WC_RNG* rng);
 
