@@ -715,6 +715,9 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
     if (pHint == NULL || buf == NULL || sizeList == NULL || distList == NULL) {
         return BAD_FUNC_ARG;
     }
+    if (listSz == 0) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Cap the listSz to the actual number of items allocated in the list. */
     if (listSz > WOLFMEM_MAX_BUCKETS) {
@@ -829,6 +832,9 @@ int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
     WOLFSSL_ENTER("wolfSSL_StaticBufferSz_ex");
 
     if (buffer == NULL || sizeList == NULL || distList == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (listSz == 0) {
         return BAD_FUNC_ARG;
     }
 
