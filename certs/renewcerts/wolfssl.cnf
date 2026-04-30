@@ -360,6 +360,15 @@ OCSP;URI.6=http://127.0.0.1:22226
 OCSP;URI.7=http://127.0.0.1:22227
 OCSP;URI.8=http://127.0.0.1:22228
 
+# SIA test cert: subjectInfoAccess present but without id-ad-caRepository.
+[ sia_timestamping ]
+subjectKeyIdentifier=hash
+basicConstraints=CA:false
+subjectInfoAccess=@sia_timestamping_info
+
+[ sia_timestamping_info ]
+timeStamping;URI.0=http://example.com/tsa
+
 #tsa default
 [ tsa ]
 default_tsa = tsa_config1

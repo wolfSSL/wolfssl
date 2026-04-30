@@ -19775,14 +19775,8 @@ static int DecodeSubjInfoAcc(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
-    int ret = 0;
 
     WOLFSSL_ENTER("DecodeSubjInfoAcc");
-
-#ifdef OPENSSL_ALL
-    cert->extSubjAltNameSrc = input;
-    cert->extSubjAltNameSz = sz;
-#endif /* OPENSSL_ALL */
 
     /* Unwrap SubjectInfoAccessSyntax, the list of AccessDescriptions */
     if (GetSequence(input, &idx, &length, sz) < 0)
@@ -19796,12 +19790,11 @@ static int DecodeSubjInfoAcc(const byte* input, word32 sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
-    /* Per fpkx-x509-cert-profile-common... section 5.3.
-     * [The] subjectInfoAccess extension must contain at least one
-     * instance of the id-ad-caRepository access method containing a
-     * publicly accessible HTTP URI which returns as certs-only
-     * CMS.
-     */
+    /* RFC 5280 specifies that at least one entry must be present but does not
+     * specify any particular OID must be present. For certificates following
+     * fpki-x509-cert-profile-common, we extract the id-ad-caRepository caRepo
+     * entry to cert->extSubjInfoAccCaRepo / cert->extSubjInfoAccCaRepoSz for
+     * convenient user access. */
 
     while (idx < (word32)sz) {
         word32 oid = 0;
@@ -19831,14 +19824,8 @@ static int DecodeSubjInfoAcc(const byte* input, word32 sz, DecodedCert* cert)
         idx += (word32)length;
     }
 
-    if (cert->extSubjInfoAccCaRepo == NULL ||
-            cert->extSubjInfoAccCaRepoSz == 0) {
-        WOLFSSL_MSG("SubjectInfoAccess missing an URL.");
-        ret = ASN_PARSE_E;
-    }
-
-    WOLFSSL_LEAVE("DecodeSubjInfoAcc", ret);
-    return ret;
+    WOLFSSL_LEAVE("DecodeSubjInfoAcc", 0);
+    return 0;
 }
 #endif /* WOLFSSL_SUBJ_INFO_ACC */
 
