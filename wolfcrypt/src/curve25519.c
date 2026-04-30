@@ -637,7 +637,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             }
             break;
         case 2:
-        #ifdef WOLFSSL_ECDHX_SHARED_NOT_ZERO
+        #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             {
                 int i;
                 byte t = 0;
@@ -649,13 +649,13 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
                     ret = ECC_OUT_OF_RANGE_E;
                 }
                 else
-        #endif /* WOLFSSL_ECDHX_SHARED_NOT_ZERO */
+        #endif /* !WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK */
                 {
                     curve25519_copy_point(out, privKey->nb_ctx->o.point, endian);
                     *outlen = CURVE25519_KEYSIZE;
                     ret = 0;
                 }
-        #ifdef WOLFSSL_ECDHX_SHARED_NOT_ZERO
+        #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             }
         #endif
             break;
@@ -761,7 +761,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 #endif
         }
 #endif /* FREESCALE_LTC_ECC */
-#ifdef WOLFSSL_ECDHX_SHARED_NOT_ZERO
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
         if (ret == 0) {
             int i;
             byte t = 0;
@@ -772,7 +772,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                 ret = ECC_OUT_OF_RANGE_E;
             }
         }
-#endif /* WOLFSSL_ECDHX_SHARED_NOT_ZERO */
+#endif /* !WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK */
         if (ret == 0) {
             curve25519_copy_point(out, o.point, endian);
             *outlen = CURVE25519_KEYSIZE;
