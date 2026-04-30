@@ -20,17 +20,19 @@
  */
 
 /* ESP-IDF */
-#include <esp_log.h>
 #include "sdkconfig.h"
+#include <esp_log.h>
 
 /* wolfSSL */
-/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
-/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
+/* The wolfSSL user_settings.h is automatically included by settings.h file.
+ * Never explicitly include wolfSSL user_settings.h in any source file.
+ * The settings.h should also be listed above wolfssl library include files. */
 #if defined(WOLFSSL_USER_SETTINGS)
     #include <wolfssl/wolfcrypt/settings.h>
     #if defined(WOLFSSL_ESPIDF)
         #include <wolfssl/version.h>
         #include <wolfssl/wolfcrypt/types.h>
+        #include <wolfssl/wolfcrypt/logging.h>
         #include <wolfcrypt/test/test.h>
         #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
         #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
@@ -187,7 +189,16 @@ void app_main(void)
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "Stack Start: 0x%x", stack_start);
-
+#ifdef HAVE_WOLFCRYPT_WARMUP
+    /* Unless disabled, we'll try to allocate known, long-term heap items early
+     * in an attempt to avoid later allocations that may cause fragmentation. */
+    ESP_ERROR_CHECK(esp_sdk_wolfssl_warmup());
+#endif
+#ifdef DEBUG_WOLFSSL
+    /* Turn debugging on and off as needed: */
+    wolfSSL_Debugging_ON();
+    wolfSSL_Debugging_OFF();
+#endif
 #ifdef WOLFSSL_ESP_NO_WATCHDOG
     ESP_LOGW(TAG, "Found WOLFSSL_ESP_NO_WATCHDOG, disabling...");
     esp_DisableWatchdog();
