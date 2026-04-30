@@ -155,22 +155,22 @@ enum {
 };
 
 WOLFSSL_API
-int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
-                           const byte* priv);
+int wc_curve25519_make_pub(int private_size, const byte* priv,
+                           int public_size, byte* pub);
 #ifdef WOLFSSL_CURVE25519_BLINDING
 WOLFSSL_API
-int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
-                                 const byte* priv, WC_RNG* rng);
+int wc_curve25519_make_pub_blind(int private_size, const byte* priv,
+                                 int public_size, byte* pub, WC_RNG* rng);
 #endif
 
 WOLFSSL_API
-int wc_curve25519_generic(int public_size, byte* pub,
-                          int private_size, const byte* priv,
+int wc_curve25519_generic(int private_size, const byte* priv,
+                          int public_size, byte* pub,
                           int basepoint_size, const byte* basepoint);
 #ifdef WOLFSSL_CURVE25519_BLINDING
 WOLFSSL_API
-int wc_curve25519_generic_blind(int public_size, byte* pub,
-                                int private_size, const byte* priv,
+int wc_curve25519_generic_blind(int private_size, const byte* priv,
+                                int public_size, byte* pub,
                                 int basepoint_size, const byte* basepoint,
                                 WC_RNG* rng);
 #endif

@@ -370,25 +370,25 @@ int test_wc_curve25519_make_pub(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key), 0);
 
-    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(out), out,
-        (int)sizeof(key.k), key.k), 0);
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(key.k), key.k,
+        (int)sizeof(out), out), 0);
     /* test bad cases */
     ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(key.k) - 1, key.k,
-        (int)sizeof out, out), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
-    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof(key.k),
-        NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
-    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof out - 1, out,
-        (int)sizeof(key.k), key.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
-    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof out, NULL,
-        (int)sizeof(key.k), key.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        (int)sizeof(out), out), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(key.k), NULL,
+        (int)sizeof(out), out), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(key.k), key.k,
+        (int)sizeof(out) - 1, out), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(key.k), key.k,
+        (int)sizeof(out), NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     /* verify clamping test */
     key.k[0] |= ~248;
-    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof(key.k),
-        key.k), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(key.k), key.k,
+        (int)sizeof(out), out), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     key.k[0] &= 248;
     /* repeat the expected-to-succeed test. */
-    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof(key.k),
-        key.k), 0);
+    ExpectIntEQ(wc_curve25519_make_pub((int)sizeof(key.k), key.k,
+        (int)sizeof(out), out), 0);
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_curve25519_free(&key);

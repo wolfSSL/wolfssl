@@ -137,8 +137,8 @@ static WC_INLINE void curve25519_copy_point(byte* out, const byte* point,
  * return value is propagated from curve25519() (0 on success), or
  * ECC_BAD_ARG_E, and the byte vectors are little endian.
  */
-int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
-                           const byte* priv)
+int wc_curve25519_make_pub(int private_size, const byte* priv,
+                           int public_size, byte* pub)
 {
     int ret;
 #ifdef FREESCALE_LTC_ECC
@@ -204,8 +204,8 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 
         ret = wc_InitRng(&rng);
         if (ret == 0) {
-            ret = wc_curve25519_make_pub_blind(public_size, pub, private_size,
-                priv, &rng);
+            ret = wc_curve25519_make_pub_blind(private_size, priv, public_size,
+                pub, &rng);
 
             wc_FreeRng(&rng);
         }
@@ -283,8 +283,8 @@ static int curve25519_smul_blind(byte* rp, const byte* n, const byte* p,
 }
 #endif
 
-int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
-                                 const byte* priv, WC_RNG* rng)
+int wc_curve25519_make_pub_blind(int private_size, const byte* priv,
+                                 int public_size, byte* pub, WC_RNG* rng)
 {
     int ret;
 #ifdef FREESCALE_LTC_ECC
@@ -333,8 +333,8 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
  * return value is propagated from curve25519() (0 on success),
  * and the byte vectors are little endian.
  */
-int wc_curve25519_generic(int public_size, byte* pub,
-                          int private_size, const byte* priv,
+int wc_curve25519_generic(int private_size, const byte* priv,
+                          int public_size, byte* pub,
                           int basepoint_size, const byte* basepoint)
 {
 #ifdef FREESCALE_LTC_ECC
@@ -373,7 +373,7 @@ int wc_curve25519_generic(int public_size, byte* pub,
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
-        ret = wc_curve25519_generic_blind(public_size, pub, private_size, priv,
+        ret = wc_curve25519_generic_blind(private_size, priv, public_size, pub,
             basepoint_size, basepoint, &rng);
 
         wc_FreeRng(&rng);
@@ -391,8 +391,8 @@ int wc_curve25519_generic(int public_size, byte* pub,
  * return value is propagated from curve25519() (0 on success),
  * and the byte vectors are little endian.
  */
-int wc_curve25519_generic_blind(int public_size, byte* pub,
-                                int private_size, const byte* priv,
+int wc_curve25519_generic_blind(int private_size, const byte* priv,
+                                int public_size, byte* pub,
                                 int basepoint_size, const byte* basepoint,
                                 WC_RNG* rng)
 {
@@ -579,14 +579,14 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         if (ret == 0) {
             key->privSet = 1;
 #ifdef WOLFSSL_CURVE25519_BLINDING
-            ret = wc_curve25519_make_pub_blind((int)sizeof(key->p.point),
-                      key->p.point, (int)sizeof(key->k), key->k, rng);
+            ret = wc_curve25519_make_pub_blind((int)sizeof(key->k),
+                      key->k, (int)sizeof(key->p.point), key->p.point, rng);
             if (ret == 0) {
                 ret = wc_curve25519_set_rng(key, rng);
             }
 #else
-            ret = wc_curve25519_make_pub((int)sizeof(key->p.point),
-                      key->p.point, (int)sizeof(key->k), key->k);
+            ret = wc_curve25519_make_pub((int)sizeof(key->k),
+                      key->k, (int)sizeof(key->p.point), key->p.point);
 #endif
             key->pubSet = (ret == 0);
         }
@@ -805,12 +805,12 @@ int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
     /* calculate public if missing */
     if (!key->pubSet) {
 #ifdef WOLFSSL_CURVE25519_BLINDING
-        ret = wc_curve25519_make_pub_blind((int)sizeof(key->p.point),
-                                           key->p.point, (int)sizeof(key->k),
-                                           key->k, key->rng);
+        ret = wc_curve25519_make_pub_blind((int)sizeof(key->k),
+                                           key->k, (int)sizeof(key->p.point),
+                                           key->p.point, key->rng);
 #else
-        ret = wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
-                                     (int)sizeof(key->k), key->k);
+        ret = wc_curve25519_make_pub((int)sizeof(key->k), key->k,
+                                     (int)sizeof(key->p.point), key->p.point);
 #endif
         key->pubSet = (ret == 0);
     }
