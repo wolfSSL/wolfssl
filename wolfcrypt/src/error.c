@@ -683,6 +683,717 @@ const char* wc_GetErrorString(int error)
 #include <wolfssl/debug-trace-error-codes.h>
 #endif
 
+
+/* Error string functions for the SSL/TLS error code range.
+ * These live here (not src/ssl.c) so they are available in WOLFCRYPT_ONLY
+ * builds that define OPENSSL_EXTRA, avoiding a link-time dependency on
+ * src/internal.c which is excluded from crypto-only builds. */
+#include <wolfssl/error-ssl.h>
+#include <wolfssl/ssl.h>
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
+#include <wolfssl/debug-untrace-error-codes.h>
+#endif
+
+#if !defined(NO_ERROR_STRINGS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED))
+static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
+{
+    switch (e) {
+    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
+     *       -WOLFSSL_ERROR_WANT_CONNECT.
+     */
+    case WOLFSSL_X509_V_ERR_CRL_HAS_EXPIRED:
+        return "CRL has expired";
+
+    case WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL:
+        return "unable to get CRL";
+
+    case WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
+        return "certificate not yet valid";
+
+    case WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED:
+        return "certificate has expired";
+
+    case WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+        return "certificate signature failure";
+
+    case WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+        return "format error in certificate's notAfter field";
+
+    case WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+        return "self-signed certificate in certificate chain";
+
+    case WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+        return "unable to get local issuer certificate";
+
+    case WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+        return "unable to verify the first certificate";
+
+    case WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG:
+        return "certificate chain too long";
+
+    case WOLFSSL_X509_V_ERR_CERT_REVOKED:
+        return "certificate revoked";
+
+    case WOLFSSL_X509_V_ERR_INVALID_CA:
+        return "invalid CA certificate";
+
+    case WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED:
+        return "path length constraint exceeded";
+
+    case WOLFSSL_X509_V_ERR_CERT_REJECTED:
+        return "certificate rejected";
+
+    case WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
+        return "subject issuer mismatch";
+
+    case WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH:
+        return "hostname mismatch";
+
+    case WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH:
+        return "IP address mismatch";
+
+    default:
+        return NULL;
+    }
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER || HAVE_MEMCACHED */
+
+const char* wolfSSL_ERR_reason_error_string(unsigned long e)
+{
+#ifdef NO_ERROR_STRINGS
+
+    (void)e;
+    return "no support for error strings built in";
+
+#else
+
+    int error = (int)e;
+
+    if (error > 0) {
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+    /* Check the OpenSSL error strings first. */
+        const char* ossl_err = wolfSSL_ERR_reason_error_string_OpenSSL(e);
+        if (ossl_err != NULL) {
+            return ossl_err;
+        }
+    /* try to find error strings from wolfSSL */
+#endif
+        error = -error;
+    }
+    /* pass to wolfCrypt */
+    if ((error <= WC_SPAN1_FIRST_E && error >= WC_SPAN1_MIN_CODE_E) ||
+        (error <= WC_SPAN2_FIRST_E && error >= WC_SPAN2_MIN_CODE_E))
+    {
+        return wc_GetErrorString(error);
+    }
+
+    if (error == 0) {
+#ifdef OPENSSL_EXTRA
+        return "ok";
+#else
+        return "unknown error number";
+#endif
+    }
+
+    switch ((enum wolfSSL_ErrorCodes)error) { /* // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange) */
+
+    case UNSUPPORTED_SUITE :
+        return "unsupported cipher suite";
+
+    case INPUT_CASE_ERROR :
+        return "input state error";
+
+    case PREFIX_ERROR :
+        return "bad index to key rounds";
+
+    case MEMORY_ERROR :
+        return "out of memory";
+
+    case VERIFY_FINISHED_ERROR :
+        return "verify problem on finished";
+
+    case VERIFY_MAC_ERROR :
+        return "verify mac problem";
+
+    case PARSE_ERROR :
+        return "parse error on header";
+
+    case SIDE_ERROR :
+        return "wrong client/server type";
+
+    case NO_PEER_CERT : /* OpenSSL compatibility expects this exact text */
+        return "peer did not return a certificate";
+
+    case UNKNOWN_HANDSHAKE_TYPE :
+        return "weird handshake type";
+
+    case SOCKET_ERROR_E :
+        return "error state on socket";
+
+    case SOCKET_NODATA :
+        return "expected data, not there";
+
+    case INCOMPLETE_DATA :
+        return "don't have enough data to complete task";
+
+    case UNKNOWN_RECORD_TYPE :
+        return "unknown type in record hdr";
+
+    case DECRYPT_ERROR :
+        return "error during decryption";
+
+    case FATAL_ERROR :
+        return "received alert fatal error";
+
+    case ENCRYPT_ERROR :
+        return "error during encryption";
+
+    case FREAD_ERROR :
+        return "fread problem";
+
+    case NO_PEER_KEY :
+        return "need peer's key";
+
+    case NO_PRIVATE_KEY :
+        return "need the private key";
+
+    case NO_DH_PARAMS :
+        return "server missing DH params";
+
+    case RSA_PRIVATE_ERROR :
+        return "error during rsa priv op";
+
+    case MATCH_SUITE_ERROR :
+        return "can't match cipher suite";
+
+    case COMPRESSION_ERROR :
+        return "compression mismatch error";
+
+    case BUILD_MSG_ERROR :
+        return "build message failure";
+
+    case BAD_HELLO :
+        return "client hello malformed";
+
+    case DOMAIN_NAME_MISMATCH :
+        return "peer subject name mismatch";
+
+    case IPADDR_MISMATCH :
+        return "peer ip address mismatch";
+
+    case WANT_READ :
+    case WOLFSSL_ERROR_WANT_READ_E :
+        return "non-blocking socket wants data to be read";
+
+    case NOT_READY_ERROR :
+        return "handshake layer not ready yet, complete first";
+
+    case VERSION_ERROR :
+        return "record layer version error";
+
+    case WANT_WRITE :
+    case WOLFSSL_ERROR_WANT_WRITE_E :
+        return "non-blocking socket write buffer full";
+
+    case WOLFSSL_ERROR_WANT_CONNECT_E :
+    case WOLFSSL_ERROR_WANT_ACCEPT_E :
+        return "The underlying BIO was not yet connected";
+
+    case WOLFSSL_ERROR_SYSCALL_E :
+        return "fatal I/O error in TLS layer";
+
+    case WOLFSSL_ERROR_WANT_X509_LOOKUP_E :
+        return "application client cert callback asked to be called again";
+
+    case BUFFER_ERROR :
+        return "malformed buffer input error";
+
+    case VERIFY_CERT_ERROR :
+        return "verify problem on certificate";
+
+    case VERIFY_SIGN_ERROR :
+        return "verify problem based on signature";
+
+    case CLIENT_ID_ERROR :
+        return "psk client identity error";
+
+    case SERVER_HINT_ERROR:
+        return "psk server hint error";
+
+    case PSK_KEY_ERROR:
+        return "psk key callback error";
+
+    case DUPE_ENTRY_E:
+        return "duplicate entry error";
+
+    case GETTIME_ERROR:
+        return "gettimeofday() error";
+
+    case GETITIMER_ERROR:
+        return "getitimer() error";
+
+    case SIGACT_ERROR:
+        return "sigaction() error";
+
+    case SETITIMER_ERROR:
+        return "setitimer() error";
+
+    case LENGTH_ERROR:
+        return "record layer length error";
+
+    case PEER_KEY_ERROR:
+        return "can't decode peer key";
+
+    case ZERO_RETURN:
+    case WOLFSSL_ERROR_ZERO_RETURN_E :
+        return "peer sent close notify alert";
+
+    case ECC_CURVETYPE_ERROR:
+        return "Bad ECC Curve Type or unsupported";
+
+    case ECC_CURVE_ERROR:
+        return "Bad ECC Curve or unsupported";
+
+    case ECC_PEERKEY_ERROR:
+        return "Bad ECC Peer Key";
+
+    case ECC_MAKEKEY_ERROR:
+        return "ECC Make Key failure";
+
+    case ECC_EXPORT_ERROR:
+        return "ECC Export Key failure";
+
+    case ECC_SHARED_ERROR:
+        return "ECC DHE shared failure";
+
+    case NOT_CA_ERROR:
+        return "Not a CA by basic constraint error";
+
+    case BAD_CERT_MANAGER_ERROR:
+        return "Bad Cert Manager error";
+
+    case OCSP_CERT_REVOKED:
+        return "OCSP Cert revoked";
+
+    case CRL_CERT_REVOKED:
+#ifdef OPENSSL_EXTRA
+        return "certificate revoked";
+#else
+        return "CRL Cert revoked";
+#endif
+
+    case CRL_MISSING:
+        return "CRL missing, not loaded";
+
+    case CRYPTO_POLICY_FORBIDDEN:
+        return "Operation forbidden by system crypto-policy";
+
+    case MONITOR_SETUP_E:
+        return "CRL monitor setup error";
+
+    case THREAD_CREATE_E:
+        return "Thread creation problem";
+
+    case OCSP_NEED_URL:
+        return "OCSP need URL";
+
+    case OCSP_CERT_UNKNOWN:
+        return "OCSP Cert unknown";
+
+    case OCSP_LOOKUP_FAIL:
+        return "OCSP Responder lookup fail";
+
+    case MAX_CHAIN_ERROR:
+        return "Maximum Chain Depth Exceeded";
+
+    case MAX_CERT_EXTENSIONS_ERR:
+        return "Maximum Cert Extension Exceeded";
+
+    case COOKIE_ERROR:
+        return "DTLS Cookie Error";
+
+    case SEQUENCE_ERROR:
+        return "DTLS Sequence Error";
+
+    case SUITES_ERROR:
+        return "Suites Pointer Error";
+
+    case OUT_OF_ORDER_E:
+        return "Out of order message, fatal";
+
+    case BAD_KEA_TYPE_E:
+        return "Bad KEA type found";
+
+    case SANITY_CIPHER_E:
+        return "Sanity check on ciphertext failed";
+
+    case RECV_OVERFLOW_E:
+        return "Receive callback returned more than requested";
+
+    case GEN_COOKIE_E:
+        return "Generate Cookie Error";
+
+    case NO_PEER_VERIFY:
+        return "Need peer certificate verify Error";
+
+    case FWRITE_ERROR:
+        return "fwrite Error";
+
+    case CACHE_MATCH_ERROR:
+        return "Cache restore header match Error";
+
+    case UNKNOWN_SNI_HOST_NAME_E:
+        return "Unrecognized host name Error";
+
+    case UNKNOWN_MAX_FRAG_LEN_E:
+        return "Unrecognized max frag len Error";
+
+    case KEYUSE_SIGNATURE_E:
+        return "Key Use digitalSignature not set Error";
+
+    case KEYUSE_ENCIPHER_E:
+        return "Key Use keyEncipherment not set Error";
+
+    case EXTKEYUSE_AUTH_E:
+        return "Ext Key Use server/client auth not set Error";
+
+    case SEND_OOB_READ_E:
+        return "Send Callback Out of Bounds Read Error";
+
+    case SECURE_RENEGOTIATION_E:
+        return "Invalid Renegotiation Error";
+
+    case SESSION_TICKET_LEN_E:
+        return "Session Ticket Too Long Error";
+
+    case SESSION_TICKET_EXPECT_E:
+        return "Session Ticket Error";
+
+    case SCR_DIFFERENT_CERT_E:
+        return "SCR Different cert error";
+
+    case SESSION_SECRET_CB_E:
+        return "Session Secret Callback Error";
+
+    case NO_CHANGE_CIPHER_E:
+        return "Finished received from peer before Change Cipher Error";
+
+    case SANITY_MSG_E:
+        return "Sanity Check on message order Error";
+
+    case DUPLICATE_MSG_E:
+        return "Duplicate HandShake message Error";
+
+    case SNI_UNSUPPORTED:
+        return "Protocol version does not support SNI Error";
+
+    case SOCKET_PEER_CLOSED_E:
+        return "Peer closed underlying transport Error";
+
+    case BAD_TICKET_KEY_CB_SZ:
+        return "Bad user session ticket key callback Size Error";
+
+    case BAD_TICKET_MSG_SZ:
+        return "Bad session ticket message Size Error";
+
+    case BAD_TICKET_ENCRYPT:
+        return "Bad user ticket callback encrypt Error";
+
+    case DH_KEY_SIZE_E:
+        return "DH key too small Error";
+
+    case SNI_ABSENT_ERROR:
+        return "No Server Name Indication extension Error";
+
+    case RSA_SIGN_FAULT:
+        return "RSA Signature Fault Error";
+
+    case HANDSHAKE_SIZE_ERROR:
+        return "Handshake message too large Error";
+
+    case UNKNOWN_ALPN_PROTOCOL_NAME_E:
+        return "Unrecognized protocol name Error";
+
+    case BAD_CERTIFICATE_STATUS_ERROR:
+        return "Bad Certificate Status Message Error";
+
+    case OCSP_INVALID_STATUS:
+        return "Invalid OCSP Status Error";
+
+    case OCSP_WANT_READ:
+        return "OCSP nonblock wants read";
+
+    case RSA_KEY_SIZE_E:
+        return "RSA key too small";
+
+    case ECC_KEY_SIZE_E:
+        return "ECC key too small";
+
+    case DTLS_EXPORT_VER_E:
+        return "Version needs updated after code change or version mismatch";
+
+    case INPUT_SIZE_E:
+        return "Input size too large Error";
+
+    case CTX_INIT_MUTEX_E:
+        return "Initialize ctx mutex error";
+
+    case EXT_MASTER_SECRET_NEEDED_E:
+        return "Extended Master Secret must be enabled to resume EMS session";
+
+    case DTLS_POOL_SZ_E:
+        return "Maximum DTLS pool size exceeded";
+
+    case DECODE_E:
+        return "Decode handshake message error";
+
+    case WRITE_DUP_READ_E:
+        return "Write dup write side can't read error";
+
+    case WRITE_DUP_WRITE_E:
+        return "Write dup read side can't write error";
+
+    case INVALID_CERT_CTX_E:
+        return "Certificate context does not match request or not empty";
+
+    case BAD_KEY_SHARE_DATA:
+        return "The Key Share data contains a group which is invalid";
+
+    case MISSING_HANDSHAKE_DATA:
+        return "The handshake message is missing required data";
+
+    case BAD_BINDER: /* OpenSSL compatibility expects this exact text */
+        return "binder does not verify";
+
+    case EXT_NOT_ALLOWED:
+        return "Extension type not allowed in handshake message type";
+
+    case INVALID_PARAMETER:
+        return "The security parameter is invalid";
+
+    case UNSUPPORTED_EXTENSION:
+        return "TLS Extension not requested by the client";
+
+    case PRF_MISSING:
+        return "Pseudo-random function is not enabled";
+
+    case KEY_SHARE_ERROR:
+        return "Key share extension did not contain a valid named group";
+
+    case POST_HAND_AUTH_ERROR:
+        return "Client will not do post handshake authentication";
+
+    case HRR_COOKIE_ERROR:
+        return "Cookie does not match one sent in HelloRetryRequest";
+
+    case MCAST_HIGHWATER_CB_E:
+        return "Multicast highwater callback returned error";
+
+    case ALERT_COUNT_E:
+        return "Alert Count exceeded error";
+
+    case EXT_MISSING:
+        return "Required TLS extension missing";
+
+    case DTLS_RETX_OVER_TX:
+        return "DTLS interrupting flight transmit with retransmit";
+
+    case DH_PARAMS_NOT_FFDHE_E:
+        return "Server DH parameters were not from the FFDHE set as required";
+
+    case TCA_INVALID_ID_TYPE:
+        return "TLS Extension Trusted CA ID type invalid";
+
+    case TCA_ABSENT_ERROR:
+        return "TLS Extension Trusted CA ID response absent";
+
+    case TSIP_MAC_DIGSZ_E:
+        return "TSIP MAC size invalid, must be sized for SHA-1 or SHA-256";
+
+    case CLIENT_CERT_CB_ERROR:
+        return "Error importing client cert or key from callback";
+
+    case SSL_SHUTDOWN_ALREADY_DONE_E:
+        return "Shutdown has already occurred";
+
+    case TLS13_SECRET_CB_E:
+        return "TLS1.3 Secret Callback Error";
+
+    case DTLS_SIZE_ERROR:
+        return "DTLS trying to send too much in single datagram error";
+
+    case NO_CERT_ERROR:
+        return "TLS1.3 No Certificate Set Error";
+
+    case APP_DATA_READY:
+        return "Application data is available for reading";
+
+    case TOO_MUCH_EARLY_DATA:
+        return "Too much early data";
+
+    case SOCKET_FILTERED_E:
+        return "Session stopped by network filter";
+
+    case UNSUPPORTED_CERTIFICATE:
+        return "Unsupported certificate type";
+
+    case HTTP_TIMEOUT:
+        return "HTTP timeout for OCSP or CRL req";
+
+    case HTTP_RECV_ERR:
+        return "HTTP Receive error";
+
+    case HTTP_HEADER_ERR:
+        return "HTTP Header error";
+
+    case HTTP_PROTO_ERR:
+        return "HTTP Protocol error";
+
+    case HTTP_STATUS_ERR:
+        return "HTTP Status error";
+
+    case HTTP_VERSION_ERR:
+        return "HTTP Version error";
+
+    case HTTP_APPSTR_ERR:
+        return "HTTP Application string error";
+
+    case UNSUPPORTED_PROTO_VERSION:
+        #ifdef OPENSSL_EXTRA
+        return "WRONG_SSL_VERSION";
+        #else
+        return "bad/unsupported protocol version";
+        #endif
+
+    case FALCON_KEY_SIZE_E:
+        return "Wrong key size for Falcon.";
+
+    case DILITHIUM_KEY_SIZE_E:
+        return "Wrong key size for Dilithium.";
+
+    case QUIC_TP_MISSING_E:
+        return "QUIC transport parameter not set";
+
+    case QUIC_WRONG_ENC_LEVEL:
+        return "QUIC data received at wrong encryption level";
+
+    case DTLS_CID_ERROR:
+        return "DTLS ConnectionID mismatch or missing";
+
+    case DTLS_TOO_MANY_FRAGMENTS_E:
+        return "Received too many fragmented messages from peer error";
+
+    case DUPLICATE_TLS_EXT_E:
+        return "Duplicate TLS extension in message.";
+
+    case WOLFSSL_ALPN_NOT_FOUND:
+        return "TLS extension not found";
+
+    case WOLFSSL_BAD_CERTTYPE:
+        return "Certificate type not supported";
+
+    case WOLFSSL_BAD_STAT:
+        return "bad status";
+
+    case WOLFSSL_BAD_PATH:
+        return "No certificates found at designated path";
+
+    case WOLFSSL_BAD_FILETYPE:
+        return "Data format not supported";
+
+    case WOLFSSL_BAD_FILE:
+        return "Input/output error on file";
+
+    case WOLFSSL_NOT_IMPLEMENTED:
+        return "Function not implemented";
+
+    case WOLFSSL_UNKNOWN:
+        return "Unknown algorithm (EVP)";
+
+    case WOLFSSL_FATAL_ERROR:
+        return "fatal error";
+
+    case WOLFSSL_PEM_R_NO_START_LINE_E:
+        return "No more matching objects found (PEM)";
+
+    case WOLFSSL_PEM_R_PROBLEMS_GETTING_PASSWORD_E:
+        return "Error getting password (PEM)";
+
+    case WOLFSSL_PEM_R_BAD_PASSWORD_READ_E:
+        return "Bad password (PEM)";
+
+    case WOLFSSL_PEM_R_BAD_DECRYPT_E :
+        return "Decryption failed (PEM)";
+
+    case WOLFSSL_ASN1_R_HEADER_TOO_LONG_E:
+        return "ASN header too long (compat)";
+
+    case WOLFSSL_EVP_R_BAD_DECRYPT_E :
+        return "Decryption failed (EVP)";
+
+    case WOLFSSL_EVP_R_BN_DECODE_ERROR:
+        return "Bignum decode error (EVP)";
+
+    case WOLFSSL_EVP_R_DECODE_ERROR  :
+        return "Decode error (EVP)";
+
+    case WOLFSSL_EVP_R_PRIVATE_KEY_DECODE_ERROR:
+        return "Private key decode error (EVP)";
+
+    case SESSION_TICKET_NONCE_OVERFLOW:
+        return "Session ticket nonce overflow";
+    }
+
+    return "unknown error number";
+
+#endif /* NO_ERROR_STRINGS */
+}
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+#include <wolfssl/debug-trace-error-codes.h>
+#endif
+
+void SetErrorString(int error, char* str)
+{
+    XSTRNCPY(str, wolfSSL_ERR_reason_error_string((unsigned long)error), WOLFSSL_MAX_ERROR_SZ);
+    str[WOLFSSL_MAX_ERROR_SZ-1] = 0;
+}
+
+char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_error_string");
+    if (data) {
+        SetErrorString((int)errNumber, data);
+        return data;
+    }
+    else {
+        static char tmp[WOLFSSL_MAX_ERROR_SZ] = {0};
+        SetErrorString((int)errNumber, tmp);
+        return tmp;
+    }
+}
+
+
+void wolfSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_error_string_n");
+    if (len >= WOLFSSL_MAX_ERROR_SZ)
+        wolfSSL_ERR_error_string(e, buf);
+    else {
+        WOLFSSL_MSG("Error buffer too short, truncating");
+        if (len) {
+            char tmp[WOLFSSL_MAX_ERROR_SZ];
+            wolfSSL_ERR_error_string(e, tmp);
+            XMEMCPY(buf, tmp, len-1);
+            buf[len-1] = '\0';
+        }
+    }
+}
+
 void wc_ErrorString(int error, char* buffer)
 {
     XSTRNCPY(buffer, wc_GetErrorString(error), WOLFSSL_MAX_ERROR_SZ);

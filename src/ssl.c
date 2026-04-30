@@ -4236,36 +4236,6 @@ int wolfSSL_want_write(WOLFSSL* ssl)
     return 0;
 }
 
-char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data)
-{
-    WOLFSSL_ENTER("wolfSSL_ERR_error_string");
-    if (data) {
-        SetErrorString((int)errNumber, data);
-        return data;
-    }
-    else {
-        static char tmp[WOLFSSL_MAX_ERROR_SZ] = {0};
-        SetErrorString((int)errNumber, tmp);
-        return tmp;
-    }
-}
-
-
-void wolfSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
-{
-    WOLFSSL_ENTER("wolfSSL_ERR_error_string_n");
-    if (len >= WOLFSSL_MAX_ERROR_SZ)
-        wolfSSL_ERR_error_string(e, buf);
-    else {
-        WOLFSSL_MSG("Error buffer too short, truncating");
-        if (len) {
-            char tmp[WOLFSSL_MAX_ERROR_SZ];
-            wolfSSL_ERR_error_string(e, tmp);
-            XMEMCPY(buf, tmp, len-1);
-            buf[len-1] = '\0';
-        }
-    }
-}
 
 
 /* don't free temporary arrays at end of handshake */
