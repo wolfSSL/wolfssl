@@ -501,6 +501,28 @@ int test_wolfSSL_EVP_CIPHER_iv_length(void)
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
          NID_chacha20_poly1305,
     #endif
+    #ifdef WOLFSSL_AES_CFB
+    #ifdef WOLFSSL_AES_128
+        NID_aes_128_cfb128,
+    #endif
+    #ifdef WOLFSSL_AES_192
+        NID_aes_192_cfb128,
+    #endif
+    #ifdef WOLFSSL_AES_256
+        NID_aes_256_cfb128,
+    #endif
+    #endif /* WOLFSSL_AES_CFB */
+    #ifdef WOLFSSL_AES_OFB
+    #ifdef WOLFSSL_AES_128
+        NID_aes_128_ofb,
+    #endif
+    #ifdef WOLFSSL_AES_192
+        NID_aes_192_ofb,
+    #endif
+    #ifdef WOLFSSL_AES_256
+        NID_aes_256_ofb,
+    #endif
+    #endif /* WOLFSSL_AES_OFB */
     };
     int iv_lengths[] = {
     #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
@@ -546,6 +568,28 @@ int test_wolfSSL_EVP_CIPHER_iv_length(void)
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             CHACHA20_POLY1305_AEAD_IV_SIZE,
     #endif
+    #ifdef WOLFSSL_AES_CFB
+    #ifdef WOLFSSL_AES_128
+            AES_BLOCK_SIZE,
+    #endif
+    #ifdef WOLFSSL_AES_192
+            AES_BLOCK_SIZE,
+    #endif
+    #ifdef WOLFSSL_AES_256
+            AES_BLOCK_SIZE,
+    #endif
+    #endif /* WOLFSSL_AES_CFB */
+    #ifdef WOLFSSL_AES_OFB
+    #ifdef WOLFSSL_AES_128
+            AES_BLOCK_SIZE,
+    #endif
+    #ifdef WOLFSSL_AES_192
+            AES_BLOCK_SIZE,
+    #endif
+    #ifdef WOLFSSL_AES_256
+            AES_BLOCK_SIZE,
+    #endif
+    #endif /* WOLFSSL_AES_OFB */
     };
     int i;
     int nidsLen = (sizeof(nids)/sizeof(int));
