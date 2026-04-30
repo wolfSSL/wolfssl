@@ -35,6 +35,7 @@ int test_wc_curve25519_export_public_ex(void);
 int test_wc_curve25519_export_private_raw_ex(void);
 int test_wc_curve25519_import_private_raw_ex(void);
 int test_wc_curve25519_import_private(void);
+int test_wc_curve25519_priv_clamp_check(void);
 
 #define TEST_CURVE25519_DECLS                                                  \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_init),                    \
@@ -47,6 +48,7 @@ int test_wc_curve25519_import_private(void);
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_export_public_ex),        \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_export_private_raw_ex),   \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_import_private_raw_ex),   \
-    TEST_DECL_GROUP("curve25519", test_wc_curve25519_import_private)
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_import_private),          \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_priv_clamp_check)
 
 #endif /* WOLFCRYPT_TEST_CURVE25519_H */

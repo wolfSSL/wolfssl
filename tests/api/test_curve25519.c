@@ -547,3 +547,58 @@ int test_wc_curve25519_import_private(void)
     return EXPECT_RESULT();
 } /* END test_wc_curve25519_import */
 
+/*
+ * Test curve25519_priv_clamp_check via wc_curve25519_make_pub.
+ *
+ * RFC 7748 section 5 requires three clamping invariants on a Curve25519
+ * private scalar before use:
+ *   Rule 1: bits 0-2 of byte  0 must be clear  (scalar &= 0xF8)
+ *   Rule 2: bit  7 of byte 31 must be clear     (scalar &= 0x7F)
+ *   Rule 3: bit  6 of byte 31 must be SET       (scalar |= 0x40)
+ *
+ * Test vectors are derived from RFC 7748 s5; they are the independent oracle.
+ * Before the fix, rule 3 was not checked, so a scalar with byte[31]==0x00
+ * (bit 6 clear) was silently accepted -- regression covered below.
+ */
+int test_wc_curve25519_priv_clamp_check(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CURVE25519
+    /* Valid clamped scalar: all bytes 0x00 except byte[31] = 0x40
+     * (bit 7 clear, bit 6 set, byte[0] bits 0-2 clear). */
+    static const byte kValidPriv[CURVE25519_KEYSIZE] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40
+    };
+    byte pub[CURVE25519_KEYSIZE];
+    byte priv[CURVE25519_KEYSIZE];
+
+    /* Valid key succeeds. */
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, kValidPriv), 0);
+
+    /* Rule 1 violation: bit 0 of byte[0] set (byte[0] = 0x01). */
+    XMEMCPY(priv, kValidPriv, sizeof(priv));
+    priv[0] |= 0x01;
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, priv), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    /* Rule 2 violation: bit 7 of byte[31] set (byte[31] = 0xC0, keeping
+     * bit 6 set so only rule 2 is violated). */
+    XMEMCPY(priv, kValidPriv, sizeof(priv));
+    priv[CURVE25519_KEYSIZE - 1] = 0xC0;
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, priv), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    /* Rule 3 violation: bit 6 of byte[31] clear (byte[31] = 0x00).
+     * Regression: this was silently accepted before the fix. */
+    XMEMCPY(priv, kValidPriv, sizeof(priv));
+    priv[CURVE25519_KEYSIZE - 1] = 0x00;
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, priv), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve25519_priv_clamp_check */
+
