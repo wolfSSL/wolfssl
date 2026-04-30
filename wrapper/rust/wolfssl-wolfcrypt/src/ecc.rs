@@ -31,7 +31,6 @@ wolfSSL `ecc_key` object. It ensures proper initialization and deallocation.
 use crate::sys;
 #[cfg(random)]
 use crate::random::{RNG, RngHandle};
-use core::mem::{MaybeUninit};
 
 /// Rust wrapper for wolfSSL `ecc_point` object.
 pub struct ECCPoint {
@@ -290,13 +289,14 @@ impl Drop for ECCPoint {
 
 /// The `ECC` struct manages the lifecycle of a wolfSSL `ecc_key` object.
 ///
-/// It ensures proper initialization and deallocation.
+/// It ensures proper initialization and deallocation. The struct holds a
+/// pointer to a `sys::ecc_key` allocated on the C heap.
 ///
 /// An instance can be created with `generate()`, `import_x963()`,
 /// `import_x963_ex()`, `import_private_key()`, `import_private_key_ex()`,
 /// `import_raw()`, or `import_raw_ex()`.
 pub struct ECC {
-    pub(crate) wc_ecc_key: sys::ecc_key,
+    pub(crate) wc_ecc_key: *mut sys::ecc_key,
     /// RNG bound to this key via `set_rng`, kept alive for as long as the C
     /// struct holds its pointer.
     #[cfg(random)]
@@ -396,6 +396,20 @@ impl ECC {
     pub const FLAG_COFACTOR: i32 = sys::WC_ECC_FLAG_COFACTOR as i32;
     pub const FLAG_DEC_SIGN: i32 = sys::WC_ECC_FLAG_DEC_SIGN as i32;
 
+    /// Allocate and initialize a new `sys::ecc_key` on the C heap.
+    fn new_ecc_key(heap: *mut core::ffi::c_void, dev_id: i32) -> Result<*mut sys::ecc_key, i32> {
+        let key = unsafe { sys::wc_ecc_key_new(heap) };
+        if key.is_null() {
+            return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
+        }
+        let rc = unsafe { sys::wc_ecc_init_ex(key, heap, dev_id) };
+        if rc != 0 {
+            unsafe { sys::wc_ecc_key_free(key); }
+            return Err(rc);
+        }
+        Ok(key)
+    }
+
     /// Generate a new ECC key with the given size.
     ///
     /// # Parameters
@@ -426,27 +440,16 @@ impl ECC {
     /// ```
     #[cfg(random)]
     pub fn generate(size: i32, rng: &RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
         };
         let rc = unsafe {
-            sys::wc_ecc_make_key(rng.wc_rng, size, &mut ecc.wc_ecc_key)
+            sys::wc_ecc_make_key(rng.wc_rng, size, ecc.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -487,27 +490,16 @@ impl ECC {
     /// ```
     #[cfg(random)]
     pub fn generate_ex(size: i32, rng: &RNG, curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
         };
         let rc = unsafe {
-            sys::wc_ecc_make_key_ex(rng.wc_rng, size, &mut ecc.wc_ecc_key, curve_id)
+            sys::wc_ecc_make_key_ex(rng.wc_rng, size, ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -549,27 +541,16 @@ impl ECC {
     /// ```
     #[cfg(random)]
     pub fn generate_ex2(size: i32, rng: &RNG, curve_id: i32, flags: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
         };
         let rc = unsafe {
-            sys::wc_ecc_make_key_ex2(rng.wc_rng, size, &mut ecc.wc_ecc_key, curve_id, flags)
+            sys::wc_ecc_make_key_ex2(rng.wc_rng, size, ecc.wc_ecc_key, curve_id, flags)
         };
         if rc != 0 {
             return Err(rc);
@@ -640,21 +621,10 @@ impl ECC {
     /// }
     /// ```
     pub fn import_der(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
@@ -662,7 +632,7 @@ impl ECC {
         let mut idx = 0u32;
         let der_size = crate::buffer_len_to_u32(der.len())?;
         let rc = unsafe {
-            sys::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, &mut ecc.wc_ecc_key, der_size)
+            sys::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, ecc.wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -707,21 +677,10 @@ impl ECC {
     /// }
     /// ```
     pub fn import_public_der(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
@@ -729,7 +688,7 @@ impl ECC {
         let mut idx = 0u32;
         let der_size = crate::buffer_len_to_u32(der.len())?;
         let rc = unsafe {
-            sys::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, &mut ecc.wc_ecc_key, der_size)
+            sys::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, ecc.wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -780,21 +739,10 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_private_key(priv_buf: &[u8], pub_buf: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
@@ -804,7 +752,7 @@ impl ECC {
         let pub_size = crate::buffer_len_to_u32(pub_buf.len())?;
         let rc = unsafe {
             sys::wc_ecc_import_private_key(priv_buf.as_ptr(), priv_size,
-                pub_ptr, pub_size, &mut ecc.wc_ecc_key)
+                pub_ptr, pub_size, ecc.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -858,21 +806,10 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_private_key_ex(priv_buf: &[u8], pub_buf: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
@@ -882,7 +819,7 @@ impl ECC {
         let pub_size = crate::buffer_len_to_u32(pub_buf.len())?;
         let rc = unsafe {
             sys::wc_ecc_import_private_key_ex(priv_buf.as_ptr(), priv_size,
-                pub_ptr, pub_size, &mut ecc.wc_ecc_key, curve_id)
+                pub_ptr, pub_size, ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -921,21 +858,10 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_raw(qx: &[u8], qy: &[u8], d: &[u8], curve_name: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
@@ -945,7 +871,7 @@ impl ECC {
         let d_ptr = d.as_ptr() as *const core::ffi::c_char;
         let curve_name_ptr = curve_name.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
-            sys::wc_ecc_import_raw(&mut ecc.wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
+            sys::wc_ecc_import_raw(ecc.wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
                 curve_name_ptr)
         };
         if rc != 0 {
@@ -985,21 +911,10 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_raw_ex(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
@@ -1008,7 +923,7 @@ impl ECC {
         let qy_ptr = qy.as_ptr() as *const core::ffi::c_char;
         let d_ptr = d.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
-            sys::wc_ecc_import_raw_ex(&mut ecc.wc_ecc_key, qx_ptr, qy_ptr,
+            sys::wc_ecc_import_raw_ex(ecc.wc_ecc_key, qx_ptr, qy_ptr,
                 d_ptr, curve_id)
         };
         if rc != 0 {
@@ -1057,27 +972,16 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_unsigned(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
         };
         let rc = unsafe {
-            sys::wc_ecc_import_unsigned(&mut ecc.wc_ecc_key, qx.as_ptr(),
+            sys::wc_ecc_import_unsigned(ecc.wc_ecc_key, qx.as_ptr(),
                 qy.as_ptr(), d.as_ptr(), curve_id)
         };
         if rc != 0 {
@@ -1120,27 +1024,16 @@ impl ECC {
     #[cfg(ecc_import)]
     pub fn import_x963(din: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
         };
         let rc = unsafe {
-            sys::wc_ecc_import_x963(din.as_ptr(), din_size, &mut ecc.wc_ecc_key)
+            sys::wc_ecc_import_x963(din.as_ptr(), din_size, ecc.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -1187,27 +1080,16 @@ impl ECC {
     #[cfg(ecc_import)]
     pub fn import_x963_ex(din: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
             wc_ecc_key,
             #[cfg(random)]
             rng: None,
         };
         let rc = unsafe {
-            sys::wc_ecc_import_x963_ex(din.as_ptr(), din_size, &mut ecc.wc_ecc_key, curve_id)
+            sys::wc_ecc_import_x963_ex(din.as_ptr(), din_size, ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -1418,7 +1300,7 @@ impl ECC {
     /// }
     /// ```
     pub fn check(&mut self) -> Result<(), i32> {
-        let rc = unsafe { sys::wc_ecc_check_key(&mut self.wc_ecc_key) };
+        let rc = unsafe { sys::wc_ecc_check_key(self.wc_ecc_key) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1466,7 +1348,7 @@ impl ECC {
         *qy_len = crate::buffer_len_to_u32(qy.len())?;
         *d_len = crate::buffer_len_to_u32(d.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_private_raw(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_private_raw(self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len,
                 d.as_mut_ptr(), d_len)
@@ -1529,7 +1411,7 @@ impl ECC {
                 sys::WC_TYPE_UNSIGNED_BIN as i32
             };
         let rc = unsafe {
-            sys::wc_ecc_export_ex(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_ex(self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len,
                 d.as_mut_ptr(), d_len,
@@ -1570,7 +1452,7 @@ impl ECC {
     pub fn export_private(&mut self, d: &mut [u8]) -> Result<usize, i32> {
         let mut d_size = crate::buffer_len_to_u32(d.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_private_only(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_private_only(self.wc_ecc_key,
                 d.as_mut_ptr(), &mut d_size)
         };
         if rc != 0 {
@@ -1615,7 +1497,7 @@ impl ECC {
         *qx_len = crate::buffer_len_to_u32(qx.len())?;
         *qy_len = crate::buffer_len_to_u32(qy.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_public_raw(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_public_raw(self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len)
         };
@@ -1653,7 +1535,7 @@ impl ECC {
     pub fn export_x963(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_x963(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
+            sys::wc_ecc_export_x963(self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
             return Err(rc);
@@ -1689,7 +1571,7 @@ impl ECC {
     pub fn export_x963_compressed(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_x963_ex(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len, 1)
+            sys::wc_ecc_export_x963_ex(self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len, 1)
         };
         if rc != 0 {
             return Err(rc);
@@ -1732,7 +1614,7 @@ impl ECC {
             None => core::ptr::null_mut(),
         };
         let rc = unsafe {
-            sys::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, core::ptr::null_mut(), rng_ptr)
+            sys::wc_ecc_make_pub_ex(self.wc_ecc_key, core::ptr::null_mut(), rng_ptr)
         };
         if rc != 0 {
             return Err(rc);
@@ -1785,7 +1667,7 @@ impl ECC {
         }
         let ecc_point = ECCPoint { wc_ecc_point, heap };
         let rc = unsafe {
-            sys::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, wc_ecc_point, rng_ptr)
+            sys::wc_ecc_make_pub_ex(self.wc_ecc_key, wc_ecc_point, rng_ptr)
         };
         if rc != 0 {
             return Err(rc);
@@ -1833,7 +1715,7 @@ impl ECC {
     pub fn set_rng(&mut self, rng: RNG) -> Result<(), i32> {
         let wc_rng = rng.wc_rng;
         let rc = unsafe {
-            sys::wc_ecc_set_rng(&mut self.wc_ecc_key, wc_rng)
+            sys::wc_ecc_set_rng(self.wc_ecc_key, wc_rng)
         };
         if rc != 0 {
             return Err(rc);
@@ -1848,7 +1730,7 @@ impl ECC {
     pub fn set_shared_rng(&mut self, rng: alloc::sync::Arc<RNG>) -> Result<(), i32> {
         let wc_rng = rng.wc_rng;
         let rc = unsafe {
-            sys::wc_ecc_set_rng(&mut self.wc_ecc_key, wc_rng)
+            sys::wc_ecc_set_rng(self.wc_ecc_key, wc_rng)
         };
         if rc != 0 {
             return Err(rc);
@@ -1908,8 +1790,8 @@ impl ECC {
     pub fn shared_secret(&mut self, peer_key: &mut ECC, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_shared_secret(&mut self.wc_ecc_key,
-                &mut peer_key.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
+            sys::wc_ecc_shared_secret(self.wc_ecc_key,
+                peer_key.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
             return Err(rc);
@@ -1959,7 +1841,7 @@ impl ECC {
     pub fn shared_secret_ex(&mut self, peer: &ECCPoint, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_shared_secret_ex(&mut self.wc_ecc_key,
+            sys::wc_ecc_shared_secret_ex(self.wc_ecc_key,
                 peer.wc_ecc_point, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
@@ -2004,7 +1886,7 @@ impl ECC {
         let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_ecc_sign_hash(din.as_ptr(), din_size, dout.as_mut_ptr(),
-                &mut dout_size, rng.wc_rng, &mut self.wc_ecc_key)
+                &mut dout_size, rng.wc_rng, self.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -2048,7 +1930,7 @@ impl ECC {
         let hash_len = crate::buffer_len_to_u32(hash.len())?;
         let rc = unsafe {
             sys::wc_ecc_verify_hash(sig.as_ptr(), sig_len,
-                hash.as_ptr(), hash_len, &mut res, &mut self.wc_ecc_key)
+                hash.as_ptr(), hash_len, &mut res, self.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -2057,22 +1939,16 @@ impl ECC {
     }
 }
 
-impl ECC {
-    fn zeroize(&mut self) {
-        unsafe { crate::zeroize_raw(&mut self.wc_ecc_key); }
-    }
-}
-
 impl Drop for ECC {
     /// Safely free the underlying wolfSSL ECC context.
     ///
-    /// This calls the `wc_ecc_key_free()` wolfssl library function.
+    /// This calls the `wc_ecc_key_free()` wolfssl library function, which
+    /// frees the C-heap-allocated `ecc_key` object.
     ///
     /// The Rust Drop trait guarantees that this method is called when the ECC
     /// struct goes out of scope, automatically cleaning up resources and
     /// preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { sys::wc_ecc_free(&mut self.wc_ecc_key); }
-        self.zeroize();
+        unsafe { sys::wc_ecc_key_free(self.wc_ecc_key); }
     }
 }
