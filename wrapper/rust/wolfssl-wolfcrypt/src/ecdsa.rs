@@ -252,7 +252,7 @@ macro_rules! define_ecdsa_curve {
                         sys::wc_SignatureType_WC_SIGNATURE_TYPE_ECC,
                         msg.as_ptr(), msg_len,
                         der.as_mut_ptr(), &mut der_len,
-                        &mut self.inner.wc_ecc_key as *mut _ as *mut c_void,
+                        self.inner.wc_ecc_key as *mut c_void,
                         size_of::<sys::ecc_key>() as u32,
                         self.rng.wc_rng,
                     )
@@ -313,7 +313,7 @@ macro_rules! define_ecdsa_curve {
             fn verify(&self, msg: &[u8], sig: &$signature) -> Result<(), Error> {
                 let mut der = [0u8; $der_max];
                 let der_len = rs_to_der::<$field_size>(&sig.0, &mut der)?;
-                let mut key = ECC::import_x963_ex(&self.pub_bytes, $curve_id, None, None)
+                let key = ECC::import_x963_ex(&self.pub_bytes, $curve_id, None, None)
                     .map_err(|_| Error::new())?;
                 let msg_len: u32 = msg.len().try_into().map_err(|_| Error::new())?;
                 let rc = unsafe {
@@ -322,7 +322,7 @@ macro_rules! define_ecdsa_curve {
                         sys::wc_SignatureType_WC_SIGNATURE_TYPE_ECC,
                         msg.as_ptr(), msg_len,
                         der.as_ptr(), der_len as u32,
-                        &mut key.wc_ecc_key as *mut _ as *mut c_void,
+                        key.wc_ecc_key as *mut c_void,
                         size_of::<sys::ecc_key>() as u32,
                     )
                 };
