@@ -525,7 +525,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     !defined(WOLFSSL_STATIC_MEMORY)
 #include <wolfssl/wolfcrypt/mem_track.h>
 WOLFSSL_API memoryStats *wc_MemStats_Ptr;
-#endif
+#endif /* WOLFSSL_TRACK_MEMORY && USE_WOLFSSL_MEMORY && !WOLFSSL_STATIC_MEMORY */
 
 #ifdef WOLFSSL_STATIC_MEMORY
 
