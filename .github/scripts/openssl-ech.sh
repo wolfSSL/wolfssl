@@ -11,12 +11,13 @@ cleanup() {
 trap cleanup EXIT
 
 usage() {
-    echo "Usage: $0 <client|server> [--suite <KEM,KDF,AEAD>] [--workspace <path>]"
+    echo "Usage: $0 <client|server> [--suite <KEM,KDF,AEAD>] [--pqc <group>] [--workspace <path>]"
     exit 1
 }
 
 MODE=""
 SUITE=""
+PQC=""
 
 WORKSPACE=${GITHUB_WORKSPACE:-"."}
 
@@ -39,6 +40,11 @@ while [ $# -gt 0 ]; do
             echo ""
             echo "Using suite: $SUITE"
             echo ""
+            ;;
+        --pqc)
+            [ -z "$2" ] && { echo "ERROR: --pqc requires a value"; exit 1; }
+            PQC="$2"
+            shift 2
             ;;
         --workspace)
             [ -z "$2" ] && { echo "ERROR: --workspace requires a value"; exit 1; }
@@ -104,6 +110,7 @@ openssl_server(){
         -p "$port" \
         -S "$PRIV_NAME" \
         --ech "$ech_config" \
+        $PQC \
         &>> "$TMP_LOG"
 
     rm -f "$ech_file"
@@ -177,6 +184,9 @@ case "$MODE" in
     server)
         if [ -n "$SUITE" ]; then
             SUITE="-suite $SUITE"
+        fi
+        if [ -n "$PQC" ]; then
+            PQC="--pqc $PQC"
         fi
         openssl_server
         ;;
