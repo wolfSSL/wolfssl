@@ -5674,6 +5674,34 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
             return wolfSSL_EVP_aes_256_ccm();
         #endif
     #endif
+    #ifdef WOLFSSL_AES_OFB
+        #ifdef WOLFSSL_AES_128
+        case WC_NID_aes_128_ofb:
+            return wolfSSL_EVP_aes_128_ofb();
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_NID_aes_192_ofb:
+            return wolfSSL_EVP_aes_192_ofb();
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_NID_aes_256_ofb:
+            return wolfSSL_EVP_aes_256_ofb();
+        #endif
+    #endif /* WOLFSSL_AES_OFB */
+    #ifdef WOLFSSL_AES_CFB
+        #ifdef WOLFSSL_AES_128
+        case WC_NID_aes_128_cfb128:
+            return wolfSSL_EVP_aes_128_cfb128();
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_NID_aes_192_cfb128:
+            return wolfSSL_EVP_aes_192_cfb128();
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_NID_aes_256_cfb128:
+            return wolfSSL_EVP_aes_256_cfb128();
+        #endif
+    #endif /* WOLFSSL_AES_CFB */
 #endif
 
 #ifdef HAVE_ARIA
