@@ -2845,7 +2845,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \sa wc_Ed448PrivateKeyToDer
 */
-int wc_Ed448KeyToDer(ed448_key* key, byte* output, word32 inLen);
+int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 inLen);
 
 /*!
     \ingroup Ed448
@@ -2868,7 +2868,7 @@ int wc_Ed448KeyToDer(ed448_key* key, byte* output, word32 inLen);
 
     \sa wc_Ed448PrivateKeyDecode
 */
-int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output,
+int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output,
                              word32 inLen);
 
 /*!
@@ -2881,19 +2881,20 @@ int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output,
     \param key Ed448 key structure with public key
     \param output Buffer for DER encoded public key
     \param inLen Size of output buffer
+    \param withAlg 1 to include algorithm identifier, 0 for key data only
 
     _Example_
     \code
     ed448_key key;
     byte der[1024];
     int derSz = wc_Ed448PublicKeyToDer(&key, der,
-                                       sizeof(der));
+                                       sizeof(der), 1);
     \endcode
 
     \sa wc_Ed448PublicKeyDecode
 */
-int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output,
-                            int inLen);
+int wc_Ed448PublicKeyToDer(const ed448_key* key, byte* output,
+                            word32 inLen, int withAlg);
 
 /*!
     \ingroup Curve448
