@@ -324,6 +324,7 @@ int test_wc_RNG_DRBG_Reseed(void)
 int test_wc_RNG_TestSeed(void)
 {
     EXPECT_DECLS;
+#ifndef WC_NO_HASHDRBG
 #if defined(HAVE_HASHDRBG) && \
     (!(defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
@@ -356,6 +357,7 @@ int test_wc_RNG_TestSeed(void)
     for (i = 0; i < (byte)sizeof(seed); i++)
         seed[i] = i;
     ExpectIntEQ(wc_RNG_TestSeed(seed, sizeof(seed)), 0);
+#endif
 #endif
     return EXPECT_RESULT();
 }
