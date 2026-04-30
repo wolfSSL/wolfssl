@@ -33922,7 +33922,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     /* Ensure the buffer is null-terminated. */
                     ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
                     args->encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
-                    if (args->encSz > MAX_PSK_ID_LEN) {
+                    if (args->encSz > MAX_PSK_ID_LEN ||
+                        args->encSz > MAX_ENCRYPT_SZ) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
                     }
                     XMEMCPY(args->encSecret, ssl->arrays->client_identity,
@@ -33953,6 +33954,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     if (esSz > MAX_PSK_ID_LEN) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
                     }
+                    if (esSz > MAX_ENCRYPT_SZ - (2 * OPAQUE16_LEN)) {
+                        ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
+                    }
                     /* CLIENT: Pre-shared Key for peer authentication. */
                     ssl->options.peerAuthGood = 1;
 
@@ -33967,7 +33971,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     args->output += OPAQUE16_LEN;
                     XMEMCPY(args->output, ssl->arrays->client_identity, esSz);
                     args->output += esSz;
-                    args->length = args->encSz - esSz - OPAQUE16_LEN;
+                    args->length = args->encSz - esSz - (2 * OPAQUE16_LEN);
                     args->encSz = esSz + OPAQUE16_LEN;
 
                     CHECK_RET(ret, AllocKey(ssl, DYNAMIC_TYPE_DH,
@@ -34004,6 +34008,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     if (esSz > MAX_PSK_ID_LEN) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
                     }
+                    if (esSz > MAX_ENCRYPT_SZ - OPAQUE16_LEN - OPAQUE8_LEN) {
+                        ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
+                    }
                     /* CLIENT: Pre-shared Key for peer authentication. */
                     ssl->options.peerAuthGood = 1;
 
@@ -34012,10 +34019,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     args->output += OPAQUE16_LEN;
                     XMEMCPY(args->output, ssl->arrays->client_identity, esSz);
                     args->output += esSz;
-                    args->encSz = esSz + OPAQUE16_LEN;
 
-                    /* length is used for public key size */
-                    args->length = MAX_ENCRYPT_SZ;
+                    args->length =
+                        args->encSz - esSz - OPAQUE16_LEN - OPAQUE8_LEN;
+                    args->encSz = esSz + OPAQUE16_LEN;
 
                     /* Create shared ECC key leaving room at the beginning
                      * of buffer for size of shared key. */

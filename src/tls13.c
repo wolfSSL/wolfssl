@@ -5375,7 +5375,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     /* Session id */
     args->sessIdSz = input[args->idx++];
-    if ((args->idx - args->begin) + args->sessIdSz > helloSz)
+    if (args->sessIdSz > ID_LEN || args->sessIdSz > RAN_LEN ||
+        ((args->idx - args->begin) + args->sessIdSz > helloSz))
         return BUFFER_ERROR;
     args->sessId = input + args->idx;
     args->idx += args->sessIdSz;
