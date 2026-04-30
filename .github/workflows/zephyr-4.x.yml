@@ -1,0 +1,79 @@
+name: Zephyr 4.x tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build:
+    name: ${{ matrix.zephyr-ref }} | ${{ matrix.board }} | ${{ matrix.sample }}${{ matrix.extra-conf != '' && ' | extlibc' || '' }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        zephyr-ref: [ v4.1.0, v4.3.0 ]
+        board: [ native_sim, frdm_rw612/rw612 ]
+        sample: [ wolfssl_tls_sock, wolfssl_test, wolfssl_benchmark ]
+        extra-conf: [ '', external_libc.conf ]
+        exclude:
+          # external_libc overlay is native_sim-only in the original Jenkins matrix
+          - board: frdm_rw612/rw612
+            extra-conf: external_libc.conf
+    steps:
+      - name: Checkout test driver
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts/zephyr-4.x
+          fetch-depth: 1
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
+      - name: Resolve wolfSSL repo and branch
+        id: src
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "repo=${{ github.event.pull_request.head.repo.clone_url }}" >> "$GITHUB_OUTPUT"
+            echo "branch=${{ github.event.pull_request.head.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "repo=https://github.com/${{ github.repository }}" >> "$GITHUB_OUTPUT"
+            echo "branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and run sample
+        working-directory: .github/scripts/zephyr-4.x
+        run: |
+          EXTRA_CONF_ARG=""
+          if [[ -n "${{ matrix.extra-conf }}" ]]; then
+            EXTRA_CONF_ARG="--extra-conf ${{ matrix.extra-conf }}"
+          fi
+          bash ./zephyr-test.sh \
+            -r "${{ steps.src.outputs.repo }}" \
+            -b "${{ steps.src.outputs.branch }}" \
+            -z "${{ matrix.zephyr-ref }}" \
+            -t "${{ matrix.board }}" \
+            -s "${{ matrix.sample }}" \
+            $EXTRA_CONF_ARG
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zephyr-4.x-${{ matrix.zephyr-ref }}-${{ matrix.sample }}-${{ strategy.job-index }}
+          path: .github/scripts/zephyr-4.x/logs/
+          retention-days: 5
+          if-no-files-found: ignore
