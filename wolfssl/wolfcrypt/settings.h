@@ -2198,10 +2198,10 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32L4)  || defined(WOLFSSL_STM32L5)   || \
     defined(WOLFSSL_STM32WB)  || defined(WOLFSSL_STM32H7)   || \
     defined(WOLFSSL_STM32G0)  || defined(WOLFSSL_STM32U5)   || \
-    defined(WOLFSSL_STM32H5)  || defined(WOLFSSL_STM32WL)   || \
-    defined(WOLFSSL_STM32G4)  || defined(WOLFSSL_STM32MP13) || \
-    defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32WBA)  || \
-    defined(WOLFSSL_STM32N6)
+    defined(WOLFSSL_STM32U3)  || defined(WOLFSSL_STM32H5)   || \
+    defined(WOLFSSL_STM32WL)  || defined(WOLFSSL_STM32G4)   || \
+    defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
+    defined(WOLFSSL_STM32WBA) || defined(WOLFSSL_STM32N6)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2222,7 +2222,8 @@ extern void uITRON4_free(void *p) ;
 
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
             defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32U5) || \
-            defined(WOLFSSL_STM32WL) || defined(WOLFSSL_STM32WBA)
+            defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32WL) || \
+            defined(WOLFSSL_STM32WBA)
             #define NO_AES_192 /* hardware does not support 192-bit */
         #endif
     #endif
@@ -2267,6 +2268,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32g4xx_hal.h"
         #elif defined(WOLFSSL_STM32U5)
             #include "stm32u5xx_hal.h"
+        #elif defined(WOLFSSL_STM32U3)
+            #include "stm32u3xx_hal.h"
         #elif defined(WOLFSSL_STM32H5)
             #include "stm32h5xx_hal.h"
         #elif defined(WOLFSSL_STM32N6)
