@@ -71303,7 +71303,7 @@ exit_onlycb:
     #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA) && \
         defined(USE_CERT_BUFFERS_256)
     if (check) {
-        FREE(check, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(check, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif
 #else
