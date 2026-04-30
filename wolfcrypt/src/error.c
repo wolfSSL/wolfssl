@@ -683,6 +683,12 @@ const char* wc_GetErrorString(int error)
 #include <wolfssl/debug-trace-error-codes.h>
 #endif
 
+void wc_ErrorString(int error, char* buffer)
+{
+    XSTRNCPY(buffer, wc_GetErrorString(error), WOLFSSL_MAX_ERROR_SZ);
+    buffer[WOLFSSL_MAX_ERROR_SZ-1] = 0;
+}
+#endif /* !NO_ERROR_STRINGS */
 
 /* Error string functions for the SSL/TLS error code range.
  * These live here (not src/ssl.c) so they are available in WOLFCRYPT_ONLY
@@ -691,9 +697,6 @@ const char* wc_GetErrorString(int error)
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/ssl.h>
 
-#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
-#include <wolfssl/debug-untrace-error-codes.h>
-#endif
 
 #if !defined(NO_ERROR_STRINGS) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL) || \
@@ -1393,10 +1396,3 @@ void wolfSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
         }
     }
 }
-
-void wc_ErrorString(int error, char* buffer)
-{
-    XSTRNCPY(buffer, wc_GetErrorString(error), WOLFSSL_MAX_ERROR_SZ);
-    buffer[WOLFSSL_MAX_ERROR_SZ-1] = 0;
-}
-#endif /* !NO_ERROR_STRINGS */
