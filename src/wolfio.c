@@ -675,6 +675,9 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     WOLFSSL_ENTER("EmbedReceiveFrom");
     (void)ret; /* possibly unused */
 
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+
     XMEMSET(&lclPeer, 0, sizeof(lclPeer));
 
 #ifdef WOLFSSL_RW_THREADED
@@ -918,6 +921,9 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     WOLFSSL_ENTER("EmbedSendTo");
 
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+
     if (!isDGramSock(sd)) {
         /* Probably a TCP socket. peer and peerSz MUST be NULL and 0 */
     }
@@ -964,6 +970,9 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     WOLFSSL_ENTER("EmbedReceiveFromMcast");
 
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+
     recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz, ssl->rflags, NULL, NULL);
 
     recvd = TranslateIoReturnCode(recvd, sd, SOCKET_RECEIVING);
@@ -993,6 +1002,9 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     int  ret = 0;
 
     (void)ctx;
+
+    if (sz < 0)
+        return BAD_FUNC_ARG;
 
     XMEMSET(&peer, 0, sizeof(peer));
     if (getpeername(sd, (SOCKADDR*)&peer, &peerSz) != 0) {
@@ -1222,6 +1234,9 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
 {
     int recvd;
 
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+
     recvd = (int)RECV_FUNCTION(sd, buf, (size_t)sz, rdFlags);
     recvd = TranslateIoReturnCode(recvd, sd, SOCKET_RECEIVING);
 
@@ -1231,6 +1246,9 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
 int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
 {
     int sent;
+
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     sent = (int)SEND_FUNCTION(sd, buf, (size_t)sz, wrFlags);
     sent = TranslateIoReturnCode(sent, sd, SOCKET_SENDING);
@@ -1245,6 +1263,9 @@ int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int 
     int recvd;
     socklen_t addr_len = (socklen_t)sizeof(*addr);
 
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+
     recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz, rdFlags,
                                             addr ? &addr->sa : NULL,
                                             addr ? &addr_len : 0);
@@ -1257,6 +1278,9 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
 {
     int sent;
     socklen_t addr_len = addr ? wolfSSL_BIO_ADDR_size(addr) : 0;
+
+    if (sz < 0)
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, (size_t)sz, wrFlags,
                                          addr ? &addr->sa : NULL,

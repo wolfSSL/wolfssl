@@ -272,6 +272,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     WOLFSSL_ENTER("wolfSSL_BIO_read");
     }
 
+    if (len < 0) {
+        return WOLFSSL_BIO_ERROR;
+    }
+
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {
         ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_READ, (const char*)buf,
@@ -689,6 +693,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     word32 frmtSz = 0;
 
     WOLFSSL_ENTER("wolfSSL_BIO_write");
+
+    if (len < 0) {
+        return WOLFSSL_BIO_ERROR;
+    }
 
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {
@@ -1569,6 +1577,10 @@ int wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num)
             return 0;
         }
 
+        if (num < 0) {
+            return WOLFSSL_BIO_ERROR;
+        }
+
         /* get amount able to read and set buffer pointer */
         sz = wolfSSL_BIO_nread0(bio, buf);
         if (sz < 0) {
@@ -1621,6 +1633,10 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
         if (num == 0) {
             *buf = (char*)bio->ptr.mem_buf_data + bio->wrIdx;
             return 0;
+        }
+
+        if (num < 0) {
+            return WOLFSSL_BIO_ERROR;
         }
 
         if (bio->wrIdx < bio->rdIdx) {
@@ -3142,6 +3158,14 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         WOLFSSL_ENTER("wolfSSL_BIO_push");
         if (top == NULL) {
             return append;
+        }
+        {
+            WOLFSSL_BIO* cur = append;
+            while (cur != NULL) {
+                if (cur == top)
+                    return top; /* would create cycle */
+                cur = cur->next;
+            }
         }
         top->next = append;
         if (append != NULL) {

@@ -442,8 +442,22 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     /* with passLen checked at the top of the function for >= 0 then passLen
      * must be 1 or greater here and is always 'true' */
     pLen = v * (((word32)passLen + v - 1) / v);
+
+    /* Guard against overflow in iLen = sLen + pLen and totalLen = dLen + iLen.
+     * Individual sLen/pLen values fit in word32 (max 0x80000000 for INT_MAX
+     * inputs), but their sum can overflow. */
+    if (sLen > 0xFFFFFFFFU - pLen) {
+        WC_FREE_VAR_EX(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BAD_FUNC_ARG;
+    }
     iLen = sLen + pLen;
 
+    if (iLen > 0xFFFFFFFFU - dLen) {
+        WC_FREE_VAR_EX(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BAD_FUNC_ARG;
+    }
     totalLen = dLen + sLen + pLen;
 
     if (totalLen > sizeof(staticBuffer)) {
@@ -635,8 +649,19 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     sLen = v * (((word32)saltLen + v - 1) / v);
     /* RFC 7292 B.2 step 3: P = password repeated to ceil(passLen/v)*v bytes */
     pLen = v * (((word32)passLen + v - 1) / v);
+
+    /* Guard against overflow in iLen = sLen + pLen and totalLen = v + iLen.
+     * Individual sLen/pLen values fit in word32 (max 0x80000000 for INT_MAX
+     * inputs), but their sum can overflow. */
+    if (sLen > 0xFFFFFFFFU - pLen) {
+        return BAD_FUNC_ARG;
+    }
     /* RFC 7292 B.2 step 4: I = S || P */
     iLen = sLen + pLen;
+
+    if (iLen > 0xFFFFFFFFU - v) {
+        return BAD_FUNC_ARG;
+    }
     totalLen = v + iLen;
 
     nwc     = v / (word32)sizeof(PKCS12_WORD);
