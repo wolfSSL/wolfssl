@@ -39952,11 +39952,27 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     static int DoClientTicketCheckVersion(const WOLFSSL* ssl,
             InternalTicket* it)
     {
-        if (ssl->version.minor < it->pv.minor) {
+        /* DTLS minor versions decrease as the protocol version increases
+         * (DTLS 1.0=0xFF, DTLS 1.2=0xFD, DTLS 1.3=0xFC), so the version
+         * comparisons are inverted relative to TLS. */
+        byte greaterVersion;
+        byte lesserVersion;
+        byte belowMinDowngrade;
+
+        if (ssl->options.dtls) {
+            greaterVersion = ssl->version.minor > it->pv.minor;
+            lesserVersion  = ssl->version.minor < it->pv.minor;
+        }
+        else {
+            greaterVersion = ssl->version.minor < it->pv.minor;
+            lesserVersion  = ssl->version.minor > it->pv.minor;
+        }
+
+        if (greaterVersion) {
             WOLFSSL_MSG("Ticket has greater version");
             return VERSION_ERROR;
         }
-        else if (ssl->version.minor > it->pv.minor) {
+        else if (lesserVersion) {
             if (IsAtLeastTLSv1_3(it->pv) != IsAtLeastTLSv1_3(ssl->version)) {
                 WOLFSSL_MSG("Tickets cannot be shared between "
                                            "TLS 1.3 and TLS 1.2 and lower");
@@ -39970,7 +39986,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
             WOLFSSL_MSG("Downgrading protocol due to ticket");
 
-            if (it->pv.minor < ssl->options.minDowngrade) {
+            if (ssl->options.dtls)
+                belowMinDowngrade = it->pv.minor > ssl->options.minDowngrade;
+            else
+                belowMinDowngrade = it->pv.minor < ssl->options.minDowngrade;
+
+            if (belowMinDowngrade) {
                 WOLFSSL_MSG("Ticket has lesser version than allowed");
                 return VERSION_ERROR;
             }
