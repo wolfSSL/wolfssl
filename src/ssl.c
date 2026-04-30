@@ -17724,6 +17724,14 @@ word32 nid2oid(int nid, int grp)
                     return CTC_SHA3_512wECDSA;
                 #endif
             #endif /* HAVE_ECC */
+            #ifdef HAVE_ED25519
+                case WC_NID_ED25519:
+                    return CTC_ED25519;
+            #endif /* HAVE_ED25519 */
+            #ifdef HAVE_ED448
+                case WC_NID_ED448:
+                    return CTC_ED448;
+            #endif /* HAVE_ED448 */
             }
             break;
 
@@ -17742,6 +17750,14 @@ word32 nid2oid(int nid, int grp)
                 case WC_NID_X9_62_id_ecPublicKey:
                     return ECDSAk;
             #endif /* HAVE_ECC */
+            #ifdef HAVE_ED25519
+                case WC_NID_ED25519:
+                    return ED25519k;
+            #endif /* HAVE_ED25519 */
+            #ifdef HAVE_ED448
+                case WC_NID_ED448:
+                    return ED448k;
+            #endif /* HAVE_ED448 */
             }
             break;
 
@@ -18100,6 +18116,14 @@ int oid2nid(word32 oid, int grp)
                     return WC_NID_ecdsa_with_SHA3_512;
                 #endif
             #endif /* HAVE_ECC */
+            #ifdef HAVE_ED25519
+                case CTC_ED25519:
+                    return WC_NID_ED25519;
+            #endif /* HAVE_ED25519 */
+            #ifdef HAVE_ED448
+                case CTC_ED448:
+                    return WC_NID_ED448;
+            #endif /* HAVE_ED448 */
             }
             break;
 
@@ -18122,6 +18146,14 @@ int oid2nid(word32 oid, int grp)
                 case ECDSAk:
                     return WC_NID_X9_62_id_ecPublicKey;
             #endif /* HAVE_ECC */
+            #ifdef HAVE_ED25519
+                case ED25519k:
+                    return WC_NID_ED25519;
+            #endif /* HAVE_ED25519 */
+            #ifdef HAVE_ED448
+                case ED448k:
+                    return WC_NID_ED448;
+            #endif /* HAVE_ED448 */
             }
             break;
 
