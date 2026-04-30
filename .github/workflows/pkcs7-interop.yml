@@ -1,0 +1,96 @@
+name: PKCS7 Interoperability
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  pkcs7_interop:
+    name: PKCS7 interop (OpenSSL, GnuTLS)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install 3rd party PKCS#7 tools
+        run: sudo apt-get install -y openssl gnutls-bin
+
+      - name: Generate keys and certificates
+        run: |
+          # RSA-2048
+          openssl req -x509 -newkey rsa:2048 -keyout $RUNNER_TEMP/rsa_key.pem \
+            -out $RUNNER_TEMP/rsa_cert.pem -days 1 -nodes \
+            -subj "/CN=wolfssl-pkcs7-interop-test"
+
+          # ECDSA P-256
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
+            -keyout $RUNNER_TEMP/ec_key.pem -out $RUNNER_TEMP/ec_cert.pem \
+            -days 1 -nodes -subj "/CN=wolfssl-pkcs7-interop-test-ec"
+
+          echo -n "pkcs7 interop test" > $RUNNER_TEMP/content.bin
+
+      - name: Sign with OpenSSL cms
+        run: |
+          for hash in sha1 sha256 sha384 sha512; do
+            openssl cms -sign -binary -nodetach \
+              -in $RUNNER_TEMP/content.bin \
+              -signer $RUNNER_TEMP/rsa_cert.pem -inkey $RUNNER_TEMP/rsa_key.pem \
+              -md $hash -outform DER \
+              -out $RUNNER_TEMP/openssl_cms_rsa_${hash}.der
+            openssl cms -sign -binary -nodetach \
+              -in $RUNNER_TEMP/content.bin \
+              -signer $RUNNER_TEMP/ec_cert.pem -inkey $RUNNER_TEMP/ec_key.pem \
+              -md $hash -outform DER \
+              -out $RUNNER_TEMP/openssl_cms_ecdsa_${hash}.der
+          done
+
+      - name: Sign with OpenSSL smime
+        run: |
+          for hash in sha1 sha256 sha384 sha512; do
+            openssl smime -sign -binary -nodetach \
+              -in $RUNNER_TEMP/content.bin \
+              -signer $RUNNER_TEMP/rsa_cert.pem -inkey $RUNNER_TEMP/rsa_key.pem \
+              -md $hash -outform DER \
+              -out $RUNNER_TEMP/openssl_smime_rsa_${hash}.der
+            openssl smime -sign -binary -nodetach \
+              -in $RUNNER_TEMP/content.bin \
+              -signer $RUNNER_TEMP/ec_cert.pem -inkey $RUNNER_TEMP/ec_key.pem \
+              -md $hash -outform DER \
+              -out $RUNNER_TEMP/openssl_smime_ecdsa_${hash}.der
+          done
+
+      - name: Sign with GnuTLS p7
+        run: |
+          for hash in SHA1 SHA256 SHA384 SHA512; do
+            certtool --p7-sign --hash $hash \
+              --infile $RUNNER_TEMP/content.bin \
+              --load-certificate $RUNNER_TEMP/rsa_cert.pem \
+              --load-privkey $RUNNER_TEMP/rsa_key.pem \
+              --outder --outfile $RUNNER_TEMP/gnutls_p7_rsa_${hash,,}.der
+            certtool --p7-sign --hash $hash \
+              --infile $RUNNER_TEMP/content.bin \
+              --load-certificate $RUNNER_TEMP/ec_cert.pem \
+              --load-privkey $RUNNER_TEMP/ec_key.pem \
+              --outder --outfile $RUNNER_TEMP/gnutls_p7_ecdsa_${hash,,}.der
+          done
+
+      - name: Build wolfSSL
+        run: |
+          ./autogen.sh
+          ders=($RUNNER_TEMP/{openssl_cms,openssl_smime,gnutls_p7}_{rsa,ecdsa}_{sha1,sha256,sha384,sha512}.der)
+          DER_FILES=$(IFS=,; echo "${ders[*]}")
+          ./configure --enable-pkcs7 --enable-certext --enable-examples \
+            --with-pkcs7-test-signed-data=$DER_FILES
+          make -j$(nproc)
+
+      - name: Run PKCS7 interop test
+        run: tests/unit.test -test_wc_PKCS7_VerifySignedData_interop
