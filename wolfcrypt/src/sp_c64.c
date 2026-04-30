@@ -31191,6 +31191,14 @@ static int sp_384_div_7(const sp_digit* a, const sp_digit* d,
             sp_384_norm_7(&t1[i + 1]);
         }
         sp_384_norm_7(t1);
+        /* Correction: at loop i=0, sp_384_norm_7(&t1[1]) skips t1[0], so a
+         * borrow there is invisible to the correction mask that checks t1[7].
+         * After the outer sp_384_norm_7(t1) the borrow lands in t1[6].
+         * Add sd back when t1[6] is negative. */
+        mask = (sp_digit)(t1[6] >> 63);
+        for (i = 0; i < 7; i++)
+            t1[i] += sd[i] & mask;
+        sp_384_norm_7(t1);
         sp_384_rshift_7(r, t1, 1);
     }
 
@@ -38215,6 +38223,14 @@ static int sp_521_div_9(const sp_digit* a, const sp_digit* d,
             sp_521_cond_sub_9(t1 + i, t1 + i, sd, mask);
             sp_521_norm_9(&t1[i + 1]);
         }
+        sp_521_norm_9(t1);
+        /* Correction: at loop i=0, sp_521_norm_9(&t1[1]) skips t1[0], so a
+         * borrow there is invisible to the correction mask that checks t1[9].
+         * After the outer sp_521_norm_9(t1) the borrow lands in t1[8].
+         * Add sd back when t1[8] is negative. */
+        mask = (sp_digit)(t1[8] >> 63);
+        for (i = 0; i < 9; i++)
+            t1[i] += sd[i] & mask;
         sp_521_norm_9(t1);
         sp_521_rshift_9(r, t1, 1);
     }
