@@ -1602,6 +1602,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                         if (keepKeyHeader) {
                             if ((ret = wc_DecryptPKCS8Key(k, (word32)size, psw,
                                 pswSz)) < 0) {
+                                ForceZero(k, (size_t)size);
                                 XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                                 goto exit_pk12par;
                             }
@@ -1609,6 +1610,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                         else {
                             if ((ret = ToTraditionalEnc(k, (word32)size, psw,
                                 pswSz, &algId)) < 0) {
+                                ForceZero(k, (size_t)size);
                                 XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                                 goto exit_pk12par;
                             }
@@ -1619,10 +1621,12 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                             byte* tmp = (byte*)XMALLOC((size_t)ret, pkcs12->heap,
                                                  DYNAMIC_TYPE_PUBLIC_KEY);
                             if (tmp == NULL) {
+                                ForceZero(k, (size_t)size);
                                 XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                                 ERROR_OUT(MEMORY_E, exit_pk12par);
                             }
                             XMEMCPY(tmp, k, (size_t)ret);
+                            ForceZero(k, (size_t)size);
                             XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                             k = tmp;
                         }
@@ -1633,6 +1637,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                             *pkeySz = (word32)size;
                         }
                         else { /* only expecting one key */
+                            ForceZero(k, (size_t)size);
                             XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                         }
                         idx += (word32)size;
@@ -1798,6 +1803,7 @@ exit_pk12par:
     if (ret != 0) {
         /* failure cleanup */
         if (*pkey) {
+            ForceZero(*pkey, *pkeySz);
             XFREE(*pkey, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             *pkey = NULL;
         }
