@@ -9518,6 +9518,14 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         return ECC_BAD_ARG_E;
     }
 
+    /* validate point format byte before any memory operations */
+    pointType = in[0];
+    if (pointType != ECC_POINT_UNCOMP &&
+            pointType != ECC_POINT_COMP_EVEN &&
+            pointType != ECC_POINT_COMP_ODD) {
+        return ASN_PARSE_E;
+    }
+
     /* clear if previously allocated */
     mp_clear(point->x);
     mp_clear(point->y);
@@ -9539,16 +9547,17 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
-    /* check for point type (4, 2, or 3) */
-    pointType = in[0];
-    if (pointType != ECC_POINT_UNCOMP && pointType != ECC_POINT_COMP_EVEN &&
-                                         pointType != ECC_POINT_COMP_ODD) {
-        err = ASN_PARSE_E;
-    }
-
+    /* pointType already validated above; check for compressed format */
     if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
 #ifdef HAVE_COMP_KEY
-        compressed = 1;
+        /* Compressed point must be exactly 1 + field_element_size bytes.
+         * Reject truncated inputs (e.g. a bare 0x02/0x03 byte). */
+        if (inLen == (word32)ecc_sets[curve_idx].size + 1) {
+            compressed = 1;
+        }
+        else {
+            err = ECC_BAD_ARG_E;
+        }
 #else
         err = NOT_COMPILED_IN;
 #endif
