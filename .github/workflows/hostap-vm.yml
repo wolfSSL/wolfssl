@@ -358,19 +358,17 @@ jobs:
         if: ${{ failure() && steps.testing.outcome == 'failure' }}
         run: grep -riP 'fail|error' /tmp/hwsim-test-logs/latest
 
-      # The logs are quite big. It hasn't been useful so far so let's not waste
-      # precious gh space.
-      #- name: zip logs
-      #  if: ${{ failure() && steps.testing.outcome == 'failure' }}
-      #  working-directory: hostap/tests/hwsim/
-      #  run: |
-      #    rm /tmp/hwsim-test-logs/latest
-      #    zip -9 -r logs.zip /tmp/hwsim-test-logs
-      #
-      #- name: Upload failure logs
-      #  if: ${{ failure() && steps.testing.outcome == 'failure' }}
-      #  uses: actions/upload-artifact@v4
-      #  with:
-      #    name: hostap-logs-${{ env.our_job_run_id }}
-      #    path: hostap/tests/hwsim/logs.zip
-      #    retention-days: 5
+      - name: zip logs
+        if: ${{ failure() && steps.testing.outcome == 'failure' }}
+        working-directory: hostap/tests/hwsim/
+        run: |
+          rm /tmp/hwsim-test-logs/latest
+          zip -9 -r logs.zip /tmp/hwsim-test-logs
+
+      - name: Upload failure logs
+        if: ${{ failure() && steps.testing.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostap-logs-${{ env.our_job_run_id }}
+          path: hostap/tests/hwsim/logs.zip
+          retention-days: 5
