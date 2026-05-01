@@ -3255,8 +3255,12 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
 #endif
 
 #ifndef NO_SESSION_CACHE
+/* OpenSSL-compatible return: 1 if the session was found and removed from the
+ * internal cache, or if the external remove callback (rem_sess_cb) was
+ * invoked. 0 if neither applied (not present, or null arguments). */
 int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 {
+    int found = 0;
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
     int rem_called = FALSE;
 #endif
@@ -3265,7 +3269,7 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 
     s = ClientSessionToSession(s);
     if (ctx == NULL || s == NULL)
-        return BAD_FUNC_ARG;
+        return 0;
 
 #ifdef HAVE_EXT_CACHE
     if (!ctx->internalCacheOff)
@@ -3282,6 +3286,7 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 
         ret = TlsSessionCacheGetAndWrLock(id, &sess, &row, ctx->method->side);
         if (ret == 0 && sess != NULL) {
+            found = 1;
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
             if (sess->rem_sess_cb != NULL) {
                 rem_called = TRUE;
@@ -3320,13 +3325,12 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
     if (ctx->rem_sess_cb != NULL && !rem_called) {
         ctx->rem_sess_cb(ctx, s);
+        /* Assume the external cache had the session. */
+        found = 1;
     }
 #endif
 
-    /* s cannot be resumed at this point */
-    s->timeout = 0;
-
-    return 0;
+    return found;
 }
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \

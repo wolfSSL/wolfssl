@@ -18772,8 +18772,9 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Force a cache update */
     ExpectNotNull(SSL_SESSION_set_ex_data(clientSess, serverSessRemIdx - 1, 0));
     /* This should set the timeout to 0 and call the remove callback from within
-     * the session cache. */
-    ExpectIntEQ(SSL_CTX_remove_session(clientSessCtx, clientSess), 0);
+     * the session cache. Returns 1 per OpenSSL semantics (session was
+     * present in the cache and removed). */
+    ExpectIntEQ(SSL_CTX_remove_session(clientSessCtx, clientSess), 1);
     ExpectNull(SSL_SESSION_get_ex_data(clientSess, serverSessRemIdx));
     ExpectIntEQ(clientSessRemCountFree, 1);
 #endif
@@ -18785,8 +18786,9 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Force a cache update */
     ExpectNotNull(SSL_SESSION_set_ex_data(serverSess, serverSessRemIdx - 1, 0));
     /* This should set the timeout to 0 and call the remove callback from within
-     * the session cache. */
-    ExpectIntEQ(SSL_CTX_remove_session(serverSessCtx, serverSess), 0);
+     * the session cache. Returns 1 per OpenSSL semantics (session was
+     * present in the cache and removed). */
+    ExpectIntEQ(SSL_CTX_remove_session(serverSessCtx, serverSess), 1);
     ExpectNull(SSL_SESSION_get_ex_data(serverSess, serverSessRemIdx));
     ExpectIntEQ(serverSessRemCountFree, 1);
     /* Need to free the references that we kept */

@@ -2848,6 +2848,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(catastrophic, "can't set minimum downgrade version");
     }
 
+#ifdef WOLFSSL_EARLY_DATA
+    if (earlyData)
+        wolfSSL_CTX_set_max_early_data(ctx, 4096);
+#endif
 #ifdef OPENSSL_COMPATIBLE_DEFAULTS
     /* Restore wolfSSL verify defaults */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
