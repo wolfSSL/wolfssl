@@ -1592,9 +1592,25 @@ static int test_wolfSSL_EVP_PKEY_sign_verify(int keyType)
     ExpectIntEQ(EVP_PKEY_verify(
         ctx_verify, sig, siglen, hash, SHA256_DIGEST_LENGTH),
         WOLFSSL_SUCCESS);
-    ExpectIntEQ(EVP_PKEY_verify(
-        ctx_verify, sig, siglen, zero, SHA256_DIGEST_LENGTH),
-        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    if (keyType == EVP_PKEY_EC) {
+#ifdef WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
+        /* wolfSSL differs from OpenSSL in that it treats a hash of all 0's as a
+         * fatal error and does not attempt to verify */
+        ExpectIntEQ(EVP_PKEY_verify(
+            ctx_verify, sig, siglen, zero, SHA256_DIGEST_LENGTH),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+#else
+        ExpectIntEQ(EVP_PKEY_verify(
+            ctx_verify, sig, siglen, zero, SHA256_DIGEST_LENGTH),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#endif
+    }
+    else {
+        ExpectIntEQ(EVP_PKEY_verify(
+            ctx_verify, sig, siglen, zero, SHA256_DIGEST_LENGTH),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
     !defined(HAVE_SELFTEST)

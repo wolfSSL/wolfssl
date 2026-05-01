@@ -7272,6 +7272,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                      ecc_key* key, mp_int *r, mp_int *s)
 {
    int    err = 0;
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+   byte hashIsZero = 0;
+   word32 zIdx;
+#endif
 #if !defined(WOLFSSL_SP_MATH)
    mp_int* e;
 #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
@@ -7297,6 +7301,14 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    {
        return BAD_LENGTH_E;
    }
+
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+   /* reject all 0's hash */
+   for (zIdx = 0; zIdx < inlen; zIdx++)
+       hashIsZero |= in[zIdx];
+   if (hashIsZero == 0)
+       return ECC_BAD_ARG_E;
+#endif
 
    /* is this a private key? */
    if (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY) {
@@ -9274,6 +9286,10 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #else
    int           err;
    word32        keySz = 0;
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+   byte hashIsZero = 0;
+   word32 zIdx;
+#endif
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
    byte sigRS[ATECC_KEY_SIZE*2];
 #elif defined(WOLFSSL_CRYPTOCELL)
@@ -9302,6 +9318,14 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         (hashlen < WC_MIN_DIGEST_SIZE)) {
         return BAD_LENGTH_E;
     }
+
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+    /* reject all 0's hash */
+    for (zIdx = 0; zIdx < hashlen; zIdx++)
+        hashIsZero |= hash[zIdx];
+    if (hashIsZero == 0)
+        return ECC_BAD_ARG_E;
+#endif
 
    /* default to invalid signature */
    *res = 0;
