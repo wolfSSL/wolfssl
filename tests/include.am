@@ -84,5 +84,9 @@ EXTRA_DIST += tests/unit.h \
               tests/NCONF_test.cnf \
               tests/test-tls-downgrade.conf \
               tests/TXT_DB.txt \
-              tests/utils.h
+              tests/utils.h \
+              tests/emnet/IP/IP.h \
+              tests/emnet/emnet_shim.c \
+              tests/emnet/emnet_nonblock_test.c \
+              tests/emnet/Makefile
 DISTCLEANFILES+= tests/.libs/unit.test

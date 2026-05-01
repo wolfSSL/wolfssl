@@ -1,0 +1,61 @@
+name: emNET non-blocking handshake test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+# Build wolfSSL with -DWOLFSSL_EMNET using the clean-room shim in
+# tests/emnet/ (IP/IP.h + emnet_shim.c), link a non-blocking TLS 1.3
+# handshake test, and run it. The test exercises the WOLFSSL_EMNET
+# path in wolfSSL_LastError() and asserts that would-block events
+# surface as WANT_READ/WANT_WRITE and the handshake completes,
+# guarding against regressions in the emNET error-translation logic.
+
+jobs:
+  emnet_nonblock:
+    name: wolfSSL emNET non-blocking handshake
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Install build deps
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+
+      - name: Bootstrap
+        run: ./autogen.sh
+
+      - name: Configure wolfSSL (WOLFSSL_EMNET + emNET shim headers)
+        run: |
+          ./configure \
+            --enable-static --disable-shared \
+            --enable-tls13 --disable-oldtls \
+            --enable-ecc --disable-examples \
+            --disable-benchmark --disable-crypttests \
+            CFLAGS="-DWOLFSSL_EMNET -I$(pwd)/tests/emnet"
+
+      # The WOLFSSL_EMNET branch in src/wolfio.c calls IP_SOCK_getsockopt
+      # which only resolves against the test shim. Build only the static
+      # library; examples/benchmark/crypttests are disabled above, but
+      # explicitly target the .a to avoid pulling in any residual link
+      # targets that would fail with an undefined reference.
+      - name: Build wolfSSL static library
+        run: make -j$(nproc) src/libwolfssl.la
+
+      - name: Build emNET non-blocking test
+        run: make -C tests/emnet
+
+      - name: Run emNET non-blocking test
+        run: make -C tests/emnet run

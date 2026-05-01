@@ -151,8 +151,28 @@ static WC_INLINE int wolfSSL_LastError(int err, SOCKET_T sd)
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
-#elif defined(WOLFSSL_LINUXKM) || defined(WOLFSSL_EMNET)
+#elif defined(WOLFSSL_LINUXKM)
     return -err; /* Return provided error value with corrected sign. */
+#elif defined(WOLFSSL_EMNET)
+    /* Any negative recv/send return is a SOCKET_ERROR sentinel under
+     * emNET; the canonical IP_ERR_* lives in the socket SO_ERROR.
+     * Retrieving it via IP_SOCK_getsockopt works across both emNET
+     * integrator conventions (native: recv returns IP_ERR_* directly;
+     * POSIX facade: recv returns -1 with errno set). If the lookup
+     * itself fails, fall back to IP_ERR_FAULT rather than returning
+     * the raw -1 sentinel - the latter matches no SOCKET_E* constant
+     * and would regress into WOLFSSL_CBIO_ERR_GENERAL. */
+    if (err < 0) {
+        int sock_err = err;
+        if (IP_SOCK_getsockopt(sd, SOL_SOCKET, SO_ERROR, &sock_err,
+                               (int)sizeof(sock_err)) == 0) {
+            err = sock_err;
+        }
+        else if (err == -1) {
+            err = IP_ERR_FAULT;
+        }
+    }
+    return err;
 #elif defined(FUSION_RTOS)
     #include <fclerrno.h>
     return FCL_GET_ERRNO;
@@ -170,10 +190,6 @@ static WC_INLINE int wolfSSL_LastError(int err, SOCKET_T sd)
         }
         return err;
     }
-#elif defined(WOLFSSL_EMNET)
-    /* Get the real socket error */
-    IP_SOCK_getsockopt(sd, SOL_SOCKET, SO_ERROR, &err, (int)sizeof(old));
-    return err;
 #else
     return errno;
 #endif
