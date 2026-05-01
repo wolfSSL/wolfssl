@@ -729,12 +729,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  openSSL_evpMD_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  openssl_evpSig_test(void);
 #endif
 
+#if defined(HAVE_PBKDF1) && !defined(NO_SHA)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void);
+#endif
+#if defined(HAVE_PKCS12) && !defined(NO_SHA256)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void);
+#endif
 #if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 #endif
+#if !defined(NO_PWDBASED) && defined(HAVE_SCRYPT)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
+#endif
 #ifdef HAVE_ECC
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_test(void);
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
@@ -30789,7 +30795,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return WC_TEST_RET_ENC_NC;
 
-    return 0;
+    {
+        int cur_pbkdf_limit = wc_PBKDF_max_iterations_set(iterations - 1);
+        if (cur_pbkdf_limit <= 0)
+            return WC_TEST_RET_ENC_EC(cur_pbkdf_limit);
+        ret = wc_PBKDF2_ex(derived, (byte*)passwd, (int)XSTRLEN(passwd),
+                       salt, (int)sizeof(salt), iterations,
+                       kLen, WC_SHA256, HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PBKDF_max_iterations_set(-1);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PBKDF_max_iterations_set(0);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PBKDF_max_iterations_get();
+        if (ret != iterations - 1)
+            return WC_TEST_RET_ENC_NC;
+        ret = wc_PBKDF_max_iterations_set(cur_pbkdf_limit);
+        if (ret != iterations - 1)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = 0;
+    }
+
+    return ret;
 
 }
 #endif /* HAVE_PBKDF2 && !NO_SHA256 && !NO_HMAC */
@@ -31014,12 +31044,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
             goto out;
         }
         ret = wc_d2i_PKCS12(evil_p12, (word32)sizeof(evil_p12), evilPkcs12);
-        if (ret != 0) {
-            wc_PKCS12_free(evilPkcs12);
-            ret = WC_TEST_RET_ENC_EC(ret);
-            goto out;
-        }
-        {
+        if (ret == 0) {
             byte* evilKey = NULL;
             byte* evilCert = NULL;
             word32 evilKeySz = 0, evilCertSz = 0;
@@ -31030,14 +31055,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
             XFREE(evilCert, HEAP_HINT, DYNAMIC_TYPE_PKCS);
             if (evilCa)
                 wc_FreeCertList(evilCa, HEAP_HINT);
+            wc_PKCS12_free(evilPkcs12);
+            /* Must have been rejected (not hung) */
+            if (ret == 0) {
+                ret = WC_TEST_RET_ENC_NC;
+                goto out;
+            }
+            ret = 0;  /* rejection is the expected outcome */
         }
-        wc_PKCS12_free(evilPkcs12);
-        /* Must have been rejected (not hung) */
-        if (ret == 0) {
-            ret = WC_TEST_RET_ENC_NC;
-            goto out;
-        }
-        ret = 0;  /* rejection is the expected outcome */
     }
 
 out:
