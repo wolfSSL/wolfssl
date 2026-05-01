@@ -266,6 +266,23 @@ def create_response(rd: dict) -> rfc6960.OCSPResponse:
     for entry in rd.get('responses', []):
         if entry.get('certificate'):
             sr = single_response_from_cert(entry['certificate'], entry['status'])
+        elif entry.get('name_cert') and entry.get('key_cert'):
+            # Forge a CertID where issuerNameHash and issuerKeyHash are taken
+            # from different certificates. Used to test that responder
+            # authorization is bound to BOTH halves of the CertID.
+            name_der = cert_pem_to_der(entry['name_cert'])
+            name_cert, _ = decode(bytes(name_der), asn1Spec=rfc6960.Certificate())
+            key_der = cert_pem_to_der(entry['key_cert'])
+            key_cert, _ = decode(bytes(key_der), asn1Spec=rfc6960.Certificate())
+            issuer_name_hash = sha1(encode(get_name(name_cert))).digest()
+            issuer_key_hash = sha1(get_key(key_cert).asOctets()).digest()
+            cid = cert_id_from_hash(issuer_name_hash, issuer_key_hash,
+                                    entry['serial'])
+            sr = rfc6960.SingleResponse().clone()
+            sr.setComponentByName('certID', cid)
+            sr['certStatus'] = cert_status(entry['status'])
+            sr['thisUpdate'] = useful.GeneralizedTime().fromDateTime(
+                datetime.now() - timedelta(days=1))
         else:
             sr = single_response(entry['issuer_cert'], entry['serial'], entry['status'])
         responses.append(sr)
@@ -480,6 +497,28 @@ if __name__ == '__main__':
             'responder_key': WOLFSSL_OCSP_CERT_PATH + '../ca-key.pem',
             'name': 'resp_server_cert_unknown'
         },
+        {
+            # Forged response: CertID's issuerNameHash points at the legitimate
+            # root CA, but issuerKeyHash points at the imposter root CA (same
+            # DN, different key). Signed by the legitimate ocsp-responder so
+            # the response signature alone verifies. Used to confirm that
+            # responder authorization rejects mismatched CertID halves.
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'certs_path': [WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-cert.pem'],
+            'responder_by_name': True,
+            'responses': [
+                {
+                    'name_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
+                    'key_cert':  WOLFSSL_OCSP_CERT_PATH +
+                                 'imposter-root-ca-cert.pem',
+                    'serial': 0x01,
+                    'status': CERT_GOOD
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-key.pem',
+            'name': 'resp_certid_keyhash_mismatch'
+        },
     ]
 
     with open('./tests/api/test_ocsp_test_blobs.h', 'w') as f:
@@ -517,6 +556,7 @@ if __name__ == '__main__':
         add_certificate(WOLFSSL_OCSP_CERT_PATH + '../ca-cert.pem', f)
         add_certificate(WOLFSSL_OCSP_CERT_PATH + '../server-cert.pem', f)
         add_certificate(WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem', f)
+        add_certificate(WOLFSSL_OCSP_CERT_PATH + 'imposter-root-ca-cert.pem', f)
         br = create_bad_response({
             'response_status': 0,
             'responder_by_key': True,
