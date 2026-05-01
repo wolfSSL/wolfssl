@@ -46,15 +46,20 @@ def build_timestamp():
     return dt, dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-# Known metadata for optional external dependencies.
-# Version is detected at runtime via pkg-config; falls back to None.
+# Known metadata for optional external dependencies.  Version is detected
+# at runtime via pkg-config; falls back to None.  Each entry must describe
+# the *linked artefact* (so vulnerability scanners like OSV / Grype / Trivy
+# / Dependency-Track resolve CVEs against the right package).  Algorithm
+# enablement is captured separately via build_props (HAVE_FALCON, ...).
 DEP_META = {
-    # Falcon is reachable only via liboqs after upstream PR #10293 collapsed
-    # the rest of the PQ surface into native wolfCrypt; we record the version
-    # of liboqs itself since that is the artefact actually linked in.
-    'falcon': {
-        'name': 'falcon',
-        'supplier': 'Open Quantum Safe (via liboqs)',
+    # liboqs is the only PQ external dependency wolfSSL still links against
+    # after upstream PR #10293 collapsed the rest of the PQ surface into
+    # native wolfCrypt.  Today, --enable-falcon strictly implies --with-liboqs
+    # (configure.ac enforces both directions), so a build that links liboqs
+    # is precisely a build that exposed Falcon.
+    'liboqs': {
+        'name': 'liboqs',
+        'supplier': 'Open Quantum Safe',
         'license': 'MIT',
         'download': 'https://github.com/open-quantum-safe/liboqs',
         'pkgconfig': 'liboqs',
@@ -475,8 +480,10 @@ def main():
                         help='Path to wolfssl/options.h for build config')
     parser.add_argument('--dep-libz', default='no',
                         help='yes if built with --with-libz')
-    parser.add_argument('--dep-falcon', default='no',
-                        help='yes if built with --enable-falcon (Falcon via liboqs)')
+    parser.add_argument('--dep-liboqs', default='no',
+                        help='yes if built with --with-liboqs (the package '
+                             'wolfSSL links against; --enable-falcon implies '
+                             'this in any legal configuration)')
     parser.add_argument('--git', default='',
                         help='Path to git binary for version detection')
     parser.add_argument('--cdx-out', required=True,
@@ -490,8 +497,8 @@ def main():
 
     enabled_deps = [
         key for key, flag in [
-            ('libz',    args.dep_libz),
-            ('falcon',  args.dep_falcon),
+            ('libz',   args.dep_libz),
+            ('liboqs', args.dep_liboqs),
         ]
         if flag.lower() == 'yes'
     ]
