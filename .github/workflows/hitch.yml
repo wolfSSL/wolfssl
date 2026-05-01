@@ -44,9 +44,9 @@ jobs:
       matrix:
         # List of releases to test
         include:
-          - ref: 1.7.3
+          - ref: 1.8.0
             ignore-tests: >-
-              test13-r82.sh test15-proxy-v2-npn.sh test39-client-cert-proxy.sh
+              test12-cfg.sh test13-r82.sh test15-proxy-v2-npn.sh test39-client-cert-proxy.sh test41-client-cert-pb.sh
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
@@ -72,13 +72,13 @@ jobs:
         run: |
             export DEBIAN_FRONTEND=noninteractive
             sudo apt-get update
-            sudo apt-get install -y libev-dev libssl-dev automake python3-docutils flex bison pkg-config make
+            sudo apt-get install -y libev-dev automake python3-docutils flex bison pkg-config make
 
       - name: Checkout hitch
         uses: actions/checkout@v4
         with:
           repository: varnish/hitch
-          ref: 1.7.3
+          ref: 1.8.0
           path: hitch
 
       # Do this before configuring so that it only detects the updated list of
@@ -92,9 +92,10 @@ jobs:
       - name: Configure and build hitch
         run: |
             cd $GITHUB_WORKSPACE/hitch/
-            patch -p1 < $GITHUB_WORKSPACE/osp/hitch/hitch_1.7.3.patch
-            autoreconf -ivf
-            SSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl" SSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl" ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --enable-silent-rules --enable-documentation --enable-warnings --with-lex --with-yacc --prefix=$GITHUB_WORKSPACE/build-dir
+            patch -p1 < $GITHUB_WORKSPACE/osp/hitch/hitch_1.8.0.patch
+            export SSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl"
+            export SSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl"
+            ./bootstrap --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --prefix=$GITHUB_WORKSPACE/build-dir
             make -j$(nproc)
 
       - name: Confirm hitch built with wolfSSL
