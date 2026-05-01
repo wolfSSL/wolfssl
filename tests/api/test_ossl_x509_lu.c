@@ -312,6 +312,17 @@ int test_wolfSSL_X509_load_crl_file(void)
     #endif
         ""
     };
+    int pemCount[] = {
+        1,
+        2,
+        1,
+        1,
+        1,
+    #ifdef WC_RSA_PSS
+        1,
+    #endif
+        0
+    };
     char der[][100] = {
         "./certs/crl/crl.der",
         "./certs/crl/crl2.der",
@@ -342,7 +353,7 @@ int test_wolfSSL_X509_load_crl_file(void)
     ExpectIntEQ(X509_load_crl_file(lookup, pem[0], 0), 0);
     for (i = 0; pem[i][0] != '\0'; i++) {
         ExpectIntEQ(X509_load_crl_file(lookup, pem[i], WOLFSSL_FILETYPE_PEM),
-            1);
+            pemCount[i]);
     }
 
     if (store) {
@@ -394,6 +405,45 @@ int test_wolfSSL_X509_load_crl_file(void)
 
     X509_STORE_free(store);
     store = NULL;
+
+    /* Combine crl.pem (1 CRL), a server cert, and crl2.pem (2 CRLs) into a
+     * single memory BIO. wolfSSL_PEM_read_bio_X509_CRL must walk past the
+     * intervening certificate and hand back all three CRLs before NULL,
+     * matching OpenSSL's PEM_read_bio_X509_CRL behaviour. */
+    {
+        WOLFSSL_BIO* fileBio = NULL;
+        WOLFSSL_BIO* memBio = NULL;
+        WOLFSSL_X509_CRL* crl = NULL;
+        unsigned char buf[4096];
+        int n;
+        int crlCount = 0;
+        const char* sources[] = {
+            "./certs/crl/crl.pem",
+            "./certs/server-cert.pem",
+            "./certs/crl/crl2.pem",
+            NULL
+        };
+
+        ExpectNotNull(memBio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        for (i = 0; sources[i] != NULL; i++) {
+            ExpectNotNull(fileBio = wolfSSL_BIO_new_file(sources[i], "rb"));
+            while (fileBio != NULL &&
+                   (n = wolfSSL_BIO_read(fileBio, buf, sizeof(buf))) > 0) {
+                ExpectIntEQ(wolfSSL_BIO_write(memBio, buf, n), n);
+            }
+            wolfSSL_BIO_free(fileBio);
+            fileBio = NULL;
+        }
+
+        while ((crl = wolfSSL_PEM_read_bio_X509_CRL(memBio, NULL, NULL, NULL))
+               != NULL) {
+            crlCount++;
+            wolfSSL_X509_CRL_free(crl);
+        }
+        ExpectIntEQ(crlCount, 3);
+
+        wolfSSL_BIO_free(memBio);
+    }
 #endif
     return EXPECT_RESULT();
 }
