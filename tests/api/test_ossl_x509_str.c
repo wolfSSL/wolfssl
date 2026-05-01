@@ -1144,7 +1144,8 @@ int test_X509_STORE_untrusted(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE)
 
 static int last_errcode;
 static int last_errdepth;
@@ -1165,7 +1166,8 @@ static int X509Callback(int ok, X509_STORE_CTX *ctx)
 int test_X509_STORE_InvalidCa(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE)
     const char* filename = "./certs/intermediate/ca_false_intermediate/"
                                                     "test_int_not_cacert.pem";
     const char* srvfile = "./certs/intermediate/ca_false_intermediate/"
@@ -1221,7 +1223,8 @@ int test_X509_STORE_InvalidCa(void)
 int test_X509_STORE_InvalidCa_NoCallback(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE)
     const char* filename = "./certs/intermediate/ca_false_intermediate/"
                                                     "test_int_not_cacert.pem";
     const char* srvfile = "./certs/intermediate/ca_false_intermediate/"

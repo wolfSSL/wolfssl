@@ -22276,6 +22276,310 @@ static int test_MakeCertWith0Ser(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS)
+
+/* Build a SubjectAltName extension value (a SEQUENCE wrapping a single
+ * otherName GeneralName) for the Microsoft UPN OID 1.3.6.1.4.1.311.20.2.3
+ * with the given 7-byte UTF8String value. */
+static word32 build_otherName_san(byte* out, word32 outSz, const char* val7)
+{
+    static const byte prefix[] = {
+        0x30, 0x19,                                     /* SEQUENCE, 25 */
+        0xA0, 0x17,                                     /* [0] CONSTRUCTED, 23 */
+        0x06, 0x0A,                                     /* OBJECT ID, 10 */
+            0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37,
+            0x14, 0x02, 0x03,                           /* UPN OID */
+        0xA0, 0x09,                                     /* [0] EXPLICIT, 9 */
+            0x0C, 0x07                                  /* UTF8String, 7 */
+    };
+    if (outSz < sizeof(prefix) + 7)
+        return 0;
+    XMEMCPY(out, prefix, sizeof(prefix));
+    XMEMCPY(out + sizeof(prefix), val7, 7);
+    return (word32)(sizeof(prefix) + 7);
+}
+
+/* Build a NameConstraints extension value with a single excludedSubtree
+ * carrying a registeredID GeneralName for OID 1.2.3.4. registeredID is a
+ * GeneralName form wolfSSL does not enforce, so DecodeSubtree() must
+ * record it as 'unsupported' and ConfirmNameConstraints() must fail
+ * closed when the extension is critical (RFC 5280 4.2.1.10). */
+static word32 build_registeredID_nameConstraints(byte* out, word32 outSz)
+{
+    static const byte ridNc[] = {
+        0x30, 0x09,                                     /* SEQUENCE, 9 */
+        0xA1, 0x07,                                     /* [1] excluded, 7 */
+        0x30, 0x05,                                     /* GeneralSubtree, 5 */
+        0x88, 0x03,                                     /* [8] regId, 3 */
+            0x2A, 0x03, 0x04                            /* OID 1.2.3.4 */
+    };
+    if (outSz < sizeof(ridNc))
+        return 0;
+    XMEMCPY(out, ridNc, sizeof(ridNc));
+    return (word32)sizeof(ridNc);
+}
+
+/* Build a NameConstraints extension value carrying a single subtree of
+ * the given list type ([0] permitted or [1] excluded) for an otherName
+ * UPN whose UTF8 value is the given 7-byte string. */
+static word32 build_otherName_nameConstraints(byte* out, word32 outSz,
+    int excluded, const char* val7)
+{
+    static const byte common[] = {
+        0x30, 0x1D,                                     /* SEQUENCE, 29 */
+        0x00, 0x1B,                                     /* listTag, 27 (patched) */
+        0x30, 0x19,                                     /* GeneralSubtree, 25 */
+        0xA0, 0x17,                                     /* [0] CONSTRUCTED, 23 */
+        0x06, 0x0A,
+            0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37,
+            0x14, 0x02, 0x03,
+        0xA0, 0x09,
+            0x0C, 0x07
+    };
+    if (outSz < sizeof(common) + 7)
+        return 0;
+    XMEMCPY(out, common, sizeof(common));
+    out[2] = excluded ? 0xA1 : 0xA0;                    /* listTag */
+    XMEMCPY(out + sizeof(common), val7, 7);
+    return (word32)(sizeof(common) + 7);
+}
+
+/* Build a chain (root -> intermediate -> leaf) where the intermediate
+ * carries `nameConstraintsDer` as a (possibly critical) nameConstraints
+ * extension and the leaf carries `sanDer` as its SAN. Loads root and
+ * intermediate as trusted CAs into a fresh CertManager, parses the leaf
+ * with VERIFY, and returns the result code from wc_ParseCert(). */
+static int verify_with_otherName_chain(const byte* nameConstraintsDer,
+    word32 nameConstraintsDerSz, int critical,
+    const byte* sanDer, word32 sanDerSz)
+{
+    Cert cert;
+    DecodedCert decodedCert;
+    byte rootDer[FOURK_BUF];
+    byte icaDer[FOURK_BUF];
+    byte leafDer[FOURK_BUF];
+    int  rootDerSz = 0, icaDerSz = 0, leafDerSz = 0;
+    int  parseRet = -1;
+    WC_RNG rng;
+    ecc_key rootKey, icaKey, leafKey;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    XMEMSET(&rng,     0, sizeof(rng));
+    XMEMSET(&rootKey, 0, sizeof(rootKey));
+    XMEMSET(&icaKey,  0, sizeof(icaKey));
+    XMEMSET(&leafKey, 0, sizeof(leafKey));
+
+    if (wc_InitRng(&rng) != 0) goto done;
+    if (wc_ecc_init(&rootKey) != 0) goto done;
+    if (wc_ecc_init(&icaKey)  != 0) goto done;
+    if (wc_ecc_init(&leafKey) != 0) goto done;
+    if (wc_ecc_make_key(&rng, 32, &rootKey) != 0) goto done;
+    if (wc_ecc_make_key(&rng, 32, &icaKey)  != 0) goto done;
+    if (wc_ecc_make_key(&rng, 32, &leafKey) != 0) goto done;
+
+    /* Self-signed root. */
+    if (wc_InitCert(&cert) != 0) goto done;
+    (void)XSTRNCPY(cert.subject.country,    "US",          CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org,        "OtherNCRoot", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "OtherNCRoot", CTC_NAME_SIZE);
+    cert.selfSigned = 1;
+    cert.isCA       = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+    if (wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey) != 0)
+        goto done;
+    if (wc_MakeCert(&cert, rootDer, FOURK_BUF, NULL, &rootKey, &rng) < 0)
+        goto done;
+    rootDerSz = wc_SignCert(cert.bodySz, cert.sigType, rootDer, FOURK_BUF,
+        NULL, &rootKey, &rng);
+    if (rootDerSz < 0) goto done;
+
+    /* Intermediate, signed by root, carrying nameConstraints. */
+    if (wc_InitCert(&cert) != 0) goto done;
+    cert.selfSigned = 0;
+    cert.isCA       = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+    cert.keyUsage   = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+    (void)XSTRNCPY(cert.subject.country,    "US",         CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org,        "OtherNCICA", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "OtherNCICA", CTC_NAME_SIZE);
+    if (wc_SetIssuerBuffer(&cert, rootDer, rootDerSz) != 0) goto done;
+    if (wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &rootKey) != 0)
+        goto done;
+    if (wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &icaKey) != 0)
+        goto done;
+    if (nameConstraintsDer != NULL) {
+        /* nameConstraints OID = 2.5.29.30 */
+        if (wc_SetCustomExtension(&cert, critical ? 1 : 0, "2.5.29.30",
+                nameConstraintsDer, nameConstraintsDerSz) != 0)
+            goto done;
+    }
+    if (wc_MakeCert(&cert, icaDer, FOURK_BUF, NULL, &icaKey, &rng) < 0)
+        goto done;
+    icaDerSz = wc_SignCert(cert.bodySz, cert.sigType, icaDer, FOURK_BUF,
+        NULL, &rootKey, &rng);
+    if (icaDerSz < 0) goto done;
+
+    /* Leaf, signed by intermediate, carrying the otherName SAN. */
+    if (wc_InitCert(&cert) != 0) goto done;
+    cert.selfSigned = 0;
+    cert.isCA       = 0;
+    cert.sigType    = CTC_SHA256wECDSA;
+    (void)XSTRNCPY(cert.subject.country,    "US",          CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org,        "OtherNCLeaf", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "OtherNCLeaf", CTC_NAME_SIZE);
+    if (wc_SetIssuerBuffer(&cert, icaDer, icaDerSz) != 0) goto done;
+    if (wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &icaKey) != 0)
+        goto done;
+    if (wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &leafKey) != 0)
+        goto done;
+    if (sanDer != NULL && sanDerSz > 0) {
+        if (sanDerSz > sizeof(cert.altNames)) goto done;
+        XMEMCPY(cert.altNames, sanDer, sanDerSz);
+        cert.altNamesSz = (int)sanDerSz;
+    }
+    if (wc_MakeCert(&cert, leafDer, FOURK_BUF, NULL, &leafKey, &rng) < 0)
+        goto done;
+    leafDerSz = wc_SignCert(cert.bodySz, cert.sigType, leafDer, FOURK_BUF,
+        NULL, &icaKey, &rng);
+    if (leafDerSz < 0) goto done;
+
+    cm = wolfSSL_CertManagerNew();
+    if (cm == NULL) goto done;
+    if (wolfSSL_CertManagerLoadCABuffer(cm, rootDer, rootDerSz,
+            WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) goto done;
+    if (wolfSSL_CertManagerLoadCABuffer(cm, icaDer, icaDerSz,
+            WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) goto done;
+
+    wc_InitDecodedCert(&decodedCert, leafDer, (word32)leafDerSz, NULL);
+    parseRet = wc_ParseCert(&decodedCert, CERT_TYPE, VERIFY, cm);
+    wc_FreeDecodedCert(&decodedCert);
+
+done:
+    if (cm != NULL) wolfSSL_CertManagerFree(cm);
+    wc_ecc_free(&leafKey);
+    wc_ecc_free(&icaKey);
+    wc_ecc_free(&rootKey);
+    wc_FreeRng(&rng);
+    return parseRet;
+}
+#endif
+
+/* Verifies wolfSSL enforces an issuing CA's nameConstraints extension on a
+ * leaf certificate's otherName SAN (RFC 5280 4.2.1.10). The vulnerability
+ * was that ConfirmNameConstraints() ignored ASN_OTHER_TYPE entirely, so a
+ * malicious intermediate could issue leaves whose otherName SAN violated
+ * its own subtree.
+ *
+ * Coverage:
+ *   1. Critical excluded subtree, leaf SAN matches            -> reject
+ *   2. Critical excluded subtree, leaf SAN does NOT match     -> accept
+ *      (positive control: distinguishes 'right rule fired' from
+ *       'broke everything with otherName')
+ *   3. Non-critical excluded subtree, leaf SAN matches        -> reject
+ *      (excluded is enforced regardless of criticality)
+ *   4. Critical permitted subtree, leaf SAN matches           -> accept
+ *   5. Critical permitted subtree, leaf SAN does NOT match    -> reject
+ *   6. Critical nameConstraints carrying an unsupported form
+ *      (registeredID), leaf has no relevant SAN              -> reject
+ *      (RFC 5280 4.2.1.10 fail-closed for unprocessed forms)
+ *   7. Same as (6) but non-critical                           -> accept
+ */
+static int test_NameConstraints_OtherName(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS)
+    byte sanBlocked[64];
+    byte sanAllowed[64];
+    byte ncExcludedBlocked[64];
+    byte ncPermittedAllowed[64];
+    byte ncRegisteredID[16];
+    word32 sanBlockedSz, sanAllowedSz;
+    word32 ncExcludedBlockedSz, ncPermittedAllowedSz, ncRegisteredIDSz;
+
+    sanBlockedSz =
+        build_otherName_san(sanBlocked, sizeof(sanBlocked), "blocked");
+    sanAllowedSz =
+        build_otherName_san(sanAllowed, sizeof(sanAllowed), "allowed");
+    ncExcludedBlockedSz = build_otherName_nameConstraints(
+        ncExcludedBlocked, sizeof(ncExcludedBlocked), 1, "blocked");
+    ncPermittedAllowedSz = build_otherName_nameConstraints(
+        ncPermittedAllowed, sizeof(ncPermittedAllowed), 0, "allowed");
+    ncRegisteredIDSz = build_registeredID_nameConstraints(
+        ncRegisteredID, sizeof(ncRegisteredID));
+    ExpectIntGT((int)sanBlockedSz, 0);
+    ExpectIntGT((int)sanAllowedSz, 0);
+    ExpectIntGT((int)ncExcludedBlockedSz, 0);
+    ExpectIntGT((int)ncPermittedAllowedSz, 0);
+    ExpectIntGT((int)ncRegisteredIDSz, 0);
+
+    /* (1) Original bypass scenario: critical excluded otherName matches
+     *     the leaf's otherName SAN. Must be rejected. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncExcludedBlocked, ncExcludedBlockedSz, 1,
+            sanBlocked, sanBlockedSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (2) Positive control: same critical excluded subtree, but the leaf
+     *     carries a DIFFERENT otherName value, so byte-comparison says no
+     *     match and the chain MUST verify. This pins the rejection in (1)
+     *     to the matching path rather than to a blanket 'reject any
+     *     otherName under critical'. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncExcludedBlocked, ncExcludedBlockedSz, 1,
+            sanAllowed, sanAllowedSz),
+        0);
+
+    /* (3) Non-critical excluded subtree, leaf SAN matches: exclusion is
+     *     enforced regardless of criticality. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncExcludedBlocked, ncExcludedBlockedSz, 0,
+            sanBlocked, sanBlockedSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (4) Critical permitted subtree, leaf SAN inside the permitted set:
+     *     verification succeeds. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncPermittedAllowed, ncPermittedAllowedSz, 1,
+            sanAllowed, sanAllowedSz),
+        0);
+
+    /* (5) Critical permitted subtree, leaf SAN outside the permitted set:
+     *     verification rejects. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncPermittedAllowed, ncPermittedAllowedSz, 1,
+            sanBlocked, sanBlockedSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (6) Critical nameConstraints carrying a GeneralName form wolfSSL
+     *     does not enforce (registeredID). RFC 5280 4.2.1.10 requires the
+     *     verifier to either process the constraint or reject; we reject
+     *     fail-closed. The leaf needs no SAN to exercise this path. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncRegisteredID, ncRegisteredIDSz, 1, NULL, 0),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (7) Same as (6) but non-critical: RFC 5280 only mandates the
+     *     fail-closed reject when the extension is critical, so a
+     *     non-critical unsupported constraint form is silently ignored
+     *     and verification succeeds. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncRegisteredID, ncRegisteredIDSz, 0, NULL, 0),
+        0);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_MakeCertWithCaFalse(void)
 {
     EXPECT_DECLS;
@@ -37091,6 +37395,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_PathLenSelfIssued),
     TEST_DECL(test_PathLenSelfIssuedAllowed),
     TEST_DECL(test_PathLenNoKeyUsage),
+    TEST_DECL(test_NameConstraints_OtherName),
     TEST_DECL(test_MakeCertWith0Ser),
     TEST_DECL(test_MakeCertWithCaFalse),
 #ifdef WOLFSSL_CERT_SIGN_CB
