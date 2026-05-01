@@ -38,11 +38,22 @@
 /* Maximum allowed PBKDF iteration count to prevent CPU exhaustion DoS.
  * Attacker-controlled PKCS#12 files can specify iterations up to INT_MAX
  * (2,147,483,647) in the MAC data, causing hours of CPU time.
- * Override by defining WC_PBKDF_MAX_ITERATIONS before including this header.
- * Normal p12 files use 1k to 10k iterations. */
-#ifndef WC_PBKDF_MAX_ITERATIONS
-    #define WC_PBKDF_MAX_ITERATIONS 2000000
+ * Override by defining WC_PBKDF_DEFAULT_MAX_ITERATIONS before including
+ * this header, and override at runtime by calling
+ * wc_PBKDF_max_iterations_set() at application startup.
+ *
+ * Note that typical PKCS12 files use 1k to 10k iterations.
+ */
+#ifndef WC_PBKDF_DEFAULT_MAX_ITERATIONS
+    #define WC_PBKDF_DEFAULT_MAX_ITERATIONS 10000000
 #endif
+
+/* Note that wc_PBKDF_max_iterations_set() has no provisions for thread
+ * synchronization.  Users should arrange to call it at startup or idle times,
+ * when there are no other PBKDF calls in progress.
+ */
+WOLFSSL_API int wc_PBKDF_max_iterations_set(int iters);
+WOLFSSL_API int wc_PBKDF_max_iterations_get(void);
 
 #if FIPS_VERSION3_GE(6,0,0)
     extern const unsigned int wolfCrypt_FIPS_pbkdf_ro_sanity[2];

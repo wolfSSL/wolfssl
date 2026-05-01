@@ -175,7 +175,7 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
 
     \return 0 on success
     \return BAD_FUNC_ARG on invalid arguments or iterations is greater than
-    WC_PBKDF_MAX_ITERATIONS
+    current_wc_pbkdf_max_iterations
     \return MEMORY_E on memory allocation error
 
     \param key Output key buffer
@@ -200,6 +200,8 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
     \endcode
 
     \sa wc_PBKDF1
+    \sa wc_PBKDF_max_iterations_set
+    \sa wc_PBKDF_max_iterations_get
 */
 int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     const byte* passwd, int passwdLen, const byte* salt, int saltLen,
@@ -211,7 +213,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
     \return 0 on success
     \return BAD_FUNC_ARG on invalid arguments or iterations is greater than
-    WC_PBKDF_MAX_ITERATIONS
+    current_wc_pbkdf_max_iterations
     \return MEMORY_E on memory allocation error
 
     \param output Output key buffer
@@ -236,6 +238,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     \endcode
 
     \sa wc_PBKDF2
+    \sa wc_PBKDF_max_iterations_set
+    \sa wc_PBKDF_max_iterations_get
 */
 int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen,
     const byte* salt, int sLen, int iterations, int kLen,
@@ -247,7 +251,7 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen,
 
     \return 0 on success
     \return BAD_FUNC_ARG on invalid arguments or iterations is greater than
-    WC_PBKDF_MAX_ITERATIONS
+    current_wc_pbkdf_max_iterations
     \return MEMORY_E on memory allocation error
 
     \param output Output key buffer
@@ -271,6 +275,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen,
     \endcode
 
     \sa wc_PKCS12_PBKDF
+    \sa wc_PBKDF_max_iterations_set
+    \sa wc_PBKDF_max_iterations_get
 */
 int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd,int passLen,
     const byte* salt, int saltLen, int iterations, int kLen,
@@ -341,3 +347,44 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
 int wc_scrypt_ex(byte* output, const byte* passwd, int passLen,
     const byte* salt, int saltLen, word32 iterations, int blockSize,
     int parallel, int dkLen);
+
+/*!
+    \ingroup Password
+    \brief Set the current iteration limit for PBKDF.
+
+    By default, the iteration limit is set to WC_PBKDF_DEFAULT_MAX_ITERATIONS,
+    which can be overridden at build time.  This function allows runtime
+    override of the limit.
+
+    Note that `wc_PBKDF_max_iterations_set()` has no provisions for thread
+    synchronization.  Users should arrange to call it at startup or idle times,
+    when there are no other PBKDF calls in progress.
+
+    \return Previous iteration limit on success
+    \return BAD_FUNC_ARG on invalid arguments
+
+    \param iters The new iteration limit.
+
+    _Example_
+    \code
+    int prev_iter_limit = wc_PBKDF_max_iterations_set(100000000);
+    \endcode
+
+    \sa wc_scrypt
+*/
+int wc_PBKDF_max_iterations_set(int iters);
+
+/*!
+    \ingroup Password
+    \brief Get the current iteration limit for PBKDF.
+
+    \return Current iteration limit
+
+    _Example_
+    \code
+    int cur_iter_limit = wc_PBKDF_max_iterations_get();
+    \endcode
+
+    \sa wc_scrypt
+*/
+int wc_PBKDF_max_iterations_get(void);
