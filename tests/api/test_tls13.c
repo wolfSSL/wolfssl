@@ -4579,6 +4579,104 @@ int test_tls13_pqc_hybrid_truncated_keyshare(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a malformed ECDH portion in a correctly-sized PQC hybrid
+ * KeyShare does not leave a dangling pointer in keyShareEntry->key.
+ *
+ * The earlier truncated-keyshare test is rejected by the keLen <= ctSz
+ * check before TLSX_KeyShare_ProcessPqcHybridClient sets up the
+ * ecc_kse->key = keyShareEntry->key alias, so it does not exercise the
+ * dangling-pointer path. This test sends a SECP256R1MLKEM768 key_share
+ * whose total length is correct (65-byte ECDH point + 1088-byte ML-KEM
+ * ciphertext = 1153 bytes) but whose ECDH leading byte (0x05) is not a
+ * valid X9.63 marker. ProcessEcc_ex then fails at wc_ecc_import_x963
+ * AFTER its unconditional cleanup at the end of the function frees the
+ * aliased key. Without the fix, the outer keyShareEntry->key still
+ * holds the freed pointer; wolfSSL_free -> TLSX_KeyShare_FreeAll calls
+ * wc_ecc_free + XFREE on it, producing a use-after-free and a double
+ * free that ASAN flags. */
+int test_tls13_pqc_hybrid_malformed_ecdh(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
+    !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+    /* 5 (record) + 4 (HS) + 1207 (ServerHello body) = 1216 bytes. */
+    static byte serverHello[1216];
+    word32 i = 0;
+    WOLFSSL_BUFFER_INFO msg;
+
+    XMEMSET(serverHello, 0, sizeof(serverHello));
+
+    /* Record: handshake, TLS 1.2 compat, length 1211 (0x04bb). */
+    serverHello[i++] = 0x16; serverHello[i++] = 0x03; serverHello[i++] = 0x03;
+    serverHello[i++] = 0x04; serverHello[i++] = 0xbb;
+    /* Handshake: ServerHello (0x02), length 1207 (0x0004b7). */
+    serverHello[i++] = 0x02;
+    serverHello[i++] = 0x00; serverHello[i++] = 0x04; serverHello[i++] = 0xb7;
+    /* legacy_version */
+    serverHello[i++] = 0x03; serverHello[i++] = 0x03;
+    /* random (32 bytes) */
+    XMEMSET(&serverHello[i], 0x42, 32); i += 32;
+    /* legacy_session_id_echo length: 0 */
+    serverHello[i++] = 0x00;
+    /* cipher_suite: TLS_AES_128_GCM_SHA256 */
+    serverHello[i++] = 0x13; serverHello[i++] = 0x01;
+    /* legacy_compression_method: null */
+    serverHello[i++] = 0x00;
+    /* extensions length: 1167 (0x048f) */
+    serverHello[i++] = 0x04; serverHello[i++] = 0x8f;
+    /* extension: supported_versions -> TLS 1.3 */
+    serverHello[i++] = 0x00; serverHello[i++] = 0x2b;
+    serverHello[i++] = 0x00; serverHello[i++] = 0x02;
+    serverHello[i++] = 0x03; serverHello[i++] = 0x04;
+    /* extension: key_share, extension_data length 1157 (0x0485) */
+    serverHello[i++] = 0x00; serverHello[i++] = 0x33;
+    serverHello[i++] = 0x04; serverHello[i++] = 0x85;
+    /* server_share.group: SECP256R1MLKEM768 (0x11eb) */
+    serverHello[i++] = 0x11; serverHello[i++] = 0xeb;
+    /* key_exchange length: 1153 (0x0481) */
+    serverHello[i++] = 0x04; serverHello[i++] = 0x81;
+    /* ECDH portion (65 bytes): leading 0x05 is not a valid X9.63 marker
+     * (valid markers: 0x04, 0x06, 0x07). The remaining 64 bytes stay zero
+     * from the initial XMEMSET. */
+    serverHello[i++] = 0x05;
+    i += 64;
+    /* PQC portion (1088 bytes): all zero from the initial XMEMSET. */
+    i += 1088;
+    AssertIntEQ((int)i, (int)sizeof(serverHello));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    wolfSSL_SetIORecv(ctx, PqcHybridUafRecv);
+    wolfSSL_SetIOSend(ctx, PqcHybridUafSend);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Match the server's offered group so this key_share is processed. */
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl, WOLFSSL_SECP256R1MLKEM768),
+        WOLFSSL_SUCCESS);
+
+    msg.buffer = serverHello;
+    msg.length = (unsigned int)sizeof(serverHello);
+    wolfSSL_SetIOReadCtx(ssl, &msg);
+
+    /* Connect should fail gracefully on the malformed ECDH point. */
+    ExpectIntEQ(wolfSSL_connect_TLSv13(ssl),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+
+    /* Without the fix, this triggers UAF + double-free in
+     * TLSX_KeyShare_FreeAll. */
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a TLS 1.3 NewSessionTicket with a ticket shorter than ID_LEN
  * (32 bytes) does not cause an unsigned integer underflow / OOB read in
  * SetTicket. Uses a full memio handshake, then injects a crafted
