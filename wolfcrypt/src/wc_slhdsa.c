@@ -6702,6 +6702,45 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
             key->sk + 2 * n, n);
     }
 
+#ifdef HAVE_FIPS
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A (TE10.35.02):
+     * sign with the new sk, verify with the matching pk.  SLH-DSA is a
+     * stateless hash-based signature scheme (FIPS 205), so the relaxed PCT
+     * rule for stateful HBS (LMS/XMSS) does not apply -- PCT runs on every
+     * KeyGen.  SignDeterministic avoids consuming RNG state; heap allocation
+     * is used because SLH-DSA signatures can reach ~50 KB. */
+    if (ret == 0) {
+        static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
+        byte* pct_sig = (byte*)XMALLOC(WC_SLHDSA_MAX_SIG_LEN, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        word32 pct_sigSz = WC_SLHDSA_MAX_SIG_LEN;
+
+        if (pct_sig == NULL) {
+            ret = MEMORY_E;
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_SignDeterministic(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, &pct_sigSz);
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_Verify(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, pct_sigSz);
+            if (ret != 0) {
+                ret = SLH_DSA_PCT_E;
+            }
+        }
+        if (pct_sig != NULL) {
+            ForceZero(pct_sig, WC_SLHDSA_MAX_SIG_LEN);
+            XFREE(pct_sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        /* IG 10.3.A (TE10.35.02): a key pair that fails the PCT must be
+         * rendered unusable. */
+        if (ret != 0) {
+            wc_SlhDsaKey_Free(key);
+        }
+    }
+#endif /* HAVE_FIPS */
+
     return ret;
 }
 

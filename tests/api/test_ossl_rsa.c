@@ -65,7 +65,7 @@ int test_wolfSSL_RSA(void)
 
     RSA_free(rsa);
     rsa = NULL;
-    ExpectNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+    ExpectNotNull(rsa = RSA_generate_key(2048, 65537, NULL, NULL));
     ExpectIntEQ(RSA_size(rsa), 256);
 
 #if (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)) && !defined(HAVE_SELFTEST)
@@ -306,7 +306,7 @@ int test_wolfSSL_RSA(void)
     rsa = NULL;
 
 #if !defined(USE_FAST_MATH) || (FP_MAX_BITS >= (3072*2))
-    ExpectNotNull(rsa = RSA_generate_key(3072, 17, NULL, NULL));
+    ExpectNotNull(rsa = RSA_generate_key(3072, 65537, NULL, NULL));
     ExpectIntEQ(RSA_size(rsa), 384);
     ExpectIntEQ(RSA_bits(rsa), 3072);
     RSA_free(rsa);
@@ -461,7 +461,7 @@ int test_wolfSSL_RSA_print(void)
 
     RSA_free(rsa);
     rsa = NULL;
-    ExpectNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+    ExpectNotNull(rsa = RSA_generate_key(2048, 65537, NULL, NULL));
 
     ExpectIntEQ(RSA_print(bio, rsa, 0), 1);
     ExpectIntEQ(RSA_print(bio, rsa, 4), 1);
@@ -626,11 +626,11 @@ int test_wolfSSL_RSA_meth(void)
     RSA_METHOD *rsa_meth = NULL;
 
 #ifdef WOLFSSL_KEY_GEN
-    ExpectNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+    ExpectNotNull(rsa = RSA_generate_key(2048, 65537, NULL, NULL));
     RSA_free(rsa);
     rsa = NULL;
 #else
-    ExpectNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+    ExpectNull(rsa = RSA_generate_key(2048, 65537, NULL, NULL));
 #endif
 
     ExpectNotNull(RSA_get_default_method());

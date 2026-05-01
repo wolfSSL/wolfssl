@@ -508,6 +508,17 @@
     #endif
     /* blinding adds API not available yet in FIPS mode */
     #undef WC_RSA_BLINDING
+
+    /* NIST SP 800-38A sec 6.2 specifies CBC operates on plaintext that is
+     * a multiple of the block size; the cipher does not implement padding
+     * (project_aes_no_padding_policy).  Force the wc_AesCbcEncrypt /
+     * wc_AesCbcDecrypt block-alignment check on for FIPS builds so a
+     * length not a multiple of WC_AES_BLOCK_SIZE returns BAD_LENGTH_E
+     * rather than silently truncating to the largest aligned prefix in
+     * the underlying implementation. */
+    #ifndef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        #define WOLFSSL_AES_CBC_LENGTH_CHECKS
+    #endif
 #endif
 
 /* old FIPS has only AES_BLOCK_SIZE. */
@@ -3903,8 +3914,18 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_PUBLIC_FFDHE
     #endif
 
+    /* LinuxKM lkcapi previously needed a 4-byte minimum AES-GCM
+     * authentication tag for certain kernel-side test vectors.  Per
+     * NIST SP 800-38D sec 5.2.1.2 / sec 8.2 a minimum tag length of 96 bits
+     * (12 bytes) provides robust integrity for general-purpose use; FIPS
+     * 140-3 IG C.H reaffirms this 96-bit minimum for Approved-mode AES-GCM.
+     * Gate the 32-bit-tag relaxation on non-FIPS builds only so the
+     * v7.0.0 module's Approved configuration retains the full 96-bit
+     * minimum in all linuxkm and non-linuxkm scenarios. */
+#ifndef HAVE_FIPS
     #undef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 4
+#endif
 
     #if defined(LINUXKM_LKCAPI_REGISTER) && !defined(WOLFSSL_ASN_INT_LEAD_0_ANY)
         /* kernel 5.10 crypto manager tests key(s) that fail unless leading

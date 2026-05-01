@@ -10,6 +10,16 @@ wolfcrypt_benchmark_benchmark_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_
 wolfcrypt_benchmark_benchmark_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 noinst_HEADERS += wolfcrypt/benchmark/benchmark.h
 
+# FIPS CAST benchmark - measures wc_RunCast_fips() execution time per CAST.
+# Helps operators of resource-constrained operational environments budget
+# module power-on latency.  Compiled only when FIPS is enabled.
+if BUILD_FIPS
+noinst_PROGRAMS += wolfcrypt/benchmark/fips_cast_bench
+wolfcrypt_benchmark_fips_cast_bench_SOURCES      = wolfcrypt/benchmark/fips_cast_bench.c
+wolfcrypt_benchmark_fips_cast_bench_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) -lm
+wolfcrypt_benchmark_fips_cast_bench_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+endif
+
 endif
 endif
 

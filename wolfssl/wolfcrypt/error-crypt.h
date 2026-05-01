@@ -327,9 +327,17 @@ enum wolfCrypt_ErrorCodes {
     ML_DSA_PCT_E        = -1016, /* ML-DSA Pairwise Consistency Test failure */
     DRBG_SHA512_KAT_FIPS_E = -1017, /* SHA-512 DRBG KAT failure */
     SLH_DSA_KAT_FIPS_E  = -1018, /* SLH-DSA CAST KAT failure */
+    SLH_DSA_PCT_E       = -1019, /* SLH-DSA Pairwise Consistency Test failure */
+    CMAC_KAT_FIPS_E     = -1020, /* AES-CMAC KAT failure (vendor-elected) */
+    SHAKE_KAT_FIPS_E    = -1021, /* SHAKE KAT failure (vendor-elected) */
+    DH_PCT_E            = -1022, /* DH (FFC) Pairwise Consistency Test
+                                  * failure (SP 800-56A r3 sec 5.6.2.1.4,
+                                  * FIPS 140-3 IG 10.3.B) */
+    AES_KW_KAT_FIPS_E   = -1023, /* AES-KW KAT failure (vendor-elected,
+                                  * SP 800-38F sec 6.2 / RFC 3394) */
 
-    WC_SPAN2_LAST_E     = -1018, /* Update to indicate last used error code */
-    WC_LAST_E           = -1018, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1023, /* Update to indicate last used error code */
+    WC_LAST_E           = -1023, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

@@ -1526,7 +1526,7 @@ static int test_wolfSSL_EVP_PKEY_sign_verify(int keyType)
     !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
         {
-            ExpectNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+            ExpectNotNull(rsa = RSA_generate_key(2048, 65537, NULL, NULL));
             ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
         }
 #endif
@@ -2028,7 +2028,7 @@ int test_wolfSSL_EVP_PKEY_encrypt(void)
         XMEMSET(outDec, 0, rsaKeySz);
     }
 
-    ExpectNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+    ExpectNotNull(rsa = RSA_generate_key(2048, 65537, NULL, NULL));
     ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new());
     ExpectIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
     if (EXPECT_FAIL()) {

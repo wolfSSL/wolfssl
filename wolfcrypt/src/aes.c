@@ -10968,6 +10968,16 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     VECTOR_REGISTERS_POP;
 
+    /* FIPS 140-3 / SP 800-38D: on authentication failure, the decrypted-but-
+     * unauthenticated plaintext in `out` must not be released to the caller.
+     * Wipe it here so a caller that ignores the return value cannot observe
+     * plaintext derived from forged ciphertext.  All software paths (AES-NI,
+     * AVX1/2, ARM HW/NEON, C fallback) funnel through `ret` here, so this
+     * single guard covers every sub-implementation. */
+    if (ret == WC_NO_ERR_TRACE(AES_GCM_AUTH_E) && out != NULL && sz > 0) {
+        ForceZero(out, sz);
+    }
+
     return ret;
 }
 #endif
@@ -12671,6 +12681,10 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
         }
     }
 
+    /* Streaming decrypt cannot zeroize prior Update output buffers from here
+     * (Final does not see them).  On AES_GCM_AUTH_E, the caller is responsible
+     * for treating all Update-produced plaintext as invalid and wiping it.
+     * See PL-R34 Security Policy section 8 (Operational Rules). */
     return ret;
 }
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */

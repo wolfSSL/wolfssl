@@ -752,9 +752,20 @@ int test_wc_dilithium_sign_pubonly_fails(void)
     /* Import only the public key into a fresh key object. */
     ExpectIntEQ(wc_dilithium_import_public(pubBuf, pubLen, pubOnlyKey), 0);
 
-    /* Signing with a public-key-only object must fail. */
+    /* Signing with a public-key-only object must fail.
+     *
+     * In FIPS v7.0.0 mode the ML-DSA sign wrappers enforce the
+     * privateKeyReadEnable contract (FIPS 140-3 sec 7.10.2 CSP access
+     * control); without unlocking, the wrapper short-circuits to
+     * FIPS_PRIVATE_KEY_LOCKED_E before reaching the no-private-key
+     * detection.  Unlock briefly so this test exercises the underlying
+     * BAD_FUNC_ARG path it is designed to verify.  The
+     * PRIVATE_KEY_UNLOCK / PRIVATE_KEY_LOCK macros expand to no-ops in
+     * non-FIPS builds. */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_dilithium_sign_ctx_msg(NULL, 0, msg, sizeof(msg), sig,
         &sigLen, pubOnlyKey, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_dilithium_free(pubOnlyKey);
@@ -1236,6 +1247,12 @@ int test_wc_dilithium_sign_vfy(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
+    /* FIPS v7.0.0 ML-DSA sign wrappers enforce the privateKeyReadEnable
+     * contract (FIPS 140-3 sec 7.10.2 CSP access control); unlock for the
+     * duration of this test's signing operations and re-lock at the end.
+     * Macros expand to no-ops in non-FIPS builds. */
+    PRIVATE_KEY_UNLOCK();
+
 #ifndef WOLFSSL_NO_ML_DSA_44
     ExpectIntEQ(wc_dilithium_init(key), 0);
     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
@@ -1299,6 +1316,8 @@ int test_wc_dilithium_sign_vfy(void)
 
     wc_dilithium_free(key);
 #endif
+
+    PRIVATE_KEY_LOCK();
 
     wc_FreeRng(&rng);
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
