@@ -37,7 +37,7 @@
 #include <tests/api/test_mldsa.h>
 
 
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
     defined(WOLFSSL_DILITHIUM_NO_CTX)
 static const byte ml_dsa_44_pub_key[] = {
@@ -516,7 +516,7 @@ static const byte ml_dsa_44_good_sig[] = {
 int test_wc_dilithium(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM)
+#if defined(HAVE_DILITHIUM)
     dilithium_key* key;
     byte level;
 #if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
@@ -698,7 +698,7 @@ int test_wc_dilithium_sign_pubonly_fails(void)
 {
     EXPECT_DECLS;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_CTX)
@@ -771,7 +771,7 @@ int test_wc_dilithium_sign_pubonly_fails(void)
 int test_wc_dilithium_make_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
     dilithium_key* key;
     WC_RNG rng;
@@ -812,7 +812,7 @@ int test_wc_dilithium_make_key(void)
 int test_wc_dilithium_sign(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && defined(WOLFSSL_DILITHIUM_NO_CTX)
     dilithium_key* key;
     dilithium_key* importKey = NULL;
@@ -979,7 +979,7 @@ int test_wc_dilithium_sign(void)
 int test_wc_dilithium_verify(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && defined(WOLFSSL_DILITHIUM_NO_CTX) && \
     (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_DILITHIUM_NO_SIGN))
     dilithium_key* key;
@@ -1211,7 +1211,7 @@ int test_wc_dilithium_verify(void)
 int test_wc_dilithium_sign_vfy(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     dilithium_key* key;
@@ -1311,7 +1311,7 @@ int test_wc_dilithium_sign_vfy(void)
 int test_wc_dilithium_check_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     defined(WOLFSSL_DILITHIUM_CHECK_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
     dilithium_key* checkKey;
@@ -1438,7 +1438,7 @@ int test_wc_dilithium_check_key(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
 static const unsigned char ml_dsa_public_der[] = {
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -2941,7 +2941,7 @@ static const unsigned char dilithium_public_der[] = {
 int test_wc_dilithium_public_der_decode(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
     dilithium_key* key;
     word32 idx = 0;
@@ -2985,7 +2985,7 @@ int test_wc_dilithium_public_der_decode(void)
 int test_wc_dilithium_der(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
 #define DILITHIUM_MAX_DER_SIZE    8192
@@ -3198,7 +3198,7 @@ int test_wc_dilithium_der(void)
 int test_wc_dilithium_make_key_from_seed(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
     dilithium_key* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -7666,7 +7666,7 @@ int test_wc_dilithium_make_key_from_seed(void)
 int test_wc_dilithium_sig_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && defined(WOLFSSL_DILITHIUM_NO_CTX)
     dilithium_key* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -12485,7 +12485,7 @@ int test_wc_dilithium_sig_kats(void)
 int test_wc_dilithium_sign_ctx_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN)
     dilithium_key* key;
     word32 sigLen;
@@ -16718,7 +16718,7 @@ int test_wc_dilithium_sign_ctx_kats(void)
     PRIVATE_KEY_LOCK();
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* HAVE_DILITHIUM && WOLFSSL_WC_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
     return EXPECT_RESULT();
 }
 
@@ -16726,7 +16726,7 @@ int test_wc_dilithium_sign_ctx_kats(void)
 int test_wc_dilithium_verify_ctx_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     dilithium_key* key;
     int res;
@@ -20264,7 +20264,7 @@ int test_wc_dilithium_verify_ctx_kats(void)
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* HAVE_DILITHIUM && WOLFSSL_WC_DILITHIUM && !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_VERIFY */
     return EXPECT_RESULT();
 }
 
@@ -20272,7 +20272,7 @@ int test_wc_dilithium_verify_ctx_kats(void)
 int test_wc_dilithium_verify_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && defined(WOLFSSL_DILITHIUM_NO_CTX)
     dilithium_key* key;
     int res;
@@ -24555,8 +24555,7 @@ int test_wc_dilithium_verify_kats(void)
 int test_wc_dilithium_sign_mu_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     dilithium_key* key = NULL;
     word32 sigLen;
@@ -27417,8 +27416,7 @@ int test_wc_dilithium_sign_mu_kats(void)
 int test_wc_dilithium_verify_mu_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     dilithium_key* key = NULL;
     byte* sigBuf = NULL;
@@ -29631,7 +29629,7 @@ int test_wc_dilithium_verify_mu_kats(void)
 }
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 static struct {
@@ -29699,7 +29697,7 @@ int test_wc_Dilithium_PrivateKeyDecode_OpenSSL_form(void)
     EXPECT_DECLS;
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 
@@ -29796,7 +29794,7 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    defined(HAVE_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE) && \
@@ -29984,7 +29982,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 int test_wc_dilithium_encode_w1_large_values(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && \
     (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
      !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
 
@@ -30096,7 +30094,7 @@ int test_wc_dilithium_encode_w1_large_values(void)
     }
 #endif /* !WOLFSSL_NO_ML_DSA_65 || !WOLFSSL_NO_ML_DSA_87 */
 
-#endif /* HAVE_DILITHIUM && WOLFSSL_WC_DILITHIUM && sign/verify */
+#endif /* HAVE_DILITHIUM && sign/verify */
     return EXPECT_RESULT();
 }
 

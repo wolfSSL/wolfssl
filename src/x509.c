@@ -12179,8 +12179,8 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     #if defined(HAVE_DILITHIUM)
         dilithium_key* dilithium = NULL;
     #endif
-    #if defined(HAVE_SPHINCS)
-        sphincs_key* sphincs = NULL;
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        SlhDsaKey* slhdsa = NULL;
     #endif
         WC_RNG rng;
         word32 idx = 0;
@@ -12411,63 +12411,58 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             key = (void*)dilithium;
         }
     #endif
-    #if defined(HAVE_SPHINCS)
-        if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||
-            (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) ||
-            (x509->pubKeyOID == SPHINCS_FAST_LEVEL5k) ||
-            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL1k) ||
-            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) ||
-            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL5k)) {
-            sphincs = (sphincs_key*)XMALLOC(sizeof(sphincs_key), NULL,
-                                          DYNAMIC_TYPE_SPHINCS);
-            if (sphincs == NULL) {
-                WOLFSSL_MSG("Failed to allocate memory for sphincs_key");
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        if (wc_IsSlhDsaOid(x509->pubKeyOID)) {
+            int paramInt = wc_SlhDsaOidToParam(x509->pubKeyOID);
+            int certType = wc_SlhDsaOidToCertType(x509->pubKeyOID);
+
+            /* The OID is a recognised SLH-DSA OID but the parameter set
+             * isn't built in; surface NOT_COMPILED_IN directly so
+             * callers can render an accurate diagnostic. */
+            if (paramInt == WC_NO_ERR_TRACE(NOT_COMPILED_IN) ||
+                    certType == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+                WOLFSSL_MSG("SLH-DSA variant not compiled in");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return NOT_COMPILED_IN;
+            }
+            /* Defensive: wc_IsSlhDsaOid already implies both lookups
+             * succeed, but check explicitly so any future drift between the
+             * three OID helpers surfaces as a clean failure rather than
+             * undefined behaviour from casting -1 to enum SlhDsaParam. */
+            if (paramInt < 0 || certType < 0) {
+                WOLFSSL_MSG("SLH-DSA OID helper mismatch");
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return WOLFSSL_FAILURE;
             }
 
-            ret = wc_sphincs_init(sphincs);
+            slhdsa = (SlhDsaKey*)XMALLOC(sizeof(SlhDsaKey), NULL,
+                                          DYNAMIC_TYPE_SLHDSA);
+            if (slhdsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for SlhDsaKey");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
+            type = certType;
+
+            ret = wc_SlhDsaKey_Init(slhdsa, (enum SlhDsaParam)paramInt, NULL,
+                                    INVALID_DEVID);
             if (ret != 0) {
-                XFREE(sphincs, NULL, DYNAMIC_TYPE_SPHINCS);
+                XFREE(slhdsa, NULL, DYNAMIC_TYPE_SLHDSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
 
-            if (x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) {
-                type = SPHINCS_FAST_LEVEL1_TYPE;
-                wc_sphincs_set_level_and_optim(sphincs, 1, FAST_VARIANT);
-            }
-            else if (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) {
-                type = SPHINCS_FAST_LEVEL3_TYPE;
-                wc_sphincs_set_level_and_optim(sphincs, 3, FAST_VARIANT);
-            }
-            else if (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) {
-                type = SPHINCS_FAST_LEVEL5_TYPE;
-                wc_sphincs_set_level_and_optim(sphincs, 5, FAST_VARIANT);
-            }
-            else if (x509->pubKeyOID == SPHINCS_SMALL_LEVEL1k) {
-                type = SPHINCS_SMALL_LEVEL1_TYPE;
-                wc_sphincs_set_level_and_optim(sphincs, 1, SMALL_VARIANT);
-            }
-            else if (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) {
-                type = SPHINCS_SMALL_LEVEL3_TYPE;
-                wc_sphincs_set_level_and_optim(sphincs, 3, SMALL_VARIANT);
-            }
-            else if (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) {
-                type = SPHINCS_SMALL_LEVEL5_TYPE;
-                wc_sphincs_set_level_and_optim(sphincs, 5, SMALL_VARIANT);
-            }
-
-            ret = wc_Sphincs_PublicKeyDecode(x509->pubKey.buffer, &idx, sphincs,
-                                             x509->pubKey.length);
+            ret = wc_SlhDsaKey_PublicKeyDecode(x509->pubKey.buffer, &idx,
+                                               slhdsa, x509->pubKey.length);
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
-                wc_sphincs_free(sphincs);
-                XFREE(sphincs, NULL, DYNAMIC_TYPE_SPHINCS);
+                wc_SlhDsaKey_Free(slhdsa);
+                XFREE(slhdsa, NULL, DYNAMIC_TYPE_SLHDSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
-            key = (void*)sphincs;
+            key = (void*)slhdsa;
         }
     #endif
         if (key == NULL) {
@@ -12591,15 +12586,15 @@ cleanup:
             XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
         }
     #endif
-    #if defined(HAVE_SPHINCS)
-        if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||
-            (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) ||
-            (x509->pubKeyOID == SPHINCS_FAST_LEVEL5k) ||
-            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL1k) ||
-            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) ||
-            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL5k)) {
-            wc_sphincs_free(sphincs);
-            XFREE(sphincs, NULL, DYNAMIC_TYPE_SPHINCS);
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        /* wc_IsSlhDsaOid returns 1 even for OIDs whose backend is
+         * NOT_COMPILED_IN; the early-return at the top of the SLH-DSA
+         * branch keeps slhdsa==NULL in that case. Guard the cleanup so
+         * future restructuring (a goto cleanup from inside the
+         * unbuilt-variant handler) cannot dereference a NULL key. */
+        if (wc_IsSlhDsaOid(x509->pubKeyOID) && slhdsa != NULL) {
+            wc_SlhDsaKey_Free(slhdsa);
+            XFREE(slhdsa, NULL, DYNAMIC_TYPE_SLHDSA);
         }
     #endif
         XFREE(cert, NULL, DYNAMIC_TYPE_CERT);

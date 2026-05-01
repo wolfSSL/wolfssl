@@ -1974,3 +1974,119 @@ int test_X509_STORE_No_SSL_CTX(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Test that SSL_CTX_set_cert_store propagates certificates (including
+ * non-self-signed intermediates) into the CertManager, and that certs
+ * added to the store after set_cert_store also reach the CertManager.
+ * Regression test for ZD 19760 / GitHub PR #8708.
+ */
+int test_wolfSSL_CTX_set_cert_store(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    SSL_CTX* ctx = NULL;
+    X509_STORE* store = NULL;
+    X509* rootCa = NULL;
+    X509* intCa = NULL;
+    X509* int2Ca = NULL;
+    X509_STORE_CTX* storeCtx = NULL;
+    X509* svrCert = NULL;
+
+    const char caCert[]     = "./certs/ca-cert.pem";
+    const char intCaCert[]  = "./certs/intermediate/ca-int-cert.pem";
+    const char int2CaCert[] = "./certs/intermediate/ca-int2-cert.pem";
+    const char svrIntCert[] = "./certs/intermediate/server-int-cert.pem";
+
+    /* --- Part 1: Add certs to store BEFORE set_cert_store ---
+     * Non-self-signed intermediates should be pushed into the CertManager
+     * when set_cert_store is called. */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(rootCa = wolfSSL_X509_load_certificate_file(caCert,
+                    SSL_FILETYPE_PEM));
+    ExpectNotNull(intCa = wolfSSL_X509_load_certificate_file(intCaCert,
+                    SSL_FILETYPE_PEM));
+    ExpectNotNull(int2Ca = wolfSSL_X509_load_certificate_file(int2CaCert,
+                    SSL_FILETYPE_PEM));
+
+    ExpectIntEQ(X509_STORE_add_cert(store, rootCa), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, intCa), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, int2Ca), SSL_SUCCESS);
+
+    ExpectNotNull(ctx = SSL_CTX_new(TLS_client_method()));
+
+    /* This should push intermediates from store->certs into the CM */
+    SSL_CTX_set_cert_store(ctx, store);
+
+    /* After set_cert_store, store->certs and store->trusted should be NULLed
+     * to signal CTX ownership */
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(store->certs);
+        ExpectNull(store->trusted);
+    }
+
+    /* Verify using CertManagerVerify - this only checks the CM, not the
+     * store's certs stack, so it proves the intermediates were pushed */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+                svrIntCert, SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* Also verify using X509_verify_cert for completeness */
+    ExpectNotNull(svrCert = wolfSSL_X509_load_certificate_file(svrIntCert,
+                    SSL_FILETYPE_PEM));
+    ExpectNotNull(storeCtx = X509_STORE_CTX_new());
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(X509_STORE_CTX_init(storeCtx,
+                    SSL_CTX_get_cert_store(ctx), svrCert, NULL), SSL_SUCCESS);
+        ExpectIntEQ(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    }
+
+    X509_STORE_CTX_free(storeCtx);
+    storeCtx = NULL;
+    X509_free(svrCert);
+    svrCert = NULL;
+    SSL_CTX_free(ctx);
+    ctx = NULL;
+    /* store is freed by SSL_CTX_free */
+    store = NULL;
+
+    X509_free(rootCa);
+    rootCa = NULL;
+    X509_free(intCa);
+    intCa = NULL;
+    X509_free(int2Ca);
+    int2Ca = NULL;
+
+    /* --- Part 2: Add certs to store AFTER set_cert_store ---
+     * When store->certs is NULL (CTX-owned), X509_STORE_add_cert should
+     * route non-self-signed certs directly to the CertManager. */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ctx = SSL_CTX_new(TLS_client_method()));
+
+    /* Attach empty store first */
+    SSL_CTX_set_cert_store(ctx, store);
+
+    /* Now add certs after ownership transfer */
+    ExpectNotNull(rootCa = wolfSSL_X509_load_certificate_file(caCert,
+                    SSL_FILETYPE_PEM));
+    ExpectNotNull(intCa = wolfSSL_X509_load_certificate_file(intCaCert,
+                    SSL_FILETYPE_PEM));
+    ExpectNotNull(int2Ca = wolfSSL_X509_load_certificate_file(int2CaCert,
+                    SSL_FILETYPE_PEM));
+
+    ExpectIntEQ(X509_STORE_add_cert(store, rootCa), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, intCa), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, int2Ca), SSL_SUCCESS);
+
+    /* Verify that certs added after set_cert_store are in the CM */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+                svrIntCert, SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    SSL_CTX_free(ctx);
+    /* store freed by SSL_CTX_free */
+    X509_free(rootCa);
+    X509_free(intCa);
+    X509_free(int2Ca);
+#endif
+    return EXPECT_RESULT();
+}
+

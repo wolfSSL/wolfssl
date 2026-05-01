@@ -81,7 +81,6 @@
 	<ClCompile Include="..\..\wolfcrypt\src\sha3.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sha512.c" />
     <ClCompile Include="..\..\wolfcrypt\src\signature.c" />
-	<ClCompile Include="..\..\wolfcrypt\src\sphincs.c" />
 	<ClCompile Include="..\..\wolfcrypt\src\sp_c32.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sp_c64.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sp_int.c" />
@@ -93,6 +92,7 @@
     <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_pkcs11.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_slhdsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\port\liboqs\liboqs.c" />
 
   </ItemGroup>
@@ -164,6 +164,7 @@
     <ClInclude Include="..\..\wolfssl\wolfcrypt\visibility.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\wc_encrypt.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\wc_port.h" />
+    <ClInclude Include="..\..\wolfssl\wolfcrypt\wc_slhdsa.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\wolfevent.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\wolfmath.h" />
   </ItemGroup>

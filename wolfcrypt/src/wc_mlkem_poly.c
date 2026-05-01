@@ -34,7 +34,7 @@
 
 /* Possible Kyber options:
  *
- * WOLFSSL_WC_MLKEM                                           Default: OFF
+ * WOLFSSL_HAVE_MLKEM                                           Default: OFF
  *   Enables this code, wolfSSL implementation, to be built.
  *
  * WOLFSSL_WC_ML_KEM_512                                      Default: OFF
@@ -79,7 +79,7 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -6114,4 +6114,4 @@ int mlkem_check_public(sword16* pub, int k)
     return ret;
 }
 
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */

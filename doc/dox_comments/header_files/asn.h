@@ -254,7 +254,7 @@ int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
     4. Encodes the signature into the certificate/CSR DER structure
 
     NOTE: Only RSA and ECC key types are supported. Ed25519, Ed448, and
-    post-quantum algorithms (Falcon, Dilithium, SPHINCS+) sign messages
+    post-quantum algorithms (Falcon, Dilithium, SLH-DSA) sign messages
     directly rather than hashes, so they cannot use this callback-based API.
     Use wc_SignCert_ex for those algorithms.
 

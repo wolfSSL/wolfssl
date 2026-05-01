@@ -21,7 +21,7 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS)
+#if defined(WOLFSSL_HAVE_LMS)
 
 #if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
@@ -721,7 +721,7 @@ int wc_LmsKey_SetLmsParm(LmsKey* key, enum wc_LmsParm lmsParm)
 /* Set the parameters of an LMS key.
  *
  * Use this if you wish to set specific parameters not found in the
- * wc_LmsParm predefined sets. See comments in lms.h for allowed
+ * wc_LmsParm predefined sets. See comments in wc_lms.h for allowed
  * parameters.
  *
  * Key must be inited before calling this.
@@ -1597,4 +1597,4 @@ const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv, word32 privSz)
 
 #endif
 
-#endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */
+#endif /* WOLFSSL_HAVE_LMS */

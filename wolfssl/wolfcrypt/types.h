@@ -1370,7 +1370,7 @@ enum {
     DYNAMIC_TYPE_FALCON       = 95,
     DYNAMIC_TYPE_SESSION      = 96,
     DYNAMIC_TYPE_DILITHIUM    = 97,
-    DYNAMIC_TYPE_SPHINCS      = 98,
+    DYNAMIC_TYPE_SPHINCS      = 98, /* deprecated: kept for ABI compat */
     DYNAMIC_TYPE_SM4_BUFFER   = 99,
     DYNAMIC_TYPE_DEBUG_TAG    = 100,
     DYNAMIC_TYPE_LMS          = 101,
@@ -1581,11 +1581,9 @@ enum wc_PkType {
     enum wc_PqcKemType {
         WC_PQC_KEM_TYPE_NONE = 0,
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_NONE
-    #if defined(WOLFSSL_HAVE_MLKEM)
         WC_PQC_KEM_TYPE_KYBER = 1,
         #undef _WC_PQC_KEM_TYPE_MAX
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_KYBER
-    #endif
         WC_PQC_KEM_TYPE_MAX = _WC_PQC_KEM_TYPE_MAX
     };
 #endif
@@ -2089,7 +2087,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_MP_TO_RADIX
 #endif
 
-#if defined(__GNUC__) && __GNUC__ > 5
+#if defined(__GNUC__) && (__GNUC__ > 5) && !defined(__clang__)
     #define PRAGMA_GCC_DIAG_PUSH _Pragma("GCC diagnostic push")
     #define PRAGMA_GCC(str) _Pragma(str)
     #define PRAGMA_GCC_DIAG_POP _Pragma("GCC diagnostic pop")
@@ -2316,7 +2314,9 @@ enum Max_ASN {
     DSA_INTS            =   5,     /* DSA ints in private key */
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
-#ifdef HAVE_SPHINCS
+#ifdef WOLFSSL_HAVE_SLHDSA
+    /* Largest raw SLH-DSA signature (SHAKE-256f) is 49856 bytes; round up
+     * to leave headroom for ASN.1 wrapping (BIT STRING tag + length). */
     MAX_ENCODED_SIG_SZ  = 51200,
 #elif defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_ENCODED_SIG_SZ  = 5120,
@@ -2369,7 +2369,7 @@ enum Max_ASN {
                             /* Maximum DER digest ASN header size */
                             /* Max X509 header length indicates the
                              * max length + 2 ('\n', '\0') */
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA)
     MAX_X509_HEADER_SZ  = (48 + 2), /* Maximum PEM Header/Footer Size */
 #else
     MAX_X509_HEADER_SZ  = (37 + 2), /* Maximum PEM Header/Footer Size */

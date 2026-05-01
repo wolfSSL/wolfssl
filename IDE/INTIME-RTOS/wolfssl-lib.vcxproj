@@ -87,8 +87,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\wolfcrypt\src\ext_kyber.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\ext_lms.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\ext_xmss.c" />
     <ClCompile Include="..\..\wolfcrypt\src\falcon.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fe_448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fips.c" />
@@ -108,7 +106,6 @@
     <ClCompile Include="..\..\wolfcrypt\src\sm2.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sm3.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sm4.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\sphincs.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sp_arm32.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sp_arm64.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sp_armthumb.c" />
@@ -190,6 +187,7 @@
     <ClCompile Include="..\..\wolfcrypt\src\tfm.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_port.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_slhdsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
   </ItemGroup>

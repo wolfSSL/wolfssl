@@ -427,7 +427,6 @@
     <ClCompile Include="wolfcrypt\src\ed25519.c" />
     <ClCompile Include="wolfcrypt\src\ed448.c" />
     <ClCompile Include="wolfcrypt\src\error.c" />
-    <ClCompile Include="wolfcrypt\src\ext_mlkem.c" />
     <ClCompile Include="wolfcrypt\src\falcon.c" />
     <ClCompile Include="wolfcrypt\src\fe_448.c" />
     <ClCompile Include="wolfcrypt\src\fe_low_mem.c" />
@@ -460,7 +459,6 @@
     <ClCompile Include="wolfcrypt\src\sha3.c" />
     <ClCompile Include="wolfcrypt\src\sha512.c" />
     <ClCompile Include="wolfcrypt\src\signature.c" />
-    <ClCompile Include="wolfcrypt\src\sphincs.c" />
     <ClCompile Include="wolfcrypt\src\sp_c32.c" />
     <ClCompile Include="wolfcrypt\src\sp_c64.c" />
     <ClCompile Include="wolfcrypt\src\sp_int.c" />
@@ -470,6 +468,7 @@
     <ClCompile Include="wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="wolfcrypt\src\wc_pkcs11.c" />
     <ClCompile Include="wolfcrypt\src\wc_port.c" />
+    <ClCompile Include="wolfcrypt\src\wc_slhdsa.c" />
     <ClCompile Include="wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="wolfcrypt\src\wolfevent.c" />
     <ClCompile Include="wolfcrypt\src\port\liboqs\liboqs.c" />

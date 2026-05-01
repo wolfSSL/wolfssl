@@ -169,29 +169,13 @@
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
 #ifdef WOLFSSL_HAVE_MLKEM
-    #include <wolfssl/wolfcrypt/mlkem.h>
-    #ifdef WOLFSSL_WC_MLKEM
-        #include <wolfssl/wolfcrypt/wc_mlkem.h>
-    #endif
-    #if defined(HAVE_LIBOQS)
-        #include <wolfssl/wolfcrypt/ext_mlkem.h>
-    #endif
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
-    #include <wolfssl/wolfcrypt/lms.h>
-    #ifdef HAVE_LIBLMS
-        #include <wolfssl/wolfcrypt/ext_lms.h>
-    #else
-        #include <wolfssl/wolfcrypt/wc_lms.h>
-    #endif
+    #include <wolfssl/wolfcrypt/wc_lms.h>
 #endif
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
-    #include <wolfssl/wolfcrypt/xmss.h>
-    #ifdef HAVE_LIBXMSS
-        #include <wolfssl/wolfcrypt/ext_xmss.h>
-    #else
-        #include <wolfssl/wolfcrypt/wc_xmss.h>
-    #endif
+    #include <wolfssl/wolfcrypt/wc_xmss.h>
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA)
     #include <wolfssl/wolfcrypt/wc_slhdsa.h>
@@ -208,9 +192,6 @@
 #endif
 #if defined(HAVE_DILITHIUM)
     #include <wolfssl/wolfcrypt/dilithium.h>
-#endif
-#if defined(HAVE_SPHINCS)
-    #include <wolfssl/wolfcrypt/sphincs.h>
 #endif
 
 #ifdef WOLF_CRYPTO_CB
@@ -945,13 +926,6 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
                                          BENCH_ML_DSA_65_SIGN | \
                                          BENCH_ML_DSA_87_SIGN)
 
-/* Post-Quantum Asymmetric algorithms. (Part 2) */
-#define BENCH_SPHINCS_FAST_LEVEL1_SIGN  0x00000001
-#define BENCH_SPHINCS_FAST_LEVEL3_SIGN  0x00000002
-#define BENCH_SPHINCS_FAST_LEVEL5_SIGN  0x00000004
-#define BENCH_SPHINCS_SMALL_LEVEL1_SIGN 0x00000008
-#define BENCH_SPHINCS_SMALL_LEVEL3_SIGN 0x00000010
-#define BENCH_SPHINCS_SMALL_LEVEL5_SIGN 0x00000020
 
 /* Post-Quantum Stateful Hash-Based sig algorithms. */
 #define BENCH_LMS_HSS                   0x00000001
@@ -1047,8 +1021,6 @@ static word32 bench_kdf_algs = 0;
 static word32 bench_asym_algs = 0;
 /* Post-Quantum Asymmetric algorithms to benchmark. */
 static word32 bench_pq_asym_algs = 0;
-/* Post-Quantum Asymmetric algorithms to benchmark. (Part 2)*/
-static word32 bench_pq_asym_algs2 = 0;
 /* Other cryptographic algorithms to benchmark. */
 static word32 bench_other_algs = 0;
 /* Post-Quantum Stateful Hash-Based sig algorithms to benchmark. */
@@ -1387,7 +1359,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 
 #if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
-    defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
+    defined(HAVE_DILITHIUM)
 /* The post-quantum-specific mapping of command line option to bit values and
  * OQS name. */
 typedef struct bench_pq_alg {
@@ -1426,21 +1398,6 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
 #endif
     { NULL, 0 }
 };
-
-#if defined(HAVE_SPHINCS)
-/* All recognized post-quantum asymmetric algorithm choosing command line
- * options. (Part 2) */
-static const bench_pq_alg bench_pq_asym_opt2[] = {
-    { "-pq",                 0xffffffff },
-    { "-sphincs_fast_level1", BENCH_SPHINCS_FAST_LEVEL1_SIGN },
-    { "-sphincs_fast_level3", BENCH_SPHINCS_FAST_LEVEL3_SIGN },
-    { "-sphincs_fast_level5", BENCH_SPHINCS_FAST_LEVEL5_SIGN },
-    { "-sphincs_small_level1", BENCH_SPHINCS_SMALL_LEVEL1_SIGN },
-    { "-sphincs_small_level3", BENCH_SPHINCS_SMALL_LEVEL3_SIGN },
-    { "-sphincs_small_level5", BENCH_SPHINCS_SMALL_LEVEL5_SIGN },
-    { NULL, 0, }
-};
-#endif /* HAVE_SPHINCS */
 #endif
 
 #endif
@@ -4770,20 +4727,6 @@ static void* benchmarks_do(void* args)
         bench_dilithiumKeySign(5);
 #endif
 #endif
-#ifdef HAVE_SPHINCS
-    if (bench_all || (bench_pq_asym_algs2 & BENCH_SPHINCS_FAST_LEVEL1_SIGN))
-        bench_sphincsKeySign(1, FAST_VARIANT);
-    if (bench_all || (bench_pq_asym_algs2 & BENCH_SPHINCS_FAST_LEVEL3_SIGN))
-        bench_sphincsKeySign(3, FAST_VARIANT);
-    if (bench_all || (bench_pq_asym_algs2 & BENCH_SPHINCS_FAST_LEVEL5_SIGN))
-        bench_sphincsKeySign(5, FAST_VARIANT);
-    if (bench_all || (bench_pq_asym_algs2 & BENCH_SPHINCS_SMALL_LEVEL1_SIGN))
-        bench_sphincsKeySign(1, SMALL_VARIANT);
-    if (bench_all || (bench_pq_asym_algs2 & BENCH_SPHINCS_SMALL_LEVEL3_SIGN))
-        bench_sphincsKeySign(3, SMALL_VARIANT);
-    if (bench_all || (bench_pq_asym_algs2 & BENCH_SPHINCS_SMALL_LEVEL5_SIGN))
-        bench_sphincsKeySign(5, SMALL_VARIANT);
-#endif
 
 #ifndef WC_NO_RNG
     if (bench_all || (bench_other_algs & BENCH_RNG_INIT))
@@ -4819,7 +4762,6 @@ exit:
     (void)bench_asym_algs;
     (void)bench_other_algs;
     (void)bench_pq_asym_algs;
-    (void)bench_pq_asym_algs2;
 
     return NULL;
 }
@@ -11894,10 +11836,8 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 
 #ifndef WOLFSSL_WC_LMS_SMALL
     do {
-    #ifdef WOLFSSL_WC_LMS
         key.priv.inited = 0;
         key.state = WC_LMS_STATE_PARMSET;
-    #endif
         ret = wc_LmsKey_Reload(&key);
         if (ret) {
             printf("wc_LmsKey_Reload failed: %d\n", ret);
@@ -11918,9 +11858,6 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
             printf("wc_LmsKey_GetPrivLen failed: %d\n", ret);
             goto exit_lms_sign_verify;
         }
-    #ifdef HAVE_LIBLMS
-        break;
-    #endif
     } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
        || runs < minimum_runs
@@ -12039,7 +11976,7 @@ void bench_lms(void)
 
 #ifndef WOLFSSL_NO_LMS_SHA256_256
 #ifdef BENCH_LMS_SLOW_KEYGEN
-#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_HEIGHT >= 15)
+#if (LMS_MAX_HEIGHT >= 15)
     bench_lms_keygen(WC_LMS_PARM_L1_H15_W2, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L1_H15_W2, pub);
     bench_lms_keygen(WC_LMS_PARM_L1_H15_W4, pub);
@@ -12048,8 +11985,7 @@ void bench_lms(void)
     #define LMS_PARAMS_BENCHED
 #endif
 #endif
-#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 2) && \
-        (LMS_MAX_HEIGHT >= 10))
+#if (LMS_MAX_LEVELS >= 2) && (LMS_MAX_HEIGHT >= 10)
     bench_lms_keygen(WC_LMS_PARM_L2_H10_W2, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L2_H10_W2, pub);
     bench_lms_keygen(WC_LMS_PARM_L2_H10_W4, pub);
@@ -12061,7 +11997,7 @@ void bench_lms(void)
     bench_lms_sign_verify(WC_LMS_PARM_L2_H10_W8, pub);
 #endif
 #endif
-#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 3)
+#if (LMS_MAX_LEVELS >= 3)
     bench_lms_keygen(WC_LMS_PARM_L3_H5_W4, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L3_H5_W4, pub);
     bench_lms_keygen(WC_LMS_PARM_L3_H5_W8, pub);
@@ -12069,17 +12005,16 @@ void bench_lms(void)
     #undef LMS_PARAMS_BENCHED
     #define LMS_PARAMS_BENCHED
 #endif
-#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 3) && \
-        (LMS_MAX_HEIGHT >= 10))
+#if (LMS_MAX_LEVELS >= 3) && (LMS_MAX_HEIGHT >= 10)
     bench_lms_keygen(WC_LMS_PARM_L3_H10_W4, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L3_H10_W4, pub);
 #endif
-#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 4)
+#if (LMS_MAX_LEVELS >= 4)
     bench_lms_keygen(WC_LMS_PARM_L4_H5_W8, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L4_H5_W8, pub);
 #endif
 
-#if defined(WOLFSSL_WC_LMS) && !defined(LMS_PARAMS_BENCHED)
+#ifndef LMS_PARAMS_BENCHED
     bench_lms_keygen(WC_LMS_PARM_L1_H5_W1, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W1, pub);
 #endif
@@ -12087,7 +12022,7 @@ void bench_lms(void)
 
 #ifdef WOLFSSL_LMS_SHA256_192
 #ifdef BENCH_LMS_SLOW_KEYGEN
-#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_HEIGHT >= 15)
+#if (LMS_MAX_HEIGHT >= 15)
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H15_W2, pub);
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H15_W2, pub);
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H15_W4, pub);
@@ -12096,8 +12031,7 @@ void bench_lms(void)
     #define LMS_PARAMS_BENCHED
 #endif
 #endif
-#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 2) && \
-        (LMS_MAX_HEIGHT >= 10))
+#if (LMS_MAX_LEVELS >= 2) && (LMS_MAX_HEIGHT >= 10)
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W2, pub);
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W2, pub);
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W4, pub);
@@ -12109,7 +12043,7 @@ void bench_lms(void)
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W8, pub);
 #endif
 #endif
-#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 3)
+#if (LMS_MAX_LEVELS >= 3)
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H5_W4, pub);
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H5_W4, pub);
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H5_W8, pub);
@@ -12117,17 +12051,16 @@ void bench_lms(void)
     #undef LMS_PARAMS_BENCHED
     #define LMS_PARAMS_BENCHED
 #endif
-#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 3) && \
-        (LMS_MAX_HEIGHT >= 10))
+#if (LMS_MAX_LEVELS >= 3) && (LMS_MAX_HEIGHT >= 10)
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H10_W4, pub);
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H10_W4, pub);
 #endif
-#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 4)
+#if (LMS_MAX_LEVELS >= 4)
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L4_H5_W8, pub);
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L4_H5_W8, pub);
 #endif
 
-#if defined(WOLFSSL_WC_LMS) && !defined(LMS_PARAMS_BENCHED)
+#ifndef LMS_PARAMS_BENCHED
     bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
     bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
 #endif
@@ -12208,13 +12141,6 @@ static void bench_xmss_sign_verify(const char * params)
         printf("wc_XmssKey_GetPubLen failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
-#ifndef WOLFSSL_WC_XMSS
-    if (pkSz != XMSS_SHA256_PUBLEN) {
-        printf("error: xmss pub len: got %u, expected %d\n", pkSz,
-                XMSS_SHA256_PUBLEN);
-        goto exit_xmss_sign_verify;
-    }
-#endif
 
     ret = wc_XmssKey_GetPrivLen(&key, &skSz);
     if (ret != 0 || skSz <= 0) {
@@ -12647,7 +12573,7 @@ void bench_xmss(int hash)
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
 
 #if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
-void bench_slhdsa(enum SlhDsaParam param)
+void bench_slhdsa(int param)
 {
     int ret = 0, count = 0;
     double start = 0;
@@ -12676,22 +12602,25 @@ void bench_slhdsa(enum SlhDsaParam param)
     WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, goto exit);
 
-    ret = wc_SlhDsaKey_Init(key, param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)param, NULL, INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
 
     len = wc_SlhDsaKey_PublicSize(key) / 2 * 8;
-    if (SLHDSA_IS_SHA2(param)) {
+    if (SLHDSA_IS_SHA2((enum SlhDsaParam)param)) {
         XMEMCPY(name, "SLH-DSA-SHA2-S", 15);
         if ((param & 1) == 1) {
             name[13] = 'F';
         }
     }
     else {
-        XMEMCPY(name, "SLH-DSA-S", 10);
+        /* SHAKE family: include the SHAKE token explicitly so output rows
+         * are symmetric with the SHA2 branch (e.g. "SLH-DSA-SHAKE-S" /
+         * "SLH-DSA-SHAKE-F" rather than the previous "SLH-DSA-S"). */
+        XMEMCPY(name, "SLH-DSA-SHAKE-S", 16);
         if ((param & 1) == 1) {
-            name[8] = 'F';
+            name[14] = 'F';
         }
     }
 
@@ -12735,7 +12664,7 @@ void bench_slhdsa(enum SlhDsaParam param)
         goto exit;
     }
 
-    ret = wc_SlhDsaKey_Init(key_vfy, param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, (enum SlhDsaParam)param, NULL, INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
@@ -14944,19 +14873,20 @@ void bench_falconKeySign(byte level)
     }
 
     if (ret == 0) {
+        word32 idx = 0;
         if (level == 1) {
-            ret = wc_falcon_import_private_key(bench_falcon_level1_key,
-                                               sizeof_bench_falcon_level1_key,
-                                               NULL, 0, &key);
+            ret = wc_Falcon_PrivateKeyDecode(bench_falcon_level1_key, &idx,
+                                              &key,
+                                              sizeof_bench_falcon_level1_key);
         }
         else {
-            ret = wc_falcon_import_private_key(bench_falcon_level5_key,
-                                               sizeof_bench_falcon_level5_key,
-                                               NULL, 0, &key);
+            ret = wc_Falcon_PrivateKeyDecode(bench_falcon_level5_key, &idx,
+                                              &key,
+                                              sizeof_bench_falcon_level5_key);
         }
 
         if (ret != 0) {
-            printf("wc_falcon_import_private_key failed %d\n", ret);
+            printf("wc_Falcon_PrivateKeyDecode failed %d\n", ret);
         }
     }
 
@@ -16384,165 +16314,6 @@ out:
 }
 #endif /* HAVE_DILITHIUM && !WC_NO_RNG */
 
-#ifdef HAVE_SPHINCS
-void bench_sphincsKeySign(byte level, byte optim)
-{
-    int    ret = 0;
-    sphincs_key key;
-    double start;
-    int    i, count;
-    byte   sig[SPHINCS_MAX_SIG_SIZE];
-    byte   msg[512];
-    word32 x = 0;
-    const char**desc = bench_desc_words[lng_index];
-    DECLARE_MULTI_VALUE_STATS_VARS()
-
-    bench_stats_prepare();
-
-    ret = wc_sphincs_init(&key);
-    if (ret != 0) {
-        printf("wc_sphincs_init failed %d\n", ret);
-        return;
-    }
-
-    ret = wc_sphincs_set_level_and_optim(&key, level, optim);
-    if (ret != 0) {
-        printf("wc_sphincs_set_level_and_optim() failed %d\n", ret);
-    }
-
-    if (ret == 0) {
-        ret = -1;
-        if ((level == 1) && (optim == FAST_VARIANT)) {
-            ret = wc_sphincs_import_private_key(bench_sphincs_fast_level1_key,
-                      sizeof_bench_sphincs_fast_level1_key, NULL, 0, &key);
-        }
-        else if ((level == 3) && (optim == FAST_VARIANT)) {
-            ret = wc_sphincs_import_private_key(bench_sphincs_fast_level3_key,
-                      sizeof_bench_sphincs_fast_level3_key, NULL, 0, &key);
-        }
-        else if ((level == 5) && (optim == FAST_VARIANT)) {
-            ret = wc_sphincs_import_private_key(bench_sphincs_fast_level5_key,
-                      sizeof_bench_sphincs_fast_level5_key, NULL, 0, &key);
-        }
-        else if ((level == 1) && (optim == SMALL_VARIANT)) {
-            ret = wc_sphincs_import_private_key(
-                      bench_sphincs_small_level1_key,
-                      sizeof_bench_sphincs_small_level1_key, NULL, 0, &key);
-        }
-        else if ((level == 3) && (optim == SMALL_VARIANT)) {
-            ret = wc_sphincs_import_private_key(
-                      bench_sphincs_small_level3_key,
-                      sizeof_bench_sphincs_small_level3_key, NULL, 0, &key);
-        }
-        else if ((level == 5) && (optim == SMALL_VARIANT)) {
-            ret = wc_sphincs_import_private_key(
-                      bench_sphincs_small_level5_key,
-                      sizeof_bench_sphincs_small_level5_key, NULL, 0, &key);
-        }
-
-        if (ret != 0) {
-            printf("wc_sphincs_import_private_key failed %d\n", ret);
-        }
-    }
-
-    /* make dummy msg */
-    for (i = 0; i < (int)sizeof(msg); i++) {
-        msg[i] = (byte)i;
-    }
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < agreeTimes; i++) {
-            if (ret == 0) {
-                if ((level == 1) && (optim == FAST_VARIANT)) {
-                    x = SPHINCS_FAST_LEVEL1_SIG_SIZE;
-                }
-                else if ((level == 3) && (optim == FAST_VARIANT)) {
-                    x = SPHINCS_FAST_LEVEL3_SIG_SIZE;
-                }
-                else if ((level == 5) && (optim == FAST_VARIANT)) {
-                    x = SPHINCS_FAST_LEVEL5_SIG_SIZE;
-                }
-                else if ((level == 1) && (optim == SMALL_VARIANT)) {
-                    x = SPHINCS_SMALL_LEVEL1_SIG_SIZE;
-                }
-                else if ((level == 3) && (optim == SMALL_VARIANT)) {
-                    x = SPHINCS_SMALL_LEVEL3_SIG_SIZE;
-                }
-                else if ((level == 5) && (optim == SMALL_VARIANT)) {
-                    x = SPHINCS_SMALL_LEVEL5_SIG_SIZE;
-                }
-
-                ret = wc_sphincs_sign_msg(msg, sizeof(msg), sig, &x, &key, GLOBAL_RNG);
-                if (ret != 0) {
-                    printf("wc_sphincs_sign_msg failed\n");
-                }
-            }
-            RECORD_MULTI_VALUE_STATS();
-        }
-        count += i;
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
-
-    if (ret == 0) {
-        if (optim == FAST_VARIANT) {
-            bench_stats_asym_finish("SPHINCS-FAST", level, desc[4], 0, count,
-                                    start, ret);
-        }
-        else {
-            bench_stats_asym_finish("SPHINCS-SMALL", level, desc[4], 0, count,
-                                    start, ret);
-        }
-    #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(max, min, sum, squareSum, runs);
-    #endif
-    }
-
-    RESET_MULTI_VALUE_STATS_VARS();
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < agreeTimes; i++) {
-            if (ret == 0) {
-                int verify = 0;
-                ret = wc_sphincs_verify_msg(sig, x, msg, sizeof(msg), &verify,
-                                            &key);
-
-                if (ret != 0 || verify != 1) {
-                    printf("wc_sphincs_verify_msg failed %d, verify %d\n",
-                           ret, verify);
-                    ret = -1;
-                }
-            }
-            RECORD_MULTI_VALUE_STATS();
-        }
-        count += i;
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
-
-    if (ret == 0) {
-        if (optim == FAST_VARIANT) {
-            bench_stats_asym_finish("SPHINCS-FAST", level, desc[5], 0, count,
-                                    start, ret);
-        }
-        else {
-            bench_stats_asym_finish("SPHINCS-SMALL", level, desc[5], 0, count,
-                                    start, ret);
-        }
-    #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(max, min, sum, squareSum, runs);
-    #endif
-    }
-
-    wc_sphincs_free(&key);
-}
-#endif /* HAVE_SPHINCS */
 
 #if defined(_WIN32) && !defined(INTIME_RTOS)
 
@@ -17186,13 +16957,9 @@ static void Usage(void)
     for (i=0; bench_other_opt[i].str != NULL; i++)
         print_alg(bench_other_opt[i].str, &line);
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
-    defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
+    defined(HAVE_DILITHIUM)
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
         print_alg(bench_pq_asym_opt[i].str, &line);
-#if defined(HAVE_SPHINCS)
-    for (i=0; bench_pq_asym_opt2[i].str != NULL; i++)
-        print_alg(bench_pq_asym_opt2[i].str, &line);
-#endif /* HAVE_SPHINCS */
 #endif
 #if defined(BENCH_PQ_STATEFUL_HBS)
     for (i=0; bench_pq_hash_sig_opt[i].str != NULL; i++)
@@ -17491,7 +17258,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                 }
             }
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
-            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
+            defined(HAVE_DILITHIUM)
             /* Known asymmetric post-quantum algorithms */
             for (i=0; !optMatched && bench_pq_asym_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_pq_asym_opt[i].str)) {
@@ -17500,25 +17267,6 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
-        #ifdef HAVE_SPHINCS
-            /* Both bench_pq_asym_opt and bench_pq_asym_opt2 are looking for
-             * -pq, so we need to do a special case for -pq since optMatched
-             * was set to 1 just above. */
-            if ((bench_pq_asym_opt[0].str != NULL) &&
-                string_matches(argv[1], bench_pq_asym_opt[0].str))
-            {
-                bench_pq_asym_algs2 |= bench_pq_asym_opt2[0].val;
-                bench_all = 0;
-                optMatched = 1;
-            }
-            for (i=1; !optMatched && bench_pq_asym_opt2[i].str != NULL; i++) {
-                if (string_matches(argv[1], bench_pq_asym_opt2[i].str)) {
-                    bench_pq_asym_algs2 |= bench_pq_asym_opt2[i].val;
-                    bench_all = 0;
-                    optMatched = 1;
-                }
-            }
-        #endif
         #endif
             /* Other known cryptographic algorithms */
             for (i=0; !optMatched && bench_other_opt[i].str != NULL; i++) {

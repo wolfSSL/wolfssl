@@ -61,6 +61,9 @@ int test_wolfSSL_EVP_MD_ecc_signing(void);
 int test_wolfSSL_EVP_PKEY_encrypt(void);
 int test_wolfSSL_EVP_PKEY_derive(void);
 int test_wolfSSL_EVP_PKEY_print_public(void);
+int test_wolfSSL_EVP_PKEY_ed25519(void);
+int test_wolfSSL_CTX_use_PrivateKey_ed25519(void);
+int test_wolfSSL_EVP_PKEY_ed448(void);
 
 #define TEST_EVP_PKEY_DECLS                                                    \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_CTX_new_id),             \
@@ -100,6 +103,9 @@ int test_wolfSSL_EVP_PKEY_print_public(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_MD_ecc_signing),              \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_encrypt),                \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_derive),                 \
-    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_print_public)
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_print_public),           \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_ed25519),                \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_CTX_use_PrivateKey_ed25519),      \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_ed448)
 
 #endif /* WOLFCRYPT_TEST_EVP_PKEY_H */
