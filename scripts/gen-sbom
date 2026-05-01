@@ -207,9 +207,6 @@ def sha256_file(path):
     return h.hexdigest()
 
 
-GIT_BIN = None
-
-
 def pkgconfig_version(pkgname):
     """Return version string from pkg-config, or None if unavailable."""
     try:
@@ -224,30 +221,18 @@ def pkgconfig_version(pkgname):
     return None
 
 
-def git_describe_version(root, git_bin):
-    """Return version from git describe --tags --always, or None."""
-    if not root or not git_bin:
-        return None
-    try:
-        r = subprocess.run(
-            [git_bin, '-C', root, 'describe', '--tags', '--always'],
-            capture_output=True, text=True
-        )
-        if r.returncode == 0:
-            return r.stdout.strip()
-    except FileNotFoundError:
-        pass
-    return None
-
-
 def dep_version(key):
-    pkgname = DEP_META[key]['pkgconfig']
-    if pkgname:
-        return pkgconfig_version(pkgname)
-    git_root = DEP_META[key].get('git_root')
-    if git_root:
-        return git_describe_version(git_root, GIT_BIN)
-    return None
+    """Resolve the runtime version of a DEP_META entry.
+
+    Every live entry exposes a `pkgconfig` package name; if pkg-config
+    cannot answer (package missing or `.pc` not on PKG_CONFIG_PATH) we
+    return None and the caller emits NOASSERTION (SPDX) / omits the
+    version (CycloneDX).  A previous source-tree fallback that used
+    `git describe` against `git_root` was removed once libxmss/liblms
+    were dropped upstream; if a future PQ dep returns to a source-only
+    integration, restore the fallback here together with a `git_root`
+    field on the DEP_META entry."""
+    return pkgconfig_version(DEP_META[key]['pkgconfig'])
 
 
 def parse_options_h(path):
@@ -484,16 +469,11 @@ def main():
                         help='yes if built with --with-liboqs (the package '
                              'wolfSSL links against; --enable-falcon implies '
                              'this in any legal configuration)')
-    parser.add_argument('--git', default='',
-                        help='Path to git binary for version detection')
     parser.add_argument('--cdx-out', required=True,
                         help='Output path for CycloneDX JSON')
     parser.add_argument('--spdx-out', required=True,
                         help='Output path for SPDX JSON')
     args = parser.parse_args()
-
-    global GIT_BIN
-    GIT_BIN = args.git or None
 
     enabled_deps = [
         key for key, flag in [
