@@ -1,0 +1,82 @@
+name: ATECC608 simulator test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+# Build the ATECC608 software simulator (https://github.com/wolfSSL/simulators,
+# ATECC608Sim/ subdirectory), build wolfSSL against cryptoauthlib + the
+# simulator's TCP HAL, and run the wolfCrypt ATECC608 test binary against the
+# simulator.
+#
+# The simulator's own Dockerfile.wolfcrypt clones a pinned wolfSSL release.
+# We patch it to COPY the PR checkout instead so CI reflects the PR's source.
+# We also strip the inline test.c patch RUN block: those guard fixes now live
+# upstream in this tree, so re-applying them would fail with "patch target not
+# found". The remaining sed-based patches in the Dockerfile (atmel.c XMEMSET
+# swap and atmel_set_slot_allocator visibility) are no-ops on pre-patched
+# source and their grep validations still pass, so we leave them alone.
+
+env:
+  SIMULATORS_REF: 773fe70
+
+jobs:
+  atecc608_sim:
+    name: wolfCrypt against ATECC608 simulator
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout wolfSSL (PR source)
+        uses: actions/checkout@v4
+        with:
+          path: wolfssl-src
+
+      - name: Clone ATECC608 simulator
+        run: |
+          git clone https://github.com/wolfSSL/simulators simulators
+          cd simulators && git checkout "$SIMULATORS_REF"
+
+      - name: Stage PR wolfSSL into simulator build context
+        run: mv wolfssl-src simulators/ATECC608Sim/wolfssl
+
+      - name: Patch Dockerfile to use PR wolfSSL and drop redundant test.c patches
+        working-directory: simulators/ATECC608Sim
+        run: |
+          # Replace the (multi-line) `RUN git clone ... wolfssl.git /app/wolfssl`
+          # with a COPY of the PR checkout so CI tests the PR's source.
+          sed -i '/^RUN git clone --branch v5\.9\.1-stable/,/wolfssl\.git \/app\/wolfssl$/c\
+          COPY wolfssl /app/wolfssl' Dockerfile.wolfcrypt
+          # Fail fast if the pattern drifted upstream -- better a clear error
+          # than a CI run that silently tests a stale release.
+          grep -q '^ *COPY wolfssl /app/wolfssl$' Dockerfile.wolfcrypt
+          ! grep -q 'git clone .*wolfssl\.git' Dockerfile.wolfcrypt
+
+          # Strip the inline test.c patch RUN block -- those guard fixes now
+          # live upstream in this tree.
+          sed -i "/^RUN python3 - <<'PY'$/,/^PY$/d" Dockerfile.wolfcrypt
+          ! grep -q "RUN python3 - <<'PY'" Dockerfile.wolfcrypt
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build wolfCrypt-ATECC608 test image
+        uses: docker/build-push-action@v5
+        with:
+          context: simulators/ATECC608Sim
+          file: simulators/ATECC608Sim/Dockerfile.wolfcrypt
+          push: false
+          load: true
+          tags: wolfssl-atecc608-sim:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run wolfCrypt tests against simulator
+        run: docker run --rm wolfssl-atecc608-sim:ci
