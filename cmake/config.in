@@ -19,9 +19,6 @@
 /* Define to 1 if you have the `gmtime_r' function. */
 #cmakedefine HAVE_GMTIME_R @HAVE_GMTIME_R@
 
-/* Define to 1 if you have the <limits.h> header file. */
-#cmakedefine HAVE_LIMITS_H @HAVE_LIMITS_H@
-
 /* Define to 1 if you have the <pcap/pcap.h> header file. */
 #cmakedefine HAVE_PCAP_PCAP_H @HAVE_PCAP_PCAP_H@
 
