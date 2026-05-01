@@ -13,6 +13,9 @@ BuildRequires: make
 BuildRequires: pkgconfig
 BuildRequires: sed
 BuildRequires: tar
+%if 0%{?rhel} == 10
+BuildRequires: gcc-toolset-15 gcc-toolset-15-gcc-plugin-annobin
+%endif
 URL: http://www.wolfssl.com/
 
 Packager: wolfSSL <support@wolfssl.com>
@@ -37,6 +40,9 @@ you will need to install %{name}-devel.
 %setup -q
 
 %build
+%if 0%{?rhel} == 10
+source /usr/lib/gcc-toolset/15-env.source
+%endif
 %configure @WOLFSSL_CONFIG_ARGS@
 %{__make} %{?_smp_mflags}
 if [ "@ENABLED_FIPS@" = "yes" ]
