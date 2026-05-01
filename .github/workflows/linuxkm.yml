@@ -18,7 +18,8 @@ jobs:
       matrix:
         config: [
           'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-testcert --enable-all-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384',
-          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -DDEBUG_LINUXKM_PIE_SUPPORT -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384'
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -DDEBUG_LINUXKM_PIE_SUPPORT -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384',
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-tls13 --enable-dtls --enable-dtls13'
         ]
     name: build module
     if: github.repository_owner == 'wolfssl'
@@ -60,3 +61,15 @@ jobs:
           make -j 4 KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 || $(exit 11)
           ls -l linuxkm/libwolfssl.ko || $(exit 12)
           echo "Successful linuxkm build."
+
+      - name: Verify DTLS 1.3 symbols are exported (when WOLFSSL_DTLS13 is configured)
+        run: |
+          if grep -q '^#define WOLFSSL_DTLS13' wolfssl/options.h; then
+            echo "WOLFSSL_DTLS13 defined; checking GPL exports in libwolfssl.ko..."
+            objdump -t linuxkm/libwolfssl.ko \
+              | grep -qE '__ksymtab_wolfDTLSv1_3_(client|server)_method$' \
+              || { echo "::error::DTLS 1.3 entry points not exported from libwolfssl.ko"; exit 13; }
+            echo "DTLS 1.3 export check: PASS"
+          else
+            echo "WOLFSSL_DTLS13 not defined for this matrix entry; skipping symbol check."
+          fi
