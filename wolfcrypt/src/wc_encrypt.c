@@ -484,16 +484,21 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
 
                 ret =  wc_PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
                                     iterations, (int)derivedLen, typeH, 1);
-                if (ret < 0)
+                if (ret < 0) {
+                    ForceZero(unicodePasswd, MAX_UNICODE_SZ);
                     break;
+                }
                 if (id != PBE_SHA1_RC4_128) {
                     i = ret;
                     ret = wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
                                     saltSz, iterations, 8, typeH, 2);
-                    if (ret < 0)
+                    if (ret < 0) {
+                        ForceZero(unicodePasswd, MAX_UNICODE_SZ);
                         break;
+                    }
                     ret += i;
                 }
+                ForceZero(unicodePasswd, MAX_UNICODE_SZ);
                 break;
             }
     #endif /* HAVE_PKCS12 */
