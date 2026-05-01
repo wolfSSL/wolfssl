@@ -354,6 +354,51 @@ int test_wc_curve25519_shared_secret_ex(void)
 } /* END test_wc_curve25519_shared_secret_ex */
 
 /*
+ * Testing that wc_curve25519_shared_secret_ex rejects an all-zero shared
+ * secret (RFC 7748 section 6.1). This is the default behavior; users that
+ * need the legacy behavior can opt out with WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK.
+ */
+int test_wc_curve25519_shared_secret_zero_check(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT) && \
+    !defined(WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK)
+    curve25519_key private_key;
+    curve25519_key public_key;
+    WC_RNG         rng;
+    byte           out[CURVE25519_KEYSIZE];
+    word32         outLen = sizeof(out);
+    /* All-zero public key is a low-order point that yields an all-zero
+     * shared secret for any private key. */
+    byte           zero_pub[CURVE25519_KEYSIZE];
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(zero_pub, 0, sizeof(zero_pub));
+
+    ExpectIntEQ(wc_curve25519_init(&private_key), 0);
+    ExpectIntEQ(wc_curve25519_init(&public_key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    ExpectIntEQ(wc_curve25519_set_rng(&private_key, &rng), 0);
+#endif
+
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &private_key),
+        0);
+    ExpectIntEQ(wc_curve25519_import_public_ex(zero_pub, sizeof(zero_pub),
+        &public_key, EC25519_LITTLE_ENDIAN), 0);
+
+    ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
+        &outLen, EC25519_BIG_ENDIAN),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve25519_free(&private_key);
+    wc_curve25519_free(&public_key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve25519_shared_secret_zero_check */
+
+/*
  * Testing wc_curve25519_make_pub
  */
 int test_wc_curve25519_make_pub(void)

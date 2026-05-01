@@ -5058,6 +5058,71 @@ int test_tls13_zero_inner_content_type(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.6.2: A client that receives a post-handshake
+ * CertificateRequest message without having sent the "post_handshake_auth"
+ * extension MUST send an "unexpected_message" fatal alert.
+ *
+ * This test completes a TLS 1.3 handshake in which the client never enabled
+ * post-handshake auth (so no extension was sent in the ClientHello), then
+ * forces the server to transmit a post-handshake CertificateRequest anyway.
+ * The client must reject the message with an unexpected_message fatal
+ * alert. */
+int test_tls13_post_handshake_auth_no_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    char readBuf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* Keep the post-handshake byte stream simple by suppressing the server's
+     * NewSessionTicket so the only post-handshake record from the server is
+     * the CertificateRequest under test. */
+    ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+
+    /* Intentionally do NOT call wolfSSL_allow_post_handshake_auth() on the
+     * client so the post_handshake_auth extension is omitted from the
+     * ClientHello. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The server's wolfSSL_request_certificate() refuses to send a
+     * post-handshake CertificateRequest unless its postHandshakeAuth flag is
+     * set (normally set when parsing the client's extension). To exercise
+     * the receive-side check we are testing, simulate a server that sends
+     * one anyway by toggling the flag directly. */
+    if (ssl_s != NULL)
+        ssl_s->options.postHandshakeAuth = 1;
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+
+    /* The client must reject the unsolicited CertificateRequest. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+
+    /* And the client must transmit a fatal unexpected_message alert. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, unexpected_message);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a TLS 1.3-capable client rejects downgrade sentinels in a
  * downgraded ServerHello random for both TLS 1.2 and TLS 1.1-or-lower. */
 int test_tls13_downgrade_sentinel(void)
