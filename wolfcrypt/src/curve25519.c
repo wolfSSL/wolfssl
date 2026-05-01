@@ -615,12 +615,17 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
 
     switch (privKey->nb_ctx->ssState) {
         case 0:
-            XMEMSET(&privKey->nb_ctx->o, 0, sizeof(privKey->nb_ctx->o));
             privKey->nb_ctx->ssState = 1;
             break;
         case 1:
-            ret = curve25519_nb(privKey->nb_ctx->o.point, privKey->k,
-                      pubKey->p.point, privKey->nb_ctx);
+            /* Write the result directly into the caller's 'out' buffer.
+             * curve25519_nb() zeroes the non-blocking context on completion,
+             * so any output buffer that lives inside nb_ctx (e.g.
+             * nb_ctx->o.point) would be clobbered to zero before we could
+             * read it. The output is little-endian; case 2 handles the
+             * optional byte-reversal for EC25519_BIG_ENDIAN. */
+            ret = curve25519_nb(out, privKey->k, pubKey->p.point,
+                      privKey->nb_ctx);
             if (ret == 0) {
                 ret = FP_WOULDBLOCK;
                 privKey->nb_ctx->ssState = 2;
@@ -633,21 +638,27 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
                 byte t = 0;
 
                 for (i = 0; i < CURVE25519_KEYSIZE; i++) {
-                    t |= privKey->nb_ctx->o.point[i];
+                    t |= out[i];
                 }
                 if (t == 0) {
+                    ForceZero(out, CURVE25519_KEYSIZE);
                     ret = ECC_OUT_OF_RANGE_E;
+                    break;
                 }
-                else
-        #endif /* !WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK */
-                {
-                    curve25519_copy_point(out, privKey->nb_ctx->o.point, endian);
-                    *outlen = CURVE25519_KEYSIZE;
-                    ret = 0;
-                }
-        #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             }
-        #endif
+        #endif /* !WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK */
+            if (endian == EC25519_BIG_ENDIAN) {
+                /* Reverse the little-endian result in place. */
+                int i;
+                byte tmp;
+                for (i = 0; i < CURVE25519_KEYSIZE / 2; i++) {
+                    tmp = out[i];
+                    out[i] = out[CURVE25519_KEYSIZE - 1 - i];
+                    out[CURVE25519_KEYSIZE - 1 - i] = tmp;
+                }
+            }
+            *outlen = CURVE25519_KEYSIZE;
+            ret = 0;
             break;
     }
 
