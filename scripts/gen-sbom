@@ -49,29 +49,16 @@ def build_timestamp():
 # Known metadata for optional external dependencies.
 # Version is detected at runtime via pkg-config; falls back to None.
 DEP_META = {
-    'liboqs': {
-        'name': 'liboqs',
-        'supplier': 'Open Quantum Safe',
+    # Falcon is reachable only via liboqs after upstream PR #10293 collapsed
+    # the rest of the PQ surface into native wolfCrypt; we record the version
+    # of liboqs itself since that is the artefact actually linked in.
+    'falcon': {
+        'name': 'falcon',
+        'supplier': 'Open Quantum Safe (via liboqs)',
         'license': 'MIT',
         'download': 'https://github.com/open-quantum-safe/liboqs',
         'pkgconfig': 'liboqs',
         'purl': lambda v: f'pkg:github/open-quantum-safe/liboqs@{v}',
-    },
-    'libxmss': {
-        'name': 'xmss-reference',
-        'supplier': 'XMSS reference implementation authors',
-        'license': 'CC0-1.0',
-        'download': 'https://github.com/XMSS/xmss-reference',
-        'pkgconfig': None,
-        'purl': lambda v: f'pkg:github/XMSS/xmss-reference@{v}',
-    },
-    'liblms': {
-        'name': 'hash-sigs',
-        'supplier': 'Cisco Systems',
-        'license': 'MIT',
-        'download': 'https://github.com/cisco/hash-sigs',
-        'pkgconfig': None,
-        'purl': lambda v: f'pkg:github/cisco/hash-sigs@{v}',
     },
     'libz': {
         'name': 'zlib',
@@ -486,18 +473,10 @@ def main():
                              'licence reference.')
     parser.add_argument('--options-h', required=True,
                         help='Path to wolfssl/options.h for build config')
-    parser.add_argument('--dep-liboqs', default='no',
-                        help='yes if built with --with-liboqs')
-    parser.add_argument('--dep-libxmss', default='no',
-                        help='yes if built with --with-libxmss')
-    parser.add_argument('--dep-libxmss-root', default='',
-                        help='Path to xmss-reference source tree root')
-    parser.add_argument('--dep-liblms', default='no',
-                        help='yes if built with --with-liblms')
-    parser.add_argument('--dep-liblms-root', default='',
-                        help='Path to hash-sigs source tree root')
     parser.add_argument('--dep-libz', default='no',
                         help='yes if built with --with-libz')
+    parser.add_argument('--dep-falcon', default='no',
+                        help='yes if built with --enable-falcon (Falcon via liboqs)')
     parser.add_argument('--git', default='',
                         help='Path to git binary for version detection')
     parser.add_argument('--cdx-out', required=True,
@@ -509,17 +488,10 @@ def main():
     global GIT_BIN
     GIT_BIN = args.git or None
 
-    if args.dep_libxmss_root:
-        DEP_META['libxmss']['git_root'] = args.dep_libxmss_root
-    if args.dep_liblms_root:
-        DEP_META['liblms']['git_root'] = args.dep_liblms_root
-
     enabled_deps = [
         key for key, flag in [
-            ('liboqs',  args.dep_liboqs),
-            ('libxmss', args.dep_libxmss),
-            ('liblms',  args.dep_liblms),
             ('libz',    args.dep_libz),
+            ('falcon',  args.dep_falcon),
         ]
         if flag.lower() == 'yes'
     ]

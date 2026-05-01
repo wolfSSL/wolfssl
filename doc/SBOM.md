@@ -118,15 +118,12 @@ make sbom \
 
 #### External dependency version detection
 
-For dependencies with pkg-config support (`liboqs`, `libz`), the version is
-queried via `pkg-config --modversion` at generation time.
+The remaining optional external dependencies (`libz`, and `falcon` via
+`liboqs`) are both installed packages and are queried via
+`pkg-config --modversion` at SBOM generation time.
 
-For dependencies without pkg-config (`libxmss`, `liblms`), wolfSSL is
-typically built against a source checkout rather than an installed package.
-The generator falls back to `git describe --tags --always` on the source
-tree root (passed via `configure` as `XMSS_ROOT` / `LIBLMS_ROOT`).  If the
-source tree has no tags, `git describe` returns the short commit hash, which
-is recorded as-is.  If the source tree is unavailable or `git` is not found:
+If pkg-config does not report a version (the package is not installed, or
+its `.pc` file is missing):
 
 - SPDX records `versionInfo: NOASSERTION` and emits no `purl` external ref.
 - CycloneDX omits the `version` and `purl` fields entirely and the generator
