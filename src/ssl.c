@@ -860,6 +860,7 @@ void FreeWriteDup(WOLFSSL* ssl)
 #endif /* WOLFSSL_TLS13 && WOLFSSL_POST_HANDSHAKE_AUTH */
         wc_FreeMutex(&ssl->dupWrite->dupMutex);
         XFREE(ssl->dupWrite, ssl->heap, DYNAMIC_TYPE_WRITEDUP);
+        ssl->dupWrite = NULL;
         WOLFSSL_MSG("Did WriteDup full free, count to zero");
     }
 }
@@ -876,6 +877,11 @@ void FreeWriteDup(WOLFSSL* ssl)
 static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 {
     word16 tmp_weOwnRng;
+#ifdef HAVE_ONE_TIME_AUTH
+#ifdef HAVE_POLY1305
+    Poly1305* tmp_poly1305 = NULL;
+#endif
+#endif
 
     /* shared dupWrite setup */
     ssl->dupWrite = (WriteDup*)XMALLOC(sizeof(WriteDup), ssl->heap,
@@ -890,6 +896,27 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
         ssl->dupWrite = NULL;
         return BAD_MUTEX_E;
     }
+
+    /* Pre-allocate any objects that can fail BEFORE performing destructive
+     * state mutations on ssl, so an allocation failure cannot leave ssl
+     * with a zeroed encrypt context and a poisoned dupWrite.
+     * dup->heap == ssl->heap here because dup was initialised with ssl->ctx;
+     * use ssl->heap consistently for cleanup symmetry. */
+#ifdef HAVE_ONE_TIME_AUTH
+#ifdef HAVE_POLY1305
+    if (ssl->auth.setup && ssl->auth.poly1305 != NULL) {
+        tmp_poly1305 = (Poly1305*)XMALLOC(sizeof(Poly1305), ssl->heap,
+            DYNAMIC_TYPE_CIPHER);
+        if (tmp_poly1305 == NULL) {
+            wc_FreeMutex(&ssl->dupWrite->dupMutex);
+            XFREE(ssl->dupWrite, ssl->heap, DYNAMIC_TYPE_WRITEDUP);
+            ssl->dupWrite = NULL;
+            return MEMORY_E;
+        }
+    }
+#endif
+#endif
+
     ssl->dupWrite->dupCount = 2;    /* both sides have a count to start */
     dup->dupWrite = ssl->dupWrite; /* each side uses */
 
@@ -908,11 +935,8 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 
 #ifdef HAVE_ONE_TIME_AUTH
 #ifdef HAVE_POLY1305
-    if (ssl->auth.setup && ssl->auth.poly1305 != NULL) {
-        dup->auth.poly1305 = (Poly1305*)XMALLOC(sizeof(Poly1305), dup->heap,
-            DYNAMIC_TYPE_CIPHER);
-        if (dup->auth.poly1305 == NULL)
-            return MEMORY_E;
+    if (tmp_poly1305 != NULL) {
+        dup->auth.poly1305 = tmp_poly1305;
         dup->auth.setup = 1;
     }
 #endif
