@@ -438,7 +438,7 @@ sbom:
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
 	    --dep-libz $(ENABLED_LIBZ) \
-	    --dep-falcon $(ENABLED_FALCON) \
+	    --dep-liboqs $(ENABLED_LIBOQS) \
 	    --git '$(GIT)' \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
 	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
