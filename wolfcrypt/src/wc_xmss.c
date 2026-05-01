@@ -124,14 +124,16 @@ static void wc_xmss_digest_free(XmssState* state)
  *
  * @param [in, out] state   XMSS/MT state including digest and parameters.
  * @param [in]      params  Parameters for key.
+ * @param [in]      heap    Dynamic memory hint.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when digest algorithm not supported.
  * @return  Other negative when digest algorithm initialization failed.
  */
 static WC_INLINE int wc_xmss_state_init(XmssState* state,
-    const XmssParams* params)
+    const XmssParams* params, void* heap)
 {
     state->params = params;
+    state->heap = heap;
     state->ret = 0;
     return wc_xmss_digest_init(state);
 }
@@ -686,7 +688,7 @@ static int wc_xmsskey_alloc_sk(XmssKey* key)
     }
     if (ret == 0) {
         /* Allocate a buffer to hold secret key. */
-        key->sk = (unsigned char *)XMALLOC(key->sk_len, NULL,
+        key->sk = (unsigned char *)XMALLOC(key->sk_len, key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (key->sk == NULL) {
             WOLFSSL_MSG("error: malloc XMSS key->sk failed");
@@ -738,12 +740,12 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
     if (ret == 0) {
         WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-            ret=MEMORY_E);
+        WC_ALLOC_VAR_EX(state, XmssState, 1, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER, ret=MEMORY_E);
         if (WC_VAR_OK(state))
         {
             /* Initialize state for use in signing. */
-            ret = wc_xmss_state_init(state, key->params);
+            ret = wc_xmss_state_init(state, key->params, key->heap);
             if (ret == 0) {
                 /* Read was good. Now sign and update the secret key in memory.
                  */
@@ -771,7 +773,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -809,7 +811,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
  * Call this before setting the parms of an XMSS key.
  *
  * @param [in] key    The XMSS key to init.
- * @param [in] heap   Unused.
+ * @param [in] heap   Dynamic memory hint used by subsequent allocations.
  * @param [in] devId  Unused.
  *
  * @return  0 on success.
@@ -819,7 +821,6 @@ int wc_XmssKey_Init(XmssKey* key, void* heap, int devId)
 {
     int ret = 0;
 
-    (void) heap;
     (void) devId;
 
     /* Validate parameters. */
@@ -830,6 +831,7 @@ int wc_XmssKey_Init(XmssKey* key, void* heap, int devId)
     if (ret == 0) {
         /* Zeroize key and set state to initialized. */
         ForceZero(key, sizeof(XmssKey));
+        key->heap = heap;
         key->state = WC_XMSS_STATE_INITED;
     }
 
@@ -911,7 +913,7 @@ void wc_XmssKey_Free(XmssKey* key)
         if (key->sk != NULL) {
             /* Zeroize private key. */
             ForceZero(key->sk, key->sk_len);
-            XFREE(key->sk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(key->sk, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             key->sk = NULL;
             key->sk_len = 0;
         }
@@ -1083,7 +1085,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     }
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        seed = (unsigned char*)XMALLOC(3 * key->params->n, NULL,
+        seed = (unsigned char*)XMALLOC(3 * key->params->n, key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (seed == NULL) {
             ret = MEMORY_E;
@@ -1099,12 +1101,12 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     if (ret == 0) {
         WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-            ret=MEMORY_E);
+        WC_ALLOC_VAR_EX(state, XmssState, 1, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER, ret=MEMORY_E);
         if (WC_VAR_OK(state))
         {
             /* Initialize state for use in key generation. */
-            ret = wc_xmss_state_init(state, key->params);
+            ret = wc_xmss_state_init(state, key->params, key->heap);
             if (ret == 0) {
                 /* Finally make the private/public key pair. Immediately write
                  * it to NV storage and then clear from memory. */
@@ -1125,7 +1127,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -1146,7 +1148,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         key->state = WC_XMSS_STATE_OK;
     }
 
-    WC_FREE_VAR_EX(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(seed, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -1430,6 +1432,7 @@ int wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc)
         keyDst->oid = keySrc->oid;
         keyDst->is_xmssmt = keySrc->is_xmssmt;
         keyDst->params = keySrc->params;
+        keyDst->heap = keySrc->heap;
     }
     if (ret == 0) {
         /* Mark keyDst as verify only, to prevent misuse. */
@@ -1623,19 +1626,19 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
     if (ret == 0) {
         WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-            ret=MEMORY_E);
+        WC_ALLOC_VAR_EX(state, XmssState, 1, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER, ret=MEMORY_E);
         if (WC_VAR_OK(state))
         {
             /* Initialize state for use in verification. */
-            ret = wc_xmss_state_init(state, key->params);
+            ret = wc_xmss_state_init(state, key->params, key->heap);
             if (ret == 0) {
                 /* Verify using either XMSS^MT function as it works for both. */
                 ret = wc_xmssmt_verify(state, m, mLen, sig, key->pk);
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 

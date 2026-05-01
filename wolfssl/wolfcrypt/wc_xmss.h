@@ -358,12 +358,15 @@ typedef struct XmssKey {
     /* Context arg passed to callbacks. */
     void*                context;
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
+    /* Dynamic memory hint. */
+    void*                heap;
     /* State of key. */
     enum wc_XmssState    state;
 } XmssKey;
 
 typedef struct XmssState {
     const XmssParams* params;
+    void* heap;
 
     /* Digest is assumed to be at the end. */
     union {

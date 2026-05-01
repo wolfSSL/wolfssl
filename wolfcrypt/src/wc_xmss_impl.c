@@ -2634,14 +2634,15 @@ static void wc_xmss_bds_state_treehash_set(BdsState* bds, int i,
  * @return  0 on success.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int wc_xmss_bds_state_alloc(const XmssParams* params, BdsState** bds)
+static int wc_xmss_bds_state_alloc(const XmssParams* params, BdsState** bds,
+    void* heap)
 {
     const word8 cnt = 2 * params->d - 1;
     int ret = 0;
 
     if (*bds == NULL) {
         /* Allocate memory for BDS states. */
-        *bds = (BdsState*)XMALLOC(sizeof(BdsState) * cnt, NULL,
+        *bds = (BdsState*)XMALLOC(sizeof(BdsState) * cnt, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (*bds == NULL) {
             ret = MEMORY_E;
@@ -2657,11 +2658,12 @@ static int wc_xmss_bds_state_alloc(const XmssParams* params, BdsState** bds)
 /* Dispose of allocated memory associated with BDS state.
  *
  * @param [in] bds    BDS state.
+ * @param [in] heap   Dynamic memory hint.
  */
-static void wc_xmss_bds_state_free(BdsState* bds)
+static void wc_xmss_bds_state_free(BdsState* bds, void* heap)
 {
     /* BDS states was allocated - must free. */
-    XFREE(bds, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bds, heap, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
 /* Load the BDS state from the secret/private key.
@@ -3315,7 +3317,7 @@ int wc_xmss_keygen(XmssState* state, const unsigned char* seed,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for tree hash instances and put in BDS state. */
-    ret = wc_xmss_bds_state_alloc(params, &bds);
+    ret = wc_xmss_bds_state_alloc(params, &bds, state->heap);
     if (ret == 0)
 #endif
     {
@@ -3361,7 +3363,7 @@ int wc_xmss_keygen(XmssState* state, const unsigned char* seed,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of allocated data of BDS states. */
-    wc_xmss_bds_state_free(bds);
+    wc_xmss_bds_state_free(bds, state->heap);
 #endif
     return ret;
 #else
@@ -3426,7 +3428,7 @@ int wc_xmss_sign(XmssState* state, const unsigned char* m, word32 mlen,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for tree hash instances and put in BDS state. */
-    ret = wc_xmss_bds_state_alloc(params, &bds);
+    ret = wc_xmss_bds_state_alloc(params, &bds, state->heap);
     if (ret == 0)
 #endif
     {
@@ -3515,7 +3517,7 @@ int wc_xmss_sign(XmssState* state, const unsigned char* m, word32 mlen,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of allocated data of BDS states. */
-    wc_xmss_bds_state_free(bds);
+    wc_xmss_bds_state_free(bds, state->heap);
 #endif
     return ret;
 #else
@@ -3599,7 +3601,7 @@ int wc_xmssmt_keygen(XmssState* state, const unsigned char* seed,
     BdsState* bds = NULL;
 
     /* Allocate memory for BDS states and tree hash instances. */
-    ret = wc_xmss_bds_state_alloc(params, &bds);
+    ret = wc_xmss_bds_state_alloc(params, &bds, state->heap);
     if (ret == 0) {
         /* Load the BDS state from secret/private key. */
         ret = wc_xmss_bds_state_load(state, sk, bds, &wots_sigs);
@@ -3655,7 +3657,7 @@ int wc_xmssmt_keygen(XmssState* state, const unsigned char* seed,
     }
 
     /* Dispose of allocated data of BDS states. */
-    wc_xmss_bds_state_free(bds);
+    wc_xmss_bds_state_free(bds, state->heap);
     return ret;
 }
 
@@ -4029,7 +4031,7 @@ int wc_xmssmt_sign(XmssState* state, const unsigned char* m, word32 mlen,
     BdsState* bds = NULL;
 
     /* Allocate memory for BDS states and tree hash instances. */
-    ret = wc_xmss_bds_state_alloc(params, &bds);
+    ret = wc_xmss_bds_state_alloc(params, &bds, state->heap);
     if (ret == 0) {
         /* Load the BDS state from secret/private key. */
         ret = wc_xmss_bds_state_load(state, sk, bds, &wots_sigs);
@@ -4069,7 +4071,7 @@ int wc_xmssmt_sign(XmssState* state, const unsigned char* m, word32 mlen,
     }
 
     /* Dispose of allocated data of BDS states. */
-    wc_xmss_bds_state_free(bds);
+    wc_xmss_bds_state_free(bds, state->heap);
     return ret;
 }
 
