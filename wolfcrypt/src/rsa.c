@@ -5018,9 +5018,15 @@ static WC_INLINE int RsaSizeCheck(int size)
     }
 
 #ifdef HAVE_FIPS
-    /* Key size requirements for CAVP */
+    /* Approved RSA key sizes per FIPS 186-5 sec 5.1 and NIST SP 800-131Ar2
+     * sec 4 Table 2 (Asymmetric Key Establishment) - 2048, 3072, 4096 only.
+     * 1024-bit RSA was deprecated for FIPS-Approved key generation by
+     * SP 800-131Ar2 effective 2014-01-01 and is disallowed thereafter.  The
+     * outer wc_MakeRsaKey_fips wrapper already gates on WC_RSA_FIPS_GEN_MIN,
+     * but RsaSizeCheck itself is reached by library-internal paths that do
+     * not pass through that wrapper - defense-in-depth removal here closes
+     * the gap. */
     switch (size) {
-        case 1024:
         case 2048:
         case 3072:
         case 4096:
@@ -5282,6 +5288,20 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = BAD_FUNC_ARG;
         goto out;
     }
+
+#ifdef HAVE_FIPS
+    /* FIPS 186-5 sec 5.2 (Public Verification Exponent e): 2^16 + 1 <= e <
+     * 2^256 and e odd.  The general non-FIPS check above accepts e >= 3 odd;
+     * the FIPS Approved range is narrower.  e is a long here so the upper
+     * bound 2^256 is structurally satisfied on any LP64 / LLP64 platform
+     * (long is at most 64 bits), but the lower bound 65537 must be enforced
+     * explicitly.  Defense-in-depth even though FIPS application code
+     * conventionally passes e = 65537 (RSA_F4). */
+    if (e < 65537L) {
+        err = BAD_FUNC_ARG;
+        goto out;
+    }
+#endif
 
 #if defined(WOLFSSL_CRYPTOCELL)
     err = cc310_RSA_GenerateKeyPair(key, size, e);

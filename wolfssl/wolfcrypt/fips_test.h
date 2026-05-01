@@ -31,8 +31,23 @@
     extern "C" {
 #endif
 
-/* Added for FIPS v5.3 or later */
-#if defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)
+/* Added for FIPS v5.3 or later.
+ *
+ * v7.0.0 and later upgrade the in-core integrity HMAC to SHA-512 (with a
+ * 512-bit key) for NSA 2.0 compliance.  Customers that must avoid SHA-256
+ * anywhere in the validated module can therefore use the v7 module without
+ * residual SHA-256 integrity material.  v5.3 and v6.x retain HMAC-SHA-256.
+ */
+#if defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(7,0)
+    #ifdef WOLFSSL_SHA512
+        #define FIPS_IN_CORE_DIGEST_SIZE 64
+        #define FIPS_IN_CORE_HASH_TYPE   WC_SHA512
+        #define FIPS_IN_CORE_KEY_SZ      64
+        #define FIPS_IN_CORE_VERIFY_SZ   FIPS_IN_CORE_KEY_SZ
+    #else
+        #error FIPS v7+ integrity test requires WOLFSSL_SHA512
+    #endif
+#elif defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)
     /* Determine FIPS in core hash type and size */
     #ifndef NO_SHA256
         #define FIPS_IN_CORE_DIGEST_SIZE 32
@@ -80,7 +95,10 @@ enum FipsCastId {
     FIPS_CAST_XMSS              = 23,
     FIPS_CAST_DRBG_SHA512       = 24,
     FIPS_CAST_SLH_DSA           = 25,
-    FIPS_CAST_COUNT             = 26
+    FIPS_CAST_AES_CMAC          = 26,
+    FIPS_CAST_SHAKE             = 27,
+    FIPS_CAST_AES_KW            = 28,
+    FIPS_CAST_COUNT             = 29
 };
 
 enum FipsCastStateId {
