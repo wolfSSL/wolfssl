@@ -696,6 +696,9 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     int ret;
     int size    = 0;
     int version = 0;
+#ifdef ASN_BER_TO_DER
+    word32 tmpSz = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_d2i_PKCS12");
 
@@ -717,22 +720,22 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     #ifdef ASN_BER_TO_DER
      if (size == 0) {
          if (wc_BerToDer(der, totalSz, NULL,
-                         (word32*)&size) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+                         &tmpSz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
              WOLFSSL_MSG("Not BER sequence");
              return ASN_PARSE_E;
          }
 
-         pkcs12->der = (byte*)XMALLOC((size_t)size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+         pkcs12->der = (byte*)XMALLOC((size_t)tmpSz, pkcs12->heap, DYNAMIC_TYPE_PKCS);
          if (pkcs12->der == NULL)
              return MEMORY_E;
-         ret = wc_BerToDer(der, derSz, pkcs12->der, (word32*)&size);
+         ret = wc_BerToDer(der, derSz, pkcs12->der, &tmpSz);
          if (ret < 0) {
              return ret;
          }
 
          der  = pkcs12->der;
-         pkcs12->derSz = (word32)size;
-         totalSz = (word32)size;
+         pkcs12->derSz = tmpSz;
+         totalSz = tmpSz;
          idx = 0;
 
          if (GetSequence(der, &idx, &size, totalSz) < 0) {
