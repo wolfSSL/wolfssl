@@ -38,6 +38,7 @@
 #                       aia/ca-issuers-cert.pem
 #                       aia/multi-aia-cert.pem
 #                       aia/overflow-aia-cert.pem
+#                       sia/timestamping-sia-cert.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -351,6 +352,31 @@ run_renewcerts(){
     check_result $? "Step AIA-9"
     mv tmp.pem aia/overflow-aia-cert.pem
     rm aia/overflow-aia-key.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ########## update SIA test certs ###########################
+    ############################################################
+    echo "Updating SIA test certs"
+    echo ""
+    mkdir -p sia
+
+    # Cert with a subjectInfoAccess extension that does not contain an
+    # id-ad-caRepository entry. RFC 5280 4.2.2.2 only requires the SIA
+    # sequence be non-empty; it does not mandate any specific access method.
+    echo "Updating sia/timestamping-sia-cert.pem"
+    echo ""
+    openssl req -new -newkey rsa:2048 -nodes -keyout sia/timestamping-sia-key.pem -subj "/CN=wolfssl-sia-timestamping-test" -out sia/timestamping-sia-cert.csr
+    check_result $? "Step SIA-1"
+
+    openssl x509 -req -in sia/timestamping-sia-cert.csr -days 3650 -extfile wolfssl.cnf -extensions sia_timestamping -signkey sia/timestamping-sia-key.pem -out sia/timestamping-sia-cert.pem
+    check_result $? "Step SIA-2"
+    rm sia/timestamping-sia-cert.csr
+
+    openssl x509 -in sia/timestamping-sia-cert.pem -text > tmp.pem
+    check_result $? "Step SIA-3"
+    mv tmp.pem sia/timestamping-sia-cert.pem
+    rm sia/timestamping-sia-key.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
@@ -1039,7 +1065,6 @@ EOF
     echo "Performing final steps, cleaning up the file system..."
     echo ""
 
-    rm ../wolfssl.cnf
     echo "End of Updates. Everything was successfully updated!"
     echo "---------------------------------------------------------------------"
 }
@@ -1048,8 +1073,8 @@ EOF
 ##################### THE EXECUTABLE BODY #####################################
 ###############################################################################
 
-#start in root.
-cd ../ || exit 1
+#start in root, regardless of the caller's working directory.
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 if [ ! -z "$1" ]; then
     echo "No arguments expected"
@@ -1065,6 +1090,7 @@ touch certs/.rnd || exit 1
 
 run_renewcerts
 cd ../ || exit 1
-rm ./certs/wolfssl.cnf
+rm -f ./certs/wolfssl.cnf
+rm -f certs/.rnd
 
 exit 0

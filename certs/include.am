@@ -90,7 +90,8 @@ EXTRA_DIST += \
 EXTRA_DIST += \
              certs/aia/ca-issuers-cert.pem \
              certs/aia/multi-aia-cert.pem \
-             certs/aia/overflow-aia-cert.pem
+             certs/aia/overflow-aia-cert.pem \
+             certs/sia/timestamping-sia-cert.pem
 
 EXTRA_DIST += \
              certs/ca-key.der \

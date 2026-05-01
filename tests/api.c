@@ -21215,6 +21215,50 @@ static int test_wolfSSL_X509_get1_aia_overflow(void)
     return EXPECT_RESULT();
 }
 
+/* Parse a certificate whose subjectInfoAccess extension is present but does
+ * not contain an id-ad-caRepository entry. RFC 5280 4.2.2.2 only requires
+ * the SIA sequence be non-empty; previously wolfSSL incorrectly rejected
+ * such certificates with ASN_PARSE_E. */
+static int test_wolfSSL_SubjectInfoAccess_no_caRepository(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SUBJ_INFO_ACC) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER)
+    const char* siaCert = "./certs/sia/timestamping-sia-cert.pem";
+    byte* pemBuf = NULL;
+    size_t pemSz = 0;
+    byte* derBuf = NULL;
+    word32 derSz = 0;
+    DecodedCert cert;
+    int ret = 0;
+
+    ExpectIntEQ(load_file(siaCert, &pemBuf, &pemSz), 0);
+    derSz = (word32)pemSz; /* DER will be smaller than PEM */
+    ExpectNotNull(derBuf = (byte*)malloc(derSz));
+    ExpectIntGE(ret = wc_CertPemToDer(pemBuf, (int)pemSz, derBuf, (int)derSz,
+        CERT_TYPE), 0);
+
+    if (ret > 0)
+    {
+        derSz = (word32)ret;
+        wc_InitDecodedCert(&cert, derBuf, derSz, NULL);
+        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+
+        /* SIA was present and decoded successfully. */
+        ExpectIntEQ(cert.extSubjInfoAccSet, 1);
+        /* No id-ad-caRepository entry exists in this cert's SIA. */
+        ExpectNull(cert.extSubjInfoAccCaRepo);
+        ExpectIntEQ((int)cert.extSubjInfoAccCaRepoSz, 0);
+
+        wc_FreeDecodedCert(&cert);
+    }
+
+    free(derBuf);
+    XFREE(pemBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_no_op_functions(void)
 {
     EXPECT_DECLS;
@@ -37318,6 +37362,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_get1_ca_issuers),
     TEST_DECL(test_wolfSSL_X509_get1_aia_multi),
     TEST_DECL(test_wolfSSL_X509_get1_aia_overflow),
+    TEST_DECL(test_wolfSSL_SubjectInfoAccess_no_caRepository),
 
     TEST_DECL(test_wolfSSL_PEM_read),
 

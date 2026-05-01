@@ -249,6 +249,7 @@ linuxkm/patches/src
 linuxkm/libwolfssl-user-build
 linuxkm/linuxkm-fips-hash
 *.nds
+/certs/.rnd
 
 # Generated during FreeBSD kernel module build.
 bsdkm/export_syms
