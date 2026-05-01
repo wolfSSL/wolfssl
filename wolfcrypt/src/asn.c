@@ -864,8 +864,18 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count,
             case ASN_DATA_TYPE_MP:
                 /* Calculate the size of the MP integer data. */
                 length = mp_unsigned_bin_size(data[i].data.mp);
+                if (length < 0) {
+                    return ASN_PARSE_E;
+                }
                 length += mp_leading_bit(data[i].data.mp) ? 1 : 0;
+                if (length < 0) {
+                    return ASN_PARSE_E;
+                }
                 len = (word32)SizeASNHeader((word32)length) + (word32)length;
+                /* Check for overflow: header + length must not wrap word32. */
+                if (len < (word32)length) {
+                    return ASN_PARSE_E;
+                }
                 break;
 
             case ASN_DATA_TYPE_REPLACE_BUFFER:
