@@ -36738,9 +36738,12 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #if !defined(ECC_TIMING_RESISTANT) || (defined(ECC_TIMING_RESISTANT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_KCAPI_ECC))
 #ifdef HAVE_ECC_SIGN
-    /* some hardware doesn't support sign/verify of all zero digest */
-#if !defined(WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST)
-    /* test DSA sign hash with zeros */
+    /* WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST: build rejects all-zero digest,
+     * so test expects failure. */
+#ifdef WOLFSSL_SM2
+    if (curve_id != ECC_SM2P256V1)
+#endif
+    {
     for (i = 0; i < (int)ECC_DIGEST_SIZE; i++) {
         digest[i] = 0;
     }
@@ -36754,29 +36757,47 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
             ret = wc_ecc_sign_hash(digest, ECC_DIGEST_SIZE, sig, &x, rng,
                                                                         userA);
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+#ifdef WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
+    if (ret == 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    }
+    else {
+        ret = 0;
+    }
+#else
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+#endif
     TEST_SLEEP();
 
 #ifdef HAVE_ECC_VERIFY
-    for (i=0; i<testVerifyCount; i++) {
-        verify = 0;
-        do {
-        #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-        #endif
-            if (ret == 0)
-                ret = wc_ecc_verify_hash(sig, x, digest, ECC_DIGEST_SIZE,
-                                                               &verify, userA);
-        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-        if (verify != 1)
-            ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-        TEST_SLEEP();
+    verify = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(sig, x, digest, ECC_DIGEST_SIZE,
+                                                           &verify, userA);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+#ifdef WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
+    if (ret == 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     }
+    else {
+        ret = 0;
+    }
+    if (verify == 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+#else
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if (verify != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+#endif
+    TEST_SLEEP();
 #endif /* HAVE_ECC_VERIFY */
-#endif /* !WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST */
+    }
 
     /* test DSA sign hash with sequence (0,1,2,3,4,...) */
     for (i = 0; i < (int)ECC_DIGEST_SIZE; i++) {

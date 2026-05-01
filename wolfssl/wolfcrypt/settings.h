@@ -3516,13 +3516,18 @@ extern void uITRON4_free(void *p) ;
     #undef NO_DH
 #endif
 
-/* CryptoCell defines */
-#ifdef WOLFSSL_CRYPTOCELL
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
+#ifdef HAVE_ECC
+    /* defined for all ECC non FIPS builds and for FIPS v7+ (including
+     * fips-ready/fips-dev which track the latest in-development source),
+     * unless the user explicitly opts in to allowing an all-zero digest with
+     * WC_ALLOW_ECC_ZERO_HASH or is building with HAVE_SELFTEST */
+    #if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0) || \
+         defined(WOLFSSL_FIPS_READY) || defined(WOLFSSL_FIPS_DEV)) && \
+        !defined(HAVE_SELFTEST) && !defined(WC_ALLOW_ECC_ZERO_HASH)
+        /* sign/verify of an all-zero digest in wolfCrypt rejected */
         #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
-    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
-#endif
+    #endif
+#endif /* HAVE_ECC */
 
 /* Asynchronous Crypto */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3548,11 +3553,6 @@ extern void uITRON4_free(void *p) ;
          * but not required */
         #define ECC_CACHE_CURVE
     #endif
-
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
-        #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
-    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
 
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifndef WC_ASYNC_DEV_SIZE
