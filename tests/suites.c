@@ -1127,7 +1127,7 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
     #endif
-    #ifdef HAVE_PQC
+    #ifdef WOLFSSL_HAVE_MLKEM
     #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
     /* add TLSv13 pq standalone tests */
     XSTRLCPY(argv0[1], "tests/test-tls13-pq-standalone.conf", sizeof(argv0[1]));
@@ -1162,7 +1162,7 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
     #endif
-    #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13)
+    #if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_DTLS13)
     #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
     /* add DTLSv13 pq standalone tests */
     XSTRLCPY(argv0[1], "tests/test-dtls13-pq-standalone.conf", sizeof(argv0[1]));
@@ -1255,6 +1255,50 @@ int SuiteTest(int argc, char** argv)
     /* add ED448 certificate cipher suite tests */
     XSTRLCPY(argv0[1], "tests/test-ed448.conf", sizeof(argv0[1]));
     printf("starting ED448 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(HAVE_DILITHIUM) && \
+    defined(WOLFSSL_SLHDSA_PARAM_128S) && \
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
+    /* SLH-DSA-SHAKE-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
+    XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-shake.conf",
+             sizeof(argv0[1]));
+    printf("starting TLSv13 SLH-DSA-SHAKE-128s root + ML-DSA-44 entity tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
+    /* Negative: client trusting an unrelated CA must reject the
+     * SLH-DSA-rooted server chain. */
+    args.argc = 3;
+    XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-fail.conf",
+             sizeof(argv0[1]));
+    XSTRLCPY(argv0[2], "expFail", sizeof(argv0[2]));
+    printf("starting TLSv13 SLH-DSA wrong-CA tests that expect failure\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    XSTRLCPY(argv0[2], "", sizeof(argv0[2]));
+    args.argc = 2;
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) && defined(HAVE_DILITHIUM) && \
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
+    /* SLH-DSA-SHA2-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
+    XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-sha2.conf",
+             sizeof(argv0[1]));
+    printf("starting TLSv13 SLH-DSA-SHA2-128s root + ML-DSA-44 entity tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

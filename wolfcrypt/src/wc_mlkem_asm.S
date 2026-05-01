@@ -47,7 +47,7 @@
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
 
-#ifdef WOLFSSL_WC_MLKEM
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .data
@@ -15869,7 +15869,7 @@ _mlkem_redistribute_8_rand_avx2:
 .size	mlkem_redistribute_8_rand_avx2,.-mlkem_redistribute_8_rand_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_WC_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

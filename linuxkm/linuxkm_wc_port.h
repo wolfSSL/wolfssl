@@ -876,15 +876,33 @@
         __wc_bss_end[];
 
     extern ssize_t wc_linuxkm_normalize_relocations(
-        const u8 *text_in,
-        size_t text_in_len,
-        u8 *text_out,
+        const u8 *seg_in,
+        size_t *seg_in_out_len,
+        u8 *seg_out,
         ssize_t *cur_index_p);
 
+    extern ssize_t wc_linuxkm_normalize_relocations_noresize(
+        const u8 *seg_in,
+        size_t seg_in_len,
+        u8 *seg_out,
+        ssize_t *cur_index_p);
+
+    #ifndef WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ
+        #define WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ 8192
+    #endif
+
+    #ifndef WOLFSSL_SEGMENT_CANONICALIZER
+        #define WOLFSSL_SEGMENT_CANONICALIZER(seg_in, seg_in_out_len, seg_out, cur_index_p) \
+            wc_linuxkm_normalize_relocations(seg_in, seg_in_out_len, seg_out, cur_index_p)
+    #endif
+
+    /* backward-compatible wrappers */
     #ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER
         #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER(text_in, text_in_len, text_out, cur_index_p) \
-            wc_linuxkm_normalize_relocations(text_in, text_in_len, text_out, cur_index_p)
-        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ 8192
+            wc_linuxkm_normalize_relocations_noresize(text_in, text_in_len, text_out, cur_index_p)
+    #endif
+    #ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ
+        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ
     #endif
 
 #ifdef CONFIG_MIPS
@@ -896,6 +914,7 @@
     struct wolfssl_linuxkm_pie_redirect_table {
     #ifdef HAVE_FIPS
         typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
+        typeof(wc_linuxkm_normalize_relocations_noresize) *wc_linuxkm_normalize_relocations_noresize;
     #endif
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
@@ -1234,6 +1253,8 @@
     #ifdef HAVE_FIPS
         #define wc_linuxkm_normalize_relocations \
             WC_PIE_INDIRECT_SYM(wc_linuxkm_normalize_relocations)
+        #define wc_linuxkm_normalize_relocations_noresize \
+            WC_PIE_INDIRECT_SYM(wc_linuxkm_normalize_relocations_noresize)
     #endif
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT

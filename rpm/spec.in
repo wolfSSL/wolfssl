@@ -51,6 +51,7 @@ fi
 %{__make} install  DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl@LIBSUFFIX@.la
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl.a
+%{__cp} wolfssl/options.h %{buildroot}/%{_includedir}/%{name}/
 
 %check
 
@@ -76,6 +77,7 @@ fi
 %{_docdir}/wolfssl/example/sctp-client-dtls.c
 %{_docdir}/wolfssl/example/sctp-server-dtls.c
 %{_docdir}/wolfssl/example/tls_bench.c
+%{_docdir}/wolfssl/example/ocsp_responder.c
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 %{_libdir}/libwolfssl@LIBSUFFIX@.so.*
@@ -92,6 +94,7 @@ fi
 %{_includedir}/wolfssl/openssl/*.h
 %{_libdir}/pkgconfig/wolfssl.pc
 %{_libdir}/libwolfssl@LIBSUFFIX@.so
+%{_libdir}/cmake/wolfssl
 
 %changelog
 * Mon Oct 17 2022 Juliusz Sosinowicz <juliusz@wolfssl.com>
@@ -100,8 +103,6 @@ fi
 - Add include of kyber headers
 * Tue Aug 30 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add include of QUIC documentation
-* Wed Aug 17 2022 Anthony Hu <anthony@wolfssl.com>
-- Add a new header sphincs.h.
 * Wed Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
 - Add a new header dilithium.h.
 * Fri Jul 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>

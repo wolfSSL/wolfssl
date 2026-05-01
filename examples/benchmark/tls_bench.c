@@ -294,7 +294,7 @@ static struct group_info groups[] = {
     { WOLFSSL_FFDHE_4096, "FFDHE_4096" },
     { WOLFSSL_FFDHE_6144, "FFDHE_6144" },
     { WOLFSSL_FFDHE_8192, "FFDHE_8192" },
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef WOLFSSL_NO_ML_KEM
     #ifndef WOLFSSL_TLS_NO_MLKEM_STANDALONE
     { WOLFSSL_ML_KEM_512, "ML_KEM_512" },

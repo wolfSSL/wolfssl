@@ -21,8 +21,7 @@
 
 /*!
     \file wolfssl/wolfcrypt/wc_mlkem.h
-*/
-
+ */
 
 #ifndef WOLF_CRYPT_WC_MLKEM_H
 #define WOLF_CRYPT_WC_MLKEM_H
@@ -30,9 +29,12 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
-#include <wolfssl/wolfcrypt/mlkem.h>
 
 #ifdef WOLFSSL_HAVE_MLKEM
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 #ifdef WOLFSSL_KYBER_NO_MAKE_KEY
     #define WOLFSSL_MLKEM_NO_MAKE_KEY
@@ -44,10 +46,292 @@
     #define WOLFSSL_MLKEM_NO_DECAPSULATE
 #endif
 
-#define MLKEM_NOINLINE WC_NO_INLINE
+#define MLKEM_NOINLINE      WC_NO_INLINE
+
+/* SHAKE128 rate. */
+#define XOF_BLOCK_SIZE      168
+
+/* Modulus of co-efficients of polynomial. */
+#define MLKEM_Q             3329
+
+/* Number of co-efficients in polynomial. */
+#define MLKEM_N             256
+
+/* Define algorithm type when not excluded. */
+#ifndef WOLFSSL_NO_ML_KEM
+    #if !defined(WOLFSSL_NO_ML_KEM_512)
+        #define WOLFSSL_WC_ML_KEM_512
+    #endif
+    #if !defined(WOLFSSL_NO_ML_KEM_768)
+        #define WOLFSSL_WC_ML_KEM_768
+    #endif
+    #if !defined(WOLFSSL_NO_ML_KEM_1024)
+        #define WOLFSSL_WC_ML_KEM_1024
+    #endif
+
+    #if !defined(WOLFSSL_WC_ML_KEM_512) && !defined(WOLFSSL_WC_ML_KEM_768) && \
+        !defined(WOLFSSL_WC_ML_KEM_1024)
+        #error "No ML-KEM key size chosen."
+    #endif
+#endif
+
+#ifdef WOLFSSL_MLKEM_KYBER
+    #ifndef WOLFSSL_NO_KYBER512
+        #define WOLFSSL_KYBER512
+        #define WOLFSSL_WC_ML_KEM_512
+    #endif
+    #ifndef WOLFSSL_NO_KYBER768
+        #define WOLFSSL_KYBER768
+        #define WOLFSSL_WC_ML_KEM_768
+    #endif
+    #ifndef WOLFSSL_NO_KYBER1024
+        #define WOLFSSL_KYBER1024
+        #define WOLFSSL_WC_ML_KEM_1024
+    #endif
+
+    #if !defined(WOLFSSL_KYBER512) && !defined(WOLFSSL_KYBER768) && \
+        !defined(WOLFSSL_KYBER1024)
+        #error "No Kyber key size chosen."
+    #endif
+#endif
+
+/* Size of a polynomial vector based on dimensions. */
+#define MLKEM_POLY_VEC_SZ(k) ((k) * WC_ML_KEM_POLY_SIZE)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define MLKEM_POLY_COMPRESSED_SZ(b) ((b) * (MLKEM_N / 8))
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define MLKEM_POLY_VEC_COMPRESSED_SZ(k, b) ((k) * ((b) * (MLKEM_N / 8)))
+
+#ifdef WOLFSSL_WC_ML_KEM_512
+#define WC_ML_KEM_512_K                     2
+/* Number of bits of random to create noise from. */
+#define WC_ML_KEM_512_ETA1                  MLKEM_CBD_ETA3
+/* Size of a polynomial vector. */
+#define WC_ML_KEM_512_POLY_VEC_SZ           MLKEM_POLY_VEC_SZ(WC_ML_KEM_512_K)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define WC_ML_KEM_512_POLY_COMPRESSED_SZ    MLKEM_POLY_COMPRESSED_SZ(4)
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define WC_ML_KEM_512_POLY_VEC_COMPRESSED_SZ  \
+    MLKEM_POLY_VEC_COMPRESSED_SZ(WC_ML_KEM_512_K, 10)
+
+/* Public key size. */
+#define WC_ML_KEM_512_PUBLIC_KEY_SIZE  \
+    (WC_ML_KEM_512_POLY_VEC_SZ + WC_ML_KEM_SYM_SZ)
+/* Private key size. */
+#define WC_ML_KEM_512_PRIVATE_KEY_SIZE \
+    (WC_ML_KEM_512_POLY_VEC_SZ + WC_ML_KEM_512_PUBLIC_KEY_SIZE + \
+     2 * WC_ML_KEM_SYM_SZ)
+/* Cipher text size. */
+#define WC_ML_KEM_512_CIPHER_TEXT_SIZE \
+    (WC_ML_KEM_512_POLY_VEC_COMPRESSED_SZ + WC_ML_KEM_512_POLY_COMPRESSED_SZ)
+#endif
+
+#ifdef WOLFSSL_WC_ML_KEM_768
+#define WC_ML_KEM_768_K                     3
+/* Number of bits of random to create noise from. */
+#define WC_ML_KEM_768_ETA1                  MLKEM_CBD_ETA2
+
+/* Size of a polynomial vector. */
+#define WC_ML_KEM_768_POLY_VEC_SZ           MLKEM_POLY_VEC_SZ(WC_ML_KEM_768_K)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define WC_ML_KEM_768_POLY_COMPRESSED_SZ    MLKEM_POLY_COMPRESSED_SZ(4)
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define WC_ML_KEM_768_POLY_VEC_COMPRESSED_SZ  \
+    MLKEM_POLY_VEC_COMPRESSED_SZ(WC_ML_KEM_768_K, 10)
+
+/* Public key size. */
+#define WC_ML_KEM_768_PUBLIC_KEY_SIZE  \
+    (WC_ML_KEM_768_POLY_VEC_SZ + WC_ML_KEM_SYM_SZ)
+/* Private key size. */
+#define WC_ML_KEM_768_PRIVATE_KEY_SIZE \
+    (WC_ML_KEM_768_POLY_VEC_SZ + WC_ML_KEM_768_PUBLIC_KEY_SIZE + \
+     2 * WC_ML_KEM_SYM_SZ)
+/* Cipher text size. */
+#define WC_ML_KEM_768_CIPHER_TEXT_SIZE \
+    (WC_ML_KEM_768_POLY_VEC_COMPRESSED_SZ + WC_ML_KEM_768_POLY_COMPRESSED_SZ)
+#endif
+
+#ifdef WOLFSSL_WC_ML_KEM_1024
+#define WC_ML_KEM_1024_K                    4
+/* Number of bits of random to create noise from. */
+#define WC_ML_KEM_1024_ETA1                 MLKEM_CBD_ETA2
+
+/* Size of a polynomial vector. */
+#define WC_ML_KEM_1024_POLY_VEC_SZ          MLKEM_POLY_VEC_SZ(WC_ML_KEM_1024_K)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define WC_ML_KEM_1024_POLY_COMPRESSED_SZ   MLKEM_POLY_COMPRESSED_SZ(5)
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define WC_ML_KEM_1024_POLY_VEC_COMPRESSED_SZ \
+    MLKEM_POLY_VEC_COMPRESSED_SZ(WC_ML_KEM_1024_K, 11)
+
+/* Public key size. */
+#define WC_ML_KEM_1024_PUBLIC_KEY_SIZE  \
+    (WC_ML_KEM_1024_POLY_VEC_SZ + WC_ML_KEM_SYM_SZ)
+/* Private key size. */
+#define WC_ML_KEM_1024_PRIVATE_KEY_SIZE \
+    (WC_ML_KEM_1024_POLY_VEC_SZ + WC_ML_KEM_1024_PUBLIC_KEY_SIZE + \
+     2 * WC_ML_KEM_SYM_SZ)
+/* Cipher text size. */
+#define WC_ML_KEM_1024_CIPHER_TEXT_SIZE \
+    (WC_ML_KEM_1024_POLY_VEC_COMPRESSED_SZ + WC_ML_KEM_1024_POLY_COMPRESSED_SZ)
+#endif
+
+#ifndef WC_ML_KEM_MAX_K
+#ifdef WOLFSSL_WC_ML_KEM_1024
+#define WC_ML_KEM_MAX_K                 WC_ML_KEM_1024_K
+#define WC_ML_KEM_MAX_PRIVATE_KEY_SIZE  WC_ML_KEM_1024_PRIVATE_KEY_SIZE
+#define WC_ML_KEM_MAX_PUBLIC_KEY_SIZE   WC_ML_KEM_1024_PUBLIC_KEY_SIZE
+#define WC_ML_KEM_MAX_CIPHER_TEXT_SIZE  WC_ML_KEM_1024_CIPHER_TEXT_SIZE
+#elif defined(WOLFSSL_WC_ML_KEM_768)
+#define WC_ML_KEM_MAX_K                 WC_ML_KEM_768_K
+#define WC_ML_KEM_MAX_PRIVATE_KEY_SIZE  WC_ML_KEM_768_PRIVATE_KEY_SIZE
+#define WC_ML_KEM_MAX_PUBLIC_KEY_SIZE   WC_ML_KEM_768_PUBLIC_KEY_SIZE
+#define WC_ML_KEM_MAX_CIPHER_TEXT_SIZE  WC_ML_KEM_768_CIPHER_TEXT_SIZE
+#elif defined(WOLFSSL_WC_ML_KEM_512)
+#define WC_ML_KEM_MAX_K                 WC_ML_KEM_512_K
+#define WC_ML_KEM_MAX_PRIVATE_KEY_SIZE  WC_ML_KEM_512_PRIVATE_KEY_SIZE
+#define WC_ML_KEM_MAX_PUBLIC_KEY_SIZE   WC_ML_KEM_512_PUBLIC_KEY_SIZE
+#define WC_ML_KEM_MAX_CIPHER_TEXT_SIZE  WC_ML_KEM_512_CIPHER_TEXT_SIZE
+#endif
+#endif /* WC_ML_KEM_MAX_K */
+
+#define KYBER_N             MLKEM_N
+
+/* Size of a polynomial vector based on dimensions. */
+#define KYBER_POLY_VEC_SZ(k) ((k) * KYBER_POLY_SIZE)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define KYBER_POLY_COMPRESSED_SZ(b) ((b) * (KYBER_N / 8))
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define KYBER_POLY_VEC_COMPRESSED_SZ(k, b) ((k) * ((b) * (KYBER_N / 8)))
+
+
+/* Kyber-512 parameters */
+/* Number of polynomials in a vector and vectors in a matrix. */
+#define KYBER512_K          2
+
+/* Size of a polynomial vector. */
+#define KYBER512_POLY_VEC_SZ             KYBER_POLY_VEC_SZ(KYBER512_K)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define KYBER512_POLY_COMPRESSED_SZ      KYBER_POLY_COMPRESSED_SZ(4)
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define KYBER512_POLY_VEC_COMPRESSED_SZ  \
+    KYBER_POLY_VEC_COMPRESSED_SZ(KYBER512_K, 10)
+
+/* Public key size. */
+#define KYBER512_PUBLIC_KEY_SIZE  \
+    (KYBER512_POLY_VEC_SZ + KYBER_SYM_SZ)
+/* Private key size. */
+#define KYBER512_PRIVATE_KEY_SIZE \
+    (KYBER512_POLY_VEC_SZ + KYBER512_PUBLIC_KEY_SIZE + 2 * KYBER_SYM_SZ)
+/* Cipher text size. */
+#define KYBER512_CIPHER_TEXT_SIZE \
+    (KYBER512_POLY_VEC_COMPRESSED_SZ + KYBER512_POLY_COMPRESSED_SZ)
+
+/* Kyber-768 parameters */
+/* Number of polynomials in a vector and vectors in a matrix. */
+#define KYBER768_K          3
+
+/* Size of a polynomial vector. */
+#define KYBER768_POLY_VEC_SZ             KYBER_POLY_VEC_SZ(KYBER768_K)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define KYBER768_POLY_COMPRESSED_SZ      KYBER_POLY_COMPRESSED_SZ(4)
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define KYBER768_POLY_VEC_COMPRESSED_SZ  \
+    KYBER_POLY_VEC_COMPRESSED_SZ(KYBER768_K, 10)
+
+/* Public key size. */
+#define KYBER768_PUBLIC_KEY_SIZE  \
+    (KYBER768_POLY_VEC_SZ + KYBER_SYM_SZ)
+/* Private key size. */
+#define KYBER768_PRIVATE_KEY_SIZE \
+    (KYBER768_POLY_VEC_SZ + KYBER768_PUBLIC_KEY_SIZE + 2 * KYBER_SYM_SZ)
+/* Cipher text size. */
+#define KYBER768_CIPHER_TEXT_SIZE \
+    (KYBER768_POLY_VEC_COMPRESSED_SZ + KYBER768_POLY_COMPRESSED_SZ)
+
+/* Kyber-1024 parameters */
+/* Number of polynomials in a vector and vectors in a matrix. */
+#define KYBER1024_K         4
+
+/* Size of a polynomial vector. */
+#define KYBER1024_POLY_VEC_SZ             KYBER_POLY_VEC_SZ(KYBER1024_K)
+/* Size of a compressed polynomial based on bits per coefficient. */
+#define KYBER1024_POLY_COMPRESSED_SZ      KYBER_POLY_COMPRESSED_SZ(5)
+/* Size of a compressed vector polynomial based on dimensions and bits per
+ * coefficient. */
+#define KYBER1024_POLY_VEC_COMPRESSED_SZ \
+    KYBER_POLY_VEC_COMPRESSED_SZ(KYBER1024_K, 11)
+
+/* Public key size. */
+#define KYBER1024_PUBLIC_KEY_SIZE  \
+    (KYBER1024_POLY_VEC_SZ + KYBER_SYM_SZ)
+/* Private key size. */
+#define KYBER1024_PRIVATE_KEY_SIZE \
+    (KYBER1024_POLY_VEC_SZ + KYBER1024_PUBLIC_KEY_SIZE + 2 * KYBER_SYM_SZ)
+/* Cipher text size. */
+#define KYBER1024_CIPHER_TEXT_SIZE \
+    (KYBER1024_POLY_VEC_COMPRESSED_SZ + KYBER1024_POLY_COMPRESSED_SZ)
+
+
+/* Maximum dimensions and sizes of supported key types. */
+#ifdef WOLFSSL_KYBER1024
+#define KYBER_MAX_K                 KYBER1024_K
+#define KYBER_MAX_PRIVATE_KEY_SIZE  KYBER1024_PRIVATE_KEY_SIZE
+#define KYBER_MAX_PUBLIC_KEY_SIZE   KYBER1024_PUBLIC_KEY_SIZE
+#define KYBER_MAX_CIPHER_TEXT_SIZE  KYBER1024_CIPHER_TEXT_SIZE
+#elif defined(WOLFSSL_KYBER768)
+#define KYBER_MAX_K                 KYBER768_K
+#define KYBER_MAX_PRIVATE_KEY_SIZE  KYBER768_PRIVATE_KEY_SIZE
+#define KYBER_MAX_PUBLIC_KEY_SIZE   KYBER768_PUBLIC_KEY_SIZE
+#define KYBER_MAX_CIPHER_TEXT_SIZE  KYBER768_CIPHER_TEXT_SIZE
+#elif defined(WOLFSSL_KYBER512)
+#define KYBER_MAX_K                 KYBER512_K
+#define KYBER_MAX_PRIVATE_KEY_SIZE  KYBER512_PRIVATE_KEY_SIZE
+#define KYBER_MAX_PUBLIC_KEY_SIZE   KYBER512_PUBLIC_KEY_SIZE
+#define KYBER_MAX_CIPHER_TEXT_SIZE  KYBER512_CIPHER_TEXT_SIZE
+#endif
+
+#define KYBER_SYM_SZ            WC_ML_KEM_SYM_SZ
+#define KYBER_SS_SZ             WC_ML_KEM_SS_SZ
+#define KYBER_MAKEKEY_RAND_SZ   WC_ML_KEM_MAKEKEY_RAND_SZ
+#define KYBER_ENC_RAND_SZ       WC_ML_KEM_ENC_RAND_SZ
+#define KYBER_POLY_SIZE         WC_ML_KEM_POLY_SIZE
+
 
 enum {
-    /* Flags of Kyber keys. */
+    WC_ML_KEM_512  = 0,
+    WC_ML_KEM_768  = 1,
+    WC_ML_KEM_1024 = 2,
+
+    MLKEM_KYBER = 0x10,
+    KYBER512  = 0 | MLKEM_KYBER,
+    KYBER768  = 1 | MLKEM_KYBER,
+    KYBER1024 = 2 | MLKEM_KYBER,
+
+    KYBER_LEVEL1 = KYBER512,
+    KYBER_LEVEL3 = KYBER768,
+    KYBER_LEVEL5 = KYBER1024,
+
+    /* Symmetric data size. */
+    WC_ML_KEM_SYM_SZ            = 32,
+    /* Shared secret size. */
+    WC_ML_KEM_SS_SZ             = 32,
+    /* Size of random required for making a key. */
+    WC_ML_KEM_MAKEKEY_RAND_SZ   = 2 * WC_ML_KEM_SYM_SZ,
+    /* Size of random required for encapsulation. */
+    WC_ML_KEM_ENC_RAND_SZ       = WC_ML_KEM_SYM_SZ,
+
+    /* Encoded polynomial size. */
+    WC_ML_KEM_POLY_SIZE         = 384,
+
+    /* Flags of ML-KEM keys. */
     MLKEM_FLAG_PRIV_SET = 0x0001,
     MLKEM_FLAG_PUB_SET  = 0x0002,
     MLKEM_FLAG_BOTH_SET = 0x0003,
@@ -66,33 +350,10 @@ enum {
     MLKEM_COMP_11BITS   = 11
 };
 
-
-/* SHAKE128 rate. */
-#define XOF_BLOCK_SIZE      168
-
-/* Modulus of co-efficients of polynomial. */
-#define MLKEM_Q             3329
-
-
-/* Kyber-512 parameters */
-#ifdef WOLFSSL_WC_ML_KEM_512
-/* Number of bits of random to create noise from. */
-#define WC_ML_KEM_512_ETA1       MLKEM_CBD_ETA3
-#endif /* WOLFSSL_WC_ML_KEM_512 */
-
-/* Kyber-768 parameters */
-#ifdef WOLFSSL_WC_ML_KEM_768
-/* Number of bits of random to create noise from. */
-#define WC_ML_KEM_768_ETA1       MLKEM_CBD_ETA2
-#endif /* WOLFSSL_WC_ML_KEM_768 */
-
-/* Kyber-1024 parameters */
-#ifdef WOLFSSL_WC_ML_KEM_1024
-/* Number of bits of random to create noise from. */
-#define WC_ML_KEM_1024_ETA1      MLKEM_CBD_ETA2
-#endif /* WOLFSSL_KYBER1024 */
-
-
+#ifdef WOLF_PRIVATE_KEY_ID
+    #define MLKEM_MAX_ID_LEN    32
+    #define MLKEM_MAX_LABEL_LEN 32
+#endif
 
 /* The data type of the hash function. */
 #define MLKEM_HASH_T    wc_Sha3
@@ -101,7 +362,7 @@ enum {
 #define MLKEM_PRF_T     wc_Shake
 
 /* ML-KEM key. */
-struct MlKemKey {
+typedef struct MlKemKey {
     /* Type of key: WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024 */
     int type;
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
@@ -157,11 +418,72 @@ struct MlKemKey {
     sword16* a;
 #endif
 #endif
-};
+} MlKemKey;
 
-#ifdef __cplusplus
-    extern "C" {
+
+WOLFSSL_API MlKemKey* wc_MlKemKey_New(int type, void* heap, int devId);
+WOLFSSL_API int  wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
+
+WOLFSSL_API int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap,
+    int devId);
+WOLFSSL_API int wc_MlKemKey_Free(MlKemKey* key);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API int wc_MlKemKey_Init_Id(MlKemKey* key, int type,
+    const unsigned char* id, int len, void* heap, int devId);
+WOLFSSL_API int wc_MlKemKey_Init_Label(MlKemKey* key, int type,
+    const char* label, void* heap, int devId);
 #endif
+
+WOLFSSL_API int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key,
+    const unsigned char* rand, int len);
+
+WOLFSSL_API int wc_MlKemKey_CipherTextSize(MlKemKey* key, word32* len);
+WOLFSSL_API int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len);
+
+WOLFSSL_API int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct,
+    unsigned char* ss, WC_RNG* rng);
+WOLFSSL_API int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key,
+    unsigned char* ct, unsigned char* ss, const unsigned char* rand, int len);
+WOLFSSL_API int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
+    const unsigned char* ct, word32 len);
+
+WOLFSSL_API int wc_MlKemKey_DecodePrivateKey(MlKemKey* key,
+    const unsigned char* in, word32 len);
+WOLFSSL_API int wc_MlKemKey_DecodePublicKey(MlKemKey* key,
+    const unsigned char* in, word32 len);
+
+WOLFSSL_API int wc_MlKemKey_PrivateKeySize(MlKemKey* key, word32* len);
+WOLFSSL_API int wc_MlKemKey_PublicKeySize(MlKemKey* key, word32* len);
+WOLFSSL_API int wc_MlKemKey_EncodePrivateKey(MlKemKey* key, unsigned char* out,
+    word32 len);
+WOLFSSL_API int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out,
+    word32 len);
+
+
+#define KyberKey            MlKemKey
+
+#define wc_KyberKey_Init(type, key, heap, devId) \
+        wc_MlKemKey_Init(key, type, heap, devId)
+#define wc_KyberKey_Free                    wc_MlKemKey_Free
+#ifdef WOLF_PRIVATE_KEY_ID
+#define wc_KyberKey_Init_Id                 wc_MlKemKey_Init_Id
+#define wc_KyberKey_Init_Label              wc_MlKemKey_Init_Label
+#endif
+#define wc_KyberKey_MakeKey                 wc_MlKemKey_MakeKey
+#define wc_KyberKey_MakeKeyWithRandom       wc_MlKemKey_MakeKeyWithRandom
+#define wc_KyberKey_CipherTextSize          wc_MlKemKey_CipherTextSize
+#define wc_KyberKey_SharedSecretSize        wc_MlKemKey_SharedSecretSize
+#define wc_KyberKey_Encapsulate             wc_MlKemKey_Encapsulate
+#define wc_KyberKey_EncapsulateWithRandom   wc_MlKemKey_EncapsulateWithRandom
+#define wc_KyberKey_Decapsulate             wc_MlKemKey_Decapsulate
+#define wc_KyberKey_DecodePrivateKey        wc_MlKemKey_DecodePrivateKey
+#define wc_KyberKey_DecodePublicKey         wc_MlKemKey_DecodePublicKey
+#define wc_KyberKey_PrivateKeySize          wc_MlKemKey_PrivateKeySize
+#define wc_KyberKey_PublicKeySize           wc_MlKemKey_PublicKeySize
+#define wc_KyberKey_EncodePrivateKey        wc_MlKemKey_EncodePrivateKey
+#define wc_KyberKey_EncodePublicKey         wc_MlKemKey_EncodePublicKey
+
 
 WOLFSSL_LOCAL
 void mlkem_init(void);

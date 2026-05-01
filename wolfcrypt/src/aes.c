@@ -7707,7 +7707,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         return ret;
     #endif /* WOLFSSL_RENESAS_RSIP && WOLFSSL_RENESAS_FSPSM_CRYPTONLY*/
 
-#if defined(WOLFSSL_ARMASM)
+/* GCM setup needs one AES block encrypt of the all-zero IV to generate
+ * the hash subkey H. STM32_CRYPTO stores only the raw key (no expanded
+ * key schedule), so the ARMASM AES_ECB_encrypt helpers used here cannot
+ * be used. Excluding STM32_CRYPTO from this block falls back to the
+ * non-ARMASM wc_AesEncrypt implementation, which on STM32 routes to
+ * CRYP. */
+#if defined(WOLFSSL_ARMASM) && !defined(STM32_CRYPTO)
     if (ret == 0) {
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     #if !defined(__aarch64__)

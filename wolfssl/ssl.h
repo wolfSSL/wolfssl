@@ -603,6 +603,12 @@ struct WOLFSSL_EVP_PKEY {
     #ifndef NO_DH
     WOLFSSL_DH* dh;
     #endif
+    #ifdef HAVE_ED25519
+    struct ed25519_key* ed25519;
+    #endif
+    #ifdef HAVE_ED448
+    struct ed448_key* ed448;
+    #endif
     WC_RNG rng;
     #ifdef HAVE_HKDF
     const WOLFSSL_EVP_MD* hkdfMd;
@@ -628,6 +634,12 @@ struct WOLFSSL_EVP_PKEY {
     WC_BITFIELD ownEcc:1; /* if struct owns ECC and should free it */
     WC_BITFIELD ownDsa:1; /* if struct owns DSA and should free it */
     WC_BITFIELD ownRsa:1; /* if struct owns RSA and should free it */
+#ifdef HAVE_ED25519
+    WC_BITFIELD ownEd25519:1; /* if struct owns Ed25519 and should free it */
+#endif
+#ifdef HAVE_ED448
+    WC_BITFIELD ownEd448:1;   /* if struct owns Ed448 and should free it */
+#endif
 };
 
 
@@ -1037,7 +1049,7 @@ enum SNICbReturn {
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 /* Maximum number of groups that can be set */
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
 #define WOLFSSL_MAX_GROUP_COUNT       36
 #else
 #define WOLFSSL_MAX_GROUP_COUNT       10
@@ -2120,6 +2132,7 @@ WOLFSSL_API long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on);
 WOLFSSL_API int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
 
 WOLFSSL_API void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init);
+WOLFSSL_API int  wolfSSL_BIO_get_init(WOLFSSL_BIO* bio);
 WOLFSSL_API void wolfSSL_BIO_set_data(WOLFSSL_BIO* bio, void* ptr);
 WOLFSSL_API void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio);
 WOLFSSL_API void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut);
@@ -4766,7 +4779,7 @@ enum {
     WOLFSSL_FFDHE_8192    = 260,
     WOLFSSL_FFDHE_END     = 511,
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_MLKEM
 
 #ifdef WOLFSSL_MLKEM_KYBER
     /* Old code points to keep compatibility with Kyber Round 3.
@@ -4816,7 +4829,7 @@ enum {
     WOLFSSL_X25519MLKEM512        = 12214,
     WOLFSSL_X448MLKEM768          = 12215,
 #endif /* WOLFSSL_NO_ML_KEM */
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_MLKEM */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(SSL_H)
 };
 

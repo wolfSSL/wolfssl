@@ -1690,6 +1690,72 @@ static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
     return result;
 }
 
+/* Push certificates from the store's X509 stacks (certs and trusted) into the
+ * CertManager, then free and NULL the stacks to signal that this store is now
+ * owned by an SSL_CTX.
+ *
+ * This is needed when an X509_STORE is attached to an SSL_CTX via
+ * SSL_CTX_set_cert_store: self-signed CAs are already in the CM (added by
+ * X509StoreAddCa during X509_STORE_add_cert), but non-self-signed intermediates
+ * are only in store->certs and must be explicitly added to the CM so that all
+ * verification paths (including CertManagerVerify) can find them. */
+WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store)
+{
+    int i;
+    int num;
+    int ret;
+    int anyFail = 0;
+    WOLFSSL_X509* x509;
+
+    WOLFSSL_ENTER("X509StorePushCertsToCM");
+
+    if (store == NULL || store->cm == NULL)
+        return WOLFSSL_SUCCESS;
+
+    /* Push non-self-signed intermediates from store->certs into the CM. */
+    if (store->certs != NULL) {
+        num = wolfSSL_sk_X509_num(store->certs);
+        for (i = 0; i < num; i++) {
+            x509 = wolfSSL_sk_X509_value(store->certs, i);
+            if (x509 != NULL) {
+                ret = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
+                if (ret != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("X509StorePushCertsToCM: failed to add cert");
+                    anyFail = 1;
+                }
+            }
+        }
+        /* Free and NULL to mark store as CTX-owned. Future add_cert calls
+         * will go directly to the CertManager. */
+        wolfSSL_sk_X509_pop_free(store->certs, NULL);
+        store->certs = NULL;
+    }
+
+    /* Push trusted certs too. Self-signed CAs are typically already in the CM
+     * (added during X509_STORE_add_cert), but AddCA handles duplicates. */
+    if (store->trusted != NULL) {
+        num = wolfSSL_sk_X509_num(store->trusted);
+        for (i = 0; i < num; i++) {
+            x509 = wolfSSL_sk_X509_value(store->trusted, i);
+            if (x509 != NULL) {
+                ret = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
+                if (ret != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("X509StorePushCertsToCM: failed to add "
+                                "trusted cert");
+                    anyFail = 1;
+                }
+            }
+        }
+        wolfSSL_sk_X509_pop_free(store->trusted, NULL);
+        store->trusted = NULL;
+    }
+
+    if (anyFail) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 {
     int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);

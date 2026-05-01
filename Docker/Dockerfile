@@ -34,10 +34,6 @@ RUN git clone --single-branch https://github.com/open-quantum-safe/liboqs.git &&
 
 RUN mkdir /opt/sources
 
-# install liblms
-RUN cd /opt/sources && git clone --single-branch https://github.com/cisco/hash-sigs.git && cd hash-sigs && git checkout b0631b8891295bf2929e68761205337b7c031726 \
-    && sed -i 's/USE_OPENSSL 1/USE_OPENSSL 0/g' sha256.h && make -j4 hss_lib_thread.a
-
 # Install pkixssh to /opt/pkixssh for X509 interop testing with wolfSSH
 RUN mkdir /var/empty
 RUN cd /opt/sources && wget -q -O- https://roumenpetrov.info/secsh/src/pkixssh-15.1.tar.gz | tar xzf - && cd pkixssh-15.1 && ./configure --prefix=/opt/pkixssh/ --exec-prefix=/opt/pkixssh/ && make install

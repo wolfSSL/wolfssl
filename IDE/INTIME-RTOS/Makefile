@@ -3,14 +3,14 @@
 SWENGENV := $(RMX_SRC_BASE)/tools/swenghg
 #
 # makefile -- defines the macros, directives and rules necessary to build the
-#             wolfSSL library. 
+#             wolfSSL library.
 #
 # NOTES:
 #     1.  This makefile is a "wrapper" makefile for the Visual Studio 80
-#         INtime package project.  The makefile provides RCS and component 
+#         INtime package project.  The makefile provides RCS and component
 #	      release support not provided by the project's native visual Studio
 #         makefile.
-# 
+#
 #     2.  The SWENG environment assumes makefile execution from a Windows NT
 #         environment.
 #
@@ -33,7 +33,7 @@ SWENGENV := $(RMX_SRC_BASE)/tools/swenghg
 #         components.
 #
 #     6.  A SWENG makefile executes standard MKS and MSVC tools.  Other tool
-#         sets require additional macro and rule definition. 
+#         sets require additional macro and rule definition.
 #
 
 # Default macros and directives.
@@ -157,11 +157,11 @@ MAKEFILE := makefile
 ASM      :=
 C        :=
 CPP      :=
-RCFILE	 := 
+RCFILE	 :=
 
-SRCS     := 
+SRCS     :=
 OBJ      :=
-CFGS     := 
+CFGS     :=
 
 DEBRIS   := $(LOGFILE) release* debug* *.sdf *.user *.aps *.bak *~
 
@@ -287,7 +287,6 @@ INCL_TARGS := 	wolfssl/callbacks.h \
 	wolfssl/wolfcrypt/integer.h \
 	wolfssl/wolfcrypt/kdf.h \
 	wolfssl/wolfcrypt/kyber.h \
-	wolfssl/wolfcrypt/lms.h \
 	wolfssl/wolfcrypt/logging.h \
 	wolfssl/wolfcrypt/md2.h \
 	wolfssl/wolfcrypt/md4.h \
@@ -320,18 +319,19 @@ INCL_TARGS := 	wolfssl/callbacks.h \
 	wolfssl/wolfcrypt/sm4.h \
 	wolfssl/wolfcrypt/sp.h \
 	wolfssl/wolfcrypt/sp_int.h \
-	wolfssl/wolfcrypt/sphincs.h \
 	wolfssl/wolfcrypt/srp.h \
 	wolfssl/wolfcrypt/tfm.h \
 	wolfssl/wolfcrypt/types.h \
 	wolfssl/wolfcrypt/visibility.h \
 	wolfssl/wolfcrypt/wc_encrypt.h \
 	wolfssl/wolfcrypt/wc_kyber.h \
+	wolfssl/wolfcrypt/wc_lms.h \
 	wolfssl/wolfcrypt/wc_pkcs11.h \
 	wolfssl/wolfcrypt/wc_port.h \
+	wolfssl/wolfcrypt/wc_slhdsa.h \
+	wolfssl/wolfcrypt/wc_xmss.h \
 	wolfssl/wolfcrypt/wolfevent.h \
 	wolfssl/wolfcrypt/wolfmath.h \
-	wolfssl/wolfcrypt/xmss.h \
 	wolfssl/wolfcrypt/port/nrf51.h \
 	wolfssl/wolfcrypt/port/af_alg/afalg_hash.h \
 	wolfssl/wolfcrypt/port/af_alg/wc_afalg.h \
@@ -404,7 +404,7 @@ INCL_TARGS := 	wolfssl/callbacks.h \
 #
 # NOTES:
 #     1.  These files must always be included after the macro definitions and
-#         before the component-specific rules. 
+#         before the component-specific rules.
 
 .INCLUDE:$(SWENGENV)/rules.wnt
 .INCLUDE:$(SWENGENV)/intimerules.wnt
@@ -495,7 +495,7 @@ done
 #         environment variables in a sub-shell before invoking the makefile.
 #
 #     2.  Path vectors are converted to Microsoft-style pathname slashes
-#         via 'redmond.ksh' before passing them as environment variables to 
+#         via 'redmond.ksh' before passing them as environment variables to
 #         Microsoft tools.
 
 SOLUTIONFILE = wolfssl-lib.sln

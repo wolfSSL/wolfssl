@@ -36,6 +36,9 @@ This library defines the interface APIs for X509 certificates.
     #include <wolfssl/wolfcrypt/dsa.h>
 #endif
 #include <wolfssl/wolfcrypt/random.h>
+#ifdef WOLFSSL_ACME_OID
+    #include <wolfssl/wolfcrypt/sha256.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -78,9 +81,9 @@ This library defines the interface APIs for X509 certificates.
     typedef struct dilithium_key dilithium_key;
     #define WC_DILITHIUMKEY_TYPE_DEFINED
 #endif
-#ifndef WC_SPHINCSKEY_TYPE_DEFINED
-    typedef struct sphincs_key sphincs_key;
-    #define WC_SPHINCSKEY_TYPE_DEFINED
+#ifndef WC_SLHDSAKEY_TYPE_DEFINED
+    typedef struct SlhDsaKey SlhDsaKey;
+    #define WC_SLHDSAKEY_TYPE_DEFINED
 #endif
 
 enum EncPkcs8Types {
@@ -140,12 +143,18 @@ enum CertType {
     ML_DSA_LEVEL2_TYPE,
     ML_DSA_LEVEL3_TYPE,
     ML_DSA_LEVEL5_TYPE,
-    SPHINCS_FAST_LEVEL1_TYPE,
-    SPHINCS_FAST_LEVEL3_TYPE,
-    SPHINCS_FAST_LEVEL5_TYPE,
-    SPHINCS_SMALL_LEVEL1_TYPE,
-    SPHINCS_SMALL_LEVEL3_TYPE,
-    SPHINCS_SMALL_LEVEL5_TYPE,
+    SLH_DSA_SHA2_128S_TYPE,
+    SLH_DSA_SHA2_128F_TYPE,
+    SLH_DSA_SHA2_192S_TYPE,
+    SLH_DSA_SHA2_192F_TYPE,
+    SLH_DSA_SHA2_256S_TYPE,
+    SLH_DSA_SHA2_256F_TYPE,
+    SLH_DSA_SHAKE_128S_TYPE,
+    SLH_DSA_SHAKE_128F_TYPE,
+    SLH_DSA_SHAKE_192S_TYPE,
+    SLH_DSA_SHAKE_192F_TYPE,
+    SLH_DSA_SHAKE_256S_TYPE,
+    SLH_DSA_SHAKE_256F_TYPE,
     ECC_PARAM_TYPE,
     CHAIN_CERT_TYPE,
     PKCS7_TYPE,
@@ -469,6 +478,10 @@ typedef struct Cert {
     word16  certPoliciesNb;              /* Number of Cert Policy */
     byte    crlInfo[CTC_MAX_CRLINFO_SZ]; /* CRL Distribution points */
     int     crlInfoSz;
+#ifdef WOLFSSL_ACME_OID
+    byte    acmeIdentifier[WC_SHA256_DIGEST_SIZE]; /* SHA256 of ACME keyAuth */
+    int     acmeIdentifierSz;
+#endif
 #endif
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
     defined(WOLFSSL_CERT_REQ)
@@ -621,6 +634,26 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
  * any,serverAuth,clientAuth,codeSigning,emailProtection,timeStamping,OCSPSigning
  */
 WOLFSSL_API int wc_SetExtKeyUsage(Cert *cert, const char *value);
+
+#ifdef WOLFSSL_ACME_OID
+/* Set the RFC 8737 id-pe-acmeIdentifier (1.3.6.1.5.5.7.1.31) extension on
+ * the certificate. Used to construct TLS-ALPN-01 ACME challenge response
+ * certificates.
+ *
+ * keyAuth is the ACME key authorization string (token "." JWK_thumbprint
+ * per RFC 8555 8.1), as raw bytes - keyAuthSz is its byte length.
+ * wc_SetAcmeIdentifierExt computes SHA-256 over keyAuth internally and
+ * stores the digest as the extension value, emitted critical=TRUE per
+ * RFC 8737 3.
+ *
+ * Returns 0 on success.
+ * Returns BAD_FUNC_ARG when cert is NULL, keyAuth is NULL, or
+ * keyAuthSz is 0.
+ * May return a SHA-256 error code if hashing fails. */
+WOLFSSL_API int wc_SetAcmeIdentifierExt(Cert *cert,
+                                        const byte *keyAuth,
+                                        word32 keyAuthSz);
+#endif /* WOLFSSL_ACME_OID */
 
 
 #ifdef WOLFSSL_EKU_OID

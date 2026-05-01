@@ -1803,5 +1803,41 @@ int test_wolfSSL_BIO_meth_type_large(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_BIO_get_init(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO_METHOD* method = NULL;
+    BIO* bio = NULL;
+
+    /* BIO_new with a custom method that calls BIO_set_init(bio, 1) */
+    ExpectNotNull(method = BIO_meth_new(WOLFSSL_BIO_UNDEF, "get_init_test"));
+    ExpectIntEQ(BIO_meth_set_create(method, custom_bio_createCb),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_meth_set_destroy(method, custom_bio_destroyCb),
+        WOLFSSL_SUCCESS);
+
+    ExpectNotNull(bio = BIO_new(method));
+
+    /* createCb calls BIO_set_init(bio, 1), so get_init should return 1 */
+    ExpectIntEQ(BIO_get_init(bio), 1);
+
+    /* Clear init and verify it returns 0 */
+    BIO_set_init(bio, 0);
+    ExpectIntEQ(BIO_get_init(bio), 0);
+
+    /* Set init back and verify */
+    BIO_set_init(bio, 1);
+    ExpectIntEQ(BIO_get_init(bio), 1);
+
+    /* NULL should return 0 */
+    ExpectIntEQ(BIO_get_init(NULL), 0);
+
+    BIO_free(bio);
+    BIO_meth_free(method);
+#endif
+    return EXPECT_RESULT();
+}
+
 #endif /* !NO_BIO */
 

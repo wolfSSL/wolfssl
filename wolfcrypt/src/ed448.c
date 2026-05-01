@@ -1001,6 +1001,41 @@ void wc_ed448_free(ed448_key* key)
     }
 }
 
+#ifndef WC_NO_CONSTRUCTORS
+ed448_key* wc_ed448_new(void* heap, int devId, int *result_code)
+{
+    int ret;
+    ed448_key* key = (ed448_key*)XMALLOC(sizeof(ed448_key), heap,
+                        DYNAMIC_TYPE_ED448);
+    if (key == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_ed448_init_ex(key, heap, devId);
+        if (ret != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_ED448);
+            key = NULL;
+        }
+    }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
+    return key;
+}
+
+int wc_ed448_delete(ed448_key* key, ed448_key** key_p) {
+    void* heap;
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    heap = key->heap;
+    wc_ed448_free(key);
+    XFREE(key, heap, DYNAMIC_TYPE_ED448);
+    if (key_p != NULL)
+        *key_p = NULL;
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
 
 #ifdef HAVE_ED448_KEY_EXPORT
 
