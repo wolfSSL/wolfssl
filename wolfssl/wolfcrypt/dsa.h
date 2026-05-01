@@ -95,6 +95,7 @@ WOLFSSL_API int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 WOLFSSL_API int wc_SetDsaPublicKey(byte* output, DsaKey* key,
                                    int outLen, int with_header);
 WOLFSSL_API int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen);
+WOLFSSL_API int wc_DsaCheckPubKey(DsaKey* key);
 
 #ifdef WOLFSSL_KEY_GEN
 WOLFSSL_API int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
