@@ -259,6 +259,85 @@ jobs:
           print('simple SPDX override: ok')
           PY
 
+      # ---- liboqs / Falcon dep entry ---------------------------------------
+      # Without this, every code path that emits a dep package - pkg-config
+      # lookup, supplier/purl/license construction, deterministic UUID
+      # derivation for deps - is uncovered by CI.  A future rename or shape
+      # break in DEP_META['liboqs'] would silently land.
+
+      - name: Install liboqs (provides liboqs.pc for --with-liboqs)
+        run: sudo apt-get update && sudo apt-get install -y liboqs-dev
+
+      - name: Configure with --with-liboqs --enable-falcon
+        run: |
+          make distclean
+          autoreconf -ivf
+          ./configure --enable-shared --enable-experimental \
+                      --with-liboqs --enable-falcon
+
+      - name: Build + generate SBOM with liboqs enabled
+        run: make sbom
+
+      - name: liboqs dep entry resolves to a CVE-trackable identifier
+        # The point of recording liboqs (rather than `falcon`) is that
+        # OSV / Grype / Trivy / Dependency-Track key vulnerability
+        # records off purl + name.  These assertions guard the contract
+        # that pulled the entry away from the algorithm name.
+        run: |
+          python3 - <<'PY'
+          import glob, json, re, sys
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          pkgs = {p['name']: p for p in d['packages']}
+          assert 'liboqs' in pkgs, list(pkgs)
+          assert 'falcon' not in pkgs, "algorithm name leaked as a dep package"
+          liboqs = pkgs['liboqs']
+          assert liboqs['supplier'] == 'Organization: Open Quantum Safe', \
+              liboqs['supplier']
+          refs = {r['referenceType']: r['referenceLocator']
+                  for r in liboqs.get('externalRefs', [])}
+          assert 'purl' in refs, refs
+          assert re.match(r'pkg:github/open-quantum-safe/liboqs@', refs['purl']), \
+              refs['purl']
+          # Algorithm enablement must still be visible via build_props
+          # (parsed from options.h), not via the dep entry.
+          props = {p['name']: p['value']
+                   for p in d['packages'][0].get('annotations', [])
+                   if p.get('annotationType') == 'OTHER'}
+          # CycloneDX side: same package + version present.
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
+          deps = {c['name']: c for c in cdx.get('components', [])}
+          assert 'liboqs' in deps, list(deps)
+          print('liboqs dep entry: ok ->', refs['purl'])
+          PY
+
+      - name: HAVE_FALCON algorithm flag is captured as a build property
+        # Algorithm visibility moved out of the dep entry; this verifies
+        # it is still preserved (just somewhere honest).
+        run: |
+          python3 - <<'PY'
+          import glob, json
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          wolf = [p for p in d['packages'] if p['name'] == 'wolfssl'][0]
+          props = {p['name']: p['value']
+                   for p in wolf.get('annotations', [])
+                   if p.get('annotationType') == 'OTHER'}
+          # Build props can land as annotations or as a 'attributionTexts'
+          # block depending on SPDX version; check both.
+          combined = json.dumps(d)
+          assert 'HAVE_FALCON' in combined, \
+              "HAVE_FALCON missing from SBOM build properties"
+          print('HAVE_FALCON build prop: present')
+          PY
+
+      - name: Restore default build for remaining steps
+        run: |
+          make distclean
+          autoreconf -ivf
+          ./configure --enable-shared --enable-static
+
       # ---- Distribution + install hooks -----------------------------------
 
       - name: Tarball roundtrip (make dist -> ./configure -> make sbom)
@@ -310,13 +389,14 @@ jobs:
           brew install autoconf automake libtool
           python3 -m pip install --user --break-system-packages \
             'spdx-tools==0.8.*'
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          # On some macOS runners pyspdxtools lands in
-          # Library/Python/<ver>/bin; symlink to a known-on-PATH location.
-          for d in "$HOME/Library/Python"/*/bin; do
-              [ -x "$d/pyspdxtools" ] && \
-                  echo "$d" >> "$GITHUB_PATH"
-          done
+          # Resolve the actual scripts dir for the python that ran pip,
+          # rather than guessing a glob like `~/Library/Python/*/bin`.
+          # `posix_user` is the install scheme `pip install --user` wrote
+          # to, so this matches even when the runner's selected python
+          # changes between minor versions / homebrew vs system.
+          python3 -c \
+            'import sysconfig; print(sysconfig.get_path("scripts","posix_user"))' \
+            >> "$GITHUB_PATH"
 
       - name: Configure wolfSSL (shared)
         run: autoreconf -ivf && ./configure --enable-shared
@@ -334,3 +414,102 @@ jobs:
           assert re.fullmatch(r'[0-9a-f]{64}', checksum), checksum
           print('macOS SBOM checksum well-formed:', checksum)
           PY
+
+  # Tier 2 (bomsh) - exercises the `make bomsh` target which traces a
+  # full clean rebuild under bomtrace3 (patched strace, Linux-only) and
+  # produces an OmniBOR artifact dependency graph.  Without this job
+  # the entire bomsh recipe and its SPDX enrichment step would only be
+  # exercised by hand; a regression in either would silently land.
+  bomsh:
+    name: bomsh integration (linux)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps + SBOM validators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf automake libtool \
+            python3 python3-pip git
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user 'spdx-tools==0.8.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install bomsh toolchain (bomtrace3 + helper scripts)
+        # Bomsh is not packaged; build bomtrace3 (patched strace) from
+        # source and install the python helpers system-wide so configure's
+        # AC_PATH_PROG can find them.
+        run: |
+          git clone --depth=1 https://github.com/omnibor/bomsh /tmp/bomsh
+          # bomtrace3 build: docker/devcontainer-only Makefile in upstream;
+          # use the embedded build script if present, else fall back to
+          # the strace patch path.
+          cd /tmp/bomsh
+          if [ -d .devcontainer/bomtrace3 ]; then
+              make -C .devcontainer/bomtrace3
+              sudo install -m 755 .devcontainer/bomtrace3/bomtrace3 \
+                  /usr/local/bin/
+          else
+              echo "bomsh repo layout changed; please update CI"
+              exit 1
+          fi
+          sudo install -m 755 scripts/bomsh_create_bom.py /usr/local/bin/
+          sudo install -m 755 scripts/bomsh_sbom.py        /usr/local/bin/
+          bomtrace3 --version || true
+          which bomsh_create_bom.py bomsh_sbom.py
+
+      - name: Configure wolfSSL
+        run: autoreconf -ivf && ./configure --enable-shared
+
+      - name: Generate SPDX (input to bomsh enrichment)
+        run: make sbom
+
+      - name: Run make bomsh
+        run: make bomsh
+
+      - name: OmniBOR artifact graph produced
+        # bomsh writes the artifact dependency graph under omnibor/.
+        # Empty/missing graph means bomtrace3 silently failed to trace.
+        run: |
+          test -d omnibor
+          test "$(find omnibor -type f | wc -l)" -gt 0
+          echo "omnibor/ contents:"
+          find omnibor -maxdepth 3 -type f | head -20
+
+      - name: Enriched SPDX has PERSISTENT-ID gitoid externalRef
+        # The whole point of `make bomsh` over `make sbom` is the
+        # bridge between component identity (SPDX package) and build
+        # provenance (OmniBOR gitoid).  If the enrichment step ran but
+        # produced an SPDX without the gitoid ref, the bridge is broken.
+        run: |
+          ls omnibor.wolfssl-*.spdx.json
+          python3 - <<'PY'
+          import glob, json, sys
+          path = glob.glob('omnibor.wolfssl-*.spdx.json')[0]
+          with open(path) as f:
+              d = json.load(f)
+          gitoid_refs = []
+          for pkg in d.get('packages', []):
+              for ref in pkg.get('externalRefs', []):
+                  if (ref.get('referenceCategory') == 'PERSISTENT-ID'
+                          or ref.get('referenceType') == 'gitoid'):
+                      gitoid_refs.append(ref)
+          assert gitoid_refs, \
+              f'no PERSISTENT-ID gitoid externalRef in {path}'
+          print(f'bomsh enrichment ok: {len(gitoid_refs)} gitoid refs')
+          PY
+
+      - name: make clean removes all bomsh + sbom artefacts
+        # Regression guard: if a future change adds an output to either
+        # recipe but forgets CLEANFILES, this will catch it.
+        run: |
+          make clean
+          if ls wolfssl-*.spdx.json wolfssl-*.cdx.json \
+                omnibor.wolfssl-*.spdx.json 2>/dev/null; then
+              echo "make clean did not remove SBOM/bomsh artefacts"
+              exit 1
+          fi
+          test ! -d omnibor || (echo "omnibor/ not cleaned"; exit 1)

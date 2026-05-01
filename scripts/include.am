@@ -160,3 +160,7 @@ EXTRA_DIST += scripts/user_settings_asm.sh
 # Must be in the dist tarball, otherwise `make dist && cd <tarball> &&
 # ./configure && make sbom` fails for downstream consumers.
 EXTRA_DIST += scripts/gen-sbom
+
+# SBOM generator unit tests.  Shipped so downstream consumers building
+# from a release tarball can re-run the regression suite.
+EXTRA_DIST += scripts/test_gen_sbom.py
