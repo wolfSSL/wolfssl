@@ -118,9 +118,6 @@
     #if defined(HAVE_DILITHIUM)
         #include <wolfssl/wolfcrypt/dilithium.h>
     #endif /* HAVE_DILITHIUM */
-    #if defined(HAVE_SPHINCS)
-        #include <wolfssl/wolfcrypt/sphincs.h>
-    #endif /* HAVE_SPHINCS */
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #ifdef HAVE_OCSP
             #include <wolfssl/openssl/ocsp.h>

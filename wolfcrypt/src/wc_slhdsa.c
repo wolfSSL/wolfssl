@@ -30,6 +30,7 @@
 
 #ifdef WOLFSSL_HAVE_SLHDSA
 
+#include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
@@ -8201,7 +8202,7 @@ int wc_SlhDsaKey_ImportPublic(SlhDsaKey* key, const byte* pub, word32 pubLen)
     else {
         /* Copy public key data into SLH-DSA key object. */
         XMEMCPY(key->sk + 2 * key->params->n, pub, 2 * key->params->n);
-        key->flags = WC_SLHDSA_FLAG_PUBLIC;
+        key->flags |= WC_SLHDSA_FLAG_PUBLIC;
 #ifdef WOLFSSL_SLHDSA_SHA2
         if (SLHDSA_IS_SHA2(key->params->param)) {
             ret = slhdsakey_precompute_sha2_midstates(key);
@@ -8564,5 +8565,457 @@ int wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param)
 
     return ret;
 }
+
+/* Find SlhDsaParameters entry for a given param enum. */
+static const SlhDsaParameters* slhdsa_find_params(enum SlhDsaParam param)
+{
+    int i;
+    for (i = 0; i < SLHDSA_PARAM_LEN; i++) {
+        if (SlhDsaParams[i].param == param) {
+            return &SlhDsaParams[i];
+        }
+    }
+    return NULL;
+}
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+/* Decode a DER-encoded SLH-DSA private key (PKCS#8 / OneAsymmetricKey).
+ *
+ * RFC 9909 Section 6: The privateKey OCTET STRING contains the raw
+ * concatenation SK.seed || SK.prf || PK.seed || PK.root (4*n bytes)
+ * directly, without a nested OCTET STRING wrapper. This differs from
+ * Ed25519/Ed448 which wrap the key in an additional OCTET STRING.
+ *
+ * The parameter set is detected from the AlgorithmIdentifier OID.
+ * On success, key->params is updated to match the detected parameter set.
+ *
+ * @param [in]      input     DER-encoded key data.
+ * @param [in, out] inOutIdx  Index into input, updated on return.
+ * @param [in, out] key       SLH-DSA key. Parameter set is auto-detected.
+ * @param [in]      inSz      Size of input in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when input, inOutIdx, or key is NULL.
+ * @return  ASN_PARSE_E when the DER cannot be parsed as an SLH-DSA key.
+ */
+int wc_SlhDsaKey_PrivateKeyDecode(const byte* input, word32* inOutIdx,
+    SlhDsaKey* key, word32 inSz)
+{
+    int ret = 0;
+    int length;
+    int version;
+    word32 oid = 0;
+    word32 seqEnd;
+    word32 savedIdx;
+    int privSz;
+    int paramId;
+    const SlhDsaParameters* params;
+
+    if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Snapshot the caller's index so failures restore it -- mirrors
+     * wc_SlhDsaKey_PublicKeyDecode and lets callers chain parsers or
+     * retry on the same buffer without recomputing the offset. */
+    savedIdx = *inOutIdx;
+
+    /* Parse PKCS#8 OneAsymmetricKey wrapper:
+     * SEQUENCE { version, AlgorithmIdentifier { OID }, OCTET STRING { key },
+     *            [0] attributes OPTIONAL, [1] publicKey OPTIONAL }
+     */
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+    seqEnd = *inOutIdx + (word32)length;
+
+    if (GetMyVersion(input, inOutIdx, &version, inSz) < 0) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+    if (version != 0 && version != 1) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+
+    if (GetAlgoId(input, inOutIdx, &oid, oidKeyType, inSz) < 0) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+
+    /* Map the OID to an SLH-DSA parameter set.  Pass through NOT_COMPILED_IN
+     * so callers can distinguish "variant present but not built in" from
+     * "malformed DER". */
+    paramId = wc_SlhDsaOidToParam((int)oid);
+    if (paramId == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+        *inOutIdx = savedIdx;
+        return NOT_COMPILED_IN;
+    }
+    if (paramId < 0) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+    params = slhdsa_find_params((enum SlhDsaParam)paramId);
+    if (params == NULL) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+
+    /* RFC 9909: privateKey is a single OCTET STRING containing the raw key
+     * (4*n bytes). Unlike Ed25519/Ed448, there is no nested inner OCTET
+     * STRING wrapping. */
+    if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+
+    if (privSz != params->n * 4) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+
+    {
+        const SlhDsaParameters* oldParams = key->params;
+        byte oldFlags = key->flags;
+
+        /* Update the key's parameter set to the detected one. */
+        key->params = params;
+
+        /* Import the raw private key: SK.seed || SK.prf || PK.seed || PK.root */
+        ret = wc_SlhDsaKey_ImportPrivate(key, input + *inOutIdx,
+                                         (word32)privSz);
+        if (ret == 0) {
+            /* Validate trailing fields per RFC 5958 OneAsymmetricKey:
+             *   [0] IMPLICIT Attributes  OPTIONAL  -- at most once
+             *   [1] IMPLICIT PublicKey   OPTIONAL  -- at most once,
+             *                                        must follow [0]
+             * Reject duplicates, out-of-order tags, and any other tag.
+             * The previous code accepted any number of either tag in any
+             * order. */
+            const byte tagAttrs = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0;
+            const byte tagPub   = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1;
+            int seenAttrs = 0;
+            int seenPub   = 0;
+            *inOutIdx += (word32)privSz;
+            while (ret == 0 && *inOutIdx < seqEnd) {
+                byte tlvTag;
+                int tlvLen;
+                if (GetASNTag(input, inOutIdx, &tlvTag, inSz) < 0) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+                if (tlvTag == tagAttrs) {
+                    /* attributes must precede publicKey and appear once */
+                    if (seenAttrs || seenPub) {
+                        ret = ASN_PARSE_E;
+                        break;
+                    }
+                    seenAttrs = 1;
+                }
+                else if (tlvTag == tagPub) {
+                    /* publicKey may appear at most once */
+                    if (seenPub) {
+                        ret = ASN_PARSE_E;
+                        break;
+                    }
+                    seenPub = 1;
+                }
+                else {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+                if (GetLength(input, inOutIdx, &tlvLen, inSz) < 0) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+                /* Length must stay within the outer SEQUENCE. */
+                if (*inOutIdx + (word32)tlvLen > seqEnd) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+                *inOutIdx += (word32)tlvLen;
+            }
+            if (ret == 0 && *inOutIdx != seqEnd) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret != 0) {
+                /* Trailing-field validation failed after ImportPrivate
+                 * already populated key->sk. Scrub the imported material
+                 * and roll back state so the caller sees the failure as
+                 * if the import never happened. */
+                ForceZero(key->sk, (word32)(4 * params->n));
+                key->params = oldParams;
+                key->flags = oldFlags;
+                *inOutIdx = savedIdx;
+            }
+        }
+        else {
+            /* On failure, restore params/flags. ImportPrivate writes the
+             * full sk[0..4*n] (private + public material) before any
+             * SHA-2 precompute step, so a precompute failure can leave
+             * the entire sk dirty -- clear it. BAD_LENGTH_E is detected
+             * before any write, so no zeroing is needed in that case. */
+            if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E)) {
+                ForceZero(key->sk, (word32)(4 * params->n));
+            }
+            key->params = oldParams;
+            key->flags = oldFlags;
+            *inOutIdx = savedIdx;
+        }
+    }
+
+    return ret;
+}
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+/* Decode a DER-encoded SLH-DSA public key (SubjectPublicKeyInfo).
+ *
+ * The parameter set is detected from the AlgorithmIdentifier OID.
+ * On success, key->params is updated to match the detected parameter set.
+ *
+ * @param [in]      input     DER-encoded key data.
+ * @param [in, out] inOutIdx  Index into input, updated on return.
+ * @param [in, out] key       SLH-DSA key. Parameter set is auto-detected.
+ * @param [in]      inSz      Size of input in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when input, inOutIdx, or key is NULL.
+ * @return  ASN_PARSE_E when the DER cannot be parsed as an SLH-DSA key.
+ */
+int wc_SlhDsaKey_PublicKeyDecode(const byte* input, word32* inOutIdx,
+    SlhDsaKey* key, word32 inSz)
+{
+    int ret;
+    int keytype = ANONk;
+    int paramId;
+    const SlhDsaParameters* params;
+    const SlhDsaParameters* oldParams;
+    const byte* pubKeyPtr = NULL;
+    word32 pubKeyLen = 0;
+    word32 savedIdx;
+    byte oldFlags;
+
+    if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    savedIdx = *inOutIdx;
+
+    /* Fast path: if the caller initialised the key with a parameter set,
+     * treat the entire window from *inOutIdx to inSz as a candidate raw
+     * public key and let wc_SlhDsaKey_ImportPublic decide via its length
+     * check. The window must contain exactly 2*n bytes for the configured
+     * parameter set -- callers chaining decoders must pass inSz scoped to
+     * just the public-key buffer or the import will reject the length and
+     * fall through to SPKI parsing. Mirrors the raw-first fallback in
+     * wc_Dilithium_PublicKeyDecode and wc_Falcon_PublicKeyDecode so all PQ
+     * public-key decoders accept either raw bytes or SPKI.
+     *
+     * The length check in ImportPublic is the disambiguator: a real SPKI
+     * for any SLH-DSA variant carries ~19 bytes of AlgorithmIdentifier and
+     * BIT STRING overhead on top of the 2*n public bytes, so SPKI input
+     * never collides with the 2*n raw length and falls through cleanly. */
+    if (key->params != NULL && savedIdx < inSz) {
+        word32 windowSz = inSz - savedIdx;
+        int n = key->params->n;
+        oldFlags = key->flags;
+        ret = wc_SlhDsaKey_ImportPublic(key, input + savedIdx, windowSz);
+        if (ret == 0) {
+            *inOutIdx += windowSz;
+            return 0;
+        }
+        /* Fall through to SPKI parsing. BAD_LENGTH_E is detected before
+         * any write (typical SPKI input), so there is nothing to scrub.
+         * On SHA-2 precompute failure ImportPublic has written only the
+         * public half at sk[2*n .. 4*n] - leave the private half
+         * sk[0 .. 2*n] untouched in case the caller imported it earlier. */
+        if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E)) {
+            ForceZero(key->sk + 2 * n, (word32)(2 * n));
+        }
+        key->flags = oldFlags;
+    }
+
+    /* Use ANONk to auto-detect the OID from the SPKI AlgorithmIdentifier
+     * in a single parse. (PrivateKeyDecode parses each DER element
+     * manually because the PKCS#8 OneAsymmetricKey layout differs from
+     * SPKI and has no matching helper.) */
+    ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKeyPtr,
+                                     &pubKeyLen, &keytype);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Map the detected OID key type to an SLH-DSA parameter set.  Pass
+     * through NOT_COMPILED_IN so callers see the specific reason
+     * (unsupported variant) rather than a generic parse error. */
+    paramId = wc_SlhDsaOidToParam(keytype);
+    if (paramId == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+        *inOutIdx = savedIdx;
+        return NOT_COMPILED_IN;
+    }
+    if (paramId < 0) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+    params = slhdsa_find_params((enum SlhDsaParam)paramId);
+    if (params == NULL) {
+        *inOutIdx = savedIdx;
+        return ASN_PARSE_E;
+    }
+
+    oldFlags = key->flags;
+    oldParams = key->params;
+    key->params = params;
+    ret = wc_SlhDsaKey_ImportPublic(key, pubKeyPtr, pubKeyLen);
+    if (ret != 0) {
+        /* Restore params/flags/inOutIdx. ImportPublic writes only the
+         * public half (sk[2*n .. 4*n]) and only after the length check
+         * passes; preserve any prior private bytes the caller may have
+         * imported into sk[0 .. 2*n]. */
+        if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E)) {
+            ForceZero(key->sk + 2 * params->n, (word32)(2 * params->n));
+        }
+        key->params = oldParams;
+        key->flags = oldFlags;
+        *inOutIdx = savedIdx;
+    }
+
+    return ret;
+}
+
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+/* Encode an SLH-DSA public key to DER.
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  key       SLH-DSA key object.
+ * @param [out] output    Buffer to put encoded data in.
+ * @param [in]  inLen     Size of buffer in bytes.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key/key->params is NULL or param is unknown.
+ * @return  NOT_COMPILED_IN when key->params names a known SLH-DSA variant
+ *          whose parameter set isn't compiled in. In practice unreachable
+ *          because SlhDsaParams[] is itself gated on the build, but the
+ *          contract matches wc_SlhDsaOidToParam for forward compatibility.
+ */
+int wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output, word32 inLen,
+    int withAlg)
+{
+    int ret;
+    byte pubKey[WC_SLHDSA_MAX_PUB_LEN];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+    int keytype;
+
+    if ((key == NULL) || (key->params == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    keytype = wc_SlhDsaParamToOid(key->params->param);
+    if (keytype < 0) {
+        return keytype;
+    }
+
+    ret = wc_SlhDsaKey_ExportPublic(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen, keytype,
+                                  withAlg);
+    }
+
+    return ret;
+}
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+/* Encode an SLH-DSA private key to DER (PKCS#8 / OneAsymmetricKey).
+ *
+ * RFC 9909: The privateKey OCTET STRING contains the raw 4*n bytes
+ * (SK.seed || SK.prf || PK.seed || PK.root) directly, without a nested
+ * OCTET STRING wrapper. This differs from Ed25519/Ed448 which use a
+ * double OCTET STRING wrapping.
+ *
+ * Pass NULL for output to get the required buffer size.
+ *
+ * @param [in]  key       SLH-DSA key object.
+ * @param [out] output    Buffer to put encoded data in (or NULL for size).
+ * @param [in]  inLen     Size of buffer in bytes.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key/key->params is NULL or param is unknown.
+ * @return  NOT_COMPILED_IN when key->params names a known SLH-DSA variant
+ *          whose parameter set isn't compiled in (in practice unreachable;
+ *          SlhDsaParams[] is itself gated on the build).
+ * @return  MISSING_KEY when private key not set.
+ * @return  BUFFER_E when output buffer is too small.
+ */
+int wc_SlhDsaKey_KeyToDer(SlhDsaKey* key, byte* output, word32 inLen)
+{
+    int keytype;
+    int n;
+    word32 privSz, algoSz, verSz, seqSz, sz;
+
+    if ((key == NULL) || (key->params == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+        return MISSING_KEY;
+    }
+
+    keytype = wc_SlhDsaParamToOid(key->params->param);
+    if (keytype < 0) {
+        return keytype;
+    }
+
+    n = key->params->n;
+    /* RFC 9909: bare OCTET STRING containing 4*n raw key bytes */
+    privSz = SetOctetString((word32)(n * 4), NULL) + (word32)(n * 4);
+    algoSz = SetAlgoID(keytype, NULL, oidKeyType, 0);
+    verSz  = 3; /* ASN_INTEGER(1) + length(1) + version_byte(1) */
+    seqSz  = SetSequence(verSz + algoSz + privSz, NULL);
+    sz     = seqSz + verSz + algoSz + privSz;
+
+    if (output == NULL) {
+        return (int)sz;
+    }
+    if (sz > inLen) {
+        return BUFFER_E;
+    }
+
+    {
+        word32 idx = 0;
+        int actualVerSz;
+        idx += SetSequence(verSz + algoSz + privSz, output + idx);
+        actualVerSz = SetMyVersion(0, output + idx, FALSE);
+        if (actualVerSz != (int)verSz) {
+            return BUFFER_E;
+        }
+        idx += (word32)actualVerSz;
+        idx += SetAlgoID(keytype, output + idx, oidKeyType, 0);
+        idx += SetOctetString((word32)(n * 4), output + idx);
+        XMEMCPY(output + idx, key->sk, (word32)(n * 4));
+        idx += (word32)(n * 4);
+        return (int)idx;
+    }
+}
+
+/* Encode an SLH-DSA private key to DER (PKCS#8 / OneAsymmetricKey).
+ *
+ * For SLH-DSA, RFC 9909 packs SK.seed || SK.prf || PK.seed || PK.root into
+ * a single OCTET STRING, so there is no separate "private-only" encoding.
+ * This function is intentionally an alias of wc_SlhDsaKey_KeyToDer, kept
+ * for API parity with Ed25519/Ed448 which do have a distinct private form.
+ *
+ * @param [in]  key       SLH-DSA key object.
+ * @param [out] output    Buffer to put encoded data in (or NULL for size).
+ * @param [in]  inLen     Size of buffer in bytes.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  MISSING_KEY when private key not set.
+ * @return  BUFFER_E when output buffer is too small.
+ */
+int wc_SlhDsaKey_PrivateKeyToDer(SlhDsaKey* key, byte* output, word32 inLen)
+{
+    return wc_SlhDsaKey_KeyToDer(key, output, inLen);
+}
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+
 #endif /* WOLFSSL_HAVE_SLHDSA */
 

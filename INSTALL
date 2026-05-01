@@ -252,16 +252,14 @@
 
     The following NIST Competition winning algorithms are supported by the
     native wolfSSL implementation:
-    - ML-KEM (CRYSTALS-KYBER) (key encapsulation mechanism)
-    - ML-DSA (CRYSTALS-Dilithium) (signature scheme)
+    - ML-KEM (FIPS 203, CRYSTALS-KYBER) (key encapsulation mechanism)
+    - ML-DSA (FIPS 204, CRYSTALS-Dilithium) (signature scheme)
+    - SLH-DSA (FIPS 205, SPHINCS+) (signature scheme)
 
     Falcon (signature scheme) is still provided through liboqs integration.
     To enable it, pass both --with-liboqs and --enable-falcon to configure
     (CMake: -DWOLFSSL_OQS=yes -DWOLFSSL_FALCON=yes). Passing --with-liboqs
     without --enable-falcon (or vice versa) is now an error.
-
-    SPHINCS+ is in the middle of being replaced with native SLH-DSA; see
-    PR #10261. Until that lands, SPHINCS+ continues to build via liboqs.
 
     The following NIST Competition Round 3 finalist algorithms were supported,
     but have been removed after 5.3.3

@@ -36,6 +36,9 @@ EXTRA_DIST += tests/unit.h \
               tests/test-tls13-pq-standalone.conf \
               tests/test-tls13-pq-hybrid.conf \
               tests/test-tls13-pq-hybrid-extra.conf \
+              tests/test-tls13-slhdsa-shake.conf \
+              tests/test-tls13-slhdsa-sha2.conf \
+              tests/test-tls13-slhdsa-fail.conf \
               tests/test-dtls13-pq-standalone.conf \
               tests/test-dtls13-pq-standalone-frag.conf \
               tests/test-dtls13-pq-hybrid-frag.conf \
