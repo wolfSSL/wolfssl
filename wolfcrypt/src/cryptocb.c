@@ -52,6 +52,8 @@ Crypto Callback Build Options:
  *                      and SHA-512 operations.
  * WOLF_CRYPTO_CB_ONLY_ECC: Use only callbacks for ECC          default: off
  * WOLF_CRYPTO_CB_ONLY_RSA: Use only callbacks for RSA          default: off
+ * WOLF_CRYPTO_CB_ONLY_SHA256: Use only callbacks for SHA-256   default: off
+ * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -1575,7 +1577,8 @@ int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* WOLFSSL_AES_COUNTER */
-#ifdef HAVE_AES_ECB
+#if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
 int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
@@ -1639,7 +1642,7 @@ int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* HAVE_AES_ECB */
+#endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT || WOLF_CRYPTO_CB_ONLY_AES */
 
 #ifdef WOLF_CRYPTO_CB_AES_SETKEY
 int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz)

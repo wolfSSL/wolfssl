@@ -5054,6 +5054,10 @@ extern void uITRON4_free(void *p) ;
     #error "AES-GCM streaming (WOLFSSL_AESGCM_STREAM)" \
            " requires AES-GCM (HAVE_AESGCM)"
 #endif
+#if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #error "AES-GCM streaming (WOLFSSL_AESGCM_STREAM)" \
+           " is not supported with WOLF_CRYPTO_CB_ONLY_AES"
+#endif
 #if defined(WOLFSSL_AESXTS_STREAM) && !defined(WOLFSSL_AES_XTS)
     #error "AES-XTS streaming (WOLFSSL_AESXTS_STREAM)" \
            " requires AES-XTS (WOLFSSL_AES_XTS)"
@@ -5101,6 +5105,22 @@ extern void uITRON4_free(void *p) ;
     #error "Crypto callback utilities" \
            " (WOLF_CRYPTO_CB_COPY/WOLF_CRYPTO_CB_FREE)" \
            " require WOLF_CRYPTO_CB"
+#endif
+/*
+ * WOLF_CRYPTO_CB_ONLY_* assumes no hardware crypto port is compiled in for
+ * the selected algorithm. Crypto Callback is expected to be the only provider.
+ */
+#if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_RSA requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_ECC requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA256 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_AES) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_AES requires WOLF_CRYPTO_CB"
 #endif
 
 /* Early Data / Session Rules */

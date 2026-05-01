@@ -10472,6 +10472,25 @@ if test "$ENABLED_CRYPTOCB_UTILS" != "no"; then
 fi
 
 
+# wc_swdev: software crypto-callback device for testing
+AC_ARG_ENABLE([swdev],
+    [AS_HELP_STRING([--enable-swdev],[Build wc_swdev software crypto-callback for tests (default: disabled). Requires --enable-cryptocb, forces WOLF_CRYPTO_CB_FIND, and currently supports in-tree builds only.])],
+    [ ENABLED_SWDEV=$enableval ],
+    [ ENABLED_SWDEV=no ]
+)
+
+if test "$ENABLED_SWDEV" = "yes"
+then
+    if test "$ENABLED_CRYPTOCB" != "yes"; then
+        AC_MSG_ERROR([--enable-swdev requires --enable-cryptocb])
+    fi
+    if test "x$srcdir" != "x."; then
+        AC_MSG_ERROR([--enable-swdev currently supports in-tree builds only])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SWDEV -DWOLF_CRYPTO_CB_FIND"
+fi
+
+
 # Asynchronous Crypto
 AC_ARG_ENABLE([asynccrypt],
     [AS_HELP_STRING([--enable-asynccrypt],[Enable Asynchronous Crypto (default: disabled)])],
@@ -12092,6 +12111,7 @@ AM_CONDITIONAL([BUILD_MCAPI],[test "x$ENABLED_MCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_ASYNCCRYPT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 AM_CONDITIONAL([BUILD_WOLFEVENT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 AM_CONDITIONAL([BUILD_CRYPTOCB],[test "x$ENABLED_CRYPTOCB" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SWDEV],[test "x$ENABLED_SWDEV" = "xyes"])
 AM_CONDITIONAL([BUILD_PSK],[test "x$ENABLED_PSK" = "xyes"])
 AM_CONDITIONAL([BUILD_TRUST_PEER_CERT],[test "x$ENABLED_TRUSTED_PEER_CERT" = "xyes"])
 AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])

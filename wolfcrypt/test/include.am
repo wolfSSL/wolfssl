@@ -12,8 +12,55 @@ noinst_PROGRAMS+= wolfcrypt/test/testwolfcrypt
 wolfcrypt_test_testwolfcrypt_SOURCES      = wolfcrypt/test/test.c
 wolfcrypt_test_testwolfcrypt_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
 wolfcrypt_test_testwolfcrypt_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+if BUILD_SWDEV
+wolfcrypt_test_testwolfcrypt_SOURCES     += tests/swdev/swdev_loader.c
+wolfcrypt_test_testwolfcrypt_LDADD       += $(top_builddir)/tests/swdev/build/swdev.o $(LIBM)
+wolfcrypt_test_testwolfcrypt_DEPENDENCIES += $(top_builddir)/tests/swdev/build/swdev.o
+endif
 noinst_HEADERS += wolfcrypt/test/test.h wolfcrypt/test/test_paths.h.in
 endif
+endif
+
+if BUILD_SWDEV
+# delegates to tests/swdev/Makefile
+$(top_builddir)/tests/swdev/build/swdev.o: $(top_builddir)/wolfssl/options.h FORCE
+	@test "$(abs_top_srcdir)" = "$(abs_top_builddir)" || { \
+	    echo "error: --enable-swdev currently supports in-tree builds only"; \
+	    exit 1; \
+	}
+	$(MAKE) -C $(top_srcdir)/tests/swdev \
+	    SRCDIR=$(abs_top_srcdir)/tests/swdev \
+	    WOLFROOT=$(abs_top_srcdir) \
+	    $(if $(CC),CC='$(CC)') \
+	    $(if $(CCAS),CCAS='$(CCAS)') \
+	    $(if $(LD),LD='$(LD)') \
+	    $(if $(OBJCOPY),OBJCOPY='$(OBJCOPY)') \
+	    PARENT_SRCS='$(filter wolfcrypt/src/%.c src/%.c,$(src_libwolfssl_la_SOURCES))' \
+	    PARENT_ASM_SRCS='$(filter %.S,$(src_libwolfssl_la_SOURCES))' \
+	    PARENT_CPPFLAGS='$(CPPFLAGS) $(filter-out -DBUILDING_WOLFSSL,$(DEFS))' \
+	    PARENT_BUILD_CFLAGS='$(filter-out -include ./.build_params -DBUILDING_WOLFSSL,$(AM_CFLAGS))' \
+	    PARENT_CFLAGS='$(CFLAGS)' \
+	    PARENT_BUILD_CCASFLAGS='$(filter-out -DBUILDING_WOLFSSL,$(AM_CCASFLAGS))' \
+	    PARENT_CCASFLAGS='$(CCASFLAGS)' \
+	    BUILDDIR=$(abs_top_builddir)/tests/swdev/build
+
+FORCE:
+
+EXTRA_DIST += tests/swdev/swdev.c \
+              tests/swdev/swdev.h \
+              tests/swdev/swdev_loader.c \
+              tests/swdev/swdev_loader.h \
+              tests/swdev/user_settings.h \
+              tests/swdev/Makefile
+
+CLEANFILES += $(top_builddir)/tests/swdev/build/swdev.o \
+              $(top_builddir)/tests/swdev/build/swdev.partial.o
+
+# Use mostlyclean-local rather than clean-local to avoid colliding with
+# doc/include.am's clean-local (automake allows only one definition per
+# Makefile). make clean triggers mostlyclean, so coverage is equivalent.
+mostlyclean-local:
+	rm -rf $(top_builddir)/tests/swdev/build
 endif
 
 if BUILD_WOLFCRYPT_TESTS_LIBS

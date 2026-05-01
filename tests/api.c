@@ -65,6 +65,10 @@
 #include <tests/utils.h>
 #include <testsuite/utils.h>
 
+#ifdef WOLFSSL_SWDEV
+#include "swdev/swdev_loader.h"
+#endif
+
 /* for testing compatibility layer callbacks */
 #include "examples/server/server.h"
 
@@ -28550,7 +28554,9 @@ static int test_SSL_CIPHER_get_xxx(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     int* keyFormat)
@@ -29552,7 +29558,9 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
 static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
     /* TODO: Add crypto callback API tests */
 
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -36880,7 +36888,7 @@ static int test_pkcs7_padding(void)
 
     /* Encode EncryptedData */
     XMEMSET(&pkcs7, 0, sizeof(pkcs7));
-    ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID), 0);
     pkcs7.content      = plaintext;
     pkcs7.contentSz    = sizeof(plaintext);
     pkcs7.contentOID   = DATA;
@@ -36909,7 +36917,7 @@ static int test_pkcs7_padding(void)
 
         /* Decrypt modified ciphertext - must fail, not succeed */
         XMEMSET(&pkcs7, 0, sizeof(pkcs7));
-        ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID), 0);
         pkcs7.encryptionKey   = key;
         pkcs7.encryptionKeySz = sizeof(key);
 
@@ -38009,20 +38017,24 @@ int ApiTest(void)
     printf(" Begin API Tests\n");
     fflush(stdout);
 
-    /* we must perform init and cleanup if not all tests are running */
-    if (!testAll) {
-    #ifdef WOLFCRYPT_ONLY
-        if (wolfCrypt_Init() != 0) {
-            printf("wolfCrypt Initialization failed\n");
-            res = 1;
-        }
-    #else
-        if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
-            printf("wolfSSL Initialization failed\n");
-            res = 1;
-        }
-    #endif
+#ifdef WOLFCRYPT_ONLY
+    if (wolfCrypt_Init() != 0) {
+        printf("wolfCrypt Initialization failed\n");
+        res = 1;
     }
+#else
+    if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
+        printf("wolfSSL Initialization failed\n");
+        res = 1;
+    }
+#endif
+
+#ifdef WOLFSSL_SWDEV
+    if (res == 0 && wc_SwDev_Init() != 0) {
+        printf("wc_SwDev_Init failed\n");
+        res = 1;
+    }
+#endif
 
     #ifdef WOLFSSL_DUMP_MEMIO_STREAM
     if (res == 0) {
@@ -38114,13 +38126,15 @@ int ApiTest(void)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-    if (!testAll) {
-    #ifdef WOLFCRYPT_ONLY
-        wolfCrypt_Cleanup();
-    #else
-        wolfSSL_Cleanup();
-    #endif
-    }
+#ifdef WOLFSSL_SWDEV
+    wc_SwDev_Cleanup();
+#endif
+
+#ifdef WOLFCRYPT_ONLY
+    wolfCrypt_Cleanup();
+#else
+    wolfSSL_Cleanup();
+#endif
 
     (void)testDevId;
 

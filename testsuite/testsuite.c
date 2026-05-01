@@ -47,6 +47,10 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
+#ifdef WOLFSSL_SWDEV
+    #include "../tests/swdev/swdev_loader.h"
+#endif
+
 #include <examples/echoclient/echoclient.h>
 #include <examples/echoserver/echoserver.h>
 #include <examples/server/server.h>
@@ -125,7 +129,8 @@ int testsuite_test(int argc, char** argv)
 {
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && \
-    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
+    (defined(WOLFSSL_SWDEV) || \
+     (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)))
     func_args server_args;
 
     tcp_ready ready;
@@ -190,6 +195,13 @@ int testsuite_test(int argc, char** argv)
 
     server_args.signal = &ready;
     InitTcpReady(&ready);
+
+#ifdef WOLFSSL_SWDEV
+    if (wc_SwDev_Init() != 0) {
+        printf("wc_SwDev_Init failed\n");
+        return EXIT_FAILURE;
+    }
+#endif
 
 #ifndef NO_CRYPT_TEST
     /* wc_ test */
@@ -273,6 +285,10 @@ int testsuite_test(int argc, char** argv)
     ret = validate_cleanup_output();
     if (ret != 0)
         return EXIT_FAILURE;
+#endif
+
+#ifdef WOLFSSL_SWDEV
+    wc_SwDev_Cleanup();
 #endif
 
     wolfSSL_Cleanup();
@@ -600,7 +616,8 @@ static int test_ocsp_responder(void)
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && \
-   (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
+   (defined(WOLFSSL_SWDEV) || \
+    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)))
 /* Perform a basic TLS handshake.
  *
  * First connection to echo a file.
@@ -856,8 +873,17 @@ int main(int argc, char** argv)
     wolfSSL_Init();
     ChangeToWolfRoot();
 
+#ifdef WOLFSSL_SWDEV
+    if (wc_SwDev_Init() != 0) {
+        printf("wc_SwDev_Init failed\n");
+        return EXIT_FAILURE;
+    }
+#endif
     /* No TLS - only doing cryptographic algorithm testing. */
     wolfcrypt_test(&wolfcrypt_test_args);
+#ifdef WOLFSSL_SWDEV
+    wc_SwDev_Cleanup();
+#endif
     if (wolfcrypt_test_args.return_code != 0)
         return wolfcrypt_test_args.return_code;
 

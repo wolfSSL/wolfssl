@@ -1257,6 +1257,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         }
 
     #endif
+#elif defined(WOLF_CRYPTO_CB_ONLY_AES)
+    /* No software implementation AES T-tables, S-box, Rcon and the C key
+     * schedule are stripped. */
 #else
 
     /* using wolfCrypt software implementation */
@@ -4108,6 +4111,51 @@ WC_ALL_ARGS_NOT_NULL static WARN_UNUSED_RESULT int wc_AesDecrypt(
 
 #endif /* NEED_AES_TABLES */
 
+#ifdef WOLF_CRYPTO_CB_ONLY_AES
+/* Under WOLF_CRYPTO_CB_ONLY_AES the per-block primitive is a thin shim over
+ * the cryptocb ECB callback. When the callback returns CRYPTOCB_UNAVAILABLE
+ * there is no software fallback, so the operation fails with NO_VALID_DEVID. */
+static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock,
+    byte* outBlock)
+{
+    int ret;
+
+    if (aes == NULL || inBlock == NULL || outBlock == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+    ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+    if (ret < 0)
+        return ret;
+#endif
+
+    ret = wc_CryptoCb_AesEcbEncrypt(aes, outBlock, inBlock, WC_AES_BLOCK_SIZE);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    return NO_VALID_DEVID;
+}
+
+#ifdef HAVE_AES_DECRYPT
+static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
+    byte* outBlock)
+{
+    int ret;
+
+    if (aes == NULL || inBlock == NULL || outBlock == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+    ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+    if (ret < 0)
+        return ret;
+#endif
+
+    ret = wc_CryptoCb_AesEcbDecrypt(aes, outBlock, inBlock, WC_AES_BLOCK_SIZE);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    return NO_VALID_DEVID;
+}
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLF_CRYPTO_CB_ONLY_AES */
+
 #ifndef WC_AES_HAVE_PREFETCH_ARG
     #ifndef AesEncrypt_preFetchOpt
         #define AesEncrypt_preFetchOpt(aes, inBlock, outBlock, do_preFetch) \
@@ -5002,7 +5050,10 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
 
     #ifdef WOLF_CRYPTO_CB
-        if (aes->devId != INVALID_DEVID) {
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
         #ifdef WOLF_CRYPTO_CB_AES_SETKEY
             ret = wc_CryptoCb_AesSetKey(aes, userKey, keylen);
             if (ret == 0) {
@@ -5104,7 +5155,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
         (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
         #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
         if (aes->devId != INVALID_DEVID)
+        #endif
         #endif
         {
             if (keylen > sizeof(aes->devKey)) {
@@ -5112,6 +5165,22 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             }
             XMEMCPY(aes->devKey, userKey, keylen);
         }
+    #endif
+
+    #ifdef WOLF_CRYPTO_CB_ONLY_AES
+        /* No software AES schedule under CB_ONLY: aes->key[] (round keys) are
+         * unused because the static wc_AesEncrypt/wc_AesDecrypt are cryptocb-
+         * ECB shims. aes->rounds is still populated because wc_AesGetKeySize()
+         * reads it as the source of truth for the configured key size. */
+        aes->keylen = (int)keylen;
+        aes->rounds = (keylen / 4) + 6;
+        #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+            defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+            defined(WOLFSSL_AES_CTS)
+        aes->left = 0;
+        #endif
+        (void)dir;
+        return wc_AesSetIV(aes, iv);
     #endif
 
     #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
@@ -7693,6 +7762,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+#ifdef WOLF_CRYPTO_CB_ONLY_AES
+    /* Device handles GCM end-to-end; GHASH H / M0 setup below is dead state
+     * under CB_ONLY (no host-side software path consumes aes->gcm.H or M0). */
+    return ret;
+#endif
 #ifdef WOLFSSL_AESGCM_STREAM
     aes->gcmKeySet = 1;
 #endif
@@ -14047,6 +14121,11 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
         /* fall-through when unavailable */
     }
 #endif
+#ifdef WOLF_CRYPTO_CB_ONLY_AES
+    /* No software fallback: the per-block loop below would only re-invoke
+     * cryptocb ECB and propagate UNAVAILABLE; short-circuit instead. */
+    return NO_VALID_DEVID;
+#endif
 #ifdef WOLFSSL_IMXRT_DCP
     if (aes->keylen == 16)
         return DCPAesEcbEncrypt(aes, out, in, sz);
@@ -14135,6 +14214,9 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
         ret = 0;
         /* fall-through when unavailable */
     }
+#endif
+#ifdef WOLF_CRYPTO_CB_ONLY_AES
+    return NO_VALID_DEVID;
 #endif
 #ifdef WOLFSSL_IMXRT_DCP
     if (aes->keylen == 16)

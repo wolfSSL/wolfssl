@@ -34,6 +34,10 @@
 #include "wolfcrypt/test/test.h"
 #endif
 
+#ifdef WOLFSSL_SWDEV
+#include "swdev/swdev_loader.h"
+#endif
+
 int allTesting = 1;
 int apiTesting = 1;
 int myoptind = 0;
@@ -260,12 +264,23 @@ int unit_test(int argc, char** argv)
             goto exit;
         }
 
+    #ifdef WOLFSSL_SWDEV
+        if ((ret = wc_SwDev_Init()) != 0) {
+            fprintf(stderr, "wc_SwDev_Init failed: %d\n", (int)ret);
+            goto exit;
+        }
+    #endif
+
         XMEMSET(&wc_args, 0, sizeof(wc_args));
         wolfcrypt_test(&wc_args);
         if (wc_args.return_code != 0) {
             ret = 1;
             goto exit;
         }
+
+    #ifdef WOLFSSL_SWDEV
+        wc_SwDev_Cleanup();
+    #endif
 
         if ((ret = wolfCrypt_Cleanup()) != 0) {
             fprintf(stderr, "wolfCrypt_Cleanup failed: %d\n", (int)ret);
@@ -319,10 +334,26 @@ int unit_test(int argc, char** argv)
     !defined(NO_TLS) && \
     !defined(SINGLE_THREADED) && \
     defined(WOLFSSL_PEM_TO_DER)
+    #ifdef WOLFSSL_SWDEV
+    if (wolfCrypt_Init() != 0) {
+        fprintf(stderr, "wolfCrypt_Init before SuiteTest failed\n");
+        ret = 1;
+        goto exit;
+    }
+    if (wc_SwDev_Init() != 0) {
+        fprintf(stderr, "wc_SwDev_Init before SuiteTest failed\n");
+        ret = 1;
+        goto exit;
+    }
+    #endif
     if ((ret = SuiteTest(argc, argv)) != 0) {
         fprintf(stderr, "suite test failed with %d\n", ret);
         goto exit;
     }
+    #ifdef WOLFSSL_SWDEV
+    wc_SwDev_Cleanup();
+    wolfCrypt_Cleanup();
+    #endif
 #endif
 
 exit:

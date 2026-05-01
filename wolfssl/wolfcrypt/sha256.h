@@ -102,6 +102,12 @@
 #define WOLFSSL_NO_HASH_RAW
 #endif
 
+/* no raw hash access when software transform is stripped */
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+#undef  WOLFSSL_NO_HASH_RAW
+#define WOLFSSL_NO_HASH_RAW
+#endif
+
 #define SHA256_NOINLINE WC_NO_INLINE
 
 #if !defined(NO_OLD_SHA_NAMES)
@@ -256,7 +262,8 @@ WOLFSSL_API int wc_InitSha256(wc_Sha256* sha);
 WOLFSSL_API int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId);
 WOLFSSL_API int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len);
 
-#if !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH)
+#if !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash);
 #endif
 WOLFSSL_API int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
