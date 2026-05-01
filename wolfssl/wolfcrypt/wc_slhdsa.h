@@ -23,13 +23,6 @@
 #define WOLF_CRYPT_WC_SLHDSA_H
 
 #include <wolfssl/wolfcrypt/types.h>
-
-#if FIPS_VERSION3_GE(7,0,0)
-    #include <wolfssl/wolfcrypt/fips.h>
-#endif
-
-#ifdef WOLFSSL_HAVE_SLHDSA
-
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 
@@ -39,17 +32,13 @@
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif
+
+#ifdef WOLFSSL_HAVE_SLHDSA
+
 /* ======== SHAKE parameter guards ======== */
-#ifdef WOLFSSL_SLHDSA_NO_SHAKE
-
-    #define WOLFSSL_SLHDSA_PARAM_NO_128S
-    #define WOLFSSL_SLHDSA_PARAM_NO_128F
-    #define WOLFSSL_SLHDSA_PARAM_NO_192S
-    #define WOLFSSL_SLHDSA_PARAM_NO_192F
-    #define WOLFSSL_SLHDSA_PARAM_NO_256S
-    #define WOLFSSL_SLHDSA_PARAM_NO_256F
-
-#else /* !WOLFSSL_SLHDSA_NO_SHAKE */
 
 /* When a bits/opt is defined then ensure 'NO' defines are off. */
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
@@ -82,8 +71,6 @@
     #undef WOLFSSL_SLHDSA_PARAM_NO_256
     #undef WOLFSSL_SLHDSA_PARAM_NO_FAST
 #endif
-
-#endif /* !WOLFSSL_SLHDSA_NO_SHAKE */
 
 /* When 'NO' defines are on then define no parameter set. */
 #if defined(WOLFSSL_SLHDSA_PARAM_NO_128S) && \
@@ -178,12 +165,6 @@
     defined(WOLFSSL_SLHDSA_PARAM_NO_256F)
     #undef WOLFSSL_SLHDSA_PARAM_NO_256
     #define WOLFSSL_SLHDSA_PARAM_NO_256
-#endif
-
-#if defined(WOLFSSL_SLHDSA_PARAM_NO_128) && \
-    defined(WOLFSSL_SLHDSA_PARAM_NO_192) && \
-    defined(WOLFSSL_SLHDSA_PARAM_NO_256)
-    #define WOLFSSL_SLHDSA_NO_SHAKE
 #endif
 
 /* ======== SHA2 parameter guards ======== */
@@ -317,11 +298,7 @@
     #define WOLFSSL_SLHDSA_PARAM_NO_SHA2_256
 #endif
 
-#else /* !WOLFSSL_SLHDSA_SHA2 */
-
-    #define WOLFSSL_SLHDSA_NO_SHA2
-
-#endif /* !WOLFSSL_SLHDSA_SHA2 */
+#endif /* WOLFSSL_SLHDSA_SHA2 */
 
 /* ======== Security parameter (n) per FIPS 205 Table 2 ======== */
 
@@ -497,50 +474,26 @@
     !defined(WOLFSSL_SLHDSA_PARAM_NO_FAST)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE256F_SIG_LEN
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256) && \
-    !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_FAST)
-    /* Maximum signature length. */
-    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_256F_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_FAST)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE192F_SIG_LEN
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192) && \
-      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_FAST)
-    /* Maximum signature length. */
-    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_192F_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_256) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_SMALL)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE256S_SIG_LEN
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256) && \
-      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_SMALL)
-    /* Maximum signature length. */
-    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_256S_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_128) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_FAST)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE128F_SIG_LEN
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128) && \
-      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_FAST)
-    /* Maximum signature length. */
-    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_128F_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_192) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_SMALL)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE192S_SIG_LEN
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192) && \
-      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_SMALL)
-    /* Maximum signature length. */
-    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_192S_SIG_LEN
 #elif !defined(WOLFSSL_SLHDSA_PARAM_NO_128) && \
       !defined(WOLFSSL_SLHDSA_PARAM_NO_SMALL)
     /* Maximum signature length. */
     #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHAKE128S_SIG_LEN
-#elif !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_128) && \
-      !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_SMALL)
-    /* Maximum signature length. */
-    #define WC_SLHDSA_MAX_SIG_LEN           WC_SLHDSA_SHA2_128S_SIG_LEN
 #else
     #error "No parameters defined"
 #endif
@@ -567,7 +520,7 @@ enum SlhDsaParam {
 #ifdef WOLFSSL_SLHDSA_SHA2
     #define SLHDSA_IS_SHA2(p)   ((p) >= SLHDSA_SHA2_128S)
 #else
-    #define SLHDSA_IS_SHA2(p)   0
+    #define SLHDSA_IS_SHA2(p)   (0)
 #endif
 
 /* Pre-defined parameter values. */
@@ -693,27 +646,6 @@ WOLFSSL_API int  wc_SlhDsaKey_SigSize(SlhDsaKey* key);
 WOLFSSL_API int  wc_SlhDsaKey_PrivateSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
-
-/* DER encode/decode */
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyDecode(const byte* input,
-    word32* inOutIdx, SlhDsaKey* key, word32 inSz);
-#endif
-WOLFSSL_API int  wc_SlhDsaKey_PublicKeyDecode(const byte* input,
-    word32* inOutIdx, SlhDsaKey* key, word32 inSz);
-#ifdef WC_ENABLE_ASYM_KEY_EXPORT
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-WOLFSSL_API int  wc_SlhDsaKey_KeyToDer(SlhDsaKey* key, byte* output,
-    word32 inLen);
-/* SLH-DSA has no separate private-only encoding based on RFC 9909. This
- * function is an intentional alias of wc_SlhDsaKey_KeyToDer, kept for API
- * parity with other algorithms which do have a distinct private form. */
-WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyToDer(SlhDsaKey* key, byte* output,
-    word32 inLen);
-#endif
-WOLFSSL_API int  wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output,
-    word32 inLen, int withAlg);
-#endif
 
 #endif /* WOLFSSL_HAVE_SLHDSA */
 

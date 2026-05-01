@@ -69,20 +69,23 @@
 #if defined(NO_PKCS11_MLDSA) && defined(HAVE_DILITHIUM)
     #undef HAVE_DILITHIUM
 #endif
-#if defined(NO_PKCS11_MLKEM) && defined(WOLFSSL_HAVE_MLKEM)
-    #undef WOLFSSL_HAVE_MLKEM
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM)
+    #define HAVE_PKCS11_MLKEM
+#endif
+#if defined(NO_PKCS11_MLKEM) && defined(HAVE_PKCS11_MLKEM)
+    #undef HAVE_PKCS11_MLKEM
 #endif
 
 
 #if (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(HAVE_PKCS11_MLKEM)
 /* Pointer to false required for templates. */
 static CK_BBOOL ckFalse = CK_FALSE;
 #endif
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
            !defined(NO_HMAC) || defined(HAVE_DILITHIUM) || \
-           defined(WOLFSSL_HAVE_MLKEM)
+           defined(HAVE_PKCS11_MLKEM)
 /* Pointer to true required for templates. */
 static CK_BBOOL ckTrue  = CK_TRUE;
 #endif
@@ -95,7 +98,7 @@ static CK_KEY_TYPE rsaKeyType   = CKK_RSA;
 /* Pointer to EC key type required for templates. */
 static CK_KEY_TYPE ecKeyType    = CKK_EC;
 #endif
-#if defined(WOLFSSL_HAVE_MLKEM)
+#if defined(HAVE_PKCS11_MLKEM)
 /* Pointer to ML-KEM key type required for templates. */
 static CK_KEY_TYPE mlkemKeyType = CKK_ML_KEM;
 #endif
@@ -104,7 +107,7 @@ static CK_KEY_TYPE mlkemKeyType = CKK_ML_KEM;
 static CK_KEY_TYPE mldsaKeyType = CKK_ML_DSA;
 #endif
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_DILITHIUM) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(HAVE_PKCS11_MLKEM)
 /* Pointer to public key class required for templates. */
 static CK_OBJECT_CLASS pubKeyClass     = CKO_PUBLIC_KEY;
 /* Pointer to private key class required for templates. */
@@ -112,7 +115,7 @@ static CK_OBJECT_CLASS privKeyClass    = CKO_PRIVATE_KEY;
 #endif
 #if (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
             !defined(NO_HMAC) || (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)) || \
-            defined(WOLFSSL_HAVE_MLKEM)
+            defined(HAVE_PKCS11_MLKEM)
 /* Pointer to secret key class required for templates. */
 static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
 #endif
@@ -1569,7 +1572,7 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
 }
 #endif
 
-#ifdef WOLFSSL_HAVE_MLKEM
+#ifdef HAVE_PKCS11_MLKEM
 /**
  * Create a PKCS#11 object containing the ML-KEM public key data.
  */
@@ -1769,7 +1772,7 @@ static int Pkcs11CreateMlKemPrivateKey(CK_OBJECT_HANDLE* privateKey,
 
     return ret;
 }
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* HAVE_PKCS11_MLKEM */
 
 #ifdef HAVE_DILITHIUM
 /**
@@ -1946,7 +1949,7 @@ static int Pkcs11CreateMldsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
            !defined(NO_HMAC) || defined(HAVE_DILITHIUM) || \
-           defined(WOLFSSL_HAVE_MLKEM)
+           defined(HAVE_PKCS11_MLKEM)
 /**
  * Check if mechanism is available in session on token.
  *
@@ -2188,7 +2191,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 break;
             }
     #endif
-    #ifdef WOLFSSL_HAVE_MLKEM
+    #ifdef HAVE_PKCS11_MLKEM
             case PKCS11_KEY_TYPE_MLKEM: {
                 MlKemKey* mlkemKey = (MlKemKey*)key;
                 CK_MECHANISM_INFO mechInfo;
@@ -2217,7 +2220,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 }
                 break;
             }
-    #endif /* WOLFSSL_HAVE_MLKEM */
+    #endif /* HAVE_PKCS11_MLKEM */
     #if defined(HAVE_DILITHIUM)
             case PKCS11_KEY_TYPE_MLDSA: {
                 MlDsaKey* mldsaKey = (MlDsaKey*) key;
@@ -4240,7 +4243,7 @@ static int Pkcs11EccDeletePrivKey(Pkcs11Session* session, ecc_key* key)
 }
 #endif
 
-#ifdef WOLFSSL_HAVE_MLKEM
+#ifdef HAVE_PKCS11_MLKEM
 /* Finds the first ML-KEM key matching the key type. */
 static int Pkcs11FindMlKemKey(CK_OBJECT_HANDLE* handle,
                               CK_OBJECT_CLASS keyClass,
@@ -4744,7 +4747,7 @@ static int Pkcs11PqcKemDecapsulate(Pkcs11Session* session, wc_CryptoInfo* info)
 
     return ret;
 }
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* HAVE_PKCS11_MLKEM */
 
 #if defined(HAVE_DILITHIUM)
 /**
@@ -6327,7 +6330,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     if (ret == 0) {
         if (info->algo_type == WC_ALGO_TYPE_PK) {
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_DILITHIUM) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(HAVE_PKCS11_MLKEM)
             switch (info->pk.type) {
     #ifndef NO_RSA
                 case WC_PK_TYPE_RSA:
@@ -6407,7 +6410,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     }
                     break;
     #endif
-    #ifdef WOLFSSL_HAVE_MLKEM
+    #ifdef HAVE_PKCS11_MLKEM
                 case WC_PK_TYPE_PQC_KEM_KEYGEN:
                     ret = Pkcs11OpenSession(token, &session, readWrite);
                     if (ret == 0) {
@@ -6466,7 +6469,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             }
 #else
             ret = NOT_COMPILED_IN;
-#endif /* !NO_RSA || HAVE_ECC || HAVE_DILITHIUM || WOLFSSL_HAVE_MLKEM */
+#endif /* !NO_RSA || HAVE_ECC || HAVE_DILITHIUM || HAVE_PKCS11_MLKEM */
         }
         else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
     #ifndef NO_AES
@@ -6600,7 +6603,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             }
             else
     #endif
-    #ifdef WOLFSSL_HAVE_MLKEM
+    #ifdef HAVE_PKCS11_MLKEM
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_PQC_KEM_KEYGEN &&
                 info->free.subType == WC_PQC_KEM_TYPE_KYBER) {

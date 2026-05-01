@@ -825,57 +825,16 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* Initialize Falcon key. */
     ret = wc_falcon_init(key);
     if (ret == 0) {
-        byte level = 0;
-        word32 idx;
-
-        if (*keyFormat == FALCON_LEVEL1k) {
-            level = 1;
+        /* Set up key to parse the format specified. */
+        if ((*keyFormat == FALCON_LEVEL1k) || ((*keyFormat == 0) &&
+                ((der->length == FALCON_LEVEL1_KEY_SIZE) ||
+                 (der->length == FALCON_LEVEL1_PRV_KEY_SIZE)))) {
+            ret = wc_falcon_set_level(key, 1);
         }
-        else if (*keyFormat == FALCON_LEVEL5k) {
-            level = 5;
-        }
-
-        if (level != 0) {
-            /* Caller told us the level via the OID sum. */
-            ret = wc_falcon_set_level(key, level);
-            if (ret == 0) {
-                idx = 0;
-                ret = wc_Falcon_PrivateKeyDecode(der->buffer, &idx, key,
-                                                  der->length);
-            }
-        }
-        else if (*keyFormat == 0) {
-            /* Key format unknown. Try both levels; the expected OID inside
-             * wc_Falcon_PrivateKeyDecode rejects non-matching DER. Re-init
-             * between attempts so a partial first decode can't leave stale
-             * bytes in key->k / key->p. */
-            idx = 0;
-            if (wc_falcon_set_level(key, 1) == 0 &&
-                wc_Falcon_PrivateKeyDecode(der->buffer, &idx, key,
-                                           der->length) == 0) {
-                level = 1;
-            }
-            else {
-                wc_falcon_free(key);
-                if (wc_falcon_init(key) != 0) {
-                    XFREE(key, heap, DYNAMIC_TYPE_FALCON);
-                    return MEMORY_E;
-                }
-                idx = 0;
-                if (wc_falcon_set_level(key, 5) == 0 &&
-                    wc_Falcon_PrivateKeyDecode(der->buffer, &idx, key,
-                                               der->length) == 0) {
-                    level = 5;
-                }
-            }
-            if (level == 0) {
-                /* Not a Falcon key; let caller try another algorithm. */
-                WOLFSSL_MSG("Not a Falcon key");
-                wc_falcon_free(key);
-                XFREE(key, heap, DYNAMIC_TYPE_FALCON);
-                return 0;
-            }
-            ret = 0;
+        else if ((*keyFormat == FALCON_LEVEL5k) || ((*keyFormat == 0) &&
+                 ((der->length == FALCON_LEVEL5_KEY_SIZE) ||
+                  (der->length == FALCON_LEVEL5_PRV_KEY_SIZE)))) {
+            ret = wc_falcon_set_level(key, 5);
         }
         else {
             wc_falcon_free(key);
@@ -884,27 +843,38 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        /* Get the minimum Falcon key size from SSL or SSL context object. */
-        int minKeySz = ssl ? ssl->options.minFalconKeySz :
-                             ctx->minFalconKeySz;
+        /* Decode as a Falcon private key. */
+        ret = wc_falcon_import_private_only(der->buffer, der->length, key);
+        if (ret == 0) {
+            /* Get the minimum Falcon key size from SSL or SSL context object.
+             */
+            int minKeySz = ssl ? ssl->options.minFalconKeySz :
+                                 ctx->minFalconKeySz;
 
-        if (key->level == 1) {
-            *keyFormat = FALCON_LEVEL1k;
-            *keyType = falcon_level1_sa_algo;
-            *keySize = FALCON_LEVEL1_KEY_SIZE;
+            /* Format is known. */
+            if (*keyFormat == FALCON_LEVEL1k) {
+                *keyType = falcon_level1_sa_algo;
+                *keySize = FALCON_LEVEL1_KEY_SIZE;
+            }
+            else {
+                *keyType = falcon_level5_sa_algo;
+                *keySize = FALCON_LEVEL5_KEY_SIZE;
+            }
+
+            /* Check that the size of the Falcon key is enough. */
+            if (*keySize < minKeySz) {
+                WOLFSSL_MSG("Falcon private key too small");
+                ret = FALCON_KEY_SIZE_E;
+            }
         }
-        else {
-            *keyFormat = FALCON_LEVEL5k;
-            *keyType = falcon_level5_sa_algo;
-            *keySize = FALCON_LEVEL5_KEY_SIZE;
+        /* Not a Falcon key but check whether we know what it is. */
+        else if (*keyFormat == 0) {
+            WOLFSSL_MSG("Not a Falcon key");
+            /* Format unknown so keep trying. */
+            ret = 0;
         }
 
-        /* Check that the size of the Falcon key is enough. */
-        if (*keySize < minKeySz) {
-            WOLFSSL_MSG("Falcon private key too small");
-            ret = FALCON_KEY_SIZE_E;
-        }
-
+        /* Free dynamically allocated data in key. */
         wc_falcon_free(key);
     }
     else if ((ret == WC_NO_ERR_TRACE(ALGO_ID_E)) && (*keyFormat == 0)) {
@@ -5305,18 +5275,6 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
         case WC_EVP_PKEY_EC:
             WOLFSSL_MSG("populating ECC key");
             ret = ECC_populate_EVP_PKEY(pkey, pkey->ecc);
-            break;
-    #endif
-    #ifdef HAVE_ED25519
-        case WC_EVP_PKEY_ED25519:
-            /* DER is already stored in pkey->pkey.ptr by d2i_evp_pkey. */
-            WOLFSSL_MSG("populating Ed25519 key");
-            break;
-    #endif
-    #ifdef HAVE_ED448
-        case WC_EVP_PKEY_ED448:
-            /* DER is already stored in pkey->pkey.ptr by d2i_evp_pkey. */
-            WOLFSSL_MSG("populating Ed448 key");
             break;
     #endif
         default:

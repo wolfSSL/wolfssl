@@ -78,7 +78,12 @@
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
 #ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/mlkem.h>
+#ifdef WOLFSSL_WC_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
+#elif defined(HAVE_LIBOQS)
+    #include <wolfssl/wolfcrypt/ext_mlkem.h>
+#endif
 #endif
 #if defined(HAVE_DILITHIUM)
     #include <wolfssl/wolfcrypt/dilithium.h>

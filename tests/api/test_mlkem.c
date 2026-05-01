@@ -29,7 +29,10 @@
 #endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/mlkem.h>
+#ifdef WOLFSSL_WC_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
 #endif
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
@@ -38,7 +41,7 @@
 int test_wc_mlkem_make_key_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -1497,7 +1500,7 @@ int test_wc_mlkem_make_key_kats(void)
 int test_wc_mlkem_encapsulate_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -2471,7 +2474,7 @@ int test_wc_mlkem_encapsulate_kats(void)
 int test_wc_mlkem_decapsulate_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -3886,7 +3889,7 @@ int test_wc_mlkem_decapsulate_pubonly_fails(void)
 {
     EXPECT_DECLS;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
@@ -3963,7 +3966,7 @@ int test_wc_mlkem_decap_fo_reject(void)
 {
     EXPECT_DECLS;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_WC_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)

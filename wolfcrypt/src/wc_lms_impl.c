@@ -48,7 +48,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef WOLFSSL_HAVE_LMS
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS)
 
 /* Length of R in bytes. */
 #define LMS_R_LEN           4
@@ -2418,12 +2418,10 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
         }
     }
 
-    if (ret == 0) {
-        if (!useRoot) {
-            /* Copy stack back. */
-            XMEMCPY(stackCache->stack, stack, params->height * params->hash_len);
-            stackCache->offset = (word32)((size_t)sp - (size_t)stack);
-        }
+    if (!useRoot && (ret == 0)) {
+        /* Copy stack back. */
+        XMEMCPY(stackCache->stack, stack, params->height * params->hash_len);
+        stackCache->offset = (word32)((size_t)sp - (size_t)stack);
     }
 
     WC_FREE_VAR_EX(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4110,5 +4108,5 @@ int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
     return ret;
 }
 
-#endif /* WOLFSSL_HAVE_LMS */
+#endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */
 

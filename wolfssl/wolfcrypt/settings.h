@@ -558,11 +558,6 @@
     #define HAVE_OID_DECODING
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
-/* RFC 8737 id-pe-acmeIdentifier (TLS-ALPN-01) requires SHA-256. */
-#if defined(WOLFSSL_ACME_OID) && defined(NO_SHA256)
-    #undef WOLFSSL_ACME_OID
-#endif
-
 
 #if defined(_WIN32) && !defined(_M_X64) && \
     defined(HAVE_AESGCM) && defined(WOLFSSL_AESNI)
@@ -933,6 +928,7 @@
     #ifdef CONFIG_ESP_WOLFSSL_ENABLE_MLKEM
         /* Kyber typically needs a minimum 10K stack */
         #define WOLFSSL_HAVE_MLKEM
+        #define WOLFSSL_WC_MLKEM
         #define WOLFSSL_SHA3
         #if defined(CONFIG_IDF_TARGET_ESP8266)
             /* With limited RAM, we'll disable some of the Kyber sizes: */
@@ -2209,10 +2205,10 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32L4)  || defined(WOLFSSL_STM32L5)   || \
     defined(WOLFSSL_STM32WB)  || defined(WOLFSSL_STM32H7)   || \
     defined(WOLFSSL_STM32G0)  || defined(WOLFSSL_STM32U5)   || \
-    defined(WOLFSSL_STM32U3)  || defined(WOLFSSL_STM32H5)   || \
-    defined(WOLFSSL_STM32WL)  || defined(WOLFSSL_STM32G4)   || \
-    defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
-    defined(WOLFSSL_STM32WBA) || defined(WOLFSSL_STM32N6)
+    defined(WOLFSSL_STM32H5)  || defined(WOLFSSL_STM32WL)   || \
+    defined(WOLFSSL_STM32G4)  || defined(WOLFSSL_STM32MP13) || \
+    defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32WBA)  || \
+    defined(WOLFSSL_STM32N6)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2233,8 +2229,7 @@ extern void uITRON4_free(void *p) ;
 
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
             defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32U5) || \
-            defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32WL) || \
-            defined(WOLFSSL_STM32WBA)
+            defined(WOLFSSL_STM32WL) || defined(WOLFSSL_STM32WBA)
             #define NO_AES_192 /* hardware does not support 192-bit */
         #endif
     #endif
@@ -2279,8 +2274,6 @@ extern void uITRON4_free(void *p) ;
             #include "stm32g4xx_hal.h"
         #elif defined(WOLFSSL_STM32U5)
             #include "stm32u5xx_hal.h"
-        #elif defined(WOLFSSL_STM32U3)
-            #include "stm32u3xx_hal.h"
         #elif defined(WOLFSSL_STM32H5)
             #include "stm32h5xx_hal.h"
         #elif defined(WOLFSSL_STM32N6)
@@ -3307,7 +3300,7 @@ extern void uITRON4_free(void *p) ;
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
-      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS))
+      defined(HAVE_SPHINCS) || defined(HAVE_LIBOQS))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -3317,7 +3310,7 @@ extern void uITRON4_free(void *p) ;
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
-      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS))
+      defined(HAVE_SPHINCS) || defined(HAVE_LIBOQS))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
@@ -4061,14 +4054,6 @@ extern void uITRON4_free(void *p) ;
         #undef WOLFSSL_GENERAL_ALIGNMENT
         #define WOLFSSL_GENERAL_ALIGNMENT SIZEOF_LONG
     #endif
-
-    /* SLH-DSA signature generation is too computationally intensive to be
-     * appropriate in typical kernel deployments.
-     */
-    #if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
-        !defined(WOLFSSL_SLHDSA_NO_VERIFY_ONLY)
-        #define WOLFSSL_SLHDSA_VERIFY_ONLY
-    #endif
 #endif /* WOLFSSL_KERNEL_MODE */
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
@@ -4588,21 +4573,43 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-/* Falcon is the only algorithm we still pull from liboqs, so the two options
- * go together: Falcon cannot be built without liboqs, and enabling liboqs
- * without Falcon leaves nothing for it to do. */
-#if defined(HAVE_LIBOQS) && !defined(HAVE_FALCON)
-#error "HAVE_LIBOQS without HAVE_FALCON has no effect; enable Falcon or drop liboqs."
+#ifdef WOLFSSL_HAVE_MLKEM
+#define HAVE_PQC
 #endif
-#if defined(HAVE_FALCON) && !defined(HAVE_LIBOQS)
-#error "HAVE_FALCON requires HAVE_LIBOQS (enable liboqs via --with-liboqs)."
+
+/* Enable Post-Quantum Cryptography if we have liboqs from the OpenQuantumSafe
+ * group */
+#ifdef HAVE_LIBOQS
+#define HAVE_PQC
+#define HAVE_FALCON
+#ifndef HAVE_DILITHIUM
+    #define HAVE_DILITHIUM
+#endif
+#ifndef WOLFSSL_NO_SPHINCS
+    #define HAVE_SPHINCS
+#endif
+#ifndef WOLFSSL_HAVE_MLKEM
+    #define WOLFSSL_HAVE_MLKEM
+    #define WOLFSSL_KYBER512
+    #define WOLFSSL_KYBER768
+    #define WOLFSSL_KYBER1024
+    #define WOLFSSL_WC_ML_KEM_512
+    #define WOLFSSL_WC_ML_KEM_768
+    #define WOLFSSL_WC_ML_KEM_1024
+#endif
 #endif
 
 #if (defined(HAVE_LIBOQS) ||                                            \
+     defined(HAVE_LIBXMSS) ||                                           \
+     defined(HAVE_LIBLMS) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS) ||                                 \
      defined(HAVE_ASCON)) &&                                            \
     !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
+
+#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(WOLFSSL_HAVE_MLKEM)
+#error Please do not define HAVE_PQC yourself.
 #endif
 
 /* If no malloc then make sure the valid Dilithium settings are used */
@@ -4611,16 +4618,16 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
 #endif
 
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
     defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS_CH_FRAG)
 #define WOLFSSL_DTLS_CH_FRAG
-#warning "WOLFSSL_DTLS_CH_FRAG is enabled to support ML-KEM in DTLS 1.3"
+#warning "WOLFSSL_DTLS_CH_FRAG is enabled to support PQC in DTLS 1.3"
 #endif
 #if !defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
 #error "WOLFSSL_DTLS_CH_FRAG only works with DTLS 1.3"
 #endif
 
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_PQC_HYBRIDS) && \
     defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE) && !defined(WOLFCRYPT_ONLY)
 #error "Neither PQ/T hybrid combinations nor ML-KEM as standalone TLS key " \
@@ -4655,15 +4662,15 @@ extern void uITRON4_free(void *p) ;
 
 /* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. */
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS) || \
-    (defined(WOLFSSL_HAVE_XMSS) && (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || \
-    WOLFSSL_XMSS_MAX_HEIGHT > 32)) || (defined(WOLFSSL_HAVE_LMS) && \
+    (defined(WOLFSSL_WC_XMSS) && (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || \
+    WOLFSSL_XMSS_MAX_HEIGHT > 32)) || (defined(WOLFSSL_WC_LMS) && \
     !defined(WOLFSSL_LMS_VERIFY_ONLY))
     #undef WOLFSSL_W64_WRAPPER
     #define WOLFSSL_W64_WRAPPER
 #endif
 
 /* wc_xmss and wc_lms require these misc.c functions. */
-#if defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_LMS)
+#if defined(WOLFSSL_WC_XMSS) || defined(WOLFSSL_WC_LMS)
     #undef  WOLFSSL_NO_INT_ENCODE
     #undef  WOLFSSL_NO_INT_DECODE
 #endif
@@ -4709,7 +4716,7 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_SHA3) && \
     ((defined(HAVE_FIPS) && FIPS_VERSION_LE(5,2)) || \
      (defined(HAVE_SELFTEST) && \
-      !defined(WOLFSSL_HAVE_MLKEM) && !defined(HAVE_DILITHIUM)))
+      !defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_WC_DILITHIUM)))
     #undef  WOLFSSL_NO_SHAKE128
     #define WOLFSSL_NO_SHAKE128
     #undef  WOLFSSL_NO_SHAKE256

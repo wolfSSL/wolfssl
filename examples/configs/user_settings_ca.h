@@ -149,6 +149,7 @@ extern "C" {
 #if 0 /* ML-DSA / Dilithium certificates */
     #define WOLFSSL_EXPERIMENTAL_SETTINGS
     #define HAVE_DILITHIUM
+    #define WOLFSSL_WC_DILITHIUM
     #define WOLFSSL_SHAKE128
     #define WOLFSSL_SHAKE256
 #endif

@@ -1298,7 +1298,6 @@ then
         AC_MSG_ERROR([--enable-all-osp is incompatible with --enable-linuxkm-defaults])
     fi
 
-    test "$enable_tailscale" = "" && enable_tailscale=yes
     test "$enable_wolfguard" = "" && enable_wolfguard=yes
     test "$enable_webserver" = "" && enable_webserver=yes
 
@@ -1649,30 +1648,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
 fi
 
-# Support for Tailscale port
-AC_ARG_ENABLE([tailscale],
-    [AS_HELP_STRING([--enable-tailscale],[Enable Tailscale build dependencies (default: disabled)])],
-    [ ENABLED_TAILSCALE=$enableval ],
-    [ ENABLED_TAILSCALE=no ]
-    )
-if test "$ENABLED_TAILSCALE" = "yes"
-then
-    enable_wolfguard=yes
-    test "x$enable_sp" = "x" && enable_sp="yes,256"
-    enable_opensslall=yes
-    enable_alpn=yes
-    enable_sni=yes
-    enable_certgen=yes
-    enable_certreq=yes
-    enable_certext=yes
-    enable_sessioncerts=yes
-    enable_cert_setup_cb=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_INIT_CTX_KEY"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
-    AM_CFLAGS="$AM_CFLAGS -DWC_CTC_NAME_SIZE=128 -DWOLFSSL_ACME_OID"
-fi
-
 # wolfGuard
 AC_ARG_ENABLE([wolfguard],
     [AS_HELP_STRING([--enable-wolfguard],[Enable wolfGuard dependencies (default: disabled)])],
@@ -1686,9 +1661,9 @@ then
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_base16" = "" && enable_base16=yes
-    test "$enable_compkey" = "" && enable_compkey=yes
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
+        test "$enable_compkey" = "" && enable_compkey=yes
         test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     fi
 fi
@@ -1740,23 +1715,6 @@ AC_ARG_WITH([liboqs],
         ENABLED_LIBOQS="yes"
     ]
 )
-
-# Falcon (provided via liboqs)
-AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon],[Enable Falcon post-quantum signatures via liboqs (default: disabled)])],
-    [ ENABLED_FALCON=$enableval ],
-    [ ENABLED_FALCON=no ])
-
-if test "$ENABLED_FALCON" = "yes" && test "$ENABLED_LIBOQS" = "no"; then
-    AC_MSG_ERROR([--enable-falcon requires --with-liboqs.])
-fi
-if test "$ENABLED_LIBOQS" = "yes" && test "$ENABLED_FALCON" != "yes"; then
-    AC_MSG_ERROR([--with-liboqs requires --enable-falcon.])
-fi
-
-if test "$ENABLED_FALCON" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FALCON"
-fi
 
 
 # MLKEM
@@ -1881,6 +1839,7 @@ do
 done
 
 # XMSS
+ENABLED_WC_XMSS=no
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
     [ ENABLED_XMSS=$enableval ],
@@ -1906,7 +1865,60 @@ do
   esac
 done
 
+# libxmss
+# Get the path to xmss-reference.
+ENABLED_LIBXMSS="no"
+trylibxmssdir=""
+AC_ARG_WITH([libxmss],
+    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. (requires --enable-experimental)!])],
+    [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([libxmss requires --enable-experimental.]) ])
+        AC_MSG_CHECKING([for libxmss])
+
+        trylibxmssdir=$withval
+
+        if test -e $trylibxmssdir; then
+            libxmss_linked=yes
+        else
+            AC_MSG_ERROR([libxmss isn't found.
+            If it's already installed, specify its path using --with-libxmss=/dir/])
+        fi
+        if test "$XMSS_VERIFY_ONLY" = "yes"; then
+            if test -e $trylibxmssdir/xmss_verify_lib.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibxmssdir/xmss_verify_lib.a"
+                enable_shared=no
+                enable_static=yes
+                libxmss_linked=yes
+            else
+                AC_MSG_ERROR([xmss_verify_lib.a isn't found.
+                If it's already installed, specify its path using --with-libxmss=/dir/])
+            fi
+        elif test -e $trylibxmssdir/xmss_lib.a; then
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibxmssdir/xmss_lib.a"
+            enable_shared=no
+            enable_static=yes
+            libxmss_linked=yes
+        else
+            AC_MSG_ERROR([libxmss isn't found.
+            If it's already installed, specify its path using --with-libxmss=/dir/])
+        fi
+
+        XMSS_ROOT=$trylibxmssdir
+
+        AC_MSG_RESULT([yes])
+        AM_CPPFLAGS="$CPPFLAGS"
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+        ENABLED_LIBXMSS="yes"
+        AC_SUBST([XMSS_ROOT])
+    ],
+    [XMSS_ROOT=""]
+)
+
 # LMS
+ENABLED_WC_LMS=no
 AC_ARG_ENABLE([lms],
     [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
     [ ENABLED_LMS=$enableval ],
@@ -1940,6 +1952,74 @@ do
     break;;
   esac
 done
+
+# liblms
+# Get the path to the hash-sigs LMS HSS lib.
+ENABLED_LIBLMS="no"
+tryliblmsdir=""
+AC_ARG_WITH([liblms],
+    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) (requires --enable-experimental)!])],
+    [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([liblms requires --enable-experimental.]) ])
+        AC_MSG_CHECKING([for liblms])
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
+
+        if test "x$liblms_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                tryliblmsdir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                tryliblmsdir="/usr/local"
+            fi
+
+            # 1. If verify only build, use hss_verify.a
+            # 2. If normal build, by default use single-threaded hss_lib.a
+            # 3. If 2 not found, then use the multi-threaded hss_lib_thread.a
+            if test "$LMS_VERIFY_ONLY" = "yes"; then
+                if test -e $tryliblmsdir/hss_verify.a; then
+                    CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                    LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_verify.a"
+                    enable_shared=no
+                    enable_static=yes
+                    liblms_linked=yes
+                else
+                    AC_MSG_ERROR([hss_verify.a isn't found.
+                    If it's already installed, specify its path using --with-liblms=/dir/])
+                fi
+            elif test -e $tryliblmsdir/hss_lib.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib.a"
+                enable_shared=no
+                enable_static=yes
+                liblms_linked=yes
+            elif test -e $tryliblmsdir/hss_lib_thread.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib_thread.a"
+                enable_shared=no
+                enable_static=yes
+                liblms_linked=yes
+            else
+                AC_MSG_ERROR([liblms isn't found.
+                If it's already installed, specify its path using --with-liblms=/dir/])
+            fi
+
+            if test "x$liblms_linked" = "xno" ; then
+                AC_MSG_ERROR([liblms isn't found.
+                If it's already installed, specify its path using --with-liblms=/dir/])
+            fi
+
+            AC_MSG_RESULT([yes])
+            AM_CPPFLAGS="$CPPFLAGS"
+            AM_LDFLAGS="$LDFLAGS"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBLMS"
+        ENABLED_LIBLMS="yes"
+    ]
+)
 
 # SLH-DSA
 ENABLED_SLHDSA=yes
@@ -4832,7 +4912,8 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
-if (test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes")
+if (test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes") &&
+   (test "$HAVE_FIPS_VERSION" != "5")
 then
     ENABLED_COMPKEY=yes
 fi
@@ -6729,6 +6810,11 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_keygen" != "no")],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
 
+        AS_IF([test "$ENABLED_COMPKEY" = "yes" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_compkey" = "yes")],
+            [AC_MSG_WARN([Forcing off compkey for FIPS ${FIPS_VERSION}.])
+             ENABLED_COMPKEY="no"])
+
         AS_IF([test "$ENABLED_SHA224" != "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha224" != "no")],
             [ENABLED_SHA224="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"])
@@ -6975,6 +7061,7 @@ then
     fi
 fi
 
+ENABLED_WC_MLKEM=no
 ENABLED_ML_KEM=unset
 ENABLED_MLKEM_MAKE_KEY=no
 ENABLED_MLKEM_ENCAPSULATE=no
@@ -7040,6 +7127,99 @@ do
     break;;
   esac
 done
+
+if test "$ENABLED_MLKEM" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLKEM"
+    # Use liboqs if specified.
+    if test "$ENABLED_LIBOQS" = "no"; then
+        ENABLED_WC_MLKEM=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_MLKEM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_MLKEM"
+    fi
+
+    if test "$ENABLED_ORIGINAL" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_KYBER"
+        if test "$ENABLED_MLKEM512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
+        fi
+        if test "$ENABLED_MLKEM768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
+        fi
+        if test "$ENABLED_MLKEM1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+        fi
+        if test "$ENABLED_ML_KEM" = "unset"; then
+            ENABLED_ML_KEM=no
+        fi
+    fi
+    if test "$ENABLED_ML_KEM" = "unset"; then
+        ENABLED_ML_KEM=yes
+    fi
+    if test "$ENABLED_ML_KEM" = "yes"; then
+        if test "$ENABLED_MLKEM512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_512"
+        fi
+        if test "$ENABLED_MLKEM768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_768"
+        fi
+        if test "$ENABLED_MLKEM1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_1024"
+        fi
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM"
+    fi
+    if test "$ENABLED_MLKEM_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_MAKE_KEY"
+    fi
+    if test "$ENABLED_MLKEM_ENCAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_ENCAPSULATE"
+    fi
+    if test "$ENABLED_MLKEM_DECAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_DECAPSULATE"
+    fi
+
+    if test "$ENABLED_WC_MLKEM" = "yes"
+    then
+        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+    fi
+fi
+
+AS_IF([ test "$ENABLED_MLKEM_STANDALONE" = "yes" && test "$ENABLED_ML_KEM" = "no" ],[AC_MSG_ERROR([ML-KEM as standalone TLS key exchange (non-hybrid) requires ML-KEM.])])
+if test "$ENABLED_MLKEM_STANDALONE" != "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
+fi
+
+if test "$ENABLED_PQC_HYBRIDS" = "yes"
+then
+    if test "$ENABLED_ML_KEM" = "no" || test "$ENABLED_MLKEM" = "no"
+    then
+        ENABLED_PQC_HYBRIDS=no
+    elif test "$ENABLED_MLKEM768" = "" && test "$ENABLED_MLKEM1024" = ""; then
+        AC_MSG_NOTICE([PQC hybrid combinations require either ML-KEM 768 or ML-KEM 1024, but both disabled.])
+        ENABLED_PQC_HYBRIDS=no
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PQC_HYBRIDS"
+    fi
+fi
+
+if test "$ENABLED_ML_KEM" != "no" && test "$ENABLED_MLKEM" != "no"
+then
+    if test "$ENABLED_PQC_HYBRIDS" = "no" && test "$ENABLED_MLKEM_STANDALONE" = "no" && test "$ENABLED_CRYPTONLY" = "no"
+    then
+        AC_MSG_ERROR([Both hybrid PQ/T and standalone ML-KEM are disabled, so no PQC hybrid combinations will be available.])
+    fi
+fi
+
+if test "$ENABLED_EXTRA_PQC_HYBRIDS" = "yes"
+then
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires --enable-experimental.]) ])
+    AS_IF([ test "$ENABLED_ML_KEM" = "no" ],[ AC_MSG_ERROR([extra-pqc-hybrids requires ML-KEM.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
+fi
 
 # Selftest uses its own random.c which doesn't support SHA-512 DRBG
 # or runtime DRBG disable/enable APIs
@@ -7153,13 +7333,13 @@ fi
 
 # ML-KEM and Dilithium require SHA-3 and SHAKE -- force them on before flag
 # processing so that the correct -D flags are emitted.
-if test "$ENABLED_MLKEM" != "no"
+if test "$ENABLED_MLKEM" != "no" && test "$ENABLED_LIBOQS" = "no"
 then
     ENABLED_SHA3=yes
     ENABLED_SHAKE128=yes
     ENABLED_SHAKE256=yes
 fi
-if test "$ENABLED_DILITHIUM" != "no"
+if test "$ENABLED_DILITHIUM" != "no" && test "$ENABLED_LIBOQS" = "no"
 then
     ENABLED_SHA3=yes
     ENABLED_SHAKE128=yes
@@ -7208,7 +7388,12 @@ fi
 if test "$ENABLED_MLKEM" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLKEM"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_MLKEM"
+    # Use liboqs if specified.
+    if test "$ENABLED_LIBOQS" = "no"; then
+        ENABLED_WC_MLKEM=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_MLKEM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_MLKEM"
+    fi
 
     if test "$ENABLED_ORIGINAL" = "yes"; then
         # FIPS 203 (ML-KEM) and Kyber use different implicit rejection.
@@ -7255,9 +7440,12 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_DECAPSULATE"
     fi
 
-    test "$enable_sha3" = "" && enable_sha3=yes
-    test "$enable_shake128" = "" && enable_shake128=yes
-    test "$enable_shake256" = "" && enable_shake256=yes
+    if test "$ENABLED_WC_MLKEM" = "yes"
+    then
+        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+    fi
 fi
 
 AC_ARG_ENABLE([tls-mlkem-standalone],
@@ -7269,19 +7457,7 @@ AC_ARG_ENABLE([tls-mlkem-standalone],
 AS_IF([ test "$ENABLED_MLKEM_STANDALONE" = "yes" && test "$ENABLED_ML_KEM" = "no" ],[AC_MSG_ERROR([ML-KEM as standalone TLS key exchange (non-hybrid) requires ML-KEM.])])
 if test "$ENABLED_MLKEM_STANDALONE" != "yes"
 then
-    # Hybrid PQ/T groups all combine ML-KEM with an ECC/Curve25519/Curve448
-    # base. If none of those is available, hybrids contribute no usable groups
-    # for TLS 1.3 key exchange. In that case, auto-enable standalone ML-KEM so
-    # TLS 1.3 has a functional KEM.
-    if test "$ENABLED_MLKEM" = "yes" && test "$ENABLED_ML_KEM" != "no" && \
-       test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && \
-       test "x$ENABLED_CURVE448" = "xno"
-    then
-        AC_MSG_NOTICE([No ECC/Curve25519/Curve448 base for ML-KEM hybrids; auto-enabling standalone ML-KEM for TLS 1.3.])
-        ENABLED_MLKEM_STANDALONE=yes
-    else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
-    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_NO_MLKEM_STANDALONE"
 fi
 
 AC_ARG_ENABLE([pqc-hybrids],
@@ -7329,7 +7505,6 @@ fi
 if test "$ENABLED_DILITHIUM" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_DILITHIUM"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_DILITHIUM"
 
     if test "$ENABLED_MLDSA44" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_44"
@@ -7350,10 +7525,13 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_VERIFY"
     fi
 
-    test "$enable_sha3" = "" && enable_sha3=yes
-    test "$enable_shake128" = "" && enable_shake128=yes
-    test "$enable_shake256" = "" && enable_shake256=yes
-
+    if test "$ENABLED_LIBOQS" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_DILITHIUM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_DILITHIUM"
+        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+    fi
     ENABLED_CERTS=yes
 fi
 
@@ -7361,12 +7539,28 @@ fi
 if test "$ENABLED_XMSS" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_XMSS"
+
+    # Use hash-sigs XMSS lib if enabled.
+    if test "$ENABLED_LIBXMSS" = "yes"; then
+        ENABLED_WC_XMSS=no
+    else
+        ENABLED_WC_XMSS=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS"
+    fi
 fi
 
 # LMS CFLAG processing (after FIPS section for sandwich pattern)
 if test "$ENABLED_LMS" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_LMS"
+
+    # Use hash-sigs LMS lib if enabled.
+    if test "$ENABLED_LIBLMS" = "yes"; then
+        ENABLED_WC_LMS=no
+    else
+        ENABLED_WC_LMS=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
+    fi
 fi
 
 # SLH-DSA CFLAG processing (after FIPS section for sandwich pattern)
@@ -8124,18 +8318,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
 
-# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448 or ML-KEM
+# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448 or libOQS
 if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ECC" = "xno" && \
     (test "x$ENABLED_RSA" = "xno" || test "x$ENABLED_DH" = "xno") && \
     (test "x$ENABLED_CURVE25519" = "xno" || test "x$ENABLED_ED25519" = "xno") && \
     (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno") && \
-    test "x$ENABLED_MLKEM" = "xno"
+    test "x$ENABLED_LIBOQS" = "xno"
 then
     # disable TLS 1.3
     ENABLED_TLS13=no
 fi
 if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
-    test "$ENABLED_DH" != "no" || test "x$ENABLED_MLKEM" = "xyes")
+    test "$ENABLED_DH" != "no")
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"
 fi
@@ -11992,10 +12186,10 @@ AM_CONDITIONAL([BUILD_FE448], [test "x$ENABLED_FE448" = "xyes" || test "x$ENABLE
 AM_CONDITIONAL([BUILD_GE448], [test "x$ENABLED_GE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_SLHDSA],[test "x$ENABLED_SLHDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_WC_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -12044,6 +12238,8 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING_MULTI],[test "x$ENABLED_CERTIFICATE_STATUS_R
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
+AM_CONDITIONAL([BUILD_LIBLMS],[test "x$ENABLED_LIBLMS" = "xyes"])
+AM_CONDITIONAL([BUILD_LIBXMSS],[test "x$ENABLED_LIBXMSS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -12545,9 +12741,15 @@ echo "   * CURVE448:                   $ENABLED_CURVE448"
 echo "   * ED448:                      $ENABLED_ED448"
 echo "   * ED448 streaming:            $ENABLED_ED448_STREAM"
 echo "   * LMS:                        $ENABLED_LMS"
+echo "   * LMS wolfSSL impl:           $ENABLED_WC_LMS"
 echo "   * XMSS:                       $ENABLED_XMSS"
+echo "   * XMSS wolfSSL impl:          $ENABLED_WC_XMSS"
+if test "$ENABLED_LIBXMSS" = "yes"; then
+echo "   * XMSS_ROOT:                  $XMSS_ROOT"
+fi
 echo "   * SLH-DSA                     $ENABLED_SLHDSA"
 echo "   * MLKEM:                      $ENABLED_MLKEM"
+echo "   * MLKEM wolfSSL impl:         $ENABLED_WC_MLKEM"
 echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
@@ -12605,8 +12807,9 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
+echo "   * libxmss:                    $ENABLED_LIBXMSS"
+echo "   * liblms:                     $ENABLED_LIBLMS"
 echo "   * liboqs:                     $ENABLED_LIBOQS"
-echo "   * Falcon (via liboqs):        $ENABLED_FALCON"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"

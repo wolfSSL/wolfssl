@@ -352,6 +352,7 @@ extern "C" {
 /* PQC ML-KEM */
 #if defined(CONFIG_WOLFSSL_MLKEM)
     #define WOLFSSL_HAVE_MLKEM
+    #define WOLFSSL_WC_MLKEM
     #define WOLFSSL_MLKEM_NO_LARGE_CODE
     #define WOLFSSL_MLKEM_SMALL
     #define WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM

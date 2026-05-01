@@ -169,7 +169,7 @@
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
 #if defined(WOLFSSL_HAVE_MLKEM)
-    #include <wolfssl/wolfcrypt/wc_mlkem.h>
+    #include <wolfssl/wolfcrypt/mlkem.h>
 #endif
 #if defined(HAVE_PKCS7)
     #include <wolfssl/wolfcrypt/pkcs7.h>
@@ -1559,6 +1559,7 @@ static int test_dual_alg_ecdsa_mldsa(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(HAVE_DILITHIUM) && \
     defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
@@ -11624,90 +11625,6 @@ static int test_wolfSSL_mcast(void)
 /*----------------------------------------------------------------------------*
  |  Wolfcrypt
  *----------------------------------------------------------------------------*/
-
-/*
- * Testing wc_SetAcmeIdentifierExt() round-trip - the RFC 8737
- * id-pe-acmeIdentifier (1.3.6.1.5.5.7.1.31) extension used by
- * TLS-ALPN-01 ACME challenge certs.
- */
-static int test_wc_SetAcmeIdentifierExt(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_ACME_OID) && defined(WOLFSSL_CERT_GEN) && \
-    defined(HAVE_ECC) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
-    !defined(WC_NO_RNG) && !defined(NO_RSA)
-    Cert         cert;
-    DecodedCert  decoded;
-    WC_RNG       rng;
-    ecc_key      key;
-    byte         der[TWOK_BUF];
-    int          derSz = 0;
-    int          rngInited = 0, keyInited = 0;
-    const char*  keyAuth = "evaGxfADs6pSRb2LAv9IZf17Dt3juxGJ-PCt92wr-oA"
-                           ".kZdq0qaDcXNVxKBkP_uiKvw2Yg5sRJ8KBfQa9Ru13nE";
-    word32       keyAuthSz = (word32)XSTRLEN(keyAuth);
-    byte         expected[WC_SHA256_DIGEST_SIZE];
-
-    XMEMSET(&cert,    0, sizeof(cert));
-    XMEMSET(&decoded, 0, sizeof(decoded));
-    XMEMSET(&rng,     0, sizeof(rng));
-    XMEMSET(&key,     0, sizeof(key));
-    XMEMSET(der,      0, sizeof(der));
-
-    /* Compute the expected digest */
-    ExpectIntEQ(wc_Sha256Hash((const byte*)keyAuth, keyAuthSz, expected), 0);
-
-    /* Input validation. */
-    ExpectIntEQ(wc_SetAcmeIdentifierExt(NULL, (const byte*)keyAuth, keyAuthSz),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SetAcmeIdentifierExt(&cert, NULL, keyAuthSz),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_SetAcmeIdentifierExt(&cert, (const byte*)keyAuth, 0),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Build a P-256 keypair to sign the cert. */
-    ExpectIntEQ(wc_InitRng(&rng), 0);
-    rngInited = 1;
-    ExpectIntEQ(wc_ecc_init(&key), 0);
-    keyInited = 1;
-    ExpectIntEQ(wc_ecc_make_key_ex(&rng, KEY32, &key, ECC_SECP256R1), 0);
-
-    /* Build a minimal self-signed cert template carrying the extension. */
-    ExpectIntEQ(wc_InitCert(&cert), 0);
-    cert.sigType   = CTC_SHA256wECDSA;
-    cert.daysValid = 1;
-    cert.isCA      = 0;
-    XSTRNCPY(cert.subject.commonName, "acme-test.example", CTC_NAME_SIZE);
-
-    ExpectIntEQ(wc_SetAcmeIdentifierExt(&cert, (const byte*)keyAuth,
-                                        keyAuthSz), 0);
-    ExpectIntEQ(cert.acmeIdentifierSz, WC_SHA256_DIGEST_SIZE);
-    ExpectIntEQ(XMEMCMP(cert.acmeIdentifier, expected,
-                        WC_SHA256_DIGEST_SIZE), 0);
-
-    /* MakeCert + SignCert. ECC_TYPE selects the ECDSA signing path. */
-    ExpectIntGT(derSz = wc_MakeCert_ex(&cert, der, sizeof(der),
-                                       ECC_TYPE, &key, &rng), 0);
-    ExpectIntGT(derSz = wc_SignCert_ex(cert.bodySz, cert.sigType,
-                                       der, sizeof(der),
-                                       ECC_TYPE, &key, &rng), 0);
-
-    /* Parse the cert back and verify the extension survives the
-     * round-trip via DecodeAcmeId. */
-    wc_InitDecodedCert(&decoded, der, derSz, NULL);
-    ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
-    ExpectIntEQ(decoded.extAcmeIdentifierSet, 1);
-    ExpectIntEQ(decoded.extAcmeIdentifierCrit, 1);
-    ExpectIntEQ(decoded.acmeIdentifierSz, WC_SHA256_DIGEST_SIZE);
-    ExpectIntEQ(XMEMCMP(decoded.acmeIdentifier, expected,
-                        WC_SHA256_DIGEST_SIZE), 0);
-
-    wc_FreeDecodedCert(&decoded);
-    if (keyInited) wc_ecc_free(&key);
-    if (rngInited) wc_FreeRng(&rng);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_SetAcmeIdentifierExt */
 
 /*
  * Testing wc_SetKeyUsage()
@@ -35622,9 +35539,11 @@ int stopOnFail = 0;
 int test_wc_LmsKey_sign_verify(void);
 int test_wc_LmsKey_reload_cache(void);
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS) && \
+    !defined(WOLFSSL_LMS_VERIFY_ONLY)
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
+#include <wolfssl/wolfcrypt/lms.h>
 
 #define LMS_TEST_PRIV_KEY_FILE "/tmp/wolfssl_test_lms.key"
 
@@ -35677,7 +35596,7 @@ static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
     return 0;
 }
 
-#endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
+#endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
 
 /*
  * Test basic LMS sign/verify with multiple signings.
@@ -35686,7 +35605,8 @@ static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
 int test_wc_LmsKey_sign_verify(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS) && \
+    !defined(WOLFSSL_LMS_VERIFY_ONLY)
     LmsKey  key;
     WC_RNG  rng;
     byte    msg[] = "test message for LMS signing";
@@ -35735,7 +35655,8 @@ int test_wc_LmsKey_sign_verify(void)
 int test_wc_LmsKey_reload_cache(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS) && \
+    !defined(WOLFSSL_LMS_VERIFY_ONLY)
     LmsKey  key;
     LmsKey  vkey;
     WC_RNG  rng;
@@ -35906,7 +35827,7 @@ static int test_DhAgree_rejects_p_minus_1(void)
 static int test_mldsa_verify_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     dilithium_key key;
@@ -36824,7 +36745,7 @@ static int test_pkcs7_enveloped_content_size_overflow(void)
 static int test_dilithium_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     dilithium_key key;
@@ -37096,7 +37017,6 @@ TEST_CASE testCases[] = {
 #ifdef WOLFSSL_CERT_SIGN_CB
     TEST_DECL(test_wc_SignCert_cb),
 #endif
-    TEST_DECL(test_wc_SetAcmeIdentifierExt),
     TEST_DECL(test_wc_SetKeyUsage),
     TEST_DECL(test_wc_SetAuthKeyIdFromPublicKey_ex),
     TEST_DECL(test_wc_SetSubjectBuffer),

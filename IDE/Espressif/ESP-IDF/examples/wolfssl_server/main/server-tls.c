@@ -54,7 +54,8 @@
     #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile:\
     CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
-#if defined(WOLFSSL_HAVE_MLKEM)
+#if defined(WOLFSSL_WC_MLKEM)
+    #include <wolfssl/wolfcrypt/mlkem.h>
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024)

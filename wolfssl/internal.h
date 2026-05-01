@@ -1776,9 +1776,9 @@ enum Misc {
 
     /* These values for falcon match what OQS has defined. */
     FALCON_LEVEL1_SA_MAJOR = 0xFE,
-    FALCON_LEVEL1_SA_MINOR = 0xD7,
+    FALCON_LEVEL1_SA_MINOR = 0xAE,
     FALCON_LEVEL5_SA_MAJOR = 0xFE,
-    FALCON_LEVEL5_SA_MINOR = 0xDA,
+    FALCON_LEVEL5_SA_MINOR = 0xB1,
 
     /* these values for MLDSA (Dilithium) correspond to what is proposed in the
      * IETF. */
@@ -2747,7 +2747,6 @@ WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 #endif /* !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH) */
 WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type);
-WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store);
 #endif /* !defined NO_CERTS */
 
 /* wolfSSL Sock Addr */

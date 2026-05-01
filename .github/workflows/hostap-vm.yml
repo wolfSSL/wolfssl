@@ -76,20 +76,11 @@ jobs:
         with:
           path: hostap
           key: hostap-repo
+          lookup-only: true
 
       - name: Checkout hostap
         if: steps.cache.outputs.cache-hit != 'true'
         run: git clone https://w1.fi/hostap.git hostap
-
-      - name: tar hostap
-        run: tar -zcf hostap.tgz hostap
-
-      - name: Upload hostap repo
-        uses: actions/upload-artifact@v4
-        with:
-          name: hostap-repo
-          path: hostap.tgz
-          retention-days: 1
 
   build_uml_linux:
     name: Build UML (UserMode Linux)
@@ -105,16 +96,15 @@ jobs:
         with:
           path: linux/linux
           key: hostap-linux-${{ env.LINUX_REF }}
+          lookup-only: true
 
-      - name: Download hostap repo
+      - name: Checking if we have hostap in cache
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/cache/restore@v4
         with:
-          name: hostap-repo
-
-      - name: untar hostap
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: tar -xf hostap.tgz
+          path: hostap
+          key: hostap-repo
+          fail-on-cache-miss: true
 
       - name: Checkout linux
         if: steps.cache.outputs.cache-hit != 'true'
@@ -131,13 +121,6 @@ jobs:
           cp hostap/tests/hwsim/vm/kernel-config.uml linux/.config
           cd linux
           yes "" | ARCH=um make -j $(nproc)
-
-      - name: Upload kernel binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: uml-linux-kernel
-          path: linux/linux
-          retention-days: 1
 
   hostap_test:
     strategy:
@@ -187,14 +170,13 @@ jobs:
     timeout-minutes: 45
     needs: [build_wolfssl, build_uml_linux, checkout_hostap]
     steps:
-      - name: Download kernel binary
-        uses: actions/download-artifact@v4
+      - name: Checking if we have kernel in cache
+        uses: actions/cache/restore@v4
+        id: cache
         with:
-          name: uml-linux-kernel
-          path: linux
-
-      - name: Restore kernel binary executable bit
-        run: chmod +x linux/linux
+          path: linux/linux
+          key: hostap-linux-${{ env.LINUX_REF }}
+          fail-on-cache-miss: true
 
         # No way to view the full strategy in the browser (really weird)
       - name: Print strategy
@@ -233,13 +215,12 @@ jobs:
       - name: Install pip dependencies
         run: sudo pip install pycryptodome
 
-      - name: Download hostap repo
-        uses: actions/download-artifact@v4
+      - name: Checking if we have hostap in cache
+        uses: actions/cache/restore@v4
         with:
-          name: hostap-repo
-
-      - name: untar hostap
-        run: tar -xf hostap.tgz
+          path: hostap
+          key: hostap-repo
+          fail-on-cache-miss: true
 
       - name: Checkout correct ref
         working-directory: hostap

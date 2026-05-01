@@ -389,16 +389,32 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
 #ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/mlkem.h>
+#ifdef WOLFSSL_WC_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
+#if defined(HAVE_LIBOQS)
+    #include <wolfssl/wolfcrypt/ext_mlkem.h>
+#endif
 #endif
 #ifdef HAVE_DILITHIUM
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
+    #include <wolfssl/wolfcrypt/xmss.h>
+#ifdef HAVE_LIBXMSS
+    #include <wolfssl/wolfcrypt/ext_xmss.h>
+#else
     #include <wolfssl/wolfcrypt/wc_xmss.h>
 #endif
+#endif
 #if defined(WOLFSSL_HAVE_LMS)
+    #include <wolfssl/wolfcrypt/lms.h>
+#ifdef HAVE_LIBLMS
+    #include <wolfssl/wolfcrypt/ext_lms.h>
+#else
     #include <wolfssl/wolfcrypt/wc_lms.h>
+#endif
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA)
     #include <wolfssl/wolfcrypt/wc_slhdsa.h>
@@ -962,9 +978,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
     #endif
 #endif
 #if defined(WOLFSSL_HAVE_LMS)
-    #if !defined(WOLFSSL_SMALL_STACK) && (LMS_MAX_HEIGHT >= 10) && \
-        !defined(WOLFSSL_NO_LMS_SHA256_256)
+    #if !defined(WOLFSSL_SMALL_STACK)
+        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
+             !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test_verify_only(void);
+        #endif
     #endif
     #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test(void);
@@ -3160,12 +3178,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif /* if defined(WOLFSSL_HAVE_XMSS) */
 
 #if defined(WOLFSSL_HAVE_LMS)
-    #if !defined(WOLFSSL_SMALL_STACK) && (LMS_MAX_HEIGHT >= 10) && \
-        !defined(WOLFSSL_NO_LMS_SHA256_256)
+    #if !defined(WOLFSSL_SMALL_STACK)
+        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
+             !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
     if ( (ret = lms_test_verify_only()) != 0)
         TEST_FAIL("LMS Vfy  test failed!\n", ret);
     else
         TEST_PASS("LMS Vfy  test passed!\n");
+        #endif
     #endif
 
     #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
@@ -34854,22 +34874,20 @@ static wc_test_ret_t ecc_test_vector_item(const eccVector* vector)
 #endif /* !NO_ASN */
 
 #ifdef HAVE_ECC_VERIFY
-    if (vector->msgLen >= WC_MIN_DIGEST_SIZE) {
-        do {
+    do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-            if (ret == 0)
-                ret = wc_ecc_verify_hash(sig, sigSz, (byte*)vector->msg,
-                                         vector->msgLen, &verify, userA);
-        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
-        if (ret != 0)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-        TEST_SLEEP();
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(sig, sigSz, (byte*)vector->msg,
+                                               vector->msgLen, &verify, userA);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    TEST_SLEEP();
 
-        if (verify != 1)
-            ret = WC_TEST_RET_ENC_NC;
-    }
+    if (verify != 1)
+        ret = WC_TEST_RET_ENC_NC;
 #endif
 
 done:
@@ -44504,6 +44522,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 #endif /* HAVE_ED448 */
 
 #ifdef WOLFSSL_HAVE_MLKEM
+#ifdef WOLFSSL_WC_MLKEM /* OQS does not support KATs */
 #if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
 static wc_test_ret_t mlkem512_kat(void)
 {
@@ -48884,6 +48903,7 @@ out:
     return ret;
 }
 #endif /* !WOLFSSL_NO_KYBER1024 && !WOLFSSL_NO_ML_KEM_1024 */
+#endif /* WOLFSSL_WC_MLKEM */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 {
@@ -48924,7 +48944,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 #endif
 #endif
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+#if defined(WOLFSSL_WC_MLKEM) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey *tmpKey = NULL;
 #endif
     int key_inited = 0;
@@ -49112,7 +49133,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (XMEMCMP(priv, priv2, testData[i][2]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
-#if !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_WC_MLKEM) && !defined(WOLFSSL_NO_MALLOC)
         tmpKey = wc_MlKemKey_New(testData[i][0], HEAP_HINT, devId);
         if (tmpKey == NULL)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -49123,6 +49144,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
     }
 
+#ifdef WOLFSSL_WC_MLKEM
 #if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
     ret = mlkem512_kat();
     if (ret != 0)
@@ -49138,6 +49160,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
     if (ret != 0)
         goto out;
 #endif
+#endif /* WOLFSSL_WC_MLKEM */
 
 out:
 
@@ -52676,10 +52699,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
     }
 
 #ifndef WOLFSSL_NO_ML_DSA_44
+#ifdef WOLFSSL_WC_DILITHIUM
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     ret = dilithium_param_44_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
+#endif
 #endif
 #ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
     ret = dilithium_param_test(WC_ML_DSA_44, &rng);
@@ -52688,10 +52713,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
+#ifdef WOLFSSL_WC_DILITHIUM
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     ret = dilithium_param_65_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
+#endif
 #endif
 #ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
     ret = dilithium_param_test(WC_ML_DSA_65, &rng);
@@ -52700,10 +52727,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
+#ifdef WOLFSSL_WC_DILITHIUM
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     ret = dilithium_param_87_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
+#endif
 #endif
 #ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
     ret = dilithium_param_test(WC_ML_DSA_87, &rng);
@@ -53456,8 +53485,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 #else
     byte          sig[WC_TEST_LMS_SIG_LEN];
 #endif
+#if !defined(HAVE_LIBLMS)
     const byte *  kid;
     word32        kidSz;
+#endif
 
     WOLFSSL_ENTER("lms_test");
 
@@ -53516,6 +53547,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 
     XMEMCPY(old_priv, priv, sizeof(priv));
 
+#if !defined(HAVE_LIBLMS)
     ret = wc_LmsKey_GetKid(NULL, NULL, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -53542,6 +53574,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     if (kidSz != WC_LMS_I_LEN) {
         ERROR_OUT(WC_TEST_RET_ENC_I(kidSz), out);
     }
+#endif
 
     ret = wc_LmsKey_ExportPub(&verifyKey, &signingKey);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
@@ -53652,8 +53685,9 @@ out:
 
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK) && \
-    (LMS_MAX_HEIGHT >= 10) && !defined(WOLFSSL_NO_LMS_SHA256_256)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK)
+#if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
+     !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
 
 /* A simple LMS verify only test.
  *
@@ -53997,6 +54031,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     return ret;
 }
 
+#endif
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK) */
 
 #if defined(WOLFSSL_HAVE_SLHDSA)
@@ -54219,31 +54254,11 @@ out:
 }
 #endif
 
-/* True iff slhdsa_test() actually emits at least one `goto out;` /
- * ERROR_OUT(..., out). The SHAKE128S block has a couple of ERROR_OUTs
- * gated only on PARAM_128S; everything else (other SHAKE variants, all
- * SHA-2 KATs, slhdsa_test_param dispatch) lives inside `#ifndef
- * WOLFSSL_SLHDSA_VERIFY_ONLY`. So the label is needed when 128S is
- * built, OR when any other variant is built without VERIFY_ONLY. */
-#if defined(WOLFSSL_SLHDSA_PARAM_128S) || \
-    (!defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
-     (defined(WOLFSSL_SLHDSA_PARAM_128F) || \
-      defined(WOLFSSL_SLHDSA_PARAM_192S) || \
-      defined(WOLFSSL_SLHDSA_PARAM_192F) || \
-      defined(WOLFSSL_SLHDSA_PARAM_256S) || \
-      defined(WOLFSSL_SLHDSA_PARAM_256F) || \
-      defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) || \
-      defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F) || \
-      defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S) || \
-      defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F) || \
-      defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S) || \
-      defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)))
-    #define SLHDSA_TEST_HAVE_ANY_PARAM
-#endif
-
 wc_test_ret_t slhdsa_test(void)
 {
-    int ret = 0;
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || defined(WOLFSSL_SLHDSA_PARAM_128S)
+    int ret;
+#endif
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
@@ -55964,7 +55979,9 @@ wc_test_ret_t slhdsa_test(void)
         }
     }
 #endif
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     ret = slhdsa_test_param(SLHDSA_SHAKE128S);
     if (ret != 0) {
@@ -56049,14 +56066,10 @@ wc_test_ret_t slhdsa_test(void)
         goto out;
     }
 #endif
-
-#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
-
-#ifdef SLHDSA_TEST_HAVE_ANY_PARAM
-out:
 #endif
 
-#ifdef WOLFSSL_SLHDSA_PARAM_128S
+out:
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key_vfy)
 #endif
@@ -56064,9 +56077,6 @@ out:
         wc_SlhDsaKey_Free(key_vfy);
     }
     WC_FREE_VAR_EX(key_vfy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    /* key, sig, sk, pk are declared inside #ifdef WOLFSSL_SLHDSA_PARAM_128S
-     * (alongside the SHAKE-128s test data) so they only exist when 128S is
-     * built. Their cleanup must match. */
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key)
@@ -56079,7 +56089,6 @@ out:
     WC_FREE_VAR_EX(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(pk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-#endif /* WOLFSSL_SLHDSA_PARAM_128S */
 
     return ret;
 }
@@ -68405,33 +68414,43 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_KYBER) &&
                 (info->pk.pqc_kem_kg.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_kem_kg.key;
+#ifdef WOLFSSL_WC_MLKEM
                 int hashDevId = key->hash.devId;
                 int prfDevId = key->prf.devId;
+#endif
 
                 /* set devId to invalid, so software is used */
                 key->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
                 key->hash.devId = INVALID_DEVID;
                 key->prf.devId = INVALID_DEVID;
+#endif
 
                 ret = wc_MlKemKey_MakeKey(key, info->pk.pqc_kem_kg.rng);
 
                 /* reset devId */
                 key->devId = devIdArg;
+#ifdef WOLFSSL_WC_MLKEM
                 key->hash.devId = hashDevId;
                 key->prf.devId = prfDevId;
+#endif
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
             if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_KYBER) &&
                 (info->pk.pqc_encaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_encaps.key;
+#ifdef WOLFSSL_WC_MLKEM
                 int hashDevId = key->hash.devId;
                 int prfDevId = key->prf.devId;
+#endif
 
                 /* set devId to invalid, so software is used */
                 key->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
                 key->hash.devId = INVALID_DEVID;
                 key->prf.devId = INVALID_DEVID;
+#endif
 
                 ret = wc_MlKemKey_Encapsulate(key,
                     info->pk.pqc_encaps.ciphertext,
@@ -68440,21 +68459,27 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
                 /* reset devId */
                 key->devId = devIdArg;
+#ifdef WOLFSSL_WC_MLKEM
                 key->hash.devId = hashDevId;
                 key->prf.devId = prfDevId;
+#endif
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
             if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_KYBER) &&
                 (info->pk.pqc_decaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_decaps.key;
+#ifdef WOLFSSL_WC_MLKEM
                 int hashDevId = key->hash.devId;
                 int prfDevId = key->prf.devId;
+#endif
 
                 /* set devId to invalid, so software is used */
                 key->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
                 key->hash.devId = INVALID_DEVID;
                 key->prf.devId = INVALID_DEVID;
+#endif
 
                 ret = wc_MlKemKey_Decapsulate(key,
                     info->pk.pqc_decaps.sharedSecret,
@@ -68463,8 +68488,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
                 /* reset devId */
                 key->devId = devIdArg;
+#ifdef WOLFSSL_WC_MLKEM
                 key->hash.devId = hashDevId;
                 key->prf.devId = prfDevId;
+#endif
             }
         }
     #endif /* WOLFSSL_HAVE_MLKEM */
@@ -69188,8 +69215,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     if (info->free.subType == WC_PQC_KEM_TYPE_KYBER) {
                         MlKemKey* mlkem = (MlKemKey*)info->free.obj;
                         mlkem->devId = INVALID_DEVID;
+#ifdef WOLFSSL_WC_MLKEM
                         mlkem->hash.devId = INVALID_DEVID;
                         mlkem->prf.devId = INVALID_DEVID;
+#endif
                         ret = wc_MlKemKey_Free(mlkem);
                     }
                     break;

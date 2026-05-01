@@ -700,6 +700,7 @@ Tested on commit: fa9e122f1cca32513611f5a24de88d07aced015b
 #define GCM_TABLE_4BIT
 
 #define HAVE_DILITHIUM
+#define WOLFSSL_WC_DILITHIUM
 #define WOLFSSL_DILITHIUM_SMALL
 
 #define WOLFSSL_ARMASM

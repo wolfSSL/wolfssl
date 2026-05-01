@@ -1978,7 +1978,18 @@ endif
 
 if BUILD_LIBOQS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/falcon.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dilithium.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sphincs.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_mlkem.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/liboqs/liboqs.c
+endif
+
+if BUILD_LIBLMS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_lms.c
+endif
+
+if BUILD_LIBXMSS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_xmss.c
 endif
 
 if BUILD_LIBZ

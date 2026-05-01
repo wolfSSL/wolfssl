@@ -13957,30 +13957,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             }
 
             wolfSSL_EVP_PKEY_free(x509->key.pkey);
-            x509->key.pkey = NULL;
-
-            switch (dCert->keyOID) {
-            #ifdef HAVE_ED25519
-                case ED25519k:
-                    x509->key.pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
-                        WC_EVP_PKEY_ED25519, NULL, dCert->publicKey,
-                        dCert->pubKeySize);
-                    break;
-            #endif
-            #ifdef HAVE_ED448
-                case ED448k:
-                    x509->key.pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
-                        WC_EVP_PKEY_ED448, NULL, dCert->publicKey,
-                        dCert->pubKeySize);
-                    break;
-            #endif
-                default:
-                    x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
-                        &dCert->publicKey, dCert->pubKeySize);
-                    break;
-            }
-
-            if (x509->key.pkey == NULL) {
+            if (!(x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
+                                                      &dCert->publicKey,
+                                                      dCert->pubKeySize))) {
                 ret = PUBLIC_KEY_E;
                 WOLFSSL_ERROR_VERBOSE(ret);
             }
@@ -19810,8 +19789,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if (!defined(NO_PUBLIC_GCM_SET_IV) && \
     ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))) || \
-    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA) && \
-     !defined(NO_CHAPOL_AEAD)) || defined(HAVE_ARIA) || \
+    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA)) || \
+    defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
 static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
@@ -30822,9 +30801,9 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is a Falcon private key. */
-        ret = wc_Falcon_PrivateKeyDecode(key->buffer, &idx,
-                                          (falcon_key*)*hsKey,
-                                          key->length);
+        ret = wc_falcon_import_private_only(key->buffer,
+                                            key->length,
+                                            (falcon_key*)*hsKey);
         if (ret == 0) {
             WOLFSSL_MSG("Using Falcon private key");
 
