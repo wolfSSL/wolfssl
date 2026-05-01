@@ -2151,14 +2151,14 @@ static void XorTable_Multi(const word32* t, word32* t0, byte o0,
     word32 e1 = 0;
     word32 e2 = 0;
     word32 e3 = 0;
-    byte hi0 = o0 & 0xf0;
-    byte lo0 = o0 & 0x0f;
-    byte hi1 = o1 & 0xf0;
-    byte lo1 = o1 & 0x0f;
-    byte hi2 = o2 & 0xf0;
-    byte lo2 = o2 & 0x0f;
-    byte hi3 = o3 & 0xf0;
-    byte lo3 = o3 & 0x0f;
+    byte hi0 = o0 & WC_CACHE_LINE_MASK_HI;
+    byte lo0 = o0 & WC_CACHE_LINE_MASK_LO;
+    byte hi1 = o1 & WC_CACHE_LINE_MASK_HI;
+    byte lo1 = o1 & WC_CACHE_LINE_MASK_LO;
+    byte hi2 = o2 & WC_CACHE_LINE_MASK_HI;
+    byte lo2 = o2 & WC_CACHE_LINE_MASK_LO;
+    byte hi3 = o3 & WC_CACHE_LINE_MASK_HI;
+    byte lo3 = o3 & WC_CACHE_LINE_MASK_LO;
     int i;
 
     for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
