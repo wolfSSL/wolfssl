@@ -2427,6 +2427,31 @@ int test_wolfSSL_CRL_unknown_critical_ext(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_CRL_unknown_critical_entry_ext(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+        "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+        WOLFSSL_SUCCESS);
+
+    /* CRL with a revoked entry that carries a critical unknown extension
+     * (OID 2.5.29.1, old X.509v2 AKI, permanently superseded).
+     * Per RFC 5280 Section 5.3, the CRL must not be used. */
+    ExpectIntNE(wolfSSL_CertManagerLoadCRLFile(cm,
+        "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CertManagerCheckOCSPResponse(void)
 {
     EXPECT_DECLS;
