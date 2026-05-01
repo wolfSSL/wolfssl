@@ -16844,6 +16844,153 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
         }
         #endif /* HAVE_AES_DECRYPT */
 
+        /* Multi-block streaming: exercises the IV-handoff path with sz > 16
+         * so that out[0] and out[sz-16] differ. Hardware backends that stash
+         * the wrong ciphertext block into aes->reg between calls (e.g. the
+         * first block instead of the last) will fail the second KAT. */
+        {
+            WOLFSSL_SMALL_STACK_STATIC const byte msg4[] = {
+                0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+                0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+                0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+                0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+                0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+                0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+                0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+                0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+            };
+            WOLFSSL_SMALL_STACK_STATIC const byte verify4[] = {
+                0x76,0x49,0xab,0xac,0x81,0x19,0xb2,0x46,
+                0xce,0xe9,0x8e,0x9b,0x12,0xe9,0x19,0x7d,
+                0x50,0x86,0xcb,0x9b,0x50,0x72,0x19,0xee,
+                0x95,0xdb,0x11,0x3a,0x91,0x76,0x78,0xb2,
+                0x73,0xbe,0xd6,0xb8,0xe3,0xc1,0x74,0x3b,
+                0x71,0x16,0xe6,0x9e,0x22,0x22,0x95,0x16,
+                0x3f,0xf1,0xca,0xa1,0x68,0x1f,0xac,0x09,
+                0x12,0x0e,0xca,0x30,0x75,0x86,0xe1,0xa7
+            };
+
+            ret = wc_AesSetKey(enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMSET(cipher, 0, sizeof(cipher));
+            ret = wc_AesCbcEncrypt(enc, cipher, msg4, WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesCbcEncrypt(enc, cipher + WC_AES_BLOCK_SIZE * 2,
+                                   msg4 + WC_AES_BLOCK_SIZE * 2,
+                                   WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            if (XMEMCMP(cipher, verify4, sizeof(verify4))) {
+                WOLFSSL_MSG("wc_AesCbcEncrypt streaming failed cipher compare");
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            }
+
+            /* In-place multi-block streaming encrypt: input and output
+             * overlap. The next-call IV is read from the output buffer,
+             * which always holds ciphertext post-call, so this must work
+             * for any correct backend regardless of aliasing. */
+            ret = wc_AesSetKey(enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(cipher, msg4, sizeof(msg4));
+
+            ret = wc_AesCbcEncrypt(enc, cipher, cipher, WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesCbcEncrypt(enc, cipher + WC_AES_BLOCK_SIZE * 2,
+                                   cipher + WC_AES_BLOCK_SIZE * 2,
+                                   WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            if (XMEMCMP(cipher, verify4, sizeof(verify4))) {
+                WOLFSSL_MSG("wc_AesCbcEncrypt in-place streaming failed"
+                            " cipher compare");
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            }
+
+        #ifdef HAVE_AES_DECRYPT
+            ret = wc_AesSetKey(dec, key2, sizeof(key2), iv2, AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMSET(plain, 0, sizeof(plain));
+            ret = wc_AesCbcDecrypt(dec, plain, verify4, WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesCbcDecrypt(dec, plain + WC_AES_BLOCK_SIZE * 2,
+                                   verify4 + WC_AES_BLOCK_SIZE * 2,
+                                   WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            if (XMEMCMP(plain, msg4, sizeof(msg4))) {
+                WOLFSSL_MSG("wc_AesCbcDecrypt streaming failed plain compare");
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            }
+
+            /* In-place multi-block streaming decrypt: input and output
+             * overlap, so backends must snapshot the last ciphertext block
+             * BEFORE decrypting (it is clobbered by the plaintext write).
+             * Backends that read the IV for the next call from the output
+             * buffer after decrypt will stash plaintext and garble the
+             * first block of the next call. */
+            ret = wc_AesSetKey(dec, key2, sizeof(key2), iv2, AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(plain, verify4, sizeof(verify4));
+
+            ret = wc_AesCbcDecrypt(dec, plain, plain, WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesCbcDecrypt(dec, plain + WC_AES_BLOCK_SIZE * 2,
+                                   plain + WC_AES_BLOCK_SIZE * 2,
+                                   WC_AES_BLOCK_SIZE * 2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            if (XMEMCMP(plain, msg4, sizeof(msg4))) {
+                WOLFSSL_MSG("wc_AesCbcDecrypt in-place streaming failed"
+                            " plain compare");
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            }
+        #endif /* HAVE_AES_DECRYPT */
+        }
+
         aes_cbc_oneshot_test();
     }
 #endif /* WOLFSSL_AES_128 && !HAVE_RENESAS_SYNC */
