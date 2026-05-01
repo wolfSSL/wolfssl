@@ -197,7 +197,6 @@
   #define ECC_TIMING_RESISTANT
 
   #define FP_MAX_BITS   4096
-  #define WOLFSSL_SP_MATH
   #define WOLFSSL_SP_MATH_ALL /* use SP math for all key sizes and curves */
   #define WOLFSSL_HAVE_SP_RSA
   #define WOLFSSL_HAVE_SP_DH
