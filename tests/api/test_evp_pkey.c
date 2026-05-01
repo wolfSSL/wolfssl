@@ -2429,3 +2429,145 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_EVP_PKEY_ed25519(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+
+    /* Known-valid Ed25519 public key matching server_ed25519_key. The bytes
+     * are the raw 32-byte BIT STRING contents from
+     * ./certs/ed25519/server-ed25519-key.der so the import succeeds even
+     * under strict point-validation. */
+    static const unsigned char rawPub[32] = {
+        0x23, 0xaa, 0x4d, 0x60, 0x50, 0xe0, 0x13, 0xd3,
+        0x3a, 0xed, 0xab, 0xf6, 0xa9, 0xcc, 0x4a, 0xfe,
+        0xd7, 0x4d, 0x2f, 0xd2, 0x5b, 0x1a, 0x10, 0x05,
+        0xef, 0x5a, 0x41, 0x25, 0xce, 0x1b, 0x53, 0x78
+    };
+
+    /* SPKI wrapper around the same known-valid public key (the full
+     * contents of ./certs/ed25519/server-ed25519-key.der). */
+    static const unsigned char spkiPub[] = {
+        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+        0x23, 0xaa, 0x4d, 0x60, 0x50, 0xe0, 0x13, 0xd3,
+        0x3a, 0xed, 0xab, 0xf6, 0xa9, 0xcc, 0x4a, 0xfe,
+        0xd7, 0x4d, 0x2f, 0xd2, 0x5b, 0x1a, 0x10, 0x05,
+        0xef, 0x5a, 0x41, 0x25, 0xce, 0x1b, 0x53, 0x78
+    };
+
+    /* Exercise the WC_EVP_PKEY_ED25519 case in d2i_evp_pkey()
+     * including the algId match for the PKCS#8 wrapper. */
+    p = server_ed25519_key;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_ED25519, NULL,
+        &p, (long)sizeof_server_ed25519_key));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    p = spkiPub;
+    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p, (long)sizeof(spkiPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* Exercise EVP_PKEY_new_raw_public_key to parse 32 raw BIT STRING bytes */
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+        WC_EVP_PKEY_ED25519, NULL, rawPub, sizeof(rawPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    {
+        static const unsigned char junk[16] = { 0 };
+        const unsigned char* jp = junk;
+        ExpectNull(wolfSSL_d2i_PUBKEY(NULL, &jp, (long)sizeof(junk)));
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CTX_use_PrivateKey_ed25519(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
+     /* Load the matching Ed25519 server cert */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, server_ed25519_cert,
+        (long)sizeof_server_ed25519_cert, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+
+    /* Decode the Ed25519 private key as a WOLFSSL_EVP_PKEY */
+    p = server_ed25519_key;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_ED25519, NULL,
+        &p, (long)sizeof_server_ed25519_key));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+
+    /* Load the pkey and check for success */
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WOLFSSL_SUCCESS);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_PKEY_ed448(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED448)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+
+    /* Known-valid Ed448 public key: the raw 57-byte BIT STRING contents
+     * from ./certs/ed448/server-ed448-key.der so the import succeeds even
+     * under strict point-validation. */
+    static const unsigned char rawPub[57] = {
+        0x54, 0x81, 0x39, 0x01, 0xeb, 0x37, 0xd9, 0xa9,
+        0x07, 0xcd, 0x01, 0xbc, 0x9d, 0x70, 0x16, 0xc2,
+        0x2c, 0x2b, 0x75, 0x5b, 0x63, 0xdb, 0xee, 0x3a,
+        0x2d, 0x44, 0x92, 0x46, 0xb4, 0x7b, 0x07, 0x03,
+        0x4f, 0xa2, 0xae, 0x86, 0x86, 0xdc, 0x8b, 0x4b,
+        0x2c, 0x7f, 0xe8, 0x6b, 0x14, 0x8d, 0x58, 0xdd,
+        0x6d, 0xe7, 0x6f, 0x3a, 0x05, 0x95, 0xa8, 0xef,
+        0x00
+    };
+
+    /* SPKI wrapper around the same known-valid public key (the full
+     * contents of ./certs/ed448/server-ed448-key.der). */
+    static const unsigned char spkiPub[] = {
+        0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x71, 0x03, 0x3a, 0x00,
+        0x54, 0x81, 0x39, 0x01, 0xeb, 0x37, 0xd9, 0xa9,
+        0x07, 0xcd, 0x01, 0xbc, 0x9d, 0x70, 0x16, 0xc2,
+        0x2c, 0x2b, 0x75, 0x5b, 0x63, 0xdb, 0xee, 0x3a,
+        0x2d, 0x44, 0x92, 0x46, 0xb4, 0x7b, 0x07, 0x03,
+        0x4f, 0xa2, 0xae, 0x86, 0x86, 0xdc, 0x8b, 0x4b,
+        0x2c, 0x7f, 0xe8, 0x6b, 0x14, 0x8d, 0x58, 0xdd,
+        0x6d, 0xe7, 0x6f, 0x3a, 0x05, 0x95, 0xa8, 0xef,
+        0x00
+    };
+
+    /* SPKI path. */
+    p = spkiPub;
+    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p, (long)sizeof(spkiPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED448);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* Parse raw bytes */
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+        WC_EVP_PKEY_ED448, NULL, rawPub, sizeof(rawPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED448);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+

@@ -159,6 +159,7 @@
 
 /* BIO for 1.1.0 or later */
 #define BIO_set_init               wolfSSL_BIO_set_init
+#define BIO_get_init               wolfSSL_BIO_get_init
 #define BIO_get_data               wolfSSL_BIO_get_data
 #define BIO_set_data               wolfSSL_BIO_set_data
 #define BIO_get_shutdown           wolfSSL_BIO_get_shutdown

@@ -1,0 +1,36 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+         certs/slhdsa/bench_slhdsa_shake128s_key.der \
+         certs/slhdsa/bench_slhdsa_shake128f_key.der \
+         certs/slhdsa/bench_slhdsa_shake192s_key.der \
+         certs/slhdsa/bench_slhdsa_shake192f_key.der \
+         certs/slhdsa/bench_slhdsa_shake256s_key.der \
+         certs/slhdsa/bench_slhdsa_shake256f_key.der \
+         certs/slhdsa/bench_slhdsa_sha2_128s_key.der \
+         certs/slhdsa/bench_slhdsa_sha2_128f_key.der \
+         certs/slhdsa/bench_slhdsa_sha2_192s_key.der \
+         certs/slhdsa/bench_slhdsa_sha2_192f_key.der \
+         certs/slhdsa/bench_slhdsa_sha2_256s_key.der \
+         certs/slhdsa/bench_slhdsa_sha2_256f_key.der \
+         certs/slhdsa/gen-slhdsa-mldsa-certs.sh \
+         certs/slhdsa/server-mldsa44-priv.pem \
+         certs/slhdsa/client-mldsa44-priv.pem \
+         certs/slhdsa/root-slhdsa-shake-128s-priv.pem \
+         certs/slhdsa/root-slhdsa-shake-128s-priv.der \
+         certs/slhdsa/root-slhdsa-shake-128s.pem \
+         certs/slhdsa/root-slhdsa-shake-128s.der \
+         certs/slhdsa/server-mldsa44-shake.pem \
+         certs/slhdsa/server-mldsa44-shake.der \
+         certs/slhdsa/client-mldsa44-shake.pem \
+         certs/slhdsa/client-mldsa44-shake.der \
+         certs/slhdsa/root-slhdsa-sha2-128s-priv.pem \
+         certs/slhdsa/root-slhdsa-sha2-128s-priv.der \
+         certs/slhdsa/root-slhdsa-sha2-128s.pem \
+         certs/slhdsa/root-slhdsa-sha2-128s.der \
+         certs/slhdsa/server-mldsa44-sha2.pem \
+         certs/slhdsa/server-mldsa44-sha2.der \
+         certs/slhdsa/client-mldsa44-sha2.pem \
+         certs/slhdsa/client-mldsa44-sha2.der

@@ -264,10 +264,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\ext_mlkem.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\falcon.c"
 				>
 			</File>
@@ -376,10 +372,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\sphincs.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\sp_c32.c"
 				>
 			</File>
@@ -417,6 +409,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\wc_port.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_slhdsa.c"
 				>
 			</File>
 			<File

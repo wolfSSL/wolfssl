@@ -13,14 +13,13 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
-  # Configs that interact with platform-specific features (sys-ca-certs,
-  # Apple Security.framework, OpenSSL compat layer, networking).
-  # Run on both Ubuntu and macOS.
-  make_check:
+  # Ubuntu config matrix. macOS is covered separately by make_check_macos
+  # below with a curated subset; configs here either have equivalent macOS
+  # coverage there or exercise no Darwin-specific code.
+  make_check_linux:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-24.04, macos-latest ]
         config: [
           # Add new configs here
           '',
@@ -89,26 +88,6 @@ jobs:
           '--enable-ocsp --enable-ocsp-responder --enable-ocspstapling CPPFLAGS="-DWOLFSSL_NONBLOCK_OCSP" --enable-maxfragment',
           '--enable-all CPPFLAGS=-DWOLFSSL_HASH_KEEP',
           '--enable-all --enable-writedup',
-        ]
-    name: make check
-    if: github.repository_owner == 'wolfssl'
-    runs-on: ${{ matrix.os }}
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 14
-    steps:
-      - name: Build and test wolfSSL
-        uses: wolfSSL/actions-build-autotools-project@v1
-        with:
-          configure: CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
-          check: true
-
-  # Platform-agnostic configs: pure crypto algorithms, preprocessor guards,
-  # or features with no macOS-specific code paths. Linux only.
-  make_check_linux:
-    strategy:
-      fail-fast: false
-      matrix:
-        config: [
           '--enable-ascon --enable-experimental',
           '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL --enable-experimental',
           # PKCS#7 with RSA-PSS (CMS RSASSA-PSS signers)
@@ -130,7 +109,7 @@ jobs:
           '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK"',
           '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
         ]
-    name: make check (Linux only)
+    name: make check linux
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
@@ -142,6 +121,55 @@ jobs:
           configure: CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
           check: true
 
+  # Curated macOS subset. Each config exists for a Darwin-specific reason;
+  # do not add entries that only re-test platform-agnostic crypto already
+  # covered by the corresponding Linux run.
+  make_check_macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [
+          # Default build: --enable-sys-ca-certs is auto-on on macOS, so
+          # this exercises Apple keychain / system trust loading in
+          # src/ssl_load.c that has no Linux equivalent.
+          '',
+          # Broad key-crypto + Security.framework + opensslextra in one run
+          # (RSA, ECC, AES, SHA-2/3, ChaCha20-Poly1305, Curve25519/448, HMAC,
+          # sniffer, DTLS, OCSP, ...). Note: --enable-all does NOT enable
+          # cryptocb or SHE, so those have their own entries below.
+          '--enable-all --enable-asn=template',
+          # Validates the configure-time auto-enable override and that the
+          # build compiles out the Security.framework code path cleanly --
+          # macOS is the only OS where sys-ca-certs is auto-on by default.
+          '--disable-sys-ca-certs',
+          # DTLS over BSD sockets on Darwin: connection-ID, fragmented
+          # ClientHello, secure renegotiation, PSK, AES-CCM, null cipher --
+          # exercises recvmsg/MTU/datagram handling that differs from Linux.
+          '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation
+            --enable-psk --enable-aesccm --enable-nullcipher
+            CPPFLAGS=-DWOLFSSL_STATIC_RSA',
+          # Crypto-callback dispatcher under Apple clang. Not covered by
+          # --enable-all; verifies the cryptocb find/setkey/keygen path
+          # compiles and runs on the macOS toolchain.
+          '--enable-cryptocb --enable-keygen --enable-cryptocbutils=setkey',
+        ]
+    name: make check macos
+    if: github.repository_owner == 'wolfssl'
+    runs-on: macos-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 14
+    steps:
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
+          check: true
+
+  # Run on both OSes: the user_settings.h header-driven build path is
+  # distinct from the autotools-driven --enable-all path in
+  # make_check_linux / make_check_macos, and macOS-specific guard ordering
+  # (e.g. WOLFSSL_SYS_CA_CERTS pulling in Security.framework) needs to be
+  # exercised under Apple clang here.
   make_user_settings:
     strategy:
       fail-fast: false
@@ -165,12 +193,11 @@ jobs:
           user-settings: ${{ matrix.user-settings }}
 
   make_user_settings_testwolfcrypt:
+    # testwolfcrypt runs pure crypto tests with no platform-specific
+    # features, so Linux-only is sufficient for these user_settings.
     strategy:
       fail-fast: false
       matrix:
-        # testwolfcrypt runs pure crypto tests with no platform-specific
-        # features, so Linux-only is sufficient for these user_settings.
-        os: [ ubuntu-24.04 ]
         user-settings: [
           # Add new user_settings.h here (alphabetical order)
           'examples/configs/user_settings_ca.h',
@@ -194,7 +221,7 @@ jobs:
         ]
     name: make user_setting.h (testwolfcrypt only)
     if: github.repository_owner == 'wolfssl'
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
@@ -208,21 +235,18 @@ jobs:
       - name: Run wolfcrypt/test/testwolfcrypt
         run: ./wolfcrypt/test/testwolfcrypt
 
-  # Has to be dedicated function due to the sed call
+  # Has to be dedicated function due to the sed call.
+  # Platform-agnostic; --enable-all macOS coverage in make_check_macos and
+  # the macOS user_settings_all.h run in make_user_settings already cover
+  # the equivalent code paths on Darwin.
   make_user_all:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-24.04, macos-latest ]
     name: make user_setting.h (with sed)
     if: github.repository_owner == 'wolfssl'
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
     - uses: actions/checkout@v4
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
     - run: ./autogen.sh
     - name: user_settings_all.h with compatibility layer
       run: |

@@ -42,6 +42,20 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
                            const unsigned char *pub, unsigned int pubSz,
                            const unsigned char *sig, unsigned int sigSz);
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#ifndef WC_ED25519KEY_TYPE_DEFINED
+    typedef struct ed25519_key ed25519_key;
+    #define WC_ED25519KEY_TYPE_DEFINED
+#endif
+/* Not OpenSSL API's, but these two constructors are leveraged within
+ * wolfSSL's compat layer for Ed25519 object creation/deletion simplicity */
+WOLFSSL_API
+ed25519_key* wolfSSL_ED25519_new(void* heap, int devId);
+
+WOLFSSL_API
+void wolfSSL_ED25519_free(ed25519_key* key);
+#endif
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

@@ -4499,6 +4499,53 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
 /*!
     \ingroup IO
 
+    \brief This is used to set the init flag of a BIO, indicating whether
+    the BIO has been initialised and is ready for use. Typically called
+    from a custom BIO create callback.
+
+    \param bio WOLFSSL_BIO structure to set the init flag on.
+    \param init value to set (0 = not initialised, 1 = initialised).
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio;
+    // inside a custom BIO create callback
+    wolfSSL_BIO_set_init(bio, 1);
+    \endcode
+
+    \sa wolfSSL_BIO_get_init
+    \sa wolfSSL_BIO_new
+*/
+void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init);
+
+/*!
+    \ingroup IO
+
+    \brief This is used to retrieve the init flag of a BIO, indicating
+    whether the BIO has been initialised and is ready for use.
+
+    \return 1 if the BIO has been initialised.
+    \return 0 if the BIO has not been initialised or bio is NULL.
+
+    \param bio WOLFSSL_BIO structure to query.
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio;
+    // create bio with custom method
+    if (wolfSSL_BIO_get_init(bio)) {
+        // bio is ready
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_set_init
+    \sa wolfSSL_BIO_new
+*/
+int wolfSSL_BIO_get_init(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup IO
+
     \brief Sets the file descriptor for bio to use.
 
     \return SSL_SUCCESS(1) upon success.

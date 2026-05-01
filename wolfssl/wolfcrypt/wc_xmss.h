@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*!
+    \file wolfssl/wolfcrypt/wc_xmss.h
+ */
+
 /* Based on:
  *  o RFC 8391 - XMSS: eXtended Merkle Signature Scheme
  *  o [HDSS] "Hash-based Digital Signature Schemes", Buchmann, Dahmen and Szydlo
@@ -28,11 +32,15 @@
 #ifndef WC_XMSS_H
 #define WC_XMSS_H
 
+#include <wolfssl/wolfcrypt/types.h>
+
 #ifdef WOLFSSL_HAVE_XMSS
-#include <wolfssl/wolfcrypt/xmss.h>
+
+#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/sha3.h>
+
 
 /* When raw hash access APIs are disabled or unavailable (WOLFSSL_NO_HASH_RAW),
  * fall back to using the full hash API calls. */
@@ -40,9 +48,133 @@
     #define WC_XMSS_FULL_HASH
 #endif
 
-#if !defined(WOLFSSL_WC_XMSS)
-    #error "This code is incompatible with external implementation of XMSS."
+/* Note on XMSS/XMSS^MT pub/priv key sizes:
+ *   - The XMSS/XMSS^MT pub key has a defined format and size.
+ *   - The XMSS/XMSS^MT private key is implementation and parameter
+ *     specific. It does not have a standardized format or size.
+ *
+ * The XMSS/XMSS^MT public and secret key format and length is:
+ *   PK = OID || root || SEED;
+ *   PK_len = 4 + 2 * n
+ *
+ *   SK = OID || (implementation defined)
+ *   SK_len = 4 + (implementation defined)
+ *
+ * where n is the number of bytes in the hash function, which is 32
+ * in this SHA256 implementation.
+ *
+ * However the private key is implementation specific. For example,
+ * in xmss-reference the private key size varies from 137 bytes to
+ * 1377 bytes between slow and fast implementations with param name
+ * "XMSSMT-SHA2_20/2_256".
+ *
+ * References:
+ *   - RFC 8391
+ *   - Table 2 of Kampanakis, Fluhrer, IACR, 2017.
+ * */
+
+#define XMSS_SHA256_PUBLEN (68)
+
+/* Supported XMSS/XMSS^MT parameter set names:
+ * We are supporting all SHA256 parameter sets with n=32 and
+ * Winternitz=16, from RFC 8391 and NIST SP 800-208.
+ *
+ *         ----------------------------------------------------------
+ *         | Name                     OID         n   w  len  h   d  |
+ * XMSS:   | "XMSS-SHA2_10_256"       0x00000001  32  16  67  10  1  |
+ *         | "XMSS-SHA2_16_256"       0x00000002  32  16  67  16  1  |
+ *         | "XMSS-SHA2_20_256"       0x00000003  32  16  67  20  1  |
+ *         |                                                         |
+ * XMSSMT: | "XMSSMT-SHA2_20/2_256"   0x00000001  32  16  67  20  2  |
+ *         | "XMSSMT-SHA2_20/4_256"   0x00000002  32  16  67  20  4  |
+ *         | "XMSSMT-SHA2_40/2_256"   0x00000003  32  16  67  40  2  |
+ *         | "XMSSMT-SHA2_40/4_256"   0x00000004  32  16  67  40  4  |
+ *         | "XMSSMT-SHA2_40/8_256"   0x00000005  32  16  67  40  8  |
+ *         | "XMSSMT-SHA2_60/3_256"   0x00000006  32  16  67  60  3  |
+ *         | "XMSSMT-SHA2_60/6_256"   0x00000007  32  16  67  60  6  |
+ *         | "XMSSMT-SHA2_60/12_256"  0x00000008  32  16  67  60  12 |
+ *         ----------------------------------------------------------
+ *
+ * Note that some XMSS and XMSSMT names do have overlapping OIDs.
+ *
+ * References:
+ *   1. NIST SP 800-208
+ *   2. RFC 8391
+ * */
+
+#define XMSS_NAME_LEN       (16) /* strlen("XMSS-SHA2_10_256") */
+#define XMSSMT_NAME_MIN_LEN (20) /* strlen("XMSSMT-SHA2_20/2_256") */
+#define XMSSMT_NAME_MAX_LEN (21) /* strlen("XMSSMT-SHA2_60/12_256") */
+
+#if defined(HAVE_FIPS)
+    #undef WOLFSSL_WC_XMSS_NO_SHA512
+    #define WOLFSSL_WC_XMSS_NO_SHA512
+    #undef WOLFSSL_WC_XMSS_NO_SHAKE128
+    #define WOLFSSL_WC_XMSS_NO_SHAKE128
+    #undef WOLFSSL_WC_XMSS_MAX_HASH_SIZE
+    #define WOLFSSL_WC_XMSS_MIN_HASH_SIZE       192
+    #define WOLFSSL_WC_XMSS_MAX_HASH_SIZE       256
 #endif
+
+#if !defined(NO_SHA256) && !defined(WOLFSSL_WC_XMSS_NO_SHA256)
+    #define WC_XMSS_SHA256
+#endif
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_WC_XMSS_NO_SHA512)
+    #define WC_XMSS_SHA512
+#endif
+#if defined(WOLFSSL_SHAKE128) && !defined(WOLFSSL_WC_XMSS_NO_SHAKE128)
+    #define WC_XMSS_SHAKE128
+#endif
+#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_WC_XMSS_NO_SHAKE256)
+    #define WC_XMSS_SHAKE256
+#endif
+
+#ifndef WOLFSSL_WC_XMSS_MIN_HASH_SIZE
+    #define WOLFSSL_WC_XMSS_MIN_HASH_SIZE       192
+#endif
+#ifndef WOLFSSL_WC_XMSS_MAX_HASH_SIZE
+    #define WOLFSSL_WC_XMSS_MAX_HASH_SIZE       512
+#endif
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE > WOLFSSL_WC_XMSS_MAX_HASH_SIZE
+    #error "XMSS minimum hash size is greater than maximum hash size"
+#endif
+
+#ifndef WOLFSSL_XMSS_MIN_HEIGHT
+    #define WOLFSSL_XMSS_MIN_HEIGHT             10
+#endif
+#ifndef WOLFSSL_XMSS_MAX_HEIGHT
+    #define WOLFSSL_XMSS_MAX_HEIGHT             60
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT > WOLFSSL_XMSS_MAX_HEIGHT
+    #error "XMSS minimum height is greater than maximum height"
+#endif
+
+/* Return codes returned by private key callbacks. */
+enum wc_XmssRc {
+  WC_XMSS_RC_NONE,
+  WC_XMSS_RC_BAD_ARG,            /* Bad arg in read or write callback. */
+  WC_XMSS_RC_WRITE_FAIL,         /* Write or update private key failed. */
+  WC_XMSS_RC_READ_FAIL,          /* Read private key failed. */
+  WC_XMSS_RC_SAVED_TO_NV_MEMORY, /* Wrote private key to nonvolatile storage. */
+  WC_XMSS_RC_READ_TO_MEMORY      /* Read private key from storage. */
+};
+
+/* enum wc_XmssState is to help track the state of an XMSS Key. */
+enum wc_XmssState {
+    WC_XMSS_STATE_FREED,      /* Key has been freed from memory. */
+    WC_XMSS_STATE_INITED,     /* Key has been inited, ready to set params.*/
+    WC_XMSS_STATE_PARMSET,    /* Params are set, ready to MakeKey or Reload. */
+    WC_XMSS_STATE_OK,         /* Able to sign signatures and verify. */
+    WC_XMSS_STATE_VERIFYONLY, /* A public only XmssKey. */
+    WC_XMSS_STATE_BAD,        /* Can't guarantee key's state. */
+    WC_XMSS_STATE_NOSIGS      /* Signatures exhausted. */
+};
+
+/* Private key write and read callbacks. */
+typedef enum wc_XmssRc (*wc_xmss_write_private_key_cb)(const byte* priv, word32 privSz,
+    void* context);
+typedef enum wc_XmssRc (*wc_xmss_read_private_key_cb)(byte* priv, word32 privSz,
+    void* context);
 
 #if (defined(WC_XMSS_SHA512) || defined(WC_XMSS_SHAKE256)) && \
         (WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512)
@@ -205,7 +337,7 @@ typedef struct XmssParams {
     word8  bds_k;
 } XmssParams;
 
-struct XmssKey {
+typedef struct XmssKey {
     /* Public key. */
     unsigned char        pk[2 * WC_XMSS_MAX_N];
     /* OID that identifies parameters. */
@@ -228,7 +360,7 @@ struct XmssKey {
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
     /* State of key. */
     enum wc_XmssState    state;
-};
+} XmssKey;
 
 typedef struct XmssState {
     const XmssParams* params;
@@ -267,6 +399,32 @@ typedef struct XmssState {
     extern "C" {
 #endif
 
+WOLFSSL_API int  wc_XmssKey_Init(XmssKey* key, void* heap, int devId);
+WOLFSSL_API int  wc_XmssKey_SetParamStr(XmssKey* key, const char* str);
+#ifndef WOLFSSL_XMSS_VERIFY_ONLY
+WOLFSSL_API int  wc_XmssKey_SetWriteCb(XmssKey* key,
+    wc_xmss_write_private_key_cb write_cb);
+WOLFSSL_API int  wc_XmssKey_SetReadCb(XmssKey* key,
+    wc_xmss_read_private_key_cb read_cb);
+WOLFSSL_API int  wc_XmssKey_SetContext(XmssKey* key, void* context);
+WOLFSSL_API int  wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
+WOLFSSL_API int  wc_XmssKey_Reload(XmssKey* key);
+WOLFSSL_API int  wc_XmssKey_GetPrivLen(const XmssKey* key, word32* len);
+WOLFSSL_API int  wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigSz,
+    const byte* msg, int msgSz);
+WOLFSSL_API int  wc_XmssKey_SigsLeft(XmssKey* key);
+#endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
+WOLFSSL_API void wc_XmssKey_Free(XmssKey* key);
+WOLFSSL_API int  wc_XmssKey_GetSigLen(const XmssKey* key, word32* len);
+WOLFSSL_API int  wc_XmssKey_GetPubLen(const XmssKey* key, word32* len);
+WOLFSSL_API int  wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc);
+WOLFSSL_API int  wc_XmssKey_ExportPubRaw(const XmssKey* key, byte* out,
+    word32* outLen);
+WOLFSSL_API int  wc_XmssKey_ImportPubRaw(XmssKey* key, const byte* in,
+    word32 inLen);
+WOLFSSL_API int  wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigSz,
+    const byte* msg, int msgSz);
+
 WOLFSSL_LOCAL int wc_xmssmt_keygen(XmssState *state, const unsigned char* seed,
     unsigned char *sk, unsigned char *pk);
 WOLFSSL_LOCAL int wc_xmss_keygen(XmssState *state, const unsigned char* seed,
@@ -283,9 +441,8 @@ WOLFSSL_LOCAL int wc_xmssmt_verify(XmssState *state, const unsigned char *m,
     word32 mlen, const unsigned char *sm, const unsigned char *pk);
 
 #ifdef __cplusplus
-    } /* extern "C" */
+} /* extern "C" */
 #endif
 
 #endif /* WOLFSSL_HAVE_XMSS */
 #endif /* WC_XMSS_H */
-
