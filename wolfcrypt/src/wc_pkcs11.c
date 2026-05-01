@@ -6532,10 +6532,46 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
         }
         else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
     #ifndef NO_HMAC
-            ret = Pkcs11OpenSession(token, &session, readWrite);
-            if (ret == 0) {
+            Hmac* hmac = info->hmac.hmac;
+
+            /* Sign ops are session-scoped; cache the session across
+             * multi-call HMAC dispatches. */
+            if (hmac != NULL && hmac->devCtx != NULL) {
+                session.func    = token->func;
+                session.slotId  = token->slotId;
+                session.version = token->version;
+                session.handle  =
+                    (CK_SESSION_HANDLE)(wc_ptr_t)hmac->devCtx;
                 ret = Pkcs11Hmac(&session, info);
-                Pkcs11CloseSession(token, &session);
+                if (ret != 0 ||
+                        hmac->innerHashKeyed
+                            != WC_HMAC_INNER_HASH_KEYED_DEV) {
+                    Pkcs11CloseSession(token, &session);
+                    hmac->devCtx = NULL;
+                    /* Don't leave stale DEV state past session close;
+                     * leave SW state (owned by software fallback). */
+                    if (hmac->innerHashKeyed
+                            == WC_HMAC_INNER_HASH_KEYED_DEV)
+                        hmac->innerHashKeyed = 0;
+                }
+            }
+            else {
+                ret = Pkcs11OpenSession(token, &session, readWrite);
+                if (ret == 0) {
+                    ret = Pkcs11Hmac(&session, info);
+                    if (ret == 0 && hmac != NULL &&
+                            hmac->innerHashKeyed
+                                == WC_HMAC_INNER_HASH_KEYED_DEV) {
+                        hmac->devCtx =
+                            (void*)(wc_ptr_t)session.handle;
+                    }
+                    else {
+                        Pkcs11CloseSession(token, &session);
+                        if (hmac != NULL && hmac->innerHashKeyed
+                                == WC_HMAC_INNER_HASH_KEYED_DEV)
+                            hmac->innerHashKeyed = 0;
+                    }
+                }
             }
     #else
             ret = NOT_COMPILED_IN;
