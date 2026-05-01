@@ -200,6 +200,7 @@ tracefile.txt
 *.bak
 *.dummy
 *.xcworkspace
+workspace.pid*/
 xcuserdata
 compile
 NTRU_algorithm/
