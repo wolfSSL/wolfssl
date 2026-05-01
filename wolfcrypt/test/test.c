@@ -12119,7 +12119,7 @@ EVP_TEST_END:
         if (XMEMCMP(cipher + WC_AES_BLOCK_SIZE, cipher1 + WC_AES_BLOCK_SIZE,
                     WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 
     #ifdef HAVE_AES_DECRYPT
         ret = wc_AesOfbDecrypt(dec, plain, cipher1, WC_AES_BLOCK_SIZE);
@@ -12138,7 +12138,7 @@ EVP_TEST_END:
         if (XMEMCMP(plain + WC_AES_BLOCK_SIZE, plain1 + WC_AES_BLOCK_SIZE,
                     WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #endif /* HAVE_AES_DECRYPT */
 
         /* multiple blocks at once */
@@ -12223,7 +12223,7 @@ EVP_TEST_END:
     #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         if (XMEMCMP(cipher + 3, cipher1 + 3, WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 
     #ifdef HAVE_AES_DECRYPT
         ret = wc_AesOfbDecrypt(dec, plain, cipher1, 6);
@@ -12240,7 +12240,7 @@ EVP_TEST_END:
     #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         if (XMEMCMP(plain + 6, plain1 + 6, WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
 
@@ -12460,7 +12460,7 @@ EVP_TEST_END:
         if (XMEMCMP(plain, msg1, WC_AES_BLOCK_SIZE * 3))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* WOLFSSL_AES_128 */
 
 #ifdef WOLFSSL_AES_192
@@ -12574,7 +12574,7 @@ EVP_TEST_END:
         if (XMEMCMP(plain, msg3, WC_AES_BLOCK_SIZE * 4))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* WOLFSSL_AES_256 */
 
   out:
@@ -16038,7 +16038,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr128Wrap128CipherLong),
           ctr128Wrap128CipherLong },
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
         { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128_2,
           ctrPlain, (int)sizeof(ctr128Wrap128_2CipherLong),
@@ -16082,7 +16082,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         { ctr192Key, (int)sizeof(ctr192Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr192Wrap128CipherLong),
           ctr192Wrap128CipherLong },
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
         { ctr192Key, (int)sizeof(ctr192Key), ctrIvWrap128_2,
           ctrPlain, (int)sizeof(ctr192Wrap128_2CipherLong),
@@ -16126,7 +16126,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr256Wrap128CipherLong),
           ctr256Wrap128CipherLong },
-    #endif
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
         { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128_2,
           ctrPlain, (int)sizeof(ctr256Wrap128_2CipherLong),

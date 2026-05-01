@@ -82,7 +82,7 @@ int casper_rsa_public_exptmod(
 
     return 0;
 }
-#endif
+#endif /* !NO_RSA && WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD */
 
 
 /* 32 for 256 bits, 48 for 384 bits and 72 for 521 bits... */
@@ -157,7 +157,7 @@ int casper_ecc_mulmod(
 
     return 0;
 }
-#endif
+#endif /* HAVE_ECC && WOLFSSL_NXP_CASPER_ECC_MULMOD */
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_NXP_CASPER_ECC_MUL2ADD)
 /* calculates R = m*P[X, Y] + n*Q[X, Y] */
@@ -248,6 +248,6 @@ int casper_ecc_mul2add(
 
     return 0;
 }
-#endif
+#endif /* HAVE_ECC && WOLFSSL_NXP_CASPER_ECC_MUL2ADD */
 
 #endif /* WOLFSSL_NXP_CASPER */
