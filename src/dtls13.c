@@ -2188,16 +2188,27 @@ static int Dtls13InitAesCipher(WOLFSSL* ssl, RecordNumberCiphers* cipher,
     XMEMSET(cipher->aes, 0, sizeof(*cipher->aes));
 
     ret = wc_AesInit(cipher->aes, ssl->heap, INVALID_DEVID);
-    if (ret != 0)
+    if (ret != 0) {
+        XFREE(cipher->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        cipher->aes = NULL;
         return ret;
+    }
 
-    return wc_AesSetKey(cipher->aes, key, keySize, NULL, AES_ENCRYPTION);
+    ret = wc_AesSetKey(cipher->aes, key, keySize, NULL, AES_ENCRYPTION);
+    if (ret != 0) {
+        wc_AesFree(cipher->aes);
+        XFREE(cipher->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        cipher->aes = NULL;
+    }
+
+    return ret;
 }
 
 #ifdef HAVE_CHACHA
 static int Dtls13InitChaChaCipher(RecordNumberCiphers* c, byte* key,
     word16 keySize, void* heap)
 {
+    int ret;
     (void)heap;
 
     if (c->chacha == NULL) {
@@ -2207,7 +2218,13 @@ static int Dtls13InitChaChaCipher(RecordNumberCiphers* c, byte* key,
             return MEMORY_E;
     }
 
-    return wc_Chacha_SetKey(c->chacha, key, keySize);
+    ret = wc_Chacha_SetKey(c->chacha, key, keySize);
+    if (ret != 0) {
+        XFREE(c->chacha, heap, DYNAMIC_TYPE_CIPHER);
+        c->chacha = NULL;
+    }
+
+    return ret;
 }
 #endif /* HAVE_CHACHA */
 
