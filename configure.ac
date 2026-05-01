@@ -5631,9 +5631,26 @@ AC_ARG_ENABLE([dtls13],
     )
 if test "x$ENABLED_DTLS13" = "xyes"
 then
-        if test "x$ENABLED_DTLS" != "xyes" || test "x$ENABLED_TLS13" != "xyes"
+        # DTLSv1.3 implies TLS 1.3 and DTLS; auto-enable, but don't
+        # override explicit --disable.
+        if test "x$enable_tls13" = "xno" || test "x$ENABLED_TLS13" = "xno"
         then
-                AC_MSG_ERROR([You need to enable both DTLS and TLSv1.3 to use DTLSv1.3])
+                AC_MSG_ERROR([--enable-dtls13 requires TLS 1.3, but TLS 1.3 is disabled])
+        fi
+        if test "x$ENABLED_TLS13" != "xyes"
+        then
+                AC_MSG_NOTICE([DTLSv1.3 is enabled, enabling TLS 1.3])
+                ENABLED_TLS13=yes
+        fi
+        if test "x$enable_dtls" = "xno"
+        then
+                AC_MSG_ERROR([--enable-dtls13 requires DTLS, but --disable-dtls was given])
+        fi
+        if test "x$ENABLED_DTLS" != "xyes"
+        then
+                AC_MSG_NOTICE([DTLSv1.3 is enabled, enabling DTLS])
+                AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
+                ENABLED_DTLS=yes
         fi
         if test "x$ENABLED_SEND_HRR_COOKIE" = "xundefined"
         then
@@ -8133,6 +8150,11 @@ if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ECC" = "xno" && \
 then
     # disable TLS 1.3
     ENABLED_TLS13=no
+fi
+# DTLSv1.3 cannot survive a downgrade of TLS 1.3.
+if test "x$ENABLED_DTLS13" = "xyes" && test "x$ENABLED_TLS13" = "xno"
+then
+    AC_MSG_ERROR([--enable-dtls13 requires TLS 1.3, but TLS 1.3 was disabled by an earlier prerequisite check (no key-exchange or signature algorithms reachable). Enable at least one of ECC, RSA+DH, Curve25519+Ed25519, Curve448+Ed448, PSK, or ML-KEM.])
 fi
 if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
     test "$ENABLED_DH" != "no" || test "x$ENABLED_MLKEM" = "xyes")

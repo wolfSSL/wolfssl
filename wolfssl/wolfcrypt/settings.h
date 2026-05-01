@@ -4667,6 +4667,10 @@ extern void uITRON4_free(void *p) ;
 #error "DTLS v1.3 requires both WOLFSSL_TLS13 and WOLFSSL_DTLS"
 #endif
 
+#if defined(WOLFSSL_DTLS_ONLY) && !defined(WOLFSSL_DTLS)
+#error "WOLFSSL_DTLS_ONLY requires WOLFSSL_DTLS"
+#endif
+
 #if defined(WOLFSSL_QUIC) && defined(WOLFSSL_CALLBACKS)
     #error WOLFSSL_QUIC is incompatible with WOLFSSL_CALLBACKS.
 #endif
