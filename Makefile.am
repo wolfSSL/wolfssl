@@ -439,7 +439,6 @@ sbom:
 	    --lib "$$sbom_lib" \
 	    --dep-libz $(ENABLED_LIBZ) \
 	    --dep-liboqs $(ENABLED_LIBOQS) \
-	    --git '$(GIT)' \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
 	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
 	$(PYSPDXTOOLS) --infile $(abs_builddir)/$(SBOM_SPDX) \
