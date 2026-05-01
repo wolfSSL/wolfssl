@@ -2289,8 +2289,10 @@ extern void uITRON4_free(void *p) ;
         #ifndef STM32_HAL_TIMEOUT
             #define STM32_HAL_TIMEOUT   0xFF
         #endif
-        /* bypass certificate date checking, due to lack of properly configured RTC source */
-        #ifndef HAL_RTC_MODULE_ENABLED
+        /* bypass certificate date checking, due to lack of properly
+         * configured RTC source */
+        #if !defined(HAL_RTC_MODULE_ENABLED) && !defined(XTIME) && \
+            !defined(USER_TIME)
             #define NO_ASN_TIME
         #endif
 
