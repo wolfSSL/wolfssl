@@ -13796,6 +13796,8 @@ static int TLSX_ECH_CheckInnerPadding(WOLFSSL* ssl, WOLFSSL_ECH* ech)
     headerSz = ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ :
                                    HANDSHAKE_HEADER_SZ;
 #else
+    (void)ssl;
+
     headerSz = HANDSHAKE_HEADER_SZ;
 #endif
 
@@ -13835,7 +13837,6 @@ static int TLSX_ECH_CheckInnerPadding(WOLFSSL* ssl, WOLFSSL_ECH* ech)
         acc |= innerCh[i];
     }
     if (acc != 0) {
-        SendAlert(ssl, alert_fatal, illegal_parameter);
         return INVALID_PARAMETER;
     }
 
@@ -13920,14 +13921,14 @@ static const byte* TLSX_ECH_FindOuterExtension(const byte* outerCh,
 
 /* If newinnerCh is NULL, validate ordering and existence of references
  *   - updates newInnerChLen with total length of selected extensions
- * If newinnerCh in not NULL, copy extensions into newInnerCh
+ * If newinnerCh is not NULL, copy extensions into newInnerCh
  *
  * outerCh          The outer ClientHello buffer.
  * outerChLen       Outer ClientHello length.
  * newInnerCh       The inner ClientHello buffer.
  * newInnerChLen    Inner ClientHello length.
  * numOuterRefs     Number of references described by OuterExtensions extension.
- * numOuterTypes    References described by OuterExtensions extension.
+ * OuterRefTypes    References described by OuterExtensions extension.
  * returns 0 on success and otherwise failure.
  */
 static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
@@ -13938,55 +13939,43 @@ static int TLSX_ECH_CopyOuterExtensions(const byte* outerCh, word32 outerChLen,
     word16 refType;
     word32 outerExtLen;
     word32 outerExtOffset = 0;
-    word16 extsStart;
-    word16 extsLen;
+    word16 extsStart = 0;
+    word16 extsLen = 0;
     const byte* outerExtData;
 
     if (newInnerCh == NULL) {
         *newInnerChLen = 0;
-
-        while (numOuterRefs-- > 0) {
-            ato16(outerRefTypes, &refType);
-
-            if (refType == TLSXT_ECH) {
-                WOLFSSL_MSG("ECH: ech_outer_extensions references ECH");
-                ret = INVALID_PARAMETER;
-                break;
-            }
-
-            outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
-                                refType, &outerExtLen, &outerExtOffset,
-                                &extsStart, &extsLen);
-
-            if (outerExtData == NULL) {
-                WOLFSSL_MSG("ECH: referenced extension not in outer CH");
-                ret = INVALID_PARAMETER;
-                break;
-            }
-
-            *newInnerChLen += outerExtLen;
-
-            outerRefTypes += OPAQUE16_LEN;
-        }
     }
-    else {
-        while (numOuterRefs-- > 0) {
-            ato16(outerRefTypes, &refType);
 
-            outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
-                                refType, &outerExtLen, &outerExtOffset,
-                                &extsStart, &extsLen);
+    while (numOuterRefs-- > 0) {
+        ato16(outerRefTypes, &refType);
 
-            if (outerExtData == NULL) {
-                ret = INVALID_PARAMETER;
-                break;
-            }
+        if (refType == TLSXT_ECH) {
+            WOLFSSL_MSG("ECH: ech_outer_extensions references ECH");
+            ret = INVALID_PARAMETER;
+            break;
+        }
 
+        outerExtData = TLSX_ECH_FindOuterExtension(outerCh, outerChLen,
+                            refType, &outerExtLen, &outerExtOffset,
+                            &extsStart, &extsLen);
+
+        if (outerExtData == NULL) {
+            WOLFSSL_MSG("ECH: referenced extension not in outer CH or out "
+                        "of order");
+            ret = INVALID_PARAMETER;
+            break;
+        }
+
+        if (newInnerCh == NULL) {
+            *newInnerChLen += outerExtLen;
+        }
+        else {
             XMEMCPY(*newInnerCh, outerExtData, outerExtLen);
             *newInnerCh += outerExtLen;
-
-            outerRefTypes += OPAQUE16_LEN;
         }
+
+        outerRefTypes += OPAQUE16_LEN;
     }
 
     return ret;
@@ -14197,6 +14186,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
 {
     int ret = 0;
     int i;
+    int allocatedHpke = 0;
     word32 rawConfigLen = 0;
     byte* info = NULL;
     word32 infoLen = 0;
@@ -14217,6 +14207,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
     }
     /* check if hpke already exists, may if HelloRetryRequest */
     if (ech->hpke == NULL) {
+        allocatedHpke = 1;
         ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (ech->hpke == NULL)
             ret = MEMORY_E;
@@ -14265,8 +14256,9 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
             ech->outerClientPayload, ech->innerClientHelloLen,
             ech->innerClientHello + HANDSHAKE_HEADER_SZ);
     }
-    /* free the hpke and context on failure */
-    if (ret != 0) {
+    /* only free hpke/hpkeContext if allocated in this call; otherwise preserve
+     * them for clientHello2 */
+    if (ret != 0 && allocatedHpke) {
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
         ech->hpke = NULL;
         XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14305,16 +14297,36 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 
     /* retry configs */
     if (msgType == encrypted_extensions) {
-        ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
+        /* configs must only be sent on ECH rejection (RFC9849, Section 5) */
+        if (ssl->options.echAccepted) {
+            SendAlert(ssl, alert_fatal, unsupported_extension);
+            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+            return UNSUPPORTED_EXTENSION;
+        }
 
-        if (ret == WOLFSSL_SUCCESS)
+        ret = SetRetryConfigs(ssl, readBuf, (word32)size);
+        if (ret == WC_NO_ERR_TRACE(UNSUPPORTED_SUITE) ||
+                ret == WC_NO_ERR_TRACE(UNSUPPORTED_PROTO_VERSION)) {
+            WOLFSSL_MSG("ECH retry configs had 'bad version' or 'bad suite'");
             ret = 0;
+        }
+
+        if (ssl->echConfigs == NULL) {
+            /* on GREASE connection configs must be checked syntactically and
+             * must not be saved (RFC 9849, Section 6.2.1) */
+            FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
+            ssl->echRetryConfigs = NULL;
+        }
+
+        /* retry configs may only be accepted at the point when ECH_REQUIRED is
+         * sent */
+        ssl->options.echRetryConfigsAccepted = 0;
     }
     /* HRR with special confirmation */
     else if (msgType == hello_retry_request && ssl->echConfigs != NULL) {
         /* length must be 8 */
         if (size != ECH_ACCEPT_CONFIRMATION_SZ)
-            return BAD_FUNC_ARG;
+            return BUFFER_ERROR;
 
         /* get extension */
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
@@ -14331,17 +14343,28 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             return BAD_FUNC_ARG;
         ech = (WOLFSSL_ECH*)echX->data;
 
+        /* if the first ECH was rejected or CH1 did not have ECH then there is
+         * no need to decrypt this one */
+        if (!ssl->options.echAccepted && ssl->options.serverState ==
+                SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+            ech->state = ECH_WRITE_RETRY_CONFIGS;
+            return 0;
+        }
+
         /* read the ech parameters before the payload */
         ech->type = *readBuf_p;
         readBuf_p++;
         offset += 1;
-        if (ech->type == ECH_TYPE_INNER) {
+        if (ssl->options.echProcessingInner && ech->type == ECH_TYPE_INNER) {
             ech->state = ECH_PARSED_INTERNAL;
             return 0;
         }
-        else if (ech->type != ECH_TYPE_OUTER) {
-            /* type MUST be INNER or OUTER */
-            return BAD_FUNC_ARG;
+        else if ((!ssl->options.echProcessingInner &&
+                  ech->type != ECH_TYPE_OUTER) ||
+                 (ssl->options.echProcessingInner &&
+                  ech->type != ECH_TYPE_INNER)) {
+            /* MUST process INNER in inner hello and OUTER in outer hello */
+            return INVALID_PARAMETER;
         }
         /* Must have kdfId, aeadId, configId, enc len and payload len. */
         if (size < offset + 2 + 2 + 1 + 2 + 2) {
@@ -14368,10 +14391,10 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             /* Check encLen isn't more than remaining bytes minus
              * payload length. */
             if (len > size - offset - 2) {
-                return BAD_FUNC_ARG;
+                return BUFFER_ERROR;
             }
             if (len > HPKE_Npk_MAX) {
-                return BAD_FUNC_ARG;
+                return BUFFER_ERROR;
             }
             /* read enc */
             XMEMCPY(ech->enc, readBuf_p, len);
@@ -14382,27 +14405,27 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             /* kdfId */
             ato16(readBuf_p, &tmpVal16);
             if (tmpVal16 != ech->cipherSuite.kdfId) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p += 2;
             offset += 2;
             /* aeadId */
             ato16(readBuf_p, &tmpVal16);
             if (tmpVal16 != ech->cipherSuite.aeadId) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p += 2;
             offset += 2;
             /* configId */
             if (*readBuf_p != ech->configId) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p++;
             offset++;
             /* on an HRR the enc value MUST be empty */
             ato16(readBuf_p, &len);
             if (len != 0) {
-                return BAD_FUNC_ARG;
+                return INVALID_PARAMETER;
             }
             readBuf_p += 2;
             offset += 2;
@@ -14416,7 +14439,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         offset += 2;
         /* Check payload is no bigger than remaining bytes. */
         if (ech->innerClientHelloLen > size - offset) {
-            return BAD_FUNC_ARG;
+            return BUFFER_ERROR;
         }
         if (ech->innerClientHelloLen < WC_AES_BLOCK_SIZE) {
             return BUFFER_ERROR;
@@ -14464,22 +14487,47 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                 echConfig = echConfig->next;
             }
         }
-        if (ret == 0) {
+        /* if we failed to extract/expand */
+        if (ret != 0) {
+            WOLFSSL_MSG("ECH rejected");
+
+            if (ssl->options.echAccepted == 1) {
+                /* on SH2 this is fatal */
+                SendAlert(ssl, alert_fatal, decrypt_error);
+                WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
+                ret = DECRYPT_ERROR;
+            }
+            else {
+                /* on SH1 prepare to write retry configs */
+                XFREE(ech->innerClientHello, ssl->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+                ech->innerClientHello = NULL;
+                ech->state = ECH_WRITE_RETRY_CONFIGS;
+                ret = 0;
+            }
+        }
+        else {
             ret = TLSX_ECH_CheckInnerPadding(ssl, ech);
             if (ret == 0) {
                 /* expand EchOuterExtensions if present.
                  * Also, if it exists, copy sessionID from outer hello */
                 ret = TLSX_ECH_ExpandOuterExtensions(ssl, ech, ssl->heap);
             }
+
+            if (ret == 0){
+                WOLFSSL_MSG("ECH accepted");
+                ssl->options.echAccepted = 1;
+            }
+            else {
+                WOLFSSL_MSG("ECH rejected");
+            }
         }
-        /* if we failed to extract/expand, set state to retry configs */
         if (ret != 0) {
             XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             ech->innerClientHello = NULL;
-            ech->state = ECH_WRITE_RETRY_CONFIGS;
         }
+
         XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return 0;
     }
 
     return ret;
@@ -16306,6 +16354,12 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     WC_ALLOC_VAR_EX(serverName, char, WOLFSSL_HOST_NAME_MAX, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
     r = TLSX_EchChangeSNI(ssl, &echX, serverName, &serverNameX, &extensions);
+    /* If ECH won't be written exclude it from the size calculation */
+    if (r == 0 && echX != NULL &&
+            !ssl->options.echAccepted &&
+            ((WOLFSSL_ECH*)echX->data)->innerCount != 0) {
+        TURN_ON(semaphore, TLSX_ToSemaphore(echX->type));
+    }
     if (r == 0 && ssl->extensions)
         ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, pLength);
     if (r == 0 && ret == 0 && ssl->ctx && ssl->ctx->extensions)
@@ -17873,6 +17927,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("ECH extension received");
                 ret = ECH_PARSE(ssl, input + offset, size, msgType);
                 break;
+            case TLSXT_ECH_OUTER_EXTENSIONS:
+                /* RFC 9849 s5.1: ech_outer_extensions MUST only appear in
+                 * the EncodedClientHelloInner */
+                WOLFSSL_MSG("ech_outer_extensions in plaintext message");
+                WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+                return INVALID_PARAMETER;
 #endif
             default:
                 WOLFSSL_MSG("Unknown TLS extension type");
@@ -18011,19 +18071,6 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         ret = SNI_VERIFY_PARSE(ssl, isRequest);
     if (ret == 0)
         ret = TCA_VERIFY_PARSE(ssl, isRequest);
-
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    /* If client used ECH, server HRR must include ECH confirmation */
-    if (ret == 0 && msgType == hello_retry_request && ssl->echConfigs != NULL &&
-            !ssl->options.disableECH) {
-        TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-        if (echX == NULL || ((WOLFSSL_ECH*)echX->data)->confBuf == NULL) {
-            WOLFSSL_MSG("ECH used but HRR missing ECH confirmation");
-            WOLFSSL_ERROR_VERBOSE(EXT_MISSING);
-            ret = EXT_MISSING;
-        }
-    }
-#endif
 
     WOLFSSL_LEAVE("Leaving TLSX_Parse", ret);
     return ret;

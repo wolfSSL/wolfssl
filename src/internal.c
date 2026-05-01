@@ -8773,6 +8773,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
         FreeEchConfigs(ssl->echConfigs, ssl->heap);
         ssl->echConfigs = NULL;
     }
+    if (ssl->echRetryConfigs != NULL) {
+        FreeEchConfigs(ssl->echRetryConfigs, ssl->heap);
+        ssl->echRetryConfigs = NULL;
+    }
 #endif /* HAVE_ECH */
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
@@ -15744,6 +15748,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     byte* subjectHash = NULL;
     int alreadySigner = 0;
 
+    char* domainName = NULL;
+
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     int addToPendingCAs = 0;
 #endif
@@ -16932,17 +16938,34 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             #endif
 
-                if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
+                domainName = (char*)ssl->buffers.domainName.buffer;
+            #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_ECH)
+                /* RFC 9849 s6.1.7: ECH offered but rejected by the server...
+                 * verify cert is valid for ECHConfig.public_name */
+                if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                        ssl->echConfigs != NULL &&
+                        !ssl->options.echAccepted) {
+                    TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+                    if (echX != NULL && echX->data != NULL) {
+                        WOLFSSL_ECH* ech = (WOLFSSL_ECH*)echX->data;
+                        if (ech->echConfig != NULL &&
+                                ech->echConfig->publicName != NULL) {
+                            domainName = ech->echConfig->publicName;
+                        }
+                    }
+                }
+            #endif
+
+                if (!ssl->options.verifyNone && domainName) {
                 #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
                     /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
                      * are to be bound into a certificate, the subject
                      * alternative name extension MUST be used." */
                     if (args->dCert->altNames) {
-                        if (CheckForAltNames(args->dCert,
-                                (char*)ssl->buffers.domainName.buffer,
-                                (ssl->buffers.domainName.buffer == NULL ? 0 :
-                                (word32)XSTRLEN(
-                                (const char *)ssl->buffers.domainName.buffer)),
+                        if (CheckForAltNames(
+                                args->dCert,
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
                                 NULL, 0, 0) != 1) {
                             WOLFSSL_MSG("DomainName match on alt names failed");
                             /* try to get peer key still */
@@ -16955,11 +16978,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (MatchDomainName(
                                 args->dCert->subjectCN,
                                 args->dCert->subjectCNLen,
-                                (char*)ssl->buffers.domainName.buffer,
-                                (ssl->buffers.domainName.buffer == NULL ? 0 :
-                                (word32)XSTRLEN(
-                                (const char *)ssl->buffers.domainName.buffer)
-                                ), 0) == 0)
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
+                                0) == 0)
                     #endif
                         {
                             WOLFSSL_MSG("DomainName match failed");
@@ -16970,18 +16991,19 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #else /* WOLFSSL_ALL_NO_CN_IN_SAN */
                     /* Old behavior. */
                 #ifndef  WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
-                    if (MatchDomainName(args->dCert->subjectCN,
+                    if (MatchDomainName(
+                                args->dCert->subjectCN,
                                 args->dCert->subjectCNLen,
-                                (char*)ssl->buffers.domainName.buffer,
-                                (ssl->buffers.domainName.buffer == NULL ? 0 :
-                                (word32)XSTRLEN(ssl->buffers.domainName.buffer)), 0) == 0)
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
+                                0) == 0)
                 #endif
                     {
-                        if (CheckForAltNames(args->dCert,
-                                 (char*)ssl->buffers.domainName.buffer,
-                                 (ssl->buffers.domainName.buffer == NULL ? 0 :
-                                 (word32)XSTRLEN(ssl->buffers.domainName.buffer)),
-                                 NULL, 0, 0) != 1) {
+                        if (CheckForAltNames(
+                                args->dCert,
+                                domainName,
+                                (word32)XSTRLEN((const char *)domainName),
+                                NULL, 0, 0) != 1) {
                             WOLFSSL_MSG("DomainName match failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
@@ -22208,6 +22230,13 @@ const char* AlertTypeToString(int type)
                 static const char no_application_protocol_str[] =
                     "no_application_protocol";
                 return no_application_protocol_str;
+            }
+
+        case ech_required:
+            {
+                static const char ech_required_str[] =
+                    "ech_required";
+                return ech_required_str;
             }
 
         default:
@@ -27828,6 +27857,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SESSION_TICKET_NONCE_OVERFLOW:
         return "Session ticket nonce overflow";
+
+    case ECH_REQUIRED_E:
+        return "ECH offered but rejected by server";
     }
 
     return "unknown error number";
