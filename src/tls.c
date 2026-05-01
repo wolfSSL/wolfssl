@@ -2589,7 +2589,10 @@ static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
                         continue;
                 }
 
-                SendAlert(ssl, alert_fatal, handshake_failure);
+                SendAlert(ssl, alert_fatal,
+                          IsAtLeastTLSv1_3(ssl->version)
+                              ? missing_extension
+                              : handshake_failure);
                 WOLFSSL_ERROR_VERBOSE(SNI_ABSENT_ERROR);
                 return SNI_ABSENT_ERROR;
             }
@@ -2600,7 +2603,10 @@ static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
                 if (ssl_sni->status != WOLFSSL_SNI_NO_MATCH)
                     continue;
 
-                SendAlert(ssl, alert_fatal, handshake_failure);
+                SendAlert(ssl, alert_fatal,
+                          IsAtLeastTLSv1_3(ssl->version)
+                              ? missing_extension
+                              : handshake_failure);
                 WOLFSSL_ERROR_VERBOSE(SNI_ABSENT_ERROR);
                 return SNI_ABSENT_ERROR;
             }
