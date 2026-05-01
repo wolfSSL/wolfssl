@@ -337,6 +337,13 @@ typedef struct XmssParams {
     word8  bds_k;
 } XmssParams;
 
+#ifndef XMSS_MAX_ID_LEN
+#define XMSS_MAX_ID_LEN              32
+#endif
+#ifndef XMSS_MAX_LABEL_LEN
+#define XMSS_MAX_LABEL_LEN           32
+#endif
+
 typedef struct XmssKey {
     /* Public key. */
     unsigned char        pk[2 * WC_XMSS_MAX_N];
@@ -360,6 +367,20 @@ typedef struct XmssKey {
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
     /* State of key. */
     enum wc_XmssState    state;
+#ifdef WOLF_CRYPTO_CB
+    /* Device Identifier. */
+    int                  devId;
+    /* Per-device opaque context, populated by the callback. */
+    void*                devCtx;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* Optional device-side key identifier. */
+    byte                 id[XMSS_MAX_ID_LEN];
+    int                  idLen;
+    /* Optional device-side key label. */
+    char                 label[XMSS_MAX_LABEL_LEN];
+    int                  labelLen;
+#endif
 } XmssKey;
 
 typedef struct XmssState {
@@ -400,7 +421,14 @@ typedef struct XmssState {
 #endif
 
 WOLFSSL_API int  wc_XmssKey_Init(XmssKey* key, void* heap, int devId);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API int  wc_XmssKey_InitId(XmssKey* key, const unsigned char* id,
+    int len, void* heap, int devId);
+WOLFSSL_API int  wc_XmssKey_InitLabel(XmssKey* key, const char* label,
+    void* heap, int devId);
+#endif
 WOLFSSL_API int  wc_XmssKey_SetParamStr(XmssKey* key, const char* str);
+WOLFSSL_API int  wc_XmssKey_GetParamStr(const XmssKey* key, const char** str);
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
 WOLFSSL_API int  wc_XmssKey_SetWriteCb(XmssKey* key,
     wc_xmss_write_private_key_cb write_cb);
@@ -424,6 +452,12 @@ WOLFSSL_API int  wc_XmssKey_ImportPubRaw(XmssKey* key, const byte* in,
     word32 inLen);
 WOLFSSL_API int  wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigSz,
     const byte* msg, int msgSz);
+/* Compute the digest of a message with the hash function dictated by the
+ * XMSS parameter set. Useful for crypto-callback / HSM backends that follow
+ * the PKCS#11 v3.2 CKM_XMSS / CKM_XMSSMT convention of taking a
+ * pre-computed digest. */
+WOLFSSL_API int  wc_XmssKey_HashMsg(const XmssKey* key, const byte* msg,
+    word32 msgSz, byte* hash, word32* hashSz);
 
 WOLFSSL_LOCAL int wc_xmssmt_keygen(XmssState *state, const unsigned char* seed,
     unsigned char *sk, unsigned char *pk);

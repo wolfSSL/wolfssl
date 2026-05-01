@@ -1573,6 +1573,14 @@ enum wc_PkType {
     WC_PK_TYPE_EC_GET_SIG_SIZE = 29,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_EC_GET_SIG_SIZE
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+    WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN    = 30,
+    WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN      = 31,
+    WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY    = 32,
+    WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT = 33,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT
+#endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
@@ -1604,6 +1612,25 @@ enum wc_PkType {
         #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_FALCON
     #endif
         WC_PQC_SIG_TYPE_MAX = _WC_PQC_SIG_TYPE_MAX
+    };
+#endif
+
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+    /* Post quantum stateful hash-based signature algorithms. */
+    enum wc_PqcStatefulSignatureType {
+        WC_PQC_STATEFUL_SIG_TYPE_NONE = 0,
+        #define _WC_PQC_STATEFUL_SIG_TYPE_MAX WC_PQC_STATEFUL_SIG_TYPE_NONE
+    #if defined(WOLFSSL_HAVE_LMS)
+        WC_PQC_STATEFUL_SIG_TYPE_LMS = 1,
+        #undef _WC_PQC_STATEFUL_SIG_TYPE_MAX
+        #define _WC_PQC_STATEFUL_SIG_TYPE_MAX WC_PQC_STATEFUL_SIG_TYPE_LMS
+    #endif
+    #if defined(WOLFSSL_HAVE_XMSS)
+        WC_PQC_STATEFUL_SIG_TYPE_XMSS = 2,
+        #undef _WC_PQC_STATEFUL_SIG_TYPE_MAX
+        #define _WC_PQC_STATEFUL_SIG_TYPE_MAX WC_PQC_STATEFUL_SIG_TYPE_XMSS
+    #endif
+        WC_PQC_STATEFUL_SIG_TYPE_MAX = _WC_PQC_STATEFUL_SIG_TYPE_MAX
     };
 #endif
 

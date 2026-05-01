@@ -28,6 +28,7 @@
     #define FIPS_NO_WRAPPERS
 #endif
 #include <wolfssl/wolfcrypt/wc_lms.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -35,6 +36,77 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+/* Compute the digest of msg using the hash function dictated by the LMS
+ * parameter set. Crypto-callback / HSM backends that follow PKCS#11 v3.2
+ * CKM_HSS semantics (pre-computed digest input) can call this from within
+ * their callback; backends that take the raw message (e.g. wolfHSM) can
+ * ignore it. *hashSz is in/out: it must be at least params->hash_len on
+ * entry and is set to the actual digest length on success.
+ *
+ * @param [in]      key     LMS key (must have a parameter set bound).
+ * @param [in]      msg     Message to hash.
+ * @param [in]      msgSz   Length of msg in bytes.
+ * @param [out]     hash    Buffer receiving the digest.
+ * @param [in,out]  hashSz  On entry, size of hash buffer. On success,
+ *                          the digest length.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when an argument is NULL or the buffer is too
+ *          small for the digest.
+ * @return  NOT_COMPILED_IN when the param set's hash family is disabled.
+ */
+int wc_LmsKey_HashMsg(const LmsKey* key, const byte* msg, word32 msgSz,
+    byte* hash, word32* hashSz)
+{
+    int ret = 0;
+    word32 needSz;
+
+    if ((key == NULL) || (msg == NULL) || (hash == NULL) || (hashSz == NULL))
+        return BAD_FUNC_ARG;
+    if (key->params == NULL)
+        return BAD_FUNC_ARG;
+    needSz = (word32)key->params->hash_len;
+    if (*hashSz < needSz)
+        return BAD_FUNC_ARG;
+
+    switch (key->params->lmsType & 0xF000) {
+        case LMS_SHA256:      /* 32-byte SHA-256 */
+        case LMS_SHA256_192:  /* SHA-256 truncated to 24 bytes */ {
+            byte full[WC_SHA256_DIGEST_SIZE];
+            ret = wc_Sha256Hash(msg, msgSz, full);
+            if (ret == 0)
+                XMEMCPY(hash, full, needSz);
+            break;
+        }
+    #ifdef WOLFSSL_LMS_SHAKE256
+        case LMS_SHAKE256:      /* SHAKE256 with 32-byte output */
+        case LMS_SHAKE256_192:  /* SHAKE256 with 24-byte output */ {
+            wc_Shake shake;
+            ret = wc_InitShake256(&shake, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_Shake256_Update(&shake, msg, msgSz);
+                if (ret == 0)
+                    ret = wc_Shake256_Final(&shake, hash, needSz);
+                wc_Shake256_Free(&shake);
+            }
+            break;
+        }
+    #endif
+        default:
+            WOLFSSL_MSG("LMS: unsupported hash family for HashMsg");
+            ret = NOT_COMPILED_IN;
+            break;
+    }
+
+    if (ret == 0)
+        *hashSz = needSz;
+
+    return ret;
+}
 
 
 /* Calculate u. Appendix B. Works for w of 1, 2, 4, or 8.
@@ -642,6 +714,72 @@ int wc_LmsKey_Init(LmsKey* key, void* heap, int devId)
     return ret;
 }
 
+#ifdef WOLF_PRIVATE_KEY_ID
+/* Initialize an LmsKey and bind it to a device-side key identifier.
+ *
+ * @param [in,out] key    LmsKey to initialize.
+ * @param [in]     id     Identifier bytes (may be NULL when len is 0).
+ * @param [in]     len    Length of id; must be in [0, LMS_MAX_ID_LEN].
+ * @param [in]     heap   Heap hint forwarded to wc_LmsKey_Init.
+ * @param [in]     devId  Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BUFFER_E when len is negative or exceeds LMS_MAX_ID_LEN.
+ */
+int wc_LmsKey_InitId(LmsKey* key, const unsigned char* id, int len, void* heap,
+    int devId)
+{
+    int ret = 0;
+
+    if (key == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0 && (len < 0 || len > LMS_MAX_ID_LEN))
+        ret = BUFFER_E;
+    if (ret == 0)
+        ret = wc_LmsKey_Init(key, heap, devId);
+    if (ret == 0 && id != NULL && len != 0) {
+        XMEMCPY(key->id, id, (size_t)len);
+        key->idLen = len;
+    }
+
+    return ret;
+}
+
+/* Initialize an LmsKey and bind it to a device-side key label.
+ *
+ * @param [in,out] key    LmsKey to initialize.
+ * @param [in]     label  NUL-terminated label string (must be non-empty).
+ * @param [in]     heap   Heap hint forwarded to wc_LmsKey_Init.
+ * @param [in]     devId  Device identifier.
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key or label is NULL.
+ * @return  BUFFER_E when label is empty or longer than LMS_MAX_LABEL_LEN.
+ */
+int wc_LmsKey_InitLabel(LmsKey* key, const char* label, void* heap, int devId)
+{
+    int ret = 0;
+    int labelLen = 0;
+
+    if (key == NULL || label == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0) {
+        labelLen = (int)XSTRLEN(label);
+        if (labelLen == 0 || labelLen > LMS_MAX_LABEL_LEN)
+            ret = BUFFER_E;
+    }
+    if (ret == 0)
+        ret = wc_LmsKey_Init(key, heap, devId);
+    if (ret == 0) {
+        XMEMCPY(key->label, label, (size_t)labelLen);
+        key->labelLen = labelLen;
+    }
+
+    return ret;
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
+
 /* Get the string representation of the LMS parameter set.
  *
  * @param [in] lmsParm  LMS parameter set identifier.
@@ -923,8 +1061,10 @@ int wc_LmsKey_SetContext(LmsKey* key, void* context)
 {
     int ret = 0;
 
-    /* Validate parameters. */
-    if ((key == NULL) || (context == NULL)) {
+    /* Validate parameters. NULL context is allowed: callers with stub
+     * read/write callbacks (e.g. HSM-backed keys whose private state lives
+     * in the device) have no meaningful context to pass. */
+    if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
     /* Setting context of an already working key is forbidden. */
@@ -969,16 +1109,34 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         WOLFSSL_MSG("error: LmsKey not ready for generation");
         ret = BAD_STATE_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* HSM-backed keys skip the software write/context callbacks because the
+     * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
+     * software checks below still run. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+        ret = wc_CryptoCb_PqcStatefulSigKeyGen(WC_PQC_STATEFUL_SIG_TYPE_LMS,
+            key, rng);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* On success, mirror the software path's terminal state so
+             * subsequent Sign/Verify calls don't fail with BAD_STATE_E. */
+            if (ret == 0) {
+                key->state = WC_LMS_STATE_OK;
+            }
+            return ret;
+        }
+        ret = 0; /* fall through to software path */
+    }
+#endif
+
     /* Check write callback set. */
     if ((ret == 0) && (key->write_private_key == NULL)) {
         WOLFSSL_MSG("error: LmsKey write callback is not set");
         ret = BAD_FUNC_ARG;
     }
-    /* Check callback context set. */
-    if ((ret == 0) && (key->context == NULL)) {
-        WOLFSSL_MSG("error: LmsKey context is not set");
-        ret = BAD_FUNC_ARG;
-    }
+    /* Callback context is opaque to wolfCrypt and may legitimately be NULL
+     * (e.g. callbacks that read/write a static buffer or HSM-backed keys
+     * with stub callbacks); no check needed here. */
 
     if (ret == 0) {
         const LmsParams* params = key->params;
@@ -1077,16 +1235,22 @@ int wc_LmsKey_Reload(LmsKey* key)
         WOLFSSL_MSG("error: LmsKey not ready for reload");
         ret = BAD_STATE_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* State for HSM-backed keys lives in the device; no software reload. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+        WOLFSSL_MSG("wc_LmsKey_Reload is a no-op for HSM-backed keys");
+        key->state = WC_LMS_STATE_OK;
+        return 0;
+    }
+#endif
+
     /* Check read callback present. */
     if ((ret == 0) && (key->read_private_key == NULL)) {
         WOLFSSL_MSG("error: LmsKey read callback is not set");
         ret = BAD_FUNC_ARG;
     }
-    /* Check context for callback set */
-    if ((ret == 0) && (key->context == NULL)) {
-        WOLFSSL_MSG("error: LmsKey context is not set");
-        ret = BAD_FUNC_ARG;
-    }
+    /* Callback context is opaque; NULL is allowed. */
 
     if (ret == 0) {
         const LmsParams* params = key->params;
@@ -1236,16 +1400,26 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
         WOLFSSL_MSG("error: LMS sig buffer too small");
         ret = BUFFER_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* HSM-backed keys skip the software write/context callbacks because the
+     * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
+     * software checks below still run. */
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+        ret = wc_CryptoCb_PqcStatefulSigSign(msg, (word32)msgSz, sig, sigSz,
+            WC_PQC_STATEFUL_SIG_TYPE_LMS, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        ret = 0; /* fall through to software path */
+    }
+#endif
+
     /* Check read and write callbacks available. */
     if ((ret == 0) && (key->write_private_key == NULL)) {
         WOLFSSL_MSG("error: LmsKey write/read callbacks are not set");
         ret = BAD_FUNC_ARG;
     }
-    /* Check read/write callback context available. */
-    if ((ret == 0) && (key->context == NULL)) {
-        WOLFSSL_MSG("error: LmsKey context is not set");
-        ret = BAD_FUNC_ARG;
-    }
+    /* Callback context is opaque; NULL is allowed. */
 
     if (ret == 0) {
         WC_DECLARE_VAR(state, LmsState, 1, 0);
@@ -1313,6 +1487,27 @@ int wc_LmsKey_SigsLeft(LmsKey* key)
 
     /* NULL keys have no signatures remaining. */
     if (key != NULL) {
+#ifdef WOLF_CRYPTO_CB
+        if (key->devId != INVALID_DEVID) {
+            word32 sigsLeft = 0;
+            int cbRet = wc_CryptoCb_PqcStatefulSigSigsLeft(
+                WC_PQC_STATEFUL_SIG_TYPE_LMS, key, &sigsLeft);
+            if (cbRet == 0) {
+                /* Clamp to int range; callers treat 0 as "exhausted". */
+                return (sigsLeft > (word32)0x7FFFFFFF)
+                    ? 0x7FFFFFFF : (int)sigsLeft;
+            }
+            /* The device owns the private state; no safe software fallback
+             * exists because key->priv_raw does not reflect HSM state. */
+            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                WOLFSSL_MSG("PqcStatefulSigSigsLeft returned an error");
+            }
+            else {
+                WOLFSSL_MSG("LMS SigsLeft not supported by device");
+            }
+            return 0;
+        }
+#endif
         ret = wc_hss_sigsleft(key->params, key->priv_raw);
     }
 
@@ -1370,6 +1565,12 @@ int wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc)
 
         keyDst->params = keySrc->params;
         XMEMCPY(keyDst->pub, keySrc->pub, sizeof(keySrc->pub));
+
+    #ifdef WOLF_CRYPTO_CB
+        /* Preserve the source key's device binding so the verify-only
+         * copy dispatches through the same crypto callback. */
+        keyDst->devId = keySrc->devId;
+    #endif
 
         /* Mark this key as verify only, to prevent misuse. */
         keyDst->state = WC_LMS_STATE_VERIFYONLY;
@@ -1505,6 +1706,9 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
     if ((key == NULL) || (sig == NULL) || (msg == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    if ((ret == 0) && (msgSz <= 0)) {
+        ret = BAD_FUNC_ARG;
+    }
     /* Check state. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK) &&
             (key->state != WC_LMS_STATE_VERIFYONLY)) {
@@ -1517,6 +1721,20 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
     if ((ret == 0) && (sigSz != key->params->sig_len)) {
         ret = BUFFER_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+        int res = 0;
+        ret = wc_CryptoCb_PqcStatefulSigVerify(sig, sigSz, msg, (word32)msgSz,
+            &res, WC_PQC_STATEFUL_SIG_TYPE_LMS, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0 && res != 1)
+                ret = SIG_VERIFY_E;
+            return ret;
+        }
+        ret = 0; /* fall through to software path */
+    }
+#endif
 
     if (ret == 0) {
         WC_DECLARE_VAR(state, LmsState, 1, 0);
@@ -1561,6 +1779,16 @@ int wc_LmsKey_GetKid(LmsKey * key, const byte ** kid, word32* kidSz)
     if ((key == NULL) || (kid == NULL) || (kidSz == NULL)) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* priv_raw is not populated for HSM-backed keys where the device owns
+     * the private state; the returned KID will be zero bytes. Extend the
+     * CryptoCb surface if device-side KID retrieval becomes a requirement. */
+    if (key->devId != INVALID_DEVID) {
+        WOLFSSL_MSG(
+            "wc_LmsKey_GetKid: priv_raw may be uninitialised for HSM keys");
+    }
+#endif
 
     /* SEED length is hash length. */
     offset = HSS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN + key->params->hash_len;
