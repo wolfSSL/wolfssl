@@ -3863,7 +3863,7 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
     tmpHashes = ssl->hsHashes;
 
     ssl->hsHashes = ssl->hsHashesEch;
-    if (ssl->options.echAccepted == 0 && ssl->hsHashes == NULL) {
+    if (ssl->hsHashes == NULL) {
         ret = InitHandshakeHashes(ssl);
         if (ret == 0) {
             ssl->hsHashesEch = ssl->hsHashes;
@@ -5184,8 +5184,6 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             }
         }
         else {
-            WOLFSSL_MSG("ECH rejected");
-
             if (msgType != hello_retry_request && ssl->options.echAccepted) {
                 /* the SH has rejected ECH after the HRR has accepted it
                  * RFC 9849, section 6.1.5 */
@@ -5193,6 +5191,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
                 ret = INVALID_PARAMETER;
             }
             else {
+                WOLFSSL_MSG("ECH rejected");
                 ret = 0;
             }
             ssl->options.echAccepted = 0;
@@ -7087,12 +7086,9 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             output + acceptOffset);
 
     if (ret == 0) {
-        WOLFSSL_MSG("ECH accepted");
-
         tmpHashes = ssl->hsHashes;
         ssl->hsHashes = ssl->hsHashesEch;
 
-        ssl->options.echAccepted = 1;
         /* after HRR, hsHashesEch must contain:
          * message_hash(ClientHelloInner1) || HRR (actual, not zeros) */
         if (msgType == hello_retry_request) {

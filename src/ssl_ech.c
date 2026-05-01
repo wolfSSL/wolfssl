@@ -483,7 +483,6 @@ void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable)
 /* Walk the ECHConfigExtension list and check for mandatory extensions.
  * Returns:
  *  0 if all extensions are known/optional,
- *  1 if an unsupported mandatory extension (high bit set) is present,
  *  error otherwise. */
 static int EchConfigCheckExtensions(const byte* exts, word16 extsLen)
 {
@@ -497,7 +496,7 @@ static int EchConfigCheckExtensions(const byte* exts, word16 extsLen)
         if (bytesLeft - 4 < extDataLen)
             return BUFFER_E;
         if (extType & 0x8000)
-            return 1;
+            return UNSUPPORTED_EXTENSION;
         exts += 4 + extDataLen;
         bytesLeft -= 4 + extDataLen;
     }
@@ -707,7 +706,8 @@ int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
 
         /* KEM, ciphersuite, or mandatory extension not supported, free this
          * config and then try to parse another */
-        if (ret > 0 || EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
+        if (ret == WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION) ||
+                EchConfigGetSupportedCipherSuite(workingConfig) < 0) {
             ret = 0;
             unsupportedAlgos = 1;
             XFREE(workingConfig->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);

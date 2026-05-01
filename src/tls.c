@@ -14489,8 +14489,9 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         }
         /* if we failed to extract/expand */
         if (ret != 0) {
-            WOLFSSL_MSG("Failed to decrypt InnerHello");
-            if (ech->hpkeContext != NULL) {
+            WOLFSSL_MSG("ECH rejected");
+
+            if (ssl->options.echAccepted == 1) {
                 /* on SH2 this is fatal */
                 SendAlert(ssl, alert_fatal, decrypt_error);
                 WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
@@ -14512,11 +14513,20 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                  * Also, if it exists, copy sessionID from outer hello */
                 ret = TLSX_ECH_ExpandOuterExtensions(ssl, ech, ssl->heap);
             }
+
+            if (ret == 0){
+                WOLFSSL_MSG("ECH accepted");
+                ssl->options.echAccepted = 1;
+            }
+            else {
+                WOLFSSL_MSG("ECH rejected");
+            }
         }
         if (ret != 0) {
             XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             ech->innerClientHello = NULL;
         }
+
         XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 

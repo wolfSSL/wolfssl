@@ -14878,6 +14878,22 @@ static int test_wolfSSL_Tls13_ECH_HRR(void)
     return test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
                 wolfTLSv1_3_client_method, 1);
 }
+
+static int test_wolfSSL_SubTls13_ECH(void)
+{
+    EXPECT_DECLS;
+
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfTLSv1_3_server_method,
+        wolfTLSv1_2_client_method, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfTLSv1_2_server_method,
+        wolfTLSv1_3_client_method, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_wolfSSL_ECH_conn_ex(wolfSSLv23_server_method,
+        wolfTLSv1_2_client_method, 0), WOLFSSL_SUCCESS);
+#endif
+
+    return EXPECT_RESULT();
+}
 #endif /* HAVE_IO_TESTS_DEPENDENCIES */
 
 #ifdef HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
@@ -16262,6 +16278,7 @@ static int test_wolfSSL_Tls13_ECH_tamper_ex(struct test_ssl_memio_ctx* test_ctx)
     test_ctx->c_cb.ssl_ready = test_ech_client_ssl_ready;
 
     ExpectIntEQ(test_ssl_memio_setup(test_ctx), TEST_SUCCESS);
+
     return EXPECT_RESULT();
 }
 
@@ -38392,6 +38409,7 @@ TEST_CASE testCases[] = {
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_Tls13_ECH),
     TEST_DECL(test_wolfSSL_Tls13_ECH_HRR),
+    TEST_DECL(test_wolfSSL_SubTls13_ECH),
 #endif
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wolfSSL_Tls13_ECH_all_algos),
