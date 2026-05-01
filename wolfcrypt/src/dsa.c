@@ -94,6 +94,102 @@ void wc_FreeDsaKey(DsaKey* key)
 }
 
 
+/* Validate DSA domain parameters and public key.
+ *
+ * Performs the following checks (subset of FIPS 186-4 / SP 800-89):
+ *   - p > 1 and q > 1
+ *   - q divides (p - 1)            (FIPS 186-4 A.1.1.2)
+ *   - 1 < g < p
+ *   - 1 < y < p
+ *   - g^q mod p == 1  (g generates the order-q subgroup)
+ *   - y^q mod p == 1  (y is in the order-q subgroup)
+ *
+ * Note: this routine does not run primality tests on p or q. Full FIPS
+ * 186-4 domain-parameter validation additionally requires that p and q be
+ * prime; callers that need that level of assurance should use
+ * wc_DsaImportParamsRawCheck() (which exercises p) and/or run
+ * mp_prime_is_prime_ex() on q at import time.
+ *
+ * key - pointer to DsaKey populated with p, q, g, and y.
+ * return 0 on success, BAD_FUNC_ARG when the key fails validation, or a
+ *        negative error code on internal failure.
+ */
+int wc_DsaCheckPubKey(DsaKey* key)
+{
+    int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    mp_int* tmp = NULL;
+    mp_int* tmp2 = NULL;
+#else
+    mp_int tmp[1];
+    mp_int tmp2[1];
+#endif
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* p and q must be at least 2 */
+    if (mp_cmp_d(&key->p, 1) != MP_GT || mp_cmp_d(&key->q, 1) != MP_GT)
+        return BAD_FUNC_ARG;
+
+    /* 1 < g < p */
+    if (mp_cmp_d(&key->g, 1) != MP_GT || mp_cmp(&key->g, &key->p) != MP_LT)
+        return BAD_FUNC_ARG;
+
+    /* 1 < y < p */
+    if (mp_cmp_d(&key->y, 1) != MP_GT || mp_cmp(&key->y, &key->p) != MP_LT)
+        return BAD_FUNC_ARG;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    tmp = (mp_int*)XMALLOC(sizeof(*tmp), key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL)
+        return MEMORY_E;
+    tmp2 = (mp_int*)XMALLOC(sizeof(*tmp2), key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp2 == NULL) {
+        XFREE(tmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    err = mp_init_multi(tmp, tmp2, NULL, NULL, NULL, NULL);
+    if (err != MP_OKAY) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        XFREE(tmp2, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return err;
+    }
+
+    /* q divides (p - 1): tmp2 = (p - 1) mod q, must be 0. */
+    if (err == MP_OKAY)
+        err = mp_sub_d(&key->p, 1, tmp);
+    if (err == MP_OKAY)
+        err = mp_mod(tmp, &key->q, tmp2);
+    if (err == MP_OKAY && !mp_iszero(tmp2))
+        err = BAD_FUNC_ARG;
+
+    /* g^q mod p == 1 */
+    if (err == MP_OKAY)
+        err = mp_exptmod(&key->g, &key->q, &key->p, tmp);
+    if (err == MP_OKAY && mp_cmp_d(tmp, 1) != MP_EQ)
+        err = BAD_FUNC_ARG;
+
+    /* y^q mod p == 1 */
+    if (err == MP_OKAY)
+        err = mp_exptmod(&key->y, &key->q, &key->p, tmp);
+    if (err == MP_OKAY && mp_cmp_d(tmp, 1) != MP_EQ)
+        err = BAD_FUNC_ARG;
+
+    mp_clear(tmp);
+    mp_clear(tmp2);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(tmp2, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+
 /* validate that (L,N) match allowed sizes from FIPS 186-4, Section 4.2.
  * modLen - represents L, the size of p (prime modulus) in bits
  * divLen - represents N, the size of q (prime divisor) in bits
@@ -1067,6 +1163,13 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
         qSz = mp_unsigned_bin_size(&key->q);
         if (qSz <= 0) {
             ret = BAD_FUNC_ARG;
+            break;
+        }
+
+        /* Validate domain parameters and public key before doing any
+         * signature math. */
+        ret = wc_DsaCheckPubKey(key);
+        if (ret != 0) {
             break;
         }
 
