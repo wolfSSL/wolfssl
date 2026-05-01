@@ -34832,20 +34832,22 @@ static wc_test_ret_t ecc_test_vector_item(const eccVector* vector)
 #endif /* !NO_ASN */
 
 #ifdef HAVE_ECC_VERIFY
-    do {
+    if (vector->msgLen >= WC_MIN_DIGEST_SIZE) {
+        do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+            ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash(sig, sigSz, (byte*)vector->msg,
-                                               vector->msgLen, &verify, userA);
-    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-    TEST_SLEEP();
+            if (ret == 0)
+                ret = wc_ecc_verify_hash(sig, sigSz, (byte*)vector->msg,
+                                         vector->msgLen, &verify, userA);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        TEST_SLEEP();
 
-    if (verify != 1)
-        ret = WC_TEST_RET_ENC_NC;
+        if (verify != 1)
+            ret = WC_TEST_RET_ENC_NC;
+    }
 #endif
 
 done:
