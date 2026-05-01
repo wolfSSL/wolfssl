@@ -19,3 +19,5 @@ rsource "Kconfig.tls-generic"
 /* functions added to support above needed, removed TOOM and KARATSUBA */
 #include <sys/systm.h>
  * extern global version from /usr/src/sys/sys/systm.h */
+            return "UE";
+    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "UE");

@@ -1997,6 +1997,121 @@ int test_wolfSSL_EVP_MD_ecc_signing(void)
 }
 
 
+int test_wolfSSL_EVP_DigestSign(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    WOLFSSL_EVP_PKEY* privKey = NULL;
+    WOLFSSL_EVP_PKEY* pubKey = NULL;
+    const unsigned char testData[] = "Hi There";
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    int ret;
+    const unsigned char* cp;
+    const unsigned char* p;
+    unsigned char sig[2048/8];
+    size_t sigSz;
+
+    cp = client_key_der_2048;
+    ExpectNotNull((privKey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &cp,
+                                                  sizeof_client_key_der_2048)));
+    p = client_keypub_der_2048;
+    ExpectNotNull((pubKey = wolfSSL_d2i_PUBKEY(NULL, &p,
+                                               sizeof_client_keypub_der_2048)));
+
+    /* One-shot sign: query size first */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                             NULL, privKey), 1);
+    sigSz = 0;
+    ExpectIntEQ(wolfSSL_EVP_DigestSign(&mdCtx, NULL, &sigSz, testData,
+                                       (unsigned int)XSTRLEN((const char*)testData)), 1);
+    ExpectIntGT((int)sigSz, 0);
+    ret = wolfSSL_EVP_MD_CTX_cleanup(&mdCtx);
+    ExpectIntEQ(ret, 1);
+
+    /* One-shot sign: actually produce the signature */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                             NULL, privKey), 1);
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wolfSSL_EVP_DigestSign(&mdCtx, sig, &sigSz, testData,
+                                       (unsigned int)XSTRLEN((const char*)testData)), 1);
+    ExpectIntGT((int)sigSz, 0);
+    ret = wolfSSL_EVP_MD_CTX_cleanup(&mdCtx);
+    ExpectIntEQ(ret, 1);
+
+    /* One-shot verify */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL,
+                wolfSSL_EVP_sha256(), NULL, pubKey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerify(&mdCtx, sig, sigSz, testData,
+                                         (unsigned int)XSTRLEN((const char*)testData)), 1);
+    ret = wolfSSL_EVP_MD_CTX_cleanup(&mdCtx);
+    ExpectIntEQ(ret, 1);
+
+    /* One-shot sign + verify with NULL ctx should fail */
+    ExpectIntEQ(wolfSSL_EVP_DigestSign(NULL, sig, &sigSz, testData,
+                                       (unsigned int)XSTRLEN((const char*)testData)),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerify(NULL, sig, sigSz, testData,
+                                         (unsigned int)XSTRLEN((const char*)testData)),
+                WOLFSSL_FAILURE);
+
+    wolfSSL_EVP_PKEY_free(pubKey);
+    wolfSSL_EVP_PKEY_free(privKey);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+int test_wolfSSL_EVP_DigestSign_ecc(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    WOLFSSL_EVP_PKEY* privKey = NULL;
+    WOLFSSL_EVP_PKEY* pubKey = NULL;
+    const unsigned char testData[] = "ECC one-shot test";
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    int ret;
+    const unsigned char* cp;
+    const unsigned char* p;
+    unsigned char sig[256];
+    size_t sigSz;
+
+    cp = ecc_clikey_der_256;
+    ExpectNotNull(privKey = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &cp,
+                                                   sizeof_ecc_clikey_der_256));
+    p = ecc_clikeypub_der_256;
+    ExpectNotNull((pubKey = wolfSSL_d2i_PUBKEY(NULL, &p,
+                                                sizeof_ecc_clikeypub_der_256)));
+
+    /* One-shot sign */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                             NULL, privKey), 1);
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wolfSSL_EVP_DigestSign(&mdCtx, sig, &sigSz, testData,
+                                       (unsigned int)XSTRLEN((const char*)testData)), 1);
+    ExpectIntGT((int)sigSz, 0);
+    ret = wolfSSL_EVP_MD_CTX_cleanup(&mdCtx);
+    ExpectIntEQ(ret, 1);
+
+    /* One-shot verify */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL,
+                wolfSSL_EVP_sha256(), NULL, pubKey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerify(&mdCtx, sig, sigSz, testData,
+                                         (unsigned int)XSTRLEN((const char*)testData)), 1);
+    ret = wolfSSL_EVP_MD_CTX_cleanup(&mdCtx);
+    ExpectIntEQ(ret, 1);
+
+    wolfSSL_EVP_PKEY_free(pubKey);
+    wolfSSL_EVP_PKEY_free(privKey);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 int test_wolfSSL_EVP_PKEY_encrypt(void)
 {
     EXPECT_DECLS;
