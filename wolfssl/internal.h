@@ -3499,6 +3499,24 @@ WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #ifndef MAX_TICKET_PEER_CERT_SZ
 #define MAX_TICKET_PEER_CERT_SZ 2048
 #endif
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
+/* Hash algorithm used for SNI/ALPN binding in session tickets.
+ * Pick the best available at compile time. */
+#ifndef TICKET_BINDING_HASH_TYPE
+    #if !defined(NO_SHA256)
+        #define TICKET_BINDING_HASH_TYPE WC_HASH_TYPE_SHA256
+        #define TICKET_BINDING_HASH_SZ   WC_SHA256_DIGEST_SIZE
+    #elif defined(WOLFSSL_SHA384)
+        #define TICKET_BINDING_HASH_TYPE WC_HASH_TYPE_SHA384
+        #define TICKET_BINDING_HASH_SZ   WC_SHA384_DIGEST_SIZE
+    #elif !defined(NO_SHA)
+        #define TICKET_BINDING_HASH_TYPE WC_HASH_TYPE_SHA
+        #define TICKET_BINDING_HASH_SZ   WC_SHA_DIGEST_SIZE
+    #else
+        #error "No hash algorithm available for ticket binding"
+    #endif
+#endif
+#endif
 
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
@@ -3520,6 +3538,14 @@ typedef struct InternalTicket {
 #endif
 #ifdef WOLFSSL_TICKET_HAVE_ID
     byte            id[ID_LEN];
+#endif
+#ifdef HAVE_SNI
+    byte            sniHash[TICKET_BINDING_HASH_SZ]; /* digest of server name
+                                                      * at ticket issue */
+#endif
+#ifdef HAVE_ALPN
+    byte            alpnHash[TICKET_BINDING_HASH_SZ]; /* digest of negotiated
+                                                       * ALPN at issue */
 #endif
 #ifdef OPENSSL_EXTRA
     byte            sessionCtxSz;          /* sessionCtx length        */
@@ -4762,6 +4788,12 @@ struct WOLFSSL_SESSION {
     byte*              ticket;
     word16             ticketLen;
     word16             ticketLenAlloc;    /* is dynamic */
+#ifdef HAVE_SNI
+    byte               sniHash[TICKET_BINDING_HASH_SZ];  /* SNI at issue */
+#endif
+#ifdef HAVE_ALPN
+    byte               alpnHash[TICKET_BINDING_HASH_SZ]; /* ALPN at issue */
+#endif
 #endif
 
 #ifdef SESSION_CERTS
@@ -6759,6 +6791,9 @@ WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
 #endif
 
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
+WOLFSSL_LOCAL int VerifyTicketBinding(WOLFSSL* ssl);
+#endif
 #endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, size_t sz);
 #ifdef WOLFSSL_THREADED_CRYPT

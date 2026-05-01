@@ -155,7 +155,7 @@ static int quieter = 0; /* Print fewer messages. This is helpful with overly
 #ifdef HAVE_SESSION_TICKET
 
 #ifndef SESSION_TICKET_LEN
-#define SESSION_TICKET_LEN 256
+#define SESSION_TICKET_LEN 2048
 #endif
     static int sessionTicketCB(WOLFSSL* ssl,
                         const unsigned char* ticket, int ticketSz,

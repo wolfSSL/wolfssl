@@ -38489,6 +38489,11 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 if((ret=ALPN_Select(ssl)))
                     goto out;
     #endif
+    #if defined(HAVE_SESSION_TICKET) && \
+        (defined(HAVE_SNI) || defined(HAVE_ALPN))
+                if((ret=VerifyTicketBinding(ssl)))
+                    goto out;
+    #endif
 
                 i += totalExtSz;
 #else
@@ -39270,6 +39275,77 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         return ret;
     }
 
+#ifdef HAVE_SNI
+    /* Hash server-selected SNI; zeros dst when none. */
+    static int TicketSniHash(WOLFSSL* ssl, byte* dst)
+    {
+        char* name = NULL;
+        word16 nameLen;
+
+        nameLen = TLSX_SNI_GetRequest(ssl->extensions,
+                                      WOLFSSL_SNI_HOST_NAME,
+                                      (void**)&name, 0);
+        if (name != NULL && nameLen > 0) {
+            return wc_Hash(TICKET_BINDING_HASH_TYPE, (const byte*)name,
+                           nameLen, dst, TICKET_BINDING_HASH_SZ);
+        }
+
+        XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
+        return 0;
+    }
+#endif
+
+#ifdef HAVE_ALPN
+    /* Hash negotiated ALPN; zeros dst when none. */
+    static int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
+    {
+        char* proto = NULL;
+        word16 protoLen = 0;
+
+        if (TLSX_ALPN_GetRequest(ssl->extensions, (void**)&proto,
+                                 &protoLen) == WOLFSSL_SUCCESS &&
+                proto != NULL && protoLen > 0) {
+            return wc_Hash(TICKET_BINDING_HASH_TYPE, (const byte*)proto,
+                           protoLen, dst, TICKET_BINDING_HASH_SZ);
+        }
+
+        XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
+        return 0;
+    }
+#endif
+
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
+    /* Server-side: verify the SNI/ALPN bindings carried on a resumed
+     * session match what was negotiated for the current connection.
+     * Must be called after extension parsing and ALPN_Select.
+     * Returns 0 on match, WOLFSSL_FATAL_ERROR on mismatch. */
+    int VerifyTicketBinding(WOLFSSL* ssl)
+    {
+        byte curHash[TICKET_BINDING_HASH_SZ];
+
+        if (!ssl->options.resuming || !ssl->options.useTicket)
+            return 0;
+
+#ifdef HAVE_SNI
+        if (TicketSniHash(ssl, curHash) != 0 ||
+                XMEMCMP(curHash, ssl->session->sniHash,
+                        TICKET_BINDING_HASH_SZ) != 0) {
+            WOLFSSL_MSG("Ticket SNI mismatch");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
+#ifdef HAVE_ALPN
+        if (TicketAlpnHash(ssl, curHash) != 0 ||
+                XMEMCMP(curHash, ssl->session->alpnHash,
+                        TICKET_BINDING_HASH_SZ) != 0) {
+            WOLFSSL_MSG("Ticket ALPN mismatch");
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
+        return 0;
+    }
+#endif
+
     /* create a new session ticket, 0 on success
      * Do any kind of setup in SetupTicket */
     int CreateTicket(WOLFSSL* ssl)
@@ -39367,6 +39443,18 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
         it->sessionCtxSz = ssl->sessionCtxSz;
         XMEMCPY(it->sessionCtx, ssl->sessionCtx, ID_LEN);
+#endif
+#ifdef HAVE_SNI
+        ret = TicketSniHash(ssl, it->sniHash);
+        if (ret != 0)
+            goto error;
+        XMEMCPY(ssl->session->sniHash, it->sniHash, TICKET_BINDING_HASH_SZ);
+#endif
+#ifdef HAVE_ALPN
+        ret = TicketAlpnHash(ssl, it->alpnHash);
+        if (ret != 0)
+            goto error;
+        XMEMCPY(ssl->session->alpnHash, it->alpnHash, TICKET_BINDING_HASH_SZ);
 #endif
 
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
@@ -39723,6 +39811,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         ssl->sessionCtxSz) != 0))
             return WOLFSSL_FATAL_ERROR;
 #endif
+        /* SNI/ALPN binding is verified after ALPN_Select via
+         * VerifyTicketBinding(). */
         return 0;
     }
 #endif /* WOLFSSL_SLT13 */
@@ -39734,36 +39824,54 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         word16 peerCertLen = 0;
         ato16(it->peerCertLen, &peerCertLen);
 
-        if (peerCertLen > 0 && peerCertLen <= MAX_TICKET_PEER_CERT_SZ) {
+        /* Clear any peer cert state that may have been copied from the session
+         * cache by wolfSSL_DupSession before we got here. */
+        FreeX509(&ssl->peerCert);
+        InitX509(&ssl->peerCert, 0, ssl->heap);
 #ifdef SESSION_CERTS
-            /* Clear existing chain and add the peer certificate */
-            ssl->session->chain.count = 0;
-            AddSessionCertToChain(&ssl->session->chain,
-                                  it->peerCert, peerCertLen);
+        ssl->session->chain.count = 0;
 #endif
-            /* Also decode into ssl->peerCert for direct access */
-            {
-                int ret;
-                DecodedCert* dCert;
 
-                dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
-                                               DYNAMIC_TYPE_DCERT);
-                if (dCert != NULL) {
-                    InitDecodedCert(dCert, it->peerCert, peerCertLen, ssl->heap);
-                    ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL, NULL);
-                    if (ret == 0) {
+        if (peerCertLen > 0 && peerCertLen <= MAX_TICKET_PEER_CERT_SZ) {
+            int ret;
+            DecodedCert* dCert;
+
+            dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                           DYNAMIC_TYPE_DCERT);
+            if (dCert != NULL) {
+                int verify = ssl->options.verifyPeer ? VERIFY : NO_VERIFY;
+                InitDecodedCert(dCert, it->peerCert, peerCertLen, ssl->heap);
+                /* Re-verify against the current trust store so that CA
+                 * removal since ticket issue is enforced. */
+                ret = ParseCertRelative(dCert, CERT_TYPE, verify,
+                                        SSL_CM(ssl), NULL);
+            #ifdef HAVE_OCSP
+                /* ParseCertRelative does not check revocation status.
+                 * Run OCSP if the CertManager has it enabled. */
+                if (ret == 0 && SSL_CM(ssl)->ocspEnabled) {
+                    ret = CheckCertOCSP_ex(SSL_CM(ssl)->ocsp, dCert, ssl);
+                }
+            #endif
+            #ifdef HAVE_CRL
+                if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
+                    ret = CheckCertCRL(SSL_CM(ssl)->crl, dCert);
+                }
+            #endif
+                if (ret == 0) {
+            #ifdef SESSION_CERTS
+                    AddSessionCertToChain(&ssl->session->chain,
+                                          it->peerCert, peerCertLen);
+            #endif
+                    FreeX509(&ssl->peerCert);
+                    InitX509(&ssl->peerCert, 0, ssl->heap);
+                    ret = CopyDecodedToX509(&ssl->peerCert, dCert);
+                    if (ret != 0) {
                         FreeX509(&ssl->peerCert);
                         InitX509(&ssl->peerCert, 0, ssl->heap);
-                        ret = CopyDecodedToX509(&ssl->peerCert, dCert);
-                        if (ret != 0) {
-                            /* Failed to copy - clear peerCert */
-                            FreeX509(&ssl->peerCert);
-                            InitX509(&ssl->peerCert, 0, ssl->heap);
-                        }
                     }
-                    FreeDecodedCert(dCert);
-                    XFREE(dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
                 }
+                FreeDecodedCert(dCert);
+                XFREE(dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
             }
         }
     }
@@ -39799,6 +39907,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                             " found in the ticket");
             }
         }
+#endif
+        /* Carry the ticket bindings on the session for the deferred
+         * VerifyTicketBinding() check. */
+#ifdef HAVE_SNI
+        XMEMCPY(ssl->session->sniHash, it->sniHash, TICKET_BINDING_HASH_SZ);
+#endif
+#ifdef HAVE_ALPN
+        XMEMCPY(ssl->session->alpnHash, it->alpnHash, TICKET_BINDING_HASH_SZ);
 #endif
 
         if (!IsAtLeastTLSv1_3(ssl->version)) {
@@ -39908,6 +40024,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
         it->sessionCtxSz = sess->sessionCtxSz;
         XMEMCPY(it->sessionCtx, sess->sessionCtx, sess->sessionCtxSz);
+#endif
+#ifdef HAVE_SNI
+        XMEMCPY(it->sniHash, sess->sniHash, TICKET_BINDING_HASH_SZ);
+#endif
+#ifdef HAVE_ALPN
+        XMEMCPY(it->alpnHash, sess->alpnHash, TICKET_BINDING_HASH_SZ);
 #endif
 #if defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
     defined(SESSION_CERTS) && !defined(NO_CERT_IN_TICKET)
@@ -40153,6 +40275,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             goto cleanup;
         }
 
+        /* SNI/ALPN binding is verified after ALPN_Select via
+         * VerifyTicketBinding(). */
         DoClientTicketFinalize(ssl, it, NULL);
 
 cleanup:

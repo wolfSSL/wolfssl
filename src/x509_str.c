@@ -705,14 +705,14 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             /* We found our issuer in the non-trusted cert list, add it
              * to the CM and verify the current cert against it */
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            /* OpenSSL doesn't allow the cert as CA if it is not CA:TRUE for
-             * intermediate certs.
-             */
+            /* RFC 5280 4.2.1.9: reject non-CA issuer. verify_cb may
+             * suppress the INVALID_CA error to keep building the chain,
+             * but the leaf signature must still be verified against the
+             * issuer below — never skip X509StoreVerifyCert. */
             if (!issuer->isCa) {
-                /* error depth is current depth + 1 */
-                SetupStoreCtxError_ex(ctx, X509_V_ERR_INVALID_CA,
+                SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_INVALID_CA,
                                 (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
+            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
                 if (ctx->store->verify_cb) {
                     ret = ctx->store->verify_cb(0, ctx);
                     if (ret != WOLFSSL_SUCCESS) {
@@ -720,32 +720,30 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                         goto exit;
                     }
                 }
-                else {
+                else
+            #endif
+                {
                     ret = WOLFSSL_FAILURE;
                     goto exit;
                 }
-            } else
-        #endif
-            {
-                ret = X509StoreAddCa(ctx->store, issuer,
-                                                WOLFSSL_TEMP_CA);
-                if (ret != WOLFSSL_SUCCESS) {
-                    X509VerifyCertSetupRetry(ctx, certs, failedCerts,
-                        &depth, origDepth);
-                    continue;
-                }
-                added = 1;
-                ret = X509StoreVerifyCert(ctx);
-                if (ret != WOLFSSL_SUCCESS) {
-                    if ((origDepth - depth) <= 1)
-                        added = 0;
-                    X509VerifyCertSetupRetry(ctx, certs, failedCerts,
-                        &depth, origDepth);
-                    continue;
-                }
-                /* Add it to the current chain and look at the issuer cert next */
-                wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
             }
+            ret = X509StoreAddCa(ctx->store, issuer, WOLFSSL_TEMP_CA);
+            if (ret != WOLFSSL_SUCCESS) {
+                X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                    &depth, origDepth);
+                continue;
+            }
+            added = 1;
+            ret = X509StoreVerifyCert(ctx);
+            if (ret != WOLFSSL_SUCCESS) {
+                if ((origDepth - depth) <= 1)
+                    added = 0;
+                X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                    &depth, origDepth);
+                continue;
+            }
+            /* Add it to the current chain and look at the issuer cert next */
+            wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
             ctx->current_cert = issuer;
         }
         else if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {

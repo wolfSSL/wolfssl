@@ -4579,10 +4579,6 @@ int test_tls13_pqc_hybrid_truncated_keyshare(void)
     return EXPECT_RESULT();
 }
 
-/* Test that a TLS 1.3 NewSessionTicket with a ticket shorter than ID_LEN
- * (32 bytes) does not cause an unsigned integer underflow / OOB read in
- * SetTicket. Uses a full memio handshake, then injects a crafted
- * NewSessionTicket with a 5-byte ticket into the client's read path. */
 int test_tls13_empty_record_limit(void)
 {
     EXPECT_DECLS;
@@ -4753,6 +4749,11 @@ int test_tls13_empty_record_limit(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Test that a TLS 1.3 NewSessionTicket with a ticket shorter than ID_LEN
+ * (32 bytes) does not cause an unsigned integer underflow / OOB read in
+ * SetTicket. Uses a full memio handshake, then injects a crafted
+ * NewSessionTicket with a 5-byte ticket into the client's read path. */
 
 int test_tls13_short_session_ticket(void)
 {
@@ -5260,6 +5261,116 @@ int test_tls13_serverhello_bad_cipher_suites(void)
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify that a peer certificate restored from a session ticket is re-verified
+ * against the current trust store.  After CA removal, the cert must not be
+ * installed into ssl->peerCert even though the ticket itself decrypts fine. */
+int test_tls13_ticket_peer_cert_reverify(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(OPENSSL_ALL) && defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERT_IN_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    WOLFSSL_X509 *peer = NULL;
+    char readBuf[64];
+
+    /* --- Step 1: mTLS handshake, obtain a session ticket --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Set up CTXs manually so we can configure mTLS before SSL creation */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    /* Server trusts both its own CA and the client CA for mTLS */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "certs/client-ca.pem", 0), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    /* Create SSL objects from fully-configured CTXs */
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain post-handshake NewSessionTicket */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Peer cert should be available after initial handshake */
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    wolfSSL_X509_free(peer);
+    peer = NULL;
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* --- Step 2: remove the client CA from the server trust store --- */
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_s), WOLFSSL_SUCCESS);
+    /* Re-load only the server's own CA so TLS works, but not the client CA */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+
+    /* --- Step 3: resume with the old ticket --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    /* Resumption handshake succeeds (the ticket master secret is fine) */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The session should have been resumed via PSK. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+    /* But the peer cert must NOT be restored because the issuing CA is
+     * no longer in the trust store.  Check the peerCert directly rather
+     * than wolfSSL_get_peer_certificate which has a session-chain
+     * fallback that may see stale cache state. */
+    ExpectIntEQ(ssl_s->peerCert.issuer.sz, 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();

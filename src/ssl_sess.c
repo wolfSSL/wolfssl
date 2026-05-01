@@ -3069,6 +3069,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     (void)idx;
 
     if (sess != NULL) {
+        wolfSSL_FreeSession(NULL, *sess);
         *sess = s;
     }
 
