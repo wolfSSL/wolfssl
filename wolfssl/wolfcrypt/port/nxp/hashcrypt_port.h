@@ -25,4 +25,4 @@
 
 int wc_hashcrypt_init(void);
 
-#endif
+#endif /* _HASHCRYPT_PORT_H_ */
