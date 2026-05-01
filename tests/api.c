@@ -18853,6 +18853,42 @@ static int test_wolfSSL_ticket_keys(void)
 
 #ifndef NO_BIO
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_DILITHIUM)
+/* Verify wc_dilithium auto detects the expected ML-DSA level from the OID
+ * in a SPKI / PKCS#8 DER buffer. Returns 0 on match. */
+static int check_dilithium_der_level(const byte* der, word32 derSz,
+    byte expectedLevel, int isPrivate)
+{
+    dilithium_key key;
+    word32 idx = 0;
+    byte level = 0;
+    int rc;
+
+    if ((rc = wc_dilithium_init(&key)) != 0) {
+        return rc;
+    }
+
+    if (isPrivate) {
+        rc = wc_Dilithium_PrivateKeyDecode(der, &idx, &key, derSz);
+    }
+    else {
+        rc = wc_Dilithium_PublicKeyDecode(der, &idx, &key, derSz);
+    }
+
+    if (rc == 0) {
+        rc = wc_dilithium_get_level(&key, &level);
+    }
+
+    if (rc == 0 && level != expectedLevel) {
+        rc = -1;
+    }
+
+    wc_dilithium_free(&key);
+
+    return rc;
+}
+#endif
+
 static int test_wolfSSL_d2i_PUBKEY(void)
 {
     EXPECT_DECLS;
@@ -18902,6 +18938,93 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     pkey = NULL;
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /*  USE_CERT_BUFFERS_2048 && !NO_DH &&  && OPENSSL_EXTRA */
+
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+
+#if !defined(WOLFSSL_NO_ML_DSA_44)
+    /* ML-DSA-44 PUBKEY test (raw key bytes) */
+    ExpectIntGT(BIO_write(bio, bench_dilithium_level2_pubkey,
+        sizeof_bench_dilithium_level2_pubkey), 0);
+    ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* ML-DSA-44 PUBKEY test (LAMPS SubjectPublicKeyInfo DER) */
+    ExpectIntGT(BIO_write(bio, mldsa44_pub_spki, sizeof_mldsa44_pub_spki), 0);
+    ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntEQ(check_dilithium_der_level(mldsa44_pub_spki,
+        sizeof_mldsa44_pub_spki, WC_ML_DSA_44, 0), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+#endif
+
+#if !defined(WOLFSSL_NO_ML_DSA_65)
+    /* ML-DSA-65 PUBKEY test (raw key bytes) */
+    ExpectIntGT(BIO_write(bio, bench_dilithium_level3_pubkey,
+        sizeof_bench_dilithium_level3_pubkey), 0);
+    ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* ML-DSA-65 PUBKEY test (LAMPS SubjectPublicKeyInfo DER) */
+    ExpectIntGT(BIO_write(bio, mldsa65_pub_spki, sizeof_mldsa65_pub_spki), 0);
+    ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntEQ(check_dilithium_der_level(mldsa65_pub_spki,
+        sizeof_mldsa65_pub_spki, WC_ML_DSA_65, 0), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+#endif
+
+#if !defined(WOLFSSL_NO_ML_DSA_87)
+    /* ML-DSA-87 PUBKEY test (raw key bytes) */
+    ExpectIntGT(BIO_write(bio, bench_dilithium_level5_pubkey,
+        sizeof_bench_dilithium_level5_pubkey), 0);
+    ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* ML-DSA-87 PUBKEY test (LAMPS SubjectPublicKeyInfo DER) */
+    ExpectIntGT(BIO_write(bio, mldsa87_pub_spki, sizeof_mldsa87_pub_spki), 0);
+    ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntEQ(check_dilithium_der_level(mldsa87_pub_spki,
+        sizeof_mldsa87_pub_spki, WC_ML_DSA_87, 0), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+#endif
+
+#endif /* HAVE_DILITHIUM && !NO_VERIFY */
+
+    /* Negative test, invalid input must return NULL */
+    {
+        BIO* nbio = NULL;
+        unsigned char garbage[64];
+        XMEMSET(garbage, 0xA5, sizeof(garbage));
+        ExpectNotNull(nbio = BIO_new(BIO_s_mem()));
+        ExpectIntGT(BIO_write(nbio, garbage, (int)sizeof(garbage)), 0);
+        ExpectNull(d2i_PUBKEY_bio(nbio, NULL));
+        BIO_free(nbio);
+    }
+
+    /* Negative test: unrecognized input with a pre-allocated *out must
+     * return NULL, not the caller pre-existing key. */
+    {
+        unsigned char garbage[64];
+        const unsigned char* p = garbage;
+        EVP_PKEY* preAlloc = NULL;
+        EVP_PKEY* result;
+
+        XMEMSET(garbage, 0xA5, sizeof(garbage));
+        ExpectNotNull(preAlloc = EVP_PKEY_new());
+        result = preAlloc;
+        ExpectNull(d2i_PUBKEY(&result, &p, (long)sizeof(garbage)));
+        EVP_PKEY_free(preAlloc);
+    }
 
     BIO_free(bio);
 
@@ -18989,6 +19112,161 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     }
 #endif
 
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if !defined(WOLFSSL_NO_ML_DSA_44)
+    /* ML-DSA-44 PrivateKey test (raw bytes) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, bench_dilithium_level2_key,
+        sizeof_bench_dilithium_level2_key), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* ML-DSA-44 PrivateKey test (LAMPS PKCS#8 priv-only DER) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa44_priv_only,
+        sizeof_mldsa44_priv_only), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntEQ(check_dilithium_der_level(mldsa44_priv_only,
+        sizeof_mldsa44_priv_only, WC_ML_DSA_44, 1), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* ML-DSA-44 PrivateKey test (LAMPS PKCS#8 seed-priv DER) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa44_seed_priv,
+        sizeof_mldsa44_seed_priv), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+    /* ML-DSA-44 PrivateKey test (LAMPS PKCS#8 seed-only DER) --
+     * requires wc_dilithium_make_key_from_seed to expand the seed. */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa44_seed_only,
+        sizeof_mldsa44_seed_only), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+#endif
+#endif
+
+#if !defined(WOLFSSL_NO_ML_DSA_65)
+    /* ML-DSA-65 PrivateKey test (raw bytes) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, bench_dilithium_level3_key,
+        sizeof_bench_dilithium_level3_key), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* ML-DSA-65 PrivateKey test (LAMPS PKCS#8 priv-only DER) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa65_priv_only,
+        sizeof_mldsa65_priv_only), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntEQ(check_dilithium_der_level(mldsa65_priv_only,
+        sizeof_mldsa65_priv_only, WC_ML_DSA_65, 1), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* ML-DSA-65 PrivateKey test (LAMPS PKCS#8 seed-priv DER) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa65_seed_priv,
+        sizeof_mldsa65_seed_priv), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+    /* ML-DSA-65 PrivateKey test (LAMPS PKCS#8 seed-only DER) --
+     * requires wc_dilithium_make_key_from_seed to expand the seed. */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa65_seed_only,
+        sizeof_mldsa65_seed_only), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+#endif
+#endif
+
+#if !defined(WOLFSSL_NO_ML_DSA_87)
+    /* ML-DSA-87 PrivateKey test (raw bytes) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, bench_dilithium_level5_key,
+        sizeof_bench_dilithium_level5_key), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* ML-DSA-87 PrivateKey test (LAMPS PKCS#8 priv-only DER) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa87_priv_only,
+        sizeof_mldsa87_priv_only), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    ExpectIntEQ(check_dilithium_der_level(mldsa87_priv_only,
+        sizeof_mldsa87_priv_only, WC_ML_DSA_87, 1), 0);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* ML-DSA-87 PrivateKey test (LAMPS PKCS#8 seed-priv DER) */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa87_seed_priv,
+        sizeof_mldsa87_seed_priv), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+    /* ML-DSA-87 PrivateKey test (LAMPS PKCS#8 seed-only DER) --
+     * requires wc_dilithium_make_key_from_seed to expand the seed. */
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(bio, mldsa87_seed_only,
+        sizeof_mldsa87_seed_only), 0);
+    ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
+#endif
+#endif
+#endif /* HAVE_DILITHIUM && !NO_SIGN */
+
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
 #ifndef NO_WOLFSSL_SERVER
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
@@ -19058,6 +19336,34 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         RSA_free(rsa);
     }
 #endif /* WOLFSSL_KEY_GEN && !NO_RSA */
+
+    /* Negative test, invalid input must return NULL */
+    {
+        BIO* nbio = NULL;
+        unsigned char garbage[64];
+        XMEMSET(garbage, 0xA5, sizeof(garbage));
+        ExpectNotNull(nbio = BIO_new(BIO_s_mem()));
+        ExpectIntGT(BIO_write(nbio, garbage, (int)sizeof(garbage)), 0);
+        ExpectNull(d2i_PrivateKey_bio(nbio, NULL));
+        BIO_free(nbio);
+    }
+
+    /* Negative test: unrecognized input with a pre-allocated *out must
+     * return NULL, not the caller pre-existing key. */
+    {
+        unsigned char garbage[64];
+        unsigned char* p = garbage;
+        EVP_PKEY* preAlloc = NULL;
+        EVP_PKEY* result;
+
+        XMEMSET(garbage, 0xA5, sizeof(garbage));
+        ExpectNotNull(preAlloc = EVP_PKEY_new());
+        result = preAlloc;
+        ExpectNull(wolfSSL_d2i_PrivateKey_EVP(&result, &p,
+            (long)sizeof(garbage)));
+        EVP_PKEY_free(preAlloc);
+    }
+
     SSL_CTX_free(ctx);
     ctx = NULL;
     BIO_free(bio);
