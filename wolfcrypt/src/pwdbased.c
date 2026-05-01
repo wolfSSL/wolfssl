@@ -550,13 +550,19 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #ifdef WOLFSSL_SMALL_STACK
   out:
 
+    ForceZero(Ai, WC_MAX_DIGEST_SIZE);
     XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ForceZero(B, WC_MAX_BLOCK_SIZE);
     XFREE(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ForceZero(Ai, WC_MAX_DIGEST_SIZE);
+    ForceZero(B, WC_MAX_BLOCK_SIZE);
 #endif
 
+    ForceZero(buffer, totalLen);
     if (dynamic)
         XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
 
