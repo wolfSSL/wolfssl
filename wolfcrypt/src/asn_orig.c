@@ -2785,7 +2785,7 @@ static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx)
             int len;
 
             WOLFSSL_MSG("Cert sigAlg is RSASSA-PSS; decoding params");
-            if (GetHeader(cert->source, &tag, &tmpIdx, &len, endSeqIdx, 0) < 0) {
+            if (GetHeader(cert->source, &tag, &tmpIdx, &len, endSeqIdx, 1) < 0) {
                 return ASN_PARSE_E;
             }
             cert->sigParamsIndex  = cert->srcIdx;
