@@ -1598,8 +1598,12 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
         return WOLFSSL_FAILURE;  /* session timed out */
 #else /* defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL) */
+        /* Return success for OpenSSL compatibility but do not carry the
+         * expired session's version/cipher into ssl state, which would
+         * otherwise pin the ClientHello to stale values. */
         WOLFSSL_MSG("Session is expired but return success for "
                     "OpenSSL compatibility");
+        return WOLFSSL_SUCCESS;
 #endif
     }
     ssl->options.resuming = 1;

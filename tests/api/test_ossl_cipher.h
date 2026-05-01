@@ -26,6 +26,7 @@
 
 int test_wolfSSL_DES(void);
 int test_wolfSSL_DES_ncbc(void);
+int test_wolfSSL_DES_ncbc_zero_length(void);
 int test_wolfSSL_DES_ecb_encrypt(void);
 int test_wolfSSL_DES_ede3_cbc_encrypt(void);
 int test_wolfSSL_AES_encrypt(void);
@@ -38,6 +39,7 @@ int test_wolfSSL_RC4(void);
 #define TEST_OSSL_CIPHER_DECLS                                          \
     TEST_DECL_GROUP("ossl_cipher", test_wolfSSL_DES),                   \
     TEST_DECL_GROUP("ossl_cipher", test_wolfSSL_DES_ncbc),              \
+    TEST_DECL_GROUP("ossl_cipher", test_wolfSSL_DES_ncbc_zero_length),  \
     TEST_DECL_GROUP("ossl_cipher", test_wolfSSL_DES_ecb_encrypt),       \
     TEST_DECL_GROUP("ossl_cipher", test_wolfSSL_DES_ede3_cbc_encrypt),  \
     TEST_DECL_GROUP("ossl_cipher", test_wolfSSL_AES_encrypt),           \

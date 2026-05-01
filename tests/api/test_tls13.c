@@ -5264,3 +5264,29 @@ int test_tls13_serverhello_bad_cipher_suites(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_tls13_clear_preserves_psk_dhe(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
+    (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_no_dhe_psk(ctx), 0);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(ssl->options.noPskDheKe, 1);
+
+    /* SSL reuse must preserve the CTX-level noPskDheKe; resetting to 0
+     * would silently re-enable psk_dhe_ke for the next handshake. */
+    ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.noPskDheKe, 1);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

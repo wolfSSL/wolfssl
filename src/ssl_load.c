@@ -5513,10 +5513,13 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
             ret = 1;
         }
     #else
-        /* OpenSSL's implementation of this API does not require loading the
-         * system CA cert directory.  Allow skipping this without erroring out.
-         */
-        ret = 1;
+        /* No source available: SSL_CERT_DIR/SSL_CERT_FILE not set and
+         * WOLFSSL_SYS_CA_CERTS not compiled in. Returning success would be
+         * fail-open since no trust anchors were loaded. */
+        WOLFSSL_MSG("wolfSSL_CTX_set_default_verify_paths: no CA source "
+                    "available (build without WOLFSSL_SYS_CA_CERTS and no "
+                    "SSL_CERT_DIR/SSL_CERT_FILE env)");
+        ret = WOLFSSL_FAILURE;
     #endif
     }
 

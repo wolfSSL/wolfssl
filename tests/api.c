@@ -37588,6 +37588,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_certificate_authorities_client_hello),
     TEST_DECL(test_TLSX_TCA_Find),
     TEST_DECL(test_TLSX_SNI_GetSize_overflow),
+    TEST_DECL(test_TLSX_ECH_msg_type_validation),
+    TEST_DECL(test_TLSX_SRTP_msg_type_validation),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
     TEST_DECL(test_wolfSSL_clear_secure_renegotiation),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
