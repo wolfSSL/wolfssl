@@ -13310,9 +13310,17 @@ static int MatchIPv6(const char* pattern, int patternLen,
     XMEMSET(&addr2, 0, sizeof(addr2));
 
     /* Try parsing both as IPv6 */
-    if (XINET_PTON(WOLFSSL_IP6, patBuf, &addr1) != 1)
+#ifdef FREESCALE_MQX
+    if (XINET_PTON(WOLFSSL_IP6, patBuf, &addr1.sin6_addr, sizeof(addr1.sin6_addr)) != RTCS_OK)
+#else
+    if (XINET_PTON(WOLFSSL_IP6, patBuf, &addr1.sin6_addr) != 1)
+#endif
         return 0;
-    if (XINET_PTON(WOLFSSL_IP6, strBuf, &addr2) != 1)
+#ifdef FREESCALE_MQX
+    if (XINET_PTON(WOLFSSL_IP6, strBuf, &addr2.sin6_addr, sizeof(addr2.sin6_addr)) != RTCS_OK)
+#else
+    if (XINET_PTON(WOLFSSL_IP6, strBuf, &addr2.sin6_addr) != 1)
+#endif
         return 0;
 
     /* Compare raw address bytes */
