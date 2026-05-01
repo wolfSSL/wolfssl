@@ -5149,6 +5149,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
+#elif defined(WOLFSSL_NXP_RNG_1)
+    #include "fsl_rng.h"
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        if (RNG_GetRandomData(RNG, output, sz) != kStatus_Success)
+            return RNG_FAILURE_E;
+
+        return 0;
+    }
+
 #elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
