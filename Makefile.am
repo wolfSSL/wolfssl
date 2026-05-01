@@ -437,12 +437,8 @@ sbom:
 	    --license-text '$(SBOM_LICENSE_TEXT)' \
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
-	    --dep-liboqs $(ENABLED_LIBOQS) \
-	    --dep-libxmss $(ENABLED_LIBXMSS) \
-	    --dep-libxmss-root '$(XMSS_ROOT)' \
-	    --dep-liblms $(ENABLED_LIBLMS) \
-	    --dep-liblms-root '$(LIBLMS_ROOT)' \
 	    --dep-libz $(ENABLED_LIBZ) \
+	    --dep-falcon $(ENABLED_FALCON) \
 	    --git '$(GIT)' \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
 	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
