@@ -336,5 +336,84 @@ class TestParseOptionsH(unittest.TestCase):
         self.assertEqual(pairs['HAVE_X'], '2')
 
 
+class TestDepMetaShape(unittest.TestCase):
+    """Lock down the dep-tracking surface so renames/removals don't
+    silently regress vulnerability-scanner identifiers in the SBOM.
+
+    These guard against:
+      * an external dep being added without a CVE-resolvable identifier
+      * a future PR re-introducing the `falcon`/`libxmss`/`liblms`
+        keys after they were intentionally removed."""
+
+    def test_only_libz_and_liboqs_are_tracked(self):
+        self.assertEqual(set(gs.DEP_META.keys()), {'libz', 'liboqs'})
+
+    def test_liboqs_entry_describes_the_linked_artefact(self):
+        liboqs = gs.DEP_META['liboqs']
+        self.assertEqual(liboqs['name'], 'liboqs')
+        self.assertEqual(liboqs['supplier'], 'Open Quantum Safe')
+        self.assertEqual(liboqs['pkgconfig'], 'liboqs')
+        self.assertEqual(
+            liboqs['purl']('0.10.0'),
+            'pkg:github/open-quantum-safe/liboqs@0.10.0')
+
+    def test_no_stale_dep_keys(self):
+        # `falcon` is an algorithm, not a linked package; it must not
+        # appear as a dep entry (algorithm enablement lives in
+        # build_props parsed from options.h).  `libxmss` and `liblms`
+        # were removed upstream; their re-appearance here would
+        # silently emit unresolvable identifiers in the SBOM.
+        for stale in ('falcon', 'libxmss', 'liblms', 'xmss', 'lms'):
+            self.assertNotIn(stale, gs.DEP_META)
+
+
+class TestEnabledDepsCli(unittest.TestCase):
+    """End-to-end test of the argparse plumbing for --dep-* flags.
+
+    Runs gen-sbom in a child process so we exercise the real argparse
+    config rather than a re-imported module."""
+
+    def _run(self, *argv):
+        import subprocess
+        here = pathlib.Path(__file__).resolve().parent
+        script = here / 'gen-sbom'
+        return subprocess.run(
+            ['python3', str(script), *argv],
+            capture_output=True, text=True
+        )
+
+    def test_dep_liboqs_is_accepted(self):
+        result = self._run('--help')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--dep-liboqs', result.stdout)
+        self.assertIn('--dep-libz', result.stdout)
+
+    def test_removed_flags_are_rejected(self):
+        # Each of these was either renamed (--dep-falcon -> --dep-liboqs)
+        # or removed entirely (--dep-libxmss/--dep-liblms with upstream
+        # removal of the libraries).  argparse should reject them as
+        # unrecognised, not silently accept them.  We pass the full set
+        # of required args (against /dev/null sentinels) so argparse
+        # progresses to the unknown-flag check; we never want
+        # gen-sbom to actually generate anything in this test.
+        required = [
+            '--name', 'wolfssl',
+            '--version', '0.0.0-test',
+            '--lib', '/dev/null',
+            '--license-file', '/dev/null',
+            '--options-h', '/dev/null',
+            '--cdx-out', '/dev/null',
+            '--spdx-out', '/dev/null',
+        ]
+        for stale_flag in ('--dep-falcon', '--dep-libxmss', '--dep-liblms',
+                           '--dep-libxmss-root', '--dep-liblms-root',
+                           '--git'):
+            result = self._run(*required, stale_flag, 'no')
+            self.assertNotEqual(result.returncode, 0,
+                                f"{stale_flag!r} unexpectedly accepted")
+            self.assertIn('unrecognized arguments', result.stderr,
+                          f"{stale_flag!r}: {result.stderr!r}")
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
