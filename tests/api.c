@@ -14905,8 +14905,10 @@ static int test_ech_server_ctx_ready(WOLFSSL_CTX* ctx)
 {
     int ret;
 
-    ret = wolfSSL_CTX_GenerateEchConfig(ctx, echCbTestPublicName,
-            echCbTestKemID, echCbTestKdfID, echCbTestAeadID);
+    /* +20 for this isn't significant, it just exercises the padding code */
+    ret = wolfSSL_CTX_GenerateEchConfigEx(ctx, echCbTestPublicName,
+            echCbTestKemID, echCbTestKdfID, echCbTestAeadID,
+            XSTRLEN(echCbTestPublicName) + 20);
     if (ret != WOLFSSL_SUCCESS)
         return TEST_FAIL;
 
