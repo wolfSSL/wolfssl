@@ -736,6 +736,13 @@ typedef struct HssPrivKey {
 #endif
 } HssPrivKey;
 
+#ifndef LMS_MAX_ID_LEN
+#define LMS_MAX_ID_LEN              32
+#endif
+#ifndef LMS_MAX_LABEL_LEN
+#define LMS_MAX_LABEL_LEN           32
+#endif
+
 typedef struct LmsKey {
     /* Public key. */
     ALIGN16 byte pub[HSS_PUBLIC_KEY_LEN(LMS_MAX_NODE_LEN)];
@@ -764,6 +771,16 @@ typedef struct LmsKey {
 #ifdef WOLF_CRYPTO_CB
     /* Device Identifier. */
     int devId;
+    /* Per-device opaque context, populated by the callback. */
+    void* devCtx;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* Optional device-side key identifier. */
+    byte id[LMS_MAX_ID_LEN];
+    int  idLen;
+    /* Optional device-side key label. */
+    char label[LMS_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 } LmsKey;
 
@@ -772,6 +789,12 @@ typedef struct LmsKey {
 #endif
 
 WOLFSSL_API int  wc_LmsKey_Init(LmsKey * key, void * heap, int devId);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API int  wc_LmsKey_InitId(LmsKey * key, const unsigned char * id,
+    int len, void * heap, int devId);
+WOLFSSL_API int  wc_LmsKey_InitLabel(LmsKey * key, const char * label,
+    void * heap, int devId);
+#endif
 WOLFSSL_API int  wc_LmsKey_SetLmsParm(LmsKey * key, enum wc_LmsParm lmsParm);
 WOLFSSL_API int  wc_LmsKey_SetParameters(LmsKey * key, int levels,
     int height, int winternitz);
@@ -800,6 +823,11 @@ WOLFSSL_API int  wc_LmsKey_ImportPubRaw(LmsKey * key, const byte * in,
     word32 inLen);
 WOLFSSL_API int  wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
     const byte * msg, int msgSz);
+/* Compute the digest of a message with the hash function dictated by the
+ * LMS parameter set. Useful for crypto-callback / HSM backends that follow
+ * the PKCS#11 v3.2 CKM_HSS convention of taking a pre-computed digest. */
+WOLFSSL_API int  wc_LmsKey_HashMsg(const LmsKey * key, const byte * msg,
+    word32 msgSz, byte * hash, word32 * hashSz);
 WOLFSSL_API const char * wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
 WOLFSSL_API const char * wc_LmsKey_RcToStr(enum wc_LmsRc lmsRc);
 
