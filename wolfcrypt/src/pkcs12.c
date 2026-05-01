@@ -328,7 +328,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
             curIdx = localIdx;
             if ((ret = GetObjectId(input, &localIdx, &oid, oidIgnoreType,
-                                                           (word32)size)) < 0) {
+                                                curIdx + (word32)curSz)) < 0) {
                 WOLFSSL_LEAVE("Get object id failed", ret);
                 freeSafe(safe, pkcs12->heap);
                 return ret;
@@ -558,7 +558,8 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
                       return MEMORY_E; });
 
     /* unicode set up from asn.c */
-    if ((pswSz * 2 + 2) > MAX_UNICODE_SZ) {
+    if (pswSz >= MAX_UNICODE_SZ ||
+       (pswSz * 2 + 2) > MAX_UNICODE_SZ) {
         WOLFSSL_MSG("PKCS12 max unicode size too small");
         ret = UNICODE_SIZE_E;
         goto exit_mac;
@@ -695,6 +696,9 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     int ret;
     int size    = 0;
     int version = 0;
+#ifdef ASN_BER_TO_DER
+    word32 tmpSz = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_d2i_PKCS12");
 
@@ -716,22 +720,22 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     #ifdef ASN_BER_TO_DER
      if (size == 0) {
          if (wc_BerToDer(der, totalSz, NULL,
-                         (word32*)&size) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+                         &tmpSz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
              WOLFSSL_MSG("Not BER sequence");
              return ASN_PARSE_E;
          }
 
-         pkcs12->der = (byte*)XMALLOC((size_t)size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+         pkcs12->der = (byte*)XMALLOC((size_t)tmpSz, pkcs12->heap, DYNAMIC_TYPE_PKCS);
          if (pkcs12->der == NULL)
              return MEMORY_E;
-         ret = wc_BerToDer(der, derSz, pkcs12->der, (word32*)&size);
+         ret = wc_BerToDer(der, derSz, pkcs12->der, &tmpSz);
          if (ret < 0) {
              return ret;
          }
 
          der  = pkcs12->der;
-         pkcs12->derSz = (word32)size;
-         totalSz = (word32)size;
+         pkcs12->derSz = tmpSz;
+         totalSz = tmpSz;
          idx = 0;
 
          if (GetSequence(der, &idx, &size, totalSz) < 0) {
@@ -1558,8 +1562,13 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                             *pkeySz = (word32)size;
                         }
                         else {
-                            *pkeySz = (word32)ToTraditional_ex(*pkey,
-                                (word32)size, &algId);
+                            ret = ToTraditional_ex(*pkey,
+                                    (word32)size, &algId);
+                            if (ret < 0) {
+                                *pkeySz = (word32)size;
+                                goto exit_pk12par;
+                            }
+                            *pkeySz = (word32)ret;
                         }
                     }
 
@@ -1602,6 +1611,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                         if (keepKeyHeader) {
                             if ((ret = wc_DecryptPKCS8Key(k, (word32)size, psw,
                                 pswSz)) < 0) {
+                                ForceZero(k, (size_t)size);
                                 XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                                 goto exit_pk12par;
                             }
@@ -1609,6 +1619,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                         else {
                             if ((ret = ToTraditionalEnc(k, (word32)size, psw,
                                 pswSz, &algId)) < 0) {
+                                ForceZero(k, (size_t)size);
                                 XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                                 goto exit_pk12par;
                             }
@@ -1619,10 +1630,12 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                             byte* tmp = (byte*)XMALLOC((size_t)ret, pkcs12->heap,
                                                  DYNAMIC_TYPE_PUBLIC_KEY);
                             if (tmp == NULL) {
+                                ForceZero(k, (size_t)size);
                                 XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                                 ERROR_OUT(MEMORY_E, exit_pk12par);
                             }
                             XMEMCPY(tmp, k, (size_t)ret);
+                            ForceZero(k, (size_t)size);
                             XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                             k = tmp;
                         }
@@ -1633,6 +1646,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
                             *pkeySz = (word32)size;
                         }
                         else { /* only expecting one key */
+                            ForceZero(k, (size_t)size);
                             XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                         }
                         idx += (word32)size;
@@ -1798,6 +1812,7 @@ exit_pk12par:
     if (ret != 0) {
         /* failure cleanup */
         if (*pkey) {
+            ForceZero(*pkey, *pkeySz);
             XFREE(*pkey, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             *pkey = NULL;
         }
