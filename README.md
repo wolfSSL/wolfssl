@@ -34,6 +34,18 @@ applications which have previously used the OpenSSL package. For a complete
 feature list, see [Chapter 4](https://www.wolfssl.com/docs/wolfssl-manual/ch4/)
 of the wolfSSL manual.
 
+## SBOM / CRA Compliance
+
+wolfSSL provides a Software Bill of Materials (SBOM) for EU Cyber Resilience
+Act (CRA) compliance via `make sbom`. See `doc/SBOM.md` for details.
+
+## OmniBOR / Bomsh
+
+wolfSSL supports generating an OmniBOR artifact dependency graph via
+`make bomsh`, providing cryptographic traceability from the installed
+library back to every source file that produced it. See `doc/SBOM.md`
+for details.
+
 ## Notes, Please Read
 
 ### Note 1
