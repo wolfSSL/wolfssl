@@ -1081,10 +1081,18 @@ int test_wolfSSL_X509_check_ip_asc(void)
         ExpectIntEQ(wolfSSL_X509_check_ip_asc(cn_lit, "127.0.0.1", 0), 0);
         /* CN=*.0.0.1 with no SAN must NOT wildcard-match "127.0.0.1". */
         ExpectIntEQ(wolfSSL_X509_check_ip_asc(cn_wild, "127.0.0.1", 0), 0);
+
         /* CN-based hostname matching must still work for hostname checks
          * (sanity check that the fix didn't over-correct). */
         ExpectIntEQ(wolfSSL_X509_check_host(cn_wild, "1.0.0.1",
             XSTRLEN("1.0.0.1"), 0, NULL), 1);
+
+        /* However, when WOLFSSL_LEFT_MOST_WILDCARD_ONLY, CN-based hostname
+         * matching must not apply wildcards when the supplied hostname isn't a
+         * well-formed FQDN.
+         */
+        ExpectIntEQ(wolfSSL_X509_check_host(cn_wild, "1.0.0.1",
+            XSTRLEN("1.0.0.1"), WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL), 0);
 
         wolfSSL_X509_free(cn_wild);
         wolfSSL_X509_free(cn_lit);
@@ -1607,6 +1615,95 @@ int test_wolfSSL_X509_name_match3(void)
     wolfSSL_X509_free(x509);
 
 #endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfssl_local_IsValidFQDN(void) {
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+    static const struct { const char *str; int is_FQDN; } test_cases[] = {
+        {"example.com",                  1},
+        {"example.com.",                 1},   /* trailing dot (absolute form) */
+        {"sub.example.com",              1},
+        {"a.b",                          1},   /* minimal two-label */
+        {"xn--nxasmq5b.com",             1},   /* punycode / IDN (ACE form) */
+        {"test_underscore.example.com",  1},   /* underscore in non-TLD label */
+        {"_leading.example.com",         1}, /* underscore at start of label */
+        {"trailing_.example.com",        1},/* underscore at end of non-TLD label */
+        {"123.numericlabel.example.com", 1},   /* numeric labels are fine */
+        {"example.12a3",                 1},   /* TLD with letters + digits */
+        {"ex--ample.com",                1},   /* double hyphen inside label (allowed) */
+        {"A.B.C",                        1},   /* uppercase OK (case-insensitive rules) */
+
+        {"example",                      0},   /* single label (not fully qualified) */
+        {"example.",                     0},   /* becomes single label after dot strip */
+        {".example.com",                 0},   /* leading dot -- empty first label */
+        {"example..com",                 0},   /* empty label (consecutive dots) */
+        {"-example.com",                 0},   /* label starts with '-' */
+        {"example-.com",                 0},   /* label ends with '-' */
+        {"example.com-",                 0},   /* final label ends with '-' */
+        {"example.com_",                 0},   /* underscore in TLD (forbidden) */
+        {"example._com",                 0},   /* underscore in TLD (forbidden) */
+        {"ex@mple.com",                  0},   /* illegal character '@' */
+        {"example com.com",              0},   /* illegal character ' ' */
+        {"",                             0},   /* empty string */
+        {NULL,                           0},   /* NULL pointer */
+        {"com",                          0},   /* single label */
+        {"123.456",                      0},   /* all-numeric final label (no alpha) */
+        {"example.123",                  0},   /* all-numeric TLD (no alpha) */
+        {"a",                            0},   /* single label, too short */
+        {"example.123a",                 1},   /* TLD with at least one letter -- valid */
+    };
+
+    int i;
+    for (i = 0; i < (int)(sizeof(test_cases) / sizeof(test_cases[0])); i++) {
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(
+                        test_cases[i].str,
+                        test_cases[i].str ? (word32)strlen(test_cases[i].str) : 0),
+                        test_cases[i].is_FQDN);
+        if (! EXPECT_SUCCESS()) {
+            fprintf(stderr, "wolfssl_local_IsValidFQDN() wrong result for "
+                    "case %d \"%s\"\n", i, test_cases[i].str);
+            break;
+        }
+    }
+
+    /* Additional corner cases (length & label-size boundaries) */
+    {
+        char buf[300];
+
+        /* 253 chars (max allowed), with 63 byte labels (max allowed) - valid */
+        memset(buf, 'a', 251);
+        for (i=63; i < 251; i+=64)
+            buf[i] = '.';
+        buf[251] = '.';
+        buf[252] = 'b';
+        buf[253] = '\0';
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(buf, (word32)strlen(buf)), 1);
+
+        /* 254 chars (one too long) - invalid */
+        memset(buf, 'a', 252);
+        for (i=63; i < 251; i+=64)
+            buf[i] = '.';
+        buf[252] = '.';
+        buf[253] = 'b';
+        buf[254] = '\0';
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(buf, (word32)strlen(buf)), 0);
+
+        /* 64-char label (one too long) */
+        memset(buf, 'a', 64);
+        buf[64] = '.';
+        buf[65] = 'c';
+        buf[66] = 'o';
+        buf[67] = 'm';
+        buf[68] = '\0';
+        ExpectIntEQ(wolfssl_local_IsValidFQDN(buf, (word32)strlen(buf)), 0);
+
+        /* Explicit nameSz == 0 (even with non-NULL pointer) */
+        ExpectIntEQ(wolfssl_local_IsValidFQDN("example.com", 0), 0);
+    }
+
+#endif /* !NO_ASN && !WOLFCRYPT_ONLY && !NO_CERTS */
     return EXPECT_RESULT();
 }
 
