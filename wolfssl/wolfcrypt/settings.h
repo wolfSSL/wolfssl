@@ -3514,10 +3514,12 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef HAVE_ECC
-    /* defined for all ECC non FIPS builds and for FIPS v7+, unless the user
-     * explicitly opts in to allowing an all-zero digest with
+    /* defined for all ECC non FIPS builds and for FIPS v7+ (including
+     * fips-ready/fips-dev which track the latest in-development source),
+     * unless the user explicitly opts in to allowing an all-zero digest with
      * WC_ALLOW_ECC_ZERO_HASH or is building with HAVE_SELFTEST */
-    #if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && \
+    #if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0) || \
+         defined(WOLFSSL_FIPS_READY) || defined(WOLFSSL_FIPS_DEV)) && \
         !defined(HAVE_SELFTEST) && !defined(WC_ALLOW_ECC_ZERO_HASH)
         /* sign/verify of an all-zero digest in wolfCrypt rejected */
         #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST

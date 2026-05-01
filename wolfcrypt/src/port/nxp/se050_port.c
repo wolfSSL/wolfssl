@@ -2113,6 +2113,10 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
     size_t sigSz = sizeof(sigBuf);
     word32 rLen = 0;
     word32 sLen = 0;
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+    byte hashIsZero = 0;
+    word32 zIdx;
+#endif
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_sign_hash_ex: key %p, in %p (%d), out %p (%d), "
@@ -2123,6 +2127,15 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
         outLen == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+    /* SE050 hardware does not reject all-zero digests; mirror the
+     * software path's check so behavior is consistent. */
+    for (zIdx = 0; zIdx < inLen; zIdx++)
+        hashIsZero |= in[zIdx];
+    if (hashIsZero == 0)
+        return ECC_BAD_ARG_E;
+#endif
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
