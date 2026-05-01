@@ -20982,21 +20982,10 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         cert->version = version;
         cert->serialSz = (int)serialSz;
 
-    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
-        !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
-        /* RFC 5280 section 4.1.2.2 states that non-conforming CAs may issue
-         * a negative or zero serial number and should be handled gracefully.
-         * Since it is a non-conforming CA that issues a serial of 0 then we
-         * treat it as an error here. */
-        if (cert->serialSz == 1 && cert->serial[0] == 0) {
-            WOLFSSL_MSG("Error serial number of 0, use WOLFSSL_NO_ASN_STRICT "
-                "if wanted");
-            ret = ASN_PARSE_E;
-        }
-    #endif
+        /* RFC 5280 requires serial number to be present and at least 1 byte */
         if (cert->serialSz == 0) {
-            WOLFSSL_MSG("Error serial size is zero. Should be at least one "
-                        "even with no serial number.");
+            WOLFSSL_MSG("Error: certificate serial number is empty "
+                        "(zero-length serial is invalid per RFC 5280)");
             ret = ASN_PARSE_E;
         }
 
@@ -21218,6 +21207,13 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         /* Parsed whole certificate fine but return any date errors. */
         ret = badDate;
     }
+
+    /* Note: serial-0 rejection is performed in ParseCertRelative (after
+     * basicConstraints has been parsed and isCA is authoritative), not
+     * here. Checking isCA at this point would fail-open on a forged
+     * isCA flag. Callers that invoke DecodeCert/DecodeToKey/wc_GetPubX509
+     * directly are pubkey-extraction paths and do not make trust
+     * decisions; trust-bearing flows go through ParseCertRelative. */
 
     return ret;
 }
@@ -22616,6 +22612,36 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 return ret;
             }
 #endif /* HAVE_RPK */
+        }
+#endif
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+        /* RFC 5280 section 4.1.2.2 requires conforming CAs to issue
+         * positive serial numbers; the same section notes that verifiers
+         * SHOULD gracefully handle non-conforming certs with zero or
+         * negative serials. wolfSSL's policy is to reject as a security
+         * guard, with an exemption for self-signed CA certs loaded as
+         * explicitly-trusted anchors (some legacy real-world roots have
+         * serial 0).
+         *
+         * Note: cert->selfSigned is a subject/issuer name-hash compare
+         * (see DecodeCertInternal where it's set), not a validated
+         * self-signature. That is acceptable here because the trust
+         * decision is user-driven via CertManagerLoadCA; this check is
+         * only a structural sanity guard. */
+        if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+            int isTrustAnchorLoad =
+                (type == CA_TYPE || type == TRUSTED_PEER_TYPE)
+                && cert->isCA && cert->selfSigned;
+            int isCsr = 0;
+        #ifdef WOLFSSL_CERT_REQ
+            isCsr = cert->isCSR;
+        #endif
+            if (!isTrustAnchorLoad && !isCsr) {
+                WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
+                return ASN_PARSE_E;
+            }
         }
 #endif
 

@@ -1029,6 +1029,83 @@ int test_DecodeAltNames_length_underflow(void)
     return EXPECT_RESULT();
 }
 
+int test_SerialNumber0_RootCA(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_PEM) && defined(WOLFSSL_PEM_TO_DER)
+    /* Test that root CA certificates with serial number 0 are accepted,
+     * while non-root certificates with serial 0 are rejected (issue #8615) */
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* rootSerial0File = "./certs/test-serial0/root_serial0.pem";
+    const char* selfSignedNonCASerial0File =
+        "./certs/test-serial0/selfsigned_nonca_serial0.pem";
+
+    /* Test 1: Root CA with serial 0 should load successfully */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL),
+                WOLFSSL_SUCCESS);
+
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
+    {
+        const char* eeSerial0File = "./certs/test-serial0/ee_serial0.pem";
+        const char* eeNormalFile = "./certs/test-serial0/ee_normal.pem";
+
+        /* Test 2: End-entity cert with serial 0 should be rejected during
+         * verify */
+        ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeSerial0File,
+                    WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+        /* Test 3: Normal end-entity cert signed by root CA with serial 0
+         * should verify successfully */
+        ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeNormalFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+#endif
+
+    if (cm != NULL) {
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    /* Test 4: Self-signed non-CA certificate with serial 0 should be rejected */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, selfSignedNonCASerial0File, NULL),
+                WOLFSSL_SUCCESS);
+
+    if (cm != NULL) {
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    /* Test 5: Intermediate CA (CA:TRUE but issuer != subject) with serial 0
+     * must be rejected when loaded as CA_TYPE. Exercises the selfSigned
+     * half of the ParseCertRelative exemption predicate. */
+    {
+        const char* intermediateSerial0File =
+            "./certs/test-serial0/intermediate_serial0.pem";
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, intermediateSerial0File,
+                    NULL), WOLFSSL_SUCCESS);
+        if (cm != NULL) {
+            wolfSSL_CertManagerFree(cm);
+            cm = NULL;
+        }
+    }
+#endif /* !WOLFSSL_NO_ASN_STRICT && !WOLFSSL_PYTHON &&
+          !WOLFSSL_ASN_ALLOW_0_SERIAL &&
+          !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+#endif /* !NO_CERTS && !NO_FILESYSTEM && !NO_RSA && !WOLFSSL_NO_PEM */
+
+    return EXPECT_RESULT();
+}
+
 int test_wc_DecodeObjectId(void)
 {
     EXPECT_DECLS;
