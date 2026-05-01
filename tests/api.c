@@ -24727,11 +24727,25 @@ static int test_wolfSSL_X509_print(void)
       /* Will print IP address subject alt name. */
      ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3350);
   #endif
-#elif defined(NO_ASN_TIME)
-    /* With NO_ASN_TIME defined, X509_print skips printing Validity. */
+#elif defined(IGNORE_NAME_CONSTRAINTS)
+    /* DecodeGeneralName skips iPAddress entries when name constraints
+     * are disabled, so the IP SAN never reaches the print path. */
+  #if defined(NO_ASN_TIME)
     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3213);
-#else
+  #else
     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3328);
+  #endif
+#elif defined(NO_ASN_TIME)
+    /* With NO_ASN_TIME defined, X509_print skips printing Validity.
+     * iPAddress SAN now always parsed; prints as
+     * "IP Address:<unavailable>" (+26 bytes) without
+     * WOLFSSL_IP_ALT_NAME. */
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3239);
+#else
+    /* iPAddress SAN now always parsed; prints as
+     * "IP Address:<unavailable>" (+26 bytes) without
+     * WOLFSSL_IP_ALT_NAME. */
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3354);
 #endif
     BIO_free(bio);
     bio = NULL;
