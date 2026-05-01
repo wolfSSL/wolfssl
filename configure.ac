@@ -3050,6 +3050,25 @@ AC_ARG_WITH([tropic01],
 )
 
 
+# STMicro STSAFE-A100 / STSAFE-A120
+# Example: "./configure --enable-stsafe=a120"
+ENABLED_STSAFE="no"
+AC_ARG_ENABLE([stsafe],
+    [AS_HELP_STRING([--enable-stsafe@<:@=a100|a120@:>@],
+        [Enable STMicro STSAFE secure-element support. Variant selects the SDK:
+         a100 (legacy STSAFE-A1xx SDK, default) or a120 (STSELib).])],
+    [ ENABLED_STSAFE=$enableval ],
+    [ ENABLED_STSAFE=no ])
+
+case "$ENABLED_STSAFE" in
+    no)        ;;
+    yes|a100)  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STSAFE -DWOLFSSL_STSAFEA100"
+               ENABLED_STSAFE="a100" ;;
+    a120)      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STSAFE -DWOLFSSL_STSAFEA120" ;;
+    *)         AC_MSG_ERROR([Invalid --enable-stsafe value '$ENABLED_STSAFE'; use a100 or a120]) ;;
+esac
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -12112,6 +12131,7 @@ AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
+AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
@@ -12681,6 +12701,7 @@ echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
+echo "   * STMicro STSAFE:             $ENABLED_STSAFE"
 echo "   * TROPIC01:                   $ENABLED_TROPIC01"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"

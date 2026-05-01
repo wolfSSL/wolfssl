@@ -1,0 +1,96 @@
+name: STSAFE-A120 simulator test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+# Build the STSAFE-A120 software simulator (https://github.com/wolfSSL/simulators,
+# STSAFEA120Sim/ subdirectory), build wolfSSL against STMicro's STSELib +
+# simulator bridge, and run the wolfCrypt STSAFE-A120 test binary against the
+# simulator TCP server.
+#
+# The simulator's own Dockerfile (Dockerfile.wolfcrypt) clones wolfSSL master
+# and applies two sed patches to it. Both patches are now upstreamed in
+# wolfSSL itself (the include.am stsafe.c entry, and the
+# stse_platform_generic.h include order in stsafe.c), so we:
+#   1. COPY the PR checkout instead of cloning master.
+#   2. Strip the now-redundant sed RUN block.
+#   3. Switch the configure invocation from a raw -DWOLFSSL_STSAFEA120
+#      CFLAG to the new --enable-stsafe=a120 option.
+
+env:
+  SIMULATORS_REF: 7e4a50ac3316680c523ec2f66711ea8403c94468
+
+jobs:
+  stsafe_a120_sim:
+    name: wolfCrypt against STSAFE-A120 simulator
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout wolfSSL (PR source)
+        uses: actions/checkout@v4
+        with:
+          path: wolfssl-src
+
+      - name: Clone STSAFE-A120 simulator
+        run: |
+          git clone https://github.com/wolfSSL/simulators simulators
+          cd simulators && git checkout "$SIMULATORS_REF"
+
+      - name: Stage PR wolfSSL into simulator build context
+        run: mv wolfssl-src simulators/STSAFEA120Sim/wolfssl
+
+      - name: Patch Dockerfile to use PR wolfSSL and the upstreamed STSAFE build flags
+        working-directory: simulators/STSAFEA120Sim
+        run: |
+          # 1. Replace the upstream master clone with a COPY of the PR source.
+          sed -i 's|^RUN git clone --branch \${WOLFSSL_REF} --depth 1 \\$|COPY wolfssl /app/wolfssl|' Dockerfile.wolfcrypt
+          # The COPY directive above is one line, so drop the now-stranded
+          # `https://github.com/wolfSSL/wolfssl.git /app/wolfssl` continuation
+          # line that followed the original `git clone --depth 1 \` line.
+          sed -i '\|^    https://github.com/wolfSSL/wolfssl.git /app/wolfssl$|d' Dockerfile.wolfcrypt
+          # Fail fast if the pattern drifted upstream -- better a clear error
+          # than a CI run that silently tests master.
+          grep -q '^COPY wolfssl /app/wolfssl$' Dockerfile.wolfcrypt
+          ! grep -q 'git clone .*wolfssl\.git' Dockerfile.wolfcrypt
+
+          # 2. Neutralise the sed-patch RUN block: the patches it applies
+          #    (adding stsafe.c to include.am, prepending
+          #    stse_platform_generic.h to stsafe.c) are now upstream and
+          #    rerunning them would produce duplicate entries.
+          sed -i '/^RUN sed -i \\$/,/^    head -2 \/app\/wolfssl\/wolfcrypt\/src\/port\/st\/stsafe\.c$/c\RUN true' Dockerfile.wolfcrypt
+          ! grep -q 'sed -i .*include.am' Dockerfile.wolfcrypt
+          ! grep -q 'sed -i .*port/st/stsafe.c' Dockerfile.wolfcrypt
+
+          # 3. Switch the wolfSSL configure invocation to the new
+          #    --enable-stsafe=a120 option, and drop the now-redundant raw
+          #    -DWOLFSSL_STSAFEA120 from CFLAGS.
+          sed -i 's|^        --disable-examples \\$|        --disable-examples \\\n        --enable-stsafe=a120 \\|' Dockerfile.wolfcrypt
+          sed -i 's|-DWOLFSSL_STSAFEA120 ||' Dockerfile.wolfcrypt
+          grep -q -- '--enable-stsafe=a120' Dockerfile.wolfcrypt
+          ! grep -q -- '-DWOLFSSL_STSAFEA120' Dockerfile.wolfcrypt
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build wolfCrypt-STSAFE-A120 test image
+        uses: docker/build-push-action@v5
+        with:
+          context: simulators/STSAFEA120Sim
+          file: simulators/STSAFEA120Sim/Dockerfile.wolfcrypt
+          push: false
+          load: true
+          tags: wolfssl-stsafe-a120-sim:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run wolfCrypt tests against simulator
+        run: docker run --rm wolfssl-stsafe-a120-sim:ci
