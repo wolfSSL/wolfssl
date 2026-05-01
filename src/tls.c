@@ -1816,16 +1816,20 @@ static void TLSX_ALPN_FreeAll(ALPN *list, void* heap)
 static word16 TLSX_ALPN_GetSize(ALPN *list)
 {
     ALPN* alpn;
-    word16 length = OPAQUE16_LEN; /* list length */
+    word32 length = OPAQUE16_LEN; /* list length */
 
     while ((alpn = list)) {
         list = alpn->next;
 
         length++; /* protocol name length is on one byte */
-        length += (word16)XSTRLEN(alpn->protocol_name);
+        length += (word32)XSTRLEN(alpn->protocol_name);
+
+        if (length > WOLFSSL_MAX_16BIT) {
+            return 0;
+        }
     }
 
-    return length;
+    return (word16)length;
 }
 
 /** Writes the ALPN objects of a list in a buffer. */
@@ -2951,7 +2955,7 @@ static void TLSX_TCA_FreeAll(TCA* list, void* heap)
 static word16 TLSX_TCA_GetSize(TCA* list)
 {
     TCA* tca;
-    word16 length = OPAQUE16_LEN; /* list length */
+    word32 length = OPAQUE16_LEN; /* list length */
 
     while ((tca = list)) {
         list = tca->next;
@@ -2969,9 +2973,13 @@ static word16 TLSX_TCA_GetSize(TCA* list)
                 length += OPAQUE16_LEN + tca->idSz;
                 break;
         }
+
+        if (length > WOLFSSL_MAX_16BIT) {
+            return 0;
+        }
     }
 
-    return length;
+    return (word16)length;
 }
 
 /** Writes the TCA objects of a list in a buffer. */
@@ -7498,7 +7506,7 @@ static word16 TLSX_CA_Names_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    word16 size = 0;
+    word32 size = 0;
 
     /* Length of names */
     size += OPAQUE16_LEN;
@@ -7508,11 +7516,14 @@ static word16 TLSX_CA_Names_GetSize(void* data)
 
         if (name != NULL) {
             /* 16-bit length | SEQ | Len | DER of name */
-            size += (word16)(OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
+            size += (word32)(OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
                              name->rawLen);
+            if (size > WOLFSSL_MAX_16BIT) {
+                return 0;
+            }
         }
     }
-    return size;
+    return (word16)size;
 }
 
 static word16 TLSX_CA_Names_Write(void* data, byte* output)
@@ -11833,14 +11844,22 @@ static int TLSX_PreSharedKey_GetSize(PreSharedKey* list, byte msgType,
 {
     if (msgType == client_hello) {
         /* Length of identities + Length of binders. */
-        word16 len = OPAQUE16_LEN + OPAQUE16_LEN;
+        word32 len = OPAQUE16_LEN + OPAQUE16_LEN;
         while (list != NULL) {
             /* Each entry has: identity, ticket age and binder. */
             len += OPAQUE16_LEN + list->identityLen + OPAQUE32_LEN +
-                   OPAQUE8_LEN + (word16)list->binderLen;
+                   OPAQUE8_LEN + (word32)list->binderLen;
+            if (len > WOLFSSL_MAX_16BIT) {
+                WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+                return LENGTH_ERROR;
+            }
             list = list->next;
         }
-        *pSz += len;
+        if ((word32)*pSz + len > WOLFSSL_MAX_16BIT) {
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+            return LENGTH_ERROR;
+        }
+        *pSz += (word16)len;
         return 0;
     }
 
@@ -11863,7 +11882,7 @@ static int TLSX_PreSharedKey_GetSize(PreSharedKey* list, byte msgType,
 int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list, byte msgType,
                                      word16* pSz)
 {
-    word16 len;
+    word32 len;
 
     if (msgType != client_hello) {
         WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
@@ -11873,11 +11892,15 @@ int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list, byte msgType,
     /* Length of all binders. */
     len = OPAQUE16_LEN;
     while (list != NULL) {
-        len += OPAQUE8_LEN + (word16)list->binderLen;
+        len += OPAQUE8_LEN + (word32)list->binderLen;
+        if (len > WOLFSSL_MAX_16BIT) {
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+            return LENGTH_ERROR;
+        }
         list = list->next;
     }
 
-    *pSz = len;
+    *pSz = (word16)len;
     return 0;
 }
 
@@ -14837,8 +14860,15 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 
             case TLSX_TRUSTED_CA_KEYS:
                 /* TCA only sends the list on the request. */
-                if (isRequest)
-                    length += TCA_GET_SIZE((TCA*)extension->data);
+                if (isRequest) {
+                    word16 tcaSz = TCA_GET_SIZE((TCA*)extension->data);
+                    /* 0 on non-empty list means 16-bit overflow. */
+                    if (tcaSz == 0 && extension->data != NULL) {
+                        ret = LENGTH_ERROR;
+                        break;
+                    }
+                    length += tcaSz;
+                }
                 break;
 
             case TLSX_MAX_FRAGMENT_LENGTH:
@@ -14879,9 +14909,16 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                         isRequest);
                 break;
 
-            case TLSX_APPLICATION_LAYER_PROTOCOL:
-                length += ALPN_GET_SIZE((ALPN*)extension->data);
+            case TLSX_APPLICATION_LAYER_PROTOCOL: {
+                word16 alpnSz = ALPN_GET_SIZE((ALPN*)extension->data);
+                /* 0 on non-empty list means 16-bit overflow. */
+                if (alpnSz == 0 && extension->data != NULL) {
+                    ret = LENGTH_ERROR;
+                    break;
+                }
+                length += alpnSz;
                 break;
+            }
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS:
                 length += SA_GET_SIZE(extension->data);
@@ -14959,9 +14996,16 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
     #endif
 
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-            case TLSX_CERTIFICATE_AUTHORITIES:
-                length += CAN_GET_SIZE(extension->data);
+            case TLSX_CERTIFICATE_AUTHORITIES: {
+                word16 canSz = CAN_GET_SIZE(extension->data);
+                /* 0 on non-empty list means 16-bit overflow. */
+                if (canSz == 0 && extension->data != NULL) {
+                    ret = LENGTH_ERROR;
+                    break;
+                }
+                length += canSz;
                 break;
+            }
     #endif
 #endif
 #ifdef WOLFSSL_SRTP
@@ -15000,6 +15044,9 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
             default:
                 break;
         }
+
+        if (ret != 0)
+            return ret;
 
         /* Early exit: stop accumulating as soon as the running total
          * cannot possibly fit the 2-byte wire length. Check *before*

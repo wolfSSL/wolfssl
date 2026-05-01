@@ -103,6 +103,379 @@ int test_tls_ems_downgrade(void)
 }
 
 
+/* F-2915: resumption of an EMS session without EMS must abort with
+ * EXT_MASTER_SECRET_NEEDED_E (RFC 7627 Section 5.3). */
+int test_tls_ems_resumption_downgrade(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+    /* Drop EMS from the resumption ClientHello to simulate a downgrade. */
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0),
+            WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+static int test_chacha_bad_tag_trigger = 0;
+
+static int test_chacha_bad_tag_io_recv(WOLFSSL* ssl, char* buf, int sz,
+        void* ctx)
+{
+    int ret = test_memio_read_cb(ssl, buf, sz, ctx);
+    /* Tamper with a byte from the encrypted record payload on the first
+     * read that spans past the 5-byte TLS record header, so the Poly1305
+     * authentication check no longer matches. */
+    if (test_chacha_bad_tag_trigger && ret > 5) {
+        buf[ret - 1] ^= 0xFF;
+        test_chacha_bad_tag_trigger = 0;
+    }
+    return ret;
+}
+#endif
+
+/* F-2921: TLS 1.2 ChaCha20-Poly1305 must surface VERIFY_MAC_ERROR when
+ * the Poly1305 tag is corrupted. */
+int test_tls12_chacha20_poly1305_bad_tag(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    const char msg[] = "tamper me";
+    char recvBuf[32];
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers =
+        "ECDHE-RSA-CHACHA20-POLY1305";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_SSLSetIORecv(ssl_s, test_chacha_bad_tag_io_recv);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)XSTRLEN(msg)),
+            (int)XSTRLEN(msg));
+
+    test_chacha_bad_tag_trigger = 1;
+    ret = wolfSSL_read(ssl_s, recvBuf, sizeof(recvBuf));
+    ExpectIntLE(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+            WC_NO_ERR_TRACE(VERIFY_MAC_ERROR));
+
+    test_chacha_bad_tag_trigger = 0;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && \
+        defined(BUILD_TLS_SHA256_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+static int test_tls13_null_bad_hmac_trigger = 0;
+
+static int test_tls13_null_bad_hmac_io_recv(WOLFSSL* ssl, char* buf, int sz,
+        void* ctx)
+{
+    int ret = test_memio_read_cb(ssl, buf, sz, ctx);
+    /* Tamper with a byte from the encrypted record payload on the first
+     * read that spans past the 5-byte TLS record header, so the HMAC tag
+     * check in Tls13IntegrityOnly_Decrypt no longer matches. */
+    if (test_tls13_null_bad_hmac_trigger && ret > 5) {
+        buf[ret - 1] ^= 0xFF;
+        test_tls13_null_bad_hmac_trigger = 0;
+    }
+    return ret;
+}
+#endif
+
+/* F-2916: TLS 1.3 integrity-only decryption must surface DECRYPT_ERROR
+ * when the HMAC tag is corrupted. */
+int test_tls13_null_cipher_bad_hmac(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && \
+        defined(BUILD_TLS_SHA256_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    const char msg[] = "integrity only";
+    char recvBuf[32];
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-SHA256-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_SSLSetIORecv(ssl_s, test_tls13_null_bad_hmac_io_recv);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)XSTRLEN(msg)),
+            (int)XSTRLEN(msg));
+
+    test_tls13_null_bad_hmac_trigger = 1;
+    ret = wolfSSL_read(ssl_s, recvBuf, sizeof(recvBuf));
+    ExpectIntLE(ret, 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+            WC_NO_ERR_TRACE(DECRYPT_ERROR));
+
+    test_tls13_null_bad_hmac_trigger = 0;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* F-2913 and F-2914: the TLSX_SecureRenegotiation_Parse
+ * ConstantCompare against the cached Finished verify_data must reject
+ * a mismatch on both the client and server sides. */
+int test_scr_verify_data_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    int side;
+
+    for (side = 0; side < 2; side++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL;
+        WOLFSSL_CTX *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL;
+        WOLFSSL *ssl_s = NULL;
+        WOLFSSL *failing;
+        byte data;
+        int ret;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.c_ciphers = test_ctx.s_ciphers =
+                "ECDHE-RSA-AES128-GCM-SHA256";
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s, wolfTLSv1_2_client_method,
+                wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* side 0: corrupt the client's copy; side 1: corrupt the
+         * server's copy. */
+        if (side == 0) {
+            if (ssl_c != NULL && ssl_c->secure_renegotiation != NULL)
+                ssl_c->secure_renegotiation->server_verify_data[0] ^= 0xFF;
+            failing = ssl_c;
+        }
+        else {
+            if (ssl_s != NULL && ssl_s->secure_renegotiation != NULL)
+                ssl_s->secure_renegotiation->client_verify_data[0] ^= 0xFF;
+            failing = ssl_s;
+        }
+
+        ret = wolfSSL_Rehandshake(ssl_c);
+        (void)ret;
+        (void)wolfSSL_read(ssl_s, &data, 1);
+        (void)wolfSSL_read(ssl_c, &data, 1);
+        ExpectIntEQ(wolfSSL_get_error(failing, 0),
+                WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E));
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* F-2126: DoTls13ClientHello must reject a second ClientHello whose
+ * cipher suite does not match the server's HelloRetryRequest. The
+ * client offers two suites in CH1 and only a different one in CH2. */
+int test_tls13_hrr_cipher_suite_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(BUILD_TLS_AES_128_GCM_SHA256) && \
+        defined(BUILD_TLS_AES_256_GCM_SHA384)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* Both suites supported on both ends; server prefers the first
+     * offered suite, which will be the one committed in the HRR. */
+    test_ctx.c_ciphers = test_ctx.s_ciphers =
+            "TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* Force HRR by withholding key_share entries in CH1. */
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+
+    /* CH1 / HRR */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_WANT_READ);
+
+    /* Restrict the client to a different suite than the one the
+     * server committed to in the HRR, so CH2 offers only that. */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"),
+            WOLFSSL_SUCCESS);
+
+    /* CH2 */
+    (void)wolfSSL_connect(ssl_c);
+    (void)wolfSSL_accept(ssl_s);
+    (void)wolfSSL_connect(ssl_c);
+    /* The cipher-suite mismatch is caught server-side; the server's
+     * alert reaches the client, so either peer can surface it. */
+    ret = wolfSSL_get_error(ssl_s, 0);
+    if (ret != WC_NO_ERR_TRACE(INVALID_PARAMETER))
+        ret = wolfSSL_get_error(ssl_c, 0);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* F-1824: DoClientTicketCheck must reject a PSK whose obfuscated age
+ * falls outside the [-1000, MAX_TICKET_AGE_DIFF*1000+1000] ms window. */
+int test_tls13_ticket_age_out_of_window(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+    byte tmp;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Pump post-handshake reads so the NewSessionTicket reaches the
+     * client. */
+    (void)wolfSSL_read(ssl_c, &tmp, sizeof(tmp));
+    (void)wolfSSL_read(ssl_s, &tmp, sizeof(tmp));
+    (void)wolfSSL_read(ssl_c, &tmp, sizeof(tmp));
+
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    /* The test only exercises the age window check if the client actually
+     * received a NewSessionTicket and the session carries ticket material. */
+    ExpectIntGT(session->ticketLen, 0);
+
+    /* Flip the high bit to push the unobfuscated age out of window. */
+    if (session != NULL)
+        session->ticketAdd ^= 0x80000000U;
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+
+    /* PSK rejected, full handshake must still succeed. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;
