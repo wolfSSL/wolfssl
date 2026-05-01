@@ -1035,6 +1035,60 @@ EOF
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
+    ############################################################
+    #### ML-DSA (FIPS 204) self-signed certificates          ###
+    ############################################################
+    # ML-DSA requires an OpenSSL 3.x binary with ML-DSA support
+    # (via oqsprovider or built-in). Detect support by probing candidates.
+    OPENSSL3=""
+    for candidate in \
+        "/usr/local/opt/openssl@3.2/bin/openssl" \
+        "/usr/local/opt/openssl@3/bin/openssl" \
+        "/opt/homebrew/opt/openssl@3.2/bin/openssl" \
+        "/opt/homebrew/opt/openssl@3/bin/openssl" \
+        "openssl"; do
+        if [ "$candidate" = "openssl" ]; then
+            # Skip if 'openssl' is not available on PATH.
+            command -v openssl >/dev/null 2>&1 || continue
+        else
+            # Skip non-existent or non-executable absolute paths.
+            [ -x "$candidate" ] || continue
+        fi
+        if "$candidate" genpkey -algorithm mldsa44 -out /dev/null 2>/dev/null; then
+            OPENSSL3="$candidate"
+            break
+        fi
+    done
+
+    if [ -n "$OPENSSL3" ]; then
+        echo "Generating ML-DSA certificates using: $OPENSSL3"
+        echo ""
+        mkdir -p mldsa
+
+        for level in 44 65 87; do
+            echo "Generating ML-DSA-${level} key and self-signed certificate..."
+
+            "$OPENSSL3" genpkey -algorithm "mldsa${level}" \
+                -out "mldsa/mldsa${level}-key.pem"
+            check_result $? "ML-DSA-${level} key generation"
+
+            "$OPENSSL3" req -new -x509 -key "mldsa/mldsa${level}-key.pem" \
+                -out "mldsa/mldsa${level}-cert.pem" -days 3650 \
+                -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/CN=ML-DSA-${level}"
+            check_result $? "ML-DSA-${level} certificate generation"
+
+            "$OPENSSL3" x509 -inform PEM -in "mldsa/mldsa${level}-cert.pem" \
+                -outform DER -out "mldsa/mldsa${level}-cert.der"
+            check_result $? "ML-DSA-${level} DER conversion"
+
+            echo "End of ML-DSA-${level} section"
+        done
+        echo "---------------------------------------------------------------------"
+    else
+        echo "Skipping ML-DSA cert generation (no OpenSSL 3.3+ with ML-DSA support found)"
+        echo "---------------------------------------------------------------------"
+    fi
+
     #cleanup the file system now that we're done
     echo "Performing final steps, cleaning up the file system..."
     echo ""

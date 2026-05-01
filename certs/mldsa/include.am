@@ -20,4 +20,13 @@ EXTRA_DIST += \
 		 certs/mldsa/mldsa87_seed-priv.der \
 		 certs/mldsa/mldsa87_oqskeypair.der \
 		 certs/mldsa/mldsa87_bare-seed.der \
-		 certs/mldsa/mldsa87_bare-priv.der
+		 certs/mldsa/mldsa87_bare-priv.der \
+		 certs/mldsa/mldsa44-key.pem \
+		 certs/mldsa/mldsa44-cert.pem \
+		 certs/mldsa/mldsa44-cert.der \
+		 certs/mldsa/mldsa65-key.pem \
+		 certs/mldsa/mldsa65-cert.pem \
+		 certs/mldsa/mldsa65-cert.der \
+		 certs/mldsa/mldsa87-key.pem \
+		 certs/mldsa/mldsa87-cert.pem \
+		 certs/mldsa/mldsa87-cert.der

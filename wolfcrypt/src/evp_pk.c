@@ -708,7 +708,7 @@ static int d2iTryAltDhKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     /* Create DH key object from data. */
     dhObj = wolfSSL_DH_new();
     if (dhObj == NULL) {
-        ret = 0;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if (ret == 1) {
