@@ -670,7 +670,7 @@ __global__ void AesEncrypt_C_CUDA(word32* rkBase, const byte* inBlockBase, byte*
     byte* outBlock = outBlockBase;
     word32* rk;
 
-    for (int i = index; i < sz; i += stride) {
+    for (int i = idx; i < sz; i += stride) {
         rk = rkBase;
         inBlock = inBlockBase + i * 4 * sizeof(s0);
         outBlock = outBlockBase + i * 4 * sizeof(s0);
@@ -842,7 +842,8 @@ __global__ void AesEncrypt_C_CUDA(word32* rkBase, const byte* inBlockBase, byte*
 #endif
 #else
 #ifndef WC_NO_CACHE_RESISTANT
-        s0 |= PreFetchSBox();
+        PreFetchSBox(sBox);
+        s0 |= sBox;
 #endif
 
         r *= 2;
