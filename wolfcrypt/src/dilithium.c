@@ -8318,8 +8318,8 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
 #ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
-        a = (sword32*)XMALLOC(params->aSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
-        if (a == NULL) {
+        key->a = (sword32*)XMALLOC(params->aSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        if (key->a == NULL) {
             ret = MEMORY_E;
         }
     }
