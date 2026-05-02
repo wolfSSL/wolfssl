@@ -3558,38 +3558,116 @@ int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX* ctx);
 /*!
     \ingroup Setup
 
-    \brief This function sets cipher suite list for a given WOLFSSL_CTX.
-    This cipher suite list becomes the default list for any new SSL sessions
-    (WOLFSSL) created using this context.  The ciphers in the list should be
-    sorted in order of preference from highest to lowest.  Each call to
-    wolfSSL_CTX_set_cipher_list() resets the cipher suite list for the
-    specific SSL context to the provided list each time the function is
-    called. The cipher suite list, list, is a null-terminated text string,
-    and a colon-delimited list.  For example, one value for list may be
-    "DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256" Valid cipher
-    values are the full name values from the cipher_names[] array in
-    src/internal.c (for a definite list of valid cipher values check
-    src/internal.c)
+    \brief This function sets the cipher suite list for a given WOLFSSL_CTX.
+    The list becomes the default cipher suite list for any new WOLFSSL
+    sessions created from the context, and the order in the string is the
+    local preference order from highest to lowest. Each call replaces the
+    previous list. The list is a null-terminated, colon-delimited text
+    string of suite names and/or OpenSSL-style group keywords, for example
+    "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-SHA256".
 
-    \return SSL_SUCCESS will be returned upon successful function completion.
-    \return SSL_FAILURE will be returned on failure.
+    Each token in the colon-delimited list is one of the following:
+
+    1. A specific cipher suite name. wolfSSL accepts both its own short name
+       and the IANA name (when WOLFSSL_NO_ERROR_STRINGS is not defined). For
+       example "ECDHE-RSA-AES128-GCM-SHA256" and
+       "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" are equivalent. The complete
+       authoritative list of accepted names lives in the cipher_names[] array
+       in src/internal.c; programs may also enumerate the suites compiled
+       into the current build at runtime via wolfSSL_get_ciphers().
+
+    2. An OpenSSL-compatible keyword that selects a family of suites or
+       toggles a class on/off (see the keyword table below). Some keywords
+       require OPENSSL_EXTRA or OPENSSL_ALL to be defined.
+
+    3. A negated keyword "!keyword" to disallow a class (requires
+       OPENSSL_EXTRA or OPENSSL_ALL). For example "HIGH:!aNULL".
+
+    A "+" operator (e.g. "ECDHE+AESGCM") is recognized only to extract the
+    leading public-key family token ("ECDHE", "RSA" or "DHE"); trailing parts
+    after "+" are ignored by wolfSSL. To intersect with a specific cipher
+    use the explicit suite name instead.
+
+    OpenSSL-compatible group keywords:
+
+    | Keyword           | Effect                                                       | Required build option |
+    | ----------------- | ------------------------------------------------------------ | --------------------- |
+    | DEFAULT / ALL     | Include all built suites; "ALL" also enables anonymous (aNULL) | OPENSSL_EXTRA / OPENSSL_ALL (also accepted as the entire string with no other tokens) |
+    | HIGH              | All suites except static, anonymous, and NULL ciphers        | OPENSSL_EXTRA / OPENSSL_ALL (also accepted as the entire string with no other tokens) |
+    | LOW / MEDIUM      | Accepted but do not restrict by bit size; behave as "RSA"    | OPENSSL_EXTRA / OPENSSL_ALL |
+    | aNULL             | Anonymous (no authentication) suites                         | OPENSSL_EXTRA / OPENSSL_ALL; suites require HAVE_ANON |
+    | eNULL / NULL      | Null encryption suites                                       | OPENSSL_EXTRA / OPENSSL_ALL; suites require HAVE_NULL_CIPHER |
+    | kDH               | Static DH key exchange                                       | OPENSSL_EXTRA / OPENSSL_ALL |
+    | DHE / EDH         | Ephemeral DH key exchange                                    | OPENSSL_EXTRA / OPENSSL_ALL; suites require !NO_DH |
+    | ECDHE / EECDH     | Ephemeral ECDH key exchange                                  | OPENSSL_EXTRA / OPENSSL_ALL; suites require HAVE_ECC |
+    | kRSA / RSA        | Static RSA key exchange                                      | OPENSSL_EXTRA / OPENSSL_ALL; suites require !NO_RSA |
+    | PSK               | Pre-shared-key suites                                        | OPENSSL_EXTRA / OPENSSL_ALL; suites require !NO_PSK |
+    | DSS               | Silently ignored — wolfSSL has no DSA ciphersuites           | OPENSSL_EXTRA / OPENSSL_ALL |
+    | EXP / EXPORT      | Silently ignored — export-grade ciphers are not supported    | OPENSSL_EXTRA / OPENSSL_ALL |
+    | AES128 / SHA1 / RC4 | When negated ("!AES128", etc.), disable that class         | WOLFSSL_SYS_CRYPTO_POLICY |
+    | @SECLEVEL=n       | Set OpenSSL-compatible security level                        | WOLFSSL_SYS_CRYPTO_POLICY |
+
+    Representative TLS 1.3 cipher suite names (each guarded by its own
+    BUILD_* macro; most are enabled automatically by --enable-tls13):
+
+    | Name (wolfSSL)               | IANA name                       | Required build option |
+    | ---------------------------- | ------------------------------- | --------------------- |
+    | TLS13-AES128-GCM-SHA256      | TLS_AES_128_GCM_SHA256          | BUILD_TLS_AES_128_GCM_SHA256 (default with TLS 1.3) |
+    | TLS13-AES256-GCM-SHA384      | TLS_AES_256_GCM_SHA384          | BUILD_TLS_AES_256_GCM_SHA384 |
+    | TLS13-CHACHA20-POLY1305-SHA256 | TLS_CHACHA20_POLY1305_SHA256  | BUILD_TLS_CHACHA20_POLY1305_SHA256 (HAVE_CHACHA + HAVE_POLY1305) |
+    | TLS13-AES128-CCM-SHA256      | TLS_AES_128_CCM_SHA256          | BUILD_TLS_AES_128_CCM_SHA256 (HAVE_AESCCM) |
+    | TLS13-AES128-CCM-8-SHA256    | TLS_AES_128_CCM_8_SHA256        | BUILD_TLS_AES_128_CCM_8_SHA256 (HAVE_AESCCM) |
+    | TLS13-SM4-GCM-SM3            | TLS_SM4_GCM_SM3                 | BUILD_TLS_SM4_GCM_SM3 (WOLFSSL_SM4_GCM + WOLFSSL_SM3) |
+    | TLS13-SM4-CCM-SM3            | TLS_SM4_CCM_SM3                 | BUILD_TLS_SM4_CCM_SM3 (WOLFSSL_SM4_CCM + WOLFSSL_SM3) |
+    | TLS13-SHA256-SHA256          | TLS_SHA256_SHA256               | BUILD_TLS_SHA256_SHA256 (integrity-only) |
+    | TLS13-SHA384-SHA384          | TLS_SHA384_SHA384               | BUILD_TLS_SHA384_SHA384 |
+
+    Representative TLS 1.2 cipher suite name families (each individual suite
+    is guarded by its own BUILD_* macro derived from the IANA name; the
+    common build-option requirements are summarized below):
+
+    | Name family / example                         | Typical requirements |
+    | --------------------------------------------- | -------------------- |
+    | ECDHE-ECDSA-AES128-GCM-SHA256, ECDHE-ECDSA-AES256-GCM-SHA384, ECDHE-ECDSA-CHACHA20-POLY1305 | HAVE_ECC, HAVE_AESGCM (or HAVE_CHACHA + HAVE_POLY1305) |
+    | ECDHE-RSA-AES128-GCM-SHA256, ECDHE-RSA-AES256-GCM-SHA384, ECDHE-RSA-CHACHA20-POLY1305 | HAVE_ECC, !NO_RSA, HAVE_AESGCM (or HAVE_CHACHA + HAVE_POLY1305) |
+    | DHE-RSA-AES128-GCM-SHA256, DHE-RSA-AES256-GCM-SHA384, DHE-RSA-CHACHA20-POLY1305 | !NO_DH, !NO_RSA, HAVE_AESGCM (or HAVE_CHACHA + HAVE_POLY1305) |
+    | AES128-SHA, AES256-SHA, AES128-SHA256, AES256-SHA256, AES128-GCM-SHA256, AES256-GCM-SHA384 (static-RSA) | !NO_RSA, !NO_AES_CBC and/or HAVE_AESGCM |
+    | DES-CBC3-SHA, RC4-SHA, RC4-MD5                | Legacy: !NO_DES3 / !NO_RC4, !NO_OLD_TLS |
+    | NULL-SHA, NULL-SHA256, NULL-MD5               | HAVE_NULL_CIPHER |
+    | PSK-AES128-CBC-SHA256, PSK-AES256-GCM-SHA384, ECDHE-PSK-AES128-CBC-SHA256, DHE-PSK-AES256-GCM-SHA384 | !NO_PSK (HAVE_ECC for ECDHE-PSK, !NO_DH for DHE-PSK) |
+    | ADH-AES128-SHA, ADH-AES256-SHA                | HAVE_ANON |
+    | ECDHE-ECDSA-SM4-GCM-SM3, ECDHE-ECDSA-SM4-CCM-SM3 | WOLFSSL_SM2, WOLFSSL_SM3, WOLFSSL_SM4_GCM/WOLFSSL_SM4_CCM |
+
+    Notes:
+    - TLS 1.3 suite names and TLS 1.2 suite names may be mixed in the same
+      list; wolfSSL groups them by version internally.
+    - For DTLS, RC4-based stream ciphers in the list are silently dropped.
+    - When set as the literal whole-string "DEFAULT", "ALL", "HIGH", or the
+      empty string, wolfSSL installs its built-in default suite list and
+      returns success without parsing further tokens.
+
+    \return WOLFSSL_SUCCESS will be returned upon successful function completion.
+    \return WOLFSSL_FAILURE will be returned on failure.
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
     \param list null-terminated text string and a colon-delimited list of
-    cipher suites to use with the specified SSL context.
+    cipher suites and/or keywords to use with the specified SSL context.
 
     _Example_
     \code
     WOLFSSL_CTX* ctx = 0;
     ...
     ret = wolfSSL_CTX_set_cipher_list(ctx,
-    “DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256”);
-    if (ret != SSL_SUCCESS) {
-    	// failed to set cipher suite list
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+        "DHE-RSA-AES256-SHA256");
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set cipher suite list
     }
     \endcode
 
     \sa wolfSSL_set_cipher_list
+    \sa wolfSSL_get_ciphers
+    \sa wolfSSL_get_cipher_list
     \sa wolfSSL_CTX_new
 */
 int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
@@ -3597,24 +3675,18 @@ int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
 /*!
     \ingroup Setup
 
-    \brief This function sets cipher suite list for a given WOLFSSL object
-    (SSL session).  The ciphers in the list should be sorted in order of
-    preference from highest to lowest.  Each call to wolfSSL_set_cipher_list()
-    resets the cipher suite list for the specific SSL session to the provided
-    list each time the function is called. The cipher suite list, list, is a
-    null-terminated text string, and a colon-delimited list. For example, one
-    value for list may be
-    "DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256".
-    Valid cipher values are the full name values from the cipher_names[]
-    array in src/internal.c (for a definite list of valid cipher values
-    check src/internal.c)
+    \brief This function sets the cipher suite list for a given WOLFSSL
+    session. The list format and the set of recognized suite names and
+    keywords are identical to those documented for wolfSSL_CTX_set_cipher_list();
+    refer to that function for the full keyword/suite tables and required
+    build options. Each call replaces the previous list on the session.
 
-    \return SSL_SUCCESS will be returned upon successful function completion.
-    \return SSL_FAILURE will be returned on failure.
+    \return WOLFSSL_SUCCESS will be returned upon successful function completion.
+    \return WOLFSSL_FAILURE will be returned on failure.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
     \param list null-terminated text string and a colon-delimited list of
-    cipher suites to use with the specified SSL session.
+    cipher suites and/or keywords to use with the specified SSL session.
 
     _Example_
     \code
@@ -3622,13 +3694,16 @@ int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
     WOLFSSL* ssl = 0;
     ...
     ret = wolfSSL_set_cipher_list(ssl,
-    “DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256”);
-    if (ret != SSL_SUCCESS) {
-    	// failed to set cipher suite list
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+        "DHE-RSA-AES256-SHA256");
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set cipher suite list
     }
     \endcode
 
     \sa wolfSSL_CTX_set_cipher_list
+    \sa wolfSSL_get_ciphers
+    \sa wolfSSL_get_cipher_list
     \sa wolfSSL_new
 */
 int  wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list);
@@ -5722,37 +5797,113 @@ long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
 /*!
     \ingroup Setup
 
-    \brief This function sets the options mask in the ssl.
-    Some valid options are, SSL_OP_ALL, SSL_OP_COOKIE_EXCHANGE,
-    SSL_OP_NO_SSLv2, SSL_OP_NO_SSLv3, SSL_OP_NO_TLSv1,
-    SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2, SSL_OP_NO_COMPRESSION.
+    \brief This function ORs the bits in \p opt into the options mask of the
+    given WOLFSSL_CTX. The options mask is inherited by every WOLFSSL session
+    later created from this context. Bits are accumulated — to remove an
+    option, use wolfSSL_CTX_clear_options(). The OpenSSL-style "SSL_OP_*"
+    macros are aliases for the corresponding "WOLFSSL_OP_*" values; either
+    spelling may be used.
 
-    \return val Returns the updated options mask value stored in ssl.
+    Effective options:
 
-    \param s WOLFSSL structure to set options mask.
-    \param op This function sets the options mask in the ssl.
-    Some valid options are:
-    SSL_OP_ALL
-    SSL_OP_COOKIE_EXCHANGE
-    SSL_OP_NO_SSLv2
-    SSL_OP_NO_SSLv3
-    SSL_OP_NO_TLSv1
-    SSL_OP_NO_TLSv1_1
-    SSL_OP_NO_TLSv1_2
-    SSL_OP_NO_COMPRESSION
+    | Macro                                | Effect |
+    | ------------------------------------ | ------ |
+    | SSL_OP_NO_SSLv2                      | Disable SSLv2 (wolfSSL never supports SSLv2; flag is accepted for OpenSSL compatibility) |
+    | SSL_OP_NO_SSLv3                      | Disable SSLv3 |
+    | SSL_OP_NO_TLSv1                      | Disable TLS 1.0 |
+    | SSL_OP_NO_TLSv1_1                    | Disable TLS 1.1 |
+    | SSL_OP_NO_TLSv1_2                    | Disable TLS 1.2 |
+    | SSL_OP_NO_TLSv1_3                    | Disable TLS 1.3 (requires WOLFSSL_TLS13) |
+    | SSL_OP_NO_COMPRESSION                | Disable record-layer compression (no-op unless HAVE_LIBZ) |
+    | SSL_OP_NO_TICKET                     | Disable RFC 5077 session tickets (TLS 1.2 only; TLS 1.3 ignores this flag); requires HAVE_SESSION_TICKET and (OPENSSL_EXTRA or HAVE_WEBSERVER or WOLFSSL_WPAS_SMALL) |
+    | SSL_OP_NO_RENEGOTIATION              | Reject peer-initiated renegotiation |
+    | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION | Disable session resumption on renegotiation |
+    | SSL_OP_COOKIE_EXCHANGE               | Enable HelloVerifyRequest cookie exchange (default-on for DTLS) |
+    | SSL_OP_NO_QUERY_MTU                  | DTLS: do not query the path MTU |
+    | SSL_OP_CIPHER_SERVER_PREFERENCE      | Server uses its own cipher preference order rather than the client's |
+    | SSL_OP_SINGLE_DH_USE                 | Generate a fresh DH key for every handshake |
+    | SSL_OP_SINGLE_ECDH_USE               | Generate a fresh ECDH key for every handshake |
+    | SSL_OP_EPHEMERAL_RSA                 | Use ephemeral RSA (legacy, accepted for OpenSSL compatibility) |
+    | SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS   | Do not insert empty fragments before a record (CBC BEAST workaround) |
+    | SSL_OP_PKCS1_CHECK_1 / _2            | Accepted for OpenSSL compatibility |
+    | SSL_OP_LEGACY_SERVER_CONNECT         | Always allow legacy (unsafe) initial connect; defined as 0 — no effect (requires the openssl/ssl.h compatibility header) |
+
+    Convenience macros and bug-workaround flags (all members of SSL_OP_ALL,
+    accepted for OpenSSL compatibility but otherwise no-ops in wolfSSL):
+
+    - SSL_OP_ALL (bitwise OR of all bug-workaround flags below)
+    - SSL_OP_MICROSOFT_SESS_ID_BUG
+    - SSL_OP_NETSCAPE_CHALLENGE_BUG
+    - SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+    - SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+    - SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+    - SSL_OP_MSIE_SSLV2_RSA_PADDING
+    - SSL_OP_SSLEAY_080_CLIENT_DH_BUG
+    - SSL_OP_TLS_D5_BUG
+    - SSL_OP_TLS_BLOCK_PADDING_BUG
+    - SSL_OP_TLS_ROLLBACK_BUG
+    - SSL_OP_NETSCAPE_CA_DN_BUG
+    - SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
+
+    Convenience composite:
+
+    - SSL_OP_NO_SSL_MASK = SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3
+
+    \param ctx WOLFSSL_CTX structure on which to set the options mask.
+    \param opt the bitmask of SSL_OP_* / WOLFSSL_OP_* flags to OR into the
+    current mask.
+
+    \return BAD_FUNC_ARG if \p ctx is NULL.
+    \return The updated options mask value stored in \p ctx on success.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    long mask;
+    mask = wolfSSL_CTX_set_options(ctx,
+        SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 |
+        SSL_OP_NO_COMPRESSION | SSL_OP_CIPHER_SERVER_PREFERENCE);
+    // 'mask' now reflects the accumulated options stored in ctx
+    \endcode
+
+    \sa wolfSSL_CTX_clear_options
+    \sa wolfSSL_CTX_get_options
+    \sa wolfSSL_set_options
+    \sa wolfSSL_get_options
+*/
+long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt);
+
+/*!
+    \ingroup Setup
+
+    \brief This function ORs the bits in \p op into the options mask of the
+    given WOLFSSL session. The set of recognized "SSL_OP_*" / "WOLFSSL_OP_*"
+    flags is identical to that documented for wolfSSL_CTX_set_options();
+    refer to that function for the full options table and the build-option
+    requirements of individual flags. Flags inherited from the parent
+    WOLFSSL_CTX remain set; setting SSL_OP_NO_TLSv1_3 here lowers the
+    session's negotiated minor version to TLS 1.2.
+
+    \param s WOLFSSL session on which to set the options mask.
+    \param op the bitmask of SSL_OP_* / WOLFSSL_OP_* flags to OR into the
+    current mask.
+
+    \return The updated options mask value stored in \p s on success, or 0 if
+    \p s is NULL.
 
     _Example_
     \code
     WOLFSSL* ssl;
-    unsigned long mask;
-    mask = SSL_OP_NO_TLSv1
-    mask  = wolfSSL_set_options(ssl, mask);
-    // check mask
+    long mask;
+    mask = wolfSSL_set_options(ssl, SSL_OP_NO_TLSv1_3);
+    // 'mask' now reflects the accumulated options stored in ssl
     \endcode
 
+    \sa wolfSSL_CTX_set_options
+    \sa wolfSSL_clear_options
+    \sa wolfSSL_get_options
     \sa wolfSSL_new
     \sa wolfSSL_free
-    \sa wolfSSL_get_options
 */
 long wolfSSL_set_options(WOLFSSL *s, long op);
 
@@ -14143,16 +14294,217 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
-    \brief This function sets the list of elliptic curve groups to allow on
-    a wolfSSL context in order of preference.
-    The list is a null-terminated text string, and a colon-delimited list.
-    Call this function to set the key exchange elliptic curve parameters to
-    use with the TLS v1.3 connections.
+    \brief This function sets the list of signature algorithms to allow on a
+    wolfSSL context in order of preference. The list is a null-terminated text
+    string and a colon-delimited list, where each element is of the form
+    "<public-key>+<digest>" (for example "RSA-PSS+SHA256:ECDSA+SHA384"). The
+    Edwards-curve algorithms "ED25519" and "ED448" are written without a digest
+    suffix, since the hash is implied by the algorithm. The previous list
+    stored in the context is replaced.
+
+    Recognized public-key tokens and digest tokens, together with the build
+    options that must be enabled for each token to be accepted, are listed in
+    the tables below.
+
+    Public-key tokens:
+
+    | Token             | Required build option                              |
+    | ----------------- | -------------------------------------------------- |
+    | RSA               | !NO_RSA                                            |
+    | RSA-PSS  /  PSS   | !NO_RSA and WC_RSA_PSS                             |
+    | ECDSA             | HAVE_ECC                                           |
+    | ED25519           | HAVE_ED25519 (no digest suffix)                    |
+    | ED448             | HAVE_ED448   (no digest suffix)                    |
+    | DSA               | !NO_DSA                                            |
+    | SM2               | WOLFSSL_SM2 and WOLFSSL_SM3 (digest is SM3)        |
+
+    Digest tokens:
+
+    | Token   | Required build option                                        |
+    | ------- | ------------------------------------------------------------ |
+    | SHA256  | !NO_SHA256                                                   |
+    | SHA384  | WOLFSSL_SHA384                                               |
+    | SHA512  | WOLFSSL_SHA512                                               |
+    | SHA224  | WOLFSSL_SHA224                                               |
+    | SM3     | WOLFSSL_SM3                                                  |
+    | SHA1    | !NO_SHA, plus !NO_OLD_TLS or WOLFSSL_ALLOW_TLS_SHA1          |
+
+    Notes for TLS 1.3: per RFC 8446, RSA PKCS#1 v1.5, DSA, SHA-1, and SHA-224
+    cannot be used as handshake signatures and will be filtered out at
+    negotiation time even if listed. Specifying "RSA-PSS+SHAxxx" causes both
+    the rsa_pss_rsae_shaxxx and rsa_pss_pss_shaxxx schemes to be added.
+    Brainpool ECDSA signature schemes (RFC 8734) cannot be selected through
+    this string interface; they are negotiated automatically when
+    HAVE_ECC_BRAINPOOL is enabled.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created with
+    wolfSSL_CTX_new().
+    \param [in] list a colon-delimited list of "<public-key>+<digest>"
+    elements (or "ED25519" / "ED448" without a digest).
+
+    \return WOLFSSL_SUCCESS if successful.
+    \return WOLFSSL_FAILURE if a pointer parameter is NULL, allocation of the
+    suites structure fails, or any token in the list is not recognized or not
+    supported by the current build.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL_CTX* ctx;
+    const char* list = "RSA-PSS+SHA256:ECDSA+SHA384:ED25519";
+    ...
+    ret = wolfSSL_CTX_set1_sigalgs_list(ctx, list);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set signature algorithm list
+    }
+    \endcode
+
+    \sa wolfSSL_set1_sigalgs_list
+    \sa wolfSSL_CTX_set1_groups_list
+*/
+int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the list of signature algorithms to allow on a
+    wolfSSL session in order of preference. The list format and the set of
+    recognized public-key and digest tokens are identical to those documented
+    for wolfSSL_CTX_set1_sigalgs_list(); refer to that function for the full
+    token tables and TLS 1.3 caveats. The previous list stored in the session
+    is replaced.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [in] list a colon-delimited list of "<public-key>+<digest>"
+    elements (or "ED25519" / "ED448" without a digest).
+
+    \return WOLFSSL_SUCCESS if successful.
+    \return WOLFSSL_FAILURE if a pointer parameter is NULL, allocation of the
+    suites structure fails, or any token in the list is not recognized or not
+    supported by the current build.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    const char* list = "RSA-PSS+SHA256:ECDSA+SHA384:ED25519";
+    ...
+    ret = wolfSSL_set1_sigalgs_list(ssl, list);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to set signature algorithm list
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set1_sigalgs_list
+    \sa wolfSSL_set1_groups_list
+*/
+int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets the list of key-exchange groups (named elliptic
+    curves and KEMs) to allow on a wolfSSL context in order of preference. The
+    list is a null-terminated, colon-delimited text string of group names, for
+    example "P-384:P-256:X25519". Call this function to set the key-exchange
+    parameters used with TLS v1.3 connections (the function is compiled in
+    only when HAVE_ECC, WOLFSSL_TLS13, and HAVE_SUPPORTED_CURVES are defined).
+
+    Recognized group names and the build options each one requires are listed
+    below. Names are matched case-sensitively against the table.
+
+    NIST / SEC curves (require HAVE_ECC):
+
+    | Name      | Curve / Group                                                |
+    | --------- | ------------------------------------------------------------ |
+    | P-160     | secp160r1                                                    |
+    | P-160-2   | secp160r2                                                    |
+    | P-192     | secp192r1 (prime192v1)                                       |
+    | P-224     | secp224r1                                                    |
+    | P-256     | secp256r1 (prime256v1) — also accepted as "prime256v1" / "secp256r1" |
+    | P-384     | secp384r1 — also accepted as "secp384r1"                     |
+    | P-521     | secp521r1 — also accepted as "secp521r1"                     |
+    | K-160     | secp160k1                                                    |
+    | K-192     | secp192k1                                                    |
+    | K-224     | secp224k1                                                    |
+    | K-256     | secp256k1                                                    |
+
+    Brainpool curves (require HAVE_ECC plus WOLFSSL_CUSTOM_CURVES and
+    HAVE_ECC_BRAINPOOL — typically enabled by --enable-ecccustcurves=all):
+
+    | Name  | Curve              |
+    | ----- | ------------------ |
+    | B-256 | brainpoolP256r1    |
+    | B-384 | brainpoolP384r1    |
+    | B-512 | brainpoolP512r1    |
+
+    Edwards / Montgomery curves:
+
+    | Name   | Required build option |
+    | ------ | --------------------- |
+    | X25519 | HAVE_CURVE25519       |
+    | X448   | HAVE_CURVE448         |
+
+    SM2 (requires WOLFSSL_SM2):
+
+    | Name      | Group           |
+    | --------- | --------------- |
+    | SM2       | sm2p256v1       |
+    | sm2p256v1 | sm2p256v1 (alias) |
+
+    ML-KEM (post-quantum) groups (require WOLFSSL_HAVE_MLKEM and
+    !WOLFSSL_NO_ML_KEM):
+
+    | Name        |
+    | ----------- |
+    | ML_KEM_512  |
+    | ML_KEM_768  |
+    | ML_KEM_1024 |
+
+    ML-KEM hybrid groups additionally require HAVE_ECC together with either
+    WOLFSSL_WC_MLKEM or HAVE_LIBOQS, and WOLFSSL_PQC_HYBRIDS (or
+    WOLFSSL_EXTRA_PQC_HYBRIDS for the "extra" set):
+
+    | Name                | Hybrid flag set            |
+    | ------------------- | -------------------------- |
+    | SecP256r1MLKEM768   | WOLFSSL_PQC_HYBRIDS        |
+    | SecP384r1MLKEM1024  | WOLFSSL_PQC_HYBRIDS        |
+    | X25519MLKEM768      | WOLFSSL_PQC_HYBRIDS        |
+    | SecP256r1MLKEM512   | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | SecP384r1MLKEM768   | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | SecP521r1MLKEM1024  | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | X25519MLKEM512      | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | X448MLKEM768        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+
+    Legacy Kyber groups (require WOLFSSL_MLKEM_KYBER; hybrids additionally
+    require HAVE_ECC together with WOLFSSL_WC_MLKEM or HAVE_LIBOQS):
+
+    | Name                  |
+    | --------------------- |
+    | KYBER_LEVEL1          |
+    | KYBER_LEVEL3          |
+    | KYBER_LEVEL5          |
+    | P256_KYBER_LEVEL1     |
+    | P256_KYBER_LEVEL3     |
+    | P384_KYBER_LEVEL3     |
+    | P521_KYBER_LEVEL5     |
+    | X25519_KYBER_LEVEL1   |
+    | X25519_KYBER_LEVEL3   |
+    | X448_KYBER_LEVEL3     |
+
+    In addition to the names above, when HAVE_FIPS and HAVE_SELFTEST are not
+    defined, any curve name registered with wolfCrypt (looked up via
+    wc_ecc_get_curve_idx_from_name(), e.g. "brainpoolP256r1") is also
+    accepted.
+
+    The order of the names in the list is preserved and used as the local
+    preference order for KeyShare selection in TLS 1.3.
 
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created
     with wolfSSL_CTX_new().
-    \param [in] list a string that is a colon-delimited list of elliptic curve
-    groups.
+    \param [in] list a string that is a colon-delimited list of key-exchange
+    group names.
 
     \return WOLFSSL_FAILURE if pointer parameters are NULL, there are more than
     WOLFSSL_MAX_GROUP_COUNT groups, a group name is not recognized or not
@@ -14182,11 +14534,11 @@ int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
 /*!
     \ingroup Setup
 
-    \brief This function sets the list of elliptic curve groups to allow on
-    a wolfSSL in order of preference.
-    The list is a null-terminated text string, and a colon-delimited list.
-    Call this function to set the key exchange elliptic curve parameters to
-    use with the TLS v1.3 connections.
+    \brief This function sets the list of key-exchange groups (named elliptic
+    curves and KEMs) to allow on a wolfSSL session in order of preference. The
+    list format and the set of recognized group names are identical to those
+    documented for wolfSSL_CTX_set1_groups_list(); refer to that function for
+    the full token tables and required build options.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param [in] list a string that is a colon separated list of key exchange
@@ -14257,30 +14609,128 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
-    \brief This function sets the list of elliptic curve groups to allow on
-    a wolfSSL context in order of preference.
-    The list is an array of group identifiers with the number of identifiers
-    specified in count.
-    Call this function to set the key exchange elliptic curve parameters to
-    use with the TLS v1.3 connections.
+    \brief This function sets the list of key-exchange groups (named elliptic
+    curves and KEMs) to allow on a wolfSSL context in order of preference. The
+    list is an array of named-group identifiers (see the table below) and
+    \p count is the number of identifiers in the array. Use this function to
+    set the key-exchange parameters used by TLS v1.3 connections; the order
+    of the array becomes the local KeyShare preference order.
+
+    Recognized identifiers and the build options each one requires are listed
+    below. The identifiers are defined in the anonymous enum in
+    \<wolfssl/ssl.h\>.
+
+    NIST / SEC curves (require HAVE_ECC):
+
+    | Identifier                | Curve / Group                        |
+    | ------------------------- | ------------------------------------ |
+    | WOLFSSL_ECC_SECP160K1     | secp160k1                            |
+    | WOLFSSL_ECC_SECP160R1     | secp160r1                            |
+    | WOLFSSL_ECC_SECP160R2     | secp160r2                            |
+    | WOLFSSL_ECC_SECP192K1     | secp192k1                            |
+    | WOLFSSL_ECC_SECP192R1     | secp192r1 (prime192v1)               |
+    | WOLFSSL_ECC_SECP224K1     | secp224k1                            |
+    | WOLFSSL_ECC_SECP224R1     | secp224r1                            |
+    | WOLFSSL_ECC_SECP256K1     | secp256k1                            |
+    | WOLFSSL_ECC_SECP256R1     | secp256r1 (prime256v1)               |
+    | WOLFSSL_ECC_SECP384R1     | secp384r1                            |
+    | WOLFSSL_ECC_SECP521R1     | secp521r1                            |
+
+    Brainpool curves (require HAVE_ECC plus WOLFSSL_CUSTOM_CURVES and
+    HAVE_ECC_BRAINPOOL — typically enabled by --enable-ecccustcurves=all):
+
+    | Identifier                          | Curve            | Notes |
+    | ----------------------------------- | ---------------- | ----- |
+    | WOLFSSL_ECC_BRAINPOOLP256R1         | brainpoolP256r1  | TLS 1.2 group ID 26 |
+    | WOLFSSL_ECC_BRAINPOOLP384R1         | brainpoolP384r1  | TLS 1.2 group ID 27 |
+    | WOLFSSL_ECC_BRAINPOOLP512R1         | brainpoolP512r1  | TLS 1.2 group ID 28 |
+    | WOLFSSL_ECC_BRAINPOOLP256R1TLS13    | brainpoolP256r1  | RFC 8734 TLS 1.3 ID |
+    | WOLFSSL_ECC_BRAINPOOLP384R1TLS13    | brainpoolP384r1  | RFC 8734 TLS 1.3 ID |
+    | WOLFSSL_ECC_BRAINPOOLP512R1TLS13    | brainpoolP512r1  | RFC 8734 TLS 1.3 ID |
+
+    Edwards / Montgomery curves:
+
+    | Identifier        | Required build option |
+    | ----------------- | --------------------- |
+    | WOLFSSL_ECC_X25519| HAVE_CURVE25519       |
+    | WOLFSSL_ECC_X448  | HAVE_CURVE448         |
+
+    SM2 (requires WOLFSSL_SM2):
+
+    | Identifier             | Group     |
+    | ---------------------- | --------- |
+    | WOLFSSL_ECC_SM2P256V1  | sm2p256v1 |
+
+    Finite-field DH (RFC 7919) groups (require HAVE_FFDHE and the matching
+    HAVE_FFDHE_NNNN macro for each size):
+
+    | Identifier         | Group       |
+    | ------------------ | ----------- |
+    | WOLFSSL_FFDHE_2048 | ffdhe2048   |
+    | WOLFSSL_FFDHE_3072 | ffdhe3072   |
+    | WOLFSSL_FFDHE_4096 | ffdhe4096   |
+    | WOLFSSL_FFDHE_6144 | ffdhe6144   |
+    | WOLFSSL_FFDHE_8192 | ffdhe8192   |
+
+    ML-KEM (post-quantum) groups (require HAVE_PQC, WOLFSSL_HAVE_MLKEM and
+    !WOLFSSL_NO_ML_KEM):
+
+    | Identifier         |
+    | ------------------ |
+    | WOLFSSL_ML_KEM_512 |
+    | WOLFSSL_ML_KEM_768 |
+    | WOLFSSL_ML_KEM_1024|
+
+    ML-KEM hybrid groups additionally require HAVE_ECC together with either
+    WOLFSSL_WC_MLKEM or HAVE_LIBOQS, and WOLFSSL_PQC_HYBRIDS (or
+    WOLFSSL_EXTRA_PQC_HYBRIDS for the "extra" set):
+
+    | Identifier                       | Hybrid flag set            |
+    | -------------------------------- | -------------------------- |
+    | WOLFSSL_SECP256R1MLKEM768        | WOLFSSL_PQC_HYBRIDS        |
+    | WOLFSSL_X25519MLKEM768           | WOLFSSL_PQC_HYBRIDS        |
+    | WOLFSSL_SECP384R1MLKEM1024       | WOLFSSL_PQC_HYBRIDS        |
+    | WOLFSSL_SECP256R1MLKEM512        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_SECP384R1MLKEM768        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_SECP521R1MLKEM1024       | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_X25519MLKEM512           | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_X448MLKEM768             | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+
+    Legacy Kyber groups (require HAVE_PQC and WOLFSSL_MLKEM_KYBER; hybrids
+    additionally require HAVE_ECC together with WOLFSSL_WC_MLKEM or
+    HAVE_LIBOQS):
+
+    | Identifier                  |
+    | --------------------------- |
+    | WOLFSSL_KYBER_LEVEL1        |
+    | WOLFSSL_KYBER_LEVEL3        |
+    | WOLFSSL_KYBER_LEVEL5        |
+    | WOLFSSL_P256_KYBER_LEVEL1   |
+    | WOLFSSL_P256_KYBER_LEVEL3   |
+    | WOLFSSL_P384_KYBER_LEVEL3   |
+    | WOLFSSL_P521_KYBER_LEVEL5   |
+    | WOLFSSL_X25519_KYBER_LEVEL1 |
+    | WOLFSSL_X25519_KYBER_LEVEL3 |
+    | WOLFSSL_X448_KYBER_LEVEL3   |
 
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created
     with wolfSSL_CTX_new().
-    \param [in] groups a list of key exchange groups by identifier.
-    \param [in] count the number of key exchange groups in groups.
+    \param [in] groups a list of key-exchange groups by identifier.
+    \param [in] count the number of identifiers in \p groups (must not exceed
+    WOLFSSL_MAX_GROUP_COUNT).
 
-    \return BAD_FUNC_ARG if a pointer parameter is null, the number of groups
-    exceeds WOLFSSL_MAX_GROUP_COUNT or not using TLS v1.3.
+    \return BAD_FUNC_ARG if a pointer parameter is NULL, \p count exceeds
+    WOLFSSL_MAX_GROUP_COUNT, or the underlying method is not a TLS method.
     \return WOLFSSL_SUCCESS if successful.
 
     _Example_
     \code
     int ret;
     WOLFSSL_CTX* ctx;
-    int* groups = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
-    int count = 2;
+    int groups[] = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
+    int count = sizeof(groups) / sizeof(groups[0]);
     ...
-    ret = wolfSSL_CTX_set1_groups_list(ctx, groups, count);
+    ret = wolfSSL_CTX_set_groups(ctx, groups, count);
     if (ret != WOLFSSL_SUCCESS) {
         // failed to set group list
     }
@@ -14288,8 +14738,6 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
 
     \sa wolfSSL_set_groups
     \sa wolfSSL_UseKeyShare
-    \sa wolfSSL_CTX_set_groups
-    \sa wolfSSL_set_groups
     \sa wolfSSL_CTX_set1_groups_list
     \sa wolfSSL_set1_groups_list
     \sa wolfSSL_preferred_group
@@ -14300,28 +14748,28 @@ int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
 /*!
     \ingroup Setup
 
-    \brief This function sets the list of elliptic curve groups to allow on
-    a wolfSSL.
-    The list is an array of group identifiers with the number of identifiers
-    specified in count.
-    Call this function to set the key exchange elliptic curve parameters to
-    use with the TLS v1.3 connections.
+    \brief This function sets the list of key-exchange groups (named elliptic
+    curves and KEMs) to allow on a wolfSSL session in order of preference. The
+    array format and the set of recognized identifiers are identical to those
+    documented for wolfSSL_CTX_set_groups(); refer to that function for the
+    full identifier table and required build options.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param [in] groups a list of key exchange groups by identifier.
-    \param [in] count the number of key exchange groups in groups.
+    \param [in] groups a list of key-exchange groups by identifier.
+    \param [in] count the number of identifiers in \p groups (must not exceed
+    WOLFSSL_MAX_GROUP_COUNT).
 
-    \return BAD_FUNC_ARG if a pointer parameter is null, the number of groups
-    exceeds WOLFSSL_MAX_GROUP_COUNT, any of the identifiers are unrecognized or
-    not using TLS v1.3.
+    \return BAD_FUNC_ARG if a pointer parameter is NULL, \p count exceeds
+    WOLFSSL_MAX_GROUP_COUNT, any of the identifiers are unrecognized, or the
+    underlying method is not a TLS method.
     \return WOLFSSL_SUCCESS if successful.
 
     _Example_
     \code
     int ret;
     WOLFSSL* ssl;
-    int* groups = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
-    int count = 2;
+    int groups[] = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
+    int count = sizeof(groups) / sizeof(groups[0]);
     ...
     ret = wolfSSL_set_groups(ssl, groups, count);
     if (ret != WOLFSSL_SUCCESS) {
@@ -14331,8 +14779,6 @@ int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
 
     \sa wolfSSL_CTX_set_groups
     \sa wolfSSL_UseKeyShare
-    \sa wolfSSL_CTX_set_groups
-    \sa wolfSSL_set_groups
     \sa wolfSSL_CTX_set1_groups_list
     \sa wolfSSL_set1_groups_list
     \sa wolfSSL_preferred_group
