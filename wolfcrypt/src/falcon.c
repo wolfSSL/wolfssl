@@ -662,6 +662,14 @@ int wc_falcon_check_key(falcon_key* key)
         return BAD_FUNC_ARG;
     }
 
+    if ((key->level != 1) && (key->level != 5)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (!key->pubKeySet || !key->prvKeySet) {
+        return PUBLIC_KEY_E;
+    }
+
     /* The public key is also decoded and stored within the private key buffer
      * behind the private key. Hence, we can compare both stored public keys. */
     if (key->level == 1) {

@@ -9814,8 +9814,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             return MEMORY_E;
 
         if (wc_falcon_init(falcon) == 0) {
-            tmpIdx = 0;
-            if (wc_falcon_set_level(falcon, 1) == 0) {
+            if ((*algoID == 0) && (wc_falcon_set_level(falcon, 1) == 0)) {
+                tmpIdx = 0;
                 if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
                     == 0) {
                     *algoID = FALCON_LEVEL1k;
@@ -9824,7 +9824,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Falcon Level 1 DER key");
                 }
             }
-            else if (wc_falcon_set_level(falcon, 5) == 0) {
+            if ((*algoID == 0) && (wc_falcon_set_level(falcon, 5) == 0)) {
+                tmpIdx = 0;
                 if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
                     == 0) {
                     *algoID = FALCON_LEVEL5k;
@@ -9833,8 +9834,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Falcon Level 5 DER key");
                 }
             }
-            else {
-                WOLFSSL_MSG("GetKeyOID falcon initialization failed");
+            if (*algoID == 0) {
+                WOLFSSL_MSG("GetKeyOID could not match Falcon DER key");
             }
             wc_falcon_free(falcon);
         }
