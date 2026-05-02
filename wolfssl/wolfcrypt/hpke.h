@@ -96,6 +96,9 @@ typedef struct {
     word16 aead;
     byte kem_suite_id[KEM_SUITE_ID_LEN];
     byte hpke_suite_id[HPKE_SUITE_ID_LEN];
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH)
+    byte* echSecret;
+#endif
 } Hpke;
 
 typedef struct {
@@ -105,6 +108,11 @@ typedef struct {
     byte exporter_secret[HPKE_Nsecret_MAX];
 } HpkeBaseContext;
 
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH)
+WOLFSSL_LOCAL int wc_HpkeInitEchSecret(Hpke* hpke);
+WOLFSSL_LOCAL void wc_HpkeFreeEchSecret(Hpke* hpke);
+#endif
 
 WOLFSSL_API int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap);
 WOLFSSL_API int wc_HpkeGenerateKeyPair(Hpke* hpke, void** keypair, WC_RNG* rng);
