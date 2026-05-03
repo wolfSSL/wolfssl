@@ -11384,6 +11384,51 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
         }
     }
 
+    /* Negative test: corrupted tag must be rejected with ASCON_AUTH_E. */
+    {
+        byte tkey[ASCON_AEAD128_KEY_SZ];
+        byte tnonce[ASCON_AEAD128_NONCE_SZ];
+        byte tpt[4] = { 0x00, 0x01, 0x02, 0x03 };
+        byte tct[4];
+        byte ttag[ASCON_AEAD128_TAG_SZ];
+        byte tbuf[4];
+
+        XMEMSET(tkey, 0xAA, sizeof(tkey));
+        XMEMSET(tnonce, 0xBB, sizeof(tnonce));
+
+        err = wc_AsconAEAD128_Init(&asconAEAD);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetKey(&asconAEAD, tkey);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetNonce(&asconAEAD, tnonce);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetAD(&asconAEAD, NULL, 0);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_EncryptUpdate(&asconAEAD, tct, tpt, sizeof(tpt));
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_EncryptFinal(&asconAEAD, ttag);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+
+        /* Corrupt one byte of the tag. */
+        ttag[0] ^= 0x01;
+
+        err = wc_AsconAEAD128_Init(&asconAEAD);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetKey(&asconAEAD, tkey);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetNonce(&asconAEAD, tnonce);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetAD(&asconAEAD, NULL, 0);
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, tbuf, tct, sizeof(tct));
+        if (err != 0) return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptFinal(&asconAEAD, ttag);
+        if (err != WC_NO_ERR_TRACE(ASCON_AUTH_E)) {
+            return WC_TEST_RET_ENC_EC(err);
+        }
+        wc_AsconAEAD128_Clear(&asconAEAD);
+    }
+
     return 0;
 }
 #endif /* HAVE_ASCON */
@@ -19835,6 +19880,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
 
         if (XMEMCMP(plain, test_wrap[i].data, test_wrap[i].dataLen) != 0)
             return WC_TEST_RET_ENC_I(i);
+    }
+
+    /* Negative test: corrupted wrapped data must be rejected with
+     * BAD_KEYWRAP_IV_E. */
+    {
+        wrapSz = wc_AesKeyWrap(test_wrap[0].kek, test_wrap[0].kekLen,
+                               test_wrap[0].data, test_wrap[0].dataLen,
+                               output, sizeof(output), NULL);
+        if (wrapSz < 0)
+            return WC_TEST_RET_ENC_EC(wrapSz);
+
+        /* Corrupt one byte of the wrapped data. */
+        output[0] ^= 0x01;
+
+        plainSz = wc_AesKeyUnWrap(test_wrap[0].kek, test_wrap[0].kekLen,
+                                  output, (word32)wrapSz,
+                                  plain, sizeof(plain), NULL);
+        if (plainSz != WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E))
+            return WC_TEST_RET_ENC_EC(plainSz);
     }
 
     return 0;
@@ -28598,6 +28662,58 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
     /* server sends M2 to client */
 
     if (!r) r = wc_SrpVerifyPeersProof(cli, serverProof, serverProofSz);
+
+    /* Negative test: corrupted proof must be rejected with SRP_VERIFY_E. */
+    if (!r) {
+        int rNeg;
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        Srp* cli2 = (Srp*)XMALLOC(sizeof *cli2, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (cli2 == NULL) {
+            r = WC_TEST_RET_ENC_NC;
+        }
+    #else
+        Srp cli2_buf[1];
+        Srp* cli2 = cli2_buf;
+    #endif
+        if (!r) {
+            XMEMSET(cli2, 0, sizeof *cli2);
+            /* Reset sizes consumed by the first exchange. */
+            clientPubKeySz = SRP_TEST_BUFFER_SIZE;
+            clientProofSz = SRP_MAX_DIGEST_SIZE;
+            rNeg = wc_SrpInit_ex(cli2, dgstType, SRP_CLIENT_SIDE, HEAP_HINT,
+                                  devId);
+            if (!rNeg) rNeg = wc_SrpSetUsername(cli2, username, usernameSz);
+            if (!rNeg) rNeg = wc_SrpSetParams(cli2, N, sizeof(N),
+                                               g, sizeof(g), salt,
+                                               sizeof(salt));
+            if (!rNeg) rNeg = wc_SrpSetPassword(cli2, password, passwordSz);
+            if (!rNeg) rNeg = wc_SrpGetPublic(cli2, clientPubKey,
+                                               &clientPubKeySz);
+            if (!rNeg) rNeg = wc_SrpComputeKey(cli2, clientPubKey,
+                                                clientPubKeySz, serverPubKey,
+                                                serverPubKeySz);
+            if (!rNeg) rNeg = wc_SrpGetProof(cli2, clientProof,
+                                              &clientProofSz);
+
+            /* Corrupt the server proof before verifying. */
+            serverProof[0] ^= 0x01;
+            if (!rNeg) {
+                rNeg = wc_SrpVerifyPeersProof(cli2, serverProof,
+                                               serverProofSz);
+                if (rNeg != WC_NO_ERR_TRACE(SRP_VERIFY_E)) {
+                    r = WC_TEST_RET_ENC_EC(rNeg);
+                }
+            }
+            else {
+                r = WC_TEST_RET_ENC_EC(rNeg);
+            }
+            wc_SrpTerm(cli2);
+        }
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        XFREE(cli2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    }
 
     wc_SrpTerm(cli);
     wc_SrpTerm(srv);
@@ -40554,6 +40670,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
         if (XMEMCMP(plain, in, inLen))
             ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+        /* Negative test: corrupt HMAC tag in encrypted msg, expect
+         * HASH_TYPE_E from wc_ecc_decrypt. */
+        out[x - 1] ^= 0x01;
+        y = sizeof(plain);
+        ret = wc_ecc_decrypt(servKey, tmpKey, out, x, plain, &y, NULL);
+        if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ret = 0; /* reset ret for following tests */
     }
 #endif
 
@@ -70258,6 +70383,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
                      testVectors[i].plaintextSz);
         if (ret != 0) {
             return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* Negative test: corrupted SIV must be rejected with AES_SIV_AUTH_E. */
+    {
+        ret = wc_AesSivEncrypt(testVectors[0].key, testVectors[0].keySz,
+                              testVectors[0].assoc1, testVectors[0].assoc1Sz,
+                              testVectors[0].nonce, testVectors[0].nonceSz,
+                              testVectors[0].plaintext,
+                              testVectors[0].plaintextSz, siv,
+                              computedCiphertext);
+        if (ret != 0) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        /* Corrupt one byte of the SIV tag. */
+        siv[0] ^= 0x01;
+        ret = wc_AesSivDecrypt(testVectors[0].key, testVectors[0].keySz,
+                              testVectors[0].assoc1, testVectors[0].assoc1Sz,
+                              testVectors[0].nonce, testVectors[0].nonceSz,
+                              computedCiphertext, testVectors[0].plaintextSz,
+                              siv, computedPlaintext);
+        if (ret != WC_NO_ERR_TRACE(AES_SIV_AUTH_E)) {
+            return WC_TEST_RET_ENC_EC(ret);
         }
     }
 
