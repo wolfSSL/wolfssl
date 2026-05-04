@@ -14386,9 +14386,14 @@ static int test_ech_server_sni_callback(WOLFSSL* ssl, int* ad, void* arg)
 
     /* reached by *_disable_conn test: expect name to be the public SNI when
      * client has ECH enabled, otherwise it should be the private SNI */
-    if (arg != NULL && *(int*)arg == 1 &&
-            XSTRCMP(name, echCbTestPublicName) == 0) {
-        return 0;
+    if (arg != NULL && *(int*)arg == 1) {
+        if (XSTRCMP(name, echCbTestPublicName) == 0) {
+            return 0;
+        }
+        else {
+            *ad = WOLFSSL_AD_UNRECOGNIZED_NAME;
+            return fatal_return;
+        }
     }
     else if (XSTRCMP(name, echCbTestPrivateName) == 0) {
         return 0;
@@ -14574,7 +14579,9 @@ static int test_wolfSSL_Tls13_ECH_all_algos(void)
     return EXPECT_RESULT();
 }
 
-/* Test ECH when no private SNI is set */
+/* Test ECH when no private SNI is set
+ * SNI is by default permissive so these should pass
+ *   (inner SNI is not required by ECH, only the outer SNI is required) */
 static int test_wolfSSL_Tls13_ECH_no_private_name(void)
 {
     EXPECT_DECLS;
@@ -14617,9 +14624,9 @@ static int test_wolfSSL_Tls13_ECH_no_private_name(void)
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
-        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+        WOLFSSL_ECH_STATUS_REJECTED);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
-        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+        WOLFSSL_ECH_STATUS_REJECTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -14639,9 +14646,9 @@ static int test_wolfSSL_Tls13_ECH_no_private_name(void)
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
-        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+        WOLFSSL_ECH_STATUS_REJECTED);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
-        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+        WOLFSSL_ECH_STATUS_REJECTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -14745,6 +14752,39 @@ static int test_wolfSSL_Tls13_ECH_bad_configs_ex(int hrr, int sniCb)
      * not receive the acceptance signal */
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
         WOLFSSL_ECH_STATUS_ACCEPTED);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+
+    /* verify with double public SNI */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* set public SNI for private SNI on client */
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
+        echCbTestConfigsLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        echCbTestPublicName, (word16)XSTRLEN(echCbTestPublicName)),
+            WOLFSSL_SUCCESS);
+
+    if (hrr) {
+        ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+    }
+    if (sniCb) {
+        wolfSSL_CTX_set_servername_callback(test_ctx.s_ctx,
+            test_ech_server_sni_callback);
+    }
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15295,6 +15335,132 @@ static int test_wolfSSL_Tls13_ECH_disable_conn_ex(int enableServer,
 
     test_ssl_memio_cleanup(&test_ctx);
 
+    return EXPECT_RESULT();
+}
+
+static const byte* test_find_bytes(const char* needle,
+    const byte* haystack, int hayLen)
+{
+    int needleLen = (int)XSTRLEN(needle);
+    int i;
+    if (hayLen < needleLen)
+        return NULL;
+    for (i = 0; i <= hayLen - needleLen; i++) {
+        if (XMEMCMP(haystack + i, needle, needleLen) == 0)
+            return haystack + i;
+    }
+    return NULL;
+}
+
+/* The public name must be visible and the private name must not be visible */
+static int test_wolfSSL_Tls13_ECH_wire_sni_ex(int hrr, int accept)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    WOLFSSL_CTX* tempCtx = NULL;
+    byte badConfig[128];
+    word32 badConfigLen = sizeof(badConfig);
+    const char* expectedSni =
+        accept ? echCbTestPrivateName : echCbTestPublicName;
+    void* sniName = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    /* Accept path uses the correct configs */
+    if (accept)
+        test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* Reject path installs bad configs (with the correct public name) */
+    if (!accept) {
+        ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+        ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, echCbTestPublicName,
+            0, 0, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(tempCtx, badConfig,
+            &badConfigLen), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_free(tempCtx);
+        ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, badConfig,
+            badConfigLen), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+            echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+            WOLFSSL_SUCCESS);
+    }
+
+    if (hrr)
+        ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+
+    /* On reject, client aborts with ech_required and won't send a cert. */
+    if (!accept) {
+        wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+    }
+
+    /* client writes CH1 into s_buff */
+    ExpectIntEQ(wolfSSL_connect(test_ctx.c_ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* CH1 wire bytes */
+    ExpectNotNull(test_find_bytes(echCbTestPublicName, test_ctx.s_buff,
+        test_ctx.s_len));
+    ExpectNull(test_find_bytes(echCbTestPrivateName, test_ctx.s_buff,
+        test_ctx.s_len));
+
+    if (hrr) {
+        /* server consumes CH1 and writes HRR into c_buff */
+        ExpectIntEQ(wolfSSL_accept(test_ctx.s_ssl), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_ctx.s_ssl->options.serverState,
+            SERVER_HELLO_RETRY_REQUEST_COMPLETE);
+
+        /* client reads HRR from c_buff and writes CH2 into s_buff */
+        ExpectIntEQ(wolfSSL_connect(test_ctx.c_ssl), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        /* CH2 wire bytes: same property must hold */
+        ExpectNotNull(test_find_bytes(echCbTestPublicName, test_ctx.s_buff,
+            test_ctx.s_len));
+        ExpectNull(test_find_bytes(echCbTestPrivateName, test_ctx.s_buff,
+            test_ctx.s_len));
+    }
+
+    /* drive remaining rounds and verify the correct SNI is authoritative */
+    if (accept) {
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+    }
+    else {
+        ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+    }
+
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, accept ? 1 : 0);
+    wolfSSL_SNI_GetRequest(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME, &sniName);
+    ExpectStrEQ((const char*)sniName, expectedSni);
+    sniName = NULL;
+    wolfSSL_SNI_GetRequest(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME, &sniName);
+    ExpectStrEQ((const char*)sniName, expectedSni);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_wire_sni(void)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(1, 1), TEST_SUCCESS);
     return EXPECT_RESULT();
 }
 
@@ -36390,6 +36556,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
     TEST_DECL(test_wolfSSL_Tls13_ECH_trial_decrypt),
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_wire_sni),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
     TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
     TEST_DECL(test_wolfSSL_Tls13_ECH_HRR_rejection),

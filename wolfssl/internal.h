@@ -3139,13 +3139,6 @@ typedef enum {
     ECH_PARSED_INTERNAL,
 } EchState;
 
-typedef enum {
-    ECH_OUTER_SNI,
-    ECH_INNER_SNI,
-    ECH_INNER_SNI_ATTEMPT,
-    ECH_SNI_DONE,
-} EchStateSNI;
-
 typedef struct EchCipherSuite {
     word16 kdfId;
     word16 aeadId;
@@ -3169,7 +3162,6 @@ typedef struct WOLFSSL_ECH {
     Hpke* hpke;
     HpkeBaseContext* hpkeContext;
     const byte* aad;
-    const char* privateName;
     void* ephemeralKey;
     WOLFSSL_EchConfig* echConfig;
     byte* innerClientHello;
@@ -3184,7 +3176,6 @@ typedef struct WOLFSSL_ECH {
     word16 kemId;
     word16 encLen;
     EchState state;
-    EchStateSNI sniState;
     byte type;
     byte configId;
     byte enc[HPKE_Npk_MAX];

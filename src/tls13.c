@@ -13954,18 +13954,12 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 *inOutIdx = echInOutIdx;
                 /* call again with the inner hello */
                 if (ret == 0) {
-                    if (((WOLFSSL_ECH*)echX->data)->sniState == ECH_OUTER_SNI) {
-                        ((WOLFSSL_ECH*)echX->data)->sniState = ECH_INNER_SNI;
-                    }
-
                     ssl->options.echProcessingInner = 1;
                     ret = DoTls13ClientHello(ssl,
                         ((WOLFSSL_ECH*)echX->data)->innerClientHello,
                         &echInOutIdx,
                         ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
                     ssl->options.echProcessingInner = 0;
-
-                    ((WOLFSSL_ECH*)echX->data)->sniState = ECH_SNI_DONE;
                 }
                 if (ret == 0 && ((WOLFSSL_ECH*)echX->data)->state !=
                         ECH_PARSED_INTERNAL) {
