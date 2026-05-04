@@ -3166,6 +3166,8 @@ typedef struct WOLFSSL_ECH {
     WOLFSSL_EchConfig* echConfig;
     byte* innerClientHello;
     byte* outerClientPayload;
+    /* the 'public' extensions (i.e., the public SNI would be stored here) */
+    TLSX* extensions;
     byte* confBuf;
     EchCipherSuite cipherSuite;
     word32 aadLen;
@@ -3186,6 +3188,8 @@ WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
 
 WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL* ssl, WOLFSSL_ECH* ech, byte* aad,
     word32 aadLen);
+
+WOLFSSL_LOCAL void TLSX_EchReplaceExtensions(WOLFSSL* ssl, byte accepted);
 
 
 WOLFSSL_LOCAL int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,

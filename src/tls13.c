@@ -5300,6 +5300,12 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
         ssl->hsHashes = tmpHashes;
     }
 
+    /* Skip only when the HRR signals ECH acceptance
+     * -> CH2 still needs ech->extensions for inner/outer extension swap
+     *    during write */
+    if (msgType != hello_retry_request || !ssl->options.echAccepted)
+        TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
+
     return ret;
 }
 #endif /* HAVE_ECH */
@@ -5865,6 +5871,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* server rejected ECH, fall back to outer */
             Free_HS_Hashes(ssl->hsHashesEch, ssl->heap);
             ssl->hsHashesEch = NULL;
+            /* EchCheckAcceptance is bypassed, so replace extensions now */
+            TLSX_EchReplaceExtensions(ssl, 0);
         }
         else {
             /* account for hrr extension instead of server random */
@@ -7681,15 +7689,18 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if defined(HAVE_ECH)
     if (!ssl->options.echProcessingInner && echX != NULL &&
-            ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
-        if (((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
+            ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
+        if (((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE &&
+                ((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
+            /* ECH accepted: use private extensions */
+            TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
             /* Client sent real ECH and inner hello was decrypted, jump to
              * exit so the caller can re-invoke with the inner hello */
             goto exit_dch;
         }
         else {
-            /* If ECH was accepted in ClientHello1 then ClientHello2 MUST
-             * contain an ECH extension */
+            /* If ECH was accepted in CH1 then CH2 MUST contain
+             * an ECH extension */
             if (ssl->options.serverState ==
                     SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
                     ssl->options.echAccepted) {
@@ -7697,10 +7708,16 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             "extension");
                 ERROR_OUT(INCOMPLETE_DATA, exit_dch);
             }
-            /* Server has ECH but client did not send ECH. Clear the
-             * response flag so the empty ECH extension is not written
-             * in EncryptedExtensions. */
-            echX->resp = 0;
+
+            /* Otherwise ECH rejected: use public extensions */
+            if (((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
+                TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
+                echX->resp = 0;
+            }
+            else if (((WOLFSSL_ECH*)echX->data)->state ==
+                    ECH_WRITE_RETRY_CONFIGS) {
+                TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
+            }
         }
     }
 #endif
