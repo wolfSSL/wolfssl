@@ -2043,3 +2043,6 @@ int wc_Microchip_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                    authTagSz, authIn, authInSz, AES_DECRYPTION);
 }
 #endif /* WOLFSSL_MICROCHIP_TA100 && !NO_AES && HAVE_AESGCM */
+
+#endif /* WOLFSSL_ATMEL || WOLFSSL_ATECC508A || WOLFSSL_ATECC608A ||
+        * WOLFSSL_ATECC_PKCB || WOLFSSL_MICROCHIP_TA100 */

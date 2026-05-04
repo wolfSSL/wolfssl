@@ -5302,7 +5302,6 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
 }
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
