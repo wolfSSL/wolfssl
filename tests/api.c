@@ -14015,6 +14015,8 @@ static int test_wolfSSL_Tls13_ECH_params_b64(void)
     const char* b64BadCiph = "AEX+DQBBFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAE/v4AAQASY2xvdWRmbGFyZS1lY2guY29tAAA=";
     /* ech configs with unrecognized mandatory extension */
     const char* b64Mandatory = "AEn+DQBFFAAgACBuAoQI8+liEVYQbXKBDeVgTmF2rfXuKO2knhwrN7jgTgAEAAEAAQASY2xvdWRmbGFyZS1lY2guY29tAAT6+gAA";
+    /* ech configs with unrecognized mandatory extension first */
+    const char* b64MandatoryFirst = "AJD+DQBGAQAgACCjR6+Qn9UYkMaWdXZzsby88vXFhPHJ2tWCDHQJLvMkEgAEAAEAAQATZWNoLXB1YmxpYy1uYW1lLmNvbQAE+voAAP4NAEICACAAIDDOry602zn7HwOn02yWPyLtC49sXhxDxlCXlMEBgGBeAAQAAQABABNlY2gtcHVibGljLW5hbWUuY29tAAA=";
     /* ech configs with bad version first */
     const char* b64BadVers1 = "AIz+HQBCAQAgACCjR6+Qn9UYkMaWdXZzsby88vXFhPHJ2tWCDHQJLvMkEgAEAAEAAQATZWNoLXB1YmxpYy1uYW1lLmNvbQAA/g0AQgIAIAAgMM6vLrTbOfsfA6fTbJY/Iu0Lj2xeHEPGUJeUwQGAYF4ABAABAAEAE2VjaC1wdWJsaWMtbmFtZS5jb20AAA==";
     /* ech configs with bad version second */
@@ -14081,6 +14083,20 @@ static int test_wolfSSL_Tls13_ECH_params_b64(void)
         b64Mandatory, (word32)XSTRLEN(b64Mandatory)));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
         b64Mandatory, (word32)XSTRLEN(b64Mandatory)));
+
+    /* unrecognized mandatory extension */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        b64MandatoryFirst, (word32)XSTRLEN(b64MandatoryFirst)));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        b64MandatoryFirst, (word32)XSTRLEN(b64MandatoryFirst)));
+    ExpectIntEQ(2, ctx->echConfigs->configId);
+    ExpectIntEQ(2, ssl->echConfigs->configId);
+
+    /* clear configs */
+    wolfSSL_CTX_SetEchEnable(ctx, 0);
+    wolfSSL_CTX_SetEchEnable(ctx, 1);
+    wolfSSL_SetEchEnable(ssl, 0);
+    wolfSSL_SetEchEnable(ssl, 1);
 
     /* bad version first, should only have config 2 set */
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
@@ -14474,9 +14490,7 @@ static int test_wolfSSL_Tls13_ECH_all_algos(void)
     return EXPECT_RESULT();
 }
 
-/* Test ECH when no private SNI is set
- * SNI is by default permissive so these should pass
- *   (inner SNI is not required by ECH, only the outer SNI is required) */
+/* Test ECH when no private SNI is set */
 static int test_wolfSSL_Tls13_ECH_no_private_name(void)
 {
     EXPECT_DECLS;
@@ -14514,14 +14528,19 @@ static int test_wolfSSL_Tls13_ECH_no_private_name(void)
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
 
+    /* SNI is permissive by default, force a failure when SNI is absent */
+    wolfSSL_SNI_SetOptions(test_ctx.s_ssl, WOLFSSL_SNI_HOST_NAME,
+        WOLFSSL_SNI_ABORT_ON_ABSENCE);
+
     ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
         echCbTestConfigsLen), WOLFSSL_SUCCESS);
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    /* server fails before sending response to client */
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
         WOLFSSL_ECH_STATUS_REJECTED);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
-        WOLFSSL_ECH_STATUS_REJECTED);
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -14539,11 +14558,13 @@ static int test_wolfSSL_Tls13_ECH_no_private_name(void)
     ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
         echCbTestConfigsLen), WOLFSSL_SUCCESS);
 
-    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    /* it is odd to have no private SNI but it's not necessarily an issue,
+     * there are other methods that could be used to route the connection */
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
-        WOLFSSL_ECH_STATUS_REJECTED);
+        WOLFSSL_ECH_STATUS_ACCEPTED);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
-        WOLFSSL_ECH_STATUS_REJECTED);
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 

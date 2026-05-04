@@ -4588,7 +4588,7 @@ typedef struct Sch13Args {
     word32 length;
 #if defined(HAVE_ECH)
     int clientRandomOffset;
-    int preXLength;
+    word32 preXLength;
     word32 expandedInnerLen;
     WOLFSSL_ECH* ech;
 #endif
@@ -4782,6 +4782,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #if defined(HAVE_ECH)
     if (!ssl->options.disableECH) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        void* hostName = NULL;
+        word16 nameLen;
         if (echX == NULL)
             return WOLFSSL_FATAL_ERROR;
 
@@ -4809,7 +4811,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
             /* set the type to inner */
             args->ech->type = ECH_TYPE_INNER;
-            args->preXLength = (int)args->length;
+            args->preXLength = args->length;
 
             /* get expanded inner size (used for transcript) */
             ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
@@ -4839,8 +4841,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                 return ret;
 
             /* calculate padding (RFC 9849, section 6.1.3) */
-            if (args->ech->privateName != NULL) {
-                word16 nameLen = (word16)XSTRLEN(args->ech->privateName);
+            nameLen = TLSX_SNI_GetRequest(ssl->extensions,
+                WOLFSSL_SNI_HOST_NAME, &hostName, 1);
+            if (hostName != NULL) {
                 if (nameLen > args->ech->echConfig->maxNameLen)
                     args->ech->paddingLen = 0;
                 else
@@ -4862,7 +4865,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                 return BUFFER_E;
 
             /* restore the length to pre-ClientHelloInner computations */
-            args->length = (word32)args->preXLength;
+            args->length = args->preXLength;
         }
     }
 #endif
