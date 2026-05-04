@@ -665,8 +665,9 @@ int test_wc_DsaCheckPubKey(void)
     ExpectIntEQ(mp_copy(&key.p, &key.g), 0);
     ExpectIntEQ(wc_DsaCheckPubKey(&key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* g in range [2, p-1] but NOT in the order-q subgroup.
-     * g = 2 will generate a subgroup of order != q, so 2^q mod p != 1. */
+    /* g in range [2, p-1] but ord(g) does not divide q.
+     * For our FIPS-style p, 2 has order (p-1)/k for small k and (p-1)/q
+     * is not 1, so 2^q mod p != 1 and the check rejects. */
     ExpectIntEQ(mp_set(&key.g, 2), 0);
     ExpectIntEQ(wc_DsaCheckPubKey(&key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
@@ -688,7 +689,7 @@ int test_wc_DsaCheckPubKey(void)
     ExpectIntEQ(mp_copy(&key.p, &key.y), 0);
     ExpectIntEQ(wc_DsaCheckPubKey(&key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* y in range but NOT in the order-q subgroup: y = 2. */
+    /* y in range but ord(y) does not divide q: y = 2 fails y^q mod p == 1. */
     ExpectIntEQ(mp_set(&key.y, 2), 0);
     ExpectIntEQ(wc_DsaCheckPubKey(&key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 

@@ -101,8 +101,8 @@ void wc_FreeDsaKey(DsaKey* key)
  *   - q divides (p - 1)            (FIPS 186-4 A.1.1.2)
  *   - 1 < g < p
  *   - 1 < y < p
- *   - g^q mod p == 1  (g generates the order-q subgroup)
- *   - y^q mod p == 1  (y is in the order-q subgroup)
+ *   - g^q mod p == 1  (i.e. ord(g) divides q)
+ *   - y^q mod p == 1  (i.e. ord(y) divides q)
  *
  * Note: this routine does not run primality tests on p or q. Full FIPS
  * 186-4 domain-parameter validation additionally requires that p and q be
@@ -1135,6 +1135,12 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
         return BAD_LENGTH_E;
     }
 
+    /* Validate domain parameters and public key before doing any
+     * signature math. */
+    ret = wc_DsaCheckPubKey(key);
+    if (ret != 0)
+        return ret;
+
     do {
 #ifdef WOLFSSL_SMALL_STACK
         w = (mp_int *)XMALLOC(sizeof *w, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1163,13 +1169,6 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
         qSz = mp_unsigned_bin_size(&key->q);
         if (qSz <= 0) {
             ret = BAD_FUNC_ARG;
-            break;
-        }
-
-        /* Validate domain parameters and public key before doing any
-         * signature math. */
-        ret = wc_DsaCheckPubKey(key);
-        if (ret != 0) {
             break;
         }
 
