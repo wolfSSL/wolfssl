@@ -3128,8 +3128,6 @@ AS_IF([test "x$with_cryptoauthlib" != "xno"], [
     ])
 ])
 
-AM_CONDITIONAL([BUILD_CRYPTOAUTHLIB], [test "x$ENABLED_CRYPTOAUTHLIB" = "xyes"])
-
 # TropicSquare TROPIC01
 # Example: "./configure --with-tropic01=/home/pi/libtropic"
 ENABLED_TROPIC01="no"

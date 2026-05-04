@@ -39,7 +39,10 @@
     #include <calib/calib_command.h>
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(HAVE_AESGCM)
-    #include <cryptoauthlib/calib/calib_aes_gcm.h>
+    /* Use the same include style as <calib/calib_command.h> above so the
+     * single -I added by configure.ac (either .../include or
+     * .../include/cryptoauthlib) resolves both. */
+    #include <calib/calib_aes_gcm.h>
 #endif
 #ifndef ATECC_MAX_SLOT
 #define ATECC_MAX_SLOT      (0x8) /* Only use 0-7 */

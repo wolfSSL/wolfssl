@@ -1227,7 +1227,6 @@
     #endif
 #endif
 
-/*#ifdef WOLFSSL_ATECC508A*/
 #if defined(WOLFSSL_ATECC508A) || \
     defined(WOLFSSL_MICROCHIP_TA100)
     /* backwards compatibility */

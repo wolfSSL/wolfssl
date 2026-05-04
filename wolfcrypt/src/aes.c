@@ -10162,7 +10162,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         aes->keylen == TA_KEY_TYPE_AES128_SIZE &&
         ivSz == TA_AES_GCM_IV_LENGTH &&
         authTagSz == TA_AES_GCM_TAG_LENGTH &&
-        (authInSz + sz) <= TA_AES_GCM_MAX_DATA_SIZE) {
+        sz <= TA_AES_GCM_MAX_DATA_SIZE &&
+        authInSz <= (word32)(TA_AES_GCM_MAX_DATA_SIZE - sz)) {
         return wc_Microchip_AesGcmEncrypt(
             aes, out, in, sz,
             iv, ivSz,
@@ -10906,7 +10907,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         aes->keylen == TA_KEY_TYPE_AES128_SIZE &&
         ivSz == TA_AES_GCM_IV_LENGTH &&
         authTagSz == TA_AES_GCM_TAG_LENGTH &&
-        (authInSz + sz) <= TA_AES_GCM_MAX_DATA_SIZE) {
+        sz <= TA_AES_GCM_MAX_DATA_SIZE &&
+        authInSz <= (word32)(TA_AES_GCM_MAX_DATA_SIZE - sz)) {
         return wc_Microchip_AesGcmDecrypt(
             aes, out, in, sz, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);

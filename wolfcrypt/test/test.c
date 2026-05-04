@@ -37122,10 +37122,8 @@ done:
     WC_FREE_VAR(sig, HEAP_HINT);
     WC_FREE_VAR(digest, HEAP_HINT);
 #endif
-#if defined(WOLFSSL_MICROCHIP_TA100)
-    atmel_ecc_free(ATMEL_SLOT_ECDHE_ALICE);
-    atmel_ecc_free(ATMEL_SLOT_ECDHE_BOB);
-#endif
+    /* Slot cleanup happens via wc_ecc_free(userA/userB) above; do not call
+     * atmel_ecc_free with the slot-type enum constants. */
     (void)keySize;
     (void)curve_id;
     (void)rng;

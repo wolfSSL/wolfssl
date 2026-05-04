@@ -147,7 +147,7 @@ static int ateccx08a_cfg_initialized = 0;
         .devtype    = MICROCHIP_DEV_TYPE,
         .atcai2c = {
             #ifdef ATCA_ENABLE_DEPRECATED
-                .slave_address = 1,
+                .slave_address = ATECC_I2C_ADDR,
             #else
                 .address = ATECC_I2C_ADDR,
             #endif
@@ -578,11 +578,12 @@ int atmel_get_rev_info(word32* revision)
     WOLFSSL_MSG("Waking device...");
 #endif
     ret = atcab_wakeup();
+    if (ret != ATCA_SUCCESS) {
 #ifdef WOLFSSL_ATECC_DEBUG
-    if (ret != 0) {
         WOLFSSL_MSG("atcab_wakeup failed");
-    }
 #endif
+        return atmel_ecc_translate_err(ret);
+    }
     ret = atcab_info((uint8_t*)revision);
     ret = atmel_ecc_translate_err(ret);
     return ret;
@@ -616,8 +617,11 @@ int atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms)
 
 #ifdef WOLFSSL_ATECC_ECDH_ENC
     #ifdef WOLFSSL_MICROCHIP_TA100
-        (void)slotId;
-        ret = talib_ecdh_compat(atcab_get_device(), MAP_TO_HANDLE(slotIdEnc),
+        /* TA100 ECDH uses the ephemeral private-key slot; the encryption
+         * parent slot is allocated above only for parity with the
+         * non-TA100 atcab_ecdh_enc path and is not consumed here. */
+        (void)slotIdEnc;
+        ret = talib_ecdh_compat(atcab_get_device(), MAP_TO_HANDLE(slotId),
                                 peerKey, pms);
     #else
         /* send the encrypted version of the ECDH command */
@@ -922,24 +926,34 @@ int wc_Microchip_rsa_create_key(struct RsaKey* key, int size, long e)
     ret = talib_handle_init_public_key(&uKeyA, WOLFSSL_TA_KEY_TYPE_RSA,
             TA_ALG_MODE_RSA_SSA_PSS, 0, 0);
     if (ret != ATCA_SUCCESS)
-        return WC_HW_E;
+        goto err_free_r;
 
     ta100_fix_property_endian(&uKeyA);
 
     ret = talib_create_element(atcab_get_device(), &uKeyA, &key->uKeyH);
     if (ret != ATCA_SUCCESS)
-        return WC_HW_E;
+        goto err_free_r;
 
     ret = talib_genkey_base(atcab_get_device(), TA_KEYGEN_MODE_NEWKEY,
             (uint32_t)key->rKeyH, key->uKey, &uKey_len);
     if (ret != ATCA_SUCCESS)
-        return WC_HW_E;
+        goto err_free_ru;
 
     /* Use talib_write_element, not talib_write_pub_key */
     ret = talib_write_element(atcab_get_device(), key->uKeyH,
             (uint16_t)uKey_len, key->uKey);
+    if (ret != ATCA_SUCCESS)
+        goto err_free_ru;
 
     return atmel_ecc_translate_err(ret);
+
+err_free_ru:
+    (void)talib_delete_handle(atcab_get_device(), (uint32_t)key->uKeyH);
+    key->uKeyH = 0;
+err_free_r:
+    (void)talib_delete_handle(atcab_get_device(), (uint32_t)key->rKeyH);
+    key->rKeyH = 0;
+    return WC_HW_E;
 }
 
 int wc_Microchip_rsa_encrypt(const byte* in, word32 inLen, byte* out,
@@ -1255,7 +1269,10 @@ int atmel_init(void)
             }
             #ifdef WOLFSSL_MICROCHIP_TA100
                 /* create handles for TA100 */
-                atmel_createHandles();
+                if (atmel_createHandles() != 0) {
+                    WOLFSSL_MSG("atmel_createHandles failed");
+                    return WC_HW_E;
+                }
             #endif
         }
 

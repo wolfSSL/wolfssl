@@ -10575,13 +10575,8 @@ exit_rsa_sign:
                                           1, &times, ntimes, &pending)) {
                     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                         !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-                        #if defined(WOLFSSL_MICROCHIP_TA100)
-                            ret = wc_RsaSSL_Verify(message, len,
-                                enc[i], rsaKeySz/8, rsaKey[i]);
-                        #else
                             ret = wc_RsaSSL_Verify(enc[i], idx, out[i],
                                                       rsaKeySz/8, rsaKey[i]);
-                        #endif
                     #elif defined(USE_CERT_BUFFERS_2048)
                         XMEMCPY(enc[i], rsa_2048_sig, sizeof(rsa_2048_sig));
                         idx = sizeof(rsa_2048_sig);

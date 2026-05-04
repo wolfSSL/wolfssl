@@ -3837,18 +3837,11 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return WC_HW_E;
         }
-        else if (rsa_type == RSA_PUBLIC_DECRYPT &&
-                                         pad_value == RSA_BLOCK_TYPE_1) {
-            if (key->uKeyH != 0) {
-                int tmp;
-                if (pad_type != WC_RSA_PSS_PAD) {
-                    return WC_HW_E;
-                }
-                return wc_Microchip_rsa_verify(in, inLen,
-                    out, outLen, key, &tmp);
-            }
-            return WC_HW_E;
-        }
+        /* Note: RSA_PUBLIC_DECRYPT (verify) is intentionally not intercepted
+         * here. wc_Microchip_rsa_verify takes a digest as input, not a raw
+         * signature blob; the proper TA100 short-circuit lives in the
+         * wc_RsaPSS_CheckPadding / wc_RsaPSS_VerifyCheck path which has the
+         * digest available. */
     #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
             ret = se050_rsa_private_decrypt(in, inLen, out, outLen, key,

@@ -5660,16 +5660,15 @@ int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng)
     return err;
 }
 
-#if defined(WOLFSSL_MICROCHIP_TA100)
-static WC_INLINE int ta100_curve_id_for_key(const ecc_key* key)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
+/* Resolve the curve id to pass to the Microchip backend. Keep the curve
+ * distinction by id (not size): SECP256R1, SECP256K1 and BRAINPOOLP256R1 are
+ * all 32 bytes and must NOT be collapsed onto SECP256R1. */
+static WC_INLINE int microchip_curve_id_for_key(const ecc_key* key)
 {
     if (key != NULL && key->dp != NULL) {
-        switch (key->dp->size) {
-            case 28: return ECC_SECP224R1;
-            case 32: return ECC_SECP256R1;
-            case 48: return ECC_SECP384R1;
-            default: return key->dp->id;
-        }
+        return key->dp->id;
     }
     return ECC_CURVE_DEF;
 }
@@ -5764,24 +5763,21 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_MICROCHIP_TA100)
-#if !defined(WOLFSSL_MICROCHIP_TA100)
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    /* TA100 supports multiple curves natively. */
     if (key->dp->id == ECC_SECP256R1 ||
         key->dp->id == ECC_SECP224R1 ||
         key->dp->id == ECC_SECP384R1 ||
         key->dp->id == ECC_SECP256K1 ||
         key->dp->id == ECC_BRAINPOOLP256R1) {
-        /* supports more than ECC256R1 curve */
 #else
-    if (key->dp->id == ECC_SECP256R1 ||
-        key->dp->id == ECC_SECP224R1 ||
-        key->dp->id == ECC_SECP384R1 ||
-        key->dp->id == ECC_SECP256K1 ||
-        key->dp->id == ECC_BRAINPOOLP256R1) {
+    /* ATECC508A/608A hardware only supports SECP256R1. */
+    if (key->dp->id == ECC_SECP256R1) {
 #endif
        key->type = ECC_PRIVATEKEY;
        if (key->slot == ATECC_INVALID_SLOT)
            key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
-       err = atmel_ecc_create_key(key->slot, ta100_curve_id_for_key(key),
+       err = atmel_ecc_create_key(key->slot, microchip_curve_id_for_key(key),
            key->pubkey_raw);
 
        /* populate key->pubkey */
@@ -6282,12 +6278,23 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     defined(WOLFSSL_MICROCHIP_TA100)
     key->slot = ATECC_INVALID_SLOT;
 #ifdef WOLFSSL_MICROCHIP_TA100
-    /* TA100 needs pubkey initialized to populate after genkey */
+    /* TA100 needs pubkey initialized to populate after genkey. With
+     * ALT_ECC_SIZE the x/y/z pointers must first be aimed at the inline
+     * xyz[] storage; mp_init_multi otherwise dereferences NULL. */
+#ifdef ALT_ECC_SIZE
+    key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
+    key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
+    key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
+    alt_fp_init(key->pubkey.x);
+    alt_fp_init(key->pubkey.y);
+    alt_fp_init(key->pubkey.z);
+#else
     ret = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
                         NULL, NULL, NULL);
     if (ret != MP_OKAY) {
         return MEMORY_E;
     }
+#endif
 #endif
 #else
 #if defined(WOLFSSL_KCAPI_ECC)
@@ -6531,14 +6538,14 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
          defined(WOLFSSL_MICROCHIP_TA100)
 #if defined(WOLFSSL_MICROCHIP_TA100)
-        if (ta100_curve_id_for_key(key) == ECC_SECP256R1) {
+        if (microchip_curve_id_for_key(key) == ECC_SECP256R1) {
             (void)inlen;
             /* Sign: Result is 32-bytes of R then 32-bytes of S */
             err = atmel_ecc_sign(key->slot, in, out);
         }
         else {
             /* Sign: Result is raw R||S */
-            err = atmel_ecc_sign_ex(key->slot, ta100_curve_id_for_key(key),
+            err = atmel_ecc_sign_ex(key->slot, microchip_curve_id_for_key(key),
                 in, inlen, out);
         }
 #else
@@ -9446,7 +9453,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif /* WOLFSSL_SE050 */
 
 #if defined(WOLFSSL_MICROCHIP_TA100)
-    if (ta100_curve_id_for_key(key) == ECC_SECP256R1) {
+    if (microchip_curve_id_for_key(key) == ECC_SECP256R1) {
         err = atmel_ecc_verify(hash, sigRS, key->pubkey_raw, res);
         if (err != 0) {
             return err;
@@ -9455,7 +9462,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     }
     else {
         err = atmel_ecc_verify_ex(hash, hashlen, sigRS, key->pubkey_raw,
-            keySz * 2, ta100_curve_id_for_key(key), res);
+            keySz * 2, microchip_curve_id_for_key(key), res);
         if (err != 0) {
            return err;
         }
