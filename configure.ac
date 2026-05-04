@@ -4899,6 +4899,15 @@ then
     test -z "$enable_asynccrypt_sw" && enable_asynccrypt_sw=yes
 fi
 
+# Handle RSA/DH nonblock - the SP non-blocking dispatch wants the same
+# WOLFSSL_ASYNC_CRYPT_SW shim that ECC/Curve25519 nonblock use so the
+# TLS layer can manage per-SSL nb contexts and yield MP_WOULDBLOCK.
+if test "$enable_rsa" = "nonblock" || test "$enable_dh" = "nonblock"
+then
+    test -z "$enable_asynccrypt" && enable_asynccrypt=yes
+    test -z "$enable_asynccrypt_sw" && enable_asynccrypt_sw=yes
+fi
+
 if test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_QUIC" = "yes" && test "$ENABLED_FIPS" = "no"
 then
     ENABLED_CURVE25519=yes
@@ -5415,7 +5424,7 @@ fi
 
 # RSA
 AC_ARG_ENABLE([rsa],
-    [AS_HELP_STRING([--enable-rsa],[Enable RSA (default: enabled)])],
+    [AS_HELP_STRING([--enable-rsa],[Enable RSA (default: enabled). Set to "nonblock" to enable non-blocking RSA via TFM fp_exptmod_nb or SP small mod_exp_nb])],
     [ ENABLED_RSA=$enableval ],
     [ ENABLED_RSA=yes ]
     )
@@ -5423,6 +5432,17 @@ AC_ARG_ENABLE([rsa],
 if test "$ENABLED_RSA" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
+elif test "$ENABLED_RSA" = "nonblock"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NONBLOCK"
+    ENABLED_RSA=yes
+    ENABLED_CERTS=yes
+    # asynccrypt + asynccrypt-sw are auto-enabled earlier in this file when
+    # --enable-rsa=nonblock is detected, so the TLS layer can pick up the
+    # per-SSL nb context and yield MP_WOULDBLOCK. RSA_LOW_MEM is left as a
+    # user choice - the SP non-block backend's compile-time check in
+    # wolfssl/wolfcrypt/rsa.h enforces it for SP, while the TFM (fastmath)
+    # backend supports the CRT path without it.
 else
     # turn off RSA if leanpsk or leantls on
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
@@ -5502,7 +5522,7 @@ fi
 
 # DH
 AC_ARG_ENABLE([dh],
-    [AS_HELP_STRING([--enable-dh],[Enable DH (default: enabled)])],
+    [AS_HELP_STRING([--enable-dh],[Enable DH (default: enabled). Set to "nonblock" to enable non-blocking DH key agreement via SP small mod_exp_nb])],
     [ ENABLED_DH=$enableval ],
     [ ENABLED_DH=yes ]
     )
@@ -5515,6 +5535,11 @@ fi
 if test "$ENABLED_DH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DH"
+elif test "$ENABLED_DH" = "nonblock"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_DH_NONBLOCK"
+    ENABLED_DH=yes
+    # asynccrypt + asynccrypt-sw are auto-enabled earlier in this file.
 else
     # turn off DH if leanpsk or leantls on
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"

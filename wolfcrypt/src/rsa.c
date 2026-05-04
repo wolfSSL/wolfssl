@@ -2284,12 +2284,69 @@ static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key)
 {
     int    ret = 0;
+#ifdef USE_FAST_MATH
     word32 keyLen, len;
+#endif
+    /* SP non-blocking RSA wrappers depend on sp_<N>_mod_exp_<W>_nb,
+     * which the SP generator only emits when (!RSA_PUBLIC_ONLY ||
+     * HAVE_SP_DH). Match that gate here so the dispatch is omitted when
+     * those symbols are not available. */
+#if defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_HAVE_SP_DH))
+    int bits;
+#endif
 
     if (key == NULL || key->nb == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_HAVE_SP_DH))
+    bits = mp_count_bits(&key->n);
+#ifndef WOLFSSL_SP_NO_2048
+    if (bits == 2048) {
+        if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+            return sp_RsaPublic_2048_nb(&key->nb->sp_ctx, in, inLen,
+                       &key->e, &key->n, out, outLen);
+        }
+    #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+        (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+        return sp_RsaPrivate_2048_nb(&key->nb->sp_ctx, in, inLen,
+                   &key->d, &key->n, out, outLen);
+    #endif
+    }
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+    if (bits == 3072) {
+        if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+            return sp_RsaPublic_3072_nb(&key->nb->sp_ctx, in, inLen,
+                       &key->e, &key->n, out, outLen);
+        }
+    #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+        (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+        return sp_RsaPrivate_3072_nb(&key->nb->sp_ctx, in, inLen,
+                   &key->d, &key->n, out, outLen);
+    #endif
+    }
+#endif
+#ifdef WOLFSSL_SP_4096
+    if (bits == 4096) {
+        if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+            return sp_RsaPublic_4096_nb(&key->nb->sp_ctx, in, inLen,
+                       &key->e, &key->n, out, outLen);
+        }
+    #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+        (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+        return sp_RsaPrivate_4096_nb(&key->nb->sp_ctx, in, inLen,
+                   &key->d, &key->n, out, outLen);
+    #endif
+    }
+#endif
+#endif /* SP nonblock RSA */
+
+#ifdef USE_FAST_MATH
     if (key->nb->exptmod.state == TFM_EXPTMOD_NB_INIT) {
         if (mp_init(&key->nb->tmp) != MP_OKAY) {
             ret = MP_INIT_E;
@@ -2353,6 +2410,18 @@ static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
     }
 
     mp_clear(&key->nb->tmp);
+#else
+    /* No non-blocking backend available for this build. The SP non-block
+     * dispatch above only matches enabled key sizes; if we reach this
+     * point the key is not 2048/3072/4096 (or SP RSA itself isn't built)
+     * and TFM fastmath isn't compiled in either. */
+    (void)in;
+    (void)inLen;
+    (void)out;
+    (void)outLen;
+    (void)type;
+    ret = NOT_COMPILED_IN;
+#endif /* USE_FAST_MATH */
 
     return ret;
 }
@@ -3138,6 +3207,18 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT_SW */
 
+#ifdef WC_RSA_NONBLOCK
+    /* When a non-blocking context is attached and the SP nonblock backend
+     * is available, drive the chunked state machine here. wolfAsync_DoSw
+     * (line "if (ret == FP_WOULDBLOCK) ret = WC_PENDING_E;" at the bottom
+     * of the SW switch in wolfcrypt/src/async.c, FP_WOULDBLOCK aliases
+     * MP_WOULDBLOCK) translates per-yield MP_WOULDBLOCK into WC_PENDING_E
+     * so the TLS / async event loop can drive the operation to completion. */
+    if (key->nb != NULL) {
+        return wc_RsaFunctionNonBlock(in, inLen, out, outLen, type, key);
+    }
+#endif
+
     switch (type) {
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     case RSA_PRIVATE_DECRYPT:
@@ -3503,12 +3584,20 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                         key->n.raw.len > 0) {
+        /* wc_RsaFunctionAsync dispatches to the SP nonblock state machine
+         * in its compute path when key->nb is attached - wolfAsync_DoSw
+         * (in wolfcrypt/src/async.c) translates per-yield FP_WOULDBLOCK
+         * (alias of MP_WOULDBLOCK) into WC_PENDING_E so the TLS / async
+         * event loop can drive completion. */
         ret = wc_RsaFunctionAsync(in, inLen, out, outLen, type, key, rng);
     }
     else
 #endif
 #ifdef WC_RSA_NONBLOCK
     if (key->nb) {
+        /* Direct (non-async) nonblock dispatch - the caller (e.g. wolfcrypt
+         * test) drives the loop on MP_WOULDBLOCK directly. Reached when no
+         * async marker is set on the key. */
         ret = wc_RsaFunctionNonBlock(in, inLen, out, outLen, type, key);
     }
     else
@@ -5688,7 +5777,7 @@ int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb)
 
     return 0;
 }
-#ifdef WC_RSA_NONBLOCK_TIME
+#if defined(WC_RSA_NONBLOCK_TIME) && defined(USE_FAST_MATH)
 int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs, word32 cpuMHz)
 {
     if (key == NULL || key->nb == NULL) {
@@ -5700,7 +5789,7 @@ int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs, word32 cpuMHz)
 
     return 0;
 }
-#endif /* WC_RSA_NONBLOCK_TIME */
+#endif /* WC_RSA_NONBLOCK_TIME && USE_FAST_MATH */
 #endif /* WC_RSA_NONBLOCK */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY

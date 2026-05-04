@@ -49,6 +49,23 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#ifdef WC_DH_NONBLOCK
+    /* Non-blocking DH currently requires the SP small backend with the
+     * non-blocking + no-malloc + non-fast-modexp trio. */
+    #if !defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_SP_NONBLOCK)
+        #error WC_DH_NONBLOCK requires WOLFSSL_HAVE_SP_DH + WOLFSSL_SP_NONBLOCK
+    #endif
+    #if !defined(WOLFSSL_SP_SMALL)
+        #error WC_DH_NONBLOCK requires WOLFSSL_SP_SMALL
+    #endif
+    #if !defined(WOLFSSL_SP_NO_MALLOC)
+        #error WC_DH_NONBLOCK requires WOLFSSL_SP_NO_MALLOC
+    #endif
+    #if defined(WOLFSSL_SP_FAST_MODEXP)
+        #error WC_DH_NONBLOCK is incompatible with WOLFSSL_SP_FAST_MODEXP
+    #endif
+#endif
+
 typedef struct DhParams {
 #ifdef HAVE_FFDHE_Q
     const byte* q;
@@ -59,6 +76,23 @@ typedef struct DhParams {
     const byte* g;
     word32      g_len;
 } DhParams;
+
+#ifdef WC_DH_NONBLOCK
+/* Non-blocking DH context. Holds the SP wrapper state across yields.
+ * Caller allocates one DhNb per active operation and binds it to a key
+ * via wc_DhSetNonBlock(). Lifetime must outlast the operation. */
+typedef struct DhNb {
+#if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
+    sp_dh_ctx_t sp_ctx;
+#else
+    int unused;
+#endif
+    /* Set once wc_DhCheckPubKey has succeeded for this op so subsequent
+     * MP_WOULDBLOCK retries skip re-validating the peer public key. */
+    byte pubKeyValidated;
+} DhNb;
+#endif
 
 /* Diffie-Hellman Key */
 struct DhKey {
@@ -74,6 +108,9 @@ struct DhKey {
     int trustedGroup;
 #ifdef WOLFSSL_KCAPI_DH
     struct kcapi_handle* handle;
+#endif
+#ifdef WC_DH_NONBLOCK
+    DhNb* nb; /* non-blocking context, NULL when not in non-block mode */
 #endif
 };
 
@@ -162,6 +199,10 @@ WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g
 WOLFSSL_API int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz,
                         const byte* g, word32 gSz, const byte* q, word32 qSz);
 WOLFSSL_API int wc_DhSetNamedKey(DhKey* key, int name);
+
+#ifdef WC_DH_NONBLOCK
+WOLFSSL_API int wc_DhSetNonBlock(DhKey* key, DhNb* nb);
+#endif
 WOLFSSL_API int wc_DhGetNamedKeyParamSize(int name,
         word32* p, word32* g, word32* q);
 WOLFSSL_API word32 wc_DhGetNamedKeyMinSize(int name);
