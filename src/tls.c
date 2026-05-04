@@ -2385,6 +2385,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     word16 offset = 0;
     int cacheOnly = 0;
     SNI *sni = NULL;
+    const char *hostName = NULL;
     byte type;
     byte matched;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
@@ -2487,14 +2488,14 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return 0;
 #endif
 
-    {
-        const char* hostName = (sni != NULL) ? sni->data.host_name : NULL;
-        matched = cacheOnly || (hostName != NULL &&
-            XSTRLEN(hostName) == size &&
-            XSTRNCMP(hostName, (const char*)input + offset, size) == 0);
-    }
+    hostName = (sni != NULL) ? sni->data.host_name : NULL;
+    matched = (hostName != NULL &&
+        XSTRLEN(hostName) == size &&
+        XSTRNCMP(hostName, (const char*)input + offset, size) == 0);
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    /* While parsing the outer CH accept a match against any
+     * echConfig publicName */
     if (!matched && ech != NULL && !ssl->options.echProcessingInner) {
         workingConfig = ech->echConfig;
         while (workingConfig != NULL) {
@@ -2505,8 +2506,16 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 break;
             workingConfig = workingConfig->next;
         }
+
+        /* If a publicName is matched then this SNI is not something that should
+         * be forcibly cached */
+        if (matched)
+            cacheOnly = 0;
     }
 #endif
+
+    if (!matched)
+        matched = cacheOnly;
 
     if (matched ||
             (sni != NULL && (sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH))) {
@@ -13881,6 +13890,7 @@ static int TLSX_ECH_Use(WOLFSSL_EchConfig* echConfig, TLSX** extensions,
         XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
+    ForceZero(ech->hpke, sizeof(Hpke));
     ret = wc_HpkeInit(ech->hpke, ech->kemId, ech->cipherSuite.kdfId,
         ech->cipherSuite.aeadId, heap);
     /* setup the ephemeralKey */
@@ -16709,11 +16719,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 /* Returns 1 if the extensions should be hidden for this write */
-static int TLSX_EchShouldHideInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
+static int TLSX_EchShouldHideInner(WOLFSSL_ECH* ech)
 {
     if (ech == NULL || ech->type != ECH_TYPE_OUTER)
         return 0;
-    return ssl->options.echAccepted || ech->innerCount == 0;
+    return 1;
 }
 
 /* Swap matching extension types between *sslExts and *echExts.
@@ -16734,7 +16744,7 @@ static word16 TLSX_EchSwapExtensions(TLSX** sslExts, TLSX** echExts,
     TLSX* inner;
     TLSX** outerLink;
     TLSX** innerLink;
-    word16 appended = 0;
+    word16 prepended = 0;
 
     /* unhook popCount nodes off *sslExts head into chunk.
      * Head-prepend undoes the reversal caused by appending onto sslExts. */
@@ -16769,19 +16779,19 @@ static word16 TLSX_EchSwapExtensions(TLSX** sslExts, TLSX** echExts,
             *outerLink  = outer->next;
             outer->next = *sslExts;
             *sslExts    = outer;
-            appended++;
+            prepended++;
         }
     }
 
     /* outerLink is at the tail of *echExts; append the chunk */
     *outerLink = chunk;
 
-    return appended;
+    return prepended;
 }
 
 /* If ECH is accepted, delete ech->extensions
- * If rejected, replace matching ssl->extensions with ech->extensions, appending
- *   to head if necessary */
+ * If rejected, replace matching ssl->extensions with ech->extensions,
+ *   prepending to head if necessary */
 void TLSX_EchReplaceExtensions(WOLFSSL* ssl, byte accepted)
 {
     TLSX* echX;
@@ -16910,24 +16920,19 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     TLSX* echX = NULL;
     WOLFSSL_ECH* ech = NULL;
     word16 count = 0;
-    word16 appended = 0;
+    word16 prepended = 0;
     byte installed = 0;
 
     if (ssl->extensions)
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-    if (echX == NULL && ssl->ctx && ssl->ctx->extensions)
-        echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
     if (echX != NULL)
         ech = (WOLFSSL_ECH*)echX->data;
 
-    if (TLSX_EchShouldHideInner(ssl, ech)) {
-        appended = TLSX_EchSwapExtensions(&ssl->extensions,
+    if (TLSX_EchShouldHideInner(ech)) {
+        prepended = TLSX_EchSwapExtensions(&ssl->extensions,
             &ech->extensions, 0);
         installed = 1;
     }
-
-    if (echX != NULL)
-        ech = (WOLFSSL_ECH*)echX->data;
 
     /* if encoding, then count encoded form of inner ClientHello.
      * `semaphore` is in/out so encodable extensions will later be ignored */
@@ -16940,9 +16945,13 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     if (ret == 0 && ssl->ctx && ssl->ctx->extensions)
         ret = TLSX_GetSize(ssl->ctx->extensions, semaphore, msgType, pLength);
 
-    if (installed)
-        (void)TLSX_EchSwapExtensions(&ssl->extensions, &ech->extensions,
-            appended);
+    if (installed) {
+        prepended = TLSX_EchSwapExtensions(&ssl->extensions, &ech->extensions,
+            prepended);
+        if (ret == 0 && prepended != 0) {
+            ret = BAD_STATE_E;
+        }
+    }
     return ret;
 }
 #endif
@@ -17075,18 +17084,16 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
     int ret = 0;
     TLSX* echX = NULL;
     WOLFSSL_ECH* ech = NULL;
-    word16 appended = 0;
+    word16 prepended = 0;
     byte installed = 0;
 
     if (ssl->extensions)
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-    if (echX == NULL && ssl->ctx && ssl->ctx->extensions)
-        echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
     if (echX != NULL)
         ech = (WOLFSSL_ECH*)echX->data;
 
-    if (TLSX_EchShouldHideInner(ssl, ech)) {
-        appended = TLSX_EchSwapExtensions(&ssl->extensions,
+    if (TLSX_EchShouldHideInner(ech)) {
+        prepended = TLSX_EchSwapExtensions(&ssl->extensions,
             &ech->extensions, 0);
         installed = 1;
     }
@@ -17154,9 +17161,13 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
         }
     }
 
-    if (installed)
-        (void)TLSX_EchSwapExtensions(&ssl->extensions, &ech->extensions,
-            appended);
+    if (installed) {
+        prepended = TLSX_EchSwapExtensions(&ssl->extensions, &ech->extensions,
+            prepended);
+        if (ret == 0 && prepended != 0) {
+            ret = BAD_STATE_E;
+        }
+    }
     return ret;
 }
 #endif
