@@ -3013,6 +3013,9 @@ AC_ARG_WITH([cryptoauthlib],
     [with_cryptoauthlib=no])
 
 AS_IF([test "x$with_cryptoauthlib" != "xno"], [
+    AS_IF([test "x$ENABLED_ATMEL" = "xno"], [
+        AC_MSG_ERROR([--with-cryptoauthlib requires --enable-microchip=<devices>.])
+    ])
     AC_MSG_CHECKING([for CryptoAuthLib])
 
     libdir=""
@@ -3029,7 +3032,6 @@ AS_IF([test "x$with_cryptoauthlib" != "xno"], [
         PKG_CHECK_MODULES([CRYPTOAUTHLIB], [cryptoauthlib], [
             CPPFLAGS="$CRYPTOAUTHLIB_CFLAGS $CPPFLAGS"
             CFLAGS="$CRYPTOAUTHLIB_CFLAGS $CFLAGS"
-            LDFLAGS="$CRYPTOAUTHLIB_LIBS $LDFLAGS"
             LIBS="$CRYPTOAUTHLIB_LIBS $LIBS"
             cryptoauthlib_found="pkg-config"
         ], [:])

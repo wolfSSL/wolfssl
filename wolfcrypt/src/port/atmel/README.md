@@ -119,9 +119,16 @@ Supported Features:
 RSA 2048 keygen/sign/verify
 ECC-P256 keygen/sign/verify/shared secret
 
-WOLFSSL_MICROCHIP_AESGCM can be used to enable AES-GCM but
-AESGCM support is not yet available for TA100 in both
-cryptauthlib-v3.3.3_397871.zip and cryptauthlib-v3.6.0_443271.zip.
+WOLFSSL_MICROCHIP_AESGCM can be used to enable AES-GCM for TA100 when
+building against CryptoAuthLib v3.6.0_443271 or later. AES-GCM is not
+supported for TA100 with cryptauthlib-v3.3.3_397871.zip.
+
+Current TA100 AES-GCM limitations:
+- IV size must be 12 bytes.
+- Authentication tag size must be 16 bytes for hardware decrypt, with
+  shorter tags only supported for zero-length decrypt validation.
+- The combined AAD + payload size per hardware operation is limited to 996
+  bytes.
 
 
 ```

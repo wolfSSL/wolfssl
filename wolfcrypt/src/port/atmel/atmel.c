@@ -147,7 +147,7 @@ static int ateccx08a_cfg_initialized = 0;
         .devtype    = MICROCHIP_DEV_TYPE,
         .atcai2c = {
             #ifdef ATCA_ENABLE_DEPRECATED
-                .slave_addressus = 1,
+                .slave_address = 1,
             #else
                 .address = ATECC_I2C_ADDR,
             #endif
@@ -451,13 +451,13 @@ int atmel_ecc_alloc(int slotType)
                 break;
             #endif
             case ATMEL_SLOT_ECDHE_ALICE:
-                /* not reserved in mSlotList, so return */
+                /* reserve the fixed slot through the common allocation path */
                 slotId = ATECC_SLOT_ECDHE_PRIV_ALICE;
-                goto exit;
+                break;
             case ATMEL_SLOT_ECDHE_BOB:
-                /* not reserved in mSlotList, so return */
+                /* reserve the fixed slot through the common allocation path */
                 slotId = ATECC_SLOT_ECDHE_PRIV_BOB;
-                goto exit;
+                break;
             case ATMEL_SLOT_ANY:
                 for (i=0; i < ATECC_MAX_SLOT; i++) {
                     /* Find free slotId */
@@ -475,8 +475,7 @@ int atmel_ecc_alloc(int slotType)
         }
 
         /* is slot available */
-        if (mSlotList[slotId] != ATECC_INVALID_SLOT &&
-            mSlotList[slotId] != slotId ) {
+        if (mSlotList[slotId] != ATECC_INVALID_SLOT) {
             slotId = ATECC_INVALID_SLOT;
         }
         else {
@@ -894,13 +893,20 @@ int wc_Microchip_rsa_create_key(struct RsaKey* key, int size, long e)
 {
     ATCA_STATUS ret;
     ta_element_attributes_t rKeyA, uKeyA;
-    size_t uKey_len = TA_KEY_TYPE_RSA2048_SIZE;
+    size_t uKey_len = WOLFSSL_TA_KEY_TYPE_RSA_SIZE;
 
-    (void)size;
-    (void)e;
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (size != (int)(WOLFSSL_TA_KEY_TYPE_RSA_SIZE * 8U)) {
+        return BAD_FUNC_ARG;
+    }
+    if (e != 0 && e != WC_RSA_EXPONENT) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Private key for signing AND decryption */
-    ret = talib_handle_init_private_key(&rKeyA, TA_KEY_TYPE_RSA2048,
+    ret = talib_handle_init_private_key(&rKeyA, WOLFSSL_TA_KEY_TYPE_RSA,
             TA_ALG_MODE_RSA_SSA_PSS, TA_PROP_SIGN_INT_EXT_DIGEST,
             TA_PROP_KEY_AGREEMENT_OUT_BUFF);
     if (ret != ATCA_SUCCESS)
@@ -913,7 +919,7 @@ int wc_Microchip_rsa_create_key(struct RsaKey* key, int size, long e)
         return WC_HW_E;
 
     /* Public key - use 0, 0 for encryption support! */
-    ret = talib_handle_init_public_key(&uKeyA, TA_KEY_TYPE_RSA2048,
+    ret = talib_handle_init_public_key(&uKeyA, WOLFSSL_TA_KEY_TYPE_RSA,
             TA_ALG_MODE_RSA_SSA_PSS, 0, 0);
     if (ret != ATCA_SUCCESS)
         return WC_HW_E;
@@ -952,7 +958,7 @@ int wc_Microchip_rsa_encrypt(const byte* in, word32 inLen, byte* out,
     printf("outLen: %u\n", outLen);
     printf("out: %p\n", out);
 #endif
-    /* Use the 2048-specific function */
+    /* The current wolfSSL TA100 backend uses the RSA-2048 RSAEnc path. */
     ret = talib_rsaenc_encrypt2048(atcab_get_device(), key->uKeyH,
                                    (uint16_t)inLen, in,
                                    (uint16_t)outLen, out);
@@ -965,7 +971,7 @@ int wc_Microchip_rsa_decrypt(const byte* in, word32 inLen, byte* out,
 {
     int ret;
 
-
+    /* The current wolfSSL TA100 backend uses the RSA-2048 RSAEnc path. */
     ret = talib_rsaenc_decrypt2048(atcab_get_device(), key->rKeyH,
                                    (uint16_t)inLen, in,
                                    (uint16_t)outLen, out);
@@ -1320,7 +1326,7 @@ int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, unsigned int keySz,
             return WC_HW_WAIT_E;
 
         /* generate new ephemeral key on device */
-        ret = atmel_ecc_create_key(MAP_TO_HANDLE(slotId), ecc_curve, peerKey);
+        ret = atmel_ecc_create_key(slotId, ecc_curve, peerKey);
 
         /* load generated ECC508A public key into key, used by wolfSSL */
         if (ret == 0) {
@@ -1397,8 +1403,7 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
             tmpKey.slot = slotId;
 
             /* generate new ephemeral key on device */
-            ret = atmel_ecc_create_key(MAP_TO_HANDLE(slotId), otherKey->dp->id,
-                                                     peerKey);
+            ret = atmel_ecc_create_key(slotId, otherKey->dp->id, peerKey);
             if (ret != ATCA_SUCCESS) {
                 atmel_ecc_free(slotId);
                 goto exit;
@@ -1673,6 +1678,7 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     #endif
 
     int ret = 0;
+    ATCA_STATUS status;
     size_t signerCertSize = ATCATLS_SIGNER_CERT_MAX_SIZE;
     size_t deviceCertSize = ATCATLS_DEVICE_CERT_MAX_SIZE;
     uint8_t certBuffer[ATCATLS_CERT_BUFF_MAX_SIZE];
@@ -1682,7 +1688,6 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
 #endif
 
 #ifdef WOLFSSL_ATECC_TNGTLS
-    ATCA_STATUS status;
     ret = tng_atcacert_max_signer_cert_size(&signerCertSize);
     if (ret != ATCACERT_E_SUCCESS) {
     #ifdef WOLFSSL_ATECC_DEBUG
@@ -1791,7 +1796,6 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
 
     return ret;
 }
-#endif /* ATCA_TFLEX_SUPPORT */
 #endif /* ATCA_TFLEX_SUPPORT */
 
 int atcatls_set_callbacks(WOLFSSL_CTX* ctx)
@@ -1931,11 +1935,12 @@ int wc_Microchip_aes_set_key(Aes* aes, const byte* key, word32 keylen,
     status = talib_aes_gcm_keyload(atcab_get_device(), aes->key_id, 0);
     CHECK_STATUS(status);
 
-    /* Test if data zone is locked */
+    /* Provisioning must lock setup explicitly; do not lock it as a side
+     * effect of loading an AES key. */
     status = talib_is_setup_locked(atcab_get_device(), &is_locked);
+    CHECK_STATUS(status);
     if (!is_locked) {
-        status = talib_lock_setup(atcab_get_device());
-        CHECK_STATUS(status);
+        return WC_HW_E;
     }
 
     return atmel_ecc_translate_err(status);

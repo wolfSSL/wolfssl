@@ -182,14 +182,13 @@ WOLFSSL_LOCAL int wc_Microchip_rsa_encrypt(const byte* in, word32 inLen,
 WOLFSSL_LOCAL int wc_Microchip_rsa_decrypt(const byte* in, word32 inLen,
                                          byte* out, word32 outLen, RsaKey* key);
 
+/* CryptoAuthLib defines larger TA100 RSA key types too, but the current
+ * wolfSSL TA100 backend only wires up the RSAEnc path for RSA-2048. */
 #ifndef WOLFSSL_SP_NO_2048
     #define WOLFSSL_TA_KEY_TYPE_RSA TA_KEY_TYPE_RSA2048
     #define WOLFSSL_TA_KEY_TYPE_RSA_SIZE TA_KEY_TYPE_RSA2048_SIZE
-#elif !defined(WOLFSSL_SP_NO_3072)
-    #define WOLFSSL_TA_KEY_TYPE_RSA TA_KEY_TYPE_RSA3072
-    #define WOLFSSL_TA_KEY_TYPE_RSA_SIZE TA_KEY_TYPE_RSA3072_SIZE
 #else
-    #error Microchip requires enabling 2048 or 3072 RSA.
+    #error Current wolfSSL TA100 RSA backend requires 2048-bit RSA support.
 #endif
 
 #endif /* NO_RSA */
