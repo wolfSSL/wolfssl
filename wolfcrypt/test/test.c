@@ -26891,7 +26891,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     TEST_SLEEP();
-#endif /* !WOLFSSL_MICROCHIP_TA100 */
 
 #elif defined(WOLFSSL_PUBLIC_MP)
     {
@@ -71325,8 +71324,8 @@ static void print_fiducials(void) {
            fiducial1, fiducial2, fiducial3, fiducial4);
 }
 
-#if defined(NO_CRYPT_TEST) && !defined(WC_TEST_EXPORT_SUBTESTS)
+#else /* NO_CRYPT_TEST && !WC_TEST_EXPORT_SUBTESTS */
     #ifndef NO_MAIN_DRIVER
         int main(void) { return 0; }
     #endif /* !NO_MAIN_DRIVER */
-#endif /* defined(NO_CRYPT_TEST) && !defined(WC_TEST_EXPORT_SUBTESTS) */
+#endif /* !NO_CRYPT_TEST || WC_TEST_EXPORT_SUBTESTS */
