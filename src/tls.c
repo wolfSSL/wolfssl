@@ -2390,8 +2390,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     TLSX* echX = NULL;
     WOLFSSL_ECH* ech = NULL;
-    WOLFSSL_EchConfig* workingConfig;
-    word16 privateNameLen;
+    WOLFSSL_EchConfig* workingConfig = NULL;
 #endif
 #endif /* !NO_WOLFSSL_SERVER */
     TLSX *extension = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
@@ -2432,13 +2431,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    if ((!extension || !extension->data) ||
-            (ech != NULL && ech->sniState == ECH_INNER_SNI &&
-             ech->privateName == NULL)) {
-#else
     if (!extension || !extension->data) {
-#endif
         /* This will keep SNI even though TLSX_UseSNI has not been called.
          * Enable it so that the received sni is available to functions
          * that use a custom callback when SNI is received.
@@ -2486,28 +2479,6 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (!cacheOnly && !(sni = TLSX_SNI_Find((SNI*)extension->data, type)))
         return 0; /* not using this type of SNI. */
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    if (ech != NULL && ech->sniState == ECH_INNER_SNI){
-        /* SNI status is carried over from processing the outer hello so it is
-         * necessary to clear it before processing the inner hello */
-        ech->sniState = ECH_INNER_SNI_ATTEMPT;
-        if (sni != NULL){
-            sni->status = WOLFSSL_SNI_NO_MATCH;
-        }
-    }
-    else if (ech != NULL && ech->sniState == ECH_OUTER_SNI &&
-            ech->privateName == NULL && sni != NULL){
-        /* save the private SNI before it is overwritten by the public SNI */
-        privateNameLen = (word16)XSTRLEN(sni->data.host_name) + 1;
-        ech->privateName = (char*)XMALLOC(privateNameLen, ssl->heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (ech->privateName == NULL)
-            return MEMORY_E;
-        XMEMCPY((char*)ech->privateName, sni->data.host_name,
-            privateNameLen);
-    }
-#endif
-
 #if defined(WOLFSSL_TLS13)
     /* Don't process the second ClientHello SNI extension if there
      * was problems with the first.
@@ -2516,14 +2487,6 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return 0;
 #endif
 
-#if defined(HAVE_ECH)
-    if (ech != NULL && ech->sniState == ECH_INNER_SNI_ATTEMPT &&
-            ech->privateName != NULL) {
-        matched = cacheOnly || (XSTRLEN(ech->privateName) == size &&
-            XSTRNCMP(ech->privateName, (const char*)input + offset, size) == 0);
-    }
-    else
-#endif
     {
         const char* hostName = (sni != NULL) ? sni->data.host_name : NULL;
         matched = cacheOnly || (hostName != NULL &&
@@ -2532,16 +2495,14 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    if (!matched && ech != NULL && ech->sniState == ECH_OUTER_SNI) {
+    if (!matched && ech != NULL && !ssl->options.echProcessingInner) {
         workingConfig = ech->echConfig;
         while (workingConfig != NULL) {
             matched = XSTRLEN(workingConfig->publicName) == size &&
                 XSTRNCMP(workingConfig->publicName,
                 (const char*)input + offset, size) == 0;
-
             if (matched)
                 break;
-
             workingConfig = workingConfig->next;
         }
     }
@@ -2550,8 +2511,14 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (matched ||
             (sni != NULL && (sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH))) {
         int matchStat;
-        int r = TLSX_UseSNI(&ssl->extensions, type, input + offset, size,
-                                                                     ssl->heap);
+        int r;
+        TLSX** writeList = &ssl->extensions;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        if (workingConfig != NULL)
+            writeList = &ech->extensions;
+#endif
+
+        r = TLSX_UseSNI(writeList, type, input + offset, size, ssl->heap);
 
         if (r != WOLFSSL_SUCCESS)
             return r; /* throws error. */
@@ -2569,10 +2536,14 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             matchStat = WOLFSSL_SNI_FAKE_MATCH;
         }
 
-        TLSX_SNI_SetStatus(ssl->extensions, type, (byte)matchStat);
+        TLSX_SNI_SetStatus(*writeList, type, (byte)matchStat);
 
-        if (!cacheOnly)
-            TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
+        if (!cacheOnly) {
+            extension = TLSX_Find(*writeList, TLSX_SERVER_NAME);
+
+            if (extension)
+                extension->resp = 1;
+        }
     }
     else if ((sni == NULL) ||
             !(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
