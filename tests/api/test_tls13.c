@@ -3844,7 +3844,7 @@ int test_tls13_ch2_different_cs(void)
 }
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
 /* Called when writing. */
 static int MESend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -3881,7 +3881,7 @@ int test_tls13_sg_missing(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     byte clientHello[] = {
@@ -3952,7 +3952,7 @@ int test_tls13_ks_missing(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     byte clientHello[] = {
@@ -4282,7 +4282,8 @@ int test_key_share_mismatch(void)
 
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER)
+    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_FILESYSTEM)
 /* Called when writing. */
 static int Tls13PTASend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -4410,7 +4411,8 @@ int test_tls13_plaintext_alert(void)
     EXPECT_DECLS;
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER)
+    defined(HAVE_AESGCM) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_FILESYSTEM)
     byte clientMsgs[] = {
         /* Client Hello */
         0x16, 0x03, 0x03, 0x01, 0x9b, 0x01, 0x00, 0x01,

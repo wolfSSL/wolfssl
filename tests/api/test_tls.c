@@ -389,7 +389,8 @@ int test_tls_certreq_order(void)
 }
 
 #if !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    !defined(NO_FILESYSTEM)
 /* Called when writing. */
 static int CsSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -425,7 +426,8 @@ int test_tls12_bad_cv_sig_alg(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && defined(HAVE_ECC) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    !defined(NO_FILESYSTEM)
     byte clientMsgs[] = {
         /* Client Hello */
         0x16, 0x03, 0x03, 0x00, 0xe7,

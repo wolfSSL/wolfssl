@@ -1077,6 +1077,7 @@ int test_EC_i2d(void)
     ExpectNull(d2i_ECPrivateKey(&copy, &tmp, 1));
     ExpectNull(d2i_ECPrivateKey(&key, &tmp, 0));
 
+#ifndef NO_BIO
     {
         EC_KEY *pubkey = NULL;
         BIO* bio = NULL;
@@ -1088,6 +1089,7 @@ int test_EC_i2d(void)
         BIO_free(bio);
         EC_KEY_free(pubkey);
     }
+#endif
 
     ExpectIntEQ(i2d_ECPrivateKey(NULL, &p), 0);
     ExpectIntEQ(i2d_ECPrivateKey(NULL, NULL), 0);
