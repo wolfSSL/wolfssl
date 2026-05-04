@@ -13915,14 +13915,20 @@ static int TLSX_ECH_Use(WOLFSSL_EchConfig* echConfig, TLSX** extensions,
     /* setup the ephemeralKey */
     if (ret == 0)
         ret = wc_HpkeGenerateKeyPair(ech->hpke, &ech->ephemeralKey, rng);
+    /* use the chosen config's public name for the outer SNI */
     if (ret == 0) {
-        ret = TLSX_Push(extensions, TLSX_ECH, ech, heap);
-        if (ret != 0) {
-            wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
-                ech->hpke->heap);
-        }
+        ret = TLSX_UseSNI(&ech->extensions, WOLFSSL_SNI_HOST_NAME,
+            echConfig->publicName, (word16)XSTRLEN(echConfig->publicName),
+            heap);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = 0;
     }
+    if (ret == 0)
+        ret = TLSX_Push(extensions, TLSX_ECH, ech, heap);
     if (ret != 0) {
+        TLSX_FreeAll(ech->extensions, heap);
+        wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
+            ech->hpke->heap);
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -14974,9 +14980,8 @@ static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
 {
     XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ech->hpke != NULL) {
-        if (ech->ephemeralKey != NULL)
-            wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
-                ech->hpke->heap);
+        wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
+            ech->hpke->heap);
         /* wc_HpkeFreeEchSecret is intentionally not here, free it in
          * TLSX_ExtractEch / TLSX_FinalizeEch */
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14985,8 +14990,7 @@ static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
         ForceZero(ech->hpkeContext, sizeof(HpkeBaseContext));
         XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (ech->privateName != NULL)
-        XFREE((char*)ech->privateName, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    TLSX_FreeAll(ech->extensions, heap);
 
     XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;
@@ -16733,95 +16737,95 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-static int TLSX_EchChangeSNI(WOLFSSL* ssl, TLSX** pEchX,
-                             char* serverName, TLSX** pServerNameX,
-                             TLSX*** pExtensions)
+/* Returns 1 if the extensions should be hidden for this write */
+static int TLSX_EchShouldHideInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 {
-    int ret = 0;
-    TLSX* echX = NULL;
-    TLSX* serverNameX = NULL;
-    TLSX** extensions = NULL;
-
-    /* calculate the rest of the extensions length with inner ech */
-    if (ssl->extensions)
-        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-
-    if (echX == NULL && ssl->ctx && ssl->ctx->extensions)
-        /* if not NULL the semaphore will stop it from being counted */
-        echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
-
-    /* if type is outer and this is a real ECH then change sni to public name */
-    if (echX != NULL && ssl->echConfigs != NULL &&
-        ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER) {
-        if (ssl->extensions) {
-            serverNameX = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
-
-            if (serverNameX != NULL)
-                extensions = &ssl->extensions;
-        }
-
-        if (serverNameX == NULL && ssl->ctx && ssl->ctx->extensions) {
-            serverNameX = TLSX_Find(ssl->ctx->extensions, TLSX_SERVER_NAME);
-            if (serverNameX != NULL)
-                extensions = &ssl->ctx->extensions;
-        }
-
-        /* ECH requires an inner SNI to be present for ClientHelloInner.
-         * Without it, fail instead of mutating extension lists. */
-        if (serverNameX == NULL) {
-            ret = BAD_FUNC_ARG;
-        }
-
-        /* store the inner server name */
-        if (ret == 0 && serverNameX != NULL) {
-            char* hostName = ((SNI*)serverNameX->data)->data.host_name;
-            word32 hostNameSz = (word32)XSTRLEN(hostName) + 1;
-
-            if (hostNameSz > WOLFSSL_HOST_NAME_MAX)
-                ret = BAD_LENGTH_E;
-            else
-                XMEMCPY(serverName, hostName, hostNameSz);
-        }
-
-        /* only swap the SNI if one was found; extensions is non-NULL if an
-         * SNI entry was found on ssl->extensions or ctx->extensions */
-        if (ret == 0 && extensions != NULL) {
-            /* remove the inner server name */
-            TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
-
-            /* set the public name as the server name */
-            if ((ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
-                    ((WOLFSSL_ECH*)echX->data)->echConfig->publicName,
-                    XSTRLEN(((WOLFSSL_ECH*)echX->data)->echConfig->publicName),
-                    ssl->heap)) == WOLFSSL_SUCCESS)
-                ret = 0;
-        }
-    }
-    *pServerNameX = serverNameX;
-    *pExtensions = extensions;
-    *pEchX = echX;
-    return ret;
+    if (ech == NULL || ech->type != ECH_TYPE_OUTER)
+        return 0;
+    return ssl->options.echAccepted || ech->innerCount == 0;
 }
 
-static int TLSX_EchRestoreSNI(WOLFSSL* ssl, char* serverName,
-                              TLSX* serverNameX, TLSX** extensions)
+/* Swap matching extension types between *sslExts and *echExts.
+ *   Non-matched extensions in *echExts are prepended to *sslExts
+ *   popCount is the number of leading extensions to move from
+ *     *sslExts to *echExts
+ *
+ * Ordering is kept in mind for OuterExtensions. This is why the leading
+ * popCount extensions are 'reversed' off the list.
+ *
+ * Returns a count of extensions prepended to sslExts. */
+static word16 TLSX_EchSwapExtensions(TLSX** sslExts, TLSX** echExts,
+    word16 popCount)
 {
-    int ret = 0;
+    TLSX* chunk = NULL;
+    TLSX* node;
+    TLSX* outer;
+    TLSX* inner;
+    TLSX** outerLink;
+    TLSX** innerLink;
+    word16 appended = 0;
 
-    /* always remove the publicName SNI we injected, regardless of whether
-     * there was a prior inner SNI to restore */
-    if (extensions != NULL)
-        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
-
-    if (serverNameX != NULL) {
-        /* restore the inner server name */
-        ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
-            serverName, XSTRLEN(serverName), ssl->heap);
-
-        if (ret == WOLFSSL_SUCCESS)
-            ret = 0;
+    /* unhook popCount nodes off *sslExts head into chunk.
+     * Head-prepend undoes the reversal caused by appending onto sslExts. */
+    while (popCount > 0 && *sslExts != NULL) {
+        node = *sslExts;
+        *sslExts = node->next;
+        node->next = chunk;
+        chunk = node;
+        popCount--;
     }
-    return ret;
+
+    outerLink = echExts;
+    while (*outerLink != NULL) {
+        innerLink = sslExts;
+        outer = *outerLink;
+
+        while (*innerLink != NULL && (*innerLink)->type != outer->type)
+            innerLink = &(*innerLink)->next;
+
+        if (*innerLink != NULL) {
+            inner = *innerLink;
+
+            *innerLink  = outer;
+            *outerLink  = inner;
+            node        = outer->next;
+            outer->next = inner->next;
+            inner->next = node;
+
+            outerLink = &inner->next;
+        }
+        else {
+            *outerLink  = outer->next;
+            outer->next = *sslExts;
+            *sslExts    = outer;
+            appended++;
+        }
+    }
+
+    /* outerLink is at the tail of *echExts; append the chunk */
+    *outerLink = chunk;
+
+    return appended;
+}
+
+/* If ECH is accepted, delete ech->extensions
+ * If rejected, replace matching ssl->extensions with ech->extensions, appending
+ *   to head if necessary */
+void TLSX_EchReplaceExtensions(WOLFSSL* ssl, byte accepted)
+{
+    TLSX* echX;
+    WOLFSSL_ECH* ech;
+
+    echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+    if (echX == NULL || echX->data == NULL)
+        return;
+    ech = (WOLFSSL_ECH*)echX->data;
+
+    if (!accepted)
+        (void)TLSX_EchSwapExtensions(&ssl->extensions, &ech->extensions, 0);
+
+    TLSX_FreeAll(ech->extensions, ssl->heap);
+    ech->extensions = NULL;
 }
 
 /* Returns 1 if the extension may be encoded into ech_outer_extensions,
@@ -16931,39 +16935,43 @@ static int TLSX_ECH_BuildOuterExtensions(WOLFSSL* ssl, const byte* semaphore,
 static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     word16* pLength)
 {
-    int ret = 0, r = 0;
+    int ret = 0;
     TLSX* echX = NULL;
-    TLSX* serverNameX = NULL;
-    TLSX** extensions = NULL;
     WOLFSSL_ECH* ech = NULL;
     word16 count = 0;
-    WC_DECLARE_VAR(serverName, char, WOLFSSL_HOST_NAME_MAX, 0);
+    word16 appended = 0;
+    byte installed = 0;
 
-    WC_ALLOC_VAR_EX(serverName, char, WOLFSSL_HOST_NAME_MAX, NULL,
-                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
+    if (ssl->extensions)
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+    if (echX == NULL && ssl->ctx && ssl->ctx->extensions)
+        echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
+    if (echX != NULL)
+        ech = (WOLFSSL_ECH*)echX->data;
 
-    r = TLSX_EchChangeSNI(ssl, &echX, serverName, &serverNameX, &extensions);
+    if (TLSX_EchShouldHideInner(ssl, ech)) {
+        appended = TLSX_EchSwapExtensions(&ssl->extensions,
+            &ech->extensions, 0);
+        installed = 1;
+    }
 
     if (echX != NULL)
         ech = (WOLFSSL_ECH*)echX->data;
 
     /* if encoding, then count encoded form of inner ClientHello.
      * `semaphore` is in/out so encodable extensions will later be ignored */
-    if (r == 0 && ech != NULL && ech->type == ECH_TYPE_INNER &&
-            ech->writeEncoded) {
+    if (ech != NULL && ech->type == ECH_TYPE_INNER && ech->writeEncoded) {
         ret = TLSX_ECH_BuildOuterExtensions(ssl, semaphore, msgType,
             NULL, pLength, &count, semaphore);
     }
-    if (r == 0 && ret == 0 && ssl->extensions)
+    if (ret == 0 && ssl->extensions)
         ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, pLength);
-    if (r == 0 && ret == 0 && ssl->ctx && ssl->ctx->extensions)
+    if (ret == 0 && ssl->ctx && ssl->ctx->extensions)
         ret = TLSX_GetSize(ssl->ctx->extensions, semaphore, msgType, pLength);
-    if (r == 0)
-        r = TLSX_EchRestoreSNI(ssl, serverName, serverNameX, extensions);
 
-    WC_FREE_VAR_EX(serverName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (ret == 0 && r != 0)
-        ret = r;
+    if (installed)
+        (void)TLSX_EchSwapExtensions(&ssl->extensions, &ech->extensions,
+            appended);
     return ret;
 }
 #endif
@@ -17093,19 +17101,26 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
 static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
     byte msgType, word16* pOffset)
 {
-    int r = 0, ret = 0;
+    int ret = 0;
     TLSX* echX = NULL;
-    TLSX* serverNameX = NULL;
-    TLSX** extensions = NULL;
     WOLFSSL_ECH* ech = NULL;
-    WC_DECLARE_VAR(serverName, char, WOLFSSL_HOST_NAME_MAX, 0);
+    word16 appended = 0;
+    byte installed = 0;
 
-    WC_ALLOC_VAR_EX(serverName, char, WOLFSSL_HOST_NAME_MAX, NULL,
-                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
-    r = TLSX_EchChangeSNI(ssl, &echX, serverName, &serverNameX, &extensions);
-    ret = r;
-    if (ret == 0 && echX != NULL) {
+    if (ssl->extensions)
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+    if (echX == NULL && ssl->ctx && ssl->ctx->extensions)
+        echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
+    if (echX != NULL)
         ech = (WOLFSSL_ECH*)echX->data;
+
+    if (TLSX_EchShouldHideInner(ssl, ech)) {
+        appended = TLSX_EchSwapExtensions(&ssl->extensions,
+            &ech->extensions, 0);
+        installed = 1;
+    }
+
+    if (echX != NULL) {
         /* turn ech on so it doesn't write, then write it last */
         TURN_ON(semaphore, TLSX_ToSemaphore(echX->type));
     }
@@ -17157,7 +17172,7 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
         /* turn off and write it last */
         TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
 
-        if (ret == 0 && ssl->extensions) {
+        if (ssl->extensions) {
             ret = TLSX_Write(ssl->extensions, output + *pOffset, semaphore,
                 msgType, pOffset);
         }
@@ -17168,12 +17183,9 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
         }
     }
 
-    if (r == 0)
-        r = TLSX_EchRestoreSNI(ssl, serverName, serverNameX, extensions);
-    WC_FREE_VAR_EX(serverName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (ret == 0 && r != 0)
-        ret = r;
+    if (installed)
+        (void)TLSX_EchSwapExtensions(&ssl->extensions, &ech->extensions,
+            appended);
     return ret;
 }
 #endif
