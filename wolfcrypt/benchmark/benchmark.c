@@ -2081,7 +2081,6 @@ static const char* bench_result_words2[][6] = {
 #endif
 };
 #endif /* !WC_NO_RNG || WOLFSSL_HAVE_MLKEM */
-#endif
 #if defined(WOLFSSL_MICROCHIP_TA100)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif

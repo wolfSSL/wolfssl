@@ -71327,8 +71327,8 @@ static void print_fiducials(void) {
            fiducial1, fiducial2, fiducial3, fiducial4);
 }
 
-#else /* NO_CRYPT_TEST && !WC_TEST_EXPORT_SUBTESTS */
+#if defined(NO_CRYPT_TEST) && !defined(WC_TEST_EXPORT_SUBTESTS)
     #ifndef NO_MAIN_DRIVER
         int main(void) { return 0; }
-    #endif
-#endif /* NO_CRYPT_TEST && !WC_TEST_EXPORT_SUBTESTS */
+    #endif /* !NO_MAIN_DRIVER */
+#endif /* defined(NO_CRYPT_TEST) && !defined(WC_TEST_EXPORT_SUBTESTS) */

@@ -124,6 +124,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
                 sig_len = wc_RsaEncryptSize((RsaKey*)(wc_ptr_t)key);
 #else
                 sig_len = wc_RsaEncryptSize((const RsaKey*)key);
+#endif
 #if defined(WOLFSSL_MICROCHIP_TA100)
                 if (sig_len <= 0) {
                     const RsaKey* r = (const RsaKey*)key;
