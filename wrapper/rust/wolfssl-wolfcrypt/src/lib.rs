@@ -45,6 +45,8 @@ pub(crate) unsafe fn zeroize_raw<T>(val: &mut T) {
 
 pub mod aes;
 pub mod blake2;
+#[cfg(all(any(blake2b, blake2s), feature = "mac"))]
+pub mod blake2_mac;
 pub mod chacha20_poly1305;
 pub mod cmac;
 #[cfg(all(cmac, feature = "mac"))]
