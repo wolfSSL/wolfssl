@@ -18087,9 +18087,9 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
     /* RFC 5280 4.2.1.10: "If a name constraints extension that is marked as
      * critical imposes constraints on a particular name form ... the
      * application MUST either process the constraint or reject the
-     * certificate." otherName is processed by byte-comparison above; any
-     * remaining unsupported forms (registeredID, x400Address, ediPartyName)
-     * trigger the fail-closed reject below. */
+     * certificate." otherName and registeredID are both processed by
+     * byte-comparison above; any remaining unsupported forms
+     * (x400Address, ediPartyName) trigger the fail-closed reject below. */
     if (signer->extNameConstraintCrit &&
             signer->extNameConstraintHasUnsupported) {
         WOLFSSL_MSG("Critical nameConstraints contains unsupported "
@@ -19769,10 +19769,11 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
                     dataASN[SUBTREEASN_IDX_BASE].length, t, head, heap);
             }
             else {
-                /* GeneralName form (e.g. registeredID, x400Address,
-                 * ediPartyName) we do not enforce. Record so the caller can
-                 * fail-closed when the nameConstraints extension is critical
-                 * (RFC 5280 4.2.1.10). */
+                /* GeneralName form (e.g. x400Address, ediPartyName) we do
+                 * not enforce. Record so the caller can fail-closed when the
+                 * nameConstraints extension is critical (RFC 5280 4.2.1.10).
+                 * registeredID is handled above; this branch covers truly
+                 * unrecognised forms. */
                 *hasUnsupported = 1;
             }
         }
