@@ -63,6 +63,8 @@ struct Cmac {
     byte digest[WC_AES_BLOCK_SIZE]; /* running digest */
     byte k1[WC_AES_BLOCK_SIZE];
     byte k2[WC_AES_BLOCK_SIZE];
+#else
+    void* heap; /* fallback when no aes.heap is available */
 #endif
     word32 bufferSz;
     word32 totalSz;

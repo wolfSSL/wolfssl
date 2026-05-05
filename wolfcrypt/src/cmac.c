@@ -124,6 +124,13 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
 #endif
     XMEMSET(cmac, 0, sizeof(Cmac));
 
+    /* Stash heap so the cryptocb can read it from the zeroed cmac. */
+#ifndef NO_AES
+    cmac->aes.heap = heap;
+#else
+    cmac->heap = heap;
+#endif
+
     /* Store id/label on the Cmac struct so the crypto callback can
      * inspect them to determine the hardware key slot. */
 #ifdef WOLF_PRIVATE_KEY_ID
