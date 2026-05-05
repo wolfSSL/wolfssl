@@ -2649,12 +2649,19 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
             err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[j^1], t1, t2);
 #else
             err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[2], t1, t2);
+#ifdef WC_NO_PTR_INT_CAST
+            err = mp_cond_copy(c[2]->x, j,   c[0]->x);
+            err = mp_cond_copy(c[2]->x, j^1, c[1]->x);
+            err = mp_cond_copy(c[2]->y, j,   c[0]->y);
+            err = mp_cond_copy(c[2]->y, j^1, c[1]->y);
+#else
             mp_copy(c[2]->x,
             (mp_int*) ( ((wc_ptr_t)c[0]->x & wc_off_on_addr[j]) +
                         ((wc_ptr_t)c[1]->x & wc_off_on_addr[j^1]) ) );
             mp_copy(c[2]->y,
             (mp_int*) ( ((wc_ptr_t)c[0]->y & wc_off_on_addr[j]) +
                         ((wc_ptr_t)c[1]->y & wc_off_on_addr[j^1]) ) );
+#endif
 #endif
         }
     }
