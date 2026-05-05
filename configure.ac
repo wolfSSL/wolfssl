@@ -10650,15 +10650,15 @@ fi
 
 # wc_swdev: software crypto-callback device for testing
 AC_ARG_ENABLE([swdev],
-    [AS_HELP_STRING([--enable-swdev],[Build wc_swdev software crypto-callback for tests (default: disabled). Requires --enable-cryptocb, forces WOLF_CRYPTO_CB_FIND, and currently supports in-tree builds only.])],
+    [AS_HELP_STRING([--enable-swdev],[Build wc_swdev software crypto-callback for tests (default: disabled). Requires --enable-cryptocb])],
     [ ENABLED_SWDEV=$enableval ],
     [ ENABLED_SWDEV=no ]
 )
 
 if test "$ENABLED_SWDEV" = "yes"
 then
-    if test "$ENABLED_CRYPTOCB" != "yes"; then
-        AC_MSG_ERROR([--enable-swdev requires --enable-cryptocb])
+    if test "$ENABLED_CRYPTOCB" != "yes" && test "$enable_usersettings" != "yes"; then
+        AC_MSG_ERROR([--enable-swdev requires --enable-cryptocb (or --enable-usersettings with WOLF_CRYPTO_CB defined in user_settings.h)])
     fi
     if test "x$srcdir" != "x."; then
         AC_MSG_ERROR([--enable-swdev currently supports in-tree builds only])
@@ -11924,9 +11924,14 @@ fi
 if test "x$ENABLED_USERSETTINGS" = "xyes"
 then
     # Replace all options and just use WOLFSSL_USER_SETTINGS and
-    # WOLFSSL_USER_SETTINGS_ASM.
+    # WOLFSSL_USER_SETTINGS_ASM.  Re-append build-system flags that affect
+    # preprocessor guards in test files and must survive the reset.
     AM_CFLAGS="-DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM"
     AM_CCASFLAGS="-DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM"
+    AS_IF([test "x$ENABLED_SWDEV" = "xyes"],[
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SWDEV -DWOLF_CRYPTO_CB_FIND"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SWDEV -DWOLF_CRYPTO_CB_FIND"
+    ])
 
     # Generate assembly-safe user_settings_asm.h (just preprocessor directives
     # from user_settings.h).

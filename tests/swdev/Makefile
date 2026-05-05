@@ -31,12 +31,41 @@ SWDEV_ASM_SRCS   = $(PARENT_ASM_SRCS)
 # -I$(SRCDIR) routes settings.h to the swdev's user_settings.h.
 # No BUILDING_WOLFSSL so WOLFSSL_API/LOCAL stay empty; then -fvisibility=hidden
 # hides every emitted symbol.
+# -I$(SRCDIR) is placed FIRST so that tests/swdev/user_settings.h wins over
+# any user_settings.h in the parent's include path.
 CPPFLAGS_SWDEV = \
-    $(PARENT_CPPFLAGS) \
     -DWOLFSSL_USER_SETTINGS \
     -I$(SRCDIR) \
+    $(PARENT_CPPFLAGS) \
     -I$(WOLFROOT) \
     -I$(WOLFROOT)/wolfssl
+
+# Ask the compiler (via -E -H) where it would find user_settings.h under the
+# parent's exact flags (no -I$(SRCDIR) added so we get the parent's file, not
+# ours), then pass that path into swdev/user_settings.h as a string macro so it
+# can #include the right file.
+ifneq ($(filter -DWOLFSSL_USER_SETTINGS,$(PARENT_BUILD_CFLAGS) $(PARENT_CPPFLAGS)),)
+PARENT_USER_SETTINGS_H := $(strip $(shell \
+    printf '\043include <user_settings.h>\n' | \
+    $(CC) $(PARENT_BUILD_CFLAGS) $(PARENT_CFLAGS) $(PARENT_CPPFLAGS) \
+        -I$(WOLFROOT) \
+        -x c -E -H -o /dev/null - 2>&1 | \
+    awk '/user_settings\.h$$/ { sub(/^\.+ /, ""); print; exit }'))
+ifeq ($(PARENT_USER_SETTINGS_H),)
+$(warning swdev: parent declares WOLFSSL_USER_SETTINGS but compiler could \
+    not locate user_settings.h; ensure -I<dir> is in CPPFLAGS or CFLAGS)
+endif
+ifneq ($(PARENT_USER_SETTINGS_H),)
+CPPFLAGS_SWDEV += -DSWDEV_PARENT_USER_SETTINGS_H=\"$(PARENT_USER_SETTINGS_H)\"
+endif
+endif
+
+# Choose between options.h and parent user_settings.h
+ifeq ($(PARENT_USER_SETTINGS_H),)
+SWDEV_CFG_PREREQ = $(WOLFROOT)/wolfssl/options.h
+else
+SWDEV_CFG_PREREQ = $(PARENT_USER_SETTINGS_H)
+endif
 
 # -fvisibility=hidden + -fno-common mark every symbol hidden at the ELF
 # level (ABI-safe: attribute only, no struct layout impact). Optimization
@@ -64,16 +93,16 @@ ALL_OBJS    = $(CRYPT_OBJS) $(SSL_OBJS) $(ASM_OBJS) $(LOCAL_OBJS)
 .PHONY: all clean
 all: $(BUILDDIR)/swdev.o
 
-$(BUILDDIR)/wc/%.o: $(WOLFROOT)/wolfcrypt/src/%.c $(SRCDIR)/user_settings.h $(WOLFROOT)/wolfssl/options.h | $(BUILDDIR)/wc
+$(BUILDDIR)/wc/%.o: $(WOLFROOT)/wolfcrypt/src/%.c $(SRCDIR)/user_settings.h $(SWDEV_CFG_PREREQ) | $(BUILDDIR)/wc
 	$(CC) $(CPPFLAGS_SWDEV) $(CFLAGS_SWDEV) -c $< -o $@
 
-$(BUILDDIR)/wc/%.o: $(WOLFROOT)/wolfcrypt/src/%.S $(SRCDIR)/user_settings.h $(WOLFROOT)/wolfssl/options.h | $(BUILDDIR)/wc
+$(BUILDDIR)/wc/%.o: $(WOLFROOT)/wolfcrypt/src/%.S $(SRCDIR)/user_settings.h $(SWDEV_CFG_PREREQ) | $(BUILDDIR)/wc
 	$(CCAS) $(CPPFLAGS_SWDEV) $(CCASFLAGS_SWDEV) -c $< -o $@
 
-$(BUILDDIR)/ssl/%.o: $(WOLFROOT)/src/%.c $(SRCDIR)/user_settings.h $(WOLFROOT)/wolfssl/options.h | $(BUILDDIR)/ssl
+$(BUILDDIR)/ssl/%.o: $(WOLFROOT)/src/%.c $(SRCDIR)/user_settings.h $(SWDEV_CFG_PREREQ) | $(BUILDDIR)/ssl
 	$(CC) $(CPPFLAGS_SWDEV) $(CFLAGS_SWDEV) -c $< -o $@
 
-$(BUILDDIR)/local/%.o: $(SRCDIR)/%.c $(SRCDIR)/swdev.h $(SRCDIR)/user_settings.h $(WOLFROOT)/wolfssl/options.h | $(BUILDDIR)/local
+$(BUILDDIR)/local/%.o: $(SRCDIR)/%.c $(SRCDIR)/swdev.h $(SRCDIR)/user_settings.h $(SWDEV_CFG_PREREQ) | $(BUILDDIR)/local
 	$(CC) $(CPPFLAGS_SWDEV) $(CFLAGS_SWDEV) -c $< -o $@
 
 $(BUILDDIR)/swdev.partial.o: $(ALL_OBJS)
