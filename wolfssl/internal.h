@@ -2758,6 +2758,7 @@ WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type);
 WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store);
+WOLFSSL_LOCAL int X509LoadPemFile(WOLFSSL_X509_STORE *str, const char* file);
 #endif /* !defined NO_CERTS */
 
 /* wolfSSL Sock Addr */
