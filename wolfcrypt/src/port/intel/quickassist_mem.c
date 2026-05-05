@@ -57,6 +57,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <errno.h>
+
 
 #ifdef SAL_IOMMU_CODE
     #include <icp_sal_iommu.h>
@@ -714,7 +716,7 @@ CpaStatus qaeMemInit(void)
 {
     if (g_qaeMemFd < 0) {
     #ifndef QAT_V2
-        g_qaeMemFd = open(QAE_MEM, O_RDWR);
+        g_qaeMemFd = wc_open_cloexec(QAE_MEM, O_RDWR);
         if (g_qaeMemFd < 0) {
             printf("unable to open %s %d\n", QAE_MEM, g_qaeMemFd);
             return CPA_STATUS_FAIL;

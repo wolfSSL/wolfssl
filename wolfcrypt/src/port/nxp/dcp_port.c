@@ -366,7 +366,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     else
         XMEMCPY(&sha256->ctx, &saved_ctx, sizeof(dcp_hash_ctx_t));
     dcp_unlock();
-    return 0;
+    return ret;
 }
 
 int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
@@ -379,7 +379,7 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
         ret = WC_HW_E;
     else {
         ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
-        if (ret < 0)
+        if (ret != kStatus_Success)
             ret = WC_HW_E;
     }
     dcp_unlock();
@@ -478,7 +478,7 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     else
         XMEMCPY(&sha->ctx, &saved_ctx, sizeof(dcp_hash_ctx_t));
     dcp_unlock();
-    return 0;
+    return ret;
 }
 
 int wc_ShaFinal(wc_Sha* sha, byte* hash)
@@ -491,7 +491,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         ret = WC_HW_E;
     } else {
         ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
-        if (ret < 0)
+        if (ret != kStatus_Success)
             ret = WC_HW_E;
     }
     dcp_unlock();

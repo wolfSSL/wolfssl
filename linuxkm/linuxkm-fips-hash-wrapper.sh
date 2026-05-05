@@ -48,15 +48,19 @@ fi
 # shellcheck disable=SC2016 # using $AWK instead of awk confuses shellcheck.
 readarray -t fenceposts < <(readelf --wide --sections --symbols "$mod_path" | "$AWK" '
 BEGIN {
-    fips_fenceposts["wc_linuxkm_pie_reloc_tab"] = "reloc_tab_start";
-    fips_fenceposts["wc_linuxkm_pie_reloc_tab_length"] = "reloc_tab_len_start";
+    fips_fenceposts["wc_linuxkm_pie_text_reloc_tab"] = "text_reloc_tab.start";
+    fips_fenceposts["wc_linuxkm_pie_text_reloc_tab_length"] = "text_reloc_tab.len_start";
+    fips_fenceposts["wc_linuxkm_pie_rodata_reloc_tab"] = "rodata_reloc_tab.start";
+    fips_fenceposts["wc_linuxkm_pie_rodata_reloc_tab_length"] = "rodata_reloc_tab.len_start";
     fips_fenceposts["verifyCore"] = "verifyCore_start";
     fips_fenceposts["wolfCrypt_FIPS_first"] = "fips_text_start";
     fips_fenceposts["wolfCrypt_FIPS_last"] = "fips_text_end";
     fips_fenceposts["wolfCrypt_FIPS_ro_start"] = "fips_rodata_start";
     fips_fenceposts["wolfCrypt_FIPS_ro_end"] = "fips_rodata_end";
-    singleton_ends["wc_linuxkm_pie_reloc_tab"] = "reloc_tab_end";
-    singleton_ends["wc_linuxkm_pie_reloc_tab_length"] = "reloc_tab_len_end";
+    singleton_ends["wc_linuxkm_pie_text_reloc_tab"] = "text_reloc_tab.end";
+    singleton_ends["wc_linuxkm_pie_text_reloc_tab_length"] = "text_reloc_tab.len_end";
+    singleton_ends["wc_linuxkm_pie_rodata_reloc_tab"] = "rodata_reloc_tab.end";
+    singleton_ends["wc_linuxkm_pie_rodata_reloc_tab_length"] = "rodata_reloc_tab.len_end";
     singleton_ends["verifyCore"] = "verifyCore_end";
 }
 

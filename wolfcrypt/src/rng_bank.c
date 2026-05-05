@@ -26,6 +26,51 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
+/* Helpers to access reseedCtr / null-check the active DRBG. The shape of
+ * struct WC_RNG and the DRBG_*_internal types varies by which DRBGs are
+ * compiled in; random.h gates the SHA-256 side on !NO_SHA256 and the SHA-512
+ * side on WOLFSSL_DRBG_SHA512, so all three live combinations are handled
+ * separately here. */
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256)
+    /* Both DRBGs compiled in: dispatch on the runtime drbgType. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+            ? ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+            : ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            if ((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+                ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                    = (val); \
+            else \
+                ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL && (rng_ptr)->drbg512 == NULL)
+#elif defined(WOLFSSL_DRBG_SHA512)
+    /* SHA-512 DRBG only (NO_SHA256 defined); the SHA-256 struct and
+     * rng->drbg field do not exist in this build. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg512 == NULL)
+#else
+    /* SHA-256 DRBG only (the historical default). */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL)
+#endif
+
 WOLFSSL_API int wc_rng_bank_init(
     struct wc_rng_bank *ctx,
     int n_rngs,
@@ -52,7 +97,7 @@ WOLFSSL_API int wc_rng_bank_init(
 
 #ifdef WC_RNG_BANK_STATIC
     if (n_rngs > WC_RNG_BANK_STATIC_SIZE)
-        return BAD_LENGTH_E;
+        ret = BAD_LENGTH_E;
 #else
     ctx->rngs = (struct wc_rng_bank_inst *)
         XMALLOC(sizeof(*ctx->rngs) * (size_t)n_rngs,
@@ -187,6 +232,8 @@ WOLFSSL_API int wc_rng_bank_fini(struct wc_rng_bank *ctx) {
 
     if (wolfSSL_RefCur(ctx->refcount) > 1)
         return BUSY_E;
+    else if (wolfSSL_RefCur(ctx->refcount) < 1)
+        return BAD_STATE_E;
 
 #ifndef WC_RNG_BANK_STATIC
     if (ctx->rngs)
@@ -247,6 +294,123 @@ WOLFSSL_API int wc_rng_bank_free(struct wc_rng_bank **ctx) {
 }
 #endif /* !WC_RNG_BANK_STATIC */
 
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+
+/* The default_rng_bank facility is used by the Linux kernel module as a global
+ * resource for wc_rng_bank_checkout(),
+ * wc_local_rng_bank_checkout_for_bankref(), and wc_InitRng_BankRef(), and can
+ * be similarly used by any application, to cache DRBG seeding at application
+ * startup.
+ */
+
+static struct wc_rng_bank * volatile default_rng_bank;
+
+WOLFSSL_API int wc_rng_bank_default_set(struct wc_rng_bank *bank) {
+    int ret;
+    struct wc_rng_bank *cur_default_rng_bank = NULL;
+    int new_refcount;
+
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
+        (wolfSSL_RefCur(bank->refcount) < 1))
+    {
+        return BAD_STATE_E;
+    }
+
+    wolfSSL_RefInc2(&bank->refcount, &new_refcount, &ret);
+    if (ret != 0)
+        return ret;
+#ifdef WC_VERBOSE_RNG
+    if (new_refcount < 2)
+        WOLFSSL_DEBUG_PRINTF(
+        "BUG: wc_rng_bank_default_set() new_refcount %d.\n", new_refcount);
+#else
+    (void)new_refcount;
+#endif
+    if (wolfSSL_Atomic_Ptr_CompareExchange((void * volatile *)&default_rng_bank, (void **)&cur_default_rng_bank, bank))
+        return 0;
+    else {
+        wolfSSL_RefDec2(&bank->refcount, &new_refcount, &ret);
+#ifdef WC_VERBOSE_RNG
+        if (new_refcount <= 0)
+            WOLFSSL_DEBUG_PRINTF(
+            "BUG: wc_rng_bank_default_set() cleanup popped refcount to %d.\n", new_refcount);
+#else
+        (void)new_refcount;
+#endif
+        return BUSY_E;
+    }
+}
+
+/* Note wc_rng_bank_default_checkout() must not be called before
+ * wc_rng_bank_default_set() returns, or after wc_rng_bank_default_clear() is
+ * called -- it is the caller's responsibility to assure this.
+ */
+WOLFSSL_API int wc_rng_bank_default_checkout(struct wc_rng_bank **bank) {
+    int ret;
+    struct wc_rng_bank *cur_default_rng_bank = default_rng_bank;
+    if (bank == NULL)
+        return BAD_FUNC_ARG;
+    if (cur_default_rng_bank == NULL)
+        return BAD_STATE_E;
+    wolfSSL_RefInc(&cur_default_rng_bank->refcount, &ret);
+    if (ret == 0)
+        *bank = cur_default_rng_bank;
+    return ret;
+}
+
+WOLFSSL_API int wc_rng_bank_default_checkin(struct wc_rng_bank **bank) {
+    int ret;
+    int new_refcount;
+    if ((bank == NULL) || (*bank == NULL))
+        return BAD_FUNC_ARG;
+    wolfSSL_RefDec2(&(*bank)->refcount, &new_refcount, &ret);
+#ifdef WC_VERBOSE_RNG
+    if (new_refcount <= 0)
+        WOLFSSL_DEBUG_PRINTF(
+        "BUG: wc_rng_bank_default_checkin() popped refcount to %d.\n", new_refcount);
+#else
+    (void)new_refcount;
+#endif
+    *bank = NULL;
+    return ret;
+}
+
+/* Note, wc_rng_bank_default_clear() should only be called at module or
+ * application shutdown to avoid races with wc_rng_bank_default_checkout(), and
+ * must be called before wc_rng_bank_fini() on a bank previously passed to
+ * wc_rng_bank_default_set().
+ */
+WOLFSSL_API int wc_rng_bank_default_clear(struct wc_rng_bank *bank) {
+    if ((bank != default_rng_bank) || (bank == NULL))
+        return BAD_FUNC_ARG;
+    if (wolfSSL_Atomic_Ptr_CompareExchange((void * volatile *)&default_rng_bank, (void **)&bank, NULL)) {
+        int ret;
+        int new_refcount;
+        wolfSSL_RefDec2(&bank->refcount, &new_refcount, &ret);
+#ifdef WC_VERBOSE_RNG
+        /* wc_rng_bank_fini() is the sole responsibility of the context that
+         * called wc_rng_bank_default_set() for this wc_rng_bank.
+         */
+        if (new_refcount < 1)
+            WOLFSSL_DEBUG_PRINTF(
+                "BUG: wc_rng_bank_default_clear() popped refcount to %d.\n", new_refcount);
+        if (! (bank->flags & WC_RNG_BANK_FLAG_INITED))
+            WOLFSSL_DEBUG_PRINTF(
+                "BUG: wc_rng_bank_default_clear() bank is already uninited.\n");
+#else
+        (void)new_refcount;
+#endif
+        return ret;
+    }
+    else
+        return BUSY_E;
+}
+
+#endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
+
 /* wc_rng_bank_checkout() uses atomic operations to get exclusive ownership of a
  * DRBG without delay.  It expects to be called in uninterruptible context,
  * though works fine in any context.  When _PREFER_AFFINITY_INST, it starts by
@@ -268,11 +432,21 @@ WOLFSSL_API int wc_rng_bank_checkout(
     time_t ts1, ts2;
     int n_rngs_tried = 0;
 
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank == NULL)
+        bank = default_rng_bank;
+#endif
+
     if ((bank == NULL) ||
-        (! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
         (rng_inst == NULL))
     {
         return BAD_FUNC_ARG;
+    }
+
+    if ((! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
+        (wolfSSL_RefCur(bank->refcount) < 1))
+    {
+        return BAD_STATE_E;
     }
 
     if ((flags & WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST) &&
@@ -343,7 +517,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
             *rng_inst = &bank->rngs[preferred_inst_offset];
 
             if ((! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)) &&
-                (((struct DRBG_internal *)(*rng_inst)->rng.drbg)->reseedCtr >=
+                (WC_RNG_BANK_RESEED_CTR(&(*rng_inst)->rng) >=
                  WC_RESEED_INTERVAL) &&
                 (flags & WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST) &&
                 (n_rngs_tried < bank->n_rngs))
@@ -353,7 +527,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
             else {
 #ifdef WC_VERBOSE_RNG
                 if ((! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)) &&
-                    (((struct DRBG_internal *)(*rng_inst)->rng.drbg)->reseedCtr >=
+                    (WC_RNG_BANK_RESEED_CTR(&(*rng_inst)->rng) >=
                      WC_RESEED_INTERVAL))
                 {
                     WOLFSSL_DEBUG_PRINTF(
@@ -446,14 +620,45 @@ WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
 }
 #endif /* WC_DRBG_BANKREF */
 
+static WC_INLINE int rng_inst_matches_bank(
+    struct wc_rng_bank *bank,
+    struct wc_rng_bank_inst *rng_inst)
+{
+    if ((bank == NULL) || (rng_inst == NULL))
+        return BAD_FUNC_ARG;
+#ifdef WC_RNG_BANK_STATIC
+    if ((rng_inst >= &bank->rngs[0]) &&
+        (rng_inst <= &bank->rngs[WC_RNG_BANK_STATIC_SIZE - 1]))
+        return 1;
+    else
+        return BAD_FUNC_ARG;
+#else
+    if ((rng_inst >= bank->rngs) &&
+        (rng_inst <= bank->rngs + bank->n_rngs - 1))
+        return 1;
+    else
+        return BAD_FUNC_ARG;
+#endif
+}
+
 WOLFSSL_API int wc_rng_bank_checkin(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst **rng_inst)
 {
     int lockval;
+    int ret;
 
-    if ((bank == NULL) || (rng_inst == NULL) || (*rng_inst == NULL))
+    if (rng_inst == NULL)
         return BAD_FUNC_ARG;
+
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank == NULL)
+        bank = default_rng_bank;
+#endif
+
+    ret = rng_inst_matches_bank(bank, *rng_inst);
+    if (ret < 0)
+        return ret;
 
     lockval = (int)WOLFSSL_ATOMIC_LOAD((*rng_inst)->lock);
 
@@ -483,8 +688,17 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     time_t ts1 = 0;
     int devId;
 
-    if ((rng_inst == NULL) ||
-        (rng_inst->rng.drbg == NULL))
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank == NULL)
+        bank = default_rng_bank;
+#endif
+
+    /* rng_inst NULL check handled by rng_inst_matches_bank() */
+    ret = rng_inst_matches_bank(bank, rng_inst);
+    if (ret < 0)
+        return BAD_FUNC_ARG;
+
+    if (WC_RNG_BANK_DRBG_NULL(&rng_inst->rng))
     {
         return BAD_FUNC_ARG;
     }
@@ -538,6 +752,11 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
     int ret = 0;
     int n;
 
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank == NULL)
+        bank = default_rng_bank;
+#endif
+
     if ((bank == NULL) ||
         (! (bank->flags & WC_RNG_BANK_FLAG_INITED)))
     {
@@ -561,7 +780,7 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
 #endif
             break;
         }
-        else if (drbg->rng.drbg == NULL) {
+        else if (WC_RNG_BANK_DRBG_NULL(&drbg->rng)) {
 #ifdef WC_VERBOSE_RNG
             WOLFSSL_DEBUG_PRINTF(
                 "WARNING: wc_rng_bank_seed(): inst#%d has null .drbg.\n", n);
@@ -595,8 +814,16 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
     int ret;
     time_t ts1 = 0;
 
-    if (! bank)
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank == NULL)
+        bank = default_rng_bank;
+#endif
+
+    if ((bank == NULL) ||
+        (! (bank->flags & WC_RNG_BANK_FLAG_INITED)))
+    {
         return BAD_FUNC_ARG;
+    }
 
     if (flags & (WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
                  WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST))
@@ -612,8 +839,7 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
         if (ret != 0)
             return ret;
 
-        ((struct DRBG_internal *)drbg->rng.drbg)->reseedCtr =
-            WC_RESEED_INTERVAL;
+        WC_RNG_BANK_SET_RESEED_CTR(&drbg->rng, WC_RESEED_INTERVAL);
 
         if (flags & WC_RNG_BANK_FLAG_CAN_WAIT) {
             byte scratch[4];
@@ -667,11 +893,21 @@ WOLFSSL_API int wc_InitRng_BankRef(struct wc_rng_bank *bank, WC_RNG *rng)
 {
     int ret;
 
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank == NULL)
+        bank = default_rng_bank;
+#endif
+
     if ((bank == NULL) ||
-        (! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
         (rng == NULL))
     {
         return BAD_FUNC_ARG;
+    }
+
+    if ((! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
+        (wolfSSL_RefCur(bank->refcount) < 1))
+    {
+        return BAD_STATE_E;
     }
 
     XMEMSET(rng, 0, sizeof(*rng));
@@ -712,11 +948,21 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
 WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng) {
     int ret;
 
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (bank == NULL)
+        bank = default_rng_bank;
+#endif
+
     if ((bank == NULL) ||
-        (! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
         (rng == NULL))
     {
         return BAD_FUNC_ARG;
+    }
+
+    if ((! (bank->flags & WC_RNG_BANK_FLAG_INITED)) ||
+        (wolfSSL_RefCur(bank->refcount) < 1))
+    {
+        return BAD_STATE_E;
     }
 
     *rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), bank->heap, DYNAMIC_TYPE_RNG);

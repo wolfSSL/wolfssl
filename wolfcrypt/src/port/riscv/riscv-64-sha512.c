@@ -999,6 +999,9 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     int ret = InitSha512(sha512, heap, devId);
     if (ret == 0) {
         InitSha512_State(sha512);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+        sha512->hashType = WC_HASH_TYPE_SHA512;
+#endif
     }
     return ret;
 }
@@ -1302,6 +1305,9 @@ int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
     int ret = InitSha512(sha512, heap, devId);
     if (ret == 0) {
         InitSha512_224_State(sha512);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+        sha512->hashType = WC_HASH_TYPE_SHA512_224;
+#endif
     }
     return ret;
 }
@@ -1402,6 +1408,9 @@ int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
     int ret = InitSha512(sha512, heap, devId);
     if (ret == 0) {
         InitSha512_256_State(sha512);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+        sha512->hashType = WC_HASH_TYPE_SHA512_256;
+#endif
     }
     return ret;
 }

@@ -272,7 +272,7 @@ get_first_free_port() {
         if [[ "$ret" -ge 65536 ]]; then
             ret=1024
         fi
-        if ! nc -z "$V4V6_FLAG" $LOCALHOST_FOR_NC "$ret"; then
+        if ! nc -z $V4V6_FLAG $LOCALHOST_FOR_NC "$ret"; then
             break
         fi
         ret=$((ret+1))
@@ -298,7 +298,7 @@ if [ ! -f "$ready_file" ]; then
     exit 1
 else
     # should fail if ocspstapling is also enabled
-    OPENSSL_OUTPUT=$(echo "hi" | openssl s_client -status "$V4V6_FLAG" -legacy_renegotiation -connect "${LOCALHOST}:$port1" -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem 2>&1)
+    OPENSSL_OUTPUT=$(echo "hi" | openssl s_client -status $V4V6_FLAG -legacy_renegotiation -connect "${LOCALHOST}:$port1" -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem 2>&1)
     OPENSSL_RESULT=$?
     echo "$OPENSSL_OUTPUT"
     grep -F -q 'self signed certificate in certificate chain' <<< "$OPENSSL_OUTPUT"
@@ -534,7 +534,7 @@ generate_port() {
 
 # Start OpenSSL server that has no OCSP responses to return
 generate_port
-openssl s_server "$V4V6_FLAG" -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port "$port" &
+openssl s_server $V4V6_FLAG -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port "$port" &
 MAX_TIMEOUT=10
 until nc -z localhost "$port" # Wait for openssl to be ready
 do

@@ -21,6 +21,11 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
 #if !defined(NO_AES)
@@ -35,6 +40,15 @@
 #endif
 
 #ifdef WOLFSSL_RISCV_ASM
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000002 };
+    int wolfCrypt_FIPS_AES_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 /* Copy a 16-byte value from in to out.
  *
@@ -7443,8 +7457,8 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
       "L_aes_gcm_128_decrypt_store_tag_byte:\n\t"
         "lb         t2, (%[scratch])\n\t"
         "lb         t3, (%[tag])\n\t"
-        "xor        t0, t0, t2\n\t"
-        "xor        t0, t0, t3\n\t"
+        "xor        t3, t3, t2\n\t"
+        "or         t0, t0, t3\n\t"
         "addi       %[scratch], %[scratch], 1\n\t"
         "addi       %[tag], %[tag], 1\n\t"
         "addi       t1, t1, -1\n\t"
@@ -7966,8 +7980,8 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
       "L_aes_gcm_192_decrypt_store_tag_byte:\n\t"
         "lb         t2, (%[scratch])\n\t"
         "lb         t3, (%[tag])\n\t"
-        "xor        t0, t0, t2\n\t"
-        "xor        t0, t0, t3\n\t"
+        "xor        t3, t3, t2\n\t"
+        "or         t0, t0, t3\n\t"
         "addi       %[scratch], %[scratch], 1\n\t"
         "addi       %[tag], %[tag], 1\n\t"
         "addi       t1, t1, -1\n\t"
@@ -8506,8 +8520,8 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
       "L_aes_gcm_256_decrypt_store_tag_byte:\n\t"
         "lb         t2, (%[scratch])\n\t"
         "lb         t3, (%[tag])\n\t"
-        "xor        t0, t0, t2\n\t"
-        "xor        t0, t0, t3\n\t"
+        "xor        t3, t3, t2\n\t"
+        "or         t0, t0, t3\n\t"
         "addi       %[scratch], %[scratch], 1\n\t"
         "addi       %[tag], %[tag], 1\n\t"
         "addi       t1, t1, -1\n\t"

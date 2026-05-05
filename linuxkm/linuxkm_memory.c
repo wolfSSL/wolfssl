@@ -74,44 +74,41 @@ static const struct reloc_layout_ent {
     };
 
 static inline long find_reloc_tab_offset(
-    const struct wc_reloc_table_segments *seg_map,
     const struct wc_reloc_table_ent reloc_tab[],
     word32 reloc_tab_len,
-    size_t text_in_offset)
+    size_t seg_in_offset)
 {
     long ret;
     unsigned long hop;
+
+    if (seg_in_offset >= (size_t)reloc_tab[reloc_tab_len - 1].offset) {
+        RELOC_DEBUG_PRINTF("ERROR: %s failed.\n", __FUNCTION__);
+        return BAD_FUNC_ARG;
+    }
+
     if (reloc_tab_len <= 1) {
-        RELOC_DEBUG_PRINTF("ERROR: %s failed.\n", __FUNCTION__);
-        return -1;
-    }
-    if (text_in_offset >= (size_t)(seg_map->text_end - seg_map->text_start)) {
-        RELOC_DEBUG_PRINTF("ERROR: %s failed.\n", __FUNCTION__);
-        return -1;
-    }
-    if (text_in_offset >= (size_t)reloc_tab[reloc_tab_len - 1].offset) {
-        RELOC_DEBUG_PRINTF("ERROR: %s failed.\n", __FUNCTION__);
-        return -1;
+        /* empty relocation table. */
+        return 0;
     }
     for (ret = 0,
              hop = reloc_tab_len >> 1;
          hop;
          hop >>= 1)
     {
-        if (text_in_offset == (size_t)reloc_tab[ret].offset)
+        if (seg_in_offset == (size_t)reloc_tab[ret].offset)
             break;
-        else if (text_in_offset > (size_t)reloc_tab[ret].offset)
+        else if (seg_in_offset > (size_t)reloc_tab[ret].offset)
             ret += hop;
         else if (ret)
             ret -= hop;
     }
 
     while ((ret < (long)reloc_tab_len - 1) &&
-           ((size_t)reloc_tab[ret].offset < text_in_offset))
+           ((size_t)reloc_tab[ret].offset < seg_in_offset))
         ++ret;
 
     while ((ret > 0) &&
-           ((size_t)reloc_tab[ret - 1].offset >= text_in_offset))
+           ((size_t)reloc_tab[ret - 1].offset >= seg_in_offset))
         --ret;
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
@@ -128,35 +125,65 @@ static inline long find_reloc_tab_offset(
 #define wc_get_unaligned(v) ({ typeof(*(v)) _v_aligned; XMEMCPY((void *)&_v_aligned, (void *)(v), sizeof _v_aligned); _v_aligned; })
 #define wc_put_unaligned(v, v_out) do { typeof(v) _v = (v); XMEMCPY((void *)(v_out), (void *)&_v, sizeof(typeof(*(v_out)))); } while (0)
 
-ssize_t wc_reloc_normalize_text(
-    const byte *text_in,
-    size_t text_in_len,
-    byte *text_out,
+ssize_t wc_reloc_normalize_segment(
+    const byte *seg_in,
+    size_t *seg_in_out_len,
+    byte *seg_out,
     ssize_t *cur_index_p,
     const struct wc_reloc_table_segments *seg_map,
     struct wc_reloc_counts *reloc_counts)
 {
     ssize_t i;
-    size_t text_in_offset;
+    size_t seg_in_offset;
     const struct wc_reloc_table_ent *last_reloc; /* for error-checking order in reloc_tab[] */
     int n_text_r = 0, n_rodata_r = 0, n_rwdata_r = 0, n_bss_r = 0, n_other_r = 0, n_oob_r = 0;
-    const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->reloc_tab_start;
-    const word32 reloc_tab_len = *(const word32 *)seg_map->reloc_tab_len_start;
+    const struct wc_reloc_table_ent *reloc_tab;
+    word32 reloc_tab_len;
+    uintptr_t src_seg_start;
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+    uintptr_t src_seg_end;
+    const char *src_seg_name;
+#endif
 
-    if ((text_in_len == 0) ||
-        ((uintptr_t)text_in < seg_map->text_start) ||
-        ((uintptr_t)(text_in + text_in_len) > seg_map->text_end))
+    if (*seg_in_out_len == 0)
+        return BAD_FUNC_ARG;
+
+    if (((uintptr_t)seg_in >= seg_map->text_start) &&
+        ((uintptr_t)(seg_in + *seg_in_out_len) <= seg_map->text_end))
     {
-        RELOC_DEBUG_PRINTF("ERROR: %s returning -1 with span %llx-%llx versus segment %llx-%llx.\n",
+        reloc_tab = (const struct wc_reloc_table_ent *)seg_map->text_reloc_tab.start;
+        reloc_tab_len = *(const word32 *)seg_map->text_reloc_tab.len_start;
+        src_seg_start = seg_map->text_start;
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+        src_seg_end = seg_map->text_end;
+        src_seg_name = "text";
+#endif
+    }
+    else if (((uintptr_t)seg_in >= seg_map->rodata_start) &&
+        ((uintptr_t)(seg_in + *seg_in_out_len) <= seg_map->rodata_end))
+    {
+        reloc_tab = (const struct wc_reloc_table_ent *)seg_map->rodata_reloc_tab.start;
+        reloc_tab_len = *(const word32 *)seg_map->rodata_reloc_tab.len_start;
+        src_seg_start = seg_map->rodata_start;
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+        src_seg_end = seg_map->rodata_end;
+        src_seg_name = "rodata";
+#endif
+    }
+    else
+    {
+        RELOC_DEBUG_PRINTF("ERROR: %s returning BAD_FUNC_ARG with span %llx-%llx versus text %llx-%llx and rodata %llx-%llx.\n",
                __FUNCTION__,
-               (unsigned long long)(uintptr_t)text_in,
-               (unsigned long long)(uintptr_t)(text_in + text_in_len),
+               (unsigned long long)(uintptr_t)seg_in,
+               (unsigned long long)(uintptr_t)(seg_in + *seg_in_out_len),
                (unsigned long long)seg_map->text_start,
-               (unsigned long long)seg_map->text_end);
-        return -1;
+               (unsigned long long)seg_map->text_end,
+               (unsigned long long)seg_map->rodata_start,
+               (unsigned long long)seg_map->rodata_end);
+        return BAD_FUNC_ARG;
     }
 
-    text_in_offset = (uintptr_t)text_in - seg_map->text_start;
+    seg_in_offset = (uintptr_t)seg_in - src_seg_start;
 
     if (cur_index_p)
         i = *cur_index_p;
@@ -164,25 +191,28 @@ ssize_t wc_reloc_normalize_text(
         i = -1;
 
     if (i == -1)
-        i = find_reloc_tab_offset(seg_map, reloc_tab, reloc_tab_len, text_in_offset);
+        i = find_reloc_tab_offset(reloc_tab, reloc_tab_len, seg_in_offset);
 
     if (i < 0)
         return i;
 
     WC_SANITIZE_DISABLE();
-    memcpy(text_out, text_in, text_in_len);
+    memcpy(seg_out, seg_in, *seg_in_out_len);
     WC_SANITIZE_ENABLE();
 
+    /* note, if there are no relocations in the src seg, the loop isn't entered
+     * at all, and we return without further ado.
+     */
     for (last_reloc = &reloc_tab[i > 0 ? i-1 : 0];
          (size_t)i < reloc_tab_len - 1;
          ++i)
     {
         const struct wc_reloc_table_ent *next_reloc = &reloc_tab[i];
         enum wc_reloc_dest_segment dest_seg;
-        uintptr_t seg_beg;
+        uintptr_t dest_seg_start;
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-        uintptr_t seg_end;
-        const char *seg_name;
+        uintptr_t dest_seg_end;
+        const char *dest_seg_name;
 #endif
         word64 reloc_buf = 0;
         const struct reloc_layout_ent *layout;
@@ -196,7 +226,7 @@ ssize_t wc_reloc_normalize_text(
         if (last_reloc->offset > next_reloc->offset) {
             RELOC_DEBUG_PRINTF("BUG: out-of-order offset found at reloc_tab[%zd]: %u > %u\n",
                    i, last_reloc->offset, next_reloc->offset);
-            return -1;
+            return BAD_FUNC_ARG;
         }
 
         last_reloc = next_reloc;
@@ -204,7 +234,7 @@ ssize_t wc_reloc_normalize_text(
         if (next_reloc->reloc_type >= (sizeof reloc_layouts / sizeof reloc_layouts[0])) {
             RELOC_DEBUG_PRINTF("BUG: unknown relocation type %u found at reloc_tab[%zd]\n",
                    next_reloc->reloc_type, i);
-                return -1;
+                return BAD_FUNC_ARG;
         }
 
         layout = &reloc_layouts[next_reloc->reloc_type];
@@ -217,7 +247,7 @@ ssize_t wc_reloc_normalize_text(
         default:
             RELOC_DEBUG_PRINTF("BUG: unexpected relocation width %llu found at reloc_tab[%lld], reloc type %u\n",
                    (unsigned long long)layout->width, (long long)i, next_reloc->reloc_type);
-            return -1;
+            return BAD_FUNC_ARG;
         }
 
         /* provisionally assign the destination segment from the reloc record --
@@ -227,23 +257,23 @@ ssize_t wc_reloc_normalize_text(
         dest_seg = next_reloc->dest_segment;
 
         /* next_reloc_rel is the offset of the relocation relative to the start
-         * of the current text chunk (text_in).  i.e., text_in + next_reloc_rel
+         * of the current text chunk (seg_in).  i.e., seg_in + next_reloc_rel
          * is the start of the relocation.
          */
-        next_reloc_rel = next_reloc->offset - text_in_offset;
+        next_reloc_rel = next_reloc->offset - seg_in_offset;
 
-        if (next_reloc_rel >= text_in_len) {
+        if (next_reloc_rel >= *seg_in_out_len) {
             /* no more relocations in this buffer. */
             break;
         }
 
-        if ((text_in_len < WC_BITS_TO_BYTES(layout->width)) ||
-            (next_reloc_rel > text_in_len - WC_BITS_TO_BYTES(layout->width)))
+        if ((*seg_in_out_len < WC_BITS_TO_BYTES(layout->width)) ||
+            (next_reloc_rel > *seg_in_out_len - WC_BITS_TO_BYTES(layout->width)))
         {
             /* relocation straddles buffer at end -- caller will try again with
              * that relocation at the start.
              */
-            text_in_len = next_reloc_rel;
+            *seg_in_out_len = next_reloc_rel;
             break;
         }
 
@@ -257,61 +287,61 @@ ssize_t wc_reloc_normalize_text(
              */
             switch (layout->width) {
             case 32:
-                reloc_buf = (word64)(sword64)(wc_get_unaligned((sword32 *)&text_out[next_reloc_rel]) & (sword32)layout->mask);
+                reloc_buf = (word64)(sword64)(wc_get_unaligned((sword32 *)&seg_out[next_reloc_rel]) & (sword32)layout->mask);
                 break;
             case 64:
-                reloc_buf = (word64)(sword64)(wc_get_unaligned((sword64 *)&text_out[next_reloc_rel]) & (sword64)layout->mask);
+                reloc_buf = (word64)(sword64)(wc_get_unaligned((sword64 *)&seg_out[next_reloc_rel]) & (sword64)layout->mask);
                 break;
             case 16:
-                reloc_buf = (word64)(sword64)(wc_get_unaligned((sword16 *)&text_out[next_reloc_rel]) & (sword16)layout->mask);
+                reloc_buf = (word64)(sword64)(wc_get_unaligned((sword16 *)&seg_out[next_reloc_rel]) & (sword16)layout->mask);
                 break;
             }
         }
         else {
             switch (layout->width) {
             case 32:
-                reloc_buf = (word64)(wc_get_unaligned((word32 *)&text_out[next_reloc_rel]) & (word32)layout->mask);
+                reloc_buf = (word64)(wc_get_unaligned((word32 *)&seg_out[next_reloc_rel]) & (word32)layout->mask);
                 break;
             case 64:
-                reloc_buf = (word64)(wc_get_unaligned((word64 *)&text_out[next_reloc_rel]) & layout->mask);
+                reloc_buf = (word64)(wc_get_unaligned((word64 *)&seg_out[next_reloc_rel]) & layout->mask);
                 break;
             case 16:
-                reloc_buf = (word64)(wc_get_unaligned((word16 *)&text_out[next_reloc_rel]) & (word16)layout->mask);
+                reloc_buf = (word64)(wc_get_unaligned((word16 *)&seg_out[next_reloc_rel]) & (word16)layout->mask);
                 break;
             }
         }
 
         switch (dest_seg) {
         case WC_R_SEG_TEXT:
-            seg_beg = seg_map->text_start;
+            dest_seg_start = seg_map->text_start;
             ++n_text_r;
             #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = seg_map->text_end;
-            seg_name = "text";
+            dest_seg_end = seg_map->text_end;
+            dest_seg_name = "text";
             #endif
             break;
         case WC_R_SEG_RODATA:
-            seg_beg = seg_map->rodata_start;
+            dest_seg_start = seg_map->rodata_start;
             ++n_rodata_r;
             #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = seg_map->rodata_end;
-            seg_name = "rodata";
+            dest_seg_end = seg_map->rodata_end;
+            dest_seg_name = "rodata";
             #endif
             break;
         case WC_R_SEG_RWDATA:
-            seg_beg = seg_map->data_start;
+            dest_seg_start = seg_map->data_start;
             ++n_rwdata_r;
             #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = seg_map->data_end;
-            seg_name = "data";
+            dest_seg_end = seg_map->data_end;
+            dest_seg_name = "data";
             #endif
             break;
         case WC_R_SEG_BSS:
-            seg_beg = seg_map->bss_start;
+            dest_seg_start = seg_map->bss_start;
             ++n_bss_r;
             #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = seg_map->bss_end;
-            seg_name = "bss";
+            dest_seg_end = seg_map->bss_end;
+            dest_seg_name = "bss";
             #endif
             break;
         default:
@@ -319,10 +349,10 @@ ssize_t wc_reloc_normalize_text(
             dest_seg = WC_R_SEG_OTHER;
             FALL_THROUGH;
         case WC_R_SEG_OTHER:
-            seg_beg = 0;
+            dest_seg_start = 0;
             #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-            seg_end = 0;
-            seg_name = "other";
+            dest_seg_end = 0;
+            dest_seg_name = "other";
             #endif
             break;
         }
@@ -344,33 +374,35 @@ ssize_t wc_reloc_normalize_text(
                      * baked into the reloc_tab for each relocation.
                      */
                     if (layout->is_relative)
-                        reloc_buf = reloc_buf + (uintptr_t)next_reloc->offset - (uintptr_t)next_reloc->dest_addend - (seg_beg - seg_map->text_start);
+                        reloc_buf = reloc_buf + (uintptr_t)next_reloc->offset - (uintptr_t)next_reloc->dest_addend - (dest_seg_start - src_seg_start);
                     else
-                        reloc_buf = reloc_buf - seg_beg - (uintptr_t)next_reloc->dest_addend;
+                        reloc_buf = reloc_buf - dest_seg_start - (uintptr_t)next_reloc->dest_addend;
                 }
                 else {
                     reloc_buf = (word64)next_reloc->dest_offset;
                 }
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
-                if (reloc_buf >= seg_end - seg_beg) {
+                if (reloc_buf >= dest_seg_end - dest_seg_start) {
                     ++n_oob_r;
-                    RELOC_DEBUG_PRINTF("WARNING: normalized value is out of bounds (%s0x%llx) at index %lld, text offset 0x%x, reloc type %s, "
-                                         "dest seg .%s_wolfcrypt, offset from text to dest segment %s0x%llx, raw dest addr %s0x%llx, "
-                                         "seg span 0x%llx - 0x%llx, seg size 0x%llx, text base 0x%llx\n",
+                    RELOC_DEBUG_PRINTF("WARNING: normalized value is out of bounds (%s0x%llx) at index %lld, %s offset 0x%x, reloc type %s, "
+                                         "src seg .%s_wolfcrypt, dest seg .%s_wolfcrypt, offset from src to dest segment %s0x%llx, raw dest addr %s0x%llx, "
+                                         "seg span 0x%llx - 0x%llx, seg size 0x%llx, src seg 0x%llx-0x%llx\n",
                                          (long long)reloc_buf < 0 ? "-" : "",
                                          (long long)reloc_buf < 0 ? -(long long)reloc_buf : (long long)reloc_buf,
                                          (long long)i,
+                                         src_seg_name,
                                          next_reloc->offset,
                                          layout->name,
-                                         seg_name,
-                                         seg_beg < seg_map->text_start ? "-" : "+",
-                                         seg_beg < seg_map->text_start ? (unsigned long long)seg_map->text_start - seg_beg : seg_beg - (unsigned long long)seg_map->text_start,
+                                         src_seg_name,
+                                         dest_seg_name,
+                                         dest_seg_start < src_seg_start ? "-" : "+",
+                                         dest_seg_start < src_seg_start ? (unsigned long long)src_seg_start - dest_seg_start : dest_seg_start - (unsigned long long)src_seg_start,
                                          (layout->is_signed && ((long long)raw_dest_addr < 0)) ? "-" : "",
                                          (layout->is_signed && ((long long)raw_dest_addr < 0)) ? (unsigned long long)-(long long)raw_dest_addr : raw_dest_addr,
-                                         (unsigned long long)seg_beg,
-                                         (unsigned long long)seg_end,
-                                         (unsigned long long)(seg_end - seg_beg),
-                                         (unsigned long long)seg_map->text_start);
+                                         (unsigned long long)dest_seg_start,
+                                         (unsigned long long)dest_seg_end,
+                                         (unsigned long long)(dest_seg_end - dest_seg_start),
+                                       (unsigned long long)src_seg_start, (unsigned long long)src_seg_end);
                 }
 #endif
             }
@@ -414,8 +446,8 @@ ssize_t wc_reloc_normalize_text(
             break;
 
         default:
-            RELOC_DEBUG_PRINTF("BUG: unrecognized relocation type %u in reloc record %zu, text offset 0x%x\n",
-                                 (unsigned)next_reloc->reloc_type, i, reloc_tab[i].offset);
+            RELOC_DEBUG_PRINTF("BUG: unrecognized relocation type %u in reloc record %zu, %s offset 0x%x\n",
+                               (unsigned)next_reloc->reloc_type, i, src_seg_name, reloc_tab[i].offset);
             ++n_oob_r;
             dest_seg = WC_R_SEG_OTHER;
         }
@@ -427,8 +459,8 @@ ssize_t wc_reloc_normalize_text(
             reloc_buf = 0;
 
             ++n_other_r;
-            RELOC_DEBUG_PRINTF("found non-wolfcrypt relocation at index %lld, text offset 0x%x.\n",
-                      (long long)i, reloc_tab[i].offset);
+            RELOC_DEBUG_PRINTF("found non-wolfcrypt relocation at index %lld, %s offset 0x%x.\n",
+                               (long long)i, src_seg_name, reloc_tab[i].offset);
         }
 
         /* xor in a label identifying the dest segment and reloc type. */
@@ -438,13 +470,13 @@ ssize_t wc_reloc_normalize_text(
         /* write the modified reloc_buf to the destination buffer. */
         switch (layout->width) {
         case 32:
-            wc_put_unaligned((word32)reloc_buf, (word32 *)&text_out[next_reloc_rel]);
+            wc_put_unaligned((word32)reloc_buf, (word32 *)&seg_out[next_reloc_rel]);
             break;
         case 64:
-            wc_put_unaligned(reloc_buf, (word64 *)&text_out[next_reloc_rel]);
+            wc_put_unaligned(reloc_buf, (word64 *)&seg_out[next_reloc_rel]);
             break;
         case 16:
-            wc_put_unaligned((word16)reloc_buf, (word16 *)&text_out[next_reloc_rel]);
+            wc_put_unaligned((word16)reloc_buf, (word16 *)&seg_out[next_reloc_rel]);
             break;
         }
     }
@@ -458,15 +490,15 @@ ssize_t wc_reloc_normalize_text(
     }
 
     if ((n_other_r > 0) || (n_oob_r > 0))
-        RELOC_DEBUG_PRINTF("text_in=%llx relocs=%d/%d/%d/%d/%d/%d ret = %llu\n",
-                  (unsigned long long)(uintptr_t)text_in, n_text_r, n_rodata_r,
+        RELOC_DEBUG_PRINTF("seg_in=%llx relocs=%d/%d/%d/%d/%d/%d ret = %llu\n",
+                  (unsigned long long)(uintptr_t)seg_in, n_text_r, n_rodata_r,
                   n_rwdata_r, n_bss_r, n_other_r, n_oob_r,
-                  (unsigned long long)text_in_len);
+                  (unsigned long long)*seg_in_out_len);
 
     if (cur_index_p)
         *cur_index_p = i;
 
-    return (ssize_t)text_in_len;
+    return (ssize_t)*seg_in_out_len;
 }
 
 #endif /* WC_SYM_RELOC_TABLES || WC_SYM_RELOC_TABLES_SUPPORT */
@@ -553,16 +585,28 @@ int wc_fips_generate_hash(
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
     if (seg_map->text_is_live) {
-        if ((seg_map->reloc_tab_start == 0) ||
-            (seg_map->reloc_tab_len_start == 0))
+        if ((seg_map->text_reloc_tab.start == 0) ||
+            (seg_map->text_reloc_tab.len_start == 0))
+        {
+            RELOC_DEBUG_PRINTF("assert failed.\n");
+            return BAD_FUNC_ARG;
+        }
+        if ((seg_map->rodata_reloc_tab.start == 0) ||
+            (seg_map->rodata_reloc_tab.len_start == 0))
         {
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
         }
     }
     else {
-        if ((seg_map->reloc_tab_end == 0) ||
-            (seg_map->reloc_tab_len_end == 0))
+        if ((seg_map->text_reloc_tab.end == 0) ||
+            (seg_map->text_reloc_tab.len_end == 0))
+        {
+            RELOC_DEBUG_PRINTF("assert failed.\n");
+            return BAD_FUNC_ARG;
+        }
+        if ((seg_map->rodata_reloc_tab.end == 0) ||
+            (seg_map->rodata_reloc_tab.len_end == 0))
         {
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
@@ -575,8 +619,10 @@ int wc_fips_generate_hash(
         (seg_map->fips_rodata_start >= seg_map->fips_rodata_end)
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
         ||
-        ((seg_map->reloc_tab_end != 0) && (seg_map->reloc_tab_start >= seg_map->reloc_tab_end)) ||
-        ((seg_map->reloc_tab_len_end != 0) && (seg_map->reloc_tab_len_start >= seg_map->reloc_tab_len_end)) ||
+        ((seg_map->text_reloc_tab.end != 0) && (seg_map->text_reloc_tab.start >= seg_map->text_reloc_tab.end)) ||
+        ((seg_map->text_reloc_tab.len_end != 0) && (seg_map->text_reloc_tab.len_start >= seg_map->text_reloc_tab.len_end)) ||
+        ((seg_map->rodata_reloc_tab.end != 0) && (seg_map->rodata_reloc_tab.start >= seg_map->rodata_reloc_tab.end)) ||
+        ((seg_map->rodata_reloc_tab.len_end != 0) && (seg_map->rodata_reloc_tab.len_start >= seg_map->rodata_reloc_tab.len_end)) ||
         (seg_map->text_start >= seg_map->text_end) ||
         (seg_map->rodata_start >= seg_map->rodata_end) ||
         (seg_map->data_start >= seg_map->data_end) ||
@@ -594,8 +640,10 @@ int wc_fips_generate_hash(
             (seg_map->verifyCore_start < seg_map->start)
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
             ||
-            (seg_map->reloc_tab_start < seg_map->start) ||
-            (seg_map->reloc_tab_len_start < seg_map->start) ||
+            (seg_map->text_reloc_tab.start < seg_map->start) ||
+            (seg_map->text_reloc_tab.len_start < seg_map->start) ||
+            (seg_map->rodata_reloc_tab.start < seg_map->start) ||
+            (seg_map->rodata_reloc_tab.len_start < seg_map->start) ||
             (seg_map->text_start < seg_map->start) ||
             (seg_map->rodata_start < seg_map->start) ||
             (seg_map->data_start < seg_map->start) ||
@@ -614,10 +662,14 @@ int wc_fips_generate_hash(
             (seg_map->verifyCore_end > seg_map->end)
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
             ||
-            ((seg_map->reloc_tab_end != 0) &&
-             (seg_map->reloc_tab_end > seg_map->end)) ||
-            ((seg_map->reloc_tab_len_end != 0) &&
-             (seg_map->reloc_tab_len_end > seg_map->end)) ||
+            ((seg_map->text_reloc_tab.end != 0) &&
+             (seg_map->text_reloc_tab.end > seg_map->end)) ||
+            ((seg_map->text_reloc_tab.len_end != 0) &&
+             (seg_map->text_reloc_tab.len_end > seg_map->end)) ||
+            ((seg_map->rodata_reloc_tab.end != 0) &&
+             (seg_map->rodata_reloc_tab.end > seg_map->end)) ||
+            ((seg_map->rodata_reloc_tab.len_end != 0) &&
+             (seg_map->rodata_reloc_tab.len_end > seg_map->end)) ||
             (seg_map->text_end > seg_map->end) ||
             (seg_map->rodata_end > seg_map->end) ||
             (seg_map->data_end > seg_map->end) ||
@@ -631,15 +683,15 @@ int wc_fips_generate_hash(
     }
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
-    if ((seg_map->reloc_tab_len_end != 0) &&
-        (seg_map->reloc_tab_len_end - seg_map->reloc_tab_len_start != sizeof(word32)))
+    if ((seg_map->text_reloc_tab.len_end != 0) &&
+        (seg_map->text_reloc_tab.len_end - seg_map->text_reloc_tab.len_start != sizeof(word32)))
     {
         RELOC_DEBUG_PRINTF("assert failed.\n");
         return BAD_FUNC_ARG;
     }
-    else if (seg_map->reloc_tab_len_start & (sizeof(word32) - 1)) {
-        /* fprintf(stderr, "%s: seg_map->reloc_tab_len_start isn't properly aligned: 0x%llx.\n", progname, (
-           unsigned long long)seg_map->reloc_tab_len_start); */
+    else if (seg_map->text_reloc_tab.len_start & (sizeof(word32) - 1)) {
+        /* fprintf(stderr, "%s: seg_map->text_reloc_tab.len_start isn't properly aligned: 0x%llx.\n", progname, (
+           unsigned long long)seg_map->text_reloc_tab.len_start); */
         RELOC_DEBUG_PRINTF("assert failed.\n");
         return BAD_ALIGN_E;
     }
@@ -649,8 +701,8 @@ int wc_fips_generate_hash(
          * a nonsense byte-swapped value, or the final reloc_tab ent has
          * nonsense flags.
          */
-        word32 reloc_tab_len = *(const word32 *)seg_map->reloc_tab_len_start;
-        const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->reloc_tab_start;
+        word32 reloc_tab_len = *(const word32 *)seg_map->text_reloc_tab.len_start;
+        const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->text_reloc_tab.start;
         if (reloc_tab_len == 0) {
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
@@ -667,14 +719,64 @@ int wc_fips_generate_hash(
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
         }
-        else if ((seg_map->reloc_tab_end != 0) &&
-            (seg_map->reloc_tab_end - seg_map->reloc_tab_start != sizeof(struct wc_reloc_table_ent) * *(const word32 *)seg_map->reloc_tab_len_start))
+        else if ((seg_map->text_reloc_tab.end != 0) &&
+            (seg_map->text_reloc_tab.end - seg_map->text_reloc_tab.start != sizeof(struct wc_reloc_table_ent) * *(const word32 *)seg_map->text_reloc_tab.len_start))
         {
             /*
-              fprintf(stderr, "%s: wc_linuxkm_pie_reloc_tab_length from module (%u) is inconsistent with actual reloc_tab size %llu.\n",
+              fprintf(stderr, "%s: wc_linuxkm_pie_text_reloc_tab_length from module (%u) is inconsistent with actual text_reloc_tab size %llu.\n",
               progname,
-              *(const word32 *)seg_map->reloc_tab_len_start,
-              (unsigned long long)(seg_map->reloc_tab_end - seg_map->reloc_tab_start));
+              *(const word32 *)seg_map->text_reloc_tab.len_start,
+              (unsigned long long)(seg_map->text_reloc_tab.end - seg_map->text_reloc_tab.start));
+            */
+            RELOC_DEBUG_PRINTF("assert failed.\n");
+            return BAD_FUNC_ARG;
+        }
+    }
+
+    if ((seg_map->rodata_reloc_tab.len_end != 0) &&
+        (seg_map->rodata_reloc_tab.len_end - seg_map->rodata_reloc_tab.len_start != sizeof(word32)))
+    {
+        RELOC_DEBUG_PRINTF("assert failed.\n");
+        return BAD_FUNC_ARG;
+    }
+    else if (seg_map->rodata_reloc_tab.len_start & (sizeof(word32) - 1)) {
+        /* fprintf(stderr, "%s: seg_map->rodata_reloc_tab.len_start isn't properly aligned: 0x%llx.\n", progname, (
+           unsigned long long)seg_map->rodata_reloc_tab.len_start); */
+        RELOC_DEBUG_PRINTF("assert failed.\n");
+        return BAD_ALIGN_E;
+    }
+    else {
+        /* Note we don't currently handle modules that are endian-conflicted
+         * with the build host -- that'll be caught here, when reloc_tab_len is
+         * a nonsense byte-swapped value, or the final reloc_tab ent has
+         * nonsense flags.
+         */
+        word32 reloc_tab_len = *(const word32 *)seg_map->rodata_reloc_tab.len_start;
+        const struct wc_reloc_table_ent *reloc_tab = (const struct wc_reloc_table_ent *)seg_map->rodata_reloc_tab.start;
+        if (reloc_tab_len == 0) {
+            RELOC_DEBUG_PRINTF("assert failed.\n");
+            return BAD_FUNC_ARG;
+        }
+        else if ((seg_map->end != 0) &&
+            ((unsigned long)(reloc_tab + reloc_tab_len) > seg_map->end))
+        {
+            RELOC_DEBUG_PRINTF("assert failed.\n");
+            return BAD_FUNC_ARG;
+        }
+        else if ((reloc_tab[reloc_tab_len - 1].dest_segment != WC_R_SEG_NONE) ||
+                 (reloc_tab[reloc_tab_len - 1].reloc_type != WC_R_NONE))
+        {
+            RELOC_DEBUG_PRINTF("assert failed.\n");
+            return BAD_FUNC_ARG;
+        }
+        else if ((seg_map->rodata_reloc_tab.end != 0) &&
+            (seg_map->rodata_reloc_tab.end - seg_map->rodata_reloc_tab.start != sizeof(struct wc_reloc_table_ent) * *(const word32 *)seg_map->rodata_reloc_tab.len_start))
+        {
+            /*
+              fprintf(stderr, "%s: wc_linuxkm_pie_rodata_reloc_tab_length from module (%u) is inconsistent with actual rodata_reloc_tab size %llu.\n",
+              progname,
+              *(const word32 *)seg_map->rodata_reloc_tab.len_start,
+              (unsigned long long)(seg_map->rodata_reloc_tab.end - seg_map->rodata_reloc_tab.start));
             */
             RELOC_DEBUG_PRINTF("assert failed.\n");
             return BAD_FUNC_ARG;
@@ -728,9 +830,10 @@ int wc_fips_generate_hash(
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
     {
-        ssize_t cur_reloc_index = -1;
+        ssize_t cur_reloc_index;
         const byte *text_p = (const byte *)seg_map->fips_text_start;
-        byte *buf = XMALLOC(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        const byte *rodata_p = (const byte *)seg_map->fips_rodata_start;
+        byte *buf = XMALLOC(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         if (! buf) {
             ret = MEMORY_E;
@@ -738,23 +841,23 @@ int wc_fips_generate_hash(
             goto out;
         }
 
+        cur_reloc_index = -1;
         while (text_p < (const byte *)seg_map->fips_text_end) {
-            /* wc_reloc_normalize_text() does its own WC_SANITIZE_DISABLE()s, so
-             * we defer it here.
-             */
-            ssize_t progress = wc_reloc_normalize_text(
+            size_t text_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
+                                         (size_t)((const byte *)seg_map->fips_text_end - text_p));
+            ssize_t progress = wc_reloc_normalize_segment(
                 text_p,
-                min(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ, (word32)((const byte *)seg_map->fips_text_end - text_p)),
+                &text_in_out_len,
                 buf,
                 &cur_reloc_index,
                 seg_map,
                 reloc_counts);
             if (progress <= 0) {
-                ret = IN_CORE_FIPS_E;
-                RELOC_DEBUG_PRINTF("wc_reloc_normalize_text() failed.\n");
+                RELOC_DEBUG_PRINTF("wc_reloc_normalize_segment() for text failed: %zd.\n", progress);
+                ret = progress ? (int)progress : IN_CORE_FIPS_E;
                 break;
             }
-            ret = hmac_update(hmac_ctx, buf, (word32)progress);
+            ret = hmac_update(hmac_ctx, buf, (word32)text_in_out_len);
             if (ret) {
                 RELOC_DEBUG_PRINTF("hmac_update() failed.\n");
                 break;
@@ -762,15 +865,61 @@ int wc_fips_generate_hash(
             text_p += progress;
         }
 
+        if (ret) {
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            goto out;
+        }
+
+        cur_reloc_index = -1;
+        while (rodata_p < (const byte *)seg_map->fips_rodata_end) {
+            size_t rodata_in_out_len = min(WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ,
+                                           (size_t)((const byte *)seg_map->fips_rodata_end - rodata_p));
+            /* don't hash verifyCore or changing verifyCore will change hash */
+            if ((rodata_p < (const byte *)seg_map->verifyCore_end) &&
+                (rodata_p + rodata_in_out_len >= (const byte *)seg_map->verifyCore_start))
+            {
+                rodata_in_out_len = (size_t)((const byte *)seg_map->verifyCore_start - rodata_p);
+                if (rodata_in_out_len == 0) {
+                    rodata_p = (const byte *)seg_map->verifyCore_end;
+                    /* force recomputation of relocation offset when skipping
+                     * a span (not processed by wc_reloc_normalize_segment()).
+                     */
+                    cur_reloc_index = -1;
+                    continue;
+                }
+            }
+
+            ssize_t progress = wc_reloc_normalize_segment(
+                rodata_p,
+                &rodata_in_out_len,
+                buf,
+                &cur_reloc_index,
+                seg_map,
+                reloc_counts);
+            if (progress <= 0) {
+                RELOC_DEBUG_PRINTF("wc_reloc_normalize_segment() for rodata failed: %zd.\n", progress);
+                ret = progress ? (int)progress : IN_CORE_FIPS_E;
+                break;
+            }
+            ret = hmac_update(hmac_ctx, buf, (word32)rodata_in_out_len);
+            if (ret) {
+                RELOC_DEBUG_PRINTF("hmac_update() failed.\n");
+                break;
+            }
+            rodata_p += progress;
+        }
+
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (ret)
+            goto out;
     }
 
-    WC_SANITIZE_DISABLE();
-#else
+#else /* ! (WC_SYM_RELOC_TABLES || WC_SYM_RELOC_TABLES_SUPPORT) */
+
     (void)reloc_counts;
     WC_SANITIZE_DISABLE();
     ret = hmac_update(hmac_ctx, (byte *)(wc_ptr_t)seg_map->fips_text_start, (word32)(seg_map->fips_text_end - seg_map->fips_text_start));
-#endif /* !WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
 
     if (ret) {
         RELOC_DEBUG_PRINTF("ERROR: hmac_update failed: err %d\n", ret);
@@ -800,6 +949,8 @@ int wc_fips_generate_hash(
         ret = BAD_STATE_E;
         goto out;
     }
+
+#endif /* ! (WC_SYM_RELOC_TABLES || WC_SYM_RELOC_TABLES_SUPPORT) */
 
     ret = hmac_final(hmac_ctx, hash, digest_size);
     if (ret) {

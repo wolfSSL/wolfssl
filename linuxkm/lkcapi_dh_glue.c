@@ -347,7 +347,7 @@ static int km_dh_decode_secret(const u8 * buf, unsigned int len,
 
     if (secret.len != expected_len) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: km_dh_decode_secret: got %d, expected %zu",
+        pr_err("%s: km_dh_decode_secret: got %d, expected %zu\n",
                WOLFKM_DH_DRIVER, secret.len, expected_len);
         #endif /* WOLFKM_DEBUG_DH */
         return -EINVAL;
@@ -413,7 +413,7 @@ static int km_dh_alloc_keys(struct km_dh_ctx * ctx)
 alloc_keys_end:
     if (err) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: km_dh_alloc_keys failed: %d",
+        pr_err("%s: km_dh_alloc_keys failed: %d\n",
                WOLFKM_DH_DRIVER, err);
         #endif
         km_dh_clear_keys(ctx);
@@ -478,7 +478,7 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 
     if (km_dh_decode_secret(buf, len, &params) < 0) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: dh_set_secret: decode secret failed: %d",
+        pr_err("%s: dh_set_secret: decode secret failed: %d\n",
                WOLFKM_DH_DRIVER, params.key_size);
         #endif /* WOLFKM_DEBUG_DH */
         err = -EINVAL;
@@ -488,7 +488,7 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
     /* the key, p, and g, must all be provided for normal dh. */
     if (!params.key || !params.key_size || !params.p_size || !params.g_size) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: dh_set_secret: empty params", WOLFKM_DH_DRIVER);
+        pr_err("%s: dh_set_secret: empty params\n", WOLFKM_DH_DRIVER);
         #endif
         err = -EINVAL;
         goto dh_secret_end;
@@ -496,7 +496,7 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 
     if (params.key_size > params.p_size || params.g_size > params.p_size) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: dh_set_secret: invalid params", WOLFKM_DH_DRIVER);
+        pr_err("%s: dh_set_secret: invalid params\n", WOLFKM_DH_DRIVER);
         #endif
         err = -EINVAL;
         goto dh_secret_end;
@@ -518,7 +518,7 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 
     if (err) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: wc_DhSetKey failed: %d", WOLFKM_DH_DRIVER, err);
+        pr_err("%s: wc_DhSetKey failed: %d\n", WOLFKM_DH_DRIVER, err);
         #endif
         err = -EINVAL;
         goto dh_secret_end;
@@ -530,7 +530,7 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 
     if (err) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("%s: wc_DhImportKeyPair failed: %d", WOLFKM_DH_DRIVER, err);
+        pr_err("%s: wc_DhImportKeyPair failed: %d\n", WOLFKM_DH_DRIVER, err);
         #endif
         err = -EINVAL;
         goto dh_secret_end;
@@ -585,7 +585,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
 
         if (err) {
             #ifdef WOLFKM_DEBUG_DH
-            pr_err("%s: ffdhe_set_secret: decode secret failed: %d",
+            pr_err("%s: ffdhe_set_secret: decode secret failed: %d\n",
                    WOLFKM_DH_DRIVER, params.key_size);
             #endif /* WOLFKM_DEBUG_DH */
             err = -EINVAL;
@@ -595,7 +595,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
         /* p_size and g_size should be 0 for ffdhe. */
         if (params.p_size || params.g_size) {
             #ifdef WOLFKM_DEBUG_DH
-            pr_err("%s: ffdhe_set_secret: unexpected p, g params: %d, %d",
+            pr_err("%s: ffdhe_set_secret: unexpected p, g params: %d, %d\n",
                    WOLFKM_DH_DRIVER, params.p_size, params.g_size);
             #endif /* WOLFKM_DEBUG_DH */
             err = -EINVAL;
@@ -616,7 +616,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
     if (!params.key_size) {
         /* generate the ffdhe key pair*/
         #ifdef WOLFKM_DEBUG_DH
-        pr_info("ffdhe gen key pair");
+        pr_info("ffdhe gen key pair\n");
         #endif
         PRIVATE_KEY_UNLOCK();
         err = wc_DhGenerateKeyPair(ctx->key, &ctx->rng,
@@ -626,7 +626,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
 
         if (err) {
             #ifdef WOLFKM_DEBUG_DH
-            pr_err("%s: wc_DhGenerateKeyPair failed: %d",
+            pr_err("%s: wc_DhGenerateKeyPair failed: %d\n",
                    WOLFKM_DH_DRIVER, err);
             #endif
             err = -EINVAL;
@@ -641,7 +641,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
         if (ctx->pub_len < (ctx->nbits / WOLFSSL_BIT_SIZE)) {
             word32 pad_len = ctx->nbits / WOLFSSL_BIT_SIZE - ctx->pub_len;
             #ifdef WOLFKM_DEBUG_DH
-            pr_info("info: km_ffdhe_set_secret: pub key padding %d", pad_len);
+            pr_info("info: km_ffdhe_set_secret: pub key padding %d\n", pad_len);
             #endif
 
             memmove(ctx->pub_key + pad_len, ctx->pub_key, ctx->pub_len);
@@ -660,7 +660,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
 
         if (err) {
             #ifdef WOLFKM_DEBUG_DH
-            pr_err("%s: wc_DhImportKeyPair failed: %d",
+            pr_err("%s: wc_DhImportKeyPair failed: %d\n",
                    WOLFKM_DH_DRIVER, err);
             #endif
             err = -EINVAL;
@@ -783,7 +783,7 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
     }
 
     #ifdef WOLFKM_DEBUG_DH
-    pr_info("info: exiting km_dh_init: name %d, nbits %d",
+    pr_info("info: exiting km_dh_init: name %d, nbits %d\n",
             ctx->name, ctx->nbits);
     #endif /* WOLFKM_DEBUG_DH */
     return 0;
@@ -874,7 +874,7 @@ static int km_dh_gen_pub(struct kpp_request *req)
 
     if (ctx->pub_len > req->dst_len) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("error: dst_len too small: %d", req->dst_len);
+        pr_err("error: dst_len too small: %d\n", req->dst_len);
         #endif /* WOLFKM_DEBUG_DH */
         req->dst_len = ctx->pub_len;
         return -EOVERFLOW;
@@ -885,7 +885,7 @@ static int km_dh_gen_pub(struct kpp_request *req)
     err = 0;
 
     #ifdef WOLFKM_DEBUG_DH
-    pr_info("info: exiting km_dh_gen_pub: %d", ctx->pub_len);
+    pr_info("info: exiting km_dh_gen_pub: %d\n", ctx->pub_len);
     #endif /* WOLFKM_DEBUG_DH */
     return err;
 }
@@ -921,7 +921,7 @@ static int km_dh_compute_shared_secret(struct kpp_request *req)
 
     if (req->src_len <= 0 || req->src_len > (ctx->nbits / WOLFSSL_BIT_SIZE)) {
         #ifdef WOLFKM_DEBUG_DH
-        pr_err("error: got src_len %d, expected %d", req->src_len,
+        pr_err("error: got src_len %d, expected %d\n", req->src_len,
                (ctx->nbits / WOLFSSL_BIT_SIZE));
         #endif /* WOLFKM_DEBUG_DH */
         err = -EINVAL;
@@ -2903,7 +2903,7 @@ static int linuxkm_test_kpp_driver(const char * driver,
 
     dst_buf = malloc(dst_len);
     if (dst_buf == NULL) {
-        pr_err("error: allocating out buf failed");
+        pr_err("error: allocating out buf failed\n");
         test_rc = MEMORY_E;
         goto test_kpp_end;
     }
@@ -2917,20 +2917,20 @@ static int linuxkm_test_kpp_driver(const char * driver,
 
     err = crypto_kpp_generate_public_key(req);
     if (err) {
-        pr_err("error: crypto_kpp_generate_public_key returned: %d", err);
+        pr_err("error: crypto_kpp_generate_public_key returned: %d\n", err);
         test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
     if (memcmp(expected_a_pub, sg_virt(req->dst), pub_len)) {
-        pr_err("error: crypto_kpp_generate_public_key: wrong output");
+        pr_err("error: crypto_kpp_generate_public_key: wrong output\n");
         test_rc = WC_KEY_MISMATCH_E;
         goto test_kpp_end;
     }
 
     src_buf = malloc(src_len);
     if (src_buf == NULL) {
-        pr_err("error: allocating in buf failed");
+        pr_err("error: allocating in buf failed\n");
         test_rc = MEMORY_E;
         goto test_kpp_end;
     }
@@ -2945,13 +2945,13 @@ static int linuxkm_test_kpp_driver(const char * driver,
 
     err = crypto_kpp_compute_shared_secret(req);
     if (err) {
-        pr_err("error: crypto_kpp_compute_shared_secret returned: %d", err);
+        pr_err("error: crypto_kpp_compute_shared_secret returned: %d\n", err);
         test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
     if (memcmp(shared_secret, sg_virt(req->dst), shared_s_len)) {
-        pr_err("error: shared secret does not match");
+        pr_err("error: shared secret does not match\n");
         test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }

@@ -93,7 +93,18 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
     {
         int ret;
         wolfSSL_RefInit(&crl->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
+            WOLFSSL_MSG("wolfSSL_RefInit failed");
+            wc_FreeRwLock(&crl->crlLock);
+        #ifdef HAVE_CRL_MONITOR
+            wolfSSL_CondFree(&crl->cond);
+        #endif
+            return ret;
+        }
+    #else
         (void)ret;
+    #endif
     }
 #endif
 #if defined(OPENSSL_EXTRA)
@@ -316,8 +327,26 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
             WOLFSSL_MSG("Couldn't lock x509 mutex");
         if (!doFree)
             return;
-        wolfSSL_RefFree(&crl->ref);
     }
+#endif
+
+#ifdef HAVE_CRL_MONITOR
+    if (crl->tid != INVALID_THREAD_VAL) {
+        WOLFSSL_MSG("stopping monitor thread");
+        if (StopMonitor(crl->mfd) == 0) {
+            if (wolfSSL_JoinThread(crl->tid) != 0)
+                WOLFSSL_MSG("stop monitor failed in wolfSSL_JoinThread");
+        }
+        else {
+            WOLFSSL_MSG("stop monitor failed");
+        }
+    }
+    if (wolfSSL_CondFree(&crl->cond) != 0)
+        WOLFSSL_MSG("wolfSSL_CondFree failed in FreeCRL");
+#endif
+
+#ifdef OPENSSL_ALL
+    wolfSSL_RefFree(&crl->ref);
 #endif
 
     tmp = crl->crlList;
@@ -343,20 +372,6 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         tmp = next;
     }
 
-#ifdef HAVE_CRL_MONITOR
-    if (crl->tid != INVALID_THREAD_VAL) {
-        WOLFSSL_MSG("stopping monitor thread");
-        if (StopMonitor(crl->mfd) == 0) {
-            if (wolfSSL_JoinThread(crl->tid) != 0)
-                WOLFSSL_MSG("stop monitor failed in wolfSSL_JoinThread");
-        }
-        else {
-            WOLFSSL_MSG("stop monitor failed");
-        }
-    }
-    if (wolfSSL_CondFree(&crl->cond) != 0)
-        WOLFSSL_MSG("wolfSSL_CondFree failed in FreeCRL");
-#endif
     wc_FreeRwLock(&crl->crlLock);
     if (dynamic)   /* free self */
         XFREE(crl, crl->heap, DYNAMIC_TYPE_CRL);
@@ -1451,7 +1466,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
 #endif
 
     dupl->crlList = DupCRL_list(crl->crlList, dupl->heap);
-    if (dupl->crlList == NULL)
+    if (crl->crlList != NULL && dupl->crlList == NULL)
         return MEMORY_E;
 #ifdef HAVE_CRL_IO
     dupl->crlIOCb = crl->crlIOCb;
@@ -1465,6 +1480,9 @@ WOLFSSL_X509_CRL* wolfSSL_X509_CRL_dup(const WOLFSSL_X509_CRL* crl)
     WOLFSSL_X509_CRL* ret;
 
     WOLFSSL_ENTER("wolfSSL_X509_CRL_dup");
+
+    if (crl == NULL)
+        return NULL;
 
     ret = wolfSSL_X509_crl_new(crl->cm);
     if (ret != NULL && DupX509_CRL(ret, crl) != 0) {
@@ -1514,6 +1532,7 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
         }
         if (wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
             WOLFSSL_MSG("wc_LockRwLock_Rd failed");
+            FreeCRL(crl, 1);
             return BAD_MUTEX_E;
         }
         ret = DupX509_CRL(crl, newcrl);
@@ -1659,12 +1678,14 @@ static int SwapLists(WOLFSSL_CRL* crl)
 #include <sys/time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #ifdef __MACH__
     #define XEVENT_MODE O_EVTONLY
 #elif defined(__FreeBSD__)
     #define XEVENT_MODE O_RDONLY
 #endif
+
 
 
 /* we need a unique kqueue user filter fd for crl in case user is doing custom
@@ -1710,6 +1731,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
         SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
+    wc_set_cloexec(crl->mfd);
 
     /* listen for custom shutdown event */
     EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, EV_ADD, 0, 0, NULL);
@@ -1724,7 +1746,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     fDER = -1;
 
     if (crl->monitors[0].path) {
-        fPEM = open(crl->monitors[0].path, XEVENT_MODE);
+        fPEM = wc_open_cloexec(crl->monitors[0].path, XEVENT_MODE);
         if (fPEM == -1) {
             WOLFSSL_MSG("PEM event dir open failed");
             SignalSetup(crl, MONITOR_SETUP_E);
@@ -1734,7 +1756,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     }
 
     if (crl->monitors[1].path) {
-        fDER = open(crl->monitors[1].path, XEVENT_MODE);
+        fDER = wc_open_cloexec(crl->monitors[1].path, XEVENT_MODE);
         if (fDER == -1) {
             WOLFSSL_MSG("DER event dir open failed");
             if (fPEM != -1)
@@ -1801,7 +1823,8 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 #include <sys/inotify.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
-
+#include <fcntl.h>
+#include <errno.h>
 
 #ifndef max
     static WC_INLINE int max(int a, int b)
@@ -1836,14 +1859,32 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 
     WOLFSSL_ENTER("DoMonitor");
 
+#ifdef EFD_CLOEXEC
+    crl->mfd = eventfd(0, EFD_CLOEXEC);  /* our custom shutdown event */
+    if (crl->mfd < 0 && (errno == ENOSYS || errno == EINVAL)) {
+        crl->mfd = eventfd(0, 0);
+        wc_set_cloexec(crl->mfd);
+    }
+#else
     crl->mfd = eventfd(0, 0);  /* our custom shutdown event */
+    wc_set_cloexec(crl->mfd);
+#endif
     if (crl->mfd < 0) {
         WOLFSSL_MSG("eventfd failed");
         SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
 
+#ifdef IN_CLOEXEC
+    notifyFd = inotify_init1(IN_CLOEXEC);
+    if (notifyFd < 0 && (errno == ENOSYS || errno == EINVAL)) {
+        notifyFd = inotify_init();
+        wc_set_cloexec(notifyFd);
+    }
+#else
     notifyFd = inotify_init();
+    wc_set_cloexec(notifyFd);
+#endif
     if (notifyFd < 0) {
         WOLFSSL_MSG("inotify failed");
         (void)close(crl->mfd);

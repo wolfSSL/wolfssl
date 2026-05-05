@@ -1022,8 +1022,27 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_STRING_cmp                 wolfSSL_ASN1_STRING_cmp
 #define ASN1_OCTET_STRING_cmp           wolfSSL_ASN1_STRING_cmp
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
+/* In OpenSSL, ASN1_INTEGER is a typedef alias of ASN1_STRING (same struct),
+ * so ASN1_STRING_length/get0_data work on ASN1_INTEGER* as well.
+ * In wolfSSL they are distinct structs, so dispatch by type using _Generic. */
+#if !defined(__cplusplus) && defined(__STDC_VERSION__) && \
+        __STDC_VERSION__ >= 201112L
+#define ASN1_STRING_length(x) \
+    _Generic((x), \
+        WOLFSSL_ASN1_INTEGER*:       wolfSSL_ASN1_INTEGER_get_length, \
+        const WOLFSSL_ASN1_INTEGER*: wolfSSL_ASN1_INTEGER_get_length, \
+        default:                     wolfSSL_ASN1_STRING_length \
+    )(x)
+#define ASN1_STRING_get0_data(x) \
+    _Generic((x), \
+        WOLFSSL_ASN1_INTEGER*:       wolfSSL_ASN1_INTEGER_get0_data, \
+        const WOLFSSL_ASN1_INTEGER*: wolfSSL_ASN1_INTEGER_get0_data, \
+        default:                     wolfSSL_ASN1_STRING_get0_data \
+    )(x)
+#else
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_get0_data
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length
+#endif
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
 #define ASN1_UNIVERSALSTRING_to_string  wolfSSL_ASN1_UNIVERSALSTRING_to_string
 #define ASN1_STRING_print_ex            wolfSSL_ASN1_STRING_print_ex

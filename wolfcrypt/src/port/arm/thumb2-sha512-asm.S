@@ -34,171 +34,60 @@
 	.syntax unified
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #ifdef WOLFSSL_ARMASM_NO_NEON
+#ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_len_k, %object
 	.size	L_SHA512_transform_len_k, 640
-	.align	8
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 16-byte aligned, 128-bit aligned */
+#ifndef __APPLE__
+	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
 L_SHA512_transform_len_k:
-	.word	0xd728ae22
-	.word	0x428a2f98
-	.word	0x23ef65cd
-	.word	0x71374491
-	.word	0xec4d3b2f
-	.word	0xb5c0fbcf
-	.word	0x8189dbbc
-	.word	0xe9b5dba5
-	.word	0xf348b538
-	.word	0x3956c25b
-	.word	0xb605d019
-	.word	0x59f111f1
-	.word	0xaf194f9b
-	.word	0x923f82a4
-	.word	0xda6d8118
-	.word	0xab1c5ed5
-	.word	0xa3030242
-	.word	0xd807aa98
-	.word	0x45706fbe
-	.word	0x12835b01
-	.word	0x4ee4b28c
-	.word	0x243185be
-	.word	0xd5ffb4e2
-	.word	0x550c7dc3
-	.word	0xf27b896f
-	.word	0x72be5d74
-	.word	0x3b1696b1
-	.word	0x80deb1fe
-	.word	0x25c71235
-	.word	0x9bdc06a7
-	.word	0xcf692694
-	.word	0xc19bf174
-	.word	0x9ef14ad2
-	.word	0xe49b69c1
-	.word	0x384f25e3
-	.word	0xefbe4786
-	.word	0x8b8cd5b5
-	.word	0xfc19dc6
-	.word	0x77ac9c65
-	.word	0x240ca1cc
-	.word	0x592b0275
-	.word	0x2de92c6f
-	.word	0x6ea6e483
-	.word	0x4a7484aa
-	.word	0xbd41fbd4
-	.word	0x5cb0a9dc
-	.word	0x831153b5
-	.word	0x76f988da
-	.word	0xee66dfab
-	.word	0x983e5152
-	.word	0x2db43210
-	.word	0xa831c66d
-	.word	0x98fb213f
-	.word	0xb00327c8
-	.word	0xbeef0ee4
-	.word	0xbf597fc7
-	.word	0x3da88fc2
-	.word	0xc6e00bf3
-	.word	0x930aa725
-	.word	0xd5a79147
-	.word	0xe003826f
-	.word	0x6ca6351
-	.word	0xa0e6e70
-	.word	0x14292967
-	.word	0x46d22ffc
-	.word	0x27b70a85
-	.word	0x5c26c926
-	.word	0x2e1b2138
-	.word	0x5ac42aed
-	.word	0x4d2c6dfc
-	.word	0x9d95b3df
-	.word	0x53380d13
-	.word	0x8baf63de
-	.word	0x650a7354
-	.word	0x3c77b2a8
-	.word	0x766a0abb
-	.word	0x47edaee6
-	.word	0x81c2c92e
-	.word	0x1482353b
-	.word	0x92722c85
-	.word	0x4cf10364
-	.word	0xa2bfe8a1
-	.word	0xbc423001
-	.word	0xa81a664b
-	.word	0xd0f89791
-	.word	0xc24b8b70
-	.word	0x654be30
-	.word	0xc76c51a3
-	.word	0xd6ef5218
-	.word	0xd192e819
-	.word	0x5565a910
-	.word	0xd6990624
-	.word	0x5771202a
-	.word	0xf40e3585
-	.word	0x32bbd1b8
-	.word	0x106aa070
-	.word	0xb8d2d0c8
-	.word	0x19a4c116
-	.word	0x5141ab53
-	.word	0x1e376c08
-	.word	0xdf8eeb99
-	.word	0x2748774c
-	.word	0xe19b48a8
-	.word	0x34b0bcb5
-	.word	0xc5c95a63
-	.word	0x391c0cb3
-	.word	0xe3418acb
-	.word	0x4ed8aa4a
-	.word	0x7763e373
-	.word	0x5b9cca4f
-	.word	0xd6b2b8a3
-	.word	0x682e6ff3
-	.word	0x5defb2fc
-	.word	0x748f82ee
-	.word	0x43172f60
-	.word	0x78a5636f
-	.word	0xa1f0ab72
-	.word	0x84c87814
-	.word	0x1a6439ec
-	.word	0x8cc70208
-	.word	0x23631e28
-	.word	0x90befffa
-	.word	0xde82bde9
-	.word	0xa4506ceb
-	.word	0xb2c67915
-	.word	0xbef9a3f7
-	.word	0xe372532b
-	.word	0xc67178f2
-	.word	0xea26619c
-	.word	0xca273ece
-	.word	0x21c0c207
-	.word	0xd186b8c7
-	.word	0xcde0eb1e
-	.word	0xeada7dd6
-	.word	0xee6ed178
-	.word	0xf57d4f7f
-	.word	0x72176fba
-	.word	0x6f067aa
-	.word	0xa2c898a6
-	.word	0xa637dc5
-	.word	0xbef90dae
-	.word	0x113f9804
-	.word	0x131c471b
-	.word	0x1b710b35
-	.word	0x23047d84
-	.word	0x28db77f5
-	.word	0x40c72493
-	.word	0x32caab7b
-	.word	0x15c9bebc
-	.word	0x3c9ebe0a
-	.word	0x9c100d4c
-	.word	0x431d67c4
-	.word	0xcb3e42b6
-	.word	0x4cc5d4be
-	.word	0xfc657e2a
-	.word	0x597f299c
-	.word	0x3ad6faec
-	.word	0x5fcb6fab
-	.word	0x4a475817
-	.word	0x6c44198c
+	.quad	0x428a2f98d728ae22,0x7137449123ef65cd
+	.quad	0xb5c0fbcfec4d3b2f,0xe9b5dba58189dbbc
+	.quad	0x3956c25bf348b538,0x59f111f1b605d019
+	.quad	0x923f82a4af194f9b,0xab1c5ed5da6d8118
+	.quad	0xd807aa98a3030242,0x12835b0145706fbe
+	.quad	0x243185be4ee4b28c,0x550c7dc3d5ffb4e2
+	.quad	0x72be5d74f27b896f,0x80deb1fe3b1696b1
+	.quad	0x9bdc06a725c71235,0xc19bf174cf692694
+	.quad	0xe49b69c19ef14ad2,0xefbe4786384f25e3
+	.quad	0x0fc19dc68b8cd5b5,0x240ca1cc77ac9c65
+	.quad	0x2de92c6f592b0275,0x4a7484aa6ea6e483
+	.quad	0x5cb0a9dcbd41fbd4,0x76f988da831153b5
+	.quad	0x983e5152ee66dfab,0xa831c66d2db43210
+	.quad	0xb00327c898fb213f,0xbf597fc7beef0ee4
+	.quad	0xc6e00bf33da88fc2,0xd5a79147930aa725
+	.quad	0x06ca6351e003826f,0x142929670a0e6e70
+	.quad	0x27b70a8546d22ffc,0x2e1b21385c26c926
+	.quad	0x4d2c6dfc5ac42aed,0x53380d139d95b3df
+	.quad	0x650a73548baf63de,0x766a0abb3c77b2a8
+	.quad	0x81c2c92e47edaee6,0x92722c851482353b
+	.quad	0xa2bfe8a14cf10364,0xa81a664bbc423001
+	.quad	0xc24b8b70d0f89791,0xc76c51a30654be30
+	.quad	0xd192e819d6ef5218,0xd69906245565a910
+	.quad	0xf40e35855771202a,0x106aa07032bbd1b8
+	.quad	0x19a4c116b8d2d0c8,0x1e376c085141ab53
+	.quad	0x2748774cdf8eeb99,0x34b0bcb5e19b48a8
+	.quad	0x391c0cb3c5c95a63,0x4ed8aa4ae3418acb
+	.quad	0x5b9cca4f7763e373,0x682e6ff3d6b2b8a3
+	.quad	0x748f82ee5defb2fc,0x78a5636f43172f60
+	.quad	0x84c87814a1f0ab72,0x8cc702081a6439ec
+	.quad	0x90befffa23631e28,0xa4506cebde82bde9
+	.quad	0xbef9a3f7b2c67915,0xc67178f2e372532b
+	.quad	0xca273eceea26619c,0xd186b8c721c0c207
+	.quad	0xeada7dd6cde0eb1e,0xf57d4f7fee6ed178
+	.quad	0x06f067aa72176fba,0x0a637dc5a2c898a6
+	.quad	0x113f9804bef90dae,0x1b710b35131c471b
+	.quad	0x28db77f523047d84,0x32caab7b40c72493
+	.quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
+	.quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
+	.quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 	.text
 	.align	4
 	.globl	Transform_Sha512_Len_base
@@ -3670,6 +3559,6 @@ L_SHA512_transform_len_start:
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
-.section        .note.GNU-stack,"",%progbits
+.section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */

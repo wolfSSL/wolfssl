@@ -66,14 +66,15 @@ int wc_DevCrypto_HmacUpdate(Hmac* hmac, const byte* input, word32 inputSz)
     WC_CRYPTODEV*   dev;
     struct crypt_op crt;
 
+    if (hmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if (inputSz == 0) {
         return 0;
     }
 
-    if ((dev = &hmac->ctx) == NULL) {
-        WOLFSSL_MSG("Unsupported hash type");
-        return BAD_FUNC_ARG;
-    }
+    dev = &hmac->ctx;
 
     wc_SetupCrypt(&crt, dev, (byte*)input, inputSz, NULL, NULL,
             COP_FLAG_UPDATE, COP_ENCRYPT);
@@ -91,10 +92,11 @@ int wc_DevCrypto_HmacFinal(Hmac* hmac, byte* out)
     WC_CRYPTODEV*   dev;
     struct crypt_op crt;
 
-    if ((dev = &hmac->ctx) == NULL) {
-        WOLFSSL_MSG("Unsupported hash type");
+    if (hmac == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    dev = &hmac->ctx;
 
     wc_SetupCrypt(&crt, dev, NULL, 0, NULL, out, COP_FLAG_FINAL, COP_ENCRYPT);
     if (ioctl(dev->cfd, CIOCCRYPT, &crt)) {

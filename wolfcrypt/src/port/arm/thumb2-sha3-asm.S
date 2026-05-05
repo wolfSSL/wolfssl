@@ -33,59 +33,32 @@
 	.thumb
 	.syntax unified
 #ifdef WOLFSSL_SHA3
+#ifndef __APPLE__
 	.text
 	.type	L_sha3_thumb2_rt, %object
 	.size	L_sha3_thumb2_rt, 192
-	.align	8
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 16-byte aligned, 128-bit aligned */
+#ifndef __APPLE__
+	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
 L_sha3_thumb2_rt:
-	.word	0x1
-	.word	0x0
-	.word	0x8082
-	.word	0x0
-	.word	0x808a
-	.word	0x80000000
-	.word	0x80008000
-	.word	0x80000000
-	.word	0x808b
-	.word	0x0
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8009
-	.word	0x80000000
-	.word	0x8a
-	.word	0x0
-	.word	0x88
-	.word	0x0
-	.word	0x80008009
-	.word	0x0
-	.word	0x8000000a
-	.word	0x0
-	.word	0x8000808b
-	.word	0x0
-	.word	0x8b
-	.word	0x80000000
-	.word	0x8089
-	.word	0x80000000
-	.word	0x8003
-	.word	0x80000000
-	.word	0x8002
-	.word	0x80000000
-	.word	0x80
-	.word	0x80000000
-	.word	0x800a
-	.word	0x0
-	.word	0x8000000a
-	.word	0x80000000
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8080
-	.word	0x80000000
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008008
-	.word	0x80000000
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
 	.text
 	.align	4
 	.globl	BlockSha3
@@ -1169,6 +1142,6 @@ L_sha3_thumb2_begin:
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
-.section        .note.GNU-stack,"",%progbits
+.section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */

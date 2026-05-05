@@ -256,15 +256,21 @@ L_poly1305_thumb2_16_done:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 250 */
 	.size	poly1305_blocks_thumb2_16,.-poly1305_blocks_thumb2_16
+#ifndef __APPLE__
 	.text
 	.type	L_poly1305_thumb2_clamp, %object
 	.size	L_poly1305_thumb2_clamp, 16
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 8-byte aligned, 64-bit aligned */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_poly1305_thumb2_clamp:
-	.word	0xfffffff
-	.word	0xffffffc
-	.word	0xffffffc
-	.word	0xffffffc
+	.long	0x0fffffff,0x0ffffffc,0x0ffffffc,0x0ffffffc
 	.text
 	.align	4
 	.globl	poly1305_set_key
@@ -362,6 +368,6 @@ poly1305_final:
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
-.section        .note.GNU-stack,"",%progbits
+.section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */

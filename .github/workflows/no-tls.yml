@@ -18,7 +18,7 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--disable-tls --enable-all CFLAGS="-pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
+          '--disable-tls --enable-all CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

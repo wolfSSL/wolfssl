@@ -43,9 +43,12 @@
 
 #if !defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)
 
-#if !defined(WC_NO_CACHE_RESISTANT) && \
-    ((defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) || \
-     (defined(USE_FAST_MATH) && defined(TFM_TIMING_RESISTANT)))
+#if (!defined(WC_NO_CACHE_RESISTANT) && \
+     ((defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) || \
+      (defined(USE_FAST_MATH) && defined(TFM_TIMING_RESISTANT)))) || \
+    ((defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+      !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
+     defined(OPENSSL_ALL) && defined(WC_PROTECT_ENCRYPTED_MEM))
 
     /* all off / all on pointer addresses for constant calculations */
     /* ecc.c uses same table */
@@ -95,10 +98,10 @@ int mp_get_digit_count(const mp_int* a)
 
 mp_digit mp_get_digit(const mp_int* a, int n)
 {
-    if (a == NULL)
+    if (a == NULL || n < 0)
         return 0;
 
-    return (n < 0 || (unsigned int)n >= (unsigned int)a->used) ? 0 : a->dp[n];
+    return ((unsigned int)n >= (unsigned int)a->used) ? 0 : a->dp[n];
 }
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_MP_COND_COPY)

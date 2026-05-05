@@ -87,6 +87,7 @@ static int wc_CAAM_DevEccSign(const byte* in, int inlen, byte* out,
     /* private key */
     if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(key), pk, keySz) != MP_OKAY)
     {
+        ForceZero(pk, sizeof(pk));
         return MP_TO_E;
     }
 
@@ -108,10 +109,12 @@ static int wc_CAAM_DevEccSign(const byte* in, int inlen, byte* out,
         mp_free(&mps);
         if (ret != 0) {
             WOLFSSL_MSG("Issue converting to signature\n");
+            ForceZero(pk, sizeof(pk));
             return -1;
         }
     }
 
+    ForceZero(pk, sizeof(pk));
     return ret;
 }
 
@@ -201,6 +204,7 @@ static int wc_CAAM_DevEcdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(private_key), pk, keySz) !=
             MP_OKAY) {
         WOLFSSL_MSG("error getting private key buffer");
+        ForceZero(pk, sizeof(pk));
         return MP_TO_E;
     }
 
@@ -209,6 +213,7 @@ static int wc_CAAM_DevEcdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     if (ret == 0) {
         *outlen = keySz;
     }
+    ForceZero(pk, sizeof(pk));
     return ret;
 }
 
@@ -237,10 +242,12 @@ static int wc_CAAM_DevMakeEccKey(WC_RNG* rng, int keySize, ecc_key* key,
     ret = wc_DevCryptoEccKeyGen(curveId, blackKey, s, keySize, xy, keySize*2);
     if (wc_ecc_import_unsigned(key, xy, xy + keySize, s, curveId) != 0) {
         WOLFSSL_MSG("issue importing key");
+        ForceZero(s, sizeof(s));
         return -1;
     }
     key->blackKey = blackKey;
 
+    ForceZero(s, sizeof(s));
     (void)rng;
     return ret;
 }
@@ -340,6 +347,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         if (key->blackKey == CAAM_BLACK_KEY_CCM) {
             if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(key), pk,
                     keySz + WC_CAAM_MAC_SZ) != MP_OKAY) {
+                ForceZero(pk, sizeof(pk));
                 return MP_TO_E;
             }
             buf[idx].Length = keySz + WC_CAAM_MAC_SZ;
@@ -347,6 +355,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         else {
             if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(key), pk, keySz) !=
                     MP_OKAY) {
+                ForceZero(pk, sizeof(pk));
                 return MP_TO_E;
             }
             buf[idx].Length = keySz;
@@ -376,8 +385,10 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     args[3] = keySz;
 
     ret = wc_caamAddAndWait(buf, idx, args, CAAM_ECDSA_SIGN);
-    if (ret != 0)
+    if (ret != 0) {
+        ForceZero(pk, sizeof(pk));
         return -1;
+    }
 
     /* convert signature from raw bytes to signature format */
     {
@@ -394,10 +405,12 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         mp_free(&mps);
         if (ret != 0) {
             WOLFSSL_MSG("Issue converting to signature");
+            ForceZero(pk, sizeof(pk));
             return -1;
         }
     }
 
+    ForceZero(pk, sizeof(pk));
     (void)devId;
     return MP_OKAY;
 }
@@ -610,6 +623,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
         if (private_key->blackKey == CAAM_BLACK_KEY_CCM) {
             if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(private_key), pk,
                 keySz + WC_CAAM_MAC_SZ) != MP_OKAY) {
+                ForceZero(pk, sizeof(pk));
                 return MP_TO_E;
             }
             buf[idx].Length = keySz + WC_CAAM_MAC_SZ;
@@ -617,6 +631,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
         else {
             if (mp_to_unsigned_bin_len(wc_ecc_key_get_priv(private_key), pk,
                     keySz) != MP_OKAY) {
+                ForceZero(pk, sizeof(pk));
                 return MP_TO_E;
             }
             buf[idx].Length = keySz;
@@ -646,6 +661,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     args[2] = ecdsel;
     args[3] = keySz;
     ret = wc_caamAddAndWait(buf, idx, args, CAAM_ECDSA_ECDH);
+    ForceZero(pk, sizeof(pk));
     (void)devId;
     if (ret == 0) {
         *outlen = keySz;
@@ -737,20 +753,25 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
         key->blackKey     = (pt[0] << 24) | (pt[1] << 16) | (pt[2] << 8) | pt[3];
         if (wc_ecc_import_unsigned(key, xy, xy + keySize, NULL, curveId) != 0) {
             WOLFSSL_MSG("issue importing public key");
+            ForceZero(s, sizeof(s));
             return -1;
         }
         key->partNum = args[2];
+        ForceZero(s, sizeof(s));
         return MP_OKAY;
     }
     else if (ret == 0) {
         if (wc_ecc_import_unsigned(key, xy, xy + keySize,
                    s, curveId) != 0) {
             WOLFSSL_MSG("issue importing key");
+            ForceZero(s, sizeof(s));
             return -1;
         }
         key->blackKey = args[0];
+        ForceZero(s, sizeof(s));
         return MP_OKAY;
     }
+    ForceZero(s, sizeof(s));
     return -1;
 }
 #endif /* WOLFSSL_KEY_GEN */

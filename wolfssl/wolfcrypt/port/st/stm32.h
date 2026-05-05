@@ -166,9 +166,10 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
             defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7) || \
-            defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
-            defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
-            defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32G0))
+            defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32U3) || \
+            defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
+            defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32N6) || \
+            defined(WOLFSSL_STM32G0))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -184,10 +185,10 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #define STM32_HAL_V2
     #endif
     #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-        defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
-        defined(WOLFSSL_STM32G0)
+        defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32U3) || \
+        defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32G0)
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32U5) || \
-            defined(WOLFSSL_STM32G0)
+            defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32G0)
             #define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
         #endif
         #if defined(WOLFSSL_STM32H5)
@@ -204,9 +205,9 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
         (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || \
          defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5) || \
-         defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
-         defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32N6) || \
-         defined(WOLFSSL_STM32G0))
+         defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32H5) || \
+         defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
+         defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32G0))
         #define STM32_HAL_V2
     #endif
 

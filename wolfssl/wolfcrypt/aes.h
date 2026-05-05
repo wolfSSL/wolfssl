@@ -189,6 +189,12 @@ enum {
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+/* Undefine the settings.h compat macro so it doesn't collide with the enum
+ * member below (settings.h may pre-define WC_AES_BLOCK_SIZE for old FIPS). */
+#ifdef WC_AES_BLOCK_SIZE
+    #undef WC_AES_BLOCK_SIZE
+#endif
+
 enum {
     AES_ENC_TYPE   = WC_CIPHER_AES,   /* cipher unique type */
     AES_ENCRYPTION = 0,
@@ -777,7 +783,14 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
 #endif
 WOLFSSL_API void wc_AesFree(Aes* aes);
 #ifndef WC_NO_CONSTRUCTORS
+#define WC_AES_NEW_API_AVAILABLE
 WOLFSSL_API Aes* wc_AesNew(void* heap, int devId, int *result_code);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API Aes* wc_AesNew_Id(unsigned char* id, int len, void* heap,
+        int devId, int *result_code);
+WOLFSSL_API Aes* wc_AesNew_Label(const char* label, void* heap, int devId,
+        int *result_code);
+#endif
 WOLFSSL_API int wc_AesDelete(Aes* aes, Aes** aes_p);
 #endif
 
@@ -815,22 +828,11 @@ WOLFSSL_LOCAL int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in,
 
 #ifdef WOLFSSL_AES_EAX
 
-/* Because of the circular dependency between AES and CMAC, we need to prevent
- * inclusion of AES EAX from CMAC to avoid a recursive inclusion */
-#ifndef WOLF_CRYPT_CMAC_H
-#include <wolfssl/wolfcrypt/cmac.h>
-struct AesEax {
-    Aes  aes;
-    Cmac nonceCmac;
-    Cmac aadCmac;
-    Cmac ciphertextCmac;
-    byte nonceCmacFinal[WC_AES_BLOCK_SIZE];
-    byte aadCmacFinal[WC_AES_BLOCK_SIZE];
-    byte ciphertextCmacFinal[WC_AES_BLOCK_SIZE];
-    byte prefixBuf[WC_AES_BLOCK_SIZE];
-};
-#endif /* !defined(WOLF_CRYPT_CMAC_H) */
+/* Note that struct AesEax is defined at the end of this file, to work around
+ * circular dependency between AES and CMAC.
+ */
 
+struct AesEax;
 typedef struct AesEax AesEax;
 
 /* One-shot API */
@@ -1114,3 +1116,23 @@ WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH32(const byte* in, byte* out,
 
 #endif /* NO_AES */
 #endif /* WOLF_CRYPT_AES_H */
+
+/* Because of the circular dependency between AES and CMAC, we need to define
+ * struct AesEax here, with careful gating.
+ */
+#if defined(WOLFSSL_AES_EAX) && !defined(WC_AES_INCLUDE_FOR_CMAC_H) && \
+    !defined(WC_AESEAX_STRUCT_DEFINED)
+#include <wolfssl/wolfcrypt/cmac.h>
+struct AesEax {
+    Aes  aes;
+    Cmac nonceCmac;
+    Cmac aadCmac;
+    Cmac ciphertextCmac;
+    byte nonceCmacFinal[WC_AES_BLOCK_SIZE];
+    byte aadCmacFinal[WC_AES_BLOCK_SIZE];
+    byte ciphertextCmacFinal[WC_AES_BLOCK_SIZE];
+    byte prefixBuf[WC_AES_BLOCK_SIZE];
+};
+#define WC_AESEAX_STRUCT_DEFINED
+#endif /* WOLFSSL_AES_EAX && !WC_AES_INCLUDE_FOR_CMAC_H && */
+       /* !WC_AESEAX_STRUCT_DEFINED                        */

@@ -80,13 +80,25 @@ struct __attribute__((packed)) wc_reloc_table_ent {
 
 /* full ELF fencepost representation, to allow wc_reloc_normalize_text() */
 
+struct wc_reloc_table_fenceposts {
+    unsigned long start;
+    unsigned long end;
+    unsigned long len_start;
+    unsigned long len_end;
+};
+
+#define WC_RELOC_TABLE_FENCEPOSTS_INITIALIZER { \
+    .start = ~0UL,                              \
+    .end = ~0UL,                                \
+    .len_start = ~0UL,                          \
+    .len_end = ~0UL                             \
+}
+
 struct wc_reloc_table_segments {
     unsigned long start;
     unsigned long end;
-    unsigned long reloc_tab_start;
-    unsigned long reloc_tab_end;
-    unsigned long reloc_tab_len_start;
-    unsigned long reloc_tab_len_end;
+    struct wc_reloc_table_fenceposts text_reloc_tab;
+    struct wc_reloc_table_fenceposts rodata_reloc_tab;
     unsigned long text_start;
     unsigned long text_end;
 #ifdef HAVE_FIPS
@@ -113,10 +125,8 @@ struct wc_reloc_table_segments {
 #define WC_RELOC_TABLE_SEGMENTS_INITIALIZER { \
     .start = ~0UL,                            \
     .end = ~0UL,                              \
-    .reloc_tab_start = ~0UL,                  \
-    .reloc_tab_end = ~0UL,                    \
-    .reloc_tab_len_start = ~0UL,              \
-    .reloc_tab_len_end = ~0UL,                \
+    .text_reloc_tab = WC_RELOC_TABLE_FENCEPOSTS_INITIALIZER,   \
+    .rodata_reloc_tab = WC_RELOC_TABLE_FENCEPOSTS_INITIALIZER, \
     .text_start = ~0UL,                       \
     .text_end = ~0UL,                         \
     .fips_text_start = ~0UL,                  \
@@ -139,10 +149,8 @@ struct wc_reloc_table_segments {
 #define WC_RELOC_TABLE_SEGMENTS_INITIALIZER { \
     .start = ~0UL,                            \
     .end = ~0UL,                              \
-    .reloc_tab_start = ~0UL,                  \
-    .reloc_tab_end = ~0UL,                    \
-    .reloc_tab_len_start = ~0UL,              \
-    .reloc_tab_len_end = ~0UL,                \
+    .text_reloc_tab = WC_RELOC_TABLE_FENCEPOSTS_INITIALIZER,   \
+    .rodata_reloc_tab = WC_RELOC_TABLE_FENCEPOSTS_INITIALIZER, \
     .text_start = ~0UL,                       \
     .text_end = ~0UL,                         \
     .rodata_start = ~0UL,                     \
@@ -167,7 +175,7 @@ struct wc_reloc_counts {
 #elif defined(HAVE_FIPS)
 
 /* barebones FIPS fencepost representation -- no provision for
- * wc_reloc_normalize_text()
+ * wc_reloc_normalize_segment()
  */
 
 struct wc_reloc_table_segments {
@@ -200,14 +208,18 @@ struct wc_reloc_counts {
 
 #if defined(WC_SYM_RELOC_TABLES) || defined(WC_SYM_RELOC_TABLES_SUPPORT)
 
-#ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ
-    #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ 8192
+#ifndef WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ
+    #define WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ 8192
 #endif
 
-WOLFSSL_API ssize_t wc_reloc_normalize_text(
-    const byte *text_in,
-    size_t text_in_len,
-    byte *text_out,
+#ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ
+    #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ
+#endif
+
+WOLFSSL_API ssize_t wc_reloc_normalize_segment(
+    const byte *seg_in,
+    size_t *seg_in_out_len,
+    byte *seg_out,
     ssize_t *cur_index_p,
     const struct wc_reloc_table_segments *seg_map,
     struct wc_reloc_counts *reloc_counts);

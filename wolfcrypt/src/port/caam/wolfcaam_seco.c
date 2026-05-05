@@ -1075,7 +1075,7 @@ static hsm_err_t wc_SECO_AESGCM(unsigned int args[4], CAAM_BUFFER* buf, int sz)
     }
     XFREE(cipherAndTag, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     (void)sz;
-    return HSM_NO_ERROR;
+    return err;
 }
 
 

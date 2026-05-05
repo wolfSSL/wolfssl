@@ -698,8 +698,16 @@ int test_wolfSSL_make_cert(void)
     cert.isCA     = 1;
 #ifndef NO_SHA256
     cert.sigType = CTC_SHA256wRSA;
-#else
+#elif defined(WOLFSSL_SHA384)
+    cert.sigType = CTC_SHA384wRSA;
+#elif defined(WOLFSSL_SHA512)
+    cert.sigType = CTC_SHA512wRSA;
+#elif defined(WOLFSSL_SHA224)
+    cert.sigType = CTC_SHA224wRSA;
+#elif !defined(NO_SHA)
     cert.sigType = CTC_SHAwRSA;
+#else
+    #error "No signature type available"
 #endif
 
     /* add SKID from the Public Key */

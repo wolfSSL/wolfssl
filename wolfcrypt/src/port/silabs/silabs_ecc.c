@@ -100,11 +100,18 @@ int silabs_ecc_sign_hash(const byte* in, word32 inlen, byte* out,
     word32 *outlen, ecc_key* key)
 {
     sl_status_t sl_stat;
-    sl_se_key_descriptor_t* slkey = &key->key;
-    word32 siglen = *outlen;
+    sl_se_key_descriptor_t* slkey;
+    word32 siglen;
 
-    if ((int)siglen >= key->dp->size * 2) {
-        siglen = key->dp->size * 2;
+    if (in == NULL || out == NULL || outlen == NULL || key == NULL ||
+            key->dp == NULL)
+        return BAD_FUNC_ARG;
+
+    slkey = &key->key;
+    siglen = key->dp->size * 2;
+
+    if (*outlen < siglen) {
+        return BUFFER_E;
     }
 
 #if (_SILICON_LABS_SECURITY_FEATURE == _SILICON_LABS_SECURITY_FEATURE_VAULT)
@@ -131,7 +138,11 @@ int silabs_ecc_sign_hash(const byte* in, word32 inlen, byte* out,
             siglen
         );
     }
-    return (sl_stat == SL_STATUS_OK) ? 0 : WC_HW_E;
+    if (sl_stat == SL_STATUS_OK) {
+        *outlen = siglen;
+        return 0;
+    }
+    return WC_HW_E;
 }
 
 #ifdef HAVE_ECC_VERIFY
@@ -140,7 +151,12 @@ int silabs_ecc_verify_hash(const byte* sig, word32 siglen,
                            const byte* hash, word32 hashlen,
                            int* stat, ecc_key* key)
 {
-    sl_status_t sl_stat = sl_se_init_command_context(&key->cmd_ctx);
+    sl_status_t sl_stat;
+
+    if (sig == NULL || hash == NULL || stat == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+
+    sl_stat = sl_se_init_command_context(&key->cmd_ctx);
     if (sl_stat == SL_STATUS_OK) {
         sl_stat = sl_se_ecc_verify(
             &key->cmd_ctx,
@@ -167,6 +183,9 @@ int silabs_ecc_make_key(ecc_key* key, int keysize)
 {
     sl_status_t sl_stat;
 
+    if (key == NULL || key->dp == NULL)
+        return BAD_FUNC_ARG;
+
     key->key.type = silabs_map_key_type(key->dp->id);
     if (key->key.type == SILABS_UNSUPPORTED_KEY_TYPE)
         return WC_HW_E;
@@ -177,12 +196,14 @@ int silabs_ecc_make_key(ecc_key* key, int keysize)
                       SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY |
                       SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY);
 
-    sl_stat = sl_se_get_storage_size(&key->key,
-        &key->key.storage.location.buffer.size);
+    sl_stat = sl_se_init_command_context(&key->cmd_ctx);
+    if (sl_stat == SL_STATUS_OK) {
+        sl_stat = sl_se_get_storage_size(&key->key,
+            &key->key.storage.location.buffer.size);
+    }
     if (sl_stat == SL_STATUS_OK) {
         key->key.storage.location.buffer.pointer = key->key_raw;
-        sl_stat = sl_se_generate_key(&key->cmd_ctx,
-                                    &key->key);
+        sl_stat = sl_se_generate_key(&key->cmd_ctx, &key->key);
     }
     if (sl_stat == SL_STATUS_OK) {
         key->type = ECC_PRIVATEKEY;
@@ -204,6 +225,9 @@ int silabs_ecc_import(ecc_key* key, word32 keysize, int pub, int priv)
     sl_status_t sl_stat;
     int err = MP_OKAY;
     word32 used;
+
+    if (key == NULL || key->dp == NULL)
+        return BAD_FUNC_ARG;
 
     key->key.type = silabs_map_key_type(key->dp->id);
     if (key->key.type == SILABS_UNSUPPORTED_KEY_TYPE || keysize == 0)
@@ -260,6 +284,11 @@ int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     uint32_t pub_sz = 0;
     sl_status_t sl_stat;
 
+    if ((private_key == NULL) || (public_key == NULL) || (out == NULL) ||
+            (outlen == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* `sl_se_ecdh_compute_shared_secret` returns the full coordinate
      * point, but `wc_ecc_shared_secret` should only return the x
      * coordinate. This buffer is used to hold the output of the
@@ -284,17 +313,20 @@ int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     key_out.size = pub_sz;
     key_out.storage.location.buffer.size = pub_sz;
 
-    sl_stat = sl_se_ecdh_compute_shared_secret(
-        &cmd,
-        &private_key->key,
-        &pub_key,
-        &key_out);
-
+    sl_stat = sl_se_init_command_context(&cmd);
+    if (sl_stat == SL_STATUS_OK) {
+        sl_stat = sl_se_ecdh_compute_shared_secret(
+            &cmd,
+            &private_key->key,
+            &pub_key,
+            &key_out);
+    }
     if (sl_stat == SL_STATUS_OK) {
         *outlen = pub_key.size;
         XMEMCPY(out, fullpoint, *outlen);
     }
 
+    ForceZero(fullpoint, sizeof(fullpoint));
     return (sl_stat == SL_STATUS_OK) ? 0 : WC_HW_E;
 }
 
@@ -304,7 +336,7 @@ int silabs_ecc_export_public(ecc_key* key, sl_se_key_descriptor_t* seKey)
     sl_status_t sl_stat;
     sl_se_command_context_t cmd;
 
-    if (key == NULL || seKey == NULL)
+    if (key == NULL || key->dp == NULL || seKey == NULL)
         return BAD_FUNC_ARG;
 
     if (seKey->type == SL_SE_KEY_TYPE_ECC_P192)
@@ -324,16 +356,19 @@ int silabs_ecc_export_public(ecc_key* key, sl_se_key_descriptor_t* seKey)
     if (ret != 0)
         return ret;
 
-    key->type = ECC_PUBLICKEY;
-    key->key.type = seKey->type;
-    key->key.size = key->dp->size;
-    key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
-    key->key.flags = (SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY |
-        SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY);
+    sl_stat = sl_se_init_command_context(&cmd);
+    if (sl_stat == SL_STATUS_OK) {
+        key->type = ECC_PUBLICKEY;
+        key->key.type = seKey->type;
+        key->key.size = key->dp->size;
+        key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
+        key->key.flags = (SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY |
+            SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY);
 
-    sl_stat = sl_se_get_storage_size(&key->key,
-        &key->key.storage.location.buffer.size);
-    key->key.storage.location.buffer.pointer = key->key_raw;
+        sl_stat = sl_se_get_storage_size(&key->key,
+            &key->key.storage.location.buffer.size);
+        key->key.storage.location.buffer.pointer = key->key_raw;
+    }
     if (sl_stat == SL_STATUS_OK) {
         sl_stat = sl_se_export_public_key(&cmd, seKey, &key->key);
     }

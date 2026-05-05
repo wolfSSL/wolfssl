@@ -66,6 +66,7 @@ jobs:
           repository: libssh2/libssh2
           ref: libssh2-${{ matrix.ref }}
           path: libssh2
+          fetch-depth: 1
 
       - name: Update libssh2 test to use a stable version of debian
         working-directory: libssh2

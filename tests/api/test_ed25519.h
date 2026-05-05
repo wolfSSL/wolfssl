@@ -27,6 +27,7 @@
 int test_wc_ed25519_make_key(void);
 int test_wc_ed25519_init(void);
 int test_wc_ed25519_sign_msg(void);
+int test_wc_ed25519_sign_msg_pubonly_fails(void);
 int test_wc_ed25519_import_public(void);
 int test_wc_ed25519_import_private_key(void);
 int test_wc_ed25519_export(void);
@@ -40,6 +41,7 @@ int test_wc_Ed25519PrivateKeyToDer(void);
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key),           \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_init),               \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg),           \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg_pubonly_fails), \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_public),      \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_private_key), \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_export),             \

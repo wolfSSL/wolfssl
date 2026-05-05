@@ -27,6 +27,7 @@
 int test_wc_ed448_make_key(void);
 int test_wc_ed448_init(void);
 int test_wc_ed448_sign_msg(void);
+int test_wc_ed448_sign_msg_pubonly_fails(void);
 int test_wc_ed448_import_public(void);
 int test_wc_ed448_import_private_key(void);
 int test_wc_ed448_export(void);
@@ -40,6 +41,7 @@ int test_wc_Ed448PrivateKeyToDer(void);
     TEST_DECL_GROUP("ed448", test_wc_ed448_make_key),             \
     TEST_DECL_GROUP("ed448", test_wc_ed448_init),                 \
     TEST_DECL_GROUP("ed448", test_wc_ed448_sign_msg),             \
+    TEST_DECL_GROUP("ed448", test_wc_ed448_sign_msg_pubonly_fails), \
     TEST_DECL_GROUP("ed448", test_wc_ed448_import_public),        \
     TEST_DECL_GROUP("ed448", test_wc_ed448_import_private_key),   \
     TEST_DECL_GROUP("ed448", test_wc_ed448_export),               \

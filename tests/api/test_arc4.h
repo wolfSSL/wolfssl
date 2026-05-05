@@ -26,9 +26,11 @@
 
 int test_wc_Arc4SetKey(void);
 int test_wc_Arc4Process(void);
+int test_wc_Arc4_MonteCarlo(void);
 
-#define TEST_ARC4_DECLS                             \
-    TEST_DECL_GROUP("arc4", test_wc_Arc4SetKey),    \
-    TEST_DECL_GROUP("arc4", test_wc_Arc4Process)
+#define TEST_ARC4_DECLS                                     \
+    TEST_DECL_GROUP("arc4", test_wc_Arc4SetKey),            \
+    TEST_DECL_GROUP("arc4", test_wc_Arc4Process),           \
+    TEST_DECL_GROUP("arc4", test_wc_Arc4_MonteCarlo)
 
 #endif /* WOLFCRYPT_TEST_ARC4_H */

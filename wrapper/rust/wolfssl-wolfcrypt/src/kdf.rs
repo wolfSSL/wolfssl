@@ -43,6 +43,10 @@ pub const SRTCP_LABEL_SALT: u8 = sys::WC_SRTCP_LABEL_SALT as u8;
 pub const SRTP_LABEL_HDR_ENCRYPTION: u8 = sys::WC_SRTP_LABEL_HDR_ENCRYPTION as u8;
 #[cfg(kdf_srtp)]
 pub const SRTP_LABEL_HDR_SALT: u8 = sys::WC_SRTP_LABEL_HDR_SALT as u8;
+#[cfg(kdf_srtp)]
+pub const SRTP_INDEX_LEN: usize = sys::WC_SRTP_INDEX_LEN as usize;
+#[cfg(kdf_srtp)]
+pub const SRTCP_INDEX_LEN: usize = sys::WC_SRTCP_INDEX_LEN as usize;
 
 /// Implement Password Based Key Derivation Function 2 (PBKDF2) converting an
 /// input password with a concatenated salt into a more secure key which is
@@ -126,9 +130,9 @@ pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut
 /// ```
 #[cfg(kdf_pbkdf2)]
 pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>, out: &mut [u8]) -> Result<(), i32> {
-    let password_size = password.len() as i32;
-    let salt_size = salt.len() as i32;
-    let out_size = out.len() as i32;
+    let password_size = crate::buffer_len_to_i32(password.len())?;
+    let salt_size = crate::buffer_len_to_i32(salt.len())?;
+    let out_size = crate::buffer_len_to_i32(out.len())?;
     let heap = match heap {
         Some(heap) => heap,
         None => core::ptr::null_mut(),
@@ -248,9 +252,9 @@ pub fn pkcs12_pbkdf(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id:
 /// ```
 #[cfg(kdf_pkcs12)]
 pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id: i32, heap: Option<*mut core::ffi::c_void>, out: &mut [u8]) -> Result<(), i32> {
-    let password_size = password.len() as i32;
-    let salt_size = salt.len() as i32;
-    let out_size = out.len() as i32;
+    let password_size = crate::buffer_len_to_i32(password.len())?;
+    let salt_size = crate::buffer_len_to_i32(salt.len())?;
+    let out_size = crate::buffer_len_to_i32(out.len())?;
     let heap = match heap {
         Some(heap) => heap,
         None => core::ptr::null_mut(),
@@ -335,14 +339,14 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
     let mut salt_size = 0u32;
     if let Some(salt) = salt {
         salt_ptr = salt.as_ptr();
-        salt_size = salt.len() as u32;
+        salt_size = crate::buffer_len_to_u32(salt.len())?;
     }
     let mut ikm_buf = [0u8; sys::WC_MAX_DIGEST_SIZE as usize];
     let mut ikm_ptr = ikm_buf.as_mut_ptr();
     let mut ikm_size = 0u32;
     if let Some(key) = key && !key.is_empty() {
         ikm_ptr = key.as_mut_ptr();
-        ikm_size = key.len() as u32;
+        ikm_size = crate::buffer_len_to_u32(key.len())?;
     }
     if out.len() != HMAC::get_hmac_size_by_type(typ)? {
         return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
@@ -474,11 +478,11 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 #[cfg(all(hmac, kdf_tls13))]
 #[allow(clippy::too_many_arguments)]
 pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
-    let key_size = key.len() as u32;
-    let protocol_size = protocol.len() as u32;
-    let label_size = label.len() as u32;
-    let info_size = info.len() as u32;
-    let out_size = out.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
+    let protocol_size = crate::buffer_len_to_u32(protocol.len())?;
+    let label_size = crate::buffer_len_to_u32(label.len())?;
+    let info_size = crate::buffer_len_to_u32(info.len())?;
+    let out_size = crate::buffer_len_to_u32(out.len())?;
     let heap = match heap {
         Some(heap) => heap,
         None => core::ptr::null_mut(),
@@ -531,10 +535,10 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
 /// ```
 #[cfg(kdf_ssh)]
 pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key: &mut [u8]) -> Result<(), i32> {
-    let key_size = key.len() as u32;
-    let k_size = k.len() as u32;
-    let h_size = h.len() as u32;
-    let session_size = session_id.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
+    let k_size = crate::buffer_len_to_u32(k.len())?;
+    let h_size = crate::buffer_len_to_u32(h.len())?;
+    let session_size = crate::buffer_len_to_u32(session_id.len())?;
     let rc = unsafe {
         sys::wc_SSH_KDF(typ as u8, key_id,
             key.as_mut_ptr(), key_size,
@@ -582,13 +586,13 @@ pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key:
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_INDEX_LEN],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
-    let key_size = key.len() as u32;
-    let salt_size = salt.len() as u32;
-    let key1_size = key1.len() as u32;
-    let key2_size = key2.len() as u32;
-    let key3_size = key3.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
+    let salt_size = crate::buffer_len_to_u32(salt.len())?;
+    let key1_size = crate::buffer_len_to_u32(key1.len())?;
+    let key2_size = crate::buffer_len_to_u32(key2.len())?;
+    let key3_size = crate::buffer_len_to_u32(key3.len())?;
     let rc = unsafe {
         sys::wc_SRTP_KDF(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), key1.as_mut_ptr(), key1_size,
@@ -632,11 +636,11 @@ pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_INDEX_LEN],
         label: u8, keyout: &mut [u8]) -> Result<(), i32> {
-    let key_size = key.len() as u32;
-    let salt_size = salt.len() as u32;
-    let keyout_size = keyout.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
+    let salt_size = crate::buffer_len_to_u32(salt.len())?;
+    let keyout_size = crate::buffer_len_to_u32(keyout.len())?;
     let rc = unsafe {
         sys::wc_SRTP_KDF_label(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), label, keyout.as_mut_ptr(), keyout_size)
@@ -674,7 +678,7 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
 /// let salt = [0x0eu8, 0x23, 0x00, 0x6c, 0x6c, 0x04, 0x4f, 0x56,
 ///     0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6];
-/// let index = [0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca];
+/// let index = [0x48u8, 0x71, 0x65, 0x64];
 /// let mut key_e = [0u8; 16];
 /// let mut key_a = [0u8; 20];
 /// let mut key_s = [0u8; 14];
@@ -682,13 +686,13 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTCP_INDEX_LEN],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
-    let key_size = key.len() as u32;
-    let salt_size = salt.len() as u32;
-    let key1_size = key1.len() as u32;
-    let key2_size = key2.len() as u32;
-    let key3_size = key3.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
+    let salt_size = crate::buffer_len_to_u32(salt.len())?;
+    let key1_size = crate::buffer_len_to_u32(key1.len())?;
+    let key2_size = crate::buffer_len_to_u32(key2.len())?;
+    let key3_size = crate::buffer_len_to_u32(key3.len())?;
     let rc = unsafe {
         sys::wc_SRTCP_KDF(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), key1.as_mut_ptr(), key1_size,
@@ -726,17 +730,17 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
 /// let salt = [0x0eu8, 0x23, 0x00, 0x6c, 0x6c, 0x04, 0x4f, 0x56,
 ///     0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6];
-/// let index = [0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca];
+/// let index = [0x48u8, 0x71, 0x65, 0x64];
 /// let mut key_a = [0u8; 20];
 /// srtcp_kdf_label(&key, &salt, -1, &index, SRTCP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtcp_kdf_label()");
 /// }
 /// ```
 #[cfg(kdf_srtp)]
-pub fn srtcp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
+pub fn srtcp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTCP_INDEX_LEN],
         label: u8, keyout: &mut [u8]) -> Result<(), i32> {
-    let key_size = key.len() as u32;
-    let salt_size = salt.len() as u32;
-    let keyout_size = keyout.len() as u32;
+    let key_size = crate::buffer_len_to_u32(key.len())?;
+    let salt_size = crate::buffer_len_to_u32(salt.len())?;
+    let keyout_size = crate::buffer_len_to_u32(keyout.len())?;
     let rc = unsafe {
         sys::wc_SRTCP_KDF_label(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), label, keyout.as_mut_ptr(), keyout_size)

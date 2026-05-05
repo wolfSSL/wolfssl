@@ -135,6 +135,8 @@ WOLFSSL_API int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
 WOLFSSL_API int wolfSSL_BN_ucmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b);
 
 WOLFSSL_API int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM* bn, unsigned char* r);
+WOLFSSL_API int wolfSSL_BN_bn2binpad(const WOLFSSL_BIGNUM* bn, unsigned char* r,
+                                     int toLen);
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
                                               WOLFSSL_BIGNUM* ret);
 
@@ -246,8 +248,9 @@ typedef WOLFSSL_BN_GENCB    BN_GENCB;
 #define BN_cmp    wolfSSL_BN_cmp
 #define BN_ucmp    wolfSSL_BN_ucmp
 
-#define BN_bn2bin  wolfSSL_BN_bn2bin
-#define BN_bin2bn  wolfSSL_BN_bin2bn
+#define BN_bn2bin     wolfSSL_BN_bn2bin
+#define BN_bn2binpad  wolfSSL_BN_bn2binpad
+#define BN_bin2bn     wolfSSL_BN_bin2bn
 
 #define BN_mod       wolfSSL_BN_mod
 #define BN_mod_exp   wolfSSL_BN_mod_exp

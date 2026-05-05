@@ -271,6 +271,8 @@ static int random_test(void)
 #ifndef MAX_KEYSTORE
     /* default max key slots from crypto.c */
     #define MAX_KEYSTORE 15
+#elif MAX_KEYSTORE > 255
+    #error "Too many entries"
 #endif
 static int key_test(void)
 {

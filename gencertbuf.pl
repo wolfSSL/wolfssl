@@ -147,21 +147,17 @@ my @fileList_sm2_der = (
         );
 
 #Falcon Post-Quantum Keys
-#Used with HAVE_PQC
+#Used with HAVE_FALCON
 my @fileList_falcon = (
         ["certs/falcon/bench_falcon_level1_key.der", "bench_falcon_level1_key" ],
         ["certs/falcon/bench_falcon_level5_key.der", "bench_falcon_level5_key" ],
         );
 
-#Sphincs+ Post-Quantum Keys
-#Used with HAVE_PQC
-my @fileList_sphincs = (
-        ["certs/sphincs/bench_sphincs_fast_level1_key.der", "bench_sphincs_fast_level1_key" ],
-        ["certs/sphincs/bench_sphincs_fast_level3_key.der", "bench_sphincs_fast_level3_key" ],
-        ["certs/sphincs/bench_sphincs_fast_level5_key.der", "bench_sphincs_fast_level5_key" ],
-        ["certs/sphincs/bench_sphincs_small_level1_key.der", "bench_sphincs_small_level1_key" ],
-        ["certs/sphincs/bench_sphincs_small_level3_key.der", "bench_sphincs_small_level3_key" ],
-        ["certs/sphincs/bench_sphincs_small_level5_key.der", "bench_sphincs_small_level5_key" ],
+# CN-IP test certs (no SAN, CN contains IP literal or wildcard)
+# Used with OPENSSL_EXTRA && !NO_RSA
+my @fileList_cn_ip = (
+        [ "./certs/test/cn-ip-literal.der",  "cn_ip_literal_der" ],
+        [ "./certs/test/cn-ip-wildcard.der",  "cn_ip_wildcard_der" ],
         );
 
 
@@ -177,7 +173,7 @@ my $num_4096     = @fileList_4096;
 my $num_sm2      = @fileList_sm2;
 my $num_sm2_der  = @fileList_sm2_der;
 my $num_falcon   = @fileList_falcon;
-my $num_sphincs  = @fileList_sphincs;
+my $num_cn_ip    = @fileList_cn_ip;
 
 # open our output file, "+>" creates and/or truncates
 open OUT_FILE, "+>", $outputFile  or die $!;
@@ -2098,26 +2094,6 @@ static const unsigned char bench_dilithium_level5_pubkey[] = {
 
 ";
 
-# convert and print sphincs keys
-print OUT_FILE "#if defined(HAVE_SPHINCS)\n\n";
-for (my $i = 0; $i < $num_sphincs; $i++) {
-
-    my $fname = $fileList_sphincs[$i][0];
-    my $sname = $fileList_sphincs[$i][1];
-
-    print OUT_FILE "/* $fname */\n";
-    print OUT_FILE "static const unsigned char $sname\[] =\n";
-    print OUT_FILE "{\n";
-    file_to_hex($fname);
-    print OUT_FILE "};\n";
-    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
-    # compile-time constant expression when used in a static initializer.
-    # So don't use `static const int sizeof_` here:
-    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
-}
-
-print OUT_FILE "#endif /* HAVE_SPHINCS */\n\n";
-
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
 for (my $i = 0; $i < $num_ecc; $i++) {
@@ -2234,6 +2210,23 @@ for (my $i = 0; $i < $num_x; $i++) {
     print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_25519 */\n\n";
+
+
+# convert and print CN-IP test certs
+print OUT_FILE "#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)\n\n";
+for (my $i = 0; $i < $num_cn_ip; $i++) {
+
+    my $fname = $fileList_cn_ip[$i][0];
+    my $sname = $fileList_cn_ip[$i][1];
+
+    print OUT_FILE "/* $fname */\n";
+    print OUT_FILE "static const unsigned char $sname\[] =\n";
+    print OUT_FILE "{\n";
+    file_to_hex($fname);
+    print OUT_FILE "};\n";
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
+}
+print OUT_FILE "#endif /* OPENSSL_EXTRA && !NO_RSA */\n\n";
 
 
 print OUT_FILE "#endif /* WOLFSSL_CERTS_TEST_H */\n\n";

@@ -43,18 +43,20 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     int ret = 0;
     (void)dir;
 
-    ret = sl_se_init();
-    if (ret != SL_STATUS_OK) {
-        return BUFFER_E;
+    if (aes == NULL || userKey == NULL || keylen > sizeof(aes->key)) {
+        return BAD_FUNC_ARG;
     }
 
-    if (aes == NULL || keylen > sizeof(aes->key)) {
-        return BAD_FUNC_ARG;
+    ret = sl_se_init();
+    if (ret != SL_STATUS_OK) {
+        return WC_HW_E;
     }
 
     XMEMSET(aes, 0, sizeof(*aes));
 
     ret = wc_AesSetIV(aes, iv);
+    if (ret != 0)
+        return ret;
     aes->rounds = keylen/4 + 6;
     aes->ctx.cmd_ctx = cc;
 
@@ -80,11 +82,12 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         break;
     }
 
-
-    XMEMCPY(aes->key, userKey, keylen);
-    aes->ctx.key.storage.location.buffer.pointer = (void*)aes->key;
-    aes->ctx.key.storage.location.buffer.size = keylen;
-    aes->ctx.key.size = keylen;
+    if (ret == 0) {
+        XMEMCPY(aes->key, userKey, keylen);
+        aes->ctx.key.storage.location.buffer.pointer = (void*)aes->key;
+        aes->ctx.key.storage.location.buffer.size = keylen;
+        aes->ctx.key.size = keylen;
+    }
 
     return ret;
 }
@@ -134,7 +137,12 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #ifdef WOLFSSL_AES_DIRECT
 int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
-    sl_status_t status = sl_se_aes_crypt_ecb(
+    sl_status_t status;
+    if ((inBlock == NULL) || (outBlock == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_aes_crypt_ecb(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         SL_SE_ENCRYPT,
@@ -146,7 +154,12 @@ int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
-    sl_status_t status = sl_se_aes_crypt_ecb(
+    sl_status_t status;
+    if ((inBlock == NULL) || (outBlock == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_aes_crypt_ecb(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         SL_SE_DECRYPT,
@@ -159,7 +172,12 @@ int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    sl_status_t status = sl_se_aes_crypt_cbc(
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_aes_crypt_cbc(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         SL_SE_ENCRYPT,
@@ -172,7 +190,12 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    sl_status_t status = sl_se_aes_crypt_cbc(
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_aes_crypt_cbc(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         SL_SE_DECRYPT,
@@ -189,7 +212,13 @@ int wc_AesGcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                             byte* authTag, word32 authTagSz,
                             const byte* authIn, word32 authInSz)
 {
-    sl_status_t status = sl_se_gcm_crypt_and_tag(
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+            (authIn == NULL && authInSz != 0) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_gcm_crypt_and_tag(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         SL_SE_ENCRYPT,
@@ -211,7 +240,13 @@ int wc_AesGcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                             const byte* authTag, word32 authTagSz,
                             const byte* authIn, word32 authInSz)
 {
-    sl_status_t status = sl_se_gcm_auth_decrypt(
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+            (authIn == NULL && authInSz != 0) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_gcm_auth_decrypt(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         sz,
@@ -236,7 +271,13 @@ int wc_AesCcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                              byte* authTag, word32 authTagSz,
                              const byte* authIn, word32 authInSz)
 {
-    sl_status_t status = sl_se_ccm_encrypt_and_tag(
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+            (authIn == NULL && authInSz != 0) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_ccm_encrypt_and_tag(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         sz,
@@ -258,7 +299,13 @@ int wc_AesCcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                             const byte* authTag, word32 authTagSz,
                             const byte* authIn, word32 authInSz)
 {
-    sl_status_t status = sl_se_ccm_auth_decrypt(
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+            (authIn == NULL && authInSz != 0) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = sl_se_ccm_auth_decrypt(
         &(aes->ctx.cmd_ctx),
         &(aes->ctx.key),
         sz,
@@ -274,6 +321,6 @@ int wc_AesCcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
     return (status != SL_STATUS_OK) ? AES_GCM_AUTH_E : 0;
 }
 
-#endif /* HAVE_AESGCM */
+#endif /* HAVE_AESCCM */
 
 #endif /* WOLFSSL_SILABS_SE_ACCEL */

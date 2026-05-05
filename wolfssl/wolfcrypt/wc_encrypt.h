@@ -73,6 +73,9 @@
     #ifndef CCM_NONCE_MIN_SZ
         #define CCM_NONCE_MIN_SZ 7
     #endif
+    #ifndef CCM_NONCE_MAX_SZ
+        #define CCM_NONCE_MAX_SZ 13
+    #endif
 #endif
 
 
@@ -114,8 +117,8 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
 
 #ifndef NO_PWDBASED
     WOLFSSL_LOCAL int wc_CryptKey(const char* password, int passwordSz,
-        byte* salt, int saltSz, int iterations, int id, byte* input, int length,
-        int version, byte* cbcIv, int enc, int shaOid);
+        const byte* salt, int saltSz, int iterations, int id, byte* input,
+        int length, int version, byte* cbcIv, int enc, int shaOid);
 #endif
 
 #ifdef __cplusplus

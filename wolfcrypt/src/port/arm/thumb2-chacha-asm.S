@@ -53,19 +53,22 @@ wc_chacha_setiv:
 	POP	{r4, r5, r6, pc}
 	/* Cycle Count = 26 */
 	.size	wc_chacha_setiv,.-wc_chacha_setiv
+#ifndef __APPLE__
 	.text
 	.type	L_chacha_thumb2_constants, %object
 	.size	L_chacha_thumb2_constants, 32
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	/* 8-byte aligned, 64-bit aligned */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_chacha_thumb2_constants:
-	.word	0x61707865
-	.word	0x3120646e
-	.word	0x79622d36
-	.word	0x6b206574
-	.word	0x61707865
-	.word	0x3320646e
-	.word	0x79622d32
-	.word	0x6b206574
+	.long	0x61707865,0x3120646e,0x79622d36,0x6b206574
+	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574
 	.text
 	.align	4
 	.globl	wc_chacha_setkey
@@ -92,9 +95,9 @@ wc_chacha_setkey:
 	STM	r0!, {r3, r4, r5, r6}
 	/* Next 16 bytes of key. */
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-	BEQ	L_chacha_thumb2_setkey_same_keyb_ytes
+	BEQ	L_chacha_thumb2_setkey_same_key_bytes
 #else
-	BEQ.N	L_chacha_thumb2_setkey_same_keyb_ytes
+	BEQ.N	L_chacha_thumb2_setkey_same_key_bytes
 #endif
 	/* Update key pointer for next 16 bytes. */
 	ADD	r1, r1, r2
@@ -102,7 +105,7 @@ wc_chacha_setkey:
 	LDR	r4, [r1, #4]
 	LDR	r5, [r1, #8]
 	LDR	r6, [r1, #12]
-L_chacha_thumb2_setkey_same_keyb_ytes:
+L_chacha_thumb2_setkey_same_key_bytes:
 	STM	r0, {r3, r4, r5, r6}
 	POP	{r4, r5, r6, r7, pc}
 	/* Cycle Count = 60 */
@@ -568,6 +571,6 @@ L_chacha_thumb2_over_done:
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
-.section        .note.GNU-stack,"",%progbits
+.section	.note.GNU-stack,"",%progbits
 #endif
 #endif /* !WOLFSSL_ARMASM_INLINE */

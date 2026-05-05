@@ -323,6 +323,42 @@ int test_wolfSSL_BN_enc_dec(void)
     ExpectNotNull(BN_bin2bn(binNum, sizeof(binNum), b));
     ExpectIntEQ(BN_cmp(a, b), -1);
 
+    /* BN_bn2binpad tests */
+    {
+        unsigned char padOut[5];
+
+        /* Invalid parameters */
+        ExpectIntEQ(BN_bn2binpad(NULL, padOut, sizeof(padOut)), -1);
+        ExpectIntEQ(BN_bn2binpad(&emptyBN, padOut, sizeof(padOut)), -1);
+        ExpectIntEQ(BN_bn2binpad(a, NULL, sizeof(padOut)), -1);
+        ExpectIntEQ(BN_bn2binpad(a, padOut, -1), -1);
+        /* toLen too small for the value */
+        ExpectNotNull(BN_bin2bn(binNum, sizeof(binNum), b));
+        ExpectIntEQ(BN_bn2binpad(b, padOut, 2), -1);
+        /* Normal case: a = 2, padded to 5 bytes */
+        XMEMSET(padOut, 0xFF, sizeof(padOut));
+        ExpectIntEQ(BN_bn2binpad(a, padOut, 5), 5);
+        ExpectIntEQ(padOut[0], 0x00);
+        ExpectIntEQ(padOut[1], 0x00);
+        ExpectIntEQ(padOut[2], 0x00);
+        ExpectIntEQ(padOut[3], 0x00);
+        ExpectIntEQ(padOut[4], 0x02);
+        /* Exact size (no padding needed) */
+        ExpectIntEQ(BN_bn2binpad(a, padOut, 1), 1);
+        ExpectIntEQ(padOut[0], 0x02);
+        /* Zero value padded to 3 bytes */
+        ExpectIntEQ(BN_set_word(a, 0), 1);
+        ExpectIntEQ(BN_bn2binpad(a, padOut, 3), 3);
+        ExpectIntEQ(padOut[0], 0x00);
+        ExpectIntEQ(padOut[1], 0x00);
+        ExpectIntEQ(padOut[2], 0x00);
+        /* toLen == 0 with zero-valued BN is valid */
+        ExpectIntEQ(BN_bn2binpad(a, padOut, 0), 0);
+        /* toLen == 0 with non-zero BN is an error */
+        ExpectIntEQ(BN_set_word(a, 2), 1);
+        ExpectIntEQ(BN_bn2binpad(a, padOut, 0), -1);
+    }
+
     ExpectNotNull(str = BN_bn2hex(a));
     ExpectNotNull(BN_hex2bn(&b, str));
     ExpectIntEQ(BN_cmp(a, b), 0);

@@ -199,8 +199,7 @@ static WC_INLINE int setup(Aes* aes,
 
     WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)aad, authInSz);
 
-    if (XSecure_AesUpdateAad(&(aes->xSec.cinst), XIL_CAST_U64(authIn),
-                             authInSz)) {
+    if (XSecure_AesUpdateAad(&(aes->xSec.cinst), XIL_CAST_U64(aad), authInSz)) {
         WOLFSSL_XIL_MSG("Failed to set AAD");
         err = 1;
     } else {
@@ -272,7 +271,7 @@ int wc_AesGcmEncrypt(       Aes* aes, byte* out,
         if (ret) {
             WOLFSSL_MSG(
                     "Failed to alloc memory for AESGCM Encrypt alignment (in)");
-            return 1;
+            return ret;
         }
         XMEMCPY(in_aligned, in, sz);
     }
@@ -290,7 +289,7 @@ int wc_AesGcmEncrypt(       Aes* aes, byte* out,
                 aligned_xfree(in_buf, aes->heap);
                 WOLFSSL_MSG(
                         "Failed to alloc memory for AESGCM Encrypt alignment (out)");
-                return 1;
+                return ret;
             }
             XMEMCPY(out_aligned, out, sz);
         }
@@ -387,7 +386,7 @@ int  wc_AesGcmDecrypt(       Aes* aes, byte* out,
         if (ret) {
             WOLFSSL_MSG(
                     "Failed to alloc memory for AESGCM Decrypt alignment (in)");
-            return 1;
+            return ret;
         }
         XMEMCPY(in_aligned, in, sz);
     }
@@ -405,7 +404,7 @@ int  wc_AesGcmDecrypt(       Aes* aes, byte* out,
                 aligned_xfree(in_buf, aes->heap);
                 WOLFSSL_MSG(
                         "Failed to alloc memory for AESGCM Decrypt alignment (out)");
-                return 1;
+                return ret;
             }
             XMEMCPY(out_aligned, out, sz);
         }
@@ -528,8 +527,8 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     byte initalCounter[WC_AES_BLOCK_SIZE];
     int ret;
 
-    if ((in == NULL && sz > 0) || iv == NULL || authTag == NULL ||
-            authTagSz > AES_GCM_AUTH_SZ) {
+    if (aes == NULL || (in == NULL && sz > 0) || (out == NULL) || iv == NULL ||
+            authTag == NULL || authTagSz > AES_GCM_AUTH_SZ) {
         return BAD_FUNC_ARG;
     }
 
@@ -598,8 +597,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     byte initalCounter[WC_AES_BLOCK_SIZE];
     int ret;
 
-    if (in == NULL || iv == NULL || authTag == NULL ||
-            authTagSz < AES_GCM_AUTH_SZ) {
+    if (aes == NULL || in == NULL || out == NULL || iv == NULL ||
+            authTag == NULL || authTagSz < AES_GCM_AUTH_SZ) {
         return BAD_FUNC_ARG;
     }
 

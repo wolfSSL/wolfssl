@@ -58,7 +58,11 @@ int wc_psa_init()
     psa_status_t s;
 
 #if defined(WOLFSSL_PSA_GLOBAL_LOCK)
-    wc_InitMutex(&psa_global_mutex);
+    int ret;
+
+    ret = wc_InitMutex(&psa_global_mutex);
+    if (ret != 0)
+        return ret;
 #endif
 
     PSA_LOCK();

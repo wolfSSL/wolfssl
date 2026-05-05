@@ -50,7 +50,7 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
     byte* key = (byte*)aes->key;
 #endif
 
-    if (aes->alFd <= 0) {
+    if (aes->alFd == WC_SOCK_NOTSET) {
         aes->alFd = wc_Afalg_Socket();
         if (aes->alFd < 0) {
             WOLFSSL_MSG("Unable to open an AF_ALG socket");
@@ -133,11 +133,11 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     aes->left = 0;
 #endif
 
-    if (aes->rdFd > 0) {
+    if (aes->rdFd > WC_SOCK_NOTSET) {
         (void)close(aes->rdFd);
     }
     aes->rdFd = WC_SOCK_NOTSET;
-    if (aes->alFd <= 0) {
+    if (aes->alFd == WC_SOCK_NOTSET) {
         aes->alFd = wc_Afalg_Socket();
     }
 
@@ -527,11 +527,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     aes->keylen = len;
     aes->rounds = len/4 + 6;
 
-    if (aes->rdFd > 0) {
+    if (aes->rdFd > WC_SOCK_NOTSET) {
         (void)close(aes->rdFd);
     }
     aes->rdFd = WC_SOCK_NOTSET;
-    if (aes->alFd <= 0) {
+    if (aes->alFd == WC_SOCK_NOTSET) {
         aes->alFd = wc_Afalg_Socket();
     }
 
@@ -594,7 +594,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-    if (aes->alFd <= 0) {
+    if (aes->alFd == WC_SOCK_NOTSET) {
         WOLFSSL_MSG("AF_ALG GcmEncrypt called with alFd unset");
         return BAD_FUNC_ARG;
     }
@@ -726,14 +726,18 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     {
-        byte* tmp = (byte*)XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmp == NULL) {
-            return MEMORY_E;
+        byte* tmp = NULL;
+
+        if (authInSz > 0) {
+            tmp = (byte*)XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) {
+                return MEMORY_E;
+            }
+            /* first 16 bytes was all 0's */
+            iov[0].iov_base = tmp;
+            (void)scratch;
+            iov[0].iov_len  = authInSz;
         }
-        /* first 16 bytes was all 0's */
-        iov[0].iov_base = tmp;
-        (void)scratch;
-        iov[0].iov_len  = authInSz;
 
         iov[1].iov_base = out;
         iov[1].iov_len  = sz;
@@ -743,9 +747,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         ret = (int)readv(aes->rdFd, iov, 3);
         XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (ret < 0) {
-        return WC_AFALG_SOCK_E;
+        if (ret < 0) {
+            return WC_AFALG_SOCK_E;
+        }
     }
 #endif
 
@@ -758,7 +762,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
  *
  * Warning: If using Xilinx hardware acceleration it is assumed that the in
  *          buffer is large enough to hold both cipher text and tag. That is
- *          sz | 16 bytes
+ *          sz | 16 bytes. The in buffer has tag appended even though it is
+ *          const for this wolfSSL API.
  */
 int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* iv, word32 ivSz,
@@ -851,9 +856,6 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         if (ret < 0)
             return ret;
         xorbuf(tag, scratch, WC_AES_BLOCK_SIZE);
-        if (ret != 0) {
-            return AES_GCM_AUTH_E;
-        }
     }
 
     /* it is assumed that in buffer size is large enough to hold TAG */
@@ -933,12 +935,16 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     {
-        byte* tmp = (byte*)XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmp == NULL) {
-            return MEMORY_E;
+        byte* tmp = NULL;
+
+        if (authInSz > 0) {
+            tmp = (byte*)XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) {
+                return MEMORY_E;
+            }
+            iov[0].iov_base = tmp;
+            iov[0].iov_len  = authInSz;
         }
-        iov[0].iov_base = tmp;
-        iov[0].iov_len  = authInSz;
         iov[1].iov_base = out;
         iov[1].iov_len  = sz;
         ret = (int)readv(aes->rdFd, iov, 2);

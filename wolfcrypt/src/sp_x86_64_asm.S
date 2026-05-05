@@ -56771,10 +56771,10 @@ _sp_256_mont_div2_4:
         adcq	%r10, %r8
         movq	$0x00, %r11
         adcq	$0x00, %r11
-        shrdq	$0x01, %rax, %rdx
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r11, %r8
+        shrdq	$1, %rax, %rdx
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r11, %r8
         movq	%rdx, (%rdi)
         movq	%rax, 8(%rdi)
         movq	%rcx, 16(%rdi)
@@ -57615,10 +57615,10 @@ _sp_256_mont_div2_avx2_4:
         adcq	%r10, %r8
         movq	$0x00, %r11
         adcq	$0x00, %r11
-        shrdq	$0x01, %rax, %rdx
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r11, %r8
+        shrdq	$1, %rax, %rdx
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r11, %r8
         movq	%rdx, (%rdi)
         movq	%rax, 8(%rdi)
         movq	%rcx, 16(%rdi)
@@ -58754,10 +58754,10 @@ _sp_256_mod_inv_4:
         testb	$0x01, %r11b
         jnz	L_256_mod_inv_4_v_even_end
 L_256_mod_inv_4_v_even_start:
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrq	$0x01, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrq	$1, %r14
         movb	$0x01, (%rsp,%r15,1)
         incq	%r15
         testb	$0x01, %r11b
@@ -58782,17 +58782,17 @@ L_256_mod_inv_4_uv_u:
         sbbq	%r12, %r8
         sbbq	%r13, %r9
         sbbq	%r14, %r10
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrq	$0x01, %r10
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrq	$1, %r10
         testb	$0x01, %cl
         jnz	L_256_mod_inv_4_usubv_even_end
 L_256_mod_inv_4_usubv_even_start:
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrq	$0x01, %r10
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrq	$1, %r10
         movb	$0x00, (%rsp,%r15,1)
         incq	%r15
         testb	$0x01, %cl
@@ -58814,17 +58814,17 @@ L_256_mod_inv_4_uv_v:
         sbbq	%r8, %r12
         sbbq	%r9, %r13
         sbbq	%r10, %r14
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrq	$0x01, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrq	$1, %r14
         testb	$0x01, %r11b
         jnz	L_256_mod_inv_4_vsubu_even_end
 L_256_mod_inv_4_vsubu_even_start:
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrq	$0x01, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrq	$1, %r14
         movb	$0x01, (%rsp,%r15,1)
         incq	%r15
         testb	$0x01, %r11b
@@ -58877,10 +58877,10 @@ L_256_mod_inv_4_op_div2_b:
         adcq	24(%rdx), %r10
         adcq	$0x00, %rsi
 L_256_mod_inv_4_op_div2_b_mod:
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrdq	$0x01, %rsi, %r10
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrdq	$1, %rsi, %r10
         movb	(%rsp,%r15,1), %sil
         incq	%r15
         cmpb	$0x01, %sil
@@ -58910,10 +58910,10 @@ L_256_mod_inv_4_op_div2_d:
         adcq	24(%rdx), %r14
         adcq	$0x00, %rsi
 L_256_mod_inv_4_op_div2_d_mod:
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrdq	$0x01, %r14, %r13
-        shrdq	$0x01, %rsi, %r14
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrdq	$1, %r14, %r13
+        shrdq	$1, %rsi, %r14
         movb	(%rsp,%r15,1), %sil
         incq	%r15
         cmpb	$0x01, %sil
@@ -58951,6 +58951,11 @@ L_256_mod_inv_4_store_end:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_order:
 .long	0x00632551,0x01e84f3b,0x03bce6fa,0x03ffffff
 .long	0x03ff0000,0x00000000,0x00000000,0x00000000
@@ -58967,12 +58972,17 @@ L_sp256_mod_inv_avx2_4_order:
 .p2align	5
 #endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_one:
-.quad	0x1, 0x0
-.quad	0x0, 0x0
+.quad	0x0000000000000001,0x0000000000000000
+.quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
 .data
 #else
 .section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
 #endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_all_one:
 .long	0x00000001,0x00000001,0x00000001,0x00000001
@@ -58982,6 +58992,11 @@ L_sp256_mod_inv_avx2_4_all_one:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_mask01111:
 .long	0x00000000,0x00000001,0x00000001,0x00000001
 .long	0x00000001,0x00000000,0x00000000,0x00000000
@@ -58989,6 +59004,11 @@ L_sp256_mod_inv_avx2_4_mask01111:
 .data
 #else
 .section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
 #endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_down_one_dword:
 .long	0x00000001,0x00000002,0x00000003,0x00000004
@@ -58998,6 +59018,11 @@ L_sp256_mod_inv_avx2_4_down_one_dword:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_neg:
 .long	0x00000000,0x00000000,0x00000000,0x00000000
 .long	0x80000000,0x00000000,0x00000000,0x00000000
@@ -59006,6 +59031,11 @@ L_sp256_mod_inv_avx2_4_neg:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_up_one_dword:
 .long	0x00000007,0x00000000,0x00000001,0x00000002
 .long	0x00000003,0x00000007,0x00000007,0x00000007
@@ -59013,6 +59043,11 @@ L_sp256_mod_inv_avx2_4_up_one_dword:
 .data
 #else
 .section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
 #endif /* __APPLE__ */
 L_sp256_mod_inv_avx2_4_mask26:
 .long	0x03ffffff,0x03ffffff,0x03ffffff,0x03ffffff
@@ -59073,10 +59108,10 @@ _sp_256_mod_inv_avx2_4:
         testb	$0x01, %r10b
         jnz	L_256_mod_inv_avx2_4_v_even_end
 L_256_mod_inv_avx2_4_v_even_start:
-        shrdq	$0x01, %r11, %r10
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrq	$0x01, %r13
+        shrdq	$1, %r11, %r10
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrq	$1, %r13
         vptest	%ymm8, %ymm2
         jz	L_256_mod_inv_avx2_4_v_even_shr1
         vpaddd	%ymm6, %ymm2, %ymm2
@@ -59119,10 +59154,10 @@ L_256_mod_inv_avx2_4_uv_u:
         vpaddd	%ymm7, %ymm1, %ymm1
 L_256_mod_inv_avx2_4_usubv_done_neg:
 L_256_mod_inv_avx2_4_usubv_shr1:
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrq	$0x01, %r9
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrq	$1, %r9
         vptest	%ymm8, %ymm0
         jz	L_256_mod_inv_avx2_4_usubv_sub_shr1
         vpaddd	%ymm6, %ymm0, %ymm0
@@ -59172,10 +59207,10 @@ L_256_mod_inv_avx2_4_uv_v:
         vpaddd	%ymm7, %ymm3, %ymm3
 L_256_mod_inv_avx2_4_vsubu_done_neg:
 L_256_mod_inv_avx2_4_vsubu_shr1:
-        shrdq	$0x01, %r11, %r10
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrq	$0x01, %r13
+        shrdq	$1, %r11, %r10
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrq	$1, %r13
         vptest	%ymm8, %ymm2
         jz	L_256_mod_inv_avx2_4_vsubu_sub_shr1
         vpaddd	%ymm6, %ymm2, %ymm2
@@ -59268,7 +59303,7 @@ L_256_mod_inv_avx2_4_store_done:
         adcq	%r13, %r12
         movslq	%r14d, %r14
         adcq	%r15, %r14
-        jge	L_256_mod_inv_avx2_4_3_no_add_order
+        jge	L_256_mod_inv_avx2_4_no_add_order
         movq	$0x9cac2fc632551, %rcx
         movq	$0xada7179e84f3b, %r9
         movq	$0xfffffffbce6fa, %r11
@@ -59296,7 +59331,7 @@ L_256_mod_inv_avx2_4_store_done:
         andq	%rsi, %r12
         sarq	$52, %r13
         addq	%r13, %r14
-L_256_mod_inv_avx2_4_3_no_add_order:
+L_256_mod_inv_avx2_4_no_add_order:
         movq	%r8, %rcx
         movq	%r10, %r9
         movq	%r12, %r11
@@ -61148,21 +61183,21 @@ _sp_384_mont_div2_6:
         adcq	$0x00, %r10
         movq	(%rsp), %rax
         movq	8(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, (%rdi)
         movq	16(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 8(%rdi)
         movq	24(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 16(%rdi)
         movq	32(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 24(%rdi)
         movq	40(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 32(%rdi)
-        shrdq	$0x01, %r10, %rcx
+        shrdq	$1, %r10, %rcx
         movq	%rcx, 40(%rdi)
         addq	$48, %rsp
         repz retq
@@ -61783,21 +61818,21 @@ _sp_384_mont_div2_avx2_6:
         adcq	$0x00, %r10
         movq	(%rdi), %r8
         movq	8(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, (%rdi)
         movq	16(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 8(%rdi)
         movq	24(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 16(%rdi)
         movq	32(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 24(%rdi)
         movq	40(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 32(%rdi)
-        shrdq	$0x01, %r10, %r9
+        shrdq	$1, %r10, %r9
         movq	%r9, 40(%rdi)
         repz retq
 #ifndef __APPLE__
@@ -62565,12 +62600,12 @@ _sp_384_rshift1_6:
         movq	24(%rsi), %r8
         movq	32(%rsi), %r9
         movq	40(%rsi), %r10
-        shrdq	$0x01, %rax, %rdx
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrq	$0x01, %r10
+        shrdq	$1, %rax, %rdx
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrq	$1, %r10
         movq	%rdx, (%rdi)
         movq	%rax, 8(%rdi)
         movq	%rcx, 16(%rdi)
@@ -62629,12 +62664,12 @@ _sp_384_div2_mod_6:
         movq	$0x00, %rdx
         adcq	$0x00, %rdx
 L_384_mod_inv_6_div2_mod_no_add:
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrdq	$0x01, %r11, %r10
-        shrdq	$0x01, %rdx, %r11
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrdq	$1, %r11, %r10
+        shrdq	$1, %rdx, %r11
         movq	%rax, (%rdi)
         movq	%rcx, 8(%rdi)
         movq	%r8, 16(%rdi)
@@ -66434,7 +66469,7 @@ _sp_521_mont_add_9:
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montgomery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -66688,15 +66723,15 @@ _sp_521_mont_div2_9:
         sbbq	$0x00, %r13
         shlq	$9, %r14
         addq	%r14, %r13
-        shrdq	$0x01, %rax, %rdx
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrdq	$0x01, %r11, %r10
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrq	$0x01, %r13
+        shrdq	$1, %rax, %rdx
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrdq	$1, %r11, %r10
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrq	$1, %r13
         movq	%rdx, (%rdi)
         movq	%rax, 8(%rdi)
         movq	%rcx, 16(%rdi)
@@ -68454,15 +68489,15 @@ _sp_521_mont_div2_avx2_9:
         sbbq	$0x00, %r13
         shlq	$9, %r14
         addq	%r14, %r13
-        shrdq	$0x01, %rax, %rdx
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
-        shrdq	$0x01, %r11, %r10
-        shrdq	$0x01, %r12, %r11
-        shrdq	$0x01, %r13, %r12
-        shrq	$0x01, %r13
+        shrdq	$1, %rax, %rdx
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
+        shrdq	$1, %r11, %r10
+        shrdq	$1, %r12, %r11
+        shrdq	$1, %r13, %r12
+        shrq	$1, %r13
         movq	%rdx, (%rdi)
         movq	%rax, 8(%rdi)
         movq	%rcx, 16(%rdi)
@@ -69634,10 +69669,10 @@ _sp_521_rshift1_9:
         movq	16(%rsi), %rcx
         movq	24(%rsi), %r8
         movq	32(%rsi), %r10
-        shrdq	$0x01, %rax, %rdx
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r10, %r8
+        shrdq	$1, %rax, %rdx
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r10, %r8
         movq	%rdx, (%rdi)
         movq	%rax, 8(%rdi)
         movq	%rcx, 16(%rdi)
@@ -69646,15 +69681,15 @@ _sp_521_rshift1_9:
         movq	48(%rsi), %rcx
         movq	56(%rsi), %r8
         movq	64(%rsi), %rdx
-        shrdq	$0x01, %rax, %r10
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %rdx, %r8
+        shrdq	$1, %rax, %r10
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %rdx, %r8
         movq	%r10, 32(%rdi)
         movq	%rax, 40(%rdi)
         movq	%rcx, 48(%rdi)
         movq	%r8, 56(%rdi)
-        shrq	$0x01, %rdx
+        shrq	$1, %rdx
         movq	%rdx, 64(%rdi)
         repz retq
 #ifndef __APPLE__
@@ -69723,10 +69758,10 @@ L_521_mod_inv_9_div2_mod_no_add:
         movq	16(%rsi), %r8
         movq	24(%rsi), %r9
         movq	32(%rsi), %r10
-        shrdq	$0x01, %rcx, %rax
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %r10, %r9
+        shrdq	$1, %rcx, %rax
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %r10, %r9
         movq	%rax, (%rdi)
         movq	%rcx, 8(%rdi)
         movq	%r8, 16(%rdi)
@@ -69735,15 +69770,15 @@ L_521_mod_inv_9_div2_mod_no_add:
         movq	48(%rsi), %r8
         movq	56(%rsi), %r9
         movq	64(%rsi), %rax
-        shrdq	$0x01, %rcx, %r10
-        shrdq	$0x01, %r8, %rcx
-        shrdq	$0x01, %r9, %r8
-        shrdq	$0x01, %rax, %r9
+        shrdq	$1, %rcx, %r10
+        shrdq	$1, %r8, %rcx
+        shrdq	$1, %r9, %r8
+        shrdq	$1, %rax, %r9
         movq	%r10, 32(%rdi)
         movq	%rcx, 40(%rdi)
         movq	%r8, 48(%rdi)
         movq	%r9, 56(%rdi)
-        shrq	$0x01, %rax
+        shrq	$1, %rax
         movq	%rax, 64(%rdi)
         repz retq
 #ifndef __APPLE__
@@ -76656,7 +76691,7 @@ _sp_1024_mont_add_16:
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montgomery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -76830,7 +76865,7 @@ _sp_1024_mont_dbl_16:
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montgomery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -77428,51 +77463,51 @@ _sp_1024_mont_div2_16:
         adcq	$0x00, %r10
         movq	(%rsp), %rax
         movq	8(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, (%rdi)
         movq	16(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 8(%rdi)
         movq	24(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 16(%rdi)
         movq	32(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 24(%rdi)
         movq	40(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 32(%rdi)
         movq	48(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 40(%rdi)
         movq	56(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 48(%rdi)
         movq	64(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 56(%rdi)
         movq	72(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 64(%rdi)
         movq	80(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 72(%rdi)
         movq	88(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 80(%rdi)
         movq	96(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 88(%rdi)
         movq	104(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 96(%rdi)
         movq	112(%rsp), %rax
-        shrdq	$0x01, %rax, %rcx
+        shrdq	$1, %rax, %rcx
         movq	%rcx, 104(%rdi)
         movq	120(%rsp), %rcx
-        shrdq	$0x01, %rcx, %rax
+        shrdq	$1, %rcx, %rax
         movq	%rax, 112(%rdi)
-        shrdq	$0x01, %r10, %rcx
+        shrdq	$1, %r10, %rcx
         movq	%rcx, 120(%rdi)
         addq	$0x80, %rsp
         repz retq
@@ -77984,7 +78019,7 @@ _sp_1024_mont_add_avx2_16:
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montgomery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -78142,7 +78177,7 @@ _sp_1024_mont_dbl_avx2_16:
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montgomery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -78692,51 +78727,51 @@ _sp_1024_mont_div2_avx2_16:
         adcq	$0x00, %r10
         movq	(%rdi), %r8
         movq	8(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, (%rdi)
         movq	16(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 8(%rdi)
         movq	24(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 16(%rdi)
         movq	32(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 24(%rdi)
         movq	40(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 32(%rdi)
         movq	48(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 40(%rdi)
         movq	56(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 48(%rdi)
         movq	64(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 56(%rdi)
         movq	72(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 64(%rdi)
         movq	80(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 72(%rdi)
         movq	88(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 80(%rdi)
         movq	96(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 88(%rdi)
         movq	104(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 96(%rdi)
         movq	112(%rdi), %r8
-        shrdq	$0x01, %r8, %r9
+        shrdq	$1, %r8, %r9
         movq	%r9, 104(%rdi)
         movq	120(%rdi), %r9
-        shrdq	$0x01, %r9, %r8
+        shrdq	$1, %r9, %r8
         movq	%r8, 112(%rdi)
-        shrdq	$0x01, %r10, %r9
+        shrdq	$1, %r10, %r9
         movq	%r9, 120(%rdi)
         repz retq
 #ifndef __APPLE__

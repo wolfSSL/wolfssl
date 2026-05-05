@@ -28,11 +28,13 @@ int test_wc_Des3_SetIV(void);
 int test_wc_Des3_SetKey(void);
 int test_wc_Des3_CbcEncryptDecrypt(void);
 int test_wc_Des3_EcbEncrypt(void);
+int test_wc_Des3Cbc_MonteCarlo(void);
 
 #define TEST_DES3_DECLS                                         \
     TEST_DECL_GROUP("des3", test_wc_Des3_SetIV),                \
     TEST_DECL_GROUP("des3", test_wc_Des3_SetKey),               \
     TEST_DECL_GROUP("des3", test_wc_Des3_CbcEncryptDecrypt),    \
-    TEST_DECL_GROUP("des3", test_wc_Des3_CbcEncryptDecrypt)
+    TEST_DECL_GROUP("des3", test_wc_Des3_EcbEncrypt),           \
+    TEST_DECL_GROUP("des3", test_wc_Des3Cbc_MonteCarlo)
 
 #endif /* WOLFCRYPT_TEST_DES3_H */

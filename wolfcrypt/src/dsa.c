@@ -27,6 +27,7 @@
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/dsa.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -173,8 +174,8 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     SAVE_VECTOR_REGISTERS(;);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), NULL,
-            DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)
+    if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), dsa->heap,
+            DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         err = MEMORY_E;
     else
         err = MP_OKAY;
@@ -689,6 +690,12 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
     if (digest == NULL || out == NULL || key == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
+    if ((digestSz > WC_MAX_DIGEST_SIZE) ||
+        (digestSz < WC_MIN_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
     do {
@@ -1021,6 +1028,16 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
 
     if (digest == NULL || sig == NULL || key == NULL || answer == NULL)
         return BAD_FUNC_ARG;
+
+    /* Note the min allowed digestSz here is WC_SHA_DIGEST_SIZE, not
+     * WC_MIN_DIGEST_SIZE, to allow verify-only legacy DSA operations, as
+     * expressly allowed under FIPS 186-5, FIPS 140-3, and SP 800-131A.
+     */
+    if ((digestSz > WC_MAX_DIGEST_SIZE) ||
+        (digestSz < WC_SHA_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
 
     do {
 #ifdef WOLFSSL_SMALL_STACK

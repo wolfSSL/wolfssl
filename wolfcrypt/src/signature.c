@@ -93,9 +93,17 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     switch(sig_type) {
         case WC_SIGNATURE_TYPE_ECC:
 #ifdef HAVE_ECC
-            /* Sanity check that void* key is at least ecc_key in size */
-            if (key_len >= sizeof(ecc_key)) {
-                sig_len = wc_ecc_sig_size((ecc_key*)key);
+            /* Verify that key_len matches exactly sizeof(ecc_key).
+             * This is a necessary but not sufficient type check:
+             * the const void* API cannot verify the actual runtime
+             * type of the pointed-to object.
+             * Callers must pass a valid ecc_key* cast to const void*. */
+            if ((size_t)key_len == sizeof(ecc_key)) {
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
+                sig_len = wc_ecc_sig_size((ecc_key*)(wc_ptr_t)key);
+#else
+                sig_len = wc_ecc_sig_size((const ecc_key*)key);
+#endif
             }
             else {
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid ECC key size");
@@ -108,9 +116,15 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
         case WC_SIGNATURE_TYPE_RSA_W_ENC:
         case WC_SIGNATURE_TYPE_RSA:
 #ifndef NO_RSA
-            /* Sanity check that void* key is at least RsaKey in size */
-            if (key_len >= sizeof(RsaKey)) {
-                sig_len = wc_RsaEncryptSize((RsaKey*)key);
+            /* Verify that key_len matches exactly sizeof(RsaKey).
+             * Same caveat as the ECC case above: size equality is necessary
+             * but not sufficient; the caller must pass a valid RsaKey*. */
+            if ((size_t)key_len == sizeof(RsaKey)) {
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
+                sig_len = wc_RsaEncryptSize((RsaKey*)(wc_ptr_t)key);
+#else
+                sig_len = wc_RsaEncryptSize((const RsaKey*)key);
+#endif
             }
             else {
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid RsaKey key size");
@@ -132,7 +146,7 @@ int wc_SignatureVerifyHash(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* hash_data, word32 hash_len,
     const byte* sig, word32 sig_len,
-    const void* key, word32 key_len)
+    void* key, word32 key_len)
 {
     int ret;
 
@@ -155,6 +169,35 @@ int wc_SignatureVerifyHash(
         WOLFSSL_MSG("wc_SignatureVerify: Invalid hash type/len");
         return ret;
     }
+
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    /* For WC_SIGNATURE_TYPE_RSA_W_ENC, we need to extract the actual size of
+     * the ASN.1-encoded hash.
+     */
+    if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
+        int hash_dec_len;
+        word32 idx = 0;
+        if (GetSequence(hash_data, &idx, &hash_dec_len, hash_len) < 0)
+            return ASN_PARSE_E;
+        /* skip the AlgorithmIdentifier */
+        if (GetSequence(hash_data, &idx, &hash_dec_len, hash_len) < 0)
+            return ASN_PARSE_E;
+        idx += (word32)hash_dec_len;
+        /* now sitting at the OCTET STRING containing the digest */
+        if (GetOctetString(hash_data, &idx, &hash_dec_len, hash_len) < 0)
+            return ASN_PARSE_E;
+        if (hash_dec_len != ret)
+            return BAD_LENGTH_E;
+    }
+    else
+#endif
+    {
+        if (hash_len != (word32)ret) {
+            WOLFSSL_MSG("wc_SignatureVerify: Invalid hash size");
+            return BAD_LENGTH_E;
+        }
+    }
+
     ret = 0;
 
     /* Verify signature using hash */
@@ -271,7 +314,7 @@ int wc_SignatureVerify(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     const byte* sig, word32 sig_len,
-    const void* key, word32 key_len)
+    void* key, word32 key_len)
 {
     int ret;
     word32 hash_len, hash_enc_len;
@@ -349,7 +392,7 @@ int wc_SignatureGenerateHash(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* hash_data, word32 hash_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len, WC_RNG* rng)
+    void* key, word32 key_len, WC_RNG* rng)
 {
     return wc_SignatureGenerateHash_ex(hash_type, sig_type, hash_data, hash_len,
         sig, sig_len, key, key_len, rng, 1);
@@ -359,7 +402,7 @@ int wc_SignatureGenerateHash_ex(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* hash_data, word32 hash_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len, WC_RNG* rng, int verify)
+    void* key, word32 key_len, WC_RNG* rng, int verify)
 {
     int ret;
 
@@ -460,7 +503,7 @@ int wc_SignatureGenerate(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len, WC_RNG* rng)
+    void* key, word32 key_len, WC_RNG* rng)
 {
     return wc_SignatureGenerate_ex(hash_type, sig_type, data, data_len, sig,
         sig_len, key, key_len, rng, 1);
@@ -470,7 +513,7 @@ int wc_SignatureGenerate_ex(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len, WC_RNG* rng, int verify)
+    void* key, word32 key_len, WC_RNG* rng, int verify)
 {
     int ret;
     word32 hash_len, hash_enc_len;

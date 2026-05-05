@@ -97,3 +97,53 @@ fn test_rng_reseed() {
     let seed = [1u8, 2, 3, 4];
     rng.reseed(&seed).expect("Error with reseed()");
 }
+
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_rand_core_fill_bytes() {
+    use rand_core::Rng;
+    let mut rng = RNG::new().expect("Failed to create RNG");
+    let mut buf = [0u8; 32];
+    rng.fill_bytes(&mut buf);
+    assert_ne!(buf, [0u8; 32]);
+}
+
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_rand_core_try_fill_bytes() {
+    use rand_core::TryRng;
+    let mut rng = RNG::new().expect("Failed to create RNG");
+    let mut buf = [0u8; 32];
+    rng.try_fill_bytes(&mut buf).expect("Failed to try_fill_bytes");
+    assert_ne!(buf, [0u8; 32]);
+}
+
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_rand_core_next_u32() {
+    use rand_core::Rng;
+    let mut rng = RNG::new().expect("Failed to create RNG");
+    // Generate several values and verify they aren't all zero
+    let v: u64 = (0..4).map(|_| rng.next_u32() as u64).sum();
+    assert_ne!(v, 0);
+}
+
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_rand_core_next_u64() {
+    use rand_core::Rng;
+    let mut rng = RNG::new().expect("Failed to create RNG");
+    // Generate two values and verify they aren't all ones
+    let v1 = rng.next_u64();
+    let v2 = rng.next_u64();
+    assert_ne!(v1 & v2, u64::MAX);
+}
+
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_is_crypto_rng() {
+    use rand_core::CryptoRng;
+    fn requires_crypto_rng<R: CryptoRng>(_: &R) {}
+    let rng = RNG::new().expect("Failed to create RNG");
+    requires_crypto_rng(&rng);
+}

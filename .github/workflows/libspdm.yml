@@ -64,6 +64,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Checkout libspdm
         uses: actions/checkout@v4
@@ -71,6 +72,7 @@ jobs:
           repository: DMTF/libspdm
           path: libspdm
           ref: ${{ matrix.ref }}
+          fetch-depth: 1
 
       - name: Build and test libspdm
         working-directory: libspdm

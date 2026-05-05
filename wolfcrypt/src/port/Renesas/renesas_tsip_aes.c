@@ -261,8 +261,8 @@ WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
 
     WOLFSSL_ENTER("tsip_Tls13AesDecrypt");
 
-    if ((ssl == NULL) || (input == NULL) || (output == NULL) || (sz == 0) ||
-        (ssl->RenesasUserCtx == NULL)) {
+    if ((ssl == NULL) || (input == NULL) || (output == NULL) ||
+        (sz < TSIP_AES_GCM_AUTH_TAG_SIZE) || (ssl->RenesasUserCtx == NULL)) {
         return BAD_FUNC_ARG;
     }
 

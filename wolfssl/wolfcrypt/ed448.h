@@ -163,6 +163,12 @@ WOLFSSL_API
 int wc_ed448_init(ed448_key* key);
 WOLFSSL_API
 void wc_ed448_free(ed448_key* key);
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API
+ed448_key* wc_ed448_new(void* heap, int devId, int *result_code);
+WOLFSSL_API
+int wc_ed448_delete(ed448_key* key, ed448_key** key_p);
+#endif
 
 #ifdef HAVE_ED448_KEY_IMPORT
 WOLFSSL_API

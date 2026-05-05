@@ -41,8 +41,7 @@
 #undef USE_WOLFSSL_ESP_SDK_WIFI
 #include <wolfssl/ssl.h>
 
-#if defined(WOLFSSL_WC_MLKEM)
-    #include <wolfssl/wolfcrypt/mlkem.h>
+#if defined(WOLFSSL_HAVE_MLKEM)
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024)

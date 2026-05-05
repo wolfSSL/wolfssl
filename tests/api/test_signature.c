@@ -70,6 +70,13 @@ int test_wc_SignatureGetSize_ecc(void)
     key_len = (word32)0;
     ExpectIntEQ(wc_SignatureGetSize(sig_type, &ecc, key_len),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* key_len must be exactly sizeof(ecc_key): one less or one more is invalid */
+    key_len = (word32)(sizeof(ecc_key) - 1);
+    ExpectIntEQ(wc_SignatureGetSize(sig_type, &ecc, key_len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    key_len = (word32)(sizeof(ecc_key) + 1);
+    ExpectIntEQ(wc_SignatureGetSize(sig_type, &ecc, key_len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     DoExpectIntEQ(wc_ecc_free(&ecc), 0);
 #endif /* !NO_SIG_WRAPPER && HAVE_ECC && !NO_ECC256 */
@@ -138,6 +145,13 @@ int test_wc_SignatureGetSize_rsa(void)
     ExpectIntEQ(wc_SignatureGetSize(sig_type, NULL, key_len),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     key_len = (word32)0;
+    ExpectIntEQ(wc_SignatureGetSize(sig_type, &rsa_key, key_len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* key_len must be exactly sizeof(RsaKey): one less or one more is invalid */
+    key_len = (word32)(sizeof(RsaKey) - 1);
+    ExpectIntEQ(wc_SignatureGetSize(sig_type, &rsa_key, key_len),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    key_len = (word32)(sizeof(RsaKey) + 1);
     ExpectIntEQ(wc_SignatureGetSize(sig_type, &rsa_key, key_len),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 

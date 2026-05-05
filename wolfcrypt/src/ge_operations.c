@@ -9091,7 +9091,8 @@ static void ge_select(ge_precomp *t,int pos,signed char b)
   fe_neg(minust.xy2d,t->xy2d);
   fe_cmov(t->xy2d,minust.xy2d,bnegative);
 #else
-  fe_cmov_table((fe*)t, (fe*)base[pos], b);
+  /* (wc_ptr_t) needed to work around C array casting semantics. */
+  fe_cmov_table((fe*)t, (const fe*)(wc_ptr_t)base[pos], b);
 #endif
 }
 
@@ -10175,12 +10176,8 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
   s[31] ^= (unsigned char)((unsigned char)fe_isnegative(x) << 7);
 }
 
-#ifdef HAVE_ED25519_VERIFY
-#ifndef CURVED25519_ASM_64BIT
-    #define fe_invert_nct fe_invert
-#endif
-
-/* ge tobytes */
+#if defined(HAVE_ED25519_VERIFY) && defined(CURVED25519_ASM_64BIT)
+/* ge tobytes_nct */
 void ge_tobytes_nct(unsigned char *s,const ge_p2 *h)
 {
   ge recip;
@@ -10193,7 +10190,7 @@ void ge_tobytes_nct(unsigned char *s,const ge_p2 *h)
   fe_tobytes(s,y);
   s[31] ^= (unsigned char)((unsigned char)fe_isnegative(x) << 7);
 }
-#endif
+#endif /* HAVE_ED25519_VERIFY && CURVED25519_ASM_64BIT */
 
 #endif /* !ED25519_SMALL */
 

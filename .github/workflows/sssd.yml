@@ -56,13 +56,17 @@ jobs:
     timeout-minutes: 20
     needs: build_wolfssl
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y build-essential autoconf libldb-dev \
-            libldb2 python3-ldb bc libcap-dev
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf libldb-dev libldb2 python3-ldb bc libcap-dev
+          cache: 'false'
 
       - name: Setup env
         run: |
@@ -85,6 +89,7 @@ jobs:
         with:
           repository: wolfssl/osp
           path: osp
+          fetch-depth: 1
 
       - name: Build and test sssd
         uses: wolfSSL/actions-build-autotools-project@v1

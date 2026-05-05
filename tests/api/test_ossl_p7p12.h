@@ -27,6 +27,8 @@
 int test_wolfssl_PKCS7(void);
 int test_wolfSSL_PKCS7_certs(void);
 int test_wolfSSL_PKCS7_sign(void);
+int test_wolfSSL_PKCS7_verify_signer_forgery(void);
+int test_wolfSSL_PKCS7_verify_sid_binding(void);
 int test_wolfSSL_PKCS7_SIGNED_new(void);
 int test_wolfSSL_PEM_write_bio_PKCS7(void);
 int test_wolfSSL_PEM_write_bio_encryptedKey(void);
@@ -38,6 +40,8 @@ int test_wolfSSL_PKCS12(void);
     TEST_DECL_GROUP("ossl_p7", test_wolfssl_PKCS7),                         \
     TEST_DECL_GROUP("ossl_p7", test_wolfSSL_PKCS7_certs),                   \
     TEST_DECL_GROUP("ossl_p7", test_wolfSSL_PKCS7_sign),                    \
+    TEST_DECL_GROUP("ossl_p7", test_wolfSSL_PKCS7_verify_signer_forgery),   \
+    TEST_DECL_GROUP("ossl_p7", test_wolfSSL_PKCS7_verify_sid_binding),      \
     TEST_DECL_GROUP("ossl_p7", test_wolfSSL_PKCS7_SIGNED_new),              \
     TEST_DECL_GROUP("ossl_p7", test_wolfSSL_PEM_write_bio_PKCS7),           \
     TEST_DECL_GROUP("ossl_p7", test_wolfSSL_PEM_write_bio_encryptedKey),    \

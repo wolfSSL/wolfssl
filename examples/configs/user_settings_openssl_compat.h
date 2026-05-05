@@ -199,7 +199,6 @@ extern "C" {
 #define WOLFSSL_SHA3
 #define WOLFSSL_SHAKE256
 
-#define HAVE_BLAKE2
 #define HAVE_BLAKE2B
 #define HAVE_BLAKE2S
 

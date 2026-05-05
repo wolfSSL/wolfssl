@@ -480,6 +480,7 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
     byte* tmp = NULL;
     byte* cipherInfo = NULL;
     int pemSz = 0;
+    int derAllocSz = derSz;
     int hashType = WC_HASH_TYPE_NONE;
 #if !defined(NO_MD5)
     hashType = WC_MD5;
@@ -515,6 +516,7 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
         }
         else {
             der = tmpBuf;
+            derAllocSz = derSz + blockSz;
 
             /* Encrypt DER inline. */
             ret = EncryptDerKey(der, &derSz, cipher, passwd, passwdSz,
@@ -562,7 +564,10 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
 
     XFREE(tmp, NULL, DYNAMIC_TYPE_KEY);
     XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
-    XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der != NULL) {
+        ForceZero(der, (word32)derAllocSz);
+        XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
 }
@@ -2104,6 +2109,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     derSz = wc_DsaKeyToDer((DsaKey*)dsa->internal, derBuf, (word32)der_max_len);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_DsaKeyToDer failed");
+        ForceZero(derBuf, (word32)der_max_len);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         return 0;
     }
@@ -2116,6 +2122,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
             &cipherInfo, der_max_len, WC_MD5);
         if (ret != 1) {
             WOLFSSL_MSG("EncryptDerKey failed");
+            ForceZero(derBuf, (word32)der_max_len);
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
             return ret;
         }
@@ -2131,6 +2138,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     tmp = (byte*)XMALLOC((size_t)*pLen, NULL, DYNAMIC_TYPE_PEM);
     if (tmp == NULL) {
         WOLFSSL_MSG("malloc failed");
+        ForceZero(derBuf, (word32)der_max_len);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return 0;
@@ -2141,11 +2149,13 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         type);
     if (*pLen <= 0) {
         WOLFSSL_MSG("wc_DerToPemEx failed");
+        ForceZero(derBuf, (word32)der_max_len);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_PEM);
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return 0;
     }
+    ForceZero(derBuf, (word32)der_max_len);
     XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
     XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
 
@@ -5501,6 +5511,60 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
 
 #endif /* OPENSSL_EXTRA && HAVE_ED25519 */
 
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    defined(HAVE_ED25519)
+/* Allocate and initialize a new ed25519_key.
+ *
+ * @param [in] heap   Heap hint for memory allocation.
+ * @param [in] devId  Device identifier for crypto callbacks.
+ * @return  Allocated and initialized ed25519_key on success.
+ * @return  NULL on failure.
+ */
+ed25519_key* wolfSSL_ED25519_new(void* heap, int devId)
+{
+    ed25519_key* key;
+
+    WOLFSSL_ENTER("wolfSSL_ED25519_new");
+
+#ifndef WC_NO_CONSTRUCTORS
+    key = wc_ed25519_new(heap, devId, NULL);
+#else
+    key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
+        DYNAMIC_TYPE_ED25519);
+    if (key == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED25519_new malloc failure");
+    }
+    else if (wc_ed25519_init_ex(key, heap, devId) != 0) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED25519_new init failure");
+        XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+        key = NULL;
+    }
+#endif
+
+    return key;
+}
+
+/* Free an ed25519_key allocated with wolfSSL_ED25519_new.
+ *
+ * @param [in] key  ed25519_key to free. May be NULL.
+ */
+void wolfSSL_ED25519_free(ed25519_key* key)
+{
+    if (key != NULL) {
+        WOLFSSL_ENTER("wolfSSL_ED25519_free");
+    #ifndef WC_NO_CONSTRUCTORS
+        wc_ed25519_delete(key, NULL);
+    #else
+        {
+            void* heap = key->heap;
+            wc_ed25519_free(key);
+            XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+        }
+    #endif
+    }
+}
+#endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && HAVE_ED25519 */
+
 /*******************************************************************************
  * END OF ED25519 API
  ******************************************************************************/
@@ -5954,6 +6018,61 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
 }
 #endif /* OPENSSL_EXTRA && HAVE_ED448 */
 
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    defined(HAVE_ED448)
+/* Allocate and initialize a new ed448_key.
+ *
+ * @param [in] heap   Heap hint for memory allocation.
+ * @param [in] devId  Device identifier for crypto callbacks.
+ * @return  Allocated and initialized ed448_key on success.
+ * @return  NULL on failure.
+ */
+ed448_key* wolfSSL_ED448_new(void* heap, int devId)
+{
+    ed448_key* key;
+
+    WOLFSSL_ENTER("wolfSSL_ED448_new");
+
+#if !defined(WC_NO_CONSTRUCTORS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
+    key = wc_ed448_new(heap, devId, NULL);
+#else
+    key = (ed448_key*)XMALLOC(sizeof(ed448_key), heap, DYNAMIC_TYPE_ED448);
+    if (key == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED448_new malloc failure");
+    }
+    else if (wc_ed448_init_ex(key, heap, devId) != 0) {
+        WOLFSSL_ERROR_MSG("wolfSSL_ED448_new init failure");
+        XFREE(key, heap, DYNAMIC_TYPE_ED448);
+        key = NULL;
+    }
+#endif
+
+    return key;
+}
+
+/* Free an ed448_key allocated with wolfSSL_ED448_new.
+ *
+ * @param [in] key  ed448_key to free. May be NULL.
+ */
+void wolfSSL_ED448_free(ed448_key* key)
+{
+    if (key != NULL) {
+        WOLFSSL_ENTER("wolfSSL_ED448_free");
+    #if !defined(WC_NO_CONSTRUCTORS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7, 0))
+        wc_ed448_delete(key, NULL);
+    #else
+        {
+            void* heap = key->heap;
+            wc_ed448_free(key);
+            XFREE(key, heap, DYNAMIC_TYPE_ED448);
+        }
+    #endif
+    }
+}
+#endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && HAVE_ED448 */
+
 /*******************************************************************************
  * END OF ED448 API
  ******************************************************************************/
@@ -6262,6 +6381,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
             case DHk:
                 type = WC_EVP_PKEY_DH;
                 break;
+        #ifdef HAVE_ED25519
+            case ED25519k:
+                type = WC_EVP_PKEY_ED25519;
+                break;
+        #endif
+        #ifdef HAVE_ED448
+            case ED448k:
+                type = WC_EVP_PKEY_ED448;
+                break;
+        #endif
             default:
                 type = WOLFSSL_FATAL_ERROR;
                 break;
@@ -6409,6 +6538,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY **key,
             case DHk:
                 type = WC_EVP_PKEY_DH;
                 break;
+        #ifdef HAVE_ED25519
+            case ED25519k:
+                type = WC_EVP_PKEY_ED25519;
+                break;
+        #endif
+        #ifdef HAVE_ED448
+            case ED448k:
+                type = WC_EVP_PKEY_ED448;
+                break;
+        #endif
             default:
                 type = WOLFSSL_FATAL_ERROR;
                 break;
@@ -7107,6 +7246,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
     char password[NAME_SZ];
     byte* key = NULL;
     word32 keySz = 0;
+    word32 allocSz = 0;
     int type = PKCS8_PRIVATEKEY_TYPE;
 
     /* Validate parameters. */
@@ -7139,9 +7279,11 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
             *pemSz += 54;
         }
 
+        allocSz = (word32)*pemSz;
         /* Allocate enough memory to hold PEM encoded encrypted key. */
-        *pem = (byte*)XMALLOC((size_t)*pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *pem = (byte*)XMALLOC((size_t)allocSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (*pem == NULL) {
+            allocSz = 0;
             res = 0;
         }
         else {
@@ -7195,6 +7337,20 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
         }
         else {
             *pemSz = ret;
+        }
+    }
+
+    /* Zero any remnants of the DER staging area that persist after PEM
+     * conversion so plaintext private key material is not left in freed heap
+     * memory. On success, only the bytes past the actual PEM output need
+     * clearing; on failure, the whole buffer is zeroed since its state is
+     * indeterminate. */
+    if (*pem != NULL) {
+        if (res == 1 && (word32)*pemSz < allocSz) {
+            ForceZero(*pem + *pemSz, allocSz - (word32)*pemSz);
+        }
+        else if (res != 1) {
+            ForceZero(*pem, allocSz);
         }
     }
 

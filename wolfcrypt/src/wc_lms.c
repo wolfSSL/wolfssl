@@ -21,7 +21,12 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS)
+#if defined(WOLFSSL_HAVE_LMS)
+
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
 #ifdef NO_INLINE
@@ -109,12 +114,25 @@ static int wc_lmskey_state_init(LmsState* state, const LmsParams* params)
     /* Keep a reference to the parameters for use in operations. */
     state->params = params;
 
+#ifdef WOLFSSL_LMS_SHAKE256
+    if (LMS_IS_SHAKE(params->lmOtsType)) {
+        ret = wc_InitShake256(LMS_STATE_SHAKE(state), NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_InitShake256(LMS_STATE_SHAKE_K(state), NULL, INVALID_DEVID);
+            if (ret != 0) {
+                wc_Shake256_Free(LMS_STATE_SHAKE(state));
+            }
+        }
+        return ret;
+    }
+#endif
+
     /* Initialize the two hash algorithms. */
-    ret = wc_InitSha256(&state->hash);
+    ret = wc_InitSha256(LMS_STATE_HASH(state));
     if (ret == 0) {
-        ret = wc_InitSha256(&state->hash_k);
+        ret = wc_InitSha256(LMS_STATE_HASH_K(state));
         if (ret != 0) {
-            wc_Sha256Free(&state->hash);
+            wc_Sha256Free(LMS_STATE_HASH(state));
         }
     }
 
@@ -127,8 +145,15 @@ static int wc_lmskey_state_init(LmsState* state, const LmsParams* params)
  */
 static void wc_lmskey_state_free(LmsState* state)
 {
-    wc_Sha256Free(&state->hash_k);
-    wc_Sha256Free(&state->hash);
+#ifdef WOLFSSL_LMS_SHAKE256
+    if (LMS_IS_SHAKE(state->params->lmOtsType)) {
+        wc_Shake256_Free(LMS_STATE_SHAKE_K(state));
+        wc_Shake256_Free(LMS_STATE_SHAKE(state));
+        return;
+    }
+#endif
+    wc_Sha256Free(LMS_STATE_HASH_K(state));
+    wc_Sha256Free(LMS_STATE_HASH(state));
 }
 
 /* Supported LMS parameters. */
@@ -276,6 +301,35 @@ static const wc_LmsParamsMap wc_lms_map[] = {
                  WC_SHA256_DIGEST_SIZE) },
 #endif
 #endif
+#if LMS_MAX_HEIGHT >= 25
+    { WC_LMS_PARM_L1_H25_W1 , "LMS/HSS_L1_H25_W1",
+      LMS_PARAMS(1, 25, 1, 1, LMS_SHA256_M32_H25, LMOTS_SHA256_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_L1_H25_W2 , "LMS/HSS_L1_H25_W2",
+      LMS_PARAMS(1, 25, 2, 1, LMS_SHA256_M32_H25, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_L1_H25_W4 , "LMS/HSS_L1_H25_W4",
+      LMS_PARAMS(1, 25, 4, 2, LMS_SHA256_M32_H25, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_L1_H25_W8 , "LMS/HSS_L1_H25_W8",
+      LMS_PARAMS(1, 25, 8, 3, LMS_SHA256_M32_H25, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 10
+    { WC_LMS_PARM_L1_H10_W1 , "LMS/HSS_L1_H10_W1",
+      LMS_PARAMS(1, 10, 1, 1, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 15
+    { WC_LMS_PARM_L1_H15_W1 , "LMS/HSS_L1_H15_W1",
+      LMS_PARAMS(1, 15, 1, 1, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 20
+    { WC_LMS_PARM_L1_H20_W1 , "LMS/HSS_L1_H20_W1",
+      LMS_PARAMS(1, 20, 1, 1, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
 #endif /* !WOLFSSL_NO_LMS_SHA256_256 */
 
 #ifdef WOLFSSL_LMS_SHA256_192
@@ -356,7 +410,191 @@ static const wc_LmsParamsMap wc_lms_map[] = {
       LMS_PARAMS(1, 20, 8, 4, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
+#if LMS_MAX_HEIGHT >= 25
+    { WC_LMS_PARM_SHA256_192_L1_H25_W1 , "LMS/HSS_SHA256/192_L1_H25_W1",
+      LMS_PARAMS(1, 25, 1, 2, LMS_SHA256_M24_H25, LMOTS_SHA256_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H25_W2 , "LMS/HSS_SHA256/192_L1_H25_W2",
+      LMS_PARAMS(1, 25, 2, 2, LMS_SHA256_M24_H25, LMOTS_SHA256_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H25_W4 , "LMS/HSS_SHA256/192_L1_H25_W4",
+      LMS_PARAMS(1, 25, 4, 3, LMS_SHA256_M24_H25, LMOTS_SHA256_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H25_W8 , "LMS/HSS_SHA256/192_L1_H25_W8",
+      LMS_PARAMS(1, 25, 8, 4, LMS_SHA256_M24_H25, LMOTS_SHA256_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 10
+    { WC_LMS_PARM_SHA256_192_L1_H10_W1 , "LMS/HSS_SHA256/192_L1_H10_W1",
+      LMS_PARAMS(1, 10, 1, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 15
+    { WC_LMS_PARM_SHA256_192_L1_H15_W1 , "LMS/HSS_SHA256/192_L1_H15_W1",
+      LMS_PARAMS(1, 15, 1, 2, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H15_W8 , "LMS/HSS_SHA256/192_L1_H15_W8",
+      LMS_PARAMS(1, 15, 8, 4, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 20
+    { WC_LMS_PARM_SHA256_192_L1_H20_W1 , "LMS/HSS_SHA256/192_L1_H20_W1",
+      LMS_PARAMS(1, 20, 1, 2, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
 #endif /* WOLFSSL_LMS_SHA256_192 */
+
+#ifdef WOLFSSL_LMS_SHAKE256
+#ifndef WOLFSSL_NO_LMS_SHAKE256_256
+    /* SHAKE256/256 L1 H5 */
+    { WC_LMS_PARM_SHAKE_L1_H5_W1 , "LMS/HSS_SHAKE256/256_L1_H5_W1",
+      LMS_PARAMS(1,  5, 1, 1, LMS_SHAKE_M32_H5 , LMOTS_SHAKE_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H5_W2 , "LMS/HSS_SHAKE256/256_L1_H5_W2",
+      LMS_PARAMS(1,  5, 2, 1, LMS_SHAKE_M32_H5 , LMOTS_SHAKE_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H5_W4 , "LMS/HSS_SHAKE256/256_L1_H5_W4",
+      LMS_PARAMS(1,  5, 4, 2, LMS_SHAKE_M32_H5 , LMOTS_SHAKE_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H5_W8 , "LMS/HSS_SHAKE256/256_L1_H5_W8",
+      LMS_PARAMS(1,  5, 8, 3, LMS_SHAKE_M32_H5 , LMOTS_SHAKE_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
+#if LMS_MAX_HEIGHT >= 10
+    /* SHAKE256/256 L1 H10 */
+    { WC_LMS_PARM_SHAKE_L1_H10_W1 , "LMS/HSS_SHAKE256/256_L1_H10_W1",
+      LMS_PARAMS(1, 10, 1, 1, LMS_SHAKE_M32_H10, LMOTS_SHAKE_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H10_W2 , "LMS/HSS_SHAKE256/256_L1_H10_W2",
+      LMS_PARAMS(1, 10, 2, 1, LMS_SHAKE_M32_H10, LMOTS_SHAKE_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H10_W4 , "LMS/HSS_SHAKE256/256_L1_H10_W4",
+      LMS_PARAMS(1, 10, 4, 2, LMS_SHAKE_M32_H10, LMOTS_SHAKE_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H10_W8 , "LMS/HSS_SHAKE256/256_L1_H10_W8",
+      LMS_PARAMS(1, 10, 8, 3, LMS_SHAKE_M32_H10, LMOTS_SHAKE_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 15
+    /* SHAKE256/256 L1 H15 */
+    { WC_LMS_PARM_SHAKE_L1_H15_W1 , "LMS/HSS_SHAKE256/256_L1_H15_W1",
+      LMS_PARAMS(1, 15, 1, 1, LMS_SHAKE_M32_H15, LMOTS_SHAKE_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H15_W2 , "LMS/HSS_SHAKE256/256_L1_H15_W2",
+      LMS_PARAMS(1, 15, 2, 1, LMS_SHAKE_M32_H15, LMOTS_SHAKE_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H15_W4 , "LMS/HSS_SHAKE256/256_L1_H15_W4",
+      LMS_PARAMS(1, 15, 4, 2, LMS_SHAKE_M32_H15, LMOTS_SHAKE_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H15_W8 , "LMS/HSS_SHAKE256/256_L1_H15_W8",
+      LMS_PARAMS(1, 15, 8, 3, LMS_SHAKE_M32_H15, LMOTS_SHAKE_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 20
+    /* SHAKE256/256 L1 H20 */
+    { WC_LMS_PARM_SHAKE_L1_H20_W1 , "LMS/HSS_SHAKE256/256_L1_H20_W1",
+      LMS_PARAMS(1, 20, 1, 1, LMS_SHAKE_M32_H20, LMOTS_SHAKE_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H20_W2 , "LMS/HSS_SHAKE256/256_L1_H20_W2",
+      LMS_PARAMS(1, 20, 2, 1, LMS_SHAKE_M32_H20, LMOTS_SHAKE_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H20_W4 , "LMS/HSS_SHAKE256/256_L1_H20_W4",
+      LMS_PARAMS(1, 20, 4, 2, LMS_SHAKE_M32_H20, LMOTS_SHAKE_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H20_W8 , "LMS/HSS_SHAKE256/256_L1_H20_W8",
+      LMS_PARAMS(1, 20, 8, 3, LMS_SHAKE_M32_H20, LMOTS_SHAKE_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 25
+    /* SHAKE256/256 L1 H25 */
+    { WC_LMS_PARM_SHAKE_L1_H25_W1 , "LMS/HSS_SHAKE256/256_L1_H25_W1",
+      LMS_PARAMS(1, 25, 1, 1, LMS_SHAKE_M32_H25, LMOTS_SHAKE_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H25_W2 , "LMS/HSS_SHAKE256/256_L1_H25_W2",
+      LMS_PARAMS(1, 25, 2, 1, LMS_SHAKE_M32_H25, LMOTS_SHAKE_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H25_W4 , "LMS/HSS_SHAKE256/256_L1_H25_W4",
+      LMS_PARAMS(1, 25, 4, 2, LMS_SHAKE_M32_H25, LMOTS_SHAKE_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE_L1_H25_W8 , "LMS/HSS_SHAKE256/256_L1_H25_W8",
+      LMS_PARAMS(1, 25, 8, 3, LMS_SHAKE_M32_H25, LMOTS_SHAKE_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
+#endif
+#endif /* !WOLFSSL_NO_LMS_SHAKE256_256 */
+
+    /* SHAKE256/192 L1 H5 */
+    { WC_LMS_PARM_SHAKE192_L1_H5_W1 , "LMS/HSS_SHAKE256/192_L1_H5_W1",
+      LMS_PARAMS(1,  5, 1, 2, LMS_SHAKE_M24_H5 , LMOTS_SHAKE_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H5_W2 , "LMS/HSS_SHAKE256/192_L1_H5_W2",
+      LMS_PARAMS(1,  5, 2, 2, LMS_SHAKE_M24_H5 , LMOTS_SHAKE_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H5_W4 , "LMS/HSS_SHAKE256/192_L1_H5_W4",
+      LMS_PARAMS(1,  5, 4, 3, LMS_SHAKE_M24_H5 , LMOTS_SHAKE_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H5_W8 , "LMS/HSS_SHAKE256/192_L1_H5_W8",
+      LMS_PARAMS(1,  5, 8, 4, LMS_SHAKE_M24_H5 , LMOTS_SHAKE_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#if LMS_MAX_HEIGHT >= 10
+    /* SHAKE256/192 L1 H10 */
+    { WC_LMS_PARM_SHAKE192_L1_H10_W1 , "LMS/HSS_SHAKE256/192_L1_H10_W1",
+      LMS_PARAMS(1, 10, 1, 2, LMS_SHAKE_M24_H10, LMOTS_SHAKE_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H10_W2 , "LMS/HSS_SHAKE256/192_L1_H10_W2",
+      LMS_PARAMS(1, 10, 2, 2, LMS_SHAKE_M24_H10, LMOTS_SHAKE_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H10_W4 , "LMS/HSS_SHAKE256/192_L1_H10_W4",
+      LMS_PARAMS(1, 10, 4, 3, LMS_SHAKE_M24_H10, LMOTS_SHAKE_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H10_W8 , "LMS/HSS_SHAKE256/192_L1_H10_W8",
+      LMS_PARAMS(1, 10, 8, 4, LMS_SHAKE_M24_H10, LMOTS_SHAKE_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 15
+    /* SHAKE256/192 L1 H15 */
+    { WC_LMS_PARM_SHAKE192_L1_H15_W1 , "LMS/HSS_SHAKE256/192_L1_H15_W1",
+      LMS_PARAMS(1, 15, 1, 2, LMS_SHAKE_M24_H15, LMOTS_SHAKE_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H15_W2 , "LMS/HSS_SHAKE256/192_L1_H15_W2",
+      LMS_PARAMS(1, 15, 2, 2, LMS_SHAKE_M24_H15, LMOTS_SHAKE_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H15_W4 , "LMS/HSS_SHAKE256/192_L1_H15_W4",
+      LMS_PARAMS(1, 15, 4, 3, LMS_SHAKE_M24_H15, LMOTS_SHAKE_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H15_W8 , "LMS/HSS_SHAKE256/192_L1_H15_W8",
+      LMS_PARAMS(1, 15, 8, 4, LMS_SHAKE_M24_H15, LMOTS_SHAKE_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 20
+    /* SHAKE256/192 L1 H20 */
+    { WC_LMS_PARM_SHAKE192_L1_H20_W1 , "LMS/HSS_SHAKE256/192_L1_H20_W1",
+      LMS_PARAMS(1, 20, 1, 2, LMS_SHAKE_M24_H20, LMOTS_SHAKE_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H20_W2 , "LMS/HSS_SHAKE256/192_L1_H20_W2",
+      LMS_PARAMS(1, 20, 2, 2, LMS_SHAKE_M24_H20, LMOTS_SHAKE_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H20_W4 , "LMS/HSS_SHAKE256/192_L1_H20_W4",
+      LMS_PARAMS(1, 20, 4, 3, LMS_SHAKE_M24_H20, LMOTS_SHAKE_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H20_W8 , "LMS/HSS_SHAKE256/192_L1_H20_W8",
+      LMS_PARAMS(1, 20, 8, 4, LMS_SHAKE_M24_H20, LMOTS_SHAKE_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 25
+    /* SHAKE256/192 L1 H25 */
+    { WC_LMS_PARM_SHAKE192_L1_H25_W1 , "LMS/HSS_SHAKE256/192_L1_H25_W1",
+      LMS_PARAMS(1, 25, 1, 2, LMS_SHAKE_M24_H25, LMOTS_SHAKE_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H25_W2 , "LMS/HSS_SHAKE256/192_L1_H25_W2",
+      LMS_PARAMS(1, 25, 2, 2, LMS_SHAKE_M24_H25, LMOTS_SHAKE_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H25_W4 , "LMS/HSS_SHAKE256/192_L1_H25_W4",
+      LMS_PARAMS(1, 25, 4, 3, LMS_SHAKE_M24_H25, LMOTS_SHAKE_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHAKE192_L1_H25_W8 , "LMS/HSS_SHAKE256/192_L1_H25_W8",
+      LMS_PARAMS(1, 25, 8, 4, LMS_SHAKE_M24_H25, LMOTS_SHAKE_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#endif /* WOLFSSL_LMS_SHAKE256 */
 };
 /* Number of parameter sets supported. */
 #define WC_LMS_MAP_LEN      ((int)(sizeof(wc_lms_map) / sizeof(*wc_lms_map)))
@@ -483,7 +721,7 @@ int wc_LmsKey_SetLmsParm(LmsKey* key, enum wc_LmsParm lmsParm)
 /* Set the parameters of an LMS key.
  *
  * Use this if you wish to set specific parameters not found in the
- * wc_LmsParm predefined sets. See comments in lms.h for allowed
+ * wc_LmsParm predefined sets. See comments in wc_lms.h for allowed
  * parameters.
  *
  * Key must be inited before calling this.
@@ -963,6 +1201,11 @@ int wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, sig, sigSz or msg is NULL.
  * @return  BAD_FUNC_ARG when msgSz is not greater than 0.
+ * @return  BAD_FUNC_ARG when a write private key is not set.
+ * @return  BAD_FUNC_ARG when a read/write private key context is not set.
+ * @return  BUFFER_E when sigSz is too small.
+ * @return  BAD_STATE_E when wrong state for operation.
+ * @return  IO_FAILED_E when reading or writing private key failed.
  */
 int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
     int msgSz)
@@ -986,6 +1229,22 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
         * can't guarantee its state. */
         WOLFSSL_MSG("error: can't sign, LMS key not in good state");
         ret = BAD_STATE_E;
+    }
+    /* Check signature buffer size. */
+    if ((ret == 0) && (*sigSz < key->params->sig_len)) {
+        /* Signature buffer too small. */
+        WOLFSSL_MSG("error: LMS sig buffer too small");
+        ret = BUFFER_E;
+    }
+    /* Check read and write callbacks available. */
+    if ((ret == 0) && (key->write_private_key == NULL)) {
+        WOLFSSL_MSG("error: LmsKey write/read callbacks are not set");
+        ret = BAD_FUNC_ARG;
+    }
+    /* Check read/write callback context available. */
+    if ((ret == 0) && (key->context == NULL)) {
+        WOLFSSL_MSG("error: LmsKey context is not set");
+        ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
@@ -1031,6 +1290,9 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
             HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
 #endif
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
+            /* Write to NV storage failed. Erase the signature from
+             * memory to prevent OTS key reuse if state is rolled back. */
+            ForceZero(sig, key->params->sig_len);
             ret = IO_FAILED_E;
         }
     }
@@ -1135,7 +1397,8 @@ int wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out, word32* outLen)
     int ret = 0;
 
     /* Validate parameters. */
-    if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
+    if ((key == NULL) || (out == NULL) || (outLen == NULL) ||
+            (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     /* Check size of out is sufficient. */
@@ -1267,7 +1530,7 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
             ret = wc_lmskey_state_init(state, key->params);
             if (ret == 0) {
                 /* Verify signature of message with public key. */
-                ret = wc_hss_verify(state, key->pub, msg, msgSz, sig);
+                ret = wc_hss_verify(state, key->pub, msg, msgSz, sig, sigSz);
                 wc_lmskey_state_free(state);
             }
             ForceZero(state, sizeof(LmsState));
@@ -1334,4 +1597,4 @@ const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv, word32 privSz)
 
 #endif
 
-#endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */
+#endif /* WOLFSSL_HAVE_LMS */

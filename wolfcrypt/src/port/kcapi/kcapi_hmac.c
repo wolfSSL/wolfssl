@@ -158,18 +158,24 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 ret = BAD_FUNC_ARG;
                 break;
         }
-        hmac->macType = type;
     }
 
-    if (hmac->handle != NULL) {
-        kcapi_md_destroy(hmac->handle);
-        hmac->handle = NULL;
-    }
     if (ret == 0) {
+        if (hmac->handle != NULL) {
+            kcapi_md_destroy(hmac->handle);
+            hmac->handle = NULL;
+        }
         ret = kcapi_md_init(&hmac->handle, ciphername, 0);
     }
     if (ret == 0) {
         ret = kcapi_md_setkey(hmac->handle, key, length);
+        if (ret != 0) {
+            kcapi_md_destroy(hmac->handle);
+            hmac->handle = NULL;
+        }
+    }
+    if (ret == 0) {
+        hmac->macType = type;
     }
 
     return ret;

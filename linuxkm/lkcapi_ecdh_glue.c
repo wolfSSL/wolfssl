@@ -199,7 +199,7 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
 
     if (secret.len != expected_len) {
         #ifdef WOLFKM_DEBUG_ECDH
-        pr_err("%s: km_ecdh_decode_secret: got %d, expected %zu",
+        pr_err("%s: km_ecdh_decode_secret: got %d, expected %zu\n",
                WOLFKM_ECDH_DRIVER, secret.len, expected_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         return -EINVAL;
@@ -249,7 +249,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 
     if (km_ecdh_decode_secret(buf, len, &params) < 0) {
         #ifdef WOLFKM_DEBUG_ECDH
-        pr_err("%s: ecdh_set_secret: decode secret failed: %d",
+        pr_err("%s: ecdh_set_secret: decode secret failed: %d\n",
                WOLFKM_ECDH_DRIVER, params.key_size);
         #endif /* WOLFKM_DEBUG_ECDH */
         return -EINVAL;
@@ -417,7 +417,7 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     #endif /* ECC_TIMING_RESISTANT */
 
     #ifdef WOLFKM_DEBUG_ECDH
-    pr_info("info: exiting km_ecdh_init: curve_id %d,  curve_len %d",
+    pr_info("info: exiting km_ecdh_init: curve_id %d,  curve_len %d\n",
             ctx->curve_id, ctx->curve_len);
     #endif /* WOLFKM_DEBUG_ECDH */
     return 0;
@@ -484,7 +484,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
 
     if (raw_pub_len > req->dst_len) {
         #ifdef WOLFKM_DEBUG_ECDH
-        pr_err("error: dst_len too small: %d", req->dst_len);
+        pr_err("error: dst_len too small: %d\n", req->dst_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         err = -EOVERFLOW;
         goto ecdh_gen_pub_end;
@@ -504,7 +504,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
         err = wc_ecc_make_pub(ctx->key, NULL);
         if (err) {
             #ifdef WOLFKM_DEBUG_ECDH
-            pr_err("error: ecc_make_pub returned: %d", err);
+            pr_err("error: ecc_make_pub returned: %d\n", err);
             #endif /* WOLFKM_DEBUG_ECDH */
             goto ecdh_gen_pub_end;
         }
@@ -522,7 +522,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
 
     if (err || pub_x_len != ctx->curve_len || pub_y_len != ctx->curve_len) {
         #ifdef WOLFKM_DEBUG_ECDH
-        pr_err("error: ecc export pub returned: err=%d, x=%d, y=%d", err,
+        pr_err("error: ecc export pub returned: err=%d, x=%d, y=%d\n", err,
                pub_x_len, pub_y_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         err = -EINVAL;
@@ -537,7 +537,7 @@ ecdh_gen_pub_end:
     if (pub) { free(pub); pub = NULL; }
 
     #ifdef WOLFKM_DEBUG_ECDH
-    pr_info("info: exiting km_ecdh_gen_pub: %d", err);
+    pr_info("info: exiting km_ecdh_gen_pub: %d\n", err);
     #endif /* WOLFKM_DEBUG_ECDH */
     return err;
 }
@@ -584,7 +584,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
 
     if (req->src_len != raw_pub_len) {
         #ifdef WOLFKM_DEBUG_ECDH
-        pr_err("error: got src_len %d, expected %d", req->src_len, raw_pub_len);
+        pr_err("error: got src_len %d, expected %d\n", req->src_len, raw_pub_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         err = -EINVAL;
         goto ecdh_shared_secret_end;
@@ -928,7 +928,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
 
     dst_buf = malloc(dst_len);
     if (dst_buf == NULL) {
-        pr_err("error: allocating out buf failed");
+        pr_err("error: allocating out buf failed\n");
         test_rc = BAD_FUNC_ARG;
         goto test_ecdh_nist_end;
     }
@@ -942,20 +942,20 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
 
     err = crypto_kpp_generate_public_key(req);
     if (err) {
-        pr_err("error: crypto_kpp_generate_public_key returned: %d", err);
+        pr_err("error: crypto_kpp_generate_public_key returned: %d\n", err);
         test_rc = BAD_FUNC_ARG;
         goto test_ecdh_nist_end;
     }
 
     if (memcmp(expected_a_pub, sg_virt(req->dst), pub_len)) {
-        pr_err("error: crypto_kpp_generate_public_key: wrong output");
+        pr_err("error: crypto_kpp_generate_public_key: wrong output\n");
         test_rc = BAD_FUNC_ARG;
         goto test_ecdh_nist_end;
     }
 
     src_buf = malloc(src_len);
     if (src_buf == NULL) {
-        pr_err("error: allocating in buf failed");
+        pr_err("error: allocating in buf failed\n");
         test_rc = MEMORY_E;
         goto test_ecdh_nist_end;
     }
@@ -970,13 +970,13 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
 
     err = crypto_kpp_compute_shared_secret(req);
     if (err) {
-        pr_err("error: crypto_kpp_compute_shared_secret returned: %d", err);
+        pr_err("error: crypto_kpp_compute_shared_secret returned: %d\n", err);
         test_rc = BAD_FUNC_ARG;
         goto test_ecdh_nist_end;
     }
 
     if (memcmp(shared_secret, sg_virt(req->dst), shared_s_len)) {
-        pr_err("error: shared secret does not match");
+        pr_err("error: shared secret does not match\n");
         test_rc = BAD_FUNC_ARG;
         goto test_ecdh_nist_end;
     }

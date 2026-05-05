@@ -198,7 +198,7 @@ static char *search_tlv(const char *haystack, int size, uint8_t tag)
     int i = 0;
     uint8_t t;
     uint8_t l;
-    while (i < size) {
+    while (i <= size - 4) {
         if (hex_to_bytes(&haystack[i], &t, 1) < 0)
             return NULL;
         if (hex_to_bytes(&haystack[i + 2], &l, 1) < 0)
@@ -277,6 +277,9 @@ static int iotsafe_cmd_add_tlv_ex(char *cmd, byte tag, uint16_t len,
         return BAD_FUNC_ARG;
     }
 
+    if ((int)cur_lc + 1 + taglen_size + len > 0xFF) {
+        return BAD_FUNC_ARG;
+    }
     /* Increase Lc and CSIM length according to the TLV len */
     cur_lc += 1 + taglen_size + len;
     cur_csim_len += 2 + (2 * taglen_size) + 2*len;
@@ -457,7 +460,7 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
         return ret;
     }
 
-    filesz_s = search_tlv(resp + 4, ret, 0x20);
+    filesz_s = search_tlv(resp + 4, ret - 4, 0x20);
     if ((filesz_s) && (XSTRLEN(filesz_s)) >= 8) {
         uint8_t fs_msb, fs_lsb;
         if (hex_to_bytes(filesz_s + 4, &fs_msb, 1) < 0)
@@ -486,7 +489,7 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
         iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_FILE_ID, file_id_sz, file_id);
         iotsafe_cmd_complete(csim_cmd);
         ret = expect_csim_response(csim_cmd, (word32)XSTRLEN(csim_cmd), &resp);
-        if (ret > 0) {
+        if (ret >= 2) {
             if (ret > 2 * (file_sz - off))
                 ret = 2 * (file_sz - off);
             if (hex_to_bytes(resp, content + off, (ret / 2)) < 0) {
@@ -494,7 +497,7 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
             }
             off += ret/2;
 #ifdef IOTSAFE_NO_GETDATA
-            if (XSTRNCMP(&resp[ret-4], "0000", 4) == 0) {
+            if (ret >= 4 && XSTRNCMP(&resp[ret-4], "0000", 4) == 0) {
                 /* Strip trailing zeros */
                 int idx = 0;
                 for (idx = 0; idx < off-1; idx+=2) {
@@ -525,7 +528,8 @@ static int iotsafe_getrandom(unsigned char* output, unsigned long sz)
     int ret;
     int i;
     byte len = (byte)sz;
-    if (sz == 0) {
+
+    if (sz == 0 || sz > 255) {
         return BAD_FUNC_ARG;
     }
     if (!wolfIoT_initialized) {
@@ -553,9 +557,7 @@ static int iotsafe_getrandom(unsigned char* output, unsigned long sz)
 
     /* Send an empty command until the applet is responsive again */
     for (i = 0; i < IOTSAFE_MAX_RETRIES; i++) {
-        if (expect_tok(NULL, 0, NULL, NULL) < 0) {
-            ret = WC_HW_E;
-        }
+        (void)expect_tok(NULL, 0, NULL, NULL);
     }
     return ret;
 }
@@ -596,6 +598,11 @@ static int iotsafe_parse_public_key(char* resp, int len, ecc_key *key)
     if (ret < 0) {
         WOLFSSL_MSG("Cannot initialize ecc key to store IoTSafe public key");
         return -1;
+    }
+    if ((int)(payload_str - resp) + 6 + (int)(IOTSAFE_ECC_KSIZE * 4) > len) {
+        WOLFSSL_MSG("IoT safe: response too short for key data");
+        wc_ecc_free(key);
+        return BAD_STATE_E;
     }
     XSTRNCPY(Qx, payload_str + 6, IOTSAFE_ECC_KSIZE * 2);
     XSTRNCPY(Qy, payload_str + 6 + IOTSAFE_ECC_KSIZE * 2, IOTSAFE_ECC_KSIZE * 2);
@@ -878,19 +885,27 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
 #ifdef IOTSAFE_SIG_8BIT_LENGTH
             else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
                        (sig_hdr[1] == 2 * IOTSAFE_ECC_KSIZE)) {
-                XSTRNCPY(R, resp + 4, IOTSAFE_ECC_KSIZE * 2);
-                XSTRNCPY(S, resp + 4 + IOTSAFE_ECC_KSIZE * 2,
-                        IOTSAFE_ECC_KSIZE * 2);
-                ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
+                if (ret < 4 + (int)(IOTSAFE_ECC_KSIZE * 4)) {
+                    ret = WC_HW_E;
+                } else {
+                    XSTRNCPY(R, resp + 4, IOTSAFE_ECC_KSIZE * 2);
+                    XSTRNCPY(S, resp + 4 + IOTSAFE_ECC_KSIZE * 2,
+                            IOTSAFE_ECC_KSIZE * 2);
+                    ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
+                }
             }
 #endif
             else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
                        (sig_hdr[1] == 0) &&
                        (sig_hdr[2] == 2 * IOTSAFE_ECC_KSIZE)) {
-                XSTRNCPY(R, resp + 6, IOTSAFE_ECC_KSIZE * 2);
-                XSTRNCPY(S, resp + 6 + IOTSAFE_ECC_KSIZE * 2,
-                        IOTSAFE_ECC_KSIZE * 2);
-                ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
+                if (ret < 6 + (int)(IOTSAFE_ECC_KSIZE * 4)) {
+                    ret = WC_HW_E;
+                } else {
+                    XSTRNCPY(R, resp + 6, IOTSAFE_ECC_KSIZE * 2);
+                    XSTRNCPY(S, resp + 6 + IOTSAFE_ECC_KSIZE * 2,
+                            IOTSAFE_ECC_KSIZE * 2);
+                    ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
+                }
             } else {
                 ret = WC_HW_E;
                 WOLFSSL_MSG("Invalid response from EC sign update");
@@ -1068,6 +1083,7 @@ static int wolfIoT_ecc_keygen(WOLFSSL* ssl, struct ecc_key* key,
 }
 
 #ifdef HAVE_HKDF
+/* ikm will not be NULL. */
 static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
        byte* ikm, word32 ikmLen, int digest, void* ctx)
 {
@@ -1351,6 +1367,8 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
         if (ret <= 0) {
             WOLFSSL_MSG("Unexpected reply in ECDH command");
             ret = WC_HW_E;
+        } else if ((word32)(ret / 2) > *outlen) {
+            ret = BUFFER_E;
         } else {
             int out_len = hex_to_bytes(resp, out, ret / 2);
             if (out_len < 0) {

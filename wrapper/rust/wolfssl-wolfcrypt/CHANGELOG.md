@@ -1,5 +1,13 @@
 # wolfssl-wolfcrypt Change Log
 
+## v1.2.0
+
+- Add LMS wrapper (wolfssl_wolfcrypt::lms module)
+- Add ML-DSA wrapper (wolfssl_wolfcrypt::dilithium module)
+- Add ML-KEM wrapper (wolfssl_wolfcrypt::mlkem module)
+- Fix no_std support
+- Add compatibility with older FIPS v5 package
+
 ## v1.1.0
 
 - Add FIPS support

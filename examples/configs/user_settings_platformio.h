@@ -59,7 +59,6 @@
 #if 0
     /* Kyber typically needs a minimum 10K stack */
     #define WOLFSSL_HAVE_MLKEM
-    #define WOLFSSL_WC_MLKEM
     #define WOLFSSL_SHA3
 #endif
 
@@ -103,7 +102,6 @@
 #define TEST_ESPIDF_ALL_WOLFSSL
 #ifdef  TEST_ESPIDF_ALL_WOLFSSL
     #define WOLFSSL_MD2
-    #define HAVE_BLAKE2
     #define HAVE_BLAKE2B
     #define HAVE_BLAKE2S
 

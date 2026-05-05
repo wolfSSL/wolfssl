@@ -37,8 +37,7 @@ int test_wolfSSL_X509_check_email(void);
 int test_wolfSSL_X509(void);
 int test_wolfSSL_X509_get0_tbs_sigalg(void);
 int test_wolfSSL_X509_set_name(void);
-int test_wolfSSL_X509_set_notAfter(void);
-int test_wolfSSL_X509_set_notBefore(void);
+int test_wolfSSL_X509_set_notAfterBefore(void);
 int test_wolfSSL_X509_set_version(void);
 int test_wolfSSL_X509_get_serialNumber(void);
 int test_wolfSSL_get_tbs(void);
@@ -69,8 +68,7 @@ int test_wolfSSL_X509_cmp(void);
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509),                           \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_get0_tbs_sigalg),           \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_set_name),                  \
-    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_set_notAfter),              \
-    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_set_notBefore),             \
+    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_set_notAfterBefore),        \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_set_version),               \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_get_serialNumber),          \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_get_tbs),                        \

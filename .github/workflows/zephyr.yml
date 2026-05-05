@@ -28,26 +28,18 @@ jobs:
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
       - name: Install dependencies
-        run: |
-          # Don't prompt for anything
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          # most of the ci-base zephyr docker image packages
-          sudo apt-get install -y zip bridge-utils uml-utilities \
-            git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget \
-            python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file \
-            make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1 \
-            autoconf automake bison build-essential ca-certificates cargo ccache chrpath cmake \
-            cpio device-tree-compiler dfu-util diffstat dos2unix doxygen file flex g++ gawk gcc \
-            gcovr git git-core gnupg gperf gtk-sharp3 help2man iproute2 lcov libcairo2-dev \
-            libglib2.0-dev libgtk2.0-0 liblocale-gettext-perl libncurses5-dev libpcap-dev \
-            libpopt0 libsdl1.2-dev libsdl2-dev libssl-dev libtool libtool-bin locales make \
-            net-tools ninja-build openssh-client parallel pkg-config python3-dev python3-pip \
-            python3-ply python3-setuptools python-is-python3 qemu-kvm rsync socat srecord sudo \
-            texinfo unzip wget ovmf xz-utils
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: zip bridge-utils uml-utilities git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1 autoconf automake bison build-essential ca-certificates cargo ccache chrpath cmake cpio device-tree-compiler dfu-util diffstat dos2unix doxygen file flex g++ gawk gcc gcovr git git-core gnupg gperf gtk-sharp3 help2man iproute2 lcov libcairo2-dev libglib2.0-dev libgtk2.0-0 liblocale-gettext-perl libncurses5-dev libpcap-dev libpopt0 libsdl1.2-dev libsdl2-dev libssl-dev libtool libtool-bin locales make net-tools ninja-build openssh-client parallel pkg-config python3-dev python3-pip python3-ply python3-setuptools python-is-python3 qemu-kvm rsync socat srecord sudo texinfo unzip wget ovmf xz-utils
 
       - name: Setup cmake version
         uses: jwlawson/actions-setup-cmake@v2

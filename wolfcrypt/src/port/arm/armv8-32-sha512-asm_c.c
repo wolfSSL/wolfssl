@@ -30,8 +30,6 @@
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
-#include <stdint.h>
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -53,7 +51,7 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const word64 L_SHA512_transform_len_k[] = {
+XALIGNED(16) static const word64 L_SHA512_transform_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
     0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
@@ -104,13 +102,13 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512_p,
 #else
 WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
     const byte* data, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
-    register const byte* data asm ("r1") = (const byte*)data_p;
-    register word32 len asm ("r2") = (word32)len_p;
-    register word64* L_SHA512_transform_len_k_c asm ("r3") =
+    register wc_Sha512* sha512 __asm__ ("r0") = (wc_Sha512*)sha512_p;
+    register const byte* data __asm__ ("r1") = (const byte*)data_p;
+    register word32 len __asm__ ("r2") = (word32)len_p;
+    register word64* L_SHA512_transform_len_k_c __asm__ ("r3") =
         (word64*)&L_SHA512_transform_len_k;
 #else
     register word64* L_SHA512_transform_len_k_c =
@@ -218,7 +216,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
 #endif
         /* Start of loop processing a block */
         "\n"
-    "L_SHA512_transform_len_begin_%=: \n\t"
+    "L_SHA512_transform_len_begin_%=:\n\t"
         /* Load, Reverse and Store W - 64 bytes */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         "ldr	r4, [%[data]]\n\t"
@@ -529,7 +527,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
         "mov	r12, #4\n\t"
         /* Start of 16 rounds */
         "\n"
-    "L_SHA512_transform_len_start_%=: \n\t"
+    "L_SHA512_transform_len_start_%=:\n\t"
         /* Round 0 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[sha512], #32]\n\t"
@@ -7549,7 +7547,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifndef WOLFSSL_ARMASM_NO_NEON
-static const word64 L_SHA512_transform_neon_len_k[] = {
+XALIGNED(16) static const word64 L_SHA512_transform_neon_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
     0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
@@ -7600,13 +7598,13 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_neon(wc_Sha512* sha512_p,
 #else
 WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_neon(wc_Sha512* sha512,
     const byte* data, word32 len)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
-    register const byte* data asm ("r1") = (const byte*)data_p;
-    register word32 len asm ("r2") = (word32)len_p;
-    register word64* L_SHA512_transform_neon_len_k_c asm ("r3") =
+    register wc_Sha512* sha512 __asm__ ("r0") = (wc_Sha512*)sha512_p;
+    register const byte* data __asm__ ("r1") = (const byte*)data_p;
+    register word32 len __asm__ ("r2") = (word32)len_p;
+    register word64* L_SHA512_transform_neon_len_k_c __asm__ ("r3") =
         (word64*)&L_SHA512_transform_neon_len_k;
 #else
     register word64* L_SHA512_transform_neon_len_k_c =
@@ -7619,7 +7617,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_neon(wc_Sha512* sha512,
         "vldm.64	%[sha512], {d0-d7}\n\t"
         /* Start of loop processing a block */
         "\n"
-    "L_SHA512_transform_neon_len_begin_%=: \n\t"
+    "L_SHA512_transform_neon_len_begin_%=:\n\t"
         /* Load W */
         "vld1.8	{q8-q9}, [%[data]]!\n\t"
         "vld1.8	{q10-q11}, [%[data]]!\n\t"
@@ -7655,7 +7653,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_neon(wc_Sha512* sha512,
         "mov	r12, #4\n\t"
         /* Start of 16 rounds */
         "\n"
-    "L_SHA512_transform_neon_len_start_%=: \n\t"
+    "L_SHA512_transform_neon_len_start_%=:\n\t"
         /* Round 0 */
         "vld1.64	{d12}, [r3:64]!\n\t"
         "vshl.u64	d8, d4, #50\n\t"

@@ -269,24 +269,42 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_STACK* signers = NULL;
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
+    byte* signerCert;
+    word32 signerCertSz;
 
     if (p7 == NULL)
         return NULL;
 
-    /* Only PKCS#7 messages with a single cert that is the verifying certificate
-     * is supported.
-     */
     if (flags & PKCS7_NOINTERN) {
         WOLFSSL_MSG("PKCS7_NOINTERN flag not supported");
         return NULL;
+    }
+
+    /* Prefer the certificate that actually verified the signature. Falling
+     * back to singleCert (cert[0]) would let an attacker that bundles a
+     * trusted cert ahead of their own attacker cert have the trusted cert
+     * reported as the signer even though it did not produce the signature.
+     *
+     * Copy the chosen pointer into a local before passing its address to
+     * wolfSSL_d2i_X509; d2i_X509 advances *in by the DER length, and if
+     * we handed it the address of the struct field directly it would
+     * permanently corrupt the field, producing a heap-OOB read on the
+     * next use (pointer advanced, singleCertSz unchanged). */
+    if (p7->pkcs7.verifyCert != NULL && p7->pkcs7.verifyCertSz > 0) {
+        signerCert   = p7->pkcs7.verifyCert;
+        signerCertSz = p7->pkcs7.verifyCertSz;
+    }
+    else {
+        signerCert   = p7->pkcs7.singleCert;
+        signerCertSz = p7->pkcs7.singleCertSz;
     }
 
     signers = wolfSSL_sk_X509_new_null();
     if (signers == NULL)
         return NULL;
 
-    if (wolfSSL_d2i_X509(&x509, (const byte**)&p7->pkcs7.singleCert,
-                         p7->pkcs7.singleCertSz) == NULL) {
+    if (wolfSSL_d2i_X509(&x509, (const byte**)&signerCert,
+                         signerCertSz) == NULL) {
         wolfSSL_sk_X509_pop_free(signers, NULL);
         return NULL;
     }

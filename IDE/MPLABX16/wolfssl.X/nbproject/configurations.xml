@@ -81,12 +81,12 @@
         <itemPath>../../../wolfcrypt/src/sp_c32.c</itemPath>
         <itemPath>../../../wolfcrypt/src/sp_c64.c</itemPath>
         <itemPath>../../../wolfcrypt/src/sp_int.c</itemPath>
-        <itemPath>../../../wolfcrypt/src/sphincs.c</itemPath>
         <itemPath>../../../wolfcrypt/src/srp.c</itemPath>
         <itemPath>../../../wolfcrypt/src/tfm.c</itemPath>
         <itemPath>../../../wolfcrypt/src/wc_encrypt.c</itemPath>
         <itemPath>../../../wolfcrypt/src/wc_pkcs11.c</itemPath>
         <itemPath>../../../wolfcrypt/src/wc_port.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/wc_slhdsa.c</itemPath>
         <itemPath>../../../wolfcrypt/src/wolfevent.c</itemPath>
         <itemPath>../../../wolfcrypt/src/wolfmath.c</itemPath>
       </logicalFolder>

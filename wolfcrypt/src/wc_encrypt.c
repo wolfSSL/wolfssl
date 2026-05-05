@@ -100,6 +100,10 @@ int wc_Des_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
     int ret  = 0;
     WC_DECLARE_VAR(des, Des, 1, 0);
 
+    if (out == NULL || in == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     WC_ALLOC_VAR_EX(des, Des, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
@@ -117,6 +121,10 @@ int wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 {
     int ret  = 0;
     WC_DECLARE_VAR(des, Des, 1, 0);
+
+    if (out == NULL || in == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     WC_ALLOC_VAR_EX(des, Des, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
@@ -315,7 +323,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
  *
  * returns a negative value on fail case
  */
-int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
                       int saltSz, int iterations, int id, byte* input,
                       int length, int version, byte* cbcIv, int enc, int shaOid)
 {
@@ -329,6 +337,9 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     (void)enc;
 
     WOLFSSL_ENTER("wc_CryptKey");
+
+    if (password == NULL || salt == NULL || input == NULL)
+        return BAD_FUNC_ARG;
 
     if (length < 0)
         return BAD_LENGTH_E;
@@ -439,14 +450,14 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #ifndef NO_HMAC
             case PKCS5v2:
                 PRIVATE_KEY_UNLOCK();
-                ret = wc_PBKDF2(key, (byte*)password, passwordSz,
+                ret = wc_PBKDF2(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
                 PRIVATE_KEY_LOCK();
                 break;
     #endif
     #ifndef NO_SHA
             case PKCS5:
-                ret = wc_PBKDF1(key, (byte*)password, passwordSz,
+                ret = wc_PBKDF1(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
                 break;
     #endif

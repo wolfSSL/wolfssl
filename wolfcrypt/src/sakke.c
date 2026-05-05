@@ -6018,14 +6018,17 @@ static int sakke_modexp_loop(SakkeKey* key, const mp_int* b, mp_int* e,
     mp_int* t2 = &key->tmp.m2;
     mp_int* by = key->tmp.p1->z;
     mp_int* prime = &key->params.prime;
-    unsigned char eb[128];
+    WC_DECLARE_VAR(eb, unsigned char, SAKKE_EB_BUF_SIZE, key->heap);
     int i;
     int y;
+
+    WC_ALLOC_VAR_EX(eb, unsigned char, SAKKE_EB_BUF_SIZE, key->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     /* Use table for values of b exponentiated. */
     (void)b;
 
-    (void)mp_to_unsigned_bin_len(e, eb, sizeof(eb));
+    (void)mp_to_unsigned_bin_len(e, eb, SAKKE_EB_BUF_SIZE);
 
     /* Set the working value to the base in PF_p[q] */
     err = mp_montgomery_calc_normalization(c->x, prime);
@@ -6058,6 +6061,7 @@ static int sakke_modexp_loop(SakkeKey* key, const mp_int* b, mp_int* e,
         }
     }
 
+    WC_FREE_VAR_EX(eb, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
 }
 #endif /* WOLFSSL_SAKKE_SMALL */

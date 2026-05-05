@@ -489,7 +489,7 @@ L_chacha_x64_done:
 .p2align	4
 #endif /* __APPLE__ */
 L_chacha20_avx1_rotl8:
-.quad	0x605040702010003, 0xe0d0c0f0a09080b
+.quad	0x0605040702010003,0x0e0d0c0f0a09080b
 #ifndef __APPLE__
 .data
 #else
@@ -501,7 +501,7 @@ L_chacha20_avx1_rotl8:
 .p2align	4
 #endif /* __APPLE__ */
 L_chacha20_avx1_rotl16:
-.quad	0x504070601000302, 0xd0c0f0e09080b0a
+.quad	0x0504070601000302,0x0d0c0f0e09080b0a
 #ifndef __APPLE__
 .data
 #else
@@ -513,7 +513,7 @@ L_chacha20_avx1_rotl16:
 .p2align	4
 #endif /* __APPLE__ */
 L_chacha20_avx1_add:
-.quad	0x100000000, 0x300000002
+.quad	0x0000000100000000,0x0000000300000002
 #ifndef __APPLE__
 .data
 #else
@@ -525,7 +525,7 @@ L_chacha20_avx1_add:
 .p2align	4
 #endif /* __APPLE__ */
 L_chacha20_avx1_four:
-.quad	0x400000004, 0x400000004
+.quad	0x0000000400000004,0x0000000400000004
 #ifndef __APPLE__
 .text
 .globl	chacha_encrypt_avx1
@@ -1057,8 +1057,8 @@ L_chacha20_avx1_partial_done:
 .p2align	5
 #endif /* __APPLE__ */
 L_chacha20_avx2_rotl8:
-.quad	0x605040702010003, 0xe0d0c0f0a09080b
-.quad	0x605040702010003, 0xe0d0c0f0a09080b
+.quad	0x0605040702010003,0x0e0d0c0f0a09080b
+.quad	0x0605040702010003,0x0e0d0c0f0a09080b
 #ifndef __APPLE__
 .data
 #else
@@ -1070,8 +1070,8 @@ L_chacha20_avx2_rotl8:
 .p2align	5
 #endif /* __APPLE__ */
 L_chacha20_avx2_rotl16:
-.quad	0x504070601000302, 0xd0c0f0e09080b0a
-.quad	0x504070601000302, 0xd0c0f0e09080b0a
+.quad	0x0504070601000302,0x0d0c0f0e09080b0a
+.quad	0x0504070601000302,0x0d0c0f0e09080b0a
 #ifndef __APPLE__
 .data
 #else
@@ -1083,8 +1083,8 @@ L_chacha20_avx2_rotl16:
 .p2align	5
 #endif /* __APPLE__ */
 L_chacha20_avx2_add:
-.quad	0x100000000, 0x300000002
-.quad	0x500000004, 0x700000006
+.quad	0x0000000100000000,0x0000000300000002
+.quad	0x0000000500000004,0x0000000700000006
 #ifndef __APPLE__
 .data
 #else
@@ -1096,8 +1096,8 @@ L_chacha20_avx2_add:
 .p2align	5
 #endif /* __APPLE__ */
 L_chacha20_avx2_eight:
-.quad	0x800000008, 0x800000008
-.quad	0x800000008, 0x800000008
+.quad	0x0000000800000008,0x0000000800000008
+.quad	0x0000000800000008,0x0000000800000008
 #ifndef __APPLE__
 .text
 .globl	chacha_encrypt_avx2

@@ -244,7 +244,7 @@ static ssize_t install_algs_handler(struct kobject *kobj, struct kobj_attribute 
     if (kstrtoint(buf, 10, &arg) || arg != 1)
         return -EINVAL;
 
-    pr_info("wolfCrypt: Installing algorithms");
+    pr_info("wolfCrypt: Installing algorithms\n");
 
     ret = linuxkm_lkcapi_register();
     if (ret != 0)
@@ -265,7 +265,7 @@ static ssize_t deinstall_algs_handler(struct kobject *kobj, struct kobj_attribut
     if (kstrtoint(buf, 10, &arg) || arg != 1)
         return -EINVAL;
 
-    pr_info("wolfCrypt: Deinstalling algorithms");
+    pr_info("wolfCrypt: Deinstalling algorithms\n");
 
     ret = linuxkm_lkcapi_unregister();
     if (ret != 0)
@@ -274,7 +274,7 @@ static ssize_t deinstall_algs_handler(struct kobject *kobj, struct kobj_attribut
 #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
     !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
     if (enabled_fips) {
-        pr_info("wolfCrypt: restoring fips_enabled to off.");
+        pr_info("wolfCrypt: restoring fips_enabled to off.\n");
         enabled_fips = fips_enabled = 0;
     }
 #endif
@@ -358,7 +358,7 @@ static int linuxkm_lkcapi_register(void)
         /* assert system-wide FIPS status, to disable FIPS-forbidden
          * test vectors and fuzzing from the CRYPTO_MANAGER.
          */
-        pr_info("wolfCrypt: changing fips_enabled from 0 to 1 for FIPS module.");
+        pr_info("wolfCrypt: changing fips_enabled from 0 to 1 for FIPS module.\n");
         enabled_fips = fips_enabled = 1;
     }
 #endif
@@ -379,10 +379,10 @@ static int linuxkm_lkcapi_register(void)
                            "with return code %d.\n",                         \
                            (alg).base.cra_driver_name, ret);                 \
                     (crypto_unregister_ ## alg_class)(&(alg));               \
-                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {          \
+                    if (! ((alg).base.cra_flags & CRYPTO_ALG_DEAD)) {        \
                         pr_err("ERROR: alg %s not _DEAD "                    \
                                "after crypto_unregister_%s -- "              \
-                               "marking as loaded despite test failure.",    \
+                               "marking as loaded despite test failure.\n",  \
                                (alg).base.cra_driver_name,                   \
                                #alg_class);                                  \
                         alg ## _loaded = 1;                                  \
@@ -431,10 +431,10 @@ static int linuxkm_lkcapi_register(void)
                                (alg).base.cra_driver_name, ret);             \
                     }                                                        \
                     (crypto_unregister_ ## alg_class)(&(alg));               \
-                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {          \
+                    if (! ((alg).base.cra_flags & CRYPTO_ALG_DEAD)) {        \
                         pr_err("ERROR: alg %s not _DEAD "                    \
                                "after crypto_unregister_%s -- "              \
-                               "marking as loaded despite test failure.",    \
+                               "marking as loaded despite test failure.\n",  \
                                (alg).base.cra_driver_name,                   \
                                #alg_class);                                  \
                         alg ## _loaded = 1;                                  \
@@ -459,6 +459,12 @@ static int linuxkm_lkcapi_register(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM
     REGISTER_ALG(gcmAesAead, aead, linuxkm_test_aesgcm);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309
+    REGISTER_ALG(ccmAesAead_rfc4309, aead, linuxkm_test_aesccm_rfc4309);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM
+    REGISTER_ALG(ccmAesAead, aead, linuxkm_test_aesccm);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     REGISTER_ALG(xtsAesAlg, skcipher, linuxkm_test_aesxts);
@@ -723,7 +729,7 @@ static int linuxkm_lkcapi_register(void)
     disable_setkey_warnings = 0;
 #endif
 
-    pr_info("wolfCrypt: %d algorithm%s registered.", linuxkm_lkcapi_n_registered,
+    pr_info("wolfCrypt: %d algorithm%s registered.\n", linuxkm_lkcapi_n_registered,
             linuxkm_lkcapi_n_registered == 1 ? "" : "s");
 
     if (ret == -1) {
@@ -787,21 +793,21 @@ static int linuxkm_lkcapi_unregister(void)
 #define UNREGISTER_ALG(alg, alg_class)                                   \
     do {                                                                 \
         if (alg ## _loaded) {                                            \
-            if (alg.base.cra_flags & CRYPTO_ALG_DEAD) {                  \
-                pr_err("alg %s already CRYPTO_ALG_DEAD.",                \
-                       alg.base.cra_driver_name);                        \
+            if ((alg).base.cra_flags & CRYPTO_ALG_DEAD) {                \
+                pr_err("alg %s already CRYPTO_ALG_DEAD.\n",              \
+                       (alg).base.cra_driver_name);                      \
                 alg ## _loaded = 0;                                      \
                 ++n_deregistered;                                        \
             }                                                            \
             else {                                                       \
                 int cur_refcnt =                                         \
-                    WC_LKM_REFCOUNT_TO_INT(alg.base.cra_refcnt);         \
+                    WC_LKM_REFCOUNT_TO_INT((alg).base.cra_refcnt);       \
                 if (cur_refcnt == 1) {                                   \
                     (crypto_unregister_ ## alg_class)(&(alg));           \
-                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {      \
+                    if (! ((alg).base.cra_flags & CRYPTO_ALG_DEAD)) {    \
                         pr_err("ERROR: alg %s not _DEAD after "          \
                                "crypto_unregister_%s -- "                \
-                               "leaving marked as loaded.",              \
+                               "leaving marked as loaded.\n",            \
                                (alg).base.cra_driver_name,               \
                                #alg_class);                              \
                         seen_err = -EBUSY;                               \
@@ -811,8 +817,8 @@ static int linuxkm_lkcapi_unregister(void)
                     }                                                    \
                 }                                                        \
                 else {                                                   \
-                    pr_err("alg %s cannot be uninstalled (refcnt = %d)", \
-                           alg.base.cra_driver_name, cur_refcnt);        \
+                    pr_err("alg %s cannot be uninstalled (refcnt = %d)\n", \
+                           (alg).base.cra_driver_name, cur_refcnt);      \
                     if (cur_refcnt > 0) { seen_err = -EBUSY; }           \
                 }                                                        \
             }                                                            \
@@ -830,6 +836,12 @@ static int linuxkm_lkcapi_unregister(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     UNREGISTER_ALG(gcmAesAead_rfc4106, aead);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM
+    UNREGISTER_ALG(ccmAesAead, aead);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309
+    UNREGISTER_ALG(ccmAesAead_rfc4309, aead);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     UNREGISTER_ALG(xtsAesAlg, skcipher);
@@ -1013,7 +1025,7 @@ static int linuxkm_lkcapi_unregister(void)
 #undef UNREGISTER_ALG
 
     linuxkm_lkcapi_n_registered -= n_deregistered;
-    pr_info("wolfCrypt: %d algorithm%s deregistered, %d remain%s registered.",
+    pr_info("wolfCrypt: %d algorithm%s deregistered, %d remain%s registered.\n",
             n_deregistered, n_deregistered == 1 ? "" : "s",
             linuxkm_lkcapi_n_registered, linuxkm_lkcapi_n_registered == 1 ? "s" : "");
 

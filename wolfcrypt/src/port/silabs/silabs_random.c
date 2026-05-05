@@ -37,12 +37,16 @@
 int silabs_GenerateRand(byte* output, word32 sz)
 {
     sl_se_command_context_t cmd_ctx = SL_SE_COMMAND_CONTEXT_INIT;
-    sl_status_t status = sl_se_init();
+    sl_status_t status;
 
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
+    status  = sl_se_init();
     if (status == SL_STATUS_OK)
         status = sl_se_get_random(&cmd_ctx, output,  sz);
 
-    return (status != SL_STATUS_OK);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
 }
 
 #endif /* WOLFSSL_SILABS_SE_ACCEL */

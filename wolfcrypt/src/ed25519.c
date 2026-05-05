@@ -172,7 +172,7 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
 {
     int ret;
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
-    wc_Sha512 sha[1];
+    WC_DECLARE_VAR(sha, wc_Sha512, 1, key ? key->heap : NULL);
 #else
     wc_Sha512 *sha;
 #endif
@@ -185,6 +185,8 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
     sha = &key->sha;
     ret = ed25519_hash_reset(key);
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed25519_hash_init(key, sha);
 #endif
     if (ret == 0) {
@@ -197,6 +199,9 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
     #endif
     }
 
+#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#endif
     return ret;
 }
 
@@ -389,6 +394,12 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         return BAD_FUNC_ARG;
     }
 
+    if ((type == Ed25519ph) &&
+        (inLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Ed25519Sign(in, inLen, out, outLen, key, type,
@@ -400,6 +411,8 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
 
     if (!key->pubKeySet)
+        return BAD_FUNC_ARG;
+    if (!key->privKeySet)
         return BAD_FUNC_ARG;
 
     /* check and set up out length */
@@ -421,8 +434,11 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
         wc_Sha512 *sha = &key->sha;
 #else
-        wc_Sha512 sha[1];
-        ret = ed25519_hash_init(key, sha);
+        WC_DECLARE_VAR(sha, wc_Sha512, 1, key->heap);
+        WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                        ret = MEMORY_E);
+        if (ret == 0)
+            ret = ed25519_hash_init(key, sha);
 #endif
 
         /* apply clamp */
@@ -449,6 +465,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
             ret = ed25519_hash_final(key, sha, nonce);
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
         ed25519_hash_free(key, sha);
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
     }
 
@@ -477,8 +494,11 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
         wc_Sha512 *sha = &key->sha;
 #else
-        wc_Sha512 sha[1];
-        ret = ed25519_hash_init(key, sha);
+        WC_DECLARE_VAR(sha, wc_Sha512, 1, key->heap);
+        WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                        ret = MEMORY_E);
+        if (ret == 0)
+            ret = ed25519_hash_init(key, sha);
 #endif
 
         if (ret == 0 && (type == Ed25519ctx || type == Ed25519ph)) {
@@ -501,6 +521,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
             ret = ed25519_hash_final(key, sha, hram);
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
         ed25519_hash_free(key, sha);
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
     }
 
@@ -887,13 +908,19 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 *sha;
 #else
-    wc_Sha512 sha[1];
+    WC_DECLARE_VAR(sha, wc_Sha512, 1, key ? key->heap : NULL);
 #endif
 
     /* sanity check on arguments */
     if (sig == NULL || msg == NULL || res == NULL || key == NULL ||
                                          (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+
+    if ((type == Ed25519ph) &&
+        (msgLen != WC_SHA512_DIGEST_SIZE))
+    {
+        return BAD_LENGTH_E;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
@@ -908,8 +935,11 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     sha = &key->sha;
 #else
+    WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                    return MEMORY_E);
     ret = ed25519_hash_init(key, sha);
     if (ret < 0) {
+        WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
         return ret;
     }
 #endif /* WOLFSSL_ED25519_PERSISTENT_SHA */
@@ -923,6 +953,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
     ed25519_hash_free(key, sha);
+    WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
 #endif
 #endif /* WOLFSSL_SE050 */
     return ret;
@@ -1033,10 +1064,12 @@ ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code)
 }
 
 int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p) {
+    void* heap;
     if (key == NULL)
         return BAD_FUNC_ARG;
+    heap = key->heap;
     wc_ed25519_free(key);
-    XFREE(key, key->heap, DYNAMIC_TYPE_ED25519);
+    XFREE(key, heap, DYNAMIC_TYPE_ED25519);
     if (key_p != NULL)
         *key_p = NULL;
     return 0;
@@ -1153,6 +1186,18 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
     if (inLen < ED25519_PUB_KEY_SIZE)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding;
+     * erase the old object (no-op when keyIdSet == 0) so the host and the
+     * secure element agree on what's bound. Clear the binding fields
+     * explicitly afterwards so a stale keyId never survives, even when
+     * se050_ed25519_free_key() returns early because the SE050 session isn't
+     * configured yet. */
+    se050_ed25519_free_key(key);
+    key->keyId    = 0;
+    key->keyIdSet = 0;
+#endif
+
     /* compressed prefix according to draft
        http://www.ietf.org/id/draft-koch-eddsa-for-openpgp-02.txt */
     if (in[0] == 0x40 && inLen == ED25519_PUB_KEY_SIZE + 1) {
@@ -1239,6 +1284,18 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
     if (privSz != ED25519_KEY_SIZE)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding;
+     * erase the old object (no-op when keyIdSet == 0) so the host and the
+     * secure element agree on what's bound. Clear the binding fields
+     * explicitly afterwards so a stale keyId never survives, even when
+     * se050_ed25519_free_key() returns early because the SE050 session isn't
+     * configured yet. */
+    se050_ed25519_free_key(key);
+    key->keyId    = 0;
+    key->keyIdSet = 0;
+#endif
+
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
     key->privKeySet = 1;
 
@@ -1294,6 +1351,21 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
     else if (pubSz < ED25519_PUB_KEY_SIZE) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLFSSL_SE050
+    /* Importing new key material invalidates any prior SE050 object binding;
+     * erase the old object (no-op when keyIdSet == 0) so the host and the
+     * secure element agree on what's bound. key->k is overwritten before the
+     * wc_ed25519_import_public_ex() call below, so the binding must be
+     * dropped here first in case that function fails its own early-return
+     * argument checks before reaching its reset. Clear the binding fields
+     * explicitly afterwards so a stale keyId never survives, even when
+     * se050_ed25519_free_key() returns early because the SE050 session isn't
+     * configured yet. */
+    se050_ed25519_free_key(key);
+    key->keyId    = 0;
+    key->keyIdSet = 0;
+#endif
 
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
     key->privKeySet = 1;

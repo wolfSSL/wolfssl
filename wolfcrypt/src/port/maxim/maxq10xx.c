@@ -945,13 +945,13 @@ static int ecc_establish(ecc_key* key, ecc_key* peer, byte *ss, word32 *ss_len)
     mxq_length output_len = ESTABLISH_OUT_MAX;
     byte output[ESTABLISH_OUT_MAX];
 
-    word32 peerKeySz = peer->dp->size;
+    word32 peerKeySz;
     uint8_t  peerKeyBuf[MAX_EC_KEY_SIZE];
     uint8_t* peerKey = peerKeyBuf;
-    uint8_t* qx = peerKey;
-    uint8_t* qy = &peerKey[peerKeySz];
-    word32 qxLen = peerKeySz;
-    word32 qyLen = peerKeySz;
+    uint8_t* qx;
+    uint8_t* qy;
+    word32 qxLen;
+    word32 qyLen;
 
     /* ECC P256 shared secret is 32 bytes. */
     if (*ss_len != 32) {
@@ -965,6 +965,12 @@ static int ecc_establish(ecc_key* key, ecc_key* peer, byte *ss, word32 *ss_len)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    peerKeySz = peer->dp->size;
+    qx = peerKey;
+    qy = &peerKey[peerKeySz];
+    qxLen = peerKeySz;
+    qyLen = peerKeySz;
 
     if (key->maxq_ctx.hw_ecc != 1) {
         /* The key was not generated. Lets import it. */
@@ -990,7 +996,7 @@ static int ecc_establish(ecc_key* key, ecc_key* peer, byte *ss, word32 *ss_len)
         return WC_HW_E;
     }
 
-    wc_ecc_export_public_raw(peer, qx, &qxLen, qy, &qyLen);
+    rc = wc_ecc_export_public_raw(peer, qx, &qxLen, qy, &qyLen);
     if (rc != 0) {
         return rc;
     }
@@ -2589,8 +2595,10 @@ static int wc_MAXQ10XX_HmacSetKey(int type)
     }
 
     if (tls13_server_finish_obj_id != -1) {
-        free_temp_key_id(*tls13_server_key_id);
-        *tls13_server_key_id = -1;
+        if (tls13_server_key_id != NULL) {
+            free_temp_key_id(*tls13_server_key_id);
+            *tls13_server_key_id = -1;
+        }
         mac_key_obj_id = &tls13_server_finish_obj_id;
     }
     else if (tls13_client_finish_obj_id != -1) {
@@ -2666,9 +2674,11 @@ static int wc_MAXQ10XX_HmacFinal(byte* hash)
         rc = WC_HW_E;
     }
 
-    free_temp_key_id(*mac_key_obj_id);
-    *mac_key_obj_id = -1;
-    mac_key_obj_id = NULL;
+    if (mac_key_obj_id != NULL) {
+        free_temp_key_id(*mac_key_obj_id);
+        *mac_key_obj_id = -1;
+        mac_key_obj_id = NULL;
+    }
     mac_comp_active = 0;
 
     return rc;
@@ -2886,6 +2896,9 @@ static int maxq10xx_tls13_ecc_shared_secret(WOLFSSL* ssl, ecc_key* otherKey,
     WOLFSSL_ENTER("maxq10xx_ecc_shared_secret");
 
     rc = wc_ecc_export_public_raw(otherKey, qx, &qxLen, qy, &qyLen);
+    if (rc != 0) {
+        return rc;
+    }
 
     if (tls13_ecc_obj_id == -1) {
         WOLFSSL_ERROR_MSG("MAXQ: ECDHE key is not created before");
@@ -3488,14 +3501,14 @@ static int maxq10xx_HkdfExpand(int digest, const byte* inKey, word32 inKeySz,
             int tls13_client_iv_obj_id = -1;
             if (is_hs_key) {
                 if (tls13_client_hs_key_obj_id == -1) {
-                    WOLFSSL_ERROR_MSG("MAXQ: alloc_temp_key_id() failed");
+                    WOLFSSL_ERROR_MSG("MAXQ: client hs key not set");
                     return NOT_COMPILED_IN;
                 }
                 tls13_client_iv_obj_id = tls13_client_hs_key_obj_id;
             }
             else {
                 if (tls13_client_app_key_obj_id == -1) {
-                    WOLFSSL_ERROR_MSG("MAXQ: alloc_temp_key_id() failed");
+                    WOLFSSL_ERROR_MSG("MAXQ: client app key not set");
                     return NOT_COMPILED_IN;
                 }
                 tls13_client_iv_obj_id = tls13_client_app_key_obj_id;
@@ -3514,14 +3527,14 @@ static int maxq10xx_HkdfExpand(int digest, const byte* inKey, word32 inKeySz,
             int tls13_server_iv_obj_id = -1;
             if (is_hs_key) {
                 if (tls13_server_hs_key_obj_id == -1) {
-                    WOLFSSL_ERROR_MSG("MAXQ: alloc_temp_key_id() failed");
+                    WOLFSSL_ERROR_MSG("MAXQ: server hs key not set");
                     return NOT_COMPILED_IN;
                 }
                 tls13_server_iv_obj_id = tls13_server_hs_key_obj_id;
             }
             else {
                 if (tls13_server_app_key_obj_id == -1) {
-                    WOLFSSL_ERROR_MSG("MAXQ: alloc_temp_key_id() failed");
+                    WOLFSSL_ERROR_MSG("MAXQ: server app key not set");
                     return NOT_COMPILED_IN;
                 }
                 tls13_server_iv_obj_id = tls13_server_app_key_obj_id;
@@ -3636,8 +3649,10 @@ static int maxq10xx_HkdfExpand(int digest, const byte* inKey, word32 inKeySz,
         ret_kid = tls13_res_master_obj_id;
         ret_keytype = MXQ_KEYTYPE_IKM;
         ret_isiv = 0;
-        free_temp_key_id(*tls13_client_key_id);
-        *tls13_client_key_id = -1;
+        if (tls13_client_key_id != NULL) {
+            free_temp_key_id(*tls13_client_key_id);
+            *tls13_client_key_id = -1;
+        }
     }
     else if (strstr_with_size((char *)info, appTrafUpdLabel, infoSz) != NULL) {
         if (side == WOLFSSL_CLIENT_END) {
@@ -3656,7 +3671,7 @@ static int maxq10xx_HkdfExpand(int digest, const byte* inKey, word32 inKeySz,
             /* updated_server_secret = HKDF-Expand-Label(key: server_secret,
              *                             label: "traffic upd", ctx: "") */
             if (tls13_server_app_key_obj_id == -1) {
-                WOLFSSL_ERROR_MSG("MAXQ: Client Application Key was not set");
+                WOLFSSL_ERROR_MSG("MAXQ: Server Application Key was not set");
                 return NOT_COMPILED_IN;
             }
             prk_kid = tls13_server_secret_obj_id;

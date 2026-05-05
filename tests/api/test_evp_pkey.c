@@ -382,6 +382,76 @@ int test_wolfSSL_EVP_MD_hmac_signing(void)
     return EXPECT_RESULT();
 }
 
+/* Verify that EVP_DigestVerifyFinal rejects zero-length HMAC tags. */
+int test_wolfSSL_EVP_DigestVerify_HMAC_zero_len_forgery(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC) && !defined(NO_SHA256)
+    static const unsigned char key[] = {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b
+    };
+    static const char message[] = "wolfSSL DigestVerifyFinal forgery probe";
+    static const unsigned char zeros[WC_MAX_DIGEST_SIZE] = { 0 };
+
+    WOLFSSL_EVP_PKEY*  pkey = NULL;
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    unsigned char      tag[WC_MAX_DIGEST_SIZE];
+    size_t             tagLen = sizeof(tag);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+                                                      key, (int)sizeof(key)));
+
+    /* Compute the genuine HMAC-SHA256 tag for the message. */
+    ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                           NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, message,
+                                             (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, tag, &tagLen), 1);
+    ExpectIntEQ((int)tagLen, WC_SHA256_DIGEST_SIZE);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Full-length genuine tag verifies. */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                             NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, message,
+                                               (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, tag, tagLen), 1);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Wrong full-length tag is rejected. */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                             NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, message,
+                                               (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntNE(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, zeros,
+                                              WC_SHA256_DIGEST_SIZE), 1);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Zero-length tag must be rejected. */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                             NULL, pkey), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, message,
+                                               (unsigned int)XSTRLEN(message)),
+                1);
+    ExpectIntNE(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, zeros, 0), 1);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_PKEY_new_mac_key(void)
 {
     EXPECT_DECLS;
@@ -742,7 +812,7 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && !defined (NO_DSA) && !defined(HAVE_SELFTEST) && \
-    defined(WOLFSSL_KEY_GEN)
+    !defined(WC_FIPS_186_5_PLUS) && defined(WOLFSSL_KEY_GEN)
     DSA       *dsa  = NULL;
     DSA       *setDsa  = NULL;
     EVP_PKEY  *pkey = NULL;
@@ -829,7 +899,8 @@ int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     DSA_free(setDsa);
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(set1Pkey);
-#endif /* OPENSSL_ALL && !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
+#endif /* OPENSSL_ALL && !NO_DSA && !HAVE_SELFTEST && !WC_FIPS_186_5_PLUS */
+       /* && WOLFSSL_KEY_GEN */
     return EXPECT_RESULT();
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
@@ -1606,7 +1677,8 @@ int test_wolfSSL_EVP_PKEY_sign_verify_dsa(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
-#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+#if !defined (NO_DSA) && !defined(WC_FIPS_186_5_PLUS) && \
+    !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
     ExpectIntEQ(test_wolfSSL_EVP_PKEY_sign_verify(EVP_PKEY_DSA), TEST_SUCCESS);
 #endif
 #endif
@@ -2354,6 +2426,148 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
     (void)line1;
     (void)i;
 #endif /* OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_PKEY_ed25519(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+
+    /* Known-valid Ed25519 public key matching server_ed25519_key. The bytes
+     * are the raw 32-byte BIT STRING contents from
+     * ./certs/ed25519/server-ed25519-key.der so the import succeeds even
+     * under strict point-validation. */
+    static const unsigned char rawPub[32] = {
+        0x23, 0xaa, 0x4d, 0x60, 0x50, 0xe0, 0x13, 0xd3,
+        0x3a, 0xed, 0xab, 0xf6, 0xa9, 0xcc, 0x4a, 0xfe,
+        0xd7, 0x4d, 0x2f, 0xd2, 0x5b, 0x1a, 0x10, 0x05,
+        0xef, 0x5a, 0x41, 0x25, 0xce, 0x1b, 0x53, 0x78
+    };
+
+    /* SPKI wrapper around the same known-valid public key (the full
+     * contents of ./certs/ed25519/server-ed25519-key.der). */
+    static const unsigned char spkiPub[] = {
+        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+        0x23, 0xaa, 0x4d, 0x60, 0x50, 0xe0, 0x13, 0xd3,
+        0x3a, 0xed, 0xab, 0xf6, 0xa9, 0xcc, 0x4a, 0xfe,
+        0xd7, 0x4d, 0x2f, 0xd2, 0x5b, 0x1a, 0x10, 0x05,
+        0xef, 0x5a, 0x41, 0x25, 0xce, 0x1b, 0x53, 0x78
+    };
+
+    /* Exercise the WC_EVP_PKEY_ED25519 case in d2i_evp_pkey()
+     * including the algId match for the PKCS#8 wrapper. */
+    p = server_ed25519_key;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_ED25519, NULL,
+        &p, (long)sizeof_server_ed25519_key));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    p = spkiPub;
+    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p, (long)sizeof(spkiPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* Exercise EVP_PKEY_new_raw_public_key to parse 32 raw BIT STRING bytes */
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+        WC_EVP_PKEY_ED25519, NULL, rawPub, sizeof(rawPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    {
+        static const unsigned char junk[16] = { 0 };
+        const unsigned char* jp = junk;
+        ExpectNull(wolfSSL_d2i_PUBKEY(NULL, &jp, (long)sizeof(junk)));
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CTX_use_PrivateKey_ed25519(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
+     /* Load the matching Ed25519 server cert */
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, server_ed25519_cert,
+        (long)sizeof_server_ed25519_cert, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+
+    /* Decode the Ed25519 private key as a WOLFSSL_EVP_PKEY */
+    p = server_ed25519_key;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_ED25519, NULL,
+        &p, (long)sizeof_server_ed25519_key));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+
+    /* Load the pkey and check for success */
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey(ctx, pkey), WOLFSSL_SUCCESS);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_PKEY_ed448(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED448)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+
+    /* Known-valid Ed448 public key: the raw 57-byte BIT STRING contents
+     * from ./certs/ed448/server-ed448-key.der so the import succeeds even
+     * under strict point-validation. */
+    static const unsigned char rawPub[57] = {
+        0x54, 0x81, 0x39, 0x01, 0xeb, 0x37, 0xd9, 0xa9,
+        0x07, 0xcd, 0x01, 0xbc, 0x9d, 0x70, 0x16, 0xc2,
+        0x2c, 0x2b, 0x75, 0x5b, 0x63, 0xdb, 0xee, 0x3a,
+        0x2d, 0x44, 0x92, 0x46, 0xb4, 0x7b, 0x07, 0x03,
+        0x4f, 0xa2, 0xae, 0x86, 0x86, 0xdc, 0x8b, 0x4b,
+        0x2c, 0x7f, 0xe8, 0x6b, 0x14, 0x8d, 0x58, 0xdd,
+        0x6d, 0xe7, 0x6f, 0x3a, 0x05, 0x95, 0xa8, 0xef,
+        0x00
+    };
+
+    /* SPKI wrapper around the same known-valid public key (the full
+     * contents of ./certs/ed448/server-ed448-key.der). */
+    static const unsigned char spkiPub[] = {
+        0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x71, 0x03, 0x3a, 0x00,
+        0x54, 0x81, 0x39, 0x01, 0xeb, 0x37, 0xd9, 0xa9,
+        0x07, 0xcd, 0x01, 0xbc, 0x9d, 0x70, 0x16, 0xc2,
+        0x2c, 0x2b, 0x75, 0x5b, 0x63, 0xdb, 0xee, 0x3a,
+        0x2d, 0x44, 0x92, 0x46, 0xb4, 0x7b, 0x07, 0x03,
+        0x4f, 0xa2, 0xae, 0x86, 0x86, 0xdc, 0x8b, 0x4b,
+        0x2c, 0x7f, 0xe8, 0x6b, 0x14, 0x8d, 0x58, 0xdd,
+        0x6d, 0xe7, 0x6f, 0x3a, 0x05, 0x95, 0xa8, 0xef,
+        0x00
+    };
+
+    /* SPKI path. */
+    p = spkiPub;
+    ExpectNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &p, (long)sizeof(spkiPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED448);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* Parse raw bytes */
+    ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+        WC_EVP_PKEY_ED448, NULL, rawPub, sizeof(rawPub)));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED448);
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+#endif
     return EXPECT_RESULT();
 }
 

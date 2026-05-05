@@ -1152,3 +1152,117 @@ int test_wc_RsaDecrypt_BoundsCheck(void)
     return EXPECT_RESULT();
 } /* END test_wc_RsaDecryptBoundsCheck */
 
+/*
+ * Test wc_RsaKeyToDer with an mp_int large enough to wrap size calculations.
+ */
+int test_wc_RsaKeyToDer_SizeOverflow(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(USE_INTEGER_HEAP_MATH) && \
+    !defined(USE_FAST_MATH) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_KEY_TO_DER))
+    RsaKey    key;
+    int       i;
+    int       derRet;
+    int       crafted_used;
+    int       top_bits;
+    mp_digit  top_digit;
+    mp_digit  storage   = 0;  /* the only digit mp_count_bits ever reads */
+    mp_digit* fake_dp   = NULL;
+
+    int       orig_used  = 0;
+    int       orig_alloc = 0;
+    int       orig_sign  = 0;
+    mp_digit* orig_dp    = NULL;
+
+    mp_int* fields[8];
+
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* Skip on 32-bit: biasing dp by ~half the address space is unsafe. */
+    if (sizeof(void*) < 8) {
+        return TEST_SKIPPED;
+    }
+
+    /* Find 'used' count that makes (used-1)*DIGIT_BIT + top_bits = -48
+     * as signed int, causing mp_unsigned_bin_size to return -6. */
+    {
+        unsigned int target = 0xFFFFFFD0u;  /* -48 as unsigned 32-bit */
+        int found = 0;
+
+        crafted_used = 0;
+        top_bits = 0;
+        top_digit = 0;
+
+        for (top_bits = 1; top_bits < DIGIT_BIT; top_bits++) {
+            unsigned int base = target - (unsigned int)top_bits;
+            if (base % (unsigned int)DIGIT_BIT == 0) {
+                crafted_used = (int)(base / (unsigned int)DIGIT_BIT) + 1;
+                top_digit = (mp_digit)1 << (top_bits - 1);
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            return TEST_SKIPPED;
+        }
+    }
+
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+
+    /* Set up dummy RSA private key fields. */
+    key.type = RSA_PRIVATE;
+    fields[0] = &key.n;
+    fields[1] = &key.e;
+    fields[2] = &key.d;
+    fields[3] = &key.p;
+    fields[4] = &key.q;
+    fields[5] = &key.dP;
+    fields[6] = &key.dQ;
+    fields[7] = &key.u;
+
+    for (i = 0; i < 8; i++) {
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(mp_init(fields[i]), 0);
+            mp_set(fields[i], 0x42);
+        }
+    }
+
+    if (EXPECT_SUCCESS()) {
+        orig_used  = key.p.used;
+        orig_alloc = key.p.alloc;
+        orig_sign  = key.p.sign;
+        orig_dp    = key.p.dp;
+    }
+
+    /* The vulnerable path (mp_unsigned_bin_size -> mp_count_bits, and
+     * mp_leading_bit) only reads dp[used-1].  Bias dp so that index
+     * (used-1) lands on our single real digit -- no giant allocation
+     * (and no mmap/VirtualAlloc) needed. */
+    if (EXPECT_SUCCESS()) {
+        storage = top_digit;
+        fake_dp = (mp_digit*)((wc_ptr_t)&storage
+                  - (wc_ptr_t)(crafted_used - 1) * sizeof(mp_digit));
+
+        key.p.dp    = fake_dp;
+        key.p.used  = crafted_used;
+        key.p.alloc = crafted_used;
+        key.p.sign  = 0;  /* MP_ZPOS */
+    }
+
+    /* Should return an error, not a bogus small size. */
+    derRet = wc_RsaKeyToDer(&key, NULL, 0);
+    ExpectIntLT(derRet, 0);
+
+    /* Restore key.p before cleanup. */
+    key.p.dp    = orig_dp;
+    key.p.used  = orig_used;
+    key.p.alloc = orig_alloc;
+    key.p.sign  = orig_sign;
+
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaKeyToDer_SizeOverflow */
+

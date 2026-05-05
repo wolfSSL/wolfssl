@@ -49,10 +49,16 @@ jobs:
       matrix:
         curl_ref: [ 'master', 'curl-8_4_0' ]
     steps:
+    - name: Checkout wolfSSL CI actions
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: .github/actions
+        fetch-depth: 1
+
     - name: Install test dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install nghttp2 libpsl5 libpsl-dev python3-impacket apache2 apache2-dev
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: nghttp2 libpsl5 libpsl-dev python3-impacket apache2 apache2-dev
 
     - name: Download lib
       uses: actions/download-artifact@v4

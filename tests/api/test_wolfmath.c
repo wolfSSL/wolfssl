@@ -70,6 +70,11 @@ int test_mp_get_digit(void)
     ExpectIntEQ(mp_get_digit(NULL, n), 0);
     ExpectIntEQ(mp_get_digit(&a, n), 0);
 
+    /* negative index must return 0, not index out of bounds */
+    ExpectIntEQ(mp_get_digit(&a, -1), 0);
+    ExpectIntEQ(mp_get_digit(&a, -100), 0);
+    ExpectIntEQ(mp_get_digit(NULL, -1), 0);
+
     mp_clear(&a);
 #endif
     return EXPECT_RESULT();

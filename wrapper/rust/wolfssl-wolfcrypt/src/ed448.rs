@@ -241,8 +241,8 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_export)]
     pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
-        let mut private_size = private.len() as u32;
-        let mut public_size = public.len() as u32;
+        let mut private_size = crate::buffer_len_to_u32(private.len())?;
+        let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_ed448_export_key(&self.ws_key,
                 private.as_mut_ptr(), &mut private_size,
@@ -281,7 +281,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_export)]
     pub fn export_public(&self, public: &mut [u8]) -> Result<(), i32> {
-        let mut public_size = public.len() as u32;
+        let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_ed448_export_public(&self.ws_key, public.as_mut_ptr(),
                 &mut public_size)
@@ -319,7 +319,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_export)]
     pub fn export_private(&self, keyout: &mut [u8]) -> Result<(), i32> {
-        let mut keyout_size = keyout.len() as u32;
+        let mut keyout_size = crate::buffer_len_to_u32(keyout.len())?;
         let rc = unsafe {
             sys::wc_ed448_export_private(&self.ws_key, keyout.as_mut_ptr(),
                 &mut keyout_size)
@@ -357,7 +357,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_export)]
     pub fn export_private_only(&self, private: &mut [u8]) -> Result<(), i32> {
-        let mut private_size = private.len() as u32;
+        let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_ed448_export_private_only(&self.ws_key,
                 private.as_mut_ptr(), &mut private_size)
@@ -401,7 +401,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_import)]
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
-        let public_size = public.len() as u32;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_ed448_import_public(public.as_ptr(), public_size, &mut self.ws_key)
         };
@@ -445,7 +445,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_import)]
     pub fn import_public_ex(&mut self, public: &[u8], trusted: bool) -> Result<(), i32> {
-        let public_size = public.len() as u32;
+        let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
             sys::wc_ed448_import_public_ex(public.as_ptr(), public_size,
                 &mut self.ws_key, if trusted {1} else {0})
@@ -484,7 +484,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_import)]
     pub fn import_private_only(&mut self, private: &[u8]) -> Result<(), i32> {
-        let private_size = private.len() as u32;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
             sys::wc_ed448_import_private_only(private.as_ptr(), private_size,
                 &mut self.ws_key)
@@ -529,12 +529,12 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_import)]
     pub fn import_private_key(&mut self, private: &[u8], public: Option<&[u8]>) -> Result<(), i32> {
-        let private_size = private.len() as u32;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_ptr: *const u8 = core::ptr::null();
         let mut public_size = 0u32;
         if let Some(public) = public {
             public_ptr = public.as_ptr();
-            public_size = public.len() as u32;
+            public_size = crate::buffer_len_to_u32(public.len())?;
         }
         let rc = unsafe {
             sys::wc_ed448_import_private_key(private.as_ptr(), private_size,
@@ -580,12 +580,12 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_import)]
     pub fn import_private_key_ex(&mut self, private: &[u8], public: Option<&[u8]>, trusted: bool) -> Result<(), i32> {
-        let private_size = private.len() as u32;
+        let private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_ptr: *const u8 = core::ptr::null();
         let mut public_size = 0u32;
         if let Some(public) = public {
             public_ptr = public.as_ptr();
-            public_size = public.len() as u32;
+            public_size = crate::buffer_len_to_u32(public.len())?;
         }
         let rc = unsafe {
             sys::wc_ed448_import_private_key_ex(private.as_ptr(), private_size,
@@ -626,7 +626,7 @@ impl Ed448 {
     /// ed.make_public(&mut public).expect("Error with make_public()");
     /// ```
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
-        let pubkey_size = pubkey.len() as u32;
+        let pubkey_size = crate::buffer_len_to_u32(pubkey.len())?;
         let rc = unsafe {
             sys::wc_ed448_make_public(&mut self.ws_key,
                 pubkey.as_mut_ptr(), pubkey_size)
@@ -670,14 +670,17 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_sign)]
     pub fn sign_msg(&mut self, message: &[u8], context: Option<&[u8]>, signature: &mut [u8]) -> Result<usize, i32> {
-        let message_size = message.len() as u32;
+        let message_size = crate::buffer_len_to_u32(message.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
-        let mut signature_size = signature.len() as u32;
+        let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed448_sign_msg(message.as_ptr(), message_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
@@ -732,14 +735,17 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_sign)]
     pub fn sign_hash_ph(&mut self, hash: &[u8], context: Option<&[u8]>, signature: &mut [u8]) -> Result<usize, i32> {
-        let hash_size = hash.len() as u32;
+        let hash_size = crate::buffer_len_to_u32(hash.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
-        let mut signature_size = signature.len() as u32;
+        let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed448ph_sign_hash(hash.as_ptr(), hash_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
@@ -785,14 +791,17 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_sign)]
     pub fn sign_msg_ph(&mut self, message: &[u8], context: Option<&[u8]>, signature: &mut [u8]) -> Result<usize, i32> {
-        let message_size = message.len() as u32;
+        let message_size = crate::buffer_len_to_u32(message.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
-        let mut signature_size = signature.len() as u32;
+        let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed448ph_sign_msg(message.as_ptr(), message_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
@@ -838,14 +847,17 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_sign)]
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
-        let din_size = din.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
-        let mut signature_size = signature.len() as u32;
+        let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed448_sign_msg_ex(din.as_ptr(), din_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
@@ -891,12 +903,15 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_verify)]
     pub fn verify_msg(&mut self, signature: &[u8], message: &[u8], context: Option<&[u8]>) -> Result<bool, i32> {
-        let signature_size = signature.len() as u32;
-        let message_size = message.len() as u32;
+        let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        let message_size = crate::buffer_len_to_u32(message.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -956,12 +971,15 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_verify)]
     pub fn verify_hash_ph(&mut self, signature: &[u8], hash: &[u8], context: Option<&[u8]>) -> Result<bool, i32> {
-        let signature_size = signature.len() as u32;
-        let hash_size = hash.len() as u32;
+        let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        let hash_size = crate::buffer_len_to_u32(hash.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1011,12 +1029,15 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_verify)]
     pub fn verify_msg_ph(&mut self, signature: &[u8], message: &[u8], context: Option<&[u8]>) -> Result<bool, i32> {
-        let signature_size = signature.len() as u32;
-        let message_size = message.len() as u32;
+        let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        let message_size = crate::buffer_len_to_u32(message.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1066,12 +1087,15 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_verify)]
     pub fn verify_msg_ex(&mut self, signature: &[u8], din: &[u8], context: Option<&[u8]>, typ: u8) -> Result<bool, i32> {
-        let signature_size = signature.len() as u32;
-        let din_size = din.len() as u32;
+        let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let mut res = 0i32;
@@ -1121,11 +1145,14 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_init(&mut self, signature: &[u8], context: Option<&[u8]>, typ: u8) -> Result<(), i32> {
-        let signature_size = signature.len() as u32;
+        let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let mut context_ptr: *const u8 = core::ptr::null();
         let mut context_size = 0u8;
         if let Some(context) = context {
             context_ptr = context.as_ptr();
+            if context.len() > 255 {
+                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+            }
             context_size = context.len() as u8;
         }
         let rc = unsafe {
@@ -1171,7 +1198,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_update(&mut self, din: &[u8]) -> Result<(), i32> {
-        let din_size = din.len() as u32;
+        let din_size = crate::buffer_len_to_u32(din.len())?;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_update(din.as_ptr(), din_size,
                 &mut self.ws_key)
@@ -1215,7 +1242,7 @@ impl Ed448 {
     /// ```
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_final(&mut self, signature: &[u8]) -> Result<bool, i32> {
-        let signature_size = signature.len() as u32;
+        let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_final(signature.as_ptr(), signature_size,
@@ -1328,9 +1355,140 @@ impl Ed448 {
     }
 }
 
+impl Ed448 {
+    fn zeroize(&mut self) {
+        unsafe { crate::zeroize_raw(&mut self.ws_key); }
+    }
+}
+
 impl Drop for Ed448 {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
         unsafe { sys::wc_ed448_free(&mut self.ws_key); }
+        self.zeroize();
     }
 }
+
+/// RustCrypto `signature` crate trait implementations.
+///
+/// Provides a fixed-size [`Signature`] and a [`VerifyingKey`] type so that
+/// [`Ed448`] can be used wherever the `signature` crate's
+/// [`signature::SignerMut`], [`signature::Keypair`], and
+/// [`signature::Verifier`] traits are accepted.
+///
+/// These impls use the plain Ed448 (pure) signature variant with no context;
+/// the context-, hashed-, and streaming-signature variants remain accessible
+/// via the inherent methods on [`Ed448`].
+#[cfg(feature = "signature")]
+mod signature_impl {
+    use super::Ed448;
+    use signature::Error;
+
+    /// Ed448 signature in its standard 114-byte encoded form.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub struct Signature([u8; Ed448::SIG_SIZE]);
+
+    impl Signature {
+        /// Construct a signature from its raw bytes.
+        pub const fn from_bytes(bytes: [u8; Ed448::SIG_SIZE]) -> Self {
+            Self(bytes)
+        }
+
+        /// Return the raw signature bytes.
+        pub const fn to_bytes(&self) -> [u8; Ed448::SIG_SIZE] {
+            self.0
+        }
+    }
+
+    impl AsRef<[u8]> for Signature {
+        fn as_ref(&self) -> &[u8] {
+            &self.0
+        }
+    }
+
+    impl TryFrom<&[u8]> for Signature {
+        type Error = Error;
+        fn try_from(bytes: &[u8]) -> Result<Self, Error> {
+            let arr: [u8; Ed448::SIG_SIZE] = bytes.try_into().map_err(|_| Error::new())?;
+            Ok(Self(arr))
+        }
+    }
+
+    impl From<Signature> for [u8; Ed448::SIG_SIZE] {
+        fn from(sig: Signature) -> Self {
+            sig.0
+        }
+    }
+
+    impl signature::SignatureEncoding for Signature {
+        type Repr = [u8; Ed448::SIG_SIZE];
+    }
+
+    /// Ed448 verifying (public) key.
+    ///
+    /// Owns a copy of the 57-byte compressed public key and instantiates a
+    /// short-lived wolfCrypt `ed448_key` on each verification.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub struct VerifyingKey([u8; Ed448::PUB_KEY_SIZE]);
+
+    impl VerifyingKey {
+        /// Construct a verifying key from its raw public key bytes.
+        pub const fn from_bytes(bytes: [u8; Ed448::PUB_KEY_SIZE]) -> Self {
+            Self(bytes)
+        }
+
+        /// Return the raw public key bytes.
+        pub const fn to_bytes(&self) -> [u8; Ed448::PUB_KEY_SIZE] {
+            self.0
+        }
+    }
+
+    impl AsRef<[u8]> for VerifyingKey {
+        fn as_ref(&self) -> &[u8] {
+            &self.0
+        }
+    }
+
+    impl TryFrom<&[u8]> for VerifyingKey {
+        type Error = Error;
+        fn try_from(bytes: &[u8]) -> Result<Self, Error> {
+            let arr: [u8; Ed448::PUB_KEY_SIZE] =
+                bytes.try_into().map_err(|_| Error::new())?;
+            Ok(Self(arr))
+        }
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl signature::Keypair for Ed448 {
+        type VerifyingKey = VerifyingKey;
+        fn verifying_key(&self) -> Self::VerifyingKey {
+            let mut pub_key = [0u8; Ed448::PUB_KEY_SIZE];
+            self.export_public(&mut pub_key).expect("ed448 export_public failed");
+            VerifyingKey(pub_key)
+        }
+    }
+
+    #[cfg(ed448_sign)]
+    impl signature::SignerMut<Signature> for Ed448 {
+        fn try_sign(&mut self, msg: &[u8]) -> Result<Signature, Error> {
+            let mut sig = [0u8; Ed448::SIG_SIZE];
+            self.sign_msg(msg, None, &mut sig).map_err(|_| Error::new())?;
+            Ok(Signature(sig))
+        }
+    }
+
+    #[cfg(all(ed448_import, ed448_verify))]
+    impl signature::Verifier<Signature> for VerifyingKey {
+        fn verify(&self, msg: &[u8], signature: &Signature) -> Result<(), Error> {
+            let mut key = Ed448::new().map_err(|_| Error::new())?;
+            key.import_public(&self.0).map_err(|_| Error::new())?;
+            let valid = key
+                .verify_msg(&signature.0, msg, None)
+                .map_err(|_| Error::new())?;
+            if valid { Ok(()) } else { Err(Error::new()) }
+        }
+    }
+}
+
+#[cfg(feature = "signature")]
+pub use signature_impl::{Signature, VerifyingKey};

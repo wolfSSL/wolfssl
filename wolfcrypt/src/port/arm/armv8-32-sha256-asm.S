@@ -32,75 +32,36 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_SHA256
 #ifdef WOLFSSL_ARMASM_NO_NEON
+#ifndef __APPLE__
 	.text
 	.type	L_SHA256_transform_len_k, %object
 	.size	L_SHA256_transform_len_k, 256
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_SHA256_transform_len_k:
-	.word	0x428a2f98
-	.word	0x71374491
-	.word	0xb5c0fbcf
-	.word	0xe9b5dba5
-	.word	0x3956c25b
-	.word	0x59f111f1
-	.word	0x923f82a4
-	.word	0xab1c5ed5
-	.word	0xd807aa98
-	.word	0x12835b01
-	.word	0x243185be
-	.word	0x550c7dc3
-	.word	0x72be5d74
-	.word	0x80deb1fe
-	.word	0x9bdc06a7
-	.word	0xc19bf174
-	.word	0xe49b69c1
-	.word	0xefbe4786
-	.word	0xfc19dc6
-	.word	0x240ca1cc
-	.word	0x2de92c6f
-	.word	0x4a7484aa
-	.word	0x5cb0a9dc
-	.word	0x76f988da
-	.word	0x983e5152
-	.word	0xa831c66d
-	.word	0xb00327c8
-	.word	0xbf597fc7
-	.word	0xc6e00bf3
-	.word	0xd5a79147
-	.word	0x6ca6351
-	.word	0x14292967
-	.word	0x27b70a85
-	.word	0x2e1b2138
-	.word	0x4d2c6dfc
-	.word	0x53380d13
-	.word	0x650a7354
-	.word	0x766a0abb
-	.word	0x81c2c92e
-	.word	0x92722c85
-	.word	0xa2bfe8a1
-	.word	0xa81a664b
-	.word	0xc24b8b70
-	.word	0xc76c51a3
-	.word	0xd192e819
-	.word	0xd6990624
-	.word	0xf40e3585
-	.word	0x106aa070
-	.word	0x19a4c116
-	.word	0x1e376c08
-	.word	0x2748774c
-	.word	0x34b0bcb5
-	.word	0x391c0cb3
-	.word	0x4ed8aa4a
-	.word	0x5b9cca4f
-	.word	0x682e6ff3
-	.word	0x748f82ee
-	.word	0x78a5636f
-	.word	0x84c87814
-	.word	0x8cc70208
-	.word	0x90befffa
-	.word	0xa4506ceb
-	.word	0xbef9a3f7
-	.word	0xc67178f2
+	.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
+	.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
+	.long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
+	.long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
+	.long	0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc
+	.long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
+	.long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
+	.long	0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967
+	.long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
+	.long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
+	.long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
+	.long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
+	.long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
+	.long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
+	.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
+	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.align	4
 	.globl	Transform_Sha256_Len_base
@@ -2568,75 +2529,36 @@ L_SHA256_transform_len_blk_end_15:
 	.size	Transform_Sha256_Len_base,.-Transform_Sha256_Len_base
 #else
 #ifdef WOLFSSL_ARMASM_NO_HW_CRYPTO
+#ifndef __APPLE__
 	.text
 	.type	L_SHA256_transform_neon_len_k, %object
 	.size	L_SHA256_transform_neon_len_k, 256
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_SHA256_transform_neon_len_k:
-	.word	0x428a2f98
-	.word	0x71374491
-	.word	0xb5c0fbcf
-	.word	0xe9b5dba5
-	.word	0x3956c25b
-	.word	0x59f111f1
-	.word	0x923f82a4
-	.word	0xab1c5ed5
-	.word	0xd807aa98
-	.word	0x12835b01
-	.word	0x243185be
-	.word	0x550c7dc3
-	.word	0x72be5d74
-	.word	0x80deb1fe
-	.word	0x9bdc06a7
-	.word	0xc19bf174
-	.word	0xe49b69c1
-	.word	0xefbe4786
-	.word	0xfc19dc6
-	.word	0x240ca1cc
-	.word	0x2de92c6f
-	.word	0x4a7484aa
-	.word	0x5cb0a9dc
-	.word	0x76f988da
-	.word	0x983e5152
-	.word	0xa831c66d
-	.word	0xb00327c8
-	.word	0xbf597fc7
-	.word	0xc6e00bf3
-	.word	0xd5a79147
-	.word	0x6ca6351
-	.word	0x14292967
-	.word	0x27b70a85
-	.word	0x2e1b2138
-	.word	0x4d2c6dfc
-	.word	0x53380d13
-	.word	0x650a7354
-	.word	0x766a0abb
-	.word	0x81c2c92e
-	.word	0x92722c85
-	.word	0xa2bfe8a1
-	.word	0xa81a664b
-	.word	0xc24b8b70
-	.word	0xc76c51a3
-	.word	0xd192e819
-	.word	0xd6990624
-	.word	0xf40e3585
-	.word	0x106aa070
-	.word	0x19a4c116
-	.word	0x1e376c08
-	.word	0x2748774c
-	.word	0x34b0bcb5
-	.word	0x391c0cb3
-	.word	0x4ed8aa4a
-	.word	0x5b9cca4f
-	.word	0x682e6ff3
-	.word	0x748f82ee
-	.word	0x78a5636f
-	.word	0x84c87814
-	.word	0x8cc70208
-	.word	0x90befffa
-	.word	0xa4506ceb
-	.word	0xbef9a3f7
-	.word	0xc67178f2
+	.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
+	.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
+	.long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
+	.long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
+	.long	0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc
+	.long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
+	.long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
+	.long	0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967
+	.long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
+	.long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
+	.long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
+	.long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
+	.long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
+	.long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
+	.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
+	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.align	4
 	.fpu	neon
@@ -3667,75 +3589,36 @@ L_SHA256_transform_neon_len_start:
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
 	.size	Transform_Sha256_Len_neon,.-Transform_Sha256_Len_neon
 #else
+#ifndef __APPLE__
 	.text
 	.type	L_SHA256_trans_crypto_len_k, %object
 	.size	L_SHA256_trans_crypto_len_k, 256
-	.align	4
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_SHA256_trans_crypto_len_k:
-	.word	0x428a2f98
-	.word	0x71374491
-	.word	0xb5c0fbcf
-	.word	0xe9b5dba5
-	.word	0x3956c25b
-	.word	0x59f111f1
-	.word	0x923f82a4
-	.word	0xab1c5ed5
-	.word	0xd807aa98
-	.word	0x12835b01
-	.word	0x243185be
-	.word	0x550c7dc3
-	.word	0x72be5d74
-	.word	0x80deb1fe
-	.word	0x9bdc06a7
-	.word	0xc19bf174
-	.word	0xe49b69c1
-	.word	0xefbe4786
-	.word	0xfc19dc6
-	.word	0x240ca1cc
-	.word	0x2de92c6f
-	.word	0x4a7484aa
-	.word	0x5cb0a9dc
-	.word	0x76f988da
-	.word	0x983e5152
-	.word	0xa831c66d
-	.word	0xb00327c8
-	.word	0xbf597fc7
-	.word	0xc6e00bf3
-	.word	0xd5a79147
-	.word	0x6ca6351
-	.word	0x14292967
-	.word	0x27b70a85
-	.word	0x2e1b2138
-	.word	0x4d2c6dfc
-	.word	0x53380d13
-	.word	0x650a7354
-	.word	0x766a0abb
-	.word	0x81c2c92e
-	.word	0x92722c85
-	.word	0xa2bfe8a1
-	.word	0xa81a664b
-	.word	0xc24b8b70
-	.word	0xc76c51a3
-	.word	0xd192e819
-	.word	0xd6990624
-	.word	0xf40e3585
-	.word	0x106aa070
-	.word	0x19a4c116
-	.word	0x1e376c08
-	.word	0x2748774c
-	.word	0x34b0bcb5
-	.word	0x391c0cb3
-	.word	0x4ed8aa4a
-	.word	0x5b9cca4f
-	.word	0x682e6ff3
-	.word	0x748f82ee
-	.word	0x78a5636f
-	.word	0x84c87814
-	.word	0x8cc70208
-	.word	0x90befffa
-	.word	0xa4506ceb
-	.word	0xbef9a3f7
-	.word	0xc67178f2
+	.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
+	.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
+	.long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
+	.long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
+	.long	0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc
+	.long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
+	.long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
+	.long	0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967
+	.long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
+	.long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
+	.long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
+	.long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
+	.long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
+	.long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
+	.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
+	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.align	4
 	.globl	Transform_Sha256_Len_crypto
@@ -3745,14 +3628,14 @@ Transform_Sha256_Len_crypto:
 	adr	r3, L_SHA256_trans_crypto_len_k
 	# Load K into vector registers
 	vldm	r3!, {q8-q11}
-	vldm	r3!, {q12, q13}
+	vldm	r3!, {q12-q13}
 	# Load digest into working vars
-	vldm	r0, {q0, q1}
+	vldm	r0, {q0-q1}
 	# Start of loop processing a block
 L_sha256_len_crypto_begin:
 	# Load W
-	vld1.8	{q4, q5}, [r1]!
-	vld1.8	{q6, q7}, [r1]!
+	vld1.8	{q4-q5}, [r1]!
+	vld1.8	{q6-q7}, [r1]!
 	vrev32.8	q4, q4
 	vrev32.8	q5, q5
 	vrev32.8	q6, q6
@@ -3882,7 +3765,7 @@ L_sha256_len_crypto_begin:
 	sub	r3, r3, #0xa0
 	bne	L_sha256_len_crypto_begin
 	# Store digest back
-	vst1.8	{q0, q1}, [r0]
+	vst1.8	{q0-q1}, [r0]
 	vpop	{d8-d15}
 	bx	lr
 	.size	Transform_Sha256_Len_crypto,.-Transform_Sha256_Len_crypto

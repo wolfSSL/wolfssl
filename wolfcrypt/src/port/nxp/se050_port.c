@@ -72,7 +72,7 @@
 /* Global variables */
 static sss_session_t *cfg_se050_i2c_pi;
 static sss_key_store_t *gHostKeyStore;
-static sss_key_store_t *gHeyStore;
+static sss_key_store_t *gKeyStore;
 
 int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     sss_key_store_t *pKeyStore)
@@ -81,7 +81,7 @@ int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
 
     cfg_se050_i2c_pi = pSession;
     gHostKeyStore = pHostKeyStore;
-    gHeyStore = pKeyStore;
+    gKeyStore = pKeyStore;
 
     return 0;
 }
@@ -294,9 +294,6 @@ int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len
             XFREE(se050Ctx->msg, se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
             se050Ctx->msg = tmp;
         }
-        if (se050Ctx->msg == NULL) {
-            return MEMORY_E;
-        }
         se050Ctx->len = usedSz;
     }
 
@@ -347,6 +344,7 @@ int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
 
     if (status == kStatus_SSS_Success) {
         /* reset state */
+        XFREE(se050Ctx->msg, se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
         ret = se050_hash_init(se050Ctx, se050Ctx->heap);
     } else {
         ret = WC_HW_E;
@@ -395,6 +393,7 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
     /* free existing key in slot first before storing new one */
     ret = wc_se050_erase_object(aes->keyId);
     if (ret != 0) {
+        wolfSSL_CryptHwMutexUnLock();
         return ret;
     }
     aes->keyIdSet = 0;
@@ -574,6 +573,7 @@ int wc_se050_insert_binary_object(word32 keyId, const byte* object,
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -638,10 +638,12 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
         else {
             if (out == NULL) {
                 *outSz = ret;
+                wolfSSL_CryptHwMutexUnLock();
                 return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
             if ((word32)ret > *outSz) {
                 WOLFSSL_MSG("Output buffer not large enough for object");
+                wolfSSL_CryptHwMutexUnLock();
                 return BAD_LENGTH_E;
             }
             ret = 0;
@@ -808,7 +810,7 @@ int se050_rsa_get_key_id(struct RsaKey* key, word32* keyId)
 int se050_rsa_create_key(struct RsaKey* key, int size, long e)
 {
     int             ret = 0;
-    word32          keyId;
+    word32          keyId = 0;
     int             keyCreated = 0;
     sss_status_t    status = kStatus_SSS_Success;
     sss_object_t    keyPair;
@@ -933,6 +935,7 @@ static int se050_rsa_insert_key(word32 keyId, const byte* rsaDer,
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1022,8 +1025,59 @@ int wc_se050_rsa_insert_public_key(word32 keyId, const byte* rsaDer,
 }
 
 /**
- * Return sss_algorithm_t type for RSA sign/verify based on wolfCrypt pad type,
- * hash value, and mask generation function (mgf).
+ * Free an RSA key object from the SE050. Erases key from persistent storage
+ * if it was allocated by wolfSSL (not pre-provisioned).
+ *
+ * key  Pointer to initialized RsaKey structure
+ */
+void se050_rsa_free_key(struct RsaKey* key)
+{
+    sss_status_t    status = kStatus_SSS_Success;
+    sss_object_t    keyObject;
+    sss_key_store_t host_keystore;
+
+#ifdef SE050_DEBUG
+    printf("se050_rsa_free_key: key %p, keyId %d\n", key, key->keyId);
+#endif
+
+    if (cfg_se050_i2c_pi == NULL) {
+        return;
+    }
+    if (key->keyIdSet == 0) {
+        return;
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return;
+    }
+
+    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_RSA);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&keyObject, &host_keystore);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_get_handle(&keyObject, key->keyId);
+    }
+
+    if (status == kStatus_SSS_Success) {
+        /* Erase key from SE050 persistent storage if it was allocated
+         * by wolfSSL (not a pre-provisioned key). Without this, persistent
+         * key objects leak on the SE050 and can exhaust secure storage. */
+        if (key->keyId >= SE050_KEYID_START) {
+            sss_key_store_erase_key(&host_keystore, &keyObject);
+        }
+        sss_key_object_free(&keyObject);
+        key->keyId = 0;
+        key->keyIdSet = 0;
+    }
+    wolfSSL_CryptHwMutexUnLock();
+}
+
+/**
+ * Get SSS algorithm type for RSA signature operations.
  *
  * padType  padding type
  * hash     hash function
@@ -1177,15 +1231,29 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
     algorithm = se050_get_rsa_signature_type(pad_type, hash, mgf);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
+#ifdef SE050_DEBUG
+    printf("se050_rsa_sign: algorithm = %d, keySz = %d, keyIdSet = %d\n",
+            algorithm, keySz, key->keyIdSet);
+#endif
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+#ifdef SE050_DEBUG
+    printf("se050_rsa_sign: sss_key_store_context_init status = %d\n", status);
+#endif
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_RSA);
+#ifdef SE050_DEBUG
+        printf("se050_rsa_sign: sss_key_store_allocate status = %d\n", status);
+#endif
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
+#ifdef SE050_DEBUG
+        printf("se050_rsa_sign: sss_key_object_init status = %d\n", status);
+#endif
     }
     if (status == kStatus_SSS_Success) {
         keyId = key->keyId;
@@ -1193,6 +1261,9 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
             /* key was not generated in SE050, export RsaKey to DER
              * and use that to store into SE050 keystore */
             derSz = wc_RsaKeyToDer(key, NULL, 0);
+#ifdef SE050_DEBUG
+            printf("se050_rsa_sign: wc_RsaKeyToDer size query = %d\n", derSz);
+#endif
             if (derSz < 0) {
                 status = kStatus_SSS_Fail;
                 ret = derSz;
@@ -1208,6 +1279,9 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
             }
             if (status == kStatus_SSS_Success) {
                 derSz = wc_RsaKeyToDer(key, derBuf, derSz);
+#ifdef SE050_DEBUG
+                printf("se050_rsa_sign: wc_RsaKeyToDer export = %d\n", derSz);
+#endif
                 if (derSz < 0) {
                     status = kStatus_SSS_Fail;
                     ret = derSz;
@@ -1218,31 +1292,60 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
                 status = sss_key_object_allocate_handle(&newKey, keyId,
                     kSSS_KeyPart_Pair, kSSS_CipherType_RSA, keySz,
                     kKeyObject_Mode_Persistent);
+#ifdef SE050_DEBUG
+                printf("se050_rsa_sign: sss_key_object_allocate_handle "
+                        "status = %d, keyId = %d\n", status, keyId);
+#endif
             }
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &newKey);
+                status = sss_key_store_erase_key(&host_keystore, &newKey);
+#ifdef SE050_DEBUG
+                printf("se050_rsa_sign: sss_key_store_erase_key "
+                        "status = %d\n", status);
+#endif
+                /* Reset status - erase failing is expected if key doesn't
+                 * exist yet */
+                status = kStatus_SSS_Success;
 
                 keyCreated = 1;
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
                                                derSz, (keySz * 8), NULL, 0);
+#ifdef SE050_DEBUG
+                printf("se050_rsa_sign: sss_key_store_set_key "
+                        "status = %d, derSz = %d, keyBits = %d\n",
+                        status, derSz, (keySz * 8));
+#endif
             }
 
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
+#ifdef SE050_DEBUG
+            printf("se050_rsa_sign: sss_key_object_get_handle "
+                    "status = %d, keyId = %d\n", status, keyId);
+#endif
         }
     }
 
     if (status == kStatus_SSS_Success) {
         status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
                                             &newKey, algorithm, kMode_SSS_Sign);
+#ifdef SE050_DEBUG
+        printf("se050_rsa_sign: sss_asymmetric_context_init "
+                "status = %d, algorithm = %d\n", status, algorithm);
+#endif
         if (status == kStatus_SSS_Success) {
             sigSz = outLen;
-            status = sss_asymmetric_sign_digest(&ctx_asymm, (uint8_t*)in, inLen,
-                                                out, &sigSz);
+            status = sss_asymmetric_sign_digest(&ctx_asymm, (uint8_t*)in,
+                                                inLen, out, &sigSz);
+#ifdef SE050_DEBUG
+            printf("se050_rsa_sign: sss_asymmetric_sign_digest "
+                    "status = %d, inLen = %d, sigSz = %d\n",
+                    status, inLen, (int)sigSz);
+#endif
         }
         sss_asymmetric_context_free(&ctx_asymm);
     }
@@ -1332,6 +1435,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     algorithm = se050_get_rsa_signature_type(pad_type, hash, mgf);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1379,7 +1483,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                 keyId = se050_allocate_key(SE050_RSA_KEY);
                 status = sss_key_object_allocate_handle(&newKey, keyId,
                     kSSS_KeyPart_Public, kSSS_CipherType_RSA, keySz,
-                    kKeyObject_Mode_Persistent);
+                    kKeyObject_Mode_Transient);
             }
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
@@ -1391,7 +1495,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                derSz, (keySz * 8), NULL, 0);
             }
 
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
@@ -1434,8 +1538,22 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* We uploaded only the public part of the key for this verify.
+             * Don't persist keyIdSet=1 -- a later sign on the same RsaKey
+             * would reuse this binding and fail because the SE050 object has
+             * no private material. Erase the transient object so the next
+             * SE050 op (sign or verify) re-uploads from whatever the host
+             * RsaKey currently holds. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            /* Pre-existing keyIdSet=1 binding (e.g. wc_RsaUseKeyId or prior
+             * sign that uploaded a keypair). Preserve it. */
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
     }
     else {
         if (keyCreated) {
@@ -1520,6 +1638,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
     algorithm = se050_get_rsa_encrypt_type(pad_type, hash);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1576,7 +1695,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -1591,8 +1710,17 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* Public-key encrypt imported a temporary public object only.
+             * Do not bind that SE050 object to the caller's RsaKey or later
+             * private-key operations will try to reuse a public handle. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
         ret = encSz;
     }
     else {
@@ -1678,6 +1806,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     algorithm = se050_get_rsa_encrypt_type(pad_type, hash);
     if (algorithm == kAlgorithm_None) {
         WOLFSSL_MSG("Unsupported padding/hash/mgf combination for SE050");
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1741,7 +1870,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -1876,6 +2005,7 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
 
     /* Avoid key ID conflicts with temporary key storage */
     if (keyId >= SE050_KEYID_START) {
+        wolfSSL_CryptHwMutexUnLock();
         return BAD_FUNC_ARG;
     }
 
@@ -1907,7 +2037,9 @@ static int se050_ecc_insert_key(word32 keyId, const byte* eccDer,
             status = kStatus_SSS_Fail;
         }
     }
-    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
@@ -2014,11 +2146,8 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
 
     algorithm = se050_map_hash_alg(inLen);
     if (algorithm == kAlgorithm_None) {
-        inLen = keySize; /* try key size */
-        algorithm = se050_map_hash_alg(inLen);
-    }
-    if (algorithm == kAlgorithm_None) {
-        return ECC_CURVE_OID_E;
+        WOLFSSL_MSG("SE050 ECDSA sign only supports SHA-1/224/256/384/512 digest sizes");
+        return BAD_LENGTH_E;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
@@ -2185,11 +2314,8 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
 
     algorithm = se050_map_hash_alg(hashLen);
     if (algorithm == kAlgorithm_None) {
-        hashLen = keySize; /* try key size */
-        algorithm = se050_map_hash_alg(hashLen);
-    }
-    if (algorithm == kAlgorithm_None) {
-        return ECC_CURVE_OID_E;
+        WOLFSSL_MSG("SE050 ECDSA verify only supports SHA-1/224/256/384/512 digest sizes");
+        return BAD_LENGTH_E;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
@@ -2339,6 +2465,12 @@ void se050_ecc_free_key(struct ecc_key* key)
     }
 
     if (status == kStatus_SSS_Success) {
+        /* Erase key from SE050 persistent storage if it was allocated
+         * by wolfSSL (not a pre-provisioned key). Without this, persistent
+         * key objects leak on the SE050 and can exhaust secure storage. */
+        if (key->keyId >= SE050_KEYID_START) {
+            sss_key_store_erase_key(&host_keystore, &keyObject);
+        }
         sss_key_object_free(&keyObject);
         key->keyId = 0;
         key->keyIdSet = 0;
@@ -2462,7 +2594,7 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     sss_key_store_t   host_keystore;
     uint8_t           derBuf[SE050_ECC_DER_MAX];
     size_t            derSz = sizeof(derBuf);
-    word32            keyId;
+    word32            keyId = 0;
     int               keySizeBits;
     sss_cipher_type_t curveType;
     int               keyCreated = 0;
@@ -2556,7 +2688,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sss_object_t        ref_public_key;
     sss_object_t        deriveKey;
     sss_derive_key_t    ctx_derive_key;
-    word32              keyId;
+    word32              keyId = 0;
     int                 keySize;
     int                 keySizeBits;
     sss_cipher_type_t   curveType;
@@ -2800,6 +2932,9 @@ void se050_ed25519_free_key(ed25519_key* key)
         status = sss_key_object_get_handle(&newKey, key->keyId);
     }
     if (status == kStatus_SSS_Success) {
+        if (key->keyId >= SE050_KEYID_START) {
+            sss_key_store_erase_key(&host_keystore, &newKey);
+        }
         sss_key_object_free(&newKey);
         key->keyId = 0;
         key->keyIdSet = 0;
@@ -2921,6 +3056,12 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
         key, signature, signatureLen, msg, msgLen);
 #endif
 
+    if (signature == NULL || msg == NULL || key == NULL || res == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    *res = 0;
+
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
@@ -2981,8 +3122,21 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     }
 
     if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        key->keyIdSet = 1;
+        if (keyCreated) {
+            /* We uploaded only the public part of the key for this verify.
+             * Don't persist keyIdSet=1 -- a later sign on the same ed25519_key
+             * would reuse this binding and fail because the SE050 object has
+             * no private material. Erase the transient object so the next
+             * SE050 op re-uploads. Mirrors the fix in se050_rsa_verify. */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
+        else {
+            /* Pre-existing keyIdSet=1 binding (from prior sign that uploaded
+             * a keypair, or explicit caller setup). Preserve it. */
+            key->keyId = keyId;
+            key->keyIdSet = 1;
+        }
         *res = 1;
         ret = 0;
     }
@@ -3273,6 +3427,9 @@ void se050_curve25519_free_key(struct curve25519_key* key)
         status = sss_key_object_get_handle(&newKey, key->keyId);
     }
     if (status == kStatus_SSS_Success) {
+        if (key->keyId >= SE050_KEYID_START) {
+            sss_key_store_erase_key(&host_keystore, &newKey);
+        }
         sss_key_object_free(&newKey);
         key->keyId = 0;
         key->keyIdSet = 0;

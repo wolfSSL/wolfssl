@@ -185,6 +185,9 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
                 }
             }
         }
+        else {
+            res = MP_MEM;
+        }
 
         XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
         XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
@@ -547,7 +550,7 @@ int ltc_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y, int useConstTime)
                 res = LTC_PKHA_ModExp(LTC_BASE,
                     ptrG, sizeG,  /* integer input */
                     ptrP, sizeP,  /* modulus */
-                    ptrX, sizeX,  /* expenoent */
+                    ptrX, sizeX,  /* exponent */
                     ptrY, &sizeY, /* out */
                     kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue,
                     useConstTime ? kLTC_PKHA_TimingEqualized :

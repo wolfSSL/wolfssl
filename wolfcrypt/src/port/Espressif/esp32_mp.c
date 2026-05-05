@@ -2249,6 +2249,9 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
     #ifdef WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
             ESP_LOGW(TAG, "result exceeds max bit length");
     #endif
+            if (mulmod_lock_called) {
+                esp_mp_hw_unlock();
+            }
             return MP_HW_FALLBACK; /*  Error: value is not able to be used. */
         }
         WordsForOperand = bits2words(OperandBits);
@@ -2343,7 +2346,7 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
                            OperandBits, ESP_HW_MOD_RSAMAX_BITS);
     #endif
             if (mulmod_lock_called) {
-                ret = esp_mp_hw_unlock();
+                esp_mp_hw_unlock();
             }
             return MP_HW_FALLBACK; /*  Error: value is not able to be used. */
         }
@@ -2440,6 +2443,9 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
             ESP_LOGW(TAG, "mp_mulmod OperandBits %d exceeds max bit length %d.",
                            OperandBits, ESP_HW_MOD_RSAMAX_BITS);
     #endif
+            if (mulmod_lock_called) {
+                esp_mp_hw_unlock();
+            }
             return MP_HW_FALLBACK; /*  Error: value is not able to be used. */
         }
         WordsForOperand = bits2words(OperandBits);

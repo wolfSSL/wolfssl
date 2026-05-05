@@ -4195,6 +4195,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         {
             word16 listLen = 0, offset = 0;
 
+            if (extLen < OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
             ato16(input + offset, &listLen);
             offset += OPAQUE16_LEN;
 
@@ -4228,7 +4231,13 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     #ifdef WOLFSSL_TLS13
         case EXT_KEY_SHARE:
         {
-            word16 ksLen = (word16)((input[0] << 8) | input[1]);
+            word16 ksLen = 0;
+            if (extLen < OPAQUE16_LEN) {
+                SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
+                return BUFFER_ERROR;
+            }
+
+            ksLen = (word16)((input[0] << 8) | input[1]);
             if (ksLen + OPAQUE16_LEN > extLen) {
                 SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
                 return WOLFSSL_FATAL_ERROR;
@@ -4251,6 +4260,11 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             word16 idsLen, idLen, bindersLen, idx = 0;
             word32 ticketAge;
             const byte *identity, *binders;
+
+            if (extLen < OPAQUE16_LEN) {
+                SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
+                return BUFFER_ERROR;
+            }
 
             idsLen = (word16)((input[idx] << 8) | input[idx+1]);
             if ((word32)idsLen + OPAQUE16_LEN + idx > (word32)extLen) {
@@ -6720,12 +6734,21 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
         struct iovec* chain;
         word32 i;
+        size_t totalLength;
 
         word32 chainSz = (word32)length;
 
         chain = (struct iovec*)packet;
-        length = 0;
-        for (i = 0; i < chainSz; i++) length += chain[i].iov_len;
+        totalLength = 0;
+        for (i = 0; i < chainSz; i++) {
+            size_t prev = totalLength;
+            totalLength += chain[i].iov_len;
+            if (totalLength < prev || totalLength > (size_t)INT_MAX) {
+                SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_SNIFFER_ERROR;
+            }
+        }
+        length = (int)totalLength;
 
         tmpPacket = (byte*)XMALLOC(length, NULL, DYNAMIC_TYPE_SNIFFER_CHAIN_BUFFER);
         if (tmpPacket == NULL) return MEMORY_E;
@@ -6733,7 +6756,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         length = 0;
         for (i = 0; i < chainSz; i++) {
             XMEMCPY(tmpPacket+length,chain[i].iov_base,chain[i].iov_len);
-            length += chain[i].iov_len;
+            length += (int)chain[i].iov_len;
         }
         packet = (const byte*)tmpPacket;
 #else
@@ -7233,12 +7256,16 @@ int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
     ret = LoadKeyFile(&keyBuf, &keyBufSz, keyFile, 0, keyType, password);
     if (ret < 0) {
         SetError(KEY_FILE_STR, error, NULL, 0);
+        if (keyBuf != NULL) {
+            ForceZero(keyBuf, keyBufSz);
+        }
         XFREE(keyBuf, NULL, DYNAMIC_TYPE_X509);
         return WOLFSSL_FATAL_ERROR;
     }
 
     ret = ssl_SetWatchKey_buffer(vSniffer, keyBuf, keyBufSz, FILETYPE_DER,
             error);
+    ForceZero(keyBuf, keyBufSz);
     XFREE(keyBuf, NULL, DYNAMIC_TYPE_X509);
 
     return ret;

@@ -138,7 +138,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "mul	v22.4s, v18.4s, v24.4s\n\t"
         "mul	v23.4s, v19.4s, v24.4s\n\t"
         "\n"
-    "L_poly1305_arm64_blocks_loop_64_%=: \n\t"
+    "L_poly1305_arm64_blocks_loop_64_%=:\n\t"
         /* Load message of 64 bytes - setting hi bit for not finished */
         "ld4	{v5.4s, v6.4s, v7.4s, v8.4s}, [%x[m]], #0x40\n\t"
         "sub	%x[bytes], %x[bytes], #0x40\n\t"
@@ -314,7 +314,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "usra	v4.2d, v3.2d, #26\n\t"
         "and	v3.16b, v3.16b, v26.16b\n\t"
         "\n"
-    "L_poly1305_arm64_blocks_done_32_%=: \n\t"
+    "L_poly1305_arm64_blocks_done_32_%=:\n\t"
         "cmp	%x[bytes], #16\n\t"
         "b.eq	L_poly1305_arm64_blocks_transfer_%=\n\t"
         "add	x14, %x[ctx], #0x60\n\t"
@@ -322,7 +322,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "st1	{v4.s}[0], [x14]\n\t"
         "b	L_poly1305_arm64_blocks_done_all_%=\n\t"
         "\n"
-    "L_poly1305_arm64_blocks_transfer_%=: \n\t"
+    "L_poly1305_arm64_blocks_transfer_%=:\n\t"
         "mov	w3, v0.s[0]\n\t"
         "mov	w4, v1.s[0]\n\t"
         "mov	w5, v2.s[0]\n\t"
@@ -330,7 +330,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "mov	w7, v4.s[0]\n\t"
         "b	L_poly1305_arm64_blocks_start_%=\n\t"
         "\n"
-    "L_poly1305_arm64_blocks_done_%=: \n\t"
+    "L_poly1305_arm64_blocks_done_%=:\n\t"
         "cmp	%x[bytes], #16\n\t"
         "b.lt	L_poly1305_arm64_blocks_done_all_%=\n\t"
         /* Load h */
@@ -338,7 +338,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "ldp	w5, w6, [%x[ctx], #104]\n\t"
         "ldr	w7, [%x[ctx], #112]\n\t"
         "\n"
-    "L_poly1305_arm64_blocks_start_%=: \n\t"
+    "L_poly1305_arm64_blocks_start_%=:\n\t"
         "mov	x17, #1\n\t"
         /* Load r */
         "ldp	x8, x9, [%x[ctx]]\n\t"
@@ -350,7 +350,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "lsr	x5, x7, #24\n\t"
         "add	x4, x4, x7, lsl 40\n\t"
         "\n"
-    "L_poly1305_arm64_blocks_loop_%=: \n\t"
+    "L_poly1305_arm64_blocks_loop_%=:\n\t"
         /* Load m */
         "ldr	x14, [%x[m]]\n\t"
         "ldr	x15, [%x[m], #8]\n\t"
@@ -413,7 +413,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "stp	w5, w6, [%x[ctx], #104]\n\t"
         "str	w7, [%x[ctx], #112]\n\t"
         "\n"
-    "L_poly1305_arm64_blocks_done_all_%=: \n\t"
+    "L_poly1305_arm64_blocks_done_all_%=:\n\t"
         : [ctx] "+r" (ctx), [bytes] "+r" (bytes)
         : [m] "r" (m)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
@@ -424,7 +424,7 @@ void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
     );
 }
 
-static const word32 L_poly1305_set_key_arm64_clamp[] = {
+XALIGNED(8) static const word32 L_poly1305_set_key_arm64_clamp[] = {
     0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc,
 };
 

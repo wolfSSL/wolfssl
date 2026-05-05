@@ -157,30 +157,48 @@ GENERATE_SECTION_MAP := $(AWK) 'BEGIN { printf("") >ENVIRON["SECTION_MAP"]; }		\
 	}'
 
 GENERATE_RELOC_TAB := $(AWK) '								\
-        BEGIN {                                                         		\
-	    n=0;									\
+	function open_seg(seg) {							\
+	    seen_seg[seg] = 1;								\
+	    printf("%s\n    ",								\
+		"WOLFSSL_LOCAL const struct wc_reloc_table_ent wc_linuxkm_pie_" seg "_reloc_tab[] = { ");	\
+	    cur_seg = seg;								\
+	}										\
+	function close_cur_seg() {							\
+	    print "    { .offset = ~0U, .dest_offset = ~0U, .dest_addend = 0, .dest_segment = WC_R_SEG_NONE, .reloc_type = WC_R_NONE } };"; \
+	    print "WOLFSSL_LOCAL const unsigned int wc_linuxkm_pie_" cur_seg "_reloc_tab_length = (unsigned int)(sizeof wc_linuxkm_pie_" cur_seg "_reloc_tab / sizeof wc_linuxkm_pie_" cur_seg "_reloc_tab[0]);"; \
+	    cur_seg = "";								\
+	}										\
+	BEGIN {										\
 	    bad_relocs=0;								\
 	    print "\#include <wolfssl/wolfcrypt/libwolfssl_sources.h>";			\
 	    print "\#include <wolfssl/wolfcrypt/memory.h>";				\
-	    printf("%s\n    ",								\
-		"WOLFSSL_LOCAL const struct wc_reloc_table_ent wc_linuxkm_pie_reloc_tab[] = { ");	\
+	    print "";									\
 	    if ("SECTION_MAP" in ENVIRON) {						\
 		while (getline <ENVIRON["SECTION_MAP"] > 0)				\
 		    section_map[$$1] = $$2;						\
 		close(ENVIRON["SECTION_MAP"]);						\
 	    }										\
 	}										\
-	/^Relocation section '\''\.rela?\.text_wolfcrypt'\''/ {				\
-	    p=1;									\
-	    next;									\
-	}										\
+											\
 	/^Relocation section/ {								\
-	    p=0;									\
+	    if (cur_seg) {								\
+		close_cur_seg();							\
+	    }										\
+	    {										\
+		if (match($$0, "^Relocation section '\''\\.rela?\\.(text|rodata)_wolfcrypt'\''", a)) {\
+		    open_seg(a[1]);							\
+		    next;								\
+		}									\
+	    }										\
+	}										\
+											\
+	{										\
+	    if (! cur_seg)								\
+		next;									\
 	}										\
 	/^0/ {										\
-	    if (p) {									\
-		if ($$3 !~ "^(R_X86_64_PLT32|R_X86_64_PC32|R_AARCH64_.*|R_ARM.*)$$") {	\
-		    print "Unexpected relocation type:\n" $$0 >"/dev/stderr";		\
+		if ($$3 !~ "^(R_X86_.*|R_AARCH64_.*|R_ARM.*)$$") {			\
+		    print "Unexpected relocation type in " cur_seg ":\n" $$0 >"/dev/stderr";		\
 		    ++bad_relocs;							\
 		}									\
 		if ($$5 in section_map)							\
@@ -224,15 +242,22 @@ GENERATE_RELOC_TAB := $(AWK) '								\
 		       strtonum("0x" $$4),						\
 		       $$6 strtonum("0x" $$7),						\
 		       section_tag, reloc_type);					\
-	    }										\
 	}										\
 	END {										\
+	    if (cur_seg) {								\
+		close_cur_seg();							\
+	    }										\
+	    n = split("text rodata", segs, " ");					\
+	    for (i = 1; i <= n; ++i) {							\
+		if (! (segs[i] in seen_seg)) {						\
+		    open_seg(segs[i]);							\
+		    close_cur_seg();							\
+		}									\
+	    }										\
 	    if (bad_relocs) {								\
 		print "Found " bad_relocs " unresolvable relocations." >"/dev/stderr";	\
 		exit(1);								\
 	    }										\
-	    print "    { .offset = ~0U, .dest_offset = ~0U, .dest_addend = 0, .dest_segment = WC_R_SEG_NONE, .reloc_type = WC_R_NONE } };"; \
-	    print "WOLFSSL_LOCAL const unsigned int wc_linuxkm_pie_reloc_tab_length = (unsigned int)(sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0]);"; \
 	}'
 
 ifeq "$(V)" "1"
@@ -384,7 +409,7 @@ $(MODULE_TOP)/libwolfssl-user-build/src/.libs/libwolfssl.so: $(LIBWOLFSSL_NAME).
 	@    echo 'Using existing Makefile for libwolfssl.so.'
 	@else
 	@    echo -n 'Configuring user libwolfssl.so...'
-	@    $(FRESH_ENV) ./configure $(QFLAG) $(VFLAG) --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM' $(if $(HOSTCC),CC='$(HOSTCC)')
+	@    $(FRESH_ENV) ./configure $(QFLAG) $(VFLAG) --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM -DDEBUG_LINUXKM_PIE_SUPPORT' $(if $(HOSTCC),CC='$(HOSTCC)')
 	@    echo ' done.'
 	@fi
 	@echo -n 'Building user libwolfssl.so...'

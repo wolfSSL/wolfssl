@@ -206,6 +206,14 @@ extern ${variable.value} ${variable.name};
 #elif defined(STM32G491xx)
     #define WOLFSSL_STM32G4
     #define HAL_CONSOLE_UART hlpuart1
+#elif defined(STM32U385xx)
+    #define WOLFSSL_STM32U3
+    #define STM32_HAL_V2
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart1
+    #endif
 #elif defined(STM32U575xx) || defined(STM32U585xx) || defined(STM32U5A9xx)
     #define WOLFSSL_STM32U5
     #define STM32_HAL_V2
@@ -250,8 +258,8 @@ extern ${variable.value} ${variable.name};
     /* You need to define a CPU type, HW crypto and debug UART */
     /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4,
         WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4, WOLFSSL_STM32L5,
-        WOLFSSL_STM32G0, WOLFSSL_STM32G4, WOLFSSL_STM32WB, WOLFSSL_STM32U5 and
-        WOLFSSL_STM32MP13 */
+        WOLFSSL_STM32G0, WOLFSSL_STM32G4, WOLFSSL_STM32WB, WOLFSSL_STM32U3,
+        WOLFSSL_STM32U5 and WOLFSSL_STM32MP13 */
     #define WOLFSSL_STM32F4
 
     /* Debug UART used for printf */
@@ -659,9 +667,6 @@ extern ${variable.value} ${variable.name};
 
     #undef  WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_HAVE_MLKEM
-
-    #undef  WOLFSSL_WC_MLKEM
-    #define WOLFSSL_WC_MLKEM
 
     #undef  WOLFSSL_NO_SHAKE128
     #undef  WOLFSSL_SHAKE128

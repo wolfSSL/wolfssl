@@ -41,6 +41,9 @@ int wc_pico_rng_gen_block(unsigned char *output, unsigned int sz)
 {
     uint32_t i = 0;
 
+    if (output == NULL || sz == 0)
+        return BAD_FUNC_ARG;
+
     while (i < sz)
     {
         uint64_t rnd = get_rand_64();
@@ -52,6 +55,7 @@ int wc_pico_rng_gen_block(unsigned char *output, unsigned int sz)
             XMEMCPY(output + i, &rnd, sz - i);
             i = sz;
         }
+        rnd = 0;
     }
 
     return 0;

@@ -201,6 +201,10 @@ sub print_header {
 #ifndef WOLF_CRYPT_OID_SUM_H
 #define WOLF_CRYPT_OID_SUM_H
 
+/* Note for some CPUs smaller than 32 bit, the upper 16 bits of new OID
+ * values may be ignored. If collisions are encountered, consider WC_16BIT_CPU
+ * and/or WOLFSSL_OLD_OID_SUM to force smaller, old OID values. */
+
 "
 }
 
@@ -290,20 +294,26 @@ my @x25519 = ( 1, 3, 101, 110 );
 my @ed448 = ( 1, 3, 101, 113 );
 my @x448 = ( 1, 3, 101, 111 );
 my @dh = ( 1, 2, 840, 113549, 1, 3, 1 );
-my @falcon_1 = ( 1, 3, 9999, 3, 6 );
-my @falcon_5 = ( 1, 3, 9999, 3, 9 );
+my @falcon_1 = ( 1, 3, 9999, 3, 11 );
+my @falcon_5 = ( 1, 3, 9999, 3, 14 );
 my @dilithium_2 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 4, 4 );
 my @dilithium_3 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 6, 5 );
 my @dilithium_5 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 8, 7 );
 my @mldsa_2 = ( 2, 16, 840, 1, 101, 3, 4, 3, 17 );
 my @mldsa_3 = ( 2, 16, 840, 1, 101, 3, 4, 3, 18 );
 my @mldsa_5 = ( 2, 16, 840, 1, 101, 3, 4, 3, 19 );
-my @sphincs_fast_1 = ( 1, 3, 9999, 6, 7, 4 );
-my @sphincs_fast_3 = ( 1, 3, 9999, 6, 8, 3 );
-my @sphincs_fast_5 = ( 1, 3, 9999, 6, 9, 3 );
-my @sphincs_small_1 = ( 1, 3, 9999, 6, 7, 10 );
-my @sphincs_small_3 = ( 1, 3, 9999, 6, 8, 7 );
-my @sphincs_small_5 = ( 1, 3, 9999, 6, 9, 7 );
+my @slhdsa_sha2_128s = (2, 16, 840, 1, 101, 3, 4, 3, 20);
+my @slhdsa_sha2_128f = (2, 16, 840, 1, 101, 3, 4, 3, 21);
+my @slhdsa_sha2_192s = (2, 16, 840, 1, 101, 3, 4, 3, 22);
+my @slhdsa_sha2_192f = (2, 16, 840, 1, 101, 3, 4, 3, 23);
+my @slhdsa_sha2_256s = (2, 16, 840, 1, 101, 3, 4, 3, 24);
+my @slhdsa_sha2_256f = (2, 16, 840, 1, 101, 3, 4, 3, 25);
+my @slhdsa_shake_128s = (2, 16, 840, 1, 101, 3, 4, 3, 26);
+my @slhdsa_shake_128f = (2, 16, 840, 1, 101, 3, 4, 3, 27);
+my @slhdsa_shake_192s = (2, 16, 840, 1, 101, 3, 4, 3, 28);
+my @slhdsa_shake_192f = (2, 16, 840, 1, 101, 3, 4, 3, 29);
+my @slhdsa_shake_256s = (2, 16, 840, 1, 101, 3, 4, 3, 30);
+my @slhdsa_shake_256f = (2, 16, 840, 1, 101, 3, 4, 3, 31);
 
 my @keys = (
     { name => "ANON",                 oid => \@anon            },
@@ -326,13 +336,18 @@ my @keys = (
     { name => "ML_DSA_LEVEL2",        oid => \@mldsa_2         },
     { name => "ML_DSA_LEVEL3",        oid => \@mldsa_3         },
     { name => "ML_DSA_LEVEL5",        oid => \@mldsa_5         },
-    { name => "SPHINCS_FAST_LEVEL1",  oid => \@sphincs_fast_1  },
-    { name => "SPHINCS_FAST_LEVEL3",  oid => \@sphincs_fast_3,
-                                      oid_sum => 283           },
-    { name => "SPHINCS_FAST_LEVEL5",  oid => \@sphincs_fast_5  },
-    { name => "SPHINCS_SMALL_LEVEL1", oid => \@sphincs_small_1 },
-    { name => "SPHINCS_SMALL_LEVEL3", oid => \@sphincs_small_3 },
-    { name => "SPHINCS_SMALL_LEVEL5", oid => \@sphincs_small_5 },
+    { name => "SLH_DSA_SHA2_128S",    oid => \@slhdsa_sha2_128s  },
+    { name => "SLH_DSA_SHA2_128F",    oid => \@slhdsa_sha2_128f  },
+    { name => "SLH_DSA_SHA2_192S",    oid => \@slhdsa_sha2_192s  },
+    { name => "SLH_DSA_SHA2_192F",    oid => \@slhdsa_sha2_192f  },
+    { name => "SLH_DSA_SHA2_256S",    oid => \@slhdsa_sha2_256s  },
+    { name => "SLH_DSA_SHA2_256F",    oid => \@slhdsa_sha2_256f  },
+    { name => "SLH_DSA_SHAKE_128S",   oid => \@slhdsa_shake_128s },
+    { name => "SLH_DSA_SHAKE_128F",   oid => \@slhdsa_shake_128f },
+    { name => "SLH_DSA_SHAKE_192S",   oid => \@slhdsa_shake_192s },
+    { name => "SLH_DSA_SHAKE_192F",   oid => \@slhdsa_shake_192f },
+    { name => "SLH_DSA_SHAKE_256S",   oid => \@slhdsa_shake_256s },
+    { name => "SLH_DSA_SHAKE_256F",   oid => \@slhdsa_shake_256f },
 );
 
 print_sum_enum("Key", "k", \@keys);
@@ -1122,17 +1137,29 @@ my @sig_types = (
                                             same => 1                       },
     { name => "CTC_ML_DSA_LEVEL5",          oid => \@mldsa_5,
                                             same => 1                       },
-    { name => "CTC_SPHINCS_FAST_LEVEL1",    oid => \@sphincs_fast_1,
+    { name => "CTC_SLH_DSA_SHA2_128S",     oid => \@slhdsa_sha2_128s,
                                             same => 1                       },
-    { name => "CTC_SPHINCS_FAST_LEVEL3",    oid => \@sphincs_fast_3,
-                                            same => 1, oid_sum => 283       },
-    { name => "CTC_SPHINCS_FAST_LEVEL5",    oid => \@sphincs_fast_5,
+    { name => "CTC_SLH_DSA_SHA2_128F",     oid => \@slhdsa_sha2_128f,
                                             same => 1                       },
-    { name => "CTC_SPHINCS_SMALL_LEVEL1",   oid => \@sphincs_small_1,
+    { name => "CTC_SLH_DSA_SHA2_192S",     oid => \@slhdsa_sha2_192s,
                                             same => 1                       },
-    { name => "CTC_SPHINCS_SMALL_LEVEL3",   oid => \@sphincs_small_3,
+    { name => "CTC_SLH_DSA_SHA2_192F",     oid => \@slhdsa_sha2_192f,
                                             same => 1                       },
-    { name => "CTC_SPHINCS_SMALL_LEVEL5",   oid => \@sphincs_small_5,
+    { name => "CTC_SLH_DSA_SHA2_256S",     oid => \@slhdsa_sha2_256s,
+                                            same => 1                       },
+    { name => "CTC_SLH_DSA_SHA2_256F",     oid => \@slhdsa_sha2_256f,
+                                            same => 1                       },
+    { name => "CTC_SLH_DSA_SHAKE_128S",    oid => \@slhdsa_shake_128s,
+                                            same => 1                       },
+    { name => "CTC_SLH_DSA_SHAKE_128F",    oid => \@slhdsa_shake_128f,
+                                            same => 1                       },
+    { name => "CTC_SLH_DSA_SHAKE_192S",    oid => \@slhdsa_shake_192s,
+                                            same => 1                       },
+    { name => "CTC_SLH_DSA_SHAKE_192F",    oid => \@slhdsa_shake_192f,
+                                            same => 1                       },
+    { name => "CTC_SLH_DSA_SHAKE_256S",    oid => \@slhdsa_shake_256s,
+                                            same => 1                       },
+    { name => "CTC_SLH_DSA_SHAKE_256F",    oid => \@slhdsa_shake_256f,
                                             same => 1                       },
 );
 
@@ -1149,6 +1176,7 @@ my @p7t_encrypted_data = ( 1, 2, 840, 113549, 1, 7, 6 );
 my @p7t_compressed_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 9 );
 my @p7t_firmware_pkg_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 16 );
 my @p7t_auth_env_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 23 );
+my @p7t_encrypted_key_package = ( 2, 16, 840, 1, 101, 2, 1, 2, 78, 2 );
 
 my @pkcs7_types = (
     { name => "PKCS7_MSG",                  oid => \@p7t_pkcs7_msg          },
@@ -1161,6 +1189,7 @@ my @pkcs7_types = (
     { name => "ENCRYPTED_DATA",             oid => \@p7t_encrypted_data     },
     { name => "FIRMWARE_PKG_DATA",          oid => \@p7t_firmware_pkg_data  },
     { name => "AUTH_ENVELOPED_DATA",        oid => \@p7t_auth_env_data      },
+    { name => "ENCRYPTED_KEY_PACKAGE",      oid => \@p7t_encrypted_key_package },
 );
 
 print_enum("PKCS7_TYPES", "", \@pkcs7_types, 32, 46);

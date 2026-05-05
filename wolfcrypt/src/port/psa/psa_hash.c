@@ -127,8 +127,11 @@ static int wc_psa_hash_clone(const psa_hash_operation_t *src,
         return BAD_FUNC_ARG;
 
     PSA_LOCK();
-    psa_hash_abort(dst);
+    s = psa_hash_abort(dst);
     PSA_UNLOCK();
+
+    if (s != PSA_SUCCESS)
+        return WC_HW_E;
 
     PSA_LOCK();
     s = psa_hash_clone(src, dst);
@@ -173,7 +176,9 @@ static int wc_psa_get_hash(psa_hash_operation_t *ctx,
     s = psa_hash_clone(ctx, &tmp);
     PSA_UNLOCK();
     if (s != PSA_SUCCESS) {
+        PSA_LOCK();
         psa_hash_abort(&tmp);
+        PSA_UNLOCK();
         return WC_HW_E;
     }
 

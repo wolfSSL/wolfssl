@@ -141,14 +141,21 @@ do_cleanup() {
     echo "in cleanup"
 
     IFS=$OIFS #restore separator
+    sleepseconds=1
     for s in $servers
     do
         f2=${s%:*}
         sname=${f2%:*}
         pid=${f2##*:}
         port=${s##*:}
-        echo "killing server: $sname ($port)"
-        kill -9 "$pid"
+        if kill -0 "$pid" 2>&-
+        then
+            # sleep to give sanitizers time to dump backtraces.
+            sleep $sleepseconds
+            sleepseconds=0
+            echo "killing server: $sname ($port)"
+            kill -9 "$pid"
+        fi
     done
 }
 
@@ -263,9 +270,9 @@ start_wolfssl_server() {
         echo -e "\n# Trying to start $wolfssl_suite wolfSSL server on port $server_port..."
 
         echo "#"
-        echo "# $WOLFSSL_SERVER -p $server_port -g -v d -x -i $psk $crl -l ALL \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\""
+        echo "# $WOLFSSL_SERVER -p $server_port -g -v d -x -i $psk $crl -l ALL:eNULL \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\""
         # shellcheck disable=SC2086
-        $WOLFSSL_SERVER -p "$server_port" -g -v d -x -i $psk $crl -l ALL "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" &
+        $WOLFSSL_SERVER -p "$server_port" -g -v d -x -i $psk $crl -l ALL:eNULL "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" &
         server_pid=$!
         # wait to see if server successfully starts before continuing
         sleep 0.1

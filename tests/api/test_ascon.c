@@ -184,3 +184,163 @@ int test_ascon_aead128(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * Ascon-AEAD128 AEAD edge cases:
+ *   - invalid auth tag rejection  (DecryptFinal with wrong tag -> ASCON_AUTH_E)
+ *   - empty plaintext with empty AAD  (KAT[0])
+ *   - empty plaintext with non-empty AAD  (KAT[1])
+ *
+ * KAT vectors are from the Ascon reference implementation:
+ *   https://github.com/ascon/ascon-c
+ */
+int test_ascon_aead128_edge_cases(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_ASCON
+    /* Shared key and nonce for all sub-tests (same as KAT[0..N]) */
+    static const byte key[ASCON_AEAD128_KEY_SZ] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    static const byte nonce[ASCON_AEAD128_NONCE_SZ] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    /* KAT[0]: PT="", AD="" -> CT = tag only */
+    static const byte expTag0[ASCON_AEAD128_TAG_SZ] = {
+        0x44, 0x27, 0xD6, 0x4B, 0x8E, 0x1E, 0x14, 0x51,
+        0xFC, 0x44, 0x59, 0x60, 0xF0, 0x83, 0x9B, 0xB0
+    };
+    /* KAT[1]: PT="", AD="00" -> CT = tag only */
+    static const byte ad1[1]  = { 0x00 };
+    static const byte expTag1[ASCON_AEAD128_TAG_SZ] = {
+        0x10, 0x3A, 0xB7, 0x9D, 0x91, 0x3A, 0x03, 0x21,
+        0x28, 0x77, 0x15, 0xA9, 0x79, 0xBB, 0x85, 0x85
+    };
+    wc_AsconAEAD128* asconAEAD = NULL;
+    byte tagBuf[ASCON_AEAD128_TAG_SZ];
+    byte badTag[ASCON_AEAD128_TAG_SZ];
+    byte dummy[1]; /* non-NULL placeholder for 0-length pt/ct args */
+
+    ExpectNotNull(asconAEAD = wc_AsconAEAD128_New());
+
+    /* ------------------------------------------------------------------ */
+    /* 1. Empty plaintext + empty AAD (KAT[0])                            */
+    /* ------------------------------------------------------------------ */
+
+    /* Encrypt and verify tag against KAT */
+    ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptUpdate(asconAEAD, dummy, dummy, 0), 0);
+    XMEMSET(tagBuf, 0, sizeof(tagBuf));
+    ExpectIntEQ(wc_AsconAEAD128_EncryptFinal(asconAEAD, tagBuf), 0);
+    ExpectBufEQ(tagBuf, expTag0, ASCON_AEAD128_TAG_SZ);
+    wc_AsconAEAD128_Clear(asconAEAD);
+
+    /* Decrypt with correct tag -> success */
+    ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, dummy, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, expTag0), 0);
+    wc_AsconAEAD128_Clear(asconAEAD);
+
+    /* Decrypt with wrong tag -> ASCON_AUTH_E */
+    XMEMCPY(badTag, expTag0, ASCON_AEAD128_TAG_SZ);
+    badTag[0] ^= 0xff;
+    ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, dummy, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, badTag),
+        WC_NO_ERR_TRACE(ASCON_AUTH_E));
+    wc_AsconAEAD128_Clear(asconAEAD);
+
+    /* ------------------------------------------------------------------ */
+    /* 2. Empty plaintext + non-empty AAD (KAT[1], AD = {0x00})           */
+    /* ------------------------------------------------------------------ */
+
+    /* Encrypt and verify tag against KAT */
+    ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, ad1, sizeof(ad1)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptUpdate(asconAEAD, dummy, dummy, 0), 0);
+    XMEMSET(tagBuf, 0, sizeof(tagBuf));
+    ExpectIntEQ(wc_AsconAEAD128_EncryptFinal(asconAEAD, tagBuf), 0);
+    ExpectBufEQ(tagBuf, expTag1, ASCON_AEAD128_TAG_SZ);
+    wc_AsconAEAD128_Clear(asconAEAD);
+
+    /* Decrypt with correct tag -> success */
+    ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, ad1, sizeof(ad1)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, dummy, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, expTag1), 0);
+    wc_AsconAEAD128_Clear(asconAEAD);
+
+    /* Decrypt with wrong tag -> ASCON_AUTH_E */
+    XMEMCPY(badTag, expTag1, ASCON_AEAD128_TAG_SZ);
+    badTag[0] ^= 0xff;
+    ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, ad1, sizeof(ad1)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, dummy, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, badTag),
+        WC_NO_ERR_TRACE(ASCON_AUTH_E));
+    wc_AsconAEAD128_Clear(asconAEAD);
+
+    /* ------------------------------------------------------------------ */
+    /* 3. Non-empty plaintext: invalid tag rejection                       */
+    /* ------------------------------------------------------------------ */
+    {
+        static const byte pt[] = { 0x00 };
+        byte ct[sizeof(pt)];
+        byte encTag[ASCON_AEAD128_TAG_SZ];
+
+        /* Encrypt one byte */
+        XMEMSET(ct,     0, sizeof(ct));
+        XMEMSET(encTag, 0, sizeof(encTag));
+        ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, dummy, 0), 0);
+        ExpectIntEQ(wc_AsconAEAD128_EncryptUpdate(asconAEAD, ct, pt,
+            sizeof(pt)), 0);
+        ExpectIntEQ(wc_AsconAEAD128_EncryptFinal(asconAEAD, encTag), 0);
+        wc_AsconAEAD128_Clear(asconAEAD);
+
+        /* Decrypt with correct tag -> success */
+        ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, dummy, 0), 0);
+        ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, dummy, ct,
+            sizeof(ct)), 0);
+        ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, encTag), 0);
+        wc_AsconAEAD128_Clear(asconAEAD);
+
+        /* Decrypt with tampered tag -> ASCON_AUTH_E */
+        encTag[ASCON_AEAD128_TAG_SZ - 1] ^= 0xff;
+        ExpectIntEQ(wc_AsconAEAD128_Init(asconAEAD), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetKey(asconAEAD, key), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetNonce(asconAEAD, nonce), 0);
+        ExpectIntEQ(wc_AsconAEAD128_SetAD(asconAEAD, dummy, 0), 0);
+        ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(asconAEAD, dummy, ct,
+            sizeof(ct)), 0);
+        ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(asconAEAD, encTag),
+            WC_NO_ERR_TRACE(ASCON_AUTH_E));
+        wc_AsconAEAD128_Clear(asconAEAD);
+    }
+
+    wc_AsconAEAD128_Free(asconAEAD);
+#endif /* HAVE_ASCON */
+    return EXPECT_RESULT();
+} /* END test_ascon_aead128_edge_cases */

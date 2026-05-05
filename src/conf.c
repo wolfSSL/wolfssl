@@ -31,6 +31,8 @@
  * START OF TXT_DB API
  ******************************************************************************/
 
+#define LINE_BUFFER_SIZE 512 /* enough for a single row */
+
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
 /**
  * This function reads a tab delimetered CSV input and returns
@@ -90,7 +92,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
         char** fieldPtr = NULL;
         int fieldPtrIdx = 0;
         char* fieldCheckIdx = NULL;
-        lineEnd = XSTRNSTR(idx, "\n", (unsigned int)(bufEnd - idx));
+        lineEnd = XSTRNSTR(idx, "\n", (size_t)(bufEnd - idx));
         if (!lineEnd)
             lineEnd = bufEnd;
         if (idx == lineEnd) /* empty line */
@@ -98,7 +100,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
         if (*idx == '#')
             continue;
         *lineEnd = '\0';
-        strBuf = (char*)XMALLOC(fieldsSz + lineEnd - idx + 1, NULL,
+        strBuf = (char*)XMALLOC(fieldsSz + (lineEnd - idx) + 1, NULL,
                                 DYNAMIC_TYPE_OPENSSL);
         if (!strBuf) {
             WOLFSSL_MSG("malloc error");
@@ -149,8 +151,8 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
 {
     const WOLF_STACK_OF(WOLFSSL_STRING)* data;
     long totalLen = 0;
-    char buf[512]; /* Should be more than enough for a single row */
-    char* bufEnd = buf + sizeof(buf);
+    WC_DECLARE_VAR(buf, char, LINE_BUFFER_SIZE, NULL); /* enough for a single row */
+    char* bufEnd;
     int i;
 
     WOLFSSL_ENTER("wolfSSL_TXT_DB_write");
@@ -160,6 +162,10 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
         return WOLFSSL_FAILURE;
     }
 
+    WC_ALLOC_VAR_EX(buf, char, LINE_BUFFER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+                    return WOLFSSL_FAILURE);
+    bufEnd = buf + LINE_BUFFER_SIZE;
+
     data = db->data;
     while (data) {
         char** fields = (char**)data->data.string;
@@ -168,6 +174,7 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
 
         if (!fields) {
             WOLFSSL_MSG("Missing row");
+            WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
         }
 
@@ -186,6 +193,7 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
                 }
                 else {
                     WOLFSSL_MSG("Data row is too big");
+                    WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     return WOLFSSL_FAILURE;
                 }
             }
@@ -194,17 +202,21 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
             }
             else {
                 WOLFSSL_MSG("Data row is too big");
+                WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
         }
         if (idx > buf)
             idx[-1] = '\n';
-        else
+        else {
+            WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
+        }
         sz = (int)(idx - buf);
 
         if (wolfSSL_BIO_write(out, buf, sz) != sz) {
             WOLFSSL_MSG("wolfSSL_BIO_write error");
+            WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
         }
         totalLen += sz;
@@ -212,6 +224,7 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
         data = data->next;
     }
 
+    WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return totalLen;
 }
 
@@ -852,11 +865,11 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
     idx = buf;
     bufEnd = buf + bufLen;
     while (idx < bufEnd) {
-        char* lineEnd = XSTRNSTR(idx, "\n", (unsigned int)(bufEnd - idx));
+        char* lineEnd = XSTRNSTR(idx, "\n", (size_t)(bufEnd - idx));
         char* maxIdx;
         if (!lineEnd)
             lineEnd = bufEnd; /* Last line in file */
-        maxIdx = XSTRNSTR(idx, "#", (unsigned int)(lineEnd - idx));
+        maxIdx = XSTRNSTR(idx, "#", (size_t)(lineEnd - idx));
         if (!maxIdx)
             maxIdx = lineEnd;
         line++;

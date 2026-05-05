@@ -76,6 +76,9 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         return BAD_FUNC_ARG;
     }
 
+    if (keyLen > INT_MAX - ivLen)
+        return BAD_FUNC_ARG;
+
     if (iterations <= 0)
         iterations = 1;
 
@@ -315,46 +318,38 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 #ifdef HAVE_PKCS12
 
 /* helper for PKCS12_PBKDF(), does hash operation */
-static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
-                 byte* Ai, word32 u, int iterations)
+static int DoPKCS12Hash(enum wc_HashType hashT, byte* buffer, word32 totalLen,
+    byte* Ai, word32 u, int iterations)
 {
     int i;
     int ret = 0;
     WC_DECLARE_VAR(hash, wc_HashAlg, 1, 0);
-    enum wc_HashType hashT;
 
-    if (buffer == NULL || Ai == NULL) {
+    if ((buffer == NULL) || (Ai == NULL)) {
         return BAD_FUNC_ARG;
     }
-
-    hashT = wc_HashTypeConvert(hashType);
 
     /* initialize hash */
     WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, NULL, DYNAMIC_TYPE_HASHCTX,
         return MEMORY_E);
 
     ret = wc_HashInit(hash, hashT);
-    if (ret != 0) {
-        WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHCTX);
-        return ret;
-    }
-
-    ret = wc_HashUpdate(hash, hashT, buffer, totalLen);
-
-    if (ret == 0)
-        ret = wc_HashFinal(hash, hashT, Ai);
-
-    for (i = 1; i < iterations; i++) {
-        if (ret == 0)
-            ret = wc_HashUpdate(hash, hashT, Ai, u);
+    if (ret == 0) {
+        ret = wc_HashUpdate(hash, hashT, buffer, totalLen);
         if (ret == 0)
             ret = wc_HashFinal(hash, hashT, Ai);
+
+        for (i = 1; i < iterations; i++) {
+            if (ret == 0)
+                ret = wc_HashUpdate(hash, hashT, Ai, u);
+            if (ret == 0)
+                ret = wc_HashFinal(hash, hashT, Ai);
+        }
+
+        wc_HashFree(hash, hashT);
     }
 
-    wc_HashFree(hash, hashT);
-
     WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHCTX);
-
     return ret;
 }
 
@@ -368,6 +363,7 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
 }
 
 
+#ifdef WC_PKCS12_PBKDF_USING_MP_API
 /* extended API that allows a heap hint to be used */
 int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                        const byte* salt, int saltLen, int iterations, int kLen,
@@ -487,8 +483,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     while (kLen > 0) {
         word32 currentLen;
 
-        ret = DoPKCS12Hash(hashType, buffer, totalLen, Ai, u, iterations);
-        if (ret < 0)
+        ret = DoPKCS12Hash(hashT, buffer, totalLen, Ai, u, iterations);
+        if (ret != 0)
             break;
 
         for (i = 0; i < v; i++)
@@ -566,6 +562,173 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 
     return ret;
 }
+#else
+
+#if defined(WC_64BIT_CPU) && defined(HAVE___UINT128_T) && \
+    !defined(NO_INT128)
+    #define PKCS12_DWORD                        word128
+    #define PKCS12_WORD                         word64
+    #define PKCS12_ByteReverseWords             ByteReverseWords64
+#elif defined(WC_32BIT_CPU) || defined(WC_64BIT_CPU)
+    #define PKCS12_DWORD                        word64
+    #define PKCS12_WORD                         word32
+    #define PKCS12_ByteReverseWords             ByteReverseWords
+#else
+    #define PKCS12_DWORD                        word16
+    #define PKCS12_WORD                         word8
+    /* No need to byte reverse when handling 1 byte at a time. */
+    #define PKCS12_ByteReverseWords(r, a, n)    WC_DO_NOTHING
+#endif
+
+/* extended API that allows a heap hint to be used */
+int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
+                       const byte* salt, int saltLen, int iterations, int kLen,
+                       int hashType, int id, void* heap)
+{
+    word32 u, v, pLen, iLen, sLen, totalLen;
+    /* nwc:     v / sizeof(PKCS12_WORD) - words per v-byte block
+     *          (v is always a multiple of sizeof(PKCS12_WORD))
+     * nBlocks: iLen / v - number of v-byte blocks in I */
+    word32 nwc, nBlocks;
+    int    ret = 0;
+    word32 i, k, blk;
+    byte*        I;
+    PKCS12_WORD* Bw;
+#ifdef WOLFSSL_SMALL_STACK
+    byte   staticBuffer[1]; /* force dynamic usage */
+    byte*  B   = NULL;
+#else
+    ALIGN8 byte   staticBuffer[1024];
+    ALIGN8 byte   B[WC_MAX_BLOCK_SIZE];
+#endif
+    byte*  buffer = staticBuffer;
+    enum wc_HashType hashT;
+
+    (void)heap;
+
+    if ((output == NULL) || (passLen <= 0) || (saltLen <= 0) || (kLen < 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (iterations <= 0) {
+        iterations = 1;
+    }
+
+    /* u = hash output size. */
+    hashT = wc_HashTypeConvert(hashType);
+    ret = wc_HashGetDigestSize(hashT);
+    if (ret < 0)
+        return ret;
+    if (ret == 0)
+        return BAD_STATE_E;
+    u = (word32)ret;
+
+    /* v = hash block size. */
+    ret = wc_HashGetBlockSize(hashT);
+    if (ret < 0)
+        return ret;
+    if (ret == 0)
+        return BAD_STATE_E;
+    v = (word32)ret;
+
+    /* RFC 7292 B.2 step 2: S = salt repeated to ceil(saltLen/v)*v bytes */
+    sLen = v * (((word32)saltLen + v - 1) / v);
+    /* RFC 7292 B.2 step 3: P = password repeated to ceil(passLen/v)*v bytes */
+    pLen = v * (((word32)passLen + v - 1) / v);
+    /* RFC 7292 B.2 step 4: I = S || P */
+    iLen = sLen + pLen;
+    totalLen = v + iLen;
+
+    nwc     = v / (word32)sizeof(PKCS12_WORD);
+    nBlocks = iLen / v;
+
+#ifdef WOLFSSL_SMALL_STACK
+    B = (byte*)XMALLOC(WC_MAX_BLOCK_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (B == NULL)
+        return MEMORY_E;
+#endif
+    Bw = (PKCS12_WORD*)B;
+
+    if (totalLen > sizeof(staticBuffer)) {
+        buffer = (byte*)XMALLOC(totalLen, heap, DYNAMIC_TYPE_KEY);
+        if (buffer == NULL) {
+            WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+    }
+
+    /* RFC 7292 B.2 step 1: D = v bytes each set to ID */
+    /* RFC 7292 B.2 step 4: I = S || P; buffer = D || I */
+    I = buffer + v;
+    XMEMSET(buffer, id, v);
+    for (i = 0; i < sLen; i++)
+        I[i] = salt[i % (word32)saltLen];
+    for (i = 0; i < pLen; i++)
+        I[sLen + i] = passwd[i % (word32)passLen];
+
+    ret = 0;
+    while ((ret == 0) && (kLen > 0)) {
+        /* RFC 7292 B.2 step 6a: A_i = H^r(D || I) */
+        ret = DoPKCS12Hash(hashT, buffer, totalLen, B, u, iterations);
+        if (ret != 0)
+            break;
+
+        /* RFC 7292 B.2 step 7: output A_i bytes (up to kLen) */
+        i = min((word32)kLen, u);
+        XMEMCPY(output, B, i);
+        output += i;
+        kLen -= (int)i;
+        if (kLen == 0)
+            break;
+
+        /* RFC 7292 B.2 step 6b: B = A_i repeated to length v */
+        for (i = u; i < v; i++)
+            B[i] = B[i % u];
+
+        /* RFC 7292 B.2 step 6c: I_j = (I_j + B + 1) mod 2^(8v). */
+#ifndef BIG_ENDIAN_ORDER
+        PKCS12_ByteReverseWords(Bw, Bw, v);
+#endif
+        /* Increment B by 1. */
+        for (k = nwc; k > 0; ) {
+            --k;
+            ++Bw[k];
+            if (Bw[k] != 0)
+                break;
+        }
+
+#ifndef BIG_ENDIAN_ORDER
+        PKCS12_ByteReverseWords((PKCS12_WORD*)I, (PKCS12_WORD*)I, nBlocks * v);
+#endif
+        /* Add B+1 to each I_j block. */
+        for (blk = 0; blk < nBlocks; blk++) {
+            PKCS12_DWORD c  = 0;
+            PKCS12_WORD* Iw = (PKCS12_WORD*)(I + blk * v);
+            for (k = nwc; k-- > 0; ) {
+                c     += (PKCS12_DWORD)Iw[k];
+                c     += (PKCS12_DWORD)Bw[k];
+                Iw[k]  = (PKCS12_WORD)c;
+                c    >>= 8 * sizeof(PKCS12_WORD);
+            }
+        }
+#ifndef BIG_ENDIAN_ORDER
+        PKCS12_ByteReverseWords((PKCS12_WORD*)I, (PKCS12_WORD*)I, nBlocks * v);
+#endif
+    }
+
+    WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buffer != staticBuffer) {
+        XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
+    }
+
+    return ret;
+}
+
+#undef PKCS12_DWORD
+#undef PKCS12_WORD
+#undef PKCS12_ByteReverseWords
+
+#endif
 
 #endif /* HAVE_PKCS12 */
 

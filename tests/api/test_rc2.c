@@ -29,6 +29,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/rc2.h>
+#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
 #include <tests/api/test_rc2.h>
@@ -216,7 +217,70 @@ int test_wc_Rc2CbcEncryptDecrypt(void)
     /* null input buffer */
     ExpectIntEQ(wc_Rc2CbcDecrypt(&rc2, plain, NULL, sizeof(output)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* non-block-aligned input rejected with BAD_LENGTH_E */
+    ExpectIntEQ(wc_Rc2CbcEncrypt(&rc2, cipher, input, RC2_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+    ExpectIntEQ(wc_Rc2CbcDecrypt(&rc2, plain, output, RC2_BLOCK_SIZE - 1),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Rc2CbcEncryptDecrypt */
 
+
+#define MC_CIPHER_TEST_COUNT 100
+#define MC_RC2_MAX_DATA_SZ   1024
+
+int test_wc_Rc2Cbc_MonteCarlo(void)
+{
+    EXPECT_DECLS;
+#ifdef WC_RC2
+    Rc2    enc, dec;
+    WC_RNG rng;
+    byte   key[RC2_MAX_KEY_SIZE];
+    byte   iv[RC2_BLOCK_SIZE];
+    word32 plainLen = 0;
+    int    effectiveBits;
+    int    i;
+    WC_DECLARE_VAR(plain,     byte, MC_RC2_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(cipher,    byte, MC_RC2_MAX_DATA_SZ, NULL);
+    WC_DECLARE_VAR(decrypted, byte, MC_RC2_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(plain,     byte, MC_RC2_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(cipher,    byte, MC_RC2_MAX_DATA_SZ, NULL);
+    WC_ALLOC_VAR(decrypted, byte, MC_RC2_MAX_DATA_SZ, NULL);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+    ExpectNotNull(decrypted);
+#endif
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(&dec, 0, sizeof(dec));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    for (i = 0; i < MC_CIPHER_TEST_COUNT && EXPECT_SUCCESS(); i++) {
+        word32 keyLen = 0;
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&keyLen, sizeof(keyLen)),
+            0);
+        keyLen = (keyLen % (RC2_MAX_KEY_SIZE - 1)) + 1;
+        effectiveBits = (int)(keyLen * 8);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, keyLen), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, iv, sizeof(iv)), 0);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, (byte*)&plainLen,
+            sizeof(plainLen)), 0);
+        plainLen = (plainLen % MC_RC2_MAX_DATA_SZ) + 1;
+        plainLen = (plainLen + RC2_BLOCK_SIZE - 1) &
+            ~((word32)RC2_BLOCK_SIZE - 1);
+        ExpectIntEQ(wc_RNG_GenerateBlock(&rng, plain, plainLen), 0);
+        ExpectIntEQ(wc_Rc2SetKey(&enc, key, keyLen, iv, effectiveBits), 0);
+        ExpectIntEQ(wc_Rc2CbcEncrypt(&enc, cipher, plain, plainLen), 0);
+        ExpectIntEQ(wc_Rc2SetKey(&dec, key, keyLen, iv, effectiveBits), 0);
+        ExpectIntEQ(wc_Rc2CbcDecrypt(&dec, decrypted, cipher, plainLen), 0);
+        ExpectBufEQ(decrypted, plain, plainLen);
+    }
+    wc_FreeRng(&rng);
+    WC_FREE_VAR(plain,     NULL);
+    WC_FREE_VAR(cipher,    NULL);
+    WC_FREE_VAR(decrypted, NULL);
+#endif
+    return EXPECT_RESULT();
+}

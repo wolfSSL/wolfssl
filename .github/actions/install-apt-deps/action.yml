@@ -1,0 +1,92 @@
+name: 'Install apt dependencies'
+description: 'Install apt packages with retry logic and caching'
+inputs:
+  packages:
+    description: 'Space-separated list of apt packages to install'
+    required: true
+  retries:
+    description: 'Number of retry attempts'
+    required: false
+    default: '3'
+  retry-delay:
+    description: 'Initial delay between retries (seconds, doubles each attempt)'
+    required: false
+    default: '5'
+  no-install-recommends:
+    description: 'Pass --no-install-recommends to apt-get install'
+    required: false
+    default: 'false'
+  cache:
+    description: 'Cache apt archives (disable for dynamic package names)'
+    required: false
+    default: 'true'
+runs:
+  using: 'composite'
+  steps:
+    - name: Compute cache key
+      if: inputs.cache == 'true'
+      id: cache-key
+      shell: bash
+      run: |
+        SORTED_PKGS=$(echo "${{ inputs.packages }}" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+        PKG_HASH=$(echo "$SORTED_PKGS" | sha256sum | cut -d' ' -f1 | head -c 16)
+        OS_VERSION=$(lsb_release -rs 2>/dev/null || echo "unknown")
+        echo "key=apt-deps-${{ runner.os }}-${{ runner.arch }}-${OS_VERSION}-${PKG_HASH}" >> $GITHUB_OUTPUT
+        echo "restore-key=apt-deps-${{ runner.os }}-${{ runner.arch }}-${OS_VERSION}-" >> $GITHUB_OUTPUT
+
+    - name: Restore apt cache
+      if: inputs.cache == 'true'
+      id: apt-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/apt-cache
+        key: ${{ steps.cache-key.outputs.key }}
+        restore-keys: ${{ steps.cache-key.outputs.restore-key }}
+
+    - name: Pre-seed apt archives from cache
+      if: inputs.cache == 'true' && steps.apt-cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        if [ -d ~/apt-cache ] && ls ~/apt-cache/*.deb >/dev/null 2>&1; then
+          sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/
+          echo "Restored $(ls ~/apt-cache/*.deb | wc -l) cached .deb files"
+        fi
+
+    - name: Install packages
+      shell: bash
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        RETRIES=${{ inputs.retries }}
+        DELAY=${{ inputs.retry-delay }}
+        NO_REC=""
+        if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
+          NO_REC="--no-install-recommends"
+        fi
+        for i in $(seq 1 $RETRIES); do
+          if sudo apt-get update -q && \
+             sudo apt-get install -y $NO_REC ${{ inputs.packages }}; then
+            exit 0
+          fi
+          if [ "$i" -eq "$RETRIES" ]; then
+            echo "::error::apt-get failed after $RETRIES attempts"
+            exit 1
+          fi
+          echo "::warning::apt-get failed (attempt $i/$RETRIES), retrying in ${DELAY}s..."
+          sleep $DELAY
+          DELAY=$((DELAY * 2))
+        done
+
+    - name: Collect .deb files for cache
+      if: inputs.cache == 'true' && steps.apt-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p ~/apt-cache
+        cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
+        echo "Cached $(ls ~/apt-cache/*.deb 2>/dev/null | wc -l) .deb files"
+
+    - name: Save apt cache
+      if: inputs.cache == 'true' && steps.apt-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/apt-cache
+        key: ${{ steps.cache-key.outputs.key }}

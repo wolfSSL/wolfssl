@@ -26,11 +26,13 @@
 static volatile int fd;
 
 #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
+#include <fcntl.h>
 
 int wc_DevCryptoInit(void)
 {
     /* create descriptor */
-    if ((fd = open("/dev/crypto", O_RDWR, 0)) < 0) {
+    fd = wc_open_cloexec("/dev/crypto", O_RDWR);
+    if (fd < 0) {
         WOLFSSL_MSG("Error opening /dev/crypto is cryptodev module loaded?");
         return WC_DEVCRYPTO_E;
     }

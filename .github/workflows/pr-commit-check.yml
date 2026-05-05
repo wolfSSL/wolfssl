@@ -1,0 +1,41 @@
+name: PR commit message checks
+
+on:
+  pull_request:
+    branches: [ '**' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  commit-messages:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject AI attribution trailers
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r sha; do
+            [ -z "$sha" ] && continue
+            if git log -1 --format=%B "$sha" | git interpret-trailers --parse | \
+               grep -iE '^(Co-authored-by|Signed-off-by):.*<?noreply@anthropic\.com>?' >/dev/null; then
+              echo "::error::Commit $sha contains a Co-authored-by or Signed-off-by trailer for noreply@anthropic.com"
+              git log -1 --format='  %h %s' "$sha"
+              fail=1
+            fi
+          done < <(git rev-list "$BASE_SHA".."$HEAD_SHA")
+          if [ "$fail" -ne 0 ]; then
+            echo "One or more commits contain disallowed AI attribution trailers; please amend them out."
+            exit 1
+          fi
+          echo "No disallowed AI attribution trailers found."

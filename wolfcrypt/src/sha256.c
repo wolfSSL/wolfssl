@@ -253,6 +253,7 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->digest[7] = 0x5BE0CD19L;
 
     sha256->buffLen = 0;
+    XMEMSET(sha256->buffer, 0, sizeof(sha256->buffer));
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
 #ifdef WOLFSSL_HASH_FLAGS
@@ -563,7 +564,9 @@ static int InitSha256(wc_Sha256* sha256)
                                          word32 len);
                                                                     /* = NULL */
     static int transform_check = 0;
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     static int Transform_Sha256_is_vectorized = 0;
+    #endif
 
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
         int ret;
@@ -608,14 +611,18 @@ static int InitSha256(wc_Sha256* sha256)
             if (IS_INTEL_AVX1(intel_flags)) {
                 Transform_Sha256_p = Transform_Sha256_AVX1_Sha;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX1_Sha_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha256_is_vectorized = 1;
+            #endif
             }
             else
         #endif
             {
                 Transform_Sha256_p = Transform_Sha256_SSE2_Sha;
                 Transform_Sha256_Len_p = Transform_Sha256_SSE2_Sha_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha256_is_vectorized = 1;
+            #endif
             }
         }
         else
@@ -625,14 +632,18 @@ static int InitSha256(wc_Sha256* sha256)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha256_p = Transform_Sha256_AVX2_RORX;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX2_RORX_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha256_is_vectorized = 1;
+            #endif
             }
             else
         #endif
             {
                 Transform_Sha256_p = Transform_Sha256_AVX2;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX2_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha256_is_vectorized = 1;
+            #endif
             }
         }
         else
@@ -643,14 +654,18 @@ static int InitSha256(wc_Sha256* sha256)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha256_p = Transform_Sha256_AVX1_RORX;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX1_RORX_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha256_is_vectorized = 1;
+            #endif
             }
             else
         #endif
             {
                 Transform_Sha256_p = Transform_Sha256_AVX1;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX1_Len;
+            #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
                 Transform_Sha256_is_vectorized = 1;
+            #endif
             }
         }
         else
@@ -658,7 +673,9 @@ static int InitSha256(wc_Sha256* sha256)
         {
             Transform_Sha256_p = Transform_Sha256;
             Transform_Sha256_Len_p = NULL;
+        #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
             Transform_Sha256_is_vectorized = 0;
+        #endif
         }
 
         transform_check = 1;
@@ -2089,6 +2106,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         sha224->digest[7] = 0xbefa4fa4;
 
         sha224->buffLen = 0;
+        XMEMSET(sha224->buffer, 0, sizeof(sha224->buffer));
         sha224->loLen   = 0;
         sha224->hiLen   = 0;
 

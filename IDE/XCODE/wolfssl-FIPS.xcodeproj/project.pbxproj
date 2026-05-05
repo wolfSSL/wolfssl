@@ -125,8 +125,8 @@
 		700F0CF52A2FC11300755BA7 /* eccsi.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CDB2A2FC0D500755BA7 /* eccsi.h */; };
 		700F0CF62A2FC11300755BA7 /* ed448.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CD22A2FC0D500755BA7 /* ed448.h */; };
 		700F0CF72A2FC11300755BA7 /* ed25519.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CE12A2FC0D500755BA7 /* ed25519.h */; };
-		700F0CF82A2FC11300755BA7 /* ext_mlkem.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CD52A2FC0D500755BA7 /* ext_mlkem.h */; };
 		700F0CF92A2FC11300755BA7 /* falcon.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CDD2A2FC0D500755BA7 /* falcon.h */; };
+		700F0D9A2A2FC11300755BA7 /* wc_slhdsa.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0D992A2FC0D500755BA7 /* wc_slhdsa.h */; };
 		700F0CFA2A2FC11300755BA7 /* fe_448.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CDE2A2FC0D500755BA7 /* fe_448.h */; };
 		700F0CFB2A2FC11300755BA7 /* fe_operations.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CC72A2FC0D400755BA7 /* fe_operations.h */; };
 		700F0CFC2A2FC11300755BA7 /* fips.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CCF2A2FC0D500755BA7 /* fips.h */; };
@@ -145,9 +145,7 @@
 		700F0D092A2FC11300755BA7 /* siphash.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CD42A2FC0D500755BA7 /* siphash.h */; };
 		700F0D0A2A2FC11300755BA7 /* sp_int.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CDF2A2FC0D500755BA7 /* sp_int.h */; };
 		700F0D0B2A2FC11300755BA7 /* sp.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CD12A2FC0D500755BA7 /* sp.h */; };
-		700F0D0C2A2FC11300755BA7 /* sphincs.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CEC2A2FC0D500755BA7 /* sphincs.h */; };
 		700F0D0D2A2FC11300755BA7 /* srp.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CDC2A2FC0D500755BA7 /* srp.h */; };
-		700F0D0E2A2FC11300755BA7 /* wc_mlkem.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CD82A2FC0D500755BA7 /* wc_mlkem.h */; };
 		700F0D0F2A2FC11300755BA7 /* wc_pkcs11.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CE82A2FC0D500755BA7 /* wc_pkcs11.h */; };
 		700F0D102A2FC11300755BA7 /* wolfevent.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CD62A2FC0D500755BA7 /* wolfevent.h */; };
 		700F0D112A2FC11300755BA7 /* wolfmath.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0CEB2A2FC0D500755BA7 /* wolfmath.h */; };
@@ -285,8 +283,8 @@
 				700F0CF52A2FC11300755BA7 /* eccsi.h in CopyFiles */,
 				700F0CF62A2FC11300755BA7 /* ed448.h in CopyFiles */,
 				700F0CF72A2FC11300755BA7 /* ed25519.h in CopyFiles */,
-				700F0CF82A2FC11300755BA7 /* ext_mlkem.h in CopyFiles */,
 				700F0CF92A2FC11300755BA7 /* falcon.h in CopyFiles */,
+				700F0D9A2A2FC11300755BA7 /* wc_slhdsa.h in CopyFiles */,
 				700F0CFA2A2FC11300755BA7 /* fe_448.h in CopyFiles */,
 				700F0CFB2A2FC11300755BA7 /* fe_operations.h in CopyFiles */,
 				700F0CFC2A2FC11300755BA7 /* fips.h in CopyFiles */,
@@ -305,9 +303,7 @@
 				700F0D092A2FC11300755BA7 /* siphash.h in CopyFiles */,
 				700F0D0A2A2FC11300755BA7 /* sp_int.h in CopyFiles */,
 				700F0D0B2A2FC11300755BA7 /* sp.h in CopyFiles */,
-				700F0D0C2A2FC11300755BA7 /* sphincs.h in CopyFiles */,
 				700F0D0D2A2FC11300755BA7 /* srp.h in CopyFiles */,
-				700F0D0E2A2FC11300755BA7 /* wc_mlkem.h in CopyFiles */,
 				700F0D0F2A2FC11300755BA7 /* wc_pkcs11.h in CopyFiles */,
 				700F0D102A2FC11300755BA7 /* wolfevent.h in CopyFiles */,
 				700F0D112A2FC11300755BA7 /* wolfmath.h in CopyFiles */,
@@ -563,7 +559,7 @@
 		700F0CC92A2FC0D500755BA7 /* selftest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = selftest.h; path = ../../wolfssl/wolfcrypt/selftest.h; sourceTree = "<group>"; };
 		700F0CCA2A2FC0D500755BA7 /* ge_operations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ge_operations.h; path = ../../wolfssl/wolfcrypt/ge_operations.h; sourceTree = "<group>"; };
 		700F0CCB2A2FC0D500755BA7 /* async.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = async.h; path = ../../wolfssl/wolfcrypt/async.h; sourceTree = "<group>"; };
-		700F0CCC2A2FC0D500755BA7 /* mlkem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mlkem.h; path = ../../wolfssl/wolfcrypt/mlkem.h; sourceTree = "<group>"; };
+		700F0CCC2A2FC0D500755BA7 /* mlkem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mlkem.h; path = ../../wolfssl/wolfcrypt/wc_mlkem.h; sourceTree = "<group>"; };
 		700F0CCD2A2FC0D500755BA7 /* hpke.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hpke.h; path = ../../wolfssl/wolfcrypt/hpke.h; sourceTree = "<group>"; };
 		700F0CCE2A2FC0D500755BA7 /* cpuid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpuid.h; path = ../../wolfssl/wolfcrypt/cpuid.h; sourceTree = "<group>"; };
 		700F0CCF2A2FC0D500755BA7 /* fips.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fips.h; path = ../../wolfssl/wolfcrypt/fips.h; sourceTree = "<group>"; };
@@ -572,15 +568,14 @@
 		700F0CD22A2FC0D500755BA7 /* ed448.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ed448.h; path = ../../wolfssl/wolfcrypt/ed448.h; sourceTree = "<group>"; };
 		700F0CD32A2FC0D500755BA7 /* curve448.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = curve448.h; path = ../../wolfssl/wolfcrypt/curve448.h; sourceTree = "<group>"; };
 		700F0CD42A2FC0D500755BA7 /* siphash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = siphash.h; path = ../../wolfssl/wolfcrypt/siphash.h; sourceTree = "<group>"; };
-		700F0CD52A2FC0D500755BA7 /* ext_mlkem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ext_mlkem.h; path = ../../wolfssl/wolfcrypt/ext_mlkem.h; sourceTree = "<group>"; };
 		700F0CD62A2FC0D500755BA7 /* wolfevent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wolfevent.h; path = ../../wolfssl/wolfcrypt/wolfevent.h; sourceTree = "<group>"; };
 		700F0CD72A2FC0D500755BA7 /* cmac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cmac.h; path = ../../wolfssl/wolfcrypt/cmac.h; sourceTree = "<group>"; };
-		700F0CD82A2FC0D500755BA7 /* wc_mlkem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wc_mlkem.h; path = ../../wolfssl/wolfcrypt/wc_mlkem.h; sourceTree = "<group>"; };
 		700F0CD92A2FC0D500755BA7 /* pkcs11.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pkcs11.h; path = ../../wolfssl/wolfcrypt/pkcs11.h; sourceTree = "<group>"; };
 		700F0CDA2A2FC0D500755BA7 /* mem_track.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mem_track.h; path = ../../wolfssl/wolfcrypt/mem_track.h; sourceTree = "<group>"; };
 		700F0CDB2A2FC0D500755BA7 /* eccsi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eccsi.h; path = ../../wolfssl/wolfcrypt/eccsi.h; sourceTree = "<group>"; };
 		700F0CDC2A2FC0D500755BA7 /* srp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = srp.h; path = ../../wolfssl/wolfcrypt/srp.h; sourceTree = "<group>"; };
 		700F0CDD2A2FC0D500755BA7 /* falcon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = falcon.h; path = ../../wolfssl/wolfcrypt/falcon.h; sourceTree = "<group>"; };
+		700F0D992A2FC0D500755BA7 /* wc_slhdsa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wc_slhdsa.h; path = ../../wolfssl/wolfcrypt/wc_slhdsa.h; sourceTree = "<group>"; };
 		700F0CDE2A2FC0D500755BA7 /* fe_448.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fe_448.h; path = ../../wolfssl/wolfcrypt/fe_448.h; sourceTree = "<group>"; };
 		700F0CDF2A2FC0D500755BA7 /* sp_int.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sp_int.h; path = ../../wolfssl/wolfcrypt/sp_int.h; sourceTree = "<group>"; };
 		700F0CE02A2FC0D500755BA7 /* cryptocb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cryptocb.h; path = ../../wolfssl/wolfcrypt/cryptocb.h; sourceTree = "<group>"; };
@@ -593,7 +588,6 @@
 		700F0CE82A2FC0D500755BA7 /* wc_pkcs11.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wc_pkcs11.h; path = ../../wolfssl/wolfcrypt/wc_pkcs11.h; sourceTree = "<group>"; };
 		700F0CEA2A2FC0D500755BA7 /* rc2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rc2.h; path = ../../wolfssl/wolfcrypt/rc2.h; sourceTree = "<group>"; };
 		700F0CEB2A2FC0D500755BA7 /* wolfmath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wolfmath.h; path = ../../wolfssl/wolfcrypt/wolfmath.h; sourceTree = "<group>"; };
-		700F0CEC2A2FC0D500755BA7 /* sphincs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sphincs.h; path = ../../wolfssl/wolfcrypt/sphincs.h; sourceTree = "<group>"; };
 		9D2E31D6291CE2190082B941 /* dtls13.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dtls13.c; path = ../../src/dtls13.c; sourceTree = "<group>"; };
 		9D2E31D9291CE2370082B941 /* dtls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dtls.c; path = ../../src/dtls.c; sourceTree = "<group>"; };
 		9D2E31DC291CE2740082B941 /* quic.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = quic.c; path = ../../src/quic.c; sourceTree = "<group>"; };
@@ -643,8 +637,8 @@
 				700F0CDB2A2FC0D500755BA7 /* eccsi.h */,
 				700F0CD22A2FC0D500755BA7 /* ed448.h */,
 				700F0CE12A2FC0D500755BA7 /* ed25519.h */,
-				700F0CD52A2FC0D500755BA7 /* ext_mlkem.h */,
 				700F0CDD2A2FC0D500755BA7 /* falcon.h */,
+				700F0D992A2FC0D500755BA7 /* wc_slhdsa.h */,
 				700F0CDE2A2FC0D500755BA7 /* fe_448.h */,
 				700F0CC72A2FC0D400755BA7 /* fe_operations.h */,
 				700F0CCF2A2FC0D500755BA7 /* fips.h */,
@@ -663,9 +657,7 @@
 				700F0CD42A2FC0D500755BA7 /* siphash.h */,
 				700F0CDF2A2FC0D500755BA7 /* sp_int.h */,
 				700F0CD12A2FC0D500755BA7 /* sp.h */,
-				700F0CEC2A2FC0D500755BA7 /* sphincs.h */,
 				700F0CDC2A2FC0D500755BA7 /* srp.h */,
-				700F0CD82A2FC0D500755BA7 /* wc_mlkem.h */,
 				700F0CE82A2FC0D500755BA7 /* wc_pkcs11.h */,
 				700F0CD62A2FC0D500755BA7 /* wolfevent.h */,
 				700F0CEB2A2FC0D500755BA7 /* wolfmath.h */,

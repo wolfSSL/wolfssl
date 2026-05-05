@@ -32,59 +32,32 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_ARMASM_NO_NEON
+#ifndef __APPLE__
 	.text
-	.type	L_sha3_arm2_neon_rt, %object
-	.size	L_sha3_arm2_neon_rt, 192
+	.type	L_sha3_arm32_neon_rt, %object
+	.size	L_sha3_arm32_neon_rt, 192
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
+#ifndef __APPLE__
 	.align	4
-L_sha3_arm2_neon_rt:
-	.word	0x1
-	.word	0x0
-	.word	0x8082
-	.word	0x0
-	.word	0x808a
-	.word	0x80000000
-	.word	0x80008000
-	.word	0x80000000
-	.word	0x808b
-	.word	0x0
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8009
-	.word	0x80000000
-	.word	0x8a
-	.word	0x0
-	.word	0x88
-	.word	0x0
-	.word	0x80008009
-	.word	0x0
-	.word	0x8000000a
-	.word	0x0
-	.word	0x8000808b
-	.word	0x0
-	.word	0x8b
-	.word	0x80000000
-	.word	0x8089
-	.word	0x80000000
-	.word	0x8003
-	.word	0x80000000
-	.word	0x8002
-	.word	0x80000000
-	.word	0x80
-	.word	0x80000000
-	.word	0x800a
-	.word	0x0
-	.word	0x8000000a
-	.word	0x80000000
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8080
-	.word	0x80000000
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008008
-	.word	0x80000000
+#else
+	.p2align	4
+#endif /* __APPLE__ */
+L_sha3_arm32_neon_rt:
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
 	.text
 	.align	4
 	.globl	BlockSha3
@@ -92,7 +65,7 @@ L_sha3_arm2_neon_rt:
 BlockSha3:
 	vpush	{d8-d15}
 	sub	sp, sp, #16
-	adr	r1, L_sha3_arm2_neon_rt
+	adr	r1, L_sha3_arm32_neon_rt
 	mov	r2, #24
 	mov	r3, sp
 	vld1.8	{d0-d3}, [r0]!
@@ -125,7 +98,7 @@ L_sha3_arm32_neon_begin:
 	veor	d28, d28, d22
 	veor	d29, d29, d23
 	veor	d25, d25, d24
-	vst1.8	{d25, d26}, [r3]
+	vst1.8	{d25-d26}, [r3]
 	# Calc t[0..4] and XOR into s[i*5..i*5+4]
 	# t[0]
 	vshr.u64	d30, d27, #63
@@ -353,59 +326,32 @@ L_sha3_arm32_neon_begin:
 	.size	BlockSha3,.-BlockSha3
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
+#ifndef __APPLE__
 	.text
-	.type	L_sha3_arm2_rt, %object
-	.size	L_sha3_arm2_rt, 192
+	.type	L_sha3_arm32_rt, %object
+	.size	L_sha3_arm32_rt, 192
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 16-byte aligned, 128-bit aligned
+#ifndef __APPLE__
 	.align	4
-L_sha3_arm2_rt:
-	.word	0x1
-	.word	0x0
-	.word	0x8082
-	.word	0x0
-	.word	0x808a
-	.word	0x80000000
-	.word	0x80008000
-	.word	0x80000000
-	.word	0x808b
-	.word	0x0
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8009
-	.word	0x80000000
-	.word	0x8a
-	.word	0x0
-	.word	0x88
-	.word	0x0
-	.word	0x80008009
-	.word	0x0
-	.word	0x8000000a
-	.word	0x0
-	.word	0x8000808b
-	.word	0x0
-	.word	0x8b
-	.word	0x80000000
-	.word	0x8089
-	.word	0x80000000
-	.word	0x8003
-	.word	0x80000000
-	.word	0x8002
-	.word	0x80000000
-	.word	0x80
-	.word	0x80000000
-	.word	0x800a
-	.word	0x0
-	.word	0x8000000a
-	.word	0x80000000
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8080
-	.word	0x80000000
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008008
-	.word	0x80000000
+#else
+	.p2align	4
+#endif /* __APPLE__ */
+L_sha3_arm32_rt:
+	.quad	0x0000000000000001,0x0000000000008082
+	.quad	0x800000000000808a,0x8000000080008000
+	.quad	0x000000000000808b,0x0000000080000001
+	.quad	0x8000000080008081,0x8000000000008009
+	.quad	0x000000000000008a,0x0000000000000088
+	.quad	0x0000000080008009,0x000000008000000a
+	.quad	0x000000008000808b,0x800000000000008b
+	.quad	0x8000000000008089,0x8000000000008003
+	.quad	0x8000000000008002,0x8000000000000080
+	.quad	0x000000000000800a,0x800000008000000a
+	.quad	0x8000000080008081,0x8000000000008080
+	.quad	0x0000000080000001,0x8000000080008008
 	.text
 	.align	4
 	.globl	BlockSha3
@@ -413,7 +359,7 @@ L_sha3_arm2_rt:
 BlockSha3:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xcc
-	adr	r1, L_sha3_arm2_rt
+	adr	r1, L_sha3_arm32_rt
 	mov	r2, #12
 L_sha3_arm32_begin:
 	str	r2, [sp, #200]

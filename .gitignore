@@ -486,6 +486,7 @@ wolfssl/debug-trace-error-codes.h
 wolfssl/debug-untrace-error-codes.h
 
 AGENTS.md
+CLAUDE.md
 
 # Code navigation files
 compile_commands.json

@@ -18,6 +18,7 @@
 ;  * along with this program; if not, write to the Free Software
 ;  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 ;  */
+
 IF @Version LT 1200
 ; AVX2 instructions not recognized by old versions of MASM
 IFNDEF NO_AVX2_SUPPORT
@@ -40,7 +41,7 @@ IFNDEF _WIN64
 _WIN64 = 1
 ENDIF
 
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 chacha_encrypt_x64 PROC
         push	rbx
         push	rbp
@@ -457,29 +458,33 @@ L_chacha_x64_done:
         pop	rbx
         ret
 chacha_encrypt_x64 ENDP
-_text ENDS
+_TEXT ENDS
 IFDEF HAVE_INTEL_AVX1
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_rotl8 QWORD 433757367256023043, 1012478749960636427
+L_chacha20_avx1_rotl8 QWORD \
+     0605040702010003h,  0e0d0c0f0a09080bh
 ptr_L_chacha20_avx1_rotl8 QWORD L_chacha20_avx1_rotl8
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_rotl16 QWORD 361421592464458498, 940142975169071882
+L_chacha20_avx1_rotl16 QWORD \
+     0504070601000302h,  0d0c0f0e09080b0ah
 ptr_L_chacha20_avx1_rotl16 QWORD L_chacha20_avx1_rotl16
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_add QWORD 4294967296, 12884901890
+L_chacha20_avx1_add QWORD \
+     0000000100000000h,  0000000300000002h
 ptr_L_chacha20_avx1_add QWORD L_chacha20_avx1_add
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx1_four QWORD 17179869188, 17179869188
+L_chacha20_avx1_four QWORD \
+     0000000400000004h,  0000000400000004h
 ptr_L_chacha20_avx1_four QWORD L_chacha20_avx1_four
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 chacha_encrypt_avx1 PROC
         push	r12
         push	r13
@@ -1009,34 +1014,38 @@ L_chacha20_avx1_partial_done:
         pop	r12
         ret
 chacha_encrypt_avx1 ENDP
-_text ENDS
+_TEXT ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_rotl8 QWORD 433757367256023043, 1012478749960636427,
-    433757367256023043, 1012478749960636427
+L_chacha20_avx2_rotl8 QWORD \
+     0605040702010003h,  0e0d0c0f0a09080bh,
+     0605040702010003h,  0e0d0c0f0a09080bh
 ptr_L_chacha20_avx2_rotl8 QWORD L_chacha20_avx2_rotl8
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_rotl16 QWORD 361421592464458498, 940142975169071882,
-    361421592464458498, 940142975169071882
+L_chacha20_avx2_rotl16 QWORD \
+     0504070601000302h,  0d0c0f0e09080b0ah,
+     0504070601000302h,  0d0c0f0e09080b0ah
 ptr_L_chacha20_avx2_rotl16 QWORD L_chacha20_avx2_rotl16
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_add QWORD 4294967296, 12884901890,
-    21474836484, 30064771078
+L_chacha20_avx2_add QWORD \
+     0000000100000000h,  0000000300000002h,
+     0000000500000004h,  0000000700000006h
 ptr_L_chacha20_avx2_add QWORD L_chacha20_avx2_add
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_chacha20_avx2_eight QWORD 34359738376, 34359738376,
-    34359738376, 34359738376
+L_chacha20_avx2_eight QWORD \
+     0000000800000008h,  0000000800000008h,
+     0000000800000008h,  0000000800000008h
 ptr_L_chacha20_avx2_eight QWORD L_chacha20_avx2_eight
 _DATA ENDS
-_text SEGMENT READONLY PARA
+_TEXT SEGMENT READONLY PARA
 chacha_encrypt_avx2 PROC
         push	r12
         push	r13
@@ -1420,6 +1429,6 @@ L_chacha20_avx2_end256:
         pop	r12
         ret
 chacha_encrypt_avx2 ENDP
-_text ENDS
+_TEXT ENDS
 ENDIF
 END

@@ -49,10 +49,16 @@ jobs:
       matrix:
         haproxy_ref: [ 'v3.1.0', 'v3.2.0']
     steps:
+    - name: Checkout wolfSSL CI actions
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: .github/actions
+        fetch-depth: 1
+
     - name: Install test dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install libpcre2-dev
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: libpcre2-dev
 
     - name: Download lib
       uses: actions/download-artifact@v4
@@ -77,6 +83,7 @@ jobs:
         repository: haproxy/haproxy
         ref: ${{matrix.haproxy_ref}}
         path: build-dir/haproxy-${{matrix.haproxy_ref}}
+        fetch-depth: 1
 
     - name: Build haproxy
       working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}

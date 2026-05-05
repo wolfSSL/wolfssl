@@ -48,7 +48,7 @@ static int wc_psa_aes_import_key(Aes *aes, const uint8_t *key,
     psa_status_t s;
 
     XMEMSET(&key_attr, 0, sizeof(key_attr));
-    aes->key_id = 0;
+    aes->key_id = PSA_KEY_ID_NULL;
     aes->ctx_initialized = 0;
 
     psa_set_key_type(&key_attr, PSA_KEY_TYPE_AES);
@@ -76,7 +76,7 @@ static int wc_psa_aes_import_key(Aes *aes, const uint8_t *key,
  */
 int wc_psa_aes_init(Aes *aes)
 {
-    aes->key_id = 0;
+    aes->key_id = PSA_KEY_ID_NULL;
     aes->ctx_initialized = 0;
     aes->key_need_importing = 0;
     XMEMSET(&aes->psa_ctx, 0, sizeof(aes->psa_ctx));
@@ -167,9 +167,7 @@ int wc_psa_aes_set_key(Aes *aes, const uint8_t *key, size_t key_length,
         XMEMCPY(aes->key, key, key_length);
         aes->key_need_importing = 1;
     } else {
-        PSA_LOCK();
         ret = wc_psa_aes_import_key(aes, key, key_length, alg, dir);
-        PSA_UNLOCK();
         if (ret != 0)
             return ret;
     }
@@ -227,10 +225,9 @@ int wc_psa_aes_encrypt_decrypt(Aes *aes, const uint8_t *input,
             PSA_UNLOCK();
         }
 
+        aes->ctx_initialized = 1;  /* mark before error check so err: path aborts it */
         if (s != PSA_SUCCESS)
             goto err;
-
-        aes->ctx_initialized = 1;
 
         /* ECB doesn't use IV */
         if (alg != PSA_ALG_ECB_NO_PADDING) {
@@ -284,7 +281,6 @@ int wc_psa_aes_free(Aes *aes)
         aes->ctx_initialized = 0;
     }
 
-    aes->ctx_initialized = 0;
     aes->key_need_importing = 0;
 
     return 0;

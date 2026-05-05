@@ -1020,6 +1020,7 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
     ExpectNull(X509V3_EXT_nconf(NULL, NULL, ext_names[0], NULL));
     ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, ext_nids[0], NULL));
     ExpectNull(X509V3_EXT_nconf(NULL, NULL, "", ext_values[0]));
+    ExpectNull(X509V3_EXT_nconf(NULL, NULL, NULL, ext_values[0]));
     ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, 0, ext_values[0]));
 
     /* conf and ctx ignored. */

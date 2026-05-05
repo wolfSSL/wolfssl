@@ -1,5 +1,7 @@
 #[cfg(any(blake2b, blake2s))]
 use wolfssl_wolfcrypt::blake2::*;
+#[cfg(any(blake2b, blake2s))]
+use wolfssl_wolfcrypt::sys;
 
 #[test]
 #[cfg(blake2b)]
@@ -48,6 +50,15 @@ fn test_blake2b() {
         blake2b.finalize(&mut hash).expect("error with finalize()");
         assert_eq!(hash, *expected_hash);
     }
+}
+
+#[test]
+#[cfg(blake2b)]
+fn test_blake2b_finalize_empty_buffer() {
+    let mut blake2b = BLAKE2b::new(64).expect("Error with new()");
+    let mut hash: [u8; 0] = [];
+    let rc = blake2b.finalize(&mut hash).expect_err("finalize() should fail");
+    assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BUFFER_E);
 }
 
 #[test]
@@ -149,6 +160,15 @@ fn test_blake2s() {
         blake2s.finalize(&mut hash).expect("error with finalize()");
         assert_eq!(hash, *expected_hash);
     }
+}
+
+#[test]
+#[cfg(blake2s)]
+fn test_blake2s_finalize_empty_buffer() {
+    let mut blake2s = BLAKE2s::new(32).expect("Error with new()");
+    let mut hash: [u8; 0] = [];
+    let rc = blake2s.finalize(&mut hash).expect_err("finalize() should fail");
+    assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BUFFER_E);
 }
 
 #[test]

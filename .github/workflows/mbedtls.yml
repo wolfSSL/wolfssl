@@ -19,7 +19,7 @@ jobs:
   build_mbedtls:
     name: Build mbedtls
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
@@ -38,6 +38,7 @@ jobs:
           repository: Mbed-TLS/mbedtls
           ref: ${{ env.MBED_REF }}
           path: mbedtls
+          fetch-depth: 1
 
       - name: Compile mbedtls
         if: steps.cache.outputs.cache-hit != 'true'
@@ -47,7 +48,7 @@ jobs:
           mkdir build
           cd build
           cmake ..
-          make -j
+          make -j$(nproc)
           # convert key to pem format
           openssl pkey -in framework/data_files/cli-rsa-sha256.key.der -text > framework/data_files/cli-rsa-sha256.key.pem
           openssl pkey -in framework/data_files/server2.key.der -text > framework/data_files/server2.key.pem
@@ -55,20 +56,40 @@ jobs:
   mbedtls_test:
     name: Test interop with mbedtls
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_mbedtls
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Disable IPv6 (IMPORTANT, OTHERWISE DTLS MBEDTLS CLIENT WON'T CONNECT)
         run: echo 1 | sudo tee /proc/sys/net/ipv6/conf/lo/disable_ipv6
 
       - name: Checking if we have mbed in cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache@v4
         id: cache
         with:
           path: mbedtls
           key: mbedtls-${{ env.MBED_REF }}
-          fail-on-cache-miss: true
+
+      - name: Checkout mbedtls (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: Mbed-TLS/mbedtls
+          ref: ${{ env.MBED_REF }}
+          path: mbedtls
+          fetch-depth: 1
+
+      - name: Compile mbedtls (fallback on cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: mbedtls
+        run: |
+          git submodule update --init
+          mkdir build
+          cd build
+          cmake ..
+          make -j$(nproc)
+          openssl pkey -in framework/data_files/cli-rsa-sha256.key.der -text > framework/data_files/cli-rsa-sha256.key.pem
+          openssl pkey -in framework/data_files/server2.key.der -text > framework/data_files/server2.key.pem
 
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1

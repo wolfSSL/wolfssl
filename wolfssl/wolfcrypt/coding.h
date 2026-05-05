@@ -76,15 +76,6 @@ WOLFSSL_API int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER) || defined(HAVE_FIPS) || \
-    defined(HAVE_ECC_CDH) || defined(HAVE_SELFTEST) || \
-    defined(WOLFSSL_ENCRYPTED_KEYS)
-    #ifndef WOLFSSL_BASE16
-        #define WOLFSSL_BASE16
-    #endif
-#endif
-
 #ifdef WOLFSSL_BASE16
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define Base16_Decode wc_Base16_Decode

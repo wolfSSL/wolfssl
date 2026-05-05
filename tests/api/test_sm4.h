@@ -30,13 +30,21 @@ int test_wc_Sm4Cbc(void);
 int test_wc_Sm4Ctr(void);
 int test_wc_Sm4Gcm(void);
 int test_wc_Sm4Ccm(void);
+int test_wc_Sm4Cbc_MonteCarlo(void);
+int test_wc_Sm4Ctr_MonteCarlo(void);
+int test_wc_Sm4Gcm_MonteCarlo(void);
+int test_wc_Sm4Ccm_MonteCarlo(void);
 
-#define TEST_SM4_DECLS                      \
-    TEST_DECL_GROUP("sm4", test_wc_Sm4),    \
-    TEST_DECL_GROUP("sm4", test_wc_Sm4Ecb), \
-    TEST_DECL_GROUP("sm4", test_wc_Sm4Cbc), \
-    TEST_DECL_GROUP("sm4", test_wc_Sm4Ctr), \
-    TEST_DECL_GROUP("sm4", test_wc_Sm4Gcm), \
-    TEST_DECL_GROUP("sm4", test_wc_Sm4Ccm)
+#define TEST_SM4_DECLS                                          \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4),                        \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Ecb),                     \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Cbc),                     \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Ctr),                     \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Gcm),                     \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Ccm),                     \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Cbc_MonteCarlo),          \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Ctr_MonteCarlo),          \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Gcm_MonteCarlo),          \
+    TEST_DECL_GROUP("sm4", test_wc_Sm4Ccm_MonteCarlo)
 
 #endif /* WOLFCRYPT_TEST_SM4_H */

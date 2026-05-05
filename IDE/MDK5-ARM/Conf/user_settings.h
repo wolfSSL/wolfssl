@@ -208,9 +208,9 @@
 #endif
 //  </e>
 //      <e>BLAKE2
-#define MDK_CONF_BLAKE2 0
-#if MDK_CONF_BLAKE2 == 1
-#define HAVE_BLAKE2
+#define MDK_CONF_BLAKE2B 0
+#if MDK_CONF_BLAKE2B == 1
+#define HAVE_BLAKE2B
 #endif
 //  </e>
 //      <e>HMAC

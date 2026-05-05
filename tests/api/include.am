@@ -18,6 +18,8 @@ tests_unit_test_SOURCES += tests/api/test_hash.c
 # MAC
 tests_unit_test_SOURCES += tests/api/test_hmac.c
 tests_unit_test_SOURCES += tests/api/test_cmac.c
+# SHE
+tests_unit_test_SOURCES += tests/api/test_she.c
 # Cipher
 tests_unit_test_SOURCES += tests/api/test_des3.c
 tests_unit_test_SOURCES += tests/api/test_chacha.c
@@ -124,6 +126,7 @@ EXTRA_DIST += tests/api/test_digest.h
 EXTRA_DIST += tests/api/test_hash.h
 EXTRA_DIST += tests/api/test_hmac.h
 EXTRA_DIST += tests/api/test_cmac.h
+EXTRA_DIST += tests/api/test_she.h
 EXTRA_DIST += tests/api/test_des3.h
 EXTRA_DIST += tests/api/test_chacha.h
 EXTRA_DIST += tests/api/test_poly1305.h

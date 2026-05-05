@@ -401,7 +401,9 @@ static int km_ecdsa_verify(struct akcipher_request *req)
     sig_len = req->src_len;
     hash_len = req->dst_len;
 
-    if (hash_len <= 0) {
+    if ((hash_len > WC_MAX_DIGEST_SIZE) ||
+        (hash_len < WC_MIN_DIGEST_SIZE))
+    {
         err = -EINVAL;
         goto ecdsa_verify_end;
     }

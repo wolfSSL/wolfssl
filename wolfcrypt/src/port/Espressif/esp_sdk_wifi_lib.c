@@ -324,6 +324,7 @@ static EventGroupHandle_t s_wifi_event_group;
 
 
 static int s_retry_num = 0;
+/* TODO: use event in wc_wifi_show_ip - logging the IP string causes a panic. */
 ip_event_got_ip_t* event;
 
 

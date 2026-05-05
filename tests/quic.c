@@ -390,6 +390,65 @@ static int test_provide_quic_data(void) {
     return EXPECT_RESULT();
 }
 
+static int test_quic_record_cap(void) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx = NULL;
+    WOLFSSL *     ssl = NULL;
+    size_t        over = (size_t)WOLFSSL_QUIC_MAX_RECORD_CAPACITY + 512U * 1024U;
+    uint8_t *     buf = NULL;
+    uint8_t       hdr[4];
+    word32        rlen;
+
+    ExpectNotNull(buf = (uint8_t*)XMALLOC(over, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (buf != NULL)
+        XMEMSET(buf, 0, over);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method) == WOLFSSL_SUCCESS);
+
+    /* early_data with over-cap length must be rejected */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(provide_data(ssl, wolfssl_encryption_early_data, buf, over, 1));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* early_data at exactly cap must succeed */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(provide_data(ssl, wolfssl_encryption_early_data, buf,
+                            WOLFSSL_QUIC_MAX_RECORD_CAPACITY, 0));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* early_data at cap+1 must be rejected */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(provide_data(ssl, wolfssl_encryption_early_data, buf,
+                            (size_t)WOLFSSL_QUIC_MAX_RECORD_CAPACITY + 1U, 1));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* early_data well within cap must succeed */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(provide_data(ssl, wolfssl_encryption_early_data, buf, 1024, 0));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* handshake with over-cap record header must also be rejected */
+    rlen = (word32)WOLFSSL_QUIC_MAX_RECORD_CAPACITY + 16U - 4U;
+    hdr[0] = 0x16;
+    hdr[1] = (byte)(rlen >> 16);
+    hdr[2] = (byte)(rlen >> 8);
+    hdr[3] = (byte)rlen;
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectTrue(provide_data(ssl, wolfssl_encryption_handshake, hdr, 4, 1));
+    wolfSSL_free(ssl);
+
+    wolfSSL_CTX_free(ctx);
+    if (buf != NULL)
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    printf("    test_quic_record_cap: %s\n", (EXPECT_SUCCESS()) ? pass : fail);
+    return EXPECT_RESULT();
+}
 
 static int test_quic_crypt(void) {
     EXPECT_DECLS;
@@ -1939,6 +1998,7 @@ int QuicTest(void)
     if ((ret = test_set_quic_method()) != TEST_SUCCESS) goto leave;
 #ifndef NO_WOLFSSL_CLIENT
     if ((ret = test_provide_quic_data()) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_record_cap()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_crypt()) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_client_hello(verbose)) != TEST_SUCCESS) goto leave;
 #endif

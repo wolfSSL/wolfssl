@@ -41,7 +41,8 @@
 int test_DSA_do_sign_verify(void)
 {
     EXPECT_DECLS;
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+     !defined(WC_FIPS_186_5_PLUS)
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_DSA)
     unsigned char digest[WC_SHA_DIGEST_SIZE];
@@ -88,7 +89,7 @@ int test_DSA_do_sign_verify(void)
     DSA_SIG_free(sig);
     DSA_free(dsa);
 #endif
-#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS && !WC_FIPS_186_5_PLUS */
     return EXPECT_RESULT();
 }
 
@@ -110,7 +111,7 @@ int test_wolfSSL_DSA_SIG(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FIPS) && defined(OPENSSL_ALL)
+    !defined(HAVE_FIPS) && !defined(WC_FIPS_186_5_PLUS) && defined(OPENSSL_ALL)
     DSA          *dsa      = NULL;
     DSA          *dsa2     = NULL;
     DSA_SIG      *sig      = NULL;

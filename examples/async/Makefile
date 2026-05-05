@@ -67,6 +67,7 @@ $(OBJDIR)/wolfcrypt/src/fipsv2.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/selftest.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/wolfcrypt_first.o: CFLAGS += -Wno-pedantic
 $(OBJDIR)/wolfcrypt/src/wolfcrypt_last.o: CFLAGS += -Wno-pedantic
+$(OBJDIR)/wolfcrypt/src/asn_orig.o: CFLAGS += -Wno-pedantic
 
 clean:
 	$(RM) -r $(OBJDIR) $(TARGETS)

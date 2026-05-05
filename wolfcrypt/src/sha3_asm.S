@@ -53,9 +53,9 @@
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_avx2_r:
 .quad	0x0000000000000001,0x0000000000000001
@@ -112,9 +112,9 @@ L_sha3_avx2_r:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_x4_avx2_r:
 .quad	0x0000000000000001,0x0000000000000001
@@ -9314,9 +9314,9 @@ L_sha3_block_n_bmi2_rounds:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_avx2_rotl:
 .quad	0x0000000000000001,0x000000000000003e
@@ -9337,9 +9337,9 @@ L_sha3_block_avx2_rotl:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_avx2_rotr:
 .quad	0x000000000000003f,0x0000000000000002
@@ -9533,9 +9533,9 @@ L_sha3_block_avx2_start:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_n_avx2_rotl:
 .quad	0x0000000000000001,0x000000000000003e
@@ -9556,9 +9556,9 @@ L_sha3_block_n_avx2_rotl:
 .section	__DATA,__data
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.align	16
+.align	32
 #else
-.p2align	4
+.p2align	5
 #endif /* __APPLE__ */
 L_sha3_block_n_avx2_rotr:
 .quad	0x000000000000003f,0x0000000000000002
@@ -9928,7 +9928,7 @@ L_sha3_block_n_avx2_rounds:
 #ifndef __APPLE__
 .size	sha3_block_n_avx2,.-sha3_block_n_avx2
 #endif /* __APPLE__ */
-#if defined(WOLFSSL_WC_MLKEM) || defined(WOLFSSL_WC_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA)
 #ifndef __APPLE__
 .text
 .globl	sha3_blocksx4_avx2
@@ -15298,8 +15298,8 @@ _sha3_blocksx4_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_sha3_128_blockx4_seed_avx2_end_mark:
-.quad	0x8000000000000000, 0x8000000000000000
-.quad	0x8000000000000000, 0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
 .text
 .globl	sha3_128_blocksx4_seed_avx2
@@ -20664,8 +20664,8 @@ _sha3_128_blocksx4_seed_avx2:
 #ifndef __APPLE__
 .size	sha3_128_blocksx4_seed_avx2,.-sha3_128_blocksx4_seed_avx2
 #endif /* __APPLE__ */
-#endif /* defined(WOLFSSL_WC_MLKEM) || defined(WOLFSSL_WC_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA) */
-#ifdef WOLFSSL_WC_MLKEM
+#endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA) */
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 .data
 #else
@@ -20677,8 +20677,8 @@ _sha3_128_blocksx4_seed_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_sha3_256_blockx4_seed_avx2_end_mark:
-.quad	0x8000000000000000, 0x8000000000000000
-.quad	0x8000000000000000, 0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx4_seed_avx2
@@ -26044,8 +26044,8 @@ _sha3_256_blocksx4_seed_avx2:
 #ifndef __APPLE__
 .size	sha3_256_blocksx4_seed_avx2,.-sha3_256_blocksx4_seed_avx2
 #endif /* __APPLE__ */
-#endif /* WOLFSSL_WC_MLKEM */
-#ifdef WOLFSSL_WC_DILITHIUM
+#endif /* WOLFSSL_HAVE_MLKEM */
+#ifdef HAVE_DILITHIUM
 #ifndef __APPLE__
 .data
 #else
@@ -26057,8 +26057,8 @@ _sha3_256_blocksx4_seed_avx2:
 .p2align	5
 #endif /* __APPLE__ */
 L_sha3_256_blockx4_seed_64_avx2_end_mark:
-.quad	0x8000000000000000, 0x8000000000000000
-.quad	0x8000000000000000, 0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
+.quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
 .text
 .globl	sha3_256_blocksx4_seed_64_avx2
@@ -31448,7 +31448,7 @@ _sha3_256_blocksx4_seed_64_avx2:
 #ifndef __APPLE__
 .size	sha3_256_blocksx4_seed_64_avx2,.-sha3_256_blocksx4_seed_64_avx2
 #endif /* __APPLE__ */
-#endif /* WOLFSSL_WC_DILITHIUM */
+#endif /* HAVE_DILITHIUM */
 #endif /* HAVE_INTEL_AVX2 */
 
 #if defined(__linux__) && defined(__ELF__)

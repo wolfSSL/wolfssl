@@ -79,6 +79,7 @@ enum Pkcs11KeyType {
     PKCS11_KEY_TYPE_RSA,
     PKCS11_KEY_TYPE_EC,
     PKCS11_KEY_TYPE_MLDSA,
+    PKCS11_KEY_TYPE_MLKEM,
 };
 
 WOLFSSL_API int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library,

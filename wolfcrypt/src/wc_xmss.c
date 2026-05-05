@@ -22,6 +22,11 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_HAVE_XMSS
+
+#if FIPS_VERSION3_GE(2,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 
 #ifdef NO_INLINE
@@ -834,7 +839,7 @@ int wc_XmssKey_Init(XmssKey* key, void* heap, int devId)
 /* Set the XMSS key parameter string.
  *
  * The input string must be one of the supported parm set names in
- * the "Name" section from the table in wolfssl/wolfcrypt/xmss.h,
+ * the "Name" section from the table in wolfssl/wolfcrypt/wc_xmss.h,
  * e.g. "XMSS-SHA2_10_256" or "XMSSMT-SHA2_20/4_256".
  *
  * @param [in] key  The XMSS key to set.

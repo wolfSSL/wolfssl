@@ -376,7 +376,13 @@ int wc_Sha384Final(wc_Sha384* sha, byte* out)
 #ifdef WOLFSSL_SHA512
 int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
 {
-    return _InitSha(sha, heap, devId, SHA512_DIGEST_SIZE, CAAM_SHA512);
+    int ret = _InitSha(sha, heap, devId, SHA512_DIGEST_SIZE, CAAM_SHA512);
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    if (ret == 0) {
+        sha->hashType = WC_HASH_TYPE_SHA512;
+    }
+#endif
+    return ret;
 }
 
 

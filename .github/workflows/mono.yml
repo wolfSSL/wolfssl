@@ -20,6 +20,12 @@ jobs:
     timeout-minutes: 10
     steps:
 
+    - name: Checkout wolfSSL CI actions
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: .github/actions
+        fetch-depth: 1
+
     # Build wolfSSL using the user_settings.h from the C# wrapper directory
     - name: Build wolfSSL
       uses: wolfSSL/actions-build-autotools-project@v1
@@ -30,9 +36,9 @@ jobs:
         check: false
 
     - name: Install mono-complete
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y mono-complete
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: mono-complete
 
     - name: Copy wolfSSL.dll to C# wrapper directory
       run: |
