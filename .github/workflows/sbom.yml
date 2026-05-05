@@ -30,6 +30,308 @@ jobs:
       - name: Unit tests
         run: python3 -W error::ResourceWarning -m unittest scripts/test_gen_sbom.py -v
 
+  # Tier 2 (standalone) - the embedded entry point: gen-sbom invoked
+  # directly without autotools, against a real wolfSSL user_settings.h
+  # plus a representative source set.  Mirrors how a Keil / IAR /
+  # STM32CubeIDE / ESP-IDF / Zephyr customer would call it from a
+  # post-build step.  Without this job the standalone path would only
+  # be exercised by hand and a regression in --user-settings,
+  # --srcs, or --dep-version handling would silently land.
+  standalone:
+    name: SBOM standalone (no autotools)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install standalone-path deps
+        # pcpp is the in-Python C preprocessor that lets gen-sbom walk
+        # settings.h + user_settings.h with no compiler invocation.
+        # spdx-tools is for the post-generation validation step.
+        run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user pcpp 'spdx-tools==0.8.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate SBOM via standalone Python entry point
+        # Uses IDE/GCC-ARM/Header/user_settings.h as the fixture - it
+        # is a real, comprehensive embedded user_settings.h shipping in
+        # the tree, so any CI failure here represents a regression a
+        # real customer would hit.  Source set is a small but
+        # representative slice of wolfcrypt that does not depend on
+        # any pre-build code generation.
+        #
+        # The two `NO_*_H` predefines exercise the noise-filter
+        # `_CONFIG_H_TOKENS` carve-out end-to-end: a NETOS / Telit /
+        # similar RTOS profile sets these in user_settings.h to disable
+        # stdlib header inclusion, and an over-aggressive header-guard
+        # filter would silently drop them from the SBOM (see the
+        # corresponding row in `required` below).
+        run: |
+          mkdir -p /tmp/standalone
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --user-settings wolfssl/wolfcrypt/settings.h \
+              --user-settings-include . \
+              --user-settings-include IDE/GCC-ARM/Header \
+              --user-settings-define WOLFSSL_USER_SETTINGS \
+              --user-settings-define NO_STDINT_H \
+              --user-settings-define WOLFSSL_NO_ASSERT_H \
+              --srcs wolfcrypt/src/aes.c \
+                     wolfcrypt/src/sha.c \
+                     wolfcrypt/src/sha256.c \
+                     wolfcrypt/src/dh.c \
+              --cdx-out /tmp/standalone/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone/wolfssl.spdx.json
+
+      - name: Standalone SPDX validates per pyspdxtools
+        # Same validator the autotools `make sbom` recipe runs.  If
+        # the embedded path produces an SBOM autotools' validator
+        # rejects, our portability claim is false.
+        run: pyspdxtools --infile /tmp/standalone/wolfssl.spdx.json
+
+      - name: Standalone SBOM advertises source-merkle hash semantics
+        # The auditor-facing contract: the standalone SBOM must say
+        # "this checksum is over a source set, not a library binary",
+        # and must list which sources fed the hash.  Without these
+        # properties the SHA-256 in `hashes` is ambiguous to anyone
+        # reviewing the SBOM.
+        #
+        # The build-property assertion is a pinned set rather than a
+        # `len > N` smoke for two reasons:
+        #   1. A noise-filter regression that drops 80% of the wolfSSL
+        #      config flags but keeps 21 unrelated names would still
+        #      pass a length check, and silently ship an SBOM that
+        #      misrepresents the build to a CRA reviewer.
+        #   2. The pinned set covers three distinct filter paths:
+        #      - regular config (no `_H` suffix): SINGLE_THREADED,
+        #        WOLFSSL_USER_SETTINGS, USE_FAST_MATH, NO_FILESYSTEM,
+        #        WOLFSSL_SMALL_STACK, NO_DEV_RANDOM
+        #      - `_H`-suffix carve-out via `--user-settings-define`:
+        #        NO_STDINT_H, WOLFSSL_NO_ASSERT_H.  These are the
+        #        regression sentinels for the bug fixed in this PR
+        #        (header-guard filter dropping NETOS/Telit-style
+        #        stdlib disablement flags); a regression of
+        #        `_CONFIG_H_TOKENS` in gen-sbom would surface here.
+        run: |
+          python3 - <<'PY'
+          import json
+          with open('/tmp/standalone/wolfssl.cdx.json') as f:
+              cdx = json.load(f)
+          props = {p['name']: p['value']
+                   for p in cdx['metadata']['component']['properties']}
+          assert props.get('wolfssl:sbom:hash-kind') == 'source-merkle-omnibor', \
+              props
+          srcs = props['wolfssl:sbom:source-set'].split(',')
+          assert sorted(srcs) == ['aes.c', 'dh.c', 'sha.c', 'sha256.c'], srcs
+
+          build_prop_names = {
+              k.split(':', 2)[-1]
+              for k in props if k.startswith('wolfssl:build:')
+          }
+          # Regular wolfSSL config flags (no `_H` suffix).  Each is set
+          # by the GCC-ARM/Header user_settings.h fixture or by the
+          # --user-settings-define WOLFSSL_USER_SETTINGS predefine.
+          required_regular = {
+              'WOLFSSL_USER_SETTINGS',  # the gate the customer set in CFLAGS
+              'SINGLE_THREADED',        # IDE/GCC-ARM/Header/user_settings.h
+              'USE_FAST_MATH',          # IDE/GCC-ARM/Header/user_settings.h
+              'NO_FILESYSTEM',          # IDE/GCC-ARM/Header/user_settings.h
+              'WOLFSSL_SMALL_STACK',    # IDE/GCC-ARM/Header/user_settings.h
+              'NO_DEV_RANDOM',          # IDE/GCC-ARM/Header/user_settings.h
+          }
+          # `_H`-suffix carve-out sentinels - injected via
+          # --user-settings-define above so a regression of
+          # `_CONFIG_H_TOKENS` in gen-sbom (i.e. the bug that this PR
+          # fixes) blows up CI rather than only the unit tests.
+          required_h_carveout = {
+              'NO_STDINT_H',            # NETOS / Telit stdlib disablement
+              'WOLFSSL_NO_ASSERT_H',    # gates types.h:2132
+          }
+          required = required_regular | required_h_carveout
+          missing = required - build_prop_names
+          assert not missing, (
+              f'pinned wolfSSL config flags missing from SBOM '
+              f'(pcpp + noise filter regression?): {missing}\n'
+              f'  - regular missing : {required_regular - build_prop_names}\n'
+              f'  - _H carve-out missing: {required_h_carveout - build_prop_names}\n'
+              f'present subset: {build_prop_names & required}'
+          )
+          # No host-leak / Apple TargetConditionals / __* internals.
+          import re
+          forbidden = [n for n in build_prop_names
+                       if re.match(r'(?:__|_[A-Z]|TARGET_OS_|TARGET_IPHONE_)',
+                                   n)]
+          assert not forbidden, (
+              f'host-leak macros present in SBOM (noise filter '
+              f'regression?): {forbidden[:10]}'
+          )
+          print(f'standalone SBOM ok: {len(build_prop_names)} build props '
+                f'(all {len(required_regular)} regular + '
+                f'{len(required_h_carveout)} carve-out flags present, '
+                f'no host-leak names), {len(srcs)} source files')
+          PY
+
+      - name: Reproducibility - two standalone runs are byte-identical
+        # The deterministic UUID + SOURCE_DATE_EPOCH machinery applies
+        # to both entry points; this guards against a future change
+        # accidentally introducing wallclock or random data into the
+        # standalone path.  Predefines must match the generate step
+        # exactly; any drift here would diff against the original run.
+        run: |
+          mkdir -p /tmp/standalone-r2
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --user-settings wolfssl/wolfcrypt/settings.h \
+              --user-settings-include . \
+              --user-settings-include IDE/GCC-ARM/Header \
+              --user-settings-define WOLFSSL_USER_SETTINGS \
+              --user-settings-define NO_STDINT_H \
+              --user-settings-define WOLFSSL_NO_ASSERT_H \
+              --srcs wolfcrypt/src/aes.c \
+                     wolfcrypt/src/sha.c \
+                     wolfcrypt/src/sha256.c \
+                     wolfcrypt/src/dh.c \
+              --cdx-out /tmp/standalone-r2/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone-r2/wolfssl.spdx.json
+          diff /tmp/standalone/wolfssl.cdx.json \
+               /tmp/standalone-r2/wolfssl.cdx.json
+          diff /tmp/standalone/wolfssl.spdx.json \
+               /tmp/standalone-r2/wolfssl.spdx.json
+
+      - name: --dep-version override (no pkg-config needed)
+        # The whole point of --dep-version is to let cross-compile /
+        # baremetal hosts emit a dep version when pkg-config is
+        # unavailable for the target.  Asserts the value lands in the
+        # SBOM dep entry instead of NOASSERTION.
+        run: |
+          mkdir -p /tmp/standalone-deps
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --user-settings wolfssl/wolfcrypt/settings.h \
+              --user-settings-include . \
+              --user-settings-include IDE/GCC-ARM/Header \
+              --user-settings-define WOLFSSL_USER_SETTINGS \
+              --srcs wolfcrypt/src/aes.c wolfcrypt/src/sha.c \
+              --dep-libz yes \
+              --dep-version libz=1.3.1 \
+              --cdx-out /tmp/standalone-deps/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone-deps/wolfssl.spdx.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/standalone-deps/wolfssl.spdx.json') as f:
+              d = json.load(f)
+          deps = {p['name']: p for p in d['packages'] if p['name'] != 'wolfssl'}
+          assert 'zlib' in deps, list(deps)
+          assert deps['zlib']['versionInfo'] == '1.3.1', deps['zlib']
+          print('--dep-version override ok: zlib@1.3.1')
+          PY
+
+      - name: --options-h escape hatch ($CC -dM -E, no pcpp)
+        # The doc/SBOM.md § 1.5 escape hatch for toolchains that cannot
+        # install pcpp (older Keil / IAR sites with restricted pip
+        # access): pre-process settings.h with the system compiler's
+        # `-dM -E` macro-dump mode and feed the resulting flat #define
+        # list to gen-sbom via --options-h.  This step proves the path
+        # actually works end-to-end and that the noise filter scrubs
+        # the host-leak macros (__VERSION__, __SSE2__, TARGET_OS_*,
+        # ...) that `gcc -dM -E` always emits alongside the wolfSSL
+        # config.
+        run: |
+          mkdir -p /tmp/standalone-dme
+          # Same effective build the pcpp step covered above; the only
+          # difference is the macro-extraction mechanism.  The two
+          # `-D NO_*_H` predefines mirror the pcpp step and pin the
+          # `_CONFIG_H_TOKENS` carve-out on the no-pcpp path too.
+          gcc -dM -E \
+              -I . -I IDE/GCC-ARM/Header \
+              -DWOLFSSL_USER_SETTINGS \
+              -DNO_STDINT_H \
+              -DWOLFSSL_NO_ASSERT_H \
+              -include wolfssl/wolfcrypt/settings.h \
+              -x c /dev/null > /tmp/standalone-dme/options.h
+
+          # Defensive: the value of this whole step is that the noise
+          # filter scrubs `gcc -dM -E`'s host-leak macros.  If a future
+          # GCC / runner image happened to emit no `__*` defines, the
+          # `forbidden` assertion below would pass vacuously even with
+          # the noise filter disabled.  Confirm the raw dump actually
+          # contains plenty of host-leak names, otherwise this step
+          # is not actually testing what it claims to test.
+          raw_underscores=$(grep -cE '^#define[[:space:]]+(__|_[A-Z])' \
+              /tmp/standalone-dme/options.h || true)
+          echo "raw -dM -E dump has $raw_underscores compiler-reserved defines"
+          test "$raw_underscores" -ge 50 || {
+              echo "ERROR: --options-h CI step is not exercising the noise"
+              echo "       filter (raw dump has only $raw_underscores"
+              echo "       compiler-reserved defines; expected >= 50)."
+              exit 1
+          }
+
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --options-h /tmp/standalone-dme/options.h \
+              --srcs wolfcrypt/src/aes.c \
+                     wolfcrypt/src/sha.c \
+                     wolfcrypt/src/sha256.c \
+                     wolfcrypt/src/dh.c \
+              --cdx-out /tmp/standalone-dme/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone-dme/wolfssl.spdx.json
+
+          # Validate + assert the same wolfSSL config flags reach the
+          # SBOM via the no-pcpp path that the pcpp path produced
+          # above.  If the noise filter regresses, this step is what
+          # surfaces it (the raw `gcc -dM -E` dump contains hundreds
+          # of host-leak macros and only a handful of wolfSSL ones).
+          pyspdxtools --infile /tmp/standalone-dme/wolfssl.spdx.json
+          python3 - <<'PY'
+          import json, re
+          with open('/tmp/standalone-dme/wolfssl.cdx.json') as f:
+              cdx = json.load(f)
+          props = {p['name']: p['value']
+                   for p in cdx['metadata']['component']['properties']}
+          build_prop_names = {
+              k.split(':', 2)[-1]
+              for k in props if k.startswith('wolfssl:build:')
+          }
+          required_regular = {
+              'WOLFSSL_USER_SETTINGS', 'SINGLE_THREADED', 'USE_FAST_MATH',
+              'NO_FILESYSTEM', 'WOLFSSL_SMALL_STACK', 'NO_DEV_RANDOM',
+          }
+          required_h_carveout = {
+              'NO_STDINT_H', 'WOLFSSL_NO_ASSERT_H',
+          }
+          required = required_regular | required_h_carveout
+          missing = required - build_prop_names
+          assert not missing, (
+              f'--options-h path lost wolfSSL config flags: {missing}\n'
+              f'  - regular missing : {required_regular - build_prop_names}\n'
+              f'  - _H carve-out missing: {required_h_carveout - build_prop_names}\n'
+              f'present subset: {build_prop_names & required}'
+          )
+          forbidden = [n for n in build_prop_names
+                       if re.match(r'(?:__|_[A-Z]|TARGET_OS_|TARGET_IPHONE_)',
+                                   n)]
+          assert not forbidden, (
+              f'host-leak macros from `gcc -dM -E` dump survived the '
+              f'noise filter: {forbidden[:10]}'
+          )
+          print(f'--options-h path ok: {len(build_prop_names)} build '
+                f'props (all {len(required_regular)} regular + '
+                f'{len(required_h_carveout)} carve-out flags present, '
+                f'host-leak macros filtered)')
+          PY
+
   # Tier 2 - integration: build wolfSSL, generate the SBOMs, and assert
   # everything an external auditor or vulnerability scanner relies on.
   integration:

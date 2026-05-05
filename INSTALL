@@ -317,7 +317,45 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
 19. Generating an SBOM (Software Bill of Materials)
 
     wolfSSL can generate a Software Bill of Materials for EU Cyber Resilience
-    Act (CRA) compliance after a normal build and install.
+    Act (CRA) compliance.  Two entry points are supported, depending on how
+    you build wolfSSL.
+
+    --- 19a. Embedded / RTOS / IDE-based builds (no autotools) ----------
+
+    For customers building wolfSSL from a hand-edited user_settings.h with
+    their own Makefile, Keil MDK, IAR EWARM, STM32CubeIDE, ESP-IDF,
+    Zephyr, or plain CMake, invoke scripts/gen-sbom directly.  No
+    ./configure, no autotools.
+
+    Prerequisites:
+      - python3
+      - pcpp     (pip install pcpp)            # required for --user-settings
+      - spdx-tools (pip install spdx-tools)    # optional; for SPDX validation
+
+    Usage:
+
+      $ python3 wolfssl/scripts/gen-sbom \
+            --name wolfssl --version 5.9.1 \
+            --license-file wolfssl/LICENSING \
+            --user-settings wolfssl/wolfssl/wolfcrypt/settings.h \
+            --user-settings-include wolfssl \
+            --user-settings-include path/to/your/user_settings_dir \
+            --user-settings-define WOLFSSL_USER_SETTINGS \
+            --srcs wolfssl/wolfcrypt/src/aes.c [...your wolfssl source list] \
+            --cdx-out wolfssl-5.9.1.cdx.json \
+            --spdx-out wolfssl-5.9.1.spdx.json
+
+    The component checksum is a deterministic OmniBOR-compatible Merkle
+    hash over the source files you compile into your firmware, so you do
+    not need to synthesize a separate libwolfssl.a just for SBOM purposes.
+
+    See doc/SBOM.md section 1 for per-toolchain recipes (Keil, IAR,
+    STM32CubeIDE, ESP-IDF, Zephyr, CMake) and the full flag reference.
+
+    --- 19b. Linux / autotools builds ----------------------------------
+
+    For Debian, RPM, Yocto, FIPS-Ready, and other builds that already use
+    ./configure && make:
 
     Prerequisites:
       - python3 (detected automatically by configure)
@@ -337,6 +375,10 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
 
     The SPDX JSON is validated by pyspdxtools before the tag-value file is
     written; make sbom fails if validation fails.
+
+    `make sbom` is a thin convenience wrapper around the same
+    scripts/gen-sbom Python entry point that section 19a uses, with all
+    paths resolved automatically from the autotools build tree.
 
     To install the SBOM files to $(datadir)/doc/wolfssl/:
 

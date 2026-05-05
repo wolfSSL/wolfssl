@@ -25,6 +25,40 @@ provides a deeper audit trail if your compliance posture requires it.
 
 ## Quick Start
 
+wolfSSL exposes two SBOM entry points, depending on how you build the
+library.
+
+### Embedded / RTOS / IDE-based builds (no `./configure`)
+
+If your product builds wolfSSL with a hand-edited `user_settings.h` and a
+custom Makefile, Keil / IAR / STM32CubeIDE project, ESP-IDF / Zephyr
+component, or plain CMake, invoke `scripts/gen-sbom` directly.  No
+autotools required:
+
+```sh
+python3 wolfssl/scripts/gen-sbom \
+    --name wolfssl --version 5.9.1 \
+    --license-file wolfssl/LICENSING \
+    --user-settings wolfssl/wolfssl/wolfcrypt/settings.h \
+    --user-settings-include wolfssl \
+    --user-settings-include path/to/your/user_settings_dir \
+    --user-settings-define WOLFSSL_USER_SETTINGS \
+    --srcs wolfssl/wolfcrypt/src/aes.c [and the rest of your wolfssl source list] \
+    --cdx-out wolfssl-5.9.1.cdx.json \
+    --spdx-out wolfssl-5.9.1.spdx.json
+```
+
+Requires Python 3 + `pip install pcpp` (used to walk
+`user_settings.h` the same way the C compiler does).
+
+See `doc/SBOM.md` § 1 for per-toolchain recipes (Keil, IAR,
+STM32CubeIDE, ESP-IDF, Zephyr, plain CMake) and the full flag reference.
+
+### Linux / autotools builds
+
+For Debian / RPM / Yocto / FIPS-Ready / cloud builds that already use
+`./configure && make`:
+
 ```sh
 ./configure
 make
@@ -32,7 +66,11 @@ make sbom         # produces wolfssl-<version>.spdx.json, .cdx.json, .spdx
 make bomsh        # optional: produces omnibor/ + OmniBOR-enriched SPDX
 ```
 
-See `doc/SBOM.md` for prerequisites and full details on both targets.
+`make sbom` is a convenience wrapper around the same `scripts/gen-sbom`
+script the embedded path uses.
+
+See `doc/SBOM.md` for prerequisites and full details on both entry
+points.
 
 ## What wolfSSL Provides
 

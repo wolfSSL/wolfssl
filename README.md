@@ -37,7 +37,17 @@ of the wolfSSL manual.
 ## SBOM / CRA Compliance
 
 wolfSSL provides a Software Bill of Materials (SBOM) for EU Cyber Resilience
-Act (CRA) compliance via `make sbom`. See `doc/SBOM.md` for details.
+Act (CRA) compliance via two entry points:
+
+- `python3 scripts/gen-sbom …` for embedded / RTOS / IDE-based builds
+  (Keil, IAR, STM32CubeIDE, ESP-IDF, Zephyr, plain CMake, custom Makefile)
+  configured through a hand-edited `user_settings.h`. No autotools required.
+- `make sbom` for Linux server / Debian / RPM / Yocto / FIPS-Ready
+  builds that already use `./configure && make`.
+
+Both produce SPDX 2.3 + CycloneDX 1.6 JSON validated against NTIA
+minimum elements. See `doc/SBOM.md` for per-toolchain recipes and the
+full flag reference.
 
 ## OmniBOR / Bomsh
 
