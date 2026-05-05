@@ -1284,6 +1284,10 @@ int test_record_size_matches_build_message(void)
                     expected = 1;
                     reason = "multicast not configured";
                 }
+                else if (XSTRSTR(name, "RENEGOTIATION") != NULL) {
+                    expected = 1;
+                    reason = "not a real cipher suite";
+                }
 
                 if (!expected) {
                     fprintf(stderr,
