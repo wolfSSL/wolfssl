@@ -21395,12 +21395,28 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         ret = badDate;
     }
 
-    /* Note: serial-0 rejection is performed in ParseCertRelative (after
-     * basicConstraints has been parsed and isCA is authoritative), not
-     * here. Checking isCA at this point would fail-open on a forged
-     * isCA flag. Callers that invoke DecodeCert/DecodeToKey/wc_GetPubX509
-     * directly are pubkey-extraction paths and do not make trust
-     * decisions; trust-bearing flows go through ParseCertRelative. */
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+    /* Structural serial-0 rejection. RFC 5280 4.1.2.2 requires positive
+     * serials; reject here so non-trust-bearing pubkey-extraction callers
+     * (DecodeToKey, wc_GetPubX509, d2i_X509-style decode) do not silently
+     * accept malformed certs. ParseCertRelative performs the authoritative
+     * trust-bearing check (with the CA_TYPE/TRUSTED_PEER_TYPE exemption
+     * for legacy self-signed root CAs); the exemption here is intentionally
+     * narrow: when extensions are not parsed (stopAtPubKey/stopAfterPubKey)
+     * isCA is not populated, so the exemption never fires and serial-0 is
+     * always rejected on those paths. */
+    if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+        if (!(cert->isCA && cert->selfSigned)
+#ifdef WOLFSSL_CERT_REQ
+            && !cert->isCSR
+#endif
+        ) {
+            WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
+            ret = ASN_PARSE_E;
+        }
+    }
+#endif
 
     return ret;
 }
