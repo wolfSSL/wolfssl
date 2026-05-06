@@ -612,8 +612,7 @@ int test_wc_DsaCheckPubKey(void)
         "07610fcc9ee68491dbc1e34cd12615474e52b18bc934fb00c"
         "61d39e7da8902291c4434a4e2224c3f4fd9f93cd6f4f17fc0"
         "76341a7e7d9";
-    /* For verify: a SHA-1-sized digest (any value) — without the fix the
-     * forgery (r=1, s=1) verifies for ANY digest. */
+    /* For verify: a SHA-1-sized digest (any value) */
     byte digest[WC_SHA_DIGEST_SIZE];
     /* signature is r || s, each q-sized (20 bytes for 160-bit q). */
     byte sig[2 * 20];
