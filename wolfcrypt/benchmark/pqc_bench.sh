@@ -35,6 +35,22 @@
 #     the '-dilithium' alias is NOT recognized.
 #   - wolfSSL does not support autotools VPATH (out-of-tree) builds; configure and
 #     make run inside the source tree. Use git worktrees for parallel builds.
+#
+# MEMORY MEASUREMENT APPROACH (Option A — wolfSSL built-in tracking):
+#
+#   This script uses wolfSSL's built-in allocator instrumentation:
+#     --enable-memory --enable-trackmemory=verbose --enable-stacksize=verbose
+#
+#   This produces heap_bytes, heap_allocs, and stack_bytes columns in the CSV.
+#   heap_bytes is the cumulative heap bytes allocated over the timed loop
+#   (not peak RSS per single operation). stack_bytes is peak stack depth
+#   measured via a canary-based thread stack probe.
+#
+#   Alternative (Option B — Valgrind massif):
+#     True peak RSS per single operation, directly comparable to liboqs/PQC-LEO
+#     Valgrind numbers. Requires separate thin C wrapper programs per algorithm
+#     and ~20x runtime overhead. File a separate issue if cross-library memory
+#     comparison is required — Option A suffices for standalone wolfSSL reporting.
 
 set -eu
 
