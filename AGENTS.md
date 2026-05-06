@@ -137,42 +137,13 @@ apt-get install -y pkg
 
 ---
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:f65d5d33 -->
-## Issue Tracking with bd (beads)
+## Issue Tracking
 
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
-
-### Quick Start
+Issues for this work are tracked in the **PQC-LEO repo beads database** at
+`~/WORK/PQC-LEO`. Run `bd` commands from there, not here.
 
 ```bash
-bd ready --json                          # find available work
-bd update <id> --claim --json            # claim atomically
-bd close <id> --reason "Done" --json     # complete
-bd create --title="..." --type=task --priority=2 --deps discovered-from:<id> --json
+cd ~/WORK/PQC-LEO
+bd ready --json
+bd show PQC-LEO-v6o   # epic
 ```
-
-### Issue Types
-`bug` | `feature` | `task` | `epic` | `chore`
-
-### Priorities
-`0`=critical, `1`=high, `2`=medium (default), `3`=low, `4`=backlog
-
-### Rules
-- Use bd for ALL task tracking — no markdown TODOs
-- Always `--json` for programmatic use
-- Link discovered work with `--deps discovered-from:<parent-id>`
-- `bd ready` before asking what to work on
-
-### Session Close Protocol
-
-Work is NOT complete until `git push` succeeds.
-
-```bash
-bd close <finished-ids>
-bd dolt push
-git pull --rebase
-git push
-git status   # must show "up to date with origin"
-```
-
-<!-- END BEADS INTEGRATION -->
