@@ -568,7 +568,40 @@ jobs:
       # break in DEP_META['liboqs'] would silently land.
 
       - name: Install liboqs (provides liboqs.pc for --with-liboqs)
-        run: sudo apt-get update && sudo apt-get install -y liboqs-dev
+        # Ubuntu noble (24.04) does not ship liboqs-dev in its archive
+        # (Debian sid has 0.7.x; Ubuntu only has unsupported PPAs).  Build
+        # from a pinned upstream tag so this job stays deterministic across
+        # runs - any future liboqs API/ABI break shows up here, not in
+        # production builds.  Pinning matters: SBOM correctness assertions
+        # below check purl shape, and an unpinned 'main' would silently
+        # change what pkg-config reports as the version string.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build libssl-dev
+          git clone --depth=1 --branch 0.12.0 \
+            https://github.com/open-quantum-safe/liboqs /tmp/liboqs
+          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_SHARED_LIBS=ON \
+            -DOQS_BUILD_ONLY_LIB=ON \
+            -DOQS_DIST_BUILD=OFF
+          cmake --build /tmp/liboqs/build --parallel "$(nproc)"
+          sudo cmake --install /tmp/liboqs/build
+          sudo ldconfig
+          # /usr/local/lib/pkgconfig is on pkg-config's compiled-in path
+          # on Ubuntu, but export via $GITHUB_ENV so a future image change
+          # cannot silently break --with-liboqs autodetection.  ${VAR:+:$VAR}
+          # avoids a trailing colon when PKG_CONFIG_PATH is unset.
+          echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+            >> "$GITHUB_ENV"
+
+      - name: Verify liboqs.pc visible to pkg-config
+        # Separate step so the $GITHUB_ENV write above has taken effect
+        # for this shell; an in-step call would only be exercising the
+        # compiled-in default path, not the export.
+        run: pkg-config --modversion liboqs
 
       - name: Configure with --with-liboqs --enable-falcon
         run: |
@@ -734,33 +767,67 @@ jobs:
       - name: Install build deps + SBOM validators
         run: |
           sudo apt-get update
+          # bison + autotools-dev are required by strace's ./bootstrap.
+          # gcc-multilib + g++-multilib give strace's --enable-mpers=check
+          # the 32-bit/x32 compilers it needs - without them mpers is
+          # silently downgraded and bomtrace3 traces only native-arch
+          # syscalls, diverging from what bomsh's devcontainer produces.
+          # The rest mirror bomsh's .devcontainer/Dockerfile bomtrace3
+          # stage.
           sudo apt-get install -y build-essential autoconf automake libtool \
+            bison autotools-dev gcc-multilib g++-multilib \
             python3 python3-pip git
           python3 -m pip install --user --upgrade pip
           python3 -m pip install --user 'spdx-tools==0.8.*'
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install bomsh toolchain (bomtrace3 + helper scripts)
-        # Bomsh is not packaged; build bomtrace3 (patched strace) from
-        # source and install the python helpers system-wide so configure's
-        # AC_PATH_PROG can find them.
+        # Bomsh is not packaged.  Reproduce its `.devcontainer/Dockerfile`
+        # bomtrace3 stage: clone strace, apply bomtrace3.patch, drop in
+        # the bomsh source overlay, then bootstrap+configure+make.  Both
+        # bomsh and strace are pinned (env: below) so a strace `master`
+        # commit that touches the lines bomtrace3.patch rewrites cannot
+        # break this CI for reasons unrelated to wolfSSL.  Bump them
+        # together by re-validating `patch -p1` against the new SHAs.
+        env:
+          # bomsh has no releases; pin to last commit on main as of
+          # 2024-10-31.  The patch itself last changed 2024-02-06.
+          BOMSH_SHA: 5823f7db7e5bd958e4ff868ae6ea79a7d871bb07
+          # v6.7 (2024-01-29) is the strace release current when the
+          # patch was last touched; later releases tend to drift from
+          # the patch's context lines in src/strace.c.
+          STRACE_TAG: v6.7
         run: |
-          git clone --depth=1 https://github.com/omnibor/bomsh /tmp/bomsh
-          # bomtrace3 build: docker/devcontainer-only Makefile in upstream;
-          # use the embedded build script if present, else fall back to
-          # the strace patch path.
-          cd /tmp/bomsh
-          if [ -d .devcontainer/bomtrace3 ]; then
-              make -C .devcontainer/bomtrace3
-              sudo install -m 755 .devcontainer/bomtrace3/bomtrace3 \
-                  /usr/local/bin/
-          else
-              echo "bomsh repo layout changed; please update CI"
+          git clone https://github.com/omnibor/bomsh /tmp/bomsh
+          git -C /tmp/bomsh checkout "$BOMSH_SHA"
+          # Even with a pinned SHA, keep the layout-drift guard so the
+          # next maintainer who bumps BOMSH_SHA gets a clear error if
+          # upstream restructured rather than a confusing patch failure.
+          if [ ! -f /tmp/bomsh/.devcontainer/patches/bomtrace3.patch ] \
+              || [ ! -d /tmp/bomsh/.devcontainer/src ]; then
+              echo "bomsh repo layout changed; please update CI" >&2
+              ls -la /tmp/bomsh/.devcontainer/ >&2 || true
               exit 1
           fi
-          sudo install -m 755 scripts/bomsh_create_bom.py /usr/local/bin/
-          sudo install -m 755 scripts/bomsh_sbom.py        /usr/local/bin/
-          bomtrace3 --version || true
+          git clone --depth=1 --branch "$STRACE_TAG" \
+              https://github.com/strace/strace.git /tmp/strace
+          cp /tmp/bomsh/.devcontainer/patches/bomtrace3.patch /tmp/strace/
+          cp /tmp/bomsh/.devcontainer/src/*.[ch] /tmp/strace/src/
+          (
+              cd /tmp/strace
+              patch -p1 < bomtrace3.patch
+              ./bootstrap
+              ./configure --enable-mpers=check
+              make -j"$(nproc)"
+          )
+          sudo install -m 755 /tmp/strace/src/strace /usr/local/bin/bomtrace3
+          sudo install -m 755 /tmp/bomsh/scripts/bomsh_create_bom.py \
+              /usr/local/bin/
+          sudo install -m 755 /tmp/bomsh/scripts/bomsh_sbom.py \
+              /usr/local/bin/
+          # bomtrace3 is patched strace; a `--version` invocation under
+          # ptrace requires no target so it must succeed cleanly.
+          bomtrace3 --version
           which bomsh_create_bom.py bomsh_sbom.py
 
       - name: Configure wolfSSL
