@@ -116,10 +116,12 @@ $(BUILDDIR)/swdev.o: $(BUILDDIR)/swdev.partial.o
 	@# visibility("default") and overrides the command-line
 	@# -fvisibility=hidden. --keep-global-symbol sidesteps that by matching
 	@# on symbol name directly.
-	$(OBJCOPY) --keep-global-symbol=wc_SwDev_Callback $< $@
-	@# Sanity-check: only wc_SwDev_Callback may be externally visible.
+	$(OBJCOPY) --keep-global-symbol=wc_SwDev_Callback \
+	           --keep-global-symbol=wc_SwDev_InternalCleanup $< $@
+	@# Sanity-check: only the two swdev entry points may be externally visible.
 	@visible=$$( $(NM) --extern-only --defined-only $@ | awk '{print $$3}' \
-	             | grep -v '^wc_SwDev_Callback$$' || true); \
+	             | grep -v '^wc_SwDev_Callback$$' \
+	             | grep -v '^wc_SwDev_InternalCleanup$$' || true); \
 	if [ -n "$$visible" ]; then \
 	    echo "error: unexpected externally-visible symbols in $@:"; \
 	    echo "$$visible"; \

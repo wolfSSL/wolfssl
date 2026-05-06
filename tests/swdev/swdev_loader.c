@@ -30,7 +30,8 @@
 #endif
 
 /* resolved at link time from swdev.o */
-extern int wc_SwDev_Callback(int devId, wc_CryptoInfo* info, void* ctx);
+extern int  wc_SwDev_Callback(int devId, wc_CryptoInfo* info, void* ctx);
+extern void wc_SwDev_InternalCleanup(void);
 
 /* Init always (re)registers because wolfCrypt_Cleanup wipes the cryptocb
  * table; only the final Cleanup unregisters. */
@@ -61,6 +62,7 @@ void wc_SwDev_Cleanup(void)
         wc_CryptoCb_SetDeviceFindCb(NULL);
     #endif
         wc_CryptoCb_UnRegisterDevice(WC_SWDEV_ID);
+        wc_SwDev_InternalCleanup();
     }
     else if (my_refCount < 0) {
         /* called more times than Init; restore floor */

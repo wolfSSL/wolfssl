@@ -54,6 +54,14 @@ static int swdev_ensure_init(void)
     return 0;
 }
 
+WC_SWDEV_EXPORT void wc_SwDev_InternalCleanup(void)
+{
+    if (swdev_initialized) {
+        wolfCrypt_Cleanup();
+        swdev_initialized = 0;
+    }
+}
+
 #ifndef NO_RSA
 static int swdev_rsa(wc_CryptoInfo* info)
 {

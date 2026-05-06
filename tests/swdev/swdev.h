@@ -38,8 +38,9 @@ extern "C" {
 #define WC_SWDEV_EXPORT
 #endif
 
-WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
+WC_SWDEV_EXPORT int  wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
     void* ctx);
+WC_SWDEV_EXPORT void wc_SwDev_InternalCleanup(void);
 
 #ifdef __cplusplus
 }
