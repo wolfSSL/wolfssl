@@ -6053,7 +6053,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     int         ret = 0;
     Suites      peerSuites;
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    CertReqCtx* certReqCtx;
+    word16      reqCtxLen;
+    const byte* reqCtxData;
 #endif
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_DO);
@@ -6077,18 +6078,12 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    /* CertReqCtx has one byte at end for context value.
-     * Increase size to handle other implementations sending more than one byte.
-     * That is, allocate extra space, over one byte, to hold the context value.
+    /* Remember the request context bytes; the CertReqCtx allocation and
+     * linking into ssl->certReqCtx is deferred until after the rest of the
+     * message has been validated.
      */
-    certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx) + (len == 0 ? 0 : len - 1), ssl->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (certReqCtx == NULL)
-        return MEMORY_E;
-    certReqCtx->next = ssl->certReqCtx;
-    certReqCtx->len = len;
-    XMEMCPY(&certReqCtx->ctx, input + *inOutIdx, len);
-    ssl->certReqCtx = certReqCtx;
+    reqCtxLen = len;
+    reqCtxData = input + *inOutIdx;
 #endif
     *inOutIdx += len;
 
@@ -6154,6 +6149,24 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 
     /* This message is always encrypted so add encryption padding. */
     *inOutIdx += ssl->keys.padSz;
+
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    {
+    /* CertReqCtx has one byte at end for context value.
+     * Increase size to handle other implementations sending more than one byte.
+     * That is, allocate extra space, over one byte, to hold the context value.
+     */
+        CertReqCtx* certReqCtx = (CertReqCtx*)XMALLOC(
+            sizeof(CertReqCtx) + (reqCtxLen == 0 ? 0 : reqCtxLen - 1),
+            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (certReqCtx == NULL)
+            return MEMORY_E;
+        certReqCtx->next = ssl->certReqCtx;
+        certReqCtx->len = reqCtxLen;
+        XMEMCPY(&certReqCtx->ctx, reqCtxData, reqCtxLen);
+        ssl->certReqCtx = certReqCtx;
+    }
+#endif
 
     WOLFSSL_LEAVE("DoTls13CertificateRequest", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
