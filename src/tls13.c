@@ -1003,8 +1003,9 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     if (outLen > WOLFSSL_MAX_16BIT)
         return BAD_FUNC_ARG;
     /* RFC 8446 HkdfLabel encodes the label length in a single byte, so
-     * anything > 255 cannot be represented and must be rejected. */
-    if (labelLen > (WOLFSSL_MAX_8BIT - protocolLen))
+     * anything > 255 cannot be represented and must be rejected.
+     * The protocol length is included in the label. */
+    if ((labelLen +  protocolLen) > WOLFSSL_MAX_8BIT)
         return BAD_FUNC_ARG;
 
     switch (ssl->specs.mac_algorithm) {
