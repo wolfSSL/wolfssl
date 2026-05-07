@@ -19,11 +19,11 @@ concurrency:
 #
 # The simulator's own Dockerfile.wolfcrypt clones a pinned wolfSSL release.
 # We patch it to COPY the PR checkout instead so CI reflects the PR's source.
-# We also strip the inline test.c patch RUN block: those guard fixes now live
-# upstream in this tree, so re-applying them would fail with "patch target not
-# found". The remaining sed-based patches in the Dockerfile (atmel.c XMEMSET
-# swap and atmel_set_slot_allocator visibility) are no-ops on pre-patched
-# source and their grep validations still pass, so we leave them alone.
+# We also strip the inline test.c patch RUN block and the older atmel.c config
+# copy hotfix: both now live upstream in this tree, so re-applying them would
+# fail with "patch target not found". The atmel_set_slot_allocator visibility
+# patch remains because the simulator harness still depends on that exported
+# symbol.
 
 env:
   SIMULATORS_REF: 773fe70
@@ -48,7 +48,7 @@ jobs:
       - name: Stage PR wolfSSL into simulator build context
         run: mv wolfssl-src simulators/ATECC608Sim/wolfssl
 
-      - name: Patch Dockerfile to use PR wolfSSL and drop redundant test.c patches
+      - name: Patch Dockerfile to use PR wolfSSL and drop redundant source patches
         working-directory: simulators/ATECC608Sim
         run: |
           # Replace the (multi-line) `RUN git clone ... wolfssl.git /app/wolfssl`
@@ -59,6 +59,9 @@ jobs:
           # than a CI run that silently tests a stale release.
           grep -q '^ *COPY wolfssl /app/wolfssl$' Dockerfile.wolfcrypt
           ! grep -q 'git clone .*wolfssl\.git' Dockerfile.wolfcrypt
+
+          sed -i "/^# wolfSSL's wolfCrypt_ATECC_SetConfig only copies I2C-specific fields from$/,/^    grep -q 'XMEMCPY(&cfg_ateccx08a_i2c_pi, cfg' \\/app\\/wolfssl\\/wolfcrypt\\/src\\/port\\/atmel\\/atmel\\.c$/d" Dockerfile.wolfcrypt
+          ! grep -q "cfg_ateccx08a_i2c_pi" Dockerfile.wolfcrypt
 
           # Strip the inline test.c patch RUN block -- those guard fixes now
           # live upstream in this tree.
