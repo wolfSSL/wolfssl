@@ -332,6 +332,30 @@ jobs:
                 f'host-leak macros filtered)')
           PY
 
+      # Upload the SBOMs produced by every standalone path (pcpp, pcpp+deps,
+      # --options-h escape hatch, and the second pcpp run used for
+      # reproducibility diffing) so a reviewer can inspect them - or hand
+      # them to a downstream consumer / CRA reviewer - without re-running
+      # the job.  `if: always()` ensures triage artefacts ship even when an
+      # assertion above fails (which is precisely when the bytes matter).
+      - name: Upload standalone SBOMs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-standalone-${{ github.sha }}
+          path: |
+            /tmp/standalone/wolfssl.cdx.json
+            /tmp/standalone/wolfssl.spdx.json
+            /tmp/standalone-r2/wolfssl.cdx.json
+            /tmp/standalone-r2/wolfssl.spdx.json
+            /tmp/standalone-deps/wolfssl.cdx.json
+            /tmp/standalone-deps/wolfssl.spdx.json
+            /tmp/standalone-dme/wolfssl.cdx.json
+            /tmp/standalone-dme/wolfssl.spdx.json
+            /tmp/standalone-dme/options.h
+          if-no-files-found: warn
+          retention-days: 90
+
   # Tier 2 - integration: build wolfSSL, generate the SBOMs, and assert
   # everything an external auditor or vulnerability scanner relies on.
   integration:
@@ -581,12 +605,22 @@ jobs:
             cmake ninja-build libssl-dev
           git clone --depth=1 --branch 0.12.0 \
             https://github.com/open-quantum-safe/liboqs /tmp/liboqs
+          # -DOQS_USE_OPENSSL=OFF is load-bearing: without it, liboqs's
+          # installed common.h pulls <openssl/crypto.h> (system) into every
+          # TU that includes <oqs/oqs.h>.  wolfssl/wolfcrypt/falcon.h
+          # includes <oqs/oqs.h>, so once --enable-falcon is on, every
+          # wolfSSL TU that pulls falcon.h also pulls system OpenSSL,
+          # which collides with wolfssl/openssl/ssl.h under -Werror
+          # (CRYPTO_UNLOCK, sk_num, OPENSSL_malloc_init, ... all redefined).
+          # OFF makes liboqs use its bundled SHA/randombytes (the #else
+          # branches in oqs/common.h), keeping the build hermetic.
           cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/usr/local \
             -DBUILD_SHARED_LIBS=ON \
             -DOQS_BUILD_ONLY_LIB=ON \
-            -DOQS_DIST_BUILD=OFF
+            -DOQS_DIST_BUILD=OFF \
+            -DOQS_USE_OPENSSL=OFF
           cmake --build /tmp/liboqs/build --parallel "$(nproc)"
           sudo cmake --install /tmp/liboqs/build
           sudo ldconfig
@@ -706,6 +740,28 @@ jobs:
               exit 1
           fi
 
+      # Persist the SBOMs the integration matrix produces so a CRA reviewer,
+      # a downstream packager, or the next maintainer triaging a regression
+      # can download them straight from the run summary instead of replaying
+      # the full job locally.  `if: always()` so a failed assertion above
+      # (license matrix, NTIA, CDX schema, liboqs dep entry, ...) still ships
+      # the bytes it failed on.  The last `make sbom` invocation in this job
+      # is the simple SPDX override step, but the path matches every wolfssl
+      # SPDX/CDX in $PWD - if any are present at job end they will be picked
+      # up.  if-no-files-found:warn keeps the upload soft so reordering the
+      # steps later cannot regress this into a hard failure.
+      - name: Upload SBOM artefacts (linux)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-integration-linux-${{ github.sha }}
+          path: |
+            wolfssl-*.spdx.json
+            wolfssl-*.cdx.json
+            wolfssl-*.spdx
+          if-no-files-found: warn
+          retention-days: 90
+
   # Tier 2 (macOS) - smoke test that gen-sbom finds .dylib artefacts and
   # that the autotools target works on Mach-O.  Linux already exercises
   # the heavy validation matrix; this job is intentionally minimal so the
@@ -749,6 +805,21 @@ jobs:
           assert re.fullmatch(r'[0-9a-f]{64}', checksum), checksum
           print('macOS SBOM checksum well-formed:', checksum)
           PY
+
+      # Persist the Mach-O variant SBOMs so the .dylib-flavoured outputs are
+      # downloadable for cross-platform diffing against the linux artefacts.
+      # Same `if: always()` rationale as the linux upload above.
+      - name: Upload SBOM artefacts (macos)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-integration-macos-${{ github.sha }}
+          path: |
+            wolfssl-*.spdx.json
+            wolfssl-*.cdx.json
+            wolfssl-*.spdx
+          if-no-files-found: warn
+          retention-days: 90
 
   # Tier 2 (bomsh) - exercises the `make bomsh` target which traces a
   # full clean rebuild under bomtrace3 (patched strace, Linux-only) and
@@ -825,9 +896,17 @@ jobs:
               /usr/local/bin/
           sudo install -m 755 /tmp/bomsh/scripts/bomsh_sbom.py \
               /usr/local/bin/
-          # bomtrace3 is patched strace; a `--version` invocation under
-          # ptrace requires no target so it must succeed cleanly.
-          bomtrace3 --version
+          # bomtrace3 replaces strace's argv parsing in bomsh_init() (see
+          # bomsh_config.c); its accepted long options are exactly
+          # --help/--config/--output/--verbose/--watch.  `--version` is
+          # NOT a real flag and would exit non-zero.  `-h` is the only
+          # no-target invocation that returns 0 cleanly (bomsh_usage()
+          # calls exit(0)).  The grep doubles as a check that the binary
+          # on PATH is genuinely bomsh-patched and not a vanilla strace
+          # shadowing it ("Usage: bomtrace3 " only appears in
+          # bomsh_usage()), guarding against a future BOMSH_SHA bump that
+          # silently regresses the patch.
+          bomtrace3 -h | grep -q '^Usage: bomtrace3 '
           which bomsh_create_bom.py bomsh_sbom.py
 
       - name: Configure wolfSSL
@@ -870,6 +949,43 @@ jobs:
               f'no PERSISTENT-ID gitoid externalRef in {path}'
           print(f'bomsh enrichment ok: {len(gitoid_refs)} gitoid refs')
           PY
+
+      # The full provenance bundle - the high-value artefact of the whole
+      # PR, the one a CRA reviewer or downstream packager wants to download.
+      # MUST be uploaded BEFORE the `make clean` step below, which deletes
+      # everything by design.  `if: always()` so even when the assertion
+      # above fails (which is when triage matters most), the bundle ships.
+      #
+      # Contents:
+      #   omnibor/                      - OmniBOR Artifact Dependency Graph
+      #                                   (objects/ + metadata/bomsh/*),
+      #                                   content-addressed by gitoid; the
+      #                                   verifiable build-provenance proof.
+      #   omnibor.wolfssl-*.spdx.json   - SPDX with PERSISTENT-ID gitoid
+      #                                   externalRef bridging SBOM <-> ADG.
+      #   wolfssl-*.spdx.json           - the un-enriched SPDX (for diffing
+      #                                   against omnibor.* to confirm only
+      #                                   the externalRef was added).
+      #   wolfssl-*.cdx.json            - CycloneDX equivalent.
+      #   bomsh_raw_logfile.sha1        - raw bomtrace3 syscall trace, for
+      #                                   debugging trace gaps (e.g. a build
+      #                                   step that escaped ptrace).
+      #   _bomsh.conf                   - 1-line config passed to bomtrace3
+      #                                   -c at trace time.
+      - name: Upload OmniBOR graph + bomsh-enriched SBOMs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bomsh-omnibor-${{ github.sha }}
+          path: |
+            omnibor/
+            omnibor.wolfssl-*.spdx.json
+            wolfssl-*.spdx.json
+            wolfssl-*.cdx.json
+            bomsh_raw_logfile.sha1
+            _bomsh.conf
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: make clean removes all bomsh + sbom artefacts
         # Regression guard: if a future change adds an output to either
