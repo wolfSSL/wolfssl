@@ -858,6 +858,10 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_raw(qx: &[u8], qy: &[u8], d: &[u8], curve_name: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        if qx.is_empty() || qy.is_empty() || d.is_empty() || curve_name.is_empty() ||
+            qx[qx.len() - 1] != 0 || qy[qy.len() - 1] != 0 || d[d.len() - 1] != 0 || curve_name[curve_name.len() - 1] != 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let heap = heap.unwrap_or(core::ptr::null_mut());
         let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
         let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
@@ -911,6 +915,10 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_raw_ex(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        if qx.is_empty() || qy.is_empty() || d.is_empty() ||
+            qx[qx.len() - 1] != 0 || qy[qy.len() - 1] != 0 || d[d.len() - 1] != 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let heap = heap.unwrap_or(core::ptr::null_mut());
         let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
         let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
