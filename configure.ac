@@ -1658,7 +1658,6 @@ AC_ARG_ENABLE([tailscale],
 if test "$ENABLED_TAILSCALE" = "yes"
 then
     enable_wolfguard=yes
-    test "x$enable_sp" = "x" && enable_sp="yes,256"
     enable_opensslall=yes
     enable_alpn=yes
     enable_sni=yes
