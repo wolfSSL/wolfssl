@@ -141,7 +141,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 
 #ifdef WOLFSSL_NXP_HASHCRYPT_AES
-#include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
+    #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
 
 #ifdef WOLFSSL_SECO_CAAM

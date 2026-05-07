@@ -30,17 +30,18 @@ will use a fully software implementation.
 interrupted with another hash request or an AES request.  The hash must be
 completed before another operation is requested.
 
-### wolfSSL LPC55S69 Hardware Acceleration Enable/Disable
+### wolfSSL LPC55S69 Hardware Acceleration Enable
 
-To enable LPC55S69 hardware acceleration, define the following symbol:
+To enable only the TRNG, define the following symbol:
 
-**`WOLFSSL_NXP_LPC55S69_WITH_HWACCEL`**
+**`WOLFSSL_NXP_RNG_1`**
 
-To disable LPC55S69 hardware acceleration, define the following symbol:
+To enable all LPC55S69 hardware acceleration, including the TRNG,
+define the following symbol:
 
-**`WOLFSSL_NXP_LPC55S69_NO_HWACCEL`**
+**`WOLFSSL_NXP_LPC55S6X`**
 
-NOTE: In either case, the TRNG is always enabled for use.
+NOTE: Both can be defined with no problem.
 
 ## NXP SE050
 

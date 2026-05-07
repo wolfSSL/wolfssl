@@ -21,8 +21,6 @@
 #ifndef _HASHCRYPT_PORT_H_
 #define _HASHCRYPT_PORT_H_
 
-#include <wolfssl/wolfcrypt/settings.h>
-
 int wc_hashcrypt_init(void);
 
 #endif /* _HASHCRYPT_PORT_H_ */

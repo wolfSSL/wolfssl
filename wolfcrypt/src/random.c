@@ -5152,7 +5152,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_NXP_RNG_1)
     #include "fsl_rng.h"
 
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
         (void)os;
 
         if (output == NULL) {

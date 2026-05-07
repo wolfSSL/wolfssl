@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_NXP_HASHCRYPT
 
@@ -38,27 +33,27 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include "fsl_hashcrypt.h"
 
-#if (!defined(NO_SHA) && defined(WOLFSSL_NXP_HASHCRYPT_SHA)) || \
-    (!defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA256))
-    static hashcrypt_hash_ctx_t hash_ctx;
-    static int finish_called;
+#if (!defined(NO_SHA) || !defined(NO_SHA256)) && \
+    defined(WOLFSSL_NXP_HASHCRYPT_SHA)
+static hashcrypt_hash_ctx_t hash_ctx;
+static int finish_called;
 #endif
 
 #if !defined(NO_AES) && defined(WOLFSSL_NXP_HASHCRYPT_AES)
-    hashcrypt_handle_t aes_handle;
+hashcrypt_handle_t aes_handle;
 #endif
 
 int wc_hashcrypt_init(void)
 {
-#if (!defined(NO_SHA) && defined(WOLFSSL_NXP_HASHCRYPT_SHA)) || \
-    (!defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA256)) || \
+#if ((!defined(NO_SHA) || !defined(NO_SHA256)) && \
+        defined(WOLFSSL_NXP_HASHCRYPT_SHA)) || \
     (!defined(NO_AES) && defined(WOLFSSL_NXP_HASHCRYPT_AES))
     HASHCRYPT_Init(HASHCRYPT);
 #endif
     return 0;
 }
 
-#if !defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA256)
+#if !defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA)
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
     (void)heap;
@@ -121,7 +116,7 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
 
     return 0;
 }
-#endif /* !defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA256) */
+#endif /* !defined(NO_SHA256) && defined(WOLFSSL_NXP_HASHCRYPT_SHA) */
 
 
 #if !defined(NO_SHA) && defined(WOLFSSL_NXP_HASHCRYPT_SHA)
