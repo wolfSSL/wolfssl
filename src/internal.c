@@ -16239,12 +16239,23 @@ static int ProcessPeerCertsChainOCSPStatusCheck(WOLFSSL* ssl)
     } else
         return 0;
 
-    /* error when leaf cert doesn't have certificate status */
-    if (csr->requests < 1 || csr->responses[0].length == 0) {
+    /* RFC 8446 4.4.2.1: when a server includes the status_request extension
+    * in its CertificateRequest, the client MAY return an OCSP response with
+    * its Certificate, but is not required to. Treat a missing or empty
+    * stapled response as a non-fatal condition by default and fall back to
+    * standard certificate validation.
+    *
+    * RFC 7633: a certificate carrying the TLS Feature extension with the
+    * status_request feature ("must-staple") asserts that a stapled OCSP
+    * response is required. The wolfSSL ocspMustStaple flag mirrors that
+    * policy at the verifier side. Only in those cases should the absence
+    * of a stapled response be reported as BAD_CERTIFICATE_STATUS_ERROR. */
+   if (csr->requests < 1 || csr->responses[0].length == 0) {
         WOLFSSL_MSG("Leaf cert doesn't have certificate status.");
-        return BAD_CERTIFICATE_STATUS_ERROR;
+        if (SSL_CM(ssl)->ocspMustStaple)
+            return BAD_CERTIFICATE_STATUS_ERROR;
+        return 0;
     }
-
     for (i = 0; i < csr->requests; i++) {
         if (csr->responses[i].length != 0) {
             ssl->status_request = 1;
@@ -16450,7 +16461,12 @@ static int ProcessPeerCertLeafRevocation(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
     WOLFSSL_MSG("Checking if ocsp needed");
 
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+    if (ssl->options.side == WOLFSSL_CLIENT_END
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        || (ssl->options.side == WOLFSSL_SERVER_END
+        && ssl->options.handShakeDone)
+    #endif
+    ) {
     #ifndef NO_TLS
     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
         if (ssl->status_request) {

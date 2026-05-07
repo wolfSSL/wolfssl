@@ -9640,6 +9640,16 @@ static int SetupOcspResp(WOLFSSL* ssl)
     if (ret != 0 )
         return ret;
 
+    /* Free previous OCSP response buffers to avoid leak on PHA reuse */
+    {
+        int j;
+        for (j = 0; j < MAX_CERT_EXTENSIONS; j++) {
+            XFREE(csr->responses[j].buffer, ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            csr->responses[j].buffer = NULL;
+            csr->responses[j].length = 0;
+        }
+    }
     request = &csr->request.ocsp[0];
     ret = CreateOcspResponse(ssl, &request, &csr->responses[0]);
     if (request != &csr->request.ocsp[0] &&
