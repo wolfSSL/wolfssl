@@ -68,6 +68,7 @@ int test_tls13_cert_with_extern_psk_sh_missing_key_share(void);
 int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
 int test_tls13_ticket_peer_cert_reverify(void);
 int test_tls13_clear_preserves_psk_dhe(void);
+int test_tls13_pha_status_request(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -113,6 +114,7 @@ int test_tls13_clear_preserves_psk_dhe(void);
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_missing_key_share), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_confirms_resumption), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_reverify), \
-    TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe)
+    TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe), \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_status_request)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
