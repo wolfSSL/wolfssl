@@ -3348,6 +3348,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     wc_ecc_fp_free();
 #endif
 
+    /* Free the global ECC curve spec cache. Independent of FP_ECC: enabled
+     * by default in async builds (see settings.h) and is not cleaned up by
+     * wc_ecc_fp_free(). Without this, valgrind --leak-check=full flags the
+     * cached curve specs (and their wc_bigint copies) as still-reachable. */
+#if defined(HAVE_ECC) && defined(ECC_CACHE_CURVE)
+    wc_ecc_curve_cache_free();
+#endif
+
 #ifdef TEST_ALWAYS_RUN_TO_END
     if (last_failed_test_ret != 0)
         ret = last_failed_test_ret;
