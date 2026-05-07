@@ -15147,7 +15147,15 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
     const char* name = NULL;
     byte mac = no_mac;
     int i;
-    const Suites* suites = WOLFSSL_SUITES(ssl);
+    const Suites* suites;
+
+    if (hash == NULL || ssl == NULL ||
+        (ssl->suites == NULL && ssl->ctx == NULL))
+        return NULL;
+
+    suites = WOLFSSL_SUITES(ssl);
+    if (suites == NULL)
+        return NULL;
 
     if (XSTRCMP(hash, "SHA256") == 0) {
         mac = sha256_mac;
