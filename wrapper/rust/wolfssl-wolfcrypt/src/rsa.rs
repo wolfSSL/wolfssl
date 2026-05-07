@@ -1187,13 +1187,6 @@ impl RSA {
     /// * `rng`: The `RNG` struct instance to associate with this `RSA`
     ///   instance.
     ///
-    /// # Safety contract
-    ///
-    /// The caller must ensure that the `RNG` instance is not dropped before
-    /// this `RSA` instance. The `RSA` struct holds an internal pointer to the
-    /// `RNG`'s underlying `WC_RNG` context, and dropping the `RNG` first
-    /// would result in a dangling pointer.
-    ///
     /// # Returns
     ///
     /// Returns Ok(()) on success or Err(e) containing the wolfSSL library
