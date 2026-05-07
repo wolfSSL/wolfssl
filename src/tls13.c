@@ -995,6 +995,18 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     }
 #endif /* WOLFSSL_DTLS13 */
 
+    /* Sanity check contextLen to prevent truncation when cast to word32. */
+    if (contextLen > WOLFSSL_MAX_32BIT)
+        return BAD_FUNC_ARG;
+    /* RFC 8446 HkdfLabel encodes the output length as a uint16, so requested
+     * lengths > 65535 cannot be represented and must be rejected. */
+    if (outLen > WOLFSSL_MAX_16BIT)
+        return BAD_FUNC_ARG;
+    /* RFC 8446 HkdfLabel encodes the label length in a single byte, so
+     * anything > 255 cannot be represented and must be rejected. */
+    if (labelLen > (WOLFSSL_MAX_8BIT - protocolLen))
+        return BAD_FUNC_ARG;
+
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
         case sha256_mac:
@@ -1039,11 +1051,6 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
             emptyHash, hashLen, (int)hashType);
     if (ret != 0)
         return ret;
-
-    /* Sanity check contextLen to prevent truncation when cast to word32. */
-    if (contextLen > WOLFSSL_MAX_32BIT) {
-        return BAD_FUNC_ARG;
-    }
 
     /* Hash(context_value) */
     ret = wc_Hash(hashType, context, (word32)contextLen, hashOut, WC_MAX_DIGEST_SIZE);
