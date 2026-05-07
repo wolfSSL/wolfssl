@@ -19698,15 +19698,21 @@ static int Dtls13UpdateWindow(WOLFSSL* ssl)
         /* zero based index */
         w64Decrement(&diff64);
 
-        /* FIXME: check that diff64 < DTLS_WORDS_BITS */
-        diff = w64GetLow32(diff64);
-        wordIndex = ((int)diff) / DTLS_WORD_BITS;
-        wordOffset = ((int)diff) % DTLS_WORD_BITS;
-
-        if (wordIndex >= WOLFSSL_DTLS_WINDOW_WORDS) {
+        /* If the high 32 bits are non-zero, the gap is >= 2^32 which is far
+         * beyond the replay window; truncating via w64GetLow32 would set the
+         * wrong bit. Reject such packets as out-of-window. */
+        if (w64GetHigh32(diff64) != 0) {
             WOLFSSL_MSG("Invalid sequence number to Dtls13UpdateWindow");
             return BAD_STATE_E;
         }
+
+        diff = w64GetLow32(diff64);
+        if (diff >= (word32)(WOLFSSL_DTLS_WINDOW_WORDS * DTLS_WORD_BITS)) {
+            WOLFSSL_MSG("Invalid sequence number to Dtls13UpdateWindow");
+            return BAD_STATE_E;
+        }
+        wordIndex = (int)(diff / DTLS_WORD_BITS);
+        wordOffset = (int)(diff % DTLS_WORD_BITS);
 
         window[wordIndex] |= (1 << wordOffset);
         return 0;
@@ -19717,6 +19723,13 @@ static int Dtls13UpdateWindow(WOLFSSL* ssl)
 
     /* as we are considering nextSeq inside the window, we should add + 1 */
     w64Increment(&diff64);
+    /* Same truncation hazard as the seq < nextSeq branch above: if the high
+     * 32 bits are non-zero the gap is >= 2^32, beyond anything the window
+     * can represent. Reject as out-of-window before truncating. */
+    if (w64GetHigh32(diff64) != 0) {
+        WOLFSSL_MSG("Invalid sequence number to Dtls13UpdateWindow");
+        return BAD_STATE_E;
+    }
     _DtlsUpdateWindowGTSeq(w64GetLow32(diff64), window);
 
     w64Increment(&seq);
