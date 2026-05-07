@@ -2393,7 +2393,10 @@ static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)
     WOLFSSL_MSG_EX("Delete epoch: %d", e->epochNumber);
 #endif /* WOLFSSL_DEBUG_TLS */
 
-    XMEMSET(e, 0, sizeof(*e));
+    /* The slot we are reusing holds the previous epoch's symmetric keys, IVs,
+     * and sn-keys; use ForceZero so the wipe cannot be elided by the
+     * optimizer when the slot is later overwritten. */
+    ForceZero(e, sizeof(*e));
 
     return e;
 }

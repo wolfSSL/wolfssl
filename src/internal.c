@@ -9192,6 +9192,11 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS13
     Dtls13FreeFsmResources(ssl);
 
+    /* Zero per-epoch symmetric keys / IVs / sn-keys so they are not left
+     * resident in the heap after FreeSSL releases the SSL struct. Mirrors
+     * the existing ForceZero on ssl->keys and ssl->clientSecret/serverSecret. */
+    ForceZero(ssl->dtls13Epochs, sizeof(ssl->dtls13Epochs));
+
 #ifdef WOLFSSL_RW_THREADED
     wc_FreeMutex(&ssl->dtls13Rtx.mutex);
 #endif
