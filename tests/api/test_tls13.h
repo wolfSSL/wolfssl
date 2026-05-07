@@ -84,6 +84,7 @@ int test_tls13_AEAD_limit_KU_aes128_gcm_sha256(void);
 int test_tls13_AEAD_limit_KU_aes256_gcm_sha384(void);
 int test_tls13_AEAD_limit_KU_aes128_ccm_sha256(void);
 int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void);
+int test_tls13_pha_status_request(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -145,6 +146,7 @@ int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void);
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_gcm_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes256_gcm_sha384), \
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_sha256), \
-    TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256)
+    TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_status_request)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
