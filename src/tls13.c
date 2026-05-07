@@ -6089,8 +6089,13 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     len = input[(*inOutIdx)++];
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
-    if (ssl->options.connectState < FINISHED_DONE && len > 0)
-        return BUFFER_ERROR;
+    /* INVALID_PARAMETER does not map to illegal_parameter in the central
+     * alert path, so emit the alert explicitly before returning. */
+    if (ssl->options.connectState < FINISHED_DONE && len > 0) {
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     /* Remember the request context bytes; the CertReqCtx allocation and
