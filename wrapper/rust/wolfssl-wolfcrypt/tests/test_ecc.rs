@@ -368,6 +368,34 @@ fn test_ecc_import() {
 }
 
 #[test]
+#[cfg(ecc_import)]
+fn test_ecc_import_raw_not_null_terminated() {
+    common::setup();
+
+    let qx = b"7a4e287890a1a47ad3457e52f2f76a83ce46cbc947616d0cbaa82323818a793d\0";
+    let qy = b"eec4084f5b29ebf29c44cce3b3059610922f8b30ea6e8811742ac7238fe87308\0";
+    let d  = b"8c14b793cb19137e323a6d2e2a870bca2e7a493ec1153b3a95feb8a4873f8d08\0";
+    let qx_no_nul: &[u8] = &qx[..qx.len() - 1];
+    let qy_no_nul: &[u8] = &qy[..qy.len() - 1];
+    let d_no_nul:  &[u8] = &d[..d.len() - 1];
+    let curve_name = b"SECP256R1\0";
+    let curve_name_no_nul: &[u8] = b"SECP256R1";
+    let empty: &[u8] = b"";
+
+    assert!(ECC::import_raw(qx_no_nul, qy, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy_no_nul, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, d_no_nul, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, d, curve_name_no_nul, None, None).is_err());
+    assert!(ECC::import_raw(empty, qy, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, d, empty, None, None).is_err());
+
+    assert!(ECC::import_raw_ex(qx_no_nul, qy, d, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, qy_no_nul, d, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, qy, d_no_nul, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, qy, empty, ECC::SECP256R1, None, None).is_err());
+}
+
+#[test]
 fn test_ecc_rs_hex_to_sig_not_null_terminated() {
     common::setup();
 
