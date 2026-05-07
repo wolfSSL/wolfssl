@@ -1,46 +1,67 @@
 #!/usr/bin/env python3
 """
-pqc_parse.py — Normalize wolfSSL PQC benchmark CSV for publication.
+pqc_parse.py — Normalize PQC benchmark output for publication.
 
-Takes the CSV produced by pqc_bench.sh and emits clean, publication-ready
-output in one of two formats:
+Accepts output from wolfSSL, liboqs, OpenSSL, or CIRCL and emits
+clean, publication-ready output with a consistent schema.
 
-  --format=wolfssl (default)
-    Pipe-aligned CSV with a Library column prepended.
-    Columns: Library, Algorithm, Operation, ops/sec, avg_ms, ops, secs
-             [, heap_bytes, heap_allocs, stack_bytes]
+OUTPUT FORMATS (--format):
+  wolfssl (default)
+    CSV with Library column. Columns:
+      Library, Algorithm, Operation, ops/sec, avg_ms
+      [, ops, secs] [, heap_bytes, heap_allocs, stack_bytes]
 
-  --format=pqcleo
-    Pipe-delimited format matching PQC-LEO's parser expectations:
-    Algorithm | Operation | Operations | Seconds | ms/op | op/sec
-    (memory columns dropped — PQC-LEO memory is from Valgrind massif)
+  pqcleo
+    Pipe-delimited format for PQC-LEO cross-library comparison:
+      Algorithm | Operation | Operations | Seconds | ms/op | op/sec
+
+INPUT FORMATS (--input-format):
+  wolfssl (default)
+    CSV produced by pqc_bench.sh. Supports 5, 8, and 12-column layouts.
+
+  liboqs
+    Text output of liboqs speed_kem / speed_sig binaries.
+    Fixed-width table; algorithm name on a preceding header line.
+    Example:
+      ML-KEM-512
+      keygen      | 12345 | 3.000 | 243.2 | ...
+      encaps      | 12345 | 3.000 | 243.2 | ...
+      decaps      | 12345 | 3.000 | 243.2 | ...
+
+  openssl
+    Machine-readable output of: openssl speed -mr -kem-algorithms
+                                 openssl speed -mr -signature-algorithms
+    Format: +R15:<count>:<alg>:<secs>  (KEM keygen)
+            +R16:<count>:<alg>:<secs>  (KEM encaps)
+            +R17:<count>:<alg>:<secs>  (KEM decaps)
+            +R18:<count>:<alg>:<secs>  (SIG keygen)
+            +R19:<count>:<alg>:<secs>  (SIG sign)
+            +R20:<count>:<alg>:<secs>  (SIG verify)
+
+  circl
+    Output of: go test -bench=. -benchtime=5s ./kem/schemes/ ./sign/schemes/
+    Format: BenchmarkGenerateKeyPair/ML-KEM-512   N   98765 ns/op
+            BenchmarkEncapsulate/ML-KEM-512        N   98765 ns/op
+            BenchmarkDecapsulate/ML-KEM-512        N   98765 ns/op
+            BenchmarkGenerateKeyPair/ML-DSA-44     N   98765 ns/op
+            BenchmarkSign/ML-DSA-44                N   98765 ns/op
+            BenchmarkVerify/ML-DSA-44              N   98765 ns/op
 
 USAGE:
-  python3 pqc_parse.py [OPTIONS] INPUT_CSV
+  python3 pqc_parse.py [OPTIONS] INPUT
 
 OPTIONS:
-  --format FORMAT    Output format: wolfssl (default) or pqcleo
-  --library NAME     Library name for wolfssl format (default: wolfSSL)
-  --output FILE      Write to FILE instead of stdout
-  --help             Print this help and exit
+  --input-format FMT  Input format: wolfssl (default), liboqs, openssl, circl
+  --format FMT        Output format: wolfssl (default) or pqcleo
+  --library NAME      Library name override (default: auto-detected from input format)
+  --output FILE       Write to FILE instead of stdout
+  --help              Print this help and exit
 
 EXAMPLES:
   python3 pqc_parse.py pqc_results.csv
-  python3 pqc_parse.py --format=pqcleo --output=results.psv pqc_results.csv
-
-INPUT FORMAT:
-  The script accepts the CSV produced by pqc_bench.sh in both its supported
-  output variants:
-    - With GENERATE_MACHINE_PARSEABLE_REPORT + cycles columns (12 fields):
-        Algorithm,key size,operation,avg ms,ops/sec,ops,secs,cycles,cycles/op,
-        heap_bytes,heap_allocs,stack_bytes
-    - Without cycles (8 fields, older build):
-        Algorithm,key size,operation,avg ms,ops/sec,heap_bytes,heap_allocs,
-        stack_bytes
-    - Minimal (5 fields, no memory tracking):
-        Algorithm,key size,operation,avg ms,ops/sec
-
-  Memory columns are optional; missing columns are reported as empty strings.
+  python3 pqc_parse.py --input-format=liboqs speed_kem.txt
+  python3 pqc_parse.py --input-format=openssl --library=OpenSSL-3.5 openssl_speed.txt
+  python3 pqc_parse.py --input-format=circl --format=pqcleo circl_bench.txt
 """
 
 import argparse
@@ -51,114 +72,126 @@ from typing import Optional
 
 
 # ---------------------------------------------------------------------------
-# Algorithm name normalisation
+# Canonical data record
 # ---------------------------------------------------------------------------
-# wolfSSL benchmark output uses internal names that differ from NIST names.
-# These maps translate what the benchmark binary actually emits.
+# All input parsers produce a list of these dicts before the output
+# formatters consume them.  Fields not available from a given input source
+# are left as empty strings.
 
-# ML-KEM: "ML-KEM 512 " (trailing space), key size in separate column.
-# We reconstruct "ML-KEM-<keysize>" from the algorithm + key-size fields.
-_MLKEM_RE = re.compile(r"ML-KEM\s+(\d+)\s*$", re.IGNORECASE)
+def make_record(
+    library: str,
+    algorithm: str,
+    operation: str,
+    ops_per_sec: str,
+    avg_ms: str,
+    ops: str = "",
+    secs: str = "",
+    heap_bytes: str = "",
+    heap_allocs: str = "",
+    stack_bytes: str = "",
+) -> dict:
+    return {
+        "library":     library,
+        "algorithm":   algorithm,
+        "operation":   operation,
+        "ops_per_sec": ops_per_sec,
+        "avg_ms":      avg_ms,
+        "ops":         ops,
+        "secs":        secs,
+        "heap_bytes":  heap_bytes,
+        "heap_allocs": heap_allocs,
+        "stack_bytes": stack_bytes,
+    }
 
-# ML-DSA: algorithm field is "ML-DSA", key-size field is security level (44/65/87).
-_MLDSA_RE = re.compile(r"ML-DSA\s*$", re.IGNORECASE)
 
-# SLH-DSA: algorithm field is "SLH-DSA-S" (small) or "SLH-DSA-F" (fast),
-# key-size field is the security category (128/192/256).
-# NIST name: SLH-DSA-SHAKE-<category><size_char>
-#   S → s (small), F → f (fast)
-_SLHDSA_RE = re.compile(r"SLH-DSA-([SF])\s*$", re.IGNORECASE)
+# ---------------------------------------------------------------------------
+# Algorithm and operation name normalisation (shared across all parsers)
+# ---------------------------------------------------------------------------
 
-# Legacy Dilithium names (in case an older wolfSSL build is used):
-# "DILITHIUM" with key-size field being the security level.
-_DILITHIUM_RE = re.compile(r"DILITHIUM\s*$", re.IGNORECASE)
+# wolfSSL emits "ML-KEM 512 " (space-separated, trailing space)
+_WOLFSSL_MLKEM_RE  = re.compile(r"ML-KEM\s+(\d+)\s*$", re.IGNORECASE)
+_WOLFSSL_MLDSA_RE  = re.compile(r"ML-DSA\s*$",         re.IGNORECASE)
+_WOLFSSL_SLHDSA_RE = re.compile(r"SLH-DSA-([SF])\s*$", re.IGNORECASE)
+_WOLFSSL_DILITH_RE = re.compile(r"DILITHIUM\s*$",       re.IGNORECASE)
 
+# Canonical algorithm names already in NIST form (liboqs / OpenSSL / CIRCL)
+_CANONICAL_RE = re.compile(
+    r"^(ML-KEM-(512|768|1024)|ML-DSA-(44|65|87)|SLH-DSA-(SHA2|SHAKE)-(128|192|256)[sf])$",
+    re.IGNORECASE,
+)
 
-def normalise_algorithm(raw_algo: str, raw_keysize: str) -> str:
+def normalise_algorithm(raw_algo: str, raw_keysize: str = "") -> str:
     """
-    Convert wolfSSL benchmark algorithm + key-size fields to a canonical
-    NIST/IETF algorithm name.
-
-    Returns the normalised name as a string, or the original (stripped) name
-    if no normalisation rule applies (future-proofing for new algorithms).
+    Convert any benchmark tool's algorithm name to canonical NIST form.
+    raw_keysize is only needed for wolfSSL's two-column format.
     """
-    algo = raw_algo.strip()
+    algo    = raw_algo.strip()
     keysize = raw_keysize.strip()
 
-    m = _MLKEM_RE.match(algo)
+    # Already canonical (liboqs / OpenSSL / CIRCL emit NIST names)
+    if _CANONICAL_RE.match(algo):
+        return algo
+
+    # wolfSSL internal names
+    m = _WOLFSSL_MLKEM_RE.match(algo)
     if m:
-        # benchmark already encodes the security level in the name;
-        # the key-size column is the same value. Use the name field.
         return f"ML-KEM-{m.group(1)}"
 
-    if _MLDSA_RE.match(algo):
-        # key-size field is the security level (44, 65, 87)
+    if _WOLFSSL_MLDSA_RE.match(algo):
         return f"ML-DSA-{keysize}"
 
-    m = _SLHDSA_RE.match(algo)
+    m = _WOLFSSL_SLHDSA_RE.match(algo)
     if m:
-        size_char = m.group(1).lower()  # 's' or 'f'
-        return f"SLH-DSA-SHAKE-{keysize}{size_char}"
+        return f"SLH-DSA-SHAKE-{keysize}{m.group(1).lower()}"
 
-    if _DILITHIUM_RE.match(algo):
-        # Legacy name from older wolfSSL builds
+    if _WOLFSSL_DILITH_RE.match(algo):
         return f"ML-DSA-{keysize}"
 
-    # Unknown algorithm: return stripped name unchanged so we don't silently
-    # drop data from future wolfSSL versions that add new algorithms.
+    # Pass through unknown names unchanged
     return algo
 
 
-# ---------------------------------------------------------------------------
-# Operation label normalisation
-# ---------------------------------------------------------------------------
-# wolfSSL uses slightly different operation names than the PQC-LEO convention.
-
+# Operation label map — normalise all source tool labels to canonical form
 _OP_MAP = {
-    "key gen":  "keygen",    # KEM and SIG key generation
-    "gen":      "keygen",    # SLH-DSA uses 'gen' instead of 'key gen'
-    "encap":    "encaps",    # KEM encapsulation
-    "decap":    "decaps",    # KEM decapsulation
-    "sign":     "sign",
-    "verify":   "verify",
-    # SLH-DSA extended operations (pre-hash and message variants)
-    # Pass through with minor normalisation so the output remains valid.
-    "sign-msg": "sign-msg",
-    "vrfy-msg": "verify-msg",
-    "sign-pre": "sign-pre",
-    "vrfy-pre": "verify-pre",
+    # wolfSSL
+    "key gen":   "keygen",
+    "gen":       "keygen",
+    "encap":     "encaps",
+    "decap":     "decaps",
+    "sign":      "sign",
+    "verify":    "verify",
+    "sign-msg":  "sign-msg",
+    "vrfy-msg":  "verify-msg",
+    "sign-pre":  "sign-pre",
+    "vrfy-pre":  "verify-pre",
+    # liboqs
+    "keygen":    "keygen",
+    "encaps":    "encaps",
+    "decaps":    "decaps",
+    "keypair":   "keygen",   # liboqs speed_sig uses "keypair"
+    # OpenSSL / CIRCL already use canonical names mostly
+    "generatekeypair": "keygen",
+    "encapsulate":     "encaps",
+    "decapsulate":     "decaps",
 }
 
-
 def normalise_operation(raw_op: str) -> str:
-    """Normalise a wolfSSL operation label to canonical form."""
-    op = raw_op.strip()
-    return _OP_MAP.get(op, op)  # unknown ops pass through unchanged
+    op = raw_op.strip().lower()
+    return _OP_MAP.get(op, raw_op.strip())
+
+
+def _fmt_ops_per_sec(ops: float) -> str:
+    return f"{ops:.3f}"
+
+def _fmt_avg_ms(ms: float) -> str:
+    return f"{ms:.3f}"
 
 
 # ---------------------------------------------------------------------------
-# CSV column layout detection
+# wolfSSL input parser (existing CSV format)
 # ---------------------------------------------------------------------------
-# pqc_bench.sh can produce two column layouts depending on build flags:
-#
-#   Layout A (GENERATE_MACHINE_PARSEABLE_REPORT, 12 fields):
-#     Algorithm, key size, operation, avg ms, ops/sec,
-#     ops, secs, cycles, cycles/op, heap_bytes, heap_allocs, stack_bytes
-#
-#   Layout B (plain -csv, 8 fields):
-#     Algorithm, key size, operation, avg ms, ops/sec,
-#     heap_bytes, heap_allocs, stack_bytes
-#
-#   Layout C (minimal, 5 fields, no memory tracking):
-#     Algorithm, key size, operation, avg ms, ops/sec
 
-def detect_layout(header: list[str]) -> dict:
-    """
-    Given the parsed header row, return a dict mapping logical field names to
-    column indices.  Returns None for fields not present in this layout.
-
-    All header matching is case-insensitive and strips whitespace.
-    """
+def _detect_wolfssl_layout(header: list[str]) -> dict:
     h = [f.strip().lower() for f in header]
 
     def idx(name: str) -> Optional[int]:
@@ -168,55 +201,312 @@ def detect_layout(header: list[str]) -> dict:
             return None
 
     layout = {
-        "algorithm":   idx("algorithm"),
-        "key_size":    idx("key size"),
-        "operation":   idx("operation"),
-        "avg_ms":      idx("avg ms"),
-        "ops_per_sec": idx("ops/sec"),
-        "ops":         idx("ops"),
-        "secs":        idx("secs"),
-        "cycles":      idx("cycles"),
-        "cycles_per_op": idx("cycles/op"),
-        "heap_bytes":  idx("heap_bytes"),
-        "heap_allocs": idx("heap_allocs"),
-        "stack_bytes": idx("stack_bytes"),
+        "algorithm":     idx("algorithm"),
+        "key_size":      idx("key size"),
+        "operation":     idx("operation"),
+        "avg_ms":        idx("avg ms"),
+        "ops_per_sec":   idx("ops/sec"),
+        "ops":           idx("ops"),
+        "secs":          idx("secs"),
+        "heap_bytes":    idx("heap_bytes"),
+        "heap_allocs":   idx("heap_allocs"),
+        "stack_bytes":   idx("stack_bytes"),
     }
 
-    # Validate that mandatory fields are present
-    mandatory = ("algorithm", "key_size", "operation", "avg_ms", "ops_per_sec")
-    for field in mandatory:
+    for field in ("algorithm", "key_size", "operation", "avg_ms", "ops_per_sec"):
         if layout[field] is None:
             raise ValueError(
-                f"Input CSV is missing required column '{field}'. "
-                f"Got columns: {header}"
+                f"wolfSSL CSV missing required column '{field}'. Got: {header}"
             )
-
     return layout
 
 
-def get_field(row: list[str], layout: dict, field: str, default: str = "") -> str:
-    """Extract a field from a row using the pre-computed layout, or return default."""
-    idx = layout.get(field)
-    if idx is None or idx >= len(row):
-        return default
-    return row[idx].strip()
+def _get(row: list[str], layout: dict, field: str) -> str:
+    i = layout.get(field)
+    if i is None or i >= len(row):
+        return ""
+    return row[i].strip()
+
+
+def parse_wolfssl(text: str, library: str) -> list[dict]:
+    records = []
+    reader = csv.reader(text.splitlines())
+    header = None
+    layout = None
+
+    for row in reader:
+        if not any(f.strip() for f in row):
+            continue
+
+        # New-format header: starts with quoted type + "Algorithm"
+        if row[0].strip().strip('"').lower() in ("asym", "sym") and \
+                len(row) > 1 and row[1].strip().lower() == "algorithm":
+            # Strip leading type column
+            row = row[1:]
+
+        if header is None:
+            if row[0].strip().lower() == "algorithm":
+                header = [f.strip() for f in row]
+                # Strip trailing comma artefact (empty last field)
+                if header and header[-1] == "":
+                    header = header[:-1]
+                try:
+                    layout = _detect_wolfssl_layout(header)
+                except ValueError as e:
+                    print(f"WARNING: {e}", file=sys.stderr)
+                    return records
+            continue
+
+        # Data row: new format prefixes with type token, strip it
+        if row[0].strip().lower() in ("asym", "sym"):
+            row = row[1:]
+
+        # Strip trailing empty field from wolfSSL's trailing-comma habit
+        if row and row[-1].strip() == "":
+            row = row[:-1]
+
+        if len(row) < 5:
+            continue
+
+        algo    = normalise_algorithm(_get(row, layout, "algorithm"),
+                                      _get(row, layout, "key_size"))
+        op      = normalise_operation(_get(row, layout, "operation"))
+        ops_sec = _get(row, layout, "ops_per_sec")
+        avg_ms  = _get(row, layout, "avg_ms")
+
+        records.append(make_record(
+            library=library, algorithm=algo, operation=op,
+            ops_per_sec=ops_sec, avg_ms=avg_ms,
+            ops=_get(row, layout, "ops"),
+            secs=_get(row, layout, "secs"),
+            heap_bytes=_get(row, layout, "heap_bytes"),
+            heap_allocs=_get(row, layout, "heap_allocs"),
+            stack_bytes=_get(row, layout, "stack_bytes"),
+        ))
+    return records
+
+
+# ---------------------------------------------------------------------------
+# liboqs input parser
+# ---------------------------------------------------------------------------
+# Output format from speed_kem / speed_sig:
+#
+#   Started at ...
+#   Operation                            | Iterations |  Total time (s) | Time (us): mean | pop. stdev | cycles/op | pop. stdev
+#   ------------------------------------ | ----------:| ---------------:| ---------------:| ----------:| ---------:| ----------:
+#   ML-KEM-512
+#   keygen                               |      12345 |           3.000 |          243.18 |       1.23 |    ...    |    ...
+#   encaps                               |      12345 |           3.000 |          243.18 |       1.23 |    ...    |    ...
+#   decaps                               |      12345 |           3.000 |          243.18 |       1.23 |    ...    |    ...
+#
+# Algorithm name appears on its own line immediately before its operations.
+# The table header line contains "Iterations" (used for detection).
+# Data lines have the operation name in column 0, iteration count in col 1,
+# total time (s) in col 2, mean time (us) in col 3.
+
+_LIBOQS_HEADER_RE = re.compile(r"Iterations", re.IGNORECASE)
+# A data row: starts with an operation name word, then pipe-separated numbers.
+# Operation names: keygen, encaps, decaps, keypair, sign, verify, fullcycle...
+_LIBOQS_DATA_RE = re.compile(
+    r"^\s*(\w[\w\-]*)\s*\|\s*(\d+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)"
+)
+# Algorithm header line: a non-empty line that is NOT the column header,
+# NOT a separator (---), and does NOT contain a pipe character.
+_LIBOQS_ALG_RE = re.compile(r"^[A-Z][\w\-]+$")
+
+
+def parse_liboqs(text: str, library: str) -> list[dict]:
+    records = []
+    current_alg = None
+    in_table = False
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+
+        if not line:
+            continue
+
+        # Table header
+        if _LIBOQS_HEADER_RE.search(line):
+            in_table = True
+            continue
+
+        # Separator line
+        if re.match(r"^[-| ]+$", line):
+            continue
+
+        # Algorithm name line (no pipe, matches algo pattern)
+        if "|" not in line and _LIBOQS_ALG_RE.match(line):
+            current_alg = normalise_algorithm(line)
+            continue
+
+        # Data row
+        if in_table and current_alg:
+            m = _LIBOQS_DATA_RE.match(line)
+            if m:
+                op_raw      = m.group(1)
+                iterations  = m.group(2)
+                total_secs  = float(m.group(3))
+                mean_us     = float(m.group(4))
+                avg_ms      = mean_us / 1000.0
+                ops_per_sec = 1_000_000.0 / mean_us if mean_us > 0 else 0.0
+
+                op = normalise_operation(op_raw)
+                # Skip fullcycle / fullcycletest rows — not a primitive operation
+                if "fullcycle" in op.lower():
+                    continue
+
+                records.append(make_record(
+                    library=library,
+                    algorithm=current_alg,
+                    operation=op,
+                    ops_per_sec=_fmt_ops_per_sec(ops_per_sec),
+                    avg_ms=_fmt_avg_ms(avg_ms),
+                    ops=iterations,
+                    secs=f"{total_secs:.3f}",
+                ))
+
+    return records
+
+
+# ---------------------------------------------------------------------------
+# OpenSSL input parser (-mr machine-readable output)
+# ---------------------------------------------------------------------------
+# +R15:<count>:<alg>:<secs>  — KEM keygen
+# +R16:<count>:<alg>:<secs>  — KEM encaps
+# +R17:<count>:<alg>:<secs>  — KEM decaps
+# +R18:<count>:<alg>:<secs>  — SIG keygen
+# +R19:<count>:<alg>:<secs>  — SIG sign
+# +R20:<count>:<alg>:<secs>  — SIG verify
+
+_OPENSSL_MR_RE = re.compile(r"^\+R(1[5-9]|20):(\d+):([^:]+):([\d.]+)")
+_OPENSSL_OP_MAP = {
+    "15": "keygen",   # KEM keygen
+    "16": "encaps",   # KEM encaps
+    "17": "decaps",   # KEM decaps
+    "18": "keygen",   # SIG keygen
+    "19": "sign",     # SIG sign
+    "20": "verify",   # SIG verify
+}
+
+
+def parse_openssl(text: str, library: str) -> list[dict]:
+    records = []
+    for line in text.splitlines():
+        m = _OPENSSL_MR_RE.match(line.strip())
+        if not m:
+            continue
+        rtype  = m.group(1)
+        count  = int(m.group(2))
+        alg    = m.group(3).strip()
+        secs   = float(m.group(4))
+
+        op = _OPENSSL_OP_MAP.get(rtype, "unknown")
+        avg_ms      = (secs / count * 1000.0) if count > 0 else 0.0
+        ops_per_sec = count / secs if secs > 0 else 0.0
+        algorithm   = normalise_algorithm(alg)
+
+        records.append(make_record(
+            library=library,
+            algorithm=algorithm,
+            operation=op,
+            ops_per_sec=_fmt_ops_per_sec(ops_per_sec),
+            avg_ms=_fmt_avg_ms(avg_ms),
+            ops=str(count),
+            secs=f"{secs:.3f}",
+        ))
+    return records
+
+
+# ---------------------------------------------------------------------------
+# CIRCL input parser (go test -bench output)
+# ---------------------------------------------------------------------------
+# Format: BenchmarkGenerateKeyPair/ML-KEM-512-8    1234    98765 ns/op
+# The "-8" suffix is the GOMAXPROCS value; strip it.
+# Benchmark function names map to operations:
+#   BenchmarkGenerateKeyPair -> keygen
+#   BenchmarkEncapsulate     -> encaps
+#   BenchmarkDecapsulate     -> decaps
+#   BenchmarkEncap           -> encaps  (alternate naming)
+#   BenchmarkDecap           -> decaps
+#   BenchmarkSign            -> sign
+#   BenchmarkVerify          -> verify
+
+_CIRCL_LINE_RE = re.compile(
+    r"^Benchmark(\w+)/([^\s]+)\s+(\d+)\s+([\d.]+)\s+ns/op"
+)
+_CIRCL_OP_MAP = {
+    "GenerateKeyPair": "keygen",
+    "Encapsulate":     "encaps",
+    "Decapsulate":     "decaps",
+    "Encap":           "encaps",
+    "Decap":           "decaps",
+    "Sign":            "sign",
+    "Verify":          "verify",
+    "KeyGen":          "keygen",
+    "KeyGenerate":     "keygen",
+}
+# GOMAXPROCS suffix: "-N" at end of algorithm name
+_CIRCL_GOMAXPROCS_RE = re.compile(r"-\d+$")
+
+
+def parse_circl(text: str, library: str) -> list[dict]:
+    records = []
+    for line in text.splitlines():
+        m = _CIRCL_LINE_RE.match(line.strip())
+        if not m:
+            continue
+        bench_fn = m.group(1)          # e.g. "GenerateKeyPair"
+        alg_raw  = m.group(2)          # e.g. "ML-KEM-512-8"
+        iters    = int(m.group(3))
+        ns_per   = float(m.group(4))   # nanoseconds per operation
+
+        # Strip GOMAXPROCS suffix from algorithm name
+        alg_clean = _CIRCL_GOMAXPROCS_RE.sub("", alg_raw)
+        algorithm = normalise_algorithm(alg_clean)
+
+        op = _CIRCL_OP_MAP.get(bench_fn)
+        if op is None:
+            # Unknown benchmark function — skip rather than emit garbage
+            continue
+
+        avg_ms      = ns_per / 1_000_000.0
+        ops_per_sec = 1_000_000_000.0 / ns_per if ns_per > 0 else 0.0
+
+        records.append(make_record(
+            library=library,
+            algorithm=algorithm,
+            operation=op,
+            ops_per_sec=_fmt_ops_per_sec(ops_per_sec),
+            avg_ms=_fmt_avg_ms(avg_ms),
+            ops=str(iters),
+            secs=_fmt_avg_ms(iters * ns_per / 1e9),
+        ))
+    return records
 
 
 # ---------------------------------------------------------------------------
 # Output formatters
 # ---------------------------------------------------------------------------
 
-def write_wolfssl_format(rows, layout: dict, library: str, out):
-    """
-    Write normalised wolfssl CSV format.
+# Algorithms we care about — filter out unrelated ones when present
+_PQC_ALGO_RE = re.compile(
+    r"^(ML-KEM|ML-DSA|SLH-DSA)", re.IGNORECASE
+)
 
-    Columns: Library, Algorithm, Operation, ops/sec, avg_ms, ops, secs
-             [, heap_bytes, heap_allocs, stack_bytes]
+def _is_pqc(record: dict) -> bool:
+    return bool(_PQC_ALGO_RE.match(record["algorithm"]))
 
-    Memory columns are omitted if they were not present in the input.
+
+def write_wolfssl_format(records: list[dict], out) -> None:
     """
-    has_memory = layout["heap_bytes"] is not None
-    has_timing = layout["ops"] is not None
+    Normalised wolfssl CSV.
+    Columns: Library, Algorithm, Operation, ops/sec, avg_ms
+             [, ops, secs] [, heap_bytes, heap_allocs, stack_bytes]
+    Memory columns are included only if at least one record has them.
+    """
+    has_timing = any(r["ops"] for r in records)
+    has_memory = any(r["heap_bytes"] for r in records)
 
     header = ["Library", "Algorithm", "Operation", "ops/sec", "avg_ms"]
     if has_timing:
@@ -227,149 +517,123 @@ def write_wolfssl_format(rows, layout: dict, library: str, out):
     writer = csv.writer(out, lineterminator="\n")
     writer.writerow(header)
 
-    for row in rows:
-        raw_algo = get_field(row, layout, "algorithm")
-        raw_keysize = get_field(row, layout, "key_size")
-        raw_op = get_field(row, layout, "operation")
-
-        algorithm = normalise_algorithm(raw_algo, raw_keysize)
-        operation = normalise_operation(raw_op)
-        ops_per_sec = get_field(row, layout, "ops_per_sec")
-        avg_ms = get_field(row, layout, "avg_ms")
-
-        out_row = [library, algorithm, operation, ops_per_sec, avg_ms]
-
+    for r in records:
+        if not _is_pqc(r):
+            continue
+        row = [r["library"], r["algorithm"], r["operation"],
+               r["ops_per_sec"], r["avg_ms"]]
         if has_timing:
-            out_row.append(get_field(row, layout, "ops"))
-            out_row.append(get_field(row, layout, "secs"))
-
+            row += [r["ops"], r["secs"]]
         if has_memory:
-            out_row.append(get_field(row, layout, "heap_bytes"))
-            out_row.append(get_field(row, layout, "heap_allocs"))
-            out_row.append(get_field(row, layout, "stack_bytes"))
-
-        writer.writerow(out_row)
+            row += [r["heap_bytes"], r["heap_allocs"], r["stack_bytes"]]
+        writer.writerow(row)
 
 
-def write_pqcleo_format(rows, layout: dict, out):
-    """
-    Write PQC-LEO pipe-delimited format for cross-library comparison.
-
-    PQC-LEO parser expects:
-      Algorithm | Operation | Operations | Seconds | ms/op | op/sec
-
-    Memory columns are dropped (PQC-LEO memory comes from Valgrind massif,
-    which is incompatible with wolfSSL's inline allocation tracking).
-    """
-    # PQC-LEO uses pipe delimiter with spaces: " | "
+def write_pqcleo_format(records: list[dict], out) -> None:
+    """PQC-LEO pipe-delimited format."""
     sep = " | "
 
-    def write_row(fields):
+    def wr(fields):
         out.write(sep.join(str(f) for f in fields) + "\n")
 
-    write_row(["Algorithm", "Operation", "Operations", "Seconds", "ms/op", "op/sec"])
-
-    for row in rows:
-        raw_algo = get_field(row, layout, "algorithm")
-        raw_keysize = get_field(row, layout, "key_size")
-        raw_op = get_field(row, layout, "operation")
-
-        algorithm = normalise_algorithm(raw_algo, raw_keysize)
-        operation = normalise_operation(raw_op)
-        ops_per_sec = get_field(row, layout, "ops_per_sec")
-        avg_ms = get_field(row, layout, "avg_ms")
-        ops = get_field(row, layout, "ops", default="")
-        secs = get_field(row, layout, "secs", default="")
-
-        write_row([algorithm, operation, ops, secs, avg_ms, ops_per_sec])
+    wr(["Algorithm", "Operation", "Operations", "Seconds", "ms/op", "op/sec"])
+    for r in records:
+        if not _is_pqc(r):
+            continue
+        wr([r["algorithm"], r["operation"], r["ops"],
+            r["secs"], r["avg_ms"], r["ops_per_sec"]])
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
+_DEFAULT_LIBRARY = {
+    "wolfssl": "wolfSSL",
+    "liboqs":  "liboqs",
+    "openssl": "OpenSSL",
+    "circl":   "CIRCL",
+}
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description=__doc__.split("\n")[1].strip(),
+        description="Normalize PQC benchmark output for publication.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="\n".join(__doc__.split("\n")[1:]),
+        epilog=__doc__,
     )
     parser.add_argument(
-        "input",
-        metavar="INPUT_CSV",
-        help="CSV file produced by pqc_bench.sh (use '-' for stdin)",
+        "input", metavar="INPUT",
+        help="Input file (use '-' for stdin)",
+    )
+    parser.add_argument(
+        "--input-format",
+        choices=("wolfssl", "liboqs", "openssl", "circl"),
+        default="wolfssl",
+        help="Input format (default: wolfssl)",
     )
     parser.add_argument(
         "--format",
         choices=("wolfssl", "pqcleo"),
         default="wolfssl",
-        help="Output format: wolfssl (default) or pqcleo",
+        help="Output format (default: wolfssl)",
     )
     parser.add_argument(
         "--library",
-        default="wolfSSL",
-        help="Library name for wolfssl format (default: wolfSSL)",
+        default=None,
+        help="Library name override (default: auto from --input-format)",
     )
     parser.add_argument(
-        "--output",
-        default="-",
+        "--output", default="-",
         help="Output file (default: stdout)",
     )
     args = parser.parse_args()
 
+    library = args.library or _DEFAULT_LIBRARY[args.input_format]
+
     # Open input
     if args.input == "-":
-        in_file = sys.stdin
+        text = sys.stdin.read()
     else:
         try:
-            in_file = open(args.input, newline="", encoding="utf-8")
+            with open(args.input, encoding="utf-8") as f:
+                text = f.read()
         except OSError as e:
-            print(f"ERROR: Cannot open input file: {e}", file=sys.stderr)
+            print(f"ERROR: Cannot open input: {e}", file=sys.stderr)
             sys.exit(1)
+
+    # Parse
+    parsers = {
+        "wolfssl": parse_wolfssl,
+        "liboqs":  parse_liboqs,
+        "openssl": parse_openssl,
+        "circl":   parse_circl,
+    }
+    records = parsers[args.input_format](text, library)
+
+    if not records:
+        print("WARNING: no records parsed from input", file=sys.stderr)
 
     # Open output
     if args.output == "-":
-        out_file = sys.stdout
+        out = sys.stdout
+        _write_and_close = False
     else:
         try:
-            out_file = open(args.output, "w", encoding="utf-8")
+            out = open(args.output, "w", encoding="utf-8")
+            _write_and_close = True
         except OSError as e:
-            print(f"ERROR: Cannot open output file: {e}", file=sys.stderr)
+            print(f"ERROR: Cannot open output: {e}", file=sys.stderr)
             sys.exit(1)
 
     try:
-        reader = csv.reader(in_file)
-
-        # Read and parse header
-        try:
-            header = next(reader)
-        except StopIteration:
-            print("ERROR: Input CSV is empty (no header row)", file=sys.stderr)
-            sys.exit(1)
-
-        try:
-            layout = detect_layout(header)
-        except ValueError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
-
-        # Read all data rows (skip blank lines)
-        data_rows = [row for row in reader if any(f.strip() for f in row)]
-
-        if not data_rows:
-            print("WARNING: Input CSV has a header but no data rows", file=sys.stderr)
-
-        # Emit in requested format
         if args.format == "wolfssl":
-            write_wolfssl_format(data_rows, layout, args.library, out_file)
+            write_wolfssl_format(records, out)
         else:
-            write_pqcleo_format(data_rows, layout, out_file)
-
+            write_pqcleo_format(records, out)
     finally:
-        if in_file is not sys.stdin:
-            in_file.close()
-        if out_file is not sys.stdout:
-            out_file.close()
+        if _write_and_close:
+            out.close()
 
     sys.exit(0)
 
