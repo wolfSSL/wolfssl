@@ -355,9 +355,11 @@ def parse_liboqs(text: str, library: str) -> list[dict]:
         m_alg = _LIBOQS_ALG_RE.match(line)
         if m_alg and not _LIBOQS_DATA_RE.match(line):
             candidate = m_alg.group(1).strip()
-            # Only treat as an algorithm header if it looks like a PQC name
-            if _PQC_ALGO_RE.match(candidate):
-                current_alg = normalise_algorithm(candidate)
+            # Normalise first (converts SLH_DSA_PURE_SHA2_128S -> SLH-DSA-SHA2-128s),
+            # then check if the normalised name is a PQC algorithm we care about.
+            norm = normalise_algorithm(candidate)
+            if _PQC_ALGO_RE.match(norm):
+                current_alg = norm
                 continue
 
         # Data row
