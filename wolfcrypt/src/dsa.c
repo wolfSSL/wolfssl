@@ -1137,9 +1137,11 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
 
     /* Validate domain parameters and public key before doing any
      * signature math. */
+#ifndef NO_DSA_PUBKEY_CHECK
     ret = wc_DsaCheckPubKey(key);
     if (ret != 0)
         return ret;
+#endif
 
     do {
 #ifdef WOLFSSL_SMALL_STACK
