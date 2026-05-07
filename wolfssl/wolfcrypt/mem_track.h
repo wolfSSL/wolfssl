@@ -142,9 +142,8 @@ static memoryStats ourMemStats;
 WOLFSSL_API extern memoryStats *wc_MemStats_Ptr;
 
 #ifdef DO_MEM_LIST
-    #include <pthread.h>
     static memoryList ourMemList;
-    static pthread_mutex_t memLock = PTHREAD_MUTEX_INITIALIZER;
+    static wolfSSL_Mutex memLock WOLFSSL_MUTEX_INITIALIZER_CLAUSE(memLock);
 #endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
@@ -182,7 +181,7 @@ static WC_INLINE void* TrackMalloc(size_t sz)
 #endif
 #endif
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-    if (pthread_mutex_lock(&memLock) == 0)
+    if (wc_LockMutex(&memLock) == 0)
     {
 #endif
 
@@ -228,7 +227,7 @@ static WC_INLINE void* TrackMalloc(size_t sz)
         ourMemList.count++;
 #endif
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-        pthread_mutex_unlock(&memLock);
+        wc_UnLockMutex(&memLock);
     }
 #endif /* DO_MEM_LIST */
 
@@ -255,7 +254,7 @@ static WC_INLINE void TrackFree(void* ptr)
     sz = header->thisSize;
 
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-    if (pthread_mutex_lock(&memLock) == 0)
+    if (wc_LockMutex(&memLock) == 0)
     {
 #endif
 
@@ -289,7 +288,7 @@ static WC_INLINE void TrackFree(void* ptr)
 #endif
 
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-        pthread_mutex_unlock(&memLock);
+        wc_UnLockMutex(&memLock);
     }
 #endif
 
@@ -369,7 +368,10 @@ static WC_INLINE int InitMemoryTracker(void)
     }
 
 #ifdef DO_MEM_LIST
-    if (pthread_mutex_lock(&memLock) == 0)
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+    wc_InitMutex(&memLock);
+    #endif
+    if (wc_LockMutex(&memLock) == 0)
 #endif
     {
     #ifdef DO_MEM_STATS
@@ -388,7 +390,7 @@ static WC_INLINE int InitMemoryTracker(void)
         XMEMSET(&ourMemList, 0, sizeof(ourMemList));
         ourMemStats.memList = &ourMemList;
 
-        pthread_mutex_unlock(&memLock);
+        wc_UnLockMutex(&memLock);
     #endif
     }
 
@@ -400,7 +402,7 @@ static WC_INLINE int InitMemoryTracker(void)
 static WC_INLINE void ShowMemoryTracker(void)
 {
 #ifdef DO_MEM_LIST
-    if (pthread_mutex_lock(&memLock) == 0)
+    if (wc_LockMutex(&memLock) == 0)
 #endif
     {
     #ifdef DO_MEM_STATS
@@ -430,13 +432,16 @@ static WC_INLINE void ShowMemoryTracker(void)
             }
         }
 
-        pthread_mutex_unlock(&memLock);
+        wc_UnLockMutex(&memLock);
     #endif
     }
 }
 
 static WC_INLINE int CleanupMemoryTracker(void)
 {
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    wc_FreeMutex(&memLock);
+#endif
     wc_MemStats_Ptr = NULL;
     /* restore default allocators */
     return wolfSSL_SetAllocators(mfDefault, ffDefault, rfDefault);
