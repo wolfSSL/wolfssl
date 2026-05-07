@@ -27436,7 +27436,7 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
         return "certificate has expired";
 
     case WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
-        return "certificate signature failure";
+        return "format error in certificate's notBefore field";
 
     case WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
         return "format error in certificate's notAfter field";
