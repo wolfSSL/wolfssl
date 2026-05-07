@@ -3,6 +3,8 @@
 The `wolfssl-wolfcrypt` crate is a Rust wrapper for the wolfCrypt cryptographic
 algorithms portion of the wolfSSL C library.
 
+This crate requires wolfSSL version 5.9.0 or newer.
+
 ## Installation
 
 The `wolfssl` C library must be installed to be used by the Rust crate.
