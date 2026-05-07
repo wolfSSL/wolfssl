@@ -236,7 +236,7 @@ jobs:
           PY
 
       - name: --options-h escape hatch ($CC -dM -E, no pcpp)
-        # The doc/SBOM.md § 1.5 escape hatch for toolchains that cannot
+        # The doc/SBOM.md section 1.5 escape hatch for toolchains that cannot
         # install pcpp (older Keil / IAR sites with restricted pip
         # access): pre-process settings.h with the system compiler's
         # `-dM -E` macro-dump mode and feed the resulting flat #define
