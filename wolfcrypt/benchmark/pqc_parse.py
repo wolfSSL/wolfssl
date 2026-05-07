@@ -132,6 +132,18 @@ def normalise_algorithm(raw_algo: str, raw_keysize: str = "") -> str:
     if _CANONICAL_RE.match(algo):
         return algo
 
+    # liboqs 0.15+ SLH-DSA name format: SLH_DSA_PURE_SHA2_128S
+    # Map to canonical: SLH-DSA-SHA2-128s
+    _LIBOQS_SLHDSA_RE = re.compile(
+        r"^SLH_DSA_PURE_(SHA2|SHAKE)_(\d+)([SF])$", re.IGNORECASE
+    )
+    m = _LIBOQS_SLHDSA_RE.match(algo)
+    if m:
+        hash_fn = m.group(1).upper()   # SHA2 or SHAKE
+        bits    = m.group(2)            # 128, 192, 256
+        size    = m.group(3).lower()    # s or f
+        return f"SLH-DSA-{hash_fn}-{bits}{size}"
+
     # wolfSSL internal names
     m = _WOLFSSL_MLKEM_RE.match(algo)
     if m:
@@ -310,9 +322,13 @@ _LIBOQS_HEADER_RE = re.compile(r"Iterations", re.IGNORECASE)
 _LIBOQS_DATA_RE = re.compile(
     r"^\s*(\w[\w\-]*)\s*\|\s*(\d+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)"
 )
-# Algorithm header line: a non-empty line that is NOT the column header,
-# NOT a separator (---), and does NOT contain a pipe character.
-_LIBOQS_ALG_RE = re.compile(r"^[A-Z][\w\-]+$")
+# Algorithm header line: starts with a NIST algorithm name, optionally
+# followed by pipe-separated empty fields (liboqs 0.15+ format).
+# Examples:
+#   "ML-KEM-512"                          (old format, bare name)
+#   "ML-KEM-512     |   |  ..."           (new format, trailing pipes)
+#   "SLH_DSA_PURE_SHA2_128S"              (liboqs 0.15 SLH-DSA name)
+_LIBOQS_ALG_RE = re.compile(r"^([A-Z][A-Z0-9_\-]+)\s*(\|.*)?$")
 
 
 def parse_liboqs(text: str, library: str) -> list[dict]:
@@ -335,10 +351,14 @@ def parse_liboqs(text: str, library: str) -> list[dict]:
         if re.match(r"^[-| ]+$", line):
             continue
 
-        # Algorithm name line (no pipe, matches algo pattern)
-        if "|" not in line and _LIBOQS_ALG_RE.match(line):
-            current_alg = normalise_algorithm(line)
-            continue
+        # Algorithm name line: starts with a NIST name, optional trailing pipes
+        m_alg = _LIBOQS_ALG_RE.match(line)
+        if m_alg and not _LIBOQS_DATA_RE.match(line):
+            candidate = m_alg.group(1).strip()
+            # Only treat as an algorithm header if it looks like a PQC name
+            if _PQC_ALGO_RE.match(candidate):
+                current_alg = normalise_algorithm(candidate)
+                continue
 
         # Data row
         if in_table and current_alg:
@@ -393,7 +413,12 @@ _OPENSSL_OP_MAP = {
 def parse_openssl(text: str, library: str) -> list[dict]:
     records = []
     for line in text.splitlines():
-        m = _OPENSSL_MR_RE.match(line.strip())
+        # Strip any leading "filename:" prefix that grep -h omits but grep adds
+        # when given multiple files (e.g. "openssl_kem_mr.txt:+R15:...")
+        stripped = re.sub(r"^[^:+]+:", "", line.strip(), count=1)
+        # Only strip if what's left starts with +R (otherwise we'd strip algo names)
+        line = stripped if stripped.startswith("+R") else line.strip()
+        m = _OPENSSL_MR_RE.match(line)
         if not m:
             continue
         rtype  = m.group(1)
