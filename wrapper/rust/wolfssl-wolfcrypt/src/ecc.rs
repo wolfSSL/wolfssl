@@ -1685,13 +1685,6 @@ impl ECC {
     /// * `rng`: The `RNG` struct instance to associate with this `ECC`
     ///   instance.
     ///
-    /// # Safety contract
-    ///
-    /// The caller must ensure that the `RNG` instance is not dropped before
-    /// this `ECC` instance. The `ECC` struct holds an internal pointer to the
-    /// `RNG`'s underlying `WC_RNG` context, and dropping the `RNG` first
-    /// would result in a dangling pointer.
-    ///
     /// # Returns
     ///
     /// Returns Ok(()) on success or Err(e) containing the wolfSSL library
