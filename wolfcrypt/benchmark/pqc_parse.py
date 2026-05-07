@@ -109,10 +109,11 @@ def make_record(
 # ---------------------------------------------------------------------------
 
 # wolfSSL emits "ML-KEM 512 " (space-separated, trailing space)
-_WOLFSSL_MLKEM_RE  = re.compile(r"ML-KEM\s+(\d+)\s*$", re.IGNORECASE)
-_WOLFSSL_MLDSA_RE  = re.compile(r"ML-DSA\s*$",         re.IGNORECASE)
-_WOLFSSL_SLHDSA_RE = re.compile(r"SLH-DSA-([SF])\s*$", re.IGNORECASE)
-_WOLFSSL_DILITH_RE = re.compile(r"DILITHIUM\s*$",       re.IGNORECASE)
+_WOLFSSL_MLKEM_RE       = re.compile(r"ML-KEM\s+(\d+)\s*$",       re.IGNORECASE)
+_WOLFSSL_MLDSA_RE       = re.compile(r"ML-DSA\s*$",                re.IGNORECASE)
+_WOLFSSL_SLHDSA_SHA2_RE = re.compile(r"SLH-DSA-SHA2-([SF])\s*$",  re.IGNORECASE)
+_WOLFSSL_SLHDSA_RE      = re.compile(r"SLH-DSA-([SF])\s*$",        re.IGNORECASE)
+_WOLFSSL_DILITH_RE      = re.compile(r"DILITHIUM\s*$",              re.IGNORECASE)
 
 # Canonical algorithm names already in NIST form (liboqs / OpenSSL / CIRCL)
 _CANONICAL_RE = re.compile(
@@ -151,6 +152,10 @@ def normalise_algorithm(raw_algo: str, raw_keysize: str = "") -> str:
 
     if _WOLFSSL_MLDSA_RE.match(algo):
         return f"ML-DSA-{keysize}"
+
+    m = _WOLFSSL_SLHDSA_SHA2_RE.match(algo)
+    if m:
+        return f"SLH-DSA-SHA2-{keysize}{m.group(1).lower()}"
 
     m = _WOLFSSL_SLHDSA_RE.match(algo)
     if m:

@@ -169,7 +169,7 @@ if [ "$SKIP_BUILD" -eq 0 ]; then
     ./configure \
         --enable-mlkem \
         --enable-dilithium \
-        --enable-slhdsa \
+        "--enable-slhdsa=yes,sha2" \
         --enable-memory \
         "--enable-trackmemory=verbose" \
         "--enable-stacksize=verbose" \
@@ -247,13 +247,21 @@ run_bench "ML-KEM-1024"  -kyber1024
 # '-ml-dsa' benchmarks all three security levels (44/65/87) in one pass.
 run_bench "ML-DSA (levels 44/65/87)" -ml-dsa
 
-# SLH-DSA (NIST FIPS 205, formerly SPHINCS+) — all parameter sets
+# SLH-DSA (NIST FIPS 205, formerly SPHINCS+) — SHAKE parameter sets
 run_bench "SLH-DSA-SHAKE-128s"  -slhdsa-shake128s
 run_bench "SLH-DSA-SHAKE-128f"  -slhdsa-shake128f
 run_bench "SLH-DSA-SHAKE-192s"  -slhdsa-shake192s
 run_bench "SLH-DSA-SHAKE-192f"  -slhdsa-shake192f
 run_bench "SLH-DSA-SHAKE-256s"  -slhdsa-shake256s
 run_bench "SLH-DSA-SHAKE-256f"  -slhdsa-shake256f
+
+# SLH-DSA (NIST FIPS 205) — SHA2 parameter sets
+run_bench "SLH-DSA-SHA2-128s"   -slhdsa-sha2-128s
+run_bench "SLH-DSA-SHA2-128f"   -slhdsa-sha2-128f
+run_bench "SLH-DSA-SHA2-192s"   -slhdsa-sha2-192s
+run_bench "SLH-DSA-SHA2-192f"   -slhdsa-sha2-192f
+run_bench "SLH-DSA-SHA2-256s"   -slhdsa-sha2-256s
+run_bench "SLH-DSA-SHA2-256f"   -slhdsa-sha2-256f
 
 echo ""
 
