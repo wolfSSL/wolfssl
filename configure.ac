@@ -10647,6 +10647,24 @@ if test "$ENABLED_CRYPTOCB_UTILS" != "no"; then
     fi
 fi
 
+# Crypto callback RSA padding support
+# When enabled, the RSA crypto callback args struct exposes the RsaPadding
+# parameters so the callback can perform RSA padding/unpadding itself or
+# offload it together with the modular exponentiation.
+AC_ARG_ENABLE([cryptocb-rsa-pad],
+    [AS_HELP_STRING([--enable-cryptocb-rsa-pad],[Enable RSA padding aware crypto callbacks (default: disabled). Requires --enable-cryptocb])],
+    [ ENABLED_CRYPTOCB_RSA_PAD=$enableval ],
+    [ ENABLED_CRYPTOCB_RSA_PAD=no ]
+    )
+
+if test "$ENABLED_CRYPTOCB_RSA_PAD" = "yes"
+then
+    if test "x$ENABLED_CRYPTOCB" = "xno"; then
+        AC_MSG_ERROR([--enable-cryptocb-rsa-pad requires --enable-cryptocb])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_RSA_PAD"
+fi
+
 
 # Asynchronous Crypto
 AC_ARG_ENABLE([asynccrypt],
