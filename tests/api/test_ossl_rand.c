@@ -249,6 +249,35 @@ int test_wolfSSL_RAND_bytes(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_RAND_load_file(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_HASHDRBG)
+    /* NULL fname must fail. */
+    ExpectIntEQ(RAND_load_file(NULL, 32), -1);
+
+    /* A non-existent path must fail. */
+    ExpectIntEQ(RAND_load_file("/no/such/file/wolfssl_rand_load_file_test",
+        32), -1);
+
+#if defined(__linux__) || defined(__FreeBSD__)
+    /* Reading from the OS entropy source returns the requested byte count. */
+    ExpectIntEQ(RAND_load_file("/dev/urandom", 32), 32);
+
+    /* len < 0 caps at the implementation default (1 MB, matching OpenSSL's
+     * RAND_LOAD_BUF_SIZE). */
+    ExpectIntEQ(RAND_load_file("/dev/urandom", -1), 1L << 20);
+
+    /* len == 0 short-circuits to 0. */
+    ExpectIntEQ(RAND_load_file("/dev/urandom", 0), 0);
+#endif
+
+    RAND_cleanup();
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_RAND(void)
 {
     EXPECT_DECLS;
