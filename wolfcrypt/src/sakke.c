@@ -6164,18 +6164,29 @@ static void sakke_xor_in_v(const byte* v, word32 hashSz, byte* out, word32 idx,
 {
     int o;
     word32 i;
+    word32 len;
 
     if (idx == 0) {
         i = hashSz - (n % hashSz);
         if (i == hashSz) {
             i = 0;
         }
+        len = hashSz - i;
     }
     else {
         i = 0;
+        /* Clamp to bytes still remaining in the caller's buffer. Without
+         * this clamp, the final iteration of sakke_hash_to_range (when
+         * n > hashSz and (n % hashSz) != 0) writes hashSz bytes at
+         * out+idx and overshoots the n-byte buffer by hashSz - (n%hashSz)
+         * bytes. */
+        len = (n > idx) ? (n - idx) : 0;
+        if (len > hashSz) {
+            len = hashSz;
+        }
     }
     o = (int)i;
-    xorbuf(out + idx + i - o, v + i, hashSz - i);
+    xorbuf(out + idx + i - o, v + i, len);
 }
 
 /*
