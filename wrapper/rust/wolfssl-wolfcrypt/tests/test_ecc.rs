@@ -387,11 +387,15 @@ fn test_ecc_import_raw_not_null_terminated() {
     assert!(ECC::import_raw(qx, qy, d_no_nul, curve_name, None, None).is_err());
     assert!(ECC::import_raw(qx, qy, d, curve_name_no_nul, None, None).is_err());
     assert!(ECC::import_raw(empty, qy, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, empty, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, empty, curve_name, None, None).is_err());
     assert!(ECC::import_raw(qx, qy, d, empty, None, None).is_err());
 
     assert!(ECC::import_raw_ex(qx_no_nul, qy, d, ECC::SECP256R1, None, None).is_err());
     assert!(ECC::import_raw_ex(qx, qy_no_nul, d, ECC::SECP256R1, None, None).is_err());
     assert!(ECC::import_raw_ex(qx, qy, d_no_nul, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(empty, qy, d, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, empty, d, ECC::SECP256R1, None, None).is_err());
     assert!(ECC::import_raw_ex(qx, qy, empty, ECC::SECP256R1, None, None).is_err());
 }
 
