@@ -3241,9 +3241,9 @@ static int dilithium_oneasymkey_version_check(int level)
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
 
     idx = 0;
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(ref, &idx, &key2,
         (word32)refSz), 0);
-    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(rtSz = wc_Dilithium_KeyToDer(&key2, rt,
         DILITHIUM_MAX_DER_SIZE), refSz);
     PRIVATE_KEY_LOCK();
