@@ -275,19 +275,34 @@ static int wc_MxcCopyCb(wc_CryptoInfo* info)
     switch (info->copy.type) {
 #ifdef MAX3266X_SHA_CB
     #ifndef NO_SHA
-        case WC_HASH_TYPE_SHA:    sz = sizeof(wc_Sha);    break;
+        case WC_HASH_TYPE_SHA:
+            wc_ShaFree((wc_Sha*)info->copy.dst);
+            sz = sizeof(wc_Sha);
+            break;
     #endif
     #ifdef WOLFSSL_SHA224
-        case WC_HASH_TYPE_SHA224: sz = sizeof(wc_Sha224); break;
+        case WC_HASH_TYPE_SHA224:
+            wc_Sha224Free((wc_Sha224*)info->copy.dst);
+            sz = sizeof(wc_Sha224);
+            break;
     #endif
     #ifndef NO_SHA256
-        case WC_HASH_TYPE_SHA256: sz = sizeof(wc_Sha256); break;
+        case WC_HASH_TYPE_SHA256:
+            wc_Sha256Free((wc_Sha256*)info->copy.dst);
+            sz = sizeof(wc_Sha256);
+            break;
     #endif
     #ifdef WOLFSSL_SHA384
-        case WC_HASH_TYPE_SHA384: sz = sizeof(wc_Sha384); break;
+        case WC_HASH_TYPE_SHA384:
+            wc_Sha384Free((wc_Sha384*)info->copy.dst);
+            sz = sizeof(wc_Sha384);
+            break;
     #endif
     #ifdef WOLFSSL_SHA512
-        case WC_HASH_TYPE_SHA512: sz = sizeof(wc_Sha512); break;
+        case WC_HASH_TYPE_SHA512:
+            wc_Sha512Free((wc_Sha512*)info->copy.dst);
+            sz = sizeof(wc_Sha512);
+            break;
     #endif
 #endif /* MAX3266X_SHA_CB */
         default:
@@ -657,7 +672,7 @@ int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 /* TPU hash helpers (bare-metal SHA accelerator) */
 
 /* Reset TPU, select hash function, and restore intermediate state into
- * the HASH_DIGEST registers. Does NOT set INIT - caller provides state. */
+ * the HASH_DIGEST registers. */
 void wc_MXC_TPU_Hash_Setup(MXC_TPU_HASH_TYPE algo,
                             const unsigned int* state, int stateWords)
 {
