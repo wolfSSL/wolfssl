@@ -14513,23 +14513,26 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             if (echConfig->configId == ech->configId) {
                 ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
                     ssl->heap);
-                break;
+                if (ret == 0)
+                    break;
             }
             echConfig = echConfig->next;
         }
-        /* otherwise, try to decrypt with all configs */
-        if (echConfig == NULL || ret != 0) {
+        /* otherwise, try to decrypt with all configs (trial decryption) */
+        if (echConfig == NULL && ssl->options.enableEchTrialDecrypt) {
             echConfig = ssl->ctx->echConfigs;
             while (echConfig != NULL) {
-                ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
-                    ssl->heap);
-                if (ret == 0)
-                    break;
+                if (echConfig->configId != ech->configId) {
+                    ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
+                        ssl->heap);
+                    if (ret == 0)
+                        break;
+                }
                 echConfig = echConfig->next;
             }
         }
         /* if we failed to extract/expand */
-        if (ret != 0) {
+        if (ret != 0 || echConfig == NULL) {
             WOLFSSL_MSG("ECH rejected");
 
             if (ssl->options.echAccepted == 1) {

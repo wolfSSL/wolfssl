@@ -244,6 +244,15 @@ void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable)
     }
 }
 
+/* disabled (default) -> only decrypt the ClientHello with configs that have a
+ *   matching configId
+ * enabled -> try to decrypt the inner ClientHello with all configs */
+void wolfSSL_CTX_SetEchEnableTrialDecrypt(WOLFSSL_CTX* ctx, byte enable)
+{
+    if (ctx != NULL)
+        ctx->enableEchTrialDecrypt = (enable != 0);
+}
+
 /* set the ech config from base64 for our client ssl object, base64 is the
  * format ech configs are sent using dns records */
 int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, const char* echConfigs64,
@@ -478,6 +487,15 @@ void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable)
             ssl->echConfigs = NULL;
         }
     }
+}
+
+/* disabled (default) -> only decrypt the ClientHello with configs that have a
+ *   matching configId
+ * enabled -> try to decrypt the inner ClientHello with all configs */
+void wolfSSL_SetEchEnableTrialDecrypt(WOLFSSL* ssl, byte enable)
+{
+    if (ssl != NULL)
+        ssl->options.enableEchTrialDecrypt = (enable != 0);
 }
 
 /* Walk the ECHConfigExtension list and check for mandatory extensions.

@@ -15080,6 +15080,16 @@ static int test_ech_server_ctx_ready(WOLFSSL_CTX* ctx)
     return TEST_SUCCESS;
 }
 
+/* Server ctx_ready callback: generate ECH config and opt into trial
+ * decryption at the CTX level so the SSL inherits it on creation */
+static int test_ech_server_ctx_ready_trial_decrypt(WOLFSSL_CTX* ctx)
+{
+    int ret = test_ech_server_ctx_ready(ctx);
+    if (ret == TEST_SUCCESS)
+        wolfSSL_CTX_SetEchEnableTrialDecrypt(ctx, 1);
+    return ret;
+}
+
 /* Server ssl_ready callback: set SNI */
 static int test_ech_server_ssl_ready(WOLFSSL* ssl)
 {
@@ -15678,6 +15688,84 @@ static int test_wolfSSL_Tls13_ECH_new_config(void)
     ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
         echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
         WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+/* Test trial decryption for ECH: server has a single config, client receives a
+ * copy of it but its configId is overwritten so it cannot match the server's */
+static int test_wolfSSL_Tls13_ECH_trial_decrypt(void)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+
+    /* --- CTX-enabled, SSL-disabled override: ECH rejected --- */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    /* *_trial_decrypt sets enableEchTrialDecrypt to 1 - overriding the default
+     * value of 0 */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready_trial_decrypt;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* SSL inherited the CTX setting */
+    ExpectIntEQ(test_ctx.s_ctx->enableEchTrialDecrypt, 1);
+    ExpectIntEQ(test_ctx.s_ssl->options.enableEchTrialDecrypt, 1);
+
+    /* override on the SSL */
+    wolfSSL_SetEchEnableTrialDecrypt(test_ctx.s_ssl, 0);
+    ExpectIntEQ(test_ctx.s_ssl->options.enableEchTrialDecrypt, 0);
+
+    /* alter the client's configId so it does not match the server's configId */
+    ExpectNotNull(test_ctx.c_ssl->echConfigs);
+    ExpectNotNull(test_ctx.s_ctx->echConfigs);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_ssl->echConfigs->configId =
+            (byte)(test_ctx.s_ctx->echConfigs->configId ^ 0x01);
+    }
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(ECH_REQUIRED_E));
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* --- trial decryption opted in on the SSL: ECH accepted --- */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* opt into trial decryption on the SSL */
+    wolfSSL_SetEchEnableTrialDecrypt(test_ctx.s_ssl, 1);
+    ExpectIntEQ(test_ctx.s_ssl->options.enableEchTrialDecrypt, 1);
+
+    /* alter the client's configId so it does not match the server's configId */
+    ExpectNotNull(test_ctx.c_ssl->echConfigs);
+    ExpectNotNull(test_ctx.s_ctx->echConfigs);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_ssl->echConfigs->configId =
+            (byte)(test_ctx.s_ctx->echConfigs->configId ^ 0x01);
+    }
 
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
@@ -40600,6 +40688,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs_bad),
     TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail),
     TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_trial_decrypt),
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
     TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),

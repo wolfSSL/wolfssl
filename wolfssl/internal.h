@@ -4044,6 +4044,8 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     byte        disableECH:1;
+    byte        enableEchTrialDecrypt:1;  /* Trial decryption of the
+                                             inner hello */
 #endif
     word16      minProto:1; /* sets min to min available */
     word16      maxProto:1; /* sets max to max available */
@@ -5251,6 +5253,8 @@ struct Options {
     word16            disableECH:1;             /* Did the user disable ech */
     word16            echProcessingInner:1;     /* Processing the inner hello */
     word16            echRetryConfigsAccepted:1;
+    word16            enableEchTrialDecrypt:1;  /* Trial decryption of the
+                                                   inner hello */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;
