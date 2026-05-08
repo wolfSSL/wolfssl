@@ -6279,6 +6279,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 
 #ifndef NO_FILESYSTEM
 #ifndef NO_CERTS
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && !defined(NO_PWDBASED)
 /* Writes a public key to a file pointer encoded in PEM format.
  *
  * @param [in] fp   File pointer to write to.
@@ -6403,6 +6404,7 @@ int wolfSSL_PEM_write_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* key,
     WOLFSSL_LEAVE("wolfSSL_PEM_write_PrivateKey", err);
     return !err;
 }
+#endif /* OPENSSL_EXTRA && !NO_ASN && !NO_PWDBASED */
 #endif /* !NO_CERTS */
 #endif /* !NO_FILESYSTEM */
 
