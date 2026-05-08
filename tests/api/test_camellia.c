@@ -126,6 +126,7 @@ int test_wc_CamelliaFree(void)
     byte zero[sizeof(camellia)];
 
     XMEMSET(zero, 0, sizeof(zero));
+    XMEMSET(&camellia, 0, sizeof(camellia));
 
     /* NULL is safe. */
     wc_CamelliaFree(NULL);
