@@ -128,6 +128,8 @@ jobs:
             CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_TLS12 -DNO_SESSION_CACHE
             -DWOLFSSL_AES_NO_UNROLL -DUSE_SLOW_SHA256 -DWOLFSSL_NO_ASYNC_IO
             -DWOLFSSL_DTLS_ONLY'' ',
+          'CPPFLAGS=-DNO_VERIFY_OID',
+          'CPPFLAGS="-DNO_VERIFY_OID -DWOLFSSL_FPKI"',
         ]
     name: make check linux
     if: github.repository_owner == 'wolfssl'
