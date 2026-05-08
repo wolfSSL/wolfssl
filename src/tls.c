@@ -11362,6 +11362,64 @@ static const word16 preferredGroup[] = {
     ((sizeof(preferredGroup)/sizeof(*preferredGroup)) - 1)
                                             /* -1 for the invalid group */
 
+/* WOLFSSL_KEY_SHARE_DEFAULT_GROUP - group used for the speculative key share
+ * in ClientHello messages when the application has not selected one via
+ * wolfSSL_CTX_set_groups() / wolfSSL_set_groups() or wolfSSL_UseKeyShare().
+ *
+ * The default is optimized for the likelihood that the server will accept the
+ * speculative key share without forcing a HelloRetryRequest. It therefore
+ * differs from preferredGroup[] (which is sorted by strength): we pick the
+ * most widely deployed group at each tier rather than the strongest.
+ *
+ * Selection order when not user-defined:
+ *   1. A standardized PQ/T hybrid using X25519 or SECP256R1, if available.
+ *   2. SECP256R1, then X25519, then SECP384R1.
+ *   3. FFDHE 2048 or 3072, for DH-only TLS 1.3 builds.
+ *   4. preferredGroup[0] as a final fallback for any other configuration.
+ *
+ * Users can override the default by defining WOLFSSL_KEY_SHARE_DEFAULT_GROUP
+ * in user_settings.h to any of the WOLFSSL_* group identifiers from
+ * wolfssl/ssl.h (or the numeric IANA code point). The macro is substituted
+ * directly into an assignment, so wrap non-trivial expressions in parentheses.
+ */
+#ifndef WOLFSSL_KEY_SHARE_DEFAULT_GROUP
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM) && \
+      !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
+      !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519) && \
+      ECC_MIN_KEY_SZ <= 256
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_X25519MLKEM768
+#elif defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM) && \
+      !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
+      !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+      (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 256
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_SECP256R1MLKEM768
+#elif defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM) && \
+      !defined(WOLFSSL_NO_ML_KEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
+      !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
+      (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 384
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_SECP384R1MLKEM1024
+#elif defined(HAVE_ECC) && (!defined(NO_ECC256) || \
+      defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256 && \
+      !defined(NO_ECC_SECP)
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_ECC_SECP256R1
+#elif !defined(HAVE_FIPS) && defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_ECC_X25519
+#elif defined(HAVE_ECC) && (defined(HAVE_ECC384) || \
+      defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384 && \
+      !defined(NO_ECC_SECP)
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_ECC_SECP384R1
+#elif defined(HAVE_FFDHE_2048)
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_FFDHE_2048
+#elif defined(HAVE_FFDHE_3072)
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP WOLFSSL_FFDHE_3072
+#else
+    /* Fall back to whatever preferredGroup[] starts with. */
+    #define WOLFSSL_KEY_SHARE_DEFAULT_GROUP (preferredGroup[0])
+#endif
+#endif /* !WOLFSSL_KEY_SHARE_DEFAULT_GROUP */
+
 /* Examines the application specified group ranking and returns the rank of the
  * group.
  * If no group ranking set then all groups are rank 0 (highest).
@@ -16059,10 +16117,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     int set = 0;
                     int i, j;
 
-                    /* try to find the highest element in ssl->group[]
-                     * that is contained in preferredGroup[].
-                     */
-                    namedGroup = preferredGroup[0];
+                    /* Find the first element of ssl->group[] that is also
+                     * present in preferredGroup[]. The user's ranking wins;
+                     * if nothing intersects, send no key share and let the
+                     * server drive group selection via HRR. */
+                    namedGroup = WOLFSSL_NAMED_GROUP_INVALID;
                     for (i = 0; i < ssl->numGroups && !set; i++) {
                         for (j = 0; preferredGroup[j] != WOLFSSL_NAMED_GROUP_INVALID; j++) {
                             if (preferredGroup[j] == ssl->group[i]) {
@@ -16072,12 +16131,10 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                             }
                         }
                     }
-                    if (!set)
-                        namedGroup = WOLFSSL_NAMED_GROUP_INVALID;
                 }
                 else {
                     /* Choose the most preferred group. */
-                    namedGroup = preferredGroup[0];
+                    namedGroup = WOLFSSL_KEY_SHARE_DEFAULT_GROUP;
                 }
             }
             else {
@@ -16088,9 +16145,15 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             if (namedGroup != WOLFSSL_NAMED_GROUP_INVALID) {
                 ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL,
                         &ssl->extensions);
-                if (ret != 0)
-                    return ret;
             }
+            else {
+                /* No suitable key share group found, send no key share to
+                 * trigger a HRR with the server's preferred group. */
+                WOLFSSL_MSG("Sending no key share to trigger HRR");
+                ret = TLSX_KeyShare_Empty(ssl);
+            }
+            if (ret != 0)
+                return ret;
         #endif /* HAVE_SUPPORTED_CURVES */
 
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
