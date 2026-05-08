@@ -78,3 +78,21 @@ jobs:
           path: .github/scripts/zephyr-4.x/logs/
           retention-days: 5
           if-no-files-found: ignore
+
+      # Stage Membrowse artifacts only for the cells we want to track on the
+      # Membrowse dashboard. Keep this tight to avoid duplicate target_name
+      # entries on the dashboard and unnecessary artifact uploads.
+      - name: Upload Membrowse artifacts (selected cells only)
+        if: >
+          success() &&
+          matrix.zephyr-ref == 'v4.3.0' &&
+          matrix.sample == 'wolfssl_test' &&
+          matrix.extra-conf == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: membrowse-zephyr-${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612' }}
+          path: |
+            .github/scripts/zephyr-4.x/artifacts/${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612-rw612' }}-wolfssl_test/zephyr.elf
+            .github/scripts/zephyr-4.x/artifacts/${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612-rw612' }}-wolfssl_test/linker.cmd
+          if-no-files-found: warn
+          retention-days: 1

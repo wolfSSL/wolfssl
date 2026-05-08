@@ -14,7 +14,7 @@
     "port": "gcc-arm",
     "board": "cortex-m4-min-ecc",
     "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
-    "build_cmd": "test -f examples/configs/user_settings_min_ecc.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_min_ecc.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define USE_WOLF_ARM_STARTUP\\n#define WOLFSSL_USER_CURRTIME\\n#define WOLFSSL_GMTIME\\n#define USER_TICKS\\nextern unsigned long my_time(unsigned long* timer);\\n#define XTIME my_time\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "build_cmd": "test -f examples/configs/user_settings_min_ecc.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_min_ecc.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
     "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
     "ld": "IDE/GCC-ARM/linker.ld",
     "linker_vars": ""
@@ -24,7 +24,7 @@
     "port": "gcc-arm",
     "board": "cortex-m4-tls12",
     "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
-    "build_cmd": "test -f examples/configs/user_settings_tls12.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_tls12.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define USE_WOLF_ARM_STARTUP\\n#define WOLFSSL_USER_CURRTIME\\n#define WOLFSSL_GMTIME\\n#define USER_TICKS\\nextern unsigned long my_time(unsigned long* timer);\\n#define XTIME my_time\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "build_cmd": "test -f examples/configs/user_settings_tls12.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_tls12.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
     "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
     "ld": "IDE/GCC-ARM/linker.ld",
     "linker_vars": ""
@@ -34,9 +34,171 @@
     "port": "gcc-arm",
     "board": "cortex-m4-baremetal",
     "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
-    "build_cmd": "test -f examples/configs/user_settings_baremetal.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_baremetal.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define USE_WOLF_ARM_STARTUP\\n#define WOLFSSL_USER_CURRTIME\\n#define WOLFSSL_GMTIME\\n#define USER_TICKS\\nextern unsigned long my_time(unsigned long* timer);\\n#define XTIME my_time\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "build_cmd": "test -f examples/configs/user_settings_baremetal.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_baremetal.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
     "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
     "ld": "IDE/GCC-ARM/linker.ld",
     "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m0plus",
+    "port": "gcc-arm",
+    "board": "cortex-m0plus",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_min_ecc.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_min_ecc.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen ARCHFLAGS='-mcpu=cortex-m0plus -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP' CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m0plus -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m3",
+    "port": "gcc-arm",
+    "board": "cortex-m3",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_tls12.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_tls12.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen ARCHFLAGS='-mcpu=cortex-m3 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP' CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m3 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m7",
+    "port": "gcc-arm",
+    "board": "cortex-m7",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f IDE/GCC-ARM/Header/user_settings.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat IDE/GCC-ARM/Header/user_settings.h; printf '#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen ARCHFLAGS='-mcpu=cortex-m7 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP' CFLAGS_EXTRA='-Wno-cpp -DWOLFCRYPT_ONLY -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m7 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-tls13",
+    "port": "gcc-arm",
+    "board": "cortex-m4-tls13",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_tls13.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_tls13.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-dtls13",
+    "port": "gcc-arm",
+    "board": "cortex-m4-dtls13",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_dtls13.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_dtls13.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen SRC_LD=-T./linker_large.ld CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20040000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker_large.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-pq",
+    "port": "gcc-arm",
+    "board": "cortex-m4-pq",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_pq.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_pq.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen SRC_LD=-T./linker_large.ld CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20040000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker_large.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-rsa-only",
+    "port": "gcc-arm",
+    "board": "cortex-m4-rsa-only",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_rsa_only.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_rsa_only.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen SRC_LD=-T./linker_large.ld CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20040000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker_large.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-pkcs7",
+    "port": "gcc-arm",
+    "board": "cortex-m4-pkcs7",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_pkcs7.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_pkcs7.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-openssl-compat",
+    "port": "gcc-arm",
+    "board": "cortex-m4-openssl-compat",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_openssl_compat.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_openssl_compat.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define SMALL_SESSION_CACHE\\n#undef HAVE_OCSP\\n#undef HAVE_CERTIFICATE_STATUS_REQUEST\\n#undef HAVE_CERTIFICATE_STATUS_REQUEST_V2\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen SRC_LD=-T./linker_large.ld CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20040000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker_large.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-sp-math",
+    "port": "gcc-arm",
+    "board": "cortex-m4-sp-math",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_min_ecc.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_min_ecc.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n#define WOLFSSL_SP_MATH\\n#define WOLFSSL_SP_NO_ASM\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m4-crypto-only",
+    "port": "gcc-arm",
+    "board": "cortex-m4-crypto-only",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "mkdir -p IDE/GCC-ARM/Header-gen && printf '#ifndef WOLFSSL_USER_SETTINGS_H\\n#define WOLFSSL_USER_SETTINGS_H\\n#define WOLFCRYPT_ONLY\\n#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define HAVE_AESGCM\\n#define HAVE_AES_DECRYPT\\n#define HAVE_ECC\\n#define HAVE_CHACHA\\n#define HAVE_POLY1305\\n#define WOLFSSL_SHA512\\n#define WOLFSSL_SHA384\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n#endif\\n' > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK -DWOLFCRYPT_ONLY' LDFLAGS='-mcpu=cortex-m4 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m7-tls13",
+    "port": "gcc-arm",
+    "board": "cortex-m7-tls13",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_tls13.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_tls13.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen ARCHFLAGS='-mcpu=cortex-m7 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP' CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m7 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20010000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "gcc-arm-cortex-m7-pq",
+    "port": "gcc-arm",
+    "board": "cortex-m7-pq",
+    "apt_packages": "gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib",
+    "build_cmd": "test -f examples/configs/user_settings_pq.h && mkdir -p IDE/GCC-ARM/Header-gen && { cat examples/configs/user_settings_pq.h; printf '#define WOLFSSL_GENERAL_ALIGNMENT 4\\n#define SINGLE_THREADED\\n#define WOLFSSL_SMALL_STACK\\n#define NO_FILESYSTEM\\n#define NO_WRITEV\\n#define NO_MAIN_DRIVER\\n#define NO_DEV_RANDOM\\n#define BENCH_EMBEDDED\\n#define USE_CERT_BUFFERS_256\\n#define USE_CERT_BUFFERS_2048\\n#define WOLFSSL_IGNORE_FILE_WARN\\n#define WOLFSSL_USER_IO\\n#define WOLFSSL_USER_CURRTIME\\n#define TIME_OVERRIDES\\n#define USER_TICKS\\n#define XTIME my_time\\n#define XGMTIME my_gmtime\\n#define CUSTOM_RAND_TYPE unsigned int\\nextern unsigned int my_rng_seed_gen(void);\\n#undef CUSTOM_RAND_GENERATE\\n#define CUSTOM_RAND_GENERATE my_rng_seed_gen\\n#define HAVE_HASHDRBG\\n#define NO_CRYPT_TEST\\n#define NO_CRYPT_BENCHMARK\\n'; } > IDE/GCC-ARM/Header-gen/user_settings.h && cd IDE/GCC-ARM && make -f Makefile.test TOOLCHAIN=arm-none-eabi- FIPS=0 USER_SETTINGS_DIR=./Header-gen ARCHFLAGS='-mcpu=cortex-m7 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP' SRC_LD=-T./linker_large.ld CFLAGS_EXTRA='-Wno-cpp -DWOLFSSL_NO_SOCK' LDFLAGS='-mcpu=cortex-m7 -mthumb -mabi=aapcs --specs=nosys.specs --specs=nano.specs -Wl,-Map=./Build/WolfCryptTest.map -Wl,-ereset_handler -flto -Wl,--defsym=__stack_process_end__=0x20040000'",
+    "elf": "IDE/GCC-ARM/Build/WolfCryptTest.elf",
+    "ld": "IDE/GCC-ARM/linker_large.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "stm32-sim-stm32h753",
+    "port": "stm32-sim",
+    "board": "stm32h753",
+    "apt_packages": "build-essential ca-certificates cmake ninja-build python3 git gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib wget unzip",
+    "build_cmd": "if [ ! -d simulators ]; then git clone --depth 1 https://github.com/wolfSSL/simulators simulators; fi && sudo mkdir -p /opt && if [ ! -d /opt/cmsis-device-h7 ]; then sudo git clone --depth 1 https://github.com/STMicroelectronics/cmsis-device-h7.git /opt/cmsis-device-h7; fi && if [ ! -d /opt/CMSIS_5 ]; then sudo git clone --depth 1 https://github.com/ARM-software/CMSIS_5.git /opt/CMSIS_5; fi && if [ ! -d /opt/STM32CubeH7 ]; then (sudo git clone --depth 1 --branch v1.11.2 --recurse-submodules https://github.com/STMicroelectronics/STM32CubeH7.git /opt/STM32CubeH7 || (sudo git clone --depth 1 --branch v1.11.2 https://github.com/STMicroelectronics/STM32CubeH7.git /opt/STM32CubeH7 && cd /opt/STM32CubeH7 && sudo git submodule update --init --recursive --depth 1)); fi && sudo rm -rf /opt/firmware-stm32sim-h7 /opt/wolfssl-stm32sim && sudo mkdir -p /opt/firmware-stm32sim-h7 && sudo cp -r simulators/STM32Sim/firmware/wolfcrypt-test-h7/. /opt/firmware-stm32sim-h7/ && sudo cp /opt/firmware-stm32sim-h7/stm32h7xx_hal_conf.h /opt/STM32CubeH7/Drivers/STM32H7xx_HAL_Driver/Inc/ && sudo cp -r . /opt/wolfssl-stm32sim && sudo rm -f /opt/wolfssl-stm32sim/config.h && cd /opt/firmware-stm32sim-h7 && sudo cmake -G Ninja -DWOLFSSL_USER_SETTINGS=ON -DUSER_SETTINGS_FILE=/opt/firmware-stm32sim-h7/user_settings.h -DCMAKE_TOOLCHAIN_FILE=/opt/firmware-stm32sim-h7/toolchain-arm-none-eabi.cmake -DCMAKE_BUILD_TYPE=Release -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF -DWOLFSSL_ROOT=/opt/wolfssl-stm32sim -B /opt/firmware-stm32sim-h7/build -S /opt/firmware-stm32sim-h7 && sudo cmake --build /opt/firmware-stm32sim-h7/build && sudo cp /opt/firmware-stm32sim-h7/build/wolfcrypt_test.elf $GITHUB_WORKSPACE/wolfcrypt_test.elf",
+    "elf": "wolfcrypt_test.elf",
+    "ld": "simulators/STM32Sim/firmware/wolfcrypt-test-h7/stm32h753.ld",
+    "linker_vars": ""
+  },
+  {
+    "target_name": "linuxkm-standard",
+    "port": "linuxkm",
+    "board": "linux-kernel-module-standard",
+    "apt_packages": "build-essential autoconf automake libtool linux-headers-$(uname -r)",
+    "build_cmd": "./autogen.sh && ./configure --with-linux-source=/lib/modules/$(uname -r)/build EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-testcert --enable-all-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS='-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1' --with-max-rsa-bits=16384 && make -j$(nproc) KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1",
+    "elf": "linuxkm/libwolfssl.ko",
+    "ld": "linuxkm/wolfcrypt.lds",
+    "linker_vars": "",
+    "apt_cache": "false"
+  },
+  {
+    "target_name": "linuxkm-pie",
+    "port": "linuxkm",
+    "board": "linux-kernel-module-pie",
+    "apt_packages": "build-essential autoconf automake libtool linux-headers-$(uname -r)",
+    "build_cmd": "./autogen.sh && ./configure --with-linux-source=/lib/modules/$(uname -r)/build EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS='-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -DDEBUG_LINUXKM_PIE_SUPPORT -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1' --with-max-rsa-bits=16384 && make -j$(nproc) KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1",
+    "elf": "linuxkm/libwolfssl.ko",
+    "ld": "linuxkm/wolfcrypt.lds",
+    "linker_vars": "",
+    "apt_cache": "false"
   }
 ]

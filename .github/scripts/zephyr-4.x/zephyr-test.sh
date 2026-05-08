@@ -112,6 +112,9 @@ LOG_DIR="${SCRIPT_DIR}/logs"
 mkdir -p "${LOG_DIR}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="${LOG_DIR}/${BOARD_SLUG}_${TIMESTAMP}.log"
+ARTIFACTS_DIR="${SCRIPT_DIR}/artifacts/${BOARD_SLUG}-${SAMPLE_NAME}"
+mkdir -p "${ARTIFACTS_DIR}"
+chmod 0755 "${ARTIFACTS_DIR}"
 
 echo "==> wolfSSL repo:   ${WOLFSSL_REPO}"
 echo "==> wolfSSL branch: ${WOLFSSL_BRANCH}"
@@ -256,6 +259,19 @@ else
     echo ""
     echo "==> [container] Build succeeded!"
 
+    # Stage Membrowse-relevant artifacts on the host-mounted volume.
+    # /artifacts is bind-mounted by the host wrapper; if it isn't writable
+    # (e.g. interactive runs without the mount), skip silently.
+    if [[ -d /artifacts && -w /artifacts ]]; then
+        BUILD_OUT="${WORKDIR}/zephyrproject/build/zephyr"
+        if [[ -f "${BUILD_OUT}/zephyr.elf" ]]; then
+            cp "${BUILD_OUT}/zephyr.elf" /artifacts/zephyr.elf
+        fi
+        if [[ -f "${BUILD_OUT}/linker.cmd" ]]; then
+            cp "${BUILD_OUT}/linker.cmd" /artifacts/linker.cmd
+        fi
+    fi
+
     # Run the app for emulator targets and watch for completion
     case "${BOARD_TARGET}" in
         native_sim*|qemu_*)
@@ -342,6 +358,7 @@ docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
 DOCKER_ARGS=(
     --name "${CONTAINER_NAME}"
     --rm
+    -v "${ARTIFACTS_DIR}:/artifacts"
 )
 
 if [[ "$INTERACTIVE" == "1" ]]; then
