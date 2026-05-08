@@ -46,13 +46,6 @@ $(top_builddir)/tests/swdev/build/swdev.o: $(top_builddir)/wolfssl/options.h FOR
 
 FORCE:
 
-EXTRA_DIST += tests/swdev/swdev.c \
-              tests/swdev/swdev.h \
-              tests/swdev/swdev_loader.c \
-              tests/swdev/swdev_loader.h \
-              tests/swdev/user_settings.h \
-              tests/swdev/Makefile
-
 CLEANFILES += $(top_builddir)/tests/swdev/build/swdev.o \
               $(top_builddir)/tests/swdev/build/swdev.partial.o
 
@@ -70,6 +63,13 @@ wolfcrypt_test_libwolfcrypttest_la_CPPFLAGS     = -DNO_MAIN_DRIVER
 wolfcrypt_test_libwolfcrypttest_la_LIBADD       = src/libwolfssl@LIBSUFFIX@.la
 wolfcrypt_test_libwolfcrypttest_la_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 endif
+
+EXTRA_DIST += tests/swdev/swdev.c \
+              tests/swdev/swdev.h \
+              tests/swdev/swdev_loader.c \
+              tests/swdev/swdev_loader.h \
+              tests/swdev/user_settings.h \
+              tests/swdev/Makefile
 
 EXTRA_DIST += wolfcrypt/test/test.sln
 EXTRA_DIST += wolfcrypt/test/test.vcproj
