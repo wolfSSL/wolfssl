@@ -7609,9 +7609,9 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
 {
     int    ret = 0;
     word32 idx = *inOutIdx;
-#ifndef NO_VERIFY_OID
     word32 actualOidSz;
     const byte* actualOid;
+#ifndef NO_VERIFY_OID
     const byte* checkOid = NULL;
     word32 checkOidSz;
 #endif /* NO_VERIFY_OID */
@@ -7623,11 +7623,9 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
     (void)oidType;
     *oid = 0;
 
-#if !defined(NO_VERIFY_OID) || defined(WOLFSSL_FPKI)
-    /* Keep references to OID data and length for check. */
+    /* Keep references to OID data and length for sum and (optional) check. */
     actualOid = &input[idx];
     actualOidSz = (word32)length;
-#endif /* NO_VERIFY_OID */
 
     *oid = wc_oid_sum(actualOid, (int)actualOidSz);
     idx += actualOidSz;
