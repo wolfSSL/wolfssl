@@ -1,0 +1,69 @@
+name: Membrowse Zephyr Report
+
+# Triggered after the heavy Zephyr 4.x test workflow completes. Pulls the
+# pre-built zephyr.elf and linker.cmd artifacts staged by zephyr-test.sh and
+# feeds them to the Membrowse memory-tracking service. This avoids
+# duplicating the (slow) Zephyr build inside the Membrowse matrix.
+
+on:
+  workflow_run:
+    workflows: [Zephyr 4.x tests]
+    types:
+      - completed
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.repository_owner == 'wolfssl'
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: zephyr-native_sim
+            artifact: membrowse-zephyr-native_sim
+          - name: zephyr-frdm_rw612
+            artifact: membrowse-zephyr-frdm_rw612
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download Zephyr build artifact
+        id: download
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.target.artifact }}
+          path: zephyr-artifacts/${{ matrix.target.name }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Verify artifact present
+        id: verify
+        run: |
+          ELF="zephyr-artifacts/${{ matrix.target.name }}/zephyr.elf"
+          LD="zephyr-artifacts/${{ matrix.target.name }}/linker.cmd"
+          if [[ -f "$ELF" && -f "$LD" ]]; then
+            echo "have_artifacts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_artifacts=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Membrowse artifact for ${{ matrix.target.name }} not found; the matching cell of zephyr-4.x.yml may have been skipped or excluded."
+          fi
+
+      - name: Run Membrowse PR Action
+        if: steps.verify.outputs.have_artifacts == 'true'
+        uses: membrowse/membrowse-action@v1
+        with:
+          target_name: ${{ matrix.target.name }}
+          elf: zephyr-artifacts/${{ matrix.target.name }}/zephyr.elf
+          ld: zephyr-artifacts/${{ matrix.target.name }}/linker.cmd
+          linker_vars: ""
+          api_key: ${{ secrets.MEMBROWSE_API_KEY }}
+          api_url: ${{ vars.MEMBROWSE_API_URL }}
+          verbose: INFO
