@@ -31059,11 +31059,18 @@ static int DecodePrivateKey_ex(WOLFSSL *ssl, byte keyType, const DerBuffer* key,
 
         /* Set start of data to beginning of buffer. */
         idx = 0;
-        /* Decode the key assuming it is a Dilithium private key. */
+        /* Decode the key assuming it is a Dilithium private key. The FIPS
+         * wrapper for wc_dilithium_import_private gates on the per-thread
+         * privateKeyReadEnable flag, which is unset by default in any
+         * thread that hasn't called PRIVATE_KEY_UNLOCK(). Without the
+         * bracket, decoding a Dilithium/ML-DSA private key from a
+         * handshake worker thread fails with FIPS_PRIVATE_KEY_LOCKED_E. */
+        PRIVATE_KEY_UNLOCK();
         ret = wc_Dilithium_PrivateKeyDecode(key->buffer,
                                             &idx,
                                             (dilithium_key*)*hsKey,
                                             key->length);
+        PRIVATE_KEY_LOCK();
         if (ret == 0) {
             WOLFSSL_MSG("Using Dilithium private key");
 
