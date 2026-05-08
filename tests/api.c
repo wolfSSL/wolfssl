@@ -16368,6 +16368,26 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 
     /* error case because connection has not been established yet */
     ExpectIntEQ(sk_SSL_CIPHER_find(sk, SSL_get_current_cipher(ssl)), -1);
+
+    /* Exercise sk_SSL_CIPHER_delete on the duplicated stack so we don't
+     * disturb the SSL object's internal cipher list. */
+    {
+        int dupNum = sk_SSL_CIPHER_num(dupSk);
+        if (dupNum > 0) {
+            SSL_CIPHER* removed = NULL;
+
+            /* Out-of-range and negative idx should return NULL. */
+            ExpectNull(sk_SSL_CIPHER_delete(dupSk, -1));
+            ExpectNull(sk_SSL_CIPHER_delete(dupSk, dupNum));
+            ExpectNull(sk_SSL_CIPHER_delete(NULL, 0));
+
+            /* Delete the head element and verify count decreased. */
+            ExpectNotNull(removed = sk_SSL_CIPHER_delete(dupSk, 0));
+            ExpectIntEQ(sk_SSL_CIPHER_num(dupSk), dupNum - 1);
+            XFREE(removed, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+    }
+
     sk_SSL_CIPHER_free(dupSk);
 
     /* sk is pointer to internal struct that should be free'd in SSL_free */
@@ -16376,6 +16396,62 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 #endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
          !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SSL_CIPHER_find(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+     defined(HAVE_LIGHTY)) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    SSL*     ssl = NULL;
+    SSL_CTX* ctx = NULL;
+    STACK_OF(SSL_CIPHER)* sk = NULL;
+    const SSL_CIPHER* found = NULL;
+    unsigned char id[2];
+    const unsigned char bogus[2] = { 0xFF, 0xFF };
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    ExpectNotNull(ssl = SSL_new(ctx));
+    ExpectNotNull(sk = SSL_get_ciphers(ssl));
+    ExpectIntGT(sk_SSL_CIPHER_num(sk), 0);
+
+    /* Pick the first cipher in ssl's list and round-trip via SSL_CIPHER_find. */
+    if (sk != NULL && sk_SSL_CIPHER_num(sk) > 0) {
+        const WOLFSSL_CIPHER* first = sk_SSL_CIPHER_value(sk, 0);
+        ExpectNotNull(first);
+        if (first != NULL) {
+            id[0] = first->cipherSuite0;
+            id[1] = first->cipherSuite;
+
+            ExpectNotNull(found = SSL_CIPHER_find(ssl, id));
+            if (found != NULL) {
+                ExpectIntEQ(found->cipherSuite0, id[0]);
+                ExpectIntEQ(found->cipherSuite,  id[1]);
+            }
+        }
+    }
+
+    /* NULL arg handling. */
+    ExpectNull(SSL_CIPHER_find(NULL, id));
+    ExpectNull(SSL_CIPHER_find(ssl, NULL));
+
+    /* Suite not in ssl's cipher list. */
+    ExpectNull(SSL_CIPHER_find(ssl, bogus));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
     return EXPECT_RESULT();
 }
 
@@ -35051,6 +35127,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_configure_args),
     TEST_DECL(test_wolfSSL_sk_SSL_CIPHER),
+    TEST_DECL(test_wolfSSL_SSL_CIPHER_find),
     TEST_DECL(test_wolfSSL_set1_curves_list),
     TEST_DECL(test_wolfSSL_curves_mismatch),
     TEST_DECL(test_wolfSSL_set1_sigalgs_list),

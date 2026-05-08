@@ -8756,6 +8756,49 @@ const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value)
     return cipher;
 }
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+/* Locate a cipher in the SSL's cipher list by 2-byte wire-format suite id.
+ *
+ * Mirrors OpenSSL's SSL_CIPHER_find(ssl, ptr). The two bytes pointed to by
+ * ptr are the on-the-wire cipher suite identifier (ptr[0] is the high byte,
+ * ptr[1] is the low byte). Lookup is restricted to ciphers in ssl's cipher
+ * list, matching OpenSSL semantics.
+ *
+ * Returned pointer references storage owned by the SSL object's internal
+ * cipher list; callers must not free it. It remains valid until SSL_free.
+ *
+ * @param [in] ssl  SSL/TLS object whose cipher list is searched.
+ * @param [in] ptr  Pointer to a 2-byte cipher suite identifier.
+ * @return  Matching cipher on success.
+ * @return  NULL if ssl or ptr is NULL, or no cipher matches.
+ */
+const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
+    const unsigned char* ptr)
+{
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk;
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_SSL_CIPHER_find");
+
+    if (ssl == NULL || ptr == NULL)
+        return NULL;
+
+    sk = wolfSSL_get_ciphers_compat(ssl);
+    if (sk == NULL)
+        return NULL;
+
+    for (node = sk; node != NULL; node = node->next) {
+        if (node->data.cipher.cipherSuite0 == ptr[0] &&
+            node->data.cipher.cipherSuite  == ptr[1]) {
+            return &node->data.cipher;
+        }
+    }
+
+    return NULL;
+}
+#endif
+
 
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
     !defined(NO_DH) || (defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_MLKEM))

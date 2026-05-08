@@ -1205,6 +1205,63 @@ void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
     WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_free");
     wolfSSL_sk_free(sk);
 }
+
+/* Remove the cipher at the given index from the stack.
+ *
+ * Mirrors OpenSSL's sk_SSL_CIPHER_delete(sk, idx). The node is unlinked and
+ * freed. Because wolfSSL stores WOLFSSL_CIPHER inline within the stack node,
+ * the returned pointer is a heap-allocated copy of the removed cipher's
+ * value so that it remains valid after the underlying node is freed.
+ *
+ * Ownership of the returned pointer is transferred to the caller; free with
+ * XFREE(..., NULL, DYNAMIC_TYPE_OPENSSL) when no longer needed. NULL is
+ * returned when sk is NULL, idx is out of range, or allocation fails.
+ *
+ * @param [in,out] sk   Stack of ciphers.
+ * @param [in]     idx  Index of cipher to remove.
+ * @return  Heap copy of removed cipher on success.
+ * @return  NULL on failure.
+ */
+WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, int idx)
+{
+    WOLFSSL_CIPHER* ret = NULL;
+    WOLFSSL_STACK* node;
+    int num;
+
+    WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_delete");
+
+    if (sk == NULL || idx < 0)
+        return NULL;
+
+    num = wolfSSL_sk_SSL_CIPHER_num(sk);
+    if (idx >= num)
+        return NULL;
+
+    /* Walk to the node so we can capture its inline cipher value before the
+     * pop_node call frees the underlying memory. */
+    node = sk;
+    {
+        int i;
+        for (i = 0; i < idx && node != NULL; i++)
+            node = node->next;
+    }
+    if (node == NULL)
+        return NULL;
+
+    ret = (WOLFSSL_CIPHER*)XMALLOC(sizeof(WOLFSSL_CIPHER), NULL,
+                                   DYNAMIC_TYPE_OPENSSL);
+    if (ret == NULL)
+        return NULL;
+
+    *ret = node->data.cipher;
+
+    /* pop_node returns NULL for STACK_TYPE_CIPHER (data is static/inline),
+     * but it still performs the unlink and node free that we need. */
+    (void)wolfSSL_sk_pop_node(sk, idx);
+
+    return ret;
+}
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 /*******************************************************************************

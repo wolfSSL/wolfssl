@@ -5274,6 +5274,41 @@ int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
 
     return ret;
 }
+
+/* Clear all extra chain certificates set on the SSL object.
+ *
+ * Mirrors OpenSSL's SSL_clear_chain_certs(): frees any chain certificates
+ * previously added via SSL_add0_chain_cert / SSL_add1_chain_cert (or set via
+ * SSL_set0_chain / SSL_set1_chain) on this SSL. Does not affect the leaf
+ * certificate, the private key, or chain certificates inherited from the
+ * WOLFSSL_CTX.
+ *
+ * @param [in, out] ssl  SSL object.
+ * @return  1 on success.
+ * @return  0 when ssl is NULL.
+ */
+int wolfSSL_clear_chain_certs(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_clear_chain_certs");
+
+    if (ssl == NULL)
+        return 0;
+
+    /* Free the DER-encoded chain buffer if this SSL owns it. */
+    if (ssl->buffers.weOwnCertChain) {
+        FreeDer(&ssl->buffers.certChain);
+        ssl->buffers.weOwnCertChain = 0;
+    }
+    ssl->buffers.certChain = NULL;
+
+    /* Free the X509 stack used to track ownership of added chain certs. */
+    if (ssl->ourCertChain != NULL) {
+        wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
+        ssl->ourCertChain = NULL;
+    }
+
+    return 1;
+}
 #endif /* KEEP_OUR_CERT */
 #endif /* OPENSSL_EXTRA, HAVE_LIGHTY, WOLFSSL_MYSQL_COMPATIBLE, HAVE_STUNNEL,
           WOLFSSL_NGINX, HAVE_POCO_LIB, WOLFSSL_HAPROXY */
