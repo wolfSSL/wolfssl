@@ -24006,11 +24006,25 @@ static word32 build_otherName_san(byte* out, word32 outSz, const char* val7)
     return (word32)(sizeof(prefix) + 7);
 }
 
+/* Build a SubjectAltName extension value with a single registeredID
+ * GeneralName for OID 1.2.3.4, to use as the leaf SAN in RID tests. */
+static word32 build_registeredID_san(byte* out, word32 outSz)
+{
+    static const byte ridSan[] = {
+        0x30, 0x05,                                     /* SEQUENCE, 5 */
+        0x88, 0x03,                                     /* [8] regId, 3 */
+            0x2A, 0x03, 0x04                            /* OID 1.2.3.4 */
+    };
+    if (outSz < sizeof(ridSan))
+        return 0;
+    XMEMCPY(out, ridSan, sizeof(ridSan));
+    return (word32)sizeof(ridSan);
+}
+
 /* Build a NameConstraints extension value with a single excludedSubtree
- * carrying a registeredID GeneralName for OID 1.2.3.4. registeredID is a
- * GeneralName form wolfSSL does not enforce, so DecodeSubtree() must
- * record it as 'unsupported' and ConfirmNameConstraints() must fail
- * closed when the extension is critical (RFC 5280 4.2.1.10). */
+ * carrying a registeredID GeneralName for OID 1.2.3.4. wolfSSL enforces
+ * registeredID name constraints by byte-comparing OID bodies, so a leaf
+ * whose registeredID SAN matches this exclusion must be rejected. */
 static word32 build_registeredID_nameConstraints(byte* out, word32 outSz)
 {
     static const byte ridNc[] = {
@@ -24187,10 +24201,12 @@ done:
  *      (excluded is enforced regardless of criticality)
  *   4. Critical permitted subtree, leaf SAN matches           -> accept
  *   5. Critical permitted subtree, leaf SAN does NOT match    -> reject
- *   6. Critical nameConstraints carrying an unsupported form
- *      (registeredID), leaf has no relevant SAN              -> reject
- *      (RFC 5280 4.2.1.10 fail-closed for unprocessed forms)
- *   7. Same as (6) but non-critical                           -> accept
+ *   6. Critical excluded registeredID subtree, leaf SAN matches -> reject
+ *      (registeredID is enforced by byte-comparison of OID bodies)
+ *   7. Non-critical excluded registeredID subtree, leaf SAN matches -> reject
+ *      (excluded subtrees are enforced regardless of criticality)
+ *   8. Critical excluded registeredID subtree, leaf has no RID SAN -> accept
+ *      (no match in excluded list, constraint is satisfied)
  */
 static int test_NameConstraints_OtherName(void)
 {
@@ -24203,16 +24219,19 @@ static int test_NameConstraints_OtherName(void)
     defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS)
     byte sanBlocked[64];
     byte sanAllowed[64];
+    byte sanRegisteredID[16];
     byte ncExcludedBlocked[64];
     byte ncPermittedAllowed[64];
     byte ncRegisteredID[16];
-    word32 sanBlockedSz, sanAllowedSz;
+    word32 sanBlockedSz, sanAllowedSz, sanRegisteredIDSz;
     word32 ncExcludedBlockedSz, ncPermittedAllowedSz, ncRegisteredIDSz;
 
     sanBlockedSz =
         build_otherName_san(sanBlocked, sizeof(sanBlocked), "blocked");
     sanAllowedSz =
         build_otherName_san(sanAllowed, sizeof(sanAllowed), "allowed");
+    sanRegisteredIDSz =
+        build_registeredID_san(sanRegisteredID, sizeof(sanRegisteredID));
     ncExcludedBlockedSz = build_otherName_nameConstraints(
         ncExcludedBlocked, sizeof(ncExcludedBlocked), 1, "blocked");
     ncPermittedAllowedSz = build_otherName_nameConstraints(
@@ -24221,6 +24240,7 @@ static int test_NameConstraints_OtherName(void)
         ncRegisteredID, sizeof(ncRegisteredID));
     ExpectIntGT((int)sanBlockedSz, 0);
     ExpectIntGT((int)sanAllowedSz, 0);
+    ExpectIntGT((int)sanRegisteredIDSz, 0);
     ExpectIntGT((int)ncExcludedBlockedSz, 0);
     ExpectIntGT((int)ncPermittedAllowedSz, 0);
     ExpectIntGT((int)ncRegisteredIDSz, 0);
@@ -24263,20 +24283,25 @@ static int test_NameConstraints_OtherName(void)
             sanBlocked, sanBlockedSz),
         WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 
-    /* (6) Critical nameConstraints carrying a GeneralName form wolfSSL
-     *     does not enforce (registeredID). RFC 5280 4.2.1.10 requires the
-     *     verifier to either process the constraint or reject; we reject
-     *     fail-closed. The leaf needs no SAN to exercise this path. */
+    /* (6) Critical excluded registeredID subtree, leaf SAN matches:
+     *     registeredID is now enforced by byte-comparing OID bodies, so a
+     *     matching excluded entry must be rejected. */
     ExpectIntEQ(verify_with_otherName_chain(
-            ncRegisteredID, ncRegisteredIDSz, 1, NULL, 0),
+            ncRegisteredID, ncRegisteredIDSz, 1,
+            sanRegisteredID, sanRegisteredIDSz),
         WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 
-    /* (7) Same as (6) but non-critical: RFC 5280 only mandates the
-     *     fail-closed reject when the extension is critical, so a
-     *     non-critical unsupported constraint form is silently ignored
-     *     and verification succeeds. */
+    /* (7) Non-critical excluded registeredID subtree, leaf SAN matches:
+     *     excluded subtrees are enforced regardless of criticality. */
     ExpectIntEQ(verify_with_otherName_chain(
-            ncRegisteredID, ncRegisteredIDSz, 0, NULL, 0),
+            ncRegisteredID, ncRegisteredIDSz, 0,
+            sanRegisteredID, sanRegisteredIDSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (8) Critical excluded registeredID subtree, leaf has no RID SAN:
+     *     no excluded match, so verification succeeds. */
+    ExpectIntEQ(verify_with_otherName_chain(
+            ncRegisteredID, ncRegisteredIDSz, 1, NULL, 0),
         0);
 #endif
     return EXPECT_RESULT();
@@ -26733,11 +26758,25 @@ static int test_wolfSSL_X509_print(void)
       /* Will print IP address subject alt name. */
      ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3350);
   #endif
-#elif defined(NO_ASN_TIME)
-    /* With NO_ASN_TIME defined, X509_print skips printing Validity. */
+#elif defined(IGNORE_NAME_CONSTRAINTS)
+    /* DecodeGeneralName skips iPAddress entries when name constraints
+     * are disabled, so the IP SAN never reaches the print path. */
+  #if defined(NO_ASN_TIME)
     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3213);
-#else
+  #else
     ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3328);
+  #endif
+#elif defined(NO_ASN_TIME)
+    /* With NO_ASN_TIME defined, X509_print skips printing Validity.
+     * iPAddress SAN now always parsed; prints as
+     * "IP Address:<unavailable>" (+26 bytes) without
+     * WOLFSSL_IP_ALT_NAME. */
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3239);
+#else
+    /* iPAddress SAN now always parsed; prints as
+     * "IP Address:<unavailable>" (+26 bytes) without
+     * WOLFSSL_IP_ALT_NAME. */
+    ExpectIntEQ(BIO_get_mem_data(bio, NULL), 3354);
 #endif
     BIO_free(bio);
     bio = NULL;
