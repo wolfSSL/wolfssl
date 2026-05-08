@@ -34,6 +34,71 @@
 #include "wolfcrypt/test/test.h"
 #endif
 
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+#include <wolfssl/internal.h>
+
+/* Regression test for missing RFC 7301 section 3.1 enforcement.
+ *
+ *    the 'ProtocolNameList' MUST contain exactly one 'ProtocolName'
+ */
+static int test_TLSX_ALPN_server_response_count(void)
+{
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    int          ret;
+    int          test_ret = -1;
+
+    /* ServerHello-style extensions blob: a single ALPN extension whose
+     * ProtocolNameList contains two entries ("h2" and "http/1.1"). */
+    static const unsigned char malformed_ext[] = {
+        0x00, 0x10,                         /* extension type = ALPN (16) */
+        0x00, 0x0E,                         /* extension length = 14    */
+        0x00, 0x0C,                         /* ProtocolNameList length  */
+        0x02, 'h', '2',                     /* entry 1: "h2"            */
+        0x08, 'h', 't', 't', 'p', '/', '1', '.', '1' /* entry 2         */
+    };
+    static char alpn_h2[] = "h2";
+
+    if (wolfSSL_Init() != WOLFSSL_SUCCESS)
+        goto cleanup;
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    if (ctx == NULL)
+        goto cleanup;
+
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL)
+        goto cleanup;
+
+    if (wolfSSL_UseALPN(ssl, alpn_h2, (unsigned int)XSTRLEN(alpn_h2),
+                        WOLFSSL_ALPN_FAILED_ON_MISMATCH) != WOLFSSL_SUCCESS) {
+        goto cleanup;
+    }
+
+    ret = TLSX_Parse(ssl, malformed_ext, (word16)sizeof(malformed_ext),
+                     server_hello, NULL);
+
+    if (ret != 0) {
+        test_ret = 0;
+    }
+    else {
+        fprintf(stderr,
+            "FAIL: TLSX_Parse accepted a server ALPN response with two "
+            "entries; RFC 7301 Section 3.1 requires exactly one.\n");
+        test_ret = -1;
+    }
+
+cleanup:
+    if (ssl != NULL)
+        wolfSSL_free(ssl);
+    if (ctx != NULL)
+        wolfSSL_CTX_free(ctx);
+    (void)wolfSSL_Cleanup();
+    return test_ret;
+}
+#endif /* HAVE_ALPN && !NO_WOLFSSL_CLIENT && !NO_TLS && !WOLFSSL_NO_TLS12 */
+
 int allTesting = 1;
 int apiTesting = 1;
 int myoptind = 0;
@@ -83,6 +148,15 @@ int unit_test(int argc, char** argv)
 
     printf("starting unit tests...\n");
     fflush(stdout);
+
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    if (test_TLSX_ALPN_server_response_count() != 0) {
+        fprintf(stderr,
+            "test_TLSX_ALPN_server_response_count failed\n");
+        return 1;
+    }
+#endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     wolfSSL_Debugging_ON();
