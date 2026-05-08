@@ -10154,18 +10154,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #endif
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-        if (ssl->ctx != NULL) {
-            ssl->options.noPskDheKe = ssl->ctx->noPskDheKe;
-          #ifdef HAVE_SUPPORTED_CURVES
-            ssl->options.onlyPskDheKe = ssl->ctx->onlyPskDheKe;
-          #endif
-        }
-        else {
-            ssl->options.noPskDheKe = 0;
-          #ifdef HAVE_SUPPORTED_CURVES
-            ssl->options.onlyPskDheKe = 0;
-          #endif
-        }
+        ssl->options.noPskDheKe = ssl->ctx->noPskDheKe;
+        #ifdef HAVE_SUPPORTED_CURVES
+        ssl->options.onlyPskDheKe = ssl->ctx->onlyPskDheKe;
+        #endif
     #endif
     #endif
     #ifdef HAVE_SESSION_TICKET
