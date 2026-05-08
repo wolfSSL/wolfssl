@@ -3965,7 +3965,7 @@ int wolfSSL_ASN1_TIME_compare(const WOLFSSL_ASN1_TIME *a,
     return ret;
 }
 
-#if !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+#if !defined(USER_TIME)
 /* Adjust the time into an ASN.1 TIME object.
  *
  * @param [in] a           ASN.1 TIME object. May be NULL.
@@ -4004,7 +4004,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* a, time_t t,
 
     return ret;
 }
-#endif /* !USER_TIME && !TIME_OVERRIDES */
+#endif /* !USER_TIME */
 
 /* Get the length of the ASN.1 TIME data.
  *

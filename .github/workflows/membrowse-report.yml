@@ -68,7 +68,7 @@ jobs:
     needs: [load-targets, check-changes]
     if: github.repository_owner == 'wolfssl' && (github.event_name != 'pull_request' || needs.check-changes.outputs.needs_build == 'true')
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -86,6 +86,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: ${{ matrix.apt_packages }}
+          cache: ${{ matrix.apt_cache || 'true' }}
 
       - name: Build firmware
         if: needs.check-changes.outputs.needs_build == 'true'
