@@ -2132,6 +2132,17 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* FREESCALE_USE_LTC */
 
+#ifdef WOLFSSL_NXP_LPC55S6X
+    #undef  WOLFSSL_NXP_RNG_1
+    #define WOLFSSL_NXP_RNG_1
+    #define WOLFSSL_NXP_HASHCRYPT
+    #define WOLFSSL_NXP_HASHCRYPT_AES
+    #define WOLFSSL_NXP_HASHCRYPT_SHA
+    #define WOLFSSL_NXP_CASPER
+    #define WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD
+    #define NO_WOLFSSL_SHA256_INTERLEAVE
+#endif
+
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE
     #undef  USE_CERT_BUFFERS_4096
     #define USE_CERT_BUFFERS_4096

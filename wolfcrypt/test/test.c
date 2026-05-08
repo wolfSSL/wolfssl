@@ -2841,7 +2841,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     if ( (ret = aesofb_test()) != 0)
         TEST_FAIL("AES-OFB  test failed!\n", ret);
     else
-        TEST_PASS("AES-OFB   test passed!\n");
+        TEST_PASS("AES-OFB  test passed!\n");
 #endif
 
 #ifdef HAVE_AESGCM
@@ -4935,12 +4935,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
     ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
     ret = wc_InitSha_ex(&shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_ShaUpdate(&shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#endif
     ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -5650,12 +5652,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#ifndef NO_WOLFSSL_SHA256_INTERLEAVE
     ret = wc_InitSha256_ex(&shaCopy, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     ret = wc_Sha256Update(&shaCopy, (byte*)b.input, (word32)b.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#endif
     ret = wc_Sha256Update(&sha, (byte*)a.input, (word32)a.inLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -12082,9 +12086,11 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         if (XMEMCMP(cipher + WC_AES_BLOCK_SIZE, cipher1 + WC_AES_BLOCK_SIZE,
                     WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 
     #ifdef HAVE_AES_DECRYPT
         ret = wc_AesOfbDecrypt(dec, plain, cipher1, WC_AES_BLOCK_SIZE);
@@ -12099,9 +12105,11 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         if (XMEMCMP(plain + WC_AES_BLOCK_SIZE, plain1 + WC_AES_BLOCK_SIZE,
                     WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #endif /* HAVE_AES_DECRYPT */
 
         /* multiple blocks at once */
@@ -12183,8 +12191,10 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         if (XMEMCMP(cipher + 3, cipher1 + 3, WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 
     #ifdef HAVE_AES_DECRYPT
         ret = wc_AesOfbDecrypt(dec, plain, cipher1, 6);
@@ -12198,8 +12208,10 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         if (XMEMCMP(plain + 6, plain1 + 6, WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
 
@@ -12401,6 +12413,7 @@ EVP_TEST_END:
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         /* test restarting encryption process */
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         ret = wc_AesCfbEncrypt(enc, cipher + (WC_AES_BLOCK_SIZE * 2),
                 msg1 + (WC_AES_BLOCK_SIZE * 2), WC_AES_BLOCK_SIZE);
         if (ret != 0)
@@ -12418,6 +12431,7 @@ EVP_TEST_END:
         if (XMEMCMP(plain, msg1, WC_AES_BLOCK_SIZE * 3))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* WOLFSSL_AES_128 */
 
 #ifdef WOLFSSL_AES_192
@@ -12479,6 +12493,7 @@ EVP_TEST_END:
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     #endif
 
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         /* test with data left overs, magic lengths are checking near edges */
         XMEMSET(cipher, 0, sizeof(cipher));
         ret = wc_AesCfbEncrypt(enc, cipher, msg3, 4);
@@ -12530,6 +12545,7 @@ EVP_TEST_END:
         if (XMEMCMP(plain, msg3, WC_AES_BLOCK_SIZE * 4))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* WOLFSSL_AES_256 */
 
   out:
@@ -15987,11 +16003,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         /* and an additional 9 bytes to reuse tmp left buffer */
         { NULL, 0, NULL, ctrPlain, (int)sizeof(oddCipher), oddCipher },
         /* Counter wrapping */
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr128Wrap128Cipher), ctr128Wrap128Cipher },
         { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr128Wrap128CipherLong),
           ctr128Wrap128CipherLong },
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
         { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128_2,
           ctrPlain, (int)sizeof(ctr128Wrap128_2CipherLong),
@@ -16029,11 +16047,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         { ctr192Key, (int)sizeof(ctr192Key), ctrIv,
           ctrPlain, (int)sizeof(oddCipher), ctr192Cipher },
         /* Counter wrapping */
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         { ctr192Key, (int)sizeof(ctr192Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr192Wrap128Cipher), ctr192Wrap128Cipher },
         { ctr192Key, (int)sizeof(ctr192Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr192Wrap128CipherLong),
           ctr192Wrap128CipherLong },
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
         { ctr192Key, (int)sizeof(ctr192Key), ctrIvWrap128_2,
           ctrPlain, (int)sizeof(ctr192Wrap128_2CipherLong),
@@ -16071,11 +16091,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
         { ctr256Key, (int)sizeof(ctr256Key), ctrIv,
           ctrPlain, (int)sizeof(oddCipher), ctr256Cipher },
         /* Counter wrapping */
+    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr256Wrap128Cipher), ctr256Wrap128Cipher },
         { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr256Wrap128CipherLong),
           ctr256Wrap128CipherLong },
+    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
     #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
         { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128_2,
           ctrPlain, (int)sizeof(ctr256Wrap128_2CipherLong),
