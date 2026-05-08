@@ -15969,8 +15969,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         }
 #endif
 
-#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
-                       defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES)
+#if defined(HAVE_SUPPORTED_CURVES)
         if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
             if (TLSX_Find(ssl->ctx->extensions,
                                                TLSX_SUPPORTED_GROUPS) == NULL) {
@@ -15979,15 +15978,17 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return ret;
             }
         }
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
         if ((!IsAtLeastTLSv1_3(ssl->version) || ssl->options.downgrade) &&
                TLSX_Find(ssl->ctx->extensions, TLSX_EC_POINT_FORMATS) == NULL &&
                TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS) == NULL) {
-             ret = TLSX_UsePointFormat(&ssl->extensions,
+            ret = TLSX_UsePointFormat(&ssl->extensions,
                                          WOLFSSL_EC_PF_UNCOMPRESSED, ssl->heap);
-             if (ret != WOLFSSL_SUCCESS)
-                 return ret;
+            if (ret != WOLFSSL_SUCCESS)
+                return ret;
         }
-#endif /* (HAVE_ECC || CURVE25519 || CURVE448) && HAVE_SUPPORTED_CURVES */
+    #endif
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #ifdef WOLFSSL_SRTP
         if (ssl->options.dtls && ssl->dtlsSrtpProfiles != 0) {
@@ -16035,20 +16036,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                                                              ssl->heap)) != 0) {
                 return ret;
             }
-
-    #if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && \
-                       !defined(HAVE_CURVE448) && defined(HAVE_SUPPORTED_CURVES)
-        if (TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
-            /* Put in DH groups for TLS 1.3 only. */
-            ret = TLSX_PopulateSupportedGroups(ssl, &ssl->extensions);
-            if (ret != WOLFSSL_SUCCESS)
-                return ret;
-        /* ret value will be overwritten in !NO_PSK case */
-        #ifdef NO_PSK
-            ret = 0;
-        #endif
-        }
-    #endif /* !(HAVE_ECC || CURVE25519 || CURVE448) && HAVE_SUPPORTED_CURVES */
 
         #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             if (ssl->certHashSigAlgoSz > 0) {
