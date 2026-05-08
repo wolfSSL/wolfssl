@@ -59,11 +59,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
     /// ECCPoint::import_der(&der[0..size], curve_id, None).expect("Error with import_der()");
@@ -117,11 +117,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
     /// ECCPoint::import_der_ex(&der[0..size], curve_id, 0, None).expect("Error with import_der_ex()");
@@ -172,11 +172,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
     /// assert!(size > 0 && size <= der.len());
@@ -219,11 +219,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der_compressed(&mut der, curve_id).expect("Error with export_der_compressed()");
     /// }
@@ -255,9 +255,9 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
-    /// let mut ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
+    /// let mut ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// ecc_point.forcezero();
     /// }
     /// ```
@@ -438,8 +438,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
@@ -486,10 +486,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate_ex()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate_ex()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
@@ -537,10 +537,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex2(curve_size, &mut rng, curve_id, ECC::FLAG_COFACTOR, None, None).expect("Error with generate_ex2()");
+    /// let mut ecc = ECC::generate_ex2(curve_size, &rng, curve_id, ECC::FLAG_COFACTOR, None, None).expect("Error with generate_ex2()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
@@ -582,10 +582,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
@@ -619,7 +619,7 @@ impl ECC {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
     /// use std::fs;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
@@ -667,13 +667,13 @@ impl ECC {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
     /// use std::fs;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// assert!(signature_length > 0 && signature_length <= signature.len());
     /// let signature = &mut signature[0..signature_length];
     /// let key_path = "../../../certs/ecc-client-keyPub.der";
@@ -726,11 +726,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &signature[0..signature_length];
     /// let mut d = [0u8; 32];
     /// let d_size = ecc.export_private(&mut d).expect("Error with export_private()");
@@ -791,13 +791,13 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate_ex()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate_ex()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &signature[0..signature_length];
     /// let mut d = [0u8; 32];
     /// let d_size = ecc.export_private(&mut d).expect("Error with export_private()");
@@ -969,10 +969,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1026,8 +1026,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
     /// let x963_size = ecc.export_x963(&mut x963).expect("Error with export_x963()");
     /// let x963 = &x963[0..x963_size];
@@ -1080,10 +1080,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate_ex()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate_ex()");
     /// let mut x963 = [0u8; 128];
     /// let x963_size = ecc.export_x963(&mut x963).expect("Error with export_x963()");
     /// let x963 = &x963[0..x963_size];
@@ -1143,13 +1143,13 @@ impl ECC {
     ///     hex_string.push('\0');
     ///     hex_string
     /// }
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let mut r = [0u8; 32];
     /// let mut r_size = 0u32;
@@ -1205,13 +1205,13 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let mut r = [0u8; 32];
     /// let mut r_size = 0u32;
@@ -1258,13 +1258,13 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let mut r = [0u8; 32];
     /// let mut r_size = 0u32;
@@ -1307,8 +1307,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
@@ -1343,8 +1343,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1398,8 +1398,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1454,8 +1454,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut d = [0u8; 32];
     /// let d_size = ecc.export_private(&mut d).expect("Error with export_private()");
     /// assert_eq!(d_size, 32);
@@ -1495,8 +1495,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1538,8 +1538,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
     /// let _x963_size = ecc.export_x963(&mut x963).expect("Error with export_x963()");
     /// }
@@ -1574,8 +1574,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
     /// let _x963_size = ecc.export_x963_compressed(&mut x963).expect("Error with export_x963_compressed()");
     /// }
@@ -1613,11 +1613,11 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
-    /// ecc.make_pub(Some(&mut rng)).expect("Error with make_pub()");
+    /// ecc.make_pub(Some(&rng)).expect("Error with make_pub()");
     /// }
     /// ```
     #[cfg(random)]
@@ -1657,11 +1657,11 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
-    /// ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// }
     /// ```
     #[cfg(random)]
@@ -1876,11 +1876,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let valid = ecc.verify_hash(&signature, &hash).expect("Error with verify_hash()");
     /// assert_eq!(valid, true);
@@ -1919,11 +1919,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let valid = ecc.verify_hash(&signature, &hash).expect("Error with verify_hash()");
     /// assert_eq!(valid, true);
