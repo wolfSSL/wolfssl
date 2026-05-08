@@ -5,7 +5,7 @@ mod common;
 #[cfg(any(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random), random))]
 use std::fs;
 #[cfg(all(ecc_dh, random))]
-use std::sync::Arc;
+use std::rc::Rc;
 use wolfssl_wolfcrypt::ecc::*;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
@@ -144,13 +144,13 @@ fn test_ecc_import_export_sign_verify() {
 fn test_ecc_shared_secret() {
     common::setup();
 
-    let rng = Arc::new(RNG::new().expect("Failed to create RNG"));
+    let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
     let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     let mut ss0 = [0u8; 128];
     let mut ss1 = [0u8; 128];
-    ecc0.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
-    ecc1.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    ecc0.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    ecc1.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     let ss0_size = ecc0.shared_secret(&mut ecc1, &mut ss0).expect("Error with shared_secret()");
     let ss1_size = ecc1.shared_secret(&mut ecc0, &mut ss1).expect("Error with shared_secret()");
     assert_eq!(ss0_size, ss1_size);

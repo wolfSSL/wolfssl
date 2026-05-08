@@ -513,7 +513,7 @@ impl Curve25519Key {
     /// Bind a shared `RNG` to this key. Available when the `alloc` feature
     /// is enabled.
     #[cfg(all(curve25519_blinding, random, feature = "alloc"))]
-    pub fn set_shared_rng(&mut self, rng: alloc::sync::Arc<RNG>) -> Result<(), i32> {
+    pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
         let wc_rng = rng.wc_rng;
         let rc = unsafe {
             sys::wc_curve25519_set_rng(&mut self.wc_key, wc_rng)

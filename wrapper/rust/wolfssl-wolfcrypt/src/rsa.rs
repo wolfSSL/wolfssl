@@ -35,11 +35,11 @@ use std::fs;
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::rsa::RSA;
 
-let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
 let key_path = "../../../certs/client-keyPub.der";
 let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
 let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
 let plain: &[u8] = b"Test message";
 let mut enc: [u8; 512] = [0; 512];
 let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -48,7 +48,7 @@ assert!(enc_len > 0 && enc_len <= 512);
 let key_path = "../../../certs/client-key.der";
 let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
 let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
 let mut plain_out: [u8; 512] = [0; 512];
 let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
 assert!(dec_len as usize == plain.len());
@@ -153,11 +153,11 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
     /// let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -166,7 +166,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
@@ -201,11 +201,11 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
     /// let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -214,7 +214,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der_ex(&der, None, None).expect("Error with new_from_der_ex()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
@@ -274,11 +274,11 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
     /// let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -287,7 +287,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
@@ -322,11 +322,11 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der_ex(&der, None, None).expect("Error with new_public_from_der_ex()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
     /// let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -335,7 +335,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
@@ -755,11 +755,11 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
     /// let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -768,7 +768,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
@@ -814,11 +814,11 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
     /// let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -827,7 +827,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
@@ -875,7 +875,7 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -888,7 +888,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.pss_verify(signature, &mut verify_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify()");
@@ -938,7 +938,7 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -951,7 +951,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.pss_verify(signature, &mut verify_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify()");
@@ -1004,7 +1004,7 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -1017,7 +1017,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.pss_verify(signature, &mut verify_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify()");
@@ -1075,7 +1075,7 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -1088,7 +1088,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.pss_verify(signature, &mut verify_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify()");
@@ -1236,11 +1236,11 @@ impl RSA {
 
     /// Bind a shared `RNG` to this key for blinding during private operations.
     ///
-    /// Like `set_rng`, but takes an `Arc<RNG>` so the same RNG can be shared
+    /// Like `set_rng`, but takes an `Rc<RNG>` so the same RNG can be shared
     /// among multiple consumers and used directly by the caller. Available
     /// when the `alloc` feature is enabled.
     #[cfg(all(random, feature = "alloc"))]
-    pub fn set_shared_rng(&mut self, rng: alloc::sync::Arc<RNG>) -> Result<(), i32> {
+    pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
         let wc_rng = rng.wc_rng;
         let rc = unsafe {
             sys::wc_RsaSetRNG(&mut self.wc_rsakey, wc_rng)
@@ -1289,7 +1289,7 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -1302,7 +1302,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.ssl_verify(signature, &mut verify_out).expect("Error with ssl_verify()");
@@ -1351,7 +1351,7 @@ impl RSA {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -1364,7 +1364,7 @@ impl RSA {
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
     /// let verify_out_size = rsa.ssl_verify(signature, &mut verify_out).expect("Error with ssl_verify()");

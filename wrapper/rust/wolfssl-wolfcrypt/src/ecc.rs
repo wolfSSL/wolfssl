@@ -1733,7 +1733,7 @@ impl ECC {
     /// Bind a shared `RNG` to this key. Available when the `alloc` feature
     /// is enabled.
     #[cfg(all(random, feature = "alloc"))]
-    pub fn set_shared_rng(&mut self, rng: alloc::sync::Arc<RNG>) -> Result<(), i32> {
+    pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
         let wc_rng = rng.wc_rng;
         let rc = unsafe {
             sys::wc_ecc_set_rng(self.wc_ecc_key, wc_rng)
@@ -1774,16 +1774,16 @@ impl ECC {
     /// ```rust
     /// #[cfg(all(ecc_dh, random, feature = "alloc"))]
     /// {
-    /// use std::sync::Arc;
+    /// use std::rc::Rc;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let rng = Arc::new(RNG::new().expect("Failed to create RNG"));
+    /// let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
     /// let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut ss0 = [0u8; 128];
     /// let mut ss1 = [0u8; 128];
-    /// ecc0.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
-    /// ecc1.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// ecc0.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// ecc1.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let ss0_size = ecc0.shared_secret(&mut ecc1, &mut ss0).expect("Error with shared_secret()");
     /// let ss1_size = ecc1.shared_secret(&mut ecc0, &mut ss1).expect("Error with shared_secret()");
     /// assert_eq!(ss0_size, ss1_size);
@@ -1824,17 +1824,17 @@ impl ECC {
     /// ```rust
     /// #[cfg(all(ecc_dh, random, feature = "alloc"))]
     /// {
-    /// use std::sync::Arc;
+    /// use std::rc::Rc;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let rng = Arc::new(RNG::new().expect("Failed to create RNG"));
+    /// let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
     /// let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let ecc1_point = ecc1.make_pub_to_point(None, None).expect("Error with make_pub_to_point()");
     /// let mut ss0 = [0u8; 128];
     /// let mut ss1 = [0u8; 128];
-    /// ecc0.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
-    /// ecc1.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// ecc0.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// ecc1.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let ss0_size = ecc0.shared_secret_ex(&ecc1_point, &mut ss0).expect("Error with shared_secret_ex()");
     /// let ss1_size = ecc1.shared_secret(&mut ecc0, &mut ss1).expect("Error with shared_secret()");
     /// assert_eq!(ss0_size, ss1_size);

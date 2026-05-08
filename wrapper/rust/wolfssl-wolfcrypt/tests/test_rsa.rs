@@ -5,7 +5,7 @@ mod common;
 #[cfg(any(all(sha256, random, rsa_pss), random, rsa_direct))]
 use std::fs;
 #[cfg(random)]
-use std::sync::Arc;
+use std::rc::Rc;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
 #[cfg(any(random, rsa_direct, rsa_keygen))]
@@ -60,11 +60,11 @@ fn test_rsa_generate() {
 #[test]
 #[cfg(random)]
 fn test_rsa_encrypt_decrypt() {
-    let rng = Arc::new(RNG::new().expect("Error creating RNG"));
+    let rng = Rc::new(RNG::new().expect("Error creating RNG"));
     let key_path = "../../../certs/client-keyPub.der";
     let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    rsa.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     let plain: &[u8] = b"Test message";
     let mut enc: [u8; 512] = [0; 512];
     let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
@@ -73,7 +73,7 @@ fn test_rsa_encrypt_decrypt() {
     let key_path = "../../../certs/client-key.der";
     let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-    rsa.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     let mut plain_out: [u8; 512] = [0; 512];
     let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     assert!(dec_len as usize == plain.len());
@@ -83,7 +83,7 @@ fn test_rsa_encrypt_decrypt() {
 #[test]
 #[cfg(all(sha256, random, rsa_pss))]
 fn test_rsa_pss() {
-    let rng = Arc::new(RNG::new().expect("Error creating RNG"));
+    let rng = Rc::new(RNG::new().expect("Error creating RNG"));
 
     let key_path = "../../../certs/client-key.der";
     let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -96,7 +96,7 @@ fn test_rsa_pss() {
     let key_path = "../../../certs/client-keyPub.der";
     let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    rsa.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     let signature = &signature[0..sig_len];
     let mut verify_out: [u8; 512] = [0; 512];
     let verify_out_size = rsa.pss_verify(signature, &mut verify_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify()");
@@ -130,7 +130,7 @@ fn test_rsa_direct() {
 #[test]
 #[cfg(random)]
 fn test_rsa_ssl() {
-    let rng = Arc::new(RNG::new().expect("Error creating RNG"));
+    let rng = Rc::new(RNG::new().expect("Error creating RNG"));
 
     let key_path = "../../../certs/client-key.der";
     let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
@@ -143,7 +143,7 @@ fn test_rsa_ssl() {
     let key_path = "../../../certs/client-keyPub.der";
     let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    rsa.set_shared_rng(Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     let signature = &signature[0..sig_len];
     let mut verify_out: [u8; 512] = [0; 512];
     let verify_out_size = rsa.ssl_verify(signature, &mut verify_out).expect("Error with ssl_verify()");
