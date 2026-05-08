@@ -1,0 +1,65 @@
+name: STM32 simulator test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+# Build the STM32 software simulator (https://github.com/wolfSSL/simulators,
+# STM32Sim/ subdirectory) and run the wolfCrypt test suite on emulated
+# STM32H753 (Cortex-M7) and STM32U585 (Cortex-M33) hardware. Replaces the
+# previous Renode-based STM32H753 workflow and adds U5/PKA coverage.
+#
+# Dockerfile.wolfcrypt reads wolfSSL from /opt/wolfssl at runtime via a
+# bind mount, so unlike se050-sim.yml / stsafe-a120-sim.yml no Dockerfile
+# patching is required - we just mount the PR checkout.
+
+jobs:
+  stm32_sim:
+    name: wolfCrypt on STM32${{ matrix.chip_label }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chip_label: H753
+            script: run-wolfcrypt-h7.sh
+          - chip_label: U585
+            script: run-wolfcrypt-u5.sh
+    steps:
+      - name: Checkout wolfSSL (PR source)
+        uses: actions/checkout@v4
+        with:
+          path: wolfssl
+
+      - name: Clone STM32 simulator
+        run: git clone --depth 1 https://github.com/wolfSSL/simulators simulators
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build stm32sim-wolfcrypt image
+        uses: docker/build-push-action@v5
+        with:
+          context: simulators/STM32Sim
+          file: simulators/STM32Sim/Dockerfile.wolfcrypt
+          push: false
+          load: true
+          tags: stm32sim-wolfcrypt:ci
+          cache-from: type=gha,scope=stm32sim
+          cache-to: type=gha,mode=max,scope=stm32sim
+
+      - name: Run wolfCrypt tests on STM32${{ matrix.chip_label }}
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/wolfssl:/opt/wolfssl:ro" \
+            stm32sim-wolfcrypt:ci \
+            ${{ matrix.script }}
