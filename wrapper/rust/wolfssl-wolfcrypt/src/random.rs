@@ -71,8 +71,8 @@ unsafe impl Send for RNG {}
 
 // Note: `RNG` is intentionally not `Sync`. The underlying C `WC_RNG` state is
 // mutated by every call to a generation routine, with no internal locking.
-// Callers that need cross-thread sharing must wrap the RNG in a `Mutex`
-// (typically `Arc<Mutex<RNG>>`).
+// Callers that need cross-thread sharing of a single RNG struct must implement
+// their own locking.
 
 /// Storage for an RNG that a consumer (e.g. `RSA`, `ECC`) has been bound to
 /// via `set_rng`. The consumer keeps the `RngHandle` alive for as long as the
@@ -80,7 +80,7 @@ unsafe impl Send for RNG {}
 pub(crate) enum RngHandle {
     Owned(RNG),
     #[cfg(feature = "alloc")]
-    Shared(alloc::sync::Arc<RNG>),
+    Shared(alloc::rc::Rc<RNG>),
 }
 
 impl RNG {
