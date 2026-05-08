@@ -6162,31 +6162,28 @@ static int sakke_calc_h_v(SakkeKey* key, enum wc_HashType hashType,
 static void sakke_xor_in_v(const byte* v, word32 hashSz, byte* out, word32 idx,
         word32 n)
 {
-    int o;
-    word32 i;
+    word32 skip;
+    word32 off;
     word32 len;
 
+    /* RFC 6508, Section 5.1: output is the low n octets of
+     * v_1||v_2||...||v_l (the concatenation of l hash outputs taken
+     * modulo 2^(n*8)). When n is not a multiple of hashSz, drop the
+     * leading 'skip' high bytes of the first hash output. */
+    skip = n % hashSz;
+    skip = (skip == 0) ? 0 : (hashSz - skip);
+
     if (idx == 0) {
-        i = hashSz - (n % hashSz);
-        if (i == hashSz) {
-            i = 0;
-        }
-        len = hashSz - i;
+        xorbuf(out, v + skip, hashSz - skip);
     }
     else {
-        i = 0;
-        /* Clamp to bytes still remaining in the caller's buffer. Without
-         * this clamp, the final iteration of sakke_hash_to_range (when
-         * n > hashSz and (n % hashSz) != 0) writes hashSz bytes at
-         * out+idx and overshoots the n-byte buffer by hashSz - (n%hashSz)
-         * bytes. */
-        len = (n > idx) ? (n - idx) : 0;
+        off = idx - skip;
+        len = n - off;
         if (len > hashSz) {
             len = hashSz;
         }
+        xorbuf(out + off, v, len);
     }
-    o = (int)i;
-    xorbuf(out + idx + i - o, v + i, len);
 }
 
 /*
