@@ -665,6 +665,20 @@ int test_wolfSSL_EC_POINT(void)
          * bytes as the X coordinate. */
         ExpectNull(EC_POINT_hex2point(group, "03AB", NULL, ctx));
         ExpectNull(EC_POINT_hex2point(group, "02ABCD", NULL, ctx));
+
+        /* Odd-length compressed payload: 2*key_sz + 1 hex chars after
+         * the "03" prefix (P-256: 65 chars). A truncating-divide bound
+         * (sz = XSTRLEN/2) would round down to key_sz and accept this;
+         * an exact-length compare must reject it. */
+        {
+            char oddLenHex[2 + 65 + 1];
+            for (i = 2; i < sizeof(oddLenHex) - 1; i++)
+                oddLenHex[i] = 'A';
+            oddLenHex[0] = '0';
+            oddLenHex[1] = '3';
+            oddLenHex[sizeof(oddLenHex) - 1] = '\0';
+            ExpectNull(EC_POINT_hex2point(group, oddLenHex, NULL, ctx));
+        }
     }
 
     #if defined(HAVE_COMP_KEY) && !defined(HAVE_SELFTEST)

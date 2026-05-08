@@ -1387,18 +1387,20 @@ WOLFSSL_EC_POINT* wolfSSL_EC_POINT_hex2point(const WOLFSSL_EC_GROUP *group,
         }
     }
     else if (hex[0] == '0' && (hex[1] == '2' || hex[1] == '3')) {
-        size_t sz = XSTRLEN(hex + 2) / 2;
         /* The SEC 1 compressed encoding is exactly 1 + key_sz bytes, so
-         * the hex payload after the "02"/"03" prefix is exactly 2*key_sz
-         * hex chars. Require an exact match: rejecting sz > key_sz keeps
-         * hex_to_bytes() from writing past strGx, and rejecting sz <
-         * key_sz keeps wolfSSL_ECPoint_d2i() from reading uninitialized
-         * stack bytes for the X coordinate. */
-        if (sz != (size_t)key_sz)
+         * the hex payload after the "02"/"03" prefix must be exactly
+         * 2*key_sz hex chars. Compare the input length directly (rather
+         * than XSTRLEN/2) so that odd-length inputs cannot slip past via
+         * integer truncation. The exact-match rejects oversized inputs
+         * (preventing a hex_to_bytes() write past strGx) and undersized
+         * inputs (preventing wolfSSL_ECPoint_d2i() from reading
+         * uninitialized stack bytes as the X coordinate). */
+        if (XSTRLEN(hex + 2) != (size_t)key_sz * 2)
             goto err;
         octGx[0] = (hex[1] == '2') ? ECC_POINT_COMP_EVEN
                                    : ECC_POINT_COMP_ODD;
-        if (hex_to_bytes(hex + 2, octGx + 1, sz) != sz) {
+        if (hex_to_bytes(hex + 2, octGx + 1, (size_t)key_sz)
+                                            != (size_t)key_sz) {
             goto err;
         }
         if (wolfSSL_ECPoint_d2i(octGx, (word32)key_sz + 1, group, p)
