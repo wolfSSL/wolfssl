@@ -1197,7 +1197,7 @@ WOLFSSL_API int wc_InitSha384(wc_Sha384* sha384)
 WOLFSSL_API int wc_Sha384Update(wc_Sha384* sha384, const unsigned char* data,
                                  unsigned int len)
 {
-    word32 loLen, hiLen, oldLo;
+    word32 loLen, hiLen;
     int ret;
     if (sha384 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -1207,7 +1207,6 @@ WOLFSSL_API int wc_Sha384Update(wc_Sha384* sha384, const unsigned char* data,
      * uses word32. We bridge by converting here. */
     loLen = (word32)sha384->loLen;
     hiLen = (word32)(sha384->loLen >> 32);
-    oldLo = loLen;
 
     ret = wc_MXC_TPU_SHA_Update((word32*)sha384->digest,
                 (word32*)sha384->buffer, &sha384->buffLen,
@@ -1217,7 +1216,6 @@ WOLFSSL_API int wc_Sha384Update(wc_Sha384* sha384, const unsigned char* data,
 
     /* Write back the updated length */
     sha384->loLen = (word64)loLen | ((word64)hiLen << 32);
-    (void)oldLo;
     return ret;
 }
 
