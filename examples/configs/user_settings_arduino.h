@@ -180,6 +180,12 @@
         /* WOLFSSL_SEND_HRR_COOKIE is needed to use DTLS 1.3 server */
         #define WOLFSSL_SEND_HRR_COOKIE
     #endif
+#elif defined(ARDUINO_UNOR4_WIFI)
+    /*
+     * UNO R4 WiFi is now just over the flash limit in the client sketch.
+     * Use the smaller ECC-256 built-in cert set to keep the examples fitting.
+     */
+    #define USE_CERT_BUFFERS_256
 #elif defined (__AVR__) || defined(__AVR_ARCH__) || defined(__MEGAAVR__)
     /* Do not enable TLS on platforms without networking */
 
@@ -588,6 +594,9 @@
         #ifdef USE_CERT_BUFFERS_1024
             #error "USE_CERT_BUFFERS_1024 is already defined. Pick one."
         #endif
+        #ifdef USE_CERT_BUFFERS_256
+            #error "USE_CERT_BUFFERS_256 is already defined. Pick one."
+        #endif
         #include <wolfssl/certs_test.h>
         #define CTX_CA_CERT          ca_cert_der_2048
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
@@ -610,6 +619,9 @@
         #ifdef USE_CERT_BUFFERS_2048
             #error "USE_CERT_BUFFERS_2048 is already defined. Pick one."
         #endif
+        #ifdef USE_CERT_BUFFERS_256
+            #error "USE_CERT_BUFFERS_256 is already defined. Pick one."
+        #endif
         #include <wolfssl/certs_test.h>
         #define CTX_CA_CERT          ca_cert_der_1024
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_1024
@@ -628,8 +640,51 @@
         #define CTX_SERVER_KEY       server_key_der_1024
         #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_1024
         #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
+    #elif defined(USE_CERT_BUFFERS_256)
+        #ifdef USE_CERT_BUFFERS_2048
+            #error "USE_CERT_BUFFERS_2048 is already defined. Pick one."
+        #endif
+        #ifdef USE_CERT_BUFFERS_1024
+            #error "USE_CERT_BUFFERS_1024 is already defined. Pick one."
+        #endif
+        #include <wolfssl/certs_test.h>
+        #define CTX_CA_CERT          ca_ecc_cert_der_256
+        #define CTX_CA_CERT_SIZE     sizeof_ca_ecc_cert_der_256
+        #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_CLIENT_CERT      cliecc_cert_der_256
+        #define CTX_CLIENT_CERT_SIZE sizeof_cliecc_cert_der_256
+        #define CTX_CLIENT_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_CLIENT_KEY       ecc_clikey_der_256
+        #define CTX_CLIENT_KEY_SIZE  sizeof_ecc_clikey_der_256
+        #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_SERVER_CERT      serv_ecc_der_256
+        #define CTX_SERVER_CERT_SIZE sizeof_serv_ecc_der_256
+        #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_SERVER_KEY       ecc_key_der_256
+        #define CTX_SERVER_KEY_SIZE  sizeof_ecc_key_der_256
+        #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
     #else
         #define USE_CERT_BUFFERS_256
+        #include <wolfssl/certs_test.h>
+        #define CTX_CA_CERT          ca_ecc_cert_der_256
+        #define CTX_CA_CERT_SIZE     sizeof_ca_ecc_cert_der_256
+        #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_CLIENT_CERT      cliecc_cert_der_256
+        #define CTX_CLIENT_CERT_SIZE sizeof_cliecc_cert_der_256
+        #define CTX_CLIENT_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_CLIENT_KEY       ecc_clikey_der_256
+        #define CTX_CLIENT_KEY_SIZE  sizeof_ecc_clikey_der_256
+        #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_SERVER_CERT      serv_ecc_der_256
+        #define CTX_SERVER_CERT_SIZE sizeof_serv_ecc_der_256
+        #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_SERVER_KEY       ecc_key_der_256
+        #define CTX_SERVER_KEY_SIZE  sizeof_ecc_key_der_256
+        #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
     #endif
 #endif
 
