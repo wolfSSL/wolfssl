@@ -402,11 +402,16 @@ impl ECC {
         if key.is_null() {
             return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
         }
-        let rc = unsafe { sys::wc_ecc_init_ex(key, heap, dev_id) };
-        if rc != 0 {
-            unsafe { sys::wc_ecc_key_free(key); }
-            return Err(rc);
-        }
+        // wc_ecc_key_new() always initializes the key with INVALID_DEVID.
+        // Calling wc_ecc_init_ex() a second time to install the user's dev_id
+        // would re-run every initialization step (including allocations under
+        // some build configurations such as async crypto without WOLF_CRYPTO_CB)
+        // and orphan resources from the first init. Instead, just patch devId
+        // in place for WOLF_CRYPTO_CB builds.
+        #[cfg(wolf_crypto_cb)]
+        unsafe { (*key).devId = dev_id; }
+        #[cfg(not(wolf_crypto_cb))]
+        let _ = dev_id;
         Ok(key)
     }
 
