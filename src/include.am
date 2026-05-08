@@ -1137,8 +1137,8 @@ endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
 endif
 
-if BUILD_DILITHIUM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dilithium.c
+if BUILD_MLDSA
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mldsa.c
 if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mldsa_asm.S
@@ -1817,8 +1817,8 @@ endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
 endif
 
-if BUILD_DILITHIUM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dilithium.c
+if BUILD_MLDSA
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mldsa.c
 if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mldsa_asm.S

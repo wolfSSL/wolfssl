@@ -4107,8 +4107,8 @@ static const unsigned char bench_falcon_level5_key[] =
 
 #endif /* HAVE_FALCON */
 
-#if defined(HAVE_DILITHIUM)
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#if defined(WOLFSSL_HAVE_MLDSA)
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 
 /* raw private key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level2_key.der */
@@ -4372,9 +4372,9 @@ static const unsigned char bench_dilithium_level2_key[] = {
 };
 #define sizeof_bench_dilithium_level2_key (sizeof(bench_dilithium_level2_key))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 
 /* raw public key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level2_key.der */
@@ -4515,9 +4515,9 @@ static const unsigned char bench_dilithium_level2_pubkey[] = {
 #define sizeof_bench_dilithium_level2_pubkey \
        (sizeof(bench_dilithium_level2_pubkey))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 
 /* raw private key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level3_key.der */
@@ -4929,9 +4929,9 @@ static const unsigned char bench_dilithium_level3_key[] = {
 };
 #define sizeof_bench_dilithium_level3_key (sizeof(bench_dilithium_level3_key))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 
 /* raw public key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level3_key.der */
@@ -5136,9 +5136,9 @@ static const unsigned char bench_dilithium_level3_pubkey[] = {
 static const int sizeof_bench_dilithium_level3_pubkey =
     sizeof(bench_dilithium_level3_pubkey);
 
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 
 /* raw private key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level5_key.der */
@@ -5636,9 +5636,9 @@ static const unsigned char bench_dilithium_level5_key[] = {
 };
 #define sizeof_bench_dilithium_level5_key (sizeof(bench_dilithium_level5_key))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 
 /* raw public key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level5_key.der */
@@ -5907,15 +5907,15 @@ static const unsigned char bench_dilithium_level5_pubkey[] = {
 #define sizeof_bench_dilithium_level5_pubkey \
        (sizeof(bench_dilithium_level5_pubkey))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 
-#if defined(HAVE_DILITHIUM)
+#if defined(WOLFSSL_HAVE_MLDSA)
 
 #if !defined(WOLFSSL_NO_ML_DSA_44)
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 /* ./certs/mldsa/mldsa44_pub-spki.der */
 static const unsigned char mldsa44_pub_spki[] =
 {
@@ -6055,9 +6055,9 @@ static const unsigned char mldsa44_pub_spki[] =
         0xDB, 0xAA, 0x5F, 0x71
 };
 #define sizeof_mldsa44_pub_spki (sizeof(mldsa44_pub_spki))
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 /* ./certs/mldsa/mldsa44_priv-only.der */
 static const unsigned char mldsa44_priv_only[] =
 {
@@ -6601,13 +6601,13 @@ static const unsigned char mldsa44_seed_only[] =
         0x80, 0x87, 0xA2, 0x16
 };
 #define sizeof_mldsa44_seed_only (sizeof(mldsa44_seed_only))
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 
 #if !defined(WOLFSSL_NO_ML_DSA_65)
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 /* ./certs/mldsa/mldsa65_pub-spki.der */
 static const unsigned char mldsa65_pub_spki[] =
 {
@@ -6811,9 +6811,9 @@ static const unsigned char mldsa65_pub_spki[] =
         0x19, 0x0C, 0x44, 0x4C
 };
 #define sizeof_mldsa65_pub_spki (sizeof(mldsa65_pub_spki))
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 /* ./certs/mldsa/mldsa65_priv-only.der */
 static const unsigned char mldsa65_priv_only[] =
 {
@@ -7652,13 +7652,13 @@ static const unsigned char mldsa65_seed_only[] =
         0xCB, 0xE4, 0xB1, 0x42
 };
 #define sizeof_mldsa65_seed_only (sizeof(mldsa65_seed_only))
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
 #endif /* !WOLFSSL_NO_ML_DSA_65 */
 
 #if !defined(WOLFSSL_NO_ML_DSA_87)
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 /* ./certs/mldsa/mldsa87_pub-spki.der */
 static const unsigned char mldsa87_pub_spki[] =
 {
@@ -7926,9 +7926,9 @@ static const unsigned char mldsa87_pub_spki[] =
         0xAE, 0x60, 0x19, 0x5A
 };
 #define sizeof_mldsa87_pub_spki (sizeof(mldsa87_pub_spki))
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 /* ./certs/mldsa/mldsa87_priv-only.der */
 static const unsigned char mldsa87_priv_only[] =
 {
@@ -8940,11 +8940,11 @@ static const unsigned char mldsa87_seed_only[] =
         0xB0, 0x87, 0x90, 0x4F
 };
 #define sizeof_mldsa87_seed_only (sizeof(mldsa87_seed_only))
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
 
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 
 #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
 

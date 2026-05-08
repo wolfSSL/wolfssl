@@ -673,21 +673,31 @@ if (WOLFSSL_PQC_HYBRIDS)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PQC_HYBRIDS")
 endif()
 
-# Dilithium
+# ML-DSA (FIPS 204)
+add_option(WOLFSSL_MLDSA
+    "Enable the wolfSSL PQ ML-DSA (FIPS 204) implementation (default: disabled)"
+    "no" "yes;no")
+# Legacy alias: WOLFSSL_DILITHIUM. Kept for backward compatibility.
 add_option(WOLFSSL_DILITHIUM
-    "Enable the wolfSSL PQ Dilithium (ML-DSA) implementation (default: disabled)"
+    "Legacy alias for WOLFSSL_MLDSA (default: disabled)"
     "no" "yes;no")
 
 if (WOLFSSL_DILITHIUM)
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_DILITHIUM")
+    message(DEPRECATION
+        "WOLFSSL_DILITHIUM is the legacy alias for WOLFSSL_MLDSA and will be "
+        "removed in a future release. Set -DWOLFSSL_MLDSA=yes instead.")
+endif()
+
+if (WOLFSSL_MLDSA OR WOLFSSL_DILITHIUM)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_MLDSA")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE128")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
 
-    set_wolfssl_definitions("HAVE_DILITHIUM"       RESULT)
-    set_wolfssl_definitions("WOLFSSL_SHA3"         RESULT)
-    set_wolfssl_definitions("WOLFSSL_SHAKE128"     RESULT)
-    set_wolfssl_definitions("WOLFSSL_SHAKE256"     RESULT)
+    set_wolfssl_definitions("WOLFSSL_HAVE_MLDSA" RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
 endif()
 
 # LMS

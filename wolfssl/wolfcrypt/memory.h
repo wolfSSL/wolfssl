@@ -133,15 +133,8 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
 
     #ifndef LARGEST_MEM_BUCKET
         #ifndef SESSION_CERTS
-            #ifdef HAVE_DILITHIUM
-                #if defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) && \
-                    defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) && \
-                    defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM) && \
-                    defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
-                    #define LARGEST_MEM_BUCKET 14000 /* Dilithium low mem */
-                #else
-                    #define LARGEST_MEM_BUCKET 131072 /* Dilithium full mem */
-                #endif
+            #ifdef WOLFSSL_HAVE_MLDSA
+                #define LARGEST_MEM_BUCKET 131072
             #else
                 #define LARGEST_MEM_BUCKET 16128
             #endif
@@ -162,19 +155,10 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
 
     #ifndef WOLFMEM_BUCKETS
         #ifndef SESSION_CERTS
-            #ifdef HAVE_DILITHIUM
-                #if defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) && \
-                    defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) && \
-                    defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM) && \
-                    defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
-                    /* default size of chunks of memory to separate into */
-                    #define WOLFMEM_BUCKETS 64,128,256,512,1024,2048,4096,\
-                                           8192,LARGEST_MEM_BUCKET
-                #else
-                    /* default size of chunks of memory to separate into */
-                    #define WOLFMEM_BUCKETS 64,128,256,512,1024,8192,32768,\
-                                            65536,LARGEST_MEM_BUCKET
-                #endif
+            #ifdef WOLFSSL_HAVE_MLDSA
+                /* default size of chunks of memory to separate into */
+                #define WOLFMEM_BUCKETS 64,128,256,512,1024,8192,32768,\
+                                        65536,LARGEST_MEM_BUCKET
             #elif defined(WOLFSSL_HAVE_MLKEM)
                 /* extra storage in structs for multiple attributes and order */
                 #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,4096,8192,\
@@ -204,15 +188,8 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     #endif
 
     #ifndef WOLFMEM_DIST
-        #ifdef HAVE_DILITHIUM
-            #if defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) && \
-                defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) && \
-                defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM) && \
-                defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
-                #define WOLFMEM_DIST    20,8,6,10,8,6,4,2,1
-            #else
-                #define WOLFMEM_DIST    30,10,8,15,8,10,8,5,1
-            #endif
+        #ifdef WOLFSSL_HAVE_MLDSA
+            #define WOLFMEM_DIST    30,10,8,15,8,10,8,5,1
         #elif defined(WOLFSSL_HAVE_MLKEM)
             #define WOLFMEM_DIST    49,10,6,14,5,6,14,1,1
         #elif !defined(WOLFSSL_STATIC_MEMORY_SMALL)

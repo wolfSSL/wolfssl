@@ -19,6 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* NOTE: this file is named test_mldsa.c (canonical FIPS 204 spelling) but
+ * the test bodies still gate on legacy WOLFSSL_DILITHIUM_* names and call
+ * legacy wc_dilithium_* / dilithium_key APIs. That is intentional: the
+ * provider-side rename (Dilithium -> ML-DSA, see <wolfssl/wolfcrypt/dilithium.h>
+ * and <wolfssl/wolfcrypt/wc_mldsa.h>) keeps in-tree consumers on the
+ * pre-standardization spelling so the rename PR stays scoped to provider
+ * code only. A separate follow-up commit will migrate this file's call
+ * sites and #ifdef gates to canonical WOLFSSL_MLDSA_* / wc_MlDsaKey_*
+ * spellings; until then both spellings are kept in sync by the temporary
+ * compatibility shim in <wolfssl/wolfcrypt/dilithium.h>. */
+
 #include <tests/unit.h>
 
 #ifdef NO_INLINE
@@ -30423,3 +30434,284 @@ int test_mldsa_x509_pubkey_sigtype(void)
 #endif /* HAVE_DILITHIUM && OPENSSL_EXTRA && !NO_CERTS && !NO_FILESYSTEM */
     return EXPECT_RESULT();
 }
+
+/* ===========================================================================
+ * Compile-time API surface validation.
+ *
+ * The two functions below are not runtime tests. Their bodies sit inside
+ * `if (0)` so the compiler parses every reference without emitting any
+ * runtime call. Their job is to fail compilation if the canonical
+ * wc_MlDsaKey_* / MlDsaKey API in <wolfssl/wolfcrypt/wc_mldsa.h> or the
+ * legacy alias surface in <wolfssl/wolfcrypt/dilithium.h> drifts in a way
+ * that would silently break a downstream consumer. They live in this test
+ * translation unit (rather than wolfcrypt/src/wc_mldsa.c) so the library
+ * itself has no dependency on the check; the safety net only fires when
+ * `make check` is run.
+ *
+ * Storage class: GCC/Clang get __attribute__((unused, always_inline)) so
+ * unreferenced static functions don't trip -Werror=unused-function;
+ * non-GNU compilers fall back to plain static WC_INLINE.
+ * ===========================================================================
+ */
+#if defined(HAVE_DILITHIUM)
+
+#ifdef __GNUC__
+    #define WOLFSSL_MLDSA_API_CHECK_INLINE static __inline__ \
+        __attribute__((unused, always_inline))
+#else
+    #define WOLFSSL_MLDSA_API_CHECK_INLINE static WC_INLINE
+#endif
+
+/* Compile-time validation of the canonical wc_MlDsaKey_* / MlDsaKey API. */
+WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_canonical_api_check(void)
+{
+    if (0) {
+        MlDsaKey k;
+        const MlDsaParams *p;
+        const byte buf[1] = { 0 };
+        word32 sz = 0;
+        byte level = 0;
+        int res = 0;
+        WC_RNG *rng = NULL;
+
+        (void)sizeof(MlDsaKey);
+        (void)sizeof(MlDsaParams);
+
+        /* Lifecycle / parameters. */
+        (void)wc_MlDsaKey_Init(&k, NULL, INVALID_DEVID);
+    #ifdef WOLF_PRIVATE_KEY_ID
+        (void)wc_MlDsaKey_InitId(&k, NULL, 0, NULL, INVALID_DEVID);
+        (void)wc_MlDsaKey_InitLabel(&k, NULL, NULL, INVALID_DEVID);
+    #endif
+    #ifndef WC_NO_CONSTRUCTORS
+        (void)wc_MlDsaKey_New(NULL, INVALID_DEVID);
+        (void)wc_MlDsaKey_Delete(&k, NULL);
+    #endif
+        wc_MlDsaKey_Free(&k);
+        (void)wc_MlDsaKey_SetParams(&k, level);
+        (void)wc_MlDsaKey_GetParams(&k, &level);
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        (void)wc_MlDsaKey_Size(&k);
+        #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_MlDsaKey_PrivSize(&k);
+        #endif
+    #endif
+    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_MlDsaKey_PubSize(&k);
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+        (void)wc_MlDsaKey_SigSize(&k);
+    #endif
+    #ifdef WOLFSSL_MLDSA_CHECK_KEY
+        (void)wc_MlDsaKey_CheckKey(&k);
+    #endif
+
+        /* Length getters. */
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        (void)wc_MlDsaKey_GetPrivLen(&k, NULL);
+    #endif
+    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_MlDsaKey_GetPubLen(&k, NULL);
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+        (void)wc_MlDsaKey_GetSigLen(&k, NULL);
+    #endif
+
+        /* Make / import / export. */
+    #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+        (void)wc_MlDsaKey_MakeKey(&k, rng);
+        (void)wc_MlDsaKey_MakeKeyFromSeed(&k, NULL);
+    #endif
+    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_MlDsaKey_ImportPubRaw(&k, buf, sz);
+        (void)wc_MlDsaKey_ExportPubRaw(&k, NULL, &sz);
+    #endif
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        (void)wc_MlDsaKey_ImportPrivRaw(&k, buf, sz);
+        (void)wc_MlDsaKey_ImportKey(&k, buf, sz, buf, sz);
+        (void)wc_MlDsaKey_ExportPrivRaw(&k, NULL, &sz);
+        (void)wc_MlDsaKey_ExportKey(&k, NULL, &sz, NULL, &sz);
+    #endif
+
+        /* Sign side. */
+    #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+        #ifdef WOLFSSL_MLDSA_NO_CTX
+        (void)wc_MlDsaKey_Sign(&k, NULL, &sz, buf, sz, rng);
+        (void)wc_MlDsaKey_SignWithSeed(&k, NULL, &sz, buf, sz, NULL);
+        #endif
+        (void)wc_MlDsaKey_SignCtx(&k, NULL, 0, NULL, &sz, buf, sz, rng);
+        (void)wc_MlDsaKey_SignCtxHash(&k, NULL, 0, NULL, &sz, buf, sz, 0, rng);
+        (void)wc_MlDsaKey_SignCtxWithSeed(&k, NULL, 0, NULL, &sz, buf, sz, NULL);
+        (void)wc_MlDsaKey_SignCtxHashWithSeed(&k, NULL, 0, NULL, &sz, buf, sz, 0,
+                                              NULL);
+        (void)wc_MlDsaKey_SignMuWithSeed(&k, NULL, &sz, buf, sz, NULL);
+    #endif
+
+        /* Verify side. */
+    #ifdef WOLFSSL_MLDSA_NO_CTX
+        (void)wc_MlDsaKey_Verify(&k, buf, sz, buf, sz, &res);
+    #endif
+        (void)wc_MlDsaKey_VerifyCtx(&k, buf, sz, NULL, 0, buf, sz, &res);
+        (void)wc_MlDsaKey_VerifyCtxHash(&k, buf, sz, NULL, 0, buf, sz, 0, &res);
+        (void)wc_MlDsaKey_VerifyMu(&k, buf, sz, buf, sz, &res);
+
+        /* DER decode / encode. */
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        (void)wc_MlDsaKey_PrivateKeyDecode(&k, buf, sz, &sz);
+        (void)wc_MlDsaKey_PrivateKeyToDer(&k, NULL, sz);
+        (void)wc_MlDsaKey_KeyToDer(&k, NULL, sz);
+        #endif
+        #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_MlDsaKey_PublicKeyDecode(&k, buf, sz, &sz);
+        #endif
+        #if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+            defined(WC_ENABLE_ASYM_KEY_EXPORT)
+        (void)wc_MlDsaKey_PublicKeyToDer(&k, NULL, sz, 0);
+        #endif
+    #endif
+
+        /* Cross-reference: params struct field on the key. */
+        p = k.params;
+        (void)p;
+
+        (void)res;
+        (void)rng;
+        (void)sz;
+        (void)buf;
+        (void)level;
+    }
+}
+
+/* Compile-time validation of the dilithium.h legacy alias shim. */
+#if !defined(WOLFSSL_NO_DILITHIUM_LEGACY_NAMES)
+
+WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_legacy_alias_check(void)
+{
+    if (0) {
+        MlDsaKey k;
+        dilithium_key *kp = (dilithium_key *)0;
+        const wc_dilithium_params *pp = (const wc_dilithium_params *)0;
+        const byte buf[1] = { 0 };
+        word32 sz = 0;
+        WC_RNG *rng = NULL;
+        int res = 0;
+        byte level = 0;
+
+        (void)kp;
+        (void)pp;
+
+        /* Type aliases. */
+        (void)sizeof(dilithium_key);
+        (void)sizeof(wc_dilithium_params);
+
+        /* No-arg-reorder lifecycle / parameters. */
+        (void)wc_dilithium_init(&k);
+        (void)wc_dilithium_init_ex(&k, NULL, INVALID_DEVID);
+    #ifdef WOLF_PRIVATE_KEY_ID
+        (void)wc_dilithium_init_id(&k, NULL, 0, NULL, INVALID_DEVID);
+        (void)wc_dilithium_init_label(&k, NULL, NULL, INVALID_DEVID);
+    #endif
+    #ifndef WC_NO_CONSTRUCTORS
+        (void)wc_dilithium_new(NULL, INVALID_DEVID);
+        (void)wc_dilithium_delete(&k, NULL);
+    #endif
+        wc_dilithium_free(&k);
+        (void)wc_dilithium_set_level(&k, level);
+        (void)wc_dilithium_get_level(&k, &level);
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        (void)wc_dilithium_size(&k);
+        #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_dilithium_priv_size(&k);
+        #endif
+    #endif
+    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_dilithium_pub_size(&k);
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+        (void)wc_dilithium_sig_size(&k);
+    #endif
+    #ifdef WOLFSSL_MLDSA_CHECK_KEY
+        (void)wc_dilithium_check_key(&k);
+    #endif
+
+        /* Make / import / export (arg-reorder). */
+    #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+        (void)wc_dilithium_make_key(&k, rng);
+        (void)wc_dilithium_make_key_from_seed(&k, NULL);
+    #endif
+    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_dilithium_import_public(buf, sz, &k);
+        (void)wc_dilithium_export_public(&k, NULL, &sz);
+    #endif
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        (void)wc_dilithium_import_private(buf, sz, &k);
+        (void)wc_dilithium_import_private_only(buf, sz, &k);
+        (void)wc_dilithium_import_key(buf, sz, buf, sz, &k);
+        (void)wc_dilithium_export_private(&k, NULL, &sz);
+        (void)wc_dilithium_export_private_only(&k, NULL, &sz);
+        (void)wc_dilithium_export_key(&k, NULL, &sz, NULL, &sz);
+    #endif
+
+        /* Sign / verify (arg-reorder). */
+    #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+        #ifdef WOLFSSL_MLDSA_NO_CTX
+        (void)wc_dilithium_sign_msg(buf, sz, NULL, &sz, &k, rng);
+        (void)wc_dilithium_sign_msg_with_seed(buf, sz, NULL, &sz, &k, NULL);
+        #endif
+        (void)wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, NULL, &sz, &k, rng);
+        (void)wc_dilithium_sign_ctx_hash(NULL, 0, 0, buf, sz, NULL, &sz, &k,
+                                         rng);
+        (void)wc_dilithium_sign_ctx_msg_with_seed(NULL, 0, buf, sz, NULL, &sz,
+                                                  &k, NULL);
+        (void)wc_dilithium_sign_ctx_hash_with_seed(NULL, 0, 0, buf, sz, NULL,
+                                                   &sz, &k, NULL);
+        (void)wc_dilithium_sign_mu_with_seed(buf, sz, NULL, &sz, &k, NULL);
+    #endif
+    #ifdef WOLFSSL_MLDSA_NO_CTX
+        (void)wc_dilithium_verify_msg(buf, sz, buf, sz, &res, &k);
+    #endif
+        (void)wc_dilithium_verify_ctx_msg(buf, sz, NULL, 0, buf, sz, &res, &k);
+        (void)wc_dilithium_verify_ctx_hash(buf, sz, NULL, 0, 0, buf, sz, &res,
+                                           &k);
+        (void)wc_dilithium_verify_mu(buf, sz, buf, sz, &res, &k);
+
+        /* DER decode / encode (arg-reorder). */
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        (void)wc_Dilithium_PrivateKeyDecode(buf, &sz, &k, sz);
+        (void)wc_Dilithium_PrivateKeyToDer(&k, NULL, sz);
+        (void)wc_Dilithium_KeyToDer(&k, NULL, sz);
+        #endif
+        #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        (void)wc_Dilithium_PublicKeyDecode(buf, &sz, &k, sz);
+        #endif
+        #if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+            defined(WC_ENABLE_ASYM_KEY_EXPORT)
+        (void)wc_Dilithium_PublicKeyToDer(&k, NULL, sz, 0);
+        #endif
+    #endif
+
+        /* Internal-helper aliases (see dilithium.h). */
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        (void)dilithium_get_oid_sum(&k, NULL);
+    #endif
+    #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+        #ifndef WOLFSSL_NO_ML_DSA_44
+        wc_dilithium_encode_w1_88(NULL, NULL);
+        #endif
+        #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+        wc_dilithium_encode_w1_32(NULL, NULL);
+        #endif
+    #endif
+
+        (void)res;
+        (void)rng;
+        (void)sz;
+        (void)buf;
+        (void)level;
+    }
+}
+#endif /* !WOLFSSL_NO_DILITHIUM_LEGACY_NAMES */
+
+#endif /* HAVE_DILITHIUM */

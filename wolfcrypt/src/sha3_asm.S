@@ -9928,7 +9928,7 @@ L_sha3_block_n_avx2_rounds:
 #ifndef __APPLE__
 .size	sha3_block_n_avx2,.-sha3_block_n_avx2
 #endif /* __APPLE__ */
-#if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
 #ifndef __APPLE__
 .text
 .globl	sha3_blocksx4_avx2
@@ -20664,7 +20664,7 @@ _sha3_128_blocksx4_seed_avx2:
 #ifndef __APPLE__
 .size	sha3_128_blocksx4_seed_avx2,.-sha3_128_blocksx4_seed_avx2
 #endif /* __APPLE__ */
-#endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA) */
+#endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA) */
 #ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
 .data
@@ -26045,7 +26045,7 @@ _sha3_256_blocksx4_seed_avx2:
 .size	sha3_256_blocksx4_seed_avx2,.-sha3_256_blocksx4_seed_avx2
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_HAVE_MLKEM */
-#ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_HAVE_MLDSA
 #ifndef __APPLE__
 .data
 #else
@@ -31448,7 +31448,7 @@ _sha3_256_blocksx4_seed_64_avx2:
 #ifndef __APPLE__
 .size	sha3_256_blocksx4_seed_64_avx2,.-sha3_256_blocksx4_seed_64_avx2
 #endif /* __APPLE__ */
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 #endif /* HAVE_INTEL_AVX2 */
 
 #if defined(__linux__) && defined(__ELF__)

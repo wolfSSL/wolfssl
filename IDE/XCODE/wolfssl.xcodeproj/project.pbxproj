@@ -253,6 +253,7 @@
 		700F0C0A2A2FBC5100755BA7 /* curve448.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BE32A2FBC1500755BA7 /* curve448.h */; };
 		700F0C0B2A2FBC5100755BA7 /* curve25519.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BE52A2FBC1500755BA7 /* curve25519.h */; };
 		700F0C0C2A2FBC5100755BA7 /* dilithium.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BEF2A2FBC1500755BA7 /* dilithium.h */; };
+		700F0BEF2A2FBC1500755BC0 /* wc_mldsa.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BEF2A2FBC1500755BC1 /* wc_mldsa.h */; };
 		700F0C0D2A2FBC5100755BA7 /* eccsi.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF72A2FBC1600755BA7 /* eccsi.h */; };
 		700F0C0E2A2FBC5100755BA7 /* ed448.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF82A2FBC1600755BA7 /* ed448.h */; };
 		700F0C0F2A2FBC5100755BA7 /* ed25519.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF42A2FBC1600755BA7 /* ed25519.h */; };
@@ -617,6 +618,7 @@
 				700F0C0A2A2FBC5100755BA7 /* curve448.h in CopyFiles */,
 				700F0C0B2A2FBC5100755BA7 /* curve25519.h in CopyFiles */,
 				700F0C0C2A2FBC5100755BA7 /* dilithium.h in CopyFiles */,
+				700F0BEF2A2FBC1500755BC0 /* wc_mldsa.h in CopyFiles */,
 				700F0C0D2A2FBC5100755BA7 /* eccsi.h in CopyFiles */,
 				700F0C0E2A2FBC5100755BA7 /* ed448.h in CopyFiles */,
 				700F0C0F2A2FBC5100755BA7 /* ed25519.h in CopyFiles */,
@@ -983,6 +985,7 @@
 		700F0BED2A2FBC1500755BA7 /* chacha20_poly1305.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chacha20_poly1305.h; path = ../../wolfssl/wolfcrypt/chacha20_poly1305.h; sourceTree = "<group>"; };
 		700F0BEE2A2FBC1500755BA7 /* cryptocb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cryptocb.h; path = ../../wolfssl/wolfcrypt/cryptocb.h; sourceTree = "<group>"; };
 		700F0BEF2A2FBC1500755BA7 /* dilithium.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dilithium.h; path = ../../wolfssl/wolfcrypt/dilithium.h; sourceTree = "<group>"; };
+		700F0BEF2A2FBC1500755BC1 /* wc_mldsa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wc_mldsa.h; path = ../../wolfssl/wolfcrypt/wc_mldsa.h; sourceTree = "<group>"; };
 		700F0BF02A2FBC1500755BA7 /* sakke.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sakke.h; path = ../../wolfssl/wolfcrypt/sakke.h; sourceTree = "<group>"; };
 		700F0BF12A2FBC1600755BA7 /* cpuid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpuid.h; path = ../../wolfssl/wolfcrypt/cpuid.h; sourceTree = "<group>"; };
 		700F0BF22A2FBC1600755BA7 /* selftest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = selftest.h; path = ../../wolfssl/wolfcrypt/selftest.h; sourceTree = "<group>"; };
@@ -1144,6 +1147,7 @@
 				700F0BE32A2FBC1500755BA7 /* curve448.h */,
 				700F0BE52A2FBC1500755BA7 /* curve25519.h */,
 				700F0BEF2A2FBC1500755BA7 /* dilithium.h */,
+				700F0BEF2A2FBC1500755BC1 /* wc_mldsa.h */,
 				700F0BF72A2FBC1600755BA7 /* eccsi.h */,
 				700F0BF82A2FBC1600755BA7 /* ed448.h */,
 				700F0BF42A2FBC1600755BA7 /* ed25519.h */,

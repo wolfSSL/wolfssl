@@ -23,6 +23,19 @@
   NULL/length/`MISSING_KEY` checks as the `*Hash*` family.
   `wc_SlhDsaKey_VerifyMsg` is unchanged. All three gain doxygen coverage.
 
+* Renamed the post-quantum signature implementation from its
+  pre-standardization name *Dilithium* to its NIST-standardized name
+  **ML-DSA** (FIPS 204), mirroring the earlier Kyber → ML-KEM rename
+  in `wc_mlkem.{h,c}`. The legacy `<wolfssl/wolfcrypt/dilithium.h>`
+  header, `dilithium_key` type, `wc_dilithium_*` / `wc_Dilithium_*`
+  functions, and `HAVE_DILITHIUM` / `WOLFSSL_DILITHIUM_*` /
+  `WC_DILITHIUM_*` build gates remain available through a temporary
+  compatibility shim, so application code keeps compiling unchanged.
+  See [doc/dilithium-to-mldsa-migration.md](doc/dilithium-to-mldsa-migration.md)
+  for the full list of renamed symbols, the new `WOLFSSL_MLDSA` cmake
+  option / `--enable-mldsa` configure switch, and the migration steps
+  for moving consumer code to the canonical API.
+
 * TLS 1.3: zero traffic key staging buffers in `SetKeysSide()` once a
   CryptoCB callback has imported the AES key into a Secure Element
   (`aes->devCtx != NULL`).  Clears `keys->{client,server}_write_key`
