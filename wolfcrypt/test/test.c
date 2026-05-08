@@ -36887,6 +36887,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     }
 
     x = ECC_SIG_SIZE;
+    XMEMSET(sig, 0, ECC_SIG_SIZE);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);

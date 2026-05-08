@@ -38112,7 +38112,7 @@ static int rfc9802_verify_one_cert(const char* path, word32 expectedKeyOID,
      * its bytes lie between (certBegin + outerSeqHeader) and sigIndex.
      * Picking the midpoint ensures we're inside TBS regardless of the
      * fixture's DN / extensions layout. */
-    if (tampered != NULL && sigIndex > certBegin + 8u) {
+    if (tampered != NULL && sigIndex > certBegin + 8U) {
         word32 midTbs = certBegin + 8 + ((sigIndex - (certBegin + 8)) / 2);
         XMEMCPY(tampered, buf, (size_t)bytes);
         tampered[midTbs] ^= 0x01;
