@@ -157,6 +157,20 @@ static int ateccx08a_cfg_initialized = 0;
         .rx_retries = 20,
     },
 #endif
+#if !defined(WOLFSSL_MANUALLY_SELECT_DEVICE_CONFIG) && \
+    !(defined(WOLFSSL_ATECC608A) && defined(MICROCHIP_MPLAB_HARMONY_3)) && \
+    !defined(ATCA_HAL_SPI) && !defined(ATCA_HAL_I2C)
+    {
+        /* Custom HAL users provide callbacks later through
+         * wolfCrypt_ATECC_SetConfig(), but gCfg still needs a valid default
+         * backing object so configure-time warning builds do not see an empty
+         * config array. */
+        .iface_type = ATCA_CUSTOM_IFACE,
+        .devtype    = MICROCHIP_DEV_TYPE,
+        .wake_delay = 1500,
+        .rx_retries = 20,
+    },
+#endif
 };
 static ATCAIfaceCfg* gCfg = &config_atmel_device[WOLFSSL_ATCA_DEVICE_NO];
 

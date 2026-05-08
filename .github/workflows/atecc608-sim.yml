@@ -68,6 +68,11 @@ jobs:
           sed -i "/^RUN python3 - <<'PY'$/,/^PY$/d" Dockerfile.wolfcrypt
           ! grep -q "RUN python3 - <<'PY'" Dockerfile.wolfcrypt
 
+          # The simulator Dockerfile predates the new configure contract where
+          # --with-cryptoauthlib must be paired with --enable-microchip=<dev>.
+          sed -i 's/--with-cryptoauthlib=\/usr \\/--enable-microchip=608 \\\n        --with-cryptoauthlib=\/usr \\/' Dockerfile.wolfcrypt
+          grep -q -- '--enable-microchip=608' Dockerfile.wolfcrypt
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Build wolfCrypt-ATECC608 test image
