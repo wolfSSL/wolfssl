@@ -371,6 +371,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_Dh_ffdhe6144_Get", "dh_ffdhe_6144");
     check_cfg(&binding, "wc_Dh_ffdhe8192_Get", "dh_ffdhe_8192");
 
+    /* crypto callback */
+    check_cfg(&binding, "wc_CryptoCb_RegisterDevice", "wolf_crypto_cb");
+
     /* ecc */
     check_cfg(&binding, "wc_ecc_init", "ecc");
     check_cfg(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key");
