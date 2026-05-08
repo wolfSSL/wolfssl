@@ -591,7 +591,8 @@ int test_wc_DsaCheckPubKey(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_DSA) && !defined(WC_FIPS_186_5_PLUS) && \
-    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && defined(WOLFSSL_PUBLIC_MP)
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && defined(WOLFSSL_PUBLIC_MP) \
+    && !defined(NO_DSA_PUBKEY_CHECK)
     DsaKey key;
     int    answer = -1;
     int    ret;

@@ -114,6 +114,7 @@ void wc_FreeDsaKey(DsaKey* key)
  * return 0 on success, BAD_FUNC_ARG when the key fails validation, or a
  *        negative error code on internal failure.
  */
+#ifndef NO_DSA_PUBKEY_CHECK
 int wc_DsaCheckPubKey(DsaKey* key)
 {
     int err = MP_OKAY;
@@ -189,6 +190,7 @@ int wc_DsaCheckPubKey(DsaKey* key)
 
     return err;
 }
+#endif /* !NO_DSA_PUBKEY_CHECK */
 
 /* validate that (L,N) match allowed sizes from FIPS 186-4, Section 4.2.
  * modLen - represents L, the size of p (prime modulus) in bits
