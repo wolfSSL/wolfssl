@@ -1196,25 +1196,25 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(random)]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
     ///
-    /// let rng = std::sync::Arc::new(RNG::new().expect("Error creating RNG"));
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_rng(RNG::new().expect("Error creating RNG")).expect("Error with set_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
-    /// let enc_len = rsa.public_encrypt(plain, &mut enc, &rng).expect("Error with public_encrypt()");
+    /// let enc_rng = RNG::new().expect("Error creating RNG");
+    /// let enc_len = rsa.public_encrypt(plain, &mut enc, &enc_rng).expect("Error with public_encrypt()");
     /// assert!(enc_len > 0 && enc_len <= 512);
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
-    /// rsa.set_shared_rng(std::sync::Arc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// rsa.set_rng(RNG::new().expect("Error creating RNG")).expect("Error with set_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
