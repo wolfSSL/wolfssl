@@ -2026,6 +2026,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
     word16  size = 0, offset = 0, wlen;
     int     r = WC_NO_ERR_TRACE(BUFFER_ERROR);
     const byte *s;
+    word16  entryCount = 0;
 
     if (OPAQUE16_LEN > length)
         return BUFFER_ERROR;
@@ -2042,6 +2043,15 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         wlen = *s++;
         if (wlen == 0 || (s + wlen - input) > length)
             return BUFFER_ERROR;
+        entryCount++;
+    }
+
+    /* RFC 7301 Section 3.1: the server's ProtocolNameList in its ALPN
+     * response MUST contain exactly one ProtocolName. */
+    if (!isRequest && entryCount != 1) {
+        SendAlert(ssl, alert_fatal, decode_error);
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        return BUFFER_ERROR;
     }
 
     if (isRequest) {
