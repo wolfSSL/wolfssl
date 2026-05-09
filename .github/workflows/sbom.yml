@@ -7,6 +7,16 @@ on:
   pull_request:
     branches: [ '*' ]
 
+# Defence-in-depth: the workflow does no API writes (no `gh pr`, no
+# `git push`, no release upload), so the practical risk of the default
+# read-write GITHUB_TOKEN on push events is zero today.  Setting
+# `contents: read` at workflow level is GitHub's documented hardening
+# recommendation for SBOM-producing supply-chain workflows: a future
+# step that accidentally introduces a write call will fail loudly
+# rather than silently mutate the repo.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -34,8 +44,12 @@ jobs:
         # entire embedded entry point unverified at the cheapest CI
         # gate.  The setUp now hard-fails on missing pcpp; this step
         # ensures it is present so all unit tests actually run.
+        # Pinned to match the convention used elsewhere in this file
+        # (spdx-tools==0.8.*, ntia-conformance-checker==5.*) so a pcpp
+        # release that changes macro-expansion or noise semantics does
+        # not silently shift SBOM build_props on master.
         run: |
-          python3 -m pip install --user pcpp
+          python3 -m pip install --user 'pcpp==1.30.*'
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Unit tests
@@ -63,7 +77,7 @@ jobs:
         # spdx-tools is for the post-generation validation step.
         run: |
           python3 -m pip install --user --upgrade pip
-          python3 -m pip install --user pcpp 'spdx-tools==0.8.*'
+          python3 -m pip install --user 'pcpp==1.30.*' 'spdx-tools==0.8.*'
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Generate SBOM via standalone Python entry point
@@ -880,7 +894,13 @@ jobs:
           # the patch's context lines in src/strace.c.
           STRACE_TAG: v6.7
         run: |
-          git clone https://github.com/omnibor/bomsh /tmp/bomsh
+          # --filter=blob:none is the cleanest "shallow-ish" clone when
+          # checking out a specific SHA: it skips file blobs but keeps
+          # the commit graph, so `git checkout $BOMSH_SHA` still works.
+          # `--depth=1` would only work with `--branch <ref>`, not a
+          # raw SHA.  The strace clone below uses `--depth=1 --branch`
+          # because it pins to a release tag.
+          git clone --filter=blob:none https://github.com/omnibor/bomsh /tmp/bomsh
           git -C /tmp/bomsh checkout "$BOMSH_SHA"
           # Even with a pinned SHA, keep the layout-drift guard so the
           # next maintainer who bumps BOMSH_SHA gets a clear error if
