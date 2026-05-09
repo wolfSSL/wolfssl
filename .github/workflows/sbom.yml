@@ -27,6 +27,17 @@ jobs:
       - name: Syntax check
         run: python3 -m py_compile scripts/gen-sbom
 
+      - name: Install pcpp
+        # pcpp is the in-Python C preprocessor that drives the
+        # standalone --user-settings entry point.  TestParseUserSettings
+        # previously skipped here when pcpp was missing, leaving the
+        # entire embedded entry point unverified at the cheapest CI
+        # gate.  The setUp now hard-fails on missing pcpp; this step
+        # ensures it is present so all unit tests actually run.
+        run: |
+          python3 -m pip install --user pcpp
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Unit tests
         run: python3 -W error::ResourceWarning -m unittest scripts/test_gen_sbom.py -v
 

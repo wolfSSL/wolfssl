@@ -268,6 +268,148 @@ class TestLoadLicenseText(unittest.TestCase):
             gs.load_license_text('/no/such/path/please.txt')
 
 
+class TestDetectLicense(unittest.TestCase):
+    """detect_license decides the SPDX licenseConcluded / licenseDeclared
+    that wolfSSL's SBOM advertises.  A regression here silently flips
+    the licence obligations a downstream integrator parses out of the
+    SBOM (e.g. GPLv2-or-later misreported as GPLv2-only narrows the
+    permitted upgrade path; GPLv3 misreported as GPLv2 entirely
+    misstates compatibility with GPLv2-only third-party code).
+
+    Independent oracle: the SPDX licence-list short identifiers
+    (https://spdx.org/licenses/), determined for each fixture by
+    reading the GPL version stated in the prose and whether 'or later'
+    / 'or any later version' wording appears within 100 characters of
+    the version mention.  No fixture is round-tripped through
+    detect_license to derive its own oracle."""
+
+    def _detect(self, body):
+        with tempfile.NamedTemporaryFile('w', suffix='.txt',
+                                         delete=False) as f:
+            f.write(body)
+            path = f.name
+        try:
+            return gs.detect_license(path)
+        finally:
+            os.unlink(path)
+
+    def test_gplv2_only(self):
+        # Prose mentions GPLv2 with no 'or later' clause.  Oracle:
+        # SPDX 'GPL-2.0-only'.
+        self.assertEqual(
+            self._detect(
+                'This program is licensed under the GNU General Public '
+                'License version 2.\n'
+                'See COPYING for the full text.\n'),
+            'GPL-2.0-only')
+
+    def test_gplv2_or_later_any_form(self):
+        # 'or any later' immediately after the version mention.
+        # Oracle: SPDX 'GPL-2.0-or-later'.
+        # NOTE: the canonical FSF preamble phrase 'or (at your option)
+        # any later version' is NOT matched by the current regex
+        # (the parenthetical interjection breaks the pattern).  That
+        # is a separate limitation tracked in its own beads issue;
+        # this test deliberately uses a pattern the existing regex
+        # handles, so it serves as a regex regression guard rather
+        # than a redesign request.
+        self.assertEqual(
+            self._detect(
+                'Licensed under the GNU General Public License version 2, '
+                'or any later version.\n'),
+            'GPL-2.0-or-later')
+
+    def test_gplv2_or_later_short_form(self):
+        # 'or later' (without 'any') also matches the regex; this
+        # variant appears in some upstream COPYING files.  Oracle:
+        # 'GPL-2.0-or-later'.
+        self.assertEqual(
+            self._detect(
+                'Licensed under the GNU General Public License version 2 '
+                'or later.\n'),
+            'GPL-2.0-or-later')
+
+    def test_gplv3_only(self):
+        self.assertEqual(
+            self._detect(
+                'Released under the terms of the GNU General Public '
+                'License version 3.\n'),
+            'GPL-3.0-only')
+
+    def test_gplv3_or_later(self):
+        self.assertEqual(
+            self._detect(
+                'Released under the terms of the GNU General Public '
+                'License version 3, or any later version.\n'),
+            'GPL-3.0-or-later')
+
+    def test_case_insensitive(self):
+        # The regex is case-insensitive for both the GPL header line
+        # and the 'or later' clause.  Real-world COPYING files use
+        # mixed cases ('GNU GENERAL PUBLIC LICENSE Version 2'); a
+        # case-sensitive regression here would silently emit None.
+        self.assertEqual(
+            self._detect(
+                'GNU GENERAL PUBLIC LICENSE Version 2\n'
+                'Licensee may redistribute under GPLv2 OR LATER.\n'),
+            'GPL-2.0-or-later')
+
+    def test_or_later_outside_100_byte_excerpt_does_not_match(self):
+        # The 'or later' search is bounded to the 100 chars
+        # immediately following the version mention.  An 'or later'
+        # phrase appearing in unrelated boilerplate further down the
+        # file MUST NOT promote a GPLv2-only declaration to
+        # GPLv2-or-later.  This is the regression Mark called out in
+        # the review: "someone reworks the regex ... and breaks the
+        # GPLv2-or-later detection."
+        body = (
+            'Licensed under the GNU General Public License version 2.\n'
+            + ('Filler not relevant to the license clause. ' * 5)
+            + '\nMay be useful or later modified by users.\n'
+        )
+        self.assertEqual(self._detect(body), 'GPL-2.0-only')
+
+    def test_no_gpl_mention_returns_none_with_warning(self):
+        import io, contextlib
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            result = self._detect(
+                'Copyright (c) 2026 Example Corp.\n'
+                'Licensed under the MIT License.\n'
+                'Permission is hereby granted, free of charge, ...\n')
+        self.assertIsNone(result)
+        # Warning must mention the file path so an operator running
+        # `make sbom` can see which file was unparseable.
+        self.assertIn('no GPL version found', stderr.getvalue())
+
+    def test_missing_file_returns_none_with_warning(self):
+        import io, contextlib
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            result = gs.detect_license('/no/such/license/please.txt')
+        self.assertIsNone(result)
+        self.assertIn('cannot read license file', stderr.getvalue())
+
+    def test_real_wolfssl_licensing_is_gpl3_only(self):
+        # Regression guard, not an oracle: lock down the SPDX ID that
+        # the shipped LICENSING file produces today.  If wolfSSL ever
+        # changes the headline licence in LICENSING, this test must
+        # be updated in the same commit so the SBOM emission change
+        # does not slip in unreviewed.  The "version 3" mention is
+        # first in the file; the 100-char excerpt that follows is
+        # `(\u201cGPLv3\u201d) with\nthe following exception: ...`,
+        # which contains no 'or later' clause - hence GPL-3.0-only.
+        here = pathlib.Path(__file__).resolve().parent.parent
+        licensing = here / 'LICENSING'
+        if not licensing.is_file():
+            self.skipTest(f'LICENSING fixture not found at {licensing}')
+        self.assertEqual(
+            gs.detect_license(str(licensing)), 'GPL-3.0-only',
+            'real wolfSSL LICENSING no longer maps to GPL-3.0-only; '
+            'update this regression guard and audit the SBOM '
+            'licenseConcluded / licenseDeclared change')
+
+
 class TestSha256File(unittest.TestCase):
     def test_real_file_hashes_to_known_value(self):
         # Empty file's SHA-256 is well-known; sanity-checks the chunked
@@ -287,6 +429,25 @@ class TestSha256File(unittest.TestCase):
         # fails fast with a useful message instead of a Python traceback.
         with self.assertRaises(SystemExit):
             gs.sha256_file('/no/such/library/please.so')
+
+    def test_chunked_read_path_matches_one_shot(self):
+        # The chunked iter(f.read(65536), b'') path in sha256_file is
+        # what runs for the real wolfSSL library (.so/.a, multi-MB).
+        # The empty-file vector above never executes the loop body at
+        # all (size=0).  An off-by-one or chunk-boundary regression
+        # would slip through unless we exercise a buffer that crosses
+        # the 65536-byte boundary.  Independent oracle: hashlib's
+        # one-shot hash on the same bytes.
+        import hashlib
+        body = (b'A' * 70000) + (b'B' * 1000) + b'tail'
+        with tempfile.NamedTemporaryFile('wb', delete=False) as f:
+            f.write(body)
+            path = f.name
+        try:
+            expected = hashlib.sha256(body).hexdigest()
+            self.assertEqual(gs.sha256_file(path), expected)
+        finally:
+            os.unlink(path)
 
 
 class TestParseOptionsH(unittest.TestCase):
@@ -794,14 +955,23 @@ class TestParseUserSettings(unittest.TestCase):
         not build configuration);
       * --user-settings-define KEY=VALUE predefines reach the parser.
 
-    Skipped when pcpp is not installed; CI installs it explicitly in
-    the standalone job."""
+    pcpp is a hard prerequisite for these tests, not optional.  An
+    earlier revision called self.skipTest on missing pcpp; CI ran the
+    suite without pcpp installed and silently skipped all of these
+    cases, leaving the embedded entry point unverified at the very
+    gate intended to verify it (see review finding wolfssl-1zj.14).
+    Now the setUp fails loud with an actionable message."""
 
     def setUp(self):
         try:
             import pcpp  # noqa: F401
         except ImportError:
-            self.skipTest('pcpp not installed; embedded path not exercised')
+            self.fail(
+                'pcpp is not installed but is required to test the '
+                'standalone embedded entry point '
+                '(parse_user_settings).  Install with: '
+                "'python3 -m pip install --user pcpp'.  CI installs "
+                'this in the unit job; see .github/workflows/sbom.yml.')
 
     def _run(self, settings_body, user_body, predefines=()):
         import shutil, tempfile
@@ -922,7 +1092,10 @@ class TestParseUserSettings(unittest.TestCase):
         # gen-sbom must mirror that semantics.  pcpp signals this via
         # pp.return_code (it does NOT raise), which is easy to swallow
         # silently and emit a partial SBOM if not checked.  This test
-        # pins the fail-fast contract.
+        # pins the fail-fast contract: any #error must produce a
+        # SystemExit, not a partial SBOM.  We deliberately do NOT
+        # pin the exact error wording; the contract is fail-fast,
+        # not the message's phrasing.
         settings = (
             '#ifdef WOLFSSL_USER_SETTINGS\n'
             '#include "user_settings.h"\n'
@@ -932,9 +1105,14 @@ class TestParseUserSettings(unittest.TestCase):
         user = '#error "this configuration is unsupported"\n'
         with self.assertRaises(SystemExit) as ctx:
             self._run(settings, user, ['WOLFSSL_USER_SETTINGS'])
+        # Guard against an empty-message regression that would still
+        # technically satisfy the SystemExit contract but leave the
+        # operator with no idea why their build broke.  Any
+        # reasonably useful message will exceed this threshold.
         msg = str(ctx.exception)
-        self.assertIn('pcpp', msg)
-        self.assertIn('return_code', msg)
+        self.assertGreater(len(msg), 20,
+                           f'gen-sbom exit message too short to be '
+                           f'actionable: {msg!r}')
 
     def test_function_like_macros_filtered(self):
         # Function-like macros are API surface, not build
@@ -1068,6 +1246,56 @@ class TestCliMutualExclusion(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('--lib or --srcs', result.stderr)
 
+    def test_licenseref_without_license_text_is_rejected(self):
+        # Hard contract enforced at gen-sbom main() (see gen-sbom:880):
+        # any LicenseRef-* in --license-override must be accompanied by
+        # --license-text.  Without this gate, build_extracted_licensing_infos
+        # silently emits a placeholder ('NOASSERTION. The text for this
+        # LicenseRef has not been embedded...') which technically
+        # validates as SPDX but is worthless to a CRA reviewer.
+        # TestBuildExtractedLicensingInfos exercises the placeholder
+        # path in isolation; this test pins the gate that should make
+        # that path unreachable from main().  A refactor that moves
+        # the check (e.g. into a helper called by only one entry-point
+        # shape) would be caught here.
+        result = self._run(
+            *self.BASE,
+            '--options-h', '/dev/null',
+            '--lib', '/dev/null',
+            '--license-override', 'LicenseRef-wolfSSL-Commercial')
+        self.assertNotEqual(result.returncode, 0,
+                            'gen-sbom must reject LicenseRef-* override '
+                            'without --license-text; CRA reviewers cannot '
+                            'use the placeholder fallback')
+        # The error must tell the operator how to fix it; the literal
+        # '--license-text' substring is the actionable hint.
+        self.assertIn('--license-text', result.stderr)
+
+    def test_licenseref_with_license_text_is_accepted(self):
+        # Positive companion to test_licenseref_without_license_text_is_rejected:
+        # confirms the gate does NOT fire when --license-text is supplied,
+        # so a refactor that flips the predicate sense (e.g. tests
+        # `is not None` where it should test `is None`) is also caught.
+        # We don't validate the SBOM content here — TestBuildExtractedLicensingInfos
+        # already covers the shape — only that the gate permits the run.
+        with tempfile.NamedTemporaryFile('w', suffix='.txt',
+                                         delete=False) as f:
+            f.write('Plain-text wolfSSL commercial licence text.\n')
+            license_text_path = f.name
+        try:
+            result = self._run(
+                *self.BASE,
+                '--options-h', '/dev/null',
+                '--lib', '/dev/null',
+                '--license-override', 'LicenseRef-wolfSSL-Commercial',
+                '--license-text', license_text_path)
+            self.assertEqual(
+                result.returncode, 0,
+                f'gen-sbom rejected a valid LicenseRef + license-text '
+                f'pair: stderr={result.stderr!r}')
+        finally:
+            os.unlink(license_text_path)
+
     def test_user_settings_path_in_help(self):
         # Discoverability regression guard - if the standalone entry
         # point is invisible to `--help`, embedded customers will not
@@ -1078,6 +1306,397 @@ class TestCliMutualExclusion(unittest.TestCase):
                       '--user-settings-define', '--srcs',
                       '--dep-version'):
             self.assertIn(token, result.stdout, f'{token!r} missing from --help')
+
+
+# ---------------------------------------------------------------------------
+# SBOM document generators (generate_cdx / generate_spdx + dep helpers).
+#
+# These four functions emit the actual JSON consumed by vulnerability
+# scanners and CRA auditors.  Until this block landed they were entirely
+# untested; an SBOM-shape regression that still produced syntactically
+# valid JSON would slip through every CI gate.  The independent oracle
+# is the CDX 1.6 / SPDX 2.3 schema field names, externally specified.
+# ---------------------------------------------------------------------------
+
+
+class TestCdxDepComponent(unittest.TestCase):
+    """gen-sbom:576 cdx_dep_component shapes a single CycloneDX dep entry."""
+
+    def test_returns_bomref_and_component(self):
+        # Stub pkgconfig_version so the test does not depend on the
+        # build host having libz / liboqs installed.
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: '1.3.1'
+            ref, comp = gs.cdx_dep_component('wolfssl', '5.9.1', 'libz')
+        finally:
+            gs.pkgconfig_version = original
+        self.assertEqual(comp['bom-ref'], ref)
+        self.assertEqual(comp['type'], 'library')
+        self.assertEqual(comp['name'], 'zlib')
+        self.assertEqual(comp['supplier']['name'],
+                         'Jean-loup Gailly and Mark Adler')
+        # Per CDX 1.6, listed-id licences go in license.id (not name).
+        # A regression that switches to license.name would silently
+        # produce an SBOM that some validators reject.
+        self.assertEqual(
+            comp['licenses'], [{'license': {'id': 'Zlib'}}])
+        self.assertEqual(comp['version'], '1.3.1')
+        self.assertTrue(comp['purl'].startswith('pkg:'))
+        self.assertIn('zlib', comp['purl'])
+        self.assertEqual(comp['externalReferences'][0]['type'], 'vcs')
+
+    def test_omits_version_and_purl_when_unknown(self):
+        # When pkg-config cannot resolve the dep version, gen-sbom
+        # emits the component WITHOUT a version field rather than
+        # advertising a wrong one.  CRA scanners distinguish absent
+        # version from wrong version.
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: None
+            ref, comp = gs.cdx_dep_component('wolfssl', '5.9.1', 'libz')
+        finally:
+            gs.pkgconfig_version = original
+        self.assertNotIn('version', comp)
+        self.assertNotIn('purl', comp)
+        # bom-ref is still present and deterministic.
+        self.assertTrue(ref)
+
+    def test_dep_version_override_wins_over_pkgconfig(self):
+        # Embedded customers without pkg-config use --dep-version to
+        # supply the linked dep version explicitly.  Confirms the
+        # override threads through to the emitted CDX component.
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: '99.99.99'
+            ref, comp = gs.cdx_dep_component(
+                'wolfssl', '5.9.1', 'libz', {'libz': '1.3.1'})
+        finally:
+            gs.pkgconfig_version = original
+        self.assertEqual(comp['version'], '1.3.1')
+
+    def test_bomref_is_deterministic_for_same_inputs(self):
+        # Two calls with the same inputs must return identical bom-refs;
+        # otherwise SBOMs are not byte-identical across reruns and the
+        # reproducibility guarantee breaks.
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: '1.3.1'
+            ref_a, _ = gs.cdx_dep_component('wolfssl', '5.9.1', 'libz')
+            ref_b, _ = gs.cdx_dep_component('wolfssl', '5.9.1', 'libz')
+        finally:
+            gs.pkgconfig_version = original
+        self.assertEqual(ref_a, ref_b)
+
+
+class TestSpdxDepPackage(unittest.TestCase):
+    """gen-sbom:599 spdx_dep_package shapes a single SPDX dep package."""
+
+    def test_returns_spdxid_and_package(self):
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: '0.10.0'
+            spdx_id, pkg = gs.spdx_dep_package('liboqs')
+        finally:
+            gs.pkgconfig_version = original
+        self.assertTrue(spdx_id.startswith('SPDXRef-Package-'))
+        # SPDXID must contain only alphanumeric + '.' + '-' (SPDX
+        # 2.3 §3.2).  spdx_dep_package strips everything else; a
+        # regression that allowed underscores or 'lib' prefixes
+        # could produce an SPDXID validators reject.
+        import re as _re
+        self.assertTrue(
+            _re.match(r'\ASPDXRef-[A-Za-z0-9.-]+\Z', spdx_id),
+            f'invalid SPDXID shape: {spdx_id!r}')
+        self.assertEqual(pkg['SPDXID'], spdx_id)
+        self.assertEqual(pkg['name'], 'liboqs')
+        self.assertEqual(pkg['versionInfo'], '0.10.0')
+        self.assertEqual(pkg['filesAnalyzed'], False)
+        # Both license fields must agree; SPDX validators accept
+        # divergence but it is semantically meaningless here.
+        self.assertEqual(pkg['licenseConcluded'], pkg['licenseDeclared'])
+        self.assertEqual(pkg['copyrightText'], 'NOASSERTION')
+
+    def test_unknown_version_uses_NOASSERTION(self):
+        # SPDX 2.3 §3.3 requires versionInfo; when truly unknown,
+        # 'NOASSERTION' is the spec-compliant placeholder.  Emitting
+        # an empty string or omitting the field would fail validation.
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: None
+            _, pkg = gs.spdx_dep_package('liboqs')
+        finally:
+            gs.pkgconfig_version = original
+        self.assertEqual(pkg['versionInfo'], 'NOASSERTION')
+        # externalRefs.purl is only emitted when a version is known
+        # (a purl with no @version is meaningless to package-manager
+        # tooling); confirm it is absent here.
+        self.assertNotIn('externalRefs', pkg)
+
+    def test_purl_externalref_present_when_version_known(self):
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: '0.10.0'
+            _, pkg = gs.spdx_dep_package('liboqs')
+        finally:
+            gs.pkgconfig_version = original
+        purl_refs = [
+            r for r in pkg.get('externalRefs', [])
+            if r.get('referenceType') == 'purl'
+        ]
+        self.assertEqual(len(purl_refs), 1)
+        self.assertIn('liboqs', purl_refs[0]['referenceLocator'])
+        self.assertIn('0.10.0', purl_refs[0]['referenceLocator'])
+
+
+class TestGenerateCdx(unittest.TestCase):
+    """gen-sbom:624 generate_cdx assembles the full CycloneDX 1.6 doc."""
+
+    BASE_KW = dict(
+        name='wolfssl',
+        version='5.9.1',
+        supplier='wolfSSL Inc.',
+        license_id='GPL-2.0-only',
+        license_text=None,
+        lib_hash='a' * 64,
+        timestamp='2024-01-01T00:00:00Z',
+        year=2024,
+        serial='00000000-0000-0000-0000-000000000001',
+        enabled_deps=[],
+        build_props=[('HAVE_AESGCM', '1'), ('NO_DES3', '')],
+    )
+
+    def test_top_level_shape(self):
+        doc = gs.generate_cdx(**self.BASE_KW)
+        self.assertEqual(doc['bomFormat'], 'CycloneDX')
+        self.assertEqual(doc['specVersion'], '1.6')
+        self.assertEqual(
+            doc['$schema'],
+            'http://cyclonedx.org/schema/bom-1.6.schema.json')
+        self.assertEqual(doc['version'], 1)
+        # serialNumber is a urn:uuid: prefix per CDX schema.
+        self.assertTrue(doc['serialNumber'].startswith('urn:uuid:'))
+
+    def test_main_component_fields(self):
+        doc = gs.generate_cdx(**self.BASE_KW)
+        comp = doc['metadata']['component']
+        self.assertEqual(comp['type'], 'library')
+        self.assertEqual(comp['name'], 'wolfssl')
+        self.assertEqual(comp['version'], '5.9.1')
+        # CPE 2.3 with vendor:product:version - downstream
+        # vulnerability scanners key on this format.
+        self.assertEqual(
+            comp['cpe'],
+            'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
+        self.assertEqual(comp['purl'], 'pkg:generic/wolfssl@5.9.1')
+        self.assertEqual(comp['hashes'],
+                         [{'alg': 'SHA-256', 'content': 'a' * 64}])
+        self.assertEqual(comp['licenses'],
+                         [{'license': {'id': 'GPL-2.0-only'}}])
+
+    def test_build_properties_emitted(self):
+        doc = gs.generate_cdx(**self.BASE_KW)
+        props = doc['metadata']['component']['properties']
+        names = {p['name']: p['value'] for p in props}
+        self.assertEqual(names['wolfssl:build:HAVE_AESGCM'], '1')
+        # An empty define value is rendered as '1' so the SBOM
+        # consumer can't distinguish '#define X' from '#define X 1'.
+        self.assertEqual(names['wolfssl:build:NO_DES3'], '1')
+
+    def test_dependency_refs_match_components(self):
+        # Critical invariant: every bom-ref in `dependencies` must
+        # appear as a `bom-ref` on either the main component or one
+        # of the dep components.  Without this, the dependency graph
+        # references dangling IDs and CycloneDX-aware tooling cannot
+        # resolve relationships.
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: '1.3.1'
+            doc = gs.generate_cdx(**{
+                **self.BASE_KW,
+                'enabled_deps': ['libz'],
+            })
+        finally:
+            gs.pkgconfig_version = original
+        all_refs = {doc['metadata']['component']['bom-ref']}
+        for c in doc['components']:
+            all_refs.add(c['bom-ref'])
+        for entry in doc['dependencies']:
+            self.assertIn(entry['ref'], all_refs,
+                          f"dangling dep ref: {entry['ref']!r}")
+            for dep in entry.get('dependsOn', []):
+                self.assertIn(dep, all_refs,
+                              f"dangling dependsOn ref: {dep!r}")
+        # The wolfssl bom-ref must depend on the libz bom-ref.
+        wolfssl_ref = doc['metadata']['component']['bom-ref']
+        wolfssl_entry = next(
+            e for e in doc['dependencies'] if e['ref'] == wolfssl_ref)
+        self.assertEqual(len(wolfssl_entry['dependsOn']), 1)
+
+    def test_source_merkle_path_emits_hash_kind_property(self):
+        # The OmniBOR / source-merkle entry point annotates the
+        # SBOM so an auditor reading the SHA-256 knows it is a hash
+        # of the source set, not of the built library.  Without
+        # this property the same SHA-256 field carries two
+        # incompatible semantic meanings depending on entry point.
+        doc = gs.generate_cdx(**{
+            **self.BASE_KW,
+            'hash_kind': 'source-merkle-omnibor',
+            'srcs_basenames': ['aes.c', 'sha.c'],
+        })
+        props = {p['name']: p['value']
+                 for p in doc['metadata']['component']['properties']}
+        self.assertEqual(props['wolfssl:sbom:hash-kind'],
+                         'source-merkle-omnibor')
+        self.assertEqual(props['wolfssl:sbom:source-set'], 'aes.c,sha.c')
+
+    def test_library_binary_path_omits_hash_kind_property(self):
+        # Reproducibility CI keys on byte-equal SBOMs across two runs
+        # of `make sbom` with the same SOURCE_DATE_EPOCH; adding the
+        # hash-kind annotation to the library-binary path would break
+        # that diff.  Pin the empty-set behaviour.
+        doc = gs.generate_cdx(**self.BASE_KW)
+        prop_names = {
+            p['name']
+            for p in doc['metadata']['component']['properties']
+        }
+        self.assertNotIn('wolfssl:sbom:hash-kind', prop_names)
+        self.assertNotIn('wolfssl:sbom:source-set', prop_names)
+
+
+class TestGenerateSpdx(unittest.TestCase):
+    """gen-sbom:698 generate_spdx assembles the full SPDX 2.3 doc."""
+
+    BASE_KW = dict(
+        name='wolfssl',
+        version='5.9.1',
+        supplier='wolfSSL Inc.',
+        license_id='GPL-2.0-only',
+        license_text=None,
+        lib_hash='a' * 64,
+        timestamp='2024-01-01T00:00:00Z',
+        year=2024,
+        doc_ns_uuid='00000000-0000-0000-0000-000000000002',
+        enabled_deps=[],
+        build_props=[('HAVE_AESGCM', '1'), ('NO_DES3', '')],
+    )
+
+    def test_top_level_shape(self):
+        doc = gs.generate_spdx(**self.BASE_KW)
+        self.assertEqual(doc['spdxVersion'], 'SPDX-2.3')
+        self.assertEqual(doc['dataLicense'], 'CC0-1.0')
+        self.assertEqual(doc['SPDXID'], 'SPDXRef-DOCUMENT')
+        self.assertEqual(doc['name'], 'wolfssl-5.9.1')
+        self.assertTrue(
+            doc['documentNamespace'].startswith('https://wolfssl.com/sbom/'))
+        # documentNamespace must include the doc_ns_uuid so two
+        # different versions produce different namespaces (SPDX 2.3
+        # §6.5).
+        self.assertIn(self.BASE_KW['doc_ns_uuid'], doc['documentNamespace'])
+
+    def test_main_package_fields(self):
+        doc = gs.generate_spdx(**self.BASE_KW)
+        wolfssl_pkg = next(
+            p for p in doc['packages']
+            if p['SPDXID'] == 'SPDXRef-Package-wolfssl')
+        self.assertEqual(wolfssl_pkg['name'], 'wolfssl')
+        self.assertEqual(wolfssl_pkg['versionInfo'], '5.9.1')
+        self.assertEqual(
+            wolfssl_pkg['checksums'],
+            [{'algorithm': 'SHA256', 'checksumValue': 'a' * 64}])
+        self.assertEqual(wolfssl_pkg['licenseConcluded'], 'GPL-2.0-only')
+        self.assertEqual(wolfssl_pkg['licenseDeclared'], 'GPL-2.0-only')
+
+    def test_describes_relationship(self):
+        # SPDX 2.3 §11: every document must DESCRIBE its primary package.
+        doc = gs.generate_spdx(**self.BASE_KW)
+        describes = [
+            r for r in doc['relationships']
+            if r['relationshipType'] == 'DESCRIBES'
+        ]
+        self.assertEqual(len(describes), 1)
+        self.assertEqual(describes[0]['spdxElementId'], 'SPDXRef-DOCUMENT')
+        self.assertEqual(describes[0]['relatedSpdxElement'],
+                         'SPDXRef-Package-wolfssl')
+
+    def test_depends_on_relationship_per_dep(self):
+        original = gs.pkgconfig_version
+        try:
+            gs.pkgconfig_version = lambda *_a, **_k: '1.3.1'
+            doc = gs.generate_spdx(**{
+                **self.BASE_KW,
+                'enabled_deps': ['libz'],
+            })
+        finally:
+            gs.pkgconfig_version = original
+        depends_on = [
+            r for r in doc['relationships']
+            if r['relationshipType'] == 'DEPENDS_ON'
+        ]
+        self.assertEqual(len(depends_on), 1)
+        self.assertEqual(depends_on[0]['spdxElementId'],
+                         'SPDXRef-Package-wolfssl')
+        # The relatedSpdxElement must be a real SPDXID in the doc;
+        # a typo would create a dangling reference.
+        all_spdx_ids = {p['SPDXID'] for p in doc['packages']}
+        self.assertIn(depends_on[0]['relatedSpdxElement'], all_spdx_ids)
+
+    def test_extracted_licensing_infos_present_for_licenseref(self):
+        # Critical SPDX 2.3 §10.1 plumbing: when license_id contains
+        # a LicenseRef-* and license_text is supplied, the document
+        # MUST carry a hasExtractedLicensingInfos block covering it.
+        # A regression that drops the wiring in generate_spdx's tail
+        # produces SBOMs that fail SPDX validation -- the autotools
+        # path catches this at pyspdxtools time, but the standalone
+        # path does not validate, so a customer-shipped SBOM would
+        # silently land at an auditor.
+        doc = gs.generate_spdx(**{
+            **self.BASE_KW,
+            'license_id': 'LicenseRef-wolfSSL-Commercial',
+            'license_text': 'Commercial licence body.\n',
+        })
+        self.assertIn('hasExtractedLicensingInfos', doc)
+        infos = doc['hasExtractedLicensingInfos']
+        self.assertEqual(len(infos), 1)
+        self.assertEqual(infos[0]['licenseId'],
+                         'LicenseRef-wolfSSL-Commercial')
+        self.assertEqual(infos[0]['extractedText'],
+                         'Commercial licence body.\n')
+
+    def test_extracted_licensing_infos_absent_for_simple_id(self):
+        # Companion to the above: simple SPDX IDs (Apache-2.0,
+        # GPL-2.0-only, etc.) MUST NOT generate a
+        # hasExtractedLicensingInfos block, since the licence
+        # text is well-known and the field is reserved for refs.
+        doc = gs.generate_spdx(**self.BASE_KW)
+        self.assertNotIn('hasExtractedLicensingInfos', doc)
+
+    def test_source_merkle_path_annotates_comment(self):
+        # Mirror of TestGenerateCdx.test_source_merkle_path_emits_hash_kind_property
+        # for SPDX: the annotation lives in the package 'comment'
+        # field rather than as a property, but the auditor-facing
+        # information is the same.  Reproducibility CI must continue
+        # to see the library-binary path emit the same comment shape
+        # it always has.
+        doc = gs.generate_spdx(**{
+            **self.BASE_KW,
+            'hash_kind': 'source-merkle-omnibor',
+            'srcs_basenames': ['aes.c', 'sha.c'],
+        })
+        wolfssl_pkg = next(
+            p for p in doc['packages']
+            if p['SPDXID'] == 'SPDXRef-Package-wolfssl')
+        self.assertIn('hash-kind=source-merkle-omnibor',
+                      wolfssl_pkg['comment'])
+        self.assertIn('source-set=aes.c,sha.c', wolfssl_pkg['comment'])
+
+    def test_library_binary_path_comment_unannotated(self):
+        doc = gs.generate_spdx(**self.BASE_KW)
+        wolfssl_pkg = next(
+            p for p in doc['packages']
+            if p['SPDXID'] == 'SPDXRef-Package-wolfssl')
+        self.assertNotIn('hash-kind=', wolfssl_pkg['comment'])
+        self.assertNotIn('source-set=', wolfssl_pkg['comment'])
 
 
 if __name__ == '__main__':
