@@ -426,15 +426,18 @@ sbom:
 	echo "SBOM: hashing $$sbom_lib"; \
 	if test -z "$${SOURCE_DATE_EPOCH:-}" && test -n "$(GIT)" && \
 	   $(GIT) -C "$(srcdir)" rev-parse --git-dir >/dev/null 2>&1; then \
-	    SOURCE_DATE_EPOCH=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null || echo`; \
-	    export SOURCE_DATE_EPOCH; \
+	    sde=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null`; \
+	    if test -n "$$sde"; then \
+	        SOURCE_DATE_EPOCH="$$sde"; \
+	        export SOURCE_DATE_EPOCH; \
+	    fi; \
 	fi; \
 	$(PYTHON3) $(srcdir)/scripts/gen-sbom \
 	    --name $(PACKAGE) \
 	    --version $(PACKAGE_VERSION) \
 	    --license-file $(srcdir)/LICENSING \
-	    --license-override '$(SBOM_LICENSE_OVERRIDE)' \
-	    --license-text '$(SBOM_LICENSE_TEXT)' \
+	    $(if $(SBOM_LICENSE_OVERRIDE),--license-override '$(SBOM_LICENSE_OVERRIDE)') \
+	    $(if $(SBOM_LICENSE_TEXT),--license-text '$(SBOM_LICENSE_TEXT)') \
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
 	    --dep-libz $(ENABLED_LIBZ) \
@@ -499,9 +502,9 @@ bomsh:
 	fi; \
 	bomsh_artifact=""; \
 	for lib in \
-	    $(addprefix $(abs_builddir)/src/.libs/,$(WOLFSSL_LIB_DSO_BASENAMES)) \
-	    $(abs_builddir)/src/.libs/libwolfssl.a \
-	    $(abs_builddir)/src/libwolfssl.a; do \
+	    $(addprefix "$(abs_builddir)/src/.libs"/,$(WOLFSSL_LIB_DSO_BASENAMES)) \
+	    "$(abs_builddir)/src/.libs/libwolfssl.a" \
+	    "$(abs_builddir)/src/libwolfssl.a"; do \
 	    if test -f "$$lib"; then bomsh_artifact="$$lib"; break; fi; \
 	done; \
 	if test -z "$$bomsh_artifact"; then \
@@ -520,8 +523,7 @@ bomsh:
 install-bomsh: bomsh
 	$(MKDIR_P) '$(DESTDIR)$(bomshdir)/omnibor'
 	@if test -d '$(BOMSH_OMNIBORDIR)'; then \
-	    (cd '$(BOMSH_OMNIBORDIR)' && tar cf - .) | \
-	        (cd '$(DESTDIR)$(bomshdir)/omnibor' && tar xf -); \
+	    cp -R '$(BOMSH_OMNIBORDIR)/.' '$(DESTDIR)$(bomshdir)/omnibor/'; \
 	fi
 	@if test -f '$(abs_builddir)/$(BOMSH_SPDX_OUT)'; then \
 	    $(INSTALL_DATA) '$(abs_builddir)/$(BOMSH_SPDX_OUT)' '$(DESTDIR)$(bomshdir)/'; \
@@ -534,11 +536,9 @@ uninstall-bomsh:
 CLEANFILES += $(BOMSH_RAWLOG) $(BOMSH_RAWLOG_BASE).sha256 $(BOMSH_CONF) $(BOMSH_SPDX_OUT)
 
 # Hook SBOM/Bomsh cleanup into `make uninstall` so packagers don't leave
-# stale artefacts behind after install-sbom/install-bomsh.  rm -f is
-# idempotent, so this is safe whether or not those targets were ever run.
-uninstall-hook:
-	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_CDX)
-	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX)
-	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX_TV)
-	-rm -rf $(DESTDIR)$(bomshdir)/omnibor
-	-rm -f $(DESTDIR)$(bomshdir)/$(BOMSH_SPDX_OUT)
+# stale artefacts behind after install-sbom/install-bomsh.  uninstall-sbom
+# and uninstall-bomsh use `rm -f` / `rm -rf` so they are idempotent and
+# safe whether or not those targets were ever run.  Depending on them
+# rather than duplicating their bodies keeps the cleanup paths in lock
+# step with install-sbom/install-bomsh.
+uninstall-hook: uninstall-sbom uninstall-bomsh
