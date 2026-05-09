@@ -192,7 +192,16 @@ def detect_license(license_file):
 
     version = m.group(1)
     excerpt = text[m.end():m.end() + 100]
-    if re.search(r'or\s+(any\s+)?later', excerpt, re.IGNORECASE):
+    # Match upgrade-permission wording in the 100-byte excerpt that
+    # follows the version mention.  Three FSF-derived shapes:
+    #   * canonical preamble:   "or (at your option) any later version"
+    #   * preamble variant:     "or (at the licensee's option) any later"
+    #   * compact form:         "or later" / "or any later"
+    # The optional `[^,.;\n]*?\s+` group consumes parenthesised
+    # asides without crossing sentence boundaries so unrelated
+    # "or" / "later" mentions in surrounding prose do not match.
+    if re.search(r'or\s+(?:[^,.;\n]*?\s+)?(?:any\s+)?later',
+                 excerpt, re.IGNORECASE):
         return f'GPL-{version}.0-or-later'
     return f'GPL-{version}.0-only'
 
@@ -338,6 +347,45 @@ def _is_noise_macro(name):
     return False
 
 
+def _strip_define_comment(raw):
+    """Strip trailing C/C++ comment from a #define value while preserving
+    `/`-bearing characters that appear inside a double-quoted string.
+
+    Earlier versions used `re.split(r'/\\*|//', raw, maxsplit=1)[0]`, which
+    is unaware of string literals.  That regex corrupts autoconf-generated
+    defines such as
+
+        #define PACKAGE_URL "https://www.wolfssl.com"
+        #define PACKAGE_BUGREPORT "https://github.com/wolfssl/wolfssl/issues"
+
+    by truncating at the first `//` inside the URL — both end up as
+    `"https:` in the SBOM build properties, falsely showing PACKAGE_URL
+    drifting between releases when nothing actually changed.
+
+    Char literals are not handled: autoconf-generated options.h does not
+    emit them, and pcpp normalises customer user_settings.h before this
+    helper sees the value, so the only realistic source of `/` in a
+    #define value is a quoted string."""
+    in_str = False
+    i = 0
+    n = len(raw)
+    while i < n:
+        c = raw[i]
+        if in_str:
+            if c == '\\' and i + 1 < n:
+                i += 2
+                continue
+            if c == '"':
+                in_str = False
+        else:
+            if c == '"':
+                in_str = True
+            elif c == '/' and i + 1 < n and raw[i + 1] in '/*':
+                return raw[:i]
+        i += 1
+    return raw
+
+
 def parse_options_h(path):
     """Parse a flat `#define` header and return a sorted deduplicated
     list of (name, value) pairs for every wolfSSL-relevant macro.
@@ -354,7 +402,9 @@ def parse_options_h(path):
 
     Trailing C/C++ comments on a #define line (`#define HAVE_FOO 42 /* x */`
     or `// y`) are stripped; otherwise they would land verbatim in the
-    SBOM build properties."""
+    SBOM build properties.  String literals are preserved intact so that
+    URLs in PACKAGE_URL / PACKAGE_BUGREPORT are not truncated at the
+    first `//` (see _strip_define_comment)."""
     try:
         with open(path) as f:
             text = f.read()
@@ -368,7 +418,7 @@ def parse_options_h(path):
         if _is_noise_macro(name):
             continue
         raw = (m.group(2) or '')
-        raw = re.split(r'/\*|//', raw, maxsplit=1)[0]
+        raw = _strip_define_comment(raw)
         defines[name] = raw.strip()
     return sorted(defines.items())
 
@@ -898,10 +948,40 @@ def main():
         )
 
     if args.lib:
+        # Refuse the empty-file SHA-256 as a component checksum.  A
+        # build that points --lib at /dev/null, a stub touch(1)'d
+        # placeholder, or an empty .a that failed to ar-create would
+        # otherwise emit a valid-looking SBOM whose hash matches no
+        # compiled wolfSSL artefact ever shipped.  The SBOM passes
+        # both spec validators -- nothing else catches it.
+        try:
+            lib_size = os.path.getsize(args.lib)
+        except OSError as e:
+            sys.exit(f"ERROR: cannot stat --lib {args.lib!r}: {e}")
+        if lib_size == 0:
+            sys.exit(
+                f"ERROR: --lib {args.lib!r} is empty (0 bytes); refusing "
+                "to emit an SBOM with the empty-file SHA-256 as the "
+                "component checksum.  Verify your build produced a "
+                "real library artefact.")
         lib_hash = sha256_file(args.lib)
         hash_kind = 'library-binary'
         srcs_basenames = None
     else:
+        # --srcs is the embedded entry point.  Zero-byte files in the
+        # set are uncommon but not necessarily wrong (a cross-compile
+        # toolchain may stub a per-target source with touch); warn
+        # rather than fail so the customer can decide whether the
+        # gitoid for an empty blob is what they want recorded.
+        zero_byte_srcs = [
+            p for p in args.srcs if os.path.isfile(p) and os.path.getsize(p) == 0
+        ]
+        if zero_byte_srcs:
+            print(
+                "WARNING: zero-byte source files in --srcs (gitoid will "
+                "be the well-known empty-blob hash for these): "
+                + ', '.join(zero_byte_srcs),
+                file=sys.stderr)
         lib_hash = srcs_merkle_hash(args.srcs)
         hash_kind = 'source-merkle-omnibor'
         srcs_basenames = sorted({os.path.basename(p) for p in args.srcs})

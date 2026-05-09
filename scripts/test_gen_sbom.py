@@ -306,18 +306,39 @@ class TestDetectLicense(unittest.TestCase):
     def test_gplv2_or_later_any_form(self):
         # 'or any later' immediately after the version mention.
         # Oracle: SPDX 'GPL-2.0-or-later'.
-        # NOTE: the canonical FSF preamble phrase 'or (at your option)
-        # any later version' is NOT matched by the current regex
-        # (the parenthetical interjection breaks the pattern).  That
-        # is a separate limitation tracked in its own beads issue;
-        # this test deliberately uses a pattern the existing regex
-        # handles, so it serves as a regex regression guard rather
-        # than a redesign request.
         self.assertEqual(
             self._detect(
                 'Licensed under the GNU General Public License version 2, '
                 'or any later version.\n'),
             'GPL-2.0-or-later')
+
+    def test_gplv2_or_later_canonical_fsf_preamble(self):
+        # The canonical FSF GPL preamble phrase, used verbatim in
+        # millions of upstream COPYING files:
+        #
+        #   'either version N of the License, or (at your option)
+        #    any later version.'
+        #
+        # An earlier regex (`or\s+(any\s+)?later`) failed to match
+        # this because the parenthetical '(at your option)'
+        # interjects between 'or' and 'any later', so wolfssl-1zj.24
+        # silently mis-detected the preamble as GPLv2-only.  Oracle:
+        # SPDX 'GPL-2.0-or-later'.
+        self.assertEqual(
+            self._detect(
+                'This program is free software: you can redistribute it '
+                'and/or modify it under the terms of the GNU General '
+                'Public License version 2, or (at your option) any '
+                'later version.\n'),
+            'GPL-2.0-or-later')
+
+    def test_gplv3_or_later_canonical_fsf_preamble(self):
+        # Same regression guard for GPLv3.
+        self.assertEqual(
+            self._detect(
+                'Licensed under the GNU General Public License version 3, '
+                'or (at your option) any later version.\n'),
+            'GPL-3.0-or-later')
 
     def test_gplv2_or_later_short_form(self):
         # 'or later' (without 'any') also matches the regex; this
@@ -487,6 +508,48 @@ class TestParseOptionsH(unittest.TestCase):
     def test_strips_comment_from_valueless_define(self):
         pairs = dict(self._parse("#define HAVE_BAR  /* set elsewhere */\n"))
         self.assertEqual(pairs['HAVE_BAR'], '')
+
+    def test_preserves_url_in_string_literal(self):
+        # Regression guard: an earlier comment-stripper used
+        # `re.split(r'/\*|//', raw, maxsplit=1)[0]`, which truncated
+        # autoconf-generated PACKAGE_URL / PACKAGE_BUGREPORT defines
+        # at the first `//` inside the URL.  Both ended up as
+        # `"https:` in the SBOM build properties, falsely showing
+        # PACKAGE_URL drifting between releases when nothing changed.
+        pairs = dict(self._parse(
+            '#define PACKAGE_URL "https://www.wolfssl.com"\n'
+            '#define PACKAGE_BUGREPORT '
+            '"https://github.com/wolfssl/wolfssl/issues"\n'
+        ))
+        self.assertEqual(pairs['PACKAGE_URL'],
+                         '"https://www.wolfssl.com"')
+        self.assertEqual(pairs['PACKAGE_BUGREPORT'],
+                         '"https://github.com/wolfssl/wolfssl/issues"')
+
+    def test_strips_comment_after_string_literal(self):
+        # Companion to test_preserves_url_in_string_literal: confirm
+        # the stripper still works when a comment legitimately follows
+        # a string literal.  A regression that disabled stripping
+        # entirely (the simplest "fix" for the URL bug) would let
+        # comment text leak into the SBOM.
+        pairs = dict(self._parse(
+            '#define PACKAGE_URL "https://www.wolfssl.com" /* upstream */\n'
+        ))
+        self.assertEqual(pairs['PACKAGE_URL'],
+                         '"https://www.wolfssl.com"')
+
+    def test_preserves_block_comment_inside_string_literal(self):
+        # `/*` inside a string literal must not start a comment.
+        pairs = dict(self._parse('#define WEIRD "a/*b*/c"\n'))
+        self.assertEqual(pairs['WEIRD'], '"a/*b*/c"')
+
+    def test_handles_escaped_quote_in_string_literal(self):
+        # An escaped `\"` inside a string literal must not be mistaken
+        # for the closing quote; otherwise a comment-marker that
+        # follows would be incorrectly treated as outside the string.
+        pairs = dict(self._parse(
+            '#define EMBEDDED_QUOTE "a\\"b//c" /* tail */\n'))
+        self.assertEqual(pairs['EMBEDDED_QUOTE'], '"a\\"b//c"')
 
     def test_dedup_keeps_last_assignment(self):
         # Last assignment wins (matches C preprocessor semantics for
@@ -1282,11 +1345,18 @@ class TestCliMutualExclusion(unittest.TestCase):
                                          delete=False) as f:
             f.write('Plain-text wolfSSL commercial licence text.\n')
             license_text_path = f.name
+        # --lib must be non-empty (gen-sbom refuses /dev/null as a
+        # component checksum); use a tiny stand-in file so we exercise
+        # the LicenseRef gate without tripping the empty-lib gate.
+        with tempfile.NamedTemporaryFile('wb', suffix='.so',
+                                         delete=False) as f:
+            f.write(b'\x7fELF stub')
+            lib_path = f.name
         try:
             result = self._run(
                 *self.BASE,
                 '--options-h', '/dev/null',
-                '--lib', '/dev/null',
+                '--lib', lib_path,
                 '--license-override', 'LicenseRef-wolfSSL-Commercial',
                 '--license-text', license_text_path)
             self.assertEqual(
@@ -1295,6 +1365,69 @@ class TestCliMutualExclusion(unittest.TestCase):
                 f'pair: stderr={result.stderr!r}')
         finally:
             os.unlink(license_text_path)
+            os.unlink(lib_path)
+
+    def test_empty_lib_is_rejected(self):
+        # The --lib argument is the wolfSSL component checksum source.
+        # An empty file produces the well-known empty-file SHA-256
+        # (e3b0c44...b855), which is a valid-looking hash that
+        # matches no real wolfSSL build artefact ever shipped.  Both
+        # SPDX and CDX validators accept it; nothing else catches
+        # the lie.  gen-sbom must refuse zero-byte --lib.
+        result = self._run(
+            *self.BASE,
+            '--options-h', '/dev/null',
+            '--lib', '/dev/null')
+        self.assertNotEqual(result.returncode, 0,
+                            'gen-sbom accepted an empty --lib file; would '
+                            'have shipped an SBOM with the empty-file '
+                            'SHA-256 as the wolfSSL component checksum')
+        self.assertIn('empty', result.stderr.lower())
+        self.assertIn('--lib', result.stderr)
+
+    def test_zero_byte_srcs_warn_but_do_not_fail(self):
+        # Companion: --srcs may legitimately include zero-byte
+        # placeholders in cross-compile setups (a target file the
+        # build system creates with touch but doesn't compile yet),
+        # so gen-sbom emits a WARNING rather than failing.  This
+        # gives the embedded customer a chance to see they have a
+        # stub file in the source set without breaking their build.
+        with tempfile.NamedTemporaryFile('wb', suffix='.c',
+                                         delete=False) as f:
+            f.write(b'/* real source */\n')
+            real_src = f.name
+        with tempfile.NamedTemporaryFile('wb', suffix='.c',
+                                         delete=False) as f:
+            empty_src = f.name
+        # Rename so the basenames are distinct (srcs_merkle_hash
+        # rejects duplicate basenames; see TestSrcsMerkleHash).
+        # Rename and rebind BEFORE the try-block so the finally
+        # clause always references the live filenames even when an
+        # assertion fails.
+        real_renamed = real_src + '.real.c'
+        empty_renamed = empty_src + '.empty.c'
+        os.rename(real_src, real_renamed)
+        os.rename(empty_src, empty_renamed)
+        real_src = real_renamed
+        empty_src = empty_renamed
+        try:
+            result = self._run(
+                *self.BASE,
+                '--user-settings', '/dev/null',
+                '--srcs', real_src, empty_src)
+            # The standalone path with /dev/null user-settings should
+            # complete; the only thing we care about here is that an
+            # empty source did not abort the run.
+            self.assertEqual(
+                result.returncode, 0,
+                f'gen-sbom failed with zero-byte source: stderr={result.stderr!r}')
+            self.assertIn('zero-byte source', result.stderr)
+        finally:
+            for p in (real_src, empty_src):
+                try:
+                    os.unlink(p)
+                except FileNotFoundError:
+                    pass
 
     def test_user_settings_path_in_help(self):
         # Discoverability regression guard - if the standalone entry
