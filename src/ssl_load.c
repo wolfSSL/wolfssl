@@ -956,10 +956,17 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* Initialize Dilithium key. */
     ret = wc_dilithium_init(key);
     if (ret == 0) {
-        /* Decode as a Dilithium private key. */
+        /* Decode as a Dilithium private key. The FIPS wrapper for
+         * wc_dilithium_import_private gates on the per-thread
+         * privateKeyReadEnable flag, which is unset by default in any
+         * thread that hasn't called PRIVATE_KEY_UNLOCK(). Without the
+         * bracket, loading a Dilithium/ML-DSA private key from a
+         * worker thread fails with FIPS_PRIVATE_KEY_LOCKED_E. */
         idx = 0;
+        PRIVATE_KEY_UNLOCK();
         ret = wc_Dilithium_PrivateKeyDecode(der->buffer, &idx, key,
             der->length);
+        PRIVATE_KEY_LOCK();
         if (ret == 0) {
             ret = dilithium_get_oid_sum(key, &keyFormatTemp);
             if (ret == 0) {
