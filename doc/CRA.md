@@ -181,9 +181,12 @@ make sbom \
 `SBOM_LICENSE_TEXT` is **required** whenever `SBOM_LICENSE_OVERRIDE` uses a
 custom `LicenseRef-*` identifier.  SPDX 2.3 §10.1 requires the actual licence
 text to be embedded in `hasExtractedLicensingInfos` for any LicenseRef used in
-the document; conformant validators (e.g. `pyspdxtools`, `ntia-conformance-checker`)
-will reject the SBOM otherwise.  The file should contain the plain-text
-licence agreement you received from wolfSSL.
+the document; SPDX-conformant validators (e.g. `pyspdxtools`) will reject the
+SBOM otherwise.  `ntia-conformance-checker` validates a separate set of NTIA
+minimum elements (supplier, component name, version, unique identifier,
+dependency relationships, author, timestamp) and will **not** catch a missing
+extracted-text block — do not rely on it to gate this case.  The file should
+contain the plain-text licence agreement you received from wolfSSL.
 
 If `SBOM_LICENSE_OVERRIDE` is set to a `LicenseRef-*` and `SBOM_LICENSE_TEXT`
 is missing, `make sbom` exits with an error rather than emit an invalid SBOM

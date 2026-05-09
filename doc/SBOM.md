@@ -381,7 +381,7 @@ make bomsh
 ```
 
 Additionally requires `bomtrace3` and `bomsh_create_bom.py` in `PATH`.
-See [Prerequisites for make bomsh](#3-make-bomsh) below.
+See [Prerequisites for make bomsh](#31-prerequisites-for-make-bomsh) below.
 
 All tools are detected by `configure`; either target fails with a clear
 error message if a required tool is missing.

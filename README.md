@@ -45,9 +45,13 @@ Act (CRA) compliance via two entry points:
 - `make sbom` for Linux server / Debian / RPM / Yocto / FIPS-Ready
   builds that already use `./configure && make`.
 
-Both produce SPDX 2.3 + CycloneDX 1.6 JSON validated against NTIA
-minimum elements. See `doc/SBOM.md` for per-toolchain recipes and the
-full flag reference.
+Both produce SPDX 2.3 + CycloneDX 1.6 JSON intended to satisfy the
+NTIA minimum elements. The `make sbom` path additionally runs
+SPDX-spec validation via `pyspdxtools` and gates the build on it;
+the standalone path validates only on demand (see `doc/SBOM.md`
+§ 1.3). Neither path runs an NTIA-minimum-elements checker by
+default. See `doc/SBOM.md` for per-toolchain recipes and the full
+flag reference.
 
 ## OmniBOR / Bomsh
 
