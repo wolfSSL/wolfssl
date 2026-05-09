@@ -650,3 +650,11 @@ file.
 If you are shipping a product that includes wolfSSL and need to satisfy CRA
 obligations, see `doc/CRA.md` for guidance on integrating these artefacts
 into your product SBOM and what to provide to a conformity assessor.
+
+If a vulnerability is found in wolfSSL itself or in any dependency listed
+in the SBOM, see [`SECURITY-POLICY.md`](../SECURITY-POLICY.md) at the
+repository root for wolfSSL's disclosure process, severity rubric, and
+coordinated-disclosure practice.  Reports use
+[`SECURITY-REPORT-TEMPLATE.md`](../SECURITY-REPORT-TEMPLATE.md) and go to
+**support@wolfssl.com**; published advisories are at
+<https://www.wolfssl.com/docs/security-vulnerabilities/>.

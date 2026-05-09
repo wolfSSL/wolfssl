@@ -268,12 +268,28 @@ If you have a product-level SBOM that references wolfSSL via
 `ExternalDocumentRef` (SPDX) or a `bom` external reference (CycloneDX),
 include that product SBOM alongside the wolfSSL artefacts.
 
+CRA Article 10 also obliges manufacturers to handle and disclose
+vulnerabilities.  wolfSSL's vulnerability disclosure process is documented
+in [`SECURITY-POLICY.md`](../SECURITY-POLICY.md) at the repository root,
+with a mandatory reporting template at
+[`SECURITY-REPORT-TEMPLATE.md`](../SECURITY-REPORT-TEMPLATE.md).  Reports
+go to **support@wolfssl.com**; published advisories live at
+<https://www.wolfssl.com/docs/security-vulnerabilities/>.  The policy
+explicitly accommodates ecosystem-coordination embargoes for downstream
+integrators and certification bodies — point your auditor at this so
+they can verify the disclosure path before signing off.
+
 ## Further Reading
 
 ### wolfSSL documentation
 
 - `doc/SBOM.md` — unified reference covering SBOM generation, OmniBOR/Bomsh
   build provenance, combined workflow, output formats, and implementation notes
+- [`SECURITY-POLICY.md`](../SECURITY-POLICY.md) — vulnerability disclosure
+  policy, severity rubric, coordinated-disclosure practice, embargo
+  extensions for downstream integrators and certification bodies
+- [`SECURITY-REPORT-TEMPLATE.md`](../SECURITY-REPORT-TEMPLATE.md) —
+  mandatory template for vulnerability reports submitted to wolfSSL
 
 ### OpenSSF guidance
 
