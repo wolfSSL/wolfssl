@@ -175,7 +175,7 @@ static int _PrivateOperation(const byte* in, word32 inlen, byte* out,
     p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     q = (byte*)XMALLOC(qSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     n = (byte*)XMALLOC(dSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (d == NULL || p == NULL || q == NULL) {
+    if (d == NULL || p == NULL || q == NULL || n == NULL) {
         ret = MEMORY_E;
     }
 
