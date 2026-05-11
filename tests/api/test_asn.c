@@ -753,7 +753,20 @@ int test_GetSetShortInt(void)
         ExpectIntEQ(GetShortInt(valDer, &idx, &value, 6),
                 WC_NO_ERR_TRACE(ASN_EXPECT_0_E));
     }
-#endif
+
+    #if (!defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    /* zero length value. should return ASN_PARSE_E */
+    {
+        word32 idx = 0;
+        int value = 0;
+        valDer[0] = ASN_INTEGER;
+        valDer[1] = 0x00;
+        ExpectIntEQ(GetShortInt(valDer, &idx, &value, 2),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+    #endif /* */
+#endif /* !NO_PWDBASED || WOLFSSL_ASN_EXTRA */
 #endif
 
     return EXPECT_RESULT();

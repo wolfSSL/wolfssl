@@ -3465,6 +3465,13 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
     if (len > 4)
         return ASN_PARSE_E;
 
+    /* to be consistent with GetASN_Integer */
+    #if (!defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    if (len == 0)
+        return ASN_PARSE_E;
+    #endif
+
     if (len + idx > maxIdx)
         return ASN_PARSE_E;
 
