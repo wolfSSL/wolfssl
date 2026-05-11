@@ -92,7 +92,7 @@ static int _ShaUpdate(byte* buffer, word32* buffLen, const byte* ctx,
         if (*buffLen == WC_CAAM_HASH_BLOCK) {
             /* Set buffer for context */
             buf[idx].BufferType = DataBuffer;
-            buf[idx].TheAddress = (CAAM_ADDRESS)sha->ctx;
+            buf[idx].TheAddress = (CAAM_ADDRESS)ctx;
             buf[idx].Length     = digestSz + WC_CAAM_CTXLEN;
         #if defined(__INTEGRITY) || defined(INTEGRITY)
             buf[idx].Transferred = 0;
@@ -101,7 +101,7 @@ static int _ShaUpdate(byte* buffer, word32* buffLen, const byte* ctx,
 
             /* data to update with */
             buf[idx].BufferType = DataBuffer | LastBuffer;
-            buf[idx].TheAddress = (CAAM_ADDRESS)sha->buffer;
+            buf[idx].TheAddress = (CAAM_ADDRESS)buffer;
             buf[idx].Length     = *buffLen;
         #if defined(__INTEGRITY) || defined(INTEGRITY)
             buf[idx].Transferred = 0;
@@ -127,7 +127,7 @@ static int _ShaUpdate(byte* buffer, word32* buffLen, const byte* ctx,
 
         /* Set buffer for context */
         buf[idx].BufferType = DataBuffer;
-        buf[idx].TheAddress = (CAAM_ADDRESS)sha->ctx;
+        buf[idx].TheAddress = (CAAM_ADDRESS)ctx;
         buf[idx].Length     = digestSz + WC_CAAM_CTXLEN;
     #if defined(__INTEGRITY) || defined(INTEGRITY)
         buf[idx].Transferred = 0;
@@ -262,7 +262,7 @@ int wc_CAAM_Sha224Hash(wc_Sha224* sha224, const byte* in, word32 inSz,
     #ifdef WOLFSSL_HASH_KEEP
         ret = wc_Sha224_Grow(sha224, in, inSz);
     #else
-        ret = _ShaUpdate(sha224->buffer, &sha224->bufferLen,
+        ret = _ShaUpdate((byte*)sha224->buffer, &sha224->buffLen,
             (byte*)sha224->digest, in, inSz, SHA224_DIGEST_SIZE, CAAM_SHA224);
     #endif
     }
@@ -278,7 +278,7 @@ int wc_CAAM_Sha224Hash(wc_Sha224* sha224, const byte* in, word32 inSz,
         wc_InitSha224_ex(sha224, heap, devId);
     #else
         ret = _ShaFinal((byte*)sha224->digest, SHA224_DIGEST_SIZE,
-            (byte*)sha224->buffer, sha224->bufferLen, digest, CAAM_SHA224);
+            (byte*)sha224->buffer, sha224->buffLen, digest, CAAM_SHA224);
     #endif
     }
     return ret;
