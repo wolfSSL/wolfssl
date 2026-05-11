@@ -5188,6 +5188,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blake2b_hmac_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+    {
+        byte long_key[BLAKE2B_BLOCKBYTES + 72];
+        static const byte expected_long[] = {
+            0xb5, 0x17, 0xd2, 0x26, 0xcb, 0x6c, 0xa2, 0x09,
+            0xd2, 0x56, 0x30, 0xa2, 0x55, 0xe9, 0xfa, 0xfb,
+            0x1e, 0x0f, 0xbf, 0x60, 0x00, 0xbd, 0x44, 0x09,
+            0xb7, 0xf6, 0x25, 0x75, 0x90, 0x80, 0xb1, 0xde,
+            0x72, 0xa5, 0x8a, 0x15, 0x95, 0xd2, 0x49, 0x8d,
+            0x4c, 0xdc, 0xc8, 0x68, 0x68, 0xa5, 0x07, 0x62,
+            0x10, 0x64, 0x0b, 0x20, 0x0b, 0xe0, 0xb0, 0xb2,
+            0x13, 0xf4, 0x2d, 0x42, 0x15, 0x7a, 0x5c, 0xd6,
+        };
+        int i;
+
+        for (i = 0; i < (int)sizeof(long_key); ++i)
+            long_key[i] = (byte)i;
+
+        ret = wc_Blake2bHmac(message2, sizeof(message2),
+                long_key, sizeof(long_key), out, sizeof(out));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(out, expected_long, sizeof(out)) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+
     return 0;
 }
 #endif /* HAVE_BLAKE2B */
@@ -5325,6 +5350,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blake2s_hmac_test(void)
     ret = wc_Blake2sHmacFinal(&b2s, key2, sizeof(key2), out, sizeof(out));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
+
+    {
+        byte long_key[BLAKE2S_BLOCKBYTES + 36];
+        static const byte expected_long[] = {
+            0x1a, 0xd0, 0x73, 0xd7, 0xba, 0xab, 0x55, 0x83,
+            0x26, 0xa8, 0xc2, 0x71, 0xf2, 0x1a, 0xdf, 0x3e,
+            0x28, 0x57, 0x14, 0x49, 0x3a, 0x26, 0x33, 0xe7,
+            0x7f, 0xf4, 0xca, 0x1a, 0xfd, 0xa3, 0xe0, 0xd9,
+        };
+        int i;
+
+        for (i = 0; i < (int)sizeof(long_key); ++i)
+            long_key[i] = (byte)i;
+
+        ret = wc_Blake2sHmac(message2, sizeof(message2),
+                long_key, sizeof(long_key), out, sizeof(out));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(out, expected_long, sizeof(out)) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
 
     return 0;
 }
