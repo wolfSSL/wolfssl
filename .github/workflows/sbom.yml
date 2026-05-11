@@ -1032,13 +1032,25 @@ jobs:
         # rather than only running here against a real bomsh trace.
         run: python3 scripts/bomsh_verify.py
 
-      # The full provenance bundle - the high-value artefact of the whole
-      # PR, the one a CRA reviewer or downstream packager wants to download.
-      # MUST be uploaded BEFORE the `make clean` step below, which deletes
-      # everything by design.  `if: always()` so even when the assertion
-      # above fails (which is when triage matters most), the bundle ships.
+      # Split into two artefacts deliberately:
       #
-      # Contents:
+      #   bomsh-omnibor-${{ github.sha }}      (90-day retention)
+      #     The provenance bundle a CRA reviewer or downstream packager
+      #     actually wants.  Small, signed-meaningful, kept long.
+      #
+      #   bomsh-trace-diag-${{ github.sha }}   (14-day retention)
+      #     The raw bomtrace3 syscall trace + bomsh config.  ~3 MB,
+      #     useful only for diagnosing trace gaps (e.g. a build step
+      #     that escaped ptrace) -- not part of the provenance proof.
+      #     Short retention because it stops being useful as soon as
+      #     you've finished triaging the run that produced it.
+      #
+      # Both MUST upload BEFORE the `make clean` step below, which
+      # deletes everything by design.  `if: always()` so even when an
+      # assertion above fails (which is when triage matters most),
+      # the bundles ship.
+      #
+      # Provenance bundle contents:
       #   omnibor/                      - OmniBOR Artifact Dependency Graph
       #                                   (objects/ + metadata/bomsh/*),
       #                                   content-addressed by gitoid; the
@@ -1049,11 +1061,6 @@ jobs:
       #                                   against omnibor.* to confirm only
       #                                   the externalRef was added).
       #   wolfssl-*.cdx.json            - CycloneDX equivalent.
-      #   bomsh_raw_logfile.sha1        - raw bomtrace3 syscall trace, for
-      #                                   debugging trace gaps (e.g. a build
-      #                                   step that escaped ptrace).
-      #   _bomsh.conf                   - 1-line config passed to bomtrace3
-      #                                   -c at trace time.
       - name: Upload OmniBOR graph + bomsh-enriched SBOMs
         if: always()
         uses: actions/upload-artifact@v4
@@ -1064,10 +1071,25 @@ jobs:
             omnibor.wolfssl-*.spdx.json
             wolfssl-*.spdx.json
             wolfssl-*.cdx.json
-            bomsh_raw_logfile.sha1
-            _bomsh.conf
           if-no-files-found: warn
           retention-days: 90
+
+      - name: Upload bomsh trace diagnostics
+        # Diagnostic-only, short retention.  Kept separate so the
+        # provenance bundle above stays slim for downstream consumers
+        # who don't need to debug ptrace gaps.  `_bomsh.artefact` is
+        # included here (not in the provenance bundle) because it is
+        # a CI-internal pointer file, not part of the SBOM contract.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bomsh-trace-diag-${{ github.sha }}
+          path: |
+            bomsh_raw_logfile.sha1
+            _bomsh.conf
+            _bomsh.artefact
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: make clean removes all bomsh + sbom artefacts
         # Regression guard: if a future change adds an output to either
