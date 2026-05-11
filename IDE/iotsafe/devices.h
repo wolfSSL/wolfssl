@@ -25,6 +25,8 @@
 #ifndef STM32L496_DEVICES
 #define STM32L496_DEVICES
 
+#include <stdint.h>
+
 /* CPU clock speed */
 //#define CLOCK_SPEED 14200000
 //#define CLOCK_SPEED 6000000

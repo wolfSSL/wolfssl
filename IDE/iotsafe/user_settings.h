@@ -119,7 +119,6 @@ static inline long XTIME(long *x) { return jiffies;}
 /* Math */
 #define TFM_TIMING_RESISTANT
 #define TFM_ARM
-#define WOLFSSL_SP_MATH
 #define WOLFSSL_SP_MATH_ALL
 #define WOLFSSL_SP_SMALL
 #define WOLFSSL_HAVE_SP_DH
@@ -171,6 +170,7 @@ static inline long XTIME(long *x) { return jiffies;}
 /* Disable Features */
 #define NO_WRITEV
 #define NO_FILESYSTEM
+#define WOLFSSL_NO_SOCK
 #define NO_MAIN_DRIVER
 //#define NO_ERROR_STRINGS
 
