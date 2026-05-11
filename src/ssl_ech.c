@@ -498,6 +498,62 @@ void wolfSSL_SetEchEnableTrialDecrypt(WOLFSSL* ssl, byte enable)
         ssl->options.enableEchTrialDecrypt = (enable != 0);
 }
 
+/* Return the status of the ECH connection. Possible return values:
+ *   WOLFSSL_ECH_STATUS_NOT_OFFERED:
+ *       server - client did not send ECH or it is not setup
+ *       client - ECH is not setup
+ *       pending - connection has not been initiated
+ *
+ *   WOLFSSL_ECH_STATUS_GREASE:
+ *       client - GREASE ECH extension sent
+ *
+ *   WOLFSSL_ECH_STATUS_REJECTED:
+ *       server - ECH was not accepted (decryption of inner ClientHello failed)
+ *       client - ECH was offered but the server rejected it
+ *
+ *       In both cases the connection fell back to the outer transcript.
+ *
+ *   WOLFSSL_ECH_STATUS_ACCEPTED:
+ *       Decryption of the inner ClientHello was successful and the inner
+ *       transcript was used.
+ *
+ * Returns BAD_FUNC_ARG if ssl is NULL. */
+int wolfSSL_GetEchStatus(const WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->options.disableECH)
+        return WOLFSSL_ECH_STATUS_NOT_OFFERED;
+    if (ssl->options.echAccepted)
+        return WOLFSSL_ECH_STATUS_ACCEPTED;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        WOLFSSL_ECH* ech;
+
+        if (echX == NULL || echX->data == NULL)
+            return WOLFSSL_ECH_STATUS_NOT_OFFERED;
+
+        /* state stays at ECH_WRITE_NONE and innerClientHello stays NULL when
+         * the client did not send an ECH extension */
+        ech = (WOLFSSL_ECH*)echX->data;
+        if (ech->state == ECH_WRITE_NONE && ech->innerClientHello == NULL)
+            return WOLFSSL_ECH_STATUS_NOT_OFFERED;
+
+        return WOLFSSL_ECH_STATUS_REJECTED;
+    }
+
+    /* client */
+    if (ssl->options.connectState < CLIENT_HELLO_SENT)
+        return WOLFSSL_ECH_STATUS_NOT_OFFERED;
+
+    if (ssl->echConfigs == NULL)
+        return WOLFSSL_ECH_STATUS_GREASE;
+
+    return WOLFSSL_ECH_STATUS_REJECTED;
+}
+
 /* Walk the ECHConfigExtension list and check for mandatory extensions.
  * Returns:
  *  0 if all extensions are known/optional,
