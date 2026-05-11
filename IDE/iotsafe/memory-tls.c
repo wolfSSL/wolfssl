@@ -77,7 +77,7 @@ static int mem_send(unsigned char* dst, int* write_idx, int* bytes,
     int available;
 
     if (buf == NULL || dst == NULL || write_idx == NULL || bytes == NULL ||
-            sz <= 0 || sz > TLS_BUFFERS_SZ) {
+            sz <= 0) {
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -107,7 +107,7 @@ static int mem_recv(char* buf, int sz, unsigned char* src, int* read_idx,
     int available;
 
     if (buf == NULL || src == NULL || read_idx == NULL || write_idx == NULL ||
-            bytes == NULL || sz <= 0 || sz > TLS_BUFFERS_SZ) {
+            bytes == NULL || sz <= 0) {
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
