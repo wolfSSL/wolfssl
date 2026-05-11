@@ -1,0 +1,35 @@
+name: FreeRTOS mem_track.h compile regression
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+# Regression test for the memLock / pthread.h guard misalignment in
+# wolfssl/wolfcrypt/mem_track.h that previously broke multi-threaded
+# FreeRTOS-class builds with WOLFSSL_TRACK_MEMORY + USE_WOLFSSL_MEMORY
+# + !WOLFSSL_STATIC_MEMORY. The bug was preprocessor-only, so the test
+# simulates a non-Linux/Mac/Zephyr target by suppressing the host
+# platform autodefines (-U__linux__ -U__MACH__ -U__ZEPHYR__) and using
+# the clean-room FreeRTOS.h / semphr.h stubs under
+# tests/freertos-mem-track-repro/. No cross compiler needed.
+
+jobs:
+  freertos_mem_track:
+    name: mem_track.h non-Linux multi-threaded compile
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Run mem_track.h FreeRTOS reproducer
+        run: sh tests/freertos-mem-track-repro/run.sh
