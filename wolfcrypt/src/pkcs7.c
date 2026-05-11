@@ -6333,6 +6333,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
              * OCTET_STRING will be next. If so, we use the length retrieved
              * there. PKCS#7 spec defines ANY as eContent type. In this case
              * we fall back and save this content length for use later */
+            if (ret == 0 && localIdx >= pkiMsgSz) {
+                /* Truncated input: don't dereference past the buffer.
+                 * Break out of the switch directly so the degenerate-
+                 * recovery path below cannot mask this error. */
+                ret = BUFFER_E;
+                break;
+            }
+
             if (ret == 0 && pkiMsg[localIdx] != ASN_INDEF_LENGTH) {
                 if (GetLength_ex(pkiMsg, &localIdx, &length, pkiMsgSz,
                         NO_USER_CHECK) <= 0) {
@@ -6590,6 +6598,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
             /* check if bundle has more elements or footer, if not, set content
              * to pkcs7->content and hash to pkcs7->hash.
+             *
+             * NOTE: this check returns success whenever fewer than 6 bytes
+             * follow the content within the outer ContentInfo, which also
+             * accepts truncated bundles whose footer was cut short (e.g. a
+             * lone certificates [0] tag with no length). Distinguishing a
+             * legitimate degenerate end (such as an empty signerInfos SET
+             * "31 00") from truncated junk would require peeking at the
+             * remaining bytes or making stage 4's `expected` window smaller.
              */
             if (ret == 0 && pkcs7->stream->maxLen > 0 &&
                     (pkcs7->stream->maxLen - pkcs7->stream->totalRd)
@@ -6758,6 +6774,10 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if (ret == 0 && GetASNTag(pkiMsg2, &localIdx, &tag, pkiMsg2Sz) == 0
                     && tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
                 idx++;
+
+                if (localIdx >= pkiMsg2Sz) {
+                    ret = BUFFER_E;
+                }
 
                 /* if certificates set has indefinite length, try to get
                  * the first certificate length of the set.
@@ -7269,11 +7289,16 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* make sure that terminating zero's follow */
             if ((ret == WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK) || ret >= 0) &&
                     pkcs7->stream->indefLen == 1) {
-                word32 i;
-                for (i = 0; i < 3 * ASN_INDEF_END_SZ; i++) {
-                    if (pkiMsg2[idx + i] != 0) {
-                        ret = ASN_PARSE_E;
-                        break;
+                if (idx + (3 * ASN_INDEF_END_SZ) > pkiMsg2Sz) {
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    word32 i;
+                    for (i = 0; i < 3 * ASN_INDEF_END_SZ; i++) {
+                        if (pkiMsg2[idx + i] != 0) {
+                            ret = ASN_PARSE_E;
+                            break;
+                        }
                     }
                 }
             }
