@@ -1227,7 +1227,8 @@
     #endif
 #endif
 
-#ifdef WOLFSSL_ATECC508A
+#if defined(WOLFSSL_ATECC508A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     /* backwards compatibility */
 #ifndef WOLFSSL_ATECC_NO_ECDH_ENC
     #define WOLFSSL_ATECC_ECDH_ENC
@@ -3206,6 +3207,15 @@ extern void uITRON4_free(void *p) ;
  * provides the symbol. */
  #if defined(HAVE_FIPS) && !defined(USE_ECC_B_PARAM)
  #define USE_ECC_B_PARAM
+#endif
+
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
+    #undef  USE_ECC_B_PARAM
+    #define USE_ECC_B_PARAM
 #endif
 
 
