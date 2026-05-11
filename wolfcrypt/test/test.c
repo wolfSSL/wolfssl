@@ -54542,6 +54542,7 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
+    /* HashSLH-DSA takes the caller's pre-hashed digest as input. */
     {
 #ifdef WOLFSSL_SLHDSA_SHA2
         enum wc_HashType phType = SLHDSA_IS_SHA2(param) ?
@@ -54549,15 +54550,33 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
 #else
         enum wc_HashType phType = WC_HASH_TYPE_SHAKE256;
 #endif
+        byte digest[WC_SHA3_512_DIGEST_SIZE];
+        word32 digestLen;
+
+#ifdef WOLFSSL_SLHDSA_SHA2
+        if (phType == WC_HASH_TYPE_SHA256) {
+            ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
+            digestLen = WC_SHA256_DIGEST_SIZE;
+        }
+        else
+#endif
+        {
+            ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
+                WC_SHA3_512_DIGEST_SIZE);
+            digestLen = WC_SHA3_512_DIGEST_SIZE;
+        }
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
         sigLen = WC_SLHDSA_MAX_SIG_LEN;
         PRIVATE_KEY_UNLOCK();
-        ret = wc_SlhDsaKey_SignHash(key, ctx, 0, msg, (word32)sizeof(msg),
+        ret = wc_SlhDsaKey_SignHash(key, ctx, 0, digest, digestLen,
             phType, sig, &sigLen, &rng);
         PRIVATE_KEY_LOCK();
         if (ret != 0) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
-        ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
+        ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest, digestLen,
             phType, sig, sigLen);
     }
     if (ret != 0) {
@@ -54566,18 +54585,26 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
 
     /* Additional pre-hash test: SHA-384 exercises a different OID path */
 #ifdef WOLFSSL_SHA384
-    sigLen = WC_SLHDSA_MAX_SIG_LEN;
-    PRIVATE_KEY_UNLOCK();
-    ret = wc_SlhDsaKey_SignHash(key, ctx, 0, msg, (word32)sizeof(msg),
-        WC_HASH_TYPE_SHA384, sig, &sigLen, &rng);
-    PRIVATE_KEY_LOCK();
-    if (ret != 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    }
-    ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
-        WC_HASH_TYPE_SHA384, sig, sigLen);
-    if (ret != 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    {
+        byte digest384[WC_SHA384_DIGEST_SIZE];
+
+        ret = wc_Sha384Hash(msg, (word32)sizeof(msg), digest384);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+        sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_SlhDsaKey_SignHash(key, ctx, 0, digest384, sizeof(digest384),
+            WC_HASH_TYPE_SHA384, sig, &sigLen, &rng);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+        ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest384,
+            sizeof(digest384), WC_HASH_TYPE_SHA384, sig, sigLen);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
     }
 #endif
 
