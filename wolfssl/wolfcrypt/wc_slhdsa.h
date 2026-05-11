@@ -666,7 +666,10 @@ WOLFSSL_API int  wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx,
     byte ctxSz, const byte* msg, word32 msgSz, const byte* sig, word32 sigSz);
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
-/* Internal interface: M' provided directly (no M' construction). */
+/* External-M' / FIPS 205 internal interface (Algorithms 19/20): the caller
+ * supplies the fully-built M'. Use these for HashSLH-DSA implementations that
+ * construct M' externally, distributed signers that operate on a pre-built
+ * message representative, and ACVP signatureInterface=internal test groups. */
 WOLFSSL_API int  wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key,
     const byte* mprime, word32 mprimeSz, byte* sig, word32* sigSz);
 WOLFSSL_API int  wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key,
@@ -678,17 +681,17 @@ WOLFSSL_API int  wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
-    const byte* ctx, byte ctxSz, const byte* msg, word32 msgSz,
+    const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
     enum wc_HashType hashType, byte* sig, word32* sigSz);
 WOLFSSL_API int  wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
-    const byte* ctx, byte ctxSz, const byte* msg, word32 msgSz,
+    const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
     enum wc_HashType hashType, byte* sig, word32* sigSz, byte* addRnd);
 WOLFSSL_API int  wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
-    byte ctxSz, const byte* msg, word32 msgSz, enum wc_HashType hashType,
+    byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     byte* sig, word32* sigSz, WC_RNG* rng);
 #endif /* WOLFSSL_SLHDSA_VERIFY_ONLY */
 WOLFSSL_API int  wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx,
-    byte ctxSz, const byte* msg, word32 msgSz, enum wc_HashType hashType,
+    byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     const byte* sig, word32 sigSz);
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY

@@ -12726,41 +12726,102 @@ void bench_slhdsa(int param)
        );
     bench_stats_asym_finish(name, len, "vrfy-msg", 0, count, start, ret);
 
-    /* Pre-hash interface: hash message, then sign the hash. */
-    PRIVATE_KEY_UNLOCK();
-    bench_stats_start(&count, &start);
-    do {
-        sigLen = WC_SLHDSA_MAX_SIG_LEN;
-        ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, msg,
-            (word32)sizeof(msg), WC_HASH_TYPE_SHA256, sig, &sigLen);
-        if (ret != 0) {
-            goto exit;
-        }
-        count++;
-        RECORD_MULTI_VALUE_STATS();
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
-    PRIVATE_KEY_LOCK();
-    bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+#ifndef NO_SHA256
+    /* Pre-hash interface: hash message ONCE outside the timed loop (the
+     * bench measures sign/verify, not the application-side hash), then sign
+     * and verify the digest. SHA-256 path: only built when SHA-256 is
+     * available; HashSLH-DSA still works at runtime with any hashType the
+     * build supports, but the bench needs a compile-time choice. */
+    {
+        byte digest[WC_SHA256_DIGEST_SIZE];
 
-    bench_stats_start(&count, &start);
-    do {
-        ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, msg,
-            (word32)sizeof(msg), WC_HASH_TYPE_SHA256, sig, sigLen);
+        ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
         if (ret != 0) {
             goto exit;
         }
-        count++;
-        RECORD_MULTI_VALUE_STATS();
-    } while (bench_stats_check(start)
+
+        PRIVATE_KEY_UNLOCK();
+        bench_stats_start(&count, &start);
+        do {
+            sigLen = WC_SLHDSA_MAX_SIG_LEN;
+            ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, &sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
+           || runs < minimum_runs
 #endif
-       );
-    bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+           );
+        PRIVATE_KEY_LOCK();
+        bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+
+        bench_stats_start(&count, &start);
+        do {
+            ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+        bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+    }
+#elif defined(WOLFSSL_SHAKE256)
+    /* SHAKE-only build (NO_SHA256): use SHAKE256 prehash bench instead. */
+    {
+        byte digest[WC_SHA3_512_DIGEST_SIZE];
+
+        ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
+            WC_SHA3_512_DIGEST_SIZE);
+        if (ret != 0) {
+            goto exit;
+        }
+
+        PRIVATE_KEY_UNLOCK();
+        bench_stats_start(&count, &start);
+        do {
+            sigLen = WC_SLHDSA_MAX_SIG_LEN;
+            ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, &sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+        PRIVATE_KEY_LOCK();
+        bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+
+        bench_stats_start(&count, &start);
+        do {
+            ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+        bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+    }
+#endif /* NO_SHA256 / WOLFSSL_SHAKE256 */
 
 exit:
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
