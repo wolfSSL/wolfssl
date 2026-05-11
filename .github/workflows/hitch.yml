@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: varnish/hitch
-          ref: 1.8.0
+          ref: ${{ matrix.ref }}
           path: hitch
 
       # Do this before configuring so that it only detects the updated list of
@@ -92,7 +92,7 @@ jobs:
       - name: Configure and build hitch
         run: |
             cd $GITHUB_WORKSPACE/hitch/
-            patch -p1 < $GITHUB_WORKSPACE/osp/hitch/hitch_1.8.0.patch
+            patch -p1 < $GITHUB_WORKSPACE/osp/hitch/hitch_${{ matrix.ref }}.patch
             export SSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl"
             export SSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl"
             ./bootstrap --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --prefix=$GITHUB_WORKSPACE/build-dir
