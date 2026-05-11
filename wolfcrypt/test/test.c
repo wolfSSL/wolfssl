@@ -32100,7 +32100,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
             return WC_TEST_RET_ENC_EC(MEMORY_E);
 
         ret = wc_d2i_PKCS12(evil_p12, (word32)sizeof(evil_p12), evilPkcs12);
-        if (ret == 0) {
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else {
             byte* evilKey = NULL;
             byte* evilCert = NULL;
             word32 evilKeySz = 0, evilCertSz = 0;
@@ -32108,26 +32110,24 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
 
             ret = wc_PKCS12_parse(evilPkcs12, "test", &evilKey, &evilKeySz,
                                   &evilCert, &evilCertSz, &evilCa);
+            /* Parse must fail (iteration cap), not succeed or hang */
+            if (ret == 0)
+                ret = WC_TEST_RET_ENC_NC;
+            else
+                ret = 0;
             XFREE(evilKey, HEAP_HINT, DYNAMIC_TYPE_PKCS);
             XFREE(evilCert, HEAP_HINT, DYNAMIC_TYPE_PKCS);
             if (evilCa)
                 wc_FreeCertList(evilCa, HEAP_HINT);
-            wc_PKCS12_free(evilPkcs12);
-            /* Parse must fail (iteration cap), not succeed or hang */
-            if (ret == 0)
-                return WC_TEST_RET_ENC_NC;
         }
-        else {
-            wc_PKCS12_free(evilPkcs12);
-        }
-        ret = 0;
+        wc_PKCS12_free(evilPkcs12);
+        if (ret != 0)
+            return ret;
     }
 #endif /* HAVE_PKCS12 && !NO_ASN && !NO_PWDBASED && !NO_HMAC && !NO_CERTS && */
        /* !WOLFSSL_NO_MALLOC                                                 */
 #ifdef HAVE_SCRYPT
     ret = scrypt_test();
-    if (ret != 0)
-        return ret;
 #endif
     return ret;
 }
