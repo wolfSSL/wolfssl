@@ -1422,15 +1422,16 @@ int wc_LmsKey_SigsLeft(LmsKey* key)
             if (cbRet == 0) {
                 return (sigsLeft != 0) ? 1 : 0;
             }
-            /* The device owns the private state; no safe software fallback
-             * exists because key->priv_raw does not reflect HSM state. */
             if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                /* Device returned an actual error; the device owns the
+                 * private state so no safe software fallback exists. */
                 WOLFSSL_MSG("PqcStatefulSigSigsLeft returned an error");
+                return 0;
             }
-            else {
-                WOLFSSL_MSG("LMS SigsLeft not supported by device");
-            }
-            return 0;
+            /* Cryptocb declined. priv_raw reflects software state from the
+             * CRYPTOCB_UNAVAILABLE fall-through in MakeKey/Reload, so the
+             * software check below is valid. */
+            WOLFSSL_MSG("LMS SigsLeft not supported by device, using software");
         }
 #endif
         ret = wc_hss_sigsleft(key->params, key->priv_raw);
