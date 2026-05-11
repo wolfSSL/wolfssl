@@ -4222,6 +4222,19 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* WC_NO_RNG silently removes RSA blinding, as blinding depends on the RNG.
+ * Refuse to build until the conflict is resolved or the loss of hardening is
+ * explicitly acknowledged via WC_RSA_NO_RNG_ACKNOWLEDGE_WEAKNESS. */
+#if defined(WC_NO_RNG) && defined(WC_RSA_BLINDING) && !defined(NO_RSA) && \
+    !defined(WC_RSA_NO_RNG_ACKNOWLEDGE_WEAKNESS)
+    #error "WC_NO_RNG combined with WC_RSA_BLINDING silently disables RSA \
+blinding as well as OAEP and PSS padding support, weakening RSA against \
+side-channel and chosen-ciphertext attacks.  Resolve the conflict by \
+removing WC_NO_RNG, undefining WC_RSA_BLINDING, or defining NO_RSA.  \
+To proceed anyway and accept the loss of RSA hardening, \
+define WC_RSA_NO_RNG_ACKNOWLEDGE_WEAKNESS."
+#endif
+
 #ifdef OPENSSL_COEXIST
     /* make sure old names are disabled */
     #ifndef NO_OLD_SSL_NAMES
