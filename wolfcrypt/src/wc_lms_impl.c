@@ -926,7 +926,7 @@ static int wc_lmots_msg_hash(LmsState* state, const byte* msg, word32 msgSz,
         }
         else
     #endif
-        {
+        if (ret == 0) {
             ret = NOT_COMPILED_IN;
         }
     }
@@ -2103,7 +2103,7 @@ static int wc_lms_treehash(LmsState* state, const byte* id, const byte* seed,
             ret = wc_lms_interior_hash(state, sp, r, temp);
 
             /* Copy out node to authentication path if on path. */
-            if ((ret == 0) && (auth_path != NULL) && ((q >> h) ^ 0x1) == j) {
+            if ((ret == 0) && (auth_path != NULL) && (((q >> h) ^ 0x1) == j)) {
                 XMEMCPY(auth_path + h * params->hash_len, temp,
                     params->hash_len);
             }
@@ -2256,7 +2256,7 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
             }
 
             /* Copy out node to authentication path if on path. */
-            if ((ret == 0) && (auth_path != NULL) && ((q >> h) ^ 0x1) == j) {
+            if ((ret == 0) && (auth_path != NULL) && (((q >> h) ^ 0x1) == j)) {
                 XMEMCPY(auth_path + h * params->hash_len, temp,
                     params->hash_len);
             }
@@ -2350,15 +2350,21 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
                 params->hash_len;
             /* Copy cached node into working buffer. */
             XMEMCPY(temp, leaf->cache + off, params->hash_len);
-            /* I || u32str(i) || ... */
-            c32toa(i, rp);
         }
         else {
             /* Calculate leaf node hash. */
             ret = wc_lms_leaf_hash(state, seed, i, r, temp);
 
-            /* Check if this is at the end of the cache and not beyond q plus
-             * the number of leaf nodes. */
+            /* Slide the leaf cache forward by one slot when i is exactly the
+             * leaf immediately past the cached window and still within the
+             * window we will need to cover q. Callers (wc_hss_init_auth_path /
+             * wc_hss_update_auth_path) advance i contiguously, so i never
+             * jumps past leaf->idx + max_cb in normal use; if that invariant
+             * is broken, the cache stays put and i is silently uncached
+             * (correct, but defeats the cache). */
+            if (i > leaf->idx + max_cb) {
+                WOLFSSL_MSG("Bad value for index");
+            }
             if ((i == leaf->idx + max_cb) && (i < (q + max_cb))) {
                 /* Copy working node into cache over old first node. */
                 XMEMCPY(leaf->cache + leaf->offset * params->hash_len, temp,
@@ -2834,12 +2840,14 @@ static int wc_lms_verify(LmsState* state, const byte* pub, const byte* msg,
          * (low 12 bits, LMS_H_W_MASK). The wire format strips the
          * private flags (see encoder lines 2483, 2510, 1559), so the
          * comparison is against the RFC type code only. This is safe so
-         * long as the low-12-bit codes remain globally distinct across
-         * hash families (they are today: 0x05-0x09 SHA-256/M32,
-         * 0x0a-0x0e SHA-256/M24, 0x0f-0x13 SHAKE/M32, etc.). Any future
-         * parameter set that introduces a collision in the low 12 bits
-         * would require this check to compare the full lmsType, not the
-         * masked form. */
+         * long as the (lmsType, lmOtsType) pair, masked to the low 12 bits,
+         * is unique across the static map -- i.e., no two  entries from
+         * different hash families happen to have the same RFC code pair.
+         * All current entries have matching hash families, so the pair is
+         * trivially unique. A future entry mixing families would need this
+         * checked explicitly.  Any future parameter set that introduces a
+         * collision in the low 12 bits would require this check to compare
+         * the full lmsType, not the masked form. */
         const byte* sig_lms_type = sig + LMS_Q_LEN + LMS_TYPE_LEN +
             params->hash_len + params->p * params->hash_len;
         word32 sigType;
@@ -3118,12 +3126,13 @@ static int wc_lms_next_subtree_init(LmsState* state, LmsPrivState* privState,
     byte* priv_i;
     word32 pq;
 
+    /* Get next key pointer. */
     priv_q = priv;
-    priv += LMS_Q_LEN;
+    /* Get pointers of current private. */
     priv_seed = curr + LMS_Q_LEN;
-    priv += params->hash_len;
     priv_i = curr + LMS_Q_LEN + params->hash_len;
-    priv += LMS_I_LEN;
+    /* Move next private key to next leaf for updating.*/
+    priv += LMS_Q_LEN + params->hash_len + LMS_I_LEN;
 
     ato32(curr, &pq);
     pq = (pq + 1U) & ((((word32)1U) << params->height) - (word32)1U);
@@ -3182,7 +3191,7 @@ static int wc_hss_next_subtree_inc(LmsState* state, HssPrivKey* priv_key,
         cp64_hi = w64ShiftRight(p64, (params->levels - i - 1) * params->height);
         cq64_hi = w64ShiftRight(q64, (params->levels - i - 1) * params->height);
         /* Get the q for the child. */
-        ato32(curr + LMS_PRIV_LEN(params->hash_len), (unsigned int*)&qc);
+        ato32(curr + LMS_PRIV_LEN(params->hash_len), &qc);
 
         /* Compare index of parent node with previous value. */
         if (w64LT(p64_hi, q64_hi)) {
@@ -3426,7 +3435,7 @@ static int wc_hss_presign(LmsState* state, HssPrivKey* priv_key)
     const LmsParams* params = state->params;
     byte* buffer = state->buffer;
     byte pub[LMS_PUBKEY_LEN(LMS_MAX_NODE_LEN)];
-    byte* root = pub + LMS_PUBKEY_LEN(LMS_MAX_NODE_LEN) - params->hash_len;
+    byte* root = pub + LMS_PUBKEY_LEN(params->hash_len) - params->hash_len;
     byte* priv = priv_key->priv;
     int i;
 
@@ -3513,8 +3522,6 @@ static void wc_hss_priv_data_store(const LmsParams* params, HssPrivKey* key,
     byte* priv_data)
 {
     int l;
-
-    (void)key;
 
     /* Expanded private keys. */
     priv_data += LMS_PRIV_KEY_LEN(params->levels, params->hash_len);
@@ -4022,15 +4029,23 @@ int wc_hss_sign(LmsState* state, byte* priv_raw, HssPrivKey* priv_key,
  */
 int wc_hss_sigsleft(const LmsParams* params, const byte* priv_raw)
 {
+    int ret;
     w64wrapper q;
     w64wrapper cnt;
 
-    /* Get current q - next leaf index to sign with. */
-    ato64(priv_raw, &q);
-    /* 1 << total_height = total leaf nodes. */
-    cnt = w64ShiftLeft(w64From32(0, 1), params->levels * params->height);
-    /* Check q is less than total leaf node count. */
-    return w64LT(q, cnt);
+    if (params->levels * params->height >= 64) {
+        ret = 1;
+    }
+    else {
+        /* Get current q - next leaf index to sign with. */
+        ato64(priv_raw, &q);
+        /* 1 << total_height = total leaf nodes. */
+        cnt = w64ShiftLeft(w64From32(0, 1), params->levels * params->height);
+        /* Check q is less than total leaf node count. */
+        ret = w64LT(q, cnt);
+    }
+
+    return ret;
 }
 #endif /* !WOLFSSL_LMS_VERIFY_ONLY */
 
@@ -4086,8 +4101,12 @@ int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
     sig += LMS_L_LEN;
     sigRem = sigSz - LMS_L_LEN;
 
+    /* Validate that the count of levels matches the parameters. */
+    if (levels != state->params->levels) {
+        ret = SIG_VERIFY_E;
+    }
     /* Line 2: Verify that pub and signature match in levels. */
-    if (nspk + 1 != levels) {
+    if ((ret == 0) && (nspk + 1 != levels)) {
         /* Line 3: Return invalid signature. */
         ret = SIG_VERIFY_E;
     }

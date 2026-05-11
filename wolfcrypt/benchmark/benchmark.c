@@ -11689,7 +11689,6 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
         XMEMCPY(key.pub, lms_pub_L4_H5_W8, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
-    case WC_LMS_PARM_NONE:
     case WC_LMS_PARM_L1_H15_W2:
     case WC_LMS_PARM_L1_H15_W4:
     case WC_LMS_PARM_L2_H10_W8:
