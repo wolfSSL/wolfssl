@@ -253,14 +253,14 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
     else {
         /* for WC_TYPE_UNSIGNED_BIN keySz is used to zero pad.
          * The key size is always returned as the size */
-        word32 mpSz = 0;
+        int mpSz = 0;
         if (*len < keySz) {
             *len = keySz;
             return BUFFER_E;
         }
         *len = keySz;
-        mpSz = (word32)mp_unsigned_bin_size(mp);
-        if (mpSz > keySz) {
+        mpSz = mp_unsigned_bin_size(mp);
+        if (mpSz < 0 || (word32)mpSz > keySz) {
             return BUFFER_E;
         }
         XMEMSET(buf, 0, *len);

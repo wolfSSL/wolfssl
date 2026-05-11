@@ -199,7 +199,7 @@ int test_wc_export_int(void)
     len = sizeof(buf);
     ExpectIntEQ(mp_init(&mp), MP_OKAY);
     ExpectIntEQ(mp_set_bit(&mp, 257), 0);
-    ExpectIntEQ(wc_export_int(&mp, buf, &len, 0, WC_TYPE_UNSIGNED_BIN),
+    ExpectIntEQ(wc_export_int(&mp, buf, &len, keySz, WC_TYPE_UNSIGNED_BIN),
         WC_NO_ERR_TRACE(BUFFER_E));
 
     mp_clear(&mp);
