@@ -1720,12 +1720,45 @@ class TestGenerateSpdx(unittest.TestCase):
         self.assertEqual(doc['dataLicense'], 'CC0-1.0')
         self.assertEqual(doc['SPDXID'], 'SPDXRef-DOCUMENT')
         self.assertEqual(doc['name'], 'wolfssl-5.9.1')
-        self.assertTrue(
-            doc['documentNamespace'].startswith('https://wolfssl.com/sbom/'))
-        # documentNamespace must include the doc_ns_uuid so two
-        # different versions produce different namespaces (SPDX 2.3
-        # §6.5).
-        self.assertIn(self.BASE_KW['doc_ns_uuid'], doc['documentNamespace'])
+        # SPDX 2.3 §6.5: documentNamespace must be a unique URI; no
+        # requirement that it resolve.  Default to `urn:uuid:<derived>`
+        # rather than a `https://wolfssl.com/sbom/...` URL the project
+        # does not host -- emitting an unresolvable URL would mislead
+        # any downstream tool that follows it.  The doc_ns_uuid keeps
+        # the namespace per-version unique without making a hosting
+        # claim.
+        self.assertEqual(
+            doc['documentNamespace'],
+            f'urn:uuid:{self.BASE_KW["doc_ns_uuid"]}')
+
+    def test_document_namespace_override_is_honoured(self):
+        # Downstream packagers who legitimately re-host the SBOM under
+        # their own URL pass --document-namespace; the override must
+        # win over the urn:uuid default.  Without this knob a packager
+        # would have to fork the script to satisfy SPDX 2.3 §6.5
+        # uniqueness against a self-hosted mirror.
+        custom = 'https://example.com/sbom/wolfssl-5.9.1.spdx.json'
+        doc = gs.generate_spdx(**{
+            **self.BASE_KW,
+            'document_namespace': custom,
+        })
+        self.assertEqual(doc['documentNamespace'], custom)
+
+    def test_document_namespace_default_is_urn_uuid(self):
+        # Negative companion to test_document_namespace_override: when
+        # no override is supplied (None or empty), the urn:uuid form is
+        # used and the previously-emitted https://wolfssl.com/sbom/
+        # URL is NOT reintroduced (regression guard for the M1
+        # correction).
+        for explicit in (None, ''):
+            doc = gs.generate_spdx(**{
+                **self.BASE_KW,
+                'document_namespace': explicit,
+            })
+            self.assertTrue(
+                doc['documentNamespace'].startswith('urn:uuid:'),
+                f'{explicit!r} -> {doc["documentNamespace"]!r}')
+            self.assertNotIn('wolfssl.com/sbom', doc['documentNamespace'])
 
     def test_main_package_fields(self):
         doc = gs.generate_spdx(**self.BASE_KW)

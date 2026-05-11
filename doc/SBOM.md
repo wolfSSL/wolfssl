@@ -78,6 +78,7 @@ Optional flags:
 | `--dep-version libz=1.3.1` | Explicit dep version when `pkg-config` is unavailable (typical cross-compile) |
 | `--license-override LicenseRef-wolfSSL-Commercial` | If you are a commercial licensee, not GPL |
 | `--license-text /path/to/commercial-license.txt` | Required when `--license-override` is a `LicenseRef-*` |
+| `--document-namespace https://example.com/sbom/wolfssl-5.9.1.spdx.json` | Override the SPDX `documentNamespace`.  Default is a deterministic `urn:uuid:` derived from `--name`/`--version` (SPDX 2.3 §6.5 requires only uniqueness, not resolvability).  Set this when **your** distribution re-hosts the SBOM under a stable URL. |
 
 ### 1.3 Dependencies
 
@@ -456,6 +457,23 @@ is unnecessary because validators already know the canonical text.
 make sbom \
     SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
     SBOM_LICENSE_TEXT=/path/to/wolfssl-commercial-license.txt
+```
+
+#### Overriding the SPDX `documentNamespace`
+
+By default the SPDX document's `documentNamespace` is a deterministic
+`urn:uuid:<uuid5-derived>` value.  SPDX 2.3 §6.5 only requires that this
+field be a unique URI; it does **not** have to resolve to anything.  The
+default avoids asserting a hosted URL the wolfSSL project does not serve.
+
+If your distribution re-publishes the SBOM under a stable URL you control,
+set `SBOM_DOCUMENT_NAMESPACE` (or `--document-namespace` in the standalone
+entry point) so downstream consumers can `externalDocumentRef` your
+hosted copy:
+
+```sh
+make sbom \
+    SBOM_DOCUMENT_NAMESPACE=https://example.com/sbom/wolfssl-5.9.1.spdx.json
 ```
 
 #### External dependency version detection

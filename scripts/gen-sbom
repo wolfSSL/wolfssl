@@ -13,8 +13,17 @@ import uuid
 from datetime import datetime, timezone
 
 
-# Stable namespace for deterministic uuid5 derivation.  Anchored under
-# wolfssl.com so collisions with other projects' SBOM UUIDs are not a concern.
+# Stable namespace for deterministic uuid5 derivation.  The seed string is
+# an opaque input to uuid5 -- it only needs to be (a) constant across
+# releases so the derived UUIDs reproduce byte-for-byte (any consumer
+# pinning a wolfSSL SBOM hash would otherwise see a content rotation
+# from a seed change alone), and (b) unlikely to collide with another
+# project's uuid5 namespace.  It is NOT a URL the SBOM resolves to and
+# is NOT what we serialize as the SPDX documentNamespace -- that field
+# is now `urn:uuid:<derived>` (see generate_spdx).  The historical
+# string is preserved verbatim to keep derived UUIDs (bom-refs,
+# serialNumbers, the documentNamespace UUID component) stable across
+# the documentNamespace shape change.
 SBOM_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'https://wolfssl.com/sbom/')
 
 
@@ -707,7 +716,7 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
 def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
                   timestamp, year, doc_ns_uuid, enabled_deps, build_props,
                   dep_version_overrides=None, hash_kind='library-binary',
-                  srcs_basenames=None):
+                  srcs_basenames=None, document_namespace=None):
     build_defines = ', '.join(k for k, _ in build_props)
     # Only annotate the comment when running the source-merkle entry
     # point.  The autotools / library-binary path keeps its existing
@@ -762,14 +771,20 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
             'relationshipType': 'DEPENDS_ON',
         })
 
+    # SPDX 2.3 §6.5: documentNamespace must be a unique URI; it is NOT
+    # required to resolve to anything.  Default to `urn:uuid:<derived>`
+    # rather than a `https://wolfssl.com/sbom/...` URL the project does
+    # not actually host -- emitting an unresolvable URL misleads any
+    # downstream tool that follows it.  Downstream packagers who DO host
+    # a per-version mirror can override via `--document-namespace`
+    # (Makefile.am: SBOM_DOCUMENT_NAMESPACE).
+    doc_namespace = document_namespace or f'urn:uuid:{doc_ns_uuid}'
     doc = {
         'spdxVersion': 'SPDX-2.3',
         'dataLicense': 'CC0-1.0',
         'SPDXID': 'SPDXRef-DOCUMENT',
         'name': f'{name}-{version}',
-        'documentNamespace': (
-            f'https://wolfssl.com/sbom/{name}-{version}-{doc_ns_uuid}'
-        ),
+        'documentNamespace': doc_namespace,
         'creationInfo': {
             'creators': [
                 f'Organization: {supplier}',
@@ -884,6 +899,16 @@ def main():
                              + ', '.join(sorted(DEP_META)) + '. Required '
                              'on hosts without pkg-config (typical embedded '
                              'cross-compile setups).')
+    parser.add_argument('--document-namespace', default='',
+                        metavar='URI',
+                        help='Override SPDX documentNamespace.  Default '
+                             'is a deterministic urn:uuid derived from '
+                             '--name and --version.  Set to a URI you '
+                             'actually host (e.g. '
+                             'https://example.com/sbom/wolfssl-X.Y.Z.spdx.json) '
+                             'when re-publishing the SBOM under your own '
+                             'distribution.  SPDX 2.3 §6.5 requires only '
+                             'uniqueness, not resolvability.')
     parser.add_argument('--cdx-out', required=True,
                         help='Output path for CycloneDX JSON')
     parser.add_argument('--spdx-out', required=True,
@@ -907,6 +932,24 @@ def main():
             "       --lib: hash a built library artefact (.so/.a/.dylib).\n"
             "       --srcs: hash the wolfSSL source files compiled into "
             "your firmware (OmniBOR gitoid Merkle hash).")
+
+    # SPDX 2.3 §6.5 requires documentNamespace to be a unique absolute URI
+    # per RFC 3986.  `make sbom` runs pyspdxtools afterwards and would
+    # catch a malformed value, but the standalone entry point has no
+    # validation gate -- a typo in SBOM_DOCUMENT_NAMESPACE / a packager
+    # passing a relative path would otherwise land malformed SPDX in
+    # downstream artefacts.  An absolute URI per RFC 3986 §3 has a
+    # non-empty scheme; urlparse extracts that.
+    if args.document_namespace:
+        from urllib.parse import urlparse
+        scheme = urlparse(args.document_namespace).scheme
+        if not scheme:
+            sys.exit(
+                f"ERROR: --document-namespace {args.document_namespace!r} "
+                "is not an absolute URI (SPDX 2.3 §6.5 requires RFC 3986 "
+                "absolute URI form).  Expected e.g. "
+                "https://example.com/sbom/wolfssl-X.Y.Z.spdx.json or "
+                "urn:uuid:00000000-0000-0000-0000-000000000000.")
 
     enabled_deps = [
         key for key, flag in [
@@ -1004,6 +1047,7 @@ def main():
         enabled_deps, build_props,
         dep_version_overrides=dep_version_overrides,
         hash_kind=hash_kind, srcs_basenames=srcs_basenames,
+        document_namespace=(args.document_namespace or None),
     )
 
     try:

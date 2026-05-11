@@ -387,6 +387,13 @@ WOLFSSL_LIB_DSO_BASENAMES = \
 #                          for SPDX 2.3 conformance whenever a custom
 #                          LicenseRef is in use; `make sbom` exits with an
 #                          error if it is missing.
+#   SBOM_DOCUMENT_NAMESPACE Override the SPDX documentNamespace.  Default
+#                          is a deterministic urn:uuid (SPDX 2.3 §6.5
+#                          requires only uniqueness, not resolvability).
+#                          Downstream packagers re-hosting the SBOM under
+#                          their own URL should set this to a URI they
+#                          actually serve (e.g.
+#                          https://example.com/sbom/wolfssl-X.Y.Z.spdx.json).
 sbom:
 	@if test -z "$(PYTHON3)"; then \
 	    echo ""; \
@@ -438,6 +445,7 @@ sbom:
 	    --license-file $(srcdir)/LICENSING \
 	    $(if $(SBOM_LICENSE_OVERRIDE),--license-override '$(SBOM_LICENSE_OVERRIDE)') \
 	    $(if $(SBOM_LICENSE_TEXT),--license-text '$(SBOM_LICENSE_TEXT)') \
+	    $(if $(SBOM_DOCUMENT_NAMESPACE),--document-namespace '$(SBOM_DOCUMENT_NAMESPACE)') \
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
 	    --dep-libz $(ENABLED_LIBZ) \

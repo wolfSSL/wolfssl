@@ -101,12 +101,20 @@ Reference wolfSSL's SPDX document from your product's SPDX document using
 `externalDocumentRefs`.  This keeps the documents separate and lets wolfSSL's
 SBOM stand as an independently verifiable artefact.
 
+wolfSSL ships the generated SBOM with the source distribution and does not
+currently publish it at a fixed, resolvable URL.  In the `spdxDocument`
+field below, substitute the URI under which your distribution mirrors
+`wolfssl-<version>.spdx.json` (e.g. an artifact server, OCI registry, or
+distribution mirror you control).  SPDX 2.3 §6.5 only requires the value
+be a unique URI; if you do not re-host, the `urn:uuid:<uuid5-derived>`
+form that `make sbom` emits by default is acceptable.
+
 ```json
 {
   "externalDocumentRefs": [
     {
       "externalDocumentId": "DocumentRef-wolfssl",
-      "spdxDocument": "https://wolfssl.com/sbom/wolfssl-<version>.spdx.json",
+      "spdxDocument": "<URI where your distribution serves wolfssl-<version>.spdx.json>",
       "checksum": {
         "algorithm": "SHA256",
         "checksumValue": "<sha256-of-wolfssl-spdx.json>"
@@ -136,7 +144,11 @@ directly into your own SPDX document and add the `DYNAMIC_LINK` /
 ### CycloneDX: component reference
 
 Include wolfSSL as a component in your CycloneDX BOM, referencing the
-wolfSSL CycloneDX document via an external reference of type `bom`:
+wolfSSL CycloneDX document via an external reference of type `bom`.
+
+As with the SPDX `spdxDocument` URI above, wolfSSL does not currently
+publish CycloneDX SBOMs at a fixed, resolvable URL; substitute the URI
+under which your distribution mirrors `wolfssl-<version>.cdx.json`.
 
 ```json
 {
@@ -149,7 +161,7 @@ wolfSSL CycloneDX document via an external reference of type `bom`:
   "externalReferences": [
     {
       "type": "bom",
-      "url": "https://wolfssl.com/sbom/wolfssl-<version>.cdx.json",
+      "url": "<URI where your distribution serves wolfssl-<version>.cdx.json>",
       "hashes": [
         {
           "alg": "SHA-256",
