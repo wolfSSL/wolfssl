@@ -271,7 +271,7 @@ void print_data(const char* name, const byte* d, int len)
 
 
 /* The ML-DSA parameters sets. */
-static const MlDsaParams mldsa_params[] = {
+static const wc_MlDsaParams mldsa_params[] = {
 #ifndef WOLFSSL_NO_ML_DSA_44
     { WC_ML_DSA_44, PARAMS_ML_DSA_44_K, PARAMS_ML_DSA_44_L,
       PARAMS_ML_DSA_44_ETA, PARAMS_ML_DSA_44_ETA_BITS,
@@ -349,7 +349,7 @@ static const MlDsaParams mldsa_params[] = {
 };
 /* Number of ML-DSA parameter sets compiled in. */
 #define DILITHIUM_PARAMS_CNT \
-    ((unsigned int)(sizeof(mldsa_params) / sizeof(MlDsaParams)))
+    ((unsigned int)(sizeof(mldsa_params) / sizeof(wc_MlDsaParams)))
 
 /* Get the ML-DSA parameters that match the level.
  *
@@ -358,7 +358,7 @@ static const MlDsaParams mldsa_params[] = {
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when parameters at level are not compiled in.
  */
-static int mldsa_get_params(int level, const MlDsaParams** params)
+static int mldsa_get_params(int level, const wc_MlDsaParams** params)
 {
     unsigned int i;
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
@@ -379,7 +379,7 @@ static int mldsa_get_params(int level, const MlDsaParams** params)
  * allocated. Buffer is sized via wc_MlDsaKey_Size(key) and the allocated size
  * is stored in key->kSz for later use (ForceZero, free). On failure key->k may
  * remain NULL; callers must not inspect it. */
-static int mldsa_alloc_priv_buf(MlDsaKey* key)
+static int mldsa_alloc_priv_buf(wc_MlDsaKey* key)
 {
     int ret = 0;
 
@@ -413,7 +413,7 @@ static int mldsa_alloc_priv_buf(MlDsaKey* key)
 /* Allocate the public key buffer for the current level if not already
  * allocated. Buffer is sized via wc_MlDsaKey_PubSize(key). On failure,
  * key->p may remain NULL; callers must not inspect it. */
-static int mldsa_alloc_pub_buf(MlDsaKey* key)
+static int mldsa_alloc_pub_buf(wc_MlDsaKey* key)
 {
     int ret = 0;
 
@@ -7757,11 +7757,11 @@ static void mldsa_vec_make_pos(sword32* a, byte l)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_make_key_from_seed(MlDsaKey* key, const byte* seed)
+static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 {
 #ifndef WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM
     int ret = 0;
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     sword32* a = NULL;
     sword32* s1 = NULL;
     sword32* s2 = NULL;
@@ -7932,7 +7932,7 @@ static int mldsa_make_key_from_seed(MlDsaKey* key, const byte* seed)
     return ret;
 #else
     int ret = 0;
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     sword32* a = NULL;
     sword32* s1 = NULL;
     sword32* s2 = NULL;
@@ -8178,7 +8178,7 @@ static int mldsa_make_key_from_seed(MlDsaKey* key, const byte* seed)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_make_key(MlDsaKey* key, WC_RNG* rng)
+static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
 {
     int ret;
     byte seed[DILITHIUM_SEED_SZ];
@@ -8214,10 +8214,10 @@ static int mldsa_make_key(MlDsaKey* key, WC_RNG* rng)
  * @param [out]     s2   Vector of polynomials s2.
  * @param [out]     t0   Vector of polynomials t0.
  */
-static void mldsa_make_priv_vecs(MlDsaKey* key, sword32* s1,
+static void mldsa_make_priv_vecs(wc_MlDsaKey* key, sword32* s1,
     sword32* s2, sword32* t0)
 {
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     const byte* pubSeed = key->k;
     const byte* k = pubSeed + DILITHIUM_PUB_SEED_SZ;
     const byte* tr = k + DILITHIUM_K_SZ;
@@ -8301,12 +8301,12 @@ static void mldsa_make_priv_vecs(MlDsaKey* key, sword32* s1,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_sign_with_seed_mu(MlDsaKey* key,
+static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     const byte* seedMu, byte* sig, word32 *sigLen)
 {
 #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
     int ret = 0;
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->k;
     const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
     const byte* mu = seedMu + DILITHIUM_RND_SZ;
@@ -8590,7 +8590,7 @@ static int mldsa_sign_with_seed_mu(MlDsaKey* key,
     return ret;
 #else
     int ret = 0;
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->k;
     const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
     const byte* tr = k + DILITHIUM_K_SZ;
@@ -9173,7 +9173,7 @@ static int mldsa_sign_with_seed_mu(MlDsaKey* key,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_sign_ctx_msg_with_seed(MlDsaKey* key,
+static int mldsa_sign_ctx_msg_with_seed(wc_MlDsaKey* key,
     const byte* seed, const byte* ctx, byte ctxLen, const byte* msg,
     word32 msgLen, byte* sig, word32 *sigLen)
 {
@@ -9224,7 +9224,7 @@ static int mldsa_sign_ctx_msg_with_seed(MlDsaKey* key,
  * @return  Other negative when an error occurs.
  */
 #ifdef WOLFSSL_MLDSA_NO_CTX
-static int mldsa_sign_msg_with_seed(MlDsaKey* key, const byte* seed,
+static int mldsa_sign_msg_with_seed(wc_MlDsaKey* key, const byte* seed,
     const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
 {
     int ret;
@@ -9279,7 +9279,7 @@ static int mldsa_sign_msg_with_seed(MlDsaKey* key, const byte* seed,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_sign_ctx_msg(MlDsaKey* key, WC_RNG* rng,
+static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
     const byte* ctx, byte ctxLen, const byte* msg, word32 msgLen, byte* sig,
     word32 *sigLen)
 {
@@ -9343,7 +9343,7 @@ static int mldsa_sign_ctx_msg(MlDsaKey* key, WC_RNG* rng,
  * @return  Other negative when an error occurs.
  */
 #ifdef WOLFSSL_MLDSA_NO_CTX
-static int mldsa_sign_msg(MlDsaKey* key, WC_RNG* rng,
+static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
     const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
 {
     int ret = 0;
@@ -9411,7 +9411,7 @@ static int mldsa_sign_msg(MlDsaKey* key, WC_RNG* rng,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_sign_ctx_hash_with_seed(MlDsaKey* key,
+static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
     const byte* seed, const byte* ctx, byte ctxLen, int hashAlg,
     const byte* hash, word32 hashLen, byte* sig, word32 *sigLen)
 {
@@ -9475,7 +9475,7 @@ static int mldsa_sign_ctx_hash_with_seed(MlDsaKey* key,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_sign_ctx_hash(MlDsaKey* key, WC_RNG* rng,
+static int mldsa_sign_ctx_hash(wc_MlDsaKey* key, WC_RNG* rng,
     const byte* ctx, byte ctxLen, int hashAlg, const byte* hash, word32 hashLen,
     byte* sig, word32 *sigLen)
 {
@@ -9511,9 +9511,9 @@ static int mldsa_sign_ctx_hash(MlDsaKey* key, WC_RNG* rng,
  * @param [in, out] key  Key with public key data.
  * @param [out]     t1   Vector in NTT form.
  */
-static void mldsa_make_pub_vec(MlDsaKey* key, sword32* t1)
+static void mldsa_make_pub_vec(wc_MlDsaKey* key, sword32* t1)
 {
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     const byte* t1p = key->p + DILITHIUM_PUB_SEED_SZ;
 
     mldsa_vec_decode_t1(t1p, params->k, t1);
@@ -9555,12 +9555,12 @@ static void mldsa_make_pub_vec(MlDsaKey* key, sword32* t1)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_verify_with_mu(MlDsaKey* key, const byte* mu,
+static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     const byte* sig, word32 sigLen, int* res)
 {
 #ifndef WOLFSSL_MLDSA_VERIFY_SMALL_MEM
     int ret = 0;
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->p;
     const byte* commit = sig;
     const byte* ze = sig + params->lambda / 4;
@@ -9717,7 +9717,7 @@ static int mldsa_verify_with_mu(MlDsaKey* key, const byte* mu,
     return ret;
 #else
     int ret = 0;
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->p;
     const byte* t1p = pub_seed + DILITHIUM_PUB_SEED_SZ;
     const byte* commit = sig;
@@ -9992,7 +9992,7 @@ static int mldsa_verify_with_mu(MlDsaKey* key, const byte* mu,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_verify_ctx_msg(MlDsaKey* key, const byte* ctx,
+static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
     byte ctxLen, const byte* msg, word32 msgLen, const byte* sig, word32 sigLen,
     int* res)
 {
@@ -10037,7 +10037,7 @@ static int mldsa_verify_ctx_msg(MlDsaKey* key, const byte* ctx,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_verify_msg(MlDsaKey* key, const byte* msg,
+static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
     word32 msgLen, const byte* sig, word32 sigLen, int* res)
 {
     int ret = 0;
@@ -10084,7 +10084,7 @@ static int mldsa_verify_msg(MlDsaKey* key, const byte* msg,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int mldsa_verify_ctx_hash(MlDsaKey* key, const byte* ctx,
+static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     byte ctxLen, int hashAlg, const byte* hash, word32 hashLen, const byte* sig,
     word32 sigLen, int* res)
 {
@@ -10129,7 +10129,7 @@ static int mldsa_verify_ctx_hash(MlDsaKey* key, const byte* ctx,
 #endif /* WOLFSSL_MLDSA_NO_VERIFY */
 
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
-int wc_MlDsaKey_MakeKey(MlDsaKey* key, WC_RNG* rng)
+int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
 {
     int ret = 0;
 
@@ -10205,7 +10205,7 @@ int wc_MlDsaKey_MakeKey(MlDsaKey* key, WC_RNG* rng)
     return ret;
 }
 
-int wc_MlDsaKey_MakeKeyFromSeed(MlDsaKey* key, const byte* seed)
+int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 {
     int ret = 0;
 
@@ -10248,7 +10248,7 @@ int wc_MlDsaKey_MakeKeyFromSeed(MlDsaKey* key, const byte* seed)
  *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
  */
-int wc_MlDsaKey_SignCtx(MlDsaKey* key, const byte* ctx, byte ctxLen,
+int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     byte* sig, word32 *sigLen, const byte* msg, word32 msgLen, WC_RNG* rng)
 {
     int ret = 0;
@@ -10304,7 +10304,7 @@ int wc_MlDsaKey_SignCtx(MlDsaKey* key, const byte* ctx, byte ctxLen,
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
  *       use wc_MlDsaKey_SignCtx() with ctx=NULL/ctxLen=0 instead.
  */
-int wc_MlDsaKey_Sign(MlDsaKey* key, byte* sig, word32 *sigLen,
+int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     const byte* msg, word32 msgLen, WC_RNG* rng)
 {
     int ret = 0;
@@ -10355,7 +10355,7 @@ int wc_MlDsaKey_Sign(MlDsaKey* key, byte* sig, word32 *sigLen,
  *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
  */
-int wc_MlDsaKey_SignCtxHash(MlDsaKey* key, const byte* ctx, byte ctxLen,
+int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
    byte* sig, word32 *sigLen, const byte* hash, word32 hashLen,
    int hashAlg, WC_RNG* rng)
 {
@@ -10409,7 +10409,7 @@ int wc_MlDsaKey_SignCtxHash(MlDsaKey* key, const byte* ctx, byte ctxLen,
  *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
  */
-int wc_MlDsaKey_SignCtxWithSeed(MlDsaKey* key, const byte* ctx, byte ctxLen,
+int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     byte* sig, word32 *sigLen, const byte* msg, word32 msgLen,
     const byte* seed)
 {
@@ -10447,7 +10447,7 @@ int wc_MlDsaKey_SignCtxWithSeed(MlDsaKey* key, const byte* ctx, byte ctxLen,
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
  *       use wc_MlDsaKey_SignCtxWithSeed() instead.
  */
-int wc_MlDsaKey_SignWithSeed(MlDsaKey* key, byte* sig, word32 *sigLen,
+int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     const byte* msg, word32 msgLen, const byte* seed)
 {
     int ret = 0;
@@ -10482,7 +10482,7 @@ int wc_MlDsaKey_SignWithSeed(MlDsaKey* key, byte* sig, word32 *sigLen,
  *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
  */
-int wc_MlDsaKey_SignCtxHashWithSeed(MlDsaKey* key, const byte* ctx,
+int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
     byte ctxLen, byte* sig, word32 *sigLen, const byte* hash,
     word32 hashLen, int hashAlg, const byte* seed)
 {
@@ -10523,7 +10523,7 @@ int wc_MlDsaKey_SignCtxHashWithSeed(MlDsaKey* key, const byte* ctx,
  *          BUFFER_E when sigLen is too small,
  *          0 otherwise.
  */
-int wc_MlDsaKey_SignMuWithSeed(MlDsaKey* key, byte* sig, word32 *sigLen,
+int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     const byte* mu, word32 muLen, const byte* seed)
 {
     int ret = 0;
@@ -10566,7 +10566,7 @@ int wc_MlDsaKey_SignMuWithSeed(MlDsaKey* key, byte* sig, word32 *sigLen,
  *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
  */
-int wc_MlDsaKey_VerifyCtx(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* ctx, byte ctxLen, const byte* msg, word32 msgLen, int* res)
 {
     int ret = 0;
@@ -10623,7 +10623,7 @@ int wc_MlDsaKey_VerifyCtx(MlDsaKey* key, const byte* sig, word32 sigLen,
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
  *       use wc_MlDsaKey_VerifyCtx() with ctx=NULL/ctxLen=0 instead.
  */
-int wc_MlDsaKey_Verify(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res)
 {
     int ret = 0;
@@ -10674,7 +10674,7 @@ int wc_MlDsaKey_Verify(MlDsaKey* key, const byte* sig, word32 sigLen,
  *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
  *          0 otherwise.
  */
-int wc_MlDsaKey_VerifyCtxHash(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* ctx, byte ctxLen, const byte* hash, word32 hashLen,
     int hashAlg, int* res)
 {
@@ -10728,7 +10728,7 @@ int wc_MlDsaKey_VerifyCtxHash(MlDsaKey* key, const byte* sig, word32 sigLen,
  *  returns BAD_FUNC_ARG when a parameter is NULL or muLen is not 64,
  *          0 otherwise.
  */
-int wc_MlDsaKey_VerifyMu(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* mu, word32 muLen, int* res)
 {
     int ret = 0;
@@ -10758,10 +10758,10 @@ int wc_MlDsaKey_VerifyMu(MlDsaKey* key, const byte* sig, word32 sigLen,
  * returns MEMORY_E when dynamic memory allocation fails
  */
 
-MlDsaKey* wc_MlDsaKey_New(void* heap, int devId)
+wc_MlDsaKey* wc_MlDsaKey_New(void* heap, int devId)
 {
     int ret;
-    MlDsaKey* key = (MlDsaKey*)XMALLOC(sizeof(MlDsaKey), heap,
+    wc_MlDsaKey* key = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), heap,
         DYNAMIC_TYPE_DILITHIUM);
     if (key != NULL) {
         ret = wc_MlDsaKey_Init(key, heap, devId);
@@ -10782,7 +10782,7 @@ MlDsaKey* wc_MlDsaKey_New(void* heap, int devId)
  * returns BAD_FUNC_ARG when key is NULL
  */
 
-int wc_MlDsaKey_Delete(MlDsaKey* key, MlDsaKey** key_p)
+int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p)
 {
     void* heap;
     if (key == NULL)
@@ -10804,7 +10804,7 @@ int wc_MlDsaKey_Delete(MlDsaKey* key, MlDsaKey** key_p)
  * devId[in]  Device ID.
  * returns BAD_FUNC_ARG when key is NULL
  */
-int wc_MlDsaKey_Init(MlDsaKey* key, void* heap, int devId)
+int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
 {
     int ret = 0;
 
@@ -10838,7 +10838,7 @@ int wc_MlDsaKey_Init(MlDsaKey* key, void* heap, int devId)
 }
 
 #ifdef WOLF_PRIVATE_KEY_ID
-int wc_MlDsaKey_InitId(MlDsaKey* key, const unsigned char* id, int len,
+int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
     void* heap, int devId)
 {
     int ret = 0;
@@ -10864,7 +10864,7 @@ int wc_MlDsaKey_InitId(MlDsaKey* key, const unsigned char* id, int len,
     return ret;
 }
 
-int wc_MlDsaKey_InitLabel(MlDsaKey* key, const char* label, void* heap,
+int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
     int devId)
 {
     int ret = 0;
@@ -10901,7 +10901,7 @@ int wc_MlDsaKey_InitLabel(MlDsaKey* key, const char* label, void* heap,
  * level [in]   Either 2,3 or 5.
  * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
  */
-int wc_MlDsaKey_SetParams(MlDsaKey* key, byte level)
+int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
 {
     int ret = 0;
 
@@ -10977,7 +10977,7 @@ int wc_MlDsaKey_SetParams(MlDsaKey* key, byte level)
  * level [out] The level.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-int wc_MlDsaKey_GetParams(MlDsaKey* key, byte* level)
+int wc_MlDsaKey_GetParams(wc_MlDsaKey* key, byte* level)
 {
     int ret = 0;
 
@@ -11002,7 +11002,7 @@ int wc_MlDsaKey_GetParams(MlDsaKey* key, byte* level)
  *
  * key  [in]  ML-DSA key.
  */
-void wc_MlDsaKey_Free(MlDsaKey* key)
+void wc_MlDsaKey_Free(wc_MlDsaKey* key)
 {
     if (key != NULL) {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
@@ -11052,7 +11052,7 @@ void wc_MlDsaKey_Free(MlDsaKey* key)
  * @return  Private key size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaKey_Size(MlDsaKey* key)
+int wc_MlDsaKey_Size(wc_MlDsaKey* key)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
@@ -11093,7 +11093,7 @@ int wc_MlDsaKey_Size(MlDsaKey* key)
  * @return  Private key size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaKey_PrivSize(MlDsaKey* key)
+int wc_MlDsaKey_PrivSize(wc_MlDsaKey* key)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
@@ -11133,7 +11133,7 @@ int wc_MlDsaKey_PrivSize(MlDsaKey* key)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len)
+int wc_MlDsaKey_GetPrivLen(wc_MlDsaKey* key, int* len)
 {
     int ret = 0;
 
@@ -11154,7 +11154,7 @@ int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len)
  * @return  Public key size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaKey_PubSize(MlDsaKey* key)
+int wc_MlDsaKey_PubSize(wc_MlDsaKey* key)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
@@ -11195,7 +11195,7 @@ int wc_MlDsaKey_PubSize(MlDsaKey* key)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len)
+int wc_MlDsaKey_GetPubLen(wc_MlDsaKey* key, int* len)
 {
     int ret = 0;
 
@@ -11215,7 +11215,7 @@ int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len)
  * @return  Signature size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaKey_SigSize(MlDsaKey* key)
+int wc_MlDsaKey_SigSize(wc_MlDsaKey* key)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
@@ -11256,7 +11256,7 @@ int wc_MlDsaKey_SigSize(MlDsaKey* key)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len)
+int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len)
 {
     int ret = 0;
 
@@ -11278,10 +11278,10 @@ int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len)
  * @return  PUBLIC_KEY_E when the public key is not set or doesn't match,
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-int wc_MlDsaKey_CheckKey(MlDsaKey* key)
+int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 {
     int ret = 0;
-    const MlDsaParams* params = NULL;
+    const wc_MlDsaParams* params = NULL;
     sword32* a  = NULL;
     sword32* s1 = NULL;
     sword32* s2 = NULL;
@@ -11422,7 +11422,7 @@ int wc_MlDsaKey_CheckKey(MlDsaKey* key)
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_PUB_KEY_SIZE.
  */
-int wc_MlDsaKey_ExportPubRaw(MlDsaKey* key, byte* out, word32* outLen)
+int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
 {
     int ret = 0;
     word32 inLen;
@@ -11517,7 +11517,7 @@ int wc_MlDsaKey_ExportPubRaw(MlDsaKey* key, byte* out, word32* outLen)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
  */
-int wc_MlDsaKey_ImportPubRaw(MlDsaKey* key, const byte* in, word32 inLen)
+int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
 {
     int ret = 0;
 
@@ -11655,12 +11655,12 @@ int wc_MlDsaKey_ImportPubRaw(MlDsaKey* key, const byte* in, word32 inLen)
  * @return  Other negative on hash error.
  */
 static int mldsa_set_priv_key(const byte* priv, word32 privSz,
-    MlDsaKey* key)
+    wc_MlDsaKey* key)
 {
     int ret = 0;
     int expPrivSz;
 #ifdef WC_MLDSA_CACHE_MATRIX_A
-    const MlDsaParams* params = key->params;
+    const wc_MlDsaParams* params = key->params;
 #endif
 
     /* Validate parameters. privSz must match the expected size for the
@@ -11758,7 +11758,7 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
  * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
  *          required for level,
  */
-int wc_MlDsaKey_ImportPrivRaw(MlDsaKey* key, const byte* priv, word32 privSz)
+int wc_MlDsaKey_ImportPrivRaw(wc_MlDsaKey* key, const byte* priv, word32 privSz)
 {
     int ret = 0;
 
@@ -11791,7 +11791,7 @@ int wc_MlDsaKey_ImportPrivRaw(MlDsaKey* key, const byte* priv, word32 privSz)
  * @return  BAD_FUNC_ARG when a required parameter is NULL an invalid
  *          combination of keys/lengths is supplied.
  */
-int wc_MlDsaKey_ImportKey(MlDsaKey* key, const byte* priv, word32 privSz,
+int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
     const byte* pub, word32 pubSz)
 {
     int ret = 0;
@@ -11830,7 +11830,7 @@ int wc_MlDsaKey_ImportKey(MlDsaKey* key, const byte* priv, word32 privSz,
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
  */
-int wc_MlDsaKey_ExportPrivRaw(MlDsaKey* key, byte* out,
+int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
     word32* outLen)
 {
     int ret = 0;
@@ -11906,7 +11906,7 @@ int wc_MlDsaKey_ExportPrivRaw(MlDsaKey* key, byte* out,
  * @return  BAD_FUNC_ARG when a key, priv, privSz, pub or pubSz is NULL.
  * @return  BUFFER_E when privSz or pubSz is less than required size.
  */
-int wc_MlDsaKey_ExportKey(MlDsaKey* key, byte* priv, word32 *privSz,
+int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
     byte* pub, word32 *pubSz)
 {
     int ret;
@@ -11950,7 +11950,7 @@ static int mapOidToSecLevel(int oid)
 }
 
 /* Get OID sum from dilithium key */
-int mldsa_get_oid_sum(MlDsaKey* key, int* keyFormat) {
+int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat) {
     int ret = 0;
 
     #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
@@ -12007,7 +12007,7 @@ int mldsa_get_oid_sum(MlDsaKey* key, int* keyFormat) {
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
  * @return  Other negative on parse error.
  */
-int wc_MlDsaKey_PrivateKeyDecode(MlDsaKey* key, const byte* input,
+int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
     word32 inSz, word32* inOutIdx)
 {
     int ret = 0;
@@ -12321,7 +12321,7 @@ static int mldsa_check_type(const byte* input, word32* inOutIdx, byte type,
  * @return  BAD_FUNC_ARG when level not set.
  * @return  Other negative on parse error.
  */
-int wc_MlDsaKey_PublicKeyDecode(MlDsaKey* key, const byte* input,
+int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
     word32 inSz, word32* inOutIdx)
 {
     int ret = 0;
@@ -12516,7 +12516,7 @@ int wc_MlDsaKey_PublicKeyDecode(MlDsaKey* key, const byte* input,
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_MlDsaKey_PublicKeyToDer(MlDsaKey* key, byte* output, word32 len,
+int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
     int withAlg)
 {
     int ret = 0;
@@ -12599,7 +12599,7 @@ int wc_MlDsaKey_PublicKeyToDer(MlDsaKey* key, byte* output, word32 len,
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_MlDsaKey_KeyToDer(MlDsaKey* key, byte* output, word32 len)
+int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
@@ -12653,7 +12653,7 @@ int wc_MlDsaKey_KeyToDer(MlDsaKey* key, byte* output, word32 len)
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_MlDsaKey_PrivateKeyToDer(MlDsaKey* key, byte* output, word32 len)
+int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 

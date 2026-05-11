@@ -30441,7 +30441,7 @@ int test_mldsa_x509_pubkey_sigtype(void)
  * The two functions below are not runtime tests. Their bodies sit inside
  * `if (0)` so the compiler parses every reference without emitting any
  * runtime call. Their job is to fail compilation if the canonical
- * wc_MlDsaKey_* / MlDsaKey API in <wolfssl/wolfcrypt/wc_mldsa.h> or the
+ * wc_MlDsaKey_* / wc_MlDsaKey API in <wolfssl/wolfcrypt/wc_mldsa.h> or the
  * legacy alias surface in <wolfssl/wolfcrypt/dilithium.h> drifts in a way
  * that would silently break a downstream consumer. They live in this test
  * translation unit (rather than wolfcrypt/src/wc_mldsa.c) so the library
@@ -30462,20 +30462,20 @@ int test_mldsa_x509_pubkey_sigtype(void)
     #define WOLFSSL_MLDSA_API_CHECK_INLINE static WC_INLINE
 #endif
 
-/* Compile-time validation of the canonical wc_MlDsaKey_* / MlDsaKey API. */
+/* Compile-time validation of the canonical wc_MlDsaKey_* / wc_MlDsaKey API. */
 WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_canonical_api_check(void)
 {
     if (0) {
-        MlDsaKey k;
-        const MlDsaParams *p;
+        wc_MlDsaKey k;
+        const wc_MlDsaParams *p;
         const byte buf[1] = { 0 };
         word32 sz = 0;
         byte level = 0;
         int res = 0;
         WC_RNG *rng = NULL;
 
-        (void)sizeof(MlDsaKey);
-        (void)sizeof(MlDsaParams);
+        (void)sizeof(wc_MlDsaKey);
+        (void)sizeof(wc_MlDsaParams);
 
         /* Lifecycle / parameters. */
         (void)wc_MlDsaKey_Init(&k, NULL, INVALID_DEVID);
@@ -30589,7 +30589,7 @@ WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_canonical_api_check(void)
 WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_legacy_alias_check(void)
 {
     if (0) {
-        MlDsaKey k;
+        wc_MlDsaKey k;
         dilithium_key *kp = (dilithium_key *)0;
         const wc_dilithium_params *pp = (const wc_dilithium_params *)0;
         const byte buf[1] = { 0 };

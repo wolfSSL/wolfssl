@@ -26,7 +26,7 @@
 /* Interfaces for ML-DSA (FIPS 204), the NIST-standardized form of the
  * post-quantum signature algorithm formerly known as Dilithium.
  *
- * This header declares the canonical MlDsaKey / wc_MlDsaKey_* API. New
+ * This header declares the canonical wc_MlDsaKey / wc_MlDsaKey_* API. New
  * code must include this header directly.
  *
  * Backwards-compatibility for the pre-standardization names is delivered
@@ -607,7 +607,7 @@
 
 /* Structs */
 
-typedef struct MlDsaParams {
+typedef struct wc_MlDsaParams {
     byte level;
     byte k;
     byte l;
@@ -628,9 +628,13 @@ typedef struct MlDsaParams {
     word16 zEncSz;
     word16 pkSz;
     word16 sigSz;
-} MlDsaParams;
+} wc_MlDsaParams;
 
-struct MlDsaKey {
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+typedef struct wc_MlDsaParams MlDsaParams;
+#endif
+
+struct wc_MlDsaKey {
     byte pubKeySet;
     byte prvKeySet;
     byte level; /* 2,3 or 5 */
@@ -671,7 +675,7 @@ struct MlDsaKey {
     const byte* k;
 #endif
 
-    const MlDsaParams* params;
+    const wc_MlDsaParams* params;
     wc_Shake shake;
 #ifndef WC_MLDSA_FIXED_ARRAY
 #ifdef WC_MLDSA_CACHE_MATRIX_A
@@ -721,8 +725,18 @@ struct MlDsaKey {
 };
 
 #ifndef WC_MLDSAKEY_TYPE_DEFINED
-    typedef struct MlDsaKey MlDsaKey;
+    typedef struct wc_MlDsaKey wc_MlDsaKey;
     #define WC_MLDSAKEY_TYPE_DEFINED
+#endif
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+#ifndef WC_DILITHIUMKEY_TYPE_DEFINED
+    typedef struct wc_MlDsaKey dilithium_key;
+    #define WC_DILITHIUMKEY_TYPE_DEFINED
+#endif
+#ifndef WC_MLDSAKEY_LEGACY_TYPE_DEFINED
+    typedef struct wc_MlDsaKey MlDsaKey;
+    #define WC_MLDSAKEY_LEGACY_TYPE_DEFINED
+#endif
 #endif
 
 /* When WOLFSSL_MLDSA_FIPS204_DRAFT is enabled the legacy (pre-FIPS 204)
@@ -736,9 +750,9 @@ struct MlDsaKey {
 
 #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
 WOLFSSL_API
-int wc_MlDsaKey_MakeKey(MlDsaKey* key, WC_RNG* rng);
+int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng);
 WOLFSSL_API
-int wc_MlDsaKey_MakeKeyFromSeed(MlDsaKey* key, const byte* seed);
+int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
 
 /* Legacy sign API without context parameter (pre-FIPS 204).
  * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
@@ -746,14 +760,14 @@ int wc_MlDsaKey_MakeKeyFromSeed(MlDsaKey* key, const byte* seed);
  * for FIPS 204 compliant signing with an empty context. */
 #ifdef WOLFSSL_MLDSA_NO_CTX
 WOLFSSL_API
-int wc_MlDsaKey_Sign(MlDsaKey* key, byte* sig, word32* sigLen,
+int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32* sigLen,
     const byte* msg, word32 msgLen, WC_RNG* rng);
 #endif /* WOLFSSL_MLDSA_NO_CTX */
 WOLFSSL_API
-int wc_MlDsaKey_SignCtx(MlDsaKey* key, const byte* ctx, byte ctxLen,
+int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     byte* sig, word32* sigLen, const byte* msg, word32 msgLen, WC_RNG* rng);
 WOLFSSL_API
-int wc_MlDsaKey_SignCtxHash(MlDsaKey* key, const byte* ctx, byte ctxLen,
+int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     byte* sig, word32* sigLen, const byte* hash, word32 hashLen,
     int hashAlg, WC_RNG* rng);
 /* Legacy seed-based sign API without context parameter (pre-FIPS 204).
@@ -761,19 +775,19 @@ int wc_MlDsaKey_SignCtxHash(MlDsaKey* key, const byte* ctx, byte ctxLen,
  * New code should use wc_MlDsaKey_SignCtxWithSeed() instead. */
 #ifdef WOLFSSL_MLDSA_NO_CTX
 WOLFSSL_API
-int wc_MlDsaKey_SignWithSeed(MlDsaKey* key, byte* sig, word32* sigLen,
+int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
     const byte* msg, word32 msgLen, const byte* seed);
 #endif /* WOLFSSL_MLDSA_NO_CTX */
 WOLFSSL_API
-int wc_MlDsaKey_SignCtxWithSeed(MlDsaKey* key, const byte* ctx, byte ctxLen,
+int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     byte* sig, word32* sigLen, const byte* msg, word32 msgLen,
     const byte* seed);
 WOLFSSL_API
-int wc_MlDsaKey_SignCtxHashWithSeed(MlDsaKey* key, const byte* ctx,
+int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
     byte ctxLen, byte* sig, word32* sigLen, const byte* hash,
     word32 hashLen, int hashAlg, const byte* seed);
 WOLFSSL_API
-int wc_MlDsaKey_SignMuWithSeed(MlDsaKey* key, byte* sig, word32* sigLen,
+int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
     const byte* mu, word32 muLen, const byte* seed);
 #endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
 /* Legacy verify API without context parameter (pre-FIPS 204).
@@ -782,121 +796,121 @@ int wc_MlDsaKey_SignMuWithSeed(MlDsaKey* key, byte* sig, word32* sigLen,
  * for FIPS 204 compliant verification with an empty context. */
 #ifdef WOLFSSL_MLDSA_NO_CTX
 WOLFSSL_API
-int wc_MlDsaKey_Verify(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res);
 #endif /* WOLFSSL_MLDSA_NO_CTX */
 WOLFSSL_API
-int wc_MlDsaKey_VerifyCtx(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* ctx, byte ctxLen, const byte* msg, word32 msgLen, int* res);
 WOLFSSL_API
-int wc_MlDsaKey_VerifyCtxHash(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* ctx, byte ctxLen, const byte* hash, word32 hashLen,
     int hashAlg, int* res);
 WOLFSSL_API
-int wc_MlDsaKey_VerifyMu(MlDsaKey* key, const byte* sig, word32 sigLen,
+int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* mu, word32 muLen, int* res);
 
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API
-MlDsaKey* wc_MlDsaKey_New(void* heap, int devId);
+wc_MlDsaKey* wc_MlDsaKey_New(void* heap, int devId);
 WOLFSSL_API
-int wc_MlDsaKey_Delete(MlDsaKey* key, MlDsaKey** key_p);
+int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
 #endif /* !WC_NO_CONSTRUCTORS */
 
 WOLFSSL_API
-int wc_MlDsaKey_Init(MlDsaKey* key, void* heap, int devId);
+int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId);
 
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API
-int wc_MlDsaKey_InitId(MlDsaKey* key, const unsigned char* id, int len,
+int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
     void* heap, int devId);
 WOLFSSL_API
-int wc_MlDsaKey_InitLabel(MlDsaKey* key, const char* label, void* heap,
+int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
     int devId);
 #endif
 
 WOLFSSL_API
-int wc_MlDsaKey_SetParams(MlDsaKey* key, byte level);
+int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level);
 WOLFSSL_API
-int wc_MlDsaKey_GetParams(MlDsaKey* key, byte* level);
+int wc_MlDsaKey_GetParams(wc_MlDsaKey* key, byte* level);
 WOLFSSL_API
-void wc_MlDsaKey_Free(MlDsaKey* key);
+void wc_MlDsaKey_Free(wc_MlDsaKey* key);
 
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaKey_Size(MlDsaKey* key);
+int wc_MlDsaKey_Size(wc_MlDsaKey* key);
 #endif
 #if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
     defined(WOLFSSL_MLDSA_PUBLIC_KEY)
 WOLFSSL_API
-int wc_MlDsaKey_PrivSize(MlDsaKey* key);
+int wc_MlDsaKey_PrivSize(wc_MlDsaKey* key);
 #endif
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
 WOLFSSL_API
-int wc_MlDsaKey_PubSize(MlDsaKey* key);
+int wc_MlDsaKey_PubSize(wc_MlDsaKey* key);
 #endif
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
 WOLFSSL_API
-int wc_MlDsaKey_SigSize(MlDsaKey* key);
+int wc_MlDsaKey_SigSize(wc_MlDsaKey* key);
 #endif
 
 #ifdef WOLFSSL_MLDSA_CHECK_KEY
 WOLFSSL_API
-int wc_MlDsaKey_CheckKey(MlDsaKey* key);
+int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key);
 #endif
 
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
 WOLFSSL_API
-int wc_MlDsaKey_ImportPubRaw(MlDsaKey* key, const byte* in, word32 inLen);
+int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen);
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaKey_ImportPrivRaw(MlDsaKey* key, const byte* priv, word32 privSz);
+int wc_MlDsaKey_ImportPrivRaw(wc_MlDsaKey* key, const byte* priv, word32 privSz);
 WOLFSSL_API
-int wc_MlDsaKey_ImportKey(MlDsaKey* key, const byte* priv, word32 privSz,
+int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
     const byte* pub, word32 pubSz);
 #endif
 
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
 WOLFSSL_API
-int wc_MlDsaKey_ExportPubRaw(MlDsaKey* key, byte* out, word32* outLen);
+int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen);
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaKey_ExportPrivRaw(MlDsaKey* key, byte* out, word32* outLen);
+int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out, word32* outLen);
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaKey_ExportKey(MlDsaKey* key, byte* priv, word32 *privSz,
+int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
     byte* pub, word32 *pubSz);
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
-WOLFSSL_LOCAL int mldsa_get_oid_sum(MlDsaKey* key, int* keyFormat);
+WOLFSSL_LOCAL int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat);
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
-WOLFSSL_API int wc_MlDsaKey_PrivateKeyDecode(MlDsaKey* key, const byte* input,
+WOLFSSL_API int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
     word32 inSz, word32* inOutIdx);
 #endif
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-WOLFSSL_API int wc_MlDsaKey_PublicKeyDecode(MlDsaKey* key, const byte* input,
+WOLFSSL_API int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
     word32 inSz, word32* inOutIdx);
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_ASN1
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
-WOLFSSL_API int wc_MlDsaKey_PublicKeyToDer(MlDsaKey* key, byte* output,
+WOLFSSL_API int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
     word32 inLen, int withAlg);
 #endif
 #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
-WOLFSSL_API int wc_MlDsaKey_KeyToDer(MlDsaKey* key, byte* output,
+WOLFSSL_API int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output,
     word32 inLen);
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
-WOLFSSL_API int wc_MlDsaKey_PrivateKeyToDer(MlDsaKey* key, byte* output,
+WOLFSSL_API int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output,
     word32 inLen);
 #endif
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
@@ -1003,9 +1017,9 @@ WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
     (DILITHIUM_ML_DSA_87_PUB_KEY_SIZE + DILITHIUM_ML_DSA_87_KEY_SIZE)
 
 
-WOLFSSL_API int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
-WOLFSSL_API int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len);
-WOLFSSL_API int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetPrivLen(wc_MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetPubLen(wc_MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len);
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY)
