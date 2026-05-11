@@ -981,6 +981,57 @@ jobs:
           print(f'bomsh enrichment ok: {len(gitoid_refs)} gitoid refs')
           PY
 
+      - name: Bomsh-enriched SPDX validates per pyspdxtools
+        # Schema gate.  `make sbom` already runs pyspdxtools on the
+        # un-enriched SPDX; the enriched document was previously
+        # ungated.  A bomsh_sbom.py change that emits a malformed
+        # SPDX 2.3 document (e.g. wrong shape on the gitoid externalRef
+        # block, missing required field on a new package) would
+        # otherwise ship in the artefact bundle below.  Complementary
+        # to the next step which validates *semantic* correctness
+        # (does the gitoid actually point at anything real); this
+        # step pins *schema* correctness only.
+        run: |
+          set -e
+          # `[ -f "$f" ] || continue` makes the loop robust if the glob
+          # has no match (defensive only; the previous step already
+          # `ls`-fails the job in that case, but this decouples the
+          # two if a future maintainer reorders).
+          for f in omnibor.wolfssl-*.spdx.json; do
+            [ -f "$f" ] || continue
+            echo "Validating $f"
+            pyspdxtools --infile "$f"
+          done
+
+      - name: Bomsh provenance is end-to-end verifiable
+        # Three independent self-consistency checks on the bomsh
+        # provenance bundle.  The PERSISTENT-ID assertion above only
+        # proves the gitoid externalRef *exists*; none of these
+        # follow-up properties are guaranteed by it:
+        #
+        #   (A) every gitoid in the SPDX externalRefs resolves to a
+        #       blob present in omnibor/objects/<aa>/<rest>
+        #   (B) every blob in omnibor/objects/ round-trips through
+        #       sha1(b"blob <len>\0" + content) so the object store
+        #       is internally self-consistent (no bit-rot, no
+        #       truncation, no stray non-blob file under objects/)
+        #   (C) the gitoid recorded against the wolfSSL package equals
+        #       the git-blob hash of the actual library artefact that
+        #       `make bomsh` traced (the SBOM ties to the binary that
+        #       would actually ship)
+        #
+        # Without this, a future bomsh_sbom.py change that emits a
+        # plausibly-shaped but fictional gitoid (one that does not
+        # resolve in the ADG, or resolves but to the wrong artefact)
+        # would pass the existing PERSISTENT-ID assertion and ship a
+        # provenance bundle whose externalRef is a lie.
+        #
+        # The verifier logic lives in scripts/bomsh_verify.py so it can
+        # be unit-tested with synthetic fixtures (see the
+        # TestBomshProvenanceVerify class in scripts/test_gen_sbom.py)
+        # rather than only running here against a real bomsh trace.
+        run: python3 scripts/bomsh_verify.py
+
       # The full provenance bundle - the high-value artefact of the whole
       # PR, the one a CRA reviewer or downstream packager wants to download.
       # MUST be uploaded BEFORE the `make clean` step below, which deletes
@@ -1029,3 +1080,5 @@ jobs:
               exit 1
           fi
           test ! -d omnibor || (echo "omnibor/ not cleaned"; exit 1)
+          test ! -f _bomsh.artefact \
+            || (echo "_bomsh.artefact not cleaned"; exit 1)

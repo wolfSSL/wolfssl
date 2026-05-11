@@ -1865,5 +1865,241 @@ class TestGenerateSpdx(unittest.TestCase):
         self.assertNotIn('source-set=', wolfssl_pkg['comment'])
 
 
+# ---------------------------------------------------------------------------
+# Bomsh provenance verifier
+#
+# The verifier (scripts/bomsh_verify.py) is invoked by the bomsh: CI job
+# against a real OmniBOR graph + enriched SPDX, but its three checks --
+# resolvability, object-store integrity, artefact correspondence -- are
+# pure data-shape logic.  Exercising them here with synthetic fixtures
+# means a logic regression is caught at the cheapest CI gate (the unit
+# job, < 1 s) instead of the bomsh integration job (~5 minutes per run,
+# requires bomtrace3 + the entire bomsh toolchain to be built).
+# ---------------------------------------------------------------------------
+
+class _BomshFixture:
+    """Build a self-consistent OmniBOR + SPDX layout in a tmpdir.
+
+    Use as a context manager; the tmpdir is cleaned on exit.  Methods
+    let individual tests perturb a single property (delete a blob,
+    truncate one, point the manifest at the wrong file, etc.) without
+    rebuilding the whole fixture each time."""
+
+    def __init__(self, tmpdir):
+        self.tmpdir = pathlib.Path(tmpdir)
+        self.objects_dir = self.tmpdir / 'omnibor' / 'objects'
+        self.objects_dir.mkdir(parents=True)
+        self.spdx_path = self.tmpdir / 'omnibor.wolfssl-5.9.1.spdx.json'
+        self.artefact_path = self.tmpdir / 'libwolfssl.so.0.0.1'
+        self.manifest_path = self.tmpdir / '_bomsh.artefact'
+        # Three distinct blobs: one for the wolfSSL artefact, two for
+        # auxiliary source files that bomsh would also gitoid in a
+        # real run (so the object store has more than one entry and
+        # check (B) actually exercises its loop).
+        self.artefact_content = b'\x7fELF...wolfssl shared library content...'
+        self.artefact_path.write_bytes(self.artefact_content)
+        self.manifest_path.write_text(str(self.artefact_path) + '\n')
+        self.aux_blobs = [b'/* aes.c */\n', b'/* sha.c */\n']
+        self.gitoids = {
+            'wolfssl': self._stage_blob(self.artefact_content),
+        }
+        for i, content in enumerate(self.aux_blobs):
+            self.gitoids[f'aux{i}'] = self._stage_blob(content)
+        self._write_spdx()
+
+    def _stage_blob(self, content):
+        """Write `content` into omnibor/objects/<aa>/<rest> at the
+        correct gitoid path; return the gitoid hex.  Uses
+        `_gitoid_of_bytes` (an independent reimplementation of the
+        canonical Git blob hash) rather than calling into
+        bomsh_verify -- two implementations is the point: a bug in
+        either is caught by disagreement."""
+        gid = _gitoid_of_bytes(content)
+        d = self.objects_dir / gid[:2]
+        d.mkdir(exist_ok=True)
+        (d / gid[2:]).write_bytes(content)
+        return gid
+
+    def _write_spdx(self):
+        """Emit the enriched SPDX with one gitoid externalRef per
+        staged blob."""
+        packages = [{
+            'name': 'wolfssl',
+            'externalRefs': [{
+                'referenceCategory': 'PERSISTENT-ID',
+                'referenceType': 'gitoid',
+                'referenceLocator': f'gitoid:blob:sha1:{self.gitoids["wolfssl"]}',
+            }],
+        }]
+        for i in range(len(self.aux_blobs)):
+            packages.append({
+                'name': f'wolfssl-aux-{i}',
+                'externalRefs': [{
+                    'referenceCategory': 'PERSISTENT-ID',
+                    'referenceType': 'gitoid',
+                    'referenceLocator': f'gitoid:blob:sha1:{self.gitoids[f"aux{i}"]}',
+                }],
+            })
+        self.spdx_path.write_text(json.dumps({'packages': packages}))
+
+    def verify(self):
+        """Run the orchestrator with the fixture's paths."""
+        return bv.verify(
+            spdx_glob=str(self.tmpdir / 'omnibor.wolfssl-*.spdx.json'),
+            omnibor_dir=str(self.tmpdir / 'omnibor'),
+            artefact_manifest=str(self.manifest_path))
+
+
+def _gitoid_of_bytes(data):
+    """Reference implementation used in the fixture so blobs are
+    placed at the gitoid path the verifier later derives.  Independent
+    of bomsh_verify.gitoid_sha1, which reads from a file -- we want
+    two implementations so a bug in one is caught by disagreement."""
+    import hashlib
+    h = hashlib.sha1()
+    h.update(f'blob {len(data)}\0'.encode())
+    h.update(data)
+    return h.hexdigest()
+
+
+import json  # noqa: E402  (used by the bomsh fixture below)
+
+bv_spec = importlib.util.spec_from_file_location(
+    'bomsh_verify',
+    pathlib.Path(__file__).resolve().parent / 'bomsh_verify.py')
+bv = importlib.util.module_from_spec(bv_spec)
+bv_spec.loader.exec_module(bv)
+
+
+class TestBomshProvenanceVerify(unittest.TestCase):
+    """Exercises bomsh_verify.verify against synthetic fixtures.  Each
+    test starts from a known-good fixture, perturbs exactly one
+    property, and checks the verifier's failure mode is the right one
+    -- so a regression that, say, accepts a dangling gitoid as long as
+    object-store integrity passes is caught here."""
+
+    def test_happy_path_passes(self):
+        # Baseline.  An untouched fixture is valid; the verifier should
+        # report OK and the success message should mention the object
+        # count and the artefact gitoid (so a future change that
+        # silently drops the success-line content is also caught).
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            ok, messages = fx.verify()
+            self.assertTrue(ok, f'verifier rejected a valid fixture: {messages}')
+            joined = '\n'.join(messages)
+            self.assertIn('OK:', joined)
+            self.assertIn('artefact match:', joined)
+
+    def test_dangling_gitoid_fails_check_A(self):
+        # Delete one blob from objects/ but leave its externalRef in
+        # the SPDX.  Check (A) must reject; the failure message must
+        # mention DANGLING and the missing gitoid path so triage isn't
+        # just "verifier failed".
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            target_gid = fx.gitoids['aux0']
+            (fx.objects_dir / target_gid[:2] / target_gid[2:]).unlink()
+            ok, messages = fx.verify()
+            self.assertFalse(ok)
+            joined = '\n'.join(messages)
+            self.assertIn('DANGLING', joined)
+            self.assertIn(target_gid, joined)
+
+    def test_corrupt_blob_fails_check_B(self):
+        # Truncate one blob in objects/ so its content no longer
+        # matches the gitoid encoded in its path.  Check (B) must
+        # reject; check (A) would still pass (the file exists).  This
+        # pins that integrity is checked independently of resolvability.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            target_gid = fx.gitoids['aux1']
+            (fx.objects_dir / target_gid[:2] / target_gid[2:]).write_bytes(b'')
+            ok, messages = fx.verify()
+            self.assertFalse(ok)
+            joined = '\n'.join(messages)
+            self.assertIn('CORRUPT', joined)
+            self.assertIn('round-trip', joined)
+
+    def test_artefact_manifest_missing_fails_check_C(self):
+        # `make bomsh` skipped writing the manifest (no built library).
+        # The verifier must reject and explain WHY in a way that
+        # points the maintainer at the bomsh: target.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            fx.manifest_path.unlink()
+            ok, messages = fx.verify()
+            self.assertFalse(ok)
+            joined = '\n'.join(messages)
+            self.assertIn('not produced by `make bomsh`', joined)
+
+    def test_artefact_gid_mismatch_fails_check_C(self):
+        # Manifest points at a different file (e.g. the recipe ran the
+        # discovery loop on a stale build).  The verifier must reject
+        # and surface BOTH the SPDX gitoid set and the actual artefact
+        # gitoid so the operator can diff them.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            wrong = pathlib.Path(tmpdir) / 'wrong-artefact.so'
+            wrong.write_bytes(b'totally different bytes')
+            fx.manifest_path.write_text(str(wrong) + '\n')
+            ok, messages = fx.verify()
+            self.assertFalse(ok)
+            joined = '\n'.join(messages)
+            self.assertIn('does not attest to the binary', joined)
+            self.assertIn('wolfssl', joined.lower())
+
+    def test_unexpected_gitoid_locator_format_rejected(self):
+        # bomsh upstream switching from sha1 to sha256 would change
+        # the locator prefix.  load_spdx_gitoids must raise so the
+        # maintainer is forced to update the verifier in lockstep,
+        # rather than silently accepting an unparseable value.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            spdx = json.loads(fx.spdx_path.read_text())
+            spdx['packages'][0]['externalRefs'][0]['referenceLocator'] = (
+                'gitoid:blob:sha256:' + 'f' * 64)
+            fx.spdx_path.write_text(json.dumps(spdx))
+            ok, messages = fx.verify()
+            self.assertFalse(ok)
+            self.assertTrue(
+                any('unexpected gitoid locator format' in m for m in messages),
+                messages)
+
+    def test_no_gitoid_externalrefs_fails(self):
+        # Negative companion: an SPDX that contains no gitoid
+        # externalRefs at all is not a bomsh-enriched document, and
+        # the verifier should say so plainly rather than silently
+        # report 0 verified.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            spdx = json.loads(fx.spdx_path.read_text())
+            for pkg in spdx['packages']:
+                pkg['externalRefs'] = []
+            fx.spdx_path.write_text(json.dumps(spdx))
+            ok, messages = fx.verify()
+            self.assertFalse(ok)
+            self.assertTrue(
+                any('no gitoid externalRefs' in m for m in messages),
+                messages)
+
+    def test_object_store_integrity_skips_non_blob_files(self):
+        # OmniBOR objects/ may contain housekeeping files at the root
+        # (info/, pack/, etc.) that are NOT blobs and must not be
+        # gitoid-checked.  The fanout is exactly two levels deep
+        # (<aa>/<rest>); anything else gets skipped.  Pin this so a
+        # future "walk everything" rewrite doesn't start failing on
+        # legitimate non-blob content.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            # Drop a bogus file at the objects/ root and inside a
+            # nested subdir; neither should trigger CORRUPT.
+            (fx.objects_dir / 'INFO').write_text('housekeeping')
+            (fx.objects_dir / 'pack').mkdir()
+            (fx.objects_dir / 'pack' / 'index.idx').write_bytes(b'pack idx')
+            ok, messages = fx.verify()
+            self.assertTrue(ok, f'verifier flagged non-blob files: {messages}')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

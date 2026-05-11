@@ -469,11 +469,17 @@ uninstall-sbom:
 CLEANFILES += $(SBOM_CDX) $(SBOM_SPDX) $(SBOM_SPDX_TV)
 
 # Bomsh (OmniBOR build artifact tracing + SBOM enrichment)
-BOMSH_RAWLOG_BASE = $(abs_builddir)/bomsh_raw_logfile
-BOMSH_RAWLOG      = $(BOMSH_RAWLOG_BASE).sha1
-BOMSH_CONF        = $(abs_builddir)/_bomsh.conf
-BOMSH_OMNIBORDIR  = $(abs_builddir)/omnibor
-BOMSH_SPDX_OUT    = omnibor.wolfssl-$(PACKAGE_VERSION).spdx.json
+BOMSH_RAWLOG_BASE      = $(abs_builddir)/bomsh_raw_logfile
+BOMSH_RAWLOG           = $(BOMSH_RAWLOG_BASE).sha1
+BOMSH_CONF             = $(abs_builddir)/_bomsh.conf
+BOMSH_OMNIBORDIR       = $(abs_builddir)/omnibor
+BOMSH_SPDX_OUT         = omnibor.wolfssl-$(PACKAGE_VERSION).spdx.json
+# Single-source-of-truth manifest of the library artefact bomtrace3
+# actually traced.  Written by the bomsh: recipe so downstream
+# verification (CI: `Bomsh provenance is end-to-end verifiable`) doesn't
+# have to re-derive the same WOLFSSL_LIB_DSO_BASENAMES priority order
+# in parallel and risk drift.
+BOMSH_ARTEFACT_MANIFEST = $(abs_builddir)/_bomsh.artefact
 bomshdir          = $(datadir)/doc/$(PACKAGE)
 
 .PHONY: bomsh install-bomsh uninstall-bomsh
@@ -520,6 +526,7 @@ bomsh:
 	    echo "      OmniBOR graph produced; SPDX enrichment skipped."; \
 	    exit 0; \
 	fi; \
+	printf '%s\n' "$$bomsh_artifact" > '$(BOMSH_ARTEFACT_MANIFEST)'; \
 	echo "Enriching SPDX with OmniBOR ExternalRefs (artifact: $$bomsh_artifact)..."; \
 	$(BOMSH_SBOM) \
 	    -b '$(BOMSH_OMNIBORDIR)' \
@@ -541,7 +548,7 @@ uninstall-bomsh:
 	-rm -rf '$(DESTDIR)$(bomshdir)/omnibor'
 	-rm -f '$(DESTDIR)$(bomshdir)/$(BOMSH_SPDX_OUT)'
 
-CLEANFILES += $(BOMSH_RAWLOG) $(BOMSH_RAWLOG_BASE).sha256 $(BOMSH_CONF) $(BOMSH_SPDX_OUT)
+CLEANFILES += $(BOMSH_RAWLOG) $(BOMSH_RAWLOG_BASE).sha256 $(BOMSH_CONF) $(BOMSH_SPDX_OUT) $(BOMSH_ARTEFACT_MANIFEST)
 
 # Hook SBOM/Bomsh cleanup into `make uninstall` so packagers don't leave
 # stale artefacts behind after install-sbom/install-bomsh.  uninstall-sbom

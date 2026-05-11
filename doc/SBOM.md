@@ -632,6 +632,35 @@ The raw logfile (`bomsh_raw_logfile.sha1`) and conf file (`_bomsh.conf`)
 are written to the build directory and removed by `make clean`.  The
 `omnibor/` tree is also removed by `make clean`.
 
+#### CI verifiability gates
+
+The bomsh CI job enforces three independent self-consistency properties
+on every PR, in addition to schema validation of the enriched SPDX
+through `pyspdxtools`:
+
+1. **Resolvability** — every `gitoid` listed in the SPDX `externalRefs`
+   resolves to a blob present at `omnibor/objects/<aa>/<rest>`.
+2. **Object-store integrity** — every blob in `omnibor/objects/`
+   round-trips through `sha1(b"blob <len>\0" + content)`, so a corrupt or
+   truncated object store is caught at PR time, not by a downstream
+   verifier weeks later.
+3. **Artefact correspondence** — the `gitoid` recorded against the
+   `wolfssl` SPDX package equals the git-blob hash of the actual
+   `libwolfssl.{so,dylib,a}` that `make bomsh` traced.  This is what
+   makes the SBOM a true attestation of the binary that would ship,
+   rather than a plausible-looking but fictional reference.
+
+If any of these fail, the PR fails — the bomsh provenance bundle that a
+CRA reviewer would download is never published with a broken bridge.
+
+The verifier itself lives at `scripts/bomsh_verify.py` (importable, with
+synthetic-fixture unit tests in `scripts/test_gen_sbom.py`).  Run it
+against any local `make bomsh` output with:
+
+```sh
+python3 scripts/bomsh_verify.py
+```
+
 ---
 
 ## 4. Combined workflow
