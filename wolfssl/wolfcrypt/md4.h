@@ -48,9 +48,9 @@ typedef struct wc_Md4 {
     word32  buffer[WC_MD4_BLOCK_SIZE  / sizeof(word32)];
 } wc_Md4;
 
-WOLFSSL_API void wc_InitMd4(wc_Md4* md4);
-WOLFSSL_API void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
-WOLFSSL_API void wc_Md4Final(wc_Md4* md4, byte* hash);
+WOLFSSL_API int wc_InitMd4(wc_Md4* md4);
+WOLFSSL_API int wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
+WOLFSSL_API int wc_Md4Final(wc_Md4* md4, byte* hash);
 
 #ifndef OPENSSL_COEXIST
 

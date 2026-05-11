@@ -23,7 +23,7 @@
     \sa wc_Md4Update
     \sa wc_Md4Final
 */
-void wc_InitMd4(wc_Md4* md4);
+int wc_InitMd4(wc_Md4* md4);
 
 /*!
     \ingroup MD4
@@ -55,7 +55,7 @@ void wc_InitMd4(wc_Md4* md4);
     \sa wc_Md4Final
     \sa wc_InitMd4
 */
-void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
+int wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
 
 /*!
     \ingroup MD4
@@ -83,4 +83,4 @@ void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
     \sa wc_Md4Final
     \sa wc_InitMd4
 */
-void wc_Md4Final(wc_Md4* md4, byte* hash);
+int wc_Md4Final(wc_Md4* md4, byte* hash);

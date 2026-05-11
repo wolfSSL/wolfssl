@@ -4861,6 +4861,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md5_test(void)
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md4_test(void)
 {
+    wc_test_ret_t ret = 0;
     wc_Md4 md4;
     byte hash[WC_MD4_DIGEST_SIZE];
 
@@ -4921,11 +4922,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md4_test(void)
     test_md4[5] = f;
     test_md4[6] = g;
 
-    wc_InitMd4(&md4);
+    ret = wc_InitMd4(&md4);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
 
     for (i = 0; i < times; ++i) {
-        wc_Md4Update(&md4, (byte*)test_md4[i].input, (word32)test_md4[i].inLen);
-        wc_Md4Final(&md4, hash);
+        ret = wc_Md4Update(&md4, (byte*)test_md4[i].input,
+                           (word32)test_md4[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
+        ret = wc_Md4Final(&md4, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
 
         if (XMEMCMP(hash, test_md4[i].output, WC_MD4_DIGEST_SIZE) != 0)
             return WC_TEST_RET_ENC_I(i);

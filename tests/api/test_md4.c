@@ -37,9 +37,12 @@
 /* Unit test for wc_InitMd4() and wc_InitMd4_ex() */
 int test_wc_InitMd4(void)
 {
-    EXPECT_SUCCESS_DECLS;
+    EXPECT_DECLS;
 #ifndef NO_MD4
-    DIGEST_INIT_ONLY_TEST(wc_Md4, Md4);
+    wc_Md4 md4;
+
+    ExpectIntEQ(wc_InitMd4(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_InitMd4(&md4), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -47,9 +50,19 @@ int test_wc_InitMd4(void)
 /* Unit test for wc_UpdateMd4() */
 int test_wc_Md4Update(void)
 {
-    EXPECT_SUCCESS_DECLS;
+    EXPECT_DECLS;
 #ifndef NO_MD4
-    DIGEST_UPDATE_ONLY_TEST(wc_Md4, Md4);
+    wc_Md4 md4;
+
+    ExpectIntEQ(wc_InitMd4(&md4), 0);
+
+    ExpectIntEQ(wc_Md4Update(NULL, NULL, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md4Update(&md4, NULL, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md4Update(NULL, (byte*)"a", 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_Md4Update(&md4, NULL, 0), 0);
+    ExpectIntEQ(wc_Md4Update(&md4, (byte*)"a", 1), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -57,9 +70,18 @@ int test_wc_Md4Update(void)
 /* Unit test for wc_Md4Final() */
 int test_wc_Md4Final(void)
 {
-    EXPECT_SUCCESS_DECLS;
+    EXPECT_DECLS;
 #ifndef NO_MD4
-    DIGEST_FINAL_ONLY_TEST(wc_Md4, Md4, MD4);
+    wc_Md4 md4;
+    byte   hash[WC_MD4_DIGEST_SIZE];
+
+    ExpectIntEQ(wc_InitMd4(&md4), 0);
+
+    ExpectIntEQ(wc_Md4Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md4Final(&md4, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md4Final(NULL, hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_Md4Final(&md4, hash), 0);
 #endif
     return EXPECT_RESULT();
 }
