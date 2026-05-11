@@ -487,6 +487,7 @@ int ServerEchoData(WOLFSSL* ssl, int clientfd, int echoData, int block,
                   ret = wolfSSL_write(ssl, buffer, (int)min((word32)len, (word32)rx_pos)),
                   ret <= 0);
             if (ret != (int)min((word32)len, (word32)rx_pos)) {
+                err = wolfSSL_get_error(ssl, 0);
                 LOG_ERROR("SSL_write echo error %d\n", err);
                 err_sys_ex(runWithErrors, "SSL_write failed");
             }
