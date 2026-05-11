@@ -1445,6 +1445,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
                             MXC_TPU_MAA_TYPE clc, unsigned int length)
 {
     mp_digit* zero_tmp;
+    unsigned int zero_size;
     MAX3266X_MSG("Zero Padding Buffers for Hardware");
     if (length > MXC_MAA_MAX_SIZE) {
         MAX3266X_MSG("Hardware cannot exceed 2048 bit input");
@@ -1456,19 +1457,23 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
     }
 
     /* Create an array to compare values to to check edge for error edge case */
-    zero_tmp = (mp_digit*)XMALLOC(multiplier->size*sizeof(mp_digit), NULL,
+    zero_size = mod->size;
+    if ((exp != NULL) && (exp->size > zero_size)) {
+        zero_size = exp->size;
+    }
+    zero_tmp = (mp_digit*)XMALLOC(zero_size*sizeof(mp_digit), NULL,
                                     DYNAMIC_TYPE_TMP_BUFFER);
     if (zero_tmp == NULL) {
         MAX3266X_MSG("NULL pointer found after XMALLOC call");
         return MEMORY_E;
     }
-    XMEMSET(zero_tmp, 0x00, multiplier->size*sizeof(mp_digit));
+    XMEMSET(zero_tmp, 0x00, zero_size*sizeof(mp_digit));
 
     /* Check for invalid arguments before padding */
     switch ((char)clc) {
         case MXC_TPU_MAA_EXP:
             /* Cannot be 0 for a^e mod m operation */
-            if (XMEMCMP(zero_tmp, exp, (exp->used*sizeof(mp_digit))) == 0) {
+            if (XMEMCMP(zero_tmp, exp->dp, (exp->used*sizeof(mp_digit))) == 0) {
                 XFREE(zero_tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 MAX3266X_MSG("Cannot use Value 0 for Exp");
                 return BAD_FUNC_ARG;
@@ -1491,7 +1496,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
         case MXC_TPU_MAA_ADD:
         case MXC_TPU_MAA_SUB:
             /* Cannot be 0 for mod m value */
-            if (XMEMCMP(zero_tmp, mod, (exp->used*sizeof(mp_digit))) == 0) {
+            if (XMEMCMP(zero_tmp, mod->dp, (mod->used*sizeof(mp_digit))) == 0) {
                 XFREE(zero_tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 MAX3266X_MSG("Cannot use Value 0 for Exp");
                 return BAD_FUNC_ARG;
