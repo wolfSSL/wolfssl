@@ -244,6 +244,46 @@ int test_wc_AesCmacGenerate(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesCmacVerify(mac, macSz, NULL, msgSz, key, keySz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_AesCmacVerify(mac, 1, msg, msgSz, key, keySz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCmacVerify(mac, WC_CMAC_TAG_MIN_SZ - 1, msg, msgSz,
+        key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCmacVerify(mac, WC_AES_BLOCK_SIZE + 1, msg, msgSz,
+        key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Truncated tags within the supported range must verify correctly when
+     * the generator was asked to produce the same length */
+    {
+        byte truncMac[WC_AES_BLOCK_SIZE];
+        word32 truncSz;
+        word32 lengths[] = { WC_CMAC_TAG_MIN_SZ, 8, WC_AES_BLOCK_SIZE - 1 };
+        word32 li;
+        for (li = 0; li < sizeof(lengths)/sizeof(lengths[0]); li++) {
+            XMEMSET(truncMac, 0, sizeof(truncMac));
+            truncSz = lengths[li];
+            ExpectIntEQ(wc_AesCmacGenerate(truncMac, &truncSz, msg, msgSz,
+                key, keySz), 0);
+            ExpectIntEQ(truncSz, lengths[li]);
+            ExpectIntEQ(wc_AesCmacVerify(truncMac, truncSz, msg, msgSz,
+                key, keySz), 0);
+            /* Flipping a bit in the truncated tag must yield
+             * MAC_CMP_FAILED_E, not silent success from comparing a too
+             * short prefix. */
+            truncMac[0] ^= 0x01;
+            ExpectIntEQ(wc_AesCmacVerify(truncMac, truncSz, msg, msgSz,
+                key, keySz), WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+        }
+    }
+
+    /* A full-length tag that does not match must return MAC_CMP_FAILED_E. */
+    {
+        byte badMac[WC_AES_BLOCK_SIZE];
+        XMEMCPY(badMac, mac, WC_AES_BLOCK_SIZE);
+        badMac[0] ^= 0x01;
+        ExpectIntEQ(wc_AesCmacVerify(badMac, WC_AES_BLOCK_SIZE, msg, msgSz,
+            key, keySz), WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
+    }
 #endif
     return EXPECT_RESULT();
 

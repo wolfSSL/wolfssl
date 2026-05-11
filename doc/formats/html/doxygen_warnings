@@ -1,0 +1,314 @@
+warning: source '../../mainpage.dox' is not a readable file or directory... skipping.
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ascon.h:572: warning: no matching file member found for 
+wc_AsconAEAD128 * wc_AsconAEAD128_New(void)
+Possible candidates:
+ 'wc_AsconAEAD128 * wc_AsconAEAD128_New(void)' at line 110 of file /home/work/wkdir/wolfssl/doc/dox_comments/header_files/ascon.h
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:5565: warning: no matching file member found for 
+long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX *ctx, void *arg)
+Possible candidates:
+ 'long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX *ctx, void *arg)' at line 5462 of file /home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/wolfio.h:1376: warning: no matching file member found for 
+void * wolfSSL_GetCookieCtx(WOLFSSL *ssl)
+Possible candidates:
+ 'void * wolfSSL_GetCookieCtx(WOLFSSL *ssl)' at line 539 of file /home/work/wkdir/wolfssl/doc/dox_comments/header_files/wolfio.h
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ascon.h:65: warning: The following parameters of wc_AsconHash256_Final(wc_AsconHash256 *a, byte *hash) are not documented:
+  parameter 'a'
+  parameter 'hash'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ascon.h:34: warning: The following parameters of wc_AsconHash256_Update(wc_AsconHash256 *a, const byte *data, word32 dataSz) are not documented:
+  parameter 'a'
+  parameter 'data'
+  parameter 'dataSz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/cryptocb.h:8: warning: The following parameter of wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void *ctx) is not documented:
+  parameter 'ctx'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/quic.h:555: warning: The following parameter of wolfSSL_quic_aead_decrypt(uint8_t *dest, WOLFSSL_EVP_CIPHER_CTX *ctx, const uint8_t *enc, size_t enclen, const uint8_t *iv, const uint8_t *aad, size_t aadlen) is not documented:
+  parameter 'enclen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/quic.h:428: warning: The following parameter of wolfSSL_quic_aead_is_ccm(const WOLFSSL_EVP_CIPHER *aead_cipher) is not documented:
+  parameter 'aead_cipher'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/quic.h:449: warning: The following parameter of wolfSSL_quic_aead_is_chacha20(const WOLFSSL_EVP_CIPHER *aead_cipher) is not documented:
+  parameter 'aead_cipher'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/quic.h:407: warning: The following parameter of wolfSSL_quic_aead_is_gcm(const WOLFSSL_EVP_CIPHER *aead_cipher) is not documented:
+  parameter 'aead_cipher'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/quic.h:470: warning: The following parameter of wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER *aead_cipher) is not documented:
+  parameter 'aead_cipher'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/quic.h:217: warning: The following parameter of wolfSSL_set_quic_transport_params(WOLFSSL *ssl, const uint8_t *params, size_t params_len) is not documented:
+  parameter 'params_len'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:6130: warning: The following parameter of wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX *ctx, wc_psk_server_callback cb) is not documented:
+  parameter 'ctx'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:9505: warning: The following parameter of wolfSSL_CTX_SetEccSignCtx(WOLFSSL_CTX *ctx, void *userCtx) is not documented:
+  parameter 'userCtx'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:11264: warning: The following parameter of wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX *ctx, CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void *ioCbCtx) is not documented:
+  parameter 'ctx'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:15184: warning: The following parameters of wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char *hash, unsigned int hLen, unsigned char *sigRet, unsigned int *sigLen, WOLFSSL_RSA *rsa, int flag, int padding) are not documented:
+  parameter 'hashAlg'
+  parameter 'hash'
+  parameter 'hLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:9419: warning: The following parameters of wolfSSL_SetTlsHmacInner(WOLFSSL *ssl, byte *inner, word32 sz, int content, int verify) are not documented:
+  parameter 'ssl'
+  parameter 'inner'
+  parameter 'sz'
+  parameter 'content'
+  parameter 'verify'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:11566: warning: The following parameters of wolfSSL_SNI_GetFromBuffer(const unsigned char *clientHello, unsigned int helloSz, unsigned char type, unsigned char *sni, unsigned int *inOutSz) are not documented:
+  parameter 'clientHello'
+  parameter 'helloSz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/wolfio.h:490: warning: The following parameter of wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX *ctx, CallbackGenCookie cb) is not documented:
+  parameter 'ctx'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/wolfio.h:226: warning: The following parameter of wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv) is not documented:
+  parameter 'CBIORecv'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/wolfio.h:261: warning: The following parameter of wolfSSL_SetIOReadCtx(WOLFSSL *ssl, void *ctx) is not documented:
+  parameter 'ctx'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/wolfio.h:292: warning: The following parameter of wolfSSL_SetIOWriteCtx(WOLFSSL *ssl, void *ctx) is not documented:
+  parameter 'ctx'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/des3.h:165: warning: The following parameter of wc_Des3_EcbEncrypt(Des3 *des, byte *out, const byte *in, word32 sz) is not documented:
+  parameter 'des'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/des3.h:199: warning: The following parameter of wc_Des3_SetKey(Des3 *des, const byte *key, const byte *iv, int dir) is not documented:
+  parameter 'des'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/wc_encrypt.h:10: warning: The following parameter of wc_AesCbcDecryptWithKey(byte *out, const byte *in, word32 inSz, const byte *key, word32 keySz, const byte *iv) is not documented:
+  parameter 'iv'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/aes.h:618: warning: The following parameter of wc_AesCcmDecrypt(Aes *aes, byte *out, const byte *in, word32 inSz, const byte *nonce, word32 nonceSz, const byte *authTag, word32 authTagSz, const byte *authIn, word32 authInSz) is not documented:
+  parameter 'inSz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/aes.h:567: warning: The following parameter of wc_AesCcmEncrypt(Aes *aes, byte *out, const byte *in, word32 inSz, const byte *nonce, word32 nonceSz, byte *authTag, word32 authTagSz, const byte *authIn, word32 authInSz) is not documented:
+  parameter 'inSz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/aes.h:1713: warning: The following parameter of wc_AesEaxFree(AesEax *eax) is not documented:
+  parameter 'eax'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/chacha.h:41: warning: The following parameters of wc_Chacha_Process(ChaCha *ctx, byte *cipher, const byte *plain, word32 msglen) are not documented:
+  parameter 'cipher'
+  parameter 'plain'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/chacha20_poly1305.h:69: warning: The following parameters of wc_ChaCha20Poly1305_Decrypt(const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE], const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE], const byte *inAAD, word32 inAADLen, const byte *inCiphertext, word32 inCiphertextLen, const byte inAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE], byte *outPlaintext) are not documented:
+  parameter 'inIV'
+  parameter 'inCiphertextLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/chacha20_poly1305.h:9: warning: The following parameter of wc_ChaCha20Poly1305_Encrypt(const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE], const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE], const byte *inAAD, word32 inAADLen, const byte *inPlaintext, word32 inPlaintextLen, byte *outCiphertext, byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]) is not documented:
+  parameter 'inIV'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/cmac.h:198: warning: The following parameter of wc_CMAC_Grow(Cmac *cmac, const byte *in, int inSz) is not documented:
+  parameter 'cmac'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ecc.h:2131: warning: The following parameter of wc_ecc_set_curve(ecc_key *key, int keysize, int curve_id) is not documented:
+  parameter 'key'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ecc.h:1578: warning: The following parameter of wc_ecc_sig_size_calc(int sz) is not documented:
+  parameter 'sz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ecc.h:408: warning: The following parameter of wc_ecc_sign_hash(const byte *in, word32 inlen, byte *out, word32 *outlen, WC_RNG *rng, ecc_key *key) is not documented:
+  parameter 'rng'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/hmac.h:78: warning: The following parameter of wc_HmacFinal(Hmac *hmac, byte *out) is not documented:
+  parameter 'out'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/hmac.h:7: warning: The following parameter of wc_HmacSetKey(Hmac *hmac, int type, const byte *key, word32 keySz) is not documented:
+  parameter 'keySz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/hmac.h:46: warning: The following parameters of wc_HmacUpdate(Hmac *hmac, const byte *in, word32 sz) are not documented:
+  parameter 'in'
+  parameter 'sz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/hmac.h:539: warning: The following parameters of wc_Tls13_HKDF_Expand_Label(byte *okm, word32 okmLen, const byte *prk, word32 prkLen, const byte *protocol, word32 protocolLen, const byte *label, word32 labelLen, const byte *info, word32 infoLen, int digest) are not documented:
+  parameter 'label'
+  parameter 'labelLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/hmac.h:579: warning: The following parameters of wc_Tls13_HKDF_Expand_Label_Alloc(byte *okm, word32 okmLen, const byte *prk, word32 prkLen, const byte *protocol, word32 protocolLen, const byte *label, word32 labelLen, const byte *info, word32 infoLen, int digest, void *heap) are not documented:
+  parameter 'label'
+  parameter 'labelLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/hmac.h:498: warning: The following parameters of wc_Tls13_HKDF_Expand_Label_ex(byte *okm, word32 okmLen, const byte *prk, word32 prkLen, const byte *protocol, word32 protocolLen, const byte *label, word32 labelLen, const byte *info, word32 infoLen, int digest, void *heap, int devId) are not documented:
+  parameter 'label'
+  parameter 'labelLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/poly1305.h:70: warning: The following parameters of wc_Poly1305Final(Poly1305 *poly1305, byte *tag) are not documented:
+  parameter 'poly1305'
+  parameter 'tag'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/poly1305.h:8: warning: The following parameters of wc_Poly1305SetKey(Poly1305 *poly1305, const byte *key, word32 kySz) are not documented:
+  parameter 'poly1305'
+  parameter 'kySz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/poly1305.h:36: warning: The following parameter of wc_Poly1305Update(Poly1305 *poly1305, const byte *m, word32 bytes) is not documented:
+  parameter 'poly1305'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/rsa.h:1440: warning: The following parameter of wc_RsaKeyToPublicDer_ex(RsaKey *key, byte *output, word32 inLen, int with_header) is not documented:
+  parameter 'with_header'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/rsa.h:880: warning: The following parameter of wc_RsaPSS_CheckPadding(const byte *in, word32 inLen, const byte *sig, word32 sigSz, enum wc_HashType hashType) is not documented:
+  parameter 'inLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/rsa.h:942: warning: The following parameter of wc_RsaPSS_CheckPadding_ex(const byte *in, word32 inLen, const byte *sig, word32 sigSz, enum wc_HashType hashType, int saltLen, int bits) is not documented:
+  parameter 'inLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/rsa.h:432: warning: The following parameter of wc_RsaPSS_Sign(const byte *in, word32 inLen, byte *out, word32 outLen, enum wc_HashType hash, int mgf, RsaKey *key, WC_RNG *rng) is not documented:
+  parameter 'rng'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/rsa.h:742: warning: The following parameter of wc_RsaPSS_VerifyCheckInline(byte *in, word32 inLen, byte **out, const byte *digest, word32 digentLen, enum wc_HashType hash, int mgf, RsaKey *key) is not documented:
+  parameter 'digentLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/rsa.h:810: warning: The following parameter of wc_RsaPSS_VerifyCheckInline_ex(byte *in, word32 inLen, byte **out, const byte *digest, word32 digentLen, enum wc_HashType hash, int mgf, int saltLen, RsaKey *key) is not documented:
+  parameter 'digentLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/rsa.h:317: warning: The following parameter of wc_RsaSSL_Sign(const byte *in, word32 inLen, byte *out, word32 outLen, RsaKey *key, WC_RNG *rng) is not documented:
+  parameter 'rng'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha256.h:7: warning: The following parameter of wc_InitSha256(wc_Sha256 *sha) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha512.h:99: warning: The following parameter of wc_InitSha384(wc_Sha384 *sha) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:7: warning: The following parameters of wc_InitSha3_224(wc_Sha3 *sha3, void *heap, int devId) are not documented:
+  parameter 'heap'
+  parameter 'devId'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:192: warning: The following parameters of wc_InitSha3_256(wc_Sha3 *sha3, void *heap, int devId) are not documented:
+  parameter 'heap'
+  parameter 'devId'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:377: warning: The following parameters of wc_InitSha3_384(wc_Sha3 *sha3, void *heap, int devId) are not documented:
+  parameter 'heap'
+  parameter 'devId'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:562: warning: The following parameters of wc_InitSha3_512(wc_Sha3 *sha3, void *heap, int devId) are not documented:
+  parameter 'heap'
+  parameter 'devId'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha512.h:7: warning: The following parameter of wc_InitSha512(wc_Sha512 *sha) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:747: warning: The following parameters of wc_InitShake128(wc_Shake *shake, void *heap, int devId) are not documented:
+  parameter 'heap'
+  parameter 'devId'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:1002: warning: The following parameters of wc_InitShake256(wc_Shake *shake, void *heap, int devId) are not documented:
+  parameter 'heap'
+  parameter 'devId'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha256.h:35: warning: The following parameter of wc_Sha256Update(wc_Sha256 *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha512.h:127: warning: The following parameter of wc_Sha384Update(wc_Sha384 *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:35: warning: The following parameter of wc_Sha3_224_Update(wc_Sha3 *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:220: warning: The following parameter of wc_Sha3_256_Update(wc_Sha3 *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:405: warning: The following parameter of wc_Sha3_384_Update(wc_Sha3 *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:590: warning: The following parameter of wc_Sha3_512_Update(wc_Sha3 *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha512.h:35: warning: The following parameter of wc_Sha512Update(wc_Sha512 *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:841: warning: The following parameter of wc_Shake128_Absorb(wc_Shake *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:971: warning: The following parameter of wc_Shake128_Copy(wc_Shake *src, wc_Sha3 *dst) is not documented:
+  parameter 'src'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:875: warning: The following parameters of wc_Shake128_SqueezeBlocks(wc_Shake *shake, byte *out, word32 blockCnt) are not documented:
+  parameter 'out'
+  parameter 'blockCnt'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:775: warning: The following parameter of wc_Shake128_Update(wc_Shake *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/hash.h:352: warning: The following parameter of wc_Shake128Hash(const byte *data, word32 len, byte *hash, word32 hashLen) is not documented:
+  parameter 'hashLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:1096: warning: The following parameter of wc_Shake256_Absorb(wc_Shake *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:1226: warning: The following parameter of wc_Shake256_Copy(wc_Shake *src, wc_Sha3 *dst) is not documented:
+  parameter 'src'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:1130: warning: The following parameters of wc_Shake256_SqueezeBlocks(wc_Shake *shake, byte *out, word32 blockCnt) are not documented:
+  parameter 'out'
+  parameter 'blockCnt'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/sha3.h:1030: warning: The following parameter of wc_Shake256_Update(wc_Shake *sha, const byte *data, word32 len) is not documented:
+  parameter 'sha'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/asn_public.h:87: warning: The following parameter of wc_CertFree(Cert *cert) is not documented:
+  parameter 'cert'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/asn_public.h:33: warning: The following parameter of wc_CertNew(void *heap) is not documented:
+  parameter 'heap'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/asn_public.h:505: warning: The following parameters of wc_MakeSelfCert(Cert *cert, byte *derBuffer, word32 derSz, RsaKey *key, WC_RNG *rng) are not documented:
+  parameter 'derBuffer'
+  parameter 'derSz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/asn_public.h:451: warning: The following parameters of wc_SignCert(int requestSz, int sigType, byte *derBuffer, word32 derSz, RsaKey *rsaKey, ecc_key *eccKey, WC_RNG *rng) are not documented:
+  parameter 'sigType'
+  parameter 'derBuffer'
+  parameter 'derSz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:9971: warning: The following parameters of wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER *cm, const char *f, const char *d) are not documented:
+  parameter 'f'
+  parameter 'd'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:10013: warning: The following parameter of wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER *cm, const unsigned char *buff, long sz, int format) is not documented:
+  parameter 'buff'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:10703: warning: The following parameters of wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER *cm, const char *url) are not documented:
+  parameter 'cm'
+  parameter 'url'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:10134: warning: The following parameter of wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER *cm, const char *f, int format) is not documented:
+  parameter 'f'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/error-crypt.h:7: warning: The following parameters of wc_ErrorString(int err, char *buff) are not documented:
+  parameter 'err'
+  parameter 'buff'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:350: warning: The following parameter of wc_iotsafe_ecc_export_private(ecc_key *key, byte key_id) is not documented:
+  parameter 'key_id'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:370: warning: The following parameter of wc_iotsafe_ecc_export_private_ex(ecc_key *key, byte *key_id, word16 id_size) is not documented:
+  parameter 'key_id'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:278: warning: The following parameter of wc_iotsafe_ecc_export_public(ecc_key *key, byte key_id) is not documented:
+  parameter 'key_id'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:264: warning: The following parameter of wc_iotsafe_ecc_import_public(ecc_key *key, byte key_id) is not documented:
+  parameter 'key_id'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:331: warning: The following parameter of wc_iotsafe_ecc_import_public_ex(ecc_key *key, byte *key_id, word16 id_size) is not documented:
+  parameter 'key_id'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:389: warning: The following parameter of wc_iotsafe_ecc_sign_hash(byte *in, word32 inlen, byte *out, word32 *outlen, byte key_id) is not documented:
+  parameter 'key_id'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:411: warning: The following parameter of wc_iotsafe_ecc_sign_hash_ex(byte *in, word32 inlen, byte *out, word32 *outlen, byte *key_id, word16 id_size) is not documented:
+  parameter 'key_id'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:434: warning: The following parameter of wc_iotsafe_ecc_verify_hash(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte key_id) is not documented:
+  parameter 'siglen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:458: warning: The following parameter of wc_iotsafe_ecc_verify_hash_ex(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte *key_id, word16 id_size) is not documented:
+  parameter 'siglen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/iotsafe.h:148: warning: The following parameter of wolfIoTSafe_SetCSIM_write_cb(wolfSSL_IOTSafe_CSIM_write_cb wf) is not documented:
+  parameter 'wf'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/memory.h:574: warning: The following parameter of wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT *heap) is not documented:
+  parameter 'heap'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/memory.h:114: warning: The following parameters of wolfSSL_SetAllocators(wolfSSL_Malloc_cb mf, wolfSSL_Free_cb ff, wolfSSL_Realloc_cb rf) are not documented:
+  parameter 'mf'
+  parameter 'ff'
+  parameter 'rf'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/memory.h:165: warning: The following parameters of wolfSSL_StaticBufferSz(byte *buffer, word32 sz, int flag) are not documented:
+  parameter 'sz'
+  parameter 'flag'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/memory.h:612: warning: The following parameters of wolfSSL_StaticBufferSz_ex(unsigned int listSz, const word32 *sizeList, const word32 *distList, byte *buffer, word32 sz, int flag) are not documented:
+  parameter 'listSz'
+  parameter 'sizeList'
+  parameter 'distList'
+  parameter 'buffer'
+  parameter 'sz'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/types.h:123: warning: The following parameters of XFREE(void *p, void *heap, int type) are not documented:
+  parameter 'heap'
+  parameter 'type'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/types.h:27: warning: The following parameters of XMALLOC(size_t n, void *heap, int type) are not documented:
+  parameter 'n'
+  parameter 'heap'
+  parameter 'type'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/types.h:76: warning: The following parameters of XREALLOC(void *p, size_t n, void *heap, int type) are not documented:
+  parameter 'heap'
+  parameter 'type'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/random.h:106: warning: The following parameter of wc_RNG_GenerateBlock(WC_RNG *rng, byte *b, word32 sz) is not documented:
+  parameter 'b'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/random.h:219: warning: The following parameter of wc_RNG_HealthTest(int reseed, const byte *seedA, word32 seedASz, const byte *seedB, word32 seedBSz, byte *output, word32 outputSz) is not documented:
+  parameter 'reseed'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/evp.h:383: warning: The following parameter of wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags) is not documented:
+  parameter 'flags'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/evp.h:360: warning: The following parameter of wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags) is not documented:
+  parameter 'flags'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/evp.h:406: warning: The following parameters of wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad) are not documented:
+  parameter 'c'
+  parameter 'pad'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/evp.h:271: warning: The following parameter of wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl) is not documented:
+  parameter 'outl'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:6877: warning: The following parameters of wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN *chain, int idx, unsigned char *buf, int inLen, int *outLen) are not documented:
+  parameter 'buf'
+  parameter 'inLen'
+  parameter 'outLen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:6903: warning: The following parameter of wolfSSL_get_sessionID(const WOLFSSL_SESSION *s) is not documented:
+  parameter 's'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:7385: warning: The following parameters of wolfSSL_PKCS12_parse(WC_PKCS12 *pkcs12, const char *psw, WOLFSSL_EVP_PKEY **pkey, WOLFSSL_X509 **cert, WOLF_STACK_OF(WOLFSSL_X509) **ca) are not documented:
+  parameter 'psw'
+  parameter 'ca'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:6924: warning: The following parameter of wolfSSL_X509_get_serial_number(WOLFSSL_X509 *x509, unsigned char *in, int *inOutSz) is not documented:
+  parameter 'x509'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:7592: warning: The following parameter of wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX *ctx, const unsigned char *b, long sz, int format) is not documented:
+  parameter 'b'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:7638: warning: The following parameter of wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX *ctx, const char *f, int format) is not documented:
+  parameter 'f'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:13130: warning: The following parameter of wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *r) is not documented:
+  parameter 'r'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:13499: warning: The following parameter of wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x, wc_pem_password_cb *cb, void *u) is not documented:
+  parameter 'bp'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:7785: warning: The following parameter of wolfSSL_SetMaxDhKey_Sz(WOLFSSL *ssl, word16 keySz_bits) is not documented:
+  parameter 'keySz_bits'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:7452: warning: The following parameter of wolfSSL_SetTmpDH_buffer(WOLFSSL *ssl, const unsigned char *b, long sz, int format) is not documented:
+  parameter 'b'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:7503: warning: The following parameter of wolfSSL_SetTmpDH_file(WOLFSSL *ssl, const char *f, int format) is not documented:
+  parameter 'f'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:5240: warning: The following parameter of wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE *store, unsigned long flag) is not documented:
+  parameter 'store'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:13579: warning: The following parameter of wolfSSL_CTX_clear_options(WOLFSSL_CTX *ctx, long opt) is not documented:
+  parameter 'opt'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:8149: warning: The following parameters of wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX *ctx, const unsigned char *in, long sz, int format) are not documented:
+  parameter 'in'
+  parameter 'format'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:13324: warning: The following parameter of wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out, size_t outlen) is not documented:
+  parameter 'outlen'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:13656: warning: The following parameter of wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb) is not documented:
+  parameter 'cb'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:13681: warning: The following parameter of wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void *arg) is not documented:
+  parameter 'arg'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:15379: warning: The following parameter of wolfSSL_set_server_cert_type(WOLFSSL *ssl, const char *buf, int len) is not documented:
+  parameter 'ssl'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:13299: warning: The following parameter of wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *b) is not documented:
+  parameter 'b'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/wolfio.h:456: warning: The following parameters of wolfSSL_SetIO_NetX(WOLFSSL *ssl, NX_TCP_SOCKET *nxsocket, ULONG waitoption) are not documented:
+  parameter 'nxsocket'
+  parameter 'waitoption'
+/home/work/wkdir/wolfssl/doc/dox_comments/header_files/ssl.h:4100: warning: The following parameter of wolfSSL_ERR_error_string_n(unsigned long e, char *buf, unsigned long len) is not documented:
+  parameter 'buf'
