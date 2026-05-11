@@ -4546,11 +4546,18 @@ static wc_test_ret_t md2_kat_test(void)
     test_md2[5] = f;
     test_md2[6] = g;
 
-    wc_InitMd2(&md2);
+    ret = wc_InitMd2(&md2);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
 
     for (i = 0; i < times; ++i) {
-        wc_Md2Update(&md2, (byte*)test_md2[i].input, (word32)test_md2[i].inLen);
-        wc_Md2Final(&md2, hash);
+        ret = wc_Md2Update(&md2, (byte*)test_md2[i].input,
+                           (word32)test_md2[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
+        ret = wc_Md2Final(&md2, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
 
         if (XMEMCMP(hash, test_md2[i].output, WC_MD2_DIGEST_SIZE) != 0)
             return WC_TEST_RET_ENC_I(i);

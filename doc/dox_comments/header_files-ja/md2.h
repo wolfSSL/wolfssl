@@ -23,7 +23,7 @@
     \sa wc_Md2Update
     \sa wc_Md2Final
 */
-void wc_InitMd2(wc_Md2* md2);
+int wc_InitMd2(wc_Md2* md2);
 
 /*!
     \ingroup MD2
@@ -55,7 +55,7 @@ void wc_InitMd2(wc_Md2* md2);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
+int wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
 
 /*!
     \ingroup MD2
@@ -86,7 +86,7 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-void wc_Md2Final(wc_Md2* md2, byte* hash);
+int wc_Md2Final(wc_Md2* md2, byte* hash);
 
 /*!
     \ingroup MD2

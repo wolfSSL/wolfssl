@@ -33,19 +33,21 @@
 #endif
 
 
-void wc_InitMd2(wc_Md2* md2)
+int wc_InitMd2(wc_Md2* md2)
 {
     if (md2 == NULL)
-        return;
+        return BAD_FUNC_ARG;
 
     XMEMSET(md2->X, 0, WC_MD2_X_SIZE);
     XMEMSET(md2->C, 0, WC_MD2_BLOCK_SIZE);
     XMEMSET(md2->buffer, 0, WC_MD2_BLOCK_SIZE);
     md2->count = 0;
+
+    return 0;
 }
 
 
-void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len)
+int wc_Md2Update(wc_Md2* md2, const byte* data, word32 len)
 {
     static const byte S[256] =
     {
@@ -70,7 +72,7 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len)
     };
 
     if (md2 == NULL || (data == NULL && len != 0))
-        return;
+        return BAD_FUNC_ARG;
 
     while (len) {
         word32 L = (WC_MD2_PAD_SIZE - md2->count) < len ?
@@ -110,45 +112,55 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len)
             }
         }
     }
+
+    return 0;
 }
 
 
-void wc_Md2Final(wc_Md2* md2, byte* hash)
+int wc_Md2Final(wc_Md2* md2, byte* hash)
 {
     byte   padding[WC_MD2_BLOCK_SIZE];
     word32 padLen;
     word32 i;
+    int    ret;
 
     if (md2 == NULL || hash == NULL)
-        return;
+        return BAD_FUNC_ARG;
 
     padLen = WC_MD2_PAD_SIZE - md2->count;
     for (i = 0; i < padLen; i++)
         padding[i] = (byte)padLen;
 
-    wc_Md2Update(md2, padding, padLen); /* cppcheck-suppress uninitvar */
-    wc_Md2Update(md2, md2->C, WC_MD2_BLOCK_SIZE);
+    /* cppcheck-suppress uninitvar */
+    ret = wc_Md2Update(md2, padding, padLen);
+    if (ret == 0)
+        ret = wc_Md2Update(md2, md2->C, WC_MD2_BLOCK_SIZE);
+    if (ret != 0)
+        return ret;
 
     XMEMCPY(hash, md2->X, WC_MD2_DIGEST_SIZE);
 
-    wc_InitMd2(md2);
+    return wc_InitMd2(md2);
 }
 
 
 int wc_Md2Hash(const byte* data, word32 len, byte* hash)
 {
+    int ret;
     WC_DECLARE_VAR(md2, wc_Md2, 1, 0);
 
     WC_ALLOC_VAR_EX(md2, wc_Md2, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
-    wc_InitMd2(md2);
-    wc_Md2Update(md2, data, len);
-    wc_Md2Final(md2, hash);
+    ret = wc_InitMd2(md2);
+    if (ret == 0)
+        ret = wc_Md2Update(md2, data, len);
+    if (ret == 0)
+        ret = wc_Md2Final(md2, hash);
 
     WC_FREE_VAR_EX(md2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return 0;
+    return ret;
 }
 
 
