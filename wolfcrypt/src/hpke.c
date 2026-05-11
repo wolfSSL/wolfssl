@@ -382,7 +382,7 @@ int wc_HpkeSerializePublicKey(Hpke* hpke, void* key, byte* out, word16* outSz)
             /* TODO: Add X448 */
 #endif
         default:
-            ret = -1;
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -438,7 +438,7 @@ int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key, const byte* in,
             /* TODO: Add X448 */
 #endif
         default:
-            ret = -1;
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -850,7 +850,7 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
             /* TODO: Add X448 */
 #endif
         default:
-            ret = -1;
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -1098,7 +1098,7 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
                 /* TODO: Add X448 */
 #endif
             default:
-                ret = -1;
+                ret = BAD_FUNC_ARG;
                 break;
         }
 
