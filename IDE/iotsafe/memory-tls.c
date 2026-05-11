@@ -75,6 +75,8 @@ static int client_read_idx;
 /* server send callback */
 int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
+    if (sz <= 0 || sz > TLS_BUFFERS_SZ)
+        return WOLFSSL_CBIO_ERR_GENERAL;
     if (client_write_idx + sz > TLS_BUFFERS_SZ) {
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
     }
@@ -89,6 +91,8 @@ int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 /* server recv callback */
 int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
+    if (sz <= 0 || sz > TLS_BUFFERS_SZ)
+        return WOLFSSL_CBIO_ERR_GENERAL;
     if (server_bytes - server_read_idx < sz) {
         return WOLFSSL_CBIO_ERR_WANT_READ;
     }
@@ -107,6 +111,8 @@ int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 /* client send callback */
 int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
+    if (sz <= 0 || sz > TLS_BUFFERS_SZ)
+        return WOLFSSL_CBIO_ERR_GENERAL;
     if (server_write_idx + sz > TLS_BUFFERS_SZ)
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
 
@@ -122,6 +128,8 @@ int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 /* client recv callback */
 int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
+    if (sz <= 0 || sz > TLS_BUFFERS_SZ)
+        return WOLFSSL_CBIO_ERR_GENERAL;
     if (client_bytes - client_read_idx < sz) {
         return WOLFSSL_CBIO_ERR_WANT_READ;
     }
