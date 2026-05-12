@@ -309,6 +309,11 @@ int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
     if ((pub == NULL) || (priv == NULL)) {
         return ECC_BAD_ARG_E;
     }
+#ifndef FREESCALE_LTC_ECC
+    if (rng == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+#endif
 
     /* check clamping */
     ret = curve25519_priv_clamp_check(priv);
@@ -420,6 +425,9 @@ int wc_curve25519_generic_blind(int public_size, byte* pub,
     }
     if ((pub == NULL) || (priv == NULL) || (basepoint == NULL))
         return ECC_BAD_ARG_E;
+    if (rng == NULL) {
+        return ECC_BAD_ARG_E;
+    }
 
     /* check clamping */
     ret = curve25519_priv_clamp_check(priv);
