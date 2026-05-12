@@ -7789,8 +7789,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 #ifdef WOLF_CRYPTO_CB_ONLY_AES
-    /* Device handles GCM end-to-end; GHASH H / M0 setup below is dead state
-     * under CB_ONLY (no host-side software path consumes aes->gcm.H or M0). */
+    /* do key scheduling so that ECB-only devices can still do GCM */
+    if (ret == 0) {
+        ret = wc_CryptoCb_AesEcbEncrypt(aes, aes->gcm.H, iv, WC_AES_BLOCK_SIZE);
+#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+        if (ret == 0)
+            GenerateM0(&aes->gcm);
+#endif
+    }
     return ret;
 #endif
 #ifdef WOLFSSL_AESGCM_STREAM
