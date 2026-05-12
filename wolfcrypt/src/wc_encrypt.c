@@ -649,7 +649,7 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
                     else
                         ret = wc_Rc2CbcDecrypt(&rc2, input, input, length);
                 }
-                ForceZero(&rc2, sizeof(Rc2));
+                wc_Rc2Free(&rc2);
                 break;
             }
     #endif

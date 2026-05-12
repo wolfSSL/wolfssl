@@ -60,6 +60,8 @@ WOLFSSL_API int wc_Rc2CbcEncrypt(Rc2* rc2, byte* out,
 WOLFSSL_API int wc_Rc2CbcDecrypt(Rc2* rc2, byte* out,
                                  const byte* in, word32 sz);
 
+WOLFSSL_API void wc_Rc2Free(Rc2* rc2);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
