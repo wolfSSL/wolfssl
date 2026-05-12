@@ -224,6 +224,8 @@ int wc_Sha3_384_GetHash(wc_Sha3* sha, byte* out)
 {
 #ifdef WOLFSSL_XILINX_CRYPTO_OLD
     wc_Sha3 s;
+#else
+    int status;
 #endif
 
     if (sha == NULL || out == NULL) {
@@ -237,7 +239,11 @@ int wc_Sha3_384_GetHash(wc_Sha3* sha, byte* out)
 
         return wc_Sha3_384_Final(&s, out);
 #else
-    XSecure_Sha3_ReadHash(&(sha->hw), out);
+    status = XSecure_Sha3_ReadHash(&(sha->hw), out);
+    if (status != XST_SUCCESS) {
+        WOLFSSL_MSG("XSecure_Sha3_ReadHash failed");
+        return WC_HW_E;
+    }
     return 0;
 #endif
 }
