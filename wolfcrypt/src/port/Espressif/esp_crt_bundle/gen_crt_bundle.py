@@ -333,9 +333,14 @@ def main():
 
     bundle = CertificateBundle()
 
+    _SHELL_META = re.compile(r'[;&|`$<>()\n\r]')
     for path in args.input:
+        if _SHELL_META.search(path):
+            raise InputError('Unsafe characters in input path: %s' % path)
         if os.path.isfile(path):
             if os.path.basename(path) == 'cacrt_all.pem' and args.filter:
+                if _SHELL_META.search(args.filter):
+                    raise InputError('Unsafe characters in filter path: %s' % args.filter)
                 bundle.add_with_filter(path, args.filter)
             else:
                 bundle.add_from_file(path)
