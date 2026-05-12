@@ -2873,6 +2873,65 @@ int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void)
 } /* END test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen() */
 
 
+/* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag
+ * is truncated must return BUFFER_E rather than reading past pkiMsg. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && defined(NO_PKCS7_STREAM)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[2048];
+    byte   decoded[256];
+    byte   data[] = "truncated authEnvelopedData test";
+    int    encSz = 0;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES128GCMb;
+    }
+    ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
+        sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Truncate inside encryptedContent (encryptedContentSz check). */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
+        (word32)encSz - 32, decoded, sizeof(decoded)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Truncate one byte off the auth tag (authTagSz check). */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
+        (word32)encSz - 1, decoded, sizeof(decoded)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_truncated() */
+
+
 /*
  * Testing wc_PKCS7_DecodeEnvelopedData with streaming
  */
