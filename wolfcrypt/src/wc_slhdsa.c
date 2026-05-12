@@ -7015,7 +7015,7 @@ static int slhdsakey_sign_internal_msg(SlhDsaKey* key, const byte* m,
 
 /* Upper-level sign: construct M' from ctx + msg, then call internal.
  *
- * FIPS 205. Section 10.2.2. Algorithm 22.
+ * FIPS 205. Section 10.2.1. Algorithm 22.
  * slh_sign(M, ctx, SK)
  *   8: M' <- toByte(0, 1) || toByte(|ctx|, 1) || ctx || M
  *   9: SIG <- slh_sign_internal(M', SK, addrnd)
@@ -7414,7 +7414,7 @@ static int slhdsakey_verify(SlhDsaKey* key, byte* md, const byte* sig)
  *   9: md <- digest [0 : upper(k.a / 8)]           > first upper(k.a / 8) bytes
  *  ...
  *
- * FIPS 205. Section 10.3. Algorithm 23.
+ * FIPS 205. Section 10.3. Algorithm 24.
  * slh_verify(M, SIG, ctx, PK)
  *   1: if |ctx| > 255 then
  *   2:     return false
@@ -7464,7 +7464,7 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         byte n = key->params->n;
         byte hdr[2];
 
-        /* Alg 23, Step 4: Make M' header. */
+        /* Alg 24, Step 4: Make M' header. */
         hdr[0] = 0;
         hdr[1] = ctxSz;
 
@@ -7501,7 +7501,7 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
             }
         }
         if (ret == 0) {
-            /* Alg 23, Step 5: Verify M'.
+            /* Alg 24, Step 5: Verify M'.
              * Alg 20, Steps 4,6-18: Verify digest. */
             ret = slhdsakey_verify(key, md, sig);
         }
@@ -7582,12 +7582,20 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
 /* All HashSLH-DSA hash OIDs are DER-encoded as tag(0x06) + length(0x09) + 9
  * bytes, so any approved hash OID is exactly 11 bytes. The PRF_msg / H_msg
  * input for the SHA-2 path is the concatenation OID || PHM, bounded by
- * SLHDSA_OID_MAX_LEN + WC_MAX_DIGEST_SIZE. WC_MAX_DIGEST_SIZE is the project-
- * wide max digest size (>= 64 today) and absorbs any future hash with a
- * larger digest as long as slhdsakey_validate_prehash continues to enforce
- * hashSz <= WC_MAX_DIGEST_SIZE. */
-#define SLHDSA_OID_MAX_LEN     11
-#define SLHDSA_PHMSG_MAX_LEN   (SLHDSA_OID_MAX_LEN + WC_MAX_DIGEST_SIZE)
+ * SLHDSA_OID_MAX_LEN + WC_MAX_DIGEST_SIZE. The PHM buffer fits in
+ * WC_MAX_DIGEST_SIZE bytes because slhdsakey_validate_prehash enforces
+ * hashSz == expectedLen[hashType] for every supported hashType and every
+ * supported expectedLen is <= WC_MAX_DIGEST_SIZE. The largest FIPS 205
+ * approved PHM is 64 bytes (SHA-512 digest size, also the SHAKE256 PHM
+ * length fixed at 512 bits per Section 10.2.2). The static assert below
+ * catches a future hash being added whose digest exceeds the bound. The
+ * literal 64 is used directly because WC_SHA512_DIGEST_SIZE is only
+ * defined when SHA-512 is compiled in. */
+#define SLHDSA_OID_MAX_LEN              11
+#define SLHDSA_LARGEST_APPROVED_PHM_LEN 64
+#define SLHDSA_PHMSG_MAX_LEN            (SLHDSA_OID_MAX_LEN + \
+                                         WC_MAX_DIGEST_SIZE)
+wc_static_assert(WC_MAX_DIGEST_SIZE >= SLHDSA_LARGEST_APPROVED_PHM_LEN);
 
 #ifdef WOLFSSL_SHA224
 /* OID for SHA-224 for hash signing/verification. */
@@ -7863,13 +7871,13 @@ static int slhdsakey_validate_prehash(word32 hashSz,
  * @return  BAD_FUNC_ARG when ctx is NULL but ctx length is greater than 0.
  * @return  BAD_LENGTH_E when sigSz is less than required signature length, or
  *          when hashSz does not equal the digest size for hashType.
- * @return  NOT_COMPILED in when hash algorithm is not supported.
+ * @return  NOT_COMPILED_IN when hash algorithm is not supported.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
 static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
     byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
-    byte* sig, word32* sigSz, byte* addRnd)
+    byte* sig, word32* sigSz, const byte* addRnd)
 {
     int ret = 0;
     const byte* oid = NULL;
@@ -8064,7 +8072,7 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key, const byte* ctx,
  */
 int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     const byte* hash, word32 hashSz, enum wc_HashType hashType, byte* sig,
-    word32* sigSz, byte* addRnd)
+    word32* sigSz, const byte* addRnd)
 {
     /* HashSLH-DSA sign with caller-supplied digest. */
     return slhdsakey_signhash_external(key, ctx, ctxSz, hash, hashSz, hashType,
@@ -8105,7 +8113,11 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     int ret = 0;
     byte addRnd[SLHDSA_MAX_N];
 
-    /* Validate parameters before generating random. */
+    /* Validate parameters before generating random.
+     * hashSz / hashType validation lives in the internal worker and therefore
+     * runs after wc_RNG_GenerateBlock. A call with a bad hashSz/hashType will
+     * waste n bytes of DRBG output before the error is reported (similar to
+     * ML-DSA pre-hash handling). */
     if ((key == NULL) || (key->params == NULL) ||
             ((ctx == NULL) && (ctxSz > 0)) || (hash == NULL) || (sig == NULL) ||
             (sigSz == NULL) || (rng == NULL)) {
@@ -8149,7 +8161,7 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
  *   9: md <- digest [0 : upper(k.a / 8)]           > first upper(k.a / 8) bytes
  * ...
  *
- * FIPS 205. Section 10.3. Algorithm 24.
+ * FIPS 205. Section 10.3. Algorithm 25.
  * hash_slh_verify(M, SIG, ctx, PH, PK)
  *   1: if |ctx| > 255 then
  *   2:     return false
@@ -8222,7 +8234,7 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         ret = MISSING_KEY;
     }
     if (ret == 0) {
-        /* Alg 24, Steps 4-19: Validate caller-supplied pre-hashed digest length
+        /* Alg 25, Steps 4-19: Validate caller-supplied pre-hashed digest length
          * and select OID for the chosen hash algorithm. */
         ret = slhdsakey_validate_prehash(hashSz, hashType, &oid, &oidLen);
     }
@@ -8231,7 +8243,7 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         byte md[SLHDSA_MAX_MD];
         byte hdr[2];
 
-        /* Alg 24, Step 20: Make M' header. */
+        /* Alg 25, Step 20: Make M' header. */
         hdr[0] = 1;
         hdr[1] = ctxSz;
 
@@ -8277,7 +8289,7 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
             }
         }
         if (ret == 0) {
-            /* Alg 24, Step 21: Verify M'.
+            /* Alg 25, Step 21: Verify M'.
              * Alg 20, Steps 4,6-18: Verify digest. */
             ret = slhdsakey_verify(key, md, sig);
         }

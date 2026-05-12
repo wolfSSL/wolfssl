@@ -260,11 +260,15 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx,
     \ingroup SLH_DSA
 
     \brief Verifies an SLH-DSA signature over a message using the external
-    (pure) interface. This is FIPS 205 Algorithm 23. The message is wrapped
+    (pure) interface. This is FIPS 205 Algorithm 24. The message is wrapped
     internally as M' = 0x00 || len(ctx) || ctx || M before verification.
 
     \return 0 on success (signature valid).
-    \return BAD_FUNC_ARG if key, msg, or sig is NULL.
+    \return BAD_FUNC_ARG if key, msg, or sig is NULL, or ctx is NULL but
+    ctxSz is greater than 0.
+    \return BAD_LENGTH_E if sigSz does not match the parameter set's
+    signature length.
+    \return MISSING_KEY if the public key has not been set.
     \return SIG_VERIFY_E if the signature is invalid.
 
     \param [in] key Pointer to a public SlhDsaKey.
@@ -397,6 +401,9 @@ int wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key,
 
     \return 0 on success (signature valid).
     \return BAD_FUNC_ARG if key, mprime, or sig is NULL.
+    \return BAD_LENGTH_E if sigSz does not match the parameter set's
+    signature length.
+    \return MISSING_KEY if the public key has not been set.
     \return SIG_VERIFY_E if the signature is invalid.
 
     \param [in] key Pointer to a public SlhDsaKey.
@@ -513,7 +520,7 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
 */
 int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
     const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
-    enum wc_HashType hashType, byte* sig, word32* sigSz, byte* addRnd);
+    enum wc_HashType hashType, byte* sig, word32* sigSz, const byte* addRnd);
 
 /*!
     \ingroup SLH_DSA
@@ -553,7 +560,7 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
     \ingroup SLH_DSA
 
     \brief Verifies an SLH-DSA signature using the external HashSLH-DSA
-    interface (FIPS 205 Algorithm 24). The caller must hash the application
+    interface (FIPS 205 Algorithm 25). The caller must hash the application
     message with hashType first and pass the digest as hash; this function
     does NOT hash its input.
 
@@ -835,3 +842,187 @@ int wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
     \sa wc_SlhDsaKey_SigSize
 */
 int wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Decodes a DER-encoded SLH-DSA private key in the PKCS#8
+    OneAsymmetricKey format defined by RFC 9909. The privateKey OCTET STRING
+    contains the raw concatenation SK.seed || SK.prf || PK.seed || PK.root
+    (4*n bytes) directly, without a nested OCTET STRING wrapper as used by
+    Ed25519/Ed448. The SLH-DSA parameter set is detected from the
+    AlgorithmIdentifier OID and key->params is updated to match. Available
+    only when WOLFSSL_SLHDSA_VERIFY_ONLY is not defined.
+
+    On a failure that is detected before any write to key->sk
+    (BAD_FUNC_ARG, header/OID parse errors, or wrong privateKey length), the
+    key state is left untouched. On a failure detected after
+    wc_SlhDsaKey_ImportPrivate has populated key->sk (a SHA-2 precompute
+    error, or a trailing-field validation error), key->sk is scrubbed with
+    ForceZero and the WC_SLHDSA_FLAG_PRIVATE/PUBLIC flags are cleared so
+    flags can never claim valid bytes that were zeroed. In both rollback
+    cases, key->params and inOutIdx are restored to their pre-call values.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if input, inOutIdx, or key is NULL, or inSz is 0.
+    \return ASN_PARSE_E if the DER cannot be parsed as an SLH-DSA private
+    key (malformed input, wrong key size, or trailing-field violation).
+    \return NOT_COMPILED_IN if the OID names an SLH-DSA variant that is not
+    built into this library.
+
+    \param [in] input DER-encoded key data.
+    \param [in,out] inOutIdx On input, starting offset into input. On output,
+    advanced past the parsed key (unchanged on failure).
+    \param [in,out] key SLH-DSA key. Parameter set is auto-detected from the
+    encoded OID.
+    \param [in] inSz Total size of input in bytes.
+
+    \sa wc_SlhDsaKey_KeyToDer
+    \sa wc_SlhDsaKey_PublicKeyDecode
+    \sa wc_SlhDsaKey_ImportPrivate
+*/
+int wc_SlhDsaKey_PrivateKeyDecode(const byte* input, word32* inOutIdx,
+    SlhDsaKey* key, word32 inSz);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Decodes a DER-encoded SLH-DSA public key in the
+    SubjectPublicKeyInfo (SPKI) format. The SLH-DSA parameter set is
+    detected from the AlgorithmIdentifier OID and key->params is updated
+    accordingly.
+
+    As a fast path, if key->params is already set the function first hands
+    the entire window from inOutIdx to inSz to wc_SlhDsaKey_ImportPublic.
+    ImportPublic's length check is the disambiguator: a window of exactly
+    2*n bytes is accepted as a raw public key (PK.seed || PK.root) and
+    consumed in full; any other length is rejected and the function falls
+    through to SPKI parsing. SPKI input always carries enough
+    AlgorithmIdentifier/BIT STRING overhead that it never collides with the
+    2*n raw length, so it falls through cleanly. The caller does not need
+    to pre-trim the window to 2*n.
+
+    On a failure detected before any write (BAD_FUNC_ARG or a malformed
+    SPKI), the key state is left untouched. On a failure detected after
+    ImportPublic has populated the public half of key->sk (a SHA-2
+    precompute error), the public half sk[2*n .. 4*n] is scrubbed and
+    WC_SLHDSA_FLAG_PUBLIC is cleared from the flags; the private half is
+    left intact in case the caller imported it earlier. key->params and
+    inOutIdx are restored to their pre-call values.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if input, inOutIdx, or key is NULL, or inSz is 0.
+    \return ASN_PARSE_E if the DER cannot be parsed as an SLH-DSA public
+    key.
+    \return NOT_COMPILED_IN if the OID names an SLH-DSA variant that is not
+    built into this library.
+
+    \param [in] input DER-encoded key data, or a raw 2*n public key when
+    key->params is already set.
+    \param [in,out] inOutIdx On input, starting offset into input. On output,
+    advanced past the parsed key (unchanged on failure).
+    \param [in,out] key SLH-DSA key. Parameter set is auto-detected from the
+    encoded OID, or honored as-is in the raw fast path.
+    \param [in] inSz Total size of input in bytes.
+
+    \sa wc_SlhDsaKey_PublicKeyToDer
+    \sa wc_SlhDsaKey_PrivateKeyDecode
+    \sa wc_SlhDsaKey_ImportPublic
+*/
+int wc_SlhDsaKey_PublicKeyDecode(const byte* input, word32* inOutIdx,
+    SlhDsaKey* key, word32 inSz);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Encodes an SLH-DSA private key to DER in the PKCS#8
+    OneAsymmetricKey format defined by RFC 9909. The privateKey OCTET STRING
+    contains the raw 4*n bytes (SK.seed || SK.prf || PK.seed || PK.root)
+    directly, without the nested OCTET STRING wrapping used by Ed25519/Ed448.
+
+    Available only when WOLFSSL_SLHDSA_VERIFY_ONLY is not defined and
+    WC_ENABLE_ASYM_KEY_EXPORT is set.
+
+    \return Size of the encoded DER in bytes on success. Pass NULL as output
+    to query the required buffer size without writing.
+    \return BAD_FUNC_ARG if key or key->params is NULL.
+    \return MISSING_KEY if the private key has not been set.
+    \return BUFFER_E if output is non-NULL and inLen is smaller than the
+    required size.
+    \return NOT_COMPILED_IN if key->params names an SLH-DSA variant whose
+    parameter set is not built in.
+
+    \param [in] key SLH-DSA key with a populated private key.
+    \param [out] output Buffer to receive the DER encoding, or NULL to query
+    the required size.
+    \param [in] inLen Size of output in bytes (ignored when output is NULL).
+
+    \sa wc_SlhDsaKey_PrivateKeyDecode
+    \sa wc_SlhDsaKey_PrivateKeyToDer
+    \sa wc_SlhDsaKey_PublicKeyToDer
+*/
+int wc_SlhDsaKey_KeyToDer(SlhDsaKey* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Encodes an SLH-DSA private key to DER. RFC 9909 packs
+    SK.seed || SK.prf || PK.seed || PK.root into a single OCTET STRING, so
+    SLH-DSA has no distinct private-only encoding. This function is an
+    intentional alias of wc_SlhDsaKey_KeyToDer, kept for API parity with
+    Ed25519/Ed448 which do have a separate private form.
+
+    Available only when WOLFSSL_SLHDSA_VERIFY_ONLY is not defined and
+    WC_ENABLE_ASYM_KEY_EXPORT is set.
+
+    Return codes are inherited unchanged from wc_SlhDsaKey_KeyToDer.
+
+    \return Size of the encoded DER in bytes on success. Pass NULL as output
+    to query the required buffer size.
+    \return BAD_FUNC_ARG if key or key->params is NULL.
+    \return MISSING_KEY if the private key has not been set.
+    \return BUFFER_E if output is non-NULL and inLen is smaller than the
+    required size.
+    \return NOT_COMPILED_IN if key->params names an SLH-DSA variant whose
+    parameter set is not built in.
+
+    \param [in] key SLH-DSA key with a populated private key.
+    \param [out] output Buffer to receive the DER encoding, or NULL to query
+    the required size.
+    \param [in] inLen Size of output in bytes (ignored when output is NULL).
+
+    \sa wc_SlhDsaKey_KeyToDer
+    \sa wc_SlhDsaKey_PrivateKeyDecode
+*/
+int wc_SlhDsaKey_PrivateKeyToDer(SlhDsaKey* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Encodes an SLH-DSA public key to DER. When withAlg is non-zero
+    the output is a full SubjectPublicKeyInfo structure (AlgorithmIdentifier
+    plus BIT STRING). When withAlg is zero the output contains the raw
+    public key bytes without the SPKI wrapping.
+
+    Available only when WC_ENABLE_ASYM_KEY_EXPORT is set.
+
+    \return Size of the encoded DER in bytes on success. Pass NULL as output
+    to query the required buffer size.
+    \return BAD_FUNC_ARG if key or key->params is NULL.
+    \return BUFFER_E if output is non-NULL and inLen is smaller than the
+    required size.
+    \return NOT_COMPILED_IN if key->params names an SLH-DSA variant whose
+    parameter set is not built in.
+
+    \param [in] key SLH-DSA key with a populated public key.
+    \param [out] output Buffer to receive the DER encoding, or NULL to query
+    the required size.
+    \param [in] inLen Size of output in bytes (ignored when output is NULL).
+    \param [in] withAlg Non-zero to emit SubjectPublicKeyInfo (with
+    AlgorithmIdentifier); zero to emit the raw public key only.
+
+    \sa wc_SlhDsaKey_PublicKeyDecode
+    \sa wc_SlhDsaKey_KeyToDer
+*/
+int wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output, word32 inLen,
+    int withAlg);
