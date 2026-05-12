@@ -587,10 +587,11 @@ int test_tls13_apis(void)
 #endif
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups,
         WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, -1),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, numGroups),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(clientCtx->numGroups, numGroups);
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, bad_groups, numGroups),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
@@ -616,10 +617,11 @@ int test_tls13_apis(void)
 #endif
     ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups,
         WOLFSSL_MAX_GROUP_COUNT + 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups, -1),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups, numGroups),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(clientSsl->numGroups, numGroups);
     ExpectIntEQ(wolfSSL_set_groups(clientSsl, bad_groups, numGroups),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
@@ -653,6 +655,16 @@ int test_tls13_apis(void)
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(wolfSSL_set1_groups(clientSsl, NULL, 1),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set1_groups(clientCtx, groups, numGroups),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set1_groups(clientCtx, groups, -1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(clientCtx->numGroups, numGroups);
+    ExpectIntEQ(wolfSSL_set1_groups(clientSsl, groups, numGroups),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_groups(clientSsl, groups, -1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(clientSsl->numGroups, numGroups);
 #endif
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
