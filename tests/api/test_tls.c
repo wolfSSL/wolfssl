@@ -1357,25 +1357,25 @@ int test_wolfSSL_alert_type_string(void)
 int test_wolfSSL_get_shared_ciphers(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
     char         buf[32];
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    /* NULL ssl - pre-existing guard; pins the contract. */
     ExpectNull(wolfSSL_get_shared_ciphers(NULL, buf, sizeof(buf)));
-    /* NULL buf - primary regression case (pre-fix: XMEMCPY(NULL, ...) crash). */
     ExpectNull(wolfSSL_get_shared_ciphers(ssl, NULL, sizeof(buf)));
-    /* len == 0 - pre-existing guard; pins the contract. */
     ExpectNull(wolfSSL_get_shared_ciphers(ssl, buf, 0));
+#ifndef NO_ERROR_STRINGS
+    ExpectPtrEq(wolfSSL_get_shared_ciphers(ssl, buf, sizeof(buf)), buf);
+#else
+    ExpectNull(wolfSSL_get_shared_ciphers(ssl, buf, sizeof(buf)));
+#endif
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-#endif /* NO_WOLFSSL_CLIENT */
 #endif
     return EXPECT_RESULT();
 }
