@@ -88,5 +88,11 @@ EXTRA_DIST += tests/unit.h \
               tests/emnet/IP/IP.h \
               tests/emnet/emnet_shim.c \
               tests/emnet/emnet_nonblock_test.c \
-              tests/emnet/Makefile
+              tests/emnet/Makefile \
+              tests/freertos-mem-track-repro/user_settings.h \
+              tests/freertos-mem-track-repro/repro.c \
+              tests/freertos-mem-track-repro/FreeRTOS.h \
+              tests/freertos-mem-track-repro/semphr.h \
+              tests/freertos-mem-track-repro/task.h \
+              tests/freertos-mem-track-repro/run.sh
 DISTCLEANFILES+= tests/.libs/unit.test
