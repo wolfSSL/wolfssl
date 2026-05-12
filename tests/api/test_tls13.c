@@ -5873,3 +5873,275 @@ int test_tls13_clear_preserves_psk_dhe(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    (defined(BUILD_TLS_AES_128_GCM_SHA256) || \
+     defined(BUILD_TLS_AES_256_GCM_SHA384) || \
+     defined(BUILD_TLS_CHACHA20_POLY1305_SHA256) || \
+     defined(BUILD_TLS_AES_128_CCM_SHA256) || \
+     defined(BUILD_TLS_AES_128_CCM_8_SHA256))
+/* One iteration of the AEAD fuzz test: run a fresh handshake
+ * up to the point where the first AEAD-protected record from the side under
+ * test sits in the receiver's input buffer, flip one random byte of the
+ * encrypted payload to a random non-zero value, and confirm the receiver
+ * fails with VERIFY_MAC_ERROR. side==0 fuzzes the server's first encrypted
+ * record (EncryptedExtensions, read by the client). side==1 fuzzes the
+ * client's first encrypted record (Finished, read by the server). */
+static int test_tls13_cipher_fuzz_once(WC_RNG* rng,
+    const char* cipher, int side)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte *buf = NULL;
+    int buf_len = 0;
+    int rec_off = 0;
+    int rec_len = 0;
+    int fuzz_off;
+    byte fuzz_xor;
+    word32 rand32;
+    int ret;
+    int err;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = cipher;
+    test_ctx.s_ciphers = cipher;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Drive the handshake forward until the side being fuzzed has written
+     * its first AEAD-encrypted record into the peer's read buffer. The
+     * server's first encrypted record is queued after its first
+     * wolfSSL_accept() (EncryptedExtensions, immediately following
+     * ServerHello). The client's first encrypted record is queued once
+     * wolfSSL_connect() returns success and the client has sent its
+     * Finished. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    if (side == 1) {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        buf = test_ctx.s_buff;
+        buf_len = test_ctx.s_len;
+    }
+    else {
+        buf = test_ctx.c_buff;
+        buf_len = test_ctx.c_len;
+    }
+
+    /* Walk the TLS records in the target buffer and locate the first
+     * application_data record (content type 0x17), which holds the first
+     * encrypted handshake message. Plaintext records (ServerHello,
+     * ChangeCipherSpec for middlebox compatibility) precede it and must be
+     * skipped over. */
+    if (EXPECT_SUCCESS()) {
+        int off = 0;
+        while (off + 5 <= buf_len) {
+            int this_len = ((int)buf[off + 3] << 8) | (int)buf[off + 4];
+            if (buf[off] == 0x17) {
+                rec_off = off;
+                rec_len = this_len;
+                break;
+            }
+            off += 5 + this_len;
+        }
+    }
+    ExpectIntGT(rec_len, 0);
+    ExpectIntLE(rec_off + 5 + rec_len, buf_len);
+
+    /* Pick a random offset within the encrypted payload (skipping the
+     * 5-byte record header) and XOR it with a non-zero value so the byte
+     * is guaranteed to change. */
+    if (EXPECT_SUCCESS()) {
+        rand32 = 0;
+        fuzz_off = 0;
+        ExpectIntEQ(wc_RNG_GenerateBlock(rng, (byte*)&rand32,
+            sizeof(rand32)), 0);
+        if (EXPECT_SUCCESS()) {
+            fuzz_off = rec_off + 5 + (int)(rand32 % (word32)rec_len);
+        }
+        do {
+            ExpectIntEQ(wc_RNG_GenerateByte(rng, &fuzz_xor), 0);
+        } while (EXPECT_SUCCESS() && fuzz_xor == 0);
+        if (EXPECT_SUCCESS()) {
+            buf[fuzz_off] ^= fuzz_xor;
+        }
+    }
+
+    /* Drive the receiving side. It must report VERIFY_MAC_ERROR - the
+     * corrupted cipher text or tag must surface as a hard error. */
+    if (EXPECT_SUCCESS()) {
+        if (side == 1) {
+            ret = wolfSSL_accept(ssl_s);
+            err = wolfSSL_get_error(ssl_s, ret);
+        }
+        else {
+            ret = wolfSSL_connect(ssl_c);
+            err = wolfSSL_get_error(ssl_c, ret);
+        }
+        ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+        ExpectTrue((err == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)) ||
+                   (err == WC_NO_ERR_TRACE(AES_GCM_AUTH_E)) ||
+                   (err == WC_NO_ERR_TRACE(AES_CCM_AUTH_E)));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* Run 5 fuzz iterations per side for a single cipher suite. */
+static int test_tls13_cipher_fuzz_cs(WC_RNG* rng, const char* cipher)
+{
+    EXPECT_DECLS;
+    int side;
+    int iter;
+
+    for (side = 0; side < 2 && EXPECT_SUCCESS(); side++) {
+        for (iter = 0; iter < 5 && EXPECT_SUCCESS(); iter++) {
+            int _r = test_tls13_cipher_fuzz_once(rng, cipher, side);
+            if (_r != TEST_SUCCESS) {
+                fprintf(stderr, "FAIL cipher=%s side=%d iter=%d\n",
+                    cipher, side, iter);
+            }
+            ExpectIntEQ(_r, TEST_SUCCESS);
+        }
+    }
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Each per-cipher-suite test below runs the fuzz body (test_tls13_cipher_fuzz_cs)
+ * against a single AEAD cipher: it flips a random byte of the first encrypted
+ * record on each side of a TLS 1.3 handshake and expects the receiver to fail
+ * authentication. AEAD authentication makes it cryptographically infeasible
+ * for any single-byte change in the ciphertext or tag to leave authentication
+ * intact, so the receiver must report a hard auth error. */
+
+int test_tls13_cipher_fuzz_aes128_gcm_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    WC_RNG rng;
+    int rngInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+
+    ExpectIntEQ(test_tls13_cipher_fuzz_cs(&rng, "TLS13-AES128-GCM-SHA256"),
+        TEST_SUCCESS);
+
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_cipher_fuzz_aes256_gcm_sha384(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384)
+    WC_RNG rng;
+    int rngInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+
+    ExpectIntEQ(test_tls13_cipher_fuzz_cs(&rng, "TLS13-AES256-GCM-SHA384"),
+        TEST_SUCCESS);
+
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_cipher_fuzz_chacha20_poly1305_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_CHACHA20_POLY1305_SHA256)
+    WC_RNG rng;
+    int rngInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+
+    ExpectIntEQ(test_tls13_cipher_fuzz_cs(&rng,
+        "TLS13-CHACHA20-POLY1305-SHA256"), TEST_SUCCESS);
+
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_cipher_fuzz_aes128_ccm_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_CCM_SHA256)
+    WC_RNG rng;
+    int rngInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+
+    ExpectIntEQ(test_tls13_cipher_fuzz_cs(&rng, "TLS13-AES128-CCM-SHA256"),
+        TEST_SUCCESS);
+
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_cipher_fuzz_aes128_ccm_8_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_CCM_8_SHA256)
+    WC_RNG rng;
+    int rngInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+
+    ExpectIntEQ(test_tls13_cipher_fuzz_cs(&rng, "TLS13-AES128-CCM-8-SHA256"),
+        TEST_SUCCESS);
+
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
