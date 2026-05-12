@@ -4,6 +4,7 @@
     \brief この関数はmd4を初期化します。これはwc_Md4Hashによって自動的に呼び出されます。
 
     \return 0 初期化に成功した場合に返されます
+    \return BAD_FUNC_ARG md4がNULLの場合に返されます
 
     \param md4 暗号化に使用するmd4構造体へのポインタ
 
@@ -31,6 +32,7 @@ int wc_InitMd4(wc_Md4* md4);
     \brief 長さlenの提供されたバイト配列を継続的にハッシュするために呼び出すことができます。
 
     \return 0 ダイジェストへのデータ追加に成功した場合に返されます。
+    \return BAD_FUNC_ARG md4がNULLの場合、またはdataがNULLでlenが0でない場合に返されます
 
     \param md4 暗号化に使用するmd4構造体へのポインタ
     \param data ハッシュ化されるデータ
@@ -63,6 +65,7 @@ int wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
     \brief データのハッシュ化を完了します。結果はhashに格納されます。
 
     \return 0 完了に成功した場合に返されます。
+    \return BAD_FUNC_ARG md4またはhashがNULLの場合に返されます
 
     \param md4 暗号化に使用するmd4構造体へのポインタ
     \param hash ハッシュ値を保持するバイト配列。

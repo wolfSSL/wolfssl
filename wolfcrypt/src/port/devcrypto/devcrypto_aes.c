@@ -253,13 +253,16 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     /* create key stream for later if needed */
     if (sz > 0) {
         Aes tmpAes;
-        ret = wc_AesSetKey(&tmpAes, (byte*)aes->devKey, aes->keylen,
-                           (byte*)aes->reg, AES_ENCRYPTION);
+        ret = wc_AesInit(&tmpAes, NULL, INVALID_DEVID);
         if (ret == 0) {
-            ret = wc_AesEncryptDirect(&tmpAes, (byte*)aes->tmp,
-                                      (const byte*)aes->reg);
+            ret = wc_AesSetKey(&tmpAes, (byte*)aes->devKey, aes->keylen,
+                               (byte*)aes->reg, AES_ENCRYPTION);
+            if (ret == 0) {
+                ret = wc_AesEncryptDirect(&tmpAes, (byte*)aes->tmp,
+                                          (const byte*)aes->reg);
+            }
+            wc_AesFree(&tmpAes);
         }
-        wc_AesFree(&tmpAes);
         ForceZero(&tmpAes, sizeof(tmpAes));
         if (ret != 0)
             return ret;
