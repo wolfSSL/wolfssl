@@ -310,6 +310,14 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                 word32 keyLen = info->cipher.enc
                     ? info->cipher.aesgcm_enc.aes->keylen
                     : info->cipher.aesgcm_dec.aes->keylen;
+                if (keyLen != AES_128_KEY_SIZE &&
+                    keyLen != AES_192_KEY_SIZE &&
+                    keyLen != AES_256_KEY_SIZE) {
+                    WOLFSSL_MSG_EX(
+                        "TROPIC01: CryptoCB: invalid AES key length %u",
+                        keyLen);
+                    return BAD_FUNC_ARG;
+                }
                 ret = Tropic01_GetKeyAES(
                         lt_key,
                         TROPIC01_AES_KEY_RMEM_SLOT,
@@ -394,6 +402,13 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
     #ifdef HAVE_AES_CBC
         if (info->cipher.type == WC_CIPHER_AES_CBC) {
             word32 keyLen = info->cipher.aescbc.aes->keylen;
+            if (keyLen != AES_128_KEY_SIZE &&
+                keyLen != AES_192_KEY_SIZE &&
+                keyLen != AES_256_KEY_SIZE) {
+                WOLFSSL_MSG_EX(
+                    "TROPIC01: CryptoCB: invalid AES key length %u", keyLen);
+                return BAD_FUNC_ARG;
+            }
             ret = Tropic01_GetKeyAES(
                         lt_key,
                         TROPIC01_AES_KEY_RMEM_SLOT,
