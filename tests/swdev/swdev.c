@@ -357,7 +357,12 @@ static int swdev_aes_ecb(wc_CryptoInfo* info)
 }
 #endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT */
 
-#ifdef HAVE_AESGCM
+/* SWDEV_AES_ONLYECB: when defined, swdev's AES backend returns
+ * CRYPTOCB_UNAVAILABLE for AES-GCM so the parent's CB_ONLY_AES host-side
+ * GCM software path runs (GHASH on the host; AES-CTR blocks dispatch back
+ * through cryptocb ECB). Without this macro, swdev handles GCM end-to-end
+ * and the host-side software path is never exercised. */
+#if defined(HAVE_AESGCM) && !defined(SWDEV_AES_ONLYECB)
 static int swdev_aes_gcm(wc_CryptoInfo* info)
 {
     Aes* aes = info->cipher.enc ? info->cipher.aesgcm_enc.aes :
@@ -401,7 +406,7 @@ static int swdev_aes_gcm(wc_CryptoInfo* info)
     wc_AesFree(&shadow);
     return ret;
 }
-#endif /* HAVE_AESGCM */
+#endif /* HAVE_AESGCM && !SWDEV_AES_ONLYECB */
 
 #ifdef HAVE_AESCCM
 static int swdev_aes_ccm(wc_CryptoInfo* info)
@@ -527,7 +532,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_CIPHER_AES_ECB:
             return swdev_aes_ecb(info);
     #endif
-    #ifdef HAVE_AESGCM
+    #if defined(HAVE_AESGCM) && !defined(SWDEV_AES_ONLYECB)
         case WC_CIPHER_AES_GCM:
             return swdev_aes_gcm(info);
     #endif
