@@ -546,6 +546,9 @@ int Tropic01_Deinit(void)
         WOLFSSL_MSG("TROPIC01: Crypto device deinitialized successfully");
     }
 
+    ForceZero(sh0priv, sizeof(sh0priv));
+    ForceZero(sh0pub, sizeof(sh0pub));
+
     return 0;
 }
 
