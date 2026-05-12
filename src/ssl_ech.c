@@ -175,32 +175,51 @@ int wolfSSL_CTX_GenerateEchConfigEx(WOLFSSL_CTX* ctx, const char* publicName,
     return ret;
 }
 
+/* base64-decode echConfigs into a freshly allocated buffer */
+static int DecodeEchConfigsBase64(void* heap, const char* echConfigs64,
+    word32 echConfigs64Len, byte** decodedConfigs, word32* decodedLen)
+{
+    int ret = 0;
+    byte* buf;
+    word32 len = echConfigs64Len * 3 / 4 + 1;
+
+    if (echConfigs64 == NULL || echConfigs64Len == 0)
+        return BAD_FUNC_ARG;
+
+    buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (buf == NULL)
+        return MEMORY_E;
+
+    buf[len - 1] = 0;
+
+    /* decode the echConfigs */
+    ret = Base64_Decode((const byte*)echConfigs64, echConfigs64Len, buf, &len);
+
+    if (ret != 0) {
+        XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    *decodedConfigs = buf;
+    *decodedLen = len;
+    return 0;
+}
+
 int wolfSSL_CTX_SetEchConfigsBase64(WOLFSSL_CTX* ctx, const char* echConfigs64,
     word32 echConfigs64Len)
 {
-    int ret = 0;
-    word32 decodedLen = echConfigs64Len * 3 / 4 + 1;
+    int ret;
+    word32 decodedLen;
     byte* decodedConfigs;
 
-    if (ctx == NULL || echConfigs64 == NULL || echConfigs64Len == 0)
+    if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    decodedConfigs = (byte*)XMALLOC(decodedLen, ctx->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (decodedConfigs == NULL)
-        return MEMORY_E;
-
-    decodedConfigs[decodedLen - 1] = 0;
-
-    /* decode the echConfigs */
-    ret = Base64_Decode((const byte*)echConfigs64, echConfigs64Len,
-        decodedConfigs, &decodedLen);
-
-    if (ret != 0) {
-        XFREE(decodedConfigs, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ret = DecodeEchConfigsBase64(ctx->heap, echConfigs64, echConfigs64Len,
+        &decodedConfigs, &decodedLen);
+    if (ret != 0)
         return ret;
-    }
 
     ret = wolfSSL_CTX_SetEchConfigs(ctx, decodedConfigs, decodedLen);
 
@@ -258,34 +277,17 @@ void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable)
 int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, const char* echConfigs64,
     word32 echConfigs64Len)
 {
-    int ret = 0;
-    word32 decodedLen = echConfigs64Len * 3 / 4 + 1;
+    int ret;
+    word32 decodedLen;
     byte* decodedConfigs;
 
-    if (ssl == NULL || echConfigs64 == NULL || echConfigs64Len == 0)
+    if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    /* already have ech configs */
-    if (ssl->echConfigs != NULL) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    decodedConfigs = (byte*)XMALLOC(decodedLen, ssl->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (decodedConfigs == NULL)
-        return MEMORY_E;
-
-    decodedConfigs[decodedLen - 1] = 0;
-
-    /* decode the echConfigs */
-    ret = Base64_Decode((const byte*)echConfigs64, echConfigs64Len,
-      decodedConfigs, &decodedLen);
-
-    if (ret != 0) {
-        XFREE(decodedConfigs, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ret = DecodeEchConfigsBase64(ssl->heap, echConfigs64, echConfigs64Len,
+        &decodedConfigs, &decodedLen);
+    if (ret != 0)
         return ret;
-    }
 
     ret = wolfSSL_SetEchConfigs(ssl, decodedConfigs, decodedLen);
 
