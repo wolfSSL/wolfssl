@@ -6153,10 +6153,10 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     {
-    /* CertReqCtx has one byte at end for context value.
-     * Increase size to handle other implementations sending more than one byte.
-     * That is, allocate extra space, over one byte, to hold the context value.
-     */
+        /* CertReqCtx has one byte at end for context value.
+        * Increase size to handle other implementations sending more than one byte.
+        * That is, allocate extra space, over one byte, to hold the context value.
+        */
         CertReqCtx* certReqCtx = (CertReqCtx*)XMALLOC(
             sizeof(CertReqCtx) + (reqCtxLen == 0 ? 0 : reqCtxLen - 1),
             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
