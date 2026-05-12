@@ -137,6 +137,13 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
+      # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
+      # `make check`); without it that test is SKIPped.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install tlslite-ng
+
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
@@ -181,6 +188,13 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
+      # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
+      # `make check`); without it that test is SKIPped.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install tlslite-ng
+
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
@@ -207,6 +221,13 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
+      # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
+      # `make check`); without it that test is SKIPped.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install tlslite-ng
+
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
@@ -269,6 +290,12 @@ jobs:
     timeout-minutes: 14
     steps:
     - uses: actions/checkout@v4
+    # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
+    # `make check`); without it that test is SKIPped.
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    - run: pip install tlslite-ng
     - run: ./autogen.sh
     - name: user_settings_all.h with compatibility layer
       run: |
