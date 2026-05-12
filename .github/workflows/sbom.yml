@@ -1077,14 +1077,11 @@ jobs:
       - name: Upload bomsh trace diagnostics
         # Diagnostic-only, short retention.  Kept separate so the
         # provenance bundle above stays slim for downstream consumers
-        # who don't need to debug ptrace gaps.  `_bomsh.artefact` and
-        # `_bomsh.snapshot` are included here (not in the provenance
-        # bundle) because they are CI-internal: the manifest is a
-        # pointer file, and the snapshot is the byte-identical copy
-        # of the bomtrace3-traced library taken before `make sbom`'s
-        # libtool relink.  Bundling the snapshot lets a reviewer
-        # reproduce check (C) by hand (`sha1("blob "+len+"\\0"+bytes)`)
-        # to confirm the SPDX externalRef gitoid is honest.
+        # who don't need to debug ptrace gaps.  `_bomsh.artefact` is
+        # included here (not in the provenance bundle) because it is
+        # CI-internal: a pointer file recording the path and gitoid of
+        # the bomtrace3-traced library that bomsh_sbom.py was told to
+        # cite in the SPDX externalRef.
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -1093,7 +1090,6 @@ jobs:
             bomsh_raw_logfile.sha1
             _bomsh.conf
             _bomsh.artefact
-            _bomsh.snapshot
           if-no-files-found: warn
           retention-days: 14
 
@@ -1110,5 +1106,3 @@ jobs:
           test ! -d omnibor || (echo "omnibor/ not cleaned"; exit 1)
           test ! -f _bomsh.artefact \
             || (echo "_bomsh.artefact not cleaned"; exit 1)
-          test ! -f _bomsh.snapshot \
-            || (echo "_bomsh.snapshot not cleaned"; exit 1)

@@ -486,13 +486,6 @@ BOMSH_SPDX_OUT         = omnibor.wolfssl-$(PACKAGE_VERSION).spdx.json
 # the on-disk gitoid disagrees, so the install-time relink remains
 # visible.
 BOMSH_ARTEFACT_MANIFEST = $(abs_builddir)/_bomsh.artefact
-# Byte-identical copy of the traced library, captured BEFORE `make sbom`
-# runs `make install` (during which libtool relinks src/.libs/lib*.so*
-# in place to fix RPATH).  bomsh_sbom.py hashes the file at -f at call
-# time rather than reading the ADG, so pointing -f at this snapshot keeps
-# the SPDX externalRef pinned to the bomsh-traced gitoid -- otherwise it
-# would hash the post-relink bytes and disagree with the manifest.
-BOMSH_ARTEFACT_SNAPSHOT = $(abs_builddir)/_bomsh.snapshot
 bomshdir          = $(datadir)/doc/$(PACKAGE)
 
 .PHONY: bomsh install-bomsh uninstall-bomsh
@@ -521,10 +514,15 @@ bomsh:
 	@printf 'raw_logfile=%s\n' '$(BOMSH_RAWLOG_BASE)' > '$(BOMSH_CONF)'
 	$(BOMTRACE3) -c '$(BOMSH_CONF)' $(MAKE)
 	$(BOMSH_CREATE_BOM) -r '$(BOMSH_RAWLOG)' -b '$(BOMSH_OMNIBORDIR)'
-	@# Snapshot the traced library before `make sbom`'s install-time
-	@# libtool relink rewrites it (RPATH fix).  -f points at the snapshot
-	@# so bomsh_sbom.py emits the bomsh-traced gitoid; the manifest's path
-	@# field stays on the live library so the verifier's NOTE keeps firing.
+	@# Capture the ArtifactID (file gitoid) of the bomtrace3-traced
+	@# library and record it in the manifest.  Below we feed this gitoid
+	@# to bomsh_sbom.py via -g (NOT -f): with -f, bomsh_sbom.py hashes
+	@# the file then maps that hash through omnibor/metadata/bomsh/
+	@# bomsh_omnibor_doc_mapping to a bom_id (the gitoid of the
+	@# artefact's OmniBOR document) -- a different sha1 than the
+	@# artefact's own content gitoid, which never matches what the
+	@# verifier records.  -g inserts our gitoid verbatim, so
+	@# SPDX externalRef == manifest gitoid == artefact ArtifactID.
 	@bomsh_artifact=""; \
 	for lib in \
 	    $(addprefix "$(abs_builddir)/src/.libs"/,$(WOLFSSL_LIB_DSO_BASENAMES)) \
@@ -533,8 +531,7 @@ bomsh:
 	    if test -f "$$lib"; then bomsh_artifact="$$lib"; break; fi; \
 	done; \
 	if test -n "$$bomsh_artifact"; then \
-	    cp "$$bomsh_artifact" '$(BOMSH_ARTEFACT_SNAPSHOT)'; \
-	    bomsh_artifact_gid=`$(PYTHON3) -c 'import hashlib,sys;d=open(sys.argv[1],"rb").read();h=hashlib.sha1();h.update(("blob %d\0"%len(d)).encode());h.update(d);print(h.hexdigest())' '$(BOMSH_ARTEFACT_SNAPSHOT)'`; \
+	    bomsh_artifact_gid=`$(PYTHON3) -c 'import hashlib,sys;d=open(sys.argv[1],"rb").read();h=hashlib.sha1();h.update(("blob %d\0"%len(d)).encode());h.update(d);print(h.hexdigest())' "$$bomsh_artifact"`; \
 	    printf '%s\t%s\n' "$$bomsh_artifact" "$$bomsh_artifact_gid" \
 	        > '$(BOMSH_ARTEFACT_MANIFEST)'; \
 	fi
@@ -544,18 +541,22 @@ bomsh:
 	    echo "      The OmniBOR graph in $(BOMSH_OMNIBORDIR) is still produced."; \
 	    exit 0; \
 	fi; \
-	if test ! -f '$(BOMSH_ARTEFACT_MANIFEST)' \
-	    || test ! -f '$(BOMSH_ARTEFACT_SNAPSHOT)'; then \
+	if test ! -f '$(BOMSH_ARTEFACT_MANIFEST)'; then \
 	    echo "NOTE: no built libwolfssl artifact found in $(abs_builddir)/src/.libs/"; \
 	    echo "      OmniBOR graph produced; SPDX enrichment skipped."; \
 	    exit 0; \
 	fi; \
 	bomsh_artifact=`awk 'NR==1 {print $$1}' '$(BOMSH_ARTEFACT_MANIFEST)'`; \
-	echo "Enriching SPDX with OmniBOR ExternalRefs (artifact: $$bomsh_artifact, snapshot: $(BOMSH_ARTEFACT_SNAPSHOT))..."; \
+	bomsh_artifact_gid=`awk 'NR==1 {print $$2}' '$(BOMSH_ARTEFACT_MANIFEST)'`; \
+	if test -z "$$bomsh_artifact_gid"; then \
+	    echo "ERROR: $(BOMSH_ARTEFACT_MANIFEST) is missing the gitoid field"; \
+	    exit 1; \
+	fi; \
+	echo "Enriching SPDX with OmniBOR ExternalRefs (artifact: $$bomsh_artifact, gitoid: $$bomsh_artifact_gid)..."; \
 	$(BOMSH_SBOM) \
 	    -b '$(BOMSH_OMNIBORDIR)' \
 	    -i '$(abs_builddir)/$(SBOM_SPDX)' \
-	    -f '$(BOMSH_ARTEFACT_SNAPSHOT)' \
+	    -g "$$bomsh_artifact_gid" \
 	    -s spdx-json \
 	    -O '$(abs_builddir)'
 
@@ -572,7 +573,7 @@ uninstall-bomsh:
 	-rm -rf '$(DESTDIR)$(bomshdir)/omnibor'
 	-rm -f '$(DESTDIR)$(bomshdir)/$(BOMSH_SPDX_OUT)'
 
-CLEANFILES += $(BOMSH_RAWLOG) $(BOMSH_RAWLOG_BASE).sha256 $(BOMSH_CONF) $(BOMSH_SPDX_OUT) $(BOMSH_ARTEFACT_MANIFEST) $(BOMSH_ARTEFACT_SNAPSHOT)
+CLEANFILES += $(BOMSH_RAWLOG) $(BOMSH_RAWLOG_BASE).sha256 $(BOMSH_CONF) $(BOMSH_SPDX_OUT) $(BOMSH_ARTEFACT_MANIFEST)
 
 # Hook SBOM/Bomsh cleanup into `make uninstall` so packagers don't leave
 # stale artefacts behind after install-sbom/install-bomsh.  uninstall-sbom
