@@ -38,6 +38,7 @@
 #                       aia/ca-issuers-cert.pem
 #                       aia/multi-aia-cert.pem
 #                       aia/overflow-aia-cert.pem
+#                       sia/timestamping-sia-cert.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -351,6 +352,31 @@ run_renewcerts(){
     check_result $? "Step AIA-9"
     mv tmp.pem aia/overflow-aia-cert.pem
     rm aia/overflow-aia-key.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ########## update SIA test certs ###########################
+    ############################################################
+    echo "Updating SIA test certs"
+    echo ""
+    mkdir -p sia
+
+    # Cert with a subjectInfoAccess extension that does not contain an
+    # id-ad-caRepository entry. RFC 5280 4.2.2.2 only requires the SIA
+    # sequence be non-empty; it does not mandate any specific access method.
+    echo "Updating sia/timestamping-sia-cert.pem"
+    echo ""
+    openssl req -new -newkey rsa:2048 -nodes -keyout sia/timestamping-sia-key.pem -subj "/CN=wolfssl-sia-timestamping-test" -out sia/timestamping-sia-cert.csr
+    check_result $? "Step SIA-1"
+
+    openssl x509 -req -in sia/timestamping-sia-cert.csr -days 3650 -extfile wolfssl.cnf -extensions sia_timestamping -signkey sia/timestamping-sia-key.pem -out sia/timestamping-sia-cert.pem
+    check_result $? "Step SIA-2"
+    rm sia/timestamping-sia-cert.csr
+
+    openssl x509 -in sia/timestamping-sia-cert.pem -text > tmp.pem
+    check_result $? "Step SIA-3"
+    mv tmp.pem sia/timestamping-sia-cert.pem
+    rm sia/timestamping-sia-key.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
@@ -1035,11 +1061,64 @@ EOF
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
+    ############################################################
+    #### ML-DSA (FIPS 204) self-signed certificates          ###
+    ############################################################
+    # ML-DSA requires an OpenSSL 3.x binary with ML-DSA support
+    # (via oqsprovider or built-in). Detect support by probing candidates.
+    OPENSSL3=""
+    for candidate in \
+        "/usr/local/opt/openssl@3.2/bin/openssl" \
+        "/usr/local/opt/openssl@3/bin/openssl" \
+        "/opt/homebrew/opt/openssl@3.2/bin/openssl" \
+        "/opt/homebrew/opt/openssl@3/bin/openssl" \
+        "openssl"; do
+        if [ "$candidate" = "openssl" ]; then
+            # Skip if 'openssl' is not available on PATH.
+            command -v openssl >/dev/null 2>&1 || continue
+        else
+            # Skip non-existent or non-executable absolute paths.
+            [ -x "$candidate" ] || continue
+        fi
+        if "$candidate" genpkey -algorithm mldsa44 -out /dev/null 2>/dev/null; then
+            OPENSSL3="$candidate"
+            break
+        fi
+    done
+
+    if [ -n "$OPENSSL3" ]; then
+        echo "Generating ML-DSA certificates using: $OPENSSL3"
+        echo ""
+        mkdir -p mldsa
+
+        for level in 44 65 87; do
+            echo "Generating ML-DSA-${level} key and self-signed certificate..."
+
+            "$OPENSSL3" genpkey -algorithm "mldsa${level}" \
+                -out "mldsa/mldsa${level}-key.pem"
+            check_result $? "ML-DSA-${level} key generation"
+
+            "$OPENSSL3" req -new -x509 -key "mldsa/mldsa${level}-key.pem" \
+                -out "mldsa/mldsa${level}-cert.pem" -days 3650 \
+                -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/CN=ML-DSA-${level}"
+            check_result $? "ML-DSA-${level} certificate generation"
+
+            "$OPENSSL3" x509 -inform PEM -in "mldsa/mldsa${level}-cert.pem" \
+                -outform DER -out "mldsa/mldsa${level}-cert.der"
+            check_result $? "ML-DSA-${level} DER conversion"
+
+            echo "End of ML-DSA-${level} section"
+        done
+        echo "---------------------------------------------------------------------"
+    else
+        echo "Skipping ML-DSA cert generation (no OpenSSL 3.3+ with ML-DSA support found)"
+        echo "---------------------------------------------------------------------"
+    fi
+
     #cleanup the file system now that we're done
     echo "Performing final steps, cleaning up the file system..."
     echo ""
 
-    rm ../wolfssl.cnf
     echo "End of Updates. Everything was successfully updated!"
     echo "---------------------------------------------------------------------"
 }
@@ -1048,8 +1127,8 @@ EOF
 ##################### THE EXECUTABLE BODY #####################################
 ###############################################################################
 
-#start in root.
-cd ../ || exit 1
+#start in root, regardless of the caller's working directory.
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 if [ ! -z "$1" ]; then
     echo "No arguments expected"
@@ -1065,6 +1144,7 @@ touch certs/.rnd || exit 1
 
 run_renewcerts
 cd ../ || exit 1
-rm ./certs/wolfssl.cnf
+rm -f ./certs/wolfssl.cnf
+rm -f certs/.rnd
 
 exit 0

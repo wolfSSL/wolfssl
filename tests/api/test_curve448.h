@@ -34,6 +34,7 @@ int test_wc_curve448_import_private(void);
 int test_wc_curve448_init(void);
 int test_wc_curve448_size(void);
 int test_wc_Curve448PrivateKeyToDer(void);
+int test_wc_Curve448PrivateKeyToDer_oneasymkey_version(void);
 
 #define TEST_CURVE448_DECLS                                                 \
     TEST_DECL_GROUP("curve448", test_wc_curve448_make_key),                 \
@@ -45,6 +46,7 @@ int test_wc_Curve448PrivateKeyToDer(void);
     TEST_DECL_GROUP("curve448", test_wc_curve448_import_private),           \
     TEST_DECL_GROUP("curve448", test_wc_curve448_init),                     \
     TEST_DECL_GROUP("curve448", test_wc_curve448_size),                     \
-    TEST_DECL_GROUP("curve448", test_wc_Curve448PrivateKeyToDer)
+    TEST_DECL_GROUP("curve448", test_wc_Curve448PrivateKeyToDer),           \
+    TEST_DECL_GROUP("curve448", test_wc_Curve448PrivateKeyToDer_oneasymkey_version)
 
 #endif /* WOLFCRYPT_TEST_CURVE448_H */

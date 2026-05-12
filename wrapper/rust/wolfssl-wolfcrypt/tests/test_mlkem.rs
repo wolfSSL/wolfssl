@@ -244,9 +244,7 @@ fn test_encode_decode_public_key() {
     let ss_size = key.shared_secret_size().expect("Error with shared_secret_size()");
 
     let mut pub_buf = vec![0u8; pub_size];
-    let written = key.encode_public_key(&mut pub_buf)
-        .expect("Error with encode_public_key()");
-    assert_eq!(written, pub_size);
+    key.encode_public_key(&mut pub_buf).expect("Error with encode_public_key()");
 
     // Re-import public key and encapsulate.
     let mut pub_key = MlKem::new(MlKem::TYPE_768).expect("Error with new()");
@@ -280,9 +278,7 @@ fn test_encode_decode_private_key() {
     let ss_size = key.shared_secret_size().expect("Error with shared_secret_size()");
 
     let mut priv_buf = vec![0u8; priv_size];
-    let written = key.encode_private_key(&mut priv_buf)
-        .expect("Error with encode_private_key()");
-    assert_eq!(written, priv_size);
+    key.encode_private_key(&mut priv_buf).expect("Error with encode_private_key()");
 
     // Encapsulate with the original key.
     let mut ct = vec![0u8; ct_size];

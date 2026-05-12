@@ -33,6 +33,7 @@ int test_wc_dilithium_sign_vfy(void);
 int test_wc_dilithium_check_key(void);
 int test_wc_dilithium_public_der_decode(void);
 int test_wc_dilithium_der(void);
+int test_wc_dilithium_oneasymkey_version(void);
 int test_wc_dilithium_make_key_from_seed(void);
 int test_wc_dilithium_sig_kats(void);
 int test_wc_dilithium_sign_ctx_kats(void);
@@ -45,6 +46,7 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void);
 int test_mldsa_pkcs8_export_import_wolfSSL_form(void);
 int test_wc_dilithium_encode_w1_large_values(void);
 int test_mldsa_pkcs12(void);
+int test_mldsa_x509_pubkey_sigtype(void);
 
 #define TEST_MLDSA_DECLS                                                       \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium),                               \
@@ -56,6 +58,7 @@ int test_mldsa_pkcs12(void);
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_check_key),                     \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_public_der_decode),             \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_der),                           \
+    TEST_DECL_GROUP("mldsa", test_wc_dilithium_oneasymkey_version),            \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_make_key_from_seed),            \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_sig_kats),                      \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_sign_ctx_kats),                 \
@@ -67,6 +70,7 @@ int test_mldsa_pkcs12(void);
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_import_OpenSSL_form),            \
     TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8_export_import_wolfSSL_form),     \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_encode_w1_large_values),         \
-    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs12)
+    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs12),                                \
+    TEST_DECL_GROUP("mldsa", test_mldsa_x509_pubkey_sigtype)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */

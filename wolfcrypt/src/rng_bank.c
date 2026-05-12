@@ -928,6 +928,8 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng)
 {
     int isZero = 0;
     int ret = 0;
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
     if (rng->bankref == NULL)
         return BAD_FUNC_ARG;
     wolfSSL_RefDec(&rng->bankref->refcount, &isZero, &ret);

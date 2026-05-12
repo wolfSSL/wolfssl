@@ -422,7 +422,7 @@ typedef struct MlKemKey {
 
 
 WOLFSSL_API MlKemKey* wc_MlKemKey_New(int type, void* heap, int devId);
-WOLFSSL_API int  wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
+WOLFSSL_API int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
 
 WOLFSSL_API int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap,
     int devId);
@@ -522,10 +522,8 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int kp, sword16* vec1, sword16* vec2,
 #if defined(USE_INTEL_SPEEDUP) || \
         (defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 WOLFSSL_LOCAL
-int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen);
+int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen);
 #endif
-WOLFSSL_LOCAL
-void mlkem_hash_init(MLKEM_HASH_T* hash);
 WOLFSSL_LOCAL
 int mlkem_hash_new(MLKEM_HASH_T* hash, void* heap, int devId);
 WOLFSSL_LOCAL
@@ -578,7 +576,7 @@ void mlkem_from_bytes(sword16* p, const byte* b, int k);
 WOLFSSL_LOCAL
 void mlkem_to_bytes(byte* b, sword16* p, int k);
 WOLFSSL_LOCAL
-int mlkem_check_public(sword16* p, int k);
+int mlkem_check_public(const sword16* p, int k);
 
 #ifdef USE_INTEL_SPEEDUP
 WOLFSSL_LOCAL
@@ -601,10 +599,13 @@ unsigned int mlkem_rej_uniform_avx2(sword16* p, unsigned int len, const byte* r,
 WOLFSSL_LOCAL
 void mlkem_redistribute_21_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
+WOLFSSL_LOCAL
 void mlkem_redistribute_17_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
+WOLFSSL_LOCAL
 void mlkem_redistribute_16_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
+WOLFSSL_LOCAL
 void mlkem_redistribute_8_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
 

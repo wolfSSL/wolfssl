@@ -71,70 +71,136 @@ static int client_bytes;
 static int client_write_idx;
 static int client_read_idx;
 
+static int mem_send(unsigned char* dst, int* write_idx, int* bytes,
+    const char* buf, int sz)
+{
+    int available;
+
+    if (buf == NULL || dst == NULL || write_idx == NULL || bytes == NULL ||
+            sz <= 0) {
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    if (*write_idx < 0 || *write_idx > TLS_BUFFERS_SZ ||
+            *bytes < 0 || *bytes > TLS_BUFFERS_SZ) {
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    available = TLS_BUFFERS_SZ - *write_idx;
+    if (available <= 0) {
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+    if (sz > available) {
+        sz = available;
+    }
+
+    XMEMCPY(&dst[*write_idx], buf, sz);
+    *write_idx += sz;
+    *bytes += sz;
+
+    return sz;
+}
+
+static int mem_recv(char* buf, int sz, unsigned char* src, int* read_idx,
+    int* write_idx, int* bytes)
+{
+    int available;
+
+    if (buf == NULL || src == NULL || read_idx == NULL || write_idx == NULL ||
+            bytes == NULL || sz <= 0) {
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    if (*read_idx < 0 || *write_idx < *read_idx || *write_idx > TLS_BUFFERS_SZ ||
+            *bytes < 0 || *bytes > TLS_BUFFERS_SZ) {
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    available = *write_idx - *read_idx;
+    if (available <= 0) {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    if (sz > available) {
+        sz = available;
+    }
+
+    XMEMCPY(buf, &src[*read_idx], sz);
+    *read_idx += sz;
+    *bytes -= sz;
+
+    if (*read_idx == *write_idx) {
+        *read_idx = 0;
+        *write_idx = 0;
+    }
+
+    return sz;
+}
+
 
 /* server send callback */
 int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    if (client_write_idx + sz > TLS_BUFFERS_SZ) {
-        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    int ret;
+
+    (void)ssl;
+    (void)ctx;
+
+    ret = mem_send(to_client, &client_write_idx, &client_bytes, buf, sz);
+    if (ret > 0) {
+        printf("=== Srv-Cli: %d\n", ret);
     }
-    printf("=== Srv-Cli: %d\n", sz);
-    XMEMCPY(&to_client[client_write_idx], buf, sz);
-    client_write_idx += sz;
-    client_bytes += sz;
-    return sz;
+    return ret;
 }
 
 
 /* server recv callback */
 int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    if (server_bytes - server_read_idx < sz) {
-        return WOLFSSL_CBIO_ERR_WANT_READ;
-    }
-    XMEMCPY(buf, &to_server[server_read_idx], sz);
-    server_read_idx += sz;
+    int ret;
 
-    if (server_read_idx == server_write_idx) {
-        server_read_idx = server_write_idx = 0;
-        server_bytes = 0;
+    (void)ssl;
+    (void)ctx;
+
+    ret = mem_recv(buf, sz, to_server, &server_read_idx, &server_write_idx,
+        &server_bytes);
+    if (ret > 0) {
+        printf("=== Srv RX: %d\n", ret);
     }
-    printf("=== Srv RX: %d\n", sz);
-    return sz;
+    return ret;
 }
 
 
 /* client send callback */
 int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    if (server_write_idx + sz > TLS_BUFFERS_SZ)
-        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    int ret;
 
-    printf("=== Cli->Srv: %d\n", sz);
-    XMEMCPY(&to_server[server_write_idx], buf, sz);
-    server_write_idx += sz;
-    server_bytes += sz;
+    (void)ssl;
+    (void)ctx;
 
-    return sz;
+    ret = mem_send(to_server, &server_write_idx, &server_bytes, buf, sz);
+    if (ret > 0) {
+        printf("=== Cli->Srv: %d\n", ret);
+    }
+
+    return ret;
 }
 
 
 /* client recv callback */
 int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    if (client_bytes - client_read_idx < sz) {
-        return WOLFSSL_CBIO_ERR_WANT_READ;
-    }
+    int ret;
 
-    XMEMCPY(buf, &to_client[client_read_idx], sz);
-    client_read_idx += sz;
+    (void)ssl;
+    (void)ctx;
 
-    if (client_read_idx == client_write_idx) {
-        client_read_idx = client_write_idx = 0;
-        client_bytes = 0;
+    ret = mem_recv(buf, sz, to_client, &client_read_idx, &client_write_idx,
+        &client_bytes);
+    if (ret > 0) {
+        printf("=== Cli RX: %d\n", ret);
     }
-    printf("=== Cli RX: %d\n", sz);
-    return sz;
+    return ret;
 }
 
 /* wolfSSL Client loop */
@@ -175,7 +241,11 @@ static int client_loop(void)
             return 0;
         }
         printf("Client: Enabling IoT Safe in CTX\n");
-        wolfSSL_CTX_iotsafe_enable(cli_ctx);
+        ret = wolfSSL_CTX_iotsafe_enable(cli_ctx);
+        if (ret != WOLFSSL_SUCCESS) {
+            printf("Cannot enable IoT-Safe in client ctx: %d\n", ret);
+            return -1;
+        }
 
         printf("Loading CA\n");
 #ifdef SOFT_SERVER_CA
@@ -261,8 +331,12 @@ static int client_loop(void)
 
         printf("Setting TLS options: turn on IoT-safe for this socket\n");
 
-        wolfSSL_iotsafe_on_ex(cli_ssl, &privkey_id, &keypair_id,
+        ret = wolfSSL_iotsafe_on_ex(cli_ssl, &privkey_id, &keypair_id,
             &peer_pubkey_id, &peer_cert_id, IOTSAFE_ID_SIZE);
+        if (ret != WOLFSSL_SUCCESS) {
+            printf("Cannot enable IoT-Safe on client ssl: %d\n", ret);
+            return -1;
+        }
 
     #ifdef WOLFSSL_TLS13
         printf("Setting TLSv1.3 for SECP256R1 key share\n");
@@ -390,6 +464,7 @@ static int server_loop(void)
             return -1;
         }
         if (ret > 0) {
+            buf[ret] = '\0';
             printf("++++++ Server received msg from client: '%s'\n", buf);
             printf("IoT-Safe TEST SUCCESSFUL\n");
 

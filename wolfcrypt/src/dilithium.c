@@ -1061,8 +1061,8 @@ static void dilthium_vec_encode_eta_bits_c(const sword32* s, byte d, byte eta,
              * 2 numbers become 1 bytes. (2 * 4 bits = 1 * 8 bits) */
             for (j = 0; j < DILITHIUM_N / 2; j++) {
                 /* Make values positive and pack 2 4-bit values into 1 byte. */
-                p[j] = (((byte)(4 - s[j * 2 + 0])) << 0) |
-                       (((byte)(4 - s[j * 2 + 1])) << 4);
+                p[j] = (byte)((((byte)(4 - s[j * 2 + 0])) << 0) |
+                              (((byte)(4 - s[j * 2 + 1])) << 4));
             }
         #else
             /* Step 3 or 6.
@@ -1492,29 +1492,29 @@ static void dilithium_decode_t0_c(const byte* t0, sword32* t)
         word32 t32_2 = ((const word32*)t0)[2];
     #ifdef WC_64BIT_CPU
         word64 t64 = *(const word64*)t0;
-        t[j + 0] = DILITHIUM_D_MAX_HALF - ( t64        & 0x1fff);
-        t[j + 1] = DILITHIUM_D_MAX_HALF - ((t64 >> 13) & 0x1fff);
-        t[j + 2] = DILITHIUM_D_MAX_HALF - ((t64 >> 26) & 0x1fff);
-        t[j + 3] = DILITHIUM_D_MAX_HALF - ((t64 >> 39) & 0x1fff);
+        t[j + 0] = DILITHIUM_D_MAX_HALF - (sword32)( t64        & 0x1fff);
+        t[j + 1] = DILITHIUM_D_MAX_HALF - (sword32)((t64 >> 13) & 0x1fff);
+        t[j + 2] = DILITHIUM_D_MAX_HALF - (sword32)((t64 >> 26) & 0x1fff);
+        t[j + 3] = DILITHIUM_D_MAX_HALF - (sword32)((t64 >> 39) & 0x1fff);
         t[j + 4] = DILITHIUM_D_MAX_HALF - (sword32)
                    ((t64 >> 52) | ((t32_2 & 0x0001) << 12));
     #else
         word32 t32_0 = ((const word32*)t0)[0];
         word32 t32_1 = ((const word32*)t0)[1];
-        t[j + 0] = DILITHIUM_D_MAX_HALF -
+        t[j + 0] = DILITHIUM_D_MAX_HALF - (sword32)
                     ( t32_0        & 0x1fff);
-        t[j + 1] = DILITHIUM_D_MAX_HALF -
+        t[j + 1] = DILITHIUM_D_MAX_HALF - (sword32)
                     ((t32_0 >> 13) & 0x1fff);
         t[j + 2] = DILITHIUM_D_MAX_HALF - (sword32)
                    (( t32_0 >> 26          ) | ((t32_1 & 0x007f) <<  6));
-        t[j + 3] = DILITHIUM_D_MAX_HALF -
+        t[j + 3] = DILITHIUM_D_MAX_HALF - (sword32)
                     ((t32_1 >>  7) & 0x1fff);
         t[j + 4] = DILITHIUM_D_MAX_HALF - (sword32)
                    (( t32_1 >> 20          ) | ((t32_2 & 0x0001) << 12));
     #endif
-        t[j + 5] = DILITHIUM_D_MAX_HALF -
+        t[j + 5] = DILITHIUM_D_MAX_HALF - (sword32)
                     ((t32_2 >>  1) & 0x1fff);
-        t[j + 6] = DILITHIUM_D_MAX_HALF -
+        t[j + 6] = DILITHIUM_D_MAX_HALF - (sword32)
                     ((t32_2 >> 14) & 0x1fff);
         t[j + 7] = DILITHIUM_D_MAX_HALF - (sword32)
                    (( t32_2 >> 27          ) | ((word32)t0[12] ) <<  5 );
@@ -1631,23 +1631,23 @@ static void dilithium_decode_t1_c(const byte* t1, sword32* t)
         t[j+7] = (sword32)( ((t16 >>  6)              & 0x03ff) << DILITHIUM_D);
     #else
         word32 t32 = *((const word32*)t1);
-        t[j + 0] = ( t32        & 0x03ff                         ) <<
-                   DILITHIUM_D;
-        t[j + 1] = ((t32 >> 10) & 0x03ff                         ) <<
-                   DILITHIUM_D;
-        t[j + 2] = ((t32 >> 20) & 0x03ff                         ) <<
-                   DILITHIUM_D;
-        t[j + 3] = ((t32 >> 30)          | (((word16)t1[4]) << 2)) <<
-                   DILITHIUM_D;
+        t[j + 0] = (sword32)(( t32        & 0x03ff                       ) <<
+                   DILITHIUM_D);
+        t[j + 1] = (sword32)(((t32 >> 10) & 0x03ff                       ) <<
+                   DILITHIUM_D);
+        t[j + 2] = (sword32)(((t32 >> 20) & 0x03ff                       ) <<
+                   DILITHIUM_D);
+        t[j + 3] = (sword32)(((t32 >> 30)          | ((word32)t1[4] << 2)) <<
+                   DILITHIUM_D);
         t32 = *((const word32*)(t1 + 5));
-        t[j + 4] = ( t32        & 0x03ff                         ) <<
-                   DILITHIUM_D;
-        t[j + 5] = ((t32 >> 10) & 0x03ff                         ) <<
-                   DILITHIUM_D;
-        t[j + 6] = ((t32 >> 20) & 0x03ff                         ) <<
-                   DILITHIUM_D;
-        t[j + 7] = ((t32 >> 30)          | (((word16)t1[9]) << 2)) <<
-                   DILITHIUM_D;
+        t[j + 4] = (sword32)(( t32        & 0x03ff                       ) <<
+                   DILITHIUM_D);
+        t[j + 5] = (sword32)(((t32 >> 10) & 0x03ff                       ) <<
+                   DILITHIUM_D);
+        t[j + 6] = (sword32)(((t32 >> 20) & 0x03ff                       ) <<
+                   DILITHIUM_D);
+        t[j + 7] = (sword32)(((t32 >> 30)          | ((word32)t1[9] << 2)) <<
+                   DILITHIUM_D);
     #endif
 #else
         t[j + 0] = (sword32)((t1[0] >> 0) | (((word16)(t1[1] & 0x03)) << 8))
@@ -1835,16 +1835,16 @@ static void dilithium_encode_gamma1_19_bits_c(const sword32* z, byte* s)
     #endif
         s16p[4] = (word16)((z3 >>  4)                          );
 #else
-        s[0] =  z0                   ;
-        s[1] = (z0 >>  8)            ;
-        s[2] = (z0 >> 16) | (z1 << 4);
-        s[3] = (z1 >>  4)            ;
-        s[4] = (z1 >> 12)            ;
-        s[5] =  z2                   ;
-        s[6] = (z2 >>  8)            ;
-        s[7] = (z2 >> 16) | (z3 << 4);
-        s[8] = (z3 >>  4)            ;
-        s[9] = (z3 >> 12)            ;
+        s[0] = (byte)  z0                    ;
+        s[1] = (byte) (z0 >>  8)             ;
+        s[2] = (byte)((z0 >> 16) | (z1 << 4));
+        s[3] = (byte) (z1 >>  4)             ;
+        s[4] = (byte) (z1 >> 12)             ;
+        s[5] = (byte)  z2                    ;
+        s[6] = (byte) (z2 >>  8)             ;
+        s[7] = (byte)((z2 >> 16) | (z3 << 4));
+        s[8] = (byte) (z3 >>  4)             ;
+        s[9] = (byte) (z3 >> 12)             ;
 #endif
         /* Move to next place to encode to. */
         s += DILITHIUM_GAMMA1_19_ENC_BITS / 2;
@@ -1948,25 +1948,25 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
         #ifdef WC_64BIT_CPU
             word64 s64_0 = *(const word64*)(s+0);
-            z[i+0] = (word32)DILITHIUM_GAMMA1_17 -
-                             ( s64_0        & 0x3ffff                   );
-            z[i+1] = (word32)DILITHIUM_GAMMA1_17 -
-                             ((s64_0 >> 18) & 0x3ffff                   );
-            z[i+2] = (word32)DILITHIUM_GAMMA1_17 -
-                             ((s64_0 >> 36) & 0x3ffff                   );
-            z[i+3] = (word32)DILITHIUM_GAMMA1_17 -
-                             ((s64_0 >> 54) | (((word32)s[8])     << 10));
+            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ( s64_0        & 0x3ffff                   ));
+            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ((s64_0 >> 18) & 0x3ffff                   ));
+            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ((s64_0 >> 36) & 0x3ffff                   ));
+            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ((s64_0 >> 54) | (((word32)s[8])     << 10)));
         #else
             word32 s32_0 = ((const word32*)(s+0))[0];
             word32 s32_1 = ((const word32*)(s+0))[1];
-            z[i+0] = (word32)DILITHIUM_GAMMA1_17 -
-                             ( s32_0        & 0x3ffff                    );
-            z[i+1] = (word32)DILITHIUM_GAMMA1_17 -
-                             ((s32_0 >> 18) | (((s32_1 & 0x0000f) << 14)));
-            z[i+2] = (word32)DILITHIUM_GAMMA1_17 -
-                             ((s32_1 >>  4) & 0x3ffff);
-            z[i+3] = (word32)DILITHIUM_GAMMA1_17 -
-                             ((s32_1 >> 22) | (((word32)s[8])     << 10 ));
+            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ( s32_0        & 0x3ffff                    ));
+            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ((s32_0 >> 18) | (((s32_1 & 0x0000f) << 14))));
+            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ((s32_1 >>  4) & 0x3ffff                    ));
+            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+                               ((s32_1 >> 22) | (((word32)s[8])     << 10 )));
         #endif
     #else
             z[i+0] = DILITHIUM_GAMMA1_17 -
@@ -2033,28 +2033,28 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
                                ((s32_3 >> 22) | (((word32)s[17])    << 10 )));
         #endif
     #else
-            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                ( (sword32)s[ 0]       | (((sword32)s[ 1] << 8) |
                                 ((sword32)s[ 2] & 0x03) << 16)));
-            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                (((sword32)s[ 2] >> 2) | (((sword32)s[ 3] << 6) |
                                 ((sword32)s[ 4] & 0x0f) << 14)));
-            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                (((sword32)s[ 4] >> 4) | (((sword32)s[ 5] << 4) |
                                 ((sword32)s[ 6] & 0x3f) << 12)));
-            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                (((sword32)s[ 6] >> 6) | (((sword32)s[ 7] << 2) |
                                 ((sword32)s[ 8]       ) << 10)));
-            z[i+4] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+4] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                ( (sword32)s[ 9]       | (((sword32)s[10] << 8) |
                                 ((sword32)s[11] & 0x03) << 16)));
-            z[i+5] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+5] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                (((sword32)s[11] >> 2) | (((sword32)s[12] << 6) |
                                 ((sword32)s[13] & 0x0f) << 14)));
-            z[i+6] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+6] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                (((sword32)s[13] >> 4) | (((sword32)s[14] << 4) |
                                 ((sword32)s[15] & 0x3f) << 12)));
-            z[i+7] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+7] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
                                (((sword32)s[15] >> 6) | (((sword32)s[16] << 2) |
                                 ((sword32)s[17]       ) << 10)));
     #endif
@@ -2075,20 +2075,20 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
             word16 s16_0 = ((const word16*)s)[4];
         #ifdef WC_64BIT_CPU
             word64 s64_0 = *(const word64*)s;
-            z[i+0] = DILITHIUM_GAMMA1_19 - (  s64_0        & 0xfffff)   ;
-            z[i+1] = DILITHIUM_GAMMA1_19 - ( (s64_0 >> 20) & 0xfffff)   ;
-            z[i+2] = DILITHIUM_GAMMA1_19 - ( (s64_0 >> 40) & 0xfffff)   ;
-            z[i+3] = DILITHIUM_GAMMA1_19 - (((s64_0 >> 60) & 0xfffff)   |
-                                            ((sword32)s16_0      <<  4));
+            z[i+0] = DILITHIUM_GAMMA1_19 - ((sword32)( s64_0        & 0xfffff));
+            z[i+1] = DILITHIUM_GAMMA1_19 - ((sword32)((s64_0 >> 20) & 0xfffff));
+            z[i+2] = DILITHIUM_GAMMA1_19 - ((sword32)((s64_0 >> 40) & 0xfffff));
+            z[i+3] = DILITHIUM_GAMMA1_19 - ((sword32)((s64_0 >> 60) & 0xfffff) |
+                                            ((sword32) s16_0 <<  4));
         #else
             word32 s32_0 = ((const word32*)s)[0];
             word32 s32_1 = ((const word32*)s)[1];
-            z[i+0] = DILITHIUM_GAMMA1_19 - (  s32_0       & 0xfffff);
-            z[i+1] = DILITHIUM_GAMMA1_19 - (( s32_0            >> 20) |
-                                            ((s32_1 & 0x000ff) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 - ( (s32_1 >>  8) & 0xfffff);
-            z[i+3] = DILITHIUM_GAMMA1_19 - (( s32_1            >> 28) |
-                                            ((sword32)s16_0    <<  4));
+            z[i+0] = DILITHIUM_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
+            z[i+1] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
+                                                     ((s32_1 & 0x000ff) << 12));
+            z[i+2] = DILITHIUM_GAMMA1_19 - (sword32)( (s32_1 >>  8) & 0xfffff);
+            z[i+3] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_1            >> 28) |
+                                                     ((word32)s16_0     <<  4));
         #endif
     #else
             z[i+0] = DILITHIUM_GAMMA1_19 -
@@ -2141,18 +2141,18 @@ static void dilithium_decode_gamma1_c(const byte* s, int bits, sword32* z)
             word32 s32_1 = ((const word32*)(s+ 0))[1];
             word32 s32_2 = ((const word32*)(s+10))[0];
             word32 s32_3 = ((const word32*)(s+10))[1];
-            z[i+0] = DILITHIUM_GAMMA1_19 - (  s32_0       & 0xfffff);
-            z[i+1] = DILITHIUM_GAMMA1_19 - (( s32_0            >> 20) |
-                                            ((s32_1 & 0x000ff) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 - ( (s32_1 >>  8) & 0xfffff);
-            z[i+3] = DILITHIUM_GAMMA1_19 - (( s32_1            >> 28) |
-                                            ((sword32)s16_0    <<  4));
-            z[i+4] = DILITHIUM_GAMMA1_19 - (  s32_2       & 0xfffff);
-            z[i+5] = DILITHIUM_GAMMA1_19 - (( s32_2            >> 20) |
-                                            ((s32_3 & 0x000ff) << 12));
-            z[i+6] = DILITHIUM_GAMMA1_19 - ( (s32_3 >>  8) & 0xfffff);
-            z[i+7] = DILITHIUM_GAMMA1_19 - (( s32_3            >> 28) |
-                                            ((sword32)s16_1    <<  4));
+            z[i+0] = DILITHIUM_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
+            z[i+1] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
+                                                     ((s32_1 & 0x000ff) << 12));
+            z[i+2] = DILITHIUM_GAMMA1_19 - (sword32)( (s32_1 >>  8) & 0xfffff);
+            z[i+3] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_1            >> 28) |
+                                                     ((word32)s16_0     <<  4));
+            z[i+4] = DILITHIUM_GAMMA1_19 - (sword32)(  s32_2       & 0xfffff);
+            z[i+5] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_2            >> 20) |
+                                                     ((s32_3 & 0x000ff) << 12));
+            z[i+6] = DILITHIUM_GAMMA1_19 - (sword32)( (s32_3 >>  8) & 0xfffff);
+            z[i+7] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_3            >> 28) |
+                                                     ((word32)s16_1     <<  4));
         #endif
     #else
             z[i+0] = DILITHIUM_GAMMA1_19 -
@@ -2832,7 +2832,7 @@ static int wc_mldsa_gen_matrix_4x4_avx2(sword32* a, byte* seed)
 
     for (k = 0; k < 4; k++) {
         for (l = 0; l < 4; l++) {
-            state[4*4 + l] = 0x1f0000 + (k << 8) + l;
+            state[4*4 + l] = 0x1f0000U + ((word32)k << 8) + (word32)l;
         }
 
         sha3_128_blocksx4_seed_avx2(state, seed);
@@ -2848,16 +2848,16 @@ static int wc_mldsa_gen_matrix_4x4_avx2(sword32* a, byte* seed)
 
         /* Sample random bytes to create a polynomial. */
         p = rand;
-        ctr0 = wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
+        ctr0 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr1 = wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
+        ctr1 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr2 = wc_mldsa_rej_uniform_n_avx2(a + 2 * MLDSA_N, MLDSA_N, p,
+        ctr2 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 2 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr3 = wc_mldsa_rej_uniform_n_avx2(a + 3 * MLDSA_N, MLDSA_N, p,
+        ctr3 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 3 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
 
         /* Create more blocks if too many rejected. */
@@ -2869,16 +2869,16 @@ static int wc_mldsa_gen_matrix_4x4_avx2(sword32* a, byte* seed)
                 rand + 2 * GEN_MATRIX_SIZE, rand + 3 * GEN_MATRIX_SIZE);
 
             p = rand;
-            ctr0 += wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
+            ctr0 += (word32)wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
                 MLDSA_N - ctr0, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr1 += wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
+            ctr1 += (word32)wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
                 MLDSA_N - ctr1, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr2 += wc_mldsa_rej_uniform_avx2(a + 2 * MLDSA_N + ctr2,
+            ctr2 += (word32)wc_mldsa_rej_uniform_avx2(a + 2 * MLDSA_N + ctr2,
                 MLDSA_N - ctr2, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr3 += wc_mldsa_rej_uniform_avx2(a + 3 * MLDSA_N + ctr3,
+            ctr3 += (word32)wc_mldsa_rej_uniform_avx2(a + 3 * MLDSA_N + ctr3,
                 MLDSA_N - ctr3, p, SHA3_128_BYTES);
         }
 
@@ -2939,7 +2939,8 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
 
     for (k = 0; k < 6 * 5 - 2; k += 4) {
         for (l = 0; l < 4; l++) {
-            state[4*4 + l] = 0x1f0000 + (((k + l) / 5) << 8) + ((k + l) % 5);
+            state[4*4 + l] = 0x1f0000U + ((word32)((k + l) / 5) << 8) +
+                             (word32)((k + l) % 5);
         }
 
         sha3_128_blocksx4_seed_avx2(state, seed);
@@ -2955,16 +2956,16 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
 
         /* Sample random bytes to create a polynomial. */
         p = rand;
-        ctr0 = wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
+        ctr0 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr1 = wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
+        ctr1 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr2 = wc_mldsa_rej_uniform_n_avx2(a + 2 * MLDSA_N, MLDSA_N, p,
+        ctr2 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 2 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr3 = wc_mldsa_rej_uniform_n_avx2(a + 3 * MLDSA_N, MLDSA_N, p,
+        ctr3 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 3 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
 
         /* Create more blocks if too many rejected. */
@@ -2976,16 +2977,16 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
                 rand + 2 * GEN_MATRIX_SIZE, rand + 3 * GEN_MATRIX_SIZE);
 
             p = rand;
-            ctr0 += wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
+            ctr0 += (word32)wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
                 MLDSA_N - ctr0, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr1 += wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
+            ctr1 += (word32)wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
                 MLDSA_N - ctr1, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr2 += wc_mldsa_rej_uniform_avx2(a + 2 * MLDSA_N + ctr2,
+            ctr2 += (word32)wc_mldsa_rej_uniform_avx2(a + 2 * MLDSA_N + ctr2,
                 MLDSA_N - ctr2, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr3 += wc_mldsa_rej_uniform_avx2(a + 3 * MLDSA_N + ctr3,
+            ctr3 += (word32)wc_mldsa_rej_uniform_avx2(a + 3 * MLDSA_N + ctr3,
                 MLDSA_N - ctr3, p, SHA3_128_BYTES);
         }
 
@@ -2993,7 +2994,7 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
     }
 
     for (l = 0; l < 2; l++) {
-        state[4*4 + l] = 0x1f0000 + ((word32)5 << 8) + (l + 3);
+        state[4*4 + l] = 0x1f0000U + (5U << 8) + (word32)(l + 3);
     }
 
     sha3_128_blocksx4_seed_avx2(state, seed);
@@ -3009,10 +3010,10 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
 
     /* Sample random bytes to create a polynomial. */
     p = rand;
-    ctr0 = wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
+    ctr0 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
         GEN_MATRIX_SIZE);
     p += GEN_MATRIX_SIZE;
-    ctr1 = wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
+    ctr1 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
         GEN_MATRIX_SIZE);
 
     /* Create more blocks if too many rejected. */
@@ -3023,10 +3024,10 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
             rand + 3 * GEN_MATRIX_SIZE);
 
         p = rand;
-        ctr0 += wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
+        ctr0 += (word32)wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
             MLDSA_N - ctr0, p, SHA3_128_BYTES);
         p += GEN_MATRIX_SIZE;
-        ctr1 += wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
+        ctr1 += (word32)wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
             MLDSA_N - ctr1, p, SHA3_128_BYTES);
     }
 
@@ -3084,7 +3085,8 @@ static int wc_mldsa_gen_matrix_8x7_avx2(sword32* a, byte* seed)
 
     for (k = 0; k < 8 * 7; k += 4) {
         for (l = 0; l < 4; l++) {
-            state[4*4 + l] = 0x1f0000 + (((k + l) / 7) << 8) + ((k + l) % 7);
+            state[4*4 + l] = 0x1f0000U + ((word32)((k + l) / 7) << 8) +
+                             (word32)((k + l) % 7);
         }
 
         sha3_128_blocksx4_seed_avx2(state, seed);
@@ -3100,16 +3102,16 @@ static int wc_mldsa_gen_matrix_8x7_avx2(sword32* a, byte* seed)
 
         /* Sample random bytes to create a polynomial. */
         p = rand;
-        ctr0 = wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
+        ctr0 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 0 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr1 = wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
+        ctr1 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 1 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr2 = wc_mldsa_rej_uniform_n_avx2(a + 2 * MLDSA_N, MLDSA_N, p,
+        ctr2 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 2 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
         p += GEN_MATRIX_SIZE;
-        ctr3 = wc_mldsa_rej_uniform_n_avx2(a + 3 * MLDSA_N, MLDSA_N, p,
+        ctr3 = (word32)wc_mldsa_rej_uniform_n_avx2(a + 3 * MLDSA_N, MLDSA_N, p,
             GEN_MATRIX_SIZE);
 
         /* Create more blocks if too many rejected. */
@@ -3121,16 +3123,16 @@ static int wc_mldsa_gen_matrix_8x7_avx2(sword32* a, byte* seed)
                 rand + 2 * GEN_MATRIX_SIZE, rand + 3 * GEN_MATRIX_SIZE);
 
             p = rand;
-            ctr0 += wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
+            ctr0 += (word32)wc_mldsa_rej_uniform_avx2(a + 0 * MLDSA_N + ctr0,
                 MLDSA_N - ctr0, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr1 += wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
+            ctr1 += (word32)wc_mldsa_rej_uniform_avx2(a + 1 * MLDSA_N + ctr1,
                 MLDSA_N - ctr1, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr2 += wc_mldsa_rej_uniform_avx2(a + 2 * MLDSA_N + ctr2,
+            ctr2 += (word32)wc_mldsa_rej_uniform_avx2(a + 2 * MLDSA_N + ctr2,
                 MLDSA_N - ctr2, p, SHA3_128_BYTES);
             p += GEN_MATRIX_SIZE;
-            ctr3 += wc_mldsa_rej_uniform_avx2(a + 3 * MLDSA_N + ctr3,
+            ctr3 += (word32)wc_mldsa_rej_uniform_avx2(a + 3 * MLDSA_N + ctr3,
                 MLDSA_N - ctr3, p, SHA3_128_BYTES);
         }
 
@@ -3427,7 +3429,7 @@ static const signed char dilithium_coeff_eta2[] = {
         (t) = (sword8)(((z) >> (rs)) & 0xf);                            \
         /* Step 7: Check we have a valid coefficient. */                \
         if (DILITHIUM_COEFF_S_VALID(t, eta)) {                          \
-            (t) = DILITHIUM_COEFF_S(t, eta);                            \
+            (t) = (sword8)DILITHIUM_COEFF_S(t, eta);                    \
             /* Step 8: Store coefficient as next polynomial value.      \
              * Step 9: Increment count of polynomial values set. */     \
             s[j++] = (sword32)(t);                                      \
@@ -3449,7 +3451,7 @@ static const signed char dilithium_coeff_eta2[] = {
         (t) = (sword8)(((z) >> (rs)) & 0xf);                            \
         /* Step 7: Check we have a valid coefficient. */                \
         if (DILITHIUM_COEFF_S_VALID(t, eta)) {                          \
-            (t) = DILITHIUM_COEFF_S(t, eta);                            \
+            (t) = (sword8)DILITHIUM_COEFF_S(t, eta);                    \
             /* Step 8: Store coefficient as next polynomial value.      \
              * Step 9: Increment count of polynomial values set. */     \
             s[j++] = (sword32)(t);                                      \
@@ -3510,7 +3512,7 @@ static void dilithium_extract_coeffs(const byte* z, unsigned int zLen,
     min &= ~(unsigned int)7;
     /* Extract values from the squeezed data. */
     for (c = 0; c < min; c += 8) {
-        word64 z64 = *(word64*)(z + c);
+        word64 z64 = *(const word64*)(z + c);
         sword8 t;
 
         /* Do each nibble from lowest to highest 16 at a time. */
@@ -3535,7 +3537,7 @@ static void dilithium_extract_coeffs(const byte* z, unsigned int zLen,
     min &= ~(unsigned int)3;
     /* Extract values from the squeezed data. */
     for (c = 0; c < min; c += 4) {
-        word32 z32 = *(word32*)(z + c);
+        word32 z32 = *(const word32*)(z + c);
         sword8 t;
 
         /* Do each nibble from lowest to highest 8 at a time. */
@@ -3695,7 +3697,7 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
 
     for (k = 0; k < 2; k++) {
         for (l = 0; l < 4; l++) {
-            state[8*4 + l] = 0x1f0000 + (k * 4 + l);
+            state[8*4 + l] = 0x1f0000U + ((word32)k * 4U + (word32)l);
         }
 
         ctr0 = 0;
@@ -3808,7 +3810,7 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
 
     for (k = 0; k < 2; k++) {
         for (l = 0; l < 4; l++) {
-            state[8*4 + l] = 0x1f0000 + (k * 4 + l);
+            state[8*4 + l] = 0x1f0000U + ((word32)k * 4U + (word32)l);
         }
 
         ctr0 = 0;
@@ -3861,7 +3863,7 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
     }
 
     for (l = 0; l < 4; l++) {
-        state[8*4 + l] = 0x1f0000 + (8 + l);
+        state[8*4 + l] = 0x1f0000U + 8U + (word32)l;
     }
 
     ctr0 = 0;
@@ -3963,7 +3965,7 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
 
     for (k = 0; k < 3; k++) {
         for (l = 0; l < 4; l++) {
-            state[8*4 + l] = 0x1f0000 + (k * 4 + l);
+            state[8*4 + l] = 0x1f0000U + ((word32)k * 4U + (word32)l);
         }
 
         ctr0 = 0;
@@ -4016,7 +4018,7 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
     }
 
     for (l = 0; l < 4; l++) {
-        state[8*4 + l] = 0x1f0000 + (12 + l);
+        state[8*4 + l] = 0x1f0000U + 12U + (word32)l;
     }
 
     ctr0 = 0;
@@ -4112,7 +4114,7 @@ static int dilithium_expand_s_c(wc_Shake* shake256, byte* priv_seed, byte eta,
     /* Step 4: Each polynomial in s2. */
     for (r = 0; (ret == 0) && (r < s2Len); r++) {
         /* Set bottom 8-bits of r + l into buffer - little endian. */
-        seed[DILITHIUM_PRIV_SEED_SZ] = r + s1Len;
+        seed[DILITHIUM_PRIV_SEED_SZ] = (byte)(r + s1Len);
         /* Step 5: Generate polynomial for s1. */
         ret = dilithium_rej_bound_poly(shake256, seed, s2, eta);
         /* Next polynomial in s2. */
@@ -4219,7 +4221,7 @@ static int wc_mldsa_gen_y_4_avx2(sword32* y, byte* seed, word16 kappa)
 #endif
 
     for (l = 0; l < 4; l++) {
-        state[8*4 + l] = 0x1f0000 + (kappa + l);
+        state[8*4 + l] = 0x1f0000U + (word32)kappa + (word32)l;
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
@@ -4289,7 +4291,7 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
 
     /* Polynomials: 0-3 */
     for (l = 0; l < 4; l++) {
-        state[8*4 + l] = 0x1f0000 + (kappa + l);
+        state[8*4 + l] = 0x1f0000U + (word32)kappa + (word32)l;
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
@@ -4314,7 +4316,7 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
     wc_mldsa_decode_gamma1_19_avx2(rand + 3 * DILITHIUM_MAX_V,
         y + 3 * DILITHIUM_N);
 
-    kappa += 4;
+    kappa = (word16)(kappa + 4);
 
     seed[DILITHIUM_PRIV_RAND_SEED_SZ + 0] = (byte)kappa;
     seed[DILITHIUM_PRIV_RAND_SEED_SZ + 1] = (byte)(kappa >> 8);
@@ -4367,7 +4369,7 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
 
     /* Polynomials: 0-3 */
     for (l = 0; l < 4; l++) {
-        state[8*4 + l] = 0x1f0000 + (kappa + l);
+        state[8*4 + l] = 0x1f0000U + (word32)kappa + (word32)l;
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
@@ -4392,11 +4394,11 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     wc_mldsa_decode_gamma1_19_avx2(rand + 3 * DILITHIUM_MAX_V,
         y + 3 * DILITHIUM_N);
 
-    kappa += 4;
+    kappa = (word16)(kappa + 4);
 
     /* Polynomials: 4-7 */
     for (l = 0; l < 3; l++) {
-        state[8*4 + l] = 0x1f0000 + (kappa + l);
+        state[8*4 + l] = 0x1f0000U + (word32)kappa + (word32)l;
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
@@ -4462,7 +4464,7 @@ static int dilithium_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
     /* Step 2: For each polynomial of vector. */
     for (r = 0; (ret == 0) && (r < l); r++) {
         /* Step 3: Calculate value to append to seed. */
-        word16 n = kappa + r;
+        word16 n = (word16)(kappa + r);
 
         /* Step 4: Append to seed and squeeze out data. */
         seed[DILITHIUM_PRIV_RAND_SEED_SZ + 0] = (byte)n;
@@ -4589,7 +4591,8 @@ static int dilithium_sample_in_ball_ex(int level, wc_Shake* shake256,
     }
 
     /* Step 3: Put in TAU +/- 1s. */
-    for (i = DILITHIUM_N - tau; (ret == 0) && (i < DILITHIUM_N); i++) {
+    for (i = (unsigned int)DILITHIUM_N - tau;
+                                         (ret == 0) && (i < DILITHIUM_N); i++) {
         unsigned int j;
         do {
             /* Check whether block is exhausted. */
@@ -4650,7 +4653,7 @@ static int dilithium_sample_in_ball_ex(int level, wc_Shake* shake256,
         signs = *(word64*)block;
 
         /* Step 3: Put in TAU +/- 1s. */
-        for (i = DILITHIUM_N - tau; i < DILITHIUM_N; i++) {
+        for (i = (unsigned int)DILITHIUM_N - tau; i < DILITHIUM_N; i++) {
             unsigned int j;
             do {
                 /* Check whether block is exhausted. */
@@ -4795,21 +4798,26 @@ static void dilithium_decompose_q88(sword32 r, sword32* r0, sword32* r1)
     /* Calculate approx low value. */
     t0 = r - (t1 * DILITHIUM_Q_LOW_88_2);
 #ifndef DILITHIUM_MUL_SLOW
-    /* Calculate real high value, When t0 > modulus, +1 to approx high value. */
-    t1 += ((word32)(DILITHIUM_Q_LOW_88 - t0)) >> 31;
+    /* Calculate real high value, When t0 > modulus, +1 to approx high value.
+     * Sign-extraction trick: each ((word32)A - (word32)B) >> 31 evaluates
+     * to 1 if (signed) A - B was negative thanks to two's-complement
+     * wrap-around. The outer (sword32) cast lets us add the 0/1 flag back into
+     * a sword32 accumulator without -Wsign- conversion firing on the implicit
+     * narrowing. */
+    t1 += (sword32)(((word32)DILITHIUM_Q_LOW_88 - (word32)t0) >> 31);
     /* Calculate real low value. */
     t0 = r - (t1 * DILITHIUM_Q_LOW_88_2);
 #else
     /* Calculate real high value, When t0 > modulus, +1 to approx high value. */
-    t2 = ((word32)(DILITHIUM_Q_LOW_88 - t0)) >> 31;
+    t2 = (sword32)(((word32)DILITHIUM_Q_LOW_88 - (word32)t0) >> 31);
     t1 += t2;
     /* Calculate real low value. */
-    t0 -= (0 - t2) & DILITHIUM_Q_LOW_88_2;
+    t0 -= (sword32)((word32)(0 - t2) & DILITHIUM_Q_LOW_88_2);
 #endif
     /* -1 from low value if high value is 44. Was 43 but low is negative. */
-    t0 -= ((word32)(43 - t1)) >> 31;
+    t0 -= (sword32)(((word32)43 - (word32)t1) >> 31);
     /* When high value is 44, too large, set to 0. */
-    t1 &= 0 - (((word32)(t1 - 44)) >> 31);
+    t1 &= (sword32)(0U - (((word32)t1 - 44U) >> 31));
 
     *r0 = t0;
     *r1 = t1;
@@ -4848,7 +4856,7 @@ static void dilithium_decompose_q32(sword32 r, sword32* r0, sword32* r1)
     /* Calculate approx low value. */
     t0 = r - (t1 << 19) + (t1 << 9);
     /* Calculate real high value, When t0 > modulus, +1 to approx high value. */
-    t1 += ((word32)(DILITHIUM_Q_LOW_32 - t0)) >> 31;
+    t1 += (sword32)(((word32)DILITHIUM_Q_LOW_32 - (word32)t0) >> 31);
     /* Calculate real low value. */
     t0 = r - (t1 << 19) + (t1 << 9);
     /* -1 from low value if high value is 16. Was 15 but low is negative. */
@@ -5281,7 +5289,7 @@ static int dilithium_make_hint(const sword32* s, const sword32* w1, byte k,
     }
 
     /* Set remaining hints to zero. */
-    XMEMSET(h + idx, 0, omega - idx);
+    XMEMSET(h + idx, 0, (size_t)(omega - idx));
     return idx;
 }
 #endif /* !WOLFSSL_DILITHIUM_SIGN_SMALL_MEM */
@@ -5401,14 +5409,14 @@ static void dilithium_use_hint_88(sword32* w1, const byte* h, unsigned int i,
         /* Check for hint. */
         if ((o < h[PARAMS_ML_DSA_44_OMEGA + i]) && (h[o] == (byte)j)) {
             /* Add or subtract hint based on sign of r0. */
-            r1 += 1 - (2 * (((word32)r0) >> 31));
+            r1 += (sword32)(1U - (2U * (((word32)r0) >> 31)));
             /* Go to next hint offset. */
             o++;
         }
         /* Fix up w1 to not be 44 but 0. */
-        r1 &= 0 - (((word32)(r1 - 44)) >> 31);
+        r1 &= (sword32)(0U - (((word32)r1 - 44U) >> 31));
         /* Hint may have reduced 0 to -1 which is actually 43. */
-        r1 += (0 - (((word32)r1) >> 31)) & 44;
+        r1 += (sword32)((0U - (((word32)r1) >> 31)) & 44U);
         /* Make w1 only the top part plus any hint. */
         w1[j] = r1;
 #endif
@@ -7424,7 +7432,7 @@ static void dilithium_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
  */
 static void dilithium_poly_red_c(sword32* a)
 {
-    word16 j;
+    unsigned int j;
 #ifdef WOLFSSL_DILITHIUM_SMALL
     for (j = 0; j < DILITHIUM_N; j++) {
         a[j] = dilithium_red(a[j]);
@@ -7496,7 +7504,7 @@ static void dilithium_vec_red(sword32* a, byte l)
  */
 static void dilithium_sub_c(sword32* r, const sword32* a)
 {
-    word16 j;
+    unsigned int j;
 #ifdef WOLFSSL_DILITHIUM_SMALL
     for (j = 0; j < DILITHIUM_N; j++) {
         r[j] -= a[j];
@@ -7564,7 +7572,7 @@ static void dilithium_vec_sub(sword32* r, const sword32* a, byte l)
  */
 static void dilithium_add_c(sword32* r, const sword32* a)
 {
-    word16 j;
+    unsigned int j;
 #ifdef WOLFSSL_DILITHIUM_SMALL
     for (j = 0; j < DILITHIUM_N; j++) {
         r[j] += a[j];
@@ -7624,27 +7632,33 @@ static void dilithium_vec_add(sword32* r, const sword32* a, byte l)
 }
 #endif
 
+/* If v is negative, evaluate to Q. Otherwise evaluate to 0. Constant-time.
+ * (word32)v >> 31 is 1 when v's sign bit is set. 0U - 1 = all-ones,
+ * 0U - 0 = 0. & Q yields Q or 0. */
+#define DILITHIUM_POS_OFFSET(v) \
+    ((sword32)((0U - (((word32)(v)) >> 31)) & DILITHIUM_Q))
+
 /* Make values in polynomial be in positive range.
  *
  * @param [in, out] a  Polynomial.
  */
 static void dilithium_make_pos_c(sword32* a)
 {
-    word16 j;
+    unsigned int j;
 #ifdef WOLFSSL_DILITHIUM_SMALL
     for (j = 0; j < DILITHIUM_N; j++) {
-        a[j] += (0 - (((word32)a[j]) >> 31)) & DILITHIUM_Q;
+        a[j] += DILITHIUM_POS_OFFSET(a[j]);
     }
 #else
     for (j = 0; j < DILITHIUM_N; j += 8) {
-        a[j+0] += (0 - (((word32)a[j+0]) >> 31)) & DILITHIUM_Q;
-        a[j+1] += (0 - (((word32)a[j+1]) >> 31)) & DILITHIUM_Q;
-        a[j+2] += (0 - (((word32)a[j+2]) >> 31)) & DILITHIUM_Q;
-        a[j+3] += (0 - (((word32)a[j+3]) >> 31)) & DILITHIUM_Q;
-        a[j+4] += (0 - (((word32)a[j+4]) >> 31)) & DILITHIUM_Q;
-        a[j+5] += (0 - (((word32)a[j+5]) >> 31)) & DILITHIUM_Q;
-        a[j+6] += (0 - (((word32)a[j+6]) >> 31)) & DILITHIUM_Q;
-        a[j+7] += (0 - (((word32)a[j+7]) >> 31)) & DILITHIUM_Q;
+        a[j+0] += DILITHIUM_POS_OFFSET(a[j+0]);
+        a[j+1] += DILITHIUM_POS_OFFSET(a[j+1]);
+        a[j+2] += DILITHIUM_POS_OFFSET(a[j+2]);
+        a[j+3] += DILITHIUM_POS_OFFSET(a[j+3]);
+        a[j+4] += DILITHIUM_POS_OFFSET(a[j+4]);
+        a[j+5] += DILITHIUM_POS_OFFSET(a[j+5]);
+        a[j+6] += DILITHIUM_POS_OFFSET(a[j+6]);
+        a[j+7] += DILITHIUM_POS_OFFSET(a[j+7]);
     }
 #endif
 }
@@ -7797,7 +7811,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     if (ret == 0) {
         unsigned int allocSz;
 
-        allocSz = params->s1Sz + params->s2Sz + params->s2Sz;
+        allocSz = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
 #ifndef WC_DILITHIUM_CACHE_MATRIX_A
         allocSz += params->aSz;
 #endif
@@ -7941,11 +7955,12 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         unsigned int allocSz;
 
         /* s1-l, s2-k, t-k, a-1 */
-        allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
-            DILITHIUM_REJ_NTT_POLY_H_SIZE + DILITHIUM_POLY_SIZE;
+        allocSz  = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
+                   (unsigned int)DILITHIUM_REJ_NTT_POLY_H_SIZE +
+                   (unsigned int)DILITHIUM_POLY_SIZE;
     #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
         /* t64 */
-        allocSz += DILITHIUM_POLY_SIZE * 2;
+        allocSz += (unsigned int)DILITHIUM_POLY_SIZE * 2U;
     #endif
         s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (s1 == NULL) {
@@ -8020,10 +8035,10 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
             unsigned int e;
 
             /* Put r/i into buffer to be hashed. */
-            aseed[DILITHIUM_PUB_SEED_SZ + 1] = r;
+            aseed[DILITHIUM_PUB_SEED_SZ + 1] = (byte)r;
             for (s = 0; (ret == 0) && (s < params->l); s++) {
                 /* Put s into buffer to be hashed. */
-                aseed[DILITHIUM_PUB_SEED_SZ + 0] = s;
+                aseed[DILITHIUM_PUB_SEED_SZ + 0] = (byte)s;
                 /* Step 3: Expand public seed into a matrix of polynomials. */
                 ret = dilithium_rej_ntt_poly_ex(&key->shake, aseed, a, h);
                 if (ret != 0) {
@@ -8318,9 +8333,13 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
 #ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
-        a = (sword32*)XMALLOC(params->aSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
-        if (a == NULL) {
+        key->a = (sword32*)XMALLOC((size_t)params->aSz, key->heap,
+            DYNAMIC_TYPE_DILITHIUM);
+        if (key->a == NULL) {
             ret = MEMORY_E;
+        }
+        else {
+            XMEMSET(key->a, 0, (size_t)params->aSz);
         }
     }
 #endif
@@ -8351,11 +8370,11 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 #endif
     if (ret == 0) {
         /* y-l, w0-k, w1-k, c-1, z-l, ct0-k */
-        allocSz = params->s1Sz + params->s2Sz + params->s2Sz +
-            DILITHIUM_POLY_SIZE + params->s1Sz + params->s2Sz;
+        allocSz = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
+            (unsigned int)DILITHIUM_POLY_SIZE + params->s1Sz + params->s2Sz;
 #ifndef WC_DILITHIUM_CACHE_PRIV_VECTORS
         /* s1-l, s2-k, t0-k */
-        allocSz += params->s1Sz + params->s2Sz + params->s2Sz;
+        allocSz += (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
 #endif
 #ifndef WC_DILITHIUM_CACHE_MATRIX_A
         /* A */
@@ -8543,7 +8562,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 
                 /* Step 30: increment value to append to seed to unique value.
                  */
-                kappa += params->l;
+                kappa = (word16)(kappa + params->l);
             }
         }
         /* Step 11: Check we have a valid signature. */
@@ -8610,16 +8629,19 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
         /* y-l, w0-k, w1-k, blocks, c-1, z-1, A-1 */
-        allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
-            DILITHIUM_REJ_NTT_POLY_H_SIZE +
-            DILITHIUM_POLY_SIZE +  DILITHIUM_POLY_SIZE + DILITHIUM_POLY_SIZE;
+        allocSz  = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
+                   (unsigned int)DILITHIUM_REJ_NTT_POLY_H_SIZE +
+                   (unsigned int)DILITHIUM_POLY_SIZE +
+                   (unsigned int)DILITHIUM_POLY_SIZE +
+                   (unsigned int)DILITHIUM_POLY_SIZE;
     #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
-        allocSz += params->s1Sz + params->s2Sz + params->s2Sz;
+        allocSz += (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
     #elif defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
-        allocSz += maxK * params->l * DILITHIUM_POLY_SIZE;
+        allocSz += (unsigned int)maxK * params->l *
+                   (unsigned int)DILITHIUM_POLY_SIZE;
     #endif
     #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
-        allocSz += DILITHIUM_POLY_SIZE * 2;
+        allocSz += (unsigned int)DILITHIUM_POLY_SIZE * 2U;
     #endif
         y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (y == NULL) {
@@ -9088,7 +9110,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                     w1t += DILITHIUM_N;
                 }
                 /* Set remaining hints to zero. */
-                XMEMSET(h + idx, 0, params->omega - idx);
+                XMEMSET(h + idx, 0, (size_t)(params->omega - idx));
             }
 
             if (!valid) {
@@ -9099,7 +9121,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 
                 /* Step 30: increment value to append to seed to unique value.
                  */
-                kappa += params->l;
+                kappa = (word16)(kappa + params->l);
             }
         }
         /* Step 11: Check we have a valid signature. */
@@ -9595,8 +9617,8 @@ static int dilithium_verify_with_mu(dilithium_key* key, const byte* mu,
         unsigned int allocSz;
 
         /* z, c, w, t1/t1c */
-        allocSz = DILITHIUM_POLY_SIZE + params->s1Sz + params->s2Sz +
-            params->s2Sz;
+        allocSz = (unsigned int)DILITHIUM_POLY_SIZE + params->s1Sz +
+            params->s2Sz + params->s2Sz;
 #ifndef WC_DILITHIUM_CACHE_MATRIX_A
         /* a */
         allocSz += params->aSz;
@@ -9729,10 +9751,11 @@ static int dilithium_verify_with_mu(dilithium_key* key, const byte* mu,
         /* z, c, w, t1, w1e. */
         unsigned int allocSz;
 
-        allocSz  = params->s1Sz + 3 * DILITHIUM_POLY_SIZE +
-            DILITHIUM_REJ_NTT_POLY_H_SIZE + params->w1EncSz;
+        allocSz  = (unsigned int)params->s1Sz + params->w1EncSz +
+                   3U * (unsigned int)DILITHIUM_POLY_SIZE +
+                   (unsigned int)DILITHIUM_REJ_NTT_POLY_H_SIZE;
     #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
-        allocSz += DILITHIUM_POLY_SIZE * 2;
+        allocSz += (unsigned int)DILITHIUM_POLY_SIZE * 2U;
     #endif
         z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (z == NULL) {
@@ -9844,10 +9867,10 @@ static int dilithium_verify_with_mu(dilithium_key* key, const byte* mu,
 
             /* Step 5: Expand pub seed to compute matrix A. */
             /* Put r into buffer to be hashed. */
-            seed[DILITHIUM_PUB_SEED_SZ + 1] = r;
+            seed[DILITHIUM_PUB_SEED_SZ + 1] = (byte)r;
             for (s = 0; (ret == 0) && (s < params->l); s++) {
                 /* Put s into buffer to be hashed. */
-                seed[DILITHIUM_PUB_SEED_SZ + 0] = s;
+                seed[DILITHIUM_PUB_SEED_SZ + 0] = (byte)s;
                 /* Step 3: Create polynomial from hashing seed. */
             #ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
                 ret = dilithium_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
@@ -10348,7 +10371,7 @@ int wc_dilithium_sign_ctx_hash(const byte* ctx, byte ctxLen, int hashAlg,
     #endif
         {
             ret = wc_CryptoCb_PqcSign(hash, hashLen, sig, sigLen, ctx, ctxLen,
-                    hashAlg, rng, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    (word32)hashAlg, rng, WC_PQC_SIG_TYPE_DILITHIUM, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10667,7 +10690,7 @@ int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
     #endif
         {
             ret = wc_CryptoCb_PqcVerify(sig, sigLen, hash, hashLen, ctx, ctxLen,
-                    hashAlg, res, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    (word32)hashAlg, res, WC_PQC_SIG_TYPE_DILITHIUM, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -11294,7 +11317,7 @@ int wc_dilithium_check_key(dilithium_key* key)
         params = key->params;
 
         /* s1-L, s2-K, t0-K, t-K, t1-K */
-        allocSz = params->s1Sz + 4 * params->s2Sz;
+        allocSz = (unsigned int)params->s1Sz + 4U * params->s2Sz;
 #if !defined(WC_DILITHIUM_CACHE_MATRIX_A)
         /* A-KxL */
         allocSz += params->aSz;
@@ -11702,13 +11725,14 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
 #ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         /* Allocate L vector s1, K vector s2 and K vector t0 if required. */
-        key->s1 = (sword32*)XMALLOC(params->s1Sz + params->s2Sz + params->s2Sz,
-            key->heap, DYNAMIC_TYPE_DILITHIUM);
+        key->s1 = (sword32*)XMALLOC((unsigned int)params->s1Sz + params->s2Sz +
+            params->s2Sz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (key->s1 == NULL) {
             ret = MEMORY_E;
         }
         else {
-            XMEMSET(key->s1, 0, params->s1Sz + params->s2Sz + params->s2Sz);
+            XMEMSET(key->s1, 0, (unsigned int)params->s1Sz + params->s2Sz +
+                params->s2Sz);
         }
         if (ret == 0) {
             /* Set pointers into allocated memory. */
@@ -12243,7 +12267,7 @@ static int dilitihium_get_der_length(const byte* input, word32* inOutIdx,
             ret = ASN_PARSE_E;
         }
         else {
-            len = ((word16)input[idx + 1] << 8) + input[idx + 2];
+            len = ((word32)input[idx + 1] << 8) + input[idx + 2];
             idx += 3;
             if (len < 0x100) {
                 ret = ASN_PARSE_E;
@@ -12325,7 +12349,7 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         #else
             int length = 0;
             unsigned char* oid = NULL;
-            int oidLen = 0;
+            word32 oidLen = 0;
             word32 idx = 0;
         #endif
 
@@ -12385,21 +12409,21 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         #ifndef WOLFSSL_NO_ML_DSA_44
             if (key->params->level == WC_ML_DSA_44_DRAFT) {
                 oid = dilithium_oid_44;
-                oidLen = (int)sizeof(dilithium_oid_44);
+                oidLen = (word32)sizeof(dilithium_oid_44);
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_65
             if (key->params->level == WC_ML_DSA_65_DRAFT) {
                 oid = dilithium_oid_65;
-                oidLen = (int)sizeof(dilithium_oid_65);
+                oidLen = (word32)sizeof(dilithium_oid_65);
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_87
             if (key->params->level == WC_ML_DSA_87_DRAFT) {
                 oid = dilithium_oid_87;
-                oidLen = (int)sizeof(dilithium_oid_87);
+                oidLen = (word32)sizeof(dilithium_oid_87);
             }
             else
         #endif
@@ -12407,21 +12431,21 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         #ifndef WOLFSSL_NO_ML_DSA_44
             if (key->level == WC_ML_DSA_44) {
                 oid = ml_dsa_oid_44;
-                oidLen = (int)sizeof(ml_dsa_oid_44);
+                oidLen = (word32)sizeof(ml_dsa_oid_44);
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_65
             if (key->level == WC_ML_DSA_65) {
                 oid = ml_dsa_oid_65;
-                oidLen = (int)sizeof(ml_dsa_oid_65);
+                oidLen = (word32)sizeof(ml_dsa_oid_65);
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_87
             if (key->level == WC_ML_DSA_87) {
                 oid = ml_dsa_oid_87;
-                oidLen = (int)sizeof(ml_dsa_oid_87);
+                oidLen = (word32)sizeof(ml_dsa_oid_87);
             }
             else
         #endif
@@ -12448,7 +12472,7 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = dilitihium_get_der_length(input, &idx, &length, inSz);
             }
             if (ret == 0) {
-                if ((length != oidLen) ||
+                if (((word32)length != oidLen) ||
                         (XMEMCMP(input + idx, oid, oidLen) != 0)) {
                     ret = ASN_PARSE_E;
                 }

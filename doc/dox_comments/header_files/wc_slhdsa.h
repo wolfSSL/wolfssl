@@ -260,11 +260,15 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx,
     \ingroup SLH_DSA
 
     \brief Verifies an SLH-DSA signature over a message using the external
-    (pure) interface. This is FIPS 205 Algorithm 23. The message is wrapped
+    (pure) interface. This is FIPS 205 Algorithm 24. The message is wrapped
     internally as M' = 0x00 || len(ctx) || ctx || M before verification.
 
     \return 0 on success (signature valid).
-    \return BAD_FUNC_ARG if key, msg, or sig is NULL.
+    \return BAD_FUNC_ARG if key, msg, or sig is NULL, or ctx is NULL but
+    ctxSz is greater than 0.
+    \return BAD_LENGTH_E if sigSz does not match the parameter set's
+    signature length.
+    \return MISSING_KEY if the public key has not been set.
     \return SIG_VERIFY_E if the signature is invalid.
 
     \param [in] key Pointer to a public SlhDsaKey.
@@ -302,15 +306,19 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx,
 
     \brief Signs using the SLH-DSA internal interface with deterministic
     randomness. Unlike the external interface, M' is provided directly by
-    the caller — no 0x00||len(ctx)||ctx||M wrapping is performed. This
-    corresponds to FIPS 205 Algorithm 19 (slh_sign_internal) with opt_rand
-    set to PK.seed.
+    the caller — no wrapping is performed. This corresponds to FIPS 205
+    Algorithm 19 (slh_sign_internal) with opt_rand set to PK.seed.
 
-    Use this when the CAVP test framework or protocol layer has already
-    constructed M'.
+    Use this when the ACVP signatureInterface=internal test framework or a
+    protocol layer has already constructed M'. For HashSLH-DSA the caller
+    builds M' as 0x01 || ctxSz || ctx || OID(hashType) || PHM and passes it
+    in here, where PHM is the hash of the application message under hashType.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key, mprime, sig, or sigSz is NULL.
+    \return BAD_LENGTH_E if sigSz is less than the parameter set's signature
+    length.
+    \return MISSING_KEY if the private key has not been set.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] mprime Pointer to the pre-constructed M' message.
@@ -334,6 +342,7 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx,
     \sa wc_SlhDsaKey_SignMsgWithRandom
     \sa wc_SlhDsaKey_VerifyMsg
     \sa wc_SlhDsaKey_SignDeterministic
+    \sa wc_SlhDsaKey_SignHashDeterministic
 */
 int wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key,
     const byte* mprime, word32 mprimeSz, byte* sig, word32* sigSz);
@@ -344,10 +353,14 @@ int wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key,
     \brief Signs using the SLH-DSA internal interface with caller-provided
     additional randomness. M' is provided directly — no wrapping is performed.
     This corresponds to FIPS 205 Algorithm 19 (slh_sign_internal) with an
-    explicit opt_rand value.
+    explicit opt_rand value. See wc_SlhDsaKey_SignMsgDeterministic for the M'
+    layout used by HashSLH-DSA.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key, mprime, sig, sigSz, or addRnd is NULL.
+    \return BAD_LENGTH_E if sigSz is less than the parameter set's signature
+    length.
+    \return MISSING_KEY if the private key has not been set.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] mprime Pointer to the pre-constructed M' message.
@@ -373,6 +386,7 @@ int wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key,
 
     \sa wc_SlhDsaKey_SignMsgDeterministic
     \sa wc_SlhDsaKey_VerifyMsg
+    \sa wc_SlhDsaKey_SignHashWithRandom
 */
 int wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key,
     const byte* mprime, word32 mprimeSz, byte* sig, word32* sigSz,
@@ -387,6 +401,9 @@ int wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key,
 
     \return 0 on success (signature valid).
     \return BAD_FUNC_ARG if key, mprime, or sig is NULL.
+    \return BAD_LENGTH_E if sigSz does not match the parameter set's
+    signature length.
+    \return MISSING_KEY if the public key has not been set.
     \return SIG_VERIFY_E if the signature is invalid.
 
     \param [in] key Pointer to a public SlhDsaKey.
@@ -412,6 +429,7 @@ int wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key,
 
     \sa wc_SlhDsaKey_SignMsgDeterministic
     \sa wc_SlhDsaKey_Verify
+    \sa wc_SlhDsaKey_VerifyHash
 */
 int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
     word32 mprimeSz, const byte* sig, word32 sigSz);
@@ -419,22 +437,28 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
 /*!
     \ingroup SLH_DSA
 
-    \brief Signs a pre-hashed message using the SLH-DSA external (HashSLH-DSA)
-    interface with deterministic randomness. The message is hashed with the
-    specified hash algorithm, then signed per FIPS 205 Algorithm 22 with the
-    pre-hash domain separator (0x01).
+    \brief Signs a caller-pre-hashed message digest using the SLH-DSA external
+    (HashSLH-DSA) interface with deterministic randomness, per FIPS 205
+    Algorithm 23 with the pre-hash domain separator (0x01). The caller must
+    hash the application message with hashType first and pass the digest as
+    hash; this function does NOT hash its input.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key, msg, sig, or sigSz is NULL, or hashType
-    is unsupported.
+    \return BAD_FUNC_ARG if key, hash, sig, or sigSz is NULL.
+    \return BAD_LENGTH_E if hashSz does not equal the digest size for hashType
+    (32 for SHAKE128, 64 for SHAKE256 per FIPS 205 Section 10.2.2).
+    \return NOT_COMPILED_IN if hashType is not supported in this build.
+    \return MISSING_KEY if the private key has not been set.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] ctx Context string. May be NULL if ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to hash and sign.
-    \param [in] msgSz Length of the message.
-    \param [in] hashType Hash algorithm to use for pre-hashing. Supported:
-    WC_HASH_TYPE_SHA256, WC_HASH_TYPE_SHA384, WC_HASH_TYPE_SHA512,
+    \param [in] hash Pointer to the pre-hashed message digest. hashSz must
+    equal the digest size for hashType.
+    \param [in] hashSz Length of the digest in bytes.
+    \param [in] hashType Hash algorithm used for pre-hashing (selects OID).
+    Supported: WC_HASH_TYPE_SHA224, WC_HASH_TYPE_SHA256, WC_HASH_TYPE_SHA384,
+    WC_HASH_TYPE_SHA512, WC_HASH_TYPE_SHA512_224, WC_HASH_TYPE_SHA512_256,
     WC_HASH_TYPE_SHAKE128, WC_HASH_TYPE_SHAKE256, WC_HASH_TYPE_SHA3_224,
     WC_HASH_TYPE_SHA3_256, WC_HASH_TYPE_SHA3_384, WC_HASH_TYPE_SHA3_512.
     \param [out] sig Buffer to receive the signature.
@@ -447,35 +471,44 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
     byte sig[WC_SLHDSA_MAX_SIG_LEN];
     word32 sigSz = sizeof(sig);
     byte msg[] = "Hello World!";
+    byte digest[WC_SHA256_DIGEST_SIZE];
     int ret;
 
+    wc_Sha256Hash(msg, sizeof(msg), digest);
     ret = wc_SlhDsaKey_SignHashDeterministic(&key, NULL, 0,
-        msg, sizeof(msg), WC_HASH_TYPE_SHA256, sig, &sigSz);
+        digest, sizeof(digest), WC_HASH_TYPE_SHA256, sig, &sigSz);
     \endcode
 
     \sa wc_SlhDsaKey_SignHashWithRandom
     \sa wc_SlhDsaKey_SignHash
     \sa wc_SlhDsaKey_VerifyHash
+    \sa wc_SlhDsaKey_SignMsgDeterministic
 */
 int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
-    const byte* ctx, byte ctxSz, const byte* msg, word32 msgSz,
+    const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
     enum wc_HashType hashType, byte* sig, word32* sigSz);
 
 /*!
     \ingroup SLH_DSA
 
-    \brief Signs a pre-hashed message using the SLH-DSA external (HashSLH-DSA)
-    interface with caller-provided additional randomness.
+    \brief Signs a caller-pre-hashed message digest using the SLH-DSA external
+    (HashSLH-DSA) interface with caller-provided additional randomness. The
+    caller must hash the application message with hashType first and pass the
+    digest as hash; this function does NOT hash its input.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key, msg, sig, sigSz, or addRnd is NULL.
+    \return BAD_FUNC_ARG if key, hash, sig, sigSz, or addRnd is NULL.
+    \return BAD_LENGTH_E if hashSz does not equal the digest size for hashType
+    (32 for SHAKE128, 64 for SHAKE256 per FIPS 205 Section 10.2.2).
+    \return NOT_COMPILED_IN if hashType is not supported in this build.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] ctx Context string. May be NULL if ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to hash and sign.
-    \param [in] msgSz Length of the message.
-    \param [in] hashType Hash algorithm to use for pre-hashing.
+    \param [in] hash Pointer to the pre-hashed message digest. hashSz must
+    equal the digest size for hashType.
+    \param [in] hashSz Length of the digest in bytes.
+    \param [in] hashType Hash algorithm used for pre-hashing (selects OID).
     \param [out] sig Buffer to receive the signature.
     \param [in,out] sigSz On input, size of sig buffer. On output, actual
     signature length.
@@ -483,26 +516,33 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
 
     \sa wc_SlhDsaKey_SignHashDeterministic
     \sa wc_SlhDsaKey_VerifyHash
+    \sa wc_SlhDsaKey_SignMsgWithRandom
 */
 int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
-    const byte* ctx, byte ctxSz, const byte* msg, word32 msgSz,
-    enum wc_HashType hashType, byte* sig, word32* sigSz, byte* addRnd);
+    const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
+    enum wc_HashType hashType, byte* sig, word32* sigSz, const byte* addRnd);
 
 /*!
     \ingroup SLH_DSA
 
-    \brief Signs a pre-hashed message using the SLH-DSA external (HashSLH-DSA)
-    interface with RNG-provided randomness.
+    \brief Signs a caller-pre-hashed message digest using the SLH-DSA external
+    (HashSLH-DSA) interface with RNG-provided randomness. The caller must
+    hash the application message with hashType first and pass the digest as
+    hash; this function does NOT hash its input.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key, msg, sig, sigSz, or rng is NULL.
+    \return BAD_FUNC_ARG if key, hash, sig, sigSz, or rng is NULL.
+    \return BAD_LENGTH_E if hashSz does not equal the digest size for hashType
+    (32 for SHAKE128, 64 for SHAKE256 per FIPS 205 Section 10.2.2).
+    \return NOT_COMPILED_IN if hashType is not supported in this build.
 
     \param [in] key Pointer to a private SlhDsaKey.
     \param [in] ctx Context string. May be NULL if ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to hash and sign.
-    \param [in] msgSz Length of the message.
-    \param [in] hashType Hash algorithm to use for pre-hashing.
+    \param [in] hash Pointer to the pre-hashed message digest. hashSz must
+    equal the digest size for hashType.
+    \param [in] hashSz Length of the digest in bytes.
+    \param [in] hashType Hash algorithm used for pre-hashing (selects OID).
     \param [out] sig Buffer to receive the signature.
     \param [in,out] sigSz On input, size of sig buffer. On output, actual
     signature length.
@@ -510,29 +550,37 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
 
     \sa wc_SlhDsaKey_SignHashDeterministic
     \sa wc_SlhDsaKey_VerifyHash
+    \sa wc_SlhDsaKey_SignMsgDeterministic
 */
 int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
-    byte ctxSz, const byte* msg, word32 msgSz, enum wc_HashType hashType,
+    byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     byte* sig, word32* sigSz, WC_RNG* rng);
 
 /*!
     \ingroup SLH_DSA
 
-    \brief Verifies an SLH-DSA signature over a pre-hashed message
-    (HashSLH-DSA). The message is hashed with the specified hash algorithm
-    before verification.
+    \brief Verifies an SLH-DSA signature using the external HashSLH-DSA
+    interface (FIPS 205 Algorithm 25). The caller must hash the application
+    message with hashType first and pass the digest as hash; this function
+    does NOT hash its input.
 
     \return 0 on success (signature valid).
-    \return BAD_FUNC_ARG if key, msg, or sig is NULL.
+    \return BAD_FUNC_ARG if key, hash, or sig is NULL.
+    \return BAD_LENGTH_E if sigSz does not match the parameter set, or if
+    hashSz does not equal the digest size for hashType (32 for SHAKE128, 64
+    for SHAKE256 per FIPS 205 Section 10.2.2).
+    \return NOT_COMPILED_IN if hashType is not supported in this build.
+    \return MISSING_KEY if the public key has not been set.
     \return SIG_VERIFY_E if the signature is invalid.
 
     \param [in] key Pointer to a public SlhDsaKey.
     \param [in] ctx Context string. May be NULL if ctxSz is 0.
     \param [in] ctxSz Length of the context string (0-255).
-    \param [in] msg Pointer to the message to hash and verify.
-    \param [in] msgSz Length of the message.
-    \param [in] hashType Hash algorithm used for pre-hashing. Must match the
-    hash used during signing.
+    \param [in] hash Pointer to the pre-hashed message digest. hashSz must
+    equal the digest size for hashType.
+    \param [in] hashSz Length of the digest in bytes.
+    \param [in] hashType Hash algorithm used for pre-hashing (selects OID).
+    Must match the hash used during signing.
     \param [in] sig Pointer to the signature to verify.
     \param [in] sigSz Length of the signature.
 
@@ -542,10 +590,12 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
     byte sig[...];
     word32 sigSz;
     byte msg[] = "Hello World!";
+    byte digest[WC_SHA256_DIGEST_SIZE];
     int ret;
 
+    wc_Sha256Hash(msg, sizeof(msg), digest);
     ret = wc_SlhDsaKey_VerifyHash(&key, NULL, 0,
-        msg, sizeof(msg), WC_HASH_TYPE_SHA256, sig, sigSz);
+        digest, sizeof(digest), WC_HASH_TYPE_SHA256, sig, sigSz);
     if (ret == 0) {
         // signature is valid
     }
@@ -553,9 +603,10 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
 
     \sa wc_SlhDsaKey_SignHashDeterministic
     \sa wc_SlhDsaKey_Verify
+    \sa wc_SlhDsaKey_VerifyMsg
 */
 int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx,
-    byte ctxSz, const byte* msg, word32 msgSz, enum wc_HashType hashType,
+    byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     const byte* sig, word32 sigSz);
 
 /*!
@@ -791,3 +842,187 @@ int wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
     \sa wc_SlhDsaKey_SigSize
 */
 int wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Decodes a DER-encoded SLH-DSA private key in the PKCS#8
+    OneAsymmetricKey format defined by RFC 9909. The privateKey OCTET STRING
+    contains the raw concatenation SK.seed || SK.prf || PK.seed || PK.root
+    (4*n bytes) directly, without a nested OCTET STRING wrapper as used by
+    Ed25519/Ed448. The SLH-DSA parameter set is detected from the
+    AlgorithmIdentifier OID and key->params is updated to match. Available
+    only when WOLFSSL_SLHDSA_VERIFY_ONLY is not defined.
+
+    On a failure that is detected before any write to key->sk
+    (BAD_FUNC_ARG, header/OID parse errors, or wrong privateKey length), the
+    key state is left untouched. On a failure detected after
+    wc_SlhDsaKey_ImportPrivate has populated key->sk (a SHA-2 precompute
+    error, or a trailing-field validation error), key->sk is scrubbed with
+    ForceZero and the WC_SLHDSA_FLAG_PRIVATE/PUBLIC flags are cleared so
+    flags can never claim valid bytes that were zeroed. In both rollback
+    cases, key->params and inOutIdx are restored to their pre-call values.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if input, inOutIdx, or key is NULL, or inSz is 0.
+    \return ASN_PARSE_E if the DER cannot be parsed as an SLH-DSA private
+    key (malformed input, wrong key size, or trailing-field violation).
+    \return NOT_COMPILED_IN if the OID names an SLH-DSA variant that is not
+    built into this library.
+
+    \param [in] input DER-encoded key data.
+    \param [in,out] inOutIdx On input, starting offset into input. On output,
+    advanced past the parsed key (unchanged on failure).
+    \param [in,out] key SLH-DSA key. Parameter set is auto-detected from the
+    encoded OID.
+    \param [in] inSz Total size of input in bytes.
+
+    \sa wc_SlhDsaKey_KeyToDer
+    \sa wc_SlhDsaKey_PublicKeyDecode
+    \sa wc_SlhDsaKey_ImportPrivate
+*/
+int wc_SlhDsaKey_PrivateKeyDecode(const byte* input, word32* inOutIdx,
+    SlhDsaKey* key, word32 inSz);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Decodes a DER-encoded SLH-DSA public key in the
+    SubjectPublicKeyInfo (SPKI) format. The SLH-DSA parameter set is
+    detected from the AlgorithmIdentifier OID and key->params is updated
+    accordingly.
+
+    As a fast path, if key->params is already set the function first hands
+    the entire window from inOutIdx to inSz to wc_SlhDsaKey_ImportPublic.
+    ImportPublic's length check is the disambiguator: a window of exactly
+    2*n bytes is accepted as a raw public key (PK.seed || PK.root) and
+    consumed in full; any other length is rejected and the function falls
+    through to SPKI parsing. SPKI input always carries enough
+    AlgorithmIdentifier/BIT STRING overhead that it never collides with the
+    2*n raw length, so it falls through cleanly. The caller does not need
+    to pre-trim the window to 2*n.
+
+    On a failure detected before any write (BAD_FUNC_ARG or a malformed
+    SPKI), the key state is left untouched. On a failure detected after
+    ImportPublic has populated the public half of key->sk (a SHA-2
+    precompute error), the public half sk[2*n .. 4*n] is scrubbed and
+    WC_SLHDSA_FLAG_PUBLIC is cleared from the flags; the private half is
+    left intact in case the caller imported it earlier. key->params and
+    inOutIdx are restored to their pre-call values.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if input, inOutIdx, or key is NULL, or inSz is 0.
+    \return ASN_PARSE_E if the DER cannot be parsed as an SLH-DSA public
+    key.
+    \return NOT_COMPILED_IN if the OID names an SLH-DSA variant that is not
+    built into this library.
+
+    \param [in] input DER-encoded key data, or a raw 2*n public key when
+    key->params is already set.
+    \param [in,out] inOutIdx On input, starting offset into input. On output,
+    advanced past the parsed key (unchanged on failure).
+    \param [in,out] key SLH-DSA key. Parameter set is auto-detected from the
+    encoded OID, or honored as-is in the raw fast path.
+    \param [in] inSz Total size of input in bytes.
+
+    \sa wc_SlhDsaKey_PublicKeyToDer
+    \sa wc_SlhDsaKey_PrivateKeyDecode
+    \sa wc_SlhDsaKey_ImportPublic
+*/
+int wc_SlhDsaKey_PublicKeyDecode(const byte* input, word32* inOutIdx,
+    SlhDsaKey* key, word32 inSz);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Encodes an SLH-DSA private key to DER in the PKCS#8
+    OneAsymmetricKey format defined by RFC 9909. The privateKey OCTET STRING
+    contains the raw 4*n bytes (SK.seed || SK.prf || PK.seed || PK.root)
+    directly, without the nested OCTET STRING wrapping used by Ed25519/Ed448.
+
+    Available only when WOLFSSL_SLHDSA_VERIFY_ONLY is not defined and
+    WC_ENABLE_ASYM_KEY_EXPORT is set.
+
+    \return Size of the encoded DER in bytes on success. Pass NULL as output
+    to query the required buffer size without writing.
+    \return BAD_FUNC_ARG if key or key->params is NULL.
+    \return MISSING_KEY if the private key has not been set.
+    \return BUFFER_E if output is non-NULL and inLen is smaller than the
+    required size.
+    \return NOT_COMPILED_IN if key->params names an SLH-DSA variant whose
+    parameter set is not built in.
+
+    \param [in] key SLH-DSA key with a populated private key.
+    \param [out] output Buffer to receive the DER encoding, or NULL to query
+    the required size.
+    \param [in] inLen Size of output in bytes (ignored when output is NULL).
+
+    \sa wc_SlhDsaKey_PrivateKeyDecode
+    \sa wc_SlhDsaKey_PrivateKeyToDer
+    \sa wc_SlhDsaKey_PublicKeyToDer
+*/
+int wc_SlhDsaKey_KeyToDer(SlhDsaKey* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Encodes an SLH-DSA private key to DER. RFC 9909 packs
+    SK.seed || SK.prf || PK.seed || PK.root into a single OCTET STRING, so
+    SLH-DSA has no distinct private-only encoding. This function is an
+    intentional alias of wc_SlhDsaKey_KeyToDer, kept for API parity with
+    Ed25519/Ed448 which do have a separate private form.
+
+    Available only when WOLFSSL_SLHDSA_VERIFY_ONLY is not defined and
+    WC_ENABLE_ASYM_KEY_EXPORT is set.
+
+    Return codes are inherited unchanged from wc_SlhDsaKey_KeyToDer.
+
+    \return Size of the encoded DER in bytes on success. Pass NULL as output
+    to query the required buffer size.
+    \return BAD_FUNC_ARG if key or key->params is NULL.
+    \return MISSING_KEY if the private key has not been set.
+    \return BUFFER_E if output is non-NULL and inLen is smaller than the
+    required size.
+    \return NOT_COMPILED_IN if key->params names an SLH-DSA variant whose
+    parameter set is not built in.
+
+    \param [in] key SLH-DSA key with a populated private key.
+    \param [out] output Buffer to receive the DER encoding, or NULL to query
+    the required size.
+    \param [in] inLen Size of output in bytes (ignored when output is NULL).
+
+    \sa wc_SlhDsaKey_KeyToDer
+    \sa wc_SlhDsaKey_PrivateKeyDecode
+*/
+int wc_SlhDsaKey_PrivateKeyToDer(SlhDsaKey* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Encodes an SLH-DSA public key to DER. When withAlg is non-zero
+    the output is a full SubjectPublicKeyInfo structure (AlgorithmIdentifier
+    plus BIT STRING). When withAlg is zero the output contains the raw
+    public key bytes without the SPKI wrapping.
+
+    Available only when WC_ENABLE_ASYM_KEY_EXPORT is set.
+
+    \return Size of the encoded DER in bytes on success. Pass NULL as output
+    to query the required buffer size.
+    \return BAD_FUNC_ARG if key or key->params is NULL.
+    \return BUFFER_E if output is non-NULL and inLen is smaller than the
+    required size.
+    \return NOT_COMPILED_IN if key->params names an SLH-DSA variant whose
+    parameter set is not built in.
+
+    \param [in] key SLH-DSA key with a populated public key.
+    \param [out] output Buffer to receive the DER encoding, or NULL to query
+    the required size.
+    \param [in] inLen Size of output in bytes (ignored when output is NULL).
+    \param [in] withAlg Non-zero to emit SubjectPublicKeyInfo (with
+    AlgorithmIdentifier); zero to emit the raw public key only.
+
+    \sa wc_SlhDsaKey_PublicKeyDecode
+    \sa wc_SlhDsaKey_KeyToDer
+*/
+int wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output, word32 inLen,
+    int withAlg);

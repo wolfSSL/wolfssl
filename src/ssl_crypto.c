@@ -2722,11 +2722,19 @@ void wolfSSL_DES_ncbc_encrypt(const unsigned char* input, unsigned char* output,
     int enc)
 {
     unsigned char tmp[DES_IV_SIZE];
-    /* Calculate length to a multiple of block size. */
-    size_t offset = (size_t)length;
+    size_t offset;
 
     WOLFSSL_ENTER("wolfSSL_DES_ncbc_encrypt");
 
+    /* Zero/negative length: no block to derive an IV from. The offset math
+     * below would underflow for length == 0, yielding a wild-pointer read. */
+    if (length <= 0) {
+        WOLFSSL_LEAVE("wolfSSL_DES_ncbc_encrypt", 0);
+        return;
+    }
+
+    /* Calculate length to a multiple of block size. */
+    offset = (size_t)length;
     offset = (offset + DES_BLOCK_SIZE - 1) / DES_BLOCK_SIZE;
     offset *= DES_BLOCK_SIZE;
     offset -= DES_BLOCK_SIZE;

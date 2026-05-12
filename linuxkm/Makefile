@@ -401,15 +401,11 @@ $(MODULE_TOP)/libwolfssl-user-build/src/.libs/libwolfssl.so: $(LIBWOLFSSL_NAME).
 	@    for file in "$${srcfiles[@]}"; do if [[ ! -e "$$file" ]]; then mkdir -p "$$(dirname "$$file")" && cp --no-dereference --symbolic-link --no-clobber '$(SRC_TOP)'/"$$file" "$$file"; fi; done
 	@    echo ' done.'
 	@fi
-	@if [[ ! -f user_settings.h ]]; then
-	@    echo '__attribute__ ((visibility("default"))) extern const char coreKey[];' > user_settings.h
-	@    echo > user_settings_asm.h
-	@fi
 	@if [[ -f Makefile ]]; then
 	@    echo 'Using existing Makefile for libwolfssl.so.'
 	@else
 	@    echo -n 'Configuring user libwolfssl.so...'
-	@    $(FRESH_ENV) ./configure $(QFLAG) $(VFLAG) --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM -DDEBUG_LINUXKM_PIE_SUPPORT' $(if $(HOSTCC),CC='$(HOSTCC)')
+	@    $(FRESH_ENV) ./configure $(QFLAG) $(VFLAG) --disable-jobserver --enable-cryptonly --enable-fips="$$FIPS_FLAVOR" CFLAGS='-DWC_SYM_RELOC_TABLES_SUPPORT -DDEBUG_LINUXKM_PIE_SUPPORT -DWOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE_SUPPORT' $(if $(HOSTCC),CC='$(HOSTCC)')
 	@    echo ' done.'
 	@fi
 	@echo -n 'Building user libwolfssl.so...'

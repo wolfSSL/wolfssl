@@ -4743,6 +4743,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     int     ret    = 1;
     word32  pubSz  = 0;
     word32  privSz = 0;
+    word32  privAllocSz = 0;
     int     localRng = 0;
     WC_RNG* rng    = NULL;
     WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
@@ -4792,9 +4793,12 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
         else {
             privSz = pubSz;
         }
-        /* Allocate public and private key arrays. */
+        /* Allocate public and private key arrays. Preserve the allocation
+         * size because wc_DhGenerateKeyPair updates privSz in-place. */
+        privAllocSz = privSz;
         pub = (unsigned char*)XMALLOC(pubSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        priv = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        priv = (unsigned char*)XMALLOC(privAllocSz, NULL,
+            DYNAMIC_TYPE_PRIVATE_KEY);
         if (pub == NULL || priv == NULL) {
             WOLFSSL_ERROR_MSG("Unable to malloc memory");
             ret = 0;
@@ -4846,7 +4850,10 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     }
     /* Dispose of allocated data. */
     XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (priv != NULL) {
+        ForceZero(priv, privAllocSz);
+        XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    }
 
     return ret;
 }

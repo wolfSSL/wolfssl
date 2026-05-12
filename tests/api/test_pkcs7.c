@@ -5028,6 +5028,14 @@ int test_wc_PKCS7_DecodeCompressedData(void)
     ExpectNotNull(decompressed);
     ExpectIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
     XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    decompressed = NULL;
+
+    /* inSz that would overflow on the initial 'tmpSz = inSz * 2' must be
+     * rejected up front rather than handed to XMALLOC. */
+    ExpectIntEQ(wc_DeCompressDynamic(&decompressed, -1, DYNAMIC_TYPE_TMP_BUFFER,
+        out, ((word32)INT_MAX / 2) + 1, 0, heap),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectNull(decompressed);
 
     if (cert_buf != NULL)
         XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);

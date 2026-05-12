@@ -71,6 +71,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/nxp/dcp_port.c \
               wolfcrypt/src/port/nxp/se050_port.c \
               wolfcrypt/src/port/nxp/README.md \
+              wolfcrypt/src/port/nxp/casper_port.c \
+              wolfcrypt/src/port/nxp/hashcrypt_port.c \
               wolfcrypt/src/port/atmel/README.md \
               wolfcrypt/src/port/xilinx/xil-sha3.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
@@ -100,7 +102,6 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/silabs/silabs_random.c \
               wolfcrypt/src/port/silabs/README.md \
               wolfcrypt/src/port/st/stm32.c \
-              wolfcrypt/src/port/st/stsafe.c \
               wolfcrypt/src/port/st/README.md \
               wolfcrypt/src/port/st/STM32MP13.md \
 			  wolfcrypt/src/port/st/STM32MP25.md \
@@ -233,6 +234,10 @@ endif
 
 if BUILD_SE050
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/nxp/se050_port.c
+endif
+
+if BUILD_STSAFE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/st/stsafe.c
 endif
 
 if BUILD_TROPIC01

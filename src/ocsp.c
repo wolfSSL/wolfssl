@@ -602,8 +602,9 @@ static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
      *  in OCSP request
      */
 
-    /* End loop if no more issuers found or if we have found a self
-     * signed cert (ca == prev) */
+    /* Walk up the issuer chain from the responder's direct issuer toward a
+     * self-signed root, capturing prev before reassigning ca so the
+     * (ca == prev) self-signed termination check is meaningful. */
     ca = GetCAByName(cm, single->issuerHash);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     if (ca == NULL && pendingCAs != NULL) {
@@ -612,8 +613,7 @@ static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
 #else
     (void)pendingCAs;
 #endif
-    for (; ca != NULL && ca != prev;
-            prev = ca) {
+    while (ca != NULL) {
         if (XMEMCMP(issuerHash, ca->issuerNameHash, OCSP_DIGEST_SIZE) == 0) {
             WOLFSSL_MSG("\tOCSP Response signed by authorized "
                     "responder delegated by issuer "
@@ -621,12 +621,19 @@ static int CheckOcspResponderChain(OcspEntry* single, byte* issuerHash,
             passed = 1;
             break;
         }
-        ca = GetCAByName(cm, ca->issuerNameHash);
+        prev = ca;
+        ca = GetCAByName(cm, prev->issuerNameHash);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        /* Look up by the in-flight name (prev's issuer), not by
+         * single->issuerHash; the latter would re-anchor the pendingCAs
+         * walk to the bottom of the chain on every iteration. */
         if (ca == NULL && pendingCAs != NULL) {
-            ca = findSignerByName(pendingCAs, single->issuerHash);
+            ca = findSignerByName(pendingCAs, prev->issuerNameHash);
         }
 #endif
+        if (ca == prev) {
+            break;
+        }
     }
     return passed;
 }

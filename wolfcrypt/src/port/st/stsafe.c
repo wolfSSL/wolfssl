@@ -53,6 +53,7 @@
 
 #ifdef WOLFSSL_STSAFEA120
     /* STSELib includes for A120 */
+    #include "stse_platform_generic.h"
     #include "stselib.h"
 #else /* WOLFSSL_STSAFEA100 */
     /* Legacy STSAFE-A1xx SDK includes */

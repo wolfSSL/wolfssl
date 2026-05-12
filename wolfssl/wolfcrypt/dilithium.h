@@ -638,10 +638,14 @@ struct dilithium_key {
 #elif !defined(WOLFSSL_DILITHIUM_ASSIGN_KEY)
 #ifdef USE_INTEL_SPEEDUP
     byte p[DILITHIUM_MAX_PUB_KEY_SIZE+8];
+#if !defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
     byte k[DILITHIUM_MAX_KEY_SIZE+8];
+#endif
 #else
     byte p[DILITHIUM_MAX_PUB_KEY_SIZE];
+#if !defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
     byte k[DILITHIUM_MAX_KEY_SIZE];
+#endif
 #endif
 #else
     const byte* p;

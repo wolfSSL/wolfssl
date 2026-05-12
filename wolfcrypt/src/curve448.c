@@ -478,6 +478,10 @@ int wc_curve448_export_private_raw_ex(curve448_key* key, byte* out,
         ret = BAD_FUNC_ARG;
     }
 
+    if ((ret == 0) && (!key->privSet)) {
+        ret = ECC_BAD_ARG_E;
+    }
+
     /* check size of outgoing buffer */
     if ((ret == 0) && (*outLen < CURVE448_KEY_SIZE)) {
         *outLen = CURVE448_KEY_SIZE;

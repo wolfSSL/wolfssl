@@ -164,13 +164,16 @@ int test_wc_curve448_export_private_raw_ex(void)
     EXPECT_DECLS;
 #if defined(HAVE_CURVE448)
     curve448_key key;
+    WC_RNG       rng;
     byte         out[CURVE448_KEY_SIZE];
     word32       outLen = sizeof(out);
     int          endian = EC448_BIG_ENDIAN;
 
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
     ExpectIntEQ(wc_curve448_init(&key), 0);
+    /* Reject export when private key not set (privSet == 0). */
     ExpectIntEQ(wc_curve448_export_private_raw_ex(&key, out, &outLen, endian),
-        0);
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     /* test bad cases */
     ExpectIntEQ(wc_curve448_export_private_raw_ex(NULL, NULL, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -180,12 +183,15 @@ int test_wc_curve448_export_private_raw_ex(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_curve448_export_private_raw_ex(&key, out, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_curve448_export_private_raw_ex(&key, out, &outLen,
-        EC448_LITTLE_ENDIAN), 0);
-    outLen = outLen - 2;
+
+    /* Populate the key, then exercise the buffer-too-small path. */
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key), 0);
+    outLen = CURVE448_KEY_SIZE - 1;
     ExpectIntEQ(wc_curve448_export_private_raw_ex(&key, out, &outLen, endian),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
 
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_curve448_free(&key);
 #endif
     return EXPECT_RESULT();
@@ -396,4 +402,49 @@ int test_wc_Curve448PrivateKeyToDer(void)
 #endif
     return EXPECT_RESULT();
 } /* End wc_Curve448PrivateKeyToDer*/
+
+/*
+ * RFC 5958: private only path must create version=v1 (0). Curve448 has no
+ * public API to create bundled key. Only test private key path. */
+int test_wc_Curve448PrivateKeyToDer_oneasymkey_version(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT) && \
+    defined(HAVE_CURVE448_KEY_IMPORT)
+    curve448_key key;
+    curve448_key key2;
+    WC_RNG rng;
+    byte ref[256];   /* reference DER (private only) */
+    byte rt[256];    /* re-export target for memcmp */
+    int  refSz = 0;
+    int  rtSz = 0;
+    word32 idx = 0;
+
+    XMEMSET(&key,  0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng,  0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_init(&key), 0);
+    ExpectIntEQ(wc_curve448_init(&key2), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key), 0);
+
+    ExpectIntGT(refSz = wc_Curve448PrivateKeyToDer(&key, ref,
+        (word32)sizeof(ref)), 0);
+    ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
+
+    idx = 0;
+    ExpectIntEQ(wc_Curve448PrivateKeyDecode(ref, &idx, &key2,
+        (word32)refSz), 0);
+    ExpectIntGT(rtSz = wc_Curve448PrivateKeyToDer(&key2, rt,
+        (word32)sizeof(rt)), 0);
+    ExpectIntEQ(rtSz, refSz);
+    ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
+
+    wc_curve448_free(&key);
+    wc_curve448_free(&key2);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
 

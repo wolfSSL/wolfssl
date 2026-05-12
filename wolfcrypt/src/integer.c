@@ -549,21 +549,48 @@ int mp_exch (mp_int * a, mp_int * b)
   return MP_OKAY;
 }
 
+/* Constant-time conditional swap: must not branch on m (leaks scalar bit).
+ * m must be 0 or 1. The t parameter is unused; XOR is performed in place
+ * with a single-digit stack scratch so callers don't need to clear t->dp. */
 int mp_cond_swap_ct_ex (mp_int * a, mp_int * b, int c, int m, mp_int * t)
 {
-    (void)c;
+    int i;
+    int err;
+    int imask;
+    int idiff;
+    mp_digit mask;
+    mp_digit d;
+
     (void)t;
-    if (m == 1)
-        mp_exch(a, b);
+
+    m &= 1;
+    imask = -m;
+    mask = (mp_digit)0 - (mp_digit)m;
+
+    if ((err = mp_grow(a, c)) != MP_OKAY)
+        return err;
+    if ((err = mp_grow(b, c)) != MP_OKAY)
+        return err;
+
+    idiff = (a->used ^ b->used) & imask;
+    a->used ^= idiff;
+    b->used ^= idiff;
+    idiff = (a->sign ^ b->sign) & imask;
+    a->sign ^= idiff;
+    b->sign ^= idiff;
+
+    for (i = 0; i < c; i++) {
+        d = (a->dp[i] ^ b->dp[i]) & mask;
+        a->dp[i] ^= d;
+        b->dp[i] ^= d;
+    }
+
     return MP_OKAY;
 }
 
 int mp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
 {
-    (void)c;
-    if (m == 1)
-        mp_exch(a, b);
-    return MP_OKAY;
+    return mp_cond_swap_ct_ex(a, b, c, m, NULL);
 }
 
 

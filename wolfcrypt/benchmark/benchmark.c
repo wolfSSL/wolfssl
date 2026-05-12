@@ -805,7 +805,6 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define TEST_STRING    "Everyone gets Friday off."
 #define TEST_STRING_SZ 25
 
-
 /* Bit values for each algorithm that is able to be benchmarked.
  * Common grouping of algorithms also.
  * Each algorithm has a unique value for its type e.g. cipher.
@@ -2082,6 +2081,9 @@ static const char* bench_result_words2[][6] = {
 #endif
 };
 #endif /* !WC_NO_RNG || WOLFSSL_HAVE_MLKEM */
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif
 
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
@@ -2109,7 +2111,9 @@ static const char* bench_result_words2[][6] = {
     static volatile int g_threadCount;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || defined(WC_USE_DEVID)
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || \
+    defined(WC_USE_DEVID) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     #ifndef NO_HW_BENCH
         #define BENCH_DEVID
     #endif
@@ -2551,7 +2555,7 @@ typedef enum bench_stat_type {
 
         if (bstat == NULL) {
             /* allocate new and put on list */
-            bstat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), NULL,
+            bstat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), HEAP_HINT,
                 DYNAMIC_TYPE_INFO);
             if (bstat) {
                 XMEMSET(bstat, 0, sizeof(bench_stats_t));
@@ -3719,7 +3723,7 @@ static WC_INLINE void bench_stats_free(void)
     bench_stats_t* bstat;
     for (bstat = bench_stats_head; bstat != NULL; ) {
         bench_stats_t* next = bstat->next;
-        XFREE(bstat, NULL, DYNAMIC_TYPE_INFO);
+        XFREE(bstat, HEAP_HINT, DYNAMIC_TYPE_INFO);
         bstat = next;
     }
     bench_stats_head = NULL;
@@ -6470,7 +6474,7 @@ static void bench_aesofb_internal(const byte* key,
 
     bench_stats_prepare();
 
-    ret = wc_AesInit(&enc, NULL, INVALID_DEVID);
+    ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
         return;
@@ -10571,7 +10575,7 @@ exit_rsa_sign:
                                           1, &times, ntimes, &pending)) {
                     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                         !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-                        ret = wc_RsaSSL_Verify(enc[i], idx, out[i],
+                            ret = wc_RsaSSL_Verify(enc[i], idx, out[i],
                                                       rsaKeySz/8, rsaKey[i]);
                     #elif defined(USE_CERT_BUFFERS_2048)
                         XMEMCPY(enc[i], rsa_2048_sig, sizeof(rsa_2048_sig));
@@ -10708,6 +10712,13 @@ void bench_rsa(int useDeviceID)
 #else
         /* Note: To benchmark public only define WOLFSSL_PUBLIC_MP */
         rsaKeySz = 0;
+#endif
+#if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_MICROCHIP_TA100)
+        /* Create new keys since you cannot import a private key to TA100 */
+        ret = wc_MakeRsaKey(rsaKey[i], rsaKeySz, WC_RSA_EXPONENT, &gRng);
+        if (ret) {
+            goto exit;
+        }
 #endif
     }
 
@@ -11539,7 +11550,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
         return;
     }
 
-    ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+    ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
         wc_FreeRng(&rng);
@@ -11555,7 +11566,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
 
             wc_LmsKey_Free(&key);
 
-            ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+            ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
             if (ret) {
                 printf("wc_LmsKey_Init failed: %d\n", ret);
                 goto exit_lms_keygen;
@@ -11644,7 +11655,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 
     bench_stats_prepare();
 
-    ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+    ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
         goto exit_lms_sign_verify;
@@ -11689,7 +11700,6 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
         XMEMCPY(key.pub, lms_pub_L4_H5_W8, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
-    case WC_LMS_PARM_NONE:
     case WC_LMS_PARM_L1_H15_W2:
     case WC_LMS_PARM_L1_H15_W4:
     case WC_LMS_PARM_L2_H10_W8:
@@ -12124,7 +12134,7 @@ static void bench_xmss_sign_verify(const char * params)
 
     freeRng = 1;
 
-    ret = wc_XmssKey_Init(&key, NULL, INVALID_DEVID);
+    ret = wc_XmssKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         printf("wc_XmssKey_Init failed: %d\n", ret);
         goto exit_xmss_sign_verify;
@@ -12602,7 +12612,8 @@ void bench_slhdsa(int param)
     WC_ALLOC_VAR_EX(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, goto exit);
 
-    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key, (enum SlhDsaParam)param, HEAP_HINT,
+        INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
@@ -12664,7 +12675,8 @@ void bench_slhdsa(int param)
         goto exit;
     }
 
-    ret = wc_SlhDsaKey_Init(key_vfy, (enum SlhDsaParam)param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, (enum SlhDsaParam)param, HEAP_HINT,
+        INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
@@ -12724,41 +12736,102 @@ void bench_slhdsa(int param)
        );
     bench_stats_asym_finish(name, len, "vrfy-msg", 0, count, start, ret);
 
-    /* Pre-hash interface: hash message, then sign the hash. */
-    PRIVATE_KEY_UNLOCK();
-    bench_stats_start(&count, &start);
-    do {
-        sigLen = WC_SLHDSA_MAX_SIG_LEN;
-        ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, msg,
-            (word32)sizeof(msg), WC_HASH_TYPE_SHA256, sig, &sigLen);
-        if (ret != 0) {
-            goto exit;
-        }
-        count++;
-        RECORD_MULTI_VALUE_STATS();
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
-    PRIVATE_KEY_LOCK();
-    bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+#ifndef NO_SHA256
+    /* Pre-hash interface: hash message ONCE outside the timed loop (the
+     * bench measures sign/verify, not the application-side hash), then sign
+     * and verify the digest. SHA-256 path: only built when SHA-256 is
+     * available; HashSLH-DSA still works at runtime with any hashType the
+     * build supports, but the bench needs a compile-time choice. */
+    {
+        byte digest[WC_SHA256_DIGEST_SIZE];
 
-    bench_stats_start(&count, &start);
-    do {
-        ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, msg,
-            (word32)sizeof(msg), WC_HASH_TYPE_SHA256, sig, sigLen);
+        ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
         if (ret != 0) {
             goto exit;
         }
-        count++;
-        RECORD_MULTI_VALUE_STATS();
-    } while (bench_stats_check(start)
+
+        PRIVATE_KEY_UNLOCK();
+        bench_stats_start(&count, &start);
+        do {
+            sigLen = WC_SLHDSA_MAX_SIG_LEN;
+            ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, &sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
+           || runs < minimum_runs
 #endif
-       );
-    bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+           );
+        PRIVATE_KEY_LOCK();
+        bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+
+        bench_stats_start(&count, &start);
+        do {
+            ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+        bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+    }
+#elif defined(WOLFSSL_SHAKE256)
+    /* SHAKE-only build (NO_SHA256): use SHAKE256 prehash bench instead. */
+    {
+        byte digest[WC_SHA3_512_DIGEST_SIZE];
+
+        ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
+            WC_SHA3_512_DIGEST_SIZE);
+        if (ret != 0) {
+            goto exit;
+        }
+
+        PRIVATE_KEY_UNLOCK();
+        bench_stats_start(&count, &start);
+        do {
+            sigLen = WC_SLHDSA_MAX_SIG_LEN;
+            ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, &sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+        PRIVATE_KEY_LOCK();
+        bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+
+        bench_stats_start(&count, &start);
+        do {
+            ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
+                (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, sigLen);
+            if (ret != 0) {
+                goto exit;
+            }
+            count++;
+            RECORD_MULTI_VALUE_STATS();
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+        bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+    }
+#endif /* NO_SHA256 / WOLFSSL_SHAKE256 */
 
 exit:
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
@@ -12983,6 +13056,9 @@ void bench_ecc(int useDeviceID, int curveId)
                                       deviceID)) < 0) {
             goto exit;
         }
+#if defined(WOLFSSL_MICROCHIP_TA100)
+        genKey[i]->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_ALICE);
+#endif
         ret = wc_ecc_make_key_ex(&gRng, keySize, genKey[i], curveId);
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wc_AsyncWait(ret, &genKey[i]->asyncDev, WC_ASYNC_FLAG_NONE);
@@ -12995,6 +13071,9 @@ void bench_ecc(int useDeviceID, int curveId)
         if ((ret = wc_ecc_init_ex(genKey2[i], HEAP_HINT, deviceID)) < 0) {
             goto exit;
         }
+#if defined(WOLFSSL_MICROCHIP_TA100)
+        genKey2[i]->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_BOB);
+#endif
         if ((ret = wc_ecc_make_key_ex(&gRng, keySize, genKey2[i],
                     curveId)) > 0) {
             goto exit;
@@ -13191,7 +13270,10 @@ exit:
     WC_FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    atmel_ecc_free(ATMEL_SLOT_ECDHE_ALICE);
+    atmel_ecc_free(ATMEL_SLOT_ECDHE_BOB);
+#endif
     (void)useDeviceID;
     (void)pending;
     (void)x;
@@ -14215,7 +14297,7 @@ void bench_eccsiKeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+            wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
             ret = wc_MakeEccsiKey(genKey, &gRng);
             wc_FreeEccsiKey(genKey);
             if (ret != 0) {
@@ -14260,7 +14342,7 @@ void bench_eccsiPairGen(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+    wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeEccsiKey(genKey, &gRng);
 
     /* RSK Gen */
@@ -14319,7 +14401,7 @@ void bench_eccsiValidate(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+    wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeEccsiKey(genKey, &gRng);
     (void)wc_MakeEccsiPair(genKey, &gRng, WC_HASH_TYPE_SHA256, id, sizeof(id),
                            ssk, pvt);
@@ -14384,7 +14466,7 @@ void bench_eccsi(void)
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
-    (void)wc_InitEccsiKey(genKey, NULL, INVALID_DEVID);
+    (void)wc_InitEccsiKey(genKey, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeEccsiKey(genKey, &gRng);
     (void)wc_MakeEccsiPair(genKey, &gRng, WC_HASH_TYPE_SHA256, id, sizeof(id),
                            ssk, pvt);
@@ -14475,7 +14557,7 @@ void bench_sakkeKeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+            wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
             ret = wc_MakeSakkeKey(genKey, &gRng);
             if (ret != 0) {
                 printf("wc_MakeSakkeKey failed: %d\n", ret);
@@ -14517,7 +14599,7 @@ void bench_sakkeRskGen(void)
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
 
     rsk = wc_ecc_new_point();
-    wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+    wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
 
     /* RSK Gen */
@@ -14570,7 +14652,7 @@ void bench_sakkeValidate(void)
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
 
     rsk = wc_ecc_new_point();
-    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
     (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
     (void)wc_ValidateSakkeRsk(genKey, id, sizeof(id), rsk, &valid);
@@ -14634,7 +14716,7 @@ void bench_sakke(void)
     XMEMCPY(ssv, ssv_init, sizeof ssv);
 
     rsk = wc_ecc_new_point();
-    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
+    (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, HEAP_HINT, INVALID_DEVID);
     (void)wc_MakeSakkeKey(genKey, &gRng);
     (void)wc_MakeSakkeRsk(genKey, id, sizeof(id), rsk);
     (void)wc_SetSakkeRsk(genKey, rsk, NULL, 0);
@@ -14861,9 +14943,9 @@ void bench_falconKeySign(byte level)
 
     bench_stats_prepare();
 
-    ret = wc_falcon_init(&key);
+    ret = wc_falcon_init_ex(&key, HEAP_HINT, devId);
     if (ret != 0) {
-        printf("wc_falcon_init failed %d\n", ret);
+        printf("wc_falcon_init_ex failed %d\n", ret);
         return;
     }
 

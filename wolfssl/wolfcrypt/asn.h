@@ -70,6 +70,12 @@ that can be serialized and deserialized in a cross-platform way.
 #ifdef WOLFSSL_HAVE_SLHDSA
     #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 #endif
+#ifdef WOLFSSL_HAVE_LMS
+    #include <wolfssl/wolfcrypt/wc_lms.h>
+#endif
+#ifdef WOLFSSL_HAVE_XMSS
+    #include <wolfssl/wolfcrypt/wc_xmss.h>
+#endif
 #ifdef HAVE_FALCON
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
@@ -1542,7 +1548,8 @@ struct SignatureCtx {
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     !defined(NO_DSA) || defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
-    defined(WOLFSSL_HAVE_SLHDSA)
+    defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
+    defined(WOLFSSL_HAVE_XMSS)
     int verify;
 #endif
     union {
@@ -1600,6 +1607,20 @@ struct SignatureCtx {
         SlhDsaKey  slhdsa[1];
         #else
         SlhDsaKey* slhdsa;
+        #endif
+    #endif
+    #ifdef WOLFSSL_HAVE_LMS
+        #ifdef WOLFSSL_NO_MALLOC
+        LmsKey  lms[1];
+        #else
+        LmsKey* lms;
+        #endif
+    #endif
+    #ifdef WOLFSSL_HAVE_XMSS
+        #ifdef WOLFSSL_NO_MALLOC
+        XmssKey  xmss[1];
+        #else
+        XmssKey* xmss;
         #endif
     #endif
     #ifndef WOLFSSL_NO_MALLOC
@@ -1864,13 +1885,15 @@ struct DecodedCert {
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
-    defined(WOLFSSL_HAVE_SLHDSA)
+    defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
+    defined(WOLFSSL_HAVE_XMSS)
     word32  pkCurveOID;           /* Public Key's curve OID */
     #ifdef WOLFSSL_CUSTOM_CURVES
         int  pkCurveSize;         /* Public Key's curve size */
     #endif
 #endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || HAVE_DILITHIUM ||
-        * HAVE_FALCON || WOLFSSL_HAVE_SLHDSA */
+        * HAVE_FALCON || WOLFSSL_HAVE_SLHDSA || WOLFSSL_HAVE_LMS ||
+        * WOLFSSL_HAVE_XMSS */
     const byte* beforeDate;
     int     beforeDateLen;
     const byte* afterDate;
@@ -3177,11 +3200,6 @@ WOLFSSL_TEST_VIS int  wolfssl_local_MatchBaseName(int type, const char* name,
 WOLFSSL_TEST_VIS int  wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
                                                   const byte* constraint,
                                                   int constraintSz);
-#endif
-
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
-WOLFSSL_TEST_VIS int  wolfssl_local_IsValidFQDN(const char* name,
-                                                word32 nameSz);
 #endif
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \

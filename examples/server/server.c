@@ -2848,6 +2848,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(catastrophic, "can't set minimum downgrade version");
     }
 
+#ifdef WOLFSSL_EARLY_DATA
+    if (earlyData)
+        wolfSSL_CTX_set_max_early_data(ctx, 4096);
+#endif
 #ifdef OPENSSL_COMPATIBLE_DEFAULTS
     /* Restore wolfSSL verify defaults */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
@@ -3230,13 +3234,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
     }
 #endif
-
-#ifdef USE_WINDOWS_API
-    if (port == 0) {
-        /* Generate random port for testing */
-        port = GetRandomPort();
-    }
-#endif /* USE_WINDOWS_API */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);

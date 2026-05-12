@@ -1144,7 +1144,7 @@ int test_wolfSSL_X509_bad_altname(void)
         0xf5, 0xe5, 0x09, 0x02, 0x01, 0x03, 0xa3, 0x61, 0x30, 0x5f, 0x30, 0x0c,
         0x06, 0x03, 0x55, 0x1d, 0x13, 0x01, 0x01, 0xff, 0x04, 0x02, 0x30, 0x00,
         0x30, 0x0f, 0x06, 0x03, 0x55, 0x1d, 0x11, 0x04, 0x08, 0x30, 0x06, 0x82,
-        0x04, 0x61, 0x2a, 0x00, 0x2a, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e,
+        0x04, 0x61, 0x2a, 0x62, 0x2a, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e,
         0x04, 0x16, 0x04, 0x14, 0x92, 0x6a, 0x1e, 0x52, 0x3a, 0x1a, 0x57, 0x9f,
         0xc9, 0x82, 0x9a, 0xce, 0xc8, 0xc0, 0xa9, 0x51, 0x9d, 0x2f, 0xc7, 0x72,
         0x30, 0x1f, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80,
@@ -1183,8 +1183,7 @@ int test_wolfSSL_X509_bad_altname(void)
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         malformed_alt_name_cert, certSize, SSL_FILETYPE_ASN1));
 
-    /* malformed_alt_name_cert has a malformed alternative
-     * name of "a*\0*". Ensure that it does not match "aaaaa" */
+    /* SAN "a*b*" must not match "aaaaa" under any wildcard flag. */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name, nameLen,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
 
@@ -1663,7 +1662,8 @@ int test_wolfssl_local_IsValidFQDN(void) {
                         test_cases[i].is_FQDN);
         if (! EXPECT_SUCCESS()) {
             fprintf(stderr, "wolfssl_local_IsValidFQDN() wrong result for "
-                    "case %d \"%s\"\n", i, test_cases[i].str);
+                    "case %d \"%s\"\n", i,
+                    test_cases[i].str ? test_cases[i].str : "(null)");
             break;
         }
     }
@@ -1703,6 +1703,94 @@ int test_wolfssl_local_IsValidFQDN(void) {
         ExpectIntEQ(wolfssl_local_IsValidFQDN("example.com", 0), 0);
     }
 
+#endif /* !NO_ASN && !WOLFCRYPT_ONLY && !NO_CERTS */
+    return EXPECT_RESULT();
+}
+
+/* Verify that MatchDomainName() refuses to expand wildcards across IDNA
+ * A-labels (xn-- prefix) per RFC 6125 sec. 6.4.3 / RFC 9525 sec. 6.3.
+ *
+ * MatchDomainName() is exposed for testing via the visibility mechanism
+ * declared in wolfssl/internal.h. */
+int test_wolfSSL_MatchDomainName_idn(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+    static const struct {
+        const char* pattern;
+        const char* host;
+        unsigned int flags;
+        int expected; /* 1 = match, 0 = no match */
+        const char* note;
+    } cases[] = {
+        /* Partial wildcard whose literal prefix overlaps "xn--" must NOT
+         * match an A-label hostname. */
+        { "x*.example.com",      "xn--rger-koa.example.com", 0, 0,
+          "partial wildcard vs A-label" },
+        /* Wildcard embedded inside an A-label pattern must NOT match. */
+        { "xn--*.example.com",   "xn--rger-koa.example.com", 0, 0,
+          "wildcard inside A-label pattern" },
+        /* Full left-most wildcard MUST NOT match an A-label hostname
+         * (RFC 9525 sec. 6.3 strengthens RFC 6125 SHOULD NOT to MUST NOT). */
+        { "*.example.com",       "xn--rger-koa.example.com", 0, 0,
+          "full wildcard vs A-label hostname" },
+        /* A-label appearing in an inner label still disables wildcard
+         * matching against the entire reference identifier. */
+        { "*.example.com",       "foo.xn--bar.example.com",  0, 0,
+          "wildcard with A-label in inner label" },
+        /* Case-insensitive A-label detection: "XN--" is also an A-label. */
+        { "x*.example.com",      "XN--rger-koa.example.com", 0, 0,
+          "uppercase A-label prefix" },
+        /* Control: full wildcard SHOULD continue to match plain ASCII. */
+        { "*.example.com",       "foo.example.com",          0, 1,
+          "wildcard matches non-IDN" },
+        /* Control: exact A-label match (no wildcard in pattern) must work. */
+        { "xn--rger-koa.example.com", "xn--rger-koa.example.com", 0, 1,
+          "exact A-label match" },
+        /* Control: a label that merely begins with 'x' (not 'xn--') is not
+         * an A-label and must still wildcard-match. */
+        { "*.example.com",       "xyz.example.com",          0, 1,
+          "non-A-label x-prefix" },
+        /* Control: partial wildcard against a non-A-label still works. */
+        { "x*.example.com",      "xyz.example.com",          0, 1,
+          "partial wildcard non-IDN" },
+
+        /* Trailing-dot normalization: absolute-form FQDN ("example.com.")
+         * must match the same FQDN with or without the trailing dot, on
+         * either side of the comparison. RFC 1035 / RFC 6125. */
+        { "example.com",         "example.com.",             0, 1,
+          "trailing dot on host" },
+        { "example.com.",        "example.com",              0, 1,
+          "trailing dot on pattern" },
+        { "example.com.",        "example.com.",             0, 1,
+          "trailing dot on both" },
+        { "*.example.com",       "foo.example.com.",         0, 1,
+          "trailing dot on host with wildcard pattern" },
+        /* Trailing dot must not cause an A-label gate to misfire. */
+        { "*.example.com",       "xn--rger-koa.example.com.", 0, 0,
+          "trailing dot on A-label host" },
+        /* Same trailing-dot normalization under WOLFSSL_LEFT_MOST_WILDCARD_ONLY. */
+        { "*.example.com",       "foo.example.com.",
+          WOLFSSL_LEFT_MOST_WILDCARD_ONLY, 1,
+          "trailing dot, leftWildcardOnly" },
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        int got = MatchDomainName(
+                    cases[i].pattern, (int)XSTRLEN(cases[i].pattern),
+                    cases[i].host,    (word32)XSTRLEN(cases[i].host),
+                    cases[i].flags);
+        ExpectIntEQ(got, cases[i].expected);
+        if (! EXPECT_SUCCESS()) {
+            fprintf(stderr,
+                "MatchDomainName(\"%s\", \"%s\", flags=0x%x) = %d, "
+                "expected %d (%s)\n",
+                cases[i].pattern, cases[i].host, cases[i].flags,
+                got, cases[i].expected, cases[i].note);
+            break;
+        }
+    }
 #endif /* !NO_ASN && !WOLFCRYPT_ONLY && !NO_CERTS */
     return EXPECT_RESULT();
 }

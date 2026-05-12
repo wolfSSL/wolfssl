@@ -347,6 +347,17 @@ int test_wc_ed25519_export(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* Reject export when private key not set. */
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed25519_export_private_only(&key, priv, &privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_export_private(&key, priv, &privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
 #ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
@@ -378,6 +389,24 @@ int test_wc_ed25519_export(void)
     ExpectIntEQ(wc_ed25519_export_private_only(&key, priv, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     PRIVATE_KEY_LOCK();
+
+#ifdef HAVE_ED25519_KEY_IMPORT
+    /* Public-only key: re-init and import just the public part; private
+     * exports must still fail with privKeySet == 0. */
+    wc_ed25519_free(&key);
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_import_public(pub, pubSz, &key), 0);
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed25519_export_private_only(&key, priv, &privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_export_private(&key, priv, &privSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed25519_free(&key);
@@ -648,4 +677,51 @@ int test_wc_Ed25519PrivateKeyToDer(void)
 #endif
     return EXPECT_RESULT();
 } /* End test_wc_Ed25519PrivateKeyToDer*/
+
+/*
+ * RFC 5958: version=v2 (1) when pub key is bundled, v1 (0) for private only. */
+int test_wc_Ed25519KeyToDer_oneasymkey_version(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN)
+    ed25519_key key;
+    ed25519_key key2;
+    WC_RNG rng;
+    byte ref[256];   /* reference DER (bundled, then private only) */
+    byte rt[256];    /* re-export target for memcmp */
+    int  refSz = 0;
+    int  rtSz = 0;
+    word32 idx;
+
+    XMEMSET(&key,  0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng,  0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_init(&key2), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+
+    /* Bundled (v=1) */
+    ExpectIntGT(refSz = wc_Ed25519KeyToDer(&key, ref, (word32)sizeof(ref)), 0);
+    ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
+    idx = 0;
+    ExpectIntEQ(wc_Ed25519PrivateKeyDecode(ref, &idx, &key2, (word32)refSz),
+        0);
+    ExpectIntEQ(rtSz = wc_Ed25519KeyToDer(&key2, rt, (word32)sizeof(rt)),
+        refSz);
+    ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
+
+    /* Priv-only (v=0) */
+    ExpectIntGT(refSz = wc_Ed25519PrivateKeyToDer(&key, ref,
+        (word32)sizeof(ref)), 0);
+    ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
+
+    wc_ed25519_free(&key);
+    wc_ed25519_free(&key2);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
 

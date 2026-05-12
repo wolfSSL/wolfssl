@@ -956,10 +956,17 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* Initialize Dilithium key. */
     ret = wc_dilithium_init(key);
     if (ret == 0) {
-        /* Decode as a Dilithium private key. */
+        /* Decode as a Dilithium private key. The FIPS wrapper for
+         * wc_dilithium_import_private gates on the per-thread
+         * privateKeyReadEnable flag, which is unset by default in any
+         * thread that hasn't called PRIVATE_KEY_UNLOCK(). Without the
+         * bracket, loading a Dilithium/ML-DSA private key from a
+         * worker thread fails with FIPS_PRIVATE_KEY_LOCKED_E. */
         idx = 0;
+        PRIVATE_KEY_UNLOCK();
         ret = wc_Dilithium_PrivateKeyDecode(der->buffer, &idx, key,
             der->length);
+        PRIVATE_KEY_LOCK();
         if (ret == 0) {
             ret = dilithium_get_oid_sum(key, &keyFormatTemp);
             if (ret == 0) {
@@ -5513,10 +5520,13 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
             ret = 1;
         }
     #else
-        /* OpenSSL's implementation of this API does not require loading the
-         * system CA cert directory.  Allow skipping this without erroring out.
-         */
-        ret = 1;
+        /* No source available: SSL_CERT_DIR/SSL_CERT_FILE not set and
+         * WOLFSSL_SYS_CA_CERTS not compiled in. Returning success would be
+         * fail-open since no trust anchors were loaded. */
+        WOLFSSL_MSG("wolfSSL_CTX_set_default_verify_paths: no CA source "
+                    "available (build without WOLFSSL_SYS_CA_CERTS and no "
+                    "SSL_CERT_DIR/SSL_CERT_FILE env)");
+        ret = WOLFSSL_FAILURE;
     #endif
     }
 

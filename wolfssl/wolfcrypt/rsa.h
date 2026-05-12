@@ -44,13 +44,35 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 #if defined(WC_RSA_NONBLOCK)
-    /* enable support for fast math based non-blocking exptmod */
-    /* this splits the RSA function into many smaller operations */
-    #ifndef USE_FAST_MATH
-        #error RSA non-blocking mode only supported using fast math
+    /* Non-blocking RSA splits the operation into many smaller chunks so a
+     * bare-metal system loop stays responsive. Two backends are supported:
+     *   - TFM fastmath (fp_exptmod_nb), the original implementation.
+     *   - SP small (sp_RsaPublic_<n>_nb / sp_RsaPrivate_<n>_nb) when SP
+     *     non-blocking is enabled. SP requires RSA_LOW_MEM (CRT not
+     *     supported in non-block mode) and the small / no-malloc /
+     *     non-blocking trio that drives the chunked state machine. */
+    #if !defined(USE_FAST_MATH) && \
+        !(defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_SP_NONBLOCK) && \
+          defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP))
+        #error RSA non-blocking mode requires fast math or SP non-blocking
     #endif
-    #ifndef TFM_TIMING_RESISTANT
+    #if defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)
       #error RSA non-blocking mode only supported with timing resistance enabled
+    #endif
+    #if defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_SP_NONBLOCK)
+        #if !defined(WOLFSSL_SP_SMALL)
+            #error SP non-blocking RSA requires WOLFSSL_SP_SMALL
+        #endif
+        #if !defined(WOLFSSL_SP_NO_MALLOC)
+            #error SP non-blocking RSA requires WOLFSSL_SP_NO_MALLOC
+        #endif
+        #if defined(WOLFSSL_SP_FAST_MODEXP)
+            #error SP non-blocking RSA is incompatible with WOLFSSL_SP_FAST_MODEXP
+        #endif
+        #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+            !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
+            #error SP non-blocking RSA requires RSA_LOW_MEM (CRT path is unsupported)
+        #endif
     #endif
 
     /* RSA bounds check is not supported with RSA non-blocking mode */
@@ -141,6 +163,9 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 
 #if FIPS_VERSION3_GE(6,0,0)
     #define WC_RSA_FIPS_GEN_MIN 2048
@@ -192,8 +217,14 @@ enum {
 
 #ifdef WC_RSA_NONBLOCK
 typedef struct RsaNb {
-    exptModNb_t exptmod; /* non-block expt_mod */
+#ifdef USE_FAST_MATH
+    exptModNb_t exptmod; /* TFM non-block expt_mod state */
     mp_int tmp;
+#endif
+#if defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
+    sp_rsa_ctx_t sp_ctx; /* SP non-block wrapper state */
+#endif
 } RsaNb;
 #endif
 
@@ -219,6 +250,11 @@ struct RsaKey {
 #ifdef WOLFSSL_SE050
     word32 keyId;
     byte   keyIdSet;
+#endif
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    uint16_t  rKeyH;        /* private key handle */
+    uint16_t  uKeyH;        /* public key handle */
+    byte uKey[WOLFSSL_TA_KEY_TYPE_RSA_SIZE]; /* public key */
 #endif
 #ifdef WOLF_CRYPTO_CB
     void* devCtx;
@@ -414,7 +450,10 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #endif
 #ifdef WC_RSA_NONBLOCK
     WOLFSSL_API int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb);
-    #ifdef WC_RSA_NONBLOCK_TIME
+    /* maxBlockInst budget lives on the TFM exptModNb_t; only available
+     * with USE_FAST_MATH. SP-only WC_RSA_NONBLOCK builds do not expose
+     * this entry point. */
+    #if defined(WC_RSA_NONBLOCK_TIME) && defined(USE_FAST_MATH)
     WOLFSSL_API int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs,
                                           word32 cpuMHz);
     #endif
@@ -509,4 +548,3 @@ WOLFSSL_API int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
 
 #endif /* NO_RSA */
 #endif /* WOLF_CRYPT_RSA_H */
-

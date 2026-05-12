@@ -2094,6 +2094,51 @@ static const unsigned char bench_dilithium_level5_pubkey[] = {
 
 ";
 
+# ML-DSA test key material encoded per the IETF LAMPS WG profile:
+# SubjectPublicKeyInfo for public keys, PKCS#8 PrivateKeyInfo for
+# private keys, using the NIST id-ml-dsa-N OIDs.
+print OUT_FILE "#if defined(HAVE_DILITHIUM)\n\n";
+
+for my $L ( [44,"WOLFSSL_NO_ML_DSA_44"],
+            [65,"WOLFSSL_NO_ML_DSA_65"],
+            [87,"WOLFSSL_NO_ML_DSA_87"] ) {
+    my ($n, $noLevel) = @$L;
+
+    print OUT_FILE "#if !defined($noLevel)\n\n";
+
+    print OUT_FILE "#ifndef WOLFSSL_DILITHIUM_NO_VERIFY\n";
+    print OUT_FILE "/* ./certs/mldsa/mldsa${n}_pub-spki.der */\n";
+    print OUT_FILE "static const unsigned char mldsa${n}_pub_spki[] =\n{\n";
+    file_to_hex("./certs/mldsa/mldsa${n}_pub-spki.der");
+    print OUT_FILE "};\n";
+    print OUT_FILE "#define sizeof_mldsa${n}_pub_spki (sizeof(mldsa${n}_pub_spki))\n";
+    print OUT_FILE "#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */\n\n";
+
+    print OUT_FILE "#ifndef WOLFSSL_DILITHIUM_NO_SIGN\n";
+    print OUT_FILE "/* ./certs/mldsa/mldsa${n}_priv-only.der */\n";
+    print OUT_FILE "static const unsigned char mldsa${n}_priv_only[] =\n{\n";
+    file_to_hex("./certs/mldsa/mldsa${n}_priv-only.der");
+    print OUT_FILE "};\n";
+    print OUT_FILE "#define sizeof_mldsa${n}_priv_only (sizeof(mldsa${n}_priv_only))\n";
+
+    print OUT_FILE "/* ./certs/mldsa/mldsa${n}_seed-priv.der */\n";
+    print OUT_FILE "static const unsigned char mldsa${n}_seed_priv[] =\n{\n";
+    file_to_hex("./certs/mldsa/mldsa${n}_seed-priv.der");
+    print OUT_FILE "};\n";
+    print OUT_FILE "#define sizeof_mldsa${n}_seed_priv (sizeof(mldsa${n}_seed_priv))\n";
+
+    print OUT_FILE "/* ./certs/mldsa/mldsa${n}_seed-only.der */\n";
+    print OUT_FILE "static const unsigned char mldsa${n}_seed_only[] =\n{\n";
+    file_to_hex("./certs/mldsa/mldsa${n}_seed-only.der");
+    print OUT_FILE "};\n";
+    print OUT_FILE "#define sizeof_mldsa${n}_seed_only (sizeof(mldsa${n}_seed_only))\n";
+    print OUT_FILE "#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */\n\n";
+
+    print OUT_FILE "#endif /* !$noLevel */\n\n";
+}
+
+print OUT_FILE "#endif /* HAVE_DILITHIUM */\n\n";
+
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
 for (my $i = 0; $i < $num_ecc; $i++) {

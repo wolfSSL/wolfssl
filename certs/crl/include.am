@@ -27,7 +27,9 @@ EXTRA_DIST += \
 		certs/crl/extra-crls/large_crlnum.pem \
 		certs/crl/extra-crls/large_crlnum2.pem \
 		certs/crl/extra-crls/crlnum_57oct.pem \
-		certs/crl/extra-crls/crlnum_64oct.pem
+		certs/crl/extra-crls/crlnum_64oct.pem \
+		certs/crl/extra-crls/claim-root.pem \
+		certs/crl/extra-crls/crl_critical_entry.pem
 
 # Intermediate cert CRL's
 EXTRA_DIST += \

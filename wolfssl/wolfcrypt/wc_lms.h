@@ -112,8 +112,10 @@
 #define WC_LMS_I_LEN    16
 
 /* Private key write and read callbacks. */
-typedef int (*wc_lms_write_private_key_cb)(const byte * priv, word32 privSz, void *context);
-typedef int (*wc_lms_read_private_key_cb)(byte * priv, word32 privSz, void *context);
+typedef int (*wc_lms_write_private_key_cb)(const byte* priv, word32 privSz,
+    void* context);
+typedef int (*wc_lms_read_private_key_cb)(byte* priv, word32 privSz,
+    void* context);
 
 /* Return codes returned by private key callbacks. */
 enum wc_LmsRc {
@@ -157,7 +159,6 @@ enum wc_LmsRc {
  * will be large. */
 enum wc_LmsParm {
 #ifndef WOLFSSL_NO_LMS_SHA256_256
-    WC_LMS_PARM_NONE = 0,
     WC_LMS_PARM_L1_H5_W1 = 1,
     WC_LMS_PARM_L1_H5_W2 = 2,
     WC_LMS_PARM_L1_H5_W4 = 3,
@@ -322,21 +323,21 @@ enum wc_LmsState {
 #endif
 
 /* Length of I in bytes. */
-#define LMS_I_LEN                   16
+#define LMS_I_LEN                   16U
 /* Length of L in bytes. */
-#define LMS_L_LEN                   4
+#define LMS_L_LEN                   4U
 /* Length of Q for a level. */
-#define LMS_Q_LEN                   4
+#define LMS_Q_LEN                   4U
 /* Length of P in bytes. */
-#define LMS_P_LEN                   2
+#define LMS_P_LEN                   2U
 /* Length of W in bytes. */
-#define LMS_W_LEN                   1
+#define LMS_W_LEN                   1U
 
 /* Length of numeric types when encoding. */
-#define LMS_TYPE_LEN                4
+#define LMS_TYPE_LEN                4U
 
 /* Size of digest output when truncatint SHA-256 to 192 bits. */
-#define WC_SHA256_192_DIGEST_SIZE   24
+#define WC_SHA256_192_DIGEST_SIZE   24U
 
 /* Maximum size of a node hash. */
 #define LMS_MAX_NODE_LEN            WC_SHA256_DIGEST_SIZE
@@ -383,33 +384,34 @@ enum wc_LmsState {
 #define LMS_LEAF_CACHE              (1 << LMS_CACHE_BITS)
 
 /* Maximum number of levels of trees described in private key. */
-#define HSS_MAX_LEVELS              8
+#define HSS_MAX_LEVELS              8U
 /* Length of full Q in bytes. Q from all levels combined. */
-#define HSS_Q_LEN                   8
+#define HSS_Q_LEN                   8U
 
 /* Compressed parameter set length in bytes. */
-#define HSS_COMPRESS_PARAM_SET_LEN  1
+#define HSS_COMPRESS_PARAM_SET_LEN  1U
 /* Total compressed parameter set length for private key in bytes. */
 #define HSS_PRIV_KEY_PARAM_SET_LEN  \
     (HSS_COMPRESS_PARAM_SET_LEN * HSS_MAX_LEVELS)
 
 /* Private key length for one level. */
 #define LMS_PRIV_LEN(hLen)          \
-    (LMS_Q_LEN + (hLen) + LMS_I_LEN)
+    (LMS_Q_LEN + (word32)(hLen) + LMS_I_LEN)
 /* Public key length in signature. */
 #define LMS_PUBKEY_LEN(hLen)        \
-    (LMS_TYPE_LEN + LMS_TYPE_LEN + LMS_I_LEN + (hLen))
+    (LMS_TYPE_LEN + LMS_TYPE_LEN + LMS_I_LEN + (word32)(hLen))
 
 /* LMS signature data length. */
 #define LMS_SIG_LEN(h, p, hLen)                                                \
-    (LMS_Q_LEN + LMS_TYPE_LEN + (hLen) + (p) * (hLen) + LMS_TYPE_LEN +         \
-     (h) * (hLen))
+    (LMS_Q_LEN + LMS_TYPE_LEN + (word32)(hLen) +                               \
+     (word32)(p) * (word32)(hLen) + LMS_TYPE_LEN +                             \
+     (word32)(h) * (word32)(hLen))
 
 /* Length of public key. */
 #define HSS_PUBLIC_KEY_LEN(hLen)        (LMS_L_LEN + LMS_PUBKEY_LEN(hLen))
 /* Length of private key. */
 #define HSS_PRIVATE_KEY_LEN(hLen)   \
-    (HSS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN + (hLen) + LMS_I_LEN)
+    (HSS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN + (word32)(hLen) + LMS_I_LEN)
 /* Maximum public key length - length is constant for all parameters. */
 #define HSS_MAX_PRIVATE_KEY_LEN     HSS_PRIVATE_KEY_LEN(LMS_MAX_NODE_LEN)
 /* Maximum private key length - length is constant for all parameters. */
@@ -431,19 +433,19 @@ enum wc_LmsState {
  * HSSPrivKey.priv
  */
 #define LMS_PRIV_KEY_LEN(l, hLen)           \
-    ((l) * LMS_PRIV_LEN(hLen))
+    ((word32)(l) * LMS_PRIV_LEN(hLen))
 
 /* Stack of nodes. */
 #define LMS_STACK_CACHE_LEN(h, hLen)        \
-     (((h) + 1) * (hLen))
+     (((word32)(h) + 1U) * (word32)(hLen))
 
 /* Root cache length. */
 #define LMS_ROOT_CACHE_LEN(rl, hLen)        \
-    (((1 << (rl)) - 1) * (hLen))
+    (((1U << (rl)) - 1U) * (word32)(hLen))
 
 /* Leaf cache length. */
 #define LMS_LEAF_CACHE_LEN(cb, hLen)        \
-    ((1 << (cb)) * (hLen))
+    ((1U << (cb)) * (word32)(hLen))
 
 /* Length of LMS private key state.
  *
@@ -454,39 +456,43 @@ enum wc_LmsState {
  *   cache.leaf + cache.index + cache.offset
  */
 #define LMS_PRIV_STATE_LEN(h, rl, cb, hLen)     \
-    (((h) * (hLen)) +                           \
-     LMS_STACK_CACHE_LEN(h, hLen) + 4 +         \
+    (((word32)(h) * (word32)(hLen)) +           \
+     LMS_STACK_CACHE_LEN(h, hLen) + 4U +        \
      LMS_ROOT_CACHE_LEN(rl, hLen) +             \
-     LMS_LEAF_CACHE_LEN(cb, hLen) + 4 + 4)
+     LMS_LEAF_CACHE_LEN(cb, hLen) + 4U + 4U)
 
 #ifndef WOLFSSL_WC_LMS_SMALL
     /* Private key data state for all levels. */
     #define LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb, hLen)  \
-         ((l) * LMS_PRIV_STATE_LEN(h, rl, cb, hLen))
+         ((word32)(l) * LMS_PRIV_STATE_LEN(h, rl, cb, hLen))
 #else
     /* Private key data state for all levels. */
-    #define LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb, hLen)  0
+    #define LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb, hLen)  0U
 #endif
 
 #ifndef WOLFSSL_LMS_NO_SIGN_SMOOTHING
     /* Extra private key data for smoothing. */
-    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb, hLen)         \
-        (LMS_PRIV_KEY_LEN(l, hLen) +                        \
-         ((l) - 1) * LMS_PRIV_STATE_LEN(h, rl, cb, hLen))
+    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb, hLen)             \
+        (LMS_PRIV_KEY_LEN(l, hLen) +                            \
+         ((word32)(l) - 1U) * LMS_PRIV_STATE_LEN(h, rl, cb, hLen))
 #else
     /* Extra private key data for smoothing. */
-    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb, hLen)     0
+    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb, hLen)     0U
 #endif
 
+/* Length of one LM-OTS y[]: the C randomizer plus p hashes. */
+#define LMOTS_Y_LEN(p, hLen)                                        \
+    ((word32)(hLen) + (word32)(p) * (word32)(hLen))
+
 #ifndef WOLFSSL_LMS_NO_SIG_CACHE
-    #define LMS_PRIV_Y_TREE_LEN(p, hLen)                            \
-        ((hLen) + (p) * (hLen))
+    /* Length of one LM-OTS y[] when stored in the per-level y cache. */
+    #define LMS_PRIV_Y_TREE_LEN(p, hLen)    LMOTS_Y_LEN(p, hLen)
     /* Length of the y data cached in private key data. */
     #define LMS_PRIV_Y_LEN(l, p, hLen)                              \
-        (((l) - 1) * ((hLen) + (p) * (hLen)))
+        (((word32)(l) - 1U) * LMS_PRIV_Y_TREE_LEN(p, hLen))
 #else
     /* Length of the y data cached in private key data. */
-    #define LMS_PRIV_Y_LEN(l, p, hLen)      0
+    #define LMS_PRIV_Y_LEN(l, p, hLen)      0U
 #endif
 
 #ifndef WOLFSSL_WC_LMS_SMALL
@@ -612,10 +618,10 @@ typedef struct LmsParams {
     word16 lmsType;
     /* LMOTS type. */
     word16 lmOtsType;
-    /* Length of LM-OTS signature. */
-    word16 sig_len;
     /* Length of seed. */
     word16 hash_len;
+    /* Length of LM-OTS signature. */
+    word32 sig_len;
 #ifndef WOLFSSL_WC_LMS_SMALL
     /* Number of root levels of interior nodes to store. */
     word8 rootLevels;
@@ -736,6 +742,13 @@ typedef struct HssPrivKey {
 #endif
 } HssPrivKey;
 
+#ifndef LMS_MAX_ID_LEN
+#define LMS_MAX_ID_LEN              32
+#endif
+#ifndef LMS_MAX_LABEL_LEN
+#define LMS_MAX_LABEL_LEN           32
+#endif
+
 typedef struct LmsKey {
     /* Public key. */
     ALIGN16 byte pub[HSS_PUBLIC_KEY_LEN(LMS_MAX_NODE_LEN)];
@@ -764,6 +777,16 @@ typedef struct LmsKey {
 #ifdef WOLF_CRYPTO_CB
     /* Device Identifier. */
     int devId;
+    /* Per-device opaque context, populated by the callback. */
+    void* devCtx;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* Optional device-side key identifier. */
+    byte id[LMS_MAX_ID_LEN];
+    int  idLen;
+    /* Optional device-side key label. */
+    char label[LMS_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 } LmsKey;
 
@@ -771,42 +794,55 @@ typedef struct LmsKey {
     extern "C" {
 #endif
 
-WOLFSSL_API int  wc_LmsKey_Init(LmsKey * key, void * heap, int devId);
-WOLFSSL_API int  wc_LmsKey_SetLmsParm(LmsKey * key, enum wc_LmsParm lmsParm);
-WOLFSSL_API int  wc_LmsKey_SetParameters(LmsKey * key, int levels,
+WOLFSSL_API int  wc_LmsKey_Init(LmsKey* key, void* heap, int devId);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API int  wc_LmsKey_InitId(LmsKey* key, const unsigned char* id,
+    int len, void* heap, int devId);
+WOLFSSL_API int  wc_LmsKey_InitLabel(LmsKey* key, const char* label,
+    void* heap, int devId);
+#endif
+WOLFSSL_API int  wc_LmsKey_SetLmsParm(LmsKey* key, enum wc_LmsParm lmsParm);
+WOLFSSL_API int  wc_LmsKey_SetParameters(LmsKey* key, int levels,
     int height, int winternitz);
-WOLFSSL_API int  wc_LmsKey_GetParameters(const LmsKey * key, int * levels,
-    int * height, int * winternitz);
+WOLFSSL_API int  wc_LmsKey_SetParameters_ex(LmsKey* key, int levels,
+    int height, int winternitz, int hash);
+WOLFSSL_API int  wc_LmsKey_GetParameters(const LmsKey* key, int* levels,
+    int* height, int* winternitz);
+WOLFSSL_API int  wc_LmsKey_GetParameters_ex(const LmsKey* key, int* levels,
+    int* height, int* winternitz, int* hash);
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
-WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey * key,
+WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey* key,
     wc_lms_write_private_key_cb write_cb);
-WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey * key,
+WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey* key,
     wc_lms_read_private_key_cb read_cb);
-WOLFSSL_API int  wc_LmsKey_SetContext(LmsKey * key, void * context);
-WOLFSSL_API int  wc_LmsKey_MakeKey(LmsKey * key, WC_RNG * rng);
-WOLFSSL_API int  wc_LmsKey_Reload(LmsKey * key);
-WOLFSSL_API int  wc_LmsKey_GetPrivLen(const LmsKey * key, word32 * len);
-WOLFSSL_API int  wc_LmsKey_Sign(LmsKey * key, byte * sig, word32 * sigSz,
-    const byte * msg, int msgSz);
-WOLFSSL_API int  wc_LmsKey_SigsLeft(LmsKey * key);
+WOLFSSL_API int  wc_LmsKey_SetContext(LmsKey* key, void* context);
+WOLFSSL_API int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
+WOLFSSL_API int  wc_LmsKey_Reload(LmsKey* key);
+WOLFSSL_API int  wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len);
+WOLFSSL_API int  wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz,
+    const byte* msg, int msgSz);
+WOLFSSL_API int  wc_LmsKey_SigsLeft(LmsKey* key);
 #endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */
-WOLFSSL_API void wc_LmsKey_Free(LmsKey * key);
-WOLFSSL_API int  wc_LmsKey_GetSigLen(const LmsKey * key, word32 * len);
-WOLFSSL_API int  wc_LmsKey_GetPubLen(const LmsKey * key, word32 * len);
-WOLFSSL_API int  wc_LmsKey_ExportPub(LmsKey * keyDst, const LmsKey * keySrc);
-WOLFSSL_API int  wc_LmsKey_ExportPubRaw(const LmsKey * key, byte * out,
-    word32 * outLen);
-WOLFSSL_API int  wc_LmsKey_ImportPubRaw(LmsKey * key, const byte * in,
+WOLFSSL_API void wc_LmsKey_Free(LmsKey* key);
+WOLFSSL_API int  wc_LmsKey_GetSigLen(const LmsKey* key, word32* len);
+WOLFSSL_API int  wc_LmsKey_GetPubLen(const LmsKey* key, word32* len);
+WOLFSSL_API int  wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc);
+WOLFSSL_API int  wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
+    void* heap, int devId);
+WOLFSSL_API int  wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out,
+    word32* outLen);
+WOLFSSL_API int  wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in,
     word32 inLen);
-WOLFSSL_API int  wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
-    const byte * msg, int msgSz);
-WOLFSSL_API const char * wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
-WOLFSSL_API const char * wc_LmsKey_RcToStr(enum wc_LmsRc lmsRc);
+WOLFSSL_API int  wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
+    const byte* msg, int msgSz);
+WOLFSSL_API const char* wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
 
-WOLFSSL_API int wc_LmsKey_GetKid(LmsKey * key, const byte ** kid,
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+WOLFSSL_API int wc_LmsKey_GetKid(LmsKey* key, const byte** kid,
     word32* kidSz);
-WOLFSSL_API const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv,
+WOLFSSL_API const byte* wc_LmsKey_GetKidFromPrivRaw(const byte* priv,
     word32 privSz);
+#endif
 
 int wc_hss_make_key(LmsState* state, WC_RNG* rng, byte* priv_raw,
     HssPrivKey* priv_key, byte* priv_data, byte* pub);

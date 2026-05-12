@@ -857,11 +857,11 @@ WOLFSSL_API int wc_Ed448PublicKeyDecode(
     const byte* input, word32* inOutIdx, ed448_key* key, word32 inSz);
 #endif
 #ifdef HAVE_ED448_KEY_EXPORT
-WOLFSSL_API int wc_Ed448KeyToDer(ed448_key* key, byte* output, word32 inLen);
+WOLFSSL_API int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 inLen);
 WOLFSSL_API int wc_Ed448PrivateKeyToDer(
-    ed448_key* key, byte* output, word32 inLen);
+    const ed448_key* key, byte* output, word32 inLen);
 WOLFSSL_API int wc_Ed448PublicKeyToDer(
-    ed448_key* key, byte* output, word32 inLen, int withAlg);
+    const ed448_key* key, byte* output, word32 inLen, int withAlg);
 #endif
 #endif /* HAVE_ED448 */
 

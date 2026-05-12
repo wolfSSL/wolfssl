@@ -1,0 +1,12 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+         certs/xmss/bc_xmss_sha2_10_256_root.der \
+         certs/xmss/bc_xmss_sha2_16_256_root.der \
+         certs/xmss/bc_xmssmt_sha2_20_2_256_root.der \
+         certs/xmss/bc_xmssmt_sha2_20_4_256_root.der \
+         certs/xmss/bc_xmssmt_sha2_40_8_256_root.der \
+         certs/xmss/bc_xmss_chain_ca.der \
+         certs/xmss/bc_xmss_chain_leaf.der

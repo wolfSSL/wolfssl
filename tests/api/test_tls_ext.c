@@ -982,3 +982,54 @@ int test_TLSX_SNI_GetSize_overflow(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* ECH is only valid in ClientHello, EncryptedExtensions, or
+ * HelloRetryRequest per RFC 9460. Feeding it in a Finished message must
+ * be rejected with EXT_NOT_ALLOWED rather than being silently accepted. */
+int test_TLSX_ECH_msg_type_validation(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* type = TLSX_ECH (0xfe0d), size = 0x0000 */
+    const byte extBytes[] = { 0xfe, 0x0d, 0x00, 0x00 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           finished, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* use_srtp is only valid in ClientHello/ServerHello (pre-TLS 1.3) or
+ * ClientHello/EncryptedExtensions (TLS 1.3) per RFC 5764. Feeding it in a
+ * Finished message must be rejected with EXT_NOT_ALLOWED. */
+int test_TLSX_SRTP_msg_type_validation(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SRTP) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* type = TLSX_USE_SRTP (0x000e), size = 0x0000 */
+    const byte extBytes[] = { 0x00, 0x0e, 0x00, 0x00 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           finished, NULL),
+                WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

@@ -477,6 +477,11 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
     return 0;
 }
 
+/* Mutex to prevent multiple callers requesting entropy operations at the
+ * same time.
+ */
+static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mutex);
+
 /* Generate raw entropy for performing assessment.
  *
  * @param [out] raw  Buffer to hold raw entropy data.
@@ -488,19 +493,41 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
 int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
 {
     int ret = 0;
+    int locked = 0;
+
+#ifdef HAVE_FIPS
+    if (!entropy_memuse_initialized) {
+        ret = Entropy_Init();
+    }
+#endif
+
+    /* Lock the mutex as collection uses globals. */
+    if (ret == 0) {
+        if (wc_LockMutex(&entropy_mutex) != 0) {
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            locked = 1;
+        }
+    }
 
 #ifdef ENTROPY_MEMUSE_THREADED
-    /* Start the counter thread as a proxy for time counter. */
-    ret = Entropy_StartThread();
-    if (ret == 0)
+    if (ret == 0) {
+        /* Start the counter thread as a proxy for time counter. */
+        ret = Entropy_StartThread();
+    }
 #endif
-    {
+    if (ret == 0) {
         ret = Entropy_GetNoise(raw, cnt);
     }
 #ifdef ENTROPY_MEMUSE_THREADED
     /* Stop the counter thread to avoid thrashing the system. */
     Entropy_StopThread();
 #endif
+
+    if (locked) {
+        wc_UnLockMutex(&entropy_mutex);
+    }
 
     return ret;
 }
@@ -765,11 +792,6 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
 
     return ret;
 }
-
-/* Mutex to prevent multiple callers requesting entropy operations at the
- * same time.
- */
-static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mutex);
 
 /* Get entropy of specified strength.
  *

@@ -56,6 +56,9 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifdef WOLFSSL_HAVE_SP_RSA
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
+#if defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
+#include <wolfssl/wolfcrypt/port/nxp/casper_port.h>
+#endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
@@ -729,7 +732,9 @@ int wc_FreeRsaKey(RsaKey* key)
 #if defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     wc_fspsm_RsaKeyFree(key);
 #endif
-
+#ifdef WOLFSSL_MICROCHIP_TA100
+    wc_Microchip_rsa_free(key);
+#endif
     return ret;
 }
 
@@ -1398,6 +1403,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     /* generate random seed */
     if ((ret = wc_RNG_GenerateBlock(rng, seed, hLen)) != 0) {
             WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            ForceZero(seed, hLen);
             WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
@@ -1408,6 +1414,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     if (dbMask == NULL) {
 
             XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            ForceZero(seed, hLen);
             XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
         return MEMORY_E;
     }
@@ -1421,6 +1428,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     if (ret != 0) {
             WC_FREE_VAR_EX(dbMask, heap, DYNAMIC_TYPE_RSA);
             WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            ForceZero(seed, hLen);
             WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
@@ -1435,6 +1443,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     if ((ret = RsaMGF(mgf, pkcsBlock + hLen + 1, pkcsBlockLen - hLen - 1,
                                            pkcsBlock + 1, hLen, heap)) != 0) {
             WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            ForceZero(seed, hLen);
             WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
@@ -2280,12 +2289,69 @@ static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key)
 {
     int    ret = 0;
+#ifdef USE_FAST_MATH
     word32 keyLen, len;
+#endif
+    /* SP non-blocking RSA wrappers depend on sp_<N>_mod_exp_<W>_nb,
+     * which the SP generator only emits when (!RSA_PUBLIC_ONLY ||
+     * HAVE_SP_DH). Match that gate here so the dispatch is omitted when
+     * those symbols are not available. */
+#if defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_HAVE_SP_DH))
+    int bits;
+#endif
 
     if (key == NULL || key->nb == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_HAVE_SP_DH))
+    bits = mp_count_bits(&key->n);
+#ifndef WOLFSSL_SP_NO_2048
+    if (bits == 2048) {
+        if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+            return sp_RsaPublic_2048_nb(&key->nb->sp_ctx, in, inLen,
+                       &key->e, &key->n, out, outLen);
+        }
+    #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+        (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+        return sp_RsaPrivate_2048_nb(&key->nb->sp_ctx, in, inLen,
+                   &key->d, &key->n, out, outLen);
+    #endif
+    }
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+    if (bits == 3072) {
+        if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+            return sp_RsaPublic_3072_nb(&key->nb->sp_ctx, in, inLen,
+                       &key->e, &key->n, out, outLen);
+        }
+    #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+        (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+        return sp_RsaPrivate_3072_nb(&key->nb->sp_ctx, in, inLen,
+                   &key->d, &key->n, out, outLen);
+    #endif
+    }
+#endif
+#ifdef WOLFSSL_SP_4096
+    if (bits == 4096) {
+        if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+            return sp_RsaPublic_4096_nb(&key->nb->sp_ctx, in, inLen,
+                       &key->e, &key->n, out, outLen);
+        }
+    #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+        (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+        return sp_RsaPrivate_4096_nb(&key->nb->sp_ctx, in, inLen,
+                   &key->d, &key->n, out, outLen);
+    #endif
+    }
+#endif
+#endif /* SP nonblock RSA */
+
+#ifdef USE_FAST_MATH
     if (key->nb->exptmod.state == TFM_EXPTMOD_NB_INIT) {
         if (mp_init(&key->nb->tmp) != MP_OKAY) {
             ret = MP_INIT_E;
@@ -2349,6 +2415,18 @@ static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
     }
 
     mp_clear(&key->nb->tmp);
+#else
+    /* No non-blocking backend available for this build. The SP non-block
+     * dispatch above only matches enabled key sizes; if we reach this
+     * point the key is not 2048/3072/4096 (or SP RSA itself isn't built)
+     * and TFM fastmath isn't compiled in either. */
+    (void)in;
+    (void)inLen;
+    (void)out;
+    (void)outLen;
+    (void)type;
+    ret = NOT_COMPILED_IN;
+#endif /* USE_FAST_MATH */
 
     return ret;
 }
@@ -2432,6 +2510,8 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
             }
 
+            if (d != NULL)
+                ForceZero(d, dSz);
             XFREE(d, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         }
     #endif
@@ -2667,6 +2747,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
     return ret;
 }
+
 #else
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
 #ifdef WOLFSSL_HAVE_SP_RSA
@@ -3083,6 +3164,15 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         return MP_VAL;
     }
 
+#if defined(WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD)
+    if (type == RSA_PUBLIC_DECRYPT || type == RSA_PUBLIC_ENCRYPT) {
+        ret = casper_rsa_public_exptmod(in, inLen, out, outLen, key);
+        if (ret == 0)
+            return MP_OKAY;
+        /* else fall through for software fallback */
+    }
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_RSA
     ret = RsaFunction_SP(in, inLen, out, outLen, type, key, rng);
     if (ret != WC_NO_ERR_TRACE(WC_KEY_SIZE_E))
@@ -3133,6 +3223,18 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
         return WC_PENDING_E;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT_SW */
+
+#ifdef WC_RSA_NONBLOCK
+    /* When a non-blocking context is attached and the SP nonblock backend
+     * is available, drive the chunked state machine here. wolfAsync_DoSw
+     * (line "if (ret == FP_WOULDBLOCK) ret = WC_PENDING_E;" at the bottom
+     * of the SW switch in wolfcrypt/src/async.c, FP_WOULDBLOCK aliases
+     * MP_WOULDBLOCK) translates per-yield MP_WOULDBLOCK into WC_PENDING_E
+     * so the TLS / async event loop can drive the operation to completion. */
+    if (key->nb != NULL) {
+        return wc_RsaFunctionNonBlock(in, inLen, out, outLen, type, key);
+    }
+#endif
 
     switch (type) {
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -3499,12 +3601,20 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                         key->n.raw.len > 0) {
+        /* wc_RsaFunctionAsync dispatches to the SP nonblock state machine
+         * in its compute path when key->nb is attached - wolfAsync_DoSw
+         * (in wolfcrypt/src/async.c) translates per-yield FP_WOULDBLOCK
+         * (alias of MP_WOULDBLOCK) into WC_PENDING_E so the TLS / async
+         * event loop can drive completion. */
         ret = wc_RsaFunctionAsync(in, inLen, out, outLen, type, key, rng);
     }
     else
 #endif
 #ifdef WC_RSA_NONBLOCK
     if (key->nb) {
+        /* Direct (non-async) nonblock dispatch - the caller (e.g. wolfcrypt
+         * test) drives the loop on MP_WOULDBLOCK directly. Reached when no
+         * async marker is set on the key. */
         ret = wc_RsaFunctionNonBlock(in, inLen, out, outLen, type, key);
     }
     else
@@ -3637,6 +3747,24 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                          pad_value == RSA_BLOCK_TYPE_1) {
             return cc310_RsaSSL_Sign(in, inLen, out, outLen, key,
                                   cc310_hashModeRSA(hash, 0));
+        }
+    #elif defined(WOLFSSL_MICROCHIP_TA100)
+        if (rsa_type == RSA_PUBLIC_ENCRYPT &&
+                                            pad_value == RSA_BLOCK_TYPE_2) {
+            if (key->uKeyH != 0) {
+                return wc_Microchip_rsa_encrypt(in, inLen, out, outLen, key);
+            }
+            return WC_HW_E;
+        }
+        else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
+                                         pad_value == RSA_BLOCK_TYPE_1) {
+            if (key->rKeyH != 0) {
+                if (pad_type != WC_RSA_PSS_PAD) {
+                    return WC_HW_E;
+                }
+                return wc_Microchip_rsa_sign(in, inLen, out, outLen, key);
+            }
+            return WC_HW_E;
         }
     #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
@@ -3805,6 +3933,19 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             return cc310_RsaSSL_Verify(in, inLen, out, key,
                                        cc310_hashModeRSA(hash, 0));
         }
+    #elif defined(WOLFSSL_MICROCHIP_TA100)
+        if (rsa_type == RSA_PRIVATE_DECRYPT &&
+                                            pad_value == RSA_BLOCK_TYPE_2) {
+            if (key->rKeyH != 0) {
+                return wc_Microchip_rsa_decrypt(in, inLen, out, outLen, key);
+            }
+            return WC_HW_E;
+        }
+        /* Note: RSA_PUBLIC_DECRYPT (verify) is intentionally not intercepted
+         * here. wc_Microchip_rsa_verify takes a digest as input, not a raw
+         * signature blob; the proper TA100 short-circuit lives in the
+         * wc_RsaPSS_CheckPadding / wc_RsaPSS_VerifyCheck path which has the
+         * digest available. */
     #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
             ret = se050_rsa_private_decrypt(in, inLen, out, outLen, key,
@@ -4506,6 +4647,17 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                            enum wc_HashType hash, int mgf, RsaKey* key)
 {
     int ret = 0, verify, saltLen, hLen, bits = 0;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    if (key != NULL && key->uKeyH != 0) {
+        int verified = 0;
+        ret = wc_Microchip_rsa_verify(digest, digestLen, in, inLen, key,
+                                      &verified);
+        if (ret != 0) {
+            return ret;
+        }
+        return verified ? (int)inLen : SIG_VERIFY_E;
+    }
+#endif
 
     hLen = wc_HashGetDigestSize(hash);
     if (hLen < 0)
@@ -4555,6 +4707,17 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
                           RsaKey* key)
 {
     int ret = 0, verify, saltLen, hLen, bits = 0;
+#ifdef WOLFSSL_MICROCHIP_TA100
+    if (key != NULL && key->uKeyH != 0) {
+        int verified = 0;
+        ret = wc_Microchip_rsa_verify(digest, digestLen, (byte*)in, inLen,
+                                      key, &verified);
+        if (ret != 0) {
+            return ret;
+        }
+        return verified ? (int)inLen : SIG_VERIFY_E;
+    }
+#endif
 
     hLen = wc_HashGetDigestSize(hash);
     if (hLen < 0)
@@ -4661,6 +4824,12 @@ int wc_RsaEncryptSize(const RsaKey* key)
     }
 
     ret = mp_unsigned_bin_size(&key->n);
+
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    if (ret == 0 && (key->rKeyH != 0 || key->uKeyH != 0)) {
+        ret = 2048 / 8;
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0 && key->devId != INVALID_DEVID) {
@@ -5235,7 +5404,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #ifndef WC_NO_RNG
 #if !defined(WOLFSSL_CRYPTOCELL) && \
     (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int *p = NULL;
     mp_int *q = NULL;
@@ -5277,6 +5447,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
 #if defined(WOLFSSL_CRYPTOCELL)
     err = cc310_RSA_GenerateKeyPair(key, size, e);
+    goto out;
+#elif defined(WOLFSSL_MICROCHIP_TA100)
+    err = wc_Microchip_rsa_create_key(key, size, e);
     goto out;
 #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
     err = se050_rsa_create_key(key, size, e);
@@ -5684,7 +5857,7 @@ int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb)
 
     return 0;
 }
-#ifdef WC_RSA_NONBLOCK_TIME
+#if defined(WC_RSA_NONBLOCK_TIME) && defined(USE_FAST_MATH)
 int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs, word32 cpuMHz)
 {
     if (key == NULL || key->nb == NULL) {
@@ -5696,7 +5869,7 @@ int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs, word32 cpuMHz)
 
     return 0;
 }
-#endif /* WC_RSA_NONBLOCK_TIME */
+#endif /* WC_RSA_NONBLOCK_TIME && USE_FAST_MATH */
 #endif /* WC_RSA_NONBLOCK */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY

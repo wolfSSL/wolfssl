@@ -650,8 +650,14 @@ static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
             /* @TODO extract dir name info from DNS_entry */
             break;
 
-#ifdef WOLFSSL_RID_ALT_NAME
         case WOLFSSL_GEN_RID:
+            /* registeredID is parsed into altNames unconditionally so
+             * ConfirmNameConstraints can enforce RID name constraints
+             * (RFC 5280 Sec. 4.2.1.10). The body uses only the raw OID
+             * bytes carried in dns->name/dns->len and constructs a
+             * proper ASN1_OBJECT, so this case is independent of
+             * WOLFSSL_RID_ALT_NAME (which only gates the human-readable
+             * ridString form). */
             gn->type = dns->type;
             /* wolfSSL_GENERAL_NAME_new() mallocs this by default */
             wolfSSL_ASN1_STRING_free(gn->d.ia5);
@@ -681,7 +687,6 @@ static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
             gn->d.registeredID->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
             gn->d.registeredID->grp = oidCertExtType;
             break;
-#endif
 
         case WOLFSSL_GEN_X400:
             /* Unsupported: fall through */
@@ -2533,8 +2538,12 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                             gn->d.iPAddress->type = WOLFSSL_V_ASN1_OCTET_STRING;
                             break;
 
-                    #ifdef WOLFSSL_RID_ALT_NAME
                         case ASN_RID_TYPE:
+                            /* Always handle registeredID: the union
+                             * member d.registeredID is populated from
+                             * raw OID body bytes. WOLFSSL_RID_ALT_NAME
+                             * only gates the human-readable ridString,
+                             * which this path does not need. */
                             gn->type = dns->type;
                             /* Free ia5 before using union for registeredID */
                             wolfSSL_ASN1_STRING_free(gn->d.ia5);
@@ -2567,7 +2576,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                                 WOLFSSL_ASN1_DYNAMIC_DATA;
                             gn->d.registeredID->grp = oidCertExtType;
                             break;
-                    #endif /* WOLFSSL_RID_ALT_NAME */
 
                         default:
                             gn->type = dns->type;
@@ -3087,15 +3095,25 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
         int ptonRet;
 
         /* Check if this is an ip4 address */
+    #ifdef FREESCALE_MQX
+        ptonRet = XINET_PTON(WOLFSSL_IP4, name, ip4, sizeof(ip4));
+        if (ptonRet == RTCS_OK) {
+    #else
         ptonRet = XINET_PTON(WOLFSSL_IP4, name, ip4);
         if (ptonRet == 1) {
+    #endif
             return wolfSSL_X509_add_altname_ex(x509, (const char*)ip4, 4,
                 type);
         }
 
         /* Check for ip6 */
+    #ifdef FREESCALE_MQX
+        ptonRet = XINET_PTON(WOLFSSL_IP6, name, ip6, sizeof(ip6));
+        if (ptonRet == RTCS_OK) {
+    #else
         ptonRet = XINET_PTON(WOLFSSL_IP6, name, ip6);
         if (ptonRet == 1) {
+    #endif
             return wolfSSL_X509_add_altname_ex(x509, (const char*)ip6, 16,
                 type);
         }
@@ -4262,12 +4280,48 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
         return NULL;
     }
 
+    /* In default builds iPAddress entries hold raw 4/16 octet payloads
+     * and registeredID entries hold raw OID body bytes (no human-readable
+     * ipString/ridString), so returning them as a C string would truncate
+     * at any embedded NUL byte. Such entries are still parsed into
+     * altNames for name-constraint enforcement; skip them here so
+     * string-iteration callers see the same set of entries as before.
+     *
+     * With WOLFSSL_MULTICIRCULATE_ALTNAMELIST, a list consisting only of
+     * skipped entries collapses to "no entries" on the first pass and
+     * resets to head on the next call; the cycle shape matches the
+     * pre-fix behavior where such entries were never parsed. */
+#if !defined(WOLFSSL_IP_ALT_NAME) || !defined(WOLFSSL_RID_ALT_NAME)
+    while (cert->altNamesNext != NULL) {
+        int skip = 0;
+#ifndef WOLFSSL_IP_ALT_NAME
+        if (cert->altNamesNext->type == ASN_IP_TYPE)
+            skip = 1;
+#endif
+#ifndef WOLFSSL_RID_ALT_NAME
+        if (cert->altNamesNext->type == ASN_RID_TYPE)
+            skip = 1;
+#endif
+        if (!skip)
+            break;
+        cert->altNamesNext = cert->altNamesNext->next;
+    }
+    if (cert->altNamesNext == NULL)
+        return NULL;
+#endif /* !WOLFSSL_IP_ALT_NAME || !WOLFSSL_RID_ALT_NAME */
+
     /* unsafe cast required for ABI compatibility. */
     ret = (char *)(wc_ptr_t)cert->altNamesNext->name;
 #ifdef WOLFSSL_IP_ALT_NAME
     /* return the IP address as a string */
     if (cert->altNamesNext->type == ASN_IP_TYPE) {
         ret = cert->altNamesNext->ipString;
+    }
+#endif
+#ifdef WOLFSSL_RID_ALT_NAME
+    /* return the registeredID as a string */
+    if (cert->altNamesNext->type == ASN_RID_TYPE) {
+        ret = cert->altNamesNext->ridString;
     }
 #endif
     cert->altNamesNext = cert->altNamesNext->next;
@@ -5523,12 +5577,20 @@ static int MatchIpName(const char* name, int nameSz, WOLFSSL_GENERAL_NAME* gn)
     /* IPv4 constraint 8 bytes (IP + mask),
      * IPv6 constraint 32 bytes (IP + mask) */
     if (constraintLen == 8) {
+    #ifdef FREESCALE_MQX
+        if (XINET_PTON(WOLFSSL_IP4, ipStr, ipBytes, sizeof(ipBytes)) == RTCS_OK) {
+    #else
         if (XINET_PTON(WOLFSSL_IP4, ipStr, ipBytes) == 1) {
+    #endif
             ipLen = 4;
         }
     }
     else if (constraintLen == 32) {
+    #ifdef FREESCALE_MQX
+        if (XINET_PTON(WOLFSSL_IP6, ipStr, ipBytes, sizeof(ipBytes)) == RTCS_OK) {
+    #else
         if (XINET_PTON(WOLFSSL_IP6, ipStr, ipBytes) == 1) {
+    #endif
             ipLen = 16;
         }
     }
@@ -6346,6 +6408,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             else if (x509->pubKeyOID == DSAk) {
                 key->type = WC_EVP_PKEY_DSA;
             }
+        #ifdef HAVE_DILITHIUM
+            else if (x509->pubKeyOID == ML_DSA_LEVEL2k ||
+                     x509->pubKeyOID == ML_DSA_LEVEL3k ||
+                     x509->pubKeyOID == ML_DSA_LEVEL5k) {
+                key->type = WC_EVP_PKEY_DILITHIUM;
+            }
+        #endif
             else {
                 key->type = WC_EVP_PKEY_EC;
             }
@@ -6884,6 +6953,14 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
             len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:%s",
                     entry->ipString);
         }
+    #else
+        else if (entry->type == ASN_IP_TYPE) {
+            /* iPAddress entries are now always parsed into altNames so
+             * name constraints can be enforced. Without the
+             * human-readable ipString field, emit a fixed label so this
+             * print path does not fail. */
+            len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:<unavailable>");
+        }
     #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
         else if (entry->type == ASN_RFC822_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "email:%s",
@@ -6896,12 +6973,20 @@ static int X509_print_name_entry(WOLFSSL_BIO* bio,
             len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
                 entry->name);
         }
-    #if defined(OPENSSL_ALL)
+    #ifdef WOLFSSL_RID_ALT_NAME
         else if (entry->type == ASN_RID_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:%s",
                 entry->ridString);
         }
-    #endif
+    #else
+        else if (entry->type == ASN_RID_TYPE) {
+            /* registeredID entries are now always parsed into altNames
+             * so name constraints can be enforced. Without the
+             * human-readable ridString field, emit a fixed label so
+             * this print path does not fail. */
+            len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:<unavailable>");
+        }
+    #endif /* WOLFSSL_RID_ALT_NAME */
         else if (entry->type == ASN_OTHER_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH,
                 "othername <unsupported>");
@@ -16339,6 +16424,9 @@ int wolfSSL_X509_set_subject_key_id_ex(WOLFSSL_X509* x509)
 #endif /* !NO_SHA */
 
 /* Set Authority Key Identifier from raw bytes.
+ * The bytes passed in are the keyIdentifier OCTET STRING contents only,
+ * they must not be a pre-encoded AuthorityKeyIdentifier SEQUENCE.
+ * The cert encoder wraps them in SEQUENCE { [0] keyIdentifier } at sign time.
  *
  * x509   - Certificate to modify
  * akid   - Raw AKID bytes
@@ -16349,27 +16437,38 @@ int wolfSSL_X509_set_subject_key_id_ex(WOLFSSL_X509* x509)
 int wolfSSL_X509_set_authority_key_id(WOLFSSL_X509* x509,
     const unsigned char* akid, int akidSz)
 {
+    byte* newAkid = NULL;
+
     WOLFSSL_ENTER("wolfSSL_X509_set_authority_key_id");
 
     if (x509 == NULL || akid == NULL || akidSz <= 0) {
         return WOLFSSL_FAILURE;
     }
 
-    /* Allocate/reallocate memory for authKeyIdSrc */
-    if (x509->authKeyIdSrc == NULL || (int)x509->authKeyIdSrcSz < akidSz) {
-        if (x509->authKeyIdSrc != NULL) {
-            XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        }
-        x509->authKeyIdSrc = (byte*)XMALLOC((word32)akidSz, x509->heap,
-                                             DYNAMIC_TYPE_X509_EXT);
-        if (x509->authKeyIdSrc == NULL) {
-            return WOLFSSL_FAILURE;
-        }
+    /* Allocate new buffer up front so failure leaves prior state intact */
+    newAkid = (byte*)XMALLOC((word32)akidSz, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    if (newAkid == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    XMEMCPY(newAkid, akid, (word32)akidSz);
+
+    /* Free any prior storage. authKeyIdSrc may be populated from a prior
+     * parse cert operation. authKeyId aliases inside that buffer, so
+     * authKeyIdSrc must be freed first to avoid a dangling authKeyId. */
+    if (x509->authKeyIdSrc != NULL) {
+        XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->authKeyIdSrc = NULL;
+        x509->authKeyIdSrcSz = 0;
+    }
+    else if (x509->authKeyId != NULL) {
+        XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
     }
 
-    XMEMCPY(x509->authKeyIdSrc, akid, (word32)akidSz);
-    x509->authKeyIdSrcSz = (word32)akidSz;
-    x509->authKeyId = x509->authKeyIdSrc;
+    /* Store newAkid as authKeyId only, do not populate authKeyIdSrc.
+     * When authKeyIdSrc is non-NULL, the encoder writes those bytes without
+     * SEQUENCE/[0] wrapper. authKeyIdSrc must be NULL here so encoder does
+     * wrap them. */
+    x509->authKeyId = newAkid;
     x509->authKeyIdSz = (word32)akidSz;
     x509->authKeyIdSet = 1;
 
