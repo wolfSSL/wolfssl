@@ -1824,7 +1824,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     if (serverIp.ip4 == XINADDR_NONE) {
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, address, serverIp.ip6,
-                       sizeof(serverIp.ip4)) == 1)
+                       sizeof(serverIp.ip6)) == 1)
     #elif defined(FREESCALE_MQX)
         if (XINET_PTON(AF_INET6, address, serverIp.ip6,
                        sizeof(serverIp.ip6)) == RTCS_OK)
@@ -2459,11 +2459,15 @@ static void FreeSetupKeysArgs(WOLFSSL* ssl, void* pArgs)
         args->key->type = WC_PK_TYPE_NONE;
         args->key->initPriv = 0; args->key->initPub = 0;
 
+        /* Scrub the raw DH private exponent (and any other key material
+         * embedded in the union) before release. wc_FreeDhKey above only
+         * clears the mp_int DhKey, not the separate privKey byte array.
+         * Use ForceZero (rather than XMEMSET) so the wipe cannot be
+         * elided by the optimizer. */
+        ForceZero(args->key, sizeof(*args->key));
 #ifdef WOLFSSL_ASYNC_CRYPT
         XFREE(args->key, NULL, DYNAMIC_TYPE_SNIFFER_KEY);
         args->key = NULL;
-#else
-        XMEMSET(args->key, 0, sizeof(args->key));
 #endif
     }
 
@@ -7676,7 +7680,10 @@ static int addKeyLogSnifferServerHelper(const char* address,
     if (serverIp.ip4 == XINADDR_NONE) {
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, address, serverIp.ip6,
-                       sizeof(serverIp.ip4)) == 1)
+                       sizeof(serverIp.ip6)) == 1)
+    #elif defined(FREESCALE_MQX)
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6,
+                       sizeof(serverIp.ip6)) == RTCS_OK)
     #else
         if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1)
     #endif
@@ -7801,7 +7808,7 @@ int ssl_RemoveSession(const char* clientIp, int clientPort,
     if (clientAddr.ip4 == XINADDR_NONE) {
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
-                       sizeof(clientAddr.ip4)) == 1)
+                       sizeof(clientAddr.ip6)) == 1)
     #elif defined(FREESCALE_MQX)
         if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
                        sizeof(clientAddr.ip6)) == RTCS_OK)
@@ -7823,10 +7830,10 @@ int ssl_RemoveSession(const char* clientIp, int clientPort,
     if (serverAddr.ip4 == XINADDR_NONE) {
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6,
-                       sizeof(serverAddr.ip4)) == 1)
+                       sizeof(serverAddr.ip6)) == 1)
     #elif defined(FREESCALE_MQX)
-        if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
-                       sizeof(clientAddr.ip6)) == RTCS_OK)
+        if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6,
+                       sizeof(serverAddr.ip6)) == RTCS_OK)
     #else
         if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6) == 1)
     #endif

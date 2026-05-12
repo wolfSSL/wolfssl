@@ -205,7 +205,7 @@
             extern "C" {
         #endif
     #elif defined(MICROCHIP_PIC32)
-        #include <sys/errno.h>
+        #include <errno.h>
     #elif defined(HAVE_NETX)
         #include "nx_api.h"
         #include "errno.h"

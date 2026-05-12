@@ -21,10 +21,16 @@
 
 #include <tests/unit.h>
 
+#include <tests/api/api.h>
 #include <tests/api/test_asn.h>
 
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rsa.h>
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
 
 #if defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(HAVE_ED25519)
 static int test_SetAsymKeyDer_once(byte* privKey, word32 privKeySz, byte* pubKey,
@@ -55,6 +61,9 @@ int test_SetAsymKeyDer(void)
 #if defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(HAVE_ED25519)
     /* We can't access the keyEd25519Oid variable, so declare it instead */
     byte algId[] = {43, 101, 112};
+    /* RFC 5958: version is v1 (0) for private only, v2 (1) when public key
+     * bundled. Conditions 1-5 are private only, 6-8 include pub key and
+     * mutate version[0] = 0x1 before building trueDer. */
     byte version[] = {0x0};
     byte keyPat = 0xcc;
 
@@ -286,6 +295,7 @@ int test_SetAsymKeyDer(void)
     privKeySz = 32;
     pubKeySz = 32;
     trueDerSz = 82;
+    version[0] = 0x1; /* publicKey present (v2) */
 
     /* SEQ */
     trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
@@ -328,6 +338,7 @@ int test_SetAsymKeyDer(void)
     privKeySz = 32;
     pubKeySz = 128;
     trueDerSz = 180;
+    version[0] = 0x1; /* publicKey present (v2) */
 
     /* SEQ */
     trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
@@ -372,6 +383,7 @@ int test_SetAsymKeyDer(void)
     privKeySz = 32;
     pubKeySz = 256;
     trueDerSz = 310;
+    version[0] = 0x1; /* publicKey present (v2) */
 
     /* SEQ */
     trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
@@ -411,6 +423,155 @@ int test_SetAsymKeyDer(void)
 
     return EXPECT_RESULT();
 
+}
+
+/* RFC 5958 leniency: parser must accept all four variants:
+ *   {v=0,v=1} x {publicKey absent, present}. */
+int test_DecodeAsymKey_lenient_versions(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN)
+    ed25519_key key;
+    ed25519_key parsed;
+    WC_RNG rng;
+    byte bundled[256];   /* v=1 + publicKey */
+    byte privOnly[256];  /* v=0, no publicKey */
+    byte tmp[256];
+    int  bundledSz = 0;
+    int  privOnlySz = 0;
+    word32 idx;
+
+    XMEMSET(&key,    0, sizeof(key));
+    XMEMSET(&parsed, 0, sizeof(parsed));
+    XMEMSET(&rng,    0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+
+    ExpectIntGT(bundledSz = wc_Ed25519KeyToDer(&key, bundled,
+        (word32)sizeof(bundled)), 0);
+    ExpectIntGT(privOnlySz = wc_Ed25519PrivateKeyToDer(&key, privOnly,
+        (word32)sizeof(privOnly)), 0);
+
+    if (EXPECT_SUCCESS() &&
+        ((bundledSz  > 0) && ((size_t)bundledSz  <= sizeof(bundled)) &&
+         (privOnlySz > 0) && ((size_t)privOnlySz <= sizeof(privOnly)))) {
+
+        /* v=1 + publicKey */
+        XMEMCPY(tmp, bundled, (size_t)bundledSz);
+        XMEMSET(&parsed, 0, sizeof(parsed));
+        ExpectIntEQ(wc_ed25519_init(&parsed), 0);
+        idx = 0;
+        ExpectIntEQ(wc_Ed25519PrivateKeyDecode(tmp, &idx, &parsed,
+            (word32)bundledSz), 0);
+        wc_ed25519_free(&parsed);
+
+        /* v=0 + publicKey: patch version byte, [1] publicKey field present. */
+        XMEMCPY(tmp, bundled, (size_t)bundledSz);
+        ExpectIntGT(test_pkcs8_patch_version_byte(tmp, (word32)bundledSz, 0),
+            0);
+        XMEMSET(&parsed, 0, sizeof(parsed));
+        ExpectIntEQ(wc_ed25519_init(&parsed), 0);
+        idx = 0;
+        ExpectIntEQ(wc_Ed25519PrivateKeyDecode(tmp, &idx, &parsed,
+            (word32)bundledSz), 0);
+        wc_ed25519_free(&parsed);
+
+        /* v=0, no publicKey */
+        XMEMCPY(tmp, privOnly, (size_t)privOnlySz);
+        XMEMSET(&parsed, 0, sizeof(parsed));
+        ExpectIntEQ(wc_ed25519_init(&parsed), 0);
+        idx = 0;
+        ExpectIntEQ(wc_Ed25519PrivateKeyDecode(tmp, &idx, &parsed,
+            (word32)privOnlySz), 0);
+        wc_ed25519_free(&parsed);
+
+        /* v=1, no publicKey */
+        XMEMCPY(tmp, privOnly, (size_t)privOnlySz);
+        ExpectIntGT(test_pkcs8_patch_version_byte(tmp, (word32)privOnlySz, 1),
+            0);
+        XMEMSET(&parsed, 0, sizeof(parsed));
+        ExpectIntEQ(wc_ed25519_init(&parsed), 0);
+        idx = 0;
+        ExpectIntEQ(wc_Ed25519PrivateKeyDecode(tmp, &idx, &parsed,
+            (word32)privOnlySz), 0);
+        wc_ed25519_free(&parsed);
+    }
+
+    wc_ed25519_free(&key);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_DecodeAsymKey_negative(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(WOLFSSL_KEY_GEN)
+    ed25519_key key;
+    ed25519_key parsed;
+    WC_RNG rng;
+    byte good[256];
+    byte tmp[256];
+    int  goodSz = 0;
+    word32 idx;
+
+    XMEMSET(&key,    0, sizeof(key));
+    XMEMSET(&parsed, 0, sizeof(parsed));
+    XMEMSET(&rng,    0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    ExpectIntGT(goodSz = wc_Ed25519KeyToDer(&key, good,
+        (word32)sizeof(good)), 0);
+
+    if (EXPECT_SUCCESS() &&
+        (goodSz > 0 && (size_t)goodSz <= sizeof(good))) {
+
+        /* Truncated buffer */
+        XMEMCPY(tmp, good, (size_t)goodSz);
+        ExpectIntEQ(wc_ed25519_init(&parsed), 0);
+        idx = 0;
+        ExpectIntLT(wc_Ed25519PrivateKeyDecode(tmp, &idx, &parsed,
+            (word32)(goodSz - 1)), 0);
+        wc_ed25519_free(&parsed);
+
+        /* Outer length too big. Patch low-order length byte (long form: bump
+         * the last byte of the multi-byte length encoding). */
+        XMEMCPY(tmp, good, (size_t)goodSz);
+        if ((good[1] & 0x80) == 0) {
+            tmp[1] = (byte)(good[1] + 1);
+        }
+        else {
+            word32 nBytes = (word32)(good[1] & 0x7F);
+            tmp[1 + nBytes] = (byte)(good[1 + nBytes] + 1);
+        }
+        XMEMSET(&parsed, 0, sizeof(parsed));
+        ExpectIntEQ(wc_ed25519_init(&parsed), 0);
+        idx = 0;
+        ExpectIntLT(wc_Ed25519PrivateKeyDecode(tmp, &idx, &parsed,
+            (word32)goodSz), 0);
+        wc_ed25519_free(&parsed);
+
+        /* Outer tag not SEQUENCE */
+        XMEMCPY(tmp, good, (size_t)goodSz);
+        tmp[0] = 0x02;
+        XMEMSET(&parsed, 0, sizeof(parsed));
+        ExpectIntEQ(wc_ed25519_init(&parsed), 0);
+        idx = 0;
+        ExpectIntLT(wc_Ed25519PrivateKeyDecode(tmp, &idx, &parsed,
+            (word32)goodSz), 0);
+        wc_ed25519_free(&parsed);
+    }
+
+    wc_ed25519_free(&key);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
 }
 
 #ifndef NO_ASN
@@ -969,7 +1130,7 @@ int test_DecodeAltNames_length_underflow(void)
         0x06, 0x03, 0x55, 0x1d, 0x13, 0x01, 0x01, 0xff, 0x04, 0x02, 0x30, 0x00,
         /* SAN extension: correct SEQUENCE length 0x06 */
         0x30, 0x0f, 0x06, 0x03, 0x55, 0x1d, 0x11, 0x04, 0x08, 0x30, 0x06, 0x82,
-        0x04, 0x61, 0x2a, 0x00, 0x2a, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e,
+        0x04, 0x61, 0x2a, 0x62, 0x2a, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e,
         0x04, 0x16, 0x04, 0x14, 0x92, 0x6a, 0x1e, 0x52, 0x3a, 0x1a, 0x57, 0x9f,
         0xc9, 0x82, 0x9a, 0xce, 0xc8, 0xc0, 0xa9, 0x51, 0x9d, 0x2f, 0xc7, 0x72,
         0x30, 0x1f, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80,
@@ -1025,7 +1186,94 @@ int test_DecodeAltNames_length_underflow(void)
         WC_NO_ERR_TRACE(ASN_PARSE_E));
     wc_FreeDecodedCert(&cert);
 
+    /* NUL in dNSName SAN must be rejected per RFC 5280 4.2.1.6. */
+    XMEMCPY(bad_san_cert, good_san_cert, sizeof(good_san_cert));
+    bad_san_cert[SAN_SEQ_LEN_OFFSET + 5] = 0x00;
+
+    wc_InitDecodedCert(&cert, bad_san_cert, (word32)sizeof(bad_san_cert),
+        NULL);
+    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_FreeDecodedCert(&cert);
+
 #endif /* !NO_CERTS && !NO_RSA && !NO_ASN */
+    return EXPECT_RESULT();
+}
+
+int test_SerialNumber0_RootCA(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_PEM) && defined(WOLFSSL_PEM_TO_DER)
+    /* Test that root CA certificates with serial number 0 are accepted,
+     * while non-root certificates with serial 0 are rejected (issue #8615) */
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* rootSerial0File = "./certs/test-serial0/root_serial0.pem";
+    const char* selfSignedNonCASerial0File =
+        "./certs/test-serial0/selfsigned_nonca_serial0.pem";
+
+    /* Test 1: Root CA with serial 0 should load successfully */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootSerial0File, NULL),
+                WOLFSSL_SUCCESS);
+
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+    defined(OPENSSL_EXTRA)
+    {
+        const char* eeSerial0File = "./certs/test-serial0/ee_serial0.pem";
+        const char* eeNormalFile = "./certs/test-serial0/ee_normal.pem";
+
+        /* Test 2: End-entity cert with serial 0 should be rejected during
+         * verify */
+        ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeSerial0File,
+                    WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+        /* Test 3: Normal end-entity cert signed by root CA with serial 0
+         * should verify successfully */
+        ExpectIntEQ(wolfSSL_CertManagerVerify(cm, eeNormalFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+#endif
+
+    if (cm != NULL) {
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    /* Test 4: Self-signed non-CA certificate with serial 0 should be rejected */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, selfSignedNonCASerial0File, NULL),
+                WOLFSSL_SUCCESS);
+
+    if (cm != NULL) {
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    /* Test 5: Intermediate CA (CA:TRUE but issuer != subject) with serial 0
+     * must be rejected when loaded as CA_TYPE. Exercises the selfSigned
+     * half of the ParseCertRelative exemption predicate. */
+    {
+        const char* intermediateSerial0File =
+            "./certs/test-serial0/intermediate_serial0.pem";
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, intermediateSerial0File,
+                    NULL), WOLFSSL_SUCCESS);
+        if (cm != NULL) {
+            wolfSSL_CertManagerFree(cm);
+            cm = NULL;
+        }
+    }
+#endif /* !WOLFSSL_NO_ASN_STRICT && !WOLFSSL_PYTHON &&
+          !WOLFSSL_ASN_ALLOW_0_SERIAL &&
+          !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+#endif /* !NO_CERTS && !NO_FILESYSTEM && !NO_RSA && !WOLFSSL_NO_PEM */
+
     return EXPECT_RESULT();
 }
 

@@ -29,11 +29,6 @@ elif [ "${AM_BWRAPPED-}" != "yes" ]; then
     unset AM_BWRAPPED
 fi
 
-# Workaround to not pollute the certs folder with our files that can impact other tests
-RUNNING_DIR=$(mktemp -d)
-cp -rp . $RUNNING_DIR/.
-cd $RUNNING_DIR
-
 revocation_code="-361"
 revocation_code_openssl="23"
 exit_code=1
@@ -49,13 +44,9 @@ server_pid=$no_pid
 # also let's add some randomness by adding pid in case multiple 'make check's
 # per source tree
 ready_file=`pwd`/wolfssl_crl_ready$$
-CERT_DIR=certs
 
 remove_ready_file() {
-    if test -e "$ready_file"; then
-        echo -e "removing existing ready file"
-        rm "$ready_file"
-    fi
+    rm -f "$ready_file"
 }
 
 # trap this function so if user aborts with ^C or other kill signal we still
@@ -84,9 +75,21 @@ trap abort_trap INT TERM
 # instead use "exit <some value>" and this function will run automatically
 restore_file_system() {
     remove_ready_file
-    cd / && rm -rf "$RUNNING_DIR"
+    if [ -n "$TMP_DIR" ]; then
+        rm -rf "$TMP_DIR"
+    fi
 }
 trap restore_file_system EXIT
+
+# Workaround to not pollute the certs folder with our files that can impact other tests
+TMP_DIR=$(mktemp -d) || exit $?
+SRC_DIR="$PWD"
+pushd "$TMP_DIR" || exit $?
+if ! cp -R --symbolic-link "${SRC_DIR}/certs" . 2>/dev/null; then
+    cp -pR "${SRC_DIR}/certs" . || exit $?
+fi
+popd || exit $?
+CERT_DIR="${TMP_DIR}/certs"
 
 run_test() {
     echo -e "\nStarting example server for crl test...\n"
@@ -121,7 +124,7 @@ run_test() {
     crl_port="$(cat "$ready_file")"
 
     # starts client on crl_port and captures the output from client
-    capture_out=$(./examples/client/client -p $crl_port 2>&1)
+    capture_out=$(cd "${CERT_DIR}/.." && "${SRC_DIR}/examples/client/client" -p $crl_port 2>&1)
     client_result=$?
 
     wait $server_pid
@@ -187,7 +190,7 @@ run_hashdir_test() {
   crl_port="$(cat "$ready_file")"
 
   # starts client on crl_port and captures the output from client
-  capture_out=$(./examples/client/client -p $crl_port -9 2>&1)
+  capture_out=$(cd "${CERT_DIR}/.." && "${SRC_DIR}/examples/client/client" -p $crl_port -9 2>&1)
   client_result=$?
 
   wait $server_pid

@@ -357,10 +357,6 @@ int test_wolfSSL_BIO_should_retry(void)
     StartTCP();
     InitTcpReady(&ready);
 
-#if defined(USE_WINDOWS_API)
-    /* use RNG to get random port if using windows */
-    ready.port = GetRandomPort();
-#endif
 
     server_args.signal = &ready;
     start_thread(test_server_nofail, &server_args, &serverThread);
@@ -465,10 +461,6 @@ int test_wolfSSL_BIO_connect(void)
     XMEMSET(&server_args, 0, sizeof(func_args));
     StartTCP();
     InitTcpReady(&ready);
-#if defined(USE_WINDOWS_API)
-    /* use RNG to get random port if using windows */
-    ready.port = GetRandomPort();
-#endif
     server_args.signal = &ready;
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
@@ -512,10 +504,6 @@ int test_wolfSSL_BIO_connect(void)
     XMEMSET(&server_args, 0, sizeof(func_args));
     StartTCP();
     InitTcpReady(&ready);
-#if defined(USE_WINDOWS_API)
-    /* use RNG to get random port if using windows */
-    ready.port = GetRandomPort();
-#endif
     server_args.signal = &ready;
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);

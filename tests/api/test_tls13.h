@@ -29,6 +29,7 @@ int test_tls13_cipher_suites(void);
 int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_pq_groups(void);
+int test_tls13_multi_pqc_key_share(void);
 int test_tls13_early_data(void);
 int test_tls13_same_ch(void);
 int test_tls13_hrr_different_cs(void);
@@ -49,6 +50,10 @@ int test_tls13_pqc_hybrid_malformed_ecdh(void);
 int test_tls13_empty_record_limit(void);
 int test_tls13_short_session_ticket(void);
 int test_tls13_early_data_0rtt_replay(void);
+int test_tls13_0rtt_default_off(void);
+int test_tls13_0rtt_stateless_replay(void);
+int test_tls13_remove_session_return(void);
+int test_tls13_0rtt_ext_cache_eviction(void);
 int test_tls13_corrupted_finished(void);
 int test_tls13_peerauth_failsafe(void);
 int test_tls13_hrr_bad_cookie(void);
@@ -61,6 +66,13 @@ int test_tls13_cert_with_extern_psk_requires_key_share(void);
 int test_tls13_cert_with_extern_psk_rejects_resumption(void);
 int test_tls13_cert_with_extern_psk_sh_missing_key_share(void);
 int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
+int test_tls13_ticket_peer_cert_reverify(void);
+int test_tls13_clear_preserves_psk_dhe(void);
+int test_tls13_cipher_fuzz_aes128_gcm_sha256(void);
+int test_tls13_cipher_fuzz_aes256_gcm_sha384(void);
+int test_tls13_cipher_fuzz_chacha20_poly1305_sha256(void);
+int test_tls13_cipher_fuzz_aes128_ccm_sha256(void);
+int test_tls13_cipher_fuzz_aes128_ccm_8_sha256(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -68,6 +80,7 @@ int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
     TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),        \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),         \
     TEST_DECL_GROUP("tls13", test_tls13_pq_groups),             \
+    TEST_DECL_GROUP("tls13", test_tls13_multi_pqc_key_share),   \
     TEST_DECL_GROUP("tls13", test_tls13_early_data),            \
     TEST_DECL_GROUP("tls13", test_tls13_same_ch),               \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_different_cs),      \
@@ -87,6 +100,10 @@ int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
     TEST_DECL_GROUP("tls13", test_tls13_empty_record_limit),    \
     TEST_DECL_GROUP("tls13", test_tls13_short_session_ticket),  \
     TEST_DECL_GROUP("tls13", test_tls13_early_data_0rtt_replay), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_default_off),      \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_stateless_replay), \
+    TEST_DECL_GROUP("tls13", test_tls13_remove_session_return), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_eviction), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
     TEST_DECL_GROUP("tls13", test_tls13_corrupted_finished),     \
     TEST_DECL_GROUP("tls13", test_tls13_peerauth_failsafe),    \
@@ -99,6 +116,13 @@ int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_requires_key_share), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_rejects_resumption), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_missing_key_share), \
-    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_confirms_resumption)
+    TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_confirms_resumption), \
+    TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_reverify), \
+    TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_gcm_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes256_gcm_sha384), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_chacha20_poly1305_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_ccm_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_ccm_8_sha256)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

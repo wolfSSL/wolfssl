@@ -203,6 +203,34 @@ int test_wolfSSL_DES_ncbc(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_DES_ncbc_zero_length(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    const_DES_cblock myDes;
+    DES_cblock iv;
+    DES_cblock ivSaved;
+    DES_key_schedule key = {0};
+    unsigned char msg[DES_BLOCK_SIZE] = {0};
+    unsigned char out[DES_BLOCK_SIZE] = {0};
+
+    DES_set_key(&key, &myDes);
+
+    /* length == 0 must no-op: the offset math would otherwise underflow
+     * size_t and read from a wild pointer. */
+    XMEMSET((byte*)&iv, 0xAB, DES_BLOCK_SIZE);
+    XMEMCPY(&ivSaved, &iv, DES_BLOCK_SIZE);
+    DES_ncbc_encrypt(msg, out, 0, &myDes, &iv, DES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(&iv, &ivSaved, DES_BLOCK_SIZE), 0);
+
+    XMEMSET((byte*)&iv, 0xAB, DES_BLOCK_SIZE);
+    XMEMCPY(&ivSaved, &iv, DES_BLOCK_SIZE);
+    DES_ncbc_encrypt(msg, out, 0, &myDes, &iv, DES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(&iv, &ivSaved, DES_BLOCK_SIZE), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_DES_ecb_encrypt(void)
 {
     EXPECT_DECLS;

@@ -498,7 +498,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (!r) r = mp_to_unsigned_bin(v, verifier);
     if (!r) *size = (word32)mp_unsigned_bin_size(v);
 
-    mp_clear(v);
+    mp_forcezero(v);
     WC_FREE_VAR_EX(v, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return r;
@@ -535,7 +535,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
     if (!r) r = mp_mod(p, &srp->N, &srp->priv);
     if (!r) r = mp_iszero(&srp->priv) == MP_YES ? SRP_BAD_KEY_E : 0;
 
-    mp_clear(p);
+    mp_forcezero(p);
     WC_FREE_VAR_EX(p, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return r;
@@ -624,11 +624,11 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
                 XFREE(i, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
             }
             if (j != NULL) {
-                mp_clear(j);
+                mp_forcezero(j);
                 XFREE(j, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
             }
 #else
-            mp_clear(i); mp_clear(j);
+            mp_clear(i); mp_forcezero(j);
 #endif
         }
     }
@@ -720,6 +720,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     int digestSz;
     byte pad = 0;
     int r;
+    int hashInited = 0;
 
     /* validating params */
 
@@ -761,6 +762,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     if ((r = SrpHashInit(hash, srp->type, srp->heap)) != 0)
         goto out;
+    hashInited = 1;
 
     digestSz = SrpHashSize(srp->type);
     if (digestSz < 0) {
@@ -805,6 +807,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     if ((r = mp_read_unsigned_bin(u, digest, (word32)digestSz)))
         goto out;
     SrpHashFree(hash);
+    hashInited = 0;
 
     /* building s (secret) */
 
@@ -908,6 +911,9 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         ForceZero(secret, secretSz);
         XFREE(secret, srp->heap, DYNAMIC_TYPE_SRP);
     }
+
+    if (hashInited)
+        SrpHashFree(hash);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(hash, srp->heap, DYNAMIC_TYPE_SRP);

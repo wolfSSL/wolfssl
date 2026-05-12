@@ -699,6 +699,10 @@ add_option(WOLFSSL_LMSSHA256192
     "Enable the LMS SHA_256_192 truncated variant (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_LMSNOSHA256256
+    "Disable the LMS SHA_256_256 standard variant (default: disabled)"
+    "no" "yes;no")
+
 if (WOLFSSL_LMS)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_LMS")
 
@@ -706,9 +710,13 @@ if (WOLFSSL_LMS)
 
     if (WOLFSSL_LMSSHA256192)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LMS_SHA256_192")
-        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_LMS_SHA256_256")
 
         set_wolfssl_definitions("WOLFSSL_LMS_SHA256_192"    RESULT)
+    endif()
+
+    if (WOLFSSL_LMSNOSHA256256)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_LMS_SHA256_256")
+
         set_wolfssl_definitions("WOLFSSL_NO_LMS_SHA256_256" RESULT)
     endif()
 endif()

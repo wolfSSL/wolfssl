@@ -54,6 +54,24 @@
     }
 #endif
 
+static int current_wc_pbkdf_max_iterations = WC_PBKDF_DEFAULT_MAX_ITERATIONS;
+
+int wc_PBKDF_max_iterations_set(int iters)
+{
+    if (iters <= 0)
+        return BAD_FUNC_ARG;
+    else {
+        int prev = current_wc_pbkdf_max_iterations;
+        current_wc_pbkdf_max_iterations = iters;
+        return prev;
+    }
+}
+
+int wc_PBKDF_max_iterations_get(void)
+{
+    return current_wc_pbkdf_max_iterations;
+}
+
 #ifdef HAVE_PBKDF1
 
 /* PKCS#5 v1.5 with non standard extension to optionally derive the extra data (IV) */
@@ -81,6 +99,11 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
     if (iterations <= 0)
         iterations = 1;
+
+    if (iterations > current_wc_pbkdf_max_iterations) {
+        WOLFSSL_MSG("PBKDF1 iteration count exceeds current_wc_pbkdf_max_iterations");
+        return BAD_FUNC_ARG;
+    }
 
     hashT = wc_HashTypeConvert(hashType);
     err = wc_HashGetDigestSize(hashT);
@@ -217,6 +240,11 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
 #endif
     if (iterations <= 0)
         iterations = 1;
+
+    if (iterations > current_wc_pbkdf_max_iterations) {
+        WOLFSSL_MSG("PBKDF2 iteration count exceeds current_wc_pbkdf_max_iterations");
+        return BAD_FUNC_ARG;
+    }
 
     hashT = wc_HashTypeConvert(hashType);
     hLen = wc_HashGetDigestSize(hashT);
@@ -406,6 +434,12 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     if (iterations <= 0)
         iterations = 1;
 
+    if (iterations > current_wc_pbkdf_max_iterations) {
+        WOLFSSL_MSG("PKCS12 PBKDF iteration count exceeds "
+                    "current_wc_pbkdf_max_iterations");
+        return BAD_FUNC_ARG;
+    }
+
     hashT = wc_HashTypeConvert(hashType);
     ret = wc_HashGetDigestSize(hashT);
     if (ret < 0)
@@ -443,22 +477,17 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
      * must be 1 or greater here and is always 'true' */
     pLen = v * (((word32)passLen + v - 1) / v);
 
-    /* Guard against overflow in iLen = sLen + pLen and totalLen = dLen + iLen.
-     * Individual sLen/pLen values fit in word32 (max 0x80000000 for INT_MAX
-     * inputs), but their sum can overflow. */
-    if (sLen > 0xFFFFFFFFU - pLen) {
+    if (! WC_SAFE_SUM_UNSIGNED(word32, sLen, pLen, iLen)) {
         WC_FREE_VAR_EX(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return BAD_FUNC_ARG;
     }
-    iLen = sLen + pLen;
 
-    if (iLen > 0xFFFFFFFFU - dLen) {
+    if (! WC_SAFE_SUM_UNSIGNED(word32, dLen, sLen, totalLen)) {
         WC_FREE_VAR_EX(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return BAD_FUNC_ARG;
     }
-    totalLen = dLen + sLen + pLen;
 
     if (totalLen > sizeof(staticBuffer)) {
         buffer = (byte*)XMALLOC(totalLen, heap, DYNAMIC_TYPE_KEY);
@@ -564,13 +593,19 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #ifdef WOLFSSL_SMALL_STACK
   out:
 
+    ForceZero(Ai, WC_MAX_DIGEST_SIZE);
     XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ForceZero(B, WC_MAX_BLOCK_SIZE);
     XFREE(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ForceZero(Ai, WC_MAX_DIGEST_SIZE);
+    ForceZero(B, WC_MAX_BLOCK_SIZE);
 #endif
 
+    ForceZero(buffer, totalLen);
     if (dynamic)
         XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
 
@@ -628,6 +663,12 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         iterations = 1;
     }
 
+    if (iterations > current_wc_pbkdf_max_iterations) {
+        WOLFSSL_MSG("PKCS12 PBKDF iteration count exceeds "
+                    "current_wc_pbkdf_max_iterations");
+        return BAD_FUNC_ARG;
+    }
+
     /* u = hash output size. */
     hashT = wc_HashTypeConvert(hashType);
     ret = wc_HashGetDigestSize(hashT);
@@ -650,19 +691,14 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     /* RFC 7292 B.2 step 3: P = password repeated to ceil(passLen/v)*v bytes */
     pLen = v * (((word32)passLen + v - 1) / v);
 
-    /* Guard against overflow in iLen = sLen + pLen and totalLen = v + iLen.
-     * Individual sLen/pLen values fit in word32 (max 0x80000000 for INT_MAX
-     * inputs), but their sum can overflow. */
-    if (sLen > 0xFFFFFFFFU - pLen) {
-        return BAD_FUNC_ARG;
-    }
     /* RFC 7292 B.2 step 4: I = S || P */
-    iLen = sLen + pLen;
-
-    if (iLen > 0xFFFFFFFFU - v) {
+    if (! WC_SAFE_SUM_UNSIGNED(word32, sLen, pLen, iLen)) {
         return BAD_FUNC_ARG;
     }
-    totalLen = v + iLen;
+
+    if (! WC_SAFE_SUM_UNSIGNED(word32, v, iLen, totalLen)) {
+        return BAD_FUNC_ARG;
+    }
 
     nwc     = v / (word32)sizeof(PKCS12_WORD);
     nBlocks = iLen / v;

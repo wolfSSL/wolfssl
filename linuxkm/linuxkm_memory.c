@@ -505,7 +505,8 @@ ssize_t wc_reloc_normalize_segment(
 
 #ifdef HAVE_FIPS
 
-#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
+#if defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) || \
+    defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE_SUPPORT)
 
 #include <wolfssl/wolfcrypt/fips_test.h>
 #ifndef MAX_FIPS_DATA_SZ
@@ -969,6 +970,7 @@ int wc_fips_generate_hash(
     return ret;
 }
 
-#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
+#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE ||      */
+       /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE_SUPPORT */
 
 #endif /* HAVE_FIPS */

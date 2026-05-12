@@ -71,6 +71,8 @@
  */
 int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz)
 {
+    if ((cmac == NULL) || (in == NULL && inSz != 0))
+        return BAD_FUNC_ARG;
     return _wc_Hash_Grow(&cmac->msg, &cmac->used, &cmac->len, in, inSz, cmac->aes.heap);
 }
 #endif /* WOLFSSL_HASH_KEEP */

@@ -584,7 +584,6 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
                 additional, additionalSz);
     if (ret == DRBG_SUCCESS) {
         XMEMCPY(drbg->V, newV, sizeof(drbg->V));
-        ForceZero(newV, DRBG_SEED_LEN);
 
         ret = Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
                                     sizeof(drbg->V), NULL, 0, NULL, 0);
@@ -592,6 +591,8 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
     if (ret == DRBG_SUCCESS) {
         drbg->reseedCtr = 1;
     }
+
+    ForceZero(newV, DRBG_SEED_LEN);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1177,7 +1178,6 @@ static int Hash512_DRBG_Reseed(DRBG_SHA512_internal* drbg, const byte* seed,
                 additional, additionalSz);
     if (ret == DRBG_SUCCESS) {
         XMEMCPY(drbg->V, newV, sizeof(drbg->V));
-        ForceZero(newV, DRBG_SHA512_SEED_LEN);
 
         ret = Hash512_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
                                     sizeof(drbg->V), NULL, 0,
@@ -1186,6 +1186,8 @@ static int Hash512_DRBG_Reseed(DRBG_SHA512_internal* drbg, const byte* seed,
     if (ret == DRBG_SUCCESS) {
         drbg->reseedCtr = 1;
     }
+
+    ForceZero(newV, DRBG_SHA512_SEED_LEN);
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5147,6 +5149,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
+    }
+
+#elif defined(WOLFSSL_NXP_RNG_1)
+    #include "fsl_rng.h"
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        if (RNG_GetRandomData(RNG, output, sz) != kStatus_Success)
+            return RNG_FAILURE_E;
+
+        return 0;
     }
 
 #elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)

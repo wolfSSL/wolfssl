@@ -2846,26 +2846,91 @@ int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX* ctx);
 /*!
     \ingroup Setup
 
-    \brief この関数は、指定されたWOLFSSL_CTXに対する暗号スイートリストを設定します。この暗号スイートリストは、このコンテキストを使用して作成された新しいSSLセッション(WOLFSSL)のデフォルトリストになります。リスト内の暗号は、優先度の高い順から低い順に並べる必要があります。wolfSSL_CTX_set_cipher_list()を呼び出すたびに、関数が呼び出されるたびに、特定のSSLコンテキストの暗号スイートリストが提供されたリストにリセットされます。暗号スイートリストであるlistは、nullで終端されたテキスト文字列であり、コロン区切りのリストです。例えば、listの1つの値は「DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256」となる可能性があります。有効な暗号値は、src/internal.cのcipher_names[]配列からの完全な名前値です(有効な暗号値の明確なリストについては、src/internal.cを確認してください)。
+    \brief この関数は、指定された WOLFSSL_CTX に対する暗号スイートリストを設定します。設定したリストは、本コンテキストから新規に作成されるすべての WOLFSSL セッションのデフォルトリストとなり、文字列内の順序がそのまま優先順位（高い順から低い順）として用いられます。本関数を呼び出すたびに前回のリストは置き換えられます。リストは null 終端のテキスト文字列で、暗号スイート名および／または OpenSSL 互換のキーワードをコロンで区切って指定します（例: "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-SHA256"）。
 
-    \return SSL_SUCCESS 関数の実行が成功した場合に返されます。
-    \return SSL_FAILURE 失敗した場合に返されます。
+    リスト中の各トークンには次のいずれかを指定できます。
+
+    1. 個別の暗号スイート名。wolfSSL は独自の短縮名と IANA 名（WOLFSSL_NO_ERROR_STRINGS が定義されていない場合）の両方を受理します。たとえば "ECDHE-RSA-AES128-GCM-SHA256" と "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" は等価です。受理される名前の完全なリストは src/internal.c の cipher_names[] 配列にあります。実行時に現在のビルドに含まれるスイートを列挙するには wolfSSL_get_ciphers() を使用してください。
+
+    2. OpenSSL 互換のキーワード（下表参照）。スイート群を一括で選択したり、特定クラスを on/off するために使用します。一部のキーワードには OPENSSL_EXTRA または OPENSSL_ALL の定義が必要です。
+
+    3. 否定キーワード "!keyword"（OPENSSL_EXTRA または OPENSSL_ALL が必要）。例: "HIGH:!aNULL"。
+
+    "+" 演算子（例: "ECDHE+AESGCM"）は、先頭の公開鍵ファミリトークン（"ECDHE", "RSA", "DHE"）の抽出にのみ使用されます。"+" の後の部分は wolfSSL では無視されます。特定のスイートを指定したい場合は完全なスイート名を直接指定してください。
+
+    OpenSSL 互換のグループキーワード:
+
+    | キーワード        | 効果                                                         | 必要なビルドオプション |
+    | ----------------- | ------------------------------------------------------------ | --------------------- |
+    | DEFAULT / ALL     | ビルドされている全スイートを含める。"ALL" は匿名（aNULL）も有効化 | OPENSSL_EXTRA / OPENSSL_ALL（他トークンを伴わない単独指定も可） |
+    | HIGH              | 静的・匿名・NULL を除く全スイート                            | OPENSSL_EXTRA / OPENSSL_ALL（単独指定も可） |
+    | LOW / MEDIUM      | 受理されるが鍵長による制限はかからず "RSA" 相当として扱われる | OPENSSL_EXTRA / OPENSSL_ALL |
+    | aNULL             | 匿名（認証なし）スイート                                     | OPENSSL_EXTRA / OPENSSL_ALL（スイート自体は HAVE_ANON が必要） |
+    | eNULL / NULL      | NULL 暗号化スイート                                          | OPENSSL_EXTRA / OPENSSL_ALL（スイート自体は HAVE_NULL_CIPHER が必要） |
+    | kDH               | 静的 DH 鍵交換                                               | OPENSSL_EXTRA / OPENSSL_ALL |
+    | DHE / EDH         | エフェメラル DH 鍵交換                                       | OPENSSL_EXTRA / OPENSSL_ALL（スイート自体は !NO_DH が必要） |
+    | ECDHE / EECDH     | エフェメラル ECDH 鍵交換                                     | OPENSSL_EXTRA / OPENSSL_ALL（スイート自体は HAVE_ECC が必要） |
+    | kRSA / RSA        | 静的 RSA 鍵交換                                              | OPENSSL_EXTRA / OPENSSL_ALL（スイート自体は !NO_RSA が必要） |
+    | PSK               | PSK スイート                                                 | OPENSSL_EXTRA / OPENSSL_ALL（スイート自体は !NO_PSK が必要） |
+    | DSS               | 黙って無視される（wolfSSL は DSA スイート非対応）            | OPENSSL_EXTRA / OPENSSL_ALL |
+    | EXP / EXPORT      | 黙って無視される（export 等級は非対応）                      | OPENSSL_EXTRA / OPENSSL_ALL |
+    | AES128 / SHA1 / RC4 | 否定指定（"!AES128" 等）でそのクラスを無効化                | WOLFSSL_SYS_CRYPTO_POLICY |
+    | @SECLEVEL=n       | OpenSSL 互換のセキュリティレベル設定                         | WOLFSSL_SYS_CRYPTO_POLICY |
+
+    代表的な TLS 1.3 暗号スイート名（各々個別の BUILD_* マクロでガードされる。多くは --enable-tls13 で自動有効化）:
+
+    | 名前（wolfSSL）              | IANA 名                         | 必要なビルドオプション |
+    | ---------------------------- | ------------------------------- | ---------------------- |
+    | TLS13-AES128-GCM-SHA256      | TLS_AES_128_GCM_SHA256          | BUILD_TLS_AES_128_GCM_SHA256（TLS 1.3 既定） |
+    | TLS13-AES256-GCM-SHA384      | TLS_AES_256_GCM_SHA384          | BUILD_TLS_AES_256_GCM_SHA384 |
+    | TLS13-CHACHA20-POLY1305-SHA256 | TLS_CHACHA20_POLY1305_SHA256  | BUILD_TLS_CHACHA20_POLY1305_SHA256（HAVE_CHACHA + HAVE_POLY1305） |
+    | TLS13-AES128-CCM-SHA256      | TLS_AES_128_CCM_SHA256          | BUILD_TLS_AES_128_CCM_SHA256（HAVE_AESCCM） |
+    | TLS13-AES128-CCM-8-SHA256    | TLS_AES_128_CCM_8_SHA256        | BUILD_TLS_AES_128_CCM_8_SHA256（HAVE_AESCCM） |
+    | TLS13-SM4-GCM-SM3            | TLS_SM4_GCM_SM3                 | BUILD_TLS_SM4_GCM_SM3（WOLFSSL_SM4_GCM + WOLFSSL_SM3） |
+    | TLS13-SM4-CCM-SM3            | TLS_SM4_CCM_SM3                 | BUILD_TLS_SM4_CCM_SM3（WOLFSSL_SM4_CCM + WOLFSSL_SM3） |
+    | TLS13-SHA256-SHA256          | TLS_SHA256_SHA256               | BUILD_TLS_SHA256_SHA256（integrity-only） |
+    | TLS13-SHA384-SHA384          | TLS_SHA384_SHA384               | BUILD_TLS_SHA384_SHA384 |
+
+    代表的な TLS 1.2 暗号スイート名のファミリ（各スイートは IANA 名から派生する個別の BUILD_* マクロでガードされる）:
+
+    | スイート名のファミリ／例                       | 一般的な必要オプション |
+    | ---------------------------------------------- | ---------------------- |
+    | ECDHE-ECDSA-AES128-GCM-SHA256, ECDHE-ECDSA-AES256-GCM-SHA384, ECDHE-ECDSA-CHACHA20-POLY1305 | HAVE_ECC, HAVE_AESGCM（または HAVE_CHACHA + HAVE_POLY1305） |
+    | ECDHE-RSA-AES128-GCM-SHA256, ECDHE-RSA-AES256-GCM-SHA384, ECDHE-RSA-CHACHA20-POLY1305 | HAVE_ECC, !NO_RSA, HAVE_AESGCM（または HAVE_CHACHA + HAVE_POLY1305） |
+    | DHE-RSA-AES128-GCM-SHA256, DHE-RSA-AES256-GCM-SHA384, DHE-RSA-CHACHA20-POLY1305 | !NO_DH, !NO_RSA, HAVE_AESGCM（または HAVE_CHACHA + HAVE_POLY1305） |
+    | AES128-SHA, AES256-SHA, AES128-SHA256, AES256-SHA256, AES128-GCM-SHA256, AES256-GCM-SHA384（静的 RSA） | !NO_RSA, !NO_AES_CBC および／または HAVE_AESGCM |
+    | DES-CBC3-SHA, RC4-SHA, RC4-MD5                 | レガシー: !NO_DES3 / !NO_RC4, !NO_OLD_TLS |
+    | NULL-SHA, NULL-SHA256, NULL-MD5                | HAVE_NULL_CIPHER |
+    | PSK-AES128-CBC-SHA256, PSK-AES256-GCM-SHA384, ECDHE-PSK-AES128-CBC-SHA256, DHE-PSK-AES256-GCM-SHA384 | !NO_PSK（ECDHE-PSK は HAVE_ECC、DHE-PSK は !NO_DH も必要） |
+    | ADH-AES128-SHA, ADH-AES256-SHA                 | HAVE_ANON |
+    | ECDHE-ECDSA-SM4-GCM-SM3, ECDHE-ECDSA-SM4-CCM-SM3 | WOLFSSL_SM2, WOLFSSL_SM3, WOLFSSL_SM4_GCM/WOLFSSL_SM4_CCM |
+
+    注意事項:
+    - TLS 1.3 と TLS 1.2 のスイート名は同一リスト内で混在指定できます。wolfSSL は内部でバージョンごとに振り分けます。
+    - DTLS では、リスト中の RC4 ベースのストリーム暗号は黙って除外されます。
+    - リスト全体が "DEFAULT"、"ALL"、"HIGH"、または空文字列の場合、wolfSSL は組み込みのデフォルトスイートリストを設定して成功を返し、それ以上のトークン解析は行いません。
+
+    \return WOLFSSL_SUCCESS 関数が正常に完了した場合に返されます。
+    \return WOLFSSL_FAILURE 失敗した場合に返されます。
 
     \param ctx wolfSSL_CTX_new()で作成されたSSLコンテキストへのポインタ。
-    \param list 指定されたSSLコンテキストで使用する暗号スイートのnullで終端されたテキスト文字列およびコロン区切りリスト。
+    \param list 指定された SSL コンテキストで使用する暗号スイートおよび／またはキーワードの null 終端テキスト文字列（コロン区切り）。
 
     _Example_
     \code
     WOLFSSL_CTX* ctx = 0;
     ...
     ret = wolfSSL_CTX_set_cipher_list(ctx,
-    "DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256");
-    if (ret != SSL_SUCCESS) {
-    	// 暗号スイートリストの設定に失敗しました。
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+        "DHE-RSA-AES256-SHA256");
+    if (ret != WOLFSSL_SUCCESS) {
+        // 暗号スイートリストの設定に失敗しました。
     }
     \endcode
 
     \sa wolfSSL_set_cipher_list
+    \sa wolfSSL_get_ciphers
+    \sa wolfSSL_get_cipher_list
     \sa wolfSSL_CTX_new
 */
 int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
@@ -2873,12 +2938,13 @@ int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
 /*!
     \ingroup Setup
 
-    \brief この関数は、指定されたWOLFSSLオブジェクト(SSLセッション)に対する暗号スイートリストを設定します。リスト内の暗号は、優先度の高い順から低い順に並べる必要があります。wolfSSL_set_cipher_list()を呼び出すたびに、関数が呼び出されるたびに、特定のSSLセッションの暗号スイートリストが提供されたリストにリセットされます。暗号スイートリストであるlistは、nullで終端されたテキスト文字列であり、コロン区切りのリストです。例えば、listの1つの値は「DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256」となる可能性があります。有効な暗号値は、src/internal.cのcipher_names[]配列からの完全な名前値です(有効な暗号値の明確なリストについては、src/internal.cを確認してください)。
-    \return SSL_SUCCESS 関数が正常に完了すると返されます。
-    \return SSL_FAILURE 失敗時に返されます。
+    \brief この関数は、指定された WOLFSSL セッション（SSL セッション）に対する暗号スイートリストを設定します。リストの形式、認識される暗号スイート名およびキーワードは wolfSSL_CTX_set_cipher_list() と同一です。利用可能なキーワード／スイート一覧および必要なビルドオプションについては wolfSSL_CTX_set_cipher_list() の説明を参照してください。本関数を呼び出すたびに、当該セッションのリストは置き換えられます。
+
+    \return WOLFSSL_SUCCESS 関数が正常に完了すると返されます。
+    \return WOLFSSL_FAILURE 失敗時に返されます。
 
     \param ssl wolfSSL_new()で作成されたSSLセッションへのポインタ。
-    \param list null終端テキスト文字列であり、指定されたSSLセッションで使用する暗号スイートのコロン区切りリスト。
+    \param list 指定された SSL セッションで使用する暗号スイートおよび／またはキーワードの null 終端テキスト文字列（コロン区切り）。
 
     _Example_
     \code
@@ -2886,13 +2952,16 @@ int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
     WOLFSSL* ssl = 0;
     ...
     ret = wolfSSL_set_cipher_list(ssl,
-    "DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:AES256-SHA256");
-    if (ret != SSL_SUCCESS) {
-    	// 暗号スイートリストの設定に失敗
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+        "DHE-RSA-AES256-SHA256");
+    if (ret != WOLFSSL_SUCCESS) {
+        // 暗号スイートリストの設定に失敗
     }
     \endcode
 
     \sa wolfSSL_CTX_set_cipher_list
+    \sa wolfSSL_get_ciphers
+    \sa wolfSSL_get_cipher_list
     \sa wolfSSL_new
 */
 int  wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list);
@@ -4736,33 +4805,98 @@ long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
 /*!
     \ingroup Setup
 
-    \brief この関数は、ssl内のオプションマスクを設定します。有効なオプションには、SSL_OP_ALL、SSL_OP_COOKIE_EXCHANGE、SSL_OP_NO_SSLv2、SSL_OP_NO_SSLv3、SSL_OP_NO_TLSv1、SSL_OP_NO_TLSv1_1、SSL_OP_NO_TLSv1_2、SSL_OP_NO_COMPRESSIONがあります。
+    \brief この関数は、指定された WOLFSSL_CTX のオプションマスクに \p opt のビットを OR で追加します。設定したオプションマスクは、本コンテキストから後に作成されるすべての WOLFSSL セッションに継承されます。ビットは累積されるため、特定のオプションを解除するには wolfSSL_CTX_clear_options() を使用してください。OpenSSL 形式の "SSL_OP_*" マクロは対応する "WOLFSSL_OP_*" 値の別名であり、どちらの表記でも使用できます。
 
-    \return val sslに格納されている更新されたオプションマスク値を返します。
+    実効を持つオプション:
 
-    \param s オプションマスクを設定するWOLFSSL構造体。
-    \param op この関数は、ssl内のオプションマスクを設定します。有効なオプションには以下が含まれます:
-    SSL_OP_ALL
-    SSL_OP_COOKIE_EXCHANGE
-    SSL_OP_NO_SSLv2
-    SSL_OP_NO_SSLv3
-    SSL_OP_NO_TLSv1
-    SSL_OP_NO_TLSv1_1
-    SSL_OP_NO_TLSv1_2
-    SSL_OP_NO_COMPRESSION
+    | マクロ                                | 効果 |
+    | ------------------------------------ | ---- |
+    | SSL_OP_NO_SSLv2                      | SSLv2 を無効化（wolfSSL は SSLv2 を一切サポートしない。OpenSSL 互換のため受け付けるのみ） |
+    | SSL_OP_NO_SSLv3                      | SSLv3 を無効化 |
+    | SSL_OP_NO_TLSv1                      | TLS 1.0 を無効化 |
+    | SSL_OP_NO_TLSv1_1                    | TLS 1.1 を無効化 |
+    | SSL_OP_NO_TLSv1_2                    | TLS 1.2 を無効化 |
+    | SSL_OP_NO_TLSv1_3                    | TLS 1.3 を無効化（WOLFSSL_TLS13 が必要） |
+    | SSL_OP_NO_COMPRESSION                | レコード層圧縮を無効化（HAVE_LIBZ 未定義時は何もしない） |
+    | SSL_OP_NO_TICKET                     | RFC 5077 セッションチケットを無効化（TLS 1.2 のみ。TLS 1.3 では本フラグは無視される）。HAVE_SESSION_TICKET と OPENSSL_EXTRA／HAVE_WEBSERVER／WOLFSSL_WPAS_SMALL のいずれかが必要 |
+    | SSL_OP_NO_RENEGOTIATION              | 相手主導の再ネゴシエーションを拒否 |
+    | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION | 再ネゴシエーション時のセッション再利用を無効化 |
+    | SSL_OP_COOKIE_EXCHANGE               | HelloVerifyRequest クッキー交換を有効化（DTLS では既定で有効） |
+    | SSL_OP_NO_QUERY_MTU                  | DTLS: 経路 MTU を問い合わせない |
+    | SSL_OP_CIPHER_SERVER_PREFERENCE      | サーバ側の暗号スイート優先順位をクライアントの順序より優先 |
+    | SSL_OP_SINGLE_DH_USE                 | ハンドシェイクごとに新しい DH 鍵を生成 |
+    | SSL_OP_SINGLE_ECDH_USE               | ハンドシェイクごとに新しい ECDH 鍵を生成 |
+    | SSL_OP_EPHEMERAL_RSA                 | エフェメラル RSA を使用（レガシー。OpenSSL 互換のため受け付けるのみ） |
+    | SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS   | レコード前の空フラグメント挿入を抑制（CBC BEAST 回避策） |
+    | SSL_OP_PKCS1_CHECK_1 / _2            | OpenSSL 互換のため受け付けるのみ |
+    | SSL_OP_LEGACY_SERVER_CONNECT         | 安全でない初回接続を常に許可。定義値は 0 のため実質無効化（openssl/ssl.h 互換ヘッダが必要） |
+
+    便宜マクロ・バグ回避フラグ（すべて SSL_OP_ALL の構成要素。OpenSSL 互換のため受け付けるが wolfSSL では実質 no-op）:
+
+    - SSL_OP_ALL（下記バグ回避フラグのビット OR）
+    - SSL_OP_MICROSOFT_SESS_ID_BUG
+    - SSL_OP_NETSCAPE_CHALLENGE_BUG
+    - SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+    - SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+    - SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+    - SSL_OP_MSIE_SSLV2_RSA_PADDING
+    - SSL_OP_SSLEAY_080_CLIENT_DH_BUG
+    - SSL_OP_TLS_D5_BUG
+    - SSL_OP_TLS_BLOCK_PADDING_BUG
+    - SSL_OP_TLS_ROLLBACK_BUG
+    - SSL_OP_NETSCAPE_CA_DN_BUG
+    - SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
+
+    複合マクロ:
+
+    - SSL_OP_NO_SSL_MASK = SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3
+
+    \param ctx オプションマスクを設定する WOLFSSL_CTX 構造体。
+    \param opt 現在のマスクに OR で追加する SSL_OP_* / WOLFSSL_OP_* フラグのビットマスク。
+
+    \return BAD_FUNC_ARG \p ctx が NULL の場合。
+    \return 成功時、\p ctx に格納された更新後のオプションマスク値。
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    long mask;
+    mask = wolfSSL_CTX_set_options(ctx,
+        SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 |
+        SSL_OP_NO_COMPRESSION | SSL_OP_CIPHER_SERVER_PREFERENCE);
+    // mask には ctx に蓄積されたオプション値が反映される
+    \endcode
+
+    \sa wolfSSL_CTX_clear_options
+    \sa wolfSSL_CTX_get_options
+    \sa wolfSSL_set_options
+    \sa wolfSSL_get_options
+*/
+long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt);
+
+/*!
+    \ingroup Setup
+
+    \brief この関数は、指定された WOLFSSL セッションのオプションマスクに \p op のビットを OR で追加します。認識される "SSL_OP_*" / "WOLFSSL_OP_*" フラグの集合は wolfSSL_CTX_set_options() と同一です。各フラグの効果および必要なビルドオプションについては wolfSSL_CTX_set_options() の説明を参照してください。親 WOLFSSL_CTX から継承したフラグはそのまま保持されます。本関数で SSL_OP_NO_TLSv1_3 を設定した場合、当該セッションのネゴシエーション可能なバージョンは TLS 1.2 まで引き下げられます。
+
+    \param s オプションマスクを設定する WOLFSSL セッション。
+    \param op 現在のマスクに OR で追加する SSL_OP_* / WOLFSSL_OP_* フラグのビットマスク。
+
+    \return 成功時、\p s に格納された更新後のオプションマスク値。\p s が NULL の場合は 0 を返します。
 
     _Example_
     \code
     WOLFSSL* ssl;
-    unsigned long mask;
-    mask = SSL_OP_NO_TLSv1
-    mask  = wolfSSL_set_options(ssl, mask);
-    // maskを確認
+    long mask;
+    mask = wolfSSL_set_options(ssl, SSL_OP_NO_TLSv1_3);
+    // mask には ssl に蓄積されたオプション値が反映される
     \endcode
 
+    \sa wolfSSL_CTX_set_options
+    \sa wolfSSL_clear_options
+    \sa wolfSSL_get_options
     \sa wolfSSL_new
     \sa wolfSSL_free
-    \sa wolfSSL_get_options
 */
 long wolfSSL_set_options(WOLFSSL *s, long op);
 
@@ -12052,10 +12186,173 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
-    \brief この関数は、wolfSSLコンテキストで優先順位に従って許可する楕円曲線グループのリストを設定します。リストはnull終端のテキスト文字列で、コロン区切りのリストです。TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定するには、この関数を呼び出してください。
+    \brief この関数は、wolfSSLコンテキストで優先順位に従って許可する署名アルゴリズムのリストを設定します。リストはnull終端のテキスト文字列で、コロン区切りのリストです。各要素は "<公開鍵アルゴリズム>+<ハッシュ>" の形式（例: "RSA-PSS+SHA256:ECDSA+SHA384"）で指定します。Edwards曲線アルゴリズムである "ED25519" および "ED448" はハッシュがアルゴリズムに内包されるため、サフィックスを付けずに記述します。コンテキストに既に保持されているリストは置き換えられます。
+
+    認識される公開鍵トークンとハッシュトークン、および各トークンを利用するために必要なビルドオプションを以下の表に示します。
+
+    公開鍵トークン:
+
+    | トークン          | 必要なビルドオプション                              |
+    | ----------------- | -------------------------------------------------- |
+    | RSA               | !NO_RSA                                            |
+    | RSA-PSS  /  PSS   | !NO_RSA かつ WC_RSA_PSS                            |
+    | ECDSA             | HAVE_ECC                                           |
+    | ED25519           | HAVE_ED25519（ハッシュ指定不要）                    |
+    | ED448             | HAVE_ED448 （ハッシュ指定不要）                    |
+    | DSA               | !NO_DSA                                            |
+    | SM2               | WOLFSSL_SM2 かつ WOLFSSL_SM3（ハッシュは SM3 固定） |
+
+    ハッシュトークン:
+
+    | トークン | 必要なビルドオプション                                              |
+    | -------- | ------------------------------------------------------------------ |
+    | SHA256   | !NO_SHA256                                                         |
+    | SHA384   | WOLFSSL_SHA384                                                     |
+    | SHA512   | WOLFSSL_SHA512                                                     |
+    | SHA224   | WOLFSSL_SHA224                                                     |
+    | SM3      | WOLFSSL_SM3                                                        |
+    | SHA1     | !NO_SHA かつ（!NO_OLD_TLS または WOLFSSL_ALLOW_TLS_SHA1）          |
+
+    TLS 1.3 における注意事項: RFC 8446 の規定により、RSA PKCS#1 v1.5、DSA、SHA-1、SHA-224 はハンドシェイク署名としては使用できず、リストに含まれていてもネゴシエーション時に除外されます。"RSA-PSS+SHAxxx" を指定した場合は rsa_pss_rsae_shaxxx と rsa_pss_pss_shaxxx の両方のスキームが追加されます。Brainpool ECDSA 署名スキーム（RFC 8734）は本文字列インタフェースでは選択できず、HAVE_ECC_BRAINPOOL が有効な場合に自動でネゴシエーションされます。
 
     \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
-    \param [in] list 楕円曲線グループのコロン区切りリストである文字列。
+    \param [in] list "<公開鍵アルゴリズム>+<ハッシュ>" 要素（または digest を伴わない "ED25519" / "ED448"）のコロン区切りリスト。
+
+    \return WOLFSSL_SUCCESS 成功時。
+    \return WOLFSSL_FAILURE ポインタパラメータがNULLの場合、suites 構造体の確保に失敗した場合、またはリスト中のいずれかのトークンが認識されないか現在のビルドでサポートされていない場合。
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL_CTX* ctx;
+    const char* list = "RSA-PSS+SHA256:ECDSA+SHA384:ED25519";
+    ...
+    ret = wolfSSL_CTX_set1_sigalgs_list(ctx, list);
+    if (ret != WOLFSSL_SUCCESS) {
+        // 署名アルゴリズムリストの設定に失敗しました
+    }
+    \endcode
+
+    \sa wolfSSL_set1_sigalgs_list
+    \sa wolfSSL_CTX_set1_groups_list
+*/
+int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list);
+
+/*!
+    \ingroup Setup
+
+    \brief この関数は、wolfSSLセッションで優先順位に従って許可する署名アルゴリズムのリストを設定します。リストの形式、認識される公開鍵トークンおよびハッシュトークンは wolfSSL_CTX_set1_sigalgs_list() と同一です。トークン一覧および TLS 1.3 における注意事項については wolfSSL_CTX_set1_sigalgs_list() の説明を参照してください。セッションに既に保持されているリストは置き換えられます。
+
+    \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
+    \param [in] list "<公開鍵アルゴリズム>+<ハッシュ>" 要素（または digest を伴わない "ED25519" / "ED448"）のコロン区切りリスト。
+
+    \return WOLFSSL_SUCCESS 成功時。
+    \return WOLFSSL_FAILURE ポインタパラメータがNULLの場合、suites 構造体の確保に失敗した場合、またはリスト中のいずれかのトークンが認識されないか現在のビルドでサポートされていない場合。
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    const char* list = "RSA-PSS+SHA256:ECDSA+SHA384:ED25519";
+    ...
+    ret = wolfSSL_set1_sigalgs_list(ssl, list);
+    if (ret != WOLFSSL_SUCCESS) {
+        // 署名アルゴリズムリストの設定に失敗しました
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set1_sigalgs_list
+    \sa wolfSSL_set1_groups_list
+*/
+int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
+
+/*!
+    \ingroup Setup
+
+    \brief この関数は、wolfSSLコンテキストで優先順位に従って許可する鍵交換グループ（名前付き楕円曲線および KEM）のリストを設定します。リストはnull終端のテキスト文字列で、グループ名をコロンで区切って指定します（例: "P-384:P-256:X25519"）。TLS v1.3 接続で使用する鍵交換パラメータを設定するために本関数を呼び出します（本関数は HAVE_ECC、WOLFSSL_TLS13、HAVE_SUPPORTED_CURVES がすべて定義された場合にのみ提供されます）。
+
+    認識されるグループ名と必要なビルドオプションを以下に示します。名前は表とケースセンシティブに比較されます。
+
+    NIST / SEC 曲線（HAVE_ECC が必要）:
+
+    | 名前      | 曲線 / グループ                                                |
+    | --------- | ------------------------------------------------------------ |
+    | P-160     | secp160r1                                                    |
+    | P-160-2   | secp160r2                                                    |
+    | P-192     | secp192r1 (prime192v1)                                       |
+    | P-224     | secp224r1                                                    |
+    | P-256     | secp256r1 (prime256v1) — "prime256v1" / "secp256r1" でも指定可 |
+    | P-384     | secp384r1 — "secp384r1" でも指定可                           |
+    | P-521     | secp521r1 — "secp521r1" でも指定可                           |
+    | K-160     | secp160k1                                                    |
+    | K-192     | secp192k1                                                    |
+    | K-224     | secp224k1                                                    |
+    | K-256     | secp256k1                                                    |
+
+    Brainpool 曲線（HAVE_ECC に加えて WOLFSSL_CUSTOM_CURVES と HAVE_ECC_BRAINPOOL が必要。通常は --enable-ecccustcurves=all で有効化）:
+
+    | 名前  | 曲線               |
+    | ----- | ------------------ |
+    | B-256 | brainpoolP256r1    |
+    | B-384 | brainpoolP384r1    |
+    | B-512 | brainpoolP512r1    |
+
+    Edwards / Montgomery 曲線:
+
+    | 名前   | 必要なビルドオプション |
+    | ------ | --------------------- |
+    | X25519 | HAVE_CURVE25519       |
+    | X448   | HAVE_CURVE448         |
+
+    SM2（WOLFSSL_SM2 が必要）:
+
+    | 名前      | グループ          |
+    | --------- | ----------------- |
+    | SM2       | sm2p256v1         |
+    | sm2p256v1 | sm2p256v1（別名） |
+
+    ML-KEM（耐量子）グループ（WOLFSSL_HAVE_MLKEM かつ !WOLFSSL_NO_ML_KEM が必要）:
+
+    | 名前        |
+    | ----------- |
+    | ML_KEM_512  |
+    | ML_KEM_768  |
+    | ML_KEM_1024 |
+
+    ML-KEM ハイブリッドグループは、上記に加えて HAVE_ECC、および WOLFSSL_WC_MLKEM または HAVE_LIBOQS、さらに WOLFSSL_PQC_HYBRIDS（"extra" セットには WOLFSSL_EXTRA_PQC_HYBRIDS）が必要です:
+
+    | 名前                | 必要なハイブリッドフラグ   |
+    | ------------------- | -------------------------- |
+    | SecP256r1MLKEM768   | WOLFSSL_PQC_HYBRIDS        |
+    | SecP384r1MLKEM1024  | WOLFSSL_PQC_HYBRIDS        |
+    | X25519MLKEM768      | WOLFSSL_PQC_HYBRIDS        |
+    | SecP256r1MLKEM512   | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | SecP384r1MLKEM768   | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | SecP521r1MLKEM1024  | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | X25519MLKEM512      | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | X448MLKEM768        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+
+    レガシー Kyber グループ（WOLFSSL_MLKEM_KYBER が必要。ハイブリッドはさらに HAVE_ECC と、WOLFSSL_WC_MLKEM または HAVE_LIBOQS が必要）:
+
+    | 名前                  |
+    | --------------------- |
+    | KYBER_LEVEL1          |
+    | KYBER_LEVEL3          |
+    | KYBER_LEVEL5          |
+    | P256_KYBER_LEVEL1     |
+    | P256_KYBER_LEVEL3     |
+    | P384_KYBER_LEVEL3     |
+    | P521_KYBER_LEVEL5     |
+    | X25519_KYBER_LEVEL1   |
+    | X25519_KYBER_LEVEL3   |
+    | X448_KYBER_LEVEL3     |
+
+    上記の名前に加え、HAVE_FIPS および HAVE_SELFTEST が定義されていないビルドでは、wolfCrypt に登録されている任意の曲線名（wc_ecc_get_curve_idx_from_name() で参照、例: "brainpoolP256r1"）も受理されます。
+
+    リストに指定した名前の順序はそのまま保持され、TLS 1.3 における KeyShare の優先順位として使用されます。
+
+    \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
+    \param [in] list 鍵交換グループ名のコロン区切りリストである文字列。
 
     \return WOLFSSL_FAILURE ポインタパラメータがNULLの場合、グループがWOLFSSL_MAX_GROUP_COUNTを超える場合、グループ名が認識されない場合、またはTLS v1.3を使用していない場合。
     \return WOLFSSL_SUCCESS 成功時。
@@ -12083,7 +12380,7 @@ int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
 /*!
     \ingroup Setup
 
-    \brief この関数は、wolfSSLで優先順位に従って許可する楕円曲線グループのリストを設定します。リストはnull終端のテキスト文字列で、コロン区切りのリストです。TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定するには、この関数を呼び出してください。
+    \brief この関数は、wolfSSLセッションで優先順位に従って許可する鍵交換グループ（名前付き楕円曲線および KEM）のリストを設定します。リストの形式および認識されるグループ名は wolfSSL_CTX_set1_groups_list() と同一です。利用可能な名前一覧および必要なビルドオプションについては wolfSSL_CTX_set1_groups_list() の説明を参照してください。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] list 鍵交換グループのコロン区切りリストである文字列。
@@ -12147,23 +12444,111 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
-    \brief この関数は、wolfSSLコンテキストで優先順位に従って許可する楕円曲線グループのリストを設定します。リストはグループ識別子の配列で、識別子の数はcountで指定されます。TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定するには、この関数を呼び出してください。
+    \brief この関数は、wolfSSLコンテキストで優先順位に従って許可する鍵交換グループ（名前付き楕円曲線および KEM）のリストを設定します。リストは名前付きグループ識別子（下表参照）の配列で、\p count に配列内の識別子数を指定します。TLS v1.3 接続で使用する鍵交換パラメータを設定するために本関数を呼び出します。配列の順序がそのまま KeyShare の優先順位として用いられます。
+
+    認識される識別子と必要なビルドオプションを以下に示します。識別子は \<wolfssl/ssl.h\> 内の無名 enum で定義されています。
+
+    NIST / SEC 曲線（HAVE_ECC が必要）:
+
+    | 識別子                    | 曲線 / グループ                       |
+    | ------------------------- | ------------------------------------ |
+    | WOLFSSL_ECC_SECP160K1     | secp160k1                            |
+    | WOLFSSL_ECC_SECP160R1     | secp160r1                            |
+    | WOLFSSL_ECC_SECP160R2     | secp160r2                            |
+    | WOLFSSL_ECC_SECP192K1     | secp192k1                            |
+    | WOLFSSL_ECC_SECP192R1     | secp192r1 (prime192v1)               |
+    | WOLFSSL_ECC_SECP224K1     | secp224k1                            |
+    | WOLFSSL_ECC_SECP224R1     | secp224r1                            |
+    | WOLFSSL_ECC_SECP256K1     | secp256k1                            |
+    | WOLFSSL_ECC_SECP256R1     | secp256r1 (prime256v1)               |
+    | WOLFSSL_ECC_SECP384R1     | secp384r1                            |
+    | WOLFSSL_ECC_SECP521R1     | secp521r1                            |
+
+    Brainpool 曲線（HAVE_ECC に加えて WOLFSSL_CUSTOM_CURVES と HAVE_ECC_BRAINPOOL が必要。通常は --enable-ecccustcurves=all で有効化）:
+
+    | 識別子                              | 曲線             | 備考 |
+    | ----------------------------------- | ---------------- | ---- |
+    | WOLFSSL_ECC_BRAINPOOLP256R1         | brainpoolP256r1  | TLS 1.2 グループ ID 26 |
+    | WOLFSSL_ECC_BRAINPOOLP384R1         | brainpoolP384r1  | TLS 1.2 グループ ID 27 |
+    | WOLFSSL_ECC_BRAINPOOLP512R1         | brainpoolP512r1  | TLS 1.2 グループ ID 28 |
+    | WOLFSSL_ECC_BRAINPOOLP256R1TLS13    | brainpoolP256r1  | RFC 8734 TLS 1.3 ID    |
+    | WOLFSSL_ECC_BRAINPOOLP384R1TLS13    | brainpoolP384r1  | RFC 8734 TLS 1.3 ID    |
+    | WOLFSSL_ECC_BRAINPOOLP512R1TLS13    | brainpoolP512r1  | RFC 8734 TLS 1.3 ID    |
+
+    Edwards / Montgomery 曲線:
+
+    | 識別子            | 必要なビルドオプション |
+    | ----------------- | ---------------------- |
+    | WOLFSSL_ECC_X25519| HAVE_CURVE25519        |
+    | WOLFSSL_ECC_X448  | HAVE_CURVE448          |
+
+    SM2（WOLFSSL_SM2 が必要）:
+
+    | 識別子                 | グループ  |
+    | ---------------------- | --------- |
+    | WOLFSSL_ECC_SM2P256V1  | sm2p256v1 |
+
+    有限体 DH（RFC 7919）グループ（HAVE_FFDHE および各サイズに対応する HAVE_FFDHE_NNNN マクロが必要）:
+
+    | 識別子             | グループ    |
+    | ------------------ | ----------- |
+    | WOLFSSL_FFDHE_2048 | ffdhe2048   |
+    | WOLFSSL_FFDHE_3072 | ffdhe3072   |
+    | WOLFSSL_FFDHE_4096 | ffdhe4096   |
+    | WOLFSSL_FFDHE_6144 | ffdhe6144   |
+    | WOLFSSL_FFDHE_8192 | ffdhe8192   |
+
+    ML-KEM（耐量子）グループ（HAVE_PQC、WOLFSSL_HAVE_MLKEM、!WOLFSSL_NO_ML_KEM が必要）:
+
+    | 識別子             |
+    | ------------------ |
+    | WOLFSSL_ML_KEM_512 |
+    | WOLFSSL_ML_KEM_768 |
+    | WOLFSSL_ML_KEM_1024|
+
+    ML-KEM ハイブリッドグループは、上記に加えて HAVE_ECC、および WOLFSSL_WC_MLKEM または HAVE_LIBOQS、さらに WOLFSSL_PQC_HYBRIDS（"extra" セットには WOLFSSL_EXTRA_PQC_HYBRIDS）が必要です:
+
+    | 識別子                           | 必要なハイブリッドフラグ   |
+    | -------------------------------- | -------------------------- |
+    | WOLFSSL_SECP256R1MLKEM768        | WOLFSSL_PQC_HYBRIDS        |
+    | WOLFSSL_X25519MLKEM768           | WOLFSSL_PQC_HYBRIDS        |
+    | WOLFSSL_SECP384R1MLKEM1024       | WOLFSSL_PQC_HYBRIDS        |
+    | WOLFSSL_SECP256R1MLKEM512        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_SECP384R1MLKEM768        | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_SECP521R1MLKEM1024       | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_X25519MLKEM512           | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+    | WOLFSSL_X448MLKEM768             | WOLFSSL_EXTRA_PQC_HYBRIDS  |
+
+    レガシー Kyber グループ（HAVE_PQC と WOLFSSL_MLKEM_KYBER が必要。ハイブリッドはさらに HAVE_ECC と、WOLFSSL_WC_MLKEM または HAVE_LIBOQS が必要）:
+
+    | 識別子                      |
+    | --------------------------- |
+    | WOLFSSL_KYBER_LEVEL1        |
+    | WOLFSSL_KYBER_LEVEL3        |
+    | WOLFSSL_KYBER_LEVEL5        |
+    | WOLFSSL_P256_KYBER_LEVEL1   |
+    | WOLFSSL_P256_KYBER_LEVEL3   |
+    | WOLFSSL_P384_KYBER_LEVEL3   |
+    | WOLFSSL_P521_KYBER_LEVEL5   |
+    | WOLFSSL_X25519_KYBER_LEVEL1 |
+    | WOLFSSL_X25519_KYBER_LEVEL3 |
+    | WOLFSSL_X448_KYBER_LEVEL3   |
 
     \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
     \param [in] groups 識別子による鍵交換グループのリスト。
-    \param [in] count groups内の鍵交換グループの数。
+    \param [in] count \p groups 内の識別子数（WOLFSSL_MAX_GROUP_COUNT を超えてはならない）。
 
-    \return BAD_FUNC_ARG ポインタパラメータがnullの場合、グループ数がWOLFSSL_MAX_GROUP_COUNTを超える場合、またはTLS v1.3を使用していない場合。
+    \return BAD_FUNC_ARG ポインタパラメータが NULL の場合、\p count が WOLFSSL_MAX_GROUP_COUNT を超える場合、または基底メソッドが TLS メソッドでない場合。
     \return WOLFSSL_SUCCESS 成功時。
 
     _Example_
     \code
     int ret;
     WOLFSSL_CTX* ctx;
-    int* groups = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
-    int count = 2;
+    int groups[] = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
+    int count = sizeof(groups) / sizeof(groups[0]);
     ...
-    ret = wolfSSL_CTX_set1_groups_list(ctx, groups, count);
+    ret = wolfSSL_CTX_set_groups(ctx, groups, count);
     if (ret != WOLFSSL_SUCCESS) {
         // グループリストの設定に失敗しました
     }
@@ -12171,8 +12556,6 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
 
     \sa wolfSSL_set_groups
     \sa wolfSSL_UseKeyShare
-    \sa wolfSSL_CTX_set_groups
-    \sa wolfSSL_set_groups
     \sa wolfSSL_CTX_set1_groups_list
     \sa wolfSSL_set1_groups_list
     \sa wolfSSL_preferred_group
@@ -12183,21 +12566,21 @@ int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
 /*!
     \ingroup Setup
 
-    \brief この関数は、wolfSSLで許可する楕円曲線グループのリストを設定します。リストはグループ識別子の配列で、識別子の数はcountで指定されます。TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定するには、この関数を呼び出してください。
+    \brief この関数は、wolfSSLセッションで優先順位に従って許可する鍵交換グループ（名前付き楕円曲線および KEM）のリストを設定します。配列の形式および認識される識別子は wolfSSL_CTX_set_groups() と同一です。利用可能な識別子一覧および必要なビルドオプションについては wolfSSL_CTX_set_groups() の説明を参照してください。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] groups 識別子による鍵交換グループのリスト。
-    \param [in] count groups内の鍵交換グループの数。
+    \param [in] count \p groups 内の識別子数（WOLFSSL_MAX_GROUP_COUNT を超えてはならない）。
 
-    \return BAD_FUNC_ARG ポインタパラメータがnullの場合、グループ数がWOLFSSL_MAX_GROUP_COUNTを超える場合、識別子のいずれかが認識されない場合、またはTLS v1.3を使用していない場合。
+    \return BAD_FUNC_ARG ポインタパラメータが NULL の場合、\p count が WOLFSSL_MAX_GROUP_COUNT を超える場合、識別子のいずれかが認識されない場合、または基底メソッドが TLS メソッドでない場合。
     \return WOLFSSL_SUCCESS 成功時。
 
     _Example_
     \code
     int ret;
     WOLFSSL* ssl;
-    int* groups = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
-    int count = 2;
+    int groups[] = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
+    int count = sizeof(groups) / sizeof(groups[0]);
     ...
     ret = wolfSSL_set_groups(ssl, groups, count);
     if (ret != WOLFSSL_SUCCESS) {
@@ -12207,8 +12590,6 @@ int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
 
     \sa wolfSSL_CTX_set_groups
     \sa wolfSSL_UseKeyShare
-    \sa wolfSSL_CTX_set_groups
-    \sa wolfSSL_set_groups
     \sa wolfSSL_CTX_set1_groups_list
     \sa wolfSSL_set1_groups_list
     \sa wolfSSL_preferred_group

@@ -637,8 +637,8 @@ impl MlKem {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(size) containing the number of bytes written or Err(e)
-    /// containing the wolfSSL library error code value.
+    /// Returns either Ok(()) or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
@@ -652,12 +652,10 @@ impl MlKem {
     ///     .expect("Error with generate()");
     /// let pub_size = key.public_key_size().unwrap();
     /// let mut pub_buf = vec![0u8; pub_size];
-    /// let written = key.encode_public_key(&mut pub_buf)
-    ///     .expect("Error with encode_public_key()");
-    /// assert_eq!(written, pub_size);
+    /// key.encode_public_key(&mut pub_buf).expect("Error with encode_public_key()");
     /// }
     /// ```
-    pub fn encode_public_key(&self, out: &mut [u8]) -> Result<usize, i32> {
+    pub fn encode_public_key(&self, out: &mut [u8]) -> Result<(), i32> {
         let out_size = crate::buffer_len_to_u32(out.len())?;
         let rc = unsafe {
             sys::wc_MlKemKey_EncodePublicKey(self.ws_key, out.as_mut_ptr(), out_size)
@@ -665,7 +663,7 @@ impl MlKem {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(out.len())
+        Ok(())
     }
 
     /// Encode (export) the private key to a byte buffer.
@@ -678,8 +676,8 @@ impl MlKem {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(size) containing the number of bytes written or Err(e)
-    /// containing the wolfSSL library error code value.
+    /// Returns either Ok(()) or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
@@ -693,12 +691,10 @@ impl MlKem {
     ///     .expect("Error with generate()");
     /// let priv_size = key.private_key_size().unwrap();
     /// let mut priv_buf = vec![0u8; priv_size];
-    /// let written = key.encode_private_key(&mut priv_buf)
-    ///     .expect("Error with encode_private_key()");
-    /// assert_eq!(written, priv_size);
+    /// key.encode_private_key(&mut priv_buf).expect("Error with encode_private_key()");
     /// }
     /// ```
-    pub fn encode_private_key(&self, out: &mut [u8]) -> Result<usize, i32> {
+    pub fn encode_private_key(&self, out: &mut [u8]) -> Result<(), i32> {
         let out_size = crate::buffer_len_to_u32(out.len())?;
         let rc = unsafe {
             sys::wc_MlKemKey_EncodePrivateKey(self.ws_key, out.as_mut_ptr(), out_size)
@@ -706,7 +702,7 @@ impl MlKem {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(out.len())
+        Ok(())
     }
 
     /// Decode (import) a public key from a byte buffer.

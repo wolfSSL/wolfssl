@@ -108,6 +108,38 @@ int test_wc_CamelliaSetIV(void)
 } /* END test_wc_CamelliaSetIV*/
 
 /*
+ * Test wc_CamelliaFree zeroes the key schedule and is NULL safe.
+ */
+int test_wc_CamelliaFree(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CAMELLIA
+    wc_Camellia camellia;
+    static const byte key[] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    static const byte iv[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    byte zero[sizeof(camellia)];
+
+    XMEMSET(zero, 0, sizeof(zero));
+
+    /* NULL is safe. */
+    wc_CamelliaFree(NULL);
+
+    /* After SetKey the schedule is populated; Free must wipe it. */
+    ExpectIntEQ(wc_CamelliaSetKey(&camellia, key, (word32)sizeof(key), iv), 0);
+    ExpectIntNE(XMEMCMP(&camellia, zero, sizeof(camellia)), 0);
+    wc_CamelliaFree(&camellia);
+    ExpectIntEQ(XMEMCMP(&camellia, zero, sizeof(camellia)), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_CamelliaFree */
+
+/*
  * Test wc_CamelliaEncryptDirect and wc_CamelliaDecryptDirect
  */
 int test_wc_CamelliaEncryptDecryptDirect(void)

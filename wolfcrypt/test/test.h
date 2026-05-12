@@ -266,12 +266,18 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  openSSL_evpMD_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  openssl_evpSig_test(void);
 #endif
 
+#if defined(HAVE_PBKDF1) && !defined(NO_SHA)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void);
+#endif
+#if defined(HAVE_PKCS12) && !defined(NO_SHA256)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void);
+#endif
 #if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 #endif
+#if !defined(NO_PWDBASED) && defined(HAVE_SCRYPT)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
+#endif
 #ifdef HAVE_ECC
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_test(void);
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \

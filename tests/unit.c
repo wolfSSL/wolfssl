@@ -25,6 +25,9 @@
 #include <tests/unit.h>
 
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
 
 #include <stdio.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
@@ -330,6 +333,21 @@ exit:
     if (wc_FreeNetRandom() < 0)
         err_sys("Failed to free netRandom context");
 #endif /* HAVE_WNR */
+
+    /* Drop process-global ECC caches before exit. wolfCrypt_Cleanup() only
+     * runs its cleanup body when initRefCount transitions 2->1 (the body
+     * itself does the second decrement to 0); the unit driver's single
+     * init/cleanup pair never reaches that state, and individual API tests
+     * that create+free a CTX go 0->1->0 without triggering the body either.
+     * Without explicit calls here the ECC_CACHE_CURVE entries (and their
+     * HAVE_WOLF_BIGINT raw buffers) survive to exit and trip valgrind's
+     * --leak-check=full. */
+#if defined(HAVE_ECC) && defined(FP_ECC)
+    wc_ecc_fp_free();
+#endif
+#if defined(HAVE_ECC) && defined(ECC_CACHE_CURVE)
+    wc_ecc_curve_cache_free();
+#endif
 
 #ifdef WOLFSSL_TRACK_MEMORY
     if (ret == 0) {

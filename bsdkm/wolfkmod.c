@@ -1020,7 +1020,8 @@ static int wolfkdriv_process(device_t dev, struct cryptop * crp, int hint)
                   csp->csp_mode, csp->csp_cipher_alg, error);
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
 
-    return (error);
+    /* opencrypto(9) contract: return 0 after crypto_done(); error is in crp_etype. */
+    return (0);
 }
 
 /*

@@ -505,6 +505,7 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         }
         ret = ctMaskGT(c, 0) & SIG_VERIFY_E;
     }
+    ForceZero(orig_k, sizeof(orig_k));
 #endif
 
     ForceZero(az, sizeof(az));
@@ -1301,6 +1302,10 @@ int wc_ed448_export_private_only(const ed448_key* key, byte* out, word32* outLen
         ret = BAD_FUNC_ARG;
     }
 
+    if ((ret == 0) && (!key->privKeySet)) {
+        ret = BAD_FUNC_ARG;
+    }
+
     if ((ret == 0) && (*outLen < ED448_KEY_SIZE)) {
         *outLen = ED448_KEY_SIZE;
         ret = BUFFER_E;
@@ -1330,6 +1335,10 @@ int wc_ed448_export_private(const ed448_key* key, byte* out, word32* outLen)
 
     /* sanity checks on arguments */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if ((ret == 0) && (!key->privKeySet)) {
         ret = BAD_FUNC_ARG;
     }
 

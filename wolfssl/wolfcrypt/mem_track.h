@@ -142,9 +142,12 @@ static memoryStats ourMemStats;
 WOLFSSL_API extern memoryStats *wc_MemStats_Ptr;
 
 #ifdef DO_MEM_LIST
-    #include <pthread.h>
     static memoryList ourMemList;
-    static pthread_mutex_t memLock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
+    static wolfSSL_Mutex memLock;
+    static int memLockInit = 0;
 #endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
@@ -182,7 +185,7 @@ static WC_INLINE void* TrackMalloc(size_t sz)
 #endif
 #endif
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-    if (pthread_mutex_lock(&memLock) == 0)
+    if (wc_LockMutex(&memLock) == 0)
     {
 #endif
 
@@ -228,9 +231,9 @@ static WC_INLINE void* TrackMalloc(size_t sz)
         ourMemList.count++;
 #endif
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-        pthread_mutex_unlock(&memLock);
+        wc_UnLockMutex(&memLock);
     }
-#endif /* DO_MEM_LIST */
+#endif /* !SINGLE_THREADED && (DO_MEM_LIST || DO_MEM_STATS) */
 
     return header->thisMemory;
 }
@@ -255,7 +258,7 @@ static WC_INLINE void TrackFree(void* ptr)
     sz = header->thisSize;
 
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-    if (pthread_mutex_lock(&memLock) == 0)
+    if (wc_LockMutex(&memLock) == 0)
     {
 #endif
 
@@ -289,7 +292,7 @@ static WC_INLINE void TrackFree(void* ptr)
 #endif
 
 #if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
-        pthread_mutex_unlock(&memLock);
+        wc_UnLockMutex(&memLock);
     }
 #endif
 
@@ -362,14 +365,27 @@ static WC_INLINE int InitMemoryTracker(void)
     if (ret < 0) {
         wc_mem_printf("wolfSSL GetAllocators failed to get the defaults\n");
     }
+
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
+    /* Init the mutex before installing the tracking allocators, so the
+     * mutex is ready as soon as another thread can enter TrackMalloc. */
+    if (!memLockInit) {
+        if (wc_InitMutex(&memLock) != 0) {
+            wc_mem_printf("wc_InitMutex failed for track memory\n");
+            return -1;
+        }
+        memLockInit = 1;
+    }
+#endif
+
     ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
     if (ret < 0) {
         wc_mem_printf("wolfSSL SetAllocators failed for track memory\n");
         return ret;
     }
 
-#ifdef DO_MEM_LIST
-    if (pthread_mutex_lock(&memLock) == 0)
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
+    if (wc_LockMutex(&memLock) == 0)
 #endif
     {
     #ifdef DO_MEM_STATS
@@ -387,8 +403,11 @@ static WC_INLINE int InitMemoryTracker(void)
     #ifdef DO_MEM_LIST
         XMEMSET(&ourMemList, 0, sizeof(ourMemList));
         ourMemStats.memList = &ourMemList;
+    #endif
 
-        pthread_mutex_unlock(&memLock);
+    #if !defined(SINGLE_THREADED) && \
+        (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
+        wc_UnLockMutex(&memLock);
     #endif
     }
 
@@ -399,8 +418,8 @@ static WC_INLINE int InitMemoryTracker(void)
 
 static WC_INLINE void ShowMemoryTracker(void)
 {
-#ifdef DO_MEM_LIST
-    if (pthread_mutex_lock(&memLock) == 0)
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
+    if (wc_LockMutex(&memLock) == 0)
 #endif
     {
     #ifdef DO_MEM_STATS
@@ -429,8 +448,11 @@ static WC_INLINE void ShowMemoryTracker(void)
         #endif
             }
         }
+    #endif
 
-        pthread_mutex_unlock(&memLock);
+    #if !defined(SINGLE_THREADED) && \
+        (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
+        wc_UnLockMutex(&memLock);
     #endif
     }
 }
@@ -438,7 +460,13 @@ static WC_INLINE void ShowMemoryTracker(void)
 static WC_INLINE int CleanupMemoryTracker(void)
 {
     wc_MemStats_Ptr = NULL;
-    /* restore default allocators */
+    /* Restore default allocators. memLock is intentionally left
+     * initialized for process lifetime (matching the prior static
+     * PTHREAD_MUTEX_INITIALIZER behavior): SetAllocators stops new
+     * entries into TrackMalloc/TrackFree but does not synchronize
+     * with in-flight calls, so freeing the mutex here would be a
+     * use-after-free hazard. The memLockInit flag keeps re-Init
+     * idempotent across an Init/Cleanup/Init cycle. */
     return wolfSSL_SetAllocators(mfDefault, ffDefault, rfDefault);
 }
 #endif /* WOLFSSL_TRACK_MEMORY && USE_WOLFSSL_MEMORY && \

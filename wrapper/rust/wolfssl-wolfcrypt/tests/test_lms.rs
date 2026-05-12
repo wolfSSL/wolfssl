@@ -350,11 +350,11 @@ fn test_export_pub_from() {
     let _ = store;
 }
 
-/// Verify that `sigs_left()` indicates signatures are available immediately
+/// Verify that `has_sigs_left()` indicates signatures are available immediately
 /// after `make_key()`.
 #[test]
 #[cfg(all(lms_make_key, random))]
-fn test_sigs_left_after_make_key() {
+fn test_has_sigs_left_after_make_key() {
     common::setup();
     let mut rng = RNG::new().expect("Error creating RNG");
     let mut store = Box::new(KeyStore { buf: [0u8; 16384] });
@@ -365,8 +365,8 @@ fn test_sigs_left_after_make_key() {
     setup_callbacks(&mut key, ctx);
     key.make_key(&mut rng).expect("Error with make_key()");
 
-    let remaining = key.sigs_left().expect("Error with sigs_left()");
-    assert!(remaining, "sigs_left must be true immediately after make_key()");
+    let remaining = key.has_sigs_left().expect("Error with has_sigs_left()");
+    assert!(remaining, "has_sigs_left must be true immediately after make_key()");
 
     let _ = store;
 }

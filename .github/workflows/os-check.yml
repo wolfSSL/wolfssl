@@ -106,7 +106,15 @@ jobs:
           'CPPFLAGS=-DNO_WOLFSSL_CLIENT',
           'CPPFLAGS=-DNO_WOLFSSL_SERVER',
           '--enable-lms=small,verify-only --enable-xmss=small,verify-only',
-          '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK"',
+          '--enable-opensslall --enable-ecc CPPFLAGS="-DWC_ALLOW_ECC_ZERO_HASH"',
+          # Non-blocking ECC + Curve25519 + RSA + DH on the default SP word
+          # size for the host (sp_c64.c on x86_64). RSA/DH non-block require
+          # RSA_LOW_MEM (CRT path is not supported in non-block mode).
+          '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-rsa=nonblock --enable-dh=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK -DRSA_LOW_MEM"',
+          # Same configuration but force SP_WORD_SIZE=32 to exercise sp_c32.c
+          # on a 64-bit host. The two builds together cover both generated
+          # variants of mod_exp_<words>_nb / RSA / DH wrappers.
+          '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-rsa=nonblock --enable-dh=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK -DRSA_LOW_MEM -DSP_WORD_SIZE=32"',
           '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
           # Minimal DTLS 1.3 client-only build. The SHA-224/384/512/3
           # disables are deliberately omitted: --disable-sha384 alone

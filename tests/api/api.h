@@ -252,5 +252,77 @@ typedef struct testVector {
 
 extern int testDevId;
 
+/* Skip past outer SEQ header of a PKCS#8 / RFC 5958 OneAsymmetricKey DER blob,
+ * return version byte (0=v1, 1=v2) or -1 on malformed input. */
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+static WC_INLINE int test_pkcs8_get_version_byte(const byte* der, word32 derSz)
+{
+    word32 idx = 0;
+    word32 nBytes = 0;
+
+    /* SEQ tag + short len + INT tag + INT len + version = 5 */
+    if (der == NULL || derSz < 5) {
+        return -1;
+    }
+    /* SEQUENCE */
+    if (der[idx++] != 0x30) {
+        return -1;
+    }
+    if (idx >= derSz) {
+        return -1;
+    }
+    if ((der[idx] & 0x80) == 0) {
+        /* short-form length */
+        idx += 1;
+    }
+    else {
+        /* long-form length */
+        nBytes = (word32)(der[idx] & 0x7F);
+        if (nBytes == 0 || nBytes > 4) {
+            return -1;
+        }
+        idx += (1 + nBytes);
+    }
+    if (idx + 3 > derSz) {
+        return -1;
+    }
+    /* INTEGER, len 1 */
+    if (der[idx] != 0x02 || der[idx + 1] != 0x01) {
+        return -1;
+    }
+
+    return (int)der[idx + 2];
+}
+
+/* Overwrite OneAsymmetricKey version byte. Return the patched offset or
+ * -1 on malformed input. */
+static WC_INLINE int test_pkcs8_patch_version_byte(byte* der, word32 derSz,
+    byte newVer)
+{
+    word32 idx = 0;
+    word32 nBytes = 0;
+
+    if (der == NULL || derSz < 5 || der[idx++] != 0x30) {
+        return -1;
+    }
+    if ((der[idx] & 0x80) == 0) {
+        idx += 1;
+    }
+    else {
+        nBytes = (word32)(der[idx] & 0x7F);
+        if (nBytes == 0 || nBytes > 4) {
+            return -1;
+        }
+        idx += (1 + nBytes);
+    }
+    if (idx + 3 > derSz || der[idx] != 0x02 || der[idx + 1] != 0x01) {
+        return -1;
+    }
+    der[idx + 2] = newVer;
+
+    return (int)(idx + 2);
+}
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+
 #endif /* WOLFCRYPT_TEST_API_H */
 

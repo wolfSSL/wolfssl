@@ -633,6 +633,7 @@ int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
         if (dCert == NULL) {
             ret = WOLFSSL_FATAL_ERROR;
         } else {
+            XMEMSET(dCert, 0, sizeof(DecodedCert));
             if (format == WOLFSSL_FILETYPE_PEM) {
             #ifndef WOLFSSL_PEM_TO_DER
                 ret = NOT_COMPILED_IN;
@@ -651,7 +652,6 @@ int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
             }
 
             if (ret == WOLFSSL_SUCCESS) {
-                XMEMSET(dCert, 0, sizeof(DecodedCert));
                 wc_InitDecodedCert(dCert, buff,
                                 (word32)sz, cm->heap);
                 ret = wc_ParseCert(dCert, CERT_TYPE, NO_VERIFY, NULL);

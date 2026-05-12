@@ -558,13 +558,15 @@ static NOOPT int Octeon_AesGcm_SetAAD(Aes* aes, byte* aad, word32 aadSz)
         CVMX_MT_GFM_XORMUL1(p[1]);
     }
 
-    XMEMSET(aesBlock, 0, sizeof(aesBlock));
+    if (remainder > 0) {
+        XMEMSET(aesBlock, 0, sizeof(aesBlock));
 
-    for (i = 0; i < remainder; i++)
-        aesBlock[i] = aad[i];
+        for (i = 0; i < remainder; i++)
+            aesBlock[i] = aad[i];
 
-    CVMX_MT_GFM_XOR0(p[0]);
-    CVMX_MT_GFM_XORMUL1(p[1]);
+        CVMX_MT_GFM_XOR0(p[0]);
+        CVMX_MT_GFM_XORMUL1(p[1]);
+    }
 
     return 0;
 }

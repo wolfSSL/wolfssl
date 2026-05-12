@@ -628,6 +628,12 @@ typedef struct SlhDsaKey {
             wc_Sha256 sha256_mid;
             /* Pre-computed midstate: PK.seed || pad(128 - n). */
             wc_Sha512 sha512_mid;
+            WC_BITFIELD sha256_inited:1;
+            WC_BITFIELD sha256_2_inited:1;
+            WC_BITFIELD sha256_mid_inited:1;
+            WC_BITFIELD sha512_inited:1;
+            WC_BITFIELD sha512_2_inited:1;
+            WC_BITFIELD sha512_mid_inited:1;
         } sha2;
 #endif
     } hash;
@@ -636,6 +642,8 @@ typedef struct SlhDsaKey {
 WOLFSSL_API int  wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param,
     void* heap, int devId);
 WOLFSSL_API void wc_SlhDsaKey_Free(SlhDsaKey* key);
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 
 WOLFSSL_API int  wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key,
@@ -651,46 +659,60 @@ WOLFSSL_API int  wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx,
 WOLFSSL_API int  wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx,
     byte ctxSz, const byte* msg, word32 msgSz, byte* sig, word32* sigSz,
     WC_RNG* rng);
+
+#endif /* WOLFSSL_SLHDSA_VERIFY_ONLY */
+
 WOLFSSL_API int  wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx,
     byte ctxSz, const byte* msg, word32 msgSz, const byte* sig, word32 sigSz);
 
-/* Internal interface: M' provided directly (no M' construction). */
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+/* External-M' / FIPS 205 internal interface (Algorithms 19/20): the caller
+ * supplies the fully-built M'. Use these for HashSLH-DSA implementations that
+ * construct M' externally, distributed signers that operate on a pre-built
+ * message representative, and ACVP signatureInterface=internal test groups. */
 WOLFSSL_API int  wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key,
     const byte* mprime, word32 mprimeSz, byte* sig, word32* sigSz);
 WOLFSSL_API int  wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key,
     const byte* mprime, word32 mprimeSz, byte* sig, word32* sigSz,
     const byte* addRnd);
+#endif /* WOLFSSL_SLHDSA_VERIFY_ONLY */
 WOLFSSL_API int  wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
     word32 mprimeSz, const byte* sig, word32 sigSz);
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
-    const byte* ctx, byte ctxSz, const byte* msg, word32 msgSz,
+    const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
     enum wc_HashType hashType, byte* sig, word32* sigSz);
 WOLFSSL_API int  wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
-    const byte* ctx, byte ctxSz, const byte* msg, word32 msgSz,
-    enum wc_HashType hashType, byte* sig, word32* sigSz, byte* addRnd);
+    const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
+    enum wc_HashType hashType, byte* sig, word32* sigSz, const byte* addRnd);
 WOLFSSL_API int  wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
-    byte ctxSz, const byte* msg, word32 msgSz, enum wc_HashType hashType,
+    byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     byte* sig, word32* sigSz, WC_RNG* rng);
+#endif /* WOLFSSL_SLHDSA_VERIFY_ONLY */
 WOLFSSL_API int  wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx,
-    byte ctxSz, const byte* msg, word32 msgSz, enum wc_HashType hashType,
+    byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     const byte* sig, word32 sigSz);
 
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* in,
     word32 inLen);
-WOLFSSL_API int  wc_SlhDsaKey_ImportPublic(SlhDsaKey* key, const byte* in,
-    word32 inLen);
 WOLFSSL_API int  wc_SlhDsaKey_CheckKey(SlhDsaKey* key);
-
 WOLFSSL_API int  wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* out,
     word32* outLen);
+#endif /* WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+WOLFSSL_API int  wc_SlhDsaKey_ImportPublic(SlhDsaKey* key, const byte* in,
+    word32 inLen);
 WOLFSSL_API int  wc_SlhDsaKey_ExportPublic(SlhDsaKey* key, byte* out,
     word32* outLen);
 
 WOLFSSL_API int  wc_SlhDsaKey_PrivateSize(SlhDsaKey* key);
 WOLFSSL_API int  wc_SlhDsaKey_PublicSize(SlhDsaKey* key);
 WOLFSSL_API int  wc_SlhDsaKey_SigSize(SlhDsaKey* key);
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_PrivateSizeFromParam(enum SlhDsaParam param);
+#endif
 WOLFSSL_API int  wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
 

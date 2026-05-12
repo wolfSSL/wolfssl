@@ -3016,6 +3016,9 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_key(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
+        if (ctx->pkey->hkdfKey != NULL && ctx->pkey->hkdfKeySz > 0) {
+            ForceZero(ctx->pkey->hkdfKey, ctx->pkey->hkdfKeySz);
+        }
         XFREE(ctx->pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
         ctx->pkey->hkdfKey = (byte*)XMALLOC((size_t)keySz, NULL,
             DYNAMIC_TYPE_KEY);
@@ -8857,7 +8860,7 @@ void wolfSSL_EVP_init(void)
 #endif
 #ifdef WOLFSSL_SM4_CTR
             case WC_SM4_CTR_TYPE :
-                WOLFSSL_MSG("AES CTR");
+                WOLFSSL_MSG("Sm4 CTR");
                 ret = wc_Sm4CtrEncrypt(&ctx->cipher.sm4, dst, src, len);
                 if (ret == 0)
                     ret = (int)len;
@@ -10057,6 +10060,10 @@ int wolfSSL_EVP_PKEY_type(int type)
             return WC_EVP_PKEY_EC;
         case WC_EVP_PKEY_DH:
             return WC_EVP_PKEY_DH;
+    #ifdef HAVE_DILITHIUM
+        case WC_EVP_PKEY_DILITHIUM:
+            return WC_EVP_PKEY_DILITHIUM;
+    #endif
         default:
             return WC_NID_undef;
     }
@@ -11313,6 +11320,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                                unsigned int* s)
     {
         enum wc_HashType macType;
+    #if defined(WOLFSSL_SHA3) && (defined(WOLFSSL_SHAKE128) || \
+        defined(WOLFSSL_SHAKE256))
+        unsigned int defaultSz = 0;
+    #endif
 
         WOLFSSL_ENTER("wolfSSL_EVP_DigestFinal");
 
@@ -11341,18 +11352,21 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
             case WC_HASH_TYPE_SHAKE128:
         #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
-                if (s != NULL)
-                    *s = 16; /* if mixing up XOF with plain digest 128 bit is
-                              * default for SHAKE128 */
+                if (s == NULL)
+                    s = &defaultSz;
+                *s = 16; /* if mixing up XOF with plain digest 128 bit is
+                            * default for SHAKE128 */
+
         #else
                 return WOLFSSL_FAILURE;
         #endif
                 break;
             case WC_HASH_TYPE_SHAKE256:
         #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
-                if (s != NULL)
-                    *s = 32; /* if mixing up XOF with plain digest 256 bit is
-                              * default for SHAKE256 */
+                if (s == NULL)
+                    s = &defaultSz;
+                *s = 32; /* if mixing up XOF with plain digest 256 bit is
+                            * default for SHAKE256 */
         #else
                 return WOLFSSL_FAILURE;
         #endif
@@ -11774,6 +11788,9 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                 case WC_EVP_PKEY_HKDF:
                     XFREE(key->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
                     key->hkdfSalt = NULL;
+                    if (key->hkdfKey != NULL && key->hkdfKeySz > 0) {
+                        ForceZero(key->hkdfKey, key->hkdfKeySz);
+                    }
                     XFREE(key->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
                     key->hkdfKey = NULL;
                     XFREE(key->hkdfInfo, NULL, DYNAMIC_TYPE_INFO);

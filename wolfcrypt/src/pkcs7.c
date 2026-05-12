@@ -10561,6 +10561,7 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         ret = wc_PKCS7_PadData(pkcs7->content, pkcs7->contentSz, plain,
                                (word32)encryptedOutSz, (word32)blockSz);
         if (ret < 0) {
+            ForceZero(plain, (word32)encryptedOutSz);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
             return ret;
@@ -10575,6 +10576,8 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         encryptedContent = (byte*)XMALLOC((word32)encryptedOutSz, pkcs7->heap,
                                           DYNAMIC_TYPE_PKCS7);
         if (encryptedContent == NULL) {
+            if (plain != NULL)
+                ForceZero(plain, (word32)encryptedOutSz);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
             return MEMORY_E;
@@ -10591,6 +10594,8 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 
     if (contentEncAlgoSz == 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (plain != NULL)
+            ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return BAD_FUNC_ARG;
@@ -10630,6 +10635,8 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
             encryptedContent = (byte*)XMALLOC(streamSz, pkcs7->heap,
                                               DYNAMIC_TYPE_PKCS7);
             if (encryptedContent == NULL) {
+                if (plain != NULL)
+                    ForceZero(plain, (word32)encryptedOutSz);
                 XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
                 return MEMORY_E;
@@ -10676,6 +10683,8 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     ) {
         WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (plain != NULL)
+            ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return BUFFER_E;
@@ -10739,6 +10748,8 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
+        if (plain != NULL)
+            ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
@@ -10785,6 +10796,8 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         idx += encryptedOutSz;
     }
 
+    if (plain != NULL)
+        ForceZero(plain, (word32)encryptedOutSz);
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -12009,6 +12022,9 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
     int ret = 0, length, saltSz, iterations, blockSz, kekKeySz;
     int hashOID = WC_SHA; /* default to SHA1 */
+    int keyLen = 0;
+    int keyLenPresent = 0;
+    word32 pbkdf2End = 0;
     word32 kdfAlgoId, pwriEncAlgoId, keyEncAlgoId, cekSz;
     byte* pkiMsg = in;
     word32 pkiMsgSz = inSz;
@@ -12055,6 +12071,7 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             /* get KDF params SEQ */
             if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
+            pbkdf2End = *idx + (word32)length;
 
             /* get KDF salt OCTET STRING */
             if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
@@ -12078,6 +12095,44 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (GetMyVersion(pkiMsg, idx, &iterations, pkiMsgSz) < 0) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ASN_PARSE_E;
+            }
+
+            /* optional keyLength - validated below once kekKeySz is known */
+            if (*idx < pbkdf2End && pkiMsg[*idx] == ASN_INTEGER) {
+                if (GetShortInt(pkiMsg, idx, &keyLen, pbkdf2End) < 0) {
+                    XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                    return ASN_PARSE_E;
+                }
+                keyLenPresent = 1;
+            }
+
+            /* optional prf; default hmacWithSHA1 keeps hashOID at WC_SHA */
+            if (*idx < pbkdf2End &&
+                    pkiMsg[*idx] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+                word32 prfOid = 0;
+                if (GetAlgoId(pkiMsg, idx, &prfOid, oidHmacType,
+                                                            pbkdf2End) < 0) {
+                    XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                    return ASN_PARSE_E;
+                }
+                switch ((int)prfOid) {
+                #ifdef WOLFSSL_SHA224
+                    case HMAC_SHA224_OID: hashOID = WC_SHA224; break;
+                #endif
+                #ifndef NO_SHA256
+                    case HMAC_SHA256_OID: hashOID = WC_SHA256; break;
+                #endif
+                #ifdef WOLFSSL_SHA384
+                    case HMAC_SHA384_OID: hashOID = WC_SHA384; break;
+                #endif
+                #ifdef WOLFSSL_SHA512
+                    case HMAC_SHA512_OID: hashOID = WC_SHA512; break;
+                #endif
+                    default:
+                        /* unknown id (incl. explicit hmacWithSHA1) - keep
+                         * default WC_SHA; MAC unwrap fails if mismatched */
+                        break;
+                }
             }
 
             /* get KeyEncAlgoId SEQ */
@@ -12110,6 +12165,13 @@ static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (kekKeySz < 0) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return kekKeySz;
+            }
+
+            /* RFC 8018: when present, PBKDF2 keyLength must equal the
+             * derived key length expected by the encryption algorithm */
+            if (keyLenPresent && keyLen != kekKeySz) {
+                XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                return ASN_PARSE_E;
             }
 
             /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
@@ -14362,6 +14424,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
     encryptedContent = (byte*)XMALLOC((word32)encryptedAllocSz, pkcs7->heap,
                                       DYNAMIC_TYPE_PKCS7);
     if (encryptedContent == NULL) {
+        ForceZero(plain, (word32)encryptedAllocSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14375,6 +14438,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
             (int)pkcs7->cekSz, nonce, (int)nonceSz, aadBuffer, aadBufferSz,
             authTag, sizeof(authTag), plain, encryptedOutSz, encryptedContent);
 
+    ForceZero(plain, (word32)encryptedAllocSz);
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     plain = NULL;
 
@@ -15424,6 +15488,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     ret = wc_PKCS7_PadData(pkcs7->content, pkcs7->contentSz, plain,
                            (word32)encryptedOutSz, (word32)blockSz);
     if (ret < 0) {
+        ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -15431,6 +15496,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     encryptedContent = (byte*)XMALLOC((word32)encryptedOutSz, pkcs7->heap,
                                       DYNAMIC_TYPE_PKCS7);
     if (encryptedContent == NULL) {
+        ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return MEMORY_E;
     }
@@ -15444,6 +15510,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
                                  oidBlkType, ivOctetStringSz + blockSz);
     if (contentEncAlgoSz == 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BAD_FUNC_ARG;
     }
@@ -15453,6 +15520,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     ret = wc_PKCS7_GenerateBlock(pkcs7, NULL, tmpIv, (word32)blockSz);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -15462,6 +15530,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
             NULL, 0, NULL, 0, plain, encryptedOutSz, encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -15479,6 +15548,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 
         if (pkcs7->unprotectedAttribs == NULL) {
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            ForceZero(plain, (word32)encryptedOutSz);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return BAD_FUNC_ARG;
         }
@@ -15488,6 +15558,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
                 pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (attribs == NULL) {
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            ForceZero(plain, (word32)encryptedOutSz);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
         }
@@ -15504,6 +15575,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
             if (flatAttribs == NULL) {
                 XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ForceZero(plain, (word32)encryptedOutSz);
                 XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return MEMORY_E;
             }
@@ -15513,6 +15585,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
             if (ret != 0) {
                 XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ForceZero(plain, (word32)encryptedOutSz);
                 XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ret;
@@ -15553,6 +15626,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(plain, (word32)encryptedOutSz);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BUFFER_E;
     }
@@ -15594,6 +15668,7 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    ForceZero(plain, (word32)encryptedOutSz);
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
     return idx;

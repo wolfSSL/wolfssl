@@ -2195,7 +2195,7 @@ int test_wolfssl_EVP_sm4_ecb(void)
     };
     byte cipherText[sizeof(plainText) + SM4_BLOCK_SIZE];
     byte decryptedText[sizeof(plainText) + SM4_BLOCK_SIZE];
-    EVP_CIPHER_CTX* ctx;
+    EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
 
     XMEMSET(key, 0, sizeof(key));
@@ -2251,7 +2251,7 @@ int test_wolfssl_EVP_sm4_cbc(void)
     };
     byte cipherText[sizeof(plainText) + SM4_BLOCK_SIZE];
     byte decryptedText[sizeof(plainText) + SM4_BLOCK_SIZE];
-    EVP_CIPHER_CTX* ctx;
+    EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
 
     XMEMSET(key, 0, sizeof(key));
@@ -2319,7 +2319,7 @@ int test_wolfssl_EVP_sm4_ctr(void)
     byte plainText[] = {0xDE, 0xAD, 0xBE, 0xEF};
     byte cipherText[sizeof(plainText)];
     byte decryptedText[sizeof(plainText)];
-    EVP_CIPHER_CTX* ctx;
+    EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
 
     XMEMSET(key, 0, sizeof(key));

@@ -312,6 +312,9 @@ struct Aes {
     byte   keyIdSet;
     byte   useSWCrypt; /* Use SW crypt instead of SE050, before SCP03 auth */
 #endif
+#ifdef WOLFSSL_MICROCHIP_TA100
+    word16 key_id; /* use word16 instead of uint16_t for mplabx */
+#endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     word32 y0;
 #endif
@@ -386,7 +389,7 @@ struct Aes {
 #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
     (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)) || \
-    defined(WOLFSSL_KCAPI_AES)
+    defined(WOLFSSL_KCAPI_AES) || defined(WOLFSSL_NXP_HASHCRYPT_AES)
     word32 devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     int    keySet;

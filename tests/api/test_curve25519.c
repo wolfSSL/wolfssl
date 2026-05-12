@@ -444,14 +444,17 @@ int test_wc_curve25519_export_private_raw_ex(void)
     EXPECT_DECLS;
 #if defined(HAVE_CURVE25519)
     curve25519_key key;
+    WC_RNG         rng;
     byte           out[CURVE25519_KEYSIZE];
     word32         outLen = sizeof(out);
     int            endian = EC25519_BIG_ENDIAN;
 
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
     ExpectIntEQ(wc_curve25519_init(&key), 0);
 
+    /* Reject export when private key not set (privSet == 0). */
     ExpectIntEQ(wc_curve25519_export_private_raw_ex(&key, out, &outLen, endian),
-        0);
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     /* test bad cases */
     ExpectIntEQ(wc_curve25519_export_private_raw_ex(NULL, NULL, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -461,12 +464,15 @@ int test_wc_curve25519_export_private_raw_ex(void)
         endian), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_curve25519_export_private_raw_ex(&key, out, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_curve25519_export_private_raw_ex(&key, out, &outLen,
-        EC25519_LITTLE_ENDIAN), 0);
-    outLen = outLen - 2;
+
+    /* Populate the key, then exercise the buffer-too-small path. */
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key), 0);
+    outLen = CURVE25519_KEYSIZE - 1;
     ExpectIntEQ(wc_curve25519_export_private_raw_ex(&key, out, &outLen, endian),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
 
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_curve25519_free(&key);
 #endif
     return EXPECT_RESULT();
@@ -546,4 +552,117 @@ int test_wc_curve25519_import_private(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_curve25519_import */
+
+/*
+ * Test curve25519_priv_clamp_check via wc_curve25519_make_pub.
+ *
+ * RFC 7748 section 5 requires three clamping invariants on a Curve25519
+ * private scalar before use:
+ *   Rule 1: bits 0-2 of byte  0 must be clear  (scalar &= 0xF8)
+ *   Rule 2: bit  7 of byte 31 must be clear     (scalar &= 0x7F)
+ *   Rule 3: bit  6 of byte 31 must be SET       (scalar |= 0x40)
+ *
+ * Test vectors are derived from RFC 7748 s5; they are the independent oracle.
+ * Before the fix, rule 3 was not checked, so a scalar with byte[31]==0x00
+ * (bit 6 clear) was silently accepted -- regression covered below.
+ */
+int test_wc_curve25519_priv_clamp_check(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_CURVE25519
+    /* Valid clamped scalar: all bytes 0x00 except byte[31] = 0x40
+     * (bit 7 clear, bit 6 set, byte[0] bits 0-2 clear). */
+    static const byte kValidPriv[CURVE25519_KEYSIZE] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40
+    };
+    byte pub[CURVE25519_KEYSIZE];
+    byte priv[CURVE25519_KEYSIZE];
+
+    /* Valid key succeeds. */
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, kValidPriv), 0);
+
+    /* Rule 1 violation: bit 0 of byte[0] set (byte[0] = 0x01). */
+    XMEMCPY(priv, kValidPriv, sizeof(priv));
+    priv[0] |= 0x01;
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, priv), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    /* Rule 2 violation: bit 7 of byte[31] set (byte[31] = 0xC0, keeping
+     * bit 6 set so only rule 2 is violated). */
+    XMEMCPY(priv, kValidPriv, sizeof(priv));
+    priv[CURVE25519_KEYSIZE - 1] = 0xC0;
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, priv), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    /* Rule 3 violation: bit 6 of byte[31] clear (byte[31] = 0x00).
+     * Regression: this was silently accepted before the fix. */
+    XMEMCPY(priv, kValidPriv, sizeof(priv));
+    priv[CURVE25519_KEYSIZE - 1] = 0x00;
+    ExpectIntEQ(wc_curve25519_make_pub(CURVE25519_KEYSIZE, pub,
+        CURVE25519_KEYSIZE, priv), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve25519_priv_clamp_check */
+
+/*
+ * RFC 5958 OneAsymmetricKey: version=v2 (1) when publicKey is bundled,
+ * version=v1 (0) for private only.
+ */
+int test_wc_Curve25519KeyToDer_oneasymkey_version(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT)
+    curve25519_key key;
+    curve25519_key key2;
+    WC_RNG rng;
+    byte ref[256];   /* reference DER (bundled, then private only) */
+    byte rt[256];    /* re-export target for memcmp */
+    int  refSz = 0;
+    int  rtSz = 0;
+    word32 idx;
+
+    XMEMSET(&key,  0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng,  0, sizeof(rng));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve25519_init(&key), 0);
+    ExpectIntEQ(wc_curve25519_init(&key2), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key), 0);
+
+    /* make_key sets both priv and pub: KeyToDer bundles both (v=1).
+     * Use wc_Curve25519KeyDecode so the publicKey field is preserved in key2 */
+    ExpectIntGT(refSz = wc_Curve25519KeyToDer(&key, ref,
+        (word32)sizeof(ref), 1), 0);
+    ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
+    idx = 0;
+    ExpectIntEQ(wc_Curve25519KeyDecode(ref, &idx, &key2, (word32)refSz), 0);
+    ExpectIntEQ(rtSz = wc_Curve25519KeyToDer(&key2, rt, (word32)sizeof(rt), 1),
+        refSz);
+    ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
+
+    /* Private only creates v=0. Reuse ref/rt. */
+    XMEMSET(&key2, 0, sizeof(key2));
+    ExpectIntEQ(wc_curve25519_init(&key2), 0);
+    ExpectIntGT(refSz = wc_Curve25519PrivateKeyToDer(&key, ref,
+        (word32)sizeof(ref)), 0);
+    ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
+    idx = 0;
+    ExpectIntEQ(wc_Curve25519PrivateKeyDecode(ref, &idx, &key2,
+        (word32)refSz), 0);
+    ExpectIntEQ(rtSz = wc_Curve25519PrivateKeyToDer(&key2, rt,
+        (word32)sizeof(rt)), refSz);
+    ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
+
+    wc_curve25519_free(&key);
+    wc_curve25519_free(&key2);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
 

@@ -1113,6 +1113,8 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
     return ret;
 }
 
+#if !(defined(WOLFSSL_NOSHA3_224) && defined(WOLFSSL_NOSHA3_256) && \
+      defined(WOLFSSL_NOSHA3_384) && defined(WOLFSSL_NOSHA3_512))
 /* Update the SHA-3 hash state with message data.
  *
  * sha3  wc_Sha3 object holding state.
@@ -1243,6 +1245,7 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
     return InitSha3(sha3);  /* reset state */
 }
 #endif
+#endif
 
 /* Dispose of any dynamically allocated data from the SHA3-384 operation.
  * (Required for async ops.)
@@ -1342,6 +1345,8 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
     return ret;
 }
 
+#if !(defined(WOLFSSL_NOSHA3_224) && defined(WOLFSSL_NOSHA3_256) && \
+      defined(WOLFSSL_NOSHA3_384) && defined(WOLFSSL_NOSHA3_512))
 /* Calculate the SHA3-224 hash based on all the message data so far.
  * More message data can be added, after this operation, using the current
  * state.
@@ -1372,7 +1377,9 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
     WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+#endif
 
+#ifndef WOLFSSL_NOSHA3_224
 /* Initialize the state for a SHA3-224 hash operation.
  *
  * sha3   wc_Sha3 object holding state.
@@ -1443,8 +1450,9 @@ int wc_Sha3_224_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
+#endif
 
-
+#ifndef WOLFSSL_NOSHA3_256
 /* Initialize the state for a SHA3-256 hash operation.
  *
  * sha3   wc_Sha3 object holding state.
@@ -1515,8 +1523,9 @@ int wc_Sha3_256_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
+#endif
 
-
+#ifndef WOLFSSL_NOSHA3_384
 /* Initialize the state for a SHA3-384 hash operation.
  *
  * sha3   wc_Sha3 object holding state.
@@ -1587,8 +1596,9 @@ int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
+#endif
 
-
+#ifndef WOLFSSL_NOSHA3_512
 /* Initialize the state for a SHA3-512 hash operation.
  *
  * sha3   wc_Sha3 object holding state.
@@ -1659,6 +1669,7 @@ int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
+#endif
 
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)

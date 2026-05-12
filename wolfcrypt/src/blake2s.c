@@ -498,6 +498,8 @@ int wc_Blake2sHmacInit(Blake2s* b2s, const byte* key, size_t key_len)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(x_key, 0, sizeof(x_key));
+
     if (key_len > BLAKE2S_BLOCKBYTES) {
         ret = wc_InitBlake2s(b2s, BLAKE2S_OUTBYTES);
         if (ret == 0)
@@ -506,9 +508,6 @@ int wc_Blake2sHmacInit(Blake2s* b2s, const byte* key, size_t key_len)
             ret = wc_Blake2sFinal(b2s, x_key, 0);
     } else {
         XMEMCPY(x_key, key, key_len);
-        if (key_len < BLAKE2S_BLOCKBYTES) {
-            XMEMSET(x_key + key_len, 0, BLAKE2S_BLOCKBYTES - key_len);
-        }
     }
 
     if (ret == 0) {
@@ -538,6 +537,7 @@ int wc_Blake2sHmacFinal(Blake2s* b2s, const byte* key, size_t key_len,
         byte* out, size_t out_len)
 {
     byte x_key[BLAKE2S_BLOCKBYTES];
+    Blake2s keyHash;
     int i;
     int ret = 0;
 
@@ -547,17 +547,17 @@ int wc_Blake2sHmacFinal(Blake2s* b2s, const byte* key, size_t key_len,
     if (out_len != BLAKE2S_OUTBYTES)
         return BUFFER_E;
 
+    XMEMSET(x_key, 0, sizeof(x_key));
+
     if (key_len > BLAKE2S_BLOCKBYTES) {
-        ret = wc_InitBlake2s(b2s, BLAKE2S_OUTBYTES);
+        ret = wc_InitBlake2s(&keyHash, BLAKE2S_OUTBYTES);
         if (ret == 0)
-            ret = wc_Blake2sUpdate(b2s, key, (word32)key_len);
+            ret = wc_Blake2sUpdate(&keyHash, key, (word32)key_len);
         if (ret == 0)
-            ret = wc_Blake2sFinal(b2s, x_key, 0);
+            ret = wc_Blake2sFinal(&keyHash, x_key, 0);
+        ForceZero(&keyHash, sizeof(keyHash));
     } else {
         XMEMCPY(x_key, key, key_len);
-        if (key_len < BLAKE2S_BLOCKBYTES) {
-            XMEMSET(x_key + key_len, 0, BLAKE2S_BLOCKBYTES - key_len);
-        }
     }
 
     if (ret == 0) {

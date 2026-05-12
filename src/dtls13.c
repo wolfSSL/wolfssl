@@ -897,7 +897,7 @@ static void Dtls13RtxRemoveCurAck(WOLFSSL* ssl)
 #endif
 }
 
-static void Dtls13MaybeSaveClientHello(WOLFSSL* ssl)
+static void Dtls13SaveOrFlushClientHello(WOLFSSL* ssl)
 {
     Dtls13RtxRecord *r, **prev_next;
 
@@ -906,15 +906,18 @@ static void Dtls13MaybeSaveClientHello(WOLFSSL* ssl)
 
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
         ssl->options.connectState >= CLIENT_HELLO_SENT &&
-        ssl->options.connectState <= HELLO_AGAIN_REPLY &&
-        ssl->options.downgrade && ssl->options.minDowngrade >= DTLSv1_2_MINOR) {
+        ssl->options.connectState <= HELLO_AGAIN_REPLY) {
         while (r != NULL) {
             if (r->handshakeType == client_hello) {
                 Dtls13RtxRecordUnlink(ssl, prev_next, r);
-                XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
-                ssl->dtls13ClientHello = r->data;
-                ssl->dtls13ClientHelloSz = r->length;
-                r->data = NULL;
+                if (ssl->options.downgrade &&
+                        ssl->options.minDowngrade >= DTLSv1_2_MINOR) {
+                    XFREE(ssl->dtls13ClientHello, ssl->heap,
+                        DYNAMIC_TYPE_DTLS_MSG);
+                    ssl->dtls13ClientHello = r->data;
+                    ssl->dtls13ClientHelloSz = r->length;
+                    r->data = NULL;
+                }
                 Dtls13FreeRtxBufferRecord(ssl, r);
                 return;
             }
@@ -934,7 +937,7 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
             ssl->keys.dtls_expected_peer_handshake_number) {
 
         if (hs == server_hello)
-            Dtls13MaybeSaveClientHello(ssl);
+            Dtls13SaveOrFlushClientHello(ssl);
 
         /* In the handshake, receiving part of the next flight, acknowledge the
          * sent flight. */
@@ -1869,13 +1872,15 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             *processedSize = size;
             return 0;
         }
-        /* To be able to operate in stateless mode, we assume the ClientHello
-         * is in order and we use its Handshake Message number and Sequence
-         * Number for our Tx. */
-        ssl->keys.dtls_expected_peer_handshake_number =
-            ssl->keys.dtls_handshake_number =
-                ssl->keys.dtls_peer_handshake_number;
-        ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
+        if (!ssl->options.dtlsStateful) {
+            /* To be able to operate in stateless mode, we assume the
+             * ClientHello is in order and we use its Handshake Message number
+             * and Sequence Number for our Tx. */
+            ssl->keys.dtls_expected_peer_handshake_number =
+                ssl->keys.dtls_handshake_number =
+                    ssl->keys.dtls_peer_handshake_number;
+            ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
+        }
     }
 
     if (idx + fragLength > size) {
@@ -2188,16 +2193,27 @@ static int Dtls13InitAesCipher(WOLFSSL* ssl, RecordNumberCiphers* cipher,
     XMEMSET(cipher->aes, 0, sizeof(*cipher->aes));
 
     ret = wc_AesInit(cipher->aes, ssl->heap, INVALID_DEVID);
-    if (ret != 0)
+    if (ret != 0) {
+        XFREE(cipher->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        cipher->aes = NULL;
         return ret;
+    }
 
-    return wc_AesSetKey(cipher->aes, key, keySize, NULL, AES_ENCRYPTION);
+    ret = wc_AesSetKey(cipher->aes, key, keySize, NULL, AES_ENCRYPTION);
+    if (ret != 0) {
+        wc_AesFree(cipher->aes);
+        XFREE(cipher->aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        cipher->aes = NULL;
+    }
+
+    return ret;
 }
 
 #ifdef HAVE_CHACHA
 static int Dtls13InitChaChaCipher(RecordNumberCiphers* c, byte* key,
     word16 keySize, void* heap)
 {
+    int ret;
     (void)heap;
 
     if (c->chacha == NULL) {
@@ -2207,7 +2223,13 @@ static int Dtls13InitChaChaCipher(RecordNumberCiphers* c, byte* key,
             return MEMORY_E;
     }
 
-    return wc_Chacha_SetKey(c->chacha, key, keySize);
+    ret = wc_Chacha_SetKey(c->chacha, key, keySize);
+    if (ret != 0) {
+        XFREE(c->chacha, heap, DYNAMIC_TYPE_CIPHER);
+        c->chacha = NULL;
+    }
+
+    return ret;
 }
 #endif /* HAVE_CHACHA */
 

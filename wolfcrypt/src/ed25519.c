@@ -548,6 +548,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         }
         ret = ctMaskGT(c, 0) & SIG_VERIFY_E;
     }
+    ForceZero(orig_k, sizeof(orig_k));
 #endif
 
     return ret;
@@ -1414,7 +1415,7 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
 int wc_ed25519_export_private_only(const ed25519_key* key, byte* out, word32* outLen)
 {
     /* sanity checks on arguments */
-    if (key == NULL || out == NULL || outLen == NULL)
+    if (key == NULL || !key->privKeySet || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
     if (*outLen < ED25519_KEY_SIZE) {

@@ -7712,16 +7712,99 @@ int wolfSSL_Cleanup(void)
     return ret;
 }
 
+/* Returns 1 if name is a syntactically valid DNS FQDN per RFC 952/1123.
+ *
+ * Rules enforced:
+ *   - Total effective length (excluding optional trailing dot) in [1, 253]
+ *   - Each label is 1-63 octets of [a-zA-Z0-9-], with _ allowed in all but
+ *     the last label.
+ *   - No label starts or ends with '-'
+ *   - At least two labels (single-label names are not "fully qualified")
+ *   - Final label (TLD) contains at least one letter (rejects all-numeric
+ *     strings that could be confused with IPv4 literals, and matches the
+ *     ICANN constraint that TLDs are alphabetic)
+ *   - Optional trailing dot is accepted (absolute FQDN form)
+ *   - Internationalized names are valid in their ACE/punycode (xn--) form
+ */
+int wolfssl_local_IsValidFQDN(const char* name, word32 nameSz)
+{
+    word32 i;
+    int labelLen = 0;
+    int labelCount = 0;
+    int curLabelHasAlpha = 0;
+    int curLabelHasUnderscore = 0;
+
+    if (name == NULL || nameSz == 0)
+        return 0;
+
+    /* Strip a single optional trailing dot before measuring.  "example.com."
+     * is the absolute form of the same FQDN.
+     */
+    if (name[nameSz - 1] == '.')
+        --nameSz;
+
+    if (nameSz < 1 || nameSz > 253)
+        return 0;
+
+    for (i = 0; i < nameSz; i++) {
+        byte c = (byte)name[i];
+
+        if (c == '.') {
+            if (labelLen == 0 || name[i - 1] == '-')
+                return 0;
+            ++labelCount;
+            labelLen = 0;
+            curLabelHasAlpha = 0;
+            curLabelHasUnderscore = 0;
+            continue;
+        }
+
+        if (++labelLen > 63)
+            return 0;
+
+        if (c == '-') {
+            if (labelLen == 1)
+                return 0;
+        }
+        else if (((c | 0x20) >= 'a') && ((c | 0x20) <= 'z')) {
+            curLabelHasAlpha = 1;
+        }
+        else if (c == '_') {
+            curLabelHasUnderscore = 1;
+        }
+        else if ((c < '0') || (c > '9')) {
+            return 0;
+        }
+    }
+
+    /* Final label (no trailing dot in the effective range to close it) */
+    if ((labelLen == 0) || (name[nameSz - 1] == '-') || curLabelHasUnderscore)
+        return 0;
+    ++labelCount;
+
+    return ((labelCount > 1) && curLabelHasAlpha);
+}
 
 /* call before SSL_connect, if verifying will add name check to
    date check and signature check */
 WOLFSSL_ABI
 int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
 {
+    size_t dn_len;
+
     WOLFSSL_ENTER("wolfSSL_check_domain_name");
 
     if (ssl == NULL || dn == NULL) {
         WOLFSSL_MSG("Bad function argument: NULL");
+        return WOLFSSL_FAILURE;
+    }
+
+    dn_len = XSTRLEN(dn);
+
+    if ((! wolfssl_local_IsValidFQDN(dn, (word32)dn_len)) &&
+        (XSTRCMP(dn, "localhost") != 0))
+    {
+        WOLFSSL_MSG("Bad function argument: fails wolfssl_local_IsValidFQDN");
         return WOLFSSL_FAILURE;
     }
 
@@ -10069,11 +10152,21 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
     #endif
+    #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-        ssl->options.noPskDheKe = 0;
-      #ifdef HAVE_SUPPORTED_CURVES
-        ssl->options.onlyPskDheKe = 0;
-      #endif
+        if (ssl->ctx != NULL) {
+            ssl->options.noPskDheKe = ssl->ctx->noPskDheKe;
+          #ifdef HAVE_SUPPORTED_CURVES
+            ssl->options.onlyPskDheKe = ssl->ctx->onlyPskDheKe;
+          #endif
+        }
+        else {
+            ssl->options.noPskDheKe = 0;
+          #ifdef HAVE_SUPPORTED_CURVES
+            ssl->options.onlyPskDheKe = 0;
+          #endif
+        }
+    #endif
     #endif
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
@@ -17545,7 +17638,10 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
     unsigned int ptIdx;
     unsigned int sz;
     unsigned int idx = 0;
-    int alpn_opt = WOLFSSL_ALPN_CONTINUE_ON_MISMATCH;
+    /* RFC 7301: a server that does not select any of the client's offered
+     * protocols MUST send no_application_protocol. Match that contract on
+     * the OpenSSL-compat surface rather than silently continuing. */
+    int alpn_opt = WOLFSSL_ALPN_FAILED_ON_MISMATCH;
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_set_alpn_protos");

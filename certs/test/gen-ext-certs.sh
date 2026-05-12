@@ -196,6 +196,35 @@ EOF
 gen_cert
 rm -f ./certs/test/cert-ext-ncip.cfg
 
+OUT=certs/test/cert-ext-ncrid
+KEYFILE=certs/test/cert-ext-ncrid-key.der
+CONFIG=certs/test/cert-ext-ncrid.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = AU
+ST            = Queensland
+L             = Brisbane
+O             = wolfSSL Inc
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,permitted;RID:1.2.3.4.5
+nsComment       = "Testing registeredID name constraints"
+
+EOF
+gen_cert
+rm -f ./certs/test/cert-ext-ncrid.cfg
+
 OUT=certs/test/cert-ext-ia
 KEYFILE=certs/test/cert-ext-ia-key.der
 CONFIG=certs/test/cert-ext-ia.cfg

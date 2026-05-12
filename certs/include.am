@@ -90,7 +90,8 @@ EXTRA_DIST += \
 EXTRA_DIST += \
              certs/aia/ca-issuers-cert.pem \
              certs/aia/multi-aia-cert.pem \
-             certs/aia/overflow-aia-cert.pem
+             certs/aia/overflow-aia-cert.pem \
+             certs/sia/timestamping-sia-cert.pem
 
 EXTRA_DIST += \
              certs/ca-key.der \
@@ -155,11 +156,14 @@ include certs/ocsp/include.am
 include certs/statickeys/include.am
 include certs/test/include.am
 include certs/test-pathlen/include.am
+include certs/test-serial0/include.am
 include certs/intermediate/include.am
 include certs/falcon/include.am
 include certs/rsapss/include.am
 include certs/dilithium/include.am
 include certs/slhdsa/include.am
+include certs/lms/include.am
+include certs/xmss/include.am
 include certs/rpk/include.am
 include certs/acert/include.am
 include certs/mldsa/include.am
