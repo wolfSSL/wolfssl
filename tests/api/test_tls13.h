@@ -68,6 +68,11 @@ int test_tls13_cert_with_extern_psk_sh_missing_key_share(void);
 int test_tls13_cert_with_extern_psk_sh_confirms_resumption(void);
 int test_tls13_ticket_peer_cert_reverify(void);
 int test_tls13_clear_preserves_psk_dhe(void);
+int test_tls13_cipher_fuzz_aes128_gcm_sha256(void);
+int test_tls13_cipher_fuzz_aes256_gcm_sha384(void);
+int test_tls13_cipher_fuzz_chacha20_poly1305_sha256(void);
+int test_tls13_cipher_fuzz_aes128_ccm_sha256(void);
+int test_tls13_cipher_fuzz_aes128_ccm_8_sha256(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -113,6 +118,11 @@ int test_tls13_clear_preserves_psk_dhe(void);
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_missing_key_share), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_sh_confirms_resumption), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_reverify), \
-    TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe)
+    TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_gcm_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes256_gcm_sha384), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_chacha20_poly1305_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_ccm_sha256), \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_ccm_8_sha256)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
