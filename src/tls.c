@@ -14955,8 +14955,9 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 break;
 
             case TLSX_STATUS_REQUEST:
-                length += CSR_GET_SIZE(
-                         (CertificateStatusRequest*)extension->data, isRequest);
+                if (msgType != certificate_request)
+                    length += CSR_GET_SIZE(
+                            (CertificateStatusRequest*)extension->data, isRequest);
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
@@ -15233,11 +15234,15 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_STATUS_REQUEST:
                 WOLFSSL_MSG("Certificate Status Request extension to write");
-                ret = CSR_WRITE((CertificateStatusRequest*)extension->data,
-                        output + offset, isRequest);
-                if (ret > 0) {
-                    offset += (word16)ret;
+                if (msgType == certificate_request) {
                     ret = 0;
+                } else {
+                    ret = CSR_WRITE((CertificateStatusRequest*)extension->data,
+                            output + offset, isRequest);
+                    if (ret > 0) {
+                        offset += (word16)ret;
+                        ret = 0;
+                    }
                 }
                 break;
 
@@ -16628,6 +16633,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, OID_FILTERS
          *       TLSX_STATUS_REQUEST
          */
+        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
     }
     #endif
 #if defined(HAVE_ECH)
@@ -16854,8 +16860,9 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, TLSX_OID_FILTERS
          *       TLSX_STATUS_REQUEST
          */
+        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
     }
-    #endif
+#endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     if (ssl->echConfigs != NULL && !ssl->options.disableECH

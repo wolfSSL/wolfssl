@@ -5873,3 +5873,157 @@ int test_tls13_clear_preserves_psk_dhe(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Mock OCSP I/O callback: returns 0 bytes so the server stapling slot
+ * stays empty. This intentionally exercises the "no staple available"
+ * path on both peers. */
+static int test_pha_ocsp_io_cb(void* ioCtx, const char* url, int urlSz,
+    unsigned char* req, int reqSz, unsigned char** resp)
+{
+    (void)ioCtx; (void)url; (void)urlSz; (void)req; (void)reqSz;
+    *resp = NULL;
+    return 0;
+}
+
+static void test_pha_ocsp_resp_free_cb(void* ioCtx, unsigned char* resp)
+{
+    (void)ioCtx; (void)resp;
+}
+#endif
+
+/* Post-Handshake Authentication combined with OCSP stapling
+ * (status_request) on the TLS 1.3 CertificateRequest message.
+ *
+ * Regression for two related issues:
+ *   1. The server's PHA CertificateRequest must include the
+ *      status_request extension (with an empty body) when the client
+ *      offered status_request in its ClientHello (RFC 8446 4.2 / 4.3.2).
+ *      Without the fix the extension was suppressed and the size and
+ *      write paths disagreed by 4 bytes, causing the client to send a
+ *      decode_error alert (BUFFER_ERROR / -328).
+ *   2. The server-side OCSP-status check in ProcessPeerCerts must run
+ *      for the PHA-received client Certificate. The check must also
+ *      tolerate a missing/empty stapled response unless the verifier
+ *      enforces must-staple, per RFC 8446 4.4.2.1 (client OCSP staple
+ *      is MAY) and RFC 7633 (must-staple). Without the fix the server
+ *      either skipped the check entirely or returned
+ *      BAD_CERTIFICATE_STATUS_ERROR (-406) for the no-staple case.
+ *
+ * The test exercises a single TLS 1.3 connection: an initial handshake
+ * without client authentication, followed by a server-initiated PHA
+ * exchange. The server expects to receive (and verify) the client
+ * certificate even though no OCSP staple is supplied.
+ */
+int test_tls13_pha_status_request(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_X509 *peer = NULL;
+    const char msg[] = "ping";
+    char buf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* --- Client CTX ------------------------------------------------ */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    /* Must opt in to PHA before wolfSSL_connect to add the
+     * post_handshake_auth extension to the ClientHello. */
+    ExpectIntEQ(wolfSSL_CTX_allow_post_handshake_auth(ctx_c), 0);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_c), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    /* --- Server CTX ------------------------------------------------ */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    /* Trust the client cert issuer as well, otherwise the PHA
+     * Certificate verification would fail with ASN_SELF_SIGNED_E. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s,
+        "./certs/client-ca.pem", 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_s), WOLFSSL_SUCCESS);
+    /* Mock callback: stapling negotiates but the response is empty. */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx_s, test_pha_ocsp_io_cb,
+        test_pha_ocsp_resp_free_cb, NULL), WOLFSSL_SUCCESS);
+    /* Initial handshake: do not request the client certificate yet -
+     * the server promotes verification only when triggering PHA. */
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    /* --- SSL objects ----------------------------------------------- */
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    /* Causes status_request in the ClientHello so that the server's
+     * PHA CertificateRequest re-emits the same extension. */
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP, 0),
+        WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+
+    /* --- Initial handshake (no client cert requested) -------------- */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNull(wolfSSL_get_peer_certificate(ssl_s));
+
+    /* --- Trigger PHA: server now requires the client certificate -- */
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_set_verify(ssl_s,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+            NULL);
+        ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    }
+
+    /* The server's wolfSSL_write below carries the PHA
+     * CertificateRequest record. The client's wolfSSL_read consumes
+     * the request, transmits Certificate/CertificateVerify/Finished
+     * and surfaces the application data to us. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf) - 1),
+        (int)sizeof(msg) - 1);
+
+    /* The client's reply lets the server's wolfSSL_read drain the
+     * incoming PHA Certificate flight before the application data. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf) - 1),
+        (int)sizeof(msg) - 1);
+
+    /* PHA succeeded: the server now holds the client certificate.
+     * Reaching this point also implies the server tolerated the
+     * empty OCSP staple instead of failing with -406. */
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    wolfSSL_X509_free(peer);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
