@@ -264,7 +264,7 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
             return BUFFER_E;
         }
         XMEMSET(buf, 0, *len);
-        err = mp_to_unsigned_bin(mp, buf + (keySz - mpSz));
+        err = mp_to_unsigned_bin(mp, buf + (keySz - (word32)mpSz));
     }
 
     return err;
