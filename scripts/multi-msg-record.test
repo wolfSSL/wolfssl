@@ -26,7 +26,7 @@ elif [ "${AM_BWRAPPED-}" != "yes" ]; then
     unset AM_BWRAPPED
 fi
 
-# Locate python3 – skip (exit 77) if unavailable.
+# Locate python3 - skip (exit 77) if unavailable.
 PYTHON="$(command -v python3)"
 if [ -z "$PYTHON" ]; then
     echo "python3 not found, skipping multi-msg-record test"
