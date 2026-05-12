@@ -558,9 +558,18 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
         tmp = out;
     #endif
 
-        XSecure_AesInitialize(&(aes->xilAes), &(aes->dma), aes->kup, (word32*)iv,
-            aes->keyInit);
-        XSecure_AesEncryptData(&(aes->xilAes), tmp, in, sz);
+        ret = XSecure_AesInitialize(&(aes->xilAes), &(aes->dma), aes->kup,
+            (word32*)iv, aes->keyInit);
+        if (ret == XST_SUCCESS) {
+            ret = XSecure_AesEncryptData(&(aes->xilAes), tmp, in, sz);
+        }
+        if (ret != XST_SUCCESS) {
+        #ifndef NO_WOLFSSL_XILINX_TAG_MALLOC
+            XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+            WOLFSSL_MSG("Xilinx AES-GCM encrypt failed");
+            return WC_HW_E;
+        }
         XMEMCPY(authTag, tmp + sz, authTagSz);
     #ifndef NO_WOLFSSL_XILINX_TAG_MALLOC
         XMEMCPY(out, tmp, sz);
@@ -624,8 +633,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     }
 
     /* calls to hardened crypto */
-    XSecure_AesInitialize(&(aes->xilAes), &(aes->dma), aes->kup,
+    ret = XSecure_AesInitialize(&(aes->xilAes), &(aes->dma), aes->kup,
                 (word32*)iv, aes->keyInit);
+    if (ret != XST_SUCCESS) {
+        WOLFSSL_MSG("XSecure_AesInitialize failed");
+        return WC_HW_E;
+    }
     ret = XSecure_AesDecryptData(&(aes->xilAes), out, in, sz, tag);
 
     /* account for additional data */
