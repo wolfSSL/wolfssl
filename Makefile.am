@@ -475,10 +475,16 @@ BOMSH_CONF             = $(abs_builddir)/_bomsh.conf
 BOMSH_OMNIBORDIR       = $(abs_builddir)/omnibor
 BOMSH_SPDX_OUT         = omnibor.wolfssl-$(PACKAGE_VERSION).spdx.json
 # Single-source-of-truth manifest of the library artefact bomtrace3
-# actually traced.  Written by the bomsh: recipe so downstream
-# verification (CI: `Bomsh provenance is end-to-end verifiable`) doesn't
-# have to re-derive the same WOLFSSL_LIB_DSO_BASENAMES priority order
-# in parallel and risk drift.
+# actually traced.  Format: one line, '<path>\t<gitoid>'.  Both fields
+# are captured by the bomsh: recipe right after bomtrace3 finishes, so
+# downstream verification (CI: `Bomsh provenance is end-to-end
+# verifiable`) compares the SPDX gitoid against the gitoid bomsh
+# itself recorded -- decoupling check (C) from the file's *current*
+# bytes, which `make sbom`'s subsequent `make install` step relinks
+# in place via libtool (RPATH fixup), changing the gitoid that would
+# be re-computed off the on-disk file.  The verifier still warns when
+# the on-disk gitoid disagrees, so the install-time relink remains
+# visible.
 BOMSH_ARTEFACT_MANIFEST = $(abs_builddir)/_bomsh.artefact
 bomshdir          = $(datadir)/doc/$(PACKAGE)
 
@@ -508,25 +514,39 @@ bomsh:
 	@printf 'raw_logfile=%s\n' '$(BOMSH_RAWLOG_BASE)' > '$(BOMSH_CONF)'
 	$(BOMTRACE3) -c '$(BOMSH_CONF)' $(MAKE)
 	$(BOMSH_CREATE_BOM) -r '$(BOMSH_RAWLOG)' -b '$(BOMSH_OMNIBORDIR)'
-	$(MAKE) sbom
-	@if test -z "$(BOMSH_SBOM)"; then \
-	    echo "NOTE: bomsh_sbom.py not in PATH; skipping SPDX enrichment."; \
-	    echo "      The OmniBOR graph in $(BOMSH_OMNIBORDIR) is still produced."; \
-	    exit 0; \
-	fi; \
-	bomsh_artifact=""; \
+	@# Capture the gitoid of the bomtrace3-traced library BEFORE the
+	@# `make sbom` below, which calls `make install DESTDIR=...` --
+	@# libtool's --mode=install relinks src/.libs/lib*.so* in place
+	@# to fix RPATH, mutating the bytes that bomsh recorded in the
+	@# ADG via bomsh_create_bom above.  Capturing here pins the
+	@# verifier's check (C) to the bomsh-traced gitoid (so SPDX <->
+	@# manifest agree even though the on-disk bytes diverge after
+	@# install).  The on-disk divergence is surfaced as a verifier
+	@# warning, not a failure.
+	@bomsh_artifact=""; \
 	for lib in \
 	    $(addprefix "$(abs_builddir)/src/.libs"/,$(WOLFSSL_LIB_DSO_BASENAMES)) \
 	    "$(abs_builddir)/src/.libs/libwolfssl.a" \
 	    "$(abs_builddir)/src/libwolfssl.a"; do \
 	    if test -f "$$lib"; then bomsh_artifact="$$lib"; break; fi; \
 	done; \
-	if test -z "$$bomsh_artifact"; then \
+	if test -n "$$bomsh_artifact"; then \
+	    bomsh_artifact_gid=`$(PYTHON3) -c 'import hashlib,sys;d=open(sys.argv[1],"rb").read();h=hashlib.sha1();h.update(("blob %d\0"%len(d)).encode());h.update(d);print(h.hexdigest())' "$$bomsh_artifact"`; \
+	    printf '%s\t%s\n' "$$bomsh_artifact" "$$bomsh_artifact_gid" \
+	        > '$(BOMSH_ARTEFACT_MANIFEST)'; \
+	fi
+	$(MAKE) sbom
+	@if test -z "$(BOMSH_SBOM)"; then \
+	    echo "NOTE: bomsh_sbom.py not in PATH; skipping SPDX enrichment."; \
+	    echo "      The OmniBOR graph in $(BOMSH_OMNIBORDIR) is still produced."; \
+	    exit 0; \
+	fi; \
+	if test ! -f '$(BOMSH_ARTEFACT_MANIFEST)'; then \
 	    echo "NOTE: no built libwolfssl artifact found in $(abs_builddir)/src/.libs/"; \
 	    echo "      OmniBOR graph produced; SPDX enrichment skipped."; \
 	    exit 0; \
 	fi; \
-	printf '%s\n' "$$bomsh_artifact" > '$(BOMSH_ARTEFACT_MANIFEST)'; \
+	bomsh_artifact=`awk 'NR==1 {print $$1}' '$(BOMSH_ARTEFACT_MANIFEST)'`; \
 	echo "Enriching SPDX with OmniBOR ExternalRefs (artifact: $$bomsh_artifact)..."; \
 	$(BOMSH_SBOM) \
 	    -b '$(BOMSH_OMNIBORDIR)' \

@@ -400,7 +400,7 @@ class TestDetectLicense(unittest.TestCase):
                 'Permission is hereby granted, free of charge, ...\n')
         self.assertIsNone(result)
         # Warning must mention the file path so an operator running
-        # `make sbom` can see which file was unparseable.
+        # `make sbom` can see which file was unparsable.
         self.assertIn('no GPL version found', stderr.getvalue())
 
     def test_missing_file_returns_none_with_warning(self):
@@ -1898,14 +1898,25 @@ class _BomshFixture:
         # check (B) actually exercises its loop).
         self.artefact_content = b'\x7fELF...wolfssl shared library content...'
         self.artefact_path.write_bytes(self.artefact_content)
-        self.manifest_path.write_text(str(self.artefact_path) + '\n')
         self.aux_blobs = [b'/* aes.c */\n', b'/* sha.c */\n']
         self.gitoids = {
             'wolfssl': self._stage_blob(self.artefact_content),
         }
         for i, content in enumerate(self.aux_blobs):
             self.gitoids[f'aux{i}'] = self._stage_blob(content)
+        # Manifest mirrors the new bomsh: recipe format: a single line,
+        # '<path>\t<gitoid>'.  The gitoid is captured BEFORE `make sbom`
+        # would rewrite the file (libtool relink), so it pins the
+        # bomsh-traced bytes rather than the on-disk current bytes --
+        # decoupling check (C) from libtool's install-time rewrite.
+        self.write_manifest(self.artefact_path, self.gitoids['wolfssl'])
         self._write_spdx()
+
+    def write_manifest(self, path, gid):
+        """Helper so individual tests can rewrite the manifest with a
+        deliberately-wrong path or gitoid without re-reading
+        the recipe's exact format."""
+        self.manifest_path.write_text(f'{path}\t{gid}\n')
 
     def _stage_blob(self, content):
         """Write `content` into omnibor/objects/<aa>/<rest> at the
@@ -2034,26 +2045,67 @@ class TestBomshProvenanceVerify(unittest.TestCase):
             self.assertIn('not produced by `make bomsh`', joined)
 
     def test_artefact_gid_mismatch_fails_check_C(self):
-        # Manifest points at a different file (e.g. the recipe ran the
-        # discovery loop on a stale build).  The verifier must reject
-        # and surface BOTH the SPDX gitoid set and the actual artefact
-        # gitoid so the operator can diff them.
+        # Manifest records a gitoid that does NOT match any wolfSSL
+        # SPDX externalRef.  This is the canonical "bomsh recorded X
+        # but bomsh_sbom enriched the SPDX with a different gitoid Y"
+        # bug -- exactly what check (C) is here to catch.  The failure
+        # message must surface both the SPDX gitoid set AND the
+        # bomsh-recorded gitoid so the operator can diff them.
         with tempfile.TemporaryDirectory() as tmpdir:
             fx = _BomshFixture(tmpdir)
-            wrong = pathlib.Path(tmpdir) / 'wrong-artefact.so'
-            wrong.write_bytes(b'totally different bytes')
-            fx.manifest_path.write_text(str(wrong) + '\n')
+            fake_gid = 'f' * 40
+            fx.write_manifest(fx.artefact_path, fake_gid)
             ok, messages = fx.verify()
             self.assertFalse(ok)
             joined = '\n'.join(messages)
-            self.assertIn('does not attest to the binary', joined)
-            self.assertIn('wolfssl', joined.lower())
+            self.assertIn('inconsistent with what bomsh actually saw',
+                          joined)
+            self.assertIn(fake_gid, joined)
+            self.assertIn(fx.gitoids['wolfssl'], joined)
+
+    def test_on_disk_divergence_emits_note_but_passes(self):
+        # The on-disk artefact bytes have changed since bomsh recorded
+        # them (the canonical libtool-relink case).  Check (C) compares
+        # against the manifest's bomsh-recorded gitoid (which still
+        # matches the SPDX), so the verifier must PASS, but it must
+        # also emit a NOTE so the divergence is not silently hidden.
+        # Pinning this is the contract that makes the install-time
+        # relink visible without breaking CI.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            # Rewrite the on-disk artefact AFTER the fixture pinned
+            # its gitoid in the manifest -- simulates `make sbom`'s
+            # `make install` relink.
+            fx.artefact_path.write_bytes(b'post-relink RPATH-fixed bytes')
+            ok, messages = fx.verify()
+            self.assertTrue(ok, f'verifier failed despite agreement: {messages}')
+            joined = '\n'.join(messages)
+            self.assertIn('NOTE:', joined)
+            self.assertIn('libtool relinks', joined)
+            # Both gitoids surfaced so triage doesn't need a second pass.
+            self.assertIn(fx.gitoids['wolfssl'], joined)
+
+    def test_manifest_path_only_legacy_format_rejected(self):
+        # A manifest containing only the path (the pre-fix legacy
+        # format) must be rejected explicitly, with a message that
+        # tells the operator to re-run `make bomsh` against an
+        # up-to-date Makefile.am.  Silent acceptance would re-introduce
+        # the false-positive failure mode the new format was designed
+        # to prevent.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fx = _BomshFixture(tmpdir)
+            fx.manifest_path.write_text(str(fx.artefact_path) + '\n')
+            ok, messages = fx.verify()
+            self.assertFalse(ok)
+            joined = '\n'.join(messages)
+            self.assertIn('expected "<path>\\t<gitoid>"', joined)
+            self.assertIn('up-to-date Makefile.am', joined)
 
     def test_unexpected_gitoid_locator_format_rejected(self):
         # bomsh upstream switching from sha1 to sha256 would change
         # the locator prefix.  load_spdx_gitoids must raise so the
         # maintainer is forced to update the verifier in lockstep,
-        # rather than silently accepting an unparseable value.
+        # rather than silently accepting an unparsable value.
         with tempfile.TemporaryDirectory() as tmpdir:
             fx = _BomshFixture(tmpdir)
             spdx = json.loads(fx.spdx_path.read_text())

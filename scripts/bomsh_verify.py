@@ -15,17 +15,26 @@ none of these follow-up properties are guaranteed by it:
       a downstream verifier weeks later.
 
   (C) Artefact correspondence -- the gitoid recorded against the
-      wolfSSL package equals the git-blob hash of the actual library
-      artefact that `make bomsh` traced (read from the
-      `_bomsh.artefact` manifest written by the bomsh: Makefile
-      target).  This is what makes the SBOM a true attestation of
-      the binary that would ship.
+      wolfSSL package equals the gitoid bomsh itself recorded for the
+      library it traced (read from the `_bomsh.artefact` manifest the
+      bomsh: Makefile target writes as '<path>\\t<gitoid>' BEFORE
+      `make sbom` runs).  This is the strongest claim the bomsh
+      pipeline alone can make: the SPDX agrees with what bomsh saw.
+
+      Comparing against bomsh's own recorded gitoid (rather than
+      against the on-disk file's *current* bytes) is deliberate.
+      `make sbom`'s subsequent `make install` step relinks
+      src/.libs/lib*.so* in place via libtool to fix RPATH, mutating
+      the bytes after bomsh has already gitoid-ed them.  The verifier
+      still hashes the on-disk file and emits a NOTE if it has
+      diverged, so the install-time relink remains visible without
+      causing a false negative on the bomsh<->SPDX agreement.
 
 Without this, a future `bomsh_sbom.py` change that emits a
 plausibly-shaped but fictional gitoid (one that does not resolve in
-the ADG, or resolves but to the wrong artefact) would pass the
-existing PERSISTENT-ID assertion and ship a provenance bundle whose
-externalRef is a lie.
+the ADG, or resolves but to a different artefact than bomsh recorded)
+would pass the existing PERSISTENT-ID assertion and ship a provenance
+bundle whose externalRef is a lie.
 
 CLI form (used by `.github/workflows/sbom.yml`):
 
@@ -150,19 +159,43 @@ def check_object_store_integrity(omnibor_objects_dir):
     return obj_count, bad
 
 
-def check_artefact_correspondence(spdx_gitoids, artefact_path,
-                                  package_name_substr='wolfssl'):
-    """(C) The gitoid recorded against the wolfSSL package equals the
-    git-blob hash of the library artefact at <artefact_path>.
+def parse_artefact_manifest(manifest_path):
+    """Parse the `_bomsh.artefact` manifest written by the bomsh:
+    recipe.  Format: a single line, `<absolute-path>\\t<gitoid-hex>`
+    -- both fields captured by the recipe AFTER bomtrace3 finishes
+    but BEFORE `make sbom` relinks the library.
 
-    Returns (artefact_gid, wolfssl_gids).  Caller checks
-    `artefact_gid in wolfssl_gids`.  Raises FileNotFoundError if the
-    artefact does not exist; raises ValueError if no SPDX gitoid is
-    associated with a wolfSSL package."""
-    if not os.path.isfile(artefact_path):
+    Returns (path, recorded_gid).  Raises FileNotFoundError if the
+    manifest does not exist (bomsh: skipped artefact discovery, e.g.
+    no built library); raises ValueError if the line is malformed."""
+    if not os.path.isfile(manifest_path):
         raise FileNotFoundError(
-            f'artefact {artefact_path!r} does not exist')
-    artefact_gid = gitoid_sha1(artefact_path)
+            f'{manifest_path} not produced by `make bomsh`; cannot '
+            f'verify gitoid <-> artefact correspondence.  This usually '
+            f'means the bomsh enrichment step skipped the artefact-'
+            f'discovery loop (no built library).')
+    with open(manifest_path) as f:
+        line = f.readline().rstrip('\n')
+    if not line:
+        raise ValueError(
+            f'{manifest_path} is empty; bomsh: recipe wrote nothing')
+    parts = line.split('\t')
+    if len(parts) != 2 or not all(parts):
+        raise ValueError(
+            f'{manifest_path}: expected "<path>\\t<gitoid>", got {line!r}.  '
+            f'Re-run `make bomsh` against an up-to-date Makefile.am.')
+    return parts[0], parts[1]
+
+
+def check_artefact_correspondence(spdx_gitoids, recorded_gid,
+                                  package_name_substr='wolfssl'):
+    """(C) The gitoid bomsh recorded for the traced library matches a
+    gitoid externalRef on the wolfSSL SPDX package.  This is the
+    bomsh<->SPDX agreement check; it does NOT compare against the
+    on-disk file's current bytes (see module docstring).
+
+    Returns (matched, wolfssl_gids).  Raises ValueError if no SPDX
+    gitoid is associated with a wolfSSL-named package."""
     wolfssl_gids = [gid for name, gid in spdx_gitoids
                     if package_name_substr in name.lower()]
     if not wolfssl_gids:
@@ -170,7 +203,7 @@ def check_artefact_correspondence(spdx_gitoids, artefact_path,
             f'no SPDX gitoid externalRef on a package whose name '
             f'contains {package_name_substr!r}; cannot verify '
             f'artefact correspondence')
-    return artefact_gid, wolfssl_gids
+    return recorded_gid in wolfssl_gids, wolfssl_gids
 
 
 def verify(spdx_glob, omnibor_dir, artefact_manifest,
@@ -214,39 +247,50 @@ def verify(spdx_glob, omnibor_dir, artefact_manifest,
             f'round-trip (object store is corrupt)')
         return False, messages
 
-    if not os.path.isfile(artefact_manifest):
-        messages.append(
-            f'{artefact_manifest} not produced by `make bomsh`; '
-            f'cannot verify gitoid <-> artefact correspondence.  '
-            f'This usually means the bomsh enrichment step skipped '
-            f'the artefact-discovery loop (no built library).')
-        return False, messages
-    with open(artefact_manifest) as f:
-        artefact = f.read().strip()
-    if not artefact:
-        messages.append(
-            f'{artefact_manifest} is empty; bomsh: recipe wrote a '
-            f'blank path')
-        return False, messages
-
     try:
-        artefact_gid, wolfssl_gids = check_artefact_correspondence(
-            spdx_gitoids, artefact, package_name_substr)
+        artefact, recorded_gid = parse_artefact_manifest(artefact_manifest)
     except (FileNotFoundError, ValueError) as e:
         messages.append(str(e))
         return False, messages
 
-    if artefact_gid not in wolfssl_gids:
+    try:
+        matched, wolfssl_gids = check_artefact_correspondence(
+            spdx_gitoids, recorded_gid, package_name_substr)
+    except ValueError as e:
+        messages.append(str(e))
+        return False, messages
+
+    if not matched:
         messages.append(
             f'wolfSSL package SPDX gitoids {wolfssl_gids} do not '
-            f'include the gitoid of the actual built artefact '
-            f'{artefact} ({artefact_gid}); the SBOM does not '
-            f'attest to the binary that would ship')
+            f'include the gitoid bomsh recorded for the traced '
+            f'artefact {artefact} ({recorded_gid}); the SBOM is '
+            f'inconsistent with what bomsh actually saw')
         return False, messages
 
     messages.append(f'OK: {len(spdx_gitoids)} gitoid(s) verified')
     messages.append(f'    objects round-trip: {obj_count} blobs')
-    messages.append(f'    artefact match: {artefact} -> {artefact_gid}')
+    messages.append(
+        f'    artefact match: {artefact} -> {recorded_gid} (bomsh-traced)')
+
+    # Diagnostic-only: the on-disk file may have been rewritten since
+    # bomsh saw it (the canonical case is `make sbom`'s `make install`
+    # step relinking via libtool to fix RPATH).  We do NOT fail on
+    # this -- the SBOM<->bomsh agreement above is what matters for
+    # the provenance proof -- but surfacing it as a NOTE keeps the
+    # divergence visible so it does not silently grow into a
+    # bigger gap (e.g. someone adds a strip step that goes unflagged).
+    if os.path.isfile(artefact):
+        on_disk = gitoid_sha1(artefact)
+        if on_disk != recorded_gid:
+            messages.append(
+                f'NOTE: on-disk {artefact} now has gitoid {on_disk}, '
+                f'but bomsh recorded {recorded_gid}.  This is expected '
+                f'when `make sbom` runs `make install` (libtool relinks '
+                f'src/.libs/lib*.so* in place to fix RPATH).  The SBOM '
+                f'attests to the bomsh-traced bytes; if you need it to '
+                f'attest to the *installed* bytes, the bomsh: recipe '
+                f'must trace `make install` too.')
     return True, messages
 
 
