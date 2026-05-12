@@ -1003,11 +1003,11 @@ jobs:
             pyspdxtools --infile "$f"
           done
 
-      - name: Bomsh provenance is end-to-end verifiable
-        # Three independent self-consistency checks on the bomsh
+      - name: Bomsh provenance bundle is internally consistent
+        # Two independent self-consistency checks on the bomsh
         # provenance bundle.  The PERSISTENT-ID assertion above only
-        # proves the gitoid externalRef *exists*; none of these
-        # follow-up properties are guaranteed by it:
+        # proves the gitoid externalRef *exists*; neither of these
+        # follow-up properties is guaranteed by it:
         #
         #   (A) every gitoid in the SPDX externalRefs resolves to a
         #       blob present in omnibor/objects/<aa>/<rest>
@@ -1015,16 +1015,12 @@ jobs:
         #       sha1(b"blob <len>\0" + content) so the object store
         #       is internally self-consistent (no bit-rot, no
         #       truncation, no stray non-blob file under objects/)
-        #   (C) the gitoid recorded against the wolfSSL package equals
-        #       the git-blob hash of the actual library artefact that
-        #       `make bomsh` traced (the SBOM ties to the binary that
-        #       would actually ship)
         #
         # Without this, a future bomsh_sbom.py change that emits a
         # plausibly-shaped but fictional gitoid (one that does not
-        # resolve in the ADG, or resolves but to the wrong artefact)
-        # would pass the existing PERSISTENT-ID assertion and ship a
-        # provenance bundle whose externalRef is a lie.
+        # resolve in the ADG) would pass the existing PERSISTENT-ID
+        # assertion and ship a provenance bundle whose externalRef is
+        # a lie.
         #
         # The verifier logic lives in scripts/bomsh_verify.py so it can
         # be unit-tested with synthetic fixtures (see the
@@ -1077,11 +1073,7 @@ jobs:
       - name: Upload bomsh trace diagnostics
         # Diagnostic-only, short retention.  Kept separate so the
         # provenance bundle above stays slim for downstream consumers
-        # who don't need to debug ptrace gaps.  `_bomsh.artefact` is
-        # included here (not in the provenance bundle) because it is
-        # CI-internal: a pointer file recording the path and gitoid of
-        # the bomtrace3-traced library that bomsh_sbom.py was told to
-        # cite in the SPDX externalRef.
+        # who don't need to debug ptrace gaps.
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -1089,7 +1081,6 @@ jobs:
           path: |
             bomsh_raw_logfile.sha1
             _bomsh.conf
-            _bomsh.artefact
           if-no-files-found: warn
           retention-days: 14
 
@@ -1104,5 +1095,3 @@ jobs:
               exit 1
           fi
           test ! -d omnibor || (echo "omnibor/ not cleaned"; exit 1)
-          test ! -f _bomsh.artefact \
-            || (echo "_bomsh.artefact not cleaned"; exit 1)

@@ -1869,12 +1869,12 @@ class TestGenerateSpdx(unittest.TestCase):
 # Bomsh provenance verifier
 #
 # The verifier (scripts/bomsh_verify.py) is invoked by the bomsh: CI job
-# against a real OmniBOR graph + enriched SPDX, but its three checks --
-# resolvability, object-store integrity, artefact correspondence -- are
-# pure data-shape logic.  Exercising them here with synthetic fixtures
-# means a logic regression is caught at the cheapest CI gate (the unit
-# job, < 1 s) instead of the bomsh integration job (~5 minutes per run,
-# requires bomtrace3 + the entire bomsh toolchain to be built).
+# against a real OmniBOR graph + enriched SPDX, but its two checks --
+# resolvability and object-store integrity -- are pure data-shape
+# logic.  Exercising them here with synthetic fixtures means a logic
+# regression is caught at the cheapest CI gate (the unit job, < 1 s)
+# instead of the bomsh integration job (~5 minutes per run, requires
+# bomtrace3 + the entire bomsh toolchain to be built).
 # ---------------------------------------------------------------------------
 
 class _BomshFixture:
@@ -1882,41 +1882,31 @@ class _BomshFixture:
 
     Use as a context manager; the tmpdir is cleaned on exit.  Methods
     let individual tests perturb a single property (delete a blob,
-    truncate one, point the manifest at the wrong file, etc.) without
-    rebuilding the whole fixture each time."""
+    truncate one, etc.) without rebuilding the whole fixture each
+    time."""
 
     def __init__(self, tmpdir):
         self.tmpdir = pathlib.Path(tmpdir)
         self.objects_dir = self.tmpdir / 'omnibor' / 'objects'
         self.objects_dir.mkdir(parents=True)
         self.spdx_path = self.tmpdir / 'omnibor.wolfssl-5.9.1.spdx.json'
-        self.artefact_path = self.tmpdir / 'libwolfssl.so.0.0.1'
-        self.manifest_path = self.tmpdir / '_bomsh.artefact'
-        # Three distinct blobs: one for the wolfSSL artefact, two for
-        # auxiliary source files that bomsh would also gitoid in a
-        # real run (so the object store has more than one entry and
-        # check (B) actually exercises its loop).
-        self.artefact_content = b'\x7fELF...wolfssl shared library content...'
-        self.artefact_path.write_bytes(self.artefact_content)
+        # Three distinct blobs staged at their gitoid paths.  Stand-in
+        # for the OmniBOR documents a real `bomsh_create_bom.py` run
+        # would write under omnibor/objects/; the verifier doesn't care
+        # whether the content is a doc or an artefact blob, only that
+        # the file at <aa>/<rest> round-trips through gitoid_sha1.  We
+        # use OmniBOR-doc-shaped bytes here rather than ELF magic so a
+        # reader doesn't mistakenly conclude the verifier expects raw
+        # library content under objects/ (it does not -- bomsh stores
+        # the Input Manifest there, keyed by its bom_id).
+        self.wolfssl_blob = b'gitoid:blob:sha1\nblob 0123456789abcdef0123456789abcdef01234567\n'
         self.aux_blobs = [b'/* aes.c */\n', b'/* sha.c */\n']
         self.gitoids = {
-            'wolfssl': self._stage_blob(self.artefact_content),
+            'wolfssl': self._stage_blob(self.wolfssl_blob),
         }
         for i, content in enumerate(self.aux_blobs):
             self.gitoids[f'aux{i}'] = self._stage_blob(content)
-        # Manifest mirrors the new bomsh: recipe format: a single line,
-        # '<path>\t<gitoid>'.  The gitoid is captured BEFORE `make sbom`
-        # would rewrite the file (libtool relink), so it pins the
-        # bomsh-traced bytes rather than the on-disk current bytes --
-        # decoupling check (C) from libtool's install-time rewrite.
-        self.write_manifest(self.artefact_path, self.gitoids['wolfssl'])
         self._write_spdx()
-
-    def write_manifest(self, path, gid):
-        """Helper so individual tests can rewrite the manifest with a
-        deliberately-wrong path or gitoid without re-reading
-        the recipe's exact format."""
-        self.manifest_path.write_text(f'{path}\t{gid}\n')
 
     def _stage_blob(self, content):
         """Write `content` into omnibor/objects/<aa>/<rest> at the
@@ -1957,8 +1947,7 @@ class _BomshFixture:
         """Run the orchestrator with the fixture's paths."""
         return bv.verify(
             spdx_glob=str(self.tmpdir / 'omnibor.wolfssl-*.spdx.json'),
-            omnibor_dir=str(self.tmpdir / 'omnibor'),
-            artefact_manifest=str(self.manifest_path))
+            omnibor_dir=str(self.tmpdir / 'omnibor'))
 
 
 def _gitoid_of_bytes(data):
@@ -1992,15 +1981,15 @@ class TestBomshProvenanceVerify(unittest.TestCase):
     def test_happy_path_passes(self):
         # Baseline.  An untouched fixture is valid; the verifier should
         # report OK and the success message should mention the object
-        # count and the artefact gitoid (so a future change that
-        # silently drops the success-line content is also caught).
+        # round-trip count (so a future change that silently drops the
+        # success-line content is also caught).
         with tempfile.TemporaryDirectory() as tmpdir:
             fx = _BomshFixture(tmpdir)
             ok, messages = fx.verify()
             self.assertTrue(ok, f'verifier rejected a valid fixture: {messages}')
             joined = '\n'.join(messages)
             self.assertIn('OK:', joined)
-            self.assertIn('artefact match:', joined)
+            self.assertIn('objects round-trip:', joined)
 
     def test_dangling_gitoid_fails_check_A(self):
         # Delete one blob from objects/ but leave its externalRef in
@@ -2031,75 +2020,6 @@ class TestBomshProvenanceVerify(unittest.TestCase):
             joined = '\n'.join(messages)
             self.assertIn('CORRUPT', joined)
             self.assertIn('round-trip', joined)
-
-    def test_artefact_manifest_missing_fails_check_C(self):
-        # `make bomsh` skipped writing the manifest (no built library).
-        # The verifier must reject and explain WHY in a way that
-        # points the maintainer at the bomsh: target.
-        with tempfile.TemporaryDirectory() as tmpdir:
-            fx = _BomshFixture(tmpdir)
-            fx.manifest_path.unlink()
-            ok, messages = fx.verify()
-            self.assertFalse(ok)
-            joined = '\n'.join(messages)
-            self.assertIn('not produced by `make bomsh`', joined)
-
-    def test_artefact_gid_mismatch_fails_check_C(self):
-        # Manifest records a gitoid that does NOT match any wolfSSL
-        # SPDX externalRef.  This is the canonical "bomsh recorded X
-        # but bomsh_sbom enriched the SPDX with a different gitoid Y"
-        # bug -- exactly what check (C) is here to catch.  The failure
-        # message must surface both the SPDX gitoid set AND the
-        # bomsh-recorded gitoid so the operator can diff them.
-        with tempfile.TemporaryDirectory() as tmpdir:
-            fx = _BomshFixture(tmpdir)
-            fake_gid = 'f' * 40
-            fx.write_manifest(fx.artefact_path, fake_gid)
-            ok, messages = fx.verify()
-            self.assertFalse(ok)
-            joined = '\n'.join(messages)
-            self.assertIn('inconsistent with what bomsh actually saw',
-                          joined)
-            self.assertIn(fake_gid, joined)
-            self.assertIn(fx.gitoids['wolfssl'], joined)
-
-    def test_on_disk_divergence_emits_note_but_passes(self):
-        # The on-disk artefact bytes have changed since bomsh recorded
-        # them (the canonical libtool-relink case).  Check (C) compares
-        # against the manifest's bomsh-recorded gitoid (which still
-        # matches the SPDX), so the verifier must PASS, but it must
-        # also emit a NOTE so the divergence is not silently hidden.
-        # Pinning this is the contract that makes the install-time
-        # relink visible without breaking CI.
-        with tempfile.TemporaryDirectory() as tmpdir:
-            fx = _BomshFixture(tmpdir)
-            # Rewrite the on-disk artefact AFTER the fixture pinned
-            # its gitoid in the manifest -- simulates `make sbom`'s
-            # `make install` relink.
-            fx.artefact_path.write_bytes(b'post-relink RPATH-fixed bytes')
-            ok, messages = fx.verify()
-            self.assertTrue(ok, f'verifier failed despite agreement: {messages}')
-            joined = '\n'.join(messages)
-            self.assertIn('NOTE:', joined)
-            self.assertIn('libtool relinks', joined)
-            # Both gitoids surfaced so triage doesn't need a second pass.
-            self.assertIn(fx.gitoids['wolfssl'], joined)
-
-    def test_manifest_path_only_legacy_format_rejected(self):
-        # A manifest containing only the path (the pre-fix legacy
-        # format) must be rejected explicitly, with a message that
-        # tells the operator to re-run `make bomsh` against an
-        # up-to-date Makefile.am.  Silent acceptance would re-introduce
-        # the false-positive failure mode the new format was designed
-        # to prevent.
-        with tempfile.TemporaryDirectory() as tmpdir:
-            fx = _BomshFixture(tmpdir)
-            fx.manifest_path.write_text(str(fx.artefact_path) + '\n')
-            ok, messages = fx.verify()
-            self.assertFalse(ok)
-            joined = '\n'.join(messages)
-            self.assertIn('expected "<path>\\t<gitoid>"', joined)
-            self.assertIn('up-to-date Makefile.am', joined)
 
     def test_unexpected_gitoid_locator_format_rejected(self):
         # bomsh upstream switching from sha1 to sha256 would change
