@@ -69,7 +69,8 @@ EXTRA_DIST += tests/swdev/swdev.c \
               tests/swdev/swdev_loader.c \
               tests/swdev/swdev_loader.h \
               tests/swdev/user_settings.h \
-              tests/swdev/Makefile
+              tests/swdev/Makefile \
+              tests/swdev/README.md
 
 EXTRA_DIST += wolfcrypt/test/test.sln
 EXTRA_DIST += wolfcrypt/test/test.vcproj
