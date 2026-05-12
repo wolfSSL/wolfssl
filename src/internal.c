@@ -8305,6 +8305,15 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
         switch (type) {
         #ifndef NO_RSA
             case DYNAMIC_TYPE_RSA:
+            #if defined(WC_RSA_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_RSA)
+                if (((RsaKey*)*pKey)->nb != NULL) {
+                    XFREE(((RsaKey*)*pKey)->nb, ssl->heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+                    ((RsaKey*)*pKey)->nb = NULL;
+                }
+            #endif /* WC_RSA_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                      WC_ASYNC_ENABLE_RSA */
                 wc_FreeRsaKey((RsaKey*)*pKey);
                 break;
         #endif /* ! NO_RSA */
@@ -8360,6 +8369,15 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
         #endif /* HAVE_DILITHIUM */
         #ifndef NO_DH
             case DYNAMIC_TYPE_DH:
+            #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_DH)
+                if (((DhKey*)*pKey)->nb != NULL) {
+                    XFREE(((DhKey*)*pKey)->nb, ssl->heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+                    ((DhKey*)*pKey)->nb = NULL;
+                }
+            #endif /* WC_DH_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                      WC_ASYNC_ENABLE_DH */
                 wc_FreeDhKey((DhKey*)*pKey);
                 break;
         #endif /* !NO_DH */
@@ -8390,6 +8408,14 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
     x25519_nb_ctx_t* x25519NbCtx;
 #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW */
+#if !defined(NO_RSA) && defined(WC_RSA_NONBLOCK) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_ASYNC_ENABLE_RSA)
+    RsaNb* rsaNb;
+#endif
+#if !defined(NO_DH) && defined(WC_DH_NONBLOCK) && \
+    defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(WC_ASYNC_ENABLE_DH)
+    DhNb* dhNb;
+#endif
 
     if (ssl == NULL || pKey == NULL) {
         return BAD_FUNC_ARG;
@@ -8469,6 +8495,26 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #ifndef NO_RSA
         case DYNAMIC_TYPE_RSA:
             ret = wc_InitRsaKey_ex((RsaKey*)*pKey, ssl->heap, ssl->devId);
+        #if defined(WC_RSA_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_RSA)
+            /* Only set non-blocking context when async device is active. With
+             * INVALID_DEVID there is no async loop to retry on MP_WOULDBLOCK, so
+             * skip non-blocking setup and use blocking mode instead. */
+            if (ret == 0 && ssl->devId != INVALID_DEVID) {
+                rsaNb = (RsaNb*)XMALLOC(sizeof(RsaNb), ssl->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+                if (rsaNb == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    ret = wc_RsaSetNonBlock((RsaKey*)*pKey, rsaNb);
+                    if (ret != 0) {
+                        XFREE(rsaNb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
+                }
+            }
+        #endif /* WC_RSA_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                  WC_ASYNC_ENABLE_RSA */
             break;
     #endif /* ! NO_RSA */
     #ifdef HAVE_ECC
@@ -8556,6 +8602,26 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #ifndef NO_DH
         case DYNAMIC_TYPE_DH:
             ret = wc_InitDhKey_ex((DhKey*)*pKey, ssl->heap, ssl->devId);
+        #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_DH)
+            /* Only set non-blocking context when async device is active. With
+             * INVALID_DEVID there is no async loop to retry on MP_WOULDBLOCK, so
+             * skip non-blocking setup and use blocking mode instead. */
+            if (ret == 0 && ssl->devId != INVALID_DEVID) {
+                dhNb = (DhNb*)XMALLOC(sizeof(DhNb), ssl->heap,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+                if (dhNb == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    ret = wc_DhSetNonBlock((DhKey*)*pKey, dhNb);
+                    if (ret != 0) {
+                        XFREE(dhNb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
+                }
+            }
+        #endif /* WC_DH_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                  WC_ASYNC_ENABLE_DH */
             break;
     #endif /* !NO_DH */
         default:

@@ -401,6 +401,45 @@ typedef struct sp_ecc_ctx {
 } sp_ecc_ctx_t;
 #endif
 
+#if defined(WOLFSSL_SP_NONBLOCK) && \
+    (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))
+/* Non-blocking RSA / DH operation contexts. The wrapper state struct
+ * embeds the inner modexp ctx (which dominates the size) plus per-op
+ * buffers for the modulus, base/result, and exponent. Sized for the
+ * worst-case wrapper across C32/C64 word layouts at the largest
+ * enabled key size:
+ *   2048-bit: mod_exp td[3*144]*4 = 1728B + wrapper ~= 2960B
+ *   3072-bit: mod_exp td[3*216]*4 = 2592B + wrapper ~= 4400B
+ *   4096-bit: mod_exp td[3*284]*4 = 3408B + wrapper ~= 5760B
+ * Each tier carries a small safety margin for alignment / future
+ * generator changes. The compile-time ctx_size_test inside each
+ * sp_<size>_<op>_<words>_nb function asserts the buffer fits the
+ * generated wrapper. */
+#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(NO_RSA)
+typedef struct sp_rsa_ctx {
+    #ifdef WOLFSSL_SP_4096
+    XALIGNED(8) byte data[6144];
+    #elif !defined(WOLFSSL_SP_NO_3072)
+    XALIGNED(8) byte data[4608];
+    #else
+    XALIGNED(8) byte data[3072];
+    #endif
+} sp_rsa_ctx_t;
+#endif
+
+#if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH)
+typedef struct sp_dh_ctx {
+    #ifdef WOLFSSL_SP_4096
+    XALIGNED(8) byte data[6144];
+    #elif !defined(WOLFSSL_SP_NO_3072)
+    XALIGNED(8) byte data[4608];
+    #else
+    XALIGNED(8) byte data[3072];
+    #endif
+} sp_dh_ctx_t;
+#endif
+#endif /* WOLFSSL_SP_NONBLOCK && (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) */
+
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 #include <wolfssl/wolfcrypt/random.h>
 

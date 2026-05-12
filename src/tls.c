@@ -8021,6 +8021,26 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 ret = wc_DhSetNamedKey(dhKey, kse->group);
             #endif
             }
+        #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_DH)
+            /* Only set non-blocking context when async device is active. With
+             * INVALID_DEVID there is no async loop to retry on MP_WOULDBLOCK, so
+             * skip non-blocking setup and use blocking mode instead. */
+            if (ret == 0 && ssl->devId != INVALID_DEVID) {
+                DhNb* dhNb = (DhNb*)XMALLOC(sizeof(DhNb), ssl->heap,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
+                if (dhNb == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    ret = wc_DhSetNonBlock((DhKey*)kse->key, dhNb);
+                    if (ret != 0) {
+                        XFREE(dhNb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
+                }
+            }
+        #endif /* WC_DH_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                  WC_ASYNC_ENABLE_DH */
         }
 
         /* Allocate space for the private and public key */
@@ -8096,8 +8116,16 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     /* Always release the DH key to free up memory.
      * The DhKey will be setup again in TLSX_KeyShare_ProcessDh */
-    if (dhKey != NULL)
+    if (dhKey != NULL) {
+    #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        defined(WC_ASYNC_ENABLE_DH)
+        if (dhKey->nb != NULL) {
+            XFREE(dhKey->nb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            dhKey->nb = NULL;
+        }
+    #endif
         wc_FreeDhKey(dhKey);
+    }
     XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_DH);
     kse->key = NULL;
 
@@ -9062,6 +9090,15 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
         list = current->next;
         if (WOLFSSL_NAMED_GROUP_IS_FFDHE(current->group)) {
 #ifndef NO_DH
+        #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_DH)
+            if (current->key != NULL &&
+                    ((DhKey*)current->key)->nb != NULL) {
+                XFREE(((DhKey*)current->key)->nb, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+                ((DhKey*)current->key)->nb = NULL;
+            }
+        #endif
             wc_FreeDhKey((DhKey*)current->key);
             if (current->privKey != NULL && current->privKeyLen > 0) {
                 ForceZero(current->privKey, current->privKeyLen);
@@ -9321,6 +9358,26 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             ret = wc_DhSetNamedKey(dhKey, keyShareEntry->group);
         #endif
         }
+    #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        defined(WC_ASYNC_ENABLE_DH)
+        /* Only set non-blocking context when async device is active. With
+         * INVALID_DEVID there is no async loop to retry on MP_WOULDBLOCK, so
+         * skip non-blocking setup and use blocking mode instead. */
+        if (ret == 0 && ssl->devId != INVALID_DEVID) {
+            DhNb* dhNb = (DhNb*)XMALLOC(sizeof(DhNb), ssl->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+            if (dhNb == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                ret = wc_DhSetNonBlock((DhKey*)keyShareEntry->key, dhNb);
+                if (ret != 0) {
+                    XFREE(dhNb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            }
+        }
+    #endif /* WC_DH_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+              WC_ASYNC_ENABLE_DH */
     }
 
     if (ret == 0
@@ -9361,8 +9418,16 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     /* done with key share, release resources */
-    if (dhKey)
+    if (dhKey) {
+    #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        defined(WC_ASYNC_ENABLE_DH)
+        if (dhKey->nb != NULL) {
+            XFREE(dhKey->nb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            dhKey->nb = NULL;
+        }
+    #endif
         wc_FreeDhKey(dhKey);
+    }
     XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_DH);
     keyShareEntry->key = NULL;
     if (keyShareEntry->privKey) {

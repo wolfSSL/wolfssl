@@ -107,6 +107,40 @@ WOLFSSL_LOCAL int sp_RsaPrivate_4096(const byte* in, word32 inLen,
 
 #endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
 
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+#ifndef WOLFSSL_SP_NO_2048
+WOLFSSL_LOCAL int sp_RsaPublic_2048_nb(sp_rsa_ctx_t* sp_ctx, const byte* in,
+    word32 inLen, const mp_int* em, const mp_int* mm, byte* out,
+    word32* outLen);
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+WOLFSSL_LOCAL int sp_RsaPrivate_2048_nb(sp_rsa_ctx_t* sp_ctx, const byte* in,
+    word32 inLen, const mp_int* dm, const mp_int* mm, byte* out,
+    word32* outLen);
+#endif
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+WOLFSSL_LOCAL int sp_RsaPublic_3072_nb(sp_rsa_ctx_t* sp_ctx, const byte* in,
+    word32 inLen, const mp_int* em, const mp_int* mm, byte* out,
+    word32* outLen);
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+WOLFSSL_LOCAL int sp_RsaPrivate_3072_nb(sp_rsa_ctx_t* sp_ctx, const byte* in,
+    word32 inLen, const mp_int* dm, const mp_int* mm, byte* out,
+    word32* outLen);
+#endif
+#endif
+#ifdef WOLFSSL_SP_4096
+WOLFSSL_LOCAL int sp_RsaPublic_4096_nb(sp_rsa_ctx_t* sp_ctx, const byte* in,
+    word32 inLen, const mp_int* em, const mp_int* mm, byte* out,
+    word32* outLen);
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+WOLFSSL_LOCAL int sp_RsaPrivate_4096_nb(sp_rsa_ctx_t* sp_ctx, const byte* in,
+    word32 inLen, const mp_int* dm, const mp_int* mm, byte* out,
+    word32* outLen);
+#endif
+#endif
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
+
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
 #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
@@ -166,6 +200,31 @@ WOLFSSL_LOCAL int sp_DhExp_4096(const mp_int* base, const byte* exp,
     word32 expLen, const mp_int* mod, byte* out, word32* outLen);
 
 #endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
+
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+#ifndef WOLFSSL_SP_NO_2048
+WOLFSSL_LOCAL int sp_DhExp_2048_nb(sp_dh_ctx_t* sp_ctx, const byte* base,
+    word32 baseSz, const byte* exp, word32 expLen, const mp_int* mod,
+    byte* out, word32* outLen);
+WOLFSSL_LOCAL int sp_ModExp_2048_nb(sp_dh_ctx_t* sp_ctx, const mp_int* base,
+    const mp_int* exp, const mp_int* mod, mp_int* res);
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+WOLFSSL_LOCAL int sp_DhExp_3072_nb(sp_dh_ctx_t* sp_ctx, const byte* base,
+    word32 baseSz, const byte* exp, word32 expLen, const mp_int* mod,
+    byte* out, word32* outLen);
+WOLFSSL_LOCAL int sp_ModExp_3072_nb(sp_dh_ctx_t* sp_ctx, const mp_int* base,
+    const mp_int* exp, const mp_int* mod, mp_int* res);
+#endif
+#ifdef WOLFSSL_SP_4096
+WOLFSSL_LOCAL int sp_DhExp_4096_nb(sp_dh_ctx_t* sp_ctx, const byte* base,
+    word32 baseSz, const byte* exp, word32 expLen, const mp_int* mod,
+    byte* out, word32* outLen);
+WOLFSSL_LOCAL int sp_ModExp_4096_nb(sp_dh_ctx_t* sp_ctx, const mp_int* base,
+    const mp_int* exp, const mp_int* mod, mp_int* res);
+#endif
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 
 #endif /* WOLFSSL_HAVE_SP_DH */
 

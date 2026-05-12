@@ -3510,6 +3510,141 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #endif
 }
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+/* Non-blocking modular exponentiation. State machine driven by sp_ctx;
+ * each call advances one Montgomery op or one bit-extract step then
+ * returns MP_WOULDBLOCK until the final reduction completes.
+ */
+typedef struct sp_2048_mod_exp_72_ctx {
+    int state;
+    sp_digit td[3 * 144];
+    sp_digit* t[3];
+    sp_digit* norm;
+    sp_digit mp;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int reduceA;
+    int bits;
+} sp_2048_mod_exp_72_ctx;
+
+static int sp_2048_mod_exp_72_nb(sp_2048_mod_exp_72_ctx* ctx,
+    sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
+    const sp_digit* m, int reduceA)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    int j;
+
+    switch (ctx->state) {
+    case 0: /* INIT: layout td, mont_setup, mont_norm */
+        if (bits == 0) {
+            err = MP_VAL;
+            break;
+        }
+        for (j = 0; j < 3; j++) {
+            ctx->t[j] = ctx->td + (j * 72 * 2);
+            XMEMSET(ctx->t[j], 0, sizeof(sp_digit) * 72U * 2U);
+        }
+        ctx->norm = ctx->t[0];
+        ctx->mp = 1;
+        ctx->reduceA = reduceA;
+        ctx->bits = bits;
+        sp_2048_mont_setup(m, &ctx->mp);
+        sp_2048_mont_norm_72(ctx->norm, m);
+        ctx->state = 1;
+        break;
+    case 1: /* REDUCE_A: optionally reduce a mod m into t[1] */
+        if (ctx->reduceA != 0) {
+            err = sp_2048_mod_72(ctx->t[1], a, m);
+            if (err != MP_OKAY) {
+                break;
+            }
+        }
+        else {
+            XMEMCPY(ctx->t[1], a, sizeof(sp_digit) * 72U);
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* NORM_MUL: t[1] = t[1] * norm */
+        sp_2048_mul_72(ctx->t[1], ctx->t[1], ctx->norm);
+        ctx->state = 3;
+        break;
+    case 3: /* NORM_MOD: t[1] = t[1] mod m. t[0] aliases norm (= R mod m),
+              which is the Montgomery form of 1 - leave it as the
+              accumulator for the bit loop. */
+        err = sp_2048_mod_72(ctx->t[1], ctx->t[1], m);
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 4;
+        break;
+    case 4: /* BIT_INIT: index the most-significant exponent limb without
+              reading off the end when bits is an exact multiple of the
+              limb width. (bits-1) keeps i within the populated range and
+              c = (bits-1) % @bits + 1 keeps the shift in [1, @bits]. */
+        ctx->i = (ctx->bits - 1) / 29;
+        ctx->c = ((ctx->bits - 1) % 29) + 1;
+        ctx->n = e[ctx->i--] << (29 - ctx->c);
+        ctx->state = 5;
+        break;
+    case 5: /* BIT_NEXT: refill on word boundary, peel one exponent bit */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 10;
+                break;
+            }
+            ctx->n = e[ctx->i--];
+            ctx->c = 29;
+        }
+        ctx->y = (byte)((ctx->n >> 28) & 1);
+        ctx->n <<= 1;
+        ctx->state = 6;
+        break;
+    case 6: /* MUL: t[y^1] = t[0] * t[1] in Montgomery form */
+        sp_2048_mont_mul_72(ctx->t[ctx->y ^ 1], ctx->t[0], ctx->t[1],
+            m, ctx->mp);
+        ctx->state = 7;
+        break;
+    case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                                   ((size_t)ctx->t[1] & addr_mask[ctx->y])),
+                sizeof(sp_digit) * 72 * 2);
+        ctx->state = 8;
+        break;
+    case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
+        sp_2048_mont_sqr_72(ctx->t[2], ctx->t[2], m, ctx->mp);
+        ctx->state = 9;
+        break;
+    case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                        ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
+                sizeof(sp_digit) * 72 * 2);
+        ctx->c--;
+        ctx->state = 5;
+        break;
+    case 10: /* REDUCE: final mont_reduce + cond_sub */
+        sp_2048_mont_reduce_72(ctx->t[0], m, ctx->mp);
+        ctx->n = sp_2048_cmp_72(ctx->t[0], m);
+        sp_2048_cond_sub_72(ctx->t[0], ctx->t[0], m,
+            (sp_digit)~(ctx->n >> 31));
+        XMEMCPY(r, ctx->t[0], sizeof(sp_digit) * 72 * 2);
+        ctx->state = 11;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 11) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx->td, sizeof(ctx->td));
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
@@ -3714,6 +3849,113 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     return err;
 #endif /* WOLFSSL_SP_SMALL */
 }
+
+/* The non-blocking RSA public path embeds sp_2048_mod_exp_72_ctx
+ * and calls sp_2048_mod_exp_72_nb, both of which are only emitted
+ * when (HAVE_SP_RSA && !RSA_PUBLIC_ONLY) || HAVE_SP_DH (see modexp.rb).
+ * Skip emission when those mod_exp symbols won't be available. */
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_HAVE_SP_DH))
+typedef struct sp_2048_RsaPublic_nb_ctx {
+    int state;
+    sp_2048_mod_exp_72_ctx mod_exp_ctx;
+    sp_digit a[72 * 2];
+    sp_digit m[72];
+    sp_digit e[3];
+    int e_bits;
+} sp_2048_RsaPublic_nb_ctx;
+
+/* Non-blocking RSA public key operation. State machine driven by sp_ctx;
+ * each call advances either an input/output conversion step or one
+ * sub-state of the inner modular exponentiation, returning MP_WOULDBLOCK
+ * until the operation completes.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * em      Public exponent.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 256 bytes long.
+ * outLen  Number of bytes in result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_TO_E when outLen is too small, MP_READ_E on input size errors,
+ * MP_VAL when the modulus is even, or MP_EXPTMOD_E when the exponent
+ * is zero.
+ */
+int sp_RsaPublic_2048_nb(sp_rsa_ctx_t* sp_ctx, const byte* in, word32 inLen,
+    const mp_int* em, const mp_int* mm, byte* out, word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_2048_RsaPublic_nb_ctx* ctx =
+        (sp_2048_RsaPublic_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_2048_RsaPublic_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT: validate, convert inputs to sp_digit form */
+        if (*outLen < 256U) {
+            err = MP_TO_E;
+            break;
+        }
+        if (mp_count_bits(em) > 64) {
+            err = MP_READ_E;
+            break;
+        }
+        if (inLen > 256U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mm) != 2048) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mm)) {
+            err = MP_VAL;
+            break;
+        }
+        ctx->e_bits = mp_count_bits(em);
+        if (ctx->e_bits == 0) {
+            err = MP_EXPTMOD_E;
+            break;
+        }
+        sp_2048_from_bin(ctx->a, 72, in, inLen);
+        sp_2048_from_mp(ctx->m, 72, mm);
+        sp_2048_from_mp(ctx->e, 3, em);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP: drive inner mod_exp state machine one step */
+        err = sp_2048_mod_exp_72_nb(&ctx->mod_exp_ctx, ctx->a,
+            ctx->a, ctx->e, ctx->e_bits, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN: write big-endian result */
+        sp_2048_to_bin_72(ctx->a, out);
+        *outLen = 256;
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP &&
+        * (!WOLFSSL_RSA_PUBLIC_ONLY || WOLFSSL_HAVE_SP_DH) */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
@@ -4009,6 +4251,101 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 #endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+typedef struct sp_2048_RsaPrivate_nb_ctx {
+    int state;
+    sp_2048_mod_exp_72_ctx mod_exp_ctx;
+    sp_digit a[72 * 2];
+    sp_digit m[72];
+    sp_digit d[72];
+} sp_2048_RsaPrivate_nb_ctx;
+
+/* Non-blocking RSA private key operation - D-only path.
+ * The CRT path is not supported in non-blocking mode; configure with
+ * RSA_LOW_MEM or SP_RSA_PRIVATE_EXP_D to enable this entry point.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * dm      Private exponent.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 256 bytes long.
+ * outLen  Number of bytes in result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_TO_E when outLen is too small, MP_READ_E on input size errors, or
+ * MP_VAL when the modulus is even.
+ */
+int sp_RsaPrivate_2048_nb(sp_rsa_ctx_t* sp_ctx, const byte* in, word32 inLen,
+    const mp_int* dm, const mp_int* mm, byte* out, word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_2048_RsaPrivate_nb_ctx* ctx =
+        (sp_2048_RsaPrivate_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_2048_RsaPrivate_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (*outLen < 256U) {
+            err = MP_TO_E;
+            break;
+        }
+        if (mp_count_bits(dm) > 2048) {
+            err = MP_READ_E;
+            break;
+        }
+        if (inLen > 256U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mm) != 2048) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mm)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_2048_from_bin(ctx->a, 72, in, inLen);
+        sp_2048_from_mp(ctx->d, 72, dm);
+        sp_2048_from_mp(ctx->m, 72, mm);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_2048_mod_exp_72_nb(&ctx->mod_exp_ctx, ctx->a,
+            ctx->a, ctx->d, 2048, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN */
+        sp_2048_to_bin_72(ctx->a, out);
+        *outLen = 256;
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP &&
+        * (SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM) */
+
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
@@ -4179,6 +4516,92 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
     return err;
 #endif
 }
+
+#if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
+typedef struct sp_2048_ModExp_nb_ctx {
+    int state;
+    sp_2048_mod_exp_72_ctx mod_exp_ctx;
+    sp_digit b[72 * 2];
+    sp_digit e[72];
+    sp_digit m[72];
+    int expBits;
+} sp_2048_ModExp_nb_ctx;
+
+/* Non-blocking modular exponentiation for Diffie-Hellman (mp_int form).
+ * Drives sp_2048_mod_exp_72_nb one sub-state per call.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * base    Base. MP integer.
+ * exp     Exponent. MP integer.
+ * mod     Modulus. MP integer.
+ * res     Result. MP integer.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_READ_E on input size errors, or MP_VAL when the modulus is even or
+ * the exponent is zero (the latter rejected inside sp_mod_exp_nb).
+ */
+int sp_ModExp_2048_nb(sp_dh_ctx_t* sp_ctx, const mp_int* base,
+    const mp_int* exp, const mp_int* mod, mp_int* res)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_2048_ModExp_nb_ctx* ctx =
+        (sp_2048_ModExp_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_2048_ModExp_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (mp_count_bits(base) > 2048) {
+            err = MP_READ_E;
+            break;
+        }
+        ctx->expBits = mp_count_bits(exp);
+        if (ctx->expBits > 2048) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mod) != 2048) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mod)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_2048_from_mp(ctx->b, 72, base);
+        sp_2048_from_mp(ctx->e, 72, exp);
+        sp_2048_from_mp(ctx->m, 72, mod);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_2048_mod_exp_72_nb(&ctx->mod_exp_ctx, ctx->b,
+            ctx->b, ctx->e, ctx->expBits, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_MP */
+        err = sp_2048_to_mp(ctx->b, res);
+        ctx->state = 3;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_HAVE_SP_DH && WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL &&
+        * !WOLFSSL_SP_FAST_MODEXP */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
@@ -4523,6 +4946,108 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+#endif /* WOLFSSL_HAVE_SP_DH */
+
+#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+typedef struct sp_2048_DhExp_nb_ctx {
+    int state;
+    sp_2048_mod_exp_72_ctx mod_exp_ctx;
+    sp_digit b[72 * 2];
+    sp_digit e[72];
+    sp_digit m[72];
+    word32 expLen;
+} sp_2048_DhExp_nb_ctx;
+
+/* Non-blocking Diffie-Hellman modular exponentiation.
+ * Computes base^exp mod mod where base and exp are byte strings; suitable
+ * for the TLS path where otherPub is already a byte buffer.
+ *
+ * sp_ctx   Persistent state buffer; first call must have all bytes zero.
+ * base     Base bytes (other party's public key).
+ * baseSz   Length, in bytes, of base (max 256).
+ * exp      Exponent bytes (our private key).
+ * expLen   Length, in bytes, of exp (max 256).
+ * mod      Modulus. MP integer (must remain valid until first call returns).
+ * out      Buffer to hold big-endian bytes of exponentiation result.
+ *          Must be at least 256 bytes long.
+ * outLen   Length, in bytes, of exponentiation result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_READ_E when baseSz, expLen, or the modulus bit length is out of
+ * range, or MP_VAL when the modulus is even or expLen is zero (the
+ * latter rejected inside sp_mod_exp_nb).
+ */
+int sp_DhExp_2048_nb(sp_dh_ctx_t* sp_ctx, const byte* base, word32 baseSz,
+    const byte* exp, word32 expLen, const mp_int* mod, byte* out,
+    word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    word32 i;
+    sp_2048_DhExp_nb_ctx* ctx =
+        (sp_2048_DhExp_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_2048_DhExp_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (baseSz > 256U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (expLen > 256U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mod) != 2048) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mod)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_2048_from_bin(ctx->b, 72, base, baseSz);
+        sp_2048_from_bin(ctx->e, 72, exp, expLen);
+        sp_2048_from_mp(ctx->m, 72, mod);
+        ctx->expLen = expLen;
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_2048_mod_exp_72_nb(&ctx->mod_exp_ctx, ctx->b,
+            ctx->b, ctx->e, ctx->expLen * 8U, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN */
+        sp_2048_to_bin_72(ctx->b, out);
+        *outLen = 256;
+        for (i = 0; i < 256U && out[i] == 0U; i++) {
+            /* skip leading zero bytes */
+        }
+        *outLen -= i;
+        XMEMMOVE(out, out + i, *outLen);
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 /* Perform the modular exponentiation for Diffie-Hellman.
@@ -6617,6 +7142,141 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #endif
 }
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+/* Non-blocking modular exponentiation. State machine driven by sp_ctx;
+ * each call advances one Montgomery op or one bit-extract step then
+ * returns MP_WOULDBLOCK until the final reduction completes.
+ */
+typedef struct sp_3072_mod_exp_106_ctx {
+    int state;
+    sp_digit td[3 * 212];
+    sp_digit* t[3];
+    sp_digit* norm;
+    sp_digit mp;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int reduceA;
+    int bits;
+} sp_3072_mod_exp_106_ctx;
+
+static int sp_3072_mod_exp_106_nb(sp_3072_mod_exp_106_ctx* ctx,
+    sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
+    const sp_digit* m, int reduceA)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    int j;
+
+    switch (ctx->state) {
+    case 0: /* INIT: layout td, mont_setup, mont_norm */
+        if (bits == 0) {
+            err = MP_VAL;
+            break;
+        }
+        for (j = 0; j < 3; j++) {
+            ctx->t[j] = ctx->td + (j * 106 * 2);
+            XMEMSET(ctx->t[j], 0, sizeof(sp_digit) * 106U * 2U);
+        }
+        ctx->norm = ctx->t[0];
+        ctx->mp = 1;
+        ctx->reduceA = reduceA;
+        ctx->bits = bits;
+        sp_3072_mont_setup(m, &ctx->mp);
+        sp_3072_mont_norm_106(ctx->norm, m);
+        ctx->state = 1;
+        break;
+    case 1: /* REDUCE_A: optionally reduce a mod m into t[1] */
+        if (ctx->reduceA != 0) {
+            err = sp_3072_mod_106(ctx->t[1], a, m);
+            if (err != MP_OKAY) {
+                break;
+            }
+        }
+        else {
+            XMEMCPY(ctx->t[1], a, sizeof(sp_digit) * 106U);
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* NORM_MUL: t[1] = t[1] * norm */
+        sp_3072_mul_106(ctx->t[1], ctx->t[1], ctx->norm);
+        ctx->state = 3;
+        break;
+    case 3: /* NORM_MOD: t[1] = t[1] mod m. t[0] aliases norm (= R mod m),
+              which is the Montgomery form of 1 - leave it as the
+              accumulator for the bit loop. */
+        err = sp_3072_mod_106(ctx->t[1], ctx->t[1], m);
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 4;
+        break;
+    case 4: /* BIT_INIT: index the most-significant exponent limb without
+              reading off the end when bits is an exact multiple of the
+              limb width. (bits-1) keeps i within the populated range and
+              c = (bits-1) % @bits + 1 keeps the shift in [1, @bits]. */
+        ctx->i = (ctx->bits - 1) / 29;
+        ctx->c = ((ctx->bits - 1) % 29) + 1;
+        ctx->n = e[ctx->i--] << (29 - ctx->c);
+        ctx->state = 5;
+        break;
+    case 5: /* BIT_NEXT: refill on word boundary, peel one exponent bit */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 10;
+                break;
+            }
+            ctx->n = e[ctx->i--];
+            ctx->c = 29;
+        }
+        ctx->y = (byte)((ctx->n >> 28) & 1);
+        ctx->n <<= 1;
+        ctx->state = 6;
+        break;
+    case 6: /* MUL: t[y^1] = t[0] * t[1] in Montgomery form */
+        sp_3072_mont_mul_106(ctx->t[ctx->y ^ 1], ctx->t[0], ctx->t[1],
+            m, ctx->mp);
+        ctx->state = 7;
+        break;
+    case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                                   ((size_t)ctx->t[1] & addr_mask[ctx->y])),
+                sizeof(sp_digit) * 106 * 2);
+        ctx->state = 8;
+        break;
+    case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
+        sp_3072_mont_sqr_106(ctx->t[2], ctx->t[2], m, ctx->mp);
+        ctx->state = 9;
+        break;
+    case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                        ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
+                sizeof(sp_digit) * 106 * 2);
+        ctx->c--;
+        ctx->state = 5;
+        break;
+    case 10: /* REDUCE: final mont_reduce + cond_sub */
+        sp_3072_mont_reduce_106(ctx->t[0], m, ctx->mp);
+        ctx->n = sp_3072_cmp_106(ctx->t[0], m);
+        sp_3072_cond_sub_106(ctx->t[0], ctx->t[0], m,
+            (sp_digit)~(ctx->n >> 31));
+        XMEMCPY(r, ctx->t[0], sizeof(sp_digit) * 106 * 2);
+        ctx->state = 11;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 11) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx->td, sizeof(ctx->td));
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
@@ -6819,6 +7479,113 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     return err;
 #endif /* WOLFSSL_SP_SMALL */
 }
+
+/* The non-blocking RSA public path embeds sp_3072_mod_exp_106_ctx
+ * and calls sp_3072_mod_exp_106_nb, both of which are only emitted
+ * when (HAVE_SP_RSA && !RSA_PUBLIC_ONLY) || HAVE_SP_DH (see modexp.rb).
+ * Skip emission when those mod_exp symbols won't be available. */
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_HAVE_SP_DH))
+typedef struct sp_3072_RsaPublic_nb_ctx {
+    int state;
+    sp_3072_mod_exp_106_ctx mod_exp_ctx;
+    sp_digit a[106 * 2];
+    sp_digit m[106];
+    sp_digit e[3];
+    int e_bits;
+} sp_3072_RsaPublic_nb_ctx;
+
+/* Non-blocking RSA public key operation. State machine driven by sp_ctx;
+ * each call advances either an input/output conversion step or one
+ * sub-state of the inner modular exponentiation, returning MP_WOULDBLOCK
+ * until the operation completes.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * em      Public exponent.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 384 bytes long.
+ * outLen  Number of bytes in result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_TO_E when outLen is too small, MP_READ_E on input size errors,
+ * MP_VAL when the modulus is even, or MP_EXPTMOD_E when the exponent
+ * is zero.
+ */
+int sp_RsaPublic_3072_nb(sp_rsa_ctx_t* sp_ctx, const byte* in, word32 inLen,
+    const mp_int* em, const mp_int* mm, byte* out, word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_3072_RsaPublic_nb_ctx* ctx =
+        (sp_3072_RsaPublic_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_3072_RsaPublic_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT: validate, convert inputs to sp_digit form */
+        if (*outLen < 384U) {
+            err = MP_TO_E;
+            break;
+        }
+        if (mp_count_bits(em) > 64) {
+            err = MP_READ_E;
+            break;
+        }
+        if (inLen > 384U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mm) != 3072) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mm)) {
+            err = MP_VAL;
+            break;
+        }
+        ctx->e_bits = mp_count_bits(em);
+        if (ctx->e_bits == 0) {
+            err = MP_EXPTMOD_E;
+            break;
+        }
+        sp_3072_from_bin(ctx->a, 106, in, inLen);
+        sp_3072_from_mp(ctx->m, 106, mm);
+        sp_3072_from_mp(ctx->e, 3, em);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP: drive inner mod_exp state machine one step */
+        err = sp_3072_mod_exp_106_nb(&ctx->mod_exp_ctx, ctx->a,
+            ctx->a, ctx->e, ctx->e_bits, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN: write big-endian result */
+        sp_3072_to_bin_106(ctx->a, out);
+        *outLen = 384;
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP &&
+        * (!WOLFSSL_RSA_PUBLIC_ONLY || WOLFSSL_HAVE_SP_DH) */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
@@ -7114,6 +7881,101 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 #endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+typedef struct sp_3072_RsaPrivate_nb_ctx {
+    int state;
+    sp_3072_mod_exp_106_ctx mod_exp_ctx;
+    sp_digit a[106 * 2];
+    sp_digit m[106];
+    sp_digit d[106];
+} sp_3072_RsaPrivate_nb_ctx;
+
+/* Non-blocking RSA private key operation - D-only path.
+ * The CRT path is not supported in non-blocking mode; configure with
+ * RSA_LOW_MEM or SP_RSA_PRIVATE_EXP_D to enable this entry point.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * dm      Private exponent.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 384 bytes long.
+ * outLen  Number of bytes in result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_TO_E when outLen is too small, MP_READ_E on input size errors, or
+ * MP_VAL when the modulus is even.
+ */
+int sp_RsaPrivate_3072_nb(sp_rsa_ctx_t* sp_ctx, const byte* in, word32 inLen,
+    const mp_int* dm, const mp_int* mm, byte* out, word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_3072_RsaPrivate_nb_ctx* ctx =
+        (sp_3072_RsaPrivate_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_3072_RsaPrivate_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (*outLen < 384U) {
+            err = MP_TO_E;
+            break;
+        }
+        if (mp_count_bits(dm) > 3072) {
+            err = MP_READ_E;
+            break;
+        }
+        if (inLen > 384U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mm) != 3072) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mm)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_3072_from_bin(ctx->a, 106, in, inLen);
+        sp_3072_from_mp(ctx->d, 106, dm);
+        sp_3072_from_mp(ctx->m, 106, mm);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_3072_mod_exp_106_nb(&ctx->mod_exp_ctx, ctx->a,
+            ctx->a, ctx->d, 3072, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN */
+        sp_3072_to_bin_106(ctx->a, out);
+        *outLen = 384;
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP &&
+        * (SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM) */
+
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
@@ -7284,6 +8146,92 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
     return err;
 #endif
 }
+
+#if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
+typedef struct sp_3072_ModExp_nb_ctx {
+    int state;
+    sp_3072_mod_exp_106_ctx mod_exp_ctx;
+    sp_digit b[106 * 2];
+    sp_digit e[106];
+    sp_digit m[106];
+    int expBits;
+} sp_3072_ModExp_nb_ctx;
+
+/* Non-blocking modular exponentiation for Diffie-Hellman (mp_int form).
+ * Drives sp_3072_mod_exp_106_nb one sub-state per call.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * base    Base. MP integer.
+ * exp     Exponent. MP integer.
+ * mod     Modulus. MP integer.
+ * res     Result. MP integer.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_READ_E on input size errors, or MP_VAL when the modulus is even or
+ * the exponent is zero (the latter rejected inside sp_mod_exp_nb).
+ */
+int sp_ModExp_3072_nb(sp_dh_ctx_t* sp_ctx, const mp_int* base,
+    const mp_int* exp, const mp_int* mod, mp_int* res)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_3072_ModExp_nb_ctx* ctx =
+        (sp_3072_ModExp_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_3072_ModExp_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (mp_count_bits(base) > 3072) {
+            err = MP_READ_E;
+            break;
+        }
+        ctx->expBits = mp_count_bits(exp);
+        if (ctx->expBits > 3072) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mod) != 3072) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mod)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_3072_from_mp(ctx->b, 106, base);
+        sp_3072_from_mp(ctx->e, 106, exp);
+        sp_3072_from_mp(ctx->m, 106, mod);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_3072_mod_exp_106_nb(&ctx->mod_exp_ctx, ctx->b,
+            ctx->b, ctx->e, ctx->expBits, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_MP */
+        err = sp_3072_to_mp(ctx->b, res);
+        ctx->state = 3;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_HAVE_SP_DH && WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL &&
+        * !WOLFSSL_SP_FAST_MODEXP */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
@@ -7478,6 +8426,108 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+#endif /* WOLFSSL_HAVE_SP_DH */
+
+#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+typedef struct sp_3072_DhExp_nb_ctx {
+    int state;
+    sp_3072_mod_exp_106_ctx mod_exp_ctx;
+    sp_digit b[106 * 2];
+    sp_digit e[106];
+    sp_digit m[106];
+    word32 expLen;
+} sp_3072_DhExp_nb_ctx;
+
+/* Non-blocking Diffie-Hellman modular exponentiation.
+ * Computes base^exp mod mod where base and exp are byte strings; suitable
+ * for the TLS path where otherPub is already a byte buffer.
+ *
+ * sp_ctx   Persistent state buffer; first call must have all bytes zero.
+ * base     Base bytes (other party's public key).
+ * baseSz   Length, in bytes, of base (max 384).
+ * exp      Exponent bytes (our private key).
+ * expLen   Length, in bytes, of exp (max 384).
+ * mod      Modulus. MP integer (must remain valid until first call returns).
+ * out      Buffer to hold big-endian bytes of exponentiation result.
+ *          Must be at least 384 bytes long.
+ * outLen   Length, in bytes, of exponentiation result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_READ_E when baseSz, expLen, or the modulus bit length is out of
+ * range, or MP_VAL when the modulus is even or expLen is zero (the
+ * latter rejected inside sp_mod_exp_nb).
+ */
+int sp_DhExp_3072_nb(sp_dh_ctx_t* sp_ctx, const byte* base, word32 baseSz,
+    const byte* exp, word32 expLen, const mp_int* mod, byte* out,
+    word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    word32 i;
+    sp_3072_DhExp_nb_ctx* ctx =
+        (sp_3072_DhExp_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_3072_DhExp_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (baseSz > 384U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (expLen > 384U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mod) != 3072) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mod)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_3072_from_bin(ctx->b, 106, base, baseSz);
+        sp_3072_from_bin(ctx->e, 106, exp, expLen);
+        sp_3072_from_mp(ctx->m, 106, mod);
+        ctx->expLen = expLen;
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_3072_mod_exp_106_nb(&ctx->mod_exp_ctx, ctx->b,
+            ctx->b, ctx->e, ctx->expLen * 8U, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN */
+        sp_3072_to_bin_106(ctx->b, out);
+        *outLen = 384;
+        for (i = 0; i < 384U && out[i] == 0U; i++) {
+            /* skip leading zero bytes */
+        }
+        *outLen -= i;
+        XMEMMOVE(out, out + i, *outLen);
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 /* Perform the modular exponentiation for Diffie-Hellman.
@@ -10380,6 +11430,141 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #endif
 }
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+/* Non-blocking modular exponentiation. State machine driven by sp_ctx;
+ * each call advances one Montgomery op or one bit-extract step then
+ * returns MP_WOULDBLOCK until the final reduction completes.
+ */
+typedef struct sp_3072_mod_exp_112_ctx {
+    int state;
+    sp_digit td[3 * 224];
+    sp_digit* t[3];
+    sp_digit* norm;
+    sp_digit mp;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int reduceA;
+    int bits;
+} sp_3072_mod_exp_112_ctx;
+
+static int sp_3072_mod_exp_112_nb(sp_3072_mod_exp_112_ctx* ctx,
+    sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
+    const sp_digit* m, int reduceA)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    int j;
+
+    switch (ctx->state) {
+    case 0: /* INIT: layout td, mont_setup, mont_norm */
+        if (bits == 0) {
+            err = MP_VAL;
+            break;
+        }
+        for (j = 0; j < 3; j++) {
+            ctx->t[j] = ctx->td + (j * 112 * 2);
+            XMEMSET(ctx->t[j], 0, sizeof(sp_digit) * 112U * 2U);
+        }
+        ctx->norm = ctx->t[0];
+        ctx->mp = 1;
+        ctx->reduceA = reduceA;
+        ctx->bits = bits;
+        sp_3072_mont_setup(m, &ctx->mp);
+        sp_3072_mont_norm_112(ctx->norm, m);
+        ctx->state = 1;
+        break;
+    case 1: /* REDUCE_A: optionally reduce a mod m into t[1] */
+        if (ctx->reduceA != 0) {
+            err = sp_3072_mod_112(ctx->t[1], a, m);
+            if (err != MP_OKAY) {
+                break;
+            }
+        }
+        else {
+            XMEMCPY(ctx->t[1], a, sizeof(sp_digit) * 112U);
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* NORM_MUL: t[1] = t[1] * norm */
+        sp_3072_mul_112(ctx->t[1], ctx->t[1], ctx->norm);
+        ctx->state = 3;
+        break;
+    case 3: /* NORM_MOD: t[1] = t[1] mod m. t[0] aliases norm (= R mod m),
+              which is the Montgomery form of 1 - leave it as the
+              accumulator for the bit loop. */
+        err = sp_3072_mod_112(ctx->t[1], ctx->t[1], m);
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 4;
+        break;
+    case 4: /* BIT_INIT: index the most-significant exponent limb without
+              reading off the end when bits is an exact multiple of the
+              limb width. (bits-1) keeps i within the populated range and
+              c = (bits-1) % @bits + 1 keeps the shift in [1, @bits]. */
+        ctx->i = (ctx->bits - 1) / 28;
+        ctx->c = ((ctx->bits - 1) % 28) + 1;
+        ctx->n = e[ctx->i--] << (28 - ctx->c);
+        ctx->state = 5;
+        break;
+    case 5: /* BIT_NEXT: refill on word boundary, peel one exponent bit */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 10;
+                break;
+            }
+            ctx->n = e[ctx->i--];
+            ctx->c = 28;
+        }
+        ctx->y = (byte)((ctx->n >> 27) & 1);
+        ctx->n <<= 1;
+        ctx->state = 6;
+        break;
+    case 6: /* MUL: t[y^1] = t[0] * t[1] in Montgomery form */
+        sp_3072_mont_mul_112(ctx->t[ctx->y ^ 1], ctx->t[0], ctx->t[1],
+            m, ctx->mp);
+        ctx->state = 7;
+        break;
+    case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                                   ((size_t)ctx->t[1] & addr_mask[ctx->y])),
+                sizeof(sp_digit) * 112 * 2);
+        ctx->state = 8;
+        break;
+    case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
+        sp_3072_mont_sqr_112(ctx->t[2], ctx->t[2], m, ctx->mp);
+        ctx->state = 9;
+        break;
+    case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                        ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
+                sizeof(sp_digit) * 112 * 2);
+        ctx->c--;
+        ctx->state = 5;
+        break;
+    case 10: /* REDUCE: final mont_reduce + cond_sub */
+        sp_3072_mont_reduce_112(ctx->t[0], m, ctx->mp);
+        ctx->n = sp_3072_cmp_112(ctx->t[0], m);
+        sp_3072_cond_sub_112(ctx->t[0], ctx->t[0], m,
+            (sp_digit)~(ctx->n >> 31));
+        XMEMCPY(r, ctx->t[0], sizeof(sp_digit) * 112 * 2);
+        ctx->state = 11;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 11) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx->td, sizeof(ctx->td));
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
@@ -13569,6 +14754,141 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #endif
 }
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+/* Non-blocking modular exponentiation. State machine driven by sp_ctx;
+ * each call advances one Montgomery op or one bit-extract step then
+ * returns MP_WOULDBLOCK until the final reduction completes.
+ */
+typedef struct sp_4096_mod_exp_142_ctx {
+    int state;
+    sp_digit td[3 * 284];
+    sp_digit* t[3];
+    sp_digit* norm;
+    sp_digit mp;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int reduceA;
+    int bits;
+} sp_4096_mod_exp_142_ctx;
+
+static int sp_4096_mod_exp_142_nb(sp_4096_mod_exp_142_ctx* ctx,
+    sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
+    const sp_digit* m, int reduceA)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    int j;
+
+    switch (ctx->state) {
+    case 0: /* INIT: layout td, mont_setup, mont_norm */
+        if (bits == 0) {
+            err = MP_VAL;
+            break;
+        }
+        for (j = 0; j < 3; j++) {
+            ctx->t[j] = ctx->td + (j * 142 * 2);
+            XMEMSET(ctx->t[j], 0, sizeof(sp_digit) * 142U * 2U);
+        }
+        ctx->norm = ctx->t[0];
+        ctx->mp = 1;
+        ctx->reduceA = reduceA;
+        ctx->bits = bits;
+        sp_4096_mont_setup(m, &ctx->mp);
+        sp_4096_mont_norm_142(ctx->norm, m);
+        ctx->state = 1;
+        break;
+    case 1: /* REDUCE_A: optionally reduce a mod m into t[1] */
+        if (ctx->reduceA != 0) {
+            err = sp_4096_mod_142(ctx->t[1], a, m);
+            if (err != MP_OKAY) {
+                break;
+            }
+        }
+        else {
+            XMEMCPY(ctx->t[1], a, sizeof(sp_digit) * 142U);
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* NORM_MUL: t[1] = t[1] * norm */
+        sp_4096_mul_142(ctx->t[1], ctx->t[1], ctx->norm);
+        ctx->state = 3;
+        break;
+    case 3: /* NORM_MOD: t[1] = t[1] mod m. t[0] aliases norm (= R mod m),
+              which is the Montgomery form of 1 - leave it as the
+              accumulator for the bit loop. */
+        err = sp_4096_mod_142(ctx->t[1], ctx->t[1], m);
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 4;
+        break;
+    case 4: /* BIT_INIT: index the most-significant exponent limb without
+              reading off the end when bits is an exact multiple of the
+              limb width. (bits-1) keeps i within the populated range and
+              c = (bits-1) % @bits + 1 keeps the shift in [1, @bits]. */
+        ctx->i = (ctx->bits - 1) / 29;
+        ctx->c = ((ctx->bits - 1) % 29) + 1;
+        ctx->n = e[ctx->i--] << (29 - ctx->c);
+        ctx->state = 5;
+        break;
+    case 5: /* BIT_NEXT: refill on word boundary, peel one exponent bit */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 10;
+                break;
+            }
+            ctx->n = e[ctx->i--];
+            ctx->c = 29;
+        }
+        ctx->y = (byte)((ctx->n >> 28) & 1);
+        ctx->n <<= 1;
+        ctx->state = 6;
+        break;
+    case 6: /* MUL: t[y^1] = t[0] * t[1] in Montgomery form */
+        sp_4096_mont_mul_142(ctx->t[ctx->y ^ 1], ctx->t[0], ctx->t[1],
+            m, ctx->mp);
+        ctx->state = 7;
+        break;
+    case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                                   ((size_t)ctx->t[1] & addr_mask[ctx->y])),
+                sizeof(sp_digit) * 142 * 2);
+        ctx->state = 8;
+        break;
+    case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
+        sp_4096_mont_sqr_142(ctx->t[2], ctx->t[2], m, ctx->mp);
+        ctx->state = 9;
+        break;
+    case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                        ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
+                sizeof(sp_digit) * 142 * 2);
+        ctx->c--;
+        ctx->state = 5;
+        break;
+    case 10: /* REDUCE: final mont_reduce + cond_sub */
+        sp_4096_mont_reduce_142(ctx->t[0], m, ctx->mp);
+        ctx->n = sp_4096_cmp_142(ctx->t[0], m);
+        sp_4096_cond_sub_142(ctx->t[0], ctx->t[0], m,
+            (sp_digit)~(ctx->n >> 31));
+        XMEMCPY(r, ctx->t[0], sizeof(sp_digit) * 142 * 2);
+        ctx->state = 11;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 11) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx->td, sizeof(ctx->td));
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
@@ -13771,6 +15091,113 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     return err;
 #endif /* WOLFSSL_SP_SMALL */
 }
+
+/* The non-blocking RSA public path embeds sp_4096_mod_exp_142_ctx
+ * and calls sp_4096_mod_exp_142_nb, both of which are only emitted
+ * when (HAVE_SP_RSA && !RSA_PUBLIC_ONLY) || HAVE_SP_DH (see modexp.rb).
+ * Skip emission when those mod_exp symbols won't be available. */
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_HAVE_SP_DH))
+typedef struct sp_4096_RsaPublic_nb_ctx {
+    int state;
+    sp_4096_mod_exp_142_ctx mod_exp_ctx;
+    sp_digit a[142 * 2];
+    sp_digit m[142];
+    sp_digit e[3];
+    int e_bits;
+} sp_4096_RsaPublic_nb_ctx;
+
+/* Non-blocking RSA public key operation. State machine driven by sp_ctx;
+ * each call advances either an input/output conversion step or one
+ * sub-state of the inner modular exponentiation, returning MP_WOULDBLOCK
+ * until the operation completes.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * em      Public exponent.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 512 bytes long.
+ * outLen  Number of bytes in result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_TO_E when outLen is too small, MP_READ_E on input size errors,
+ * MP_VAL when the modulus is even, or MP_EXPTMOD_E when the exponent
+ * is zero.
+ */
+int sp_RsaPublic_4096_nb(sp_rsa_ctx_t* sp_ctx, const byte* in, word32 inLen,
+    const mp_int* em, const mp_int* mm, byte* out, word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_4096_RsaPublic_nb_ctx* ctx =
+        (sp_4096_RsaPublic_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_4096_RsaPublic_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT: validate, convert inputs to sp_digit form */
+        if (*outLen < 512U) {
+            err = MP_TO_E;
+            break;
+        }
+        if (mp_count_bits(em) > 64) {
+            err = MP_READ_E;
+            break;
+        }
+        if (inLen > 512U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mm) != 4096) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mm)) {
+            err = MP_VAL;
+            break;
+        }
+        ctx->e_bits = mp_count_bits(em);
+        if (ctx->e_bits == 0) {
+            err = MP_EXPTMOD_E;
+            break;
+        }
+        sp_4096_from_bin(ctx->a, 142, in, inLen);
+        sp_4096_from_mp(ctx->m, 142, mm);
+        sp_4096_from_mp(ctx->e, 3, em);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP: drive inner mod_exp state machine one step */
+        err = sp_4096_mod_exp_142_nb(&ctx->mod_exp_ctx, ctx->a,
+            ctx->a, ctx->e, ctx->e_bits, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN: write big-endian result */
+        sp_4096_to_bin_142(ctx->a, out);
+        *outLen = 512;
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP &&
+        * (!WOLFSSL_RSA_PUBLIC_ONLY || WOLFSSL_HAVE_SP_DH) */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
@@ -14066,6 +15493,101 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 #endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP) && \
+    (defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM))
+typedef struct sp_4096_RsaPrivate_nb_ctx {
+    int state;
+    sp_4096_mod_exp_142_ctx mod_exp_ctx;
+    sp_digit a[142 * 2];
+    sp_digit m[142];
+    sp_digit d[142];
+} sp_4096_RsaPrivate_nb_ctx;
+
+/* Non-blocking RSA private key operation - D-only path.
+ * The CRT path is not supported in non-blocking mode; configure with
+ * RSA_LOW_MEM or SP_RSA_PRIVATE_EXP_D to enable this entry point.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * dm      Private exponent.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 512 bytes long.
+ * outLen  Number of bytes in result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_TO_E when outLen is too small, MP_READ_E on input size errors, or
+ * MP_VAL when the modulus is even.
+ */
+int sp_RsaPrivate_4096_nb(sp_rsa_ctx_t* sp_ctx, const byte* in, word32 inLen,
+    const mp_int* dm, const mp_int* mm, byte* out, word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_4096_RsaPrivate_nb_ctx* ctx =
+        (sp_4096_RsaPrivate_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_4096_RsaPrivate_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (*outLen < 512U) {
+            err = MP_TO_E;
+            break;
+        }
+        if (mp_count_bits(dm) > 4096) {
+            err = MP_READ_E;
+            break;
+        }
+        if (inLen > 512U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mm) != 4096) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mm)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_4096_from_bin(ctx->a, 142, in, inLen);
+        sp_4096_from_mp(ctx->d, 142, dm);
+        sp_4096_from_mp(ctx->m, 142, mm);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_4096_mod_exp_142_nb(&ctx->mod_exp_ctx, ctx->a,
+            ctx->a, ctx->d, 4096, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN */
+        sp_4096_to_bin_142(ctx->a, out);
+        *outLen = 512;
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP &&
+        * (SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM) */
+
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
@@ -14236,6 +15758,92 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
     return err;
 #endif
 }
+
+#if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_SP_NONBLOCK) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
+typedef struct sp_4096_ModExp_nb_ctx {
+    int state;
+    sp_4096_mod_exp_142_ctx mod_exp_ctx;
+    sp_digit b[142 * 2];
+    sp_digit e[142];
+    sp_digit m[142];
+    int expBits;
+} sp_4096_ModExp_nb_ctx;
+
+/* Non-blocking modular exponentiation for Diffie-Hellman (mp_int form).
+ * Drives sp_4096_mod_exp_142_nb one sub-state per call.
+ *
+ * sp_ctx  Persistent state buffer; first call must have all bytes zero.
+ * base    Base. MP integer.
+ * exp     Exponent. MP integer.
+ * mod     Modulus. MP integer.
+ * res     Result. MP integer.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_READ_E on input size errors, or MP_VAL when the modulus is even or
+ * the exponent is zero (the latter rejected inside sp_mod_exp_nb).
+ */
+int sp_ModExp_4096_nb(sp_dh_ctx_t* sp_ctx, const mp_int* base,
+    const mp_int* exp, const mp_int* mod, mp_int* res)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    sp_4096_ModExp_nb_ctx* ctx =
+        (sp_4096_ModExp_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_4096_ModExp_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (mp_count_bits(base) > 4096) {
+            err = MP_READ_E;
+            break;
+        }
+        ctx->expBits = mp_count_bits(exp);
+        if (ctx->expBits > 4096) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mod) != 4096) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mod)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_4096_from_mp(ctx->b, 142, base);
+        sp_4096_from_mp(ctx->e, 142, exp);
+        sp_4096_from_mp(ctx->m, 142, mod);
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_4096_mod_exp_142_nb(&ctx->mod_exp_ctx, ctx->b,
+            ctx->b, ctx->e, ctx->expBits, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_MP */
+        err = sp_4096_to_mp(ctx->b, res);
+        ctx->state = 3;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_HAVE_SP_DH && WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL &&
+        * !WOLFSSL_SP_FAST_MODEXP */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
@@ -14430,6 +16038,108 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+#endif /* WOLFSSL_HAVE_SP_DH */
+
+#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+typedef struct sp_4096_DhExp_nb_ctx {
+    int state;
+    sp_4096_mod_exp_142_ctx mod_exp_ctx;
+    sp_digit b[142 * 2];
+    sp_digit e[142];
+    sp_digit m[142];
+    word32 expLen;
+} sp_4096_DhExp_nb_ctx;
+
+/* Non-blocking Diffie-Hellman modular exponentiation.
+ * Computes base^exp mod mod where base and exp are byte strings; suitable
+ * for the TLS path where otherPub is already a byte buffer.
+ *
+ * sp_ctx   Persistent state buffer; first call must have all bytes zero.
+ * base     Base bytes (other party's public key).
+ * baseSz   Length, in bytes, of base (max 512).
+ * exp      Exponent bytes (our private key).
+ * expLen   Length, in bytes, of exp (max 512).
+ * mod      Modulus. MP integer (must remain valid until first call returns).
+ * out      Buffer to hold big-endian bytes of exponentiation result.
+ *          Must be at least 512 bytes long.
+ * outLen   Length, in bytes, of exponentiation result.
+ * returns MP_WOULDBLOCK while more work remains, MP_OKAY on completion,
+ * MP_READ_E when baseSz, expLen, or the modulus bit length is out of
+ * range, or MP_VAL when the modulus is even or expLen is zero (the
+ * latter rejected inside sp_mod_exp_nb).
+ */
+int sp_DhExp_4096_nb(sp_dh_ctx_t* sp_ctx, const byte* base, word32 baseSz,
+    const byte* exp, word32 expLen, const mp_int* mod, byte* out,
+    word32* outLen)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    word32 i;
+    sp_4096_DhExp_nb_ctx* ctx =
+        (sp_4096_DhExp_nb_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_4096_DhExp_nb_ctx)
+                                       >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (baseSz > 512U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (expLen > 512U) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_count_bits(mod) != 4096) {
+            err = MP_READ_E;
+            break;
+        }
+        if (mp_iseven(mod)) {
+            err = MP_VAL;
+            break;
+        }
+        sp_4096_from_bin(ctx->b, 142, base, baseSz);
+        sp_4096_from_bin(ctx->e, 142, exp, expLen);
+        sp_4096_from_mp(ctx->m, 142, mod);
+        ctx->expLen = expLen;
+        ctx->state = 1;
+        break;
+    case 1: /* MODEXP */
+        err = sp_4096_mod_exp_142_nb(&ctx->mod_exp_ctx, ctx->b,
+            ctx->b, ctx->e, ctx->expLen * 8U, ctx->m, 0);
+        if (err == WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+            break;
+        }
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* TO_BIN */
+        sp_4096_to_bin_142(ctx->b, out);
+        *outLen = 512;
+        for (i = 0; i < 512U && out[i] == 0U; i++) {
+            /* skip leading zero bytes */
+        }
+        *outLen -= i;
+        XMEMMOVE(out, out + i, *outLen);
+        ctx->state = 3;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 3) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx, sizeof(*ctx));
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_HAVE_SP_DH | (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) */
@@ -17240,6 +18950,141 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #endif
 }
+#if defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+                                  !defined(WOLFSSL_SP_FAST_MODEXP)
+/* Non-blocking modular exponentiation. State machine driven by sp_ctx;
+ * each call advances one Montgomery op or one bit-extract step then
+ * returns MP_WOULDBLOCK until the final reduction completes.
+ */
+typedef struct sp_4096_mod_exp_162_ctx {
+    int state;
+    sp_digit td[3 * 324];
+    sp_digit* t[3];
+    sp_digit* norm;
+    sp_digit mp;
+    sp_digit n;
+    int i;
+    int c;
+    byte y;
+    int reduceA;
+    int bits;
+} sp_4096_mod_exp_162_ctx;
+
+static int sp_4096_mod_exp_162_nb(sp_4096_mod_exp_162_ctx* ctx,
+    sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
+    const sp_digit* m, int reduceA)
+{
+    int err = WC_NO_ERR_TRACE(MP_WOULDBLOCK);
+    int j;
+
+    switch (ctx->state) {
+    case 0: /* INIT: layout td, mont_setup, mont_norm */
+        if (bits == 0) {
+            err = MP_VAL;
+            break;
+        }
+        for (j = 0; j < 3; j++) {
+            ctx->t[j] = ctx->td + (j * 162 * 2);
+            XMEMSET(ctx->t[j], 0, sizeof(sp_digit) * 162U * 2U);
+        }
+        ctx->norm = ctx->t[0];
+        ctx->mp = 1;
+        ctx->reduceA = reduceA;
+        ctx->bits = bits;
+        sp_4096_mont_setup(m, &ctx->mp);
+        sp_4096_mont_norm_162(ctx->norm, m);
+        ctx->state = 1;
+        break;
+    case 1: /* REDUCE_A: optionally reduce a mod m into t[1] */
+        if (ctx->reduceA != 0) {
+            err = sp_4096_mod_162(ctx->t[1], a, m);
+            if (err != MP_OKAY) {
+                break;
+            }
+        }
+        else {
+            XMEMCPY(ctx->t[1], a, sizeof(sp_digit) * 162U);
+        }
+        ctx->state = 2;
+        break;
+    case 2: /* NORM_MUL: t[1] = t[1] * norm */
+        sp_4096_mul_162(ctx->t[1], ctx->t[1], ctx->norm);
+        ctx->state = 3;
+        break;
+    case 3: /* NORM_MOD: t[1] = t[1] mod m. t[0] aliases norm (= R mod m),
+              which is the Montgomery form of 1 - leave it as the
+              accumulator for the bit loop. */
+        err = sp_4096_mod_162(ctx->t[1], ctx->t[1], m);
+        if (err != MP_OKAY) {
+            break;
+        }
+        ctx->state = 4;
+        break;
+    case 4: /* BIT_INIT: index the most-significant exponent limb without
+              reading off the end when bits is an exact multiple of the
+              limb width. (bits-1) keeps i within the populated range and
+              c = (bits-1) % @bits + 1 keeps the shift in [1, @bits]. */
+        ctx->i = (ctx->bits - 1) / 26;
+        ctx->c = ((ctx->bits - 1) % 26) + 1;
+        ctx->n = e[ctx->i--] << (26 - ctx->c);
+        ctx->state = 5;
+        break;
+    case 5: /* BIT_NEXT: refill on word boundary, peel one exponent bit */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 10;
+                break;
+            }
+            ctx->n = e[ctx->i--];
+            ctx->c = 26;
+        }
+        ctx->y = (byte)((ctx->n >> 25) & 1);
+        ctx->n <<= 1;
+        ctx->state = 6;
+        break;
+    case 6: /* MUL: t[y^1] = t[0] * t[1] in Montgomery form */
+        sp_4096_mont_mul_162(ctx->t[ctx->y ^ 1], ctx->t[0], ctx->t[1],
+            m, ctx->mp);
+        ctx->state = 7;
+        break;
+    case 7: /* COPY_OUT: constant-time copy &t[y] -> t[2] */
+        XMEMCPY(ctx->t[2], (void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                                   ((size_t)ctx->t[1] & addr_mask[ctx->y])),
+                sizeof(sp_digit) * 162 * 2);
+        ctx->state = 8;
+        break;
+    case 8: /* SQR: t[2] = t[2]^2 in Montgomery form */
+        sp_4096_mont_sqr_162(ctx->t[2], ctx->t[2], m, ctx->mp);
+        ctx->state = 9;
+        break;
+    case 9: /* COPY_BACK: constant-time copy t[2] -> &t[y]; advance bit */
+        XMEMCPY((void*)(((size_t)ctx->t[0] & addr_mask[ctx->y ^ 1]) +
+                        ((size_t)ctx->t[1] & addr_mask[ctx->y])), ctx->t[2],
+                sizeof(sp_digit) * 162 * 2);
+        ctx->c--;
+        ctx->state = 5;
+        break;
+    case 10: /* REDUCE: final mont_reduce + cond_sub */
+        sp_4096_mont_reduce_162(ctx->t[0], m, ctx->mp);
+        ctx->n = sp_4096_cmp_162(ctx->t[0], m);
+        sp_4096_cond_sub_162(ctx->t[0], ctx->t[0], m,
+            (sp_digit)~(ctx->n >> 31));
+        XMEMCPY(r, ctx->t[0], sizeof(sp_digit) * 162 * 2);
+        ctx->state = 11;
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 11) {
+        err = MP_WOULDBLOCK;
+    }
+    if (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+        ForceZero(ctx->td, sizeof(ctx->td));
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK && WOLFSSL_SP_SMALL && !WOLFSSL_SP_FAST_MODEXP */
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 

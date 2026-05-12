@@ -24363,8 +24363,10 @@ static wc_test_ret_t rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte
     if (ret != 0)
         return ret;
 
-#ifdef WC_RSA_NONBLOCK_TIME
-    /* Enable time based RSA blocking. 8 microseconds max (3.1GHz) */
+#if defined(WC_RSA_NONBLOCK_TIME) && defined(USE_FAST_MATH)
+    /* Enable time based RSA blocking. 8 microseconds max (3.1GHz).
+     * Only available with USE_FAST_MATH; SP-only WC_RSA_NONBLOCK
+     * builds do not expose this entry point. */
     ret = wc_RsaSetNonBlockTime(key, 8, 3100);
     if (ret != 0)
         return ret;
@@ -27806,6 +27808,14 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
 #endif
     word32 agreeSz = MAX_DH_KEY_SZ;
     word32 agreeSz2 = MAX_DH_KEY_SZ;
+#if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_HAVE_SP_DH) && \
+    defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP)
+    DhNb dhNb;
+    word32 nbAgreeSz;
+    int nbCount;
+    wc_test_ret_t nb_ret;
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((priv == NULL) ||
@@ -27891,6 +27901,50 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
+
+#if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_HAVE_SP_DH) && \
+    defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP)
+    nbAgreeSz = MAX_DH_KEY_SZ;
+    nbCount = 0;
+    XMEMSET(agree2, 0, MAX_DH_KEY_SZ);
+
+    nb_ret = wc_DhSetNonBlock(key, &dhNb);
+    if (nb_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
+
+    do {
+        nb_ret = wc_DhAgree(key, agree2, &nbAgreeSz, priv, privSz,
+                            pub2, pubSz2);
+        nbCount++;
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        /* When async crypt is enabled, the SW shim returns WC_PENDING_E
+         * on the first call (init phase) and wc_AsyncWait drives the SP
+         * non-block state machine to completion. wc_AsyncSimulate
+         * translates each per-yield MP_WOULDBLOCK from sp_DhExp_<size>_nb
+         * into WC_PENDING_E internally so the wait loop polls until the
+         * operation finishes. */
+        if (nb_ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            nb_ret = wc_AsyncWait(nb_ret, &key->asyncDev,
+                                  WC_ASYNC_FLAG_NONE);
+        }
+    #endif
+    } while (nb_ret == WC_NO_ERR_TRACE(MP_WOULDBLOCK) ||
+             nb_ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    if (nb_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
+
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
+    printf("DH non-block agree: %d times\n", nbCount);
+#endif
+
+    if (nbAgreeSz != agreeSz || XMEMCMP(agree, agree2, agreeSz))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    nb_ret = wc_DhSetNonBlock(key, NULL);
+    if (nb_ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(nb_ret), done);
+#endif /* WC_DH_NONBLOCK + SP nonblock */
 
     /* wc_DhGeneratePublic_fips() was added in 5.2.3, but some customers are
      * building with configure scripts that set version to 5.2.1, but with 5.2.3
