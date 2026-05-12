@@ -71,11 +71,16 @@ int wc_InitSha3_384(wc_Sha3* sha, void* heap, int devId)
  */
 int wc_Sha3_384_Update(wc_Sha3* sha, const byte* data, word32 len)
 {
+    int status;
     if (sha == NULL ||  (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
     WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)data, len);
-    XSecure_Sha3Update(&(sha->xSec.cinst), XIL_CAST_U64(data), len);
+    status = XSecure_Sha3Update(&(sha->xSec.cinst), XIL_CAST_U64(data), len);
+    if (status != XST_SUCCESS) {
+        WOLFSSL_MSG("XSecure_Sha3Update failed");
+        return WC_HW_E;
+    }
 
     return 0;
 }
@@ -88,11 +93,16 @@ int wc_Sha3_384_Update(wc_Sha3* sha, const byte* data, word32 len)
  */
 int wc_Sha3_384_Final(wc_Sha3* sha, byte* out)
 {
+    int status;
     if (sha == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
     WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)out, WC_SHA3_384_DIGEST_SIZE);
-    XSecure_Sha3Finish(&(sha->xSec.cinst), XIL_CAST_U64(out));
+    status = XSecure_Sha3Finish(&(sha->xSec.cinst), XIL_CAST_U64(out));
+    if (status != XST_SUCCESS) {
+        WOLFSSL_MSG("XSecure_Sha3Finish failed");
+        return WC_HW_E;
+    }
 
     return wc_InitSha3_384(sha, NULL, INVALID_DEVID);
 }
@@ -159,10 +169,15 @@ int wc_InitSha3_384(wc_Sha3* sha, void* heap, int devId)
  */
 int wc_Sha3_384_Update(wc_Sha3* sha, const byte* data, word32 len)
 {
+    int status;
     if (sha == NULL ||  (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
-    XSecure_Sha3Update(&(sha->hw), (byte*)data, len);
+    status = XSecure_Sha3Update(&(sha->hw), (byte*)data, len);
+    if (status != XST_SUCCESS) {
+        WOLFSSL_MSG("XSecure_Sha3Update failed");
+        return WC_HW_E;
+    }
 
     return 0;
 }
@@ -175,10 +190,15 @@ int wc_Sha3_384_Update(wc_Sha3* sha, const byte* data, word32 len)
  */
 int wc_Sha3_384_Final(wc_Sha3* sha, byte* out)
 {
+    int status;
     if (sha == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    XSecure_Sha3Finish(&(sha->hw), out);
+    status = XSecure_Sha3Finish(&(sha->hw), out);
+    if (status != XST_SUCCESS) {
+        WOLFSSL_MSG("XSecure_Sha3Finish failed");
+        return WC_HW_E;
+    }
 
     return wc_InitSha3_384(sha, NULL, INVALID_DEVID);
 }
