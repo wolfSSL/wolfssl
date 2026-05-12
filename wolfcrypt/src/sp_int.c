@@ -6140,14 +6140,17 @@ int sp_leading_bit(const sp_int* a)
 int sp_set_bit(sp_int* a, int i)
 {
     int err = MP_OKAY;
-    /* Get index of word to set. */
-    sp_size_t w = (sp_size_t)(i >> SP_WORD_SHIFT);
+    /* Compute word index in full int width so that bit indices large enough
+     * to make the word index overflow sp_size_t are caught by the bounds
+     * check below rather than wrapping. */
+    int wi = (i < 0) ? 0 : (i >> SP_WORD_SHIFT);
 
     /* Check for valid number and space for bit. */
-    if ((a == NULL) || (i < 0) || (w >= a->size)) {
+    if ((a == NULL) || (i < 0) || (wi >= (int)a->size)) {
         err = MP_VAL;
     }
     if (err == MP_OKAY) {
+        sp_size_t w = (sp_size_t)wi;
         /* Amount to shift up to set bit in word. */
         unsigned int s = (unsigned int)(i & (SP_WORD_SIZE - 1));
         unsigned int j;
@@ -8621,15 +8624,16 @@ void sp_rshd(sp_int* a, int c)
 {
     /* Do shift if we have an SP int. */
     if ((a != NULL) && (c > 0)) {
-        /* Make zero if shift removes all digits. */
-        if ((sp_size_t)c >= a->used) {
+        /* Compare c in int width to avoid narrowing to sp_size_t (which can
+         * be word16) before the bounds check. */
+        if (c >= (int)a->used) {
             _sp_zero(a);
         }
         else {
             sp_size_t i;
 
             /* Update used digits count. */
-            a->used = (sp_size_t)(a->used - c);
+            a->used = (sp_size_t)((int)a->used - c);
             /* Move digits down. */
             for (i = 0; i < a->used; i++, c++) {
                 a->dp[i] = a->dp[c];
@@ -8651,21 +8655,23 @@ void sp_rshd(sp_int* a, int c)
 int sp_rshb(const sp_int* a, int n, sp_int* r)
 {
     int err = MP_OKAY;
-    /* Number of digits to shift down. */
-    sp_size_t i;
+    /* Compute the digit-shift count in full int width to avoid wrapping
+     * when n is large enough that the count would exceed sp_size_t range. */
+    int ni = (n < 0) ? 0 : (n >> SP_WORD_SHIFT);
 
     if ((a == NULL) || (n < 0)) {
         err = MP_VAL;
     }
     /* Handle case where shifting out all digits. */
-    else if ((i = (sp_size_t)(n >> SP_WORD_SHIFT)) >= a->used) {
+    else if (ni >= (int)a->used) {
         _sp_zero(r);
     }
     /* Change callers when more error cases returned. */
-    else if ((err == MP_OKAY) && (a->used - i > r->size)) {
+    else if ((err == MP_OKAY) && ((int)a->used - ni > (int)r->size)) {
         err = MP_VAL;
     }
     else if (err == MP_OKAY) {
+        sp_size_t i = (sp_size_t)ni;
         sp_size_t j;
 
         /* Number of bits to shift in digits. */
@@ -14914,16 +14920,25 @@ int sp_div_2d(const sp_int* a, int e, sp_int* r, sp_int* rem)
 int sp_mod_2d(const sp_int* a, int e, sp_int* r)
 {
     int err = MP_OKAY;
-    sp_size_t digits = (sp_size_t)((e + SP_WORD_SIZE - 1) >> SP_WORD_SHIFT);
+    /* Compute digit count in full int width. Decompose to avoid signed
+     * overflow if e is near INT_MAX: (e + SP_WORD_SIZE - 1) >> SHIFT is
+     * equivalent to (e >> SHIFT) + (e has remainder ? 1 : 0). */
+    int digits_full = 0;
+    sp_size_t digits = 0;
 
     if ((a == NULL) || (r == NULL) || (e < 0)) {
         err = MP_VAL;
     }
-    if ((err == MP_OKAY) && (digits > r->size)) {
-        err = MP_VAL;
+    if (err == MP_OKAY) {
+        digits_full = (e >> SP_WORD_SHIFT) +
+                      (((e & (SP_WORD_SIZE - 1)) != 0) ? 1 : 0);
+        if (digits_full > (int)r->size) {
+            err = MP_VAL;
+        }
     }
 
     if (err == MP_OKAY) {
+        digits = (sp_size_t)digits_full;
         /* Copy a into r if not same pointer. */
         if (a != r) {
             sp_size_t cnt = (a->used < digits) ? a->used : digits;
