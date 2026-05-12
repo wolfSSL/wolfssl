@@ -40799,7 +40799,11 @@ TEST_CASE testCases[] = {
 
 static void TestSetup(void)
 {
-/* Stub, for now. Add common test setup code here. */
+#ifdef WOLFSSL_SWDEV
+    /* Re-arm the swdev cryptocb registration in case the previous test
+     * tore down wolfCrypt and wiped gCryptoDev. */
+    (void)wc_SwDev_Init();
+#endif
 }
 
 static void TestCleanup(void)
@@ -40808,6 +40812,9 @@ static void TestCleanup(void)
     /* Clear any errors added to the error queue during the test run. */
     wolfSSL_ERR_clear_error();
 #endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
+#ifdef WOLFSSL_SWDEV
+    wc_SwDev_Cleanup();
+#endif
 }
 
 void ApiTest_StopOnFail(void)
