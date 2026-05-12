@@ -108,7 +108,6 @@ pub struct Lms {
 
 #[cfg(lms_sha256_256)]
 impl Lms {
-    pub const PARM_NONE: u32 = sys::wc_LmsParm_WC_LMS_PARM_NONE;
     pub const PARM_L1_H5_W1: u32 = sys::wc_LmsParm_WC_LMS_PARM_L1_H5_W1;
     pub const PARM_L1_H5_W2: u32 = sys::wc_LmsParm_WC_LMS_PARM_L1_H5_W2;
     pub const PARM_L1_H5_W4: u32 = sys::wc_LmsParm_WC_LMS_PARM_L1_H5_W4;

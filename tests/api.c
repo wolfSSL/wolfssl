@@ -37899,7 +37899,11 @@ static int test_lms_init_key(LmsKey* key, WC_RNG* rng)
     ret = wc_LmsKey_Init(key, NULL, INVALID_DEVID);
     if (ret != 0) return ret;
 
+#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
     ret = wc_LmsKey_SetParameters(key, 1, 10, 8);
+#else
+    ret = wc_LmsKey_SetParameters(key, 1, 5, 8);
+#endif
     if (ret != 0) return ret;
 
     ret = wc_LmsKey_SetWriteCb(key, test_lms_write_key);
@@ -37973,7 +37977,8 @@ int test_wc_LmsKey_sign_verify(void)
 int test_wc_LmsKey_reload_cache(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    (!defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10))
     LmsKey  key;
     LmsKey  vkey;
     WC_RNG  rng;
@@ -38012,7 +38017,11 @@ int test_wc_LmsKey_reload_cache(void)
     ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
 
     ExpectIntEQ(wc_LmsKey_Init(&vkey, NULL, INVALID_DEVID), 0);
+#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
     ExpectIntEQ(wc_LmsKey_SetParameters(&vkey, 1, 10, 8), 0);
+#else
+    ExpectIntEQ(wc_LmsKey_SetParameters(&vkey, 1, 5, 8), 0);
+#endif
     ExpectIntEQ(wc_LmsKey_ImportPubRaw(&vkey, pub, pubSz), 0);
     ExpectIntEQ(wc_LmsKey_Verify(&vkey, sig, sigSz, msg, sizeof(msg)), 0);
 
@@ -38688,9 +38697,15 @@ int test_rfc9802_lms_x509_verify(void)
      * or SHAKE-only builds skip this block. */
     static const char* const lmsFiles[] = {
         "./certs/lms/bc_lms_sha256_h5_w4_root.der",
+#if !defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 10)
         "./certs/lms/bc_lms_sha256_h10_w8_root.der",
+#endif
+#if !defined(WOLFSSL_LMS_MAX_LEVELS) || (WOLFSSL_LMS_MAX_LEVELS >= 2)
         "./certs/lms/bc_hss_L2_H5_W8_root.der",
+#endif
+#if !defined(WOLFSSL_LMS_MAX_LEVELS) || (WOLFSSL_LMS_MAX_LEVELS >= 3)
         "./certs/lms/bc_hss_L3_H5_W4_root.der",
+#endif
         "./certs/lms/bc_lms_native_bc_root.der",
     };
     size_t i;

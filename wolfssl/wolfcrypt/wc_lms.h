@@ -112,8 +112,10 @@
 #define WC_LMS_I_LEN    16
 
 /* Private key write and read callbacks. */
-typedef int (*wc_lms_write_private_key_cb)(const byte * priv, word32 privSz, void *context);
-typedef int (*wc_lms_read_private_key_cb)(byte * priv, word32 privSz, void *context);
+typedef int (*wc_lms_write_private_key_cb)(const byte* priv, word32 privSz,
+    void* context);
+typedef int (*wc_lms_read_private_key_cb)(byte* priv, word32 privSz,
+    void* context);
 
 /* Return codes returned by private key callbacks. */
 enum wc_LmsRc {
@@ -157,7 +159,6 @@ enum wc_LmsRc {
  * will be large. */
 enum wc_LmsParm {
 #ifndef WOLFSSL_NO_LMS_SHA256_256
-    WC_LMS_PARM_NONE = 0,
     WC_LMS_PARM_L1_H5_W1 = 1,
     WC_LMS_PARM_L1_H5_W2 = 2,
     WC_LMS_PARM_L1_H5_W4 = 3,
@@ -617,10 +618,10 @@ typedef struct LmsParams {
     word16 lmsType;
     /* LMOTS type. */
     word16 lmOtsType;
-    /* Length of LM-OTS signature. */
-    word16 sig_len;
     /* Length of seed. */
     word16 hash_len;
+    /* Length of LM-OTS signature. */
+    word32 sig_len;
 #ifndef WOLFSSL_WC_LMS_SMALL
     /* Number of root levels of interior nodes to store. */
     word8 rootLevels;
@@ -793,50 +794,55 @@ typedef struct LmsKey {
     extern "C" {
 #endif
 
-WOLFSSL_API int  wc_LmsKey_Init(LmsKey * key, void * heap, int devId);
+WOLFSSL_API int  wc_LmsKey_Init(LmsKey* key, void* heap, int devId);
 #ifdef WOLF_PRIVATE_KEY_ID
-WOLFSSL_API int  wc_LmsKey_InitId(LmsKey * key, const unsigned char * id,
-    int len, void * heap, int devId);
-WOLFSSL_API int  wc_LmsKey_InitLabel(LmsKey * key, const char * label,
-    void * heap, int devId);
+WOLFSSL_API int  wc_LmsKey_InitId(LmsKey* key, const unsigned char* id,
+    int len, void* heap, int devId);
+WOLFSSL_API int  wc_LmsKey_InitLabel(LmsKey* key, const char* label,
+    void* heap, int devId);
 #endif
-WOLFSSL_API int  wc_LmsKey_SetLmsParm(LmsKey * key, enum wc_LmsParm lmsParm);
-WOLFSSL_API int  wc_LmsKey_SetParameters(LmsKey * key, int levels,
+WOLFSSL_API int  wc_LmsKey_SetLmsParm(LmsKey* key, enum wc_LmsParm lmsParm);
+WOLFSSL_API int  wc_LmsKey_SetParameters(LmsKey* key, int levels,
     int height, int winternitz);
-WOLFSSL_API int  wc_LmsKey_GetParameters(const LmsKey * key, int * levels,
-    int * height, int * winternitz);
+WOLFSSL_API int  wc_LmsKey_SetParameters_ex(LmsKey* key, int levels,
+    int height, int winternitz, int hash);
+WOLFSSL_API int  wc_LmsKey_GetParameters(const LmsKey* key, int* levels,
+    int* height, int* winternitz);
+WOLFSSL_API int  wc_LmsKey_GetParameters_ex(const LmsKey* key, int* levels,
+    int* height, int* winternitz, int* hash);
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
-WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey * key,
+WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey* key,
     wc_lms_write_private_key_cb write_cb);
-WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey * key,
+WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey* key,
     wc_lms_read_private_key_cb read_cb);
-WOLFSSL_API int  wc_LmsKey_SetContext(LmsKey * key, void * context);
-WOLFSSL_API int  wc_LmsKey_MakeKey(LmsKey * key, WC_RNG * rng);
-WOLFSSL_API int  wc_LmsKey_Reload(LmsKey * key);
-WOLFSSL_API int  wc_LmsKey_GetPrivLen(const LmsKey * key, word32 * len);
-WOLFSSL_API int  wc_LmsKey_Sign(LmsKey * key, byte * sig, word32 * sigSz,
-    const byte * msg, int msgSz);
-WOLFSSL_API int  wc_LmsKey_SigsLeft(LmsKey * key);
+WOLFSSL_API int  wc_LmsKey_SetContext(LmsKey* key, void* context);
+WOLFSSL_API int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
+WOLFSSL_API int  wc_LmsKey_Reload(LmsKey* key);
+WOLFSSL_API int  wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len);
+WOLFSSL_API int  wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz,
+    const byte* msg, int msgSz);
+WOLFSSL_API int  wc_LmsKey_SigsLeft(LmsKey* key);
 #endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */
-WOLFSSL_API void wc_LmsKey_Free(LmsKey * key);
-WOLFSSL_API int  wc_LmsKey_GetSigLen(const LmsKey * key, word32 * len);
-WOLFSSL_API int  wc_LmsKey_GetPubLen(const LmsKey * key, word32 * len);
-WOLFSSL_API int  wc_LmsKey_ExportPub(LmsKey * keyDst, const LmsKey * keySrc);
-WOLFSSL_API int  wc_LmsKey_ExportPub_ex(LmsKey * keyDst, const LmsKey * keySrc,
-    void * heap, int devId);
-WOLFSSL_API int  wc_LmsKey_ExportPubRaw(const LmsKey * key, byte * out,
-    word32 * outLen);
-WOLFSSL_API int  wc_LmsKey_ImportPubRaw(LmsKey * key, const byte * in,
+WOLFSSL_API void wc_LmsKey_Free(LmsKey* key);
+WOLFSSL_API int  wc_LmsKey_GetSigLen(const LmsKey* key, word32* len);
+WOLFSSL_API int  wc_LmsKey_GetPubLen(const LmsKey* key, word32* len);
+WOLFSSL_API int  wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc);
+WOLFSSL_API int  wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
+    void* heap, int devId);
+WOLFSSL_API int  wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out,
+    word32* outLen);
+WOLFSSL_API int  wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in,
     word32 inLen);
-WOLFSSL_API int  wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
-    const byte * msg, int msgSz);
-WOLFSSL_API const char * wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
-WOLFSSL_API const char * wc_LmsKey_RcToStr(enum wc_LmsRc lmsRc);
+WOLFSSL_API int  wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
+    const byte* msg, int msgSz);
+WOLFSSL_API const char* wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
 
-WOLFSSL_API int wc_LmsKey_GetKid(LmsKey * key, const byte ** kid,
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+WOLFSSL_API int wc_LmsKey_GetKid(LmsKey* key, const byte** kid,
     word32* kidSz);
-WOLFSSL_API const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv,
+WOLFSSL_API const byte* wc_LmsKey_GetKidFromPrivRaw(const byte* priv,
     word32 privSz);
+#endif
 
 int wc_hss_make_key(LmsState* state, WC_RNG* rng, byte* priv_raw,
     HssPrivKey* priv_key, byte* priv_data, byte* pub);
