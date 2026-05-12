@@ -685,7 +685,7 @@ WOLFSSL_API int  wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
     enum wc_HashType hashType, byte* sig, word32* sigSz);
 WOLFSSL_API int  wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
     const byte* ctx, byte ctxSz, const byte* hash, word32 hashSz,
-    enum wc_HashType hashType, byte* sig, word32* sigSz, byte* addRnd);
+    enum wc_HashType hashType, byte* sig, word32* sigSz, const byte* addRnd);
 WOLFSSL_API int  wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
     byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     byte* sig, word32* sigSz, WC_RNG* rng);

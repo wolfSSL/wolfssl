@@ -12,11 +12,16 @@
   for SHAKE128, 64 bytes for SHAKE256 per FIPS 205 Section 10.2.2); otherwise
   `BAD_LENGTH_E` is returned. Migration: hash the message yourself before the
   call (callers using positional arguments are source-compatible; only the
-  parameter names changed). The pre-existing `wc_SlhDsaKey_SignMsgDeterministic`
-  and `wc_SlhDsaKey_SignMsgWithRandom` (FIPS 205 internal interface, M'
-  supplied directly) are unaffected and gain stricter input validation
-  matching the `*Hash*` family. `wc_SlhDsaKey_VerifyMsg` is unchanged. All
-  three gain doxygen coverage.
+  parameter names changed). Caveat: callers who today pass a raw message
+  whose length happens to equal the digest size for the chosen `hashType`
+  (e.g., signing a 32-byte handle/IV/seed with `WC_HASH_TYPE_SHA256`) will
+  not trip `BAD_LENGTH_E`; the resulting signature is syntactically valid
+  but is over the wrong bytes. The pre-existing
+  `wc_SlhDsaKey_SignMsgDeterministic` and `wc_SlhDsaKey_SignMsgWithRandom`
+  retain their M'-supplied-directly contract (FIPS 205 internal interface,
+  Algorithm 19); their input validation is hardened with the same
+  NULL/length/`MISSING_KEY` checks as the `*Hash*` family.
+  `wc_SlhDsaKey_VerifyMsg` is unchanged. All three gain doxygen coverage.
 
 * TLS 1.3: zero traffic key staging buffers in `SetKeysSide()` once a
   CryptoCB callback has imported the AES key into a Secure Element
