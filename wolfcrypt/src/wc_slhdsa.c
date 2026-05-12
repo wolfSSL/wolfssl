@@ -6557,8 +6557,13 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
         /* Set heap hint to use with all allocations. */
         key->heap = heap;
     #ifdef WOLF_CRYPTO_CB
-        /* Set device id. */
+        /* Set device context and id. */
+        key->devCtx = NULL;
         key->devId = devId;
+    #endif
+    #ifdef WOLF_PRIVATE_KEY_ID
+        key->idLen = 0;
+        key->labelLen = 0;
     #endif
 
 #ifdef WOLFSSL_SLHDSA_SHA2
@@ -6595,14 +6600,106 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
     return ret;
 }
 
+#ifdef WOLF_PRIVATE_KEY_ID
+/* Initialize an SLH-DSA key with a device key id.
+ *
+ * @param [in] key    SLH-DSA key.
+ * @param [in] param  SLH-DSA parameter set to use.
+ * @param [in] id     Device-side key handle bytes.
+ * @param [in] len    Length of id in bytes.
+ * @param [in] heap   Dynamic memory allocation hint.
+ * @param [in] devId  Device Id.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL or when id is NULL with len > 0.
+ * @return  BUFFER_E when len is negative or larger than SLHDSA_MAX_ID_LEN.
+ */
+int wc_SlhDsaKey_Init_id(SlhDsaKey* key, enum SlhDsaParam param,
+    const unsigned char* id, int len, void* heap, int devId)
+{
+    int ret = 0;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Reject id == NULL with len > 0. */
+    if ((ret == 0) && (id == NULL) && (len > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && ((len < 0) || (len > SLHDSA_MAX_ID_LEN))) {
+        ret = BUFFER_E;
+    }
+
+    if (ret == 0) {
+        ret = wc_SlhDsaKey_Init(key, param, heap, devId);
+    }
+    if ((ret == 0) && (id != NULL) && (len > 0)) {
+        XMEMCPY(key->id, id, (size_t)len);
+        key->idLen = len;
+    }
+
+    return ret;
+}
+
+/* Initialize an SLH-DSA key with a device key label.
+ *
+ * Label length is taken via XSTRLEN; embedded NULs terminate the label.
+ *
+ * @param [in] key    SLH-DSA key.
+ * @param [in] param  SLH-DSA parameter set to use.
+ * @param [in] label  NUL-terminated device-side key label.
+ * @param [in] heap   Dynamic memory allocation hint.
+ * @param [in] devId  Device Id.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key or label is NULL.
+ * @return  BUFFER_E when label is empty or longer than SLHDSA_MAX_LABEL_LEN.
+ */
+int wc_SlhDsaKey_Init_label(SlhDsaKey* key, enum SlhDsaParam param,
+    const char* label, void* heap, int devId)
+{
+    int ret = 0;
+    int labelLen = 0;
+
+    if ((key == NULL) || (label == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        labelLen = (int)XSTRLEN(label);
+        if ((labelLen == 0) || (labelLen > SLHDSA_MAX_LABEL_LEN)) {
+            ret = BUFFER_E;
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_SlhDsaKey_Init(key, param, heap, devId);
+    }
+    if (ret == 0) {
+        XMEMCPY(key->label, label, (size_t)labelLen);
+        key->labelLen = labelLen;
+    }
+
+    return ret;
+}
+#endif /* WOLF_PRIVATE_KEY_ID */
+
 /* Free the SLH-DSA key.
  *
  * @param [in] key  SLH-DSA key. Cannot be used after this call.
  */
 void wc_SlhDsaKey_Free(SlhDsaKey* key)
 {
-    /* Check we have a valid key to free. */
-    if ((key != NULL) && (key->params != NULL)) {
+    if (key == NULL)
+        return;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    if ((key->params != NULL) && (key->devId != INVALID_DEVID)) {
+        (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                               WC_PK_TYPE_PQC_SIG_KEYGEN,
+                               WC_PQC_SIG_TYPE_SLHDSA,
+                               (void*)key);
+    }
+#endif
+
+    if (key->params != NULL) {
         /* Ensure the private key data is zeroized. */
         ForceZero(key->sk, (size_t)key->params->n * 2);
 #ifdef WOLFSSL_SLHDSA_SHA2
@@ -6641,6 +6738,17 @@ void wc_SlhDsaKey_Free(SlhDsaKey* key)
             wc_Shake256_Free(&key->hash.shk.shake);
         }
     }
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    key->idLen = 0;
+    key->labelLen = 0;
+#endif
+#ifdef WOLF_CRYPTO_CB
+    key->devCtx = NULL;
+    key->devId = INVALID_DEVID;
+#endif
+    /* Marks the key freed; subsequent Frees become no-ops. */
+    key->params = NULL;
 }
 
 /* Set the HashAddress based on message digest data.
@@ -6752,6 +6860,24 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
     if ((key == NULL) || (key->params == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            /* size is the SlhDsaParam enum (S/F variants are distinct). */
+            ret = wc_CryptoCb_MakePqcSignatureKey(rng,
+                WC_PQC_SIG_TYPE_SLHDSA, (int)key->params->param, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
     if (ret == 0) {
         /* Steps 1-5: Generate the 3 random hashes. */
         ret = wc_RNG_GenerateBlock(rng, key->sk, 3U * key->params->n);
@@ -7251,6 +7377,23 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
         ret = MISSING_KEY;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSign(msg, msgSz, sig, sigSz, ctx, ctxSz,
+                WC_HASH_TYPE_NONE, rng, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
     if (ret == 0) {
         /* Generate n bytes of random. */
         ret = wc_RNG_GenerateBlock(rng, addRnd, key->params->n);
@@ -7459,6 +7602,27 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
         ret = MISSING_KEY;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            int res = 0;
+            ret = wc_CryptoCb_PqcVerify(sig, sigSz, msg, msgSz, ctx, ctxSz,
+                WC_HASH_TYPE_NONE, &res, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (ret != 0)
+                    return ret;
+                return (res == 1) ? 0 : SIG_VERIFY_E;
+            }
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
     if (ret == 0) {
         byte md[SLHDSA_MAX_MD];
         byte n = key->params->n;
@@ -8119,6 +8283,30 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
         ret = MISSING_KEY;
     }
+    /* The cryptocb path below casts hashType to word32 to fit the
+     * wc_CryptoInfo.preHashType field. Reject negative enum values here so
+     * the cast can't smuggle a huge unsigned value past the callback (the
+     * downstream prehash validator only inspects values it knows about). */
+    else if ((int)hashType < 0) {
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSign(hash, hashSz, sig, sigSz, ctx, ctxSz,
+                (word32)hashType, rng, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
     if (ret == 0) {
         /* Generate n bytes of random. */
         ret = wc_RNG_GenerateBlock(rng, addRnd, key->params->n);
@@ -8221,6 +8409,34 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
         ret = MISSING_KEY;
     }
+    /* The cryptocb path below casts hashType to word32 to fit the
+     * wc_CryptoInfo.preHashType field. Reject negative enum values here so
+     * the cast can't smuggle a huge unsigned value past the callback (the
+     * downstream prehash validator only inspects values it knows about). */
+    else if ((int)hashType < 0) {
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            int res = 0;
+            ret = wc_CryptoCb_PqcVerify(sig, sigSz, hash, hashSz, ctx, ctxSz,
+                (word32)hashType, &res, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (ret != 0)
+                    return ret;
+                return (res == 1) ? 0 : SIG_VERIFY_E;
+            }
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
     if (ret == 0) {
         /* Alg 24, Steps 4-19: Validate caller-supplied pre-hashed digest length
          * and select OID for the chosen hash algorithm. */
