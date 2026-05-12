@@ -52,9 +52,15 @@ int casper_rsa_public_exptmod(
     int res;
     int sig_sz = inLen;
     int key_sz = mp_unsigned_bin_size(&key->n);
-    word32 exp = 0;
+    int exp_sz = mp_unsigned_bin_size(&key->e);
+    uint8_t exp_buf[sizeof(uint32_t)];
+    uint32_t exp = 0;
 
     if (inLen > CASPER_MAX_BUF_SZ || *outLen > CASPER_MAX_BUF_SZ)
+        return BAD_FUNC_ARG;
+
+    /* casper only accepts a 32-bit public exponent */
+    if (exp_sz <= 0 || exp_sz > (int)sizeof(exp_buf))
         return BAD_FUNC_ARG;
 
     /* casper requires little endian format for inputs/outputs */
@@ -65,8 +71,13 @@ int casper_rsa_public_exptmod(
         return res;
     mp_reverse(key_buf, key_sz);
 
-    if ((res = mp_to_unsigned_bin(&key->e, (uint8_t *)&exp)) != MP_OKAY)
+    XMEMSET(exp_buf, 0, sizeof(exp_buf));
+    if ((res = mp_to_unsigned_bin(&key->e,
+                                  exp_buf + sizeof(exp_buf) - exp_sz))
+        != MP_OKAY)
         return res;
+    exp = ((uint32_t)exp_buf[0] << 24) | ((uint32_t)exp_buf[1] << 16) |
+          ((uint32_t)exp_buf[2] <<  8) | ((uint32_t)exp_buf[3]);
 
     CASPER_ModExp(CASPER, (void *)sig_buf, (void *)key_buf,
             key_sz / sizeof(uint32_t), exp, out_buf);
