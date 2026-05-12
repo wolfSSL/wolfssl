@@ -269,7 +269,8 @@ WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash);
 WOLFSSL_API int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
 WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256);
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
-    !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH)
+    !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
