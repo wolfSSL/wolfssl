@@ -514,10 +514,12 @@ static NOOPT int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
             for (i = 0; i < blocks; i++, iv += WC_AES_BLOCK_SIZE)
                 Octeon_GHASH_Update(iv);
 
-            XMEMSET(aesBlock, 0, sizeof(aesBlock));
-            for (i = 0; i < remainder; i++)
-                aesBlock[i] = iv[i];
-            Octeon_GHASH_Update(aesBlock);
+            if (remainder > 0) {
+                XMEMSET(aesBlock, 0, sizeof(aesBlock));
+                for (i = 0; i < remainder; i++)
+                    aesBlock[i] = iv[i];
+                Octeon_GHASH_Update(aesBlock);
+            }
 
             Octeon_GHASH_Final((byte*)aes->reg, 0, ivSz);
         }
