@@ -185,6 +185,7 @@ sword16 wc_mlkem_opt_blocker(void) {
 
 /******************************************************************************/
 
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
 /* Get the k value (number of polynomials in a vector) from the key type.
  *
  * @param  [in]  key  ML-KEM key object.
@@ -225,6 +226,7 @@ static int mlkemkey_get_k(const MlKemKey* key)
             return 0;
     }
 }
+#endif
 
 #ifdef WOLFSSL_MLKEM_DYNAMIC_KEYS
 /* Allocate (or reallocate) the private key buffer, right-sized for k.
