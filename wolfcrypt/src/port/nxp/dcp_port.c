@@ -205,14 +205,16 @@ int DCPAesInit(Aes *aes)
     return 0;
 }
 
+static unsigned char  aes_key_aligned[16] __attribute__((aligned(0x10)));
+
 void DCPAesFree(Aes *aes)
 {
+    ForceZero(aes_key_aligned, sizeof(aes_key_aligned));
     dcp_free(aes->handle.channel);
     aes->handle.channel = 0;
 }
 
 
-static unsigned char  aes_key_aligned[16] __attribute__((aligned(0x10)));
 int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir)
 {
@@ -231,8 +233,9 @@ int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
             return WC_HW_E;
     }
     dcp_lock();
-    memcpy(aes_key_aligned, key, 16);
+    XMEMCPY(aes_key_aligned, key, 16);
     status = DCP_AES_SetKey(DCP, &aes->handle, aes_key_aligned, 16);
+    ForceZero(aes_key_aligned, sizeof(aes_key_aligned));
     if (status != kStatus_Success)
         status = WC_HW_E;
     else {
