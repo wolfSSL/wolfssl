@@ -244,8 +244,9 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
 
 #ifdef WC_SHA3_NO_ASM
     /* asm speedups disabled */
-    #if defined(USE_INTEL_SPEEDUP) && !defined(WC_MLKEM_NO_ASM)
-        /* native ML-KEM uses this directly. */
+    #if defined(USE_INTEL_SPEEDUP) && \
+        !(defined(WC_MLKEM_NO_ASM) && defined(WC_SLHDSA_NO_ASM))
+        /* native ML-KEM and SLH-DSA use this directly. */
         WOLFSSL_LOCAL void sha3_blocksx4_avx2(word64* s);
     #endif
 #elif defined(USE_INTEL_SPEEDUP)

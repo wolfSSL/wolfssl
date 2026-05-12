@@ -450,6 +450,8 @@
         #define memset my_memset
 
         static inline void *my_memmove(void *dest, const void *src, size_t n) {
+            if (n == 0)
+                return dest;
             if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n)
                    & (uintptr_t)(sizeof(uintptr_t) - 1)))
             {

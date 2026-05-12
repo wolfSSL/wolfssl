@@ -14458,8 +14458,8 @@ L_mlkem_decompress_5_avx2_shuf:
 .p2align	4
 #endif /* __APPLE__ */
 L_mlkem_decompress_5_avx2_mask:
-.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00fb
-.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00fb
+.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
+.short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
 #ifndef __APPLE__
 .data
 #else
@@ -15534,6 +15534,9 @@ _mlkem_cmp_avx2:
         vpxor	1504(%rsi), %ymm1, %ymm1
         vpor	%ymm0, %ymm2, %ymm2
         vpor	%ymm1, %ymm3, %ymm3
+        vmovdqu	1536(%rdi), %ymm0
+        vpxor	1536(%rsi), %ymm0, %ymm0
+        vpor	%ymm0, %ymm2, %ymm2
 L_mlkem_cmp_avx2_done:
         vpor	%ymm3, %ymm2, %ymm2
         vptest	%ymm2, %ymm2

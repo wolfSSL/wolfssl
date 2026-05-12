@@ -1219,6 +1219,9 @@ impl ECC {
     /// }
     /// ```
     pub fn rs_hex_to_sig(r: &[u8], s: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
+        if r.is_empty() || s.is_empty() || r[r.len() - 1] != 0 || s[s.len() - 1] != 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let r_ptr = r.as_ptr() as *const core::ffi::c_char;
         let s_ptr = s.as_ptr() as *const core::ffi::c_char;
@@ -1820,7 +1823,7 @@ impl ECC {
             sys::wc_ecc_shared_secret(&mut self.wc_ecc_key,
                 &mut peer_key.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
-        if rc < 0 {
+        if rc != 0 {
             return Err(rc);
         }
         Ok(out_len as usize)
@@ -1961,7 +1964,7 @@ impl ECC {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(res != 0)
+        Ok(res == 1)
     }
 }
 

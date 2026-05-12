@@ -139,7 +139,8 @@ Threading/Mutex options:
 #endif
 
 #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
-    defined(WOLFSSL_ATECC608A)
+    defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP)
@@ -180,6 +181,13 @@ Threading/Mutex options:
 #endif
 #ifdef WOLFSSL_IMXRT_DCP
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
+#endif
+
+#ifdef WOLFSSL_NXP_CASPER
+    #include <wolfssl/wolfcrypt/port/nxp/casper_port.h>
+#endif
+#ifdef WOLFSSL_NXP_HASHCRYPT
+    #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
 
 #ifdef WOLF_CRYPTO_CB
@@ -381,7 +389,7 @@ int wolfCrypt_Init(void)
     #endif
 
     #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
-        defined(WOLFSSL_ATECC608A)
+        defined(WOLFSSL_ATECC608A) || defined(WOLFSSL_MICROCHIP_TA100)
         ret = atmel_init();
         if (ret != 0) {
             WOLFSSL_MSG("CryptoAuthLib init failed");
@@ -530,6 +538,17 @@ int wolfCrypt_Init(void)
 
 #ifdef WOLFSSL_IMXRT_DCP
         if ((ret = wc_dcp_init()) != 0) {
+            return ret;
+        }
+#endif
+
+#ifdef WOLFSSL_NXP_CASPER
+        if ((ret = wc_casper_init()) != 0) {
+            return ret;
+        }
+#endif
+#ifdef WOLFSSL_NXP_HASHCRYPT
+        if ((ret = wc_hashcrypt_init()) != 0) {
             return ret;
         }
 #endif

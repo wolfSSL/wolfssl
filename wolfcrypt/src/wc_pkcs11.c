@@ -1562,6 +1562,8 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
                 ret = WC_HW_E;
             }
         }
+        if (priv != NULL)
+            ForceZero(priv, privLen);
         XFREE(priv, private_key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
@@ -2633,7 +2635,7 @@ int wc_hash2sz(int hType)
     case WC_HASH_TYPE_SHA:
         return 20;
     case WC_HASH_TYPE_SHA224:
-        return 24;
+        return 28;
     case WC_HASH_TYPE_SHA256:
         return 32;
     case WC_HASH_TYPE_SHA384:
@@ -6304,6 +6306,7 @@ exit:
  * @param  [in]  info   Cryptographic operation data.
  * @param  [in]  ctx    Context data for device - the token object.
  * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  NOT_COMPILED_IN when an unsupported operation is requested.
  * @return  0 on success.
  */
 int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
@@ -6525,6 +6528,9 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     }
                     break;
         #endif
+                default:
+                    ret = NOT_COMPILED_IN;
+                    break;
                 }
     #else
             ret = NOT_COMPILED_IN;

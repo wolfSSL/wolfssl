@@ -222,6 +222,7 @@ on the specific device platform.
       !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) || \
      defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
     !defined(PSOC6_HASH_SHA2) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_NXP_HASHCRYPT_SHA) && \
     !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050_HASH) && \
     ((!defined(WOLFSSL_RENESAS_SCEPROTECT) && \
       !defined(WOLFSSL_RENESAS_RSIP)) \
@@ -1068,6 +1069,9 @@ static int InitSha256(wc_Sha256* sha256)
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
 
+#elif defined(WOLFSSL_NXP_HASHCRYPT_SHA)
+    /* implemented in wolfcrypt/src/port/nxp/hashcrypt_port.c */
+
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
 
@@ -1881,9 +1885,9 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         }
 
         if (SHA256_UPDATE_REV_BYTES(&sha256->ctx)) {
-            ByteReverseWords(sha256->buffer, (word32*)data,
+            ByteReverseWords(sha256->buffer, (const word32*)data,
                 WC_SHA256_BLOCK_SIZE);
-            data = (unsigned char*)sha256->buffer;
+            data = (const unsigned char*)sha256->buffer;
         }
         ret = XTRANSFORM(sha256, data);
 

@@ -26,6 +26,7 @@
 
 int test_wc_CamelliaSetKey(void);
 int test_wc_CamelliaSetIV(void);
+int test_wc_CamelliaFree(void);
 int test_wc_CamelliaEncryptDecryptDirect(void);
 int test_wc_CamelliaCbcEncryptDecrypt(void);
 int test_wc_CamelliaCbc_MonteCarlo(void);
@@ -33,6 +34,7 @@ int test_wc_CamelliaCbc_MonteCarlo(void);
 #define TEST_CAMELLIA_DECLS                                             \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaSetKey),                \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaSetIV),                 \
+    TEST_DECL_GROUP("camellia", test_wc_CamelliaFree),                  \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaEncryptDecryptDirect),  \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaCbcEncryptDecrypt),     \
     TEST_DECL_GROUP("camellia", test_wc_CamelliaCbc_MonteCarlo)

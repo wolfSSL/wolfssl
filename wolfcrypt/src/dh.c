@@ -972,6 +972,10 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
     key->handle = NULL;
 #endif
 
+#ifdef WC_DH_NONBLOCK
+    key->nb = NULL;
+#endif
+
     return ret;
 }
 
@@ -979,6 +983,23 @@ int wc_InitDhKey(DhKey* key)
 {
     return wc_InitDhKey_ex(key, NULL, INVALID_DEVID);
 }
+
+#ifdef WC_DH_NONBLOCK
+int wc_DhSetNonBlock(DhKey* key, DhNb* nb)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (nb != NULL) {
+        XMEMSET(nb, 0, sizeof(DhNb));
+    }
+
+    /* Pass NULL to disable non-blocking mode. */
+    key->nb = nb;
+
+    return 0;
+}
+#endif
 
 
 int wc_FreeDhKey(DhKey* key)
@@ -2030,18 +2051,80 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     if (mp_iseven(&key->p) == MP_YES) {
         return MP_VAL;
     }
+
+    /* Non-blocking re-entry: the same wc_DhAgree call repeats until the
+     * SP state machine completes, so cache the per-op key validation
+     * results instead of re-running them each yield. The cache is
+     * scoped to non-blocking, non-const-time callers only. */
+#ifdef WC_DH_NONBLOCK
+    if (key->nb == NULL || ct || !key->nb->pubKeyValidated)
+#endif
+    {
 #ifdef WOLFSSL_VALIDATE_FFC_IMPORT
-    if (wc_DhCheckPrivKey(key, priv, privSz) != 0) {
-        WOLFSSL_MSG("wc_DhAgree wc_DhCheckPrivKey failed");
-        return DH_CHECK_PRIV_E;
+        if (wc_DhCheckPrivKey(key, priv, privSz) != 0) {
+            WOLFSSL_MSG("wc_DhAgree wc_DhCheckPrivKey failed");
+            return DH_CHECK_PRIV_E;
+        }
+#endif
+        /* Always validate peer public key (2 <= y <= p-2) per SP 800-56A */
+        if (wc_DhCheckPubKey(key, otherPub, pubSz) != 0) {
+            WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
+            return DH_CHECK_PUB_E;
+        }
+#ifdef WC_DH_NONBLOCK
+        if (key->nb != NULL && !ct) {
+            key->nb->pubKeyValidated = 1;
+        }
+#endif
+    }
+
+#if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_HAVE_SP_DH) && \
+    defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
+    !defined(WOLFSSL_SP_FAST_MODEXP)
+    /* Non-blocking dispatch bypasses the mp_int dance entirely - the SP
+     * wrapper takes byte buffers and persists across yields. The constant-
+     * time fold-back (ct branch) is intentionally not applied here; nb
+     * callers should use the standard wc_DhAgree(). */
+    if (key->nb != NULL && !ct) {
+        int nb_ret = MP_OKAY;
+        int dispatched = 0;
+    #ifndef WOLFSSL_SP_NO_2048
+        if (mp_count_bits(&key->p) == 2048) {
+            nb_ret = sp_DhExp_2048_nb(&key->nb->sp_ctx, otherPub, pubSz,
+                         priv, privSz, &key->p, agree, agreeSz);
+            dispatched = 1;
+        }
+    #endif
+    #ifndef WOLFSSL_SP_NO_3072
+        if (!dispatched && mp_count_bits(&key->p) == 3072) {
+            nb_ret = sp_DhExp_3072_nb(&key->nb->sp_ctx, otherPub, pubSz,
+                         priv, privSz, &key->p, agree, agreeSz);
+            dispatched = 1;
+        }
+    #endif
+    #ifdef WOLFSSL_SP_4096
+        if (!dispatched && mp_count_bits(&key->p) == 4096) {
+            nb_ret = sp_DhExp_4096_nb(&key->nb->sp_ctx, otherPub, pubSz,
+                         priv, privSz, &key->p, agree, agreeSz);
+            dispatched = 1;
+        }
+    #endif
+        if (dispatched) {
+            /* Op finished (or hit a hard error) - clear the cached
+             * validation so the next op on this DhNb re-runs the
+             * SP 800-56A peer-key check. MP_WOULDBLOCK keeps it. */
+            if (nb_ret != WC_NO_ERR_TRACE(MP_WOULDBLOCK)) {
+                key->nb->pubKeyValidated = 0;
+            }
+            return nb_ret;
+        }
+        /* size not nb-supported - the blocking path below completes in
+         * one call, so the cached validation is single-use. Clear it
+         * here so the next agree on this DhNb re-validates. */
+        key->nb->pubKeyValidated = 0;
+        /* fall through to blocking path */
     }
 #endif
-
-    /* Always validate peer public key (2 <= y <= p-2) per SP 800-56A */
-    if (wc_DhCheckPubKey(key, otherPub, pubSz) != 0) {
-        WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
-        return DH_CHECK_PUB_E;
-    }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     y = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
@@ -2304,6 +2387,11 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
     ret = KcapiDh_SharedSecret(key, otherPub, pubSz, agree, agreeSz);
 #else
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+    /* Async marker takes precedence: when wolfAsync_DoSw (wolfcrypt/src/
+     * async.c) re-enters the compute path, wc_DhAgree_Async dispatches
+     * to the SP nonblock wrapper if key->nb is attached, and per-yield
+     * FP_WOULDBLOCK (alias of MP_WOULDBLOCK) is translated to
+     * WC_PENDING_E by wolfAsync_DoSw so the TLS event loop drives it. */
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_DH) {
         ret = wc_DhAgree_Async(key, agree, agreeSz, priv, privSz, otherPub,
                                pubSz);
@@ -2311,6 +2399,9 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
     else
 #endif
     {
+        /* wc_DhAgree_Sync handles key->nb internally; no separate dispatch
+         * needed here. wc_DhAgree_ct (constant-time fold-back) bypasses
+         * this function entirely so passing ct=0 is correct. */
         ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub,
                               pubSz, 0);
     }

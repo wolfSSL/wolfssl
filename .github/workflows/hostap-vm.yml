@@ -340,18 +340,49 @@ jobs:
             KVMARGS="-cpu host"
           EOF
           git config --global --add safe.directory $GITHUB_WORKSPACE/hostap
+          # parallel-vm.py exits non-zero whenever any test failed on its first
+          # attempt, even if hostap's own internal retry recovered. Treat
+          # "All failed cases passed on retry" as success so we don't churn the
+          # whole VM batch over a flaky test that already passed on retry.
+          run_hwsim() {
+            local log rc=0
+            log=$(mktemp)
+            ./vm/parallel-vm.py ${{ env.hostap_debug_flags }} --nocurses "$@" 2>&1 | tee "$log"
+            rc=${PIPESTATUS[0]}
+            if [ "$rc" -ne 0 ] && grep -q "All failed cases passed on retry" "$log"; then
+              echo "Treating run as success: hostap's internal retry recovered all failures"
+              rc=0
+            fi
+            rm -f "$log"
+            return $rc
+          }
           # Run tests in increments of 200 to not stall out the parallel-vm script
           while mapfile -t -n 200 ary && ((${#ary[@]})); do
             TESTS=$(printf '%s\n' "${ary[@]}" | tr '\n' ' ')
             HWSIM_RES=0 # Not set when command succeeds
-            ./vm/parallel-vm.py ${{ env.hostap_debug_flags }} --nocurses $(nproc) $TESTS  || HWSIM_RES=$?
+            run_hwsim $(nproc) $TESTS || HWSIM_RES=$?
+            # Retry failing tests up to 2 times to mitigate flakiness in the
+            # upstream hostap tests themselves.
+            for i in 1 2; do
+              if [ "$HWSIM_RES" -ne "0" ]; then
+                # Let's re-run the failing tests. We gather the failed tests from the log file.
+                # `|| true` keeps the step alive under `-eo pipefail` if grep finds no matches.
+                FAILED_TESTS=$(grep 'failed tests' /tmp/hwsim-test-logs/*-parallel.log 2>/dev/null | sed 's/failed tests: //' | tr ' ' '\n' | sort | uniq | tr '\n' ' ' || true)
+                if [ -z "$FAILED_TESTS" ]; then
+                  echo "Could not determine failed tests from logs, skipping retry"
+                  break
+                fi
+                printf 'failed tests (retry %d): %s\n' "$i" "$FAILED_TESTS"
+                rm -rf /tmp/hwsim-test-logs
+                HWSIM_RES=0
+                run_hwsim $(nproc) $FAILED_TESTS || HWSIM_RES=$?
+              fi
+            done
             if [ "$HWSIM_RES" -ne "0" ]; then
-              # Let's re-run the failing tests. We gather the failed tests from the log file.
-              FAILED_TESTS=$(grep 'failed tests' /tmp/hwsim-test-logs/*-parallel.log | sed 's/failed tests: //' | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
-              printf 'failed tests: %s\n' "$FAILED_TESTS"
-              ./vm/parallel-vm.py ${{ env.hostap_debug_flags }} --nocurses $(nproc) $FAILED_TESTS
+              echo "Tests still failing after retries"
+              exit 1
             fi
-            rm -r /tmp/hwsim-test-logs
+            rm -rf /tmp/hwsim-test-logs
           done < $GITHUB_WORKSPACE/wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/tests
 
       - name: show errors

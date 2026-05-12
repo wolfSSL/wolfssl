@@ -46,6 +46,7 @@ rng.generate_block(&mut buffer).expect("Failed to generate a block");
 
 use crate::sys;
 use core::mem::{size_of_val, MaybeUninit};
+use num_traits::PrimInt;
 
 /// A cryptographically secure random number generator based on the wolfSSL
 /// library.
@@ -127,7 +128,7 @@ impl RNG {
     ///
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_with_nonce<T>(nonce: &mut [T]) -> Result<Self, i32> {
+    pub fn new_with_nonce<T: PrimInt>(nonce: &mut [T]) -> Result<Self, i32> {
         RNG::new_with_nonce_ex(nonce, None, None)
     }
 
@@ -146,7 +147,7 @@ impl RNG {
     ///
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new_with_nonce_ex<T>(nonce: &mut [T], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_with_nonce_ex<T: PrimInt>(nonce: &mut [T], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         #[cfg(fips)]
         {
             let rc = unsafe {
@@ -338,7 +339,7 @@ impl RNG {
     ///
     /// A `Result` which is `Ok(())` on success or an `Err` with the wolfssl
     /// library return code on failure.
-    pub fn generate_block<T>(&mut self, buf: &mut [T]) -> Result<(), i32> {
+    pub fn generate_block<T: PrimInt>(&mut self, buf: &mut [T]) -> Result<(), i32> {
         let ptr = buf.as_mut_ptr() as *mut u8;
         let size = crate::buffer_len_to_u32(size_of_val(buf))?;
         let rc = unsafe { sys::wc_RNG_GenerateBlock(&mut self.wc_rng, ptr, size) };

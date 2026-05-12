@@ -1017,6 +1017,154 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
 }
 #endif /* HAVE_ED25519 */
 
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+int wc_CryptoCb_PqcStatefulSigGetDevId(int type, void* key)
+{
+    int devId = INVALID_DEVID;
+
+    if (key == NULL)
+        return devId;
+
+#if defined(WOLFSSL_HAVE_LMS)
+    if (type == WC_PQC_STATEFUL_SIG_TYPE_LMS) {
+        devId = ((LmsKey*)key)->devId;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_XMSS)
+    if (type == WC_PQC_STATEFUL_SIG_TYPE_XMSS) {
+        devId = ((XmssKey*)key)->devId;
+    }
+#endif
+
+    return devId;
+}
+
+int wc_CryptoCb_PqcStatefulSigKeyGen(int type, void* key, WC_RNG* rng)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN;
+        cryptoInfo.pk.pqc_stateful_sig_kg.rng = rng;
+        cryptoInfo.pk.pqc_stateful_sig_kg.key = key;
+        cryptoInfo.pk.pqc_stateful_sig_kg.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcStatefulSigSign(const byte* msg, word32 msgSz, byte* out,
+    word32* outSz, int type, void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN;
+        cryptoInfo.pk.pqc_stateful_sig_sign.msg = msg;
+        cryptoInfo.pk.pqc_stateful_sig_sign.msgSz = msgSz;
+        cryptoInfo.pk.pqc_stateful_sig_sign.out = out;
+        cryptoInfo.pk.pqc_stateful_sig_sign.outSz = outSz;
+        cryptoInfo.pk.pqc_stateful_sig_sign.key = key;
+        cryptoInfo.pk.pqc_stateful_sig_sign.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcStatefulSigVerify(const byte* sig, word32 sigSz,
+    const byte* msg, word32 msgSz, int* res, int type, void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY;
+        cryptoInfo.pk.pqc_stateful_sig_verify.sig = sig;
+        cryptoInfo.pk.pqc_stateful_sig_verify.sigSz = sigSz;
+        cryptoInfo.pk.pqc_stateful_sig_verify.msg = msg;
+        cryptoInfo.pk.pqc_stateful_sig_verify.msgSz = msgSz;
+        cryptoInfo.pk.pqc_stateful_sig_verify.res = res;
+        cryptoInfo.pk.pqc_stateful_sig_verify.key = key;
+        cryptoInfo.pk.pqc_stateful_sig_verify.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcStatefulSigSigsLeft(int type, void* key, word32* sigsLeft)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    devId = wc_CryptoCb_PqcStatefulSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT;
+        cryptoInfo.pk.pqc_stateful_sig_sigs_left.key = key;
+        cryptoInfo.pk.pqc_stateful_sig_sigs_left.sigsLeft = sigsLeft;
+        cryptoInfo.pk.pqc_stateful_sig_sigs_left.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
+
 #if defined(WOLFSSL_HAVE_MLKEM)
 int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
 {

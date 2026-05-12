@@ -178,43 +178,45 @@ typedef enum wc_XmssRc (*wc_xmss_read_private_key_cb)(byte* priv, word32 privSz,
 
 #if (defined(WC_XMSS_SHA512) || defined(WC_XMSS_SHAKE256)) && \
         (WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512)
-    #define WC_XMSS_MAX_N               64
-    #define WC_XMSS_MAX_PADDING_LEN     64
+    #define WC_XMSS_MAX_N               64U
+    #define WC_XMSS_MAX_PADDING_LEN     64U
 #else
-    #define WC_XMSS_MAX_N               32
-    #define WC_XMSS_MAX_PADDING_LEN     32
+    #define WC_XMSS_MAX_N               32U
+    #define WC_XMSS_MAX_PADDING_LEN     32U
 #endif
 #define WC_XMSS_MAX_MSG_PRE_LEN     \
-    (WC_XMSS_MAX_PADDING_LEN + 3 * WC_XMSS_MAX_N)
-#define WC_XMSS_MAX_TREE_HEIGHT     20
-#define WC_XMSS_MAX_CSUM_BYTES       4
-#define WC_XMSS_MAX_WOTS_LEN        (8 * WC_XMSS_MAX_N / 4 + 3)
+    (WC_XMSS_MAX_PADDING_LEN + 3U * WC_XMSS_MAX_N)
+#define WC_XMSS_MAX_TREE_HEIGHT     20U
+#define WC_XMSS_MAX_CSUM_BYTES       4U
+#define WC_XMSS_MAX_WOTS_LEN        (8U * WC_XMSS_MAX_N / 4U + 3U)
 #define WC_XMSS_MAX_WOTS_SIG_LEN    (WC_XMSS_MAX_WOTS_LEN * WC_XMSS_MAX_N)
 #define WC_XMSS_MAX_STACK_LEN       \
-    ((WC_XMSS_MAX_TREE_HEIGHT + 1) * WC_XMSS_MAX_N)
-#define WC_XMSS_MAX_D               12
-#define WC_XMSS_MAX_BDS_STATES      (2 * WC_XMSS_MAX_D - 1)
+    ((WC_XMSS_MAX_TREE_HEIGHT + 1U) * WC_XMSS_MAX_N)
+#define WC_XMSS_MAX_D               12U
+#define WC_XMSS_MAX_BDS_STATES      (2U * WC_XMSS_MAX_D - 1U)
 #define WC_XMSS_MAX_TREE_HASH       \
-    ((2 * WC_XMSS_MAX_D - 1) * WC_XMSS_MAX_TREE_HEIGHT)
-#define WC_XMSS_MAX_BDS_K           0
+    ((2U * WC_XMSS_MAX_D - 1U) * WC_XMSS_MAX_TREE_HEIGHT)
+#define WC_XMSS_MAX_BDS_K           0U
 
-#define WC_XMSS_ADDR_LEN            32
+#define WC_XMSS_ADDR_LEN            32U
 
 #define WC_XMSS_HASH_PRF_MAX_DATA_LEN               \
-    (WC_XMSS_MAX_PADDING_LEN + 2 * WC_XMSS_MAX_N + WC_XMSS_ADDR_LEN)
+    (WC_XMSS_MAX_PADDING_LEN + 2U * WC_XMSS_MAX_N + WC_XMSS_ADDR_LEN)
 #define WC_XMSS_HASH_MAX_DATA_LEN                   \
-    (WC_XMSS_MAX_PADDING_LEN + 3 * WC_XMSS_MAX_N)
+    (WC_XMSS_MAX_PADDING_LEN + 3U * WC_XMSS_MAX_N)
 
 
-#define WC_XMSS_SHA256_N            32
-#define WC_XMSS_SHA256_PADDING_LEN  32
-#define WC_XMSS_SHA256_WOTS_LEN     67
+#define WC_XMSS_SHA256_N            32U
+#define WC_XMSS_SHA256_PADDING_LEN  32U
+#define WC_XMSS_SHA256_WOTS_LEN     67U
 
-#define XMSS_OID_LEN                   4
+#define XMSS_OID_LEN                   4U
 
 #define XMSS_MAX_HASH_LEN              WC_SHA256_DIGEST_SIZE
 
-#define XMSS_RETAIN_LEN(k, n)   ((!!(k)) * ((1 << (k)) - (k) - 1) * (n))
+#define XMSS_RETAIN_LEN(k, n)   \
+    (((word32)((k) != 0)) * (((word32)1U << (k)) - (word32)(k) - 1U) *  \
+     (word32)(n))
 
 /* XMMS Algorithm OIDs
  * Note: values are used in mathematical calculations in OID to parames. */
@@ -337,6 +339,13 @@ typedef struct XmssParams {
     word8  bds_k;
 } XmssParams;
 
+#ifndef XMSS_MAX_ID_LEN
+#define XMSS_MAX_ID_LEN              32
+#endif
+#ifndef XMSS_MAX_LABEL_LEN
+#define XMSS_MAX_LABEL_LEN           32
+#endif
+
 typedef struct XmssKey {
     /* Public key. */
     unsigned char        pk[2 * WC_XMSS_MAX_N];
@@ -358,12 +367,29 @@ typedef struct XmssKey {
     /* Context arg passed to callbacks. */
     void*                context;
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
+    /* Dynamic memory hint. */
+    void*                heap;
     /* State of key. */
     enum wc_XmssState    state;
+#ifdef WOLF_CRYPTO_CB
+    /* Device Identifier. */
+    int                  devId;
+    /* Per-device opaque context, populated by the callback. */
+    void*                devCtx;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* Optional device-side key identifier. */
+    byte                 id[XMSS_MAX_ID_LEN];
+    int                  idLen;
+    /* Optional device-side key label. */
+    char                 label[XMSS_MAX_LABEL_LEN];
+    int                  labelLen;
+#endif
 } XmssKey;
 
 typedef struct XmssState {
     const XmssParams* params;
+    void* heap;
 
     /* Digest is assumed to be at the end. */
     union {
@@ -400,7 +426,14 @@ typedef struct XmssState {
 #endif
 
 WOLFSSL_API int  wc_XmssKey_Init(XmssKey* key, void* heap, int devId);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API int  wc_XmssKey_InitId(XmssKey* key, const unsigned char* id,
+    int len, void* heap, int devId);
+WOLFSSL_API int  wc_XmssKey_InitLabel(XmssKey* key, const char* label,
+    void* heap, int devId);
+#endif
 WOLFSSL_API int  wc_XmssKey_SetParamStr(XmssKey* key, const char* str);
+WOLFSSL_API int  wc_XmssKey_GetParamStr(const XmssKey* key, const char** str);
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
 WOLFSSL_API int  wc_XmssKey_SetWriteCb(XmssKey* key,
     wc_xmss_write_private_key_cb write_cb);
@@ -418,10 +451,14 @@ WOLFSSL_API void wc_XmssKey_Free(XmssKey* key);
 WOLFSSL_API int  wc_XmssKey_GetSigLen(const XmssKey* key, word32* len);
 WOLFSSL_API int  wc_XmssKey_GetPubLen(const XmssKey* key, word32* len);
 WOLFSSL_API int  wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc);
+WOLFSSL_API int  wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
+    void* heap, int devId);
 WOLFSSL_API int  wc_XmssKey_ExportPubRaw(const XmssKey* key, byte* out,
     word32* outLen);
 WOLFSSL_API int  wc_XmssKey_ImportPubRaw(XmssKey* key, const byte* in,
     word32 inLen);
+WOLFSSL_API int  wc_XmssKey_ImportPubRaw_ex(XmssKey* key, const byte* in,
+    word32 inLen, int is_xmssmt);
 WOLFSSL_API int  wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigSz,
     const byte* msg, int msgSz);
 

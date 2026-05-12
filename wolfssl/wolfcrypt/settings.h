@@ -1227,7 +1227,8 @@
     #endif
 #endif
 
-#ifdef WOLFSSL_ATECC508A
+#if defined(WOLFSSL_ATECC508A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     /* backwards compatibility */
 #ifndef WOLFSSL_ATECC_NO_ECDH_ENC
     #define WOLFSSL_ATECC_ECDH_ENC
@@ -2131,6 +2132,17 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif
 #endif /* FREESCALE_USE_LTC */
+
+#ifdef WOLFSSL_NXP_LPC55S6X
+    #undef  WOLFSSL_NXP_RNG_1
+    #define WOLFSSL_NXP_RNG_1
+    #define WOLFSSL_NXP_HASHCRYPT
+    #define WOLFSSL_NXP_HASHCRYPT_AES
+    #define WOLFSSL_NXP_HASHCRYPT_SHA
+    #define WOLFSSL_NXP_CASPER
+    #define WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD
+    #define NO_WOLFSSL_SHA256_INTERLEAVE
+#endif
 
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE
     #undef  USE_CERT_BUFFERS_4096
@@ -3197,6 +3209,15 @@ extern void uITRON4_free(void *p) ;
  #define USE_ECC_B_PARAM
 #endif
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
+    #undef  USE_ECC_B_PARAM
+    #define USE_ECC_B_PARAM
+#endif
+
 
 /* Curve25519 Configs */
 #ifdef HAVE_CURVE25519
@@ -3518,13 +3539,18 @@ extern void uITRON4_free(void *p) ;
     #undef NO_DH
 #endif
 
-/* CryptoCell defines */
-#ifdef WOLFSSL_CRYPTOCELL
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
+#ifdef HAVE_ECC
+    /* defined for all ECC non FIPS builds and for FIPS v7+ (including
+     * fips-ready/fips-dev which track the latest in-development source),
+     * unless the user explicitly opts in to allowing an all-zero digest with
+     * WC_ALLOW_ECC_ZERO_HASH or is building with HAVE_SELFTEST */
+    #if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0) || \
+         defined(WOLFSSL_FIPS_READY) || defined(WOLFSSL_FIPS_DEV)) && \
+        !defined(HAVE_SELFTEST) && !defined(WC_ALLOW_ECC_ZERO_HASH)
+        /* sign/verify of an all-zero digest in wolfCrypt rejected */
         #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
-    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
-#endif
+    #endif
+#endif /* HAVE_ECC */
 
 /* Asynchronous Crypto */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3550,11 +3576,6 @@ extern void uITRON4_free(void *p) ;
          * but not required */
         #define ECC_CACHE_CURVE
     #endif
-
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
-        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
-        #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
-    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
 
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifndef WC_ASYNC_DEV_SIZE
@@ -3917,6 +3938,11 @@ extern void uITRON4_free(void *p) ;
     #if defined(__aarch64__) && !defined(WOLFSSL_AARCH64_PRIVILEGE_MODE)
         #define WOLFSSL_AARCH64_PRIVILEGE_MODE
     #endif
+
+    /* USE_INTEL_SPEEDUP currently gives wrong results for ML-KEM in linuxkm. */
+    #if !defined(WC_MLKEM_NO_ASM) && !defined(WC_MLKEM_KERNEL_ASM)
+        #define WC_MLKEM_NO_ASM
+    #endif
 #endif /* WOLFSSL_LINUXKM */
 
 /* FreeBSD Kernel Module */
@@ -4050,14 +4076,6 @@ extern void uITRON4_free(void *p) ;
     #if WOLFSSL_GENERAL_ALIGNMENT < SIZEOF_LONG
         #undef WOLFSSL_GENERAL_ALIGNMENT
         #define WOLFSSL_GENERAL_ALIGNMENT SIZEOF_LONG
-    #endif
-
-    /* SLH-DSA signature generation is too computationally intensive to be
-     * appropriate in typical kernel deployments.
-     */
-    #if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
-        !defined(WOLFSSL_SLHDSA_NO_VERIFY_ONLY)
-        #define WOLFSSL_SLHDSA_VERIFY_ONLY
     #endif
 #endif /* WOLFSSL_KERNEL_MODE */
 

@@ -34,5 +34,7 @@ int test_certificate_authorities_certificate_request(void);
 int test_certificate_authorities_client_hello(void);
 int test_TLSX_TCA_Find(void);
 int test_TLSX_SNI_GetSize_overflow(void);
+int test_TLSX_ECH_msg_type_validation(void);
+int test_TLSX_SRTP_msg_type_validation(void);
 
 #endif /* TESTS_API_TEST_TLS_EMS_H */

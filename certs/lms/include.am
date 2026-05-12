@@ -1,0 +1,12 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+         certs/lms/bc_lms_sha256_h5_w4_root.der \
+         certs/lms/bc_lms_sha256_h10_w8_root.der \
+         certs/lms/bc_hss_L2_H5_W8_root.der \
+         certs/lms/bc_hss_L3_H5_W4_root.der \
+         certs/lms/bc_lms_chain_ca.der \
+         certs/lms/bc_lms_chain_leaf.der \
+         certs/lms/bc_lms_native_bc_root.der

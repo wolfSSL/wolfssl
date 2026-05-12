@@ -2785,7 +2785,7 @@ static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx)
             int len;
 
             WOLFSSL_MSG("Cert sigAlg is RSASSA-PSS; decoding params");
-            if (GetHeader(cert->source, &tag, &tmpIdx, &len, endSeqIdx, 0) < 0) {
+            if (GetHeader(cert->source, &tag, &tmpIdx, &len, endSeqIdx, 1) < 0) {
                 return ASN_PARSE_E;
             }
             cert->sigParamsIndex  = cert->srcIdx;
@@ -2947,7 +2947,7 @@ static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz,
     word32    length = 0;
 
     tagSz = ((type == oidHashType ||
-             (type == oidSigType && !IsSigAlgoECC((word32)algoOID)) ||
+             (type == oidSigType && !IsSigAlgoNoParams((word32)algoOID)) ||
              (type == oidKeyType && algoOID == RSAk)) &&
                 (absentParams == FALSE)) ? 2U : 0U;
     algoName = OidFromId((word32)algoOID, (word32)type, &algoSz);
@@ -3200,6 +3200,19 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
     return ret;
 }
 
+/* Reject IA5String SAN content that cannot legally appear in
+ * dNSName / rfc822Name / URI per RFC 5280 4.2.1.6. Currently just NUL. */
+static int DecodeGeneralNameCheckChars(const byte* input, int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        if (input[i] == 0) {
+            return ASN_PARSE_E;
+        }
+    }
+    return 0;
+}
+
 static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -3258,6 +3271,13 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
             length -= (int)(idx - lenStartIdx);
+
+            if ((word32)strLen + idx > sz) {
+                return BUFFER_E;
+            }
+            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
+                return ASN_PARSE_E;
+            }
 
             dnsEntry = AltNameNew(cert->heap);
             if (dnsEntry == NULL) {
@@ -3344,6 +3364,13 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             }
             length -= (int)(idx - lenStartIdx);
 
+            if ((word32)strLen + idx > sz) {
+                return BUFFER_E;
+            }
+            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
+                return ASN_PARSE_E;
+            }
+
             emailEntry = AltNameNew(cert->heap);
             if (emailEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
@@ -3387,6 +3414,10 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             /* check that strLen at index is not past input buffer */
             if ((word32)strLen + idx > sz) {
                 return BUFFER_E;
+            }
+
+            if (DecodeGeneralNameCheckChars(&input[idx], strLen) != 0) {
+                return ASN_PARSE_E;
             }
 
         #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
@@ -3455,7 +3486,10 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#ifdef WOLFSSL_IP_ALT_NAME
+        /* iPAddress is parsed unconditionally so ConfirmNameConstraints
+         * can enforce permitted/excluded iPAddress subtrees
+         * (RFC 5280 Sec. 4.2.1.10). WOLFSSL_IP_ALT_NAME only gates the
+         * human-readable ipString form. */
         else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
             DNS_entry* ipAddr;
             int strLen;
@@ -3490,6 +3524,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             XMEMCPY((void *)(wc_ptr_t)ipAddr->name, &input[idx], strLen);
             ((char *)(wc_ptr_t)ipAddr->name)[strLen] = '\0';
 
+#ifdef WOLFSSL_IP_ALT_NAME
             if (GenerateDNSEntryIPString(ipAddr, cert->heap) != 0) {
                 WOLFSSL_MSG("\tOut of Memory for IP string");
                 XFREE((void *)(wc_ptr_t)ipAddr->name, cert->heap,
@@ -3497,6 +3532,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 XFREE(ipAddr, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
+#endif /* WOLFSSL_IP_ALT_NAME */
             AddAltName(cert, ipAddr);
 
             if (strLen > length) {
@@ -3505,8 +3541,9 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* WOLFSSL_IP_ALT_NAME */
-#ifdef WOLFSSL_RID_ALT_NAME
+        /* registeredID is parsed unconditionally so ConfirmNameConstraints
+         * can enforce permitted/excluded subtrees (RFC 5280 Sec. 4.2.1.10).
+         * WOLFSSL_RID_ALT_NAME only gates the human-readable ridString. */
         else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
             DNS_entry* rid;
             int strLen;
@@ -3542,6 +3579,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             XMEMCPY((void *)(wc_ptr_t)rid->name, &input[idx], strLen);
             ((char *)(wc_ptr_t)rid->name)[strLen] = '\0';
 
+#ifdef WOLFSSL_RID_ALT_NAME
             if (GenerateDNSEntryRIDString(rid, cert->heap) != 0) {
                 WOLFSSL_MSG("\tOut of Memory for registered Id string");
                 XFREE((void *)(wc_ptr_t)rid->name, cert->heap,
@@ -3549,6 +3587,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
+#endif /* WOLFSSL_RID_ALT_NAME */
 
             AddAltName(cert, rid);
 
@@ -3558,7 +3597,6 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* WOLFSSL_RID_ALT_NAME */
 #endif /* IGNORE_NAME_CONSTRAINTS */
         else if (current_byte ==
                 (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
@@ -4086,9 +4124,12 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         /* Get type, LSB 4-bits */
         bType = (byte)(b & ASN_TYPE_MASK);
 
+        /* registeredID is included so ConfirmNameConstraints can enforce
+         * permitted/excluded subtrees of OIDs (RFC 5280 Sec. 4.2.1.10). */
         if (bType == ASN_DNS_TYPE || bType == ASN_RFC822_TYPE ||
             bType == ASN_DIR_TYPE || bType == ASN_IP_TYPE ||
-            bType == ASN_URI_TYPE || bType == ASN_OTHER_TYPE) {
+            bType == ASN_URI_TYPE || bType == ASN_OTHER_TYPE ||
+            bType == ASN_RID_TYPE) {
             Base_entry* entry;
 
             /* directoryName is encoded as [4] CONSTRUCTED { Name } where
@@ -9151,18 +9192,17 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
         XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         return ret;
     }
-    /* add to list */
-    rc->next = dcrl->certs;
-    dcrl->certs = rc;
 
     (void)rcert;
 #endif /* CRL_STATIC_REVOKED_LIST */
-    dcrl->totalCerts++;
     /* get date */
 #ifndef NO_ASN_TIME
     ret = GetBasicDate(buff, idx, rc->revDate, &rc->revDateFormat, maxIdx);
     if (ret < 0) {
         WOLFSSL_MSG("Expecting Date");
+#ifndef CRL_STATIC_REVOKED_LIST
+        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
         return ret;
     }
 #endif
@@ -9196,10 +9236,29 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
                 }
 #endif
 
-                ParseCRL_ReasonCode(buff, seqIdx, extEnd, &rc->reasonCode);
+                ret = ParseCRL_EntryExtensions(buff, seqIdx, extEnd,
+                    &rc->reasonCode);
+                if (ret != 0) {
+#if defined(OPENSSL_EXTRA)
+                    XFREE(rc->extensions, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+                    rc->extensions = NULL;
+                    rc->extensionsSz = 0;
+#endif
+#ifndef CRL_STATIC_REVOKED_LIST
+                    XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
+                    return ret;
+                }
             }
         }
     }
+
+#ifndef CRL_STATIC_REVOKED_LIST
+    /* add to list only after all parsing succeeded */
+    rc->next = dcrl->certs;
+    dcrl->certs = rc;
+#endif
+    dcrl->totalCerts++;
 
     *idx = end;
 

@@ -77,6 +77,7 @@ fi
 %{_docdir}/wolfssl/example/server.c
 %{_docdir}/wolfssl/example/echoclient.c
 %{_docdir}/wolfssl/example/echoserver.c
+%{_docdir}/wolfssl/example/ocsp_responder.c
 %{_docdir}/wolfssl/example/sctp-client.c
 %{_docdir}/wolfssl/example/sctp-server.c
 %{_docdir}/wolfssl/example/sctp-client-dtls.c
@@ -86,6 +87,9 @@ fi
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 %{_libdir}/libwolfssl@LIBSUFFIX@.so.*
+%{_libdir}/cmake/wolfssl/wolfssl-config-version.cmake
+%{_libdir}/cmake/wolfssl/wolfssl-config.cmake
+%{_libdir}/cmake/wolfssl/wolfssl-targets.cmake
 
 %files devel
 %defattr(-,root,root,-)

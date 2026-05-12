@@ -90,6 +90,7 @@ WOLFSSL_API int wc_CamelliaCbcEncrypt(wc_Camellia* cam,
                                           byte* out, const byte* in, word32 sz);
 WOLFSSL_API int wc_CamelliaCbcDecrypt(wc_Camellia* cam,
                                           byte* out, const byte* in, word32 sz);
+WOLFSSL_API void wc_CamelliaFree(wc_Camellia* cam);
 
 #ifndef OPENSSL_COEXIST
 

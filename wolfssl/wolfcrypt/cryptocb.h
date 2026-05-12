@@ -86,6 +86,12 @@
 #if defined(HAVE_FALCON)
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
+#if defined(WOLFSSL_HAVE_LMS)
+    #include <wolfssl/wolfcrypt/wc_lms.h>
+#endif
+#if defined(WOLFSSL_HAVE_XMSS)
+    #include <wolfssl/wolfcrypt/wc_xmss.h>
+#endif
 
 
 #ifdef WOLF_CRYPTO_CB_CMD
@@ -343,6 +349,35 @@ typedef struct wc_CryptoInfo {
                 word32      pubKeySz;
                 int         type; /* enum wc_PqcSignatureType */
             } pqc_sig_check;
+        #endif
+        #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+            struct {
+                WC_RNG*     rng;
+                void*       key;
+                int         type; /* enum wc_PqcStatefulSignatureType */
+            } pqc_stateful_sig_kg;
+            struct {
+                const byte* msg;
+                word32      msgSz;
+                byte*       out;
+                word32*     outSz;
+                void*       key;
+                int         type; /* enum wc_PqcStatefulSignatureType */
+            } pqc_stateful_sig_sign;
+            struct {
+                const byte* sig;
+                word32      sigSz;
+                const byte* msg;
+                word32      msgSz;
+                int*        res;
+                void*       key;
+                int         type; /* enum wc_PqcStatefulSignatureType */
+            } pqc_stateful_sig_verify;
+            struct {
+                void*       key;
+                word32*     sigsLeft;
+                int         type; /* enum wc_PqcStatefulSignatureType */
+            } pqc_stateful_sig_sigs_left;
         #endif
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
@@ -710,6 +745,20 @@ WOLFSSL_LOCAL int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res, ed25519_key* key, byte type,
     const byte* context, byte contextLen);
 #endif /* HAVE_ED25519 */
+
+#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
+WOLFSSL_LOCAL int wc_CryptoCb_PqcStatefulSigGetDevId(int type, void* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_PqcStatefulSigKeyGen(int type, void* key,
+    WC_RNG* rng);
+WOLFSSL_LOCAL int wc_CryptoCb_PqcStatefulSigSign(const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, int type, void* key);
+WOLFSSL_LOCAL int wc_CryptoCb_PqcStatefulSigVerify(const byte* sig,
+    word32 sigSz, const byte* msg, word32 msgSz, int* res, int type,
+    void* key);
+WOLFSSL_LOCAL int wc_CryptoCb_PqcStatefulSigSigsLeft(int type, void* key,
+    word32* sigsLeft);
+#endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
 
 #if defined(WOLFSSL_HAVE_MLKEM)
 WOLFSSL_LOCAL int wc_CryptoCb_PqcKemGetDevId(int type, void* key);

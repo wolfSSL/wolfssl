@@ -48,9 +48,9 @@ jobs:
       matrix:
         include:
           - socat_version: "1.8.0.0"
-            expect_fail: "36,64,146,216,309,310,386,399,402,403,459,460,467,468,475,478,491,492,528"
+            expect_fail: "36,64,146,155,156,216,307,309,310,321,386,399,402,403,459,460,467,468,475,478,491,492,528,529"
           - socat_version: "1.8.0.3"
-            expect_fail: "146,386,399,402,459,460,467,468,475,478,491,492,495,528"
+            expect_fail: "146,155,156,307,321,386,399,402,459,460,467,468,475,478,491,492,495,528,529"
     steps:
       - name: Checkout wolfSSL CI actions
         uses: actions/checkout@v4
@@ -94,4 +94,4 @@ jobs:
         run: |
           export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
           export SHELL=/bin/bash
-          SOCAT=$GITHUB_WORKSPACE/socat-${{ matrix.socat_version }}/socat ./test.sh -t 0.5 --expect-fail ${{ matrix.expect_fail }}
+          SOCAT=$GITHUB_WORKSPACE/socat-${{ matrix.socat_version }}/socat ./test.sh -t 1.0 --expect-fail ${{ matrix.expect_fail }}

@@ -32,9 +32,9 @@
  * polynomials.
  */
 
-/* Possible Kyber options:
+/* Possible ML-KEM options:
  *
- * WOLFSSL_HAVE_MLKEM                                           Default: OFF
+ * WOLFSSL_HAVE_MLKEM                                         Default: OFF
  *   Enables this code, wolfSSL implementation, to be built.
  *
  * WOLFSSL_WC_ML_KEM_512                                      Default: OFF
@@ -112,7 +112,7 @@ static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #define MLKEM_Q_HALF        (MLKEM_Q / 2)
 
 
-/* q^-1 mod 2^16 (inverse of 3329 mod 16384) */
+/* q^-1 mod 2^16 (inverse of 3329 mod 65536) */
 #define MLKEM_QINV       62209
 
 /* Used in Barrett Reduction:
@@ -1062,7 +1062,7 @@ static void mlkem_basemul(sword16* r, const sword16* a, const sword16* b,
  *   1: for (i <- 0; i < 128; i++)
  *   2:     (h_hat[2i],h_hat[2i+1]) <-
  *              BaseCaseMultiply(f_hat[2i],f_hat[2i+1],g_hat[2i],g_hat[2i+1],
- *                               zetas^(BitRev_7(i)+1)
+ *                               zetas^(BitRev_7(i)+1))
  *   3: end for
  *   4: return h_hat
  *
@@ -1115,7 +1115,7 @@ static void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
  *   1: for (i <- 0; i < 128; i++)
  *   2:     (h_hat[2i],h_hat[2i+1]) <-
  *              BaseCaseMultiply(f_hat[2i],f_hat[2i+1],g_hat[2i],g_hat[2i+1],
- *                               zetas^(BitRev_7(i)+1)
+ *                               zetas^(BitRev_7(i)+1))
  *   3: end for
  *   4: return h_hat
  * Add h_hat to r.
@@ -1237,7 +1237,7 @@ static void mlkem_pointwise_acc_mont(sword16* r, const sword16* a,
 
 /******************************************************************************/
 
-/* Initialize Kyber implementation.
+/* Initialize ML-KEM implementation.
  */
 void mlkem_init(void)
 {
@@ -1285,7 +1285,7 @@ void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
             /* Multiply a by private into public polynomial.
              * Step 18: ... A_hat o s_hat ... */
             mlkem_pointwise_acc_mont(t + i * MLKEM_N, a + i * k * MLKEM_N, s,
-                k);
+                (unsigned int)k);
             /* Convert public polynomial to Montgomery form.
              * Step 18: ... MontRed(A_hat o s_hat) ... */
             mlkem_to_mont_sqrdmlsh(t + i * MLKEM_N);
@@ -1312,7 +1312,7 @@ void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
             /* Multiply a by private into public polynomial.
              * Step 18: ... A_hat o s_hat ... */
             mlkem_pointwise_acc_mont(t + i * MLKEM_N, a + i * k * MLKEM_N, s,
-                k);
+                (unsigned int)k);
             /* Convert public polynomial to Montgomery form.
              * Step 18: ... MontRed(A_hat o s_hat) ... */
             mlkem_to_mont(t + i * MLKEM_N);
@@ -1349,7 +1349,7 @@ void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @param  [in]       m   Message polynomial.
  * @param  [in]       k   Number of polynomials in vector.
  */
-void mlkem_encapsulate(const sword16* t, sword16* u , sword16* v,
+void mlkem_encapsulate(const sword16* t, sword16* u, sword16* v,
     const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
     const sword16* m, int k)
 {
@@ -1364,25 +1364,25 @@ void mlkem_encapsulate(const sword16* t, sword16* u , sword16* v,
         }
 
         /* For each polynomial in the vectors.
-         * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1) */
+         * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1 */
         for (i = 0; i < k; ++i) {
             /* Multiply at by y into u polynomial.
              * Step 19: ... A_hat_trans o y_hat ... */
             mlkem_pointwise_acc_mont(u + i * MLKEM_N, a + i * k * MLKEM_N, y,
-                k);
-            /* Inverse transform u  polynomial.
+                (unsigned int)k);
+            /* Inverse transform u polynomial.
              * Step 19: ... InvNTT(A_hat_trans o y_hat) ... */
-            mlkem_invntt_sqrdmlsh(u  + i * MLKEM_N);
-            /* Add errors to u  and reduce.
-             * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1) */
-            mlkem_add_reduce(u  + i * MLKEM_N, e1 + i * MLKEM_N);
+            mlkem_invntt_sqrdmlsh(u + i * MLKEM_N);
+            /* Add errors to u and reduce.
+             * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1 */
+            mlkem_add_reduce(u + i * MLKEM_N, e1 + i * MLKEM_N);
         }
 
         /* Multiply public key by y into v polynomial.
          * Step 21: ... t_hat_trans o y_hat ... */
-        mlkem_pointwise_acc_mont(v, t, y, k);
+        mlkem_pointwise_acc_mont(v, t, y, (unsigned int)k);
         /* Inverse transform v.
-         * Step 22: ... InvNTT(t_hat_trans o y_hat) ... */
+         * Step 21: ... InvNTT(t_hat_trans o y_hat) ... */
         mlkem_invntt_sqrdmlsh(v);
     }
     else
@@ -1400,8 +1400,8 @@ void mlkem_encapsulate(const sword16* t, sword16* u , sword16* v,
             /* Multiply at by y into u polynomial.
              * Step 19: ... A_hat_trans o y_hat ... */
             mlkem_pointwise_acc_mont(u + i * MLKEM_N, a + i * k * MLKEM_N, y,
-                k);
-            /* Inverse transform u  polynomial.
+                (unsigned int)k);
+            /* Inverse transform u polynomial.
              * Step 19: ... InvNTT(A_hat_trans o y_hat) ... */
             mlkem_invntt(u + i * MLKEM_N);
             /* Add errors to u and reduce.
@@ -1411,9 +1411,9 @@ void mlkem_encapsulate(const sword16* t, sword16* u , sword16* v,
 
         /* Multiply public key by y into v polynomial.
          * Step 21: ... t_hat_trans o y_hat ... */
-        mlkem_pointwise_acc_mont(v, t, y, k);
+        mlkem_pointwise_acc_mont(v, t, y, (unsigned int)k);
         /* Inverse transform v.
-         * Step 22: ... InvNTT(t_hat_trans o y_hat) ... */
+         * Step 21: ... InvNTT(t_hat_trans o y_hat) ... */
         mlkem_invntt(v);
     }
     /* Add errors and message to v and reduce.
@@ -1452,7 +1452,7 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
 
         /* Multiply private key by u into w polynomial.
          * Step 6: ... s_hat_trans o NTT(u') */
-        mlkem_pointwise_acc_mont(w, s, u, k);
+        mlkem_pointwise_acc_mont(w, s, u, (unsigned int)k);
         /* Inverse transform w.
          * Step 6: ... InvNTT(s_hat_trans o NTT(u')) */
         mlkem_invntt_sqrdmlsh(w);
@@ -1468,7 +1468,7 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
 
         /* Multiply private key by u into w polynomial.
          * Step 6: ... s_hat_trans o NTT(u') */
-        mlkem_pointwise_acc_mont(w, s, u, k);
+        mlkem_pointwise_acc_mont(w, s, u, (unsigned int)k);
         /* Inverse transform w.
          * Step 6: ... InvNTT(s_hat_trans o NTT(u')) */
         mlkem_invntt(w);
@@ -1863,7 +1863,7 @@ static void mlkem_keygen_c(sword16* s, sword16* t, sword16* e, const sword16* a,
 void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if ((IS_INTEL_AVX2(cpuid_flags)) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Alg 13: Steps 16-18 */
         mlkem_keygen_avx2(s, t, e, a, k);
         RESTORE_VECTOR_REGISTERS();
@@ -1898,7 +1898,11 @@ void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @param  [in]       tv     Temporary vector of polynomials.
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       rho    Random seed to generate matrix A from.
- * @param  [in]       sigma  Random seed to generate noise from.
+ * @param  [in, out]  sigma  Random seed to generate noise from.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ *          WOLFSSL_SMALL_STACK is defined.
+ * @return  Other negative value when a hash error occurred.
  */
 int mlkem_keygen_seeds(sword16* s, sword16* t, MLKEM_PRF_T* prf,
     sword16* tv, int k, byte* rho, byte* sigma)
@@ -2087,7 +2091,11 @@ void mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
  * @param  [in]       k      Number of polynomials in vector.
  * @param  [in]       msg    Message to encapsulate.
  * @param  [in]       seed   Random seed to generate matrix A from.
- * @param  [in]       coins  Random seed to generate noise from.
+ * @param  [in, out]  coins  Random seed to generate noise from.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ *          WOLFSSL_SMALL_STACK is defined.
+ * @return  Other negative value when a hash error occurred.
  */
 int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* u,
     sword16* tp, sword16* y, int k, const byte* msg, byte* seed, byte* coins)
@@ -2283,7 +2291,7 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
+ *          WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
 {
@@ -2395,7 +2403,7 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
+ *          WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
 {
@@ -2553,7 +2561,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
+ *          WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
 {
@@ -2665,8 +2673,6 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
 {
@@ -2739,8 +2745,6 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
 {
@@ -2805,8 +2809,6 @@ static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
 {
@@ -2891,7 +2893,7 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
  * @param  [in]       len       Length of data to absorb in bytes.
  * @return  0 on success always.
  */
-static int mlkem_xof_absorb(wc_Shake* shake128, byte* seed, int len)
+static int mlkem_xof_absorb(wc_Shake* shake128, const byte* seed, int len)
 {
     int ret;
 
@@ -2992,7 +2994,7 @@ int mlkem_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
     /* Process first block of data. */
     ret = wc_Sha3_512_Update(hash, data1, data1Len);
     /* Check if there is a second block of data. */
-    if ((ret == 0) && (data2Len > 0)) {
+    if ((ret == 0) && (data2 != NULL) && (data2Len > 0)) {
         /* Process second block of data. */
         ret = wc_Sha3_512_Update(hash, data2, data2Len);
     }
@@ -3125,7 +3127,7 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
  * @param  [in]  outLen    Number of bytes to derive.
  * @return  0 on success always.
  */
-int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen)
+int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
     word64 state[25];
     word32 len64 = seedLen / 8;
@@ -3163,7 +3165,7 @@ int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen)
  * @param  [in]  outLen    Number of bytes to derive.
  * @return  0 on success always.
  */
-int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen)
+int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
     word64 state[25];
     word32 len64 = seedLen / 8;
@@ -3184,41 +3186,41 @@ int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen)
 #ifndef WOLFSSL_NO_ML_KEM
 /* Derive the secret from z and cipher text.
  *
- * @param [in, out]  shake256  SHAKE-256 object.
- * @param [in]       z         Implicit rejection value.
- * @param [in]       ct        Cipher text.
- * @param [in]       ctSz      Length of cipher text in bytes.
- * @param [out]      ss        Shared secret.
+ * @param [in, out]  prf   SHAKE-256 object.
+ * @param [in]       z     Implicit rejection value.
+ * @param [in]       ct    Cipher text.
+ * @param [in]       ctSz  Length of cipher text in bytes.
+ * @param [out]      ss    Shared secret.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation failed.
  * @return  Other negative value when a hash error occurred.
  */
-int mlkem_derive_secret(wc_Shake* shake256, const byte* z, const byte* ct,
+int mlkem_derive_secret(wc_Shake* prf, const byte* z, const byte* ct,
     word32 ctSz, byte* ss)
 {
     int ret;
 
 #ifdef USE_INTEL_SPEEDUP
-    XMEMCPY(shake256->t, z, WC_ML_KEM_SYM_SZ);
-    XMEMCPY(shake256->t + WC_ML_KEM_SYM_SZ, ct,
+    XMEMCPY(prf->t, z, WC_ML_KEM_SYM_SZ);
+    XMEMCPY(prf->t + WC_ML_KEM_SYM_SZ, ct,
         WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
-    shake256->i = WC_ML_KEM_SYM_SZ + WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
+    prf->i = WC_ML_KEM_SYM_SZ + WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ct += WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ctSz -= WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
-    ret = wc_Shake256_Update(shake256, ct, ctSz);
+    ret = wc_Shake256_Update(prf, ct, ctSz);
     if (ret == 0) {
-        ret = wc_Shake256_Final(shake256, ss, WC_ML_KEM_SS_SZ);
+        ret = wc_Shake256_Final(prf, ss, WC_ML_KEM_SS_SZ);
     }
 #else
-    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    ret = wc_InitShake256(prf, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_Shake256_Update(shake256, z, WC_ML_KEM_SYM_SZ);
+        ret = wc_Shake256_Update(prf, z, WC_ML_KEM_SYM_SZ);
     }
     if (ret == 0) {
-        ret = wc_Shake256_Update(shake256, ct, ctSz);
+        ret = wc_Shake256_Update(prf, ct, ctSz);
     }
     if (ret == 0) {
-        ret = wc_Shake256_Final(shake256, ss, WC_ML_KEM_SS_SZ);
+        ret = wc_Shake256_Final(prf, ss, WC_ML_KEM_SS_SZ);
     }
 #endif
 
@@ -3427,7 +3429,7 @@ static unsigned int mlkem_rej_uniform_c(sword16* p, unsigned int len,
  * @param  [in]       transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
+ *          WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_c(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
     int transposed)
@@ -3530,7 +3532,7 @@ static int mlkem_gen_matrix_c(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  * @param  [in]       transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
+ *          WOLFSSL_SMALL_STACK is defined.
  */
 int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
     int transposed)
@@ -3634,7 +3636,7 @@ int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  * @param  [in]       transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
- * WOLFSSL_SMALL_STACK is defined.
+ *          WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
     int i, int transposed)
@@ -3729,7 +3731,7 @@ static int mlkem_gen_matrix_i(MLKEM_PRF_T* prf, sword16* a, int k, byte* seed,
  *
  * @param  [in]  d  Value containing sequential 2 bit values.
  * @param  [in]  i  Start index of the two values in 2 bits each.
- * @return  Difference of the two values with range 0..2.
+ * @return  Difference of the two values with range -2..2.
  */
 #define ETA2_SUB(d, i) \
     (sword16)(((sword16)(((d) >> ((i) * 4 + 0)) & 0x3)) - \
@@ -3845,7 +3847,7 @@ static void mlkem_cbd_eta2(sword16* p, const byte* r)
  *
  * @param  [in]  d  Value containing sequential 3 bit values.
  * @param  [in]  i  Start index of the two values in 3 bits each.
- * @return  Difference of the two values with range 0..3.
+ * @return  Difference of the two values with range -3..3.
  */
 #define ETA3_SUB(d, i) \
     (sword16)(((sword16)(((d) >> ((i) * 6 + 0)) & 0x7)) - \
@@ -4220,6 +4222,8 @@ static void mlkem_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
  * @param  [out]      poly  Polynomial.
  * @param  [in, out]  seed  Seed to use when calculating random.
  * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ *          WOLFSSL_SMALL_STACK is defined.
  */
 static int mlkem_get_noise_k2_avx2(MLKEM_PRF_T* prf, sword16* vec1,
     sword16* vec2, sword16* poly, byte* seed)
@@ -4559,7 +4563,7 @@ static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
  * @param  [out]      vec2  Second Vector of polynomials.
  * @param  [in]       eta2  Size of noise/error integers with second vector.
  * @param  [out]      poly  Polynomial.
- * @param  [in]       seed  Seed to use when calculating random.
+ * @param  [in, out]  seed  Seed to use when calculating random.
  * @return  0 on success.
  */
 static int mlkem_get_noise_c(MLKEM_PRF_T* prf, int k, sword16* vec1, int eta1,
@@ -4598,7 +4602,7 @@ static int mlkem_get_noise_c(MLKEM_PRF_T* prf, int k, sword16* vec1, int eta1,
     return ret;
 }
 
-#endif /* __aarch64__ && WOLFSSL_ARMASM */
+#endif /* !(__aarch64__ && WOLFSSL_ARMASM) */
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
@@ -4697,7 +4701,7 @@ int mlkem_get_noise(MLKEM_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
  * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [in]       k     Number of polynomials in vector.
  * @param  [out]      vec2  Second Vector of polynomials.
- * @param  [in]       seed  Seed to use when calculating random.
+ * @param  [in, out]  seed  Seed to use when calculating random.
  * @param  [in]       i     Index of vector to generate.
  * @param  [in]       make  Indicates generation is for making a key.
  * @return  0 on success.
@@ -5147,8 +5151,8 @@ static void mlkem_vec_compress_11_c(byte* r, sword16* v)
  *
  * FIPS 203, Section 4.2.1, Compression and decompression
  *
- * @param  [out]  r  Array of bytes.
- * @param  [in]   v  Vector of polynomials.
+ * @param  [out]      r  Array of bytes.
+ * @param  [in, out]  v  Vector of polynomials.
  */
 void mlkem_vec_compress_11(byte* r, sword16* v)
 {
@@ -5839,7 +5843,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
  *
  * Uses div operator that may be slow.
  *
- * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ * FIPS 203, Algorithm 5: ByteEncode_d(F)
  *
  * @param  [in, out]  m   Message.
  * @param  [in]       p   Polynomial.
@@ -5862,7 +5866,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
  *
  * Uses mul instead of div.
  *
- * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ * FIPS 203, Algorithm 5: ByteEncode_d(F)
  *
  * @param  [in, out]  m   Message.
  * @param  [in]       p   Polynomial.
@@ -5877,7 +5881,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
 
 /* Convert polynomial to message.
  *
- * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ * FIPS 203, Algorithm 5: ByteEncode_d(F)
  *
  * @param  [out]      msg  Message as a byte array.
  * @param  [in, out]  p    Polynomial.
@@ -5913,7 +5917,7 @@ static void mlkem_to_msg_c(byte* msg, sword16* p)
 
 /* Convert polynomial to message.
  *
- * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ * FIPS 203, Algorithm 5: ByteEncode_d(F)
  *
  * @param  [out]      msg  Message as a byte array.
  * @param  [in, out]  p    Polynomial.
@@ -5952,7 +5956,7 @@ void mlkem_from_msg(sword16* p, const byte* msg)
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
 /* Convert polynomial to message.
  *
- * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ * FIPS 203, Algorithm 5: ByteEncode_d(F)
  *
  * @param  [out]      msg  Message as a byte array.
  * @param  [in, out]  p    Polynomial.
@@ -6031,7 +6035,7 @@ void mlkem_from_bytes(sword16* p, const byte* b, int k)
  * Consecutive 12 bits hold each coefficient of polynomial.
  * Used in encoding private and public keys.
  *
- * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ * FIPS 203, Algorithm 5: ByteEncode_d(F)
  *
  * @param  [out]      b  Array of bytes.
  * @param  [in, out]  p  Polynomial.
@@ -6064,7 +6068,7 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
  * Consecutive 12 bits hold each coefficient of polynomial.
  * Used in encoding private and public keys.
  *
- * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ * FIPS 203, Algorithm 5: ByteEncode_d(F)
  *
  * @param  [out]      b  Array of bytes.
  * @param  [in, out]  p  Polynomial.
@@ -6094,18 +6098,18 @@ void mlkem_to_bytes(byte* b, sword16* p, int k)
 /**
  * Check the public key values are smaller than the modulus.
  *
- * @param [in] pub  Public key - vector.
- * @param [in] k    Number of polynomials in vector.
+ * @param [in] p  Public key - vector.
+ * @param [in] k  Number of polynomials in vector.
  * @return  0 when all values are in range.
  * @return  PUBLIC_KEY_E when at least one value is out of range.
  */
-int mlkem_check_public(sword16* pub, int k)
+int mlkem_check_public(const sword16* p, int k)
 {
     int ret = 0;
     int i;
 
     for (i = 0; i < k * MLKEM_N; i++) {
-        if (pub[i] >= MLKEM_Q) {
+        if (p[i] >= MLKEM_Q) {
             ret = PUBLIC_KEY_E;
             break;
         }

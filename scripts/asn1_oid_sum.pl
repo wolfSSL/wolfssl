@@ -314,6 +314,9 @@ my @slhdsa_shake_192s = (2, 16, 840, 1, 101, 3, 4, 3, 28);
 my @slhdsa_shake_192f = (2, 16, 840, 1, 101, 3, 4, 3, 29);
 my @slhdsa_shake_256s = (2, 16, 840, 1, 101, 3, 4, 3, 30);
 my @slhdsa_shake_256f = (2, 16, 840, 1, 101, 3, 4, 3, 31);
+my @hss_lms = ( 1, 2, 840, 113549, 1, 9, 16, 3, 17 );
+my @xmss = ( 1, 3, 6, 1, 5, 5, 7, 6, 34 );
+my @xmssmt = ( 1, 3, 6, 1, 5, 5, 7, 6, 35 );
 
 my @keys = (
     { name => "ANON",                 oid => \@anon            },
@@ -348,6 +351,9 @@ my @keys = (
     { name => "SLH_DSA_SHAKE_192F",   oid => \@slhdsa_shake_192f },
     { name => "SLH_DSA_SHAKE_256S",   oid => \@slhdsa_shake_256s },
     { name => "SLH_DSA_SHAKE_256F",   oid => \@slhdsa_shake_256f },
+    { name => "HSS_LMS",              oid => \@hss_lms         },
+    { name => "XMSS",                 oid => \@xmss            },
+    { name => "XMSSMT",               oid => \@xmssmt          },
 );
 
 print_sum_enum("Key", "k", \@keys);
@@ -1160,6 +1166,12 @@ my @sig_types = (
     { name => "CTC_SLH_DSA_SHAKE_256S",    oid => \@slhdsa_shake_256s,
                                             same => 1                       },
     { name => "CTC_SLH_DSA_SHAKE_256F",    oid => \@slhdsa_shake_256f,
+                                            same => 1                       },
+    { name => "CTC_HSS_LMS",                oid => \@hss_lms,
+                                            same => 1                       },
+    { name => "CTC_XMSS",                   oid => \@xmss,
+                                            same => 1                       },
+    { name => "CTC_XMSSMT",                 oid => \@xmssmt,
                                             same => 1                       },
 );
 

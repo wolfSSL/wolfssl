@@ -882,7 +882,25 @@ static int wolfssl_init(void)
 #endif
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0)
+
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        stack_usage = wc_linuxkm_stack_current();
+        pr_info("STACK INFO: usage at call to wc_RunAllCast_fips(): %lu of %lu total\n", stack_usage, THREAD_SIZE);
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    #endif
+
     ret = wc_RunAllCast_fips();
+
+#ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by wc_RunAllCast_fips(): %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+#endif
+
     if (ret != 0) {
         pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
         return -ECANCELED;

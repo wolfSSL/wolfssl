@@ -943,13 +943,6 @@ THREAD_RETURN WOLFSSL_THREAD ocsp_responder_test(void* args)
         }
     }
 
-#ifdef USE_WINDOWS_API
-    if (opts.port == 0) {
-        /* Generate random port for testing */
-        opts.port = GetRandomPort();
-    }
-#endif /* USE_WINDOWS_API */
-
     /* Create and listen on server socket */
     tcp_listen(&sockfd, &opts.port, 1, 0, 0);
 

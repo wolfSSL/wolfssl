@@ -1634,5 +1634,13 @@ int wc_CamelliaCbcDecrypt(wc_Camellia* cam, byte* out, const byte* in, word32 sz
 }
 
 
+void wc_CamelliaFree(wc_Camellia* cam)
+{
+    if (cam == NULL)
+        return;
+    ForceZero(cam, sizeof(wc_Camellia));
+}
+
+
 #endif /* HAVE_CAMELLIA */
 
