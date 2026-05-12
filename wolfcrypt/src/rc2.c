@@ -171,10 +171,10 @@ int wc_Rc2EcbEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
         return BUFFER_E;
     }
 
-    r10 = (in[1] << 8) | in[0]; /* R[0] */
-    r32 = (in[3] << 8) | in[2]; /* R[1] */
-    r54 = (in[5] << 8) | in[4]; /* R[2] */
-    r76 = (in[7] << 8) | in[6]; /* R[3] */
+    r10 = (word16)((word16)in[1] << 8) | in[0]; /* R[0] */
+    r32 = (word16)((word16)in[3] << 8) | in[2]; /* R[1] */
+    r54 = (word16)((word16)in[5] << 8) | in[4]; /* R[2] */
+    r76 = (word16)((word16)in[7] << 8) | in[6]; /* R[3] */
 
     for (i = 0; i < 16; i++) {
         j = i * 4;
@@ -236,10 +236,10 @@ int wc_Rc2EcbDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
         return BUFFER_E;
     }
 
-    r0 = (in[1] << 8) | in[0];
-    r1 = (in[3] << 8) | in[2];
-    r2 = (in[5] << 8) | in[4];
-    r3 = (in[7] << 8) | in[6];
+    r0 = (word16)((word16)in[1] << 8) | in[0];
+    r1 = (word16)((word16)in[3] << 8) | in[2];
+    r2 = (word16)((word16)in[5] << 8) | in[4];
+    r3 = (word16)((word16)in[7] << 8) | in[6];
 
     for (i = 16; i > 0; i--) {
         j = 4*i - 1;
