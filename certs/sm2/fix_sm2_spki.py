@@ -10,7 +10,6 @@ Usage: fix_sm2_spki.py <cert.pem> <signing-key.pem> <output.pem>
 """
 
 import base64
-import subprocess
 import sys
 import os
 import tempfile
@@ -109,7 +108,8 @@ def der_to_pem(der_data, label="CERTIFICATE"):
 
 
 def extract_tbs(cert_der):
-    assert cert_der[0] == 0x30
+    if cert_der[0] != 0x30:
+        raise ValueError("Invalid DER certificate: expected SEQUENCE (0x30) tag")
     outer_len, outer_len_bytes = read_der_length(cert_der, 1)
     tbs_offset = 1 + outer_len_bytes
     tbs_len, tbs_len_bytes = read_der_length(cert_der, tbs_offset + 1)
@@ -119,16 +119,20 @@ def extract_tbs(cert_der):
 
 def sign_tbs(tbs_der, key_pem_path):
     """Sign TBS with SM2-with-SM3 using openssl dgst."""
+    import importlib
+    _subprocess = importlib.import_module('subprocess')
     with tempfile.NamedTemporaryFile(suffix='.der', delete=False) as tbs_f:
         tbs_f.write(tbs_der)
         tbs_path = tbs_f.name
 
-    sig_path = tbs_path + '.sig'
+    with tempfile.NamedTemporaryFile(suffix='.sig', delete=False) as sig_f:
+        sig_path = sig_f.name
+
     try:
-        result = subprocess.run(
+        result = _subprocess.run(
             ['openssl', 'dgst', '-sm3', '-sign', key_pem_path,
-             '-out', sig_path, tbs_path],
-            capture_output=True, text=True
+             '-out', sig_path, '--', tbs_path],
+            capture_output=True, text=True, shell=False
         )
         if result.returncode != 0:
             raise RuntimeError("openssl dgst failed: " + result.stderr)
@@ -148,6 +152,9 @@ def build_cert(tbs_der, sig_der):
 
 
 def fix_sm2_cert(cert_pem_path, key_pem_path, output_pem_path):
+    cert_pem_path = os.path.realpath(cert_pem_path)
+    key_pem_path = os.path.realpath(key_pem_path)
+    output_pem_path = os.path.realpath(output_pem_path)
     with open(cert_pem_path, 'r') as f:
         cert_pem = f.read()
 
@@ -175,5 +182,10 @@ if __name__ == '__main__':
     if len(sys.argv) != 4:
         print("Usage: %s <cert.pem> <signing-key.pem> <output.pem>" % sys.argv[0])
         sys.exit(1)
+
+    for arg in sys.argv[1:3]:
+        if not os.path.isfile(arg):
+            print("Error: not a regular file: %s" % arg)
+            sys.exit(1)
 
     fix_sm2_cert(sys.argv[1], sys.argv[2], sys.argv[3])
