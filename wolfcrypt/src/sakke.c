@@ -6690,8 +6690,9 @@ static int sakke_compute_point_r(SakkeKey* key, const byte* id, word16 idSz,
  * @param  [out]     auth      Authentication data.
  * @param  [out]     authSz    Size of authentication data in bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, ssv or encSz is NULL, ssvSz is to big or
- *          encSz is too small.
+ * @return  BAD_FUNC_ARG when key, ssv or authSz is NULL, ssvSz is 0 or
+ *          larger than the curve modulus byte length, or *authSz is too
+ *          small when encapsulating.
  * @return  BAD_STATE_E when identity not set.
  * @return  LENGTH_ONLY_E when auth is NULL. authSz contains required size of
  *          auth in bytes.
@@ -6707,7 +6708,7 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
     word16 outSz = 0;
     byte a[WC_MAX_DIGEST_SIZE];
 
-    if ((key == NULL) || (ssv == NULL) || (authSz == NULL)) {
+    if ((key == NULL) || (ssv == NULL) || (authSz == NULL) || (ssvSz == 0)) {
         err = BAD_FUNC_ARG;
     }
     if ((err == 0) && (key->idSz == 0)) {
@@ -6726,7 +6727,14 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
         /* Uncompressed point */
         outSz = (word16)(1 + 2 * n);
 
-        if ((auth != NULL) && (*authSz < outSz)) {
+        /* RFC 6508, Section 6.2.1, Step 1 places SSV in 0..2^n-1, so
+         * ssvSz must be <= n. Enforced on both the encapsulation and
+         * size-query paths so callers cannot probe authSz with an
+         * invalid ssvSz. */
+        if (ssvSz > n) {
+            err = BAD_FUNC_ARG;
+        }
+        else if ((auth != NULL) && (*authSz < outSz)) {
             err = BAD_FUNC_ARG;
         }
     }
@@ -6821,7 +6829,7 @@ int wc_GenerateSakkeSSV(SakkeKey* key, WC_RNG* rng, byte* ssv, word16* ssvSz)
     if (err == 0) {
         n = (word16)WC_BITS_TO_BYTES(mp_count_bits(&key->params.prime));
 
-        if ((ssv != NULL) && (*ssvSz > n)) {
+        if ((ssv != NULL) && ((*ssvSz == 0) || (*ssvSz > n))) {
             err = BAD_FUNC_ARG;
         }
     }
@@ -6865,7 +6873,8 @@ int wc_GenerateSakkeSSV(SakkeKey* key, WC_RNG* rng, byte* ssv, word16* ssvSz)
  * @param  [in]      auth      Authentication data.
  * @param  [in]      authSz    Size of authentication data in bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, ssv or auth is NULL.
+ * @return  BAD_FUNC_ARG when key, ssv or auth is NULL, ssvSz is 0 or
+ *          larger than the curve modulus byte length.
  * @return  BAD_STATE_E when RSK or identity not set.
  * @return  SAKKE_VERIFY_FAIL_E when calculated R doesn't match the encapsulated
  *          data's R.
@@ -6884,7 +6893,7 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
     byte* test = NULL;
     byte a[WC_MAX_DIGEST_SIZE] = {0};
 
-    if ((key == NULL) || (ssv == NULL) || (auth == NULL)) {
+    if ((key == NULL) || (ssv == NULL) || (auth == NULL) || (ssvSz == 0)) {
         err = BAD_FUNC_ARG;
     }
     if ((err == 0) && (!key->rsk.set || (key->idSz == 0))) {
@@ -6901,6 +6910,11 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
         n = (word16)WC_BITS_TO_BYTES(mp_count_bits(&key->params.prime));
 
         if (authSz != 2 * n + 1) {
+            err = BAD_FUNC_ARG;
+        }
+        /* RFC 6508, Section 6.2.1: SSV is in 0..2^n-1, so ssvSz must
+         * be <= n. */
+        else if (ssvSz > n) {
             err = BAD_FUNC_ARG;
         }
     }
