@@ -66,7 +66,7 @@
   ****************************************************************************/
 
 #ifndef WOLFSSL_HASH_KEEP
-static int _ShaUpdate(byte* buffer, word32* buffLen, const byte* ctx,
+static int _ShaUpdate(byte* buffer, word32* buffLen, byte* ctx,
     const byte* data, word32 len, word32 digestSz, word32 type)
 {
     CAAM_BUFFER buf[2];
