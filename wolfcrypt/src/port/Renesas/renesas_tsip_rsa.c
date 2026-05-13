@@ -260,7 +260,9 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
         return BAD_FUNC_ARG;
     }
 
-    if (tsip_RsakeyImport(tuc) == 0) {
+    ret = tsip_RsakeyImport(tuc);
+
+    if (ret == 0) {
         type = info->pk.rsa.type;
         keySize = (int)tuc->wrappedKeyType;
 
@@ -364,7 +366,10 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
            ret = CRYPTOCB_UNAVAILABLE;
     }
 
-    if (tsip_RsakeyImport(tuc) == 0) {
+    if (ret == 0)
+        ret = tsip_RsakeyImport(tuc);
+
+    if (ret == 0) {
         hashData.pdata = (uint8_t*)info->pk.rsa.out;
         hashData.data_length = *(info->pk.rsa.outLen);
         hashData.data_type =
