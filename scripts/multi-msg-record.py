@@ -105,9 +105,11 @@ def detect_wolf_features():
     """Probe the wolfSSL client binary to find which features are
     compiled in.  Used to decide which test phases to run.
 
-    Returns dict with boolean keys: tls12, tls13, secure_reneg.
+    Returns dict with keys: tls12 (bool), tls13 (bool),
+    secure_reneg (bool), ciphers (set[str]).
     """
-    feats = {"tls12": False, "tls13": False, "secure_reneg": False}
+    feats = {"tls12": False, "tls13": False, "secure_reneg": False,
+             "ciphers": set()}
 
     # ./client -V  ->  e.g. "3:4:d(downgrade):e(either):"
     try:
@@ -126,6 +128,15 @@ def detect_wolf_features():
                            capture_output=True, timeout=5)
         htxt = r.stdout.decode("utf-8", errors="replace")
         feats["secure_reneg"] = ("Allow Secure Renegotiation" in htxt)
+    except Exception:
+        pass
+
+    # ./client -e  -> colon-separated list of supported cipher suites.
+    try:
+        r = subprocess.run([WOLF_CLIENT, "-e"],
+                           capture_output=True, timeout=5)
+        ctxt = r.stdout.decode("utf-8", errors="replace").strip()
+        feats["ciphers"] = {c for c in ctxt.split(":") if c}
     except Exception:
         pass
 
@@ -556,6 +567,9 @@ def main():
               "families.\n")
 
         for cipher, desc in tls12_suites:
+            if cipher and cipher not in feats["ciphers"]:
+                skipped(f"TLS1.2 {desc} - cipher not in wolfSSL build")
+                continue
             run_tls12_test(cipher, rsa_chain, rsa_key,
                            f"TLS1.2 {desc}",
                            do_reneg=feats["secure_reneg"])
@@ -584,6 +598,9 @@ def main():
         print("  wolfSSL client must decrypt and parse.\n")
 
         for cipher, desc in tls13_suites:
+            if cipher and cipher not in feats["ciphers"]:
+                skipped(f"TLS1.3 {desc} - cipher not in wolfSSL build")
+                continue
             run_tls13_test(cipher, rsa_chain, rsa_key,
                            f"TLS1.3 {desc}")
     else:
