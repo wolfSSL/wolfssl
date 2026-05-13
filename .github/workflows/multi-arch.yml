@@ -56,11 +56,11 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
-      - name: Install Compiler
-        run: |
-          sudo apt update
-          sudo apt install -y crossbuild-essential-${{ matrix.ARCH }} qemu-user
       - uses: actions/checkout@v4
+      - name: Install Compiler
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: crossbuild-essential-${{ matrix.ARCH }} qemu-user
       - name: Build for ${{ matrix.ARCH }} with ${{ matrix.opts.name }}
         env:
             CC: ${{ matrix.CC }}
