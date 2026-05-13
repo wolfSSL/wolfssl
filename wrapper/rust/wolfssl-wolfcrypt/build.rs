@@ -425,6 +425,7 @@ fn scan_cfg() -> Result<()> {
     /* kdf */
     check_cfg(&binding, "wc_PBKDF2", "kdf_pbkdf2");
     check_cfg(&binding, "wc_PKCS12_PBKDF_ex", "kdf_pkcs12");
+    check_cfg(&binding, "wc_scrypt", "kdf_scrypt");
     check_cfg(&binding, "wc_SRTP_KDF", "kdf_srtp");
     check_cfg(&binding, "wc_SSH_KDF", "kdf_ssh");
     check_cfg(&binding, "wc_Tls13_HKDF_Extract_ex", "kdf_tls13");
