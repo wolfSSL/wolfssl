@@ -110,9 +110,10 @@ def detect_wolf_features():
     compiled in.  Used to decide which test phases to run.
 
     Returns dict with keys: tls12 (bool), tls13 (bool),
-    secure_reneg (bool), ciphers (set[str]), ca_cert (str).
+    secure_reneg (bool), rsa (bool), ciphers (set[str]), ca_cert (str).
     """
     feats = {"tls12": False, "tls13": False, "secure_reneg": False,
+             "rsa": True,
              "ciphers": set(),
              "ca_cert": os.path.join(CERT_DIR, "ca-cert.pem")}
 
@@ -129,7 +130,8 @@ def detect_wolf_features():
     # ./client -?  -> help text includes "-R" only when
     # HAVE_SECURE_RENEGOTIATION is defined.  The default -A path
     # ("ca-cert.pem" vs "ca-cert.der") also tells us which CA file
-    # format the build can load.
+    # format the build can load.  The RSA key-size line reports
+    # "RSA not supported" when NO_RSA is defined.
     try:
         r = subprocess.run([WOLF_CLIENT, "-?"],
                            capture_output=True, timeout=5)
@@ -137,6 +139,8 @@ def detect_wolf_features():
         feats["secure_reneg"] = ("Allow Secure Renegotiation" in htxt)
         if "ca-cert.der" in htxt and "ca-cert.pem" not in htxt:
             feats["ca_cert"] = os.path.join(CERT_DIR, "ca-cert.der")
+        if "RSA not supported" in htxt:
+            feats["rsa"] = False
     except Exception:
         pass
 
@@ -534,16 +538,24 @@ def main():
     global WOLF_CA_CERT
     WOLF_CA_CERT = feats["ca_cert"]
 
-    # Load certificate / key pairs
-    rsa_chain = _load_chain(os.path.join(CERT_DIR, "server-cert.pem"))
-    rsa_key = _load_key(os.path.join(CERT_DIR, "server-key.pem"))
-
     print("=" * 60)
     print(" Multi-Message TLS Record Test")
     print("=" * 60)
     print(f"  wolfSSL features: TLS1.2={feats['tls12']} "
           f"TLS1.3={feats['tls13']} "
-          f"secure_reneg={feats['secure_reneg']}")
+          f"secure_reneg={feats['secure_reneg']} "
+          f"rsa={feats['rsa']}")
+
+    # The test certs are RSA; skip the whole test when the wolfSSL build
+    # has no RSA support (the client can't load or verify them).
+    if not feats["rsa"]:
+        print("\n  wolfSSL built without RSA; skipping multi-msg-record "
+              "test (RSA test certs cannot be verified).")
+        sys.exit(77)
+
+    # Load certificate / key pairs
+    rsa_chain = _load_chain(os.path.join(CERT_DIR, "server-cert.pem"))
+    rsa_key = _load_key(os.path.join(CERT_DIR, "server-key.pem"))
 
     # ------------------------------------------------------------------
     # TLS 1.2 – plaintext (initial HS) + optional encrypted (renegotiation)
