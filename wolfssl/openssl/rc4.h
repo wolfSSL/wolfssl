@@ -39,7 +39,11 @@
  * the size of RC4_KEY structures. */
 typedef struct WOLFSSL_RC4_KEY {
     /* big enough for Arc4 from wolfssl/wolfcrypt/arc4.h */
+#ifdef WC_NO_PTR_INT_CAST
+    void* holder[(288 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+#else
     void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+#endif
 } WOLFSSL_RC4_KEY;
 
 WOLFSSL_API void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,

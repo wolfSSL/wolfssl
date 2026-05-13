@@ -52,7 +52,11 @@
 #ifndef NO_SHA
 typedef struct WOLFSSL_SHA_CTX {
     /* big enough to hold wolfcrypt Sha, but check on init */
+#ifdef WC_NO_PTR_INT_CAST
+    void* holder[(160 + WC_ASYNC_DEV_SIZE + CTX_SHA_HW_ADDER) / sizeof(void*)];
+#else
     void* holder[(112 + WC_ASYNC_DEV_SIZE + CTX_SHA_HW_ADDER) / sizeof(void*)];
+#endif
 #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
     void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
 #endif
