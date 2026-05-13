@@ -491,6 +491,65 @@ int test_wc_RsaPSS_Verify(void)
     return EXPECT_RESULT();
 } /* END  test_wc_RsaPSS_Verify */
 
+int test_wc_RsaPSS_BadTerminator(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && defined(WC_RSA_PSS) && \
+    (defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING) || \
+     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    RsaKey        key;
+    WC_RNG        rng;
+    const char*   msg = "This is the string to be signed";
+    unsigned char sig[2048/8];
+    unsigned char em[2048/8];
+    unsigned char badSig[2048/8];
+    unsigned char verifyOut[2048/8];
+    int           sigLen = 0;
+    word32        emSz = sizeof(em);
+    word32        badSigSz = sizeof(badSig);
+
+    XMEMSET(&key, 0, sizeof(RsaKey));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(em, 0, sizeof(em));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(badSig, 0, sizeof(badSig));
+
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+    ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng), 0);
+
+    ExpectIntGT(sigLen = wc_RsaPSS_Sign((const byte*)msg,
+        (word32)XSTRLEN(msg) + 1, sig, sizeof(sig),
+        WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng), 0);
+
+    ExpectIntGT(wc_RsaDirect(sig, (word32)sigLen, em, &emSz, &key,
+        RSA_PUBLIC_DECRYPT, NULL), 0);
+
+    ExpectTrue(emSz > 0);
+    if (emSz > 0) {
+        ExpectIntEQ((int)em[emSz - 1], 0xbc);
+    }
+
+    if (emSz > 0 && em[emSz - 1] == 0xbc) {
+        em[emSz - 1] = 0xbd;
+
+        ExpectIntGT(wc_RsaDirect(em, emSz, badSig, &badSigSz, &key,
+            RSA_PRIVATE_ENCRYPT, &rng), 0);
+
+        ExpectIntEQ(wc_RsaPSS_Verify(badSig, badSigSz, verifyOut,
+            sizeof(verifyOut),
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key),
+            WC_NO_ERR_TRACE(BAD_PADDING_E));
+    }
+
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaPSS_BadTerminator */
+
 /*
  * Testing wc_RsaPSS_VerifyCheck()
  */
