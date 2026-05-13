@@ -57,8 +57,12 @@
     #define DRBG_SEED_LEN (440/8)
 #endif
 
+/* Size of the DRBG seed (SHA-512) */
 #ifdef WOLFSSL_DRBG_SHA512
-    #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A Table 2 */
+    #ifndef DRBG_SHA512_SEED_LEN
+        #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A
+                                               * Table 2 */
+    #endif
 #endif
 
 
