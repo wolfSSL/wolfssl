@@ -41,7 +41,9 @@ jobs:
           submodules: recursive
 
       - name: Install packages
-        run: ${{ matrix.setup_cmd }}
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: ${{ matrix.apt_packages }}
 
       - name: Build firmware
         run: ${{ matrix.build_cmd }}
