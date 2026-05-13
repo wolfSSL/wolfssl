@@ -68,6 +68,8 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void);
 int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void);
 int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void);
 int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
+int test_wc_PKCS7_VerifySignedData_TruncEContentTag(void);
+int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -115,7 +117,9 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_BER),                     \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_NoDefaultSignedAttribs),  \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq), \
-    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_IndefLenOOB)
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_IndefLenOOB), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncEContentTag), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncCertSetTag)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \
