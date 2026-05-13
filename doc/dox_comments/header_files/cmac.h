@@ -270,15 +270,21 @@ int wc_AesCmacGenerate_ex(Cmac *cmac, byte* out, word32* outSz,
     Cmac cmac;
     byte mac[WC_AES_BLOCK_SIZE];
     byte key[16], msg[64];
+    int ret;
 
-    int ret = wc_AesCmacVerify_ex(&cmac, mac, sizeof(mac), msg,
+    ret = wc_InitCmac_ex(&cmac, key, sizeof(key), WC_CMAC_AES, NULL,
+                         NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesCmacVerify_ex(&cmac, mac, sizeof(mac), msg,
                                   sizeof(msg), key, sizeof(key),
                                   NULL, INVALID_DEVID);
+    }
     if (ret == MAC_CMP_FAILED_E) {
         // MAC verification failed
     }
     \endcode
 
+    \sa wc_InitCmac_ex
     \sa wc_AesCmacVerify
     \sa wc_AesCmacGenerate_ex
 */

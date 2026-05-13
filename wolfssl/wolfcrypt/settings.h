@@ -4213,7 +4213,8 @@ extern void uITRON4_free(void *p) ;
     #if (defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)) || \
         (defined(HAVE_ECC) && !defined(ECC_TIMING_RESISTANT)) || \
         (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS) && \
-            !defined(WC_NO_RNG))
+            !defined(WC_NO_RNG) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+            !defined(WOLFSSL_RSA_VERIFY_ONLY))
 
         #if !defined(_MSC_VER) && !defined(__TASKING__)
             #warning "For timing resistance / side-channel attack prevention consider using harden options"
@@ -4225,8 +4226,9 @@ extern void uITRON4_free(void *p) ;
 
 /* WC_NO_RNG silently removes RSA blinding, as blinding depends on the RNG.
  * Refuse to build until the conflict is resolved or the loss of hardening is
- * explicitly acknowledged via WC_RSA_NO_RNG_ACKNOWLEDGE_WEAKNESS. */
-#if defined(WC_NO_RNG) && ((defined(WC_RSA_BLINDING) && !defined(NO_RSA)) || \
+ * explicitly acknowledged via WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS. */
+#if defined(WC_NO_RNG) && ((defined(WC_RSA_BLINDING) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     (defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)) || \
     (defined(HAVE_ECC) && defined(WOLFSSL_ECC_BLIND_K))) && \
     !defined(WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS)

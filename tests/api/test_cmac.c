@@ -258,8 +258,9 @@ int test_wc_AesCmacGenerate(void)
         byte truncMac[WC_AES_BLOCK_SIZE];
         word32 truncSz;
         word32 lengths[] = { WC_CMAC_TAG_MIN_SZ, 8, WC_AES_BLOCK_SIZE - 1 };
+        word32 lengthsSz = (word32)(sizeof(lengths)/sizeof(lengths[0]));
         word32 li;
-        for (li = 0; li < sizeof(lengths)/sizeof(lengths[0]); li++) {
+        for (li = 0; li < lengthsSz; li++) {
             XMEMSET(truncMac, 0, sizeof(truncMac));
             truncSz = lengths[li];
             ExpectIntEQ(wc_AesCmacGenerate(truncMac, &truncSz, msg, msgSz,
