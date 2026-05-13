@@ -631,6 +631,79 @@ int test_wolfSSL_EC_POINT(void)
     #endif
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
     EC_POINT_free(get_point);
+    get_point = NULL;
+
+    /* Regression: oversized compressed-point hex must not overflow the stack
+     * buffer in wolfSSL_EC_POINT_hex2point(). The byte length decoded from
+     * the hex string must be bounded by the curve's ordinate size. */
+    {
+        char tooLongHex[2 + 600 + 1];
+        size_t i;
+
+        tooLongHex[0] = '0';
+        tooLongHex[1] = '3';
+        for (i = 2; i < sizeof(tooLongHex) - 1; i++)
+            tooLongHex[i] = 'A';
+        tooLongHex[sizeof(tooLongHex) - 1] = '\0';
+        ExpectNull(EC_POINT_hex2point(group, tooLongHex, NULL, ctx));
+
+        /* Same with the "02" (even Y) prefix. */
+        tooLongHex[1] = '2';
+        ExpectNull(EC_POINT_hex2point(group, tooLongHex, NULL, ctx));
+
+        /* Truncated uncompressed input: prefix "04" with too few hex chars
+         * to cover the curve's coordinates. Must return NULL without
+         * reading past the end of the input string. */
+        ExpectNull(EC_POINT_hex2point(group, "04AB", NULL, ctx));
+
+        /* Empty payload after a recognized prefix. */
+        ExpectNull(EC_POINT_hex2point(group, "03", NULL, ctx));
+        ExpectNull(EC_POINT_hex2point(group, "04", NULL, ctx));
+
+        /* Partially populated compressed input: must be rejected so that
+         * wolfSSL_ECPoint_d2i() does not consume uninitialized stack
+         * bytes as the X coordinate. */
+        ExpectNull(EC_POINT_hex2point(group, "03AB", NULL, ctx));
+        ExpectNull(EC_POINT_hex2point(group, "02ABCD", NULL, ctx));
+
+        /* Odd-length compressed payload: 2*key_sz + 1 hex chars after
+         * the "03" prefix (P-256: 65 chars). A truncating-divide bound
+         * (sz = XSTRLEN/2) would round down to key_sz and accept this;
+         * an exact-length compare must reject it. */
+        {
+            char oddLenHex[2 + 65 + 1];
+            for (i = 2; i < sizeof(oddLenHex) - 1; i++)
+                oddLenHex[i] = 'A';
+            oddLenHex[0] = '0';
+            oddLenHex[1] = '3';
+            oddLenHex[sizeof(oddLenHex) - 1] = '\0';
+            ExpectNull(EC_POINT_hex2point(group, oddLenHex, NULL, ctx));
+        }
+    }
+
+    #if defined(HAVE_COMP_KEY) && !defined(HAVE_SELFTEST)
+    /* Round-trip a compressed point with even Y ("02" prefix) to verify
+     * that the prefix-to-parity flag is honored in the compressed branch. */
+    {
+        EC_POINT* even_point = NULL;
+        EC_POINT* round_trip = NULL;
+        char*     even_hex   = NULL;
+
+        ExpectNotNull(even_point = EC_POINT_dup(Gxy, group));
+        ExpectIntEQ(EC_POINT_invert(group, even_point, ctx), 1);
+        ExpectNotNull(even_hex = EC_POINT_point2hex(group, even_point,
+            POINT_CONVERSION_COMPRESSED, ctx));
+        /* P-256 G has odd Y; inverting flips Y parity so prefix is "02". */
+        ExpectIntEQ(even_hex[1], '2');
+        ExpectNotNull(round_trip = EC_POINT_hex2point(group, even_hex, NULL,
+            ctx));
+        ExpectIntEQ(EC_POINT_cmp(group, even_point, round_trip, ctx), 0);
+
+        XFREE(even_hex, NULL, DYNAMIC_TYPE_ECC);
+        EC_POINT_free(round_trip);
+        EC_POINT_free(even_point);
+    }
+    #endif
 
 #ifndef HAVE_SELFTEST
     /* Test point to oct */
