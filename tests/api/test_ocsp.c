@@ -382,6 +382,48 @@ int test_ocsp_basic_verify(void)
 }
 #endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
 
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_OCSP_ISSUER_CHECK)
+/* Verify that OCSP responder authorization is bound to BOTH halves of the
+ * CertID (issuerNameHash AND issuerKeyHash). The forged response in
+ * resp_certid_keyhash_mismatch was signed by the legitimate ocsp-responder
+ * (so the response signature itself verifies) but its CertID pairs the
+ * legitimate root CA's name hash with the imposter root CA's key hash. With
+ * a name-only authorization check the response would be incorrectly
+ * accepted; the CertID-bound check must reject it. */
+int test_ocsp_responder_keyhash_binding(void)
+{
+    EXPECT_DECLS;
+    WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
+    WOLFSSL_X509_STORE* store = NULL;
+    const unsigned char* ptr = NULL;
+    OcspResponse* response = NULL;
+
+    ExpectIntEQ(test_ocsp_create_x509store(&store, root_ca_cert_pem,
+                    sizeof(root_ca_cert_pem)),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_create_stack_of_x509(&certs, ocsp_responder_cert_pem,
+                    sizeof(ocsp_responder_cert_pem)),
+        TEST_SUCCESS);
+
+    ptr = (const unsigned char*)resp_certid_keyhash_mismatch;
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+                      sizeof(resp_certid_keyhash_mismatch)));
+    ExpectIntNE(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_OCSP_RESPONSE_free(response);
+    wolfSSL_sk_X509_pop_free(certs, wolfSSL_X509_free);
+    wolfSSL_X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_responder_keyhash_binding(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if defined(HAVE_OCSP) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) &&     \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12) &&  \
     defined(OPENSSL_ALL) && !defined(WOLFSSL_SMALL_CERT_VERIFY)
