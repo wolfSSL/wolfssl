@@ -19521,10 +19521,9 @@ static wc_test_ret_t aesgcm_non12iv_test(Aes* enc, Aes* dec)
     XFREE(large_output, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(large_outdec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-#else
+#endif /* ENABLE_NON_12BYTE_IV_TEST */
     (void)enc;
     (void)dec;
-#endif /* ENABLE_NON_12BYTE_IV_TEST */
     return ret;
 }
 
