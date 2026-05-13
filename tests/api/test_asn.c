@@ -31,6 +31,12 @@
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
+#ifdef HAVE_ED448
+    #include <wolfssl/wolfcrypt/ed448.h>
+#endif
+#ifdef HAVE_DILITHIUM
+    #include <wolfssl/wolfcrypt/dilithium.h>
+#endif
 
 #if defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(HAVE_ED25519)
 static int test_SetAsymKeyDer_once(byte* privKey, word32 privKeySz, byte* pubKey,
@@ -1348,5 +1354,430 @@ int test_wc_DecodeObjectId(void)
     }
 #endif /* !NO_ASN && (HAVE_OID_DECODING || WOLFSSL_ASN_PRINT) */
 
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN)) && \
+    (defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_DILITHIUM))
+/* Run ToTraditional_ex() on a copy of der and assert the algId, returned
+ * length, and the inner OCTET STRING tag/length at the start of the
+ * (in-place rewritten) buffer. */
+static int test_ToTraditional_ex_once(const byte* der, word32 derSz,
+    word32 expectAlgId, word32 expectPrivKeySz)
+{
+    EXPECT_DECLS;
+    byte* copy = NULL;
+    word32 algId = 0;
+    int    ret;
+
+    copy = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(copy);
+    if (copy != NULL) {
+        XMEMCPY(copy, der, derSz);
+        ret = ToTraditional_ex(copy, derSz, &algId);
+        ExpectIntGT(ret, 0);
+        ExpectIntEQ(algId, expectAlgId);
+        if (ret > 0) {
+            /* Inner CurvePrivateKey OCTET STRING header + privKey bytes. */
+            ExpectIntEQ(copy[0], ASN_OCTET_STRING);
+            /* DER short form: length fits in one byte (< 128). */
+            if (expectPrivKeySz < 0x80) {
+                ExpectIntEQ(copy[1], (byte)expectPrivKeySz);
+            }
+            /* DER long form, 1 length byte (128..255). */
+            else if (expectPrivKeySz < 0x100) {
+                /* 0x81: long form indicator, 1 length byte follows. */
+                ExpectIntEQ(copy[1], 0x81);
+                ExpectIntEQ(copy[2], (byte)expectPrivKeySz);
+            }
+            /* DER long form, 2 length bytes (256..65535). */
+            else {
+                /* 0x82: long form indicator, 2 length bytes follow. */
+                ExpectIntEQ(copy[1], 0x82);
+                ExpectIntEQ(((word32)copy[2] << 8) | copy[3], expectPrivKeySz);
+            }
+        }
+    }
+    XFREE(copy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Hand crafted PKCS#8 v0 and v1 Ed25519 buffers to test parser directly. */
+int test_ToTraditional_ex_handcrafted(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && defined(HAVE_ED25519) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
+    /* Ed25519 algorithm OID body (1.3.101.112). */
+    static const byte algId[] = { 43, 101, 112 };
+    const word32 privKeySz = ED25519_KEY_SIZE;
+    const word32 pubKeySz  = ED25519_PUB_KEY_SIZE;
+    byte der[128];
+    word32 sz;
+    word32 outerLenIdx;
+    /* Filler bytes for the dummy private/public key bodies */
+    const byte keyPat = 0xCC;
+    const byte pubPat = 0xDD;
+
+    /* v0: SEQ { INTEGER 0, SEQ { OID }, OCTET STRING { OCTET STRING priv } } */
+    sz = 0;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    outerLenIdx = sz;
+    der[sz++] = 0;  /* outer length, filled in below */
+    der[sz++] = ASN_INTEGER;
+    der[sz++] = 1;
+    der[sz++] = 0x00;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    der[sz++] = (byte)(sizeof(algId) + 2);
+    der[sz++] = ASN_OBJECT_ID;
+    der[sz++] = (byte)sizeof(algId);
+    XMEMCPY(der + sz, algId, sizeof(algId)); sz += sizeof(algId);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)(privKeySz + 2);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)privKeySz;
+    XMEMSET(der + sz, keyPat, privKeySz); sz += privKeySz;
+    der[outerLenIdx] = (byte)(sz - outerLenIdx - 1);
+
+    EXPECT_TEST(test_ToTraditional_ex_once(der, sz, ED25519k, privKeySz));
+
+    /* v1: same plus [1] publicKey trailer. */
+    sz = 0;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    outerLenIdx = sz;
+    der[sz++] = 0;
+    der[sz++] = ASN_INTEGER;
+    der[sz++] = 1;
+    der[sz++] = 0x01;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    der[sz++] = (byte)(sizeof(algId) + 2);
+    der[sz++] = ASN_OBJECT_ID;
+    der[sz++] = (byte)sizeof(algId);
+    XMEMCPY(der + sz, algId, sizeof(algId)); sz += sizeof(algId);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)(privKeySz + 2);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)privKeySz;
+    XMEMSET(der + sz, keyPat, privKeySz); sz += privKeySz;
+    /* [1] publicKey trailer */
+    der[sz++] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    der[sz++] = (byte)pubKeySz;
+    XMEMSET(der + sz, pubPat, pubKeySz); sz += pubKeySz;
+    der[outerLenIdx] = (byte)(sz - outerLenIdx - 1);
+
+    EXPECT_TEST(test_ToTraditional_ex_once(der, sz, ED25519k, privKeySz));
+
+    /* v1 without publicKey: should still accept per RFC 5958. */
+    sz = 0;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    outerLenIdx = sz;
+    der[sz++] = 0;
+    der[sz++] = ASN_INTEGER;
+    der[sz++] = 1;
+    der[sz++] = 0x01;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    der[sz++] = (byte)(sizeof(algId) + 2);
+    der[sz++] = ASN_OBJECT_ID;
+    der[sz++] = (byte)sizeof(algId);
+    XMEMCPY(der + sz, algId, sizeof(algId)); sz += sizeof(algId);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)(privKeySz + 2);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)privKeySz;
+    XMEMSET(der + sz, keyPat, privKeySz); sz += privKeySz;
+    der[outerLenIdx] = (byte)(sz - outerLenIdx - 1);
+
+    EXPECT_TEST(test_ToTraditional_ex_once(der, sz, ED25519k, privKeySz));
+#endif /* HAVE_PKCS8 && HAVE_ED25519 */
+    return EXPECT_RESULT();
+}
+
+/* Encoder/parser round trip: ToTraditional_ex() must accept both forms created
+ * by SetAsymKeyDer() (v0 with PrivateKeyToDer, v1 with KeyToDer). */
+int test_ToTraditional_ex_roundtrip(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(WOLFSSL_KEY_GEN)
+    {
+        ed25519_key key;
+        WC_RNG rng;
+        byte der[256];
+        int  derSz = 0;
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_ed25519_init(&key), 0);
+        ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+
+        if (EXPECT_SUCCESS()) {
+            ExpectIntGT(derSz = wc_Ed25519KeyToDer(&key, der, sizeof(der)), 0);
+            EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED25519k,
+                ED25519_KEY_SIZE));
+
+            derSz = wc_Ed25519PrivateKeyToDer(&key, der, sizeof(der));
+            ExpectIntGT(derSz, 0);
+            EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED25519k,
+                ED25519_KEY_SIZE));
+        }
+
+        wc_ed25519_free(&key);
+        wc_FreeRng(&rng);
+    }
+#endif /* HAVE_ED25519 */
+
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    defined(WOLFSSL_KEY_GEN)
+    {
+        ed448_key key;
+        WC_RNG rng;
+        byte der[256];
+        int  derSz = 0;
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectIntEQ(wc_ed448_init(&key), 0);
+        ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+        if (EXPECT_SUCCESS()) {
+            ExpectIntGT(derSz = wc_Ed448KeyToDer(&key, der, sizeof(der)), 0);
+            EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED448k,
+                ED448_KEY_SIZE));
+
+            derSz = wc_Ed448PrivateKeyToDer(&key, der, sizeof(der));
+            ExpectIntGT(derSz, 0);
+            EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED448k,
+                ED448_KEY_SIZE));
+        }
+
+        wc_ed448_free(&key);
+        wc_FreeRng(&rng);
+    }
+#endif /* HAVE_ED448 */
+
+#if defined(HAVE_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+    {
+        /* dilithium.h errors out if HAVE_DILITHIUM is set with no levels
+         * enabled, so at least one entry below is always compiled in. */
+        static const struct {
+            int   wcLevel;
+            word32 oidSum;
+            word32 privKeySz;
+        } variants[] = {
+        #ifndef WOLFSSL_NO_ML_DSA_44
+            { WC_ML_DSA_44, ML_DSA_LEVEL2k, ML_DSA_LEVEL2_KEY_SIZE },
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_65
+            { WC_ML_DSA_65, ML_DSA_LEVEL3k, ML_DSA_LEVEL3_KEY_SIZE },
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_87
+            { WC_ML_DSA_87, ML_DSA_LEVEL5k, ML_DSA_LEVEL5_KEY_SIZE },
+        #endif
+        };
+
+        const word32 derMaxSz = DILITHIUM_MAX_BOTH_KEY_DER_SIZE;
+        byte* der = NULL;
+        WC_RNG rng;
+        size_t i;
+        int derSz;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        ExpectNotNull(der = (byte*)XMALLOC(derMaxSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+
+        for (i = 0; i < sizeof(variants) / sizeof(variants[0]); i++) {
+            dilithium_key key;
+
+            XMEMSET(&key, 0, sizeof(key));
+            ExpectIntEQ(wc_dilithium_init(&key), 0);
+            ExpectIntEQ(wc_dilithium_set_level(&key, variants[i].wcLevel), 0);
+            ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
+
+            if (EXPECT_SUCCESS()) {
+                ExpectIntGT(derSz = wc_Dilithium_KeyToDer(&key, der, derMaxSz),
+                    0);
+                EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz,
+                    variants[i].oidSum, variants[i].privKeySz));
+
+                derSz = wc_Dilithium_PrivateKeyToDer(&key, der, derMaxSz);
+                ExpectIntGT(derSz, 0);
+                EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz,
+                    variants[i].oidSum, variants[i].privKeySz));
+            }
+
+            wc_dilithium_free(&key);
+        }
+
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_FreeRng(&rng);
+    }
+#endif /* HAVE_DILITHIUM */
+
+#endif /* HAVE_PKCS8 */
+    return EXPECT_RESULT();
+}
+
+/* Trailing garbage that is neither [0] attributes nor [1] publicKey must
+ * still be rejected. */
+int test_ToTraditional_ex_negative(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_EXPORT) && defined(WOLFSSL_KEY_GEN) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
+    ed25519_key key;
+    WC_RNG rng;
+    byte der[256];
+    byte copy[256];
+    int  derSz = 0;
+    word32 algId;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    ExpectIntGT(derSz = wc_Ed25519PrivateKeyToDer(&key, der, sizeof(der)), 0);
+
+    if (EXPECT_SUCCESS() && (derSz > 0) &&
+        ((size_t)derSz + 1 <= sizeof(copy))) {
+        /* Append one byte of trailing data, grow outer SEQ length to cover.
+         * Ed25519 PKCS#8 outer SEQ is under 128 bytes, expect DER short form
+         * so the negative path is always exercised. */
+        XMEMCPY(copy, der, (size_t)derSz);
+        ExpectTrue(copy[1] < 0x80);
+        copy[1] = (byte)(copy[1] + 1);
+        copy[derSz] = 0x05;
+        algId = 0;
+        ExpectIntLT(ToTraditional_ex(copy, (word32)(derSz + 1), &algId), 0);
+    }
+
+    /* publicKey trailer is permitted only when version == v1 */
+    if (EXPECT_SUCCESS() && (derSz > 0) &&
+        ((size_t)derSz + 2 + ED25519_PUB_KEY_SIZE <= sizeof(copy))) {
+        word32 trailerSz = 2 + ED25519_PUB_KEY_SIZE;
+        XMEMCPY(copy, der, (size_t)derSz);
+        ExpectTrue(copy[1] + trailerSz < 0x80);
+        copy[1] = (byte)(copy[1] + trailerSz);
+        copy[derSz] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+        copy[derSz + 1] = ED25519_PUB_KEY_SIZE;
+        XMEMSET(copy + derSz + 2, 0xDD, ED25519_PUB_KEY_SIZE);
+        algId = 0;
+        ExpectIntLT(ToTraditional_ex(copy,
+            (word32)(derSz + (int)trailerSz), &algId), 0);
+    }
+
+    /* v1 buffer (with publicKey) plus extra trailing garbage. */
+    ExpectIntGT(derSz = wc_Ed25519KeyToDer(&key, der, sizeof(der)), 0);
+    if (EXPECT_SUCCESS() && (derSz > 0) &&
+        ((size_t)derSz + 1 <= sizeof(copy))) {
+        XMEMCPY(copy, der, (size_t)derSz);
+        ExpectTrue(copy[1] < 0x80);
+        copy[1] = (byte)(copy[1] + 1);
+        copy[derSz] = 0x05;
+        algId = 0;
+        ExpectIntLT(ToTraditional_ex(copy, (word32)(derSz + 1), &algId), 0);
+    }
+
+    wc_ed25519_free(&key);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ML-DSA AlgorithmIdentifier has no parameters per FIPS 204. Verify
+ * ToTraditional_ex() rejects a PKCS#8 whose algoSeq carries trailing NULL
+ * or OBJECT_ID parameters. Template parser only (legacy is lenient). */
+int test_ToTraditional_ex_mldsa_bad_params(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && defined(HAVE_DILITHIUM) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN))
+    /* ML-DSA-65 OID body: 2.16.840.1.101.3.4.3.18 */
+    static const byte mldsaOid[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+                                     0x04, 0x03, 0x12 };
+    /* Single-arc OID body, used only to occupy the OBJECT_ID slot. */
+    static const byte extraOid[] = { 0x01 };
+    byte der[64];
+    byte copy[64];
+    word32 sz;
+    word32 outerLenIdx;
+    word32 algId;
+    const word32 privKeySz = 4;
+    const byte   privBody  = 0xAA;
+
+    /* Bad case, algoSeq = { OID, NULL } */
+    sz = 0;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    outerLenIdx = sz;
+    der[sz++] = 0;  /* outer length, filled in below */
+    der[sz++] = ASN_INTEGER;
+    der[sz++] = 1;
+    der[sz++] = 0x00;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    der[sz++] = (byte)(sizeof(mldsaOid) + 2 + 2);
+    der[sz++] = ASN_OBJECT_ID;
+    der[sz++] = sizeof(mldsaOid);
+    XMEMCPY(der + sz, mldsaOid, sizeof(mldsaOid)); sz += sizeof(mldsaOid);
+    /* Disallowed, NULL parameter after the ML-DSA OID. */
+    der[sz++] = ASN_TAG_NULL;
+    der[sz++] = 0;
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)(privKeySz + 2);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)privKeySz;
+    XMEMSET(der + sz, privBody, privKeySz); sz += privKeySz;
+    der[outerLenIdx] = (byte)(sz - outerLenIdx - 1);
+
+    XMEMCPY(copy, der, sz);
+    algId = 0;
+    ExpectIntLT(ToTraditional_ex(copy, sz, &algId), 0);
+
+    /* Bad case, algoSeq = { OID, OBJECT_ID } */
+    sz = 0;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    outerLenIdx = sz;
+    der[sz++] = 0;
+    der[sz++] = ASN_INTEGER;
+    der[sz++] = 1;
+    der[sz++] = 0x00;
+    der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    der[sz++] = (byte)(sizeof(mldsaOid) + 2 + sizeof(extraOid) + 2);
+    der[sz++] = ASN_OBJECT_ID;
+    der[sz++] = sizeof(mldsaOid);
+    XMEMCPY(der + sz, mldsaOid, sizeof(mldsaOid)); sz += sizeof(mldsaOid);
+    /* Disallowed, OBJECT_ID parameter after the ML-DSA OID. */
+    der[sz++] = ASN_OBJECT_ID;
+    der[sz++] = sizeof(extraOid);
+    XMEMCPY(der + sz, extraOid, sizeof(extraOid)); sz += sizeof(extraOid);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)(privKeySz + 2);
+    der[sz++] = ASN_OCTET_STRING;
+    der[sz++] = (byte)privKeySz;
+    XMEMSET(der + sz, privBody, privKeySz); sz += privKeySz;
+    der[outerLenIdx] = (byte)(sz - outerLenIdx - 1);
+
+    XMEMCPY(copy, der, sz);
+    algId = 0;
+    ExpectIntLT(ToTraditional_ex(copy, sz, &algId), 0);
+#endif
     return EXPECT_RESULT();
 }
