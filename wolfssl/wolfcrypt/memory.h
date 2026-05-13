@@ -552,7 +552,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
 
 #if defined(WOLFSSL_LINUXKM) || defined(WC_SYM_RELOC_TABLES) || \
     defined(WC_SYM_RELOC_TABLES_SUPPORT)
-    #include "linuxkm/linuxkm_memory.h"
+    #include "../../linuxkm/linuxkm_memory.h"
 #endif
 
 #ifdef __cplusplus
