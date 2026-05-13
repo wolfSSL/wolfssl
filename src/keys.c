@@ -3499,6 +3499,12 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
     (void)copy;
 
+    /* Cipher activation invalidates the cached AEAD record overhead. Covers
+     * TLS 1.2 / TLS 1.3 handshake completion, secure renegotiation, early
+     * data flips, and DTLS 1.3 epoch transitions (Dtls13SetEpochKeys() calls
+     * SetKeysSide() at the bottom). */
+    ssl->recordSzOverhead = 0;
+
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation &&
             ssl->secure_renegotiation->cache_status != SCR_CACHE_NULL) {
