@@ -1932,8 +1932,9 @@ int test_dtls13_frag_ch2_with_ch1_rtx(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
-    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS) &&                         \
-    defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG)
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS) &&                        \
+    defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG) &&              \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
