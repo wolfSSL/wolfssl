@@ -7536,6 +7536,11 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
     return ret;
 }
 
+/* WC_NO_INLINE: wolfDTLS_accept_stateless passes the address of a stack-local
+ * context here; the restore call before return clears it again. Preventing
+ * inlining hides that cross-frame assignment from GCC's -Wdangling-pointer
+ * analysis, which otherwise flags a false positive on GCC 14+. */
+WC_NO_INLINE
 int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
 {
     WOLFSSL_ENTER("wolfDTLS_SetChGoodCb");
