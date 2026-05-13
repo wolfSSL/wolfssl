@@ -13,6 +13,7 @@ concurrency:
 jobs:
   load-targets:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -26,6 +27,7 @@ jobs:
   analyze:
     needs: load-targets
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
