@@ -44,6 +44,10 @@ WOLFSSL_DIR = os.path.dirname(SCRIPT_DIR)
 WOLF_CLIENT = os.path.join(WOLFSSL_DIR, "examples", "client", "client")
 CERT_DIR = os.path.join(WOLFSSL_DIR, "certs")
 
+# CA cert path passed to the wolfSSL client via -A.  Set in main() after
+# detect_wolf_features() determines whether the build accepts PEM or DER.
+WOLF_CA_CERT = os.path.join(CERT_DIR, "ca-cert.pem")
+
 # ---------------------------------------------------------------------------
 # Bypass a strict tlslite-ng validation that rejects wolfSSL's ClientHello
 # when the client advertises FFDHE groups in a TLS-1.3-only hello.
@@ -106,10 +110,11 @@ def detect_wolf_features():
     compiled in.  Used to decide which test phases to run.
 
     Returns dict with keys: tls12 (bool), tls13 (bool),
-    secure_reneg (bool), ciphers (set[str]).
+    secure_reneg (bool), ciphers (set[str]), ca_cert (str).
     """
     feats = {"tls12": False, "tls13": False, "secure_reneg": False,
-             "ciphers": set()}
+             "ciphers": set(),
+             "ca_cert": os.path.join(CERT_DIR, "ca-cert.pem")}
 
     # ./client -V  ->  e.g. "3:4:d(downgrade):e(either):"
     try:
@@ -122,12 +127,16 @@ def detect_wolf_features():
         pass
 
     # ./client -?  -> help text includes "-R" only when
-    # HAVE_SECURE_RENEGOTIATION is defined.
+    # HAVE_SECURE_RENEGOTIATION is defined.  The default -A path
+    # ("ca-cert.pem" vs "ca-cert.der") also tells us which CA file
+    # format the build can load.
     try:
         r = subprocess.run([WOLF_CLIENT, "-?"],
                            capture_output=True, timeout=5)
         htxt = r.stdout.decode("utf-8", errors="replace")
         feats["secure_reneg"] = ("Allow Secure Renegotiation" in htxt)
+        if "ca-cert.der" in htxt and "ca-cert.pem" not in htxt:
+            feats["ca_cert"] = os.path.join(CERT_DIR, "ca-cert.der")
     except Exception:
         pass
 
@@ -188,11 +197,11 @@ def _listen_socket():
 def _run_wolf_client(port, version, cipher, extra=()):
     """Invoke the wolfSSL example client against 127.0.0.1:port.
 
-    Uses the DER-encoded CA cert so the test works with wolfSSL builds
-    configured with NO_CODING (base64 decode disabled, no PEM support).
+    WOLF_CA_CERT is PEM or DER depending on the build (NO_CODING /
+    OPENSSL_EXTRA builds don't both support PEM).
     """
     cmd = [WOLF_CLIENT, "-h", "127.0.0.1", "-p", str(port),
-           "-v", version, "-A", os.path.join(CERT_DIR, "ca-cert.der"),
+           "-v", version, "-A", WOLF_CA_CERT,
            "-g", *extra]
     if cipher:
         cmd.extend(["-l", cipher])
@@ -522,6 +531,8 @@ def main():
     # Probe the client to see which features are compiled in so each
     # phase of the test is only run when it can succeed.
     feats = detect_wolf_features()
+    global WOLF_CA_CERT
+    WOLF_CA_CERT = feats["ca_cert"]
 
     # Load certificate / key pairs
     rsa_chain = _load_chain(os.path.join(CERT_DIR, "server-cert.pem"))

@@ -341,7 +341,9 @@ server=login.live.com
 #ca=certs/external/DigiCertGlobalRootCA.pem
 ca=./certs/external/ca_collection.pem
 
-if [[ "$V4V6" == "4" ]]; then
+if [[ -z "${WOLFSSL_EXTERNAL_TEST-}" || "$WOLFSSL_EXTERNAL_TEST" == "0" ]]; then
+    echo "Skipping OCSP test on $server (set WOLFSSL_EXTERNAL_TEST=1 to run)"
+elif [[ "$V4V6" == "4" ]]; then
     retry_with_backoff 3 ./examples/client/client -C -h "$server" -p 443 -A "$ca" -g -W 1
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
