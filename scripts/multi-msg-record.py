@@ -186,9 +186,13 @@ def _listen_socket():
 
 
 def _run_wolf_client(port, version, cipher, extra=()):
-    """Invoke the wolfSSL example client against 127.0.0.1:port."""
+    """Invoke the wolfSSL example client against 127.0.0.1:port.
+
+    Uses the DER-encoded CA cert so the test works with wolfSSL builds
+    configured with NO_CODING (base64 decode disabled, no PEM support).
+    """
     cmd = [WOLF_CLIENT, "-h", "127.0.0.1", "-p", str(port),
-           "-v", version, "-A", os.path.join(CERT_DIR, "ca-cert.pem"),
+           "-v", version, "-A", os.path.join(CERT_DIR, "ca-cert.der"),
            "-g", *extra]
     if cipher:
         cmd.extend(["-l", cipher])
