@@ -635,6 +635,26 @@ impl SHA256 {
         }
         Ok(())
     }
+
+}
+
+#[cfg(sha256)]
+impl Clone for SHA256 {
+    /// Clone the SHA-256 state into a new independent instance via `wc_Sha256Copy`.
+    ///
+    /// Allows the same in-progress computation to be continued independently
+    /// from the same point, e.g. for transcript snapshotting in TLS.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the underlying `wc_Sha256Copy` call fails (should not occur
+    /// under normal conditions).
+    fn clone(&self) -> Self {
+        let mut dst: core::mem::MaybeUninit<sys::wc_Sha256> = core::mem::MaybeUninit::uninit();
+        let rc = unsafe { sys::wc_Sha256Copy(&self.wc_sha256 as *const _ as *mut _, dst.as_mut_ptr()) };
+        assert_eq!(rc, 0, "wc_Sha256Copy failed: {rc}");
+        SHA256 { wc_sha256: unsafe { dst.assume_init() } }
+    }
 }
 
 #[cfg(sha256)]
@@ -845,6 +865,26 @@ impl SHA384 {
             return Err(rc);
         }
         Ok(())
+    }
+
+}
+
+#[cfg(sha384)]
+impl Clone for SHA384 {
+    /// Clone the SHA-384 state into a new independent instance via `wc_Sha384Copy`.
+    ///
+    /// Allows the same in-progress computation to be continued independently
+    /// from the same point, e.g. for transcript snapshotting in TLS.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the underlying `wc_Sha384Copy` call fails (should not occur
+    /// under normal conditions).
+    fn clone(&self) -> Self {
+        let mut dst: core::mem::MaybeUninit<sys::wc_Sha384> = core::mem::MaybeUninit::uninit();
+        let rc = unsafe { sys::wc_Sha384Copy(&self.wc_sha384 as *const _ as *mut _, dst.as_mut_ptr()) };
+        assert_eq!(rc, 0, "wc_Sha384Copy failed: {rc}");
+        SHA384 { wc_sha384: unsafe { dst.assume_init() } }
     }
 }
 
