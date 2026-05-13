@@ -78,40 +78,49 @@ jobs:
   build:
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
+    # Teensy is allowed to fail: its board index lives at pjrc.com, which is
+    # chronically unreachable from GitHub Actions runner egress IPs (DNS
+    # timeouts / connection refused). A pjrc.com outage should not block PRs
+    # on the 11 other boards. Track persistent red here and revisit if pjrc.com
+    # access stabilizes or we mirror the index ourselves.
+    continue-on-error: ${{ matrix.fqbn == 'teensy:avr:teensy40' }}
 
     strategy:
       fail-fast: false
       matrix:
         fqbn:
-          # When editing this list, be sure to also edit file: board_list.txt
-          #   The compile-all-examples.sh optionally takes a FQBN parameter to
-          #   optionally compile all examples ONLY for the respective fully qualified board name.
-          # See https://github.com/wolfSSL/wolfssl-examples/blob/master/Arduino/sketches/board_list.txt
+          # Each matrix entry passes its FQBN to compile-all-examples.sh, which looks up
+          # build settings for that single board in board_list.txt (fetched at runtime from
+          # wolfssl-examples). When ADDING a board here, the FQBN must also exist in:
+          #  https://github.com/wolfSSL/wolfssl-examples/blob/master/Arduino/sketches/board_list.txt
+          # Removing a board from this matrix does NOT require any wolfssl-examples change;
+          # board_list.txt is the broader "supported boards" catalog, not the CI matrix.
+          #
+          # Matrix is intentionally trimmed: boards sharing a vendor:arch core also share
+          # toolchain and headers, so additional boards in the same core mostly re-exercise
+          # variant pin maps rather than wolfSSL code. Kept boards bracket the memory
+          # envelope (uno=2KB RAM, mega=8KB RAM) and cover each distinct toolchain/ISA.
 
-          - arduino:avr:ethernet
-          - arduino:avr:leonardoeth
-          - arduino:avr:mega
-          - arduino:avr:nano
-          - arduino:avr:uno
-          - arduino:avr:yun
-          - arduino:samd:mkr1000
-          - arduino:samd:mkrfox1200
+          - arduino:avr:uno                       # smallest AVR (2KB RAM, 32KB flash)
+          - arduino:avr:mega                      # largest AVR (8KB RAM, 256KB flash)
+          - arduino:samd:mkr1000                  # Cortex-M0+ representative
           - arduino:mbed_edge:edge_control
-          - arduino:mbed_portenta:envie_m7
-          - arduino:mbed_portenta:portenta_x8
-          - arduino:renesas_uno:unor4wifi
-          - arduino:sam:arduino_due_x
-          - arduino:samd:arduino_zero_native
-          - arduino:samd:tian
-          - esp32:esp32:esp32
-          - esp32:esp32:esp32s2
-          - esp32:esp32:esp32s3
-          - esp32:esp32:esp32c3
-          - esp32:esp32:esp32c6
-          - esp32:esp32:esp32h2
+          - arduino:mbed_portenta:envie_m7        # Cortex-M7 Portenta
+          - arduino:renesas_uno:unor4wifi         # Renesas RA4M1
+          - arduino:sam:arduino_due_x             # Cortex-M3
+          - esp32:esp32:esp32                     # Xtensa LX6
+          - esp32:esp32:esp32s3                   # Xtensa LX7
+          - esp32:esp32:esp32c3                   # RISC-V representative
           - esp8266:esp8266:generic
           - teensy:avr:teensy40
 
+          # Dropped (redundant within same core):
+          #   arduino:avr:{ethernet,leonardoeth,nano,yun}        - same toolchain as uno
+          #   arduino:samd:{mkrfox1200,arduino_zero_native,tian} - same toolchain as mkr1000
+          #   arduino:mbed_portenta:portenta_x8                  - same core as envie_m7
+          #   esp32:esp32:esp32s2                                - Xtensa LX7, covered by s3
+          #   esp32:esp32:{esp32c6,esp32h2}                      - RISC-V, covered by c3
+          #
           # Not yet supported, not in standard library
           # - esp32:esp32:nano_nora
 
@@ -193,8 +202,17 @@ jobs:
           # wait 10 minutes for big downloads (or use 0 for no limit)
           arduino-cli config set network.connection_timeout 600s
 
-          arduino-cli config add board_manager.additional_urls https://www.pjrc.com/teensy/package_teensy_index.json
-          arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          # Only add third-party board_manager URLs for matrix entries that actually need them.
+          # arduino-cli re-reads every configured index on each invocation and fails the whole
+          # step if any one is unreachable, so adding these unconditionally makes all jobs
+          # depend on pjrc.com and esp8266.com -- a single outage there cascades into total
+          # CI failure. Scope each URL to the one CORE_ID that uses it.
+          if [ "$CORE_ID" = "teensy:avr" ]; then
+            arduino-cli config add board_manager.additional_urls https://www.pjrc.com/teensy/package_teensy_index.json
+          fi
+          if [ "$CORE_ID" = "esp8266:esp8266" ]; then
+            arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          fi
           arduino-cli core update-index
 
           echo "CORE_ID: $CORE_ID"
