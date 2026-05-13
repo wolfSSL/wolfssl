@@ -1145,7 +1145,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 (input[tmpIdx+2] != 0xff))
             {
                 WOLFSSL_MSG("Error decoding unknown extension data");
-                wolfSSL_ASN1_OBJECT_free(ext->obj);
                 wolfSSL_X509_EXTENSION_free(ext);
                 FreeDecodedCert(cert);
                 WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
@@ -1161,7 +1160,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             (input[tmpIdx] != ASN_OCTET_STRING))
         {
             WOLFSSL_MSG("Error decoding unknown extension data");
-            wolfSSL_ASN1_OBJECT_free(ext->obj);
             wolfSSL_X509_EXTENSION_free(ext);
             FreeDecodedCert(cert);
             WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
@@ -1172,7 +1170,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
         if (GetLength(input, &tmpIdx, &length, (word32)sz) <= 0) {
             WOLFSSL_MSG("Error: Invalid Input Length.");
-            wolfSSL_ASN1_OBJECT_free(ext->obj);
             wolfSSL_X509_EXTENSION_free(ext);
             FreeDecodedCert(cert);
             WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
