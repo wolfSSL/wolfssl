@@ -1121,3 +1121,200 @@ int test_tls12_peerauth_failsafe(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+/* Cipher-name substrings that need extra setup (PSK callback, ECDSA cert,
+ * SRP, etc.) which the default test_memio_setup() doesn't provide. */
+static int record_size_skip_cipher(const char *name)
+{
+    /* "ECDH-" matches static-ECDH ciphers ("ECDH-RSA-*", "ECDH-ECDSA-*")
+     * and not ECDHE-* because of the trailing '-'. */
+    static const char* const deny[] = {
+        "PSK", "SRP", "ANON", "NULL", "ECDSA", "ECDH-", "SM"
+    };
+    size_t i;
+    for (i = 0; i < XELEM_CNT(deny); i++) {
+        if (XSTRSTR(name, deny[i]) != NULL)
+            return 1;
+    }
+    return 0;
+}
+
+/* Cross-check wolfssl_local_GetRecordSize() against BuildMessage(sizeOnly=1)
+ * with the cache cold, then call it a second time and assert both calls
+ * return the same size - that exercises the cached path for AEAD ciphers
+ * without duplicating the BuildMessage arithmetic. */
+static int record_size_check_ssl(WOLFSSL *ssl)
+{
+    EXPECT_DECLS;
+    static const int payloads[] = { 1, 16, 256, 1300, 4096 };
+    size_t k;
+
+    for (k = 0; k < XELEM_CNT(payloads); k++) {
+        int payloadSz = payloads[k];
+        int expectedSz = BuildMessage(ssl, NULL, 0, NULL, payloadSz,
+            application_data, 0, 1, 0, CUR_ORDER);
+        int firstSz, secondSz;
+
+        ssl->recordSzOverhead = 0;
+        firstSz = wolfssl_local_GetRecordSize(ssl, payloadSz, 1);
+        secondSz = wolfssl_local_GetRecordSize(ssl, payloadSz, 1);
+        ExpectIntEQ(firstSz, expectedSz);
+        ExpectIntEQ(secondSz, expectedSz);
+    }
+    return EXPECT_RESULT();
+}
+
+/* Returns 1 if `suite` is selectable for the given client/server method
+ * pair, 0 otherwise. wolfSSL rejects some ciphers for DTLS at
+ * set_cipher_list time (e.g. RFC 7465 forbids RC4 in DTLS); skip those
+ * silently rather than failing the cross-check. */
+static int record_size_cipher_selectable(method_provider client_method,
+        method_provider server_method, const char *suite)
+{
+    WOLFSSL_CTX *ctx_c = wolfSSL_CTX_new(client_method());
+    WOLFSSL_CTX *ctx_s = wolfSSL_CTX_new(server_method());
+    int ok = (ctx_c != NULL && ctx_s != NULL &&
+              wolfSSL_CTX_set_cipher_list(ctx_c, suite) == WOLFSSL_SUCCESS &&
+              wolfSSL_CTX_set_cipher_list(ctx_s, suite) == WOLFSSL_SUCCESS);
+    if (ctx_c) wolfSSL_CTX_free(ctx_c);
+    if (ctx_s) wolfSSL_CTX_free(ctx_s);
+    return ok;
+}
+
+/* Run the cross-check on a memio pair using the given (de)multiplexing
+ * methods and cipher suite. Optionally enable DTLS-CID with peer CIDs of
+ * different sizes so the test covers CID-extended record framing. */
+static int record_size_run_pair(method_provider client_method,
+        method_provider server_method, const char *suite, int useCid)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    (void)useCid;
+    if (!record_size_cipher_selectable(client_method, server_method, suite))
+        return TEST_SUCCESS; /* not valid for this protocol -- skip */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = suite;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            client_method, server_method), 0);
+#ifdef WOLFSSL_DTLS_CID
+    if (useCid) {
+        /* Different sizes on each side to exercise asymmetric framing. */
+        static unsigned char client_cid[] = { 1, 2, 3, 4, 5, 6 };
+        static unsigned char server_cid[] = { 7, 8, 9 };
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid,
+                sizeof(server_cid)), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid,
+                sizeof(client_cid)), 1);
+    }
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 30, NULL), 0);
+    ExpectIntEQ(record_size_check_ssl(ssl_c), TEST_SUCCESS);
+    ExpectIntEQ(record_size_check_ssl(ssl_s), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+
+int test_record_size_matches_build_message(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    const CipherSuiteInfo *suites = GetCipherNames();
+    int n = GetCipherNamesSize();
+    int i;
+
+    for (i = 0; i < n; i++) {
+        const char *name = suites[i].name;
+        /* Names prefixed "TLS13-" are TLS 1.3 suites regardless of
+         * cipherSuite0, which may be either TLS13_BYTE or ECC_BYTE (for
+         * the integrity-only TLS_SHA*_SHA* suites). */
+        int isTls13 = (XSTRNCMP(name, "TLS13-", 6) == 0);
+        if (record_size_skip_cipher(name))
+            continue;
+
+        if (isTls13) {
+#ifdef WOLFSSL_TLS13
+            ExpectIntEQ(record_size_run_pair(wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method, name, 0), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_3_client_method,
+                    wolfDTLSv1_3_server_method, name, 0), TEST_SUCCESS);
+#if defined(WOLFSSL_DTLS_CID)
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_3_client_method,
+                    wolfDTLSv1_3_server_method, name, 1), TEST_SUCCESS);
+#endif
+#endif
+        }
+        else {
+#ifndef WOLFSSL_NO_TLS12
+            ExpectIntEQ(record_size_run_pair(wolfTLSv1_2_client_method,
+                    wolfTLSv1_2_server_method, name, 0), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method, name, 0), TEST_SUCCESS);
+#if defined(WOLFSSL_DTLS_CID)
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method, name, 1), TEST_SUCCESS);
+#endif
+#endif
+        }
+    }
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+    return EXPECT_RESULT();
+}
+
+int test_record_size_cache_invalidated_on_renegotiation(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte readBuf[16];
+    int sz;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    sz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+    ExpectIntEQ(sz, BuildMessage(ssl_c, NULL, 0, NULL, 256,
+            application_data, 0, 1, 0, CUR_ORDER));
+    ExpectIntNE(ssl_c->recordSzOverhead, 0);
+
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* SetKeysSide() during renegotiation must have cleared the cache. */
+    sz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+    ExpectIntEQ(sz, BuildMessage(ssl_c, NULL, 0, NULL, 256,
+            application_data, 0, 1, 0, CUR_ORDER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
