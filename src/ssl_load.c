@@ -325,6 +325,13 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         while ((ret == 0) && (consumed < sz)) {
             DerBuffer* part = NULL;
 
+            /* Enforce maximum chain depth. */
+            if (cnt >= MAX_CHAIN_DEPTH) {
+                WOLFSSL_MSG("Chain depth limit reached");
+                ret = MAX_CHAIN_ERROR;
+                break;
+            }
+
             /* Get a certificate as DER. */
             ret = DataToDerBuffer(buff + consumed, (word32)(sz - consumed),
                 format, type, info, heap, &part, NULL);
