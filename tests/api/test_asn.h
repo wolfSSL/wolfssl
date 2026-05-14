@@ -34,6 +34,10 @@ int test_wc_DecodeRsaPssParams(void);
 int test_SerialNumber0_RootCA(void);
 int test_DecodeAltNames_length_underflow(void);
 int test_wc_DecodeObjectId(void);
+int test_ToTraditional_ex_handcrafted(void);
+int test_ToTraditional_ex_roundtrip(void);
+int test_ToTraditional_ex_negative(void);
+int test_ToTraditional_ex_mldsa_bad_params(void);
 
 #define TEST_ASN_DECLS                                              \
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
@@ -45,6 +49,10 @@ int test_wc_DecodeObjectId(void);
     TEST_DECL_GROUP("asn", test_wc_DecodeRsaPssParams),             \
     TEST_DECL_GROUP("asn", test_SerialNumber0_RootCA),              \
     TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow),   \
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId)
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
+    TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
+    TEST_DECL_GROUP("asn", test_ToTraditional_ex_negative),         \
+    TEST_DECL_GROUP("asn", test_ToTraditional_ex_mldsa_bad_params)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */

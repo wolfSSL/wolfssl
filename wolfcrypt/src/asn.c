@@ -8743,9 +8743,8 @@ int wc_RsaPrivateKeyValidate(const byte* input, word32* inOutIdx, int* keySz,
 #endif /* NO_RSA */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN.1 template for a PKCS #8 key.
- * Ignoring optional attributes and public key.
- * PKCS #8: RFC 5958, 2 - PrivateKeyInfo
+/* ASN.1 template for a PKCS #8 PrivateKeyInfo / RFC 5958 OneAsymmetricKey.
+ * Includes the optional [0] attributes and [1] publicKey trailing fields.
  */
 static const ASNItem pkcs8KeyASN[] = {
 /*  SEQ                 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
@@ -8758,9 +8757,10 @@ static const ASNItem pkcs8KeyASN[] = {
 /*  PKEY_ALGO_PARAM_SEQ */            { 2, ASN_SEQUENCE, 1, 0, 1 },
 #endif
 /*  PKEY_DATA           */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-/*  OPTIONAL Attributes IMPLICIT [0] */
+/*  Attributes [0] OPTIONAL */
                                   { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
-/* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
+/*  publicKey [1] OPTIONAL */
+                                  { 1, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
 };
 enum {
     PKCS8KEYASN_IDX_SEQ = 0,
@@ -8774,6 +8774,7 @@ enum {
 #endif
     PKCS8KEYASN_IDX_PKEY_DATA,
     PKCS8KEYASN_IDX_PKEY_ATTRIBUTES,
+    PKCS8KEYASN_IDX_PKEY_PUBKEY,
     WOLF_ENUM_DUMMY_LAST_ELEMENT(PKCS8KEYASN_IDX)
 };
 
@@ -8833,11 +8834,13 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
         /* Key type OID. */
         oid = dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY].data.oid.sum;
 
-        /* Version 1 includes an optional public key.
-         * If public key is included then the parsing will fail as it did not
-         * use all the data.
-         */
+        /* Only v1(0) and v2(1) are supported (RFC 5958). The [1] publicKey
+         * trailer is permitted only when version == v1. */
         if (version > PKCS8v1) {
+            ret = ASN_PARSE_E;
+        }
+        else if ((version < PKCS8v1) &&
+                 (dataASN[PKCS8KEYASN_IDX_PKEY_PUBKEY].tag != 0)) {
             ret = ASN_PARSE_E;
         }
     }
@@ -8935,9 +8938,71 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
                 }
                 break;
         #endif
-            /* DSAk not supported. */
-            /* Falcon, Dilithium and SLH-DSA not supported. */
-            /* Ignore OID lookup failures. */
+        #ifdef HAVE_FALCON
+            case FALCON_LEVEL1k:
+            case FALCON_LEVEL5k:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef HAVE_DILITHIUM
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+            case DILITHIUM_LEVEL2k:
+            case DILITHIUM_LEVEL3k:
+            case DILITHIUM_LEVEL5k:
+            #endif
+            case ML_DSA_LEVEL2k:
+            case ML_DSA_LEVEL3k:
+            case ML_DSA_LEVEL5k:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef WOLFSSL_HAVE_SLHDSA
+            case SLH_DSA_SHA2_128Sk:
+            case SLH_DSA_SHA2_128Fk:
+            case SLH_DSA_SHA2_192Sk:
+            case SLH_DSA_SHA2_192Fk:
+            case SLH_DSA_SHA2_256Sk:
+            case SLH_DSA_SHA2_256Fk:
+            case SLH_DSA_SHAKE_128Sk:
+            case SLH_DSA_SHAKE_128Fk:
+            case SLH_DSA_SHAKE_192Sk:
+            case SLH_DSA_SHAKE_192Fk:
+            case SLH_DSA_SHAKE_256Sk:
+            case SLH_DSA_SHAKE_256Fk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef WOLFSSL_HAVE_LMS
+            case HSS_LMSk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef WOLFSSL_HAVE_XMSS
+            case XMSSk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+            /* Other OIDs (DSAk), no parameter validation. */
             default:
                 break;
         }
@@ -9037,9 +9102,9 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         int algoID, const byte* curveOID, word32 oidSz)
 {
-    /* pkcs8KeyASN_Length-1, the -1 is because we are not adding the optional
-     * set of attributes */
-    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1);
+    /* pkcs8KeyASN_Length-2, the -2 is because we are not adding the optional
+     * set of attributes or publicKey */
+    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length-2);
     word32 sz = 0;
     int ret = 0;
     word32 keyIdx = 0;
@@ -9066,7 +9131,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 #endif
 
     if (ret == 0)
-        CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
+        CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-2, ret, NULL);
 
     if (ret == 0) {
         /* Only support default PKCS #8 format - v0. */
@@ -9092,7 +9157,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_DATA], key, keySz);
 
         /* Get the size of the DER encoding. */
-        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, &sz);
+        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-2, &sz);
     }
     if ((ret == 0) || (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E))) {
         /* Always return the calculated size. */
@@ -9105,7 +9170,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     }
     if (ret == 0) {
         /*  Encode PKCS #8 key into buffer. */
-        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, out);
+        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-2, out);
         ret = (int)sz;
     }
 
