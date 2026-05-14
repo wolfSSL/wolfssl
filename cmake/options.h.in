@@ -38,6 +38,9 @@ extern "C" {
 #undef _POSIX_THREADS
 #cmakedefine _POSIX_THREADS
 #endif
+/* Since types.h depends on HAVE_LIMITS_H, we must define it in options.h. */
+#undef HAVE_LIMITS_H
+#cmakedefine HAVE_LIMITS_H @HAVE_LIMITS_H@
 #undef ASIO_USE_WOLFSSL
 #cmakedefine ASIO_USE_WOLFSSL
 #undef BOOST_ASIO_USE_WOLFSSL
