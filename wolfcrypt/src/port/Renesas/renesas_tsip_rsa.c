@@ -251,7 +251,7 @@ static int tsip_RsakeyImport(TsipUserCtx* tuc)
  */
 int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
-    int ret;
+    int ret = CRYPTOCB_UNAVAILABLE;
     int keySize;
     int type;
     tsip_rsa_byte_data_t plain, cipher;
@@ -320,6 +320,9 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 if (ret == 0) {
                     *(info->pk.rsa.outLen) = plain.data_length;
                 }
+            }
+            else {
+                ret = CRYPTOCB_UNAVAILABLE;
             }
             tsip_hw_unlock();
         }

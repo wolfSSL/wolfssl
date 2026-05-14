@@ -284,3 +284,28 @@ int test_wc_Rc2Cbc_MonteCarlo(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/*
+ * Testing function for wc_Rc2Free().
+ */
+int test_wc_Rc2Free(void)
+{
+    EXPECT_DECLS;
+#ifdef WC_RC2
+    Rc2  rc2;
+    byte key[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+    byte iv[]  = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
+    byte zero[sizeof(rc2)];
+
+    XMEMSET(&rc2, 0, sizeof(rc2));
+    XMEMSET(zero, 0, sizeof(zero));
+
+    wc_Rc2Free(NULL);
+
+    ExpectIntEQ(wc_Rc2SetKey(&rc2, key, (word32)sizeof(key), iv, 40), 0);
+    ExpectIntNE(XMEMCMP(&rc2, zero, sizeof(rc2)), 0);
+    wc_Rc2Free(&rc2);
+    ExpectIntEQ(XMEMCMP(&rc2, zero, sizeof(rc2)), 0);
+#endif
+    return EXPECT_RESULT();
+}

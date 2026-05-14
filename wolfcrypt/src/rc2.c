@@ -348,5 +348,13 @@ int wc_Rc2CbcDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 }
 
 
+void wc_Rc2Free(Rc2* rc2)
+{
+    if (rc2 == NULL)
+        return;
+    ForceZero(rc2, sizeof(Rc2));
+}
+
+
 #endif /* WC_RC2 */
 

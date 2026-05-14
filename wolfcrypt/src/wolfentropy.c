@@ -495,6 +495,10 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
     int ret = 0;
     int locked = 0;
 
+    if (raw == NULL || cnt <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef HAVE_FIPS
     if (!entropy_memuse_initialized) {
         ret = Entropy_Init();
@@ -809,10 +813,16 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
 int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
+    int noise_len;
+    static byte noise[MAX_NOISE_CNT];
+
+    if (bits <= 0 || (entropy == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* Noise length is the number of 8 byte samples required to get the bits of
      * entropy requested. */
-    int noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
-    static byte noise[MAX_NOISE_CNT];
+    noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
 
 #ifdef HAVE_FIPS
     /* FIPS KATs, e.g. EccPrimitiveZ_KnownAnswerTest(), call wc_Entropy_Get()
