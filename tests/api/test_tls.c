@@ -1062,6 +1062,32 @@ int test_tls12_corrupted_finished(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_get_shared_ciphers(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    char         buf[32];
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectNull(wolfSSL_get_shared_ciphers(NULL, buf, sizeof(buf)));
+    ExpectNull(wolfSSL_get_shared_ciphers(ssl, NULL, sizeof(buf)));
+    ExpectNull(wolfSSL_get_shared_ciphers(ssl, buf, 0));
+#ifndef NO_ERROR_STRINGS
+    ExpectPtrEq(wolfSSL_get_shared_ciphers(ssl, buf, sizeof(buf)), buf);
+#else
+    ExpectNull(wolfSSL_get_shared_ciphers(ssl, buf, sizeof(buf)));
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test the TLS 1.2 peerAuthGood fail-safe checks directly on both sides.
  * The client branch sets NO_PEER_VERIFY; the server branch returns a generic
  * fatal error from TICKET_SENT before sending its Finished. */
