@@ -38086,6 +38086,30 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             ssl->options.resuming = 0;
             return ret;
         }
+#if defined(HAVE_SESSION_TICKET) && \
+    (defined(HAVE_SNI) || defined(HAVE_ALPN))
+        /* Do not resume session if sniHash/alpnHash do not match. */
+        if (!ssl->options.useTicket) {
+            byte curHash[TICKET_BINDING_HASH_SZ];
+#ifdef HAVE_SNI
+            if (TicketSniHash(ssl, curHash) != 0 ||
+                    XMEMCMP(curHash, session->sniHash,
+                            TICKET_BINDING_HASH_SZ) != 0) {
+                WOLFSSL_MSG("Resumed session SNI mismatch, full handshake");
+                ssl->options.resuming = 0;
+            }
+#endif
+#ifdef HAVE_ALPN
+            if (ssl->options.resuming &&
+                    (TicketAlpnHash(ssl, curHash) != 0 ||
+                     XMEMCMP(curHash, session->alpnHash,
+                             TICKET_BINDING_HASH_SZ) != 0)) {
+                WOLFSSL_MSG("Resumed session ALPN mismatch, full handshake");
+                ssl->options.resuming = 0;
+            }
+#endif
+        }
+#endif /* HAVE_SESSION_TICKET && (HAVE_SNI || HAVE_ALPN) */
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
         if (LowResTimer() > session->bornOn + ssl->timeout) {
@@ -39450,7 +39474,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #ifdef HAVE_SNI
     /* Hash server-selected SNI; zeros dst when none. */
-    static int TicketSniHash(WOLFSSL* ssl, byte* dst)
+    int TicketSniHash(WOLFSSL* ssl, byte* dst)
     {
         char* name = NULL;
         word16 nameLen;
@@ -39470,16 +39494,23 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #ifdef HAVE_ALPN
     /* Hash negotiated ALPN; zeros dst when none. */
-    static int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
+    int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
     {
-        char* proto = NULL;
-        word16 protoLen = 0;
+        TLSX* extension;
+        ALPN* alpn;
 
-        if (TLSX_ALPN_GetRequest(ssl->extensions, (void**)&proto,
-                                 &protoLen) == WOLFSSL_SUCCESS &&
-                proto != NULL && protoLen > 0) {
-            return wc_Hash(TICKET_BINDING_HASH_TYPE, (const byte*)proto,
-                           protoLen, dst, TICKET_BINDING_HASH_SZ);
+        extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
+        if (extension != NULL) {
+            alpn = (ALPN*)extension->data;
+            if (alpn != NULL && alpn->negotiated == 1 &&
+                    alpn->protocol_name != NULL) {
+                word32 protoLen = (word32)XSTRLEN(alpn->protocol_name);
+                if (protoLen > 0) {
+                    return wc_Hash(TICKET_BINDING_HASH_TYPE,
+                                   (const byte*)alpn->protocol_name,
+                                   protoLen, dst, TICKET_BINDING_HASH_SZ);
+                }
+            }
         }
 
         XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
