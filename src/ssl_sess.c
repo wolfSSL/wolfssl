@@ -2698,6 +2698,16 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #ifdef HAVE_SESSION_TICKET
     /* ticket len | ticket */
     size += OPAQUE16_LEN + sess->ticketLen;
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+#ifdef HAVE_SNI
+    /* sniHash */
+    size += TICKET_BINDING_HASH_SZ;
+#endif
+#ifdef HAVE_ALPN
+    /* alpnHash */
+    size += TICKET_BINDING_HASH_SZ;
+#endif
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
 
     if (p != NULL) {
@@ -2783,6 +2793,16 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         c16toa(sess->ticketLen, data + idx); idx += OPAQUE16_LEN;
         XMEMCPY(data + idx, sess->ticket, sess->ticketLen);
         idx += sess->ticketLen;
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+#ifdef HAVE_SNI
+        XMEMCPY(data + idx, sess->sniHash, TICKET_BINDING_HASH_SZ);
+        idx += TICKET_BINDING_HASH_SZ;
+#endif
+#ifdef HAVE_ALPN
+        XMEMCPY(data + idx, sess->alpnHash, TICKET_BINDING_HASH_SZ);
+        idx += TICKET_BINDING_HASH_SZ;
+#endif
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
     }
 #endif
@@ -3069,6 +3089,26 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     XMEMCPY(s->ticket, data + idx, s->ticketLen); idx += s->ticketLen;
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+#ifdef HAVE_SNI
+    /* sniHash - SNI binding for stateful resumption (RFC 6066 section 3) */
+    if (i - idx < TICKET_BINDING_HASH_SZ) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    XMEMCPY(s->sniHash, data + idx, TICKET_BINDING_HASH_SZ);
+    idx += TICKET_BINDING_HASH_SZ;
+#endif
+#ifdef HAVE_ALPN
+    /* alpnHash - ALPN binding for stateful resumption */
+    if (i - idx < TICKET_BINDING_HASH_SZ) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    XMEMCPY(s->alpnHash, data + idx, TICKET_BINDING_HASH_SZ);
+    idx += TICKET_BINDING_HASH_SZ;
+#endif
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif
     (void)idx;
 
@@ -3647,6 +3687,23 @@ void SetupSession(WOLFSSL* ssl)
         session->sessionCtxSz = ssl->sessionCtxSz;
     }
 #endif
+#if defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+    /* Bind the current SNI/ALPN to the session so that a later resumption
+     * via the stateful session-ID cache (no ticket) can be rejected when
+     * the resumed ClientHello carries a different SNI/ALPN. RFC 6066 section 3
+     * requires "MUST NOT accept the request to resume the session if the
+     * server_name extension contains a different name". CreateTicket()
+     * overwrites these with the same values for the ticket path.  The
+     * NO_WOLFSSL_SERVER/NO_TLS gates match the gates around TicketSniHash /
+     * TicketAlpnHash in internal.c. */
+#ifdef HAVE_SNI
+    (void)TicketSniHash(ssl, session->sniHash);
+#endif
+#ifdef HAVE_ALPN
+    (void)TicketAlpnHash(ssl, session->alpnHash);
+#endif
+#endif /* HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER && !NO_TLS */
     session->timeout = ssl->timeout;
 #ifndef NO_ASN_TIME
     session->bornOn  = LowResTimer();
