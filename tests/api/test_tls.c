@@ -1128,9 +1128,11 @@ int test_tls12_peerauth_failsafe(void)
 static int record_size_skip_cipher(const char *name)
 {
     /* "ECDH-" matches static-ECDH ciphers ("ECDH-RSA-*", "ECDH-ECDSA-*")
-     * and not ECDHE-* because of the trailing '-'. */
+     * and not ECDHE-* because of the trailing '-'. RENEGOTIATION-INFO is the
+     * TLS_EMPTY_RENEGOTIATION_INFO_SCSV signaling value, not a real cipher. */
     static const char* const deny[] = {
-        "PSK", "SRP", "ANON", "NULL", "ECDSA", "ECDH-", "SM"
+        "PSK", "SRP", "ANON", "NULL", "ECDSA", "ECDH-", "SM",
+        "RENEGOTIATION-INFO"
     };
     size_t i;
     for (i = 0; i < XELEM_CNT(deny); i++) {
