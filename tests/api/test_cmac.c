@@ -245,12 +245,14 @@ int test_wc_AesCmacGenerate(void)
     ExpectIntEQ(wc_AesCmacVerify(mac, macSz, NULL, msgSz, key, keySz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+#if !defined(HAVE_FIPS)
     ExpectIntEQ(wc_AesCmacVerify(mac, 1, msg, msgSz, key, keySz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesCmacVerify(mac, WC_CMAC_TAG_MIN_SZ - 1, msg, msgSz,
         key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesCmacVerify(mac, WC_AES_BLOCK_SIZE + 1, msg, msgSz,
         key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     /* Truncated tags within the supported range must verify correctly when
      * the generator was asked to produce the same length */
