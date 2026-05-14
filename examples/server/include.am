@@ -9,6 +9,11 @@ noinst_HEADERS += examples/server/server.h
 examples_server_server_SOURCES      = examples/server/server.c
 examples_server_server_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
 examples_server_server_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+if BUILD_SWDEV
+examples_server_server_SOURCES     += tests/swdev/swdev_loader.c
+examples_server_server_LDADD       += $(top_builddir)/tests/swdev/build/swdev.o $(LIBM)
+examples_server_server_DEPENDENCIES += $(top_builddir)/tests/swdev/build/swdev.o
+endif
 examples_server_server_CFLAGS = $(WOLFSENTRY_INCLUDE) $(AM_CFLAGS)
 endif
 EXTRA_DIST += examples/server/server.sln

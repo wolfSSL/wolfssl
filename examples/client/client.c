@@ -51,6 +51,10 @@ static const char *wolfsentry_config_path = NULL;
 #include <wolfssl/test.h>
 #include <wolfssl/error-ssl.h>
 
+#ifdef WOLFSSL_SWDEV
+    #include "tests/swdev/swdev_loader.h"
+#endif
+
 #ifdef USE_FLAT_TEST_H
     #include "client.h"
 #else
@@ -5062,6 +5066,12 @@ exit:
         wolfSSL_Debugging_ON();
 #endif
         wolfSSL_Init();
+#ifdef WOLFSSL_SWDEV
+        if (wc_SwDev_Init() != 0) {
+            fprintf(stderr, "wc_SwDev_Init failed\n");
+            return EXIT_FAILURE;
+        }
+#endif
         ChangeToWolfRoot();
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
@@ -5072,6 +5082,9 @@ exit:
 #endif
 #else
         fprintf(stderr, "Client not compiled in!\n");
+#endif
+#ifdef WOLFSSL_SWDEV
+        wc_SwDev_Cleanup();
 #endif
         wolfSSL_Cleanup();
 

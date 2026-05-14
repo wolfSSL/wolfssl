@@ -1008,7 +1008,8 @@ int SuiteTest(int argc, char** argv)
 {
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && !defined(SINGLE_THREADED) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    (defined(WOLFSSL_SWDEV) || \
+     (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)))
     func_args args;
     char argv0[3][80];
     char* myArgv[3];
