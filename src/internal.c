@@ -16757,6 +16757,36 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                         ssl->peerVerifyRet = WOLFSSL_X509_V_OK;
                 #endif
+
+                #if defined(HAVE_RPK) && (defined(OPENSSL_EXTRA) || \
+                    defined(OPENSSL_EXTRA_X509_SMALL))
+                    /* A Raw Public Key cert (RFC 7250) has no issuer and no
+                     * signature, so ParseCertRelative performed no peer
+                     * authentication. Unless an out-of-band trust mechanism
+                     * (DANE, key pinning, etc.) has bound this key, report the
+                     * peer as unauthenticated through wolfSSL_get_verify_result()
+                     * rather than leaving it at WOLFSSL_X509_V_OK. The handshake
+                     * is intentionally not failed here: per RFC 7250 the
+                     * application is responsible for validating the key out of
+                     * band. Applies to both peers - client checking the
+                     * server's RPK and server checking the client's RPK.
+                     * WOLFSSL_VERIFY_NONE leaves the result untouched. */
+                    if (args->dCert->isRPK && !ssl->options.verifyNone) {
+                        int rpkTrusted = 0;
+                    #if defined(HAVE_DANE)
+                        if (ssl->options.useDANE) {
+                            /* DANE authentication should be added; set
+                             * rpkTrusted = 1 on a successful match. */
+                        }
+                    #endif /* HAVE_DANE */
+                        if (!rpkTrusted &&
+                                ssl->peerVerifyRet == WOLFSSL_X509_V_OK) {
+                            ssl->peerVerifyRet = (unsigned long)
+                                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED;
+                        }
+                    }
+                #endif /* HAVE_RPK && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
+
                 #if defined(SESSION_CERTS) && defined(WOLFSSL_ALT_CERT_CHAINS)
                     /* if using alternate chain, store the cert used */
                     if (ssl->options.usingAltCertChain) {
@@ -16775,17 +16805,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->options.side == WOLFSSL_SERVER_END) {
                 #if defined(HAVE_RPK)
                         if (args->dCert->isRPK) {
-                            /* to verify Raw Public Key cert, DANE(RFC6698)
-                             * should be introduced. Without DANE, no
-                             * authentication is performed.
-                             */
-                        #if defined(HAVE_DANE)
-                            if (ssl->useDANE) {
-                                /* DANE authentication should be added */
-                            }
-                        #endif /* HAVE_DANE */
+                            /* RPK certs carry no X.509 version; the RPK trust
+                             * check above already handled this cert. */
                         }
-                        else /* skip followingx509 version check */
+                        else /* skip following x509 version check */
                 #endif  /* HAVE_RPK */
                         if (args->dCert->version != WOLFSSL_X509_V3) {
                             WOLFSSL_MSG("Peers certificate was not version 3!");
@@ -27473,6 +27496,9 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
 
     case WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH:
         return "IP address mismatch";
+
+    case WOLFSSL_X509_V_ERR_RPK_UNTRUSTED:
+        return "raw public key not trusted";
 
     default:
         return NULL;

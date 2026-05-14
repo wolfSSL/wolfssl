@@ -2021,6 +2021,14 @@ int test_tls13_rpk_handshake(void)
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_UNKNOWN);
 
+    /* x509 handshake: peer cert was verified against a CA, so the verify
+     * result stays WOLFSSL_X509_V_OK. This is the contrast case for the
+     * RPK checks below. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c), WOLFSSL_X509_V_OK);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_s), WOLFSSL_X509_V_OK);
+#endif
+
     (void)typeCnt_c;
     (void)typeCnt_s;
 
@@ -2088,6 +2096,19 @@ int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    /* TLS1.3 RPK: an RPK cert (RFC 7250) has no issuer and no signature
+     * chain, so no peer authentication was performed. With WOLFSSL_VERIFY_PEER
+     * set and no out-of-band trust mechanism, wolfSSL_get_verify_result() must
+     * report the peer as unauthenticated rather than WOLFSSL_X509_V_OK. The
+     * handshake itself still completes - validating the key is the
+     * application's responsibility per RFC 7250. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_s),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -2157,6 +2178,15 @@ int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    /* TLS1.2 RPK: same as the TLS1.3 case above - no chain of trust, so the
+     * verify result must report the peer as unauthenticated. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_s),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
