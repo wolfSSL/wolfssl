@@ -5575,7 +5575,11 @@ int test_tls13_post_handshake_auth_no_ext(void)
      * one anyway by toggling the flag directly. */
     if (ssl_s != NULL)
         ssl_s->options.postHandshakeAuth = 1;
+    /* OPENSSL_COMPATIBLE_DEFAULTS may leave groupMessages set on ssl_s; that
+     * suppresses SendBuffered() for the post-handshake CertificateRequest. */
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_len, 0);
 
     /* The client must reject the unsolicited CertificateRequest. */
     ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
@@ -5626,7 +5630,11 @@ int test_tls13_post_handshake_auth_late_allow(void)
 
     if (ssl_s != NULL)
         ssl_s->options.postHandshakeAuth = 1;
+    /* OPENSSL_COMPATIBLE_DEFAULTS may leave groupMessages set on ssl_s; that
+     * suppresses SendBuffered() for the post-handshake CertificateRequest. */
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_len, 0);
 
     ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)),
         WOLFSSL_FATAL_ERROR);
