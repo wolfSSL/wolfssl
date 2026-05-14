@@ -47,6 +47,7 @@ int test_wolfSSL_BIO_set_conn_hostname(void);
 int test_wolfSSL_BIO_ctrl_pending_chain(void);
 int test_wolfSSL_BIO_meth_type_large(void);
 int test_wolfSSL_BIO_get_init(void);
+int test_wolfSSL_BIO_get_new_index(void);
 
 #define TEST_OSSL_BIO_DECLS                                       \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_gets),           \
@@ -66,7 +67,8 @@ int test_wolfSSL_BIO_get_init(void);
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_set_conn_hostname), \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_ctrl_pending_chain), \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_meth_type_large), \
-    TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_get_init)
+    TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_get_init), \
+    TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_get_new_index)
 
 #define TEST_OSSL_BIO_TLS_DECLS                                   \
     TEST_DECL_GROUP("ossl_bio_tls", test_wolfSSL_BIO_connect),    \
