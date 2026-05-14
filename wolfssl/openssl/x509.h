@@ -210,6 +210,9 @@
 #define X509_V_ERR_CA_CERT_MISSING_KEY_USAGE           92
 #define X509_V_ERR_EXTENSIONS_REQUIRE_VERSION_3        93
 #define X509_V_ERR_EC_KEY_EXPLICIT_PARAMS              94
+/* OpenSSL numbers this 91; that slot is already taken in wolfSSL, so the
+ * RPK-untrusted code is assigned the next free wolfSSL-specific value. */
+#define X509_V_ERR_RPK_UNTRUSTED                       95
 #define X509_R_CERT_ALREADY_IN_HASH_TABLE              101
 #define X509_R_KEY_VALUES_MISMATCH                     WC_KEY_MISMATCH_E
 
