@@ -942,7 +942,8 @@ static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    return d2i_make_pkey(out, NULL, 0, priv, WC_EVP_PKEY_DILITHIUM);
+    /* Copy the consumed DER into pkey->pkey.ptr when the input was DER */
+    return d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
 }
 #endif /* HAVE_DILITHIUM */
 
@@ -1696,6 +1697,10 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
     DerBuffer rawDer;
     EncryptedInfo info;
     int advanceLen = 0;
+#ifdef HAVE_DILITHIUM
+    word32 outerIdx = 0;
+    int    outerLen = 0;
+#endif
 
     /* Clear the encryption information and DER buffer. */
     XMEMSET(&info, 0, sizeof(info));
@@ -1737,10 +1742,31 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
             }
             if (algId == DHk) {
                 /* Special case for DH as we expect the DER buffer to be always
-                 * be in PKCS8 format */
+                 * in PKCS8 format */
                 rawDer.buffer = pkcs8Der->buffer;
                 rawDer.length = inOutIdx + (word32)ret;
             }
+        #ifdef HAVE_DILITHIUM
+            else if (
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+                (algId == DILITHIUM_LEVEL2k) ||
+                (algId == DILITHIUM_LEVEL3k) ||
+                (algId == DILITHIUM_LEVEL5k) ||
+            #endif
+                (algId == ML_DSA_LEVEL2k) ||
+                (algId == ML_DSA_LEVEL3k) ||
+                (algId == ML_DSA_LEVEL5k)) {
+
+                /* Keep full PKCS#8 wrapper for level recovery from
+                 * AlgorithmIdentifier parameters */
+                rawDer.buffer = pkcs8Der->buffer;
+                rawDer.length = inOutIdx + (word32)ret;
+                if (GetSequence(pkcs8Der->buffer, &outerIdx, &outerLen,
+                    pkcs8Der->length) >= 0) {
+                    rawDer.length = outerIdx + (word32)outerLen;
+                }
+            }
+        #endif
             else {
                 rawDer.buffer = pkcs8Der->buffer + inOutIdx;
                 rawDer.length = (word32)ret;

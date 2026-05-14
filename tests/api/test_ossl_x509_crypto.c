@@ -71,6 +71,108 @@ int test_wolfSSL_X509_check_private_key(void)
     return EXPECT_RESULT();
 }
 
+/* EVP_PKCS82PKEY() must populate pkey.ptr/pkey_sz for ML-DSA so
+ * X509_check_private_key() (wc_CheckPrivateKey) can redecode the DER, and
+ * d2i_PKCS8_PKEY() must keep the full PKCS#8 wrapper for ML-DSA level recovery
+ * from the AlgorithmIdentifier. */
+int test_wolfSSL_X509_check_private_key_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && !defined(NO_CHECK_PRIVATE_KEY) && \
+    defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)) && \
+    (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_65) || \
+     !defined(WOLFSSL_NO_ML_DSA_87))
+    static const struct {
+        const char* keyPath;
+        const char* certPath;
+        const char* mismatchCertPath;  /* NULL if no other level available */
+    } cases[] = {
+    #if !defined(WOLFSSL_NO_ML_DSA_44)
+        { "./certs/mldsa/mldsa44-key.pem",
+          "./certs/mldsa/mldsa44-cert.der",
+        #if !defined(WOLFSSL_NO_ML_DSA_65)
+          "./certs/mldsa/mldsa65-cert.der"
+        #elif !defined(WOLFSSL_NO_ML_DSA_87)
+          "./certs/mldsa/mldsa87-cert.der"
+        #else
+          NULL
+        #endif
+        },
+    #endif
+    #if !defined(WOLFSSL_NO_ML_DSA_65)
+        { "./certs/mldsa/mldsa65-key.pem",
+          "./certs/mldsa/mldsa65-cert.der",
+        #if !defined(WOLFSSL_NO_ML_DSA_87)
+          "./certs/mldsa/mldsa87-cert.der"
+        #elif !defined(WOLFSSL_NO_ML_DSA_44)
+          "./certs/mldsa/mldsa44-cert.der"
+        #else
+          NULL
+        #endif
+        },
+    #endif
+    #if !defined(WOLFSSL_NO_ML_DSA_87)
+        { "./certs/mldsa/mldsa87-key.pem",
+          "./certs/mldsa/mldsa87-cert.der",
+        #if !defined(WOLFSSL_NO_ML_DSA_44)
+          "./certs/mldsa/mldsa44-cert.der"
+        #elif !defined(WOLFSSL_NO_ML_DSA_65)
+          "./certs/mldsa/mldsa65-cert.der"
+        #else
+          NULL
+        #endif
+        },
+    #endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        PKCS8_PRIV_KEY_INFO* pt = NULL;
+        EVP_PKEY* pkey = NULL;
+        X509* x509 = NULL;
+        X509* mismatchX509 = NULL;
+        BIO* bio = NULL;
+        byte* buf = NULL;
+        size_t sz = 0;
+
+        ExpectIntEQ(load_file(cases[i].keyPath, &buf, &sz), 0);
+
+        ExpectNotNull(bio = BIO_new_mem_buf((void*)buf, (int)sz));
+        ExpectNotNull(pt = d2i_PKCS8_PRIV_KEY_INFO_bio(bio, NULL));
+
+        ExpectNotNull(pkey = EVP_PKCS82PKEY(pt));
+        if (pkey != NULL) {
+            ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
+            /* pkey.ptr must hold the DER so that X509_check_private_key() to
+             * wc_CheckPrivateKey() can re-decode it. */
+            ExpectNotNull(pkey->pkey.ptr);
+            ExpectIntGT(pkey->pkey_sz, 0);
+        }
+
+        ExpectNotNull(x509 = X509_load_certificate_file(
+            cases[i].certPath, SSL_FILETYPE_ASN1));
+        ExpectIntEQ(X509_check_private_key(x509, pkey), 1);
+
+        if (cases[i].mismatchCertPath != NULL) {
+            ExpectNotNull(mismatchX509 = X509_load_certificate_file(
+                cases[i].mismatchCertPath, SSL_FILETYPE_ASN1));
+            ExpectIntEQ(X509_check_private_key(mismatchX509, pkey), 0);
+        }
+
+        X509_free(mismatchX509);
+        X509_free(x509);
+        EVP_PKEY_free(pkey);
+        PKCS8_PRIV_KEY_INFO_free(pt);
+        BIO_free(bio);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_verify(void)
 {
     EXPECT_DECLS;
