@@ -941,6 +941,46 @@ WOLFSSL_API int wc_SetMutexCb(mutex_cb* cb);
 WOLFSSL_API mutex_cb* wc_GetMutexCb(void);
 #endif
 
+/* Internal APIs for counting initialization depth, with initialization/cleanup
+ * races fully mitigated
+ */
+#ifdef WOLFSSL_ATOMIC_OPS
+    typedef wolfSSL_Atomic_Uint wc_init_state_t;
+    #define WC_INIT_STATE_INITIALIZER WOLFSSL_ATOMIC_INITIALIZER(0)
+#else
+    typedef unsigned int wc_init_state_t;
+    #define WC_INIT_STATE_INITIALIZER 0
+#endif
+#define WC_DECLARE_INIT_STATE(x) wc_init_state_t x = WC_INIT_STATE_INITIALIZER
+#define WC_INIT_STATE_UNINITED 0U
+#define WC_INIT_STATE_INITING 1U
+#define WC_INIT_STATE_INITED 2U
+#define WC_INIT_STATE_CLEANING_UP 3U
+#define WC_INIT_STATE_BAD_STATE 4U
+union wc_init_state_bitfields {
+    unsigned int u;
+    struct {
+        unsigned int state:3;
+        unsigned int count:29;
+    } c;
+};
+/* Modules with no provisions for cleanup after a partially successful init need
+ * to enter a degraded state, returning BAD_STATE_E to the caller, signaling
+ * that restart is needed.  This macro should only be called while
+ * _STATE_INITING (after wc_local_InitUp() returns _STATE_INITING and before
+ * wc_local_InitUpDone()), to assure the store is uncontended.
+ */
+#define WC_INIT_STATE_RAISE_BAD_STATE(x) do {                     \
+        union wc_init_state_bitfields _x;                         \
+        _x.u = WOLFSSL_ATOMIC_LOAD(x);                            \
+        _x.c.state = WC_INIT_STATE_BAD_STATE;                     \
+        WOLFSSL_ATOMIC_STORE(x, _x.u);                            \
+    } while (0)
+WOLFSSL_LOCAL int wc_local_InitUp(wc_init_state_t *s, int doWait);
+WOLFSSL_LOCAL int wc_local_InitUpDone(wc_init_state_t *s);
+WOLFSSL_LOCAL int wc_local_InitDown(wc_init_state_t *s, int doWait);
+WOLFSSL_LOCAL int wc_local_InitDownDone(wc_init_state_t *s);
+
 /* main crypto initialization function */
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Init(void);
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
