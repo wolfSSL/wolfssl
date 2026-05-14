@@ -9,6 +9,7 @@ on:
 jobs:
   post-comment:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     # Run the comment job even if some of the builds fail
     if: >
       github.event.workflow_run.event == 'pull_request' &&

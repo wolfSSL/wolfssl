@@ -12,6 +12,7 @@ on:
 jobs:
   load-targets:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -25,6 +26,7 @@ jobs:
   onboard:
     needs: load-targets
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +40,9 @@ jobs:
           submodules: recursive
 
       - name: Install packages
-        run: ${{ matrix.setup_cmd }}
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: ${{ matrix.apt_packages }}
 
       - name: Run Membrowse Onboard Action
         uses: membrowse/membrowse-action/onboard-action@v1
