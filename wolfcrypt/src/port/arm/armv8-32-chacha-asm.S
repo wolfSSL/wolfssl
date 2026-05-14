@@ -812,24 +812,30 @@ L_chacha_crypt_bytes_arm32_round_start_256:
 	# Load and XOR in message
 	ldr	lr, [sp, #32]
 	ldr	r3, [sp, #36]
-	vldm	lr!, {q8-q11}
+	vld1.8	{q8-q9}, [lr]!
+	vld1.8	{q10-q11}, [lr]!
 	veor	q12, q12, q8
 	veor	q13, q13, q9
 	veor	q14, q14, q10
 	veor	q15, q15, q11
-	vstm	r3!, {q12-q15}
-	vldm	lr!, {q8-q11}
+	vst1.8	{q12-q13}, [r3]!
+	vst1.8	{q14-q15}, [r3]!
+	vld1.8	{q8-q9}, [lr]!
+	vld1.8	{q10-q11}, [lr]!
 	veor	q0, q0, q8
 	veor	q1, q1, q9
 	veor	q2, q2, q10
 	veor	q3, q3, q11
-	vstm	r3!, {q0-q3}
-	vldm	lr!, {q8-q11}
+	vst1.8	{q0-q1}, [r3]!
+	vst1.8	{q2-q3}, [r3]!
+	vld1.8	{q8-q9}, [lr]!
+	vld1.8	{q10-q11}, [lr]!
 	veor	q4, q4, q8
 	veor	q5, q5, q9
 	veor	q6, q6, q10
 	veor	q7, q7, q11
-	vstm	r3!, {q4-q7}
+	vst1.8	{q4-q5}, [r3]!
+	vst1.8	{q6-q7}, [r3]!
 	str	r3, [sp, #36]
 	ldr	r3, [sp, #24]
 	add	r10, r10, #3
@@ -849,7 +855,8 @@ L_chacha_crypt_bytes_arm32_round_start_256:
 	vmov	d7, r12, lr
 	ldr	r3, [sp, #40]
 	vldm	r0, {q12-q15}
-	vldm	r2!, {q4-q7}
+	vld1.8	{q4-q5}, [r2]!
+	vld1.8	{q6-q7}, [r2]!
 	vadd.i32	q0, q0, q12
 	vadd.i32	q1, q1, q13
 	vadd.i32	q2, q2, q14
@@ -860,7 +867,8 @@ L_chacha_crypt_bytes_arm32_round_start_256:
 	add	lr, lr, #4
 	veor	q2, q2, q6
 	veor	q3, q3, q7
-	vstm	r1!, {q0-q3}
+	vst1.8	{q0-q1}, [r1]!
+	vst1.8	{q2-q3}, [r1]!
 	vmov	d30[0], lr
 	str	lr, [r0, #48]
 	sub	r3, r3, #0x100
