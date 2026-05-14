@@ -74,6 +74,8 @@ pub mod mlkem_kem;
 pub mod prf;
 pub mod random;
 pub mod rsa;
+#[cfg(rsa_oaep)]
+pub mod rsa_oaep;
 #[cfg(feature = "signature")]
 pub mod rsa_pkcs1v15;
 pub mod sha;
