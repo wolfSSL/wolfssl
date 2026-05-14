@@ -1,0 +1,1097 @@
+name: SBOM Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+# Defence-in-depth: the workflow does no API writes (no `gh pr`, no
+# `git push`, no release upload), so the practical risk of the default
+# read-write GITHUB_TOKEN on push events is zero today.  Setting
+# `contents: read` at workflow level is GitHub's documented hardening
+# recommendation for SBOM-producing supply-chain workflows: a future
+# step that accidentally introduces a write call will fail loudly
+# rather than silently mutate the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  # Tier 1 - pure-Python unit tests for scripts/gen-sbom.
+  # No build, no autotools, no external deps.  Runs in seconds and is the
+  # cheapest gate for licence/UUID/timestamp logic regressions.
+  unit:
+    name: gen-sbom unit tests
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check
+        run: python3 -m py_compile scripts/gen-sbom
+
+      - name: Install pcpp
+        # pcpp is the in-Python C preprocessor that drives the
+        # standalone --user-settings entry point.  TestParseUserSettings
+        # previously skipped here when pcpp was missing, leaving the
+        # entire embedded entry point unverified at the cheapest CI
+        # gate.  The setUp now hard-fails on missing pcpp; this step
+        # ensures it is present so all unit tests actually run.
+        # Pinned to match the convention used elsewhere in this file
+        # (spdx-tools==0.8.*, ntia-conformance-checker==5.*) so a pcpp
+        # release that changes macro-expansion or noise semantics does
+        # not silently shift SBOM build_props on master.
+        run: |
+          python3 -m pip install --user 'pcpp==1.30.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Unit tests
+        run: python3 -W error::ResourceWarning -m unittest scripts/test_gen_sbom.py -v
+
+  # Tier 2 (standalone) - the embedded entry point: gen-sbom invoked
+  # directly without autotools, against a real wolfSSL user_settings.h
+  # plus a representative source set.  Mirrors how a Keil / IAR /
+  # STM32CubeIDE / ESP-IDF / Zephyr customer would call it from a
+  # post-build step.  Without this job the standalone path would only
+  # be exercised by hand and a regression in --user-settings,
+  # --srcs, or --dep-version handling would silently land.
+  standalone:
+    name: SBOM standalone (no autotools)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install standalone-path deps
+        # pcpp is the in-Python C preprocessor that lets gen-sbom walk
+        # settings.h + user_settings.h with no compiler invocation.
+        # spdx-tools is for the post-generation validation step.
+        run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user 'pcpp==1.30.*' 'spdx-tools==0.8.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate SBOM via standalone Python entry point
+        # Uses IDE/GCC-ARM/Header/user_settings.h as the fixture - it
+        # is a real, comprehensive embedded user_settings.h shipping in
+        # the tree, so any CI failure here represents a regression a
+        # real customer would hit.  Source set is a small but
+        # representative slice of wolfcrypt that does not depend on
+        # any pre-build code generation.
+        #
+        # The two `NO_*_H` predefines exercise the noise-filter
+        # `_CONFIG_H_TOKENS` carve-out end-to-end: a NETOS / Telit /
+        # similar RTOS profile sets these in user_settings.h to disable
+        # stdlib header inclusion, and an over-aggressive header-guard
+        # filter would silently drop them from the SBOM (see the
+        # corresponding row in `required` below).
+        run: |
+          mkdir -p /tmp/standalone
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --user-settings wolfssl/wolfcrypt/settings.h \
+              --user-settings-include . \
+              --user-settings-include IDE/GCC-ARM/Header \
+              --user-settings-define WOLFSSL_USER_SETTINGS \
+              --user-settings-define NO_STDINT_H \
+              --user-settings-define WOLFSSL_NO_ASSERT_H \
+              --srcs wolfcrypt/src/aes.c \
+                     wolfcrypt/src/sha.c \
+                     wolfcrypt/src/sha256.c \
+                     wolfcrypt/src/dh.c \
+              --cdx-out /tmp/standalone/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone/wolfssl.spdx.json
+
+      - name: Standalone SPDX validates per pyspdxtools
+        # Same validator the autotools `make sbom` recipe runs.  If
+        # the embedded path produces an SBOM autotools' validator
+        # rejects, our portability claim is false.
+        run: pyspdxtools --infile /tmp/standalone/wolfssl.spdx.json
+
+      - name: Standalone SBOM advertises source-merkle hash semantics
+        # The auditor-facing contract: the standalone SBOM must say
+        # "this checksum is over a source set, not a library binary",
+        # and must list which sources fed the hash.  Without these
+        # properties the SHA-256 in `hashes` is ambiguous to anyone
+        # reviewing the SBOM.
+        #
+        # The build-property assertion is a pinned set rather than a
+        # `len > N` smoke for two reasons:
+        #   1. A noise-filter regression that drops 80% of the wolfSSL
+        #      config flags but keeps 21 unrelated names would still
+        #      pass a length check, and silently ship an SBOM that
+        #      misrepresents the build to a CRA reviewer.
+        #   2. The pinned set covers three distinct filter paths:
+        #      - regular config (no `_H` suffix): SINGLE_THREADED,
+        #        WOLFSSL_USER_SETTINGS, USE_FAST_MATH, NO_FILESYSTEM,
+        #        WOLFSSL_SMALL_STACK, NO_DEV_RANDOM
+        #      - `_H`-suffix carve-out via `--user-settings-define`:
+        #        NO_STDINT_H, WOLFSSL_NO_ASSERT_H.  These are the
+        #        regression sentinels for the bug fixed in this PR
+        #        (header-guard filter dropping NETOS/Telit-style
+        #        stdlib disablement flags); a regression of
+        #        `_CONFIG_H_TOKENS` in gen-sbom would surface here.
+        run: |
+          python3 - <<'PY'
+          import json
+          with open('/tmp/standalone/wolfssl.cdx.json') as f:
+              cdx = json.load(f)
+          props = {p['name']: p['value']
+                   for p in cdx['metadata']['component']['properties']}
+          assert props.get('wolfssl:sbom:hash-kind') == 'source-merkle-omnibor', \
+              props
+          srcs = props['wolfssl:sbom:source-set'].split(',')
+          assert sorted(srcs) == ['aes.c', 'dh.c', 'sha.c', 'sha256.c'], srcs
+
+          build_prop_names = {
+              k.split(':', 2)[-1]
+              for k in props if k.startswith('wolfssl:build:')
+          }
+          # Regular wolfSSL config flags (no `_H` suffix).  Each is set
+          # by the GCC-ARM/Header user_settings.h fixture or by the
+          # --user-settings-define WOLFSSL_USER_SETTINGS predefine.
+          required_regular = {
+              'WOLFSSL_USER_SETTINGS',  # the gate the customer set in CFLAGS
+              'SINGLE_THREADED',        # IDE/GCC-ARM/Header/user_settings.h
+              'USE_FAST_MATH',          # IDE/GCC-ARM/Header/user_settings.h
+              'NO_FILESYSTEM',          # IDE/GCC-ARM/Header/user_settings.h
+              'WOLFSSL_SMALL_STACK',    # IDE/GCC-ARM/Header/user_settings.h
+              'NO_DEV_RANDOM',          # IDE/GCC-ARM/Header/user_settings.h
+          }
+          # `_H`-suffix carve-out sentinels - injected via
+          # --user-settings-define above so a regression of
+          # `_CONFIG_H_TOKENS` in gen-sbom (i.e. the bug that this PR
+          # fixes) blows up CI rather than only the unit tests.
+          required_h_carveout = {
+              'NO_STDINT_H',            # NETOS / Telit stdlib disablement
+              'WOLFSSL_NO_ASSERT_H',    # gates types.h:2132
+          }
+          required = required_regular | required_h_carveout
+          missing = required - build_prop_names
+          assert not missing, (
+              f'pinned wolfSSL config flags missing from SBOM '
+              f'(pcpp + noise filter regression?): {missing}\n'
+              f'  - regular missing : {required_regular - build_prop_names}\n'
+              f'  - _H carve-out missing: {required_h_carveout - build_prop_names}\n'
+              f'present subset: {build_prop_names & required}'
+          )
+          # No host-leak / Apple TargetConditionals / __* internals.
+          import re
+          forbidden = [n for n in build_prop_names
+                       if re.match(r'(?:__|_[A-Z]|TARGET_OS_|TARGET_IPHONE_)',
+                                   n)]
+          assert not forbidden, (
+              f'host-leak macros present in SBOM (noise filter '
+              f'regression?): {forbidden[:10]}'
+          )
+          print(f'standalone SBOM ok: {len(build_prop_names)} build props '
+                f'(all {len(required_regular)} regular + '
+                f'{len(required_h_carveout)} carve-out flags present, '
+                f'no host-leak names), {len(srcs)} source files')
+          PY
+
+      - name: Reproducibility - two standalone runs are byte-identical
+        # The deterministic UUID + SOURCE_DATE_EPOCH machinery applies
+        # to both entry points; this guards against a future change
+        # accidentally introducing wallclock or random data into the
+        # standalone path.  Predefines must match the generate step
+        # exactly; any drift here would diff against the original run.
+        run: |
+          mkdir -p /tmp/standalone-r2
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --user-settings wolfssl/wolfcrypt/settings.h \
+              --user-settings-include . \
+              --user-settings-include IDE/GCC-ARM/Header \
+              --user-settings-define WOLFSSL_USER_SETTINGS \
+              --user-settings-define NO_STDINT_H \
+              --user-settings-define WOLFSSL_NO_ASSERT_H \
+              --srcs wolfcrypt/src/aes.c \
+                     wolfcrypt/src/sha.c \
+                     wolfcrypt/src/sha256.c \
+                     wolfcrypt/src/dh.c \
+              --cdx-out /tmp/standalone-r2/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone-r2/wolfssl.spdx.json
+          diff /tmp/standalone/wolfssl.cdx.json \
+               /tmp/standalone-r2/wolfssl.cdx.json
+          diff /tmp/standalone/wolfssl.spdx.json \
+               /tmp/standalone-r2/wolfssl.spdx.json
+
+      - name: --dep-version override (no pkg-config needed)
+        # The whole point of --dep-version is to let cross-compile /
+        # baremetal hosts emit a dep version when pkg-config is
+        # unavailable for the target.  Asserts the value lands in the
+        # SBOM dep entry instead of NOASSERTION.
+        run: |
+          mkdir -p /tmp/standalone-deps
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --user-settings wolfssl/wolfcrypt/settings.h \
+              --user-settings-include . \
+              --user-settings-include IDE/GCC-ARM/Header \
+              --user-settings-define WOLFSSL_USER_SETTINGS \
+              --srcs wolfcrypt/src/aes.c wolfcrypt/src/sha.c \
+              --dep-libz yes \
+              --dep-version libz=1.3.1 \
+              --cdx-out /tmp/standalone-deps/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone-deps/wolfssl.spdx.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/standalone-deps/wolfssl.spdx.json') as f:
+              d = json.load(f)
+          deps = {p['name']: p for p in d['packages'] if p['name'] != 'wolfssl'}
+          assert 'zlib' in deps, list(deps)
+          assert deps['zlib']['versionInfo'] == '1.3.1', deps['zlib']
+          print('--dep-version override ok: zlib@1.3.1')
+          PY
+
+      - name: --options-h escape hatch ($CC -dM -E, no pcpp)
+        # The doc/SBOM.md section 1.5 escape hatch for toolchains that cannot
+        # install pcpp (older Keil / IAR sites with restricted pip
+        # access): pre-process settings.h with the system compiler's
+        # `-dM -E` macro-dump mode and feed the resulting flat #define
+        # list to gen-sbom via --options-h.  This step proves the path
+        # actually works end-to-end and that the noise filter scrubs
+        # the host-leak macros (__VERSION__, __SSE2__, TARGET_OS_*,
+        # ...) that `gcc -dM -E` always emits alongside the wolfSSL
+        # config.
+        run: |
+          mkdir -p /tmp/standalone-dme
+          # Same effective build the pcpp step covered above; the only
+          # difference is the macro-extraction mechanism.  The two
+          # `-D NO_*_H` predefines mirror the pcpp step and pin the
+          # `_CONFIG_H_TOKENS` carve-out on the no-pcpp path too.
+          gcc -dM -E \
+              -I . -I IDE/GCC-ARM/Header \
+              -DWOLFSSL_USER_SETTINGS \
+              -DNO_STDINT_H \
+              -DWOLFSSL_NO_ASSERT_H \
+              -include wolfssl/wolfcrypt/settings.h \
+              -x c /dev/null > /tmp/standalone-dme/options.h
+
+          # Defensive: the value of this whole step is that the noise
+          # filter scrubs `gcc -dM -E`'s host-leak macros.  If a future
+          # GCC / runner image happened to emit no `__*` defines, the
+          # `forbidden` assertion below would pass vacuously even with
+          # the noise filter disabled.  Confirm the raw dump actually
+          # contains plenty of host-leak names, otherwise this step
+          # is not actually testing what it claims to test.
+          raw_underscores=$(grep -cE '^#define[[:space:]]+(__|_[A-Z])' \
+              /tmp/standalone-dme/options.h || true)
+          echo "raw -dM -E dump has $raw_underscores compiler-reserved defines"
+          test "$raw_underscores" -ge 50 || {
+              echo "ERROR: --options-h CI step is not exercising the noise"
+              echo "       filter (raw dump has only $raw_underscores"
+              echo "       compiler-reserved defines; expected >= 50)."
+              exit 1
+          }
+
+          SOURCE_DATE_EPOCH=1700000000 \
+          python3 scripts/gen-sbom \
+              --name wolfssl --version 5.9.1 \
+              --license-file LICENSING \
+              --options-h /tmp/standalone-dme/options.h \
+              --srcs wolfcrypt/src/aes.c \
+                     wolfcrypt/src/sha.c \
+                     wolfcrypt/src/sha256.c \
+                     wolfcrypt/src/dh.c \
+              --cdx-out /tmp/standalone-dme/wolfssl.cdx.json \
+              --spdx-out /tmp/standalone-dme/wolfssl.spdx.json
+
+          # Validate + assert the same wolfSSL config flags reach the
+          # SBOM via the no-pcpp path that the pcpp path produced
+          # above.  If the noise filter regresses, this step is what
+          # surfaces it (the raw `gcc -dM -E` dump contains hundreds
+          # of host-leak macros and only a handful of wolfSSL ones).
+          pyspdxtools --infile /tmp/standalone-dme/wolfssl.spdx.json
+          python3 - <<'PY'
+          import json, re
+          with open('/tmp/standalone-dme/wolfssl.cdx.json') as f:
+              cdx = json.load(f)
+          props = {p['name']: p['value']
+                   for p in cdx['metadata']['component']['properties']}
+          build_prop_names = {
+              k.split(':', 2)[-1]
+              for k in props if k.startswith('wolfssl:build:')
+          }
+          required_regular = {
+              'WOLFSSL_USER_SETTINGS', 'SINGLE_THREADED', 'USE_FAST_MATH',
+              'NO_FILESYSTEM', 'WOLFSSL_SMALL_STACK', 'NO_DEV_RANDOM',
+          }
+          required_h_carveout = {
+              'NO_STDINT_H', 'WOLFSSL_NO_ASSERT_H',
+          }
+          required = required_regular | required_h_carveout
+          missing = required - build_prop_names
+          assert not missing, (
+              f'--options-h path lost wolfSSL config flags: {missing}\n'
+              f'  - regular missing : {required_regular - build_prop_names}\n'
+              f'  - _H carve-out missing: {required_h_carveout - build_prop_names}\n'
+              f'present subset: {build_prop_names & required}'
+          )
+          forbidden = [n for n in build_prop_names
+                       if re.match(r'(?:__|_[A-Z]|TARGET_OS_|TARGET_IPHONE_)',
+                                   n)]
+          assert not forbidden, (
+              f'host-leak macros from `gcc -dM -E` dump survived the '
+              f'noise filter: {forbidden[:10]}'
+          )
+          print(f'--options-h path ok: {len(build_prop_names)} build '
+                f'props (all {len(required_regular)} regular + '
+                f'{len(required_h_carveout)} carve-out flags present, '
+                f'host-leak macros filtered)')
+          PY
+
+      # Upload the SBOMs produced by every standalone path (pcpp, pcpp+deps,
+      # --options-h escape hatch, and the second pcpp run used for
+      # reproducibility diffing) so a reviewer can inspect them - or hand
+      # them to a downstream consumer / CRA reviewer - without re-running
+      # the job.  `if: always()` ensures triage artefacts ship even when an
+      # assertion above fails (which is precisely when the bytes matter).
+      - name: Upload standalone SBOMs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-standalone-${{ github.sha }}
+          path: |
+            /tmp/standalone/wolfssl.cdx.json
+            /tmp/standalone/wolfssl.spdx.json
+            /tmp/standalone-r2/wolfssl.cdx.json
+            /tmp/standalone-r2/wolfssl.spdx.json
+            /tmp/standalone-deps/wolfssl.cdx.json
+            /tmp/standalone-deps/wolfssl.spdx.json
+            /tmp/standalone-dme/wolfssl.cdx.json
+            /tmp/standalone-dme/wolfssl.spdx.json
+            /tmp/standalone-dme/options.h
+          if-no-files-found: warn
+          retention-days: 90
+
+  # Tier 2 - integration: build wolfSSL, generate the SBOMs, and assert
+  # everything an external auditor or vulnerability scanner relies on.
+  integration:
+    name: SBOM integration (linux)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pin tool versions; drift in any of these silently changes what
+      # "valid" means and produces mystery CI failures.
+      - name: Install SBOM validators
+        run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user \
+            'spdx-tools==0.8.*' \
+            'ntia-conformance-checker==5.*' \
+            'cyclonedx-bom==7.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Test fixture for the LicenseRef-+text matrix step. Using a fixture
+      # rather than $PWD/COPYING decouples the test from upstream file
+      # naming and makes the assertion exact ('FIXTURE LICENCE BODY').
+      - name: Create license-text fixture
+        run: echo 'FIXTURE LICENCE BODY' > /tmp/sbom-fixture-licence.txt
+
+      - name: Configure wolfSSL (shared + static)
+        run: autoreconf -ivf && ./configure --enable-shared --enable-static
+
+      - name: Build + generate SBOM (default GPL)
+        run: make sbom
+
+      # ---- Format-level validators -----------------------------------------
+
+      - name: SPDX 2.3 - NTIA Minimum Elements (2021)
+        # Already validated structurally by pyspdxtools inside `make sbom`.
+        # NTIA conformance is the additional contract auditors rely on.
+        run: ntia-checker -c ntia wolfssl-*.spdx.json
+
+      - name: CycloneDX 1.6 - JSON schema validation
+        run: |
+          python3 - <<'PY'
+          import glob, sys
+          from cyclonedx.validation.json import JsonStrictValidator
+          from cyclonedx.schema import SchemaVersion
+          v = JsonStrictValidator(SchemaVersion.V1_6)
+          for path in glob.glob('wolfssl-*.cdx.json'):
+              with open(path) as f:
+                  errors = v.validate_str(f.read())
+              if errors:
+                  print(f"INVALID: {path}: {errors}", file=sys.stderr)
+                  sys.exit(1)
+              print(f"OK: {path}")
+          PY
+
+      # ---- Artefact-integrity assertions ----------------------------------
+
+      - name: Library hash matches the SBOM
+        # `make sbom` cleans its private staging tree on exit, so we install
+        # to an independent prefix and re-hash the resulting library.
+        # Search order matches gen-sbom's so we hash the same artefact.
+        run: |
+          rm -rf /tmp/_inst
+          make install DESTDIR=/tmp/_inst >/dev/null
+          LIB=""
+          for cand in /tmp/_inst/usr/local/lib/libwolfssl.so.[0-9]* \
+                      /tmp/_inst/usr/local/lib/libwolfssl.so \
+                      /tmp/_inst/usr/local/lib/libwolfssl.a; do
+              if [ -f "$cand" ]; then LIB="$cand"; break; fi
+          done
+          test -n "$LIB" || (echo "no installed library found"; exit 1)
+          EXPECTED=$(python3 -c "
+          import hashlib, sys
+          h = hashlib.sha256()
+          with open(sys.argv[1], 'rb') as f:
+              for chunk in iter(lambda: f.read(65536), b''):
+                  h.update(chunk)
+          print(h.hexdigest())" "$LIB")
+          ACTUAL=$(python3 -c "
+          import json, glob
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          p = [x for x in d['packages'] if x['name'] == 'wolfssl'][0]
+          print(p['checksums'][0]['checksumValue'])")
+          test "$EXPECTED" = "$ACTUAL" || \
+              { echo "hash mismatch: expected=$EXPECTED actual=$ACTUAL"; exit 1; }
+
+      - name: CPE 2.3 and PURL identifiers well-formed
+        # A typo in supplier or product name silently breaks every
+        # downstream OSV / Trivy / Grype scan.
+        run: |
+          python3 - <<'PY'
+          import glob, json, re, sys
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          refs = {r['referenceType']: r['referenceLocator']
+                  for r in d['packages'][0]['externalRefs']}
+          assert re.match(r'cpe:2\.3:a:wolfssl:wolfssl:[\d.]+:', refs['cpe23Type']), refs
+          assert re.match(r'pkg:generic/wolfssl@[\d.]+', refs['purl']), refs
+          print('identifiers ok:', refs)
+          PY
+
+      # ---- Reproducibility -------------------------------------------------
+
+      - name: Reproducibility under SOURCE_DATE_EPOCH
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          SOURCE_DATE_EPOCH=1700000000 make sbom
+          sha256sum wolfssl-*.cdx.json wolfssl-*.spdx.json > /tmp/a.sums
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          SOURCE_DATE_EPOCH=1700000000 make sbom
+          sha256sum wolfssl-*.cdx.json wolfssl-*.spdx.json > /tmp/b.sums
+          diff /tmp/a.sums /tmp/b.sums
+
+      # ---- Licence-override matrix ----------------------------------------
+
+      - name: License matrix - default GPL
+        # Detected from LICENSING.  The current upstream file reads
+        # "GNU General Public License version 3" without "or later", so
+        # detect_license returns GPL-3.0-only.  If LICENSING is updated to
+        # add "or any later version", switch this assertion to
+        # GPL-3.0-or-later.
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom
+          python3 - <<'PY'
+          import glob, json
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          assert d['packages'][0]['licenseConcluded'].startswith('GPL-3.0-'), \
+              d['packages'][0]['licenseConcluded']
+          assert 'hasExtractedLicensingInfos' not in d
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
+          lic = cdx['metadata']['component']['licenses']
+          assert lic == [{'license': {'id': d['packages'][0]['licenseConcluded']}}], lic
+          print('default GPL: ok ->', lic)
+          PY
+
+      - name: License matrix - LicenseRef + text
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom \
+              SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
+              SBOM_LICENSE_TEXT=/tmp/sbom-fixture-licence.txt
+          python3 - <<'PY'
+          import glob, json
+          with open('/tmp/sbom-fixture-licence.txt') as f:
+              expected = f.read()
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          infos = d['hasExtractedLicensingInfos']
+          assert len(infos) == 1
+          assert infos[0]['licenseId'] == 'LicenseRef-wolfSSL-Commercial'
+          assert infos[0]['extractedText'] == expected
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
+          lic = cdx['metadata']['component']['licenses'][0]['license']
+          assert lic['name'] == 'LicenseRef-wolfSSL-Commercial'
+          assert lic['text']['content'] == expected
+          print('LicenseRef + text: ok')
+          PY
+          # The output of this run must still pass NTIA and CDX validators.
+          ntia-checker -c ntia wolfssl-*.spdx.json
+          python3 - <<'PY'
+          import glob, sys
+          from cyclonedx.validation.json import JsonStrictValidator
+          from cyclonedx.schema import SchemaVersion
+          v = JsonStrictValidator(SchemaVersion.V1_6)
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              errs = v.validate_str(f.read())
+          sys.exit(1 if errs else 0)
+          PY
+
+      - name: License matrix - LicenseRef without text must FAIL
+        # gen-sbom must refuse to emit a SBOM that names a LicenseRef-*
+        # but doesn't embed its text - that combo is invalid per SPDX 2.3
+        # and any "successfully generated" output would mislead auditors.
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          if make sbom SBOM_LICENSE_OVERRIDE=LicenseRef-wolfSSL-Commercial \
+              2>/tmp/err; then
+              echo "FAIL: gen-sbom should have refused this configuration"
+              exit 1
+          fi
+          grep -q 'license-text was not provided' /tmp/err || \
+              { echo "FAIL: error message missing actionable hint"; \
+                cat /tmp/err; exit 1; }
+          if ls wolfssl-*.spdx.json >/dev/null 2>&1; then
+              echo "FAIL: SBOM file should not exist after refusal"
+              exit 1
+          fi
+
+      - name: License matrix - compound expression
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom \
+              SBOM_LICENSE_OVERRIDE='GPL-3.0-only OR LicenseRef-wolfSSL-Commercial' \
+              SBOM_LICENSE_TEXT=/tmp/sbom-fixture-licence.txt
+          python3 - <<'PY'
+          import glob, json
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          assert len(d['hasExtractedLicensingInfos']) == 1
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
+          entry = cdx['metadata']['component']['licenses'][0]
+          assert 'expression' in entry, entry
+          print('compound expression: ok')
+          PY
+
+      - name: License matrix - simple SPDX override
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make sbom SBOM_LICENSE_OVERRIDE=Apache-2.0
+          python3 - <<'PY'
+          import glob, json
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          assert 'hasExtractedLicensingInfos' not in d
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
+          lic = cdx['metadata']['component']['licenses'][0]['license']
+          assert lic == {'id': 'Apache-2.0'}, lic
+          print('simple SPDX override: ok')
+          PY
+
+      # ---- liboqs / Falcon dep entry ---------------------------------------
+      # Without this, every code path that emits a dep package - pkg-config
+      # lookup, supplier/purl/license construction, deterministic UUID
+      # derivation for deps - is uncovered by CI.  A future rename or shape
+      # break in DEP_META['liboqs'] would silently land.
+
+      - name: Install liboqs (provides liboqs.pc for --with-liboqs)
+        # Ubuntu noble (24.04) does not ship liboqs-dev in its archive
+        # (Debian sid has 0.7.x; Ubuntu only has unsupported PPAs).  Build
+        # from a pinned upstream tag so this job stays deterministic across
+        # runs - any future liboqs API/ABI break shows up here, not in
+        # production builds.  Pinning matters: SBOM correctness assertions
+        # below check purl shape, and an unpinned 'main' would silently
+        # change what pkg-config reports as the version string.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build libssl-dev
+          git clone --depth=1 --branch 0.12.0 \
+            https://github.com/open-quantum-safe/liboqs /tmp/liboqs
+          # -DOQS_USE_OPENSSL=OFF is load-bearing: without it, liboqs's
+          # installed common.h pulls <openssl/crypto.h> (system) into every
+          # TU that includes <oqs/oqs.h>.  wolfssl/wolfcrypt/falcon.h
+          # includes <oqs/oqs.h>, so once --enable-falcon is on, every
+          # wolfSSL TU that pulls falcon.h also pulls system OpenSSL,
+          # which collides with wolfssl/openssl/ssl.h under -Werror
+          # (CRYPTO_UNLOCK, sk_num, OPENSSL_malloc_init, ... all redefined).
+          # OFF makes liboqs use its bundled SHA/randombytes (the #else
+          # branches in oqs/common.h), keeping the build hermetic.
+          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_SHARED_LIBS=ON \
+            -DOQS_BUILD_ONLY_LIB=ON \
+            -DOQS_DIST_BUILD=OFF \
+            -DOQS_USE_OPENSSL=OFF
+          cmake --build /tmp/liboqs/build --parallel "$(nproc)"
+          sudo cmake --install /tmp/liboqs/build
+          sudo ldconfig
+          # /usr/local/lib/pkgconfig is on pkg-config's compiled-in path
+          # on Ubuntu, but export via $GITHUB_ENV so a future image change
+          # cannot silently break --with-liboqs autodetection.  ${VAR:+:$VAR}
+          # avoids a trailing colon when PKG_CONFIG_PATH is unset.
+          echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+            >> "$GITHUB_ENV"
+
+      - name: Verify liboqs.pc visible to pkg-config
+        # Separate step so the $GITHUB_ENV write above has taken effect
+        # for this shell; an in-step call would only be exercising the
+        # compiled-in default path, not the export.
+        run: pkg-config --modversion liboqs
+
+      - name: Configure with --with-liboqs --enable-falcon
+        run: |
+          make distclean
+          autoreconf -ivf
+          ./configure --enable-shared --enable-experimental \
+                      --with-liboqs --enable-falcon
+
+      - name: Build + generate SBOM with liboqs enabled
+        run: make sbom
+
+      - name: liboqs dep entry resolves to a CVE-trackable identifier
+        # The point of recording liboqs (rather than `falcon`) is that
+        # OSV / Grype / Trivy / Dependency-Track key vulnerability
+        # records off purl + name.  These assertions guard the contract
+        # that pulled the entry away from the algorithm name.
+        run: |
+          python3 - <<'PY'
+          import glob, json, re, sys
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          pkgs = {p['name']: p for p in d['packages']}
+          assert 'liboqs' in pkgs, list(pkgs)
+          assert 'falcon' not in pkgs, "algorithm name leaked as a dep package"
+          liboqs = pkgs['liboqs']
+          assert liboqs['supplier'] == 'Organization: Open Quantum Safe', \
+              liboqs['supplier']
+          refs = {r['referenceType']: r['referenceLocator']
+                  for r in liboqs.get('externalRefs', [])}
+          assert 'purl' in refs, refs
+          assert re.match(r'pkg:github/open-quantum-safe/liboqs@', refs['purl']), \
+              refs['purl']
+          # Algorithm enablement must still be visible via build_props
+          # (parsed from options.h), not via the dep entry.
+          props = {p['name']: p['value']
+                   for p in d['packages'][0].get('annotations', [])
+                   if p.get('annotationType') == 'OTHER'}
+          # CycloneDX side: same package + version present.
+          with open(glob.glob('wolfssl-*.cdx.json')[0]) as f:
+              cdx = json.load(f)
+          deps = {c['name']: c for c in cdx.get('components', [])}
+          assert 'liboqs' in deps, list(deps)
+          print('liboqs dep entry: ok ->', refs['purl'])
+          PY
+
+      - name: HAVE_FALCON algorithm flag is captured as a build property
+        # Algorithm visibility moved out of the dep entry; this verifies
+        # it is still preserved (just somewhere honest).
+        run: |
+          python3 - <<'PY'
+          import glob, json
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          wolf = [p for p in d['packages'] if p['name'] == 'wolfssl'][0]
+          props = {p['name']: p['value']
+                   for p in wolf.get('annotations', [])
+                   if p.get('annotationType') == 'OTHER'}
+          # Build props can land as annotations or as a 'attributionTexts'
+          # block depending on SPDX version; check both.
+          combined = json.dumps(d)
+          assert 'HAVE_FALCON' in combined, \
+              "HAVE_FALCON missing from SBOM build properties"
+          print('HAVE_FALCON build prop: present')
+          PY
+
+      - name: Restore default build for remaining steps
+        run: |
+          make distclean
+          autoreconf -ivf
+          ./configure --enable-shared --enable-static
+
+      # ---- Distribution + install hooks -----------------------------------
+
+      - name: Tarball roundtrip (make dist -> ./configure -> make sbom)
+        # If a future change adds a new helper file but forgets EXTRA_DIST,
+        # the tarball will not contain it and this step fails.
+        run: |
+          rm -f wolfssl-*.cdx.json wolfssl-*.spdx.json wolfssl-*.spdx
+          make dist
+          mkdir /tmp/tb
+          tar -xzf wolfssl-*.tar.gz -C /tmp/tb
+          cd /tmp/tb/wolfssl-*
+          ./configure --enable-shared
+          make sbom
+
+      - name: Install-sbom / uninstall hook
+        # `install-sbom` is a separate target (intentional - SBOM generation
+        # has heavy deps like pyspdxtools that we do not want firing on
+        # every `make install`).  `make uninstall` runs uninstall-hook,
+        # which removes both regular and SBOM artefacts idempotently.
+        run: |
+          rm -rf /tmp/_inst2
+          make install DESTDIR=/tmp/_inst2 >/dev/null
+          make install-sbom DESTDIR=/tmp/_inst2
+          ls /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.spdx.json \
+              /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.cdx.json \
+              /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.spdx
+          make uninstall DESTDIR=/tmp/_inst2
+          if ls /tmp/_inst2/usr/local/share/doc/wolfssl/wolfssl-*.spdx.json \
+                  2>/dev/null; then
+              echo "uninstall-hook did not remove SBOM artefacts"
+              exit 1
+          fi
+
+      # Persist the SBOMs the integration matrix produces so a CRA reviewer,
+      # a downstream packager, or the next maintainer triaging a regression
+      # can download them straight from the run summary instead of replaying
+      # the full job locally.  `if: always()` so a failed assertion above
+      # (license matrix, NTIA, CDX schema, liboqs dep entry, ...) still ships
+      # the bytes it failed on.  The last `make sbom` invocation in this job
+      # is the simple SPDX override step, but the path matches every wolfssl
+      # SPDX/CDX in $PWD - if any are present at job end they will be picked
+      # up.  if-no-files-found:warn keeps the upload soft so reordering the
+      # steps later cannot regress this into a hard failure.
+      - name: Upload SBOM artefacts (linux)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-integration-linux-${{ github.sha }}
+          path: |
+            wolfssl-*.spdx.json
+            wolfssl-*.cdx.json
+            wolfssl-*.spdx
+          if-no-files-found: warn
+          retention-days: 90
+
+  # Tier 2 (macOS) - smoke test that gen-sbom finds .dylib artefacts and
+  # that the autotools target works on Mach-O.  Linux already exercises
+  # the heavy validation matrix; this job is intentionally minimal so the
+  # macOS runner minutes go to portability coverage, not duplicated checks.
+  integration-macos:
+    name: SBOM integration (macos)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: macos-latest
+    needs: unit
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps and SBOM validators
+        run: |
+          brew install autoconf automake libtool
+          python3 -m pip install --user --break-system-packages \
+            'spdx-tools==0.8.*'
+          # Resolve the actual scripts dir for the python that ran pip,
+          # rather than guessing a glob like `~/Library/Python/*/bin`.
+          # `posix_user` is the install scheme `pip install --user` wrote
+          # to, so this matches even when the runner's selected python
+          # changes between minor versions / homebrew vs system.
+          python3 -c \
+            'import sysconfig; print(sysconfig.get_path("scripts","posix_user"))' \
+            >> "$GITHUB_PATH"
+
+      - name: Configure wolfSSL (shared)
+        run: autoreconf -ivf && ./configure --enable-shared
+
+      - name: Build + generate SBOM (verifies .dylib detection)
+        run: make sbom
+
+      - name: SBOM hashed a real .dylib
+        run: |
+          python3 - <<'PY'
+          import glob, json, re
+          with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
+              d = json.load(f)
+          checksum = d['packages'][0]['checksums'][0]['checksumValue']
+          assert re.fullmatch(r'[0-9a-f]{64}', checksum), checksum
+          print('macOS SBOM checksum well-formed:', checksum)
+          PY
+
+      # Persist the Mach-O variant SBOMs so the .dylib-flavoured outputs are
+      # downloadable for cross-platform diffing against the linux artefacts.
+      # Same `if: always()` rationale as the linux upload above.
+      - name: Upload SBOM artefacts (macos)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-integration-macos-${{ github.sha }}
+          path: |
+            wolfssl-*.spdx.json
+            wolfssl-*.cdx.json
+            wolfssl-*.spdx
+          if-no-files-found: warn
+          retention-days: 90
+
+  # Tier 2 (bomsh) - exercises the `make bomsh` target which traces a
+  # full clean rebuild under bomtrace3 (patched strace, Linux-only) and
+  # produces an OmniBOR artifact dependency graph.  Without this job
+  # the entire bomsh recipe and its SPDX enrichment step would only be
+  # exercised by hand; a regression in either would silently land.
+  bomsh:
+    name: bomsh integration (linux)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    needs: unit
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps + SBOM validators
+        run: |
+          sudo apt-get update
+          # bison + autotools-dev are required by strace's ./bootstrap.
+          # gcc-multilib + g++-multilib give strace's --enable-mpers=check
+          # the 32-bit/x32 compilers it needs - without them mpers is
+          # silently downgraded and bomtrace3 traces only native-arch
+          # syscalls, diverging from what bomsh's devcontainer produces.
+          # The rest mirror bomsh's .devcontainer/Dockerfile bomtrace3
+          # stage.
+          sudo apt-get install -y build-essential autoconf automake libtool \
+            bison autotools-dev gcc-multilib g++-multilib \
+            python3 python3-pip git
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user 'spdx-tools==0.8.*'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install bomsh toolchain (bomtrace3 + helper scripts)
+        # Bomsh is not packaged.  Reproduce its `.devcontainer/Dockerfile`
+        # bomtrace3 stage: clone strace, apply bomtrace3.patch, drop in
+        # the bomsh source overlay, then bootstrap+configure+make.  Both
+        # bomsh and strace are pinned (env: below) so a strace `master`
+        # commit that touches the lines bomtrace3.patch rewrites cannot
+        # break this CI for reasons unrelated to wolfSSL.  Bump them
+        # together by re-validating `patch -p1` against the new SHAs.
+        env:
+          # bomsh has no releases; pin to last commit on main as of
+          # 2024-10-31.  The patch itself last changed 2024-02-06.
+          BOMSH_SHA: 5823f7db7e5bd958e4ff868ae6ea79a7d871bb07
+          # v6.7 (2024-01-29) is the strace release current when the
+          # patch was last touched; later releases tend to drift from
+          # the patch's context lines in src/strace.c.
+          STRACE_TAG: v6.7
+        run: |
+          # --filter=blob:none is the cleanest "shallow-ish" clone when
+          # checking out a specific SHA: it skips file blobs but keeps
+          # the commit graph, so `git checkout $BOMSH_SHA` still works.
+          # `--depth=1` would only work with `--branch <ref>`, not a
+          # raw SHA.  The strace clone below uses `--depth=1 --branch`
+          # because it pins to a release tag.
+          git clone --filter=blob:none https://github.com/omnibor/bomsh /tmp/bomsh
+          git -C /tmp/bomsh checkout "$BOMSH_SHA"
+          # Even with a pinned SHA, keep the layout-drift guard so the
+          # next maintainer who bumps BOMSH_SHA gets a clear error if
+          # upstream restructured rather than a confusing patch failure.
+          if [ ! -f /tmp/bomsh/.devcontainer/patches/bomtrace3.patch ] \
+              || [ ! -d /tmp/bomsh/.devcontainer/src ]; then
+              echo "bomsh repo layout changed; please update CI" >&2
+              ls -la /tmp/bomsh/.devcontainer/ >&2 || true
+              exit 1
+          fi
+          git clone --depth=1 --branch "$STRACE_TAG" \
+              https://github.com/strace/strace.git /tmp/strace
+          cp /tmp/bomsh/.devcontainer/patches/bomtrace3.patch /tmp/strace/
+          cp /tmp/bomsh/.devcontainer/src/*.[ch] /tmp/strace/src/
+          (
+              cd /tmp/strace
+              patch -p1 < bomtrace3.patch
+              ./bootstrap
+              ./configure --enable-mpers=check
+              make -j"$(nproc)"
+          )
+          sudo install -m 755 /tmp/strace/src/strace /usr/local/bin/bomtrace3
+          sudo install -m 755 /tmp/bomsh/scripts/bomsh_create_bom.py \
+              /usr/local/bin/
+          sudo install -m 755 /tmp/bomsh/scripts/bomsh_sbom.py \
+              /usr/local/bin/
+          # bomtrace3 replaces strace's argv parsing in bomsh_init() (see
+          # bomsh_config.c); its accepted long options are exactly
+          # --help/--config/--output/--verbose/--watch.  `--version` is
+          # NOT a real flag and would exit non-zero.  `-h` is the only
+          # no-target invocation that returns 0 cleanly (bomsh_usage()
+          # calls exit(0)).  The grep doubles as a check that the binary
+          # on PATH is genuinely bomsh-patched and not a vanilla strace
+          # shadowing it ("Usage: bomtrace3 " only appears in
+          # bomsh_usage()), guarding against a future BOMSH_SHA bump that
+          # silently regresses the patch.
+          bomtrace3 -h | grep -q '^Usage: bomtrace3 '
+          which bomsh_create_bom.py bomsh_sbom.py
+
+      - name: Configure wolfSSL
+        run: autoreconf -ivf && ./configure --enable-shared
+
+      - name: Generate SPDX (input to bomsh enrichment)
+        run: make sbom
+
+      - name: Run make bomsh
+        run: make bomsh
+
+      - name: OmniBOR artifact graph produced
+        # bomsh writes the artifact dependency graph under omnibor/.
+        # Empty/missing graph means bomtrace3 silently failed to trace.
+        run: |
+          test -d omnibor
+          test "$(find omnibor -type f | wc -l)" -gt 0
+          echo "omnibor/ contents:"
+          find omnibor -maxdepth 3 -type f | head -20
+
+      - name: Enriched SPDX has PERSISTENT-ID gitoid externalRef
+        # The whole point of `make bomsh` over `make sbom` is the
+        # bridge between component identity (SPDX package) and build
+        # provenance (OmniBOR gitoid).  If the enrichment step ran but
+        # produced an SPDX without the gitoid ref, the bridge is broken.
+        run: |
+          ls omnibor.wolfssl-*.spdx.json
+          python3 - <<'PY'
+          import glob, json, sys
+          path = glob.glob('omnibor.wolfssl-*.spdx.json')[0]
+          with open(path) as f:
+              d = json.load(f)
+          gitoid_refs = []
+          for pkg in d.get('packages', []):
+              for ref in pkg.get('externalRefs', []):
+                  if (ref.get('referenceCategory') == 'PERSISTENT-ID'
+                          or ref.get('referenceType') == 'gitoid'):
+                      gitoid_refs.append(ref)
+          assert gitoid_refs, \
+              f'no PERSISTENT-ID gitoid externalRef in {path}'
+          print(f'bomsh enrichment ok: {len(gitoid_refs)} gitoid refs')
+          PY
+
+      - name: Bomsh-enriched SPDX validates per pyspdxtools
+        # Schema gate.  `make sbom` already runs pyspdxtools on the
+        # un-enriched SPDX; the enriched document was previously
+        # ungated.  A bomsh_sbom.py change that emits a malformed
+        # SPDX 2.3 document (e.g. wrong shape on the gitoid externalRef
+        # block, missing required field on a new package) would
+        # otherwise ship in the artefact bundle below.  Complementary
+        # to the next step which validates *semantic* correctness
+        # (does the gitoid actually point at anything real); this
+        # step pins *schema* correctness only.
+        run: |
+          set -e
+          # `[ -f "$f" ] || continue` makes the loop robust if the glob
+          # has no match (defensive only; the previous step already
+          # `ls`-fails the job in that case, but this decouples the
+          # two if a future maintainer reorders).
+          for f in omnibor.wolfssl-*.spdx.json; do
+            [ -f "$f" ] || continue
+            echo "Validating $f"
+            pyspdxtools --infile "$f"
+          done
+
+      - name: Bomsh provenance bundle is internally consistent
+        # Two independent self-consistency checks on the bomsh
+        # provenance bundle.  The PERSISTENT-ID assertion above only
+        # proves the gitoid externalRef *exists*; neither of these
+        # follow-up properties is guaranteed by it:
+        #
+        #   (A) every gitoid in the SPDX externalRefs resolves to a
+        #       blob present in omnibor/objects/<aa>/<rest>
+        #   (B) every blob in omnibor/objects/ round-trips through
+        #       sha1(b"blob <len>\0" + content) so the object store
+        #       is internally self-consistent (no bit-rot, no
+        #       truncation, no stray non-blob file under objects/)
+        #
+        # Without this, a future bomsh_sbom.py change that emits a
+        # plausibly-shaped but fictional gitoid (one that does not
+        # resolve in the ADG) would pass the existing PERSISTENT-ID
+        # assertion and ship a provenance bundle whose externalRef is
+        # a lie.
+        #
+        # The verifier logic lives in scripts/bomsh_verify.py so it can
+        # be unit-tested with synthetic fixtures (see the
+        # TestBomshProvenanceVerify class in scripts/test_gen_sbom.py)
+        # rather than only running here against a real bomsh trace.
+        run: python3 scripts/bomsh_verify.py
+
+      # Split into two artefacts deliberately:
+      #
+      #   bomsh-omnibor-${{ github.sha }}      (90-day retention)
+      #     The provenance bundle a CRA reviewer or downstream packager
+      #     actually wants.  Small, signed-meaningful, kept long.
+      #
+      #   bomsh-trace-diag-${{ github.sha }}   (14-day retention)
+      #     The raw bomtrace3 syscall trace + bomsh config.  ~3 MB,
+      #     useful only for diagnosing trace gaps (e.g. a build step
+      #     that escaped ptrace) -- not part of the provenance proof.
+      #     Short retention because it stops being useful as soon as
+      #     you've finished triaging the run that produced it.
+      #
+      # Both MUST upload BEFORE the `make clean` step below, which
+      # deletes everything by design.  `if: always()` so even when an
+      # assertion above fails (which is when triage matters most),
+      # the bundles ship.
+      #
+      # Provenance bundle contents:
+      #   omnibor/                      - OmniBOR Artifact Dependency Graph
+      #                                   (objects/ + metadata/bomsh/*),
+      #                                   content-addressed by gitoid; the
+      #                                   verifiable build-provenance proof.
+      #   omnibor.wolfssl-*.spdx.json   - SPDX with PERSISTENT-ID gitoid
+      #                                   externalRef bridging SBOM <-> ADG.
+      #   wolfssl-*.spdx.json           - the un-enriched SPDX (for diffing
+      #                                   against omnibor.* to confirm only
+      #                                   the externalRef was added).
+      #   wolfssl-*.cdx.json            - CycloneDX equivalent.
+      - name: Upload OmniBOR graph + bomsh-enriched SBOMs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bomsh-omnibor-${{ github.sha }}
+          path: |
+            omnibor/
+            omnibor.wolfssl-*.spdx.json
+            wolfssl-*.spdx.json
+            wolfssl-*.cdx.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Upload bomsh trace diagnostics
+        # Diagnostic-only, short retention.  Kept separate so the
+        # provenance bundle above stays slim for downstream consumers
+        # who don't need to debug ptrace gaps.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bomsh-trace-diag-${{ github.sha }}
+          path: |
+            bomsh_raw_logfile.sha1
+            _bomsh.conf
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: make clean removes all bomsh + sbom artefacts
+        # Regression guard: if a future change adds an output to either
+        # recipe but forgets CLEANFILES, this will catch it.
+        run: |
+          make clean
+          if ls wolfssl-*.spdx.json wolfssl-*.cdx.json \
+                omnibor.wolfssl-*.spdx.json 2>/dev/null; then
+              echo "make clean did not remove SBOM/bomsh artefacts"
+              exit 1
+          fi
+          test ! -d omnibor || (echo "omnibor/ not cleaned"; exit 1)

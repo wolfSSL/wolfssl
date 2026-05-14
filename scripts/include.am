@@ -155,3 +155,12 @@ EXTRA_DIST += scripts/bench/bench_functions.sh
 EXTRA_DIST += scripts/benchmark_compare.sh
 
 EXTRA_DIST += scripts/user_settings_asm.sh
+
+# SBOM generator (invoked from `make sbom` in the top-level Makefile.am).
+# Must be in the dist tarball, otherwise `make dist && cd <tarball> &&
+# ./configure && make sbom` fails for downstream consumers.
+EXTRA_DIST += scripts/gen-sbom
+
+# SBOM generator unit tests.  Shipped so downstream consumers building
+# from a release tarball can re-run the regression suite.
+EXTRA_DIST += scripts/test_gen_sbom.py

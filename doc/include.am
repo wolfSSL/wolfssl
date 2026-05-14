@@ -3,7 +3,9 @@
 # All paths should be given relative to the root
 
 dist_doc_DATA+= doc/README.txt \
-	doc/QUIC.md
+	doc/QUIC.md \
+	doc/SBOM.md \
+	doc/CRA.md
 
 
 dox-pdf:
@@ -21,3 +23,4 @@ clean-local:
 	-rm -rf doc/html/
 	-rm -f doc/refman.pdf
 	-rm -f doc/doxygen_warnings
+	-rm -rf $(BOMSH_OMNIBORDIR)

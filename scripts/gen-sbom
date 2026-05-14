@@ -1,0 +1,1068 @@
+#!/usr/bin/env python3
+"""Generate CycloneDX 1.6 and SPDX 2.3 SBOMs for wolfssl."""
+
+import argparse
+import hashlib
+import io
+import json
+import os
+import re
+import subprocess
+import sys
+import uuid
+from datetime import datetime, timezone
+
+
+# Stable namespace for deterministic uuid5 derivation.  The seed string is
+# an opaque input to uuid5 -- it only needs to be (a) constant across
+# releases so the derived UUIDs reproduce byte-for-byte (any consumer
+# pinning a wolfSSL SBOM hash would otherwise see a content rotation
+# from a seed change alone), and (b) unlikely to collide with another
+# project's uuid5 namespace.  It is NOT a URL the SBOM resolves to and
+# is NOT what we serialize as the SPDX documentNamespace -- that field
+# is now `urn:uuid:<derived>` (see generate_spdx).  The historical
+# string is preserved verbatim to keep derived UUIDs (bom-refs,
+# serialNumbers, the documentNamespace UUID component) stable across
+# the documentNamespace shape change.
+SBOM_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'https://wolfssl.com/sbom/')
+
+
+def derived_uuid(*parts):
+    """Deterministic UUID from joined parts under the wolfSSL SBOM namespace.
+    Re-runs of `make sbom` against the same source produce identical UUIDs,
+    which is required for reproducible-build-style SBOM hashing.
+
+    Uses NUL as a separator so no aliasing is possible between e.g.
+    derived_uuid('a/b', 'c') and derived_uuid('a', 'b/c'); NUL cannot
+    appear in any of the call-site inputs (package name, version, role
+    label, dep key)."""
+    return str(uuid.uuid5(SBOM_UUID_NAMESPACE, '\x00'.join(parts)))
+
+
+def build_timestamp():
+    """Return (datetime, ISO-8601-Z string) honoring SOURCE_DATE_EPOCH.
+    Reproducible Builds convention: if the env var is set to a valid
+    integer, use it as the SBOM creation timestamp instead of wallclock."""
+    sde = os.environ.get('SOURCE_DATE_EPOCH', '').strip()
+    if sde:
+        try:
+            dt = datetime.fromtimestamp(int(sde), tz=timezone.utc)
+        except (ValueError, OverflowError, OSError) as e:
+            print(f"WARNING: ignoring invalid SOURCE_DATE_EPOCH={sde!r}: {e}",
+                  file=sys.stderr)
+            dt = datetime.now(timezone.utc)
+    else:
+        dt = datetime.now(timezone.utc)
+    return dt, dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+# Known metadata for optional external dependencies.  Version is detected
+# at runtime via pkg-config; falls back to None.  Each entry must describe
+# the *linked artefact* (so vulnerability scanners like OSV / Grype / Trivy
+# / Dependency-Track resolve CVEs against the right package).  Algorithm
+# enablement is captured separately via build_props (HAVE_FALCON, ...).
+DEP_META = {
+    # liboqs is the only PQ external dependency wolfSSL still links against
+    # after upstream PR #10293 collapsed the rest of the PQ surface into
+    # native wolfCrypt.  Today, --enable-falcon strictly implies --with-liboqs
+    # (configure.ac enforces both directions), so a build that links liboqs
+    # is precisely a build that exposed Falcon.
+    'liboqs': {
+        'name': 'liboqs',
+        'supplier': 'Open Quantum Safe',
+        'license': 'MIT',
+        'download': 'https://github.com/open-quantum-safe/liboqs',
+        'pkgconfig': 'liboqs',
+        'purl': lambda v: f'pkg:github/open-quantum-safe/liboqs@{v}',
+    },
+    'libz': {
+        'name': 'zlib',
+        'supplier': 'Jean-loup Gailly and Mark Adler',
+        'license': 'Zlib',
+        'download': 'https://github.com/madler/zlib',
+        'pkgconfig': 'zlib',
+        'purl': lambda v: f'pkg:generic/zlib@{v}',
+    },
+}
+
+
+# Matches a single SPDX `LicenseRef-` identifier as defined in SPDX 2.3
+# Annex D ("idstring = 1*(ALPHA / DIGIT / '-' / '.')").  We use this to
+# discover custom license refs inside an arbitrary SPDX expression and to
+# decide whether a `licenseConcluded` value needs an accompanying
+# `hasExtractedLicensingInfos` block.
+LICENSEREF_RE = re.compile(r'LicenseRef-[A-Za-z0-9.\-]+')
+
+# Matches a "simple" SPDX-listed license ID such as `GPL-2.0-or-later` or
+# `MIT` (no spaces, no operators, no LicenseRef-).  Anything that does not
+# match must be expressed via `licenses[].license.name` / `licenses[].expression`
+# in CycloneDX, since `license.id` is restricted to the SPDX licence list.
+SIMPLE_SPDX_ID_RE = re.compile(r'\A[A-Za-z0-9.+\-]+\Z')
+
+
+def is_simple_spdx_id(value):
+    return bool(SIMPLE_SPDX_ID_RE.match(value)) and \
+        not value.startswith('LicenseRef-') and value != 'NOASSERTION'
+
+
+def extract_license_refs(expr):
+    """Return a sorted, deduplicated list of LicenseRef-* IDs found in expr."""
+    return sorted(set(LICENSEREF_RE.findall(expr or '')))
+
+
+def load_license_text(path):
+    """Read the license text file given via --license-text, exit on error."""
+    if not path:
+        return None
+    try:
+        with open(path) as f:
+            return f.read()
+    except OSError as e:
+        sys.exit(f"ERROR: cannot read --license-text {path}: {e}")
+
+
+def build_extracted_licensing_infos(license_expr, license_text):
+    """Return SPDX `hasExtractedLicensingInfos` array for license_expr.
+
+    SPDX 2.3 §10 requires every LicenseRef-* used in `licenseConcluded`/
+    `licenseDeclared` to be declared once at document level via
+    `hasExtractedLicensingInfos`.  Returns None when no LicenseRef-* is
+    present so the caller can omit the field entirely.
+
+    `license_text=None` produces a placeholder entry; main() rejects
+    that combination upfront, so this fallback is only reachable from
+    direct programmatic callers (e.g. tests, library reuse).
+    """
+    refs = extract_license_refs(license_expr)
+    if not refs:
+        return None
+    if license_text is None:
+        license_text = (
+            'NOASSERTION. The text for this LicenseRef has not been '
+            'embedded in the SBOM. Provide it via the gen-sbom '
+            '--license-text PATH flag (or `make sbom SBOM_LICENSE_TEXT=...`).'
+        )
+    infos = []
+    for ref in refs:
+        infos.append({
+            'licenseId': ref,
+            'extractedText': license_text,
+            'name': ref[len('LicenseRef-'):].replace('-', ' ').strip(),
+        })
+    return infos
+
+
+def cdx_license_block(license_expr, license_text):
+    """Return the CycloneDX `licenses[]` entry for an arbitrary SPDX
+    expression.  CDX 1.6 distinguishes:
+      * `license.id`      - an entry from the SPDX licence list
+      * `license.name`    - a non-listed licence (e.g. a LicenseRef-*)
+      * `expression`      - a compound SPDX expression
+    Picking the wrong shape causes downstream tooling to reject the SBOM."""
+    # NOASSERTION is a reserved SPDX value, not a parseable SPDX expression;
+    # emit it via license.name so CDX validators don't choke trying to parse
+    # it as one.
+    if license_expr == 'NOASSERTION':
+        return [{'license': {'name': 'NOASSERTION'}}]
+    if is_simple_spdx_id(license_expr):
+        return [{'license': {'id': license_expr}}]
+    refs = extract_license_refs(license_expr)
+    if len(refs) == 1 and refs[0] == license_expr:
+        block = {'name': license_expr}
+        if license_text:
+            block['text'] = {'contentType': 'text/plain', 'content': license_text}
+        return [{'license': block}]
+    return [{'expression': license_expr}]
+
+
+def detect_license(license_file):
+    """Parse LICENSING file and return an SPDX license ID.
+
+    Looks for 'GNU General Public License version N' and whether
+    'or later' / 'or any later version' follows.  Returns None and
+    prints a warning if the file cannot be parsed.
+    """
+    try:
+        with open(license_file) as f:
+            text = f.read()
+    except OSError as e:
+        print(f"WARNING: cannot read license file {license_file}: {e}",
+              file=sys.stderr)
+        return None
+
+    m = re.search(
+        r'gnu general public license\s+version\s+(\d+)',
+        text, re.IGNORECASE
+    )
+    if not m:
+        print(f"WARNING: no GPL version found in {license_file}",
+              file=sys.stderr)
+        return None
+
+    version = m.group(1)
+    excerpt = text[m.end():m.end() + 100]
+    # Match upgrade-permission wording in the 100-byte excerpt that
+    # follows the version mention.  Three FSF-derived shapes:
+    #   * canonical preamble:   "or (at your option) any later version"
+    #   * preamble variant:     "or (at the licensee's option) any later"
+    #   * compact form:         "or later" / "or any later"
+    # The optional `[^,.;\n]*?\s+` group consumes parenthesised
+    # asides without crossing sentence boundaries so unrelated
+    # "or" / "later" mentions in surrounding prose do not match.
+    if re.search(r'or\s+(?:[^,.;\n]*?\s+)?(?:any\s+)?later',
+                 excerpt, re.IGNORECASE):
+        return f'GPL-{version}.0-or-later'
+    return f'GPL-{version}.0-only'
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    try:
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(65536), b''):
+                h.update(chunk)
+    except OSError as e:
+        sys.exit(f"ERROR: cannot read library for hashing: {e}")
+    return h.hexdigest()
+
+
+def pkgconfig_version(pkgname):
+    """Return version string from pkg-config, or None if unavailable."""
+    try:
+        r = subprocess.run(
+            ['pkg-config', '--modversion', pkgname],
+            capture_output=True, text=True
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except FileNotFoundError:
+        pass
+    return None
+
+
+def dep_version(key, overrides=None):
+    """Resolve the runtime version of a DEP_META entry.
+
+    Resolution order:
+      1. Explicit override from `overrides[key]` (set via the
+         --dep-version CLI flag).  This is the only path that works
+         for embedded / cross-compile builds where pkg-config is not
+         available on the host that runs gen-sbom.
+      2. `pkg-config --modversion <pkgconfig>`.  Used by the autotools
+         path on a typical Linux server where the linked dep was
+         installed via the system package manager.
+      3. None.  Caller emits NOASSERTION (SPDX) / omits the version
+         (CycloneDX).
+
+    A previous source-tree fallback that used `git describe` against
+    `git_root` was removed once libxmss/liblms were dropped upstream;
+    if a future PQ dep returns to a source-only integration, restore
+    the fallback here together with a `git_root` field on the DEP_META
+    entry."""
+    if overrides and key in overrides:
+        return overrides[key]
+    return pkgconfig_version(DEP_META[key]['pkgconfig'])
+
+
+# Patterns for #define names that pollute the SBOM with build-environment
+# noise rather than wolfSSL configuration.  Applied identically to
+# parse_options_h (no-pcpp / autotools path) and parse_user_settings
+# (pcpp embedded path) so both entry points produce semantically
+# equivalent build-property sets for the same effective configuration.
+#
+# Three families are filtered:
+#
+# 1. Compiler / preprocessor reserved identifiers (`__*`, `_[A-Z]*`).
+#    ISO C 7.1.3 reserves these for the implementation; clang, gcc, and
+#    pcpp emit dozens of them (`__VERSION__`, `__SSE2__`, `_LP64`, ...).
+#    They describe the build *host*, not wolfSSL, and break SBOM
+#    reproducibility across hosts (same wolfSSL config built on macOS
+#    clang vs. arm-none-eabi-gcc otherwise produces different SBOMs).
+#
+# 2. Apple <TargetConditionals.h> macros (`TARGET_OS_*`,
+#    `TARGET_IPHONE_*`).  The no-pcpp escape hatch
+#    (`$CC -dM -E -include settings.h`) on macOS transitively pulls in
+#    macOS system headers and emits this entire family; without the
+#    filter, a wolfSSL SBOM for an STM32 firmware would falsely
+#    advertise TARGET_OS_MAC=1 if generated on a Mac.
+#
+# 3. Header include guards (`*_H` whose token does NOT carry an
+#    autoconf / wolfSSL configuration prefix).
+#    wolfssl/options.h itself and many internal wolfSSL headers define
+#    guards like WOLFSSL_OPTIONS_H, WOLF_CRYPT_SETTINGS_H, and
+#    WOLFCRYPT_TEST_*_H to prevent double inclusion.  Those describe
+#    *which file was parsed*, not configuration choices.
+#
+#    The carve-out tokens (`HAVE_`, `NO_`, `USE_`) are critical: real
+#    wolfSSL configuration flags also end in `_H` and would otherwise
+#    be silently filtered out, falsifying the SBOM for the customers
+#    who rely on them most:
+#
+#      * `HAVE_*_H` / `WOLFSSL_HAVE_*_H` - autoconf AC_CHECK_HEADER
+#        results (HAVE_STDINT_H, WOLFSSL_HAVE_ATOMIC_H,
+#        WOLFSSL_HAVE_ASSERT_H, ...).  Gates `#if defined(...)`
+#        branches in wc_port.h / types.h.
+#      * `NO_*_H` / `WOLFSSL_NO_*_H` - explicit stdlib / feature
+#        suppression (NO_STDINT_H, NO_STDLIB_H, NO_LIMITS_H,
+#        NO_CTYPE_H, NO_STRING_H, NO_STDDEF_H, WOLFSSL_NO_ASSERT_H).
+#        Set by NETOS / Telit / other RTOS profiles in settings.h to
+#        replace stdlib headers with vendor headers; gates branches
+#        in types.h:398 / settings.h:3850 / sp.h:42.
+#      * `USE_*_H` - build-mode toggles (USE_FLAT_TEST_H,
+#        USE_FLAT_BENCHMARK_H).  Gates which test/benchmark layout
+#        is compiled in test.c:165 / benchmark.c:219 / server.c:70.
+#
+#    Heuristic limitation: a stray feature flag that ends in `_H`
+#    without one of those tokens (e.g. WOLFSSL_DEBUG_TRACE_ERROR_CODES_H,
+#    a debug-only opt-in) would still be filtered.  Customers who
+#    depend on such a flag can either move it to a non-`_H`-suffixed
+#    name in their user_settings.h, or feed gen-sbom the full
+#    `$CC -dM -E` dump via --options-h together with a hand-edited
+#    add-back file.  None of the embedded customer profiles in the
+#    tree (NETOS, Telit, Zephyr, ESP-IDF, GCC-ARM, MDK, IAR, NUTTX)
+#    use such flags, which is why we accept the heuristic.
+_NOISE_MACRO_RE = re.compile(
+    r'^(?:'
+    r'__\w+'                        # compiler/preprocessor reserved
+    r'|_[A-Z][A-Z0-9_]*'            # ISO C reserved (e.g. _LP64)
+    r'|TARGET_OS_\w+'               # Apple TargetConditionals leak
+    r'|TARGET_IPHONE_\w+'           # Apple TargetConditionals leak
+    r')$'
+)
+
+# Tokens that, when present anywhere in a `*_H` macro name, mark it as
+# real wolfSSL / autoconf configuration rather than a header include
+# guard.  Kept tight on purpose - widening (e.g. adding `DEBUG_` or
+# `WOLFSSL_`) would let through real guards like WOLFSSL_OPTIONS_H.
+_CONFIG_H_TOKENS = ('HAVE_', 'NO_', 'USE_')
+
+
+def _is_noise_macro(name):
+    """True if `name` is a build-environment artefact rather than wolfSSL
+    configuration, and therefore must not appear as a SBOM
+    `wolfssl:build:*` property.
+
+    Drops three families (see the module-level comment block on
+    `_NOISE_MACRO_RE` for full rationale):
+      1. Compiler / preprocessor reserved (`__*`, `_[A-Z]*`).
+      2. Apple <TargetConditionals.h> (`TARGET_OS_*`, `TARGET_IPHONE_*`).
+      3. Header include guards (`*_H` not carrying any of
+         `_CONFIG_H_TOKENS`).
+    """
+    if _NOISE_MACRO_RE.match(name):
+        return True
+    if name.endswith('_H') and not any(t in name for t in _CONFIG_H_TOKENS):
+        return True
+    return False
+
+
+def _strip_define_comment(raw):
+    """Strip trailing C/C++ comment from a #define value while preserving
+    `/`-bearing characters that appear inside a double-quoted string.
+
+    Earlier versions used `re.split(r'/\\*|//', raw, maxsplit=1)[0]`, which
+    is unaware of string literals.  That regex corrupts autoconf-generated
+    defines such as
+
+        #define PACKAGE_URL "https://www.wolfssl.com"
+        #define PACKAGE_BUGREPORT "https://github.com/wolfssl/wolfssl/issues"
+
+    by truncating at the first `//` inside the URL — both end up as
+    `"https:` in the SBOM build properties, falsely showing PACKAGE_URL
+    drifting between releases when nothing actually changed.
+
+    Char literals are not handled: autoconf-generated options.h does not
+    emit them, and pcpp normalises customer user_settings.h before this
+    helper sees the value, so the only realistic source of `/` in a
+    #define value is a quoted string."""
+    in_str = False
+    i = 0
+    n = len(raw)
+    while i < n:
+        c = raw[i]
+        if in_str:
+            if c == '\\' and i + 1 < n:
+                i += 2
+                continue
+            if c == '"':
+                in_str = False
+        else:
+            if c == '"':
+                in_str = True
+            elif c == '/' and i + 1 < n and raw[i + 1] in '/*':
+                return raw[:i]
+        i += 1
+    return raw
+
+
+def parse_options_h(path):
+    """Parse a flat `#define` header and return a sorted deduplicated
+    list of (name, value) pairs for every wolfSSL-relevant macro.
+
+    Accepts both autotools-generated `wolfssl/options.h` (curated by
+    ./configure, contains only wolfSSL macros plus its own header guard)
+    and raw compiler output from `$CC -dM -E -include settings.h ...`
+    (the no-pcpp escape hatch documented in doc/SBOM.md § 1.5).  The
+    latter case motivates the `_is_noise_macro` filter: a `clang -dM -E`
+    dump contains hundreds of compiler internals (`__VERSION__`,
+    `__SSE2__`, `__INT_FAST32_MAX__`) and Apple system header leaks
+    (`TARGET_OS_MAC`) that would otherwise drown out the wolfSSL
+    configuration in the SBOM and break reproducibility across hosts.
+
+    Trailing C/C++ comments on a #define line (`#define HAVE_FOO 42 /* x */`
+    or `// y`) are stripped; otherwise they would land verbatim in the
+    SBOM build properties.  String literals are preserved intact so that
+    URLs in PACKAGE_URL / PACKAGE_BUGREPORT are not truncated at the
+    first `//` (see _strip_define_comment)."""
+    try:
+        with open(path) as f:
+            text = f.read()
+    except OSError as e:
+        print(f"WARNING: cannot read options.h {path}: {e}", file=sys.stderr)
+        return []
+
+    defines = {}
+    for m in re.finditer(r'^#define[ \t]+(\w+)(?:[ \t]+(.*))?$', text, re.MULTILINE):
+        name = m.group(1)
+        if _is_noise_macro(name):
+            continue
+        raw = (m.group(2) or '')
+        raw = _strip_define_comment(raw)
+        defines[name] = raw.strip()
+    return sorted(defines.items())
+
+
+def parse_user_settings(settings_h_path, include_dirs, predefines):
+    """Walk wolfssl/wolfcrypt/settings.h through pcpp and return the same
+    sorted [(name, value), ...] list shape that parse_options_h() returns.
+
+    The customer's user_settings.h is included transitively via the
+    standard `#ifdef WOLFSSL_USER_SETTINGS` gate inside settings.h, so the
+    caller predefines `WOLFSSL_USER_SETTINGS` and adds the directory of
+    user_settings.h to `include_dirs`.  This mirrors the way the C compiler
+    actually sees the wolfSSL build, so the SBOM build properties reflect
+    the real compiled configuration rather than just the literal text of
+    user_settings.h.
+
+    Filters (see `_is_noise_macro` for the shared family list used by
+    both this function and parse_options_h):
+      * compiler/preprocessor reserved names (`__*`, `_[A-Z]*`).  pcpp's
+        own internals (__DATE__/__TIME__/__PCPP__/__FILE__) and any host
+        compiler defines transitively leaking through pcpp's preprocess
+        would otherwise break reproducibility across build hosts.
+      * Apple <TargetConditionals.h> macros (`TARGET_OS_*`,
+        `TARGET_IPHONE_*`).  Defensive: pcpp does not auto-include
+        system headers, but a customer's user_settings.h may.
+      * header guards (`*_H` whose token does not carry an autoconf /
+        wolfSSL config prefix - see _CONFIG_H_TOKENS).  wolfSSL's own
+        settings.h / visibility.h emit guards like
+        WOLF_CRYPT_SETTINGS_H that describe inclusion, not
+        configuration; real `_H` configuration flags (NO_STDINT_H,
+        USE_FLAT_TEST_H, WOLFSSL_NO_ASSERT_H) are preserved.
+      * function-like macros are dropped (they are API surface, not
+        build configuration; including their post-expansion body would
+        also break reproducibility under whitespace/token-render drift).
+
+    pcpp is imported lazily so the autotools path (which uses
+    parse_options_h) does not require the dependency.
+    """
+    try:
+        from pcpp import Preprocessor
+    except ImportError:
+        sys.exit(
+            "ERROR: --user-settings requires the 'pcpp' Python preprocessor.\n"
+            "       Install: pip install pcpp\n"
+            "       Or pre-process externally and pass the result via "
+            "--options-h instead\n"
+            "       (e.g. $CC -dM -E -include wolfssl/wolfcrypt/settings.h "
+            "-DWOLFSSL_USER_SETTINGS - < /dev/null)."
+        )
+
+    pp = Preprocessor()
+    pp.line_directive = None
+    for d in include_dirs:
+        pp.add_path(d)
+    for predefine in predefines:
+        # Compiler-style `-D KEY=VALUE` is the universal CLI shape;
+        # translate to the `"KEY VALUE"` form pcpp.define() expects.
+        # Bare `-D KEY` (no value) maps to `"KEY"`, also accepted.
+        spec = predefine.replace('=', ' ', 1) if '=' in predefine else predefine
+        pp.define(spec)
+
+    try:
+        with open(settings_h_path) as f:
+            text = f.read()
+    except OSError as e:
+        sys.exit(f"ERROR: cannot read settings.h {settings_h_path}: {e}")
+
+    pp.parse(text, source=settings_h_path)
+    # pcpp.write() is what actually drives the preprocessor through #if /
+    # #ifdef resolution and populates pp.macros with the surviving
+    # defines.  The output stream is intentionally discarded - we only
+    # care about pp.macros - but this call is NOT optional.
+    sink = io.StringIO()
+    pp.write(sink)
+
+    # pcpp signals fatal preprocessing problems (an `#error` directive
+    # firing, an unbalanced `#if`, a missing #include, etc.) by setting
+    # pp.return_code to non-zero and printing to stderr; it does NOT
+    # raise.  For an SBOM tool whose contract is "this artefact
+    # faithfully describes the build", a partial macro table produced
+    # before the failure is the worst possible output - the SBOM would
+    # silently omit configuration the customer set.  Hard-fail instead
+    # so the build pipeline notices.
+    if pp.return_code != 0:
+        sys.exit(
+            f"ERROR: pcpp failed to preprocess {settings_h_path} "
+            f"(return_code={pp.return_code}); the resulting SBOM would "
+            f"be incomplete.  Check the pcpp diagnostics printed above "
+            f"for the offending #error / #include / #if directive."
+        )
+
+    defines = {}
+    for name, macro in pp.macros.items():
+        if _is_noise_macro(name):
+            continue
+        if macro.arglist is not None:
+            continue
+        tokens = macro.value or []
+        defines[name] = ' '.join(t.value for t in tokens).strip()
+    return sorted(defines.items())
+
+
+def gitoid_blob_sha256(path):
+    """Compute the OmniBOR / git SHA-256 gitoid for a single file.
+
+    The format is `sha256("blob " + filesize + "\\0" + filecontents)`
+    which is byte-identical to `git hash-object --object-format=sha256`.
+    Using the gitoid (rather than a plain SHA-256) lets the source-set
+    Merkle hash interoperate with bomsh/OmniBOR tooling: a customer can
+    cross-reference the wolfSSL SBOM's component hash with the entries
+    in an OmniBOR artifact dependency graph and confirm the same files
+    on both sides.
+
+    The well-known empty-blob gitoid sha256 is
+    473a0f4c3be8a93681a267e3b1e9a7dcda1185436fe141f7749120a303721813
+    (regression-tested in scripts/test_gen_sbom.py).
+    """
+    h = hashlib.sha256()
+    try:
+        size = os.path.getsize(path)
+        h.update(f'blob {size}\x00'.encode())
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(65536), b''):
+                h.update(chunk)
+    except OSError as e:
+        sys.exit(f"ERROR: cannot read source for hashing: {e}")
+    return h.hexdigest()
+
+
+def srcs_merkle_hash(src_paths):
+    """Deterministic SHA-256 over a sorted list of (basename, gitoid)
+    pairs for the given source files.
+
+    Two customers compiling the same wolfSSL release with the same set
+    of source files get identical hashes regardless of where their
+    wolfSSL tree lives on disk, the order they passed --srcs, or the
+    filesystem they built on.  Sorting on basename only (not full path)
+    is what makes this true; collisions across basenames would matter
+    in theory but wolfSSL's source layout has unique basenames per file
+    by construction.
+
+    A one-byte change in any compiled-in source produces a different
+    hash, which is the property that makes this useful as the SBOM
+    component checksum for embedded builds with no separate library
+    archive."""
+    seen = set()
+    entries = []
+    for path in src_paths:
+        name = os.path.basename(path)
+        if name in seen:
+            sys.exit(
+                f"ERROR: duplicate basename in --srcs: {name!r}\n"
+                f"       Source files must have unique basenames so the "
+                f"Merkle hash is order-independent.")
+        seen.add(name)
+        entries.append((name, gitoid_blob_sha256(path)))
+    entries.sort()
+    h = hashlib.sha256()
+    for name, oid in entries:
+        h.update(f'{name}\x00{oid}\n'.encode())
+    return h.hexdigest()
+
+
+def cdx_dep_component(name, pkg_version, key, dep_version_overrides=None):
+    """Return (bom_ref, component_dict) for a CDX dependency component.
+    bom_ref is deterministic for reproducibility."""
+    meta = DEP_META[key]
+    version = dep_version(key, dep_version_overrides)
+    bom_ref = derived_uuid(name, pkg_version, 'dep', key)
+    comp = {
+        'bom-ref': bom_ref,
+        'type': 'library',
+        'supplier': {'name': meta['supplier']},
+        'name': meta['name'],
+        'licenses': [{'license': {'id': meta['license']}}],
+        'externalReferences': [{'type': 'vcs', 'url': meta['download']}],
+    }
+    if version:
+        comp['version'] = version
+        comp['purl'] = meta['purl'](version)
+    else:
+        print(f"WARNING: version unknown for {meta['name']}; "
+              "omitting version and purl", file=sys.stderr)
+    return bom_ref, comp
+
+
+def spdx_dep_package(key, dep_version_overrides=None):
+    """Return (spdx_id, package_dict) for an SPDX dependency package."""
+    meta = DEP_META[key]
+    version = dep_version(key, dep_version_overrides)
+    spdx_id = 'SPDXRef-Package-' + re.sub(r'[^A-Za-z0-9.]', '', meta['name'])
+    pkg = {
+        'SPDXID': spdx_id,
+        'name': meta['name'],
+        'versionInfo': version if version else 'NOASSERTION',
+        'supplier': f"Organization: {meta['supplier']}",
+        'downloadLocation': meta['download'],
+        'filesAnalyzed': False,
+        'licenseConcluded': meta['license'],
+        'licenseDeclared': meta['license'],
+        'copyrightText': 'NOASSERTION',
+    }
+    if version:
+        pkg['externalRefs'] = [{
+            'referenceCategory': 'PACKAGE-MANAGER',
+            'referenceType': 'purl',
+            'referenceLocator': meta['purl'](version),
+        }]
+    return spdx_id, pkg
+
+
+def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
+                 timestamp, year, serial, enabled_deps, build_props,
+                 dep_version_overrides=None, hash_kind='library-binary',
+                 srcs_basenames=None):
+    bom_ref = derived_uuid(name, version, 'package')
+
+    dep_bom_refs = []
+    components = []
+    for key in enabled_deps:
+        ref, comp = cdx_dep_component(name, version, key, dep_version_overrides)
+        dep_bom_refs.append(ref)
+        components.append(comp)
+
+    properties = [
+        {'name': f'wolfssl:build:{k}', 'value': v if v else '1'}
+        for k, v in build_props
+    ]
+    # Document what the SHA-256 in `hashes` represents, but only for
+    # the source-merkle entry point.  The autotools / library-binary
+    # path keeps its existing output shape byte-identical so CI's
+    # reproducibility diff does not regress.  Auditors looking at a
+    # source-merkle SBOM need this annotation to interpret the
+    # checksum correctly (vs. a library-artefact checksum).
+    if hash_kind != 'library-binary':
+        properties.append(
+            {'name': 'wolfssl:sbom:hash-kind', 'value': hash_kind})
+        if srcs_basenames:
+            properties.append({
+                'name': 'wolfssl:sbom:source-set',
+                'value': ','.join(srcs_basenames),
+            })
+
+    return {
+        '$schema': 'http://cyclonedx.org/schema/bom-1.6.schema.json',
+        'bomFormat': 'CycloneDX',
+        'specVersion': '1.6',
+        'serialNumber': f'urn:uuid:{serial}',
+        'version': 1,
+        'metadata': {
+            'timestamp': timestamp,
+            'tools': {
+                'components': [{
+                    'type': 'application',
+                    'author': 'wolfSSL Inc.',
+                    'name': 'wolfssl-sbom-gen',
+                    'version': '1.0'
+                }]
+            },
+            'component': {
+                'bom-ref': bom_ref,
+                'type': 'library',
+                'supplier': {'name': supplier},
+                'name': name,
+                'version': version,
+                'licenses': cdx_license_block(license_id, license_text),
+                'copyright': f'Copyright (C) 2006-{year} wolfSSL Inc.',
+                'cpe': f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*',
+                'purl': f'pkg:generic/{name}@{version}',
+                'hashes': [{'alg': 'SHA-256', 'content': lib_hash}],
+                'externalReferences': [{
+                    'type': 'vcs',
+                    'url': 'https://github.com/wolfSSL/wolfssl'
+                }],
+                'properties': properties,
+            }
+        },
+        'components': components,
+        'dependencies': [
+            {'ref': bom_ref, 'dependsOn': dep_bom_refs},
+            *[{'ref': r, 'dependsOn': []} for r in dep_bom_refs],
+        ],
+    }
+
+
+def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
+                  timestamp, year, doc_ns_uuid, enabled_deps, build_props,
+                  dep_version_overrides=None, hash_kind='library-binary',
+                  srcs_basenames=None, document_namespace=None):
+    build_defines = ', '.join(k for k, _ in build_props)
+    # Only annotate the comment when running the source-merkle entry
+    # point.  The autotools / library-binary path keeps its existing
+    # output shape byte-identical so reproducibility CI does not
+    # regress.
+    if hash_kind != 'library-binary':
+        build_defines += f' | hash-kind={hash_kind}'
+        if srcs_basenames:
+            build_defines += (
+                ' | source-set=' + ','.join(srcs_basenames))
+    wolfssl_pkg = {
+        'SPDXID': 'SPDXRef-Package-wolfssl',
+        'name': name,
+        'versionInfo': version,
+        'supplier': f'Organization: {supplier}',
+        'downloadLocation': 'https://github.com/wolfSSL/wolfssl',
+        'filesAnalyzed': False,
+        'checksums': [{'algorithm': 'SHA256', 'checksumValue': lib_hash}],
+        'licenseConcluded': license_id,
+        'licenseDeclared': license_id,
+        'copyrightText': f'Copyright (C) 2006-{year} wolfSSL Inc.',
+        'comment': f'Build configuration defines: {build_defines}',
+        'externalRefs': [
+            {
+                'referenceCategory': 'SECURITY',
+                'referenceType': 'cpe23Type',
+                'referenceLocator': (
+                    f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*'
+                )
+            },
+            {
+                'referenceCategory': 'PACKAGE-MANAGER',
+                'referenceType': 'purl',
+                'referenceLocator': f'pkg:generic/{name}@{version}'
+            }
+        ],
+    }
+
+    packages = [wolfssl_pkg]
+    relationships = [{
+        'spdxElementId': 'SPDXRef-DOCUMENT',
+        'relatedSpdxElement': 'SPDXRef-Package-wolfssl',
+        'relationshipType': 'DESCRIBES',
+    }]
+
+    for key in enabled_deps:
+        spdx_id, pkg = spdx_dep_package(key, dep_version_overrides)
+        packages.append(pkg)
+        relationships.append({
+            'spdxElementId': 'SPDXRef-Package-wolfssl',
+            'relatedSpdxElement': spdx_id,
+            'relationshipType': 'DEPENDS_ON',
+        })
+
+    # SPDX 2.3 §6.5: documentNamespace must be a unique URI; it is NOT
+    # required to resolve to anything.  Default to `urn:uuid:<derived>`
+    # rather than a `https://wolfssl.com/sbom/...` URL the project does
+    # not actually host -- emitting an unresolvable URL misleads any
+    # downstream tool that follows it.  Downstream packagers who DO host
+    # a per-version mirror can override via `--document-namespace`
+    # (Makefile.am: SBOM_DOCUMENT_NAMESPACE).
+    doc_namespace = document_namespace or f'urn:uuid:{doc_ns_uuid}'
+    doc = {
+        'spdxVersion': 'SPDX-2.3',
+        'dataLicense': 'CC0-1.0',
+        'SPDXID': 'SPDXRef-DOCUMENT',
+        'name': f'{name}-{version}',
+        'documentNamespace': doc_namespace,
+        'creationInfo': {
+            'creators': [
+                f'Organization: {supplier}',
+                'Tool: wolfssl-sbom-gen-1.0'
+            ],
+            'created': timestamp,
+        },
+        'packages': packages,
+        'relationships': relationships,
+    }
+
+    extracted = build_extracted_licensing_infos(license_id, license_text)
+    if extracted:
+        doc['hasExtractedLicensingInfos'] = extracted
+
+    return doc
+
+
+def _parse_dep_version_overrides(spec_list):
+    """Parse repeated --dep-version KEY=VERSION flags into a dict.
+    Rejects unknown keys early so a typo (e.g. --dep-version libssl=…)
+    does not silently produce an SBOM that omits the dep version."""
+    overrides = {}
+    for spec in spec_list:
+        if '=' not in spec:
+            sys.exit(
+                f"ERROR: --dep-version expects KEY=VERSION, got {spec!r}")
+        key, _, value = spec.partition('=')
+        if key not in DEP_META:
+            sys.exit(
+                f"ERROR: --dep-version key {key!r} is not a known wolfSSL "
+                f"dependency. Known keys: {', '.join(sorted(DEP_META))}.")
+        overrides[key] = value
+    return overrides
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Generate CycloneDX and SPDX SBOMs for wolfssl. '
+                    'Supports two entry-point shapes: the autotools / '
+                    'library-binary form (--options-h + --lib) used by '
+                    '`make sbom`, and the standalone embedded form '
+                    '(--user-settings + --srcs) used by customers who '
+                    'build with their own Makefile / IDE and never run '
+                    './configure.'
+    )
+    parser.add_argument('--name', required=True, help='Package name')
+    parser.add_argument('--version', required=True, help='Package version')
+    parser.add_argument('--supplier', default='wolfSSL Inc.',
+                        help='Supplier name (default: wolfSSL Inc.)')
+    parser.add_argument('--license-file', required=True,
+                        help='Path to LICENSING file for SPDX ID detection')
+    parser.add_argument('--license-override', default='',
+                        help='Override the detected SPDX license expression '
+                             '(e.g. LicenseRef-wolfSSL-Commercial). Useful '
+                             'for commercial licensees regenerating the SBOM '
+                             'for their own product.')
+    parser.add_argument('--license-text', default='',
+                        help='Path to a plain-text licence file whose '
+                             'contents are embedded in the SBOM as the '
+                             '`extractedText` for any LicenseRef-* used in '
+                             '`--license-override`.  Required by SPDX 2.3 '
+                             'validators (e.g. pyspdxtools) for any custom '
+                             'licence reference.')
+    # Build-configuration source: pick exactly one.
+    parser.add_argument('--options-h',
+                        help='Path to wolfssl/options.h for build config '
+                             '(autotools entry point).  The file is read '
+                             'as a flat list of #define directives; pre-'
+                             'processed `$CC -dM -E -include settings.h` '
+                             'output works equivalently.')
+    parser.add_argument('--user-settings',
+                        help='Path to wolfssl/wolfcrypt/settings.h to walk '
+                             'through pcpp (embedded entry point).  Combine '
+                             'with --user-settings-include to point at the '
+                             'directory containing user_settings.h, and '
+                             '`--user-settings-define WOLFSSL_USER_SETTINGS` '
+                             'to enable the user_settings.h inclusion gate.')
+    parser.add_argument('--user-settings-include', action='append', default=[],
+                        metavar='DIR',
+                        help='Add an include path for --user-settings '
+                             'preprocessing (repeatable). Equivalent to -I '
+                             'on the compiler command line.')
+    parser.add_argument('--user-settings-define', action='append', default=[],
+                        metavar='NAME[=VALUE]',
+                        help='Predefine a macro for --user-settings '
+                             'preprocessing (repeatable). Equivalent to -D '
+                             'on the compiler command line.  At minimum '
+                             'pass `WOLFSSL_USER_SETTINGS` so settings.h '
+                             'pulls in user_settings.h.')
+    # Component checksum source: pick exactly one.
+    parser.add_argument('--lib',
+                        help='Path to the wolfSSL library artifact '
+                             '(shared or static) for SHA-256 hashing '
+                             '(autotools entry point).')
+    parser.add_argument('--srcs', nargs='+', default=None,
+                        help='wolfSSL source files compiled into the '
+                             'firmware (embedded entry point).  Their '
+                             'OmniBOR-compatible gitoid Merkle hash is '
+                             'used as the SBOM component checksum '
+                             'instead of --lib.')
+    parser.add_argument('--dep-libz', default='no',
+                        help='yes if built with --with-libz')
+    parser.add_argument('--dep-liboqs', default='no',
+                        help='yes if built with --with-liboqs (the package '
+                             'wolfSSL links against; --enable-falcon implies '
+                             'this in any legal configuration)')
+    parser.add_argument('--dep-version', action='append', default=[],
+                        metavar='KEY=VERSION',
+                        help='Override pkg-config version detection for a '
+                             'dependency (repeatable). KEY is one of: '
+                             + ', '.join(sorted(DEP_META)) + '. Required '
+                             'on hosts without pkg-config (typical embedded '
+                             'cross-compile setups).')
+    parser.add_argument('--document-namespace', default='',
+                        metavar='URI',
+                        help='Override SPDX documentNamespace.  Default '
+                             'is a deterministic urn:uuid derived from '
+                             '--name and --version.  Set to a URI you '
+                             'actually host (e.g. '
+                             'https://example.com/sbom/wolfssl-X.Y.Z.spdx.json) '
+                             'when re-publishing the SBOM under your own '
+                             'distribution.  SPDX 2.3 §6.5 requires only '
+                             'uniqueness, not resolvability.')
+    parser.add_argument('--cdx-out', required=True,
+                        help='Output path for CycloneDX JSON')
+    parser.add_argument('--spdx-out', required=True,
+                        help='Output path for SPDX JSON')
+    args = parser.parse_args()
+
+    # Mutual exclusion + at-least-one validation for the two entry-point
+    # shapes.  Surfacing this here keeps argparse's --required machinery
+    # simple and produces a friendlier error than argparse's auto-text.
+    if bool(args.options_h) == bool(args.user_settings):
+        sys.exit(
+            "ERROR: pass exactly one of --options-h or --user-settings.\n"
+            "       --options-h: autotools entry point (a flat #define file "
+            "such as wolfssl/options.h).\n"
+            "       --user-settings: embedded entry point (path to "
+            "wolfssl/wolfcrypt/settings.h, with --user-settings-include "
+            "pointing at the directory containing user_settings.h).")
+    if bool(args.lib) == bool(args.srcs):
+        sys.exit(
+            "ERROR: pass exactly one of --lib or --srcs.\n"
+            "       --lib: hash a built library artefact (.so/.a/.dylib).\n"
+            "       --srcs: hash the wolfSSL source files compiled into "
+            "your firmware (OmniBOR gitoid Merkle hash).")
+
+    # SPDX 2.3 §6.5 requires documentNamespace to be a unique absolute URI
+    # per RFC 3986.  `make sbom` runs pyspdxtools afterwards and would
+    # catch a malformed value, but the standalone entry point has no
+    # validation gate -- a typo in SBOM_DOCUMENT_NAMESPACE / a packager
+    # passing a relative path would otherwise land malformed SPDX in
+    # downstream artefacts.  An absolute URI per RFC 3986 §3 has a
+    # non-empty scheme; urlparse extracts that.
+    if args.document_namespace:
+        from urllib.parse import urlparse
+        scheme = urlparse(args.document_namespace).scheme
+        if not scheme:
+            sys.exit(
+                f"ERROR: --document-namespace {args.document_namespace!r} "
+                "is not an absolute URI (SPDX 2.3 §6.5 requires RFC 3986 "
+                "absolute URI form).  Expected e.g. "
+                "https://example.com/sbom/wolfssl-X.Y.Z.spdx.json or "
+                "urn:uuid:00000000-0000-0000-0000-000000000000.")
+
+    enabled_deps = [
+        key for key, flag in [
+            ('libz',   args.dep_libz),
+            ('liboqs', args.dep_liboqs),
+        ]
+        if flag.lower() == 'yes'
+    ]
+    dep_version_overrides = _parse_dep_version_overrides(args.dep_version)
+
+    if args.license_override:
+        license_id = args.license_override
+    else:
+        license_id = detect_license(args.license_file)
+        if license_id is None:
+            print("WARNING: license could not be determined; using NOASSERTION",
+                  file=sys.stderr)
+            license_id = 'NOASSERTION'
+
+    license_text = load_license_text(args.license_text)
+    if extract_license_refs(license_id) and license_text is None:
+        sys.exit(
+            "ERROR: --license-override contains a LicenseRef-* identifier "
+            "but --license-text was not provided.\n"
+            "       SPDX 2.3 requires the licence text to be embedded in "
+            "hasExtractedLicensingInfos for any LicenseRef-* used in "
+            "licenseConcluded/licenseDeclared.\n"
+            "       Re-run with --license-text PATH (or "
+            "`make sbom SBOM_LICENSE_TEXT=PATH`)."
+        )
+
+    if args.options_h:
+        build_props = parse_options_h(args.options_h)
+    else:
+        build_props = parse_user_settings(
+            args.user_settings,
+            args.user_settings_include,
+            args.user_settings_define,
+        )
+
+    if args.lib:
+        # Refuse the empty-file SHA-256 as a component checksum.  A
+        # build that points --lib at /dev/null, a stub touch(1)'d
+        # placeholder, or an empty .a that failed to ar-create would
+        # otherwise emit a valid-looking SBOM whose hash matches no
+        # compiled wolfSSL artefact ever shipped.  The SBOM passes
+        # both spec validators -- nothing else catches it.
+        try:
+            lib_size = os.path.getsize(args.lib)
+        except OSError as e:
+            sys.exit(f"ERROR: cannot stat --lib {args.lib!r}: {e}")
+        if lib_size == 0:
+            sys.exit(
+                f"ERROR: --lib {args.lib!r} is empty (0 bytes); refusing "
+                "to emit an SBOM with the empty-file SHA-256 as the "
+                "component checksum.  Verify your build produced a "
+                "real library artefact.")
+        lib_hash = sha256_file(args.lib)
+        hash_kind = 'library-binary'
+        srcs_basenames = None
+    else:
+        # --srcs is the embedded entry point.  Zero-byte files in the
+        # set are uncommon but not necessarily wrong (a cross-compile
+        # toolchain may stub a per-target source with touch); warn
+        # rather than fail so the customer can decide whether the
+        # gitoid for an empty blob is what they want recorded.
+        zero_byte_srcs = [
+            p for p in args.srcs if os.path.isfile(p) and os.path.getsize(p) == 0
+        ]
+        if zero_byte_srcs:
+            print(
+                "WARNING: zero-byte source files in --srcs (gitoid will "
+                "be the well-known empty-blob hash for these): "
+                + ', '.join(zero_byte_srcs),
+                file=sys.stderr)
+        lib_hash = srcs_merkle_hash(args.srcs)
+        hash_kind = 'source-merkle-omnibor'
+        srcs_basenames = sorted({os.path.basename(p) for p in args.srcs})
+
+    dt, timestamp = build_timestamp()
+    year = dt.year
+    serial = derived_uuid(args.name, args.version, 'serial')
+    doc_ns_uuid = derived_uuid(args.name, args.version, 'document')
+
+    cdx = generate_cdx(
+        args.name, args.version, args.supplier,
+        license_id, license_text, lib_hash, timestamp, year, serial,
+        enabled_deps, build_props,
+        dep_version_overrides=dep_version_overrides,
+        hash_kind=hash_kind, srcs_basenames=srcs_basenames,
+    )
+    spdx = generate_spdx(
+        args.name, args.version, args.supplier,
+        license_id, license_text, lib_hash, timestamp, year, doc_ns_uuid,
+        enabled_deps, build_props,
+        dep_version_overrides=dep_version_overrides,
+        hash_kind=hash_kind, srcs_basenames=srcs_basenames,
+        document_namespace=(args.document_namespace or None),
+    )
+
+    try:
+        with open(args.cdx_out, 'w') as f:
+            json.dump(cdx, f, indent=2)
+            f.write('\n')
+        with open(args.spdx_out, 'w') as f:
+            json.dump(spdx, f, indent=2)
+            f.write('\n')
+    except OSError as e:
+        sys.exit(f"ERROR: cannot write SBOM output: {e}")
+
+    print(f"Generated: {args.cdx_out}")
+    print(f"Generated: {args.spdx_out}")
+
+
+if __name__ == '__main__':
+    main()
