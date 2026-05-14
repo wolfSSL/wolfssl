@@ -3088,6 +3088,14 @@ typedef enum {
  * https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-3
  */
 #if defined(HAVE_RPK)
+/* WOLFSSL_MAX_RPK_PINS (default 4) is defined in the public header
+ * wolfssl/ssl.h, which this header includes, so applications can see and
+ * override it. The pin table is stored inline in RpkConfig (see below),
+ * costing WOLFSSL_MAX_RPK_PINS * WC_SHA256_DIGEST_SIZE bytes per WOLFSSL_CTX and
+ * WOLFSSL. Out-of-band RPK pinning needs SHA-256 (pins are stored as digests);
+ * under NO_SHA256 there is no in-library pinning and trust must be expressed
+ * through a verify callback instead. */
+
 typedef struct RpkConfig {
     /* user's preference */
     byte preferred_ClientCertTypeCnt;
@@ -3095,6 +3103,16 @@ typedef struct RpkConfig {
     byte preferred_ServerCertTypeCnt;
     byte preferred_ServerCertTypes[MAX_CLIENT_CERT_TYPE_CNT];
     /* reflect to client_certificate_type extension in xxxHello */
+#ifndef NO_SHA256
+    /* SHA-256 digests of the DER SubjectPublicKeyInfo(s) the peer is expected
+     * to present as a Raw Public Key (RFC 7250), pinned out of band via
+     * wolfSSL_set_expected_rpk()/wolfSSL_CTX_set_expected_rpk(). A received RPK
+     * whose SPKI digest matches one of these is treated as authenticated.
+     * Stored inline (not a pointer) so the by-value RpkConfig copy from CTX to
+     * SSL needs no deep-copy or free handling. */
+    byte expectedRpkCnt;
+    byte expectedRpk[WOLFSSL_MAX_RPK_PINS][WC_SHA256_DIGEST_SIZE];
+#endif /* !NO_SHA256 */
 } RpkConfig;
 
 typedef struct RpkState {

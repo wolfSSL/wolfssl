@@ -15994,6 +15994,43 @@ static int AdjustCMForParams(WOLFSSL* ssl)
 }
 #endif
 
+#if defined(HAVE_RPK)
+/* Determine whether a received Raw Public Key (RFC 7250) has been pinned as
+ * trusted out of band. The on-wire RPK is exactly the DER SubjectPublicKeyInfo,
+ * so its SHA-256 digest is compared against the application-supplied pins.
+ *
+ * @param [in] ssl     SSL/TLS object.
+ * @param [in] spki    DER SubjectPublicKeyInfo received from the peer.
+ * @param [in] spkiSz  Length of spki in bytes.
+ * @return  1 when the key matches a pin, 0 otherwise.
+ */
+static int RpkIsTrusted(WOLFSSL* ssl, const byte* spki, word32 spkiSz)
+{
+#ifndef NO_SHA256
+    RpkConfig* cfg = &ssl->options.rpkConfig;
+
+    if ((cfg->expectedRpkCnt > 0) && (spki != NULL) && (spkiSz > 0)) {
+        byte digest[WC_SHA256_DIGEST_SIZE];
+        int i;
+
+        if (wc_Sha256Hash(spki, spkiSz, digest) == 0) {
+            for (i = 0; i < (int)cfg->expectedRpkCnt; i++) {
+                if (XMEMCMP(digest, cfg->expectedRpk[i],
+                            WC_SHA256_DIGEST_SIZE) == 0) {
+                    return 1;
+                }
+            }
+        }
+    }
+#else
+    (void)ssl;
+    (void)spki;
+    (void)spkiSz;
+#endif /* !NO_SHA256 */
+    return 0;
+}
+#endif /* HAVE_RPK */
+
 int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      word32 totalSz)
 {
@@ -16816,6 +16853,63 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                         ssl->peerVerifyRet = WOLFSSL_X509_V_OK;
                 #endif
+
+                #if defined(HAVE_RPK)
+                    /* A Raw Public Key cert (RFC 7250) has no issuer and no
+                     * signature, so ParseCertRelative performed no peer
+                     * authentication. The key is only authenticated if it was
+                     * pinned out of band (expected RPK). Applies to both peers
+                     * - client checking the server's RPK and server checking
+                     * the client's RPK. */
+                    if (args->dCert->isRPK) {
+                        int rpkTrusted = RpkIsTrusted(ssl,
+                                args->certs[args->certIdx].buffer,
+                                args->certs[args->certIdx].length);
+
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        /* Report the status truthfully regardless of verify
+                         * mode, mirroring OpenSSL: get_verify_result() reflects
+                         * the actual key status even under WOLFSSL_VERIFY_NONE
+                         * rather than leaving it at WOLFSSL_X509_V_OK. */
+                        if (!rpkTrusted &&
+                                ssl->peerVerifyRet == WOLFSSL_X509_V_OK) {
+                            ssl->peerVerifyRet = (unsigned long)
+                                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED;
+                        }
+                    #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+                        /* Fail closed when the peer is being authenticated: an
+                         * untrusted RPK must abort the handshake rather than
+                         * silently complete it.
+                         * The gate is !verifyNone, matching the X.509
+                         * authentication gate above (the VERIFY/NO_VERIFY
+                         * choice passed to ProcessPeerCertParse) - so a default
+                         * authenticating client (verifyPeer unset, verifyNone
+                         * unset) validating an RPK server is protected too, not
+                         * just the explicit WOLFSSL_VERIFY_PEER case. The verify
+                         * callback can still override, exactly as it can for an
+                         * X.509 chain error. WOLFSSL_VERIFY_NONE keeps the
+                         * "accept and let the application decide" behaviour per
+                         * RFC 7250. */
+                        if (!rpkTrusted && !ssl->options.verifyNone) {
+                            WOLFSSL_MSG("Untrusted RPK and peer verification "
+                                        "is on; failing handshake");
+                            /* ASN_NO_SIGNER_E ("no trusted signer/anchor") is
+                             * the closest existing error for an unpinned RPK.
+                             * It is set here in the parse-SUCCESS branch, so the
+                             * X.509 recovery that keys on this code (alternate
+                             * chains, CA hash-dir lookup, Apple native
+                             * validation) - all of which live in the
+                             * parse-FAILURE branch above - is not reachable for
+                             * RPK. The leaf verify callback is still invoked at
+                             * TLS_ASYNC_FINALIZE and may override. */
+                            ret = ASN_NO_SIGNER_E;
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                        }
+                    }
+                #endif /* HAVE_RPK */
+
                 #if defined(SESSION_CERTS) && defined(WOLFSSL_ALT_CERT_CHAINS)
                     /* if using alternate chain, store the cert used */
                     if (ssl->options.usingAltCertChain) {
@@ -16834,17 +16928,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->options.side == WOLFSSL_SERVER_END) {
                 #if defined(HAVE_RPK)
                         if (args->dCert->isRPK) {
-                            /* to verify Raw Public Key cert, DANE(RFC6698)
-                             * should be introduced. Without DANE, no
-                             * authentication is performed.
-                             */
-                        #if defined(HAVE_DANE)
-                            if (ssl->useDANE) {
-                                /* DANE authentication should be added */
-                            }
-                        #endif /* HAVE_DANE */
+                            /* RPK certs carry no X.509 version; the RPK trust
+                             * check above already handled this cert. */
                         }
-                        else /* skip followingx509 version check */
+                        else /* skip following x509 version check */
                 #endif  /* HAVE_RPK */
                         if (args->dCert->version != WOLFSSL_X509_V3) {
                             WOLFSSL_MSG("Peers certificate was not version 3!");
@@ -27778,6 +27865,9 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
 
     case WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH:
         return "IP address mismatch";
+
+    case WOLFSSL_X509_V_ERR_RPK_UNTRUSTED:
+        return "raw public key not trusted";
 
     default:
         return NULL;

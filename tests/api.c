@@ -28295,6 +28295,21 @@ static int error_test(void)
             }
         }
     }
+
+#if defined(OPENSSL_EXTRA)
+    /* WOLFSSL_X509_V_ERR_RPK_UNTRUSTED is >= WC_OSSL_V509_V_ERR_MAX, so it is
+     * intentionally outside the contiguous sweep above. Check its reason string
+     * explicitly so it cannot regress silently. error_test() is invoked as
+     * ExpectIntEQ(error_test(), 1), so any non-1 return registers as a failure;
+     * return TEST_FAIL (0) - also <= 0, so it remains correct even if this
+     * function were ever run directly by the harness. */
+    errStr = wolfSSL_ERR_reason_error_string(WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+    ExpectIntNE(XSTRCMP(errStr, unknownStr), 0);
+    ExpectIntEQ(XSTRCMP(errStr, "raw public key not trusted"), 0);
+    if (EXPECT_FAIL()) {
+        return TEST_FAIL;
+    }
+#endif
 #endif
 
     return 1;
