@@ -258,6 +258,8 @@ extern "C" {
 #cmakedefine WC_RSA_PSS
 #undef WOLF_CRYPTO_CB
 #cmakedefine WOLF_CRYPTO_CB
+#undef WOLF_CRYPTO_CB_RSA_PAD
+#cmakedefine WOLF_CRYPTO_CB_RSA_PAD
 #undef WOLFSSL_AARCH64_BUILD
 #cmakedefine WOLFSSL_AARCH64_BUILD
 #undef WOLFSSL_AES_CFB

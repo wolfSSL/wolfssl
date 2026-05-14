@@ -995,6 +995,19 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     }
 #endif /* WOLFSSL_DTLS13 */
 
+    /* Sanity check contextLen to prevent truncation when cast to word32. */
+    if (contextLen > WOLFSSL_MAX_32BIT)
+        return BAD_FUNC_ARG;
+    /* RFC 8446 HkdfLabel encodes the output length as a uint16, so requested
+     * lengths > 65535 cannot be represented and must be rejected. */
+    if (outLen > WOLFSSL_MAX_16BIT)
+        return BAD_FUNC_ARG;
+    /* RFC 8446 HkdfLabel encodes the label length in a single byte, so
+     * anything > 255 cannot be represented and must be rejected.
+     * The protocol length is included in the label. */
+    if ((labelLen +  protocolLen) > WOLFSSL_MAX_8BIT)
+        return BAD_FUNC_ARG;
+
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
         case sha256_mac:
@@ -1039,11 +1052,6 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
             emptyHash, hashLen, (int)hashType);
     if (ret != 0)
         return ret;
-
-    /* Sanity check contextLen to prevent truncation when cast to word32. */
-    if (contextLen > WOLFSSL_MAX_32BIT) {
-        return BAD_FUNC_ARG;
-    }
 
     /* Hash(context_value) */
     ret = wc_Hash(hashType, context, (word32)contextLen, hashOut, WC_MAX_DIGEST_SIZE);
@@ -6046,7 +6054,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     int         ret = 0;
     Suites      peerSuites;
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    CertReqCtx* certReqCtx;
+    word16      reqCtxLen;
+    const byte* reqCtxData;
 #endif
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_DO);
@@ -6070,18 +6079,12 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    /* CertReqCtx has one byte at end for context value.
-     * Increase size to handle other implementations sending more than one byte.
-     * That is, allocate extra space, over one byte, to hold the context value.
+    /* Remember the request context bytes; the CertReqCtx allocation and
+     * linking into ssl->certReqCtx is deferred until after the rest of the
+     * message has been validated.
      */
-    certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx) + (len == 0 ? 0 : len - 1), ssl->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (certReqCtx == NULL)
-        return MEMORY_E;
-    certReqCtx->next = ssl->certReqCtx;
-    certReqCtx->len = len;
-    XMEMCPY(&certReqCtx->ctx, input + *inOutIdx, len);
-    ssl->certReqCtx = certReqCtx;
+    reqCtxLen = len;
+    reqCtxData = input + *inOutIdx;
 #endif
     *inOutIdx += len;
 
@@ -6147,6 +6150,24 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 
     /* This message is always encrypted so add encryption padding. */
     *inOutIdx += ssl->keys.padSz;
+
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    {
+        /* CertReqCtx has one byte at end for context value.
+        * Increase size to handle other implementations sending more than one byte.
+        * That is, allocate extra space, over one byte, to hold the context value.
+        */
+        CertReqCtx* certReqCtx = (CertReqCtx*)XMALLOC(
+            sizeof(CertReqCtx) + (reqCtxLen == 0 ? 0 : reqCtxLen - 1),
+            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (certReqCtx == NULL)
+            return MEMORY_E;
+        certReqCtx->next = ssl->certReqCtx;
+        certReqCtx->len = reqCtxLen;
+        XMEMCPY(&certReqCtx->ctx, reqCtxData, reqCtxLen);
+        ssl->certReqCtx = certReqCtx;
+    }
+#endif
 
     WOLFSSL_LEAVE("DoTls13CertificateRequest", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
@@ -15127,7 +15148,15 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
     const char* name = NULL;
     byte mac = no_mac;
     int i;
-    const Suites* suites = WOLFSSL_SUITES(ssl);
+    const Suites* suites;
+
+    if (hash == NULL || ssl == NULL ||
+        (ssl->suites == NULL && ssl->ctx == NULL))
+        return NULL;
+
+    suites = WOLFSSL_SUITES(ssl);
+    if (suites == NULL)
+        return NULL;
 
     if (XSTRCMP(hash, "SHA256") == 0) {
         mac = sha256_mac;
