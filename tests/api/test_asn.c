@@ -1360,7 +1360,12 @@ int test_wc_DecodeObjectId(void)
 #if defined(HAVE_PKCS8) && !defined(NO_ASN) && \
     (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
      defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN)) && \
-    (defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_DILITHIUM))
+    (defined(HAVE_ED25519) || \
+     (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+      defined(WOLFSSL_KEY_GEN)) || \
+     (defined(HAVE_DILITHIUM) && \
+      !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+      !defined(WOLFSSL_DILITHIUM_NO_ASN1)))
 /* Run ToTraditional_ex() on a copy of der and assert the algId, returned
  * length, and the inner OCTET STRING tag/length at the start of the
  * (in-place rewritten) buffer. */
@@ -1676,8 +1681,8 @@ int test_ToTraditional_ex_negative(void)
         ((size_t)derSz + 2 + ED25519_PUB_KEY_SIZE <= sizeof(copy))) {
         word32 trailerSz = 2 + ED25519_PUB_KEY_SIZE;
         XMEMCPY(copy, der, (size_t)derSz);
-        ExpectTrue(copy[1] + trailerSz < 0x80);
-        if (EXPECT_SUCCESS() && (copy[1] + trailerSz < 0x80)) {
+        ExpectTrue(copy[1] < (byte)(0x80 - trailerSz));
+        if (EXPECT_SUCCESS() && copy[1] < (byte)(0x80 - trailerSz)) {
             copy[1] = (byte)(copy[1] + trailerSz);
             copy[derSz] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
             copy[derSz + 1] = ED25519_PUB_KEY_SIZE;
@@ -1742,7 +1747,7 @@ int test_ToTraditional_ex_mldsa_bad_params(void)
     der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
     der[sz++] = (byte)(sizeof(mldsaOid) + 2 + 2);
     der[sz++] = ASN_OBJECT_ID;
-    der[sz++] = sizeof(mldsaOid);
+    der[sz++] = (byte)sizeof(mldsaOid);
     XMEMCPY(der + sz, mldsaOid, sizeof(mldsaOid)); sz += sizeof(mldsaOid);
     /* Disallowed, NULL parameter after the ML-DSA OID. */
     der[sz++] = ASN_TAG_NULL;
@@ -1769,11 +1774,11 @@ int test_ToTraditional_ex_mldsa_bad_params(void)
     der[sz++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
     der[sz++] = (byte)(sizeof(mldsaOid) + 2 + sizeof(extraOid) + 2);
     der[sz++] = ASN_OBJECT_ID;
-    der[sz++] = sizeof(mldsaOid);
+    der[sz++] = (byte)sizeof(mldsaOid);
     XMEMCPY(der + sz, mldsaOid, sizeof(mldsaOid)); sz += sizeof(mldsaOid);
     /* Disallowed, OBJECT_ID parameter after the ML-DSA OID. */
     der[sz++] = ASN_OBJECT_ID;
-    der[sz++] = sizeof(extraOid);
+    der[sz++] = (byte)sizeof(extraOid);
     XMEMCPY(der + sz, extraOid, sizeof(extraOid)); sz += sizeof(extraOid);
     der[sz++] = ASN_OCTET_STRING;
     der[sz++] = (byte)(privKeySz + 2);
