@@ -1051,17 +1051,22 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
             protocol, protocolLen, (byte*)label, (word32)labelLen,
             emptyHash, hashLen, (int)hashType);
     if (ret != 0)
-        return ret;
+        goto cleanup;
 
     /* Hash(context_value) */
     ret = wc_Hash(hashType, context, (word32)contextLen, hashOut, WC_MAX_DIGEST_SIZE);
     if (ret != 0)
-        return ret;
+        goto cleanup;
 
     ret = Tls13HKDFExpandLabel(ssl, out, (word32)outLen, firstExpand, hashLen,
             protocol, protocolLen, exporterLabel, EXPORTER_LABEL_SZ,
             hashOut, hashLen, (int)hashType);
 
+cleanup:
+    /* firstExpand is the per-label Derive-Secret PRK and hashOut holds
+     * Hash(context_value); wipe both before the stack frame is reclaimed. */
+    ForceZero(firstExpand, sizeof(firstExpand));
+    ForceZero(hashOut, sizeof(hashOut));
     return ret;
 }
 #endif
@@ -6089,8 +6094,13 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     len = input[(*inOutIdx)++];
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
-    if (ssl->options.connectState < FINISHED_DONE && len > 0)
-        return BUFFER_ERROR;
+    /* INVALID_PARAMETER does not map to illegal_parameter in the central
+     * alert path, so emit the alert explicitly before returning. */
+    if (ssl->options.connectState < FINISHED_DONE && len > 0) {
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     /* Remember the request context bytes; the CertReqCtx allocation and

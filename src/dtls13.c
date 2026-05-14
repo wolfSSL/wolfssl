@@ -2393,7 +2393,10 @@ static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)
     WOLFSSL_MSG_EX("Delete epoch: %d", e->epochNumber);
 #endif /* WOLFSSL_DEBUG_TLS */
 
-    XMEMSET(e, 0, sizeof(*e));
+    /* The slot we are reusing holds the previous epoch's symmetric keys, IVs,
+     * and sn-keys; use ForceZero so the wipe cannot be elided by the
+     * optimizer when the slot is later overwritten. */
+    ForceZero(e, sizeof(*e));
 
     return e;
 }
@@ -3058,11 +3061,17 @@ int SendDtls13Ack(WOLFSSL* ssl)
 static int Dtls13RtxRecordMatchesReqCtx(Dtls13RtxRecord* r, byte* ctx,
     byte ctxLen)
 {
+    /* r->data points at the 12-byte Dtls13HandshakeHeader (set by
+     * Dtls13RtxNewRecord from message + recordHeaderLength); the
+     * CertificateRequest body starts at r->data[DTLS13_HANDSHAKE_HEADER_SZ]
+     * with a 1-byte request_context length followed by ctxLength bytes. */
     if (r->handshakeType != certificate_request)
         return 0;
-    if (r->length <= ctxLen + 1)
+    if (r->length < (word16)(DTLS13_HANDSHAKE_HEADER_SZ + 1 + ctxLen))
         return 0;
-    return XMEMCMP(ctx, r->data + 1, ctxLen) == 0;
+    if (r->data[DTLS13_HANDSHAKE_HEADER_SZ] != ctxLen)
+        return 0;
+    return XMEMCMP(ctx, r->data + DTLS13_HANDSHAKE_HEADER_SZ + 1, ctxLen) == 0;
 }
 
 int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input, word32 inputSize)

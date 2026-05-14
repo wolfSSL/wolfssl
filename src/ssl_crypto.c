@@ -2659,7 +2659,7 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
     WOLFSSL_ENTER("wolfSSL_DES_cbc_encrypt");
 
 #ifdef WOLFSSL_SMALL_STACK
-    des = (Des*)XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
+    des = (Des*)XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_CIPHER);
     if (des == NULL) {
         WOLFSSL_MSG("Failed to allocate memory for Des object");
     }
