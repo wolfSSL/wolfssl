@@ -252,7 +252,6 @@ int test_wc_AesCmacGenerate(void)
         key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesCmacVerify(mac, WC_AES_BLOCK_SIZE + 1, msg, msgSz,
         key, keySz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
 
     /* Truncated tags within the supported range must verify correctly when
      * the generator was asked to produce the same length */
@@ -287,6 +286,7 @@ int test_wc_AesCmacGenerate(void)
         ExpectIntEQ(wc_AesCmacVerify(badMac, WC_AES_BLOCK_SIZE, msg, msgSz,
             key, keySz), WC_NO_ERR_TRACE(MAC_CMP_FAILED_E));
     }
+#endif
 #endif
     return EXPECT_RESULT();
 
