@@ -61310,6 +61310,73 @@ static wc_test_ret_t sakke_op_test(SakkeKey* priv, SakkeKey* pub, WC_RNG* rng,
             authSz);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
+
+    {
+        /* All three SSV entry points reject ssvSz=0 and ssvSz>n. */
+        word16 zeroSz = 0;
+        word16 hugeSz = 0xFFFF;
+
+        ret = wc_GenerateSakkeSSV(pub, rng, ssv, &zeroSz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+        zeroSz = 0;
+        ret = wc_MakeSakkeEncapsulatedSSV(pub, WC_HASH_TYPE_SHA256, ssv, zeroSz,
+                auth, &authSz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+        ret = wc_DeriveSakkeSSV(priv, WC_HASH_TYPE_SHA256, ssv, zeroSz, auth,
+                authSz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+        ret = wc_GenerateSakkeSSV(pub, rng, ssv, &hugeSz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+        hugeSz = 0xFFFF;
+        ret = wc_MakeSakkeEncapsulatedSSV(pub, WC_HASH_TYPE_SHA256, ssv, hugeSz,
+                auth, &authSz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+        ret = wc_DeriveSakkeSSV(priv, WC_HASH_TYPE_SHA256, ssv, hugeSz, auth,
+                authSz);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    {
+        /* Round-trip encap/derive across ssvSz shapes that exercise the
+         * multi-iteration paths in sakke_xor_in_v. SHA-256 hashSz=32:
+         *   48: 2 iterations, partial first block.
+         *   72: 3 iterations, exercises the len-clamp on the middle iter.
+         *   64: 2 iterations, exact-multiple (skip==0). */
+        static const word16 extSzs[3] = { 48, 72, 64 };
+        byte ssvExt[72];
+        byte ssvRef[72];
+        word16 extAuthSz;
+        int i;
+
+        for (i = 0; i < 3; i++) {
+            word16 extSz = extSzs[i];
+
+            ret = wc_RNG_GenerateBlock(rng, ssvRef, extSz);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+            XMEMCPY(ssvExt, ssvRef, extSz);
+
+            extAuthSz = 257;
+            ret = wc_MakeSakkeEncapsulatedSSV(pub, WC_HASH_TYPE_SHA256, ssvExt,
+                    extSz, auth, &extAuthSz);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+
+            ret = wc_DeriveSakkeSSV(priv, WC_HASH_TYPE_SHA256, ssvExt, extSz,
+                    auth, extAuthSz);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+            if (XMEMCMP(ssvExt, ssvRef, extSz) != 0)
+                return WC_TEST_RET_ENC_NC;
+        }
+    }
+
     return 0;
 }
 
