@@ -27,6 +27,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#ifdef NO_ASN_TIME
+    #include <time.h>
+#endif
 
 
 /* TIME CODE */
