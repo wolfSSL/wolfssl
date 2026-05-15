@@ -2206,13 +2206,16 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(WOLFSSL_STM32F2)  || defined(WOLFSSL_STM32F4)   || \
     defined(WOLFSSL_STM32F7)  || defined(WOLFSSL_STM32F1)   || \
+    defined(WOLFSSL_STM32F3)  || \
     defined(WOLFSSL_STM32L4)  || defined(WOLFSSL_STM32L5)   || \
     defined(WOLFSSL_STM32WB)  || defined(WOLFSSL_STM32H7)   || \
     defined(WOLFSSL_STM32G0)  || defined(WOLFSSL_STM32U5)   || \
-    defined(WOLFSSL_STM32U3)  || defined(WOLFSSL_STM32H5)   || \
+    defined(WOLFSSL_STM32U3)  || defined(WOLFSSL_STM32U0)   || \
+    defined(WOLFSSL_STM32H5)  || \
     defined(WOLFSSL_STM32WL)  || defined(WOLFSSL_STM32G4)   || \
     defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
-    defined(WOLFSSL_STM32WBA) || defined(WOLFSSL_STM32N6)
+    defined(WOLFSSL_STM32WBA) || defined(WOLFSSL_STM32N6)   || \
+    defined(WOLFSSL_STM32C5)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2234,7 +2237,7 @@ extern void uITRON4_free(void *p) ;
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
             defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32U5) || \
             defined(WOLFSSL_STM32U3) || defined(WOLFSSL_STM32WL) || \
-            defined(WOLFSSL_STM32WBA)
+            defined(WOLFSSL_STM32WBA) || defined(WOLFSSL_STM32C5)
             #define NO_AES_192 /* hardware does not support 192-bit */
         #endif
     #endif
@@ -2250,7 +2253,72 @@ extern void uITRON4_free(void *p) ;
         #define KEIL_INTRINSICS
     #endif
     #define NO_OLD_RNGNAME
-    #ifdef WOLFSSL_STM32_CUBEMX
+
+    #if defined(WOLFSSL_STM32_BARE) && defined(WOLFSSL_STM32_CUBEMX)
+        #error "WOLFSSL_STM32_BARE and WOLFSSL_STM32_CUBEMX are mutually \
+            exclusive"
+    #endif
+    /* WOLFSSL_STM32_PKA is now supported under WOLFSSL_STM32_BARE via the
+     * direct-register PKA driver in wolfcrypt/src/port/st/stm32.c. */
+
+    #ifdef WOLFSSL_STM32_BARE
+        /* Direct register access; no HAL or StdPeriph driver. Pull in only the
+         * CMSIS device header. Existing direct-register HASH path is reused;
+         * RNG goes through the existing WOLFSSL_STM32_RNG_NOLIB path. */
+        #ifndef WOLFSSL_STM32_RNG_NOLIB
+            #define WOLFSSL_STM32_RNG_NOLIB
+        #endif
+        #if defined(WOLFSSL_STM32F1)
+            #include "stm32f1xx.h"
+        #elif defined(WOLFSSL_STM32F2)
+            #include "stm32f2xx.h"
+        #elif defined(WOLFSSL_STM32F3)
+            #include "stm32f3xx.h"
+        #elif defined(WOLFSSL_STM32F4)
+            #include "stm32f4xx.h"
+        #elif defined(WOLFSSL_STM32F7)
+            #include "stm32f7xx.h"
+        #elif defined(WOLFSSL_STM32L4)
+            #include "stm32l4xx.h"
+        #elif defined(WOLFSSL_STM32L5)
+            #include "stm32l5xx.h"
+        #elif defined(WOLFSSL_STM32H7S)
+            #include "stm32h7rsxx.h"
+        #elif defined(WOLFSSL_STM32H7)
+            #include "stm32h7xx.h"
+        #elif defined(WOLFSSL_STM32WB)
+            #include "stm32wbxx.h"
+        #elif defined(WOLFSSL_STM32WL)
+            #include "stm32wlxx.h"
+        #elif defined(WOLFSSL_STM32G0)
+            #include "stm32g0xx.h"
+        #elif defined(WOLFSSL_STM32G4)
+            #include "stm32g4xx.h"
+        #elif defined(WOLFSSL_STM32U5)
+            #include "stm32u5xx.h"
+        #elif defined(WOLFSSL_STM32U3)
+            #include "stm32u3xx.h"
+        #elif defined(WOLFSSL_STM32U0)
+            #include "stm32u0xx.h"
+        #elif defined(WOLFSSL_STM32H5)
+            #include "stm32h5xx.h"
+        #elif defined(WOLFSSL_STM32C5)
+            #include "stm32c5xx.h"
+        #elif defined(WOLFSSL_STM32N6)
+            #include "stm32n6xx.h"
+        #elif defined(WOLFSSL_STM32MP13)
+            #ifndef __ASSEMBLER__
+                #include "stm32mp13xx.h"
+            #endif
+        #elif defined(WOLFSSL_STM32WBA)
+            #include "stm32wbaxx.h"
+        #else
+            #error "WOLFSSL_STM32_BARE requires a STM32 family macro \
+                (e.g. WOLFSSL_STM32F4, WOLFSSL_STM32H5, WOLFSSL_STM32U5, \
+                WOLFSSL_STM32N6, ...). Define the matching family flag in \
+                user_settings.h."
+        #endif
+    #elif defined(WOLFSSL_STM32_CUBEMX)
         #if defined(WOLFSSL_STM32F1)
             #include "stm32f1xx_hal.h"
         #elif defined(WOLFSSL_STM32F2)
@@ -2283,6 +2351,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32u3xx_hal.h"
         #elif defined(WOLFSSL_STM32H5)
             #include "stm32h5xx_hal.h"
+        #elif defined(WOLFSSL_STM32C5)
+            #include "stm32c5xx_hal.h"
         #elif defined(WOLFSSL_STM32N6)
             #include "stm32n6xx_hal.h"
         #elif defined(WOLFSSL_STM32MP13)

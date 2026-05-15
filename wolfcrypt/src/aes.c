@@ -233,6 +233,16 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     static WARN_UNUSED_RESULT int wc_AesEncrypt(
         Aes* aes, const byte* inBlock, byte* outBlock)
     {
+    #ifdef WOLFSSL_STM32_BARE
+        /* Bare-metal driver handles mutex, clock and key/IV internally. */
+    #ifdef WOLFSSL_DHUK
+        if (aes->devId == WOLFSSL_DHUK_WRAPPED_DEVID) {
+            return wc_Stm32_Aes_DhukOp(aes, outBlock, inBlock,
+                                       WC_AES_BLOCK_SIZE, 1 /* encrypt */);
+        }
+    #endif
+        return wc_Stm32_Aes_Ecb(aes, outBlock, inBlock, WC_AES_BLOCK_SIZE, 1);
+    #else
         int ret = 0;
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
@@ -247,13 +257,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             return ret;
 #endif
 
-    #ifdef WOLFSSL_STM32U5_DHUK
+    #ifdef WOLFSSL_DHUK
         ret = wolfSSL_CryptHwMutexLock();
         if (ret != 0)
             return ret;
 
         /* Handle making use of wrapped key */
-        if (aes->devId == WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID) {
+        if (aes->devId == WOLFSSL_DHUK_WRAPPED_DEVID) {
             CRYP_ConfigTypeDef Config = {0};
 
             ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key,
@@ -373,6 +383,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         wc_Stm32_Aes_Cleanup();
 
         return ret;
+    #endif /* !WOLFSSL_STM32_BARE */
     }
 #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
 
@@ -381,6 +392,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     static WARN_UNUSED_RESULT int wc_AesDecrypt(
         Aes* aes, const byte* inBlock, byte* outBlock)
     {
+    #ifdef WOLFSSL_STM32_BARE
+    #ifdef WOLFSSL_DHUK
+        if (aes->devId == WOLFSSL_DHUK_WRAPPED_DEVID) {
+            return wc_Stm32_Aes_DhukOp(aes, outBlock, inBlock,
+                                       WC_AES_BLOCK_SIZE, 0 /* decrypt */);
+        }
+    #endif
+        return wc_Stm32_Aes_Ecb(aes, outBlock, inBlock, WC_AES_BLOCK_SIZE, 0);
+    #else
         int ret = 0;
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
@@ -395,13 +415,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             return ret;
 #endif
 
-    #ifdef WOLFSSL_STM32U5_DHUK
+    #ifdef WOLFSSL_DHUK
         ret = wolfSSL_CryptHwMutexLock();
         if (ret != 0)
             return ret;
 
         /* Handle making use of wrapped key */
-        if (aes->devId == WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID) {
+        if (aes->devId == WOLFSSL_DHUK_WRAPPED_DEVID) {
             CRYP_ConfigTypeDef Config;
 
             XMEMSET(&Config, 0, sizeof(Config));
@@ -527,6 +547,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         wc_Stm32_Aes_Cleanup();
 
         return ret;
+    #endif /* !WOLFSSL_STM32_BARE */
     }
     #endif /* WOLFSSL_AES_DIRECT */
 #endif /* HAVE_AES_DECRYPT */
@@ -5663,7 +5684,34 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #ifdef HAVE_AES_CBC
 #if defined(STM32_CRYPTO)
 
-#ifdef WOLFSSL_STM32U5_DHUK
+#ifdef WOLFSSL_STM32_BARE
+    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+    #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % WC_AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+    #endif
+        if (sz == 0) {
+            return 0;
+        }
+        return wc_Stm32_Aes_Cbc(aes, out, in, sz, 1);
+    }
+    #ifdef HAVE_AES_DECRYPT
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+    #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % WC_AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+    #endif
+        if (sz == 0) {
+            return 0;
+        }
+        return wc_Stm32_Aes_Cbc(aes, out, in, sz, 0);
+    }
+    #endif /* HAVE_AES_DECRYPT */
+#elif defined(WOLFSSL_DHUK)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         int ret = 0;
@@ -5683,7 +5731,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return ret;
         }
 
-        if (aes->devId == WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID) {
+        if (aes->devId == WOLFSSL_DHUK_WRAPPED_DEVID) {
             CRYP_ConfigTypeDef Config;
 
             XMEMSET(&Config, 0, sizeof(Config));
@@ -5749,7 +5797,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return ret;
         }
 
-        if (aes->devId == WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID) {
+        if (aes->devId == WOLFSSL_DHUK_WRAPPED_DEVID) {
             CRYP_ConfigTypeDef Config;
 
             XMEMSET(&Config, 0, sizeof(Config));
@@ -7046,6 +7094,11 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
         int wc_AesCtrEncryptBlock(Aes* aes, byte* out, const byte* in)
         {
+        #ifdef WOLFSSL_STM32_BARE
+            /* CTR per-block transform: ECB-encrypt the counter (passed in
+             * 'in'); aes.c handles counter increment and XOR with plaintext. */
+            return wc_Stm32_Aes_Ecb(aes, out, in, WC_AES_BLOCK_SIZE, 1);
+        #else
             int ret = 0;
         #ifdef WOLFSSL_STM32_CUBEMX
             CRYP_HandleTypeDef hcryp;
@@ -7156,6 +7209,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             wolfSSL_CryptHwMutexUnLock();
             wc_Stm32_Aes_Cleanup();
             return ret;
+        #endif /* !WOLFSSL_STM32_BARE */
         }
 
 
@@ -10246,6 +10300,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         authTag, authTagSz,
         authIn, authInSz);
 #endif
+
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
 #ifndef TA_AES_GCM_MAX_DATA_SIZE
     #define TA_AES_GCM_MAX_DATA_SIZE 996u
@@ -10263,6 +10318,17 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             authIn, authInSz);
     }
 #endif
+
+#if defined(WOLFSSL_STM32_BARE) && defined(STM32_CRYPTO)
+    ret = wc_Stm32_Aes_Gcm(aes, out, in, sz, iv, ivSz,
+                           authTag, authTagSz,
+                           authIn, authInSz, 1 /* enc */);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall through to SW GCM (still uses HW AES via wc_AesEncrypt) */
+#endif /* WOLFSSL_STM32_BARE && STM32_CRYPTO */
+
+
 #ifdef STM32_CRYPTO_AES_GCM
     return wc_AesGcmEncrypt_STM32(
         aes, out, in, sz, iv, ivSz,
@@ -11006,6 +11072,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             authTag, authTagSz, authIn, authInSz);
     }
 #endif
+
+    /* BARE: GCM decrypt always uses SW path (with HW AES blocks via
+     * wc_AesEncrypt). Encrypt is HW-accelerated above; decrypt + tag
+     * verification stays in well-tested SW for now. */
 
 #ifdef STM32_CRYPTO_AES_GCM
     /* The STM standard peripheral library API's doesn't support partial blocks */
@@ -13831,7 +13901,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
     aes->heap = heap;
 
-#if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_STM32U5_DHUK)
+#if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_DHUK)
     aes->devId = devId;
     aes->devCtx = NULL;
 #else
