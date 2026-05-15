@@ -861,6 +861,106 @@ int test_tls12_etm_failed_resumption(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+/* Accept-all SNI callback used by test_tls12_session_id_resumption_sni_mismatch.
+ * Registering any sniRecvCb causes the server to keep the client-provided
+ * SNI in ssl->extensions (see TLSX_SNI_Parse, "Forcing SSL object to store
+ * SNI parameter"), which is what the binding code reads. */
+static int accept_any_sni_cb(WOLFSSL* ssl, int* ret, void* arg)
+{
+    (void)ssl; (void)ret; (void)arg;
+    return 0; /* accept */
+}
+#endif
+
+/* RFC 6066 Section 3 requires:
+ *   "A server that implements this extension MUST NOT accept the request to
+ *    resume the session if the server_name extension contains a different
+ *    name. Instead, it proceeds with a full handshake to establish a new
+ *    session."
+ *
+ * wolfSSL's SNI/ALPN ticket-binding hardening (see VerifyTicketBinding,
+ * added in PR #10279) covers the session ticket path but short-circuits on
+ * !ssl->options.useTicket, so it does not apply to the TLS 1.2 stateful
+ * session-ID cache resumption path. SetupSession() does not store the
+ * original SNI on the cached WOLFSSL_SESSION, and TlsSessionCacheGetAndLock()
+ * keys only on (sessionID, sessionIDSz, side). The result is that a session
+ * established under one SNI can be resumed under a different SNI via the
+ * session-ID cache, in violation of the MUST NOT above.
+ *
+ * This test forces the session-ID resumption path (no tickets) and offers a
+ * different SNI on the resumption attempt. The server must NOT resume. */
+int test_tls12_session_id_resumption_sni_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* sniA = "public.example";
+    const char* sniB = "admin.example";
+
+    /* Step 1: full TLS 1.2 handshake under SNI=public.example, with the
+     * session ticket path disabled so resumption can only happen via the
+     * server's session-ID cache. The server-side SNI callback ensures
+     * ssl->extensions retains the client's SNI in builds that don't
+     * compile in WOLFSSL_ALWAYS_KEEP_SNI. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_servername_callback(ctx_s, accept_any_sni_cb);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sniA, (word16)XSTRLEN(sniA)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the first handshake was not a resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: new SSL objects on the SAME WOLFSSL_CTX (so the server's
+     * session cache still holds the entry from step 1). The client offers
+     * the saved session but advertises a *different* SNI. The server's
+     * cache lookup will match by session ID, but per RFC 6066 Section 3 the
+     * server MUST NOT resume because the SNI differs from the original. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sniB, (word16)XSTRLEN(sniB)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Post-fix expected behavior: server falls back to a full handshake
+     * because the SNI in the ClientHello does not match the SNI bound to
+     * the cached session. Pre-fix, the server silently resumes - which is
+     * the bug. Both sides should report no resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls_set_curves_list_ecc_fallback(void)
 {
     EXPECT_DECLS;
