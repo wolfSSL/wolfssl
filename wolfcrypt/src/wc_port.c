@@ -252,8 +252,13 @@ int wc_local_InitUp(wc_init_state_t *s, int doWait)
 
     /* mitigate races on init/shutdown by looping. */
     for (;;) {
-        if (exp_wc_init_state.c.count == 0x1fffffff)
+        wc_static_assert(WC_INIT_STATE_STATE_BITS + WC_INIT_STATE_COUNT_BITS ==
+                         sizeof(WC_ATOMIC_UINT_ARG) * 8);
+        if (exp_wc_init_state.c.count ==
+            ((1U << WC_INIT_STATE_COUNT_BITS) - 1U))
+        {
             return SEQ_OVERFLOW_E;
+        }
         new_wc_init_state = exp_wc_init_state;
         if (exp_wc_init_state.c.state == WC_INIT_STATE_UNINITED) {
             if (exp_wc_init_state.c.count != 0)
