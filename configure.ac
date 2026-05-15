@@ -184,6 +184,26 @@ AC_ARG_ENABLE([freebsdkm-crypto-register],
     [ENABLED_BSDKM_REGISTER=no]
     )
 
+# wolfzfs support
+AC_ARG_ENABLE([wolfzfs],
+    [AS_HELP_STRING([--enable-wolfzfs],[Enable wolfZFS support ((options: kernel, yes, no, disabled default: disabled)).])],
+    [ENABLED_WOLFZFS=$enableval],
+    [ENABLED_WOLFZFS=no]
+    )
+if test "x$ENABLED_WOLFZFS" = "xyes" || test "x$ENABLED_WOLFZFS" = "xkernel"
+then
+    if test "x$ENABLED_WOLFZFS" = "xyes"; then
+        # userspace libzfs requires openssl compat layer, which will
+        # be detected and enabled later.
+        AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES"
+    fi
+
+    if test "x$ENABLED_WOLFZFS" = "xkernel"; then
+        # kernelspace libzfs
+        AM_CFLAGS="$AM_CFLAGS -DNO_STDDEF_H -DNO_STDATOMIC_H"
+    fi
+fi
+
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
@@ -192,7 +212,8 @@ if test "x$ENABLED_BSDKM" = "xyes"; then
     # The <stdatomic.h> header should not be included in freebsd kernel build.
     # Look for <machine/atomic.h> instead.
     AC_CHECK_HEADER(machine/atomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
-else
+elif test "x$ENABLED_WOLFZFS" = "xno"; then
+    # Don't use stdatomic.h with wolfzfs kernel. It expects gcc builtins.
     AC_CHECK_HEADER(stdatomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
 fi
 AC_CHECK_HEADER(assert.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ASSERT_H"],[])
@@ -2638,7 +2659,8 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes" || \
    test "$ENABLED_FFMPEG" = "yes" || test "$ENABLED_STRONGSWAN" = "yes" || \
    test "$ENABLED_OPENLDAP" = "yes" || test "x$ENABLED_MOSQUITTO" = "xyes" || \
-   test "$ENABLED_HITCH" = "yes" || test "$ENABLED_NGINX" = "yes"
+   test "$ENABLED_HITCH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
+   test "$ENABLED_WOLFZFS" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -3321,6 +3343,13 @@ then
     ENABLED_AESGCM="4bit"
 fi
 
+if test "x$ENABLED_WOLFZFS" = "xyes" || test "x$ENABLED_WOLFZFS" = "xkernel"
+then
+    # zfs uses ccm, and gcm streaming.
+    ENABLED_AESCCM="yes"
+    ENABLED_AESGCM="yes"
+    ENABLED_AESGCM_STREAM="yes"
+fi
 
 # AES-CCM
 AC_ARG_ENABLE([aesccm],
@@ -3329,7 +3358,8 @@ AC_ARG_ENABLE([aesccm],
     [ ENABLED_AESCCM=no ]
     )
 
-if test "$ENABLED_AESCCM" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
+if test "$ENABLED_AESCCM" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" ||
+   test "$ENABLED_WOLFZFS" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESCCM"
