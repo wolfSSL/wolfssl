@@ -52,11 +52,10 @@
  *      always fires whenever either is defined; the legacy spelling
  *      remains as an alias kept around for unmigrated consumer code.
  *
- *   2. Macro / static-inline aliases for the legacy type and function
- *      names (dilithium_key, wc_dilithium_params, wc_dilithium_*,
- *      wc_Dilithium_*) so application code written against the
- *      pre-standardization API keeps compiling. Suppressed by defining
- *      WOLFSSL_NO_DILITHIUM_LEGACY_NAMES.
+ *   2. Macro aliases for the legacy type and function names (dilithium_key,
+ *      wc_dilithium_params, wc_dilithium_*, wc_Dilithium_*) so application code
+ *      written against the pre-standardization API keeps compiling. Suppressed
+ *      by defining WOLFSSL_NO_DILITHIUM_LEGACY_NAMES.
  *
  * New code must include <wolfssl/wolfcrypt/wc_mldsa.h> directly and use
  * the wc_MlDsaKey / wc_MlDsaKey_* / WOLFSSL_MLDSA_* names. */
@@ -381,146 +380,58 @@
 
 /* Legacy default-args / arg-reorder wrappers. The legacy form takes the key
  * pointer last (or near last); the FIPS 204 / ML-KEM convention used by the
- * canonical wc_MlDsaKey_* names puts the key first. The wrappers below are
- * static inline functions (rather than function-like macros) so that
- * (a) `&wc_dilithium_init`-style address-of expressions remain valid in
- * source (they yield the inline wrapper's address - note this is a
- * translation-unit-local symbol, not the previously-exported library
- * symbol) and (b) each wrapper preserves the legacy signature byte-for-byte.
- * Each wrapper is gated to match its canonical target's gating so
- * unused-on-this-build wrappers don't reference undeclared symbols. */
+ * canonical wc_MlDsaKey_* names puts the key first. */
 
-#ifdef __GNUC__
-    /* Suppress -Wunused-function for translation units that don't call every
-     * legacy wrapper. */
-    #define WOLFSSL_DILITHIUM_LEGACY_INLINE static __inline__ \
-        __attribute__((unused, always_inline))
-#else
-    #define WOLFSSL_DILITHIUM_LEGACY_INLINE static WC_INLINE
-#endif
-
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_init(wc_MlDsaKey* key) {
-    return wc_MlDsaKey_Init(key, NULL, INVALID_DEVID);
-}
-
+#define wc_dilithium_init(key) \
+    wc_MlDsaKey_Init(key, NULL, INVALID_DEVID)
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_import_public(const byte* in, word32 inLen, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_ImportPubRaw(key, in, inLen);
-}
+    #define wc_dilithium_import_public(in, inLen, key) wc_MlDsaKey_ImportPubRaw(key, in, inLen)
 #endif
-
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_import_private(const byte* priv, word32 privSz, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_ImportPrivRaw(key, priv, privSz);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_import_private_only(const byte* in, word32 inLen, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_ImportPrivRaw(key, in, inLen);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_import_key(const byte* priv, word32 privSz, const byte* pub,
-                            word32 pubSz, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_ImportKey(key, priv, privSz, pub, pubSz);
-}
+    #define wc_dilithium_import_private(priv, privSz, key) \
+        wc_MlDsaKey_ImportPrivRaw(key, priv, privSz)
+    #define wc_dilithium_import_private_only(in, inLen, key) \
+        wc_MlDsaKey_ImportPrivRaw(key, in, inLen)
+    #define wc_dilithium_import_key(priv, privSz, pub, pubSz, key) \
+        wc_MlDsaKey_ImportKey(key, priv, privSz, pub, pubSz)
 #endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
-
 #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
-#ifdef WOLFSSL_MLDSA_NO_CTX
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
-                          word32* sigLen, wc_MlDsaKey* key, WC_RNG* rng) {
-    return wc_MlDsaKey_Sign(key, sig, sigLen, msg, msgLen, rng);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
-                                    word32* sigLen, wc_MlDsaKey* key,
-                                    const byte* seed) {
-    return wc_MlDsaKey_SignWithSeed(key, sig, sigLen, msg, msgLen, seed);
-}
-#endif /* WOLFSSL_MLDSA_NO_CTX */
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
-                              word32 msgLen, byte* sig, word32* sigLen,
-                              wc_MlDsaKey* key, WC_RNG* rng) {
-    return wc_MlDsaKey_SignCtx(key, ctx, ctxLen, sig, sigLen, msg, msgLen, rng);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_sign_ctx_hash(const byte* ctx, byte ctxLen, int hashAlg,
-                               const byte* hash, word32 hashLen, byte* sig,
-                               word32* sigLen, wc_MlDsaKey* key, WC_RNG* rng) {
-    return wc_MlDsaKey_SignCtxHash(key, ctx, ctxLen, sig, sigLen, hash,
-                                   hashLen, hashAlg, rng);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
-                                        const byte* msg, word32 msgLen,
-                                        byte* sig, word32* sigLen,
-                                        wc_MlDsaKey* key, const byte* seed) {
-    return wc_MlDsaKey_SignCtxWithSeed(key, ctx, ctxLen, sig, sigLen, msg,
-                                       msgLen, seed);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
-                                         int hashAlg, const byte* hash,
-                                         word32 hashLen, byte* sig,
-                                         word32* sigLen, wc_MlDsaKey* key,
-                                         const byte* seed) {
-    return wc_MlDsaKey_SignCtxHashWithSeed(key, ctx, ctxLen, sig, sigLen,
-                                           hash, hashLen, hashAlg, seed);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_sign_mu_with_seed(const byte* mu, word32 muLen, byte* sig,
-                                   word32* sigLen, wc_MlDsaKey* key,
-                                   const byte* seed) {
-    return wc_MlDsaKey_SignMuWithSeed(key, sig, sigLen, mu, muLen, seed);
-}
+    #ifdef WOLFSSL_MLDSA_NO_CTX
+        #define wc_dilithium_sign_msg(msg, msgLen, sig, sigLen, key, rng) \
+            wc_MlDsaKey_Sign(key, sig, sigLen, msg, msgLen, rng)
+        #define wc_dilithium_sign_msg_with_seed(msg, msgLen, sig, sigLen, key, seed) \
+            wc_MlDsaKey_SignWithSeed(key, sig, sigLen, msg, msgLen, seed)
+    #endif /* WOLFSSL_MLDSA_NO_CTX */
+    #define wc_dilithium_sign_ctx_msg(ctx, ctxLen, msg, msgLen, sig, sigLen, key, rng) \
+        wc_MlDsaKey_SignCtx(key, ctx, ctxLen, sig, sigLen, msg, msgLen, rng)
+    #define wc_dilithium_sign_ctx_hash(ctx, ctxLen, hashAlg, hash, hashLen, sig, sigLen, key, rng) \
+        wc_MlDsaKey_SignCtxHash(key, ctx, ctxLen, sig, sigLen, hash, hashLen, hashAlg, rng)
+    #define wc_dilithium_sign_ctx_msg_with_seed(ctx, ctxLen, msg, msgLen, sig, sigLen, key, seed) \
+        wc_MlDsaKey_SignCtxWithSeed(key, ctx, ctxLen, sig, sigLen, msg, msgLen, seed)
+    #define wc_dilithium_sign_ctx_hash_with_seed(ctx, ctxLen, hashAlg, hash, hashLen, sig, sigLen, key, seed) \
+        wc_MlDsaKey_SignCtxHashWithSeed(key, ctx, ctxLen, sig, sigLen, hash, hashLen, hashAlg, seed)
+    #define wc_dilithium_sign_mu_with_seed(mu, muLen, sig, sigLen, key, seed) \
+        wc_MlDsaKey_SignMuWithSeed(key, sig, sigLen, mu, muLen, seed)
 #endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
-
 #ifdef WOLFSSL_MLDSA_NO_CTX
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                            word32 msgLen, int* res, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_Verify(key, sig, sigLen, msg, msgLen, res);
-}
+    #define wc_dilithium_verify_msg(sig, sigLen, msg, msgLen, res, key) \
+        wc_MlDsaKey_Verify(key, sig, sigLen, msg, msgLen, res)
 #endif /* WOLFSSL_MLDSA_NO_CTX */
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
-                                byte ctxLen, const byte* msg, word32 msgLen,
-                                int* res, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_VerifyCtx(key, sig, sigLen, ctx, ctxLen, msg, msgLen,
-                                 res);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen, const byte* ctx,
-                                 byte ctxLen, int hashAlg, const byte* hash,
-                                 word32 hashLen, int* res, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, ctx, ctxLen, hash,
-                                     hashLen, hashAlg, res);
-}
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_dilithium_verify_mu(const byte* sig, word32 sigLen, const byte* mu,
-                           word32 muLen, int* res, wc_MlDsaKey* key) {
-    return wc_MlDsaKey_VerifyMu(key, sig, sigLen, mu, muLen, res);
-}
-
+#define wc_dilithium_verify_ctx_msg(sig, sigLen, ctx, ctxLen, msg, msgLen, res, key) \
+    wc_MlDsaKey_VerifyCtx(key, sig, sigLen, ctx, ctxLen, msg, msgLen, res)
+#define wc_dilithium_verify_ctx_hash(sig, sigLen, ctx, ctxLen, hashAlg, hash, hashLen, res, key) \
+    wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, ctx, ctxLen, hash, hashLen, hashAlg, res)
+#define wc_dilithium_verify_mu(sig, sigLen, mu, muLen, res, key) \
+    wc_MlDsaKey_VerifyMu(key, sig, sigLen, mu, muLen, res)
 #ifndef WOLFSSL_MLDSA_NO_ASN1
-#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                  wc_MlDsaKey* key, word32 inSz) {
-    return wc_MlDsaKey_PrivateKeyDecode(key, input, inSz, inOutIdx);
-}
-#endif
-#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-WOLFSSL_DILITHIUM_LEGACY_INLINE
-int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
-                                 wc_MlDsaKey* key, word32 inSz) {
-    return wc_MlDsaKey_PublicKeyDecode(key, input, inSz, inOutIdx);
-}
-#endif
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        #define wc_Dilithium_PrivateKeyDecode(input, inOutIdx, key, inSz) \
+            wc_MlDsaKey_PrivateKeyDecode(key, input, inSz, inOutIdx)
+    #endif
+    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        #define wc_Dilithium_PublicKeyDecode(input, inOutIdx, key, inSz) \
+            wc_MlDsaKey_PublicKeyDecode(key, input, inSz, inOutIdx)
+    #endif
 #endif /* !WOLFSSL_MLDSA_NO_ASN1 */
 
 /* Internal-helper aliases. These cover symbols that are *not* part of the

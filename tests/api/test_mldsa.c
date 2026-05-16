@@ -30455,6 +30455,9 @@ int test_mldsa_x509_pubkey_sigtype(void)
  */
 #if defined(HAVE_DILITHIUM)
 
+PRAGMA_CLANG_DIAG_PUSH
+PRAGMA_CLANG("clang diagnostic ignored \"-Wunreachable-code\"")
+
 #ifdef __GNUC__
     #define WOLFSSL_MLDSA_API_CHECK_INLINE static __inline__ \
         __attribute__((unused, always_inline))
@@ -30713,5 +30716,7 @@ WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_legacy_alias_check(void)
     }
 }
 #endif /* !WOLFSSL_NO_DILITHIUM_LEGACY_NAMES */
+
+PRAGMA_CLANG_DIAG_POP
 
 #endif /* HAVE_DILITHIUM */
