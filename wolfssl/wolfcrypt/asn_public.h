@@ -77,9 +77,23 @@ This library defines the interface APIs for X509 certificates.
     typedef struct falcon_key falcon_key;
     #define WC_FALCONKEY_TYPE_DEFINED
 #endif
-#ifndef WC_DILITHIUMKEY_TYPE_DEFINED
-    typedef struct dilithium_key dilithium_key;
+#ifndef WC_MLDSAKEY_TYPE_DEFINED
+    typedef struct wc_MlDsaKey wc_MlDsaKey;
+    #define WC_MLDSAKEY_TYPE_DEFINED
+#endif
+/* Legacy typedef aliases. Kept until the dilithium.h compatibility shim is
+ * removed in a future release. Application code that included only
+ * <wolfssl/wolfcrypt/asn_public.h> on master continues to compile. Suppress
+ * with WOLFSSL_NO_DILITHIUM_LEGACY_NAMES. */
+#if !defined(WOLFSSL_NO_DILITHIUM_LEGACY_NAMES) && \
+    !defined(WC_DILITHIUMKEY_TYPE_DEFINED)
+    typedef struct wc_MlDsaKey dilithium_key;
     #define WC_DILITHIUMKEY_TYPE_DEFINED
+#endif
+#if !defined(WOLFSSL_NO_DILITHIUM_LEGACY_NAMES) && \
+    !defined(WC_MLDSAKEY_LEGACY_TYPE_DEFINED)
+    typedef struct wc_MlDsaKey MlDsaKey;
+    #define WC_MLDSAKEY_LEGACY_TYPE_DEFINED
 #endif
 #ifndef WC_SLHDSAKEY_TYPE_DEFINED
     typedef struct SlhDsaKey SlhDsaKey;

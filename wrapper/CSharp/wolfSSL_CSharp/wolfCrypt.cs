@@ -504,25 +504,25 @@ namespace wolfSSL.CSharp
          */
 #if WindowsCE
         [DllImport(wolfssl_dll)]
-        private static extern IntPtr wc_dilithium_new(IntPtr heap, int devId);
+        private static extern IntPtr wc_MlDsaKey_New(IntPtr heap, int devId);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_delete(IntPtr key, IntPtr key_p);
+        private static extern int wc_MlDsaKey_Delete(IntPtr key, IntPtr key_p);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_set_level(IntPtr key, byte level);
+        private static extern int wc_MlDsaKey_SetParams(IntPtr key, byte level);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_make_key(IntPtr key, IntPtr rng);
+        private static extern int wc_MlDsaKey_MakeKey(IntPtr key, IntPtr rng);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_export_private(IntPtr key, byte[] output, ref uint outLen);
+        private static extern int wc_MlDsaKey_ExportPrivRaw(IntPtr key, byte[] output, ref uint outLen);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_import_private(byte[] priv, uint privSz, IntPtr key);
+        private static extern int wc_MlDsaKey_ImportPrivRaw(IntPtr key, byte[] priv, uint privSz);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_export_public(IntPtr key, byte[] output, ref uint outLen);
+        private static extern int wc_MlDsaKey_ExportPubRaw(IntPtr key, byte[] output, ref uint outLen);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_import_public(byte[] input, uint inputLen, IntPtr key);
+        private static extern int wc_MlDsaKey_ImportPubRaw(IntPtr key, byte[] input, uint inputLen);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_sign_ctx_msg(byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
+        private static extern int wc_MlDsaKey_SignCtx(IntPtr key, byte[] ctx, byte ctxLen, byte[] sig, ref uint sigLen, byte[] msg, uint msgLen, IntPtr rng);
         [DllImport(wolfssl_dll)]
-        private static extern int wc_dilithium_verify_ctx_msg(byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
+        private static extern int wc_MlDsaKey_VerifyCtx(IntPtr key, byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res);
         [DllImport(wolfssl_dll)]
         private static extern int wc_MlDsaKey_GetPrivLen(IntPtr key, ref int len);
         [DllImport(wolfssl_dll)]
@@ -531,25 +531,25 @@ namespace wolfSSL.CSharp
         private static extern int wc_MlDsaKey_GetSigLen(IntPtr key, ref int len);
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr wc_dilithium_new(IntPtr heap, int devId);
+        private static extern IntPtr wc_MlDsaKey_New(IntPtr heap, int devId);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_delete(IntPtr key, IntPtr key_p);
+        private static extern int wc_MlDsaKey_Delete(IntPtr key, IntPtr key_p);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_set_level(IntPtr key, byte level);
+        private static extern int wc_MlDsaKey_SetParams(IntPtr key, byte level);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_make_key(IntPtr key, IntPtr rng);
+        private static extern int wc_MlDsaKey_MakeKey(IntPtr key, IntPtr rng);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_export_private(IntPtr key, byte[] output, ref uint outLen);
+        private static extern int wc_MlDsaKey_ExportPrivRaw(IntPtr key, byte[] output, ref uint outLen);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_import_private(byte[] priv, uint privSz, IntPtr key);
+        private static extern int wc_MlDsaKey_ImportPrivRaw(IntPtr key, byte[] priv, uint privSz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_export_public(IntPtr key, byte[] output, ref uint outLen);
+        private static extern int wc_MlDsaKey_ExportPubRaw(IntPtr key, byte[] output, ref uint outLen);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_import_public(byte[] input, uint inputLen, IntPtr key);
+        private static extern int wc_MlDsaKey_ImportPubRaw(IntPtr key, byte[] input, uint inputLen);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_sign_ctx_msg(byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, byte[] sig, ref uint sigLen, IntPtr key, IntPtr rng);
+        private static extern int wc_MlDsaKey_SignCtx(IntPtr key, byte[] ctx, byte ctxLen, byte[] sig, ref uint sigLen, byte[] msg, uint msgLen, IntPtr rng);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int wc_dilithium_verify_ctx_msg(byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res, IntPtr key);
+        private static extern int wc_MlDsaKey_VerifyCtx(IntPtr key, byte[] sig, uint sigLen, byte[] ctx, byte ctxLen, byte[] msg, uint msgLen, ref int res);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_MlDsaKey_GetPrivLen(IntPtr key, ref int len);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -3370,14 +3370,14 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_dilithium_new(heap, devId);
+                key = wc_MlDsaKey_New(heap, devId);
                 if (key == IntPtr.Zero)
                 {
                     log(ERROR_LOG, "Failed to allocate and initialize ML-DSA key.");
                     return IntPtr.Zero;
                 }
 
-                int ret = wc_dilithium_set_level(key, (byte)level);
+                int ret = wc_MlDsaKey_SetParams(key, (byte)level);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to set ML-DSA level. Error code: " + ret);
@@ -3421,14 +3421,14 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_dilithium_new(heap, devId);
+                key = wc_MlDsaKey_New(heap, devId);
                 if (key == IntPtr.Zero)
                 {
                     log(ERROR_LOG, "Failed to allocate and initialize ML-DSA key.");
                     return IntPtr.Zero;
                 }
 
-                ret = wc_dilithium_set_level(key, (byte)level);
+                ret = wc_MlDsaKey_SetParams(key, (byte)level);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to set ML-DSA level. Error code: " + ret);
@@ -3442,7 +3442,7 @@ namespace wolfSSL.CSharp
                     return IntPtr.Zero;
                 }
 
-                ret = wc_dilithium_make_key(key, rng);
+                ret = wc_MlDsaKey_MakeKey(key, rng);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to make ML-DSA key. Error code: " + ret);
@@ -3488,7 +3488,7 @@ namespace wolfSSL.CSharp
                 return BAD_FUNC_ARG;
             }
 
-            ret = wc_dilithium_delete(key, IntPtr.Zero);
+            ret = wc_MlDsaKey_Delete(key, IntPtr.Zero);
             key = IntPtr.Zero;
             return ret;
         }
@@ -3508,7 +3508,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                return wc_dilithium_import_public(publicKey, (uint)publicKey.Length, key);
+                return wc_MlDsaKey_ImportPubRaw(key, publicKey, (uint)publicKey.Length);
             }
             catch (Exception e)
             {
@@ -3532,7 +3532,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                return wc_dilithium_import_private(privateKey, (uint)privateKey.Length, key);
+                return wc_MlDsaKey_ImportPrivRaw(key, privateKey, (uint)privateKey.Length);
             }
             catch (Exception e)
             {
@@ -3570,7 +3570,7 @@ namespace wolfSSL.CSharp
 
                 privateKey = new byte[privLen];
                 outLen = (uint)privLen;
-                ret = wc_dilithium_export_private(key, privateKey, ref outLen);
+                ret = wc_MlDsaKey_ExportPrivRaw(key, privateKey, ref outLen);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to export ML-DSA private key. Error code: " + ret);
@@ -3620,7 +3620,7 @@ namespace wolfSSL.CSharp
 
                 publicKey = new byte[pubLen];
                 outLen = (uint)pubLen;
-                ret = wc_dilithium_export_public(key, publicKey, ref outLen);
+                ret = wc_MlDsaKey_ExportPubRaw(key, publicKey, ref outLen);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to export ML-DSA public key. Error code: " + ret);
@@ -3679,7 +3679,7 @@ namespace wolfSSL.CSharp
                     return MEMORY_E;
                 }
                 /* FIPS 204 sign with empty context (ctx=null, ctxLen=0). */
-                ret = wc_dilithium_sign_ctx_msg(null, 0, msg, (uint)msg.Length, sig, ref outLen, key, rng);
+                ret = wc_MlDsaKey_SignCtx(key, null, 0, sig, ref outLen, msg, (uint)msg.Length, rng);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to sign message with ML-DSA key. Error code: " + ret);
@@ -3724,7 +3724,7 @@ namespace wolfSSL.CSharp
             try
             {
                 /* FIPS 204 verify with empty context (ctx=null, ctxLen=0). */
-                ret = wc_dilithium_verify_ctx_msg(sig, (uint)sig.Length, null, 0, msg, (uint)msg.Length, ref res, key);
+                ret = wc_MlDsaKey_VerifyCtx(key, sig, (uint)sig.Length, null, 0, msg, (uint)msg.Length, ref res);
                 if (ret != 0)
                 {
                     log(ERROR_LOG, "Failed to verify message with ML-DSA key. Error code: " + ret);

@@ -1597,9 +1597,9 @@ struct SignatureCtx {
     #endif
     #ifdef HAVE_DILITHIUM
         #ifdef WOLFSSL_NO_MALLOC
-        struct dilithium_key  dilithium[1];
+        dilithium_key  dilithium[1];
         #else
-        struct dilithium_key* dilithium;
+        dilithium_key* dilithium;
         #endif
     #endif
     #ifdef WOLFSSL_HAVE_SLHDSA

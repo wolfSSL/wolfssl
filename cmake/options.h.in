@@ -96,8 +96,8 @@ extern "C" {
 #cmakedefine HAVE_CURVE448
 #undef HAVE_DH_DEFAULT_PARAMS
 #cmakedefine HAVE_DH_DEFAULT_PARAMS
-#undef HAVE_DILITHIUM
-#cmakedefine HAVE_DILITHIUM
+#undef WOLFSSL_HAVE_MLDSA
+#cmakedefine WOLFSSL_HAVE_MLDSA
 #undef HAVE_ECC
 #cmakedefine HAVE_ECC
 #undef HAVE_ECH

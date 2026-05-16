@@ -287,9 +287,9 @@ for (my $i = 0; $i < $num_falcon; $i++) {
 
 print OUT_FILE "#endif /* HAVE_FALCON */\n\n";
 
-# print dilithium raw keys
-print OUT_FILE "#if defined(HAVE_DILITHIUM)
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+# print ML-DSA raw keys
+print OUT_FILE "#if defined(WOLFSSL_HAVE_MLDSA)
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 
 /* raw private key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level2_key.der */
@@ -553,9 +553,9 @@ static const unsigned char bench_dilithium_level2_key[] = {
 };
 #define sizeof_bench_dilithium_level2_key (sizeof(bench_dilithium_level2_key))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 
 /* raw public key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level2_key.der */
@@ -696,9 +696,9 @@ static const unsigned char bench_dilithium_level2_pubkey[] = {
 #define sizeof_bench_dilithium_level2_pubkey \\
        (sizeof(bench_dilithium_level2_pubkey))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 
 /* raw private key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level3_key.der */
@@ -1110,9 +1110,9 @@ static const unsigned char bench_dilithium_level3_key[] = {
 };
 #define sizeof_bench_dilithium_level3_key (sizeof(bench_dilithium_level3_key))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 
 /* raw public key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level3_key.der */
@@ -1317,9 +1317,9 @@ static const unsigned char bench_dilithium_level3_pubkey[] = {
 static const int sizeof_bench_dilithium_level3_pubkey =
     sizeof(bench_dilithium_level3_pubkey);
 
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
 
 /* raw private key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level5_key.der */
@@ -1817,9 +1817,9 @@ static const unsigned char bench_dilithium_level5_key[] = {
 };
 #define sizeof_bench_dilithium_level5_key (sizeof(bench_dilithium_level5_key))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
 
 /* raw public key without ASN1 syntax from
  * ./certs/dilithium/bench_dilithium_level5_key.der */
@@ -2088,16 +2088,16 @@ static const unsigned char bench_dilithium_level5_pubkey[] = {
 #define sizeof_bench_dilithium_level5_pubkey \\
        (sizeof(bench_dilithium_level5_pubkey))
 
-#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* !WOLFSSL_MLDSA_NO_VERIFY */
 
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 
 ";
 
 # ML-DSA test key material encoded per the IETF LAMPS WG profile:
 # SubjectPublicKeyInfo for public keys, PKCS#8 PrivateKeyInfo for
 # private keys, using the NIST id-ml-dsa-N OIDs.
-print OUT_FILE "#if defined(HAVE_DILITHIUM)\n\n";
+print OUT_FILE "#if defined(WOLFSSL_HAVE_MLDSA)\n\n";
 
 for my $L ( [44,"WOLFSSL_NO_ML_DSA_44"],
             [65,"WOLFSSL_NO_ML_DSA_65"],
@@ -2106,15 +2106,15 @@ for my $L ( [44,"WOLFSSL_NO_ML_DSA_44"],
 
     print OUT_FILE "#if !defined($noLevel)\n\n";
 
-    print OUT_FILE "#ifndef WOLFSSL_DILITHIUM_NO_VERIFY\n";
+    print OUT_FILE "#ifndef WOLFSSL_MLDSA_NO_VERIFY\n";
     print OUT_FILE "/* ./certs/mldsa/mldsa${n}_pub-spki.der */\n";
     print OUT_FILE "static const unsigned char mldsa${n}_pub_spki[] =\n{\n";
     file_to_hex("./certs/mldsa/mldsa${n}_pub-spki.der");
     print OUT_FILE "};\n";
     print OUT_FILE "#define sizeof_mldsa${n}_pub_spki (sizeof(mldsa${n}_pub_spki))\n";
-    print OUT_FILE "#endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */\n\n";
+    print OUT_FILE "#endif /* !WOLFSSL_MLDSA_NO_VERIFY */\n\n";
 
-    print OUT_FILE "#ifndef WOLFSSL_DILITHIUM_NO_SIGN\n";
+    print OUT_FILE "#ifndef WOLFSSL_MLDSA_NO_SIGN\n";
     print OUT_FILE "/* ./certs/mldsa/mldsa${n}_priv-only.der */\n";
     print OUT_FILE "static const unsigned char mldsa${n}_priv_only[] =\n{\n";
     file_to_hex("./certs/mldsa/mldsa${n}_priv-only.der");
@@ -2132,12 +2132,12 @@ for my $L ( [44,"WOLFSSL_NO_ML_DSA_44"],
     file_to_hex("./certs/mldsa/mldsa${n}_seed-only.der");
     print OUT_FILE "};\n";
     print OUT_FILE "#define sizeof_mldsa${n}_seed_only (sizeof(mldsa${n}_seed_only))\n";
-    print OUT_FILE "#endif /* !WOLFSSL_DILITHIUM_NO_SIGN */\n\n";
+    print OUT_FILE "#endif /* !WOLFSSL_MLDSA_NO_SIGN */\n\n";
 
     print OUT_FILE "#endif /* !$noLevel */\n\n";
 }
 
-print OUT_FILE "#endif /* HAVE_DILITHIUM */\n\n";
+print OUT_FILE "#endif /* WOLFSSL_HAVE_MLDSA */\n\n";
 
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
