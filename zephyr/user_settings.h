@@ -148,6 +148,15 @@ extern "C" {
     #define WOLFSSL_ALWAYS_VERIFY_CB
 #endif
 
+/* Lightweight X509 helpers (wolfSSL_X509_free, wolfSSL_get_verify_result,
+ * wolfSSL_X509_load_certificate_buffer) without pulling in the full
+ * OPENSSL_EXTRA surface. Apps needing full OpenSSL compat can override
+ * user_settings.h via CONFIG_WOLFSSL_SETTINGS_FILE.
+ */
+#if defined(CONFIG_WOLFSSL_OPENSSL_EXTRA_X509_SMALL)
+    #define OPENSSL_EXTRA_X509_SMALL
+#endif
+
 /* DTLS */
 #if defined(CONFIG_WOLFSSL_DTLS)
     #define WOLFSSL_DTLS
