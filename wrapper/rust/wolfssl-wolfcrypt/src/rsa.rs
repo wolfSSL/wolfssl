@@ -29,7 +29,7 @@ wolfSSL `RsaKey` object. It ensures proper initialization and deallocation.
 
 ```rust
 # extern crate std;
-#[cfg(random)]
+#[cfg(all(random, feature = "alloc"))]
 {
 use std::fs;
 use wolfssl_wolfcrypt::random::RNG;
@@ -869,7 +869,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss))]
+    /// #[cfg(all(random, rsa_pss, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -932,7 +932,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, rsa_const_api))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -998,7 +998,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, rsa_const_api))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1069,7 +1069,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, rsa_const_api))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
