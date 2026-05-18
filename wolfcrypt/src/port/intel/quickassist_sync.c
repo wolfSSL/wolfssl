@@ -1100,9 +1100,12 @@ exit:
     }
 
     /* Capture the inline decrypt into the output. */
-    XMEMCPY(out, dataBuf, inOutSz);
-    if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
-        if (authTag != NULL && authTagSz > 0) {
+    if (ret == 0 && dataBuf != NULL) {
+        XMEMCPY(out, dataBuf, inOutSz);
+    }
+    if (ret == 0 &&
+            cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
+        if (authTag != NULL && authTagSz > 0 && authTagBuf != NULL) {
             XMEMCPY(authTag, authTagBuf, authTagSz);
         }
     }
