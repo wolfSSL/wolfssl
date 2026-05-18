@@ -4202,7 +4202,8 @@ extern void uITRON4_free(void *p) ;
 #if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
     !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_ARMASM) && \
     (!defined(USE_INTEL_SPEEDUP) || defined(NO_CURVED25519_X64)) && \
-    !defined(WOLFSSL_CURVE25519_BLINDING) && !defined(NO_CURVE25519_BLINDING)
+    !defined(WOLFSSL_CURVE25519_BLINDING) && !defined(NO_CURVE25519_BLINDING) \
+    && !defined(WC_NO_RNG)
     #define WOLFSSL_CURVE25519_BLINDING
 #endif
 
@@ -4212,7 +4213,8 @@ extern void uITRON4_free(void *p) ;
     #if (defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)) || \
         (defined(HAVE_ECC) && !defined(ECC_TIMING_RESISTANT)) || \
         (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS) && \
-            !defined(WC_NO_RNG))
+            !defined(WC_NO_RNG) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+            !defined(WOLFSSL_RSA_VERIFY_ONLY))
 
         #if !defined(_MSC_VER) && !defined(__TASKING__)
             #warning "For timing resistance / side-channel attack prevention consider using harden options"
@@ -4220,6 +4222,20 @@ extern void uITRON4_free(void *p) ;
             #pragma message("Warning: For timing resistance / side-channel attack prevention consider using harden options")
         #endif
     #endif
+#endif
+
+/* WC_NO_RNG silently removes RSA blinding, as blinding depends on the RNG.
+ * Refuse to build until the conflict is resolved or the loss of hardening is
+ * explicitly acknowledged via WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS. */
+#if defined(WC_NO_RNG) && ((defined(WC_RSA_BLINDING) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)) || \
+    (defined(HAVE_ECC) && defined(WOLFSSL_ECC_BLIND_K))) && \
+    !defined(WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS)
+    #error "Blinding is enabled but the RNG is disabled.  Either remove \
+WC_NO_RNG to enable the RNG, disable blinding by removing WC_RSA_BLINDING/\
+WOLFSSL_CURVE25519_BLINDING/WOLFSSL_ECC_BLIND_K, or acknowledge the loss of \
+blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #endif
 
 #ifdef OPENSSL_COEXIST

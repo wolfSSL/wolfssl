@@ -6156,7 +6156,10 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         ssl->options.sendVerify = SEND_BLANK_CERT;
 #else
         WOLFSSL_MSG("Certificate required but none set on client");
-        SendAlert(ssl, alert_fatal, illegal_parameter);
+        /* RFC 8446 Section 4.4.2.4: send certificate_required when a
+         * peer (here, the client) cannot provide a certificate that the
+         * other peer required. */
+        SendAlert(ssl, alert_fatal, certificate_required);
         WOLFSSL_ERROR_VERBOSE(NO_CERT_ERROR);
         return NO_CERT_ERROR;
 #endif

@@ -174,8 +174,11 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
     \ingroup CMAC
     \brief Single shot function for validating a CMAC
     \return 0 on success
-    \param check CMAC value to verify
-    \param checkSz size of check buffer
+    \return BAD_FUNC_ARG if parameters are invalid
+    \return MAC_CMP_FAILED_E if the supplied tag does not match
+    \param check Expected MAC value to verify
+    \param checkSz size of expected MAC value; must be in
+    [\c WC_CMAC_TAG_MIN_SZ, \c WC_AES_BLOCK_SIZE]
     \param in input data to process
     \param inSz size of input data
     \param key key pointer
@@ -211,10 +214,8 @@ int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz);
     \ingroup CMAC
     \brief Single shot AES-CMAC generation with extended parameters
     including heap and device ID.
-
     \return 0 on success
     \return BAD_FUNC_ARG if parameters are invalid
-
     \param cmac Pointer to Cmac structure (can be NULL for one-shot)
     \param out Buffer to store MAC output
     \param outSz Pointer to output size (in/out)
@@ -249,14 +250,13 @@ int wc_AesCmacGenerate_ex(Cmac *cmac, byte* out, word32* outSz,
     \ingroup CMAC
     \brief Single shot AES-CMAC verification with extended parameters
     including heap and device ID.
-
     \return 0 on success
     \return BAD_FUNC_ARG if parameters are invalid
     \return MAC_CMP_FAILED_E if MAC verification fails
-
-    \param cmac Pointer to Cmac structure (can be NULL for one-shot)
+    \param cmac Pointer to Cmac structure
     \param check Expected MAC value to verify
-    \param checkSz Size of expected MAC
+    \param checkSz Size of expected MAC; must be in
+    [\c WC_CMAC_TAG_MIN_SZ, \c WC_AES_BLOCK_SIZE]
     \param in Input data to authenticate
     \param inSz Length of input data
     \param key AES key
@@ -267,17 +267,24 @@ int wc_AesCmacGenerate_ex(Cmac *cmac, byte* out, word32* outSz,
 
     _Example_
     \code
-    byte mac[AES_BLOCK_SIZE];
+    Cmac cmac;
+    byte mac[WC_AES_BLOCK_SIZE];
     byte key[16], msg[64];
+    int ret;
 
-    int ret = wc_AesCmacVerify_ex(NULL, mac, sizeof(mac), msg,
+    ret = wc_InitCmac_ex(&cmac, key, sizeof(key), WC_CMAC_AES, NULL,
+                         NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesCmacVerify_ex(&cmac, mac, sizeof(mac), msg,
                                   sizeof(msg), key, sizeof(key),
                                   NULL, INVALID_DEVID);
+    }
     if (ret == MAC_CMP_FAILED_E) {
         // MAC verification failed
     }
     \endcode
 
+    \sa wc_InitCmac_ex
     \sa wc_AesCmacVerify
     \sa wc_AesCmacGenerate_ex
 */
