@@ -4,6 +4,8 @@ mod common;
 
 #[cfg(any(all(ecc_import, ecc_export, ecc_sign, ecc_verify, random), random))]
 use std::fs;
+#[cfg(all(ecc_dh, random))]
+use std::rc::Rc;
 use wolfssl_wolfcrypt::ecc::*;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
@@ -134,7 +136,7 @@ fn test_ecc_import_export_sign_verify() {
     let valid = ecc.verify_hash(&signature, &hash).expect("Error with verify_hash()");
     assert_eq!(valid, false);
 
-    ecc.set_rng(&mut rng).expect("Error with set_rng()");
+    ecc.set_rng(rng).expect("Error with set_rng()");
 }
 
 #[test]
@@ -142,13 +144,13 @@ fn test_ecc_import_export_sign_verify() {
 fn test_ecc_shared_secret() {
     common::setup();
 
-    let mut rng = RNG::new().expect("Failed to create RNG");
-    let mut ecc0 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
-    let mut ecc1 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
+    let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
+    let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     let mut ss0 = [0u8; 128];
     let mut ss1 = [0u8; 128];
-    ecc0.set_rng(&mut rng).expect("Error with set_rng()");
-    ecc1.set_rng(&mut rng).expect("Error with set_rng()");
+    ecc0.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    ecc1.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     let ss0_size = ecc0.shared_secret(&mut ecc1, &mut ss0).expect("Error with shared_secret()");
     let ss1_size = ecc1.shared_secret(&mut ecc0, &mut ss1).expect("Error with shared_secret()");
     assert_eq!(ss0_size, ss1_size);
@@ -363,6 +365,38 @@ fn test_ecc_import() {
     let d  = b"8c14b793cb19137e323a6d2e2a870bca2e7a493ec1153b3a95feb8a4873f8d08\0";
     ECC::import_raw(qx, qy, d, b"SECP256R1\0", None, None).expect("Error with import_raw()");
     ECC::import_raw_ex(qx, qy, d, ECC::SECP256R1, None, None).expect("Error with import_raw_ex()");
+}
+
+#[test]
+#[cfg(ecc_import)]
+fn test_ecc_import_raw_not_null_terminated() {
+    common::setup();
+
+    let qx = b"7a4e287890a1a47ad3457e52f2f76a83ce46cbc947616d0cbaa82323818a793d\0";
+    let qy = b"eec4084f5b29ebf29c44cce3b3059610922f8b30ea6e8811742ac7238fe87308\0";
+    let d  = b"8c14b793cb19137e323a6d2e2a870bca2e7a493ec1153b3a95feb8a4873f8d08\0";
+    let qx_no_nul: &[u8] = &qx[..qx.len() - 1];
+    let qy_no_nul: &[u8] = &qy[..qy.len() - 1];
+    let d_no_nul:  &[u8] = &d[..d.len() - 1];
+    let curve_name = b"SECP256R1\0";
+    let curve_name_no_nul: &[u8] = b"SECP256R1";
+    let empty: &[u8] = b"";
+
+    assert!(ECC::import_raw(qx_no_nul, qy, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy_no_nul, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, d_no_nul, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, d, curve_name_no_nul, None, None).is_err());
+    assert!(ECC::import_raw(empty, qy, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, empty, d, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, empty, curve_name, None, None).is_err());
+    assert!(ECC::import_raw(qx, qy, d, empty, None, None).is_err());
+
+    assert!(ECC::import_raw_ex(qx_no_nul, qy, d, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, qy_no_nul, d, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, qy, d_no_nul, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(empty, qy, d, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, empty, d, ECC::SECP256R1, None, None).is_err());
+    assert!(ECC::import_raw_ex(qx, qy, empty, ECC::SECP256R1, None, None).is_err());
 }
 
 #[test]

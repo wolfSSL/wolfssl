@@ -194,7 +194,7 @@ impl DH {
     /// }
     /// ```
     #[cfg(all(dh_keygen, random))]
-    pub fn generate(rng: &mut RNG, modulus_size: i32) -> Result<Self, i32> {
+    pub fn generate(rng: &RNG, modulus_size: i32) -> Result<Self, i32> {
         Self::generate_ex(rng, modulus_size, None, None)
     }
 
@@ -225,7 +225,7 @@ impl DH {
     /// }
     /// ```
     #[cfg(all(dh_keygen, random))]
-    pub fn generate_ex(rng: &mut RNG, modulus_size: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(rng: &RNG, modulus_size: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -242,7 +242,7 @@ impl DH {
         let wc_dhkey = unsafe { wc_dhkey.assume_init() };
         let mut dh = DH { wc_dhkey };
         let rc = unsafe {
-            sys::wc_DhGenerateParams(&mut rng.wc_rng, modulus_size, &mut dh.wc_dhkey)
+            sys::wc_DhGenerateParams(rng.wc_rng, modulus_size, &mut dh.wc_dhkey)
         };
         if rc != 0 {
             return Err(rc);
@@ -921,7 +921,7 @@ impl DH {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn new_from_pgq_with_check(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG) -> Result<Self, i32> {
+    pub fn new_from_pgq_with_check(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &RNG) -> Result<Self, i32> {
         Self::new_from_pgq_with_check_ex(p, g, q, trusted, rng, None, None)
     }
 
@@ -1030,7 +1030,7 @@ impl DH {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn new_from_pgq_with_check_ex(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_from_pgq_with_check_ex(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = crate::buffer_len_to_u32(p.len())?;
         let g_size = crate::buffer_len_to_u32(g.len())?;
         let q_size = crate::buffer_len_to_u32(q.len())?;
@@ -1050,7 +1050,7 @@ impl DH {
         let wc_dhkey = unsafe { wc_dhkey.assume_init() };
         let mut dh = DH { wc_dhkey };
         let rc = unsafe {
-            sys::wc_DhSetCheckKey(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size, q.as_ptr(), q_size, trusted, &mut rng.wc_rng)
+            sys::wc_DhSetCheckKey(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size, q.as_ptr(), q_size, trusted, rng.wc_rng)
         };
         if rc != 0 {
             return Err(rc);
@@ -1509,13 +1509,13 @@ impl DH {
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate_key_pair(&mut self, rng: &mut RNG,
+    pub fn generate_key_pair(&mut self, rng: &RNG,
             private: &mut [u8], private_size: &mut u32,
             public: &mut [u8], public_size: &mut u32) -> Result<(), i32> {
         *private_size = crate::buffer_len_to_u32(private.len())?;
         *public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
-            sys::wc_DhGenerateKeyPair(&mut self.wc_dhkey, &mut rng.wc_rng,
+            sys::wc_DhGenerateKeyPair(&mut self.wc_dhkey, rng.wc_rng,
                 private.as_mut_ptr(), private_size,
                 public.as_mut_ptr(), public_size)
         };

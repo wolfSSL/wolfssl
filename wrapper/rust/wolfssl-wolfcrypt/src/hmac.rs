@@ -330,6 +330,24 @@ impl HMAC {
     }
 }
 
+impl Clone for HMAC {
+    /// Deep-copy the HMAC state via `wc_HmacCopy()`.
+    ///
+    /// Panics if the underlying wolfSSL copy fails.
+    fn clone(&self) -> Self {
+        let mut wc_hmac: MaybeUninit<sys::Hmac> = MaybeUninit::uninit();
+        let rc = unsafe {
+            sys::wc_HmacCopy(&self.wc_hmac as *const _ as *mut _,
+                wc_hmac.as_mut_ptr())
+        };
+        if rc != 0 {
+            panic!("wc_HmacCopy() failed: {}", rc);
+        }
+        let wc_hmac = unsafe { wc_hmac.assume_init() };
+        HMAC { wc_hmac }
+    }
+}
+
 impl Drop for HMAC {
     /// Safely free the underlying wolfSSL Hmac context.
     ///
