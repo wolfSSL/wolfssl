@@ -969,9 +969,7 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     flatBuffer = &dev->op.cipher.flatBuffer;
     metaBuf = XMALLOC(metaSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     dataBuf = XMALLOC(dataLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-    XMEMCPY(dataBuf, in, inOutSz);
     ivBuf = XMALLOC(WC_AES_BLOCK_SIZE, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-    XMEMCPY(ivBuf, iv, ivSz);
     authTagBuf = XMALLOC(authTagSz, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
 
     /* check allocations */
@@ -979,6 +977,9 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
         authTagBuf == NULL) {
         ret = MEMORY_E; goto exit;
     }
+
+    XMEMCPY(dataBuf, in, inOutSz);
+    XMEMCPY(ivBuf, iv, ivSz);
 
     /* AAD */
     if (authIn && authInSz > 0) {
@@ -990,10 +991,10 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
 
         authInBuf = XMALLOC(authInSzAligned, dev->heap,
                 DYNAMIC_TYPE_ASYNC_NUMA);
-        XMEMCPY(authInBuf, authIn, authInSz);
         if (authInBuf == NULL) {
             ret = MEMORY_E; goto exit;
         }
+        XMEMCPY(authInBuf, authIn, authInSz);
         /* clear remainder */
         XMEMSET(authInBuf + authInSz, 0, authInSzAligned - authInSz);
     }
