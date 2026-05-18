@@ -32,10 +32,10 @@
 #endif
 
 
-void wc_InitMd4(wc_Md4* md4)
+int wc_InitMd4(wc_Md4* md4)
 {
     if (md4 == NULL)
-        return;
+        return BAD_FUNC_ARG;
 
     md4->digest[0] = 0x67452301L;
     md4->digest[1] = 0xefcdab89L;
@@ -45,6 +45,8 @@ void wc_InitMd4(wc_Md4* md4)
     md4->buffLen = 0;
     md4->loLen   = 0;
     md4->hiLen   = 0;
+
+    return 0;
 }
 
 
@@ -136,13 +138,13 @@ static WC_INLINE void AddLength(wc_Md4* md4, word32 len)
 }
 
 
-void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len)
+int wc_Md4Update(wc_Md4* md4, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local;
 
     if (md4 == NULL || (data == NULL && len != 0))
-        return;
+        return BAD_FUNC_ARG;
 
     local = (byte*)md4->buffer;
     while (len) {
@@ -162,15 +164,17 @@ void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len)
             md4->buffLen = 0;
         }
     }
+
+    return 0;
 }
 
 
-void wc_Md4Final(wc_Md4* md4, byte* hash)
+int wc_Md4Final(wc_Md4* md4, byte* hash)
 {
     byte* local;
 
     if (md4 == NULL || hash == NULL)
-        return;
+        return BAD_FUNC_ARG;
 
     local = (byte*)md4->buffer;
     AddLength(md4, md4->buffLen);               /* before adding pads */
@@ -209,7 +213,7 @@ void wc_Md4Final(wc_Md4* md4, byte* hash)
     #endif
     XMEMCPY(hash, md4->digest, WC_MD4_DIGEST_SIZE);
 
-    wc_InitMd4(md4);  /* reset state */
+    return wc_InitMd4(md4);  /* reset state */
 }
 
 

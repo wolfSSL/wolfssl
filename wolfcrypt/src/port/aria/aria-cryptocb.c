@@ -39,6 +39,7 @@ size and a key size of 128, 192, or 256 bits.
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/misc.h>
 #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
 
 int wc_AriaInit(void)
@@ -241,6 +242,7 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
         rv = MC_Sign(hSession, in, inSz, out, outSz);
     WOLFSSL_MSG_EX("AriaSign Sign rv=%d",rv);
 
+    ForceZero(keyarr, sizeof(keyarr));
     wc_AriaFree(&hSession, &hPrikey);
     if (rv != MC_OK) {
         WOLFSSL_MSG(MC_GetErrorString(rv));
@@ -408,6 +410,7 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
         rv = MC_DeriveKey(hSession, &mcAlg, hPrikey, out, outSz);
     WOLFSSL_MSG_EX("AriaDerive DeriveKey rv=%d",rv);
 
+    ForceZero(privAsn1, sizeof(privAsn1));
     wc_AriaFree(&hSession, &hPrikey);
     if (rv != MC_OK) {
         WOLFSSL_MSG(MC_GetErrorString(rv));
