@@ -219,9 +219,9 @@ port4=$(get_first_free_port $((port3 + 1)))    # OCSP responder: root-ca
 port5=$(get_first_free_port $((port4 + 1)))    # TLS server
 
 # Responder 1: intermediate1-ca (server1=valid, server2=revoked)
-log1=$(mktemp /tmp/ocsp_resp1.XXXXXX)
+log1=$(mktemp "${TMPDIR:-/tmp}/ocsp_resp1.XXXXXX")
 resp_logs="$resp_logs $log1"
-ready1=$(mktemp /tmp/ocsp_ready1.XXXXXX)
+ready1=$(mktemp "${TMPDIR:-/tmp}/ocsp_ready1.XXXXXX")
 ready_files="$ready_files $ready1"
 $OCSP_RESPONDER -p $port1 -v -R "$ready1" \
     -c $OCSP_DIR/intermediate1-ca-cert.pem \
@@ -232,9 +232,9 @@ pid1=$!
 resp_pids="$resp_pids $pid1"
 
 # Responder 2: intermediate2-ca (server3=valid, server4=revoked)
-log2=$(mktemp /tmp/ocsp_resp2.XXXXXX)
+log2=$(mktemp "${TMPDIR:-/tmp}/ocsp_resp2.XXXXXX")
 resp_logs="$resp_logs $log2"
-ready2=$(mktemp /tmp/ocsp_ready2.XXXXXX)
+ready2=$(mktemp "${TMPDIR:-/tmp}/ocsp_ready2.XXXXXX")
 ready_files="$ready_files $ready2"
 $OCSP_RESPONDER -p $port2 -v -R "$ready2" \
     -c $OCSP_DIR/intermediate2-ca-cert.pem \
@@ -245,9 +245,9 @@ pid2=$!
 resp_pids="$resp_pids $pid2"
 
 # Responder 3: intermediate3-ca (server5=valid)
-log3=$(mktemp /tmp/ocsp_resp3.XXXXXX)
+log3=$(mktemp "${TMPDIR:-/tmp}/ocsp_resp3.XXXXXX")
 resp_logs="$resp_logs $log3"
-ready3=$(mktemp /tmp/ocsp_ready3.XXXXXX)
+ready3=$(mktemp "${TMPDIR:-/tmp}/ocsp_ready3.XXXXXX")
 ready_files="$ready_files $ready3"
 $OCSP_RESPONDER -p $port3 -v -R "$ready3" \
     -c $OCSP_DIR/intermediate3-ca-cert.pem \
@@ -258,9 +258,9 @@ pid3=$!
 resp_pids="$resp_pids $pid3"
 
 # Responder 4: root-ca (intermediate CAs: 1=valid, 2=valid, 3=revoked)
-log4=$(mktemp /tmp/ocsp_resp4.XXXXXX)
+log4=$(mktemp "${TMPDIR:-/tmp}/ocsp_resp4.XXXXXX")
 resp_logs="$resp_logs $log4"
-ready4=$(mktemp /tmp/ocsp_ready4.XXXXXX)
+ready4=$(mktemp "${TMPDIR:-/tmp}/ocsp_ready4.XXXXXX")
 ready_files="$ready_files $ready4"
 $OCSP_RESPONDER -p $port4 -v -R "$ready4" \
     -c $OCSP_DIR/root-ca-cert.pem \
@@ -271,9 +271,9 @@ pid4=$!
 resp_pids="$resp_pids $pid4"
 
 # Responder 5: authorized responder (delegated OCSP signer with id-kp-OCSPSigning)
-log5=$(mktemp /tmp/ocsp_resp5.XXXXXX)
+log5=$(mktemp "${TMPDIR:-/tmp}/ocsp_resp5.XXXXXX")
 resp_logs="$resp_logs $log5"
-ready5=$(mktemp /tmp/ocsp_ready5.XXXXXX)
+ready5=$(mktemp "${TMPDIR:-/tmp}/ocsp_ready5.XXXXXX")
 ready_files="$ready_files $ready5"
 $OCSP_RESPONDER -p $port5 -v -R "$ready5" \
     -c $OCSP_DIR/root-ca-cert.pem \
