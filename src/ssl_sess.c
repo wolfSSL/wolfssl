@@ -1610,6 +1610,23 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
 
     if (ssl->session->version.major != 0) {
+        /* Reject sessions whose protocol version is below the configured
+         * minimum so a stale cached session cannot make the client send a
+         * ClientHello advertising a version it isn't allowed to negotiate.
+         * DTLS minor versions are inverted: a higher minor means an older
+         * protocol, so the comparison flips. */
+        byte belowMinDowngrade;
+        if (ssl->options.dtls)
+            belowMinDowngrade = ssl->session->version.minor >
+                                ssl->options.minDowngrade;
+        else
+            belowMinDowngrade = ssl->session->version.minor <
+                                ssl->options.minDowngrade;
+        if (belowMinDowngrade) {
+            WOLFSSL_MSG("Session version below configured minDowngrade");
+            ssl->options.resuming = 0;
+            return WOLFSSL_FAILURE;
+        }
         ssl->version              = ssl->session->version;
         if (IsAtLeastTLSv1_3(ssl->version))
             ssl->options.tls1_3 = 1;

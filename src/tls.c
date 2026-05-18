@@ -3666,9 +3666,10 @@ int ProcessChainOCSPRequest(WOLFSSL* ssl)
                 request->ssl = ssl;
                 ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
                                  request, &csr->responses[i], ssl->heap);
-                /* Suppressing, not critical */
-                if (ret == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED) ||
-                    ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
+                /* Suppressing soft-fail responder errors. OCSP_CERT_REVOKED
+                 * is an explicit positive assertion of revocation and must
+                 * not be ignored. */
+                if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
                     ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL)) {
                     ret = 0;
                 }

@@ -3129,3 +3129,45 @@ int test_dtls13_oversized_cert_chain(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* DTLS counterpart to test_tls_set_session_min_downgrade. Exercises the
+ * inverted DTLS minor-version comparison (DTLS 1.2 minor 0xFD is "below"
+ * floor 0xFC = DTLS 1.3). */
+int test_dtls_set_session_min_downgrade(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_DTLS13) && defined(HAVE_SESSION_TICKET)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLS_client_method, wolfDTLS_server_method), 0);
+    ExpectIntEQ(wolfSSL_SetMinVersion(ssl_c, WOLFSSL_DTLSV1_3),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_FAILURE);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.resuming, 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

@@ -544,7 +544,14 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         urlSz = ocspRequest->urlSz;
     }
     else {
-        /* cert doesn't have extAuthInfo, assuming CERT_GOOD */
+        /* No AIA URL and no override. ocspCheckAll asks for strict chain
+         * checking, so fail closed - but only on the client verification
+         * instance (cm->ocsp); stapling (cm->ocsp_stapling) shares the cm
+         * flag and must stay best-effort. */
+        if (ocsp->cm->ocspCheckAll && ocsp == ocsp->cm->ocsp) {
+            WOLFSSL_MSG("Cert has no OCSP URL and ocspCheckAll is set");
+            return OCSP_NEED_URL;
+        }
         WOLFSSL_MSG("Cert has no OCSP URL, assuming CERT_GOOD");
         return 0;
     }

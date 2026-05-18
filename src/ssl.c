@@ -15871,6 +15871,12 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
      * - changing the server certificate(s)
      * - changing the server id for session handling
      * and everything else in WOLFSSL* needs to remain untouched.
+     *
+     * SECURITY: swapping ssl->ctx switches cm-resolved settings (CA store,
+     * CRL, OCSP) to the new CTX but leaves ssl-cached ones (verify mode and
+     * callback, minDowngrade, key-size minimums, suites, version bounds)
+     * pinned to the original. SNI callbacks must re-apply those ssl-level
+     * settings explicitly; CRL/OCSP isolation requires an SSL-local store.
      */
     WOLFSSL_ENTER("wolfSSL_set_SSL_CTX");
     if (ssl == NULL || ctx == NULL)
