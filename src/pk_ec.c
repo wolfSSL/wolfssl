@@ -449,6 +449,8 @@ static WOLFSSL_EC_GROUP* wolfssl_ec_group_d2i(WOLFSSL_EC_GROUP** group,
 
     if (in_pp == NULL || *in_pp == NULL)
         return NULL;
+    if (inSz <= 0)
+        return NULL;
 
     in = *in_pp;
 
@@ -4998,7 +5000,10 @@ WOLFSSL_ECDSA_SIG* wolfSSL_d2i_ECDSA_SIG(WOLFSSL_ECDSA_SIG** sig,
     WOLFSSL_ECDSA_SIG *s = NULL;
 
     /* Validate parameter. */
-    if (pp == NULL) {
+    if (pp == NULL || *pp == NULL) {
+        err = 1;
+    }
+    if ((!err) && (len <= 0)) {
         err = 1;
     }
     if (!err) {
