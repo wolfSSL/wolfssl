@@ -55,6 +55,7 @@ int test_dtls_mtu_fragment_headroom(void);
 int test_dtls_mtu_split_messages(void);
 int test_dtls13_min_rtx_interval(void);
 int test_dtls13_no_session_id_echo(void);
+int test_dtls13_5_9_0_compat(void);
 int test_dtls13_oversized_cert_chain(void);
 int test_dtls_set_session_min_downgrade(void);
 
@@ -93,5 +94,6 @@ int test_dtls_set_session_min_downgrade(void);
         TEST_DECL_GROUP("dtls", test_dtls13_min_rtx_interval),                 \
         TEST_DECL_GROUP("dtls", test_dtls13_no_session_id_echo),               \
         TEST_DECL_GROUP("dtls", test_dtls13_oversized_cert_chain),             \
-        TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade)
+        TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
+        TEST_DECL_GROUP("dtls", test_dtls13_5_9_0_compat)
 #endif /* TESTS_API_DTLS_H */
