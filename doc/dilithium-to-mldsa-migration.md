@@ -37,6 +37,20 @@ the legacy API.
 | `wc_dilithium_*` (lifecycle / sizing)     | `wc_MlDsaKey_*`                              |
 | `wc_Dilithium_*` (DER encode / decode)    | `wc_MlDsaKey_*`                              |
 | internal lower-case `dilithium_*` helpers | `mldsa_*`                                    |
+| `DILITHIUM_*` algorithm-parameter macros  | `MLDSA_*` (matches `MLKEM_*` in `wc_mlkem.h`) |
+| `DILITHIUM_LEVEL{2,3,5}_*_SIZE`, `ML_DSA_LEVEL{2,3,5}_*_SIZE`, `DILITHIUM_ML_DSA_{44,65,87}_*_SIZE` | `WC_MLDSA_{44,65,87}_*_SIZE` |
+| `DEBUG_DILITHIUM`                         | `DEBUG_MLDSA`                                |
+
+The `WC_ML_DSA_{44,65,87}` / `WC_ML_DSA_{44,65,87}_DRAFT` / `WC_ML_DSA_DRAFT`
+public level identifiers and the `PARAMS_ML_DSA_{44,65,87}_*`
+per-parameter-set internal constants intentionally **keep** their
+underscored `ML_DSA_` spelling — the level identifiers are established
+public names and the `PARAMS_*` family is internal-only, so neither
+benefits from a rename.
+
+The `WOLFSSL_NO_ML_DSA_{44,65,87}` parameter-set disable gates are
+likewise kept in their underscored form (matching the
+`WOLFSSL_NO_ML_KEM_{512,768,1024}` spelling in `wc_mlkem.h`).
 
 The 16 sign / verify / import / DER-decode entry points were also
 re-ordered to put the `MlDsaKey*` first (matching the FIPS 204 / ML-KEM
@@ -164,6 +178,77 @@ The generator script (`gencertbuf.pl`) was updated correspondingly.
 wolfSSL-internal infrastructure (an auto-generated cert-buffer data
 file and the static allocator's default sizing), not consumer-facing
 API; these changes do not require downstream code changes.
+
+## Macro / comment cleanup inside `wc_mldsa.{c,h}`
+
+A follow-on cleanup of the ML-DSA implementation file finished the
+internal naming migration that the file/symbol rename above started:
+
+- All algorithm-parameter macros defined in `wolfssl/wolfcrypt/wc_mldsa.h`
+  (`DILITHIUM_Q`, `DILITHIUM_N`, `DILITHIUM_D`, `DILITHIUM_ETA_*`,
+  `DILITHIUM_GAMMA1_*`, `DILITHIUM_K_SZ`, `DILITHIUM_MU_SZ`,
+  `DILITHIUM_MAX_*`, …) were renamed to canonical `MLDSA_*` spellings
+  matching the `MLKEM_*` internal constants in
+  `<wolfssl/wolfcrypt/wc_mlkem.h>`. The `PARAMS_ML_DSA_{44,65,87}_*`
+  per-parameter-set internal constants and the
+  `WC_ML_DSA_{44,65,87}` / `WC_ML_DSA_{44,65,87}_DRAFT` /
+  `WC_ML_DSA_DRAFT` public level identifiers keep their underscored
+  spelling — the level identifiers are established public names and
+  the `PARAMS_*` family is internal-only.
+- The per-parameter-set size constants previously existed in **three**
+  redundant spellings — `DILITHIUM_LEVEL{2,3,5}_*_SIZE`,
+  `ML_DSA_LEVEL{2,3,5}_*_SIZE`, and
+  `DILITHIUM_ML_DSA_{44,65,87}_*_SIZE`. They were consolidated to a
+  single canonical family, `WC_MLDSA_{44,65,87}_*_SIZE`. All three
+  legacy spellings remain reachable as aliases through the
+  `<wolfssl/wolfcrypt/dilithium.h>` shim (gated by
+  `WOLFSSL_NO_DILITHIUM_LEGACY_NAMES`); a duplicate `MLDSA_N`
+  definition in `wc_mldsa.h` was also removed.
+- All ~20 file-local macros inside `wolfcrypt/src/wc_mldsa.c`
+  (`DILITHIUM_SIGN_BYTES`, `DILITHIUM_GEN_S_*`, `DILITHIUM_HASH_OID_LEN`,
+  `DILITHIUM_PARAMS_CNT`, `DILITHIUM_COEFF_S*`, `DILITHIUM_QINV`,
+  `DILITHIUM_NTT_ZETA_1`, `DILITHIUM_POS_OFFSET`, …) were renamed
+  to `MLDSA_*`. The file-local macros are not user-visible and have no
+  alias in the shim.
+- The user-tunable knobs documented in the `wc_mldsa.c` file-top
+  comment block — `DEBUG_DILITHIUM` and the five performance-tuning
+  defines `DILITHIUM_MUL_SLOW`, `DILITHIUM_MUL_44_SLOW`,
+  `DILITHIUM_MUL_11_SLOW`, `DILITHIUM_MUL_QINV_SLOW`,
+  `DILITHIUM_MUL_Q_SLOW` — were renamed to `DEBUG_MLDSA` /
+  `MLDSA_MUL_*_SLOW`. These are set from `user_settings.h` or `-D`,
+  so a forward-translation block was added to the legacy-gates arm
+  in `<wolfssl/wolfcrypt/dilithium.h>` (gated by
+  `WOLFSSL_NO_DILITHIUM_LEGACY_GATES`) so consumers using the legacy
+  spelling continue to get the intended code path.
+- A long-standing typo, `dilitihium_get_der_length()` (5 call sites,
+  `static`-scope), was corrected to `mldsa_get_der_length()`.
+- All `DILITHIUM_*` legacy macro spellings remain reachable from
+  unmigrated in-tree consumers (`wolfcrypt/src/asn.c`, `src/ssl_load.c`,
+  `src/internal.c`, `src/tls13.c`, `src/ssl.c`, `src/x509.c`,
+  `src/ssl_api_pk.c`, `src/ssl_certman.c`, `wolfssl/internal.h`,
+  `wolfssl/wolfcrypt/asn.h`, `asn_public.h`, `oid_sum.h`,
+  `examples/configs/user_settings_pq.h`,
+  `wolfcrypt/benchmark/benchmark.c`, `wolfcrypt/test/test.c`,
+  `tests/api/test_mldsa.c`) and downstream code through a new
+  reverse-arm macro alias block in `<wolfssl/wolfcrypt/dilithium.h>`,
+  gated by the existing `WOLFSSL_NO_DILITHIUM_LEGACY_NAMES` opt-out.
+- All function and section comments inside `wc_mldsa.c` had their
+  "Dilithium" / "dilithium" prose replaced with "ML-DSA" (the file-top
+  credit retains a parenthetical mention of the historical name).
+- Every algorithm-step citation was re-numbered against FIPS 204 Final
+  (August 2024). The implementation was previously annotated with the
+  draft (IPD) numbering — e.g. `Algorithm 18 skEncode`, `Algorithm 26
+  ExpandA`, `Algorithm 29 Power2Round`. These were updated to the
+  Final numbering (`Algorithm 24 skEncode`, `Algorithm 32 ExpandA`,
+  `Algorithm 35 Power2Round`, …) and the section references were
+  retargeted from the draft `§8.x` building-blocks group to the Final
+  `§7.x` arrangement. SHAKE128/256 notation references were redirected
+  from the IPD `§8.3` to the Final `§3.7`. Citation punctuation was
+  normalized from `FIPS 204. N.M:` to `FIPS 204 §N.M,`.
+
+These changes are contained to `wolfcrypt/src/wc_mldsa.c`,
+`wolfssl/wolfcrypt/wc_mldsa.h`, and the macro-alias block in
+`wolfssl/wolfcrypt/dilithium.h`. No external consumer is touched.
 
 ### Retained internal symbols
 

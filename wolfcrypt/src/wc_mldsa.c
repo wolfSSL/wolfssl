@@ -19,11 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Based on ed448.c and Reworked for Dilithium by Anthony Hu.
+/* Based on ed448.c and reworked for ML-DSA (originally for Dilithium) by
+ * Anthony Hu.
  * WolfSSL implementation by Sean Parkinson.
  */
 
-/* Possible Dilithium/ML-DSA options:
+/* ML-DSA (FIPS 204) compile-time options:
  *
  * WOLFSSL_HAVE_MLDSA                                             Default: OFF
  *   Enables the code in this file to be compiled.
@@ -79,7 +80,7 @@
  * WOLFSSL_MLDSA_ALIGNMENT                                Default: 8
  *   Use to indicate whether loading and storing of words needs to be aligned.
  *   Default is to use WOLFSSL_GENERAL_ALIGNMENT - should be 4 on some ARM CPUs.
- *   Set this value explicitly if specific Dilithium implementation alignment is
+ *   Set this value explicitly if specific ML-DSA implementation alignment is
  *   needed.
  *
  * WOLFSSL_MLDSA_NO_ASN1                                  Default: OFF
@@ -117,19 +118,19 @@
  *   Fast fail gives faster signing times on average.
  *   DO NOT enable this if implementation must be conformant to FIPS 204.
  *
- * DILITHIUM_MUL_SLOW                                         Default: OFF
+ * MLDSA_MUL_SLOW                                         Default: OFF
  *   Define when multiplying by Q / 44 is slower than masking.
  *   Only applies to ML-DSA-44.
- * DILITHIUM_MUL_44_SLOW                                      Default: OFF
+ * MLDSA_MUL_44_SLOW                                      Default: OFF
  *   Define when multiplying by 44 is slower than by 11.
  *   Only applies to ML-DSA-44.
- * DILITHIUM_MUL_11_SLOW                                      Default: OFF
+ * MLDSA_MUL_11_SLOW                                      Default: OFF
  *   Define when multiplying by 11 is slower than adding and shifting.
  *   Only applies to ML-DSA-44.
- * DILITHIUM_MUL_QINV_SLOW                                    Default: OFF
+ * MLDSA_MUL_QINV_SLOW                                    Default: OFF
  *   Define when multiplying by QINV 0x3802001 is slower than add, subtract and
  *   shift equivalent.
- * DILITHIUM_MUL_Q_SLOW                                       Default: OFF
+ * MLDSA_MUL_Q_SLOW                                       Default: OFF
  *   Define when multiplying by Q 0x7fe001 is slower than add, subtract and
  *   shift equivalent.
  */
@@ -182,7 +183,7 @@
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #endif
 
-#ifdef DEBUG_DILITHIUM
+#ifdef DEBUG_MLDSA
 void print_polys(const char* name, const sword32* a, int d1, int d2);
 void print_polys(const char* name, const sword32* a, int d1, int d2)
 {
@@ -203,7 +204,7 @@ void print_polys(const char* name, const sword32* a, int d1, int d2)
 }
 #endif
 
-#ifdef DEBUG_DILITHIUM
+#ifdef DEBUG_MLDSA
 void print_data(const char* name, const byte* d, int len);
 void print_data(const char* name, const byte* d, int len)
 {
@@ -235,39 +236,39 @@ void print_data(const char* name, const byte* d, int len)
 
 
 /* Number of bytes from first block to use for sign. */
-#define DILITHIUM_SIGN_BYTES            8
+#define MLDSA_SIGN_BYTES            8
 
 
 /* Length of seed in bytes when generating y. */
-#define DILITHIUM_Y_SEED_SZ             (DILITHIUM_PRIV_RAND_SEED_SZ + 2)
+#define MLDSA_Y_SEED_SZ             (MLDSA_PRIV_RAND_SEED_SZ + 2)
 
 
 /* Length of seed in bytes used in generating matrix a. */
-#define DILITHIUM_GEN_A_SEED_SZ         (DILITHIUM_PUB_SEED_SZ + 2)
+#define MLDSA_GEN_A_SEED_SZ         (MLDSA_PUB_SEED_SZ + 2)
 /* Length of seed in bytes used in generating vectors s1 and s2. */
-#define DILITHIUM_GEN_S_SEED_SZ         (DILITHIUM_PRIV_SEED_SZ + 2)
+#define MLDSA_GEN_S_SEED_SZ         (MLDSA_PRIV_SEED_SZ + 2)
 
 
 /* MAX: (256 * 8 / (17 + 1)) = 576, or ((256 * 8 / (19 + 1)) = 640
  * but need blocks of 17 * 8 bytes: 5 * 17 * 8 = 680 */
-#define DILITHIUM_MAX_V_BLOCKS          5
+#define MLDSA_MAX_V_BLOCKS          5
 /* Maximum number of bytes to generate into v to make y. */
-#define DILITHIUM_MAX_V                 (DILITHIUM_MAX_V_BLOCKS * 8 * 17)
+#define MLDSA_MAX_V                 (MLDSA_MAX_V_BLOCKS * 8 * 17)
 
 
 /* 2 blocks, each block 136 bytes = 272 bytes.
  * ETA 2: Min req is 128 but reject rate is 2 in 16 so we need 146.3 on average.
  * ETA 4: Min req is 128 but reject rate is 7 in 16 so we need 227.6 on average.
  */
-#define DILITHIUM_GEN_S_NBLOCKS         2
+#define MLDSA_GEN_S_NBLOCKS         2
 /* Number of bytes to a block of SHAKE-256 when generating s1 and s2. */
-#define DILITHIUM_GEN_S_BLOCK_BYTES    (WC_SHA3_256_COUNT * 8)
+#define MLDSA_GEN_S_BLOCK_BYTES    (WC_SHA3_256_COUNT * 8)
 /* Number of bytes to generate with SHAKE-256 when generating s1 and s2. */
-#define DILITHIUM_GEN_S_BYTES           \
-    (DILITHIUM_GEN_S_NBLOCKS * DILITHIUM_GEN_S_BLOCK_BYTES)
+#define MLDSA_GEN_S_BYTES           \
+    (MLDSA_GEN_S_NBLOCKS * MLDSA_GEN_S_BLOCK_BYTES)
 
 /* Length of the hash OID to include in pre-hash message. */
-#define DILITHIUM_HASH_OID_LEN         11
+#define MLDSA_HASH_OID_LEN         11
 
 
 /* The ML-DSA parameters sets. */
@@ -348,7 +349,7 @@ static const wc_MlDsaParams mldsa_params[] = {
 #endif
 };
 /* Number of ML-DSA parameter sets compiled in. */
-#define DILITHIUM_PARAMS_CNT \
+#define MLDSA_PARAMS_CNT \
     ((unsigned int)(sizeof(mldsa_params) / sizeof(wc_MlDsaParams)))
 
 /* Get the ML-DSA parameters that match the level.
@@ -363,7 +364,7 @@ static int mldsa_get_params(int level, const wc_MlDsaParams** params)
     unsigned int i;
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
-    for (i = 0; i < DILITHIUM_PARAMS_CNT; i++) {
+    for (i = 0; i < MLDSA_PARAMS_CNT; i++) {
         if (mldsa_params[i].level == level) {
             *params = &mldsa_params[i];
             ret = 0;
@@ -445,7 +446,7 @@ static int mldsa_alloc_pub_buf(wc_MlDsaKey* key)
 
 /* 256-bit hash using SHAKE-256.
  *
- * FIPS 204. 8.3: H(v,d) <- SHAKE256(v,d)
+ * FIPS 204 Section 3.7: H(v,d) := SHAKE256(v,d)
  *
  * @param [in, out] shake256  SHAKE-256 object.
  * @param [in]      data      Buffer holding data to hash.
@@ -560,9 +561,9 @@ static int mldsa_shake256(wc_Shake* shake256, const byte* data,
 /* 256-bit hash using SHAKE-256.
  *
  * This is the domain-separated version of the hash.
- * See FIPS 204. D.3.
+ * See FIPS 204 Appendix D.3.
  *
- * FIPS 204. 8.3: H(v,d) <- SHAKE256(v,d)
+ * FIPS 204 Section 3.7: H(v,d) := SHAKE256(v,d)
  *
  * @param [in, out] shake256  SHAKE-256 object.
  * @param [in]      data1     First block of data to hash.
@@ -691,13 +692,13 @@ static int mldsa_hash256(wc_Shake* shake256, const byte* data1,
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
 /* 256-bit hash of context and message using SHAKE-256.
  *
- * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *   10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
  *                         ctx) || M
  *   ...
  *
- * FIPS 204. 6.2: Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
+ * FIPS 204 Section 6.2, Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
  *   ...
  *   6: mu <- H(BytesToBits(tr)||M', 64))
  *   ...
@@ -769,7 +770,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
 
     oid = OidFromId((word32)wc_HashGetOID((enum wc_HashType)hash), oidHashType,
         oidLen);
-    if ((oid != NULL) && (*oidLen <= DILITHIUM_HASH_OID_LEN - 2)) {
+    if ((oid != NULL) && (*oidLen <= MLDSA_HASH_OID_LEN - 2)) {
 #ifndef WOLFSSL_MLDSA_REVERSE_HASH_OID
         oidBuffer[0] = 0x06;             /* ObjectID */
         oidBuffer[1] = (byte)*oidLen;   /* ObjectID */
@@ -791,10 +792,10 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
 
 #else
 
-    *oidLen = DILITHIUM_HASH_OID_LEN;
+    *oidLen = MLDSA_HASH_OID_LEN;
 #ifndef NO_SHA256
     if (hash == WC_HASH_TYPE_SHA256) {
-        static byte sha256Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha256Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01
         };
         oid = sha256Oid;
@@ -803,7 +804,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
 #endif
 #ifdef WOLFSSL_SHA384
     if (hash == WC_HASH_TYPE_SHA384) {
-        static byte sha384Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha384Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02
         };
         oid = sha384Oid;
@@ -812,7 +813,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
 #endif
 #ifdef WOLFSSL_SHA512
     if (hash == WC_HASH_TYPE_SHA512) {
-        static byte sha512Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha512Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03
         };
         oid = sha512Oid;
@@ -820,7 +821,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
     else
 #ifndef WOLFSSL_NOSHA512_224
     if (hash == WC_HASH_TYPE_SHA512_224) {
-        static byte sha512_224Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha512_224Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x05
         };
         oid = sha512_224Oid;
@@ -829,7 +830,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
 #endif
 #ifndef WOLFSSL_NOSHA512_256
     if (hash == WC_HASH_TYPE_SHA512_256) {
-        static byte sha512_256Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha512_256Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x06
         };
         oid = sha512_256Oid;
@@ -838,31 +839,31 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
 #endif
 #endif
     if (hash == WC_HASH_TYPE_SHAKE128) {
-        static byte shake128Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte shake128Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0B
         };
         oid = shake128Oid;
     }
     else if (hash == WC_HASH_TYPE_SHAKE256) {
-        static byte shake256Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte shake256Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0C
         };
         oid = shake256Oid;
     }
     else if (hash == WC_HASH_TYPE_SHA3_256) {
-        static byte sha3_256Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha3_256Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x08
         };
         oid = sha3_256Oid;
     }
     else if (hash == WC_HASH_TYPE_SHA3_384) {
-        static byte sha3_384Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha3_384Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x09
         };
         oid = sha3_384Oid;
     }
     else if (hash == WC_HASH_TYPE_SHA3_512) {
-        static byte sha3_512Oid[DILITHIUM_HASH_OID_LEN] = {
+        static byte sha3_512Oid[MLDSA_HASH_OID_LEN] = {
             0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0A
         };
         oid = sha3_512Oid;
@@ -872,7 +873,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
         ret = BAD_FUNC_ARG;
     }
 
-    if ((oid != NULL) && (*oidLen <= DILITHIUM_HASH_OID_LEN)) {
+    if ((oid != NULL) && (*oidLen <= MLDSA_HASH_OID_LEN)) {
 #ifndef WOLFSSL_MLDSA_REVERSE_HASH_OID
         XMEMCPY(oidBuffer, oid, *oidLen);
 #else
@@ -891,7 +892,7 @@ static int mldsa_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
 #ifndef WOLFSSL_MLDSA_SMALL
 /* 128-bit hash using SHAKE-128.
  *
- * FIPS 204. 8.3: H128(v,d) <- SHAKE128(v,d)
+ * FIPS 204 Section 3.7: H128(v,d) := SHAKE128(v,d)
  *
  * @param [in, out] shake128  SHAKE-128 object.
  * @param [in]      in        Block of data to hash.
@@ -926,7 +927,7 @@ static int mldsa_squeeze128(wc_Shake* shake128, const byte* in,
      !defined(WOLFSSL_MLDSA_NO_MAKE_KEY))
 /* 256-bit hash using SHAKE-256.
  *
- * FIPS 204. 8.3: H(v,d) <- SHAKE256(v,d)
+ * FIPS 204 Section 3.7: H(v,d) := SHAKE256(v,d)
  * Using SqueezeBlocks interface to get larger amounts of output.
  *
  * @param [in, out] shake256  SHAKE-256 object.
@@ -993,7 +994,7 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
 /* Encode vector of polynomials with range -ETA..ETA.
  *
- * FIPS 204. 8.2: Algorithm 18 skEncode(rho, K, tr, s1, s2, t0)
+ * FIPS 204 Section 7.2, Algorithm 24 skEncode(rho, K, tr, s1, s2, t0)
  *   ...
  *   2: for i from 0 to l - 1 do
  *   3:     sk <- sk || BitPack(s1[i], eta, eta)
@@ -1006,7 +1007,7 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
  *   7: end for
  *   ...
  *
- * FIPS 204. 8.2: Algorithm 11 BitPack(w, a, b)
+ * FIPS 204 Section 7.2, Algorithm 17 BitPack(w, a, b)
  *   1: z <- ()
  *   2: for i from 0 to 255 do
  *   3:     z <- z||IntegerToBits(b - wi, bitlen(a + b))
@@ -1029,13 +1030,13 @@ static void mldsa_vec_encode_eta_bits_c(const sword32* s, byte d, byte eta,
 
 #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
     /* -2..2 */
-    if (eta == DILITHIUM_ETA_2) {
+    if (eta == MLDSA_ETA_2) {
         /* Setp 2 or 5: For each polynomial of vector. */
         for (i = 0; i < d; i++) {
             /* Step 3 or 6.
              * 3 bits to encode each number.
              * 8 numbers become 3 bytes. (8 * 3 bits = 3 * 8 bits) */
-            for (j = 0; j < DILITHIUM_N; j += 8) {
+            for (j = 0; j < MLDSA_N; j += 8) {
                 /* Make value a positive integer. */
                 byte s0 = (byte)(2 - s[j + 0]);
                 byte s1 = (byte)(2 - s[j + 1]);
@@ -1051,22 +1052,22 @@ static void mldsa_vec_encode_eta_bits_c(const sword32* s, byte d, byte eta,
                 p[1] = (byte)((s2 >> 2) | (s3 << 1) | (s4 << 4) | (s5 << 7));
                 p[2] = (byte)((s5 >> 1) | (s6 << 2) | (s7 << 5));
                 /* Move to next place to encode into. */
-                p += DILITHIUM_ETA_2_BITS;
+                p += MLDSA_ETA_2_BITS;
             }
             /* Next polynomial. */
-            s += DILITHIUM_N;
+            s += MLDSA_N;
         }
     }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
     /* -4..4 */
-    if (eta == DILITHIUM_ETA_4) {
+    if (eta == MLDSA_ETA_4) {
         for (i = 0; i < d; i++) {
         #ifdef WOLFSSL_MLDSA_SMALL
             /* Step 3 or 6.
              * 4 bits to encode each number.
              * 2 numbers become 1 bytes. (2 * 4 bits = 1 * 8 bits) */
-            for (j = 0; j < DILITHIUM_N / 2; j++) {
+            for (j = 0; j < MLDSA_N / 2; j++) {
                 /* Make values positive and pack 2 4-bit values into 1 byte. */
                 p[j] = (byte)((((byte)(4 - s[j * 2 + 0])) << 0) |
                               (((byte)(4 - s[j * 2 + 1])) << 4));
@@ -1075,7 +1076,7 @@ static void mldsa_vec_encode_eta_bits_c(const sword32* s, byte d, byte eta,
             /* Step 3 or 6.
              * 4 bits to encode each number.
              * 8 numbers become 4 bytes. (8 * 4 bits = 4 * 8 bits) */
-            for (j = 0; j < DILITHIUM_N / 2; j += 4) {
+            for (j = 0; j < MLDSA_N / 2; j += 4) {
                 /* Make values positive and pack 2 4-bit values into 1 byte. */
                 p[j + 0] = (byte)((((byte)(4 - s[j * 2 + 0])) << 0) |
                                   (((byte)(4 - s[j * 2 + 1])) << 4));
@@ -1088,9 +1089,9 @@ static void mldsa_vec_encode_eta_bits_c(const sword32* s, byte d, byte eta,
             }
         #endif
             /* Move to next place to encode into. */
-            p += DILITHIUM_N / 2;
+            p += MLDSA_N / 2;
             /* Next polynomial. */
-            s += DILITHIUM_N;
+            s += MLDSA_N;
         }
     }
 #endif
@@ -1110,12 +1111,12 @@ static void mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
     #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
         /* -2..2 */
-        if (eta == DILITHIUM_ETA_2) {
+        if (eta == MLDSA_ETA_2) {
             wc_mldsa_vec_encode_eta_2_avx2(s, d, p);
         }
     #endif
     #ifndef WOLFSSL_NO_ML_DSA_65
-        if (eta == DILITHIUM_ETA_4) {
+        if (eta == MLDSA_ETA_4) {
             wc_mldsa_vec_encode_eta_4_avx2(s, p);
         }
     #endif
@@ -1134,7 +1135,7 @@ static void mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
 #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Decode polynomial with range -2..2.
  *
- * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
+ * FIPS 204 Section 7.2, Algorithm 25 skDecode(sk)
  *   ...
  *   5: for i from 0 to l - 1 do
  *   6:     s1[i] <- BitUnpack(yi, eta, eta)
@@ -1158,7 +1159,7 @@ static void mldsa_decode_eta_2_bits_c(const byte* p, sword32* s)
     /* Step 6 or 9.
      * 3 bits to encode each number.
      * 8 numbers from 3 bytes. (8 * 3 bits = 3 * 8 bits) */
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         /* Get 3 bits and put in range of -2..2. */
         s[j + 0] = 2 - ((p[0] >> 0) & 0x7                      );
         s[j + 1] = 2 - ((p[0] >> 3) & 0x7                      );
@@ -1169,7 +1170,7 @@ static void mldsa_decode_eta_2_bits_c(const byte* p, sword32* s)
         s[j + 6] = 2 - ((p[2] >> 2) & 0x7                      );
         s[j + 7] = 2 - ((p[2] >> 5) & 0x7                      );
         /* Move to next place to decode from. */
-        p += DILITHIUM_ETA_2_BITS;
+        p += MLDSA_ETA_2_BITS;
     }
 }
 
@@ -1195,7 +1196,7 @@ static void mldsa_decode_eta_2_bits(const byte* p, sword32* s)
 #ifndef WOLFSSL_NO_ML_DSA_65
 /* Decode polynomial with range -4..4.
  *
- * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
+ * FIPS 204 Section 7.2, Algorithm 25 skDecode(sk)
  *   ...
  *   5: for i from 0 to l - 1 do
  *   6:     s1[i] <- BitUnpack(yi, eta, eta)
@@ -1220,7 +1221,7 @@ static void mldsa_decode_eta_4_bits_c(const byte* p, sword32* s)
     /* Step 6 or 9.
      * 4 bits to encode each number.
      * 2 numbers from 1 bytes. (2 * 4 bits = 1 * 8 bits) */
-    for (j = 0; j < DILITHIUM_N / 2; j++) {
+    for (j = 0; j < MLDSA_N / 2; j++) {
         /* Get 4 bits and put in range of -4..4. */
         s[j * 2 + 0] = 4 - (p[j] & 0xf);
         s[j * 2 + 1] = 4 - (p[j] >> 4);
@@ -1229,7 +1230,7 @@ static void mldsa_decode_eta_4_bits_c(const byte* p, sword32* s)
     /* Step 6 or 9.
      * 4 bits to encode each number.
      * 8 numbers from 4 bytes. (8 * 4 bits = 4 * 8 bits) */
-    for (j = 0; j < DILITHIUM_N / 2; j += 4) {
+    for (j = 0; j < MLDSA_N / 2; j += 4) {
         /* Get 4 bits and put in range of -4..4. */
         s[j * 2 + 0] = 4 - (p[j + 0] & 0xf);
         s[j * 2 + 1] = 4 - (p[j + 0] >> 4);
@@ -1269,7 +1270,7 @@ static void mldsa_decode_eta_4_bits(const byte* p, sword32* s)
       !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)))
 /* Decode vector of polynomials with range -ETA..ETA.
  *
- * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
+ * FIPS 204 Section 7.2, Algorithm 25 skDecode(sk)
  *   ...
  *   5: for i from 0 to l - 1 do
  *   6:     s1[i] <- BitUnpack(yi, eta, eta)
@@ -1295,27 +1296,27 @@ static void mldsa_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
 
 #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
     /* -2..2 */
-    if (eta == DILITHIUM_ETA_2) {
+    if (eta == MLDSA_ETA_2) {
         /* Step 5 or 8: For each polynomial of vector */
         for (i = 0; i < d; i++) {
             mldsa_decode_eta_2_bits(p, s);
             /* Move to next place to decode from. */
-            p += DILITHIUM_ETA_2_BITS * DILITHIUM_N / 8;
+            p += MLDSA_ETA_2_BITS * MLDSA_N / 8;
             /* Next polynomial. */
-            s += DILITHIUM_N;
+            s += MLDSA_N;
         }
     }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
     /* -4..4 */
-    if (eta == DILITHIUM_ETA_4) {
+    if (eta == MLDSA_ETA_4) {
         /* Step 5 or 8: For each polynomial of vector */
         for (i = 0; i < d; i++) {
             mldsa_decode_eta_4_bits(p, s);
             /* Move to next place to decode from. */
-            p += DILITHIUM_N / 2;
+            p += MLDSA_N / 2;
             /* Next polynomial. */
-            s += DILITHIUM_N;
+            s += MLDSA_N;
         }
     }
 #endif
@@ -1326,18 +1327,18 @@ static void mldsa_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
 /* Encode t into t0 and t1.
  *
- * FIPS 204. 8.4: Algorithm 29 Power2Round(r)
+ * FIPS 204 Section 7.4, Algorithm 35 Power2Round(r)
  *   1: r+ <- r mod q
  *   2: r0 <- r+ mod +/- 2^d
  *   3: return ((r+ - r0) / 2^d, r0)
  *
- * FIPS 204. 7.2: Algorithm 24 skEncode(rho, K, tr, s1, s2, t0)
+ * FIPS 204 Section 7.2, Algorithm 24 skEncode(rho, K, tr, s1, s2, t0)
  *   ...
  *   8: for i form 0 to k - 1 do
  *   9:     sk <- sk || BitPack(t0[i], s^(d-1) - 1, 2^(d-1))
  *  10: end for
  *
- * FIPS 204. 7.2: Algorithm 22 pkEncode(rho, t1)
+ * FIPS 204 Section 7.2, Algorithm 22 pkEncode(rho, t1)
  *   ...
  *   2: for i from 0 to k - 1 do
  *   3:     pk <- pk || SimpleBitPack(t1[i], 2^bitlen(q-1) - d - 1)
@@ -1358,41 +1359,41 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
     for (i = 0; i < d; i++) {
         /* Alg 24, Step 9 and Alg 22, Step 3.
          * Do all polynomial values - 8 at a time. */
-        for (j = 0; j < DILITHIUM_N; j += 8) {
+        for (j = 0; j < MLDSA_N; j += 8) {
             /* Take 8 values of t and take top bits and make positive. */
-            word16 n1_0 = (word16)((t[j + 0] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
-            word16 n1_1 = (word16)((t[j + 1] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
-            word16 n1_2 = (word16)((t[j + 2] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
-            word16 n1_3 = (word16)((t[j + 3] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
-            word16 n1_4 = (word16)((t[j + 4] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
-            word16 n1_5 = (word16)((t[j + 5] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
-            word16 n1_6 = (word16)((t[j + 6] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
-            word16 n1_7 = (word16)((t[j + 7] + DILITHIUM_D_MAX_HALF - 1) >>
-                DILITHIUM_D);
+            word16 n1_0 = (word16)((t[j + 0] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
+            word16 n1_1 = (word16)((t[j + 1] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
+            word16 n1_2 = (word16)((t[j + 2] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
+            word16 n1_3 = (word16)((t[j + 3] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
+            word16 n1_4 = (word16)((t[j + 4] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
+            word16 n1_5 = (word16)((t[j + 5] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
+            word16 n1_6 = (word16)((t[j + 6] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
+            word16 n1_7 = (word16)((t[j + 7] + MLDSA_D_MAX_HALF - 1) >>
+                MLDSA_D);
             /* Take 8 values of t and take bottom bits and make positive. */
-            word16 n0_0 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 0] - (n1_0 << DILITHIUM_D)));
-            word16 n0_1 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 1] - (n1_1 << DILITHIUM_D)));
-            word16 n0_2 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 2] - (n1_2 << DILITHIUM_D)));
-            word16 n0_3 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 3] - (n1_3 << DILITHIUM_D)));
-            word16 n0_4 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 4] - (n1_4 << DILITHIUM_D)));
-            word16 n0_5 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 5] - (n1_5 << DILITHIUM_D)));
-            word16 n0_6 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 6] - (n1_6 << DILITHIUM_D)));
-            word16 n0_7 = (word16)(DILITHIUM_D_MAX_HALF -
-                                   (t[j + 7] - (n1_7 << DILITHIUM_D)));
+            word16 n0_0 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 0] - (n1_0 << MLDSA_D)));
+            word16 n0_1 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 1] - (n1_1 << MLDSA_D)));
+            word16 n0_2 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 2] - (n1_2 << MLDSA_D)));
+            word16 n0_3 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 3] - (n1_3 << MLDSA_D)));
+            word16 n0_4 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 4] - (n1_4 << MLDSA_D)));
+            word16 n0_5 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 5] - (n1_5 << MLDSA_D)));
+            word16 n0_6 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 6] - (n1_6 << MLDSA_D)));
+            word16 n0_7 = (word16)(MLDSA_D_MAX_HALF -
+                                   (t[j + 7] - (n1_7 << MLDSA_D)));
 
             /* 13 bits per number.
              * 8 numbers become 13 bytes. (8 * 13 bits = 13 * 8 bits) */
@@ -1443,12 +1444,12 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
             t1[9] = (byte)((n1_7 >> 2)               );
 
             /* Move to next place to encode bottom bits to. */
-            t0 += DILITHIUM_D;
+            t0 += MLDSA_D;
             /* Move to next place to encode top bits to. */
-            t1 += DILITHIUM_U;
+            t1 += MLDSA_U;
         }
         /* Next polynomial. */
-        t += DILITHIUM_N;
+        t += MLDSA_N;
     }
 }
 
@@ -1478,7 +1479,7 @@ static void mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || defined(WOLFSSL_MLDSA_CHECK_KEY)
 /* Decode bottom D bits of t as t0.
  *
- * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
+ * FIPS 204 Section 7.2, Algorithm 25 skDecode(sk)
  *   ...
  *   12:     t0[i] <- BitUnpack(wi, 2^(d-1) - 1, 2^(d-1)
  *   ...
@@ -1492,63 +1493,63 @@ static void mldsa_decode_t0_c(const byte* t0, sword32* t)
     unsigned int j;
 
     /* Step 12. Get 13 bits and convert to range (2^(d-1)-1)..2^(d-1). */
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         /* 13 bits used per number.
          * 8 numbers from 13 bytes. (8 * 13 bits = 13 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
         word32 t32_2 = ((const word32*)t0)[2];
     #ifdef WC_64BIT_CPU
         word64 t64 = *(const word64*)t0;
-        t[j + 0] = DILITHIUM_D_MAX_HALF - (sword32)( t64        & 0x1fff);
-        t[j + 1] = DILITHIUM_D_MAX_HALF - (sword32)((t64 >> 13) & 0x1fff);
-        t[j + 2] = DILITHIUM_D_MAX_HALF - (sword32)((t64 >> 26) & 0x1fff);
-        t[j + 3] = DILITHIUM_D_MAX_HALF - (sword32)((t64 >> 39) & 0x1fff);
-        t[j + 4] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 0] = MLDSA_D_MAX_HALF - (sword32)( t64        & 0x1fff);
+        t[j + 1] = MLDSA_D_MAX_HALF - (sword32)((t64 >> 13) & 0x1fff);
+        t[j + 2] = MLDSA_D_MAX_HALF - (sword32)((t64 >> 26) & 0x1fff);
+        t[j + 3] = MLDSA_D_MAX_HALF - (sword32)((t64 >> 39) & 0x1fff);
+        t[j + 4] = MLDSA_D_MAX_HALF - (sword32)
                    ((t64 >> 52) | ((t32_2 & 0x0001) << 12));
     #else
         word32 t32_0 = ((const word32*)t0)[0];
         word32 t32_1 = ((const word32*)t0)[1];
-        t[j + 0] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 0] = MLDSA_D_MAX_HALF - (sword32)
                     ( t32_0        & 0x1fff);
-        t[j + 1] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 1] = MLDSA_D_MAX_HALF - (sword32)
                     ((t32_0 >> 13) & 0x1fff);
-        t[j + 2] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 2] = MLDSA_D_MAX_HALF - (sword32)
                    (( t32_0 >> 26          ) | ((t32_1 & 0x007f) <<  6));
-        t[j + 3] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 3] = MLDSA_D_MAX_HALF - (sword32)
                     ((t32_1 >>  7) & 0x1fff);
-        t[j + 4] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 4] = MLDSA_D_MAX_HALF - (sword32)
                    (( t32_1 >> 20          ) | ((t32_2 & 0x0001) << 12));
     #endif
-        t[j + 5] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 5] = MLDSA_D_MAX_HALF - (sword32)
                     ((t32_2 >>  1) & 0x1fff);
-        t[j + 6] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 6] = MLDSA_D_MAX_HALF - (sword32)
                     ((t32_2 >> 14) & 0x1fff);
-        t[j + 7] = DILITHIUM_D_MAX_HALF - (sword32)
+        t[j + 7] = MLDSA_D_MAX_HALF - (sword32)
                    (( t32_2 >> 27          ) | ((word32)t0[12] ) <<  5 );
 #else
-        t[j + 0] = DILITHIUM_D_MAX_HALF -
+        t[j + 0] = MLDSA_D_MAX_HALF -
                    ((t0[ 0]     ) | (((word16)(t0[ 1] & 0x1f)) <<  8));
-        t[j + 1] = DILITHIUM_D_MAX_HALF -
+        t[j + 1] = MLDSA_D_MAX_HALF -
                    ((t0[ 1] >> 5) | (((word16)(t0[ 2]       )) <<  3) |
                                     (((word16)(t0[ 3] & 0x03)) << 11));
-        t[j + 2] = DILITHIUM_D_MAX_HALF -
+        t[j + 2] = MLDSA_D_MAX_HALF -
                    ((t0[ 3] >> 2) | (((word16)(t0[ 4] & 0x7f)) <<  6));
-        t[j + 3] = DILITHIUM_D_MAX_HALF -
+        t[j + 3] = MLDSA_D_MAX_HALF -
                    ((t0[ 4] >> 7) | (((word16)(t0[ 5]       )) <<  1) |
                                     (((word16)(t0[ 6] & 0x0f)) <<  9));
-        t[j + 4] = DILITHIUM_D_MAX_HALF -
+        t[j + 4] = MLDSA_D_MAX_HALF -
                    ((t0[ 6] >> 4) | (((word16)(t0[ 7]       )) <<  4) |
                                     (((word16)(t0[ 8] & 0x01)) << 12));
-        t[j + 5] = DILITHIUM_D_MAX_HALF -
+        t[j + 5] = MLDSA_D_MAX_HALF -
                    ((t0[ 8] >> 1) | (((word16)(t0[ 9] & 0x3f)) <<  7));
-        t[j + 6] = DILITHIUM_D_MAX_HALF -
+        t[j + 6] = MLDSA_D_MAX_HALF -
                    ((t0[ 9] >> 6) | (((word16)(t0[10]       )) <<  2) |
                                     (((word16)(t0[11] & 0x07)) << 10));
-        t[j + 7] = DILITHIUM_D_MAX_HALF -
+        t[j + 7] = MLDSA_D_MAX_HALF -
                    ((t0[11] >> 3) | (((word16)(t0[12]       )) <<  5));
 #endif
         /* Move to next place to decode from. */
-        t0 += DILITHIUM_D;
+        t0 += MLDSA_D;
     }
 }
 
@@ -1578,7 +1579,7 @@ static void mldsa_decode_t0(const byte* t0, sword32* t)
       !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)))
 /* Decode bottom D bits of t as t0.
  *
- * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
+ * FIPS 204 Section 7.2, Algorithm 25 skDecode(sk)
  *   ...
  *   11: for i from 0 to k - 1 do
  *   12:     t0[i] <- BitUnpack(wi, 2^(d-1) - 1, 2^(d-1)
@@ -1596,9 +1597,9 @@ static void mldsa_vec_decode_t0(const byte* t0, byte d, sword32* t)
     /* Step 11. For each polynomial of vector. */
     for (i = 0; i < d; i++) {
         mldsa_decode_t0(t0, t);
-        t0 += DILITHIUM_D * DILITHIUM_N / 8;
+        t0 += MLDSA_D * MLDSA_N / 8;
         /* Next polynomial. */
-        t += DILITHIUM_N;
+        t += MLDSA_N;
     }
 }
 #endif
@@ -1608,7 +1609,7 @@ static void mldsa_vec_decode_t0(const byte* t0, byte d, sword32* t)
     defined(WOLFSSL_MLDSA_CHECK_KEY)
 /* Decode top bits of t as t1.
  *
- * FIPS 204. 7.2: Algorithm 23 pkDecode(pk)
+ * FIPS 204 Section 7.2, Algorithm 23 pkDecode(pk)
  *   ...
  *   4:     t1[i] <- SimpleBitUnpack(zi, 2^(bitlen(q-1)-d) - 1)
  *   ...
@@ -1620,68 +1621,68 @@ static void mldsa_decode_t1_c(const byte* t1, sword32* t)
 {
     unsigned int j;
     /* Step 4. Get 10 bits as a number. */
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         /* 10 bits used per number.
          * 8 numbers from 10 bytes. (8 * 10 bits = 10 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
     #ifdef WC_64BIT_CPU
         word64 t64 = *(const word64*) t1;
         word16 t16 = *(const word16*)(t1 + 8);
-        t[j+0] = (sword32)( ( t64                     & 0x03ff) << DILITHIUM_D);
-        t[j+1] = (sword32)( ((t64 >> 10)              & 0x03ff) << DILITHIUM_D);
-        t[j+2] = (sword32)( ((t64 >> 20)              & 0x03ff) << DILITHIUM_D);
-        t[j+3] = (sword32)( ((t64 >> 30)              & 0x03ff) << DILITHIUM_D);
-        t[j+4] = (sword32)( ((t64 >> 40)              & 0x03ff) << DILITHIUM_D);
-        t[j+5] = (sword32)( ((t64 >> 50)              & 0x03ff) << DILITHIUM_D);
+        t[j+0] = (sword32)( ( t64                     & 0x03ff) << MLDSA_D);
+        t[j+1] = (sword32)( ((t64 >> 10)              & 0x03ff) << MLDSA_D);
+        t[j+2] = (sword32)( ((t64 >> 20)              & 0x03ff) << MLDSA_D);
+        t[j+3] = (sword32)( ((t64 >> 30)              & 0x03ff) << MLDSA_D);
+        t[j+4] = (sword32)( ((t64 >> 40)              & 0x03ff) << MLDSA_D);
+        t[j+5] = (sword32)( ((t64 >> 50)              & 0x03ff) << MLDSA_D);
         t[j+6] = (sword32)((((t64 >> 60) |
-                             (word64)(t16 << 4))      & 0x03ff) << DILITHIUM_D);
-        t[j+7] = (sword32)( ((t16 >>  6)              & 0x03ff) << DILITHIUM_D);
+                             (word64)(t16 << 4))      & 0x03ff) << MLDSA_D);
+        t[j+7] = (sword32)( ((t16 >>  6)              & 0x03ff) << MLDSA_D);
     #else
         word32 t32 = *((const word32*)t1);
         t[j + 0] = (sword32)(( t32        & 0x03ff                       ) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
         t[j + 1] = (sword32)(((t32 >> 10) & 0x03ff                       ) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
         t[j + 2] = (sword32)(((t32 >> 20) & 0x03ff                       ) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
         t[j + 3] = (sword32)(((t32 >> 30)          | ((word32)t1[4] << 2)) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
         t32 = *((const word32*)(t1 + 5));
         t[j + 4] = (sword32)(( t32        & 0x03ff                       ) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
         t[j + 5] = (sword32)(((t32 >> 10) & 0x03ff                       ) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
         t[j + 6] = (sword32)(((t32 >> 20) & 0x03ff                       ) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
         t[j + 7] = (sword32)(((t32 >> 30)          | ((word32)t1[9] << 2)) <<
-                   DILITHIUM_D);
+                   MLDSA_D);
     #endif
 #else
         t[j + 0] = (sword32)((t1[0] >> 0) | (((word16)(t1[1] & 0x03)) << 8))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
         t[j + 1] = (sword32)((t1[1] >> 2) | (((word16)(t1[2] & 0x0f)) << 6))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
         t[j + 2] = (sword32)((t1[2] >> 4) | (((word16)(t1[3] & 0x3f)) << 4))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
         t[j + 3] = (sword32)((t1[3] >> 6) | (((word16)(t1[4]       )) << 2))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
         t[j + 4] = (sword32)((t1[5] >> 0) | (((word16)(t1[6] & 0x03)) << 8))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
         t[j + 5] = (sword32)((t1[6] >> 2) | (((word16)(t1[7] & 0x0f)) << 6))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
         t[j + 6] = (sword32)((t1[7] >> 4) | (((word16)(t1[8] & 0x3f)) << 4))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
         t[j + 7] = (sword32)((t1[8] >> 6) | (((word16)(t1[9]       )) << 2))
-                   << DILITHIUM_D;
+                   << MLDSA_D;
 #endif
         /* Move to next place to decode from. */
-        t1 += DILITHIUM_U;
+        t1 += MLDSA_U;
     }
 }
 
 /* Decode top bits of t as t1.
  *
- * FIPS 204. 7.2: Algorithm 23 pkDecode(pk)
+ * FIPS 204 Section 7.2, Algorithm 23 pkDecode(pk)
  *   ...
  *   4:     t1[i] <- SimpleBitUnpack(zi, 2^(bitlen(q-1)-d) - 1)
  *   ...
@@ -1709,7 +1710,7 @@ static void mldsa_decode_t1(const byte* t1, sword32* t)
     defined(WOLFSSL_MLDSA_CHECK_KEY)
 /* Decode top bits of t as t1.
  *
- * FIPS 204. 7.2: Algorithm 23 pkDecode(pk)
+ * FIPS 204 Section 7.2, Algorithm 23 pkDecode(pk)
  *   ...
  *   3: for i from 0 to k - 1 do
  *   4:     t1[i] <- SimpleBitUnpack(zi, 2^(bitlen(q-1)-d) - 1)
@@ -1728,8 +1729,8 @@ static void mldsa_vec_decode_t1(const byte* t1, byte d, sword32* t)
     for (i = 0; i < d; i++) {
         mldsa_decode_t1(t1, t);
         /* Next polynomial. */
-        t1 += DILITHIUM_U * DILITHIUM_N / 8;
-        t += DILITHIUM_N;
+        t1 += MLDSA_U * MLDSA_N / 8;
+        t += MLDSA_N;
     }
 }
 #endif
@@ -1739,7 +1740,7 @@ static void mldsa_vec_decode_t1(const byte* t1, byte d, sword32* t)
 #ifndef WOLFSSL_NO_ML_DSA_44
 /* Encode z with range of -(GAMMA1-1)...GAMMA1
  *
- * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ * FIPS 204 Section 7.2, Algorithm 26 sigEncode(c_tilde, z, h)
  *   ...
  *   3:     sigma <- sigma || BitPack(z[i], GAMMA1 - 1, GAMMA1)
  *   ...
@@ -1752,11 +1753,11 @@ static void mldsa_encode_gamma1_17_bits_c(const sword32* z, byte* s)
     unsigned int j;
 
     /* Step 3. Get 18 bits as a number. */
-    for (j = 0; j < DILITHIUM_N; j += 4) {
-        word32 z0 = (word32)(DILITHIUM_GAMMA1_17 - z[j + 0]);
-        word32 z1 = (word32)(DILITHIUM_GAMMA1_17 - z[j + 1]);
-        word32 z2 = (word32)(DILITHIUM_GAMMA1_17 - z[j + 2]);
-        word32 z3 = (word32)(DILITHIUM_GAMMA1_17 - z[j + 3]);
+    for (j = 0; j < MLDSA_N; j += 4) {
+        word32 z0 = (word32)(MLDSA_GAMMA1_17 - z[j + 0]);
+        word32 z1 = (word32)(MLDSA_GAMMA1_17 - z[j + 1]);
+        word32 z2 = (word32)(MLDSA_GAMMA1_17 - z[j + 2]);
+        word32 z3 = (word32)(MLDSA_GAMMA1_17 - z[j + 3]);
 
         /* 18 bits per number.
          * 8 numbers become 9 bytes. (8 * 9 bits = 9 * 8 bits) */
@@ -1782,7 +1783,7 @@ static void mldsa_encode_gamma1_17_bits_c(const sword32* z, byte* s)
 #endif
         s[8] = (byte)( z3 >> 10             );
         /* Move to next place to encode to. */
-        s += DILITHIUM_GAMMA1_17_ENC_BITS / 2;
+        s += MLDSA_GAMMA1_17_ENC_BITS / 2;
     }
 }
 
@@ -1808,7 +1809,7 @@ static void mldsa_encode_gamma1_17_bits(const sword32* z, byte* s)
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Encode z with range of -(GAMMA1-1)...GAMMA1
  *
- * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ * FIPS 204 Section 7.2, Algorithm 26 sigEncode(c_tilde, z, h)
  *   ...
  *   3:     sigma <- sigma || BitPack(z[i], GAMMA1 - 1, GAMMA1)
  *   ...
@@ -1821,11 +1822,11 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
     unsigned int j;
 
     /* Step 3. Get 20 bits as a number. */
-    for (j = 0; j < DILITHIUM_N; j += 4) {
-        sword32 z0 = DILITHIUM_GAMMA1_19 - z[j + 0];
-        sword32 z1 = DILITHIUM_GAMMA1_19 - z[j + 1];
-        sword32 z2 = DILITHIUM_GAMMA1_19 - z[j + 2];
-        sword32 z3 = DILITHIUM_GAMMA1_19 - z[j + 3];
+    for (j = 0; j < MLDSA_N; j += 4) {
+        sword32 z0 = MLDSA_GAMMA1_19 - z[j + 0];
+        sword32 z1 = MLDSA_GAMMA1_19 - z[j + 1];
+        sword32 z2 = MLDSA_GAMMA1_19 - z[j + 2];
+        sword32 z3 = MLDSA_GAMMA1_19 - z[j + 3];
 
         /* 20 bits per number.
          * 4 numbers become 10 bytes. (4 * 20 bits = 10 * 8 bits) */
@@ -1854,7 +1855,7 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
         s[9] = (byte) (z3 >> 12)             ;
 #endif
         /* Move to next place to encode to. */
-        s += DILITHIUM_GAMMA1_19_ENC_BITS / 2;
+        s += MLDSA_GAMMA1_19_ENC_BITS / 2;
     }
 }
 
@@ -1881,7 +1882,7 @@ static void mldsa_encode_gamma1_19_bits(const sword32* z, byte* s)
 #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
 /* Encode z with range of -(GAMMA1-1)...GAMMA1
  *
- * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ * FIPS 204 Section 7.2, Algorithm 26 sigEncode(c_tilde, z, h)
  *   ...
  *   2: for i form 0 to l - 1 do
  *   3:     sigma <- sigma || BitPack(z[i], GAMMA1 - 1, GAMMA1)
@@ -1901,26 +1902,26 @@ static void mldsa_vec_encode_gamma1(const sword32* z, byte l, int bits,
     (void)l;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if (bits == DILITHIUM_GAMMA1_BITS_17) {
+    if (bits == MLDSA_GAMMA1_BITS_17) {
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < PARAMS_ML_DSA_44_L; i++) {
             mldsa_encode_gamma1_17_bits(z, s);
             /* Move to next place to encode to. */
-            s += DILITHIUM_GAMMA1_17_ENC_BITS / 2 * DILITHIUM_N / 4;
+            s += MLDSA_GAMMA1_17_ENC_BITS / 2 * MLDSA_N / 4;
             /* Next polynomial. */
-            z += DILITHIUM_N;
+            z += MLDSA_N;
         }
     }
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-    if (bits == DILITHIUM_GAMMA1_BITS_19) {
+    if (bits == MLDSA_GAMMA1_BITS_19) {
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < l; i++) {
             mldsa_encode_gamma1_19_bits(z, s);
             /* Move to next place to encode to. */
-            s += DILITHIUM_GAMMA1_19_ENC_BITS / 2 * DILITHIUM_N / 4;
+            s += MLDSA_GAMMA1_19_ENC_BITS / 2 * MLDSA_N / 4;
             /* Next polynomial. */
-            z += DILITHIUM_N;
+            z += MLDSA_N;
         }
     }
 #endif
@@ -1932,7 +1933,7 @@ static void mldsa_vec_encode_gamma1(const sword32* z, byte l, int bits,
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
 /* Decode polynomial with range -(GAMMA1-1)..GAMMA1.
  *
- * FIPS 204. 8.2: Algorithm 21 sigDecode(sigma)
+ * FIPS 204 Section 7.2, Algorithm 27 sigDecode(sigma)
  *   ...
  *   4:     z[i] <- BitUnpack(xi, GAMMA1 - 1, GAMMA1)
  *   ...
@@ -1946,177 +1947,177 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
     unsigned int i;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if (bits == DILITHIUM_GAMMA1_BITS_17) {
+    if (bits == MLDSA_GAMMA1_BITS_17) {
 #if defined(WOLFSSL_MLDSA_NO_LARGE_CODE) || defined(WOLFSSL_MLDSA_SMALL)
         /* Step 4: Get 18 bits as a number. */
-        for (i = 0; i < DILITHIUM_N; i += 4) {
+        for (i = 0; i < MLDSA_N; i += 4) {
             /* 18 bits per number.
              * 4 numbers from 9 bytes. (4 * 18 bits = 9 * 8 bits) */
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
         #ifdef WC_64BIT_CPU
             word64 s64_0 = *(const word64*)(s+0);
-            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s64_0        & 0x3ffff                   ));
-            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_0 >> 18) & 0x3ffff                   ));
-            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+2] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_0 >> 36) & 0x3ffff                   ));
-            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+3] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_0 >> 54) | (((word32)s[8])     << 10)));
         #else
             word32 s32_0 = ((const word32*)(s+0))[0];
             word32 s32_1 = ((const word32*)(s+0))[1];
-            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s32_0        & 0x3ffff                    ));
-            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_0 >> 18) | (((s32_1 & 0x0000f) << 14))));
-            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+2] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_1 >>  4) & 0x3ffff                    ));
-            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+3] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_1 >> 22) | (((word32)s[8])     << 10 )));
         #endif
     #else
-            z[i+0] = DILITHIUM_GAMMA1_17 -
+            z[i+0] = MLDSA_GAMMA1_17 -
                      ( (sword32)s[ 0]       | (((sword32)s[ 1] << 8) |
                       (sword32)(s[ 2] & 0x03) << 16));
-            z[i+1] = DILITHIUM_GAMMA1_17 -
+            z[i+1] = MLDSA_GAMMA1_17 -
                      (((sword32)s[ 2] >> 2) | (((sword32)s[ 3] << 6) |
                       (sword32)(s[ 4] & 0x0f) << 14));
-            z[i+2] = DILITHIUM_GAMMA1_17 -
+            z[i+2] = MLDSA_GAMMA1_17 -
                      (((sword32)s[ 4] >> 4) | (((sword32)s[ 5] << 4) |
                       (sword32)(s[ 6] & 0x3f) << 12));
-            z[i+3] = DILITHIUM_GAMMA1_17 -
+            z[i+3] = MLDSA_GAMMA1_17 -
                      (((sword32)s[ 6] >> 6) | (((sword32)s[ 7] << 2) |
                       ((sword32)s[ 8]       ) << 10));
     #endif
             /* Move to next place to decode from. */
-            s += DILITHIUM_GAMMA1_17_ENC_BITS / 2;
+            s += MLDSA_GAMMA1_17_ENC_BITS / 2;
         }
 #else
         /* Step 4: Get 18 bits as a number. */
-        for (i = 0; i < DILITHIUM_N; i += 8) {
+        for (i = 0; i < MLDSA_N; i += 8) {
             /* 18 bits per number.
              * 8 numbers from 9 bytes. (8 * 18 bits = 18 * 8 bits) */
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
         #ifdef WC_64BIT_CPU
             word64 s64_0 = *(const word64*)(s+0);
             word64 s64_1 = *(const word64*)(s+9);
-            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s64_0        & 0x3ffff                   ));
-            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_0 >> 18) & 0x3ffff                   ));
-            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+2] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_0 >> 36) & 0x3ffff                   ));
-            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+3] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_0 >> 54) | (((word32)s[8])     << 10)));
-            z[i+4] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+4] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s64_1        & 0x3ffff                   ));
-            z[i+5] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+5] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_1 >> 18) & 0x3ffff                   ));
-            z[i+6] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+6] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_1 >> 36) & 0x3ffff                   ));
-            z[i+7] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+7] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_1 >> 54) | (((word32)s[17])    << 10)));
         #else
             word32 s32_0 = ((const word32*)(s+0))[0];
             word32 s32_1 = ((const word32*)(s+0))[1];
             word32 s32_2 = ((const word32*)(s+9))[0];
             word32 s32_3 = ((const word32*)(s+9))[1];
-            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s32_0        & 0x3ffff                    ));
-            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_0 >> 18) | (((s32_1 & 0x0000f) << 14))));
-            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+2] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_1 >>  4) & 0x3ffff                    ));
-            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+3] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_1 >> 22) | (((word32)s[8])     << 10 )));
-            z[i+4] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+4] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s32_2        & 0x3ffff                    ));
-            z[i+5] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+5] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_2 >> 18) | (((s32_3 & 0x0000f) << 14))));
-            z[i+6] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+6] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_3 >>  4) & 0x3ffff                    ));
-            z[i+7] = (sword32)((word32)DILITHIUM_GAMMA1_17 -
+            z[i+7] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s32_3 >> 22) | (((word32)s[17])    << 10 )));
         #endif
     #else
-            z[i+0] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                ( (sword32)s[ 0]       | (((sword32)s[ 1] << 8) |
                                 ((sword32)s[ 2] & 0x03) << 16)));
-            z[i+1] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                (((sword32)s[ 2] >> 2) | (((sword32)s[ 3] << 6) |
                                 ((sword32)s[ 4] & 0x0f) << 14)));
-            z[i+2] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+2] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                (((sword32)s[ 4] >> 4) | (((sword32)s[ 5] << 4) |
                                 ((sword32)s[ 6] & 0x3f) << 12)));
-            z[i+3] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+3] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                (((sword32)s[ 6] >> 6) | (((sword32)s[ 7] << 2) |
                                 ((sword32)s[ 8]       ) << 10)));
-            z[i+4] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+4] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                ( (sword32)s[ 9]       | (((sword32)s[10] << 8) |
                                 ((sword32)s[11] & 0x03) << 16)));
-            z[i+5] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+5] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                (((sword32)s[11] >> 2) | (((sword32)s[12] << 6) |
                                 ((sword32)s[13] & 0x0f) << 14)));
-            z[i+6] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+6] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                (((sword32)s[13] >> 4) | (((sword32)s[14] << 4) |
                                 ((sword32)s[15] & 0x3f) << 12)));
-            z[i+7] = (sword32)((word32)DILITHIUM_GAMMA1_17 - (word32)
+            z[i+7] = (sword32)((word32)MLDSA_GAMMA1_17 - (word32)
                                (((sword32)s[15] >> 6) | (((sword32)s[16] << 2) |
                                 ((sword32)s[17]       ) << 10)));
     #endif
             /* Move to next place to decode from. */
-            s += DILITHIUM_GAMMA1_17_ENC_BITS;
+            s += MLDSA_GAMMA1_17_ENC_BITS;
         }
 #endif
     }
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-    if (bits == DILITHIUM_GAMMA1_BITS_19) {
+    if (bits == MLDSA_GAMMA1_BITS_19) {
 #if defined(WOLFSSL_MLDSA_NO_LARGE_CODE) || defined(WOLFSSL_MLDSA_SMALL)
         /* Step 4: Get 20 bits as a number. */
-        for (i = 0; i < DILITHIUM_N; i += 4) {
+        for (i = 0; i < MLDSA_N; i += 4) {
             /* 20 bits per number.
              * 4 numbers from 10 bytes. (4 * 20 bits = 10 * 8 bits) */
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT <= 2)
             word16 s16_0 = ((const word16*)s)[4];
         #ifdef WC_64BIT_CPU
             word64 s64_0 = *(const word64*)s;
-            z[i+0] = DILITHIUM_GAMMA1_19 - ((sword32)( s64_0        & 0xfffff));
-            z[i+1] = DILITHIUM_GAMMA1_19 - ((sword32)((s64_0 >> 20) & 0xfffff));
-            z[i+2] = DILITHIUM_GAMMA1_19 - ((sword32)((s64_0 >> 40) & 0xfffff));
-            z[i+3] = DILITHIUM_GAMMA1_19 - ((sword32)((s64_0 >> 60) & 0xfffff) |
+            z[i+0] = MLDSA_GAMMA1_19 - ((sword32)( s64_0        & 0xfffff));
+            z[i+1] = MLDSA_GAMMA1_19 - ((sword32)((s64_0 >> 20) & 0xfffff));
+            z[i+2] = MLDSA_GAMMA1_19 - ((sword32)((s64_0 >> 40) & 0xfffff));
+            z[i+3] = MLDSA_GAMMA1_19 - ((sword32)((s64_0 >> 60) & 0xfffff) |
                                             ((sword32) s16_0 <<  4));
         #else
             word32 s32_0 = ((const word32*)s)[0];
             word32 s32_1 = ((const word32*)s)[1];
-            z[i+0] = DILITHIUM_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
-            z[i+1] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
+            z[i+0] = MLDSA_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
+            z[i+1] = MLDSA_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
                                                      ((s32_1 & 0x000ff) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 - (sword32)( (s32_1 >>  8) & 0xfffff);
-            z[i+3] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_1            >> 28) |
+            z[i+2] = MLDSA_GAMMA1_19 - (sword32)( (s32_1 >>  8) & 0xfffff);
+            z[i+3] = MLDSA_GAMMA1_19 - (sword32)(( s32_1            >> 28) |
                                                      ((word32)s16_0     <<  4));
         #endif
     #else
-            z[i+0] = DILITHIUM_GAMMA1_19 -
+            z[i+0] = MLDSA_GAMMA1_19 -
                      ( (sword32)s[0]       | ((sword32)s[1] << 8) |
                      (((sword32)s[2] & 0x0f) << 16));
-            z[i+1] = DILITHIUM_GAMMA1_19 -
+            z[i+1] = MLDSA_GAMMA1_19 -
                      (((sword32)s[2] >> 4) | ((sword32)s[3] << 4) |
                      (((sword32)s[4]       ) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 -
+            z[i+2] = MLDSA_GAMMA1_19 -
                      ( (sword32)s[5]       | ((sword32)s[6] << 8) |
                      (((sword32)s[7] & 0x0f) << 16));
-            z[i+3] = DILITHIUM_GAMMA1_19 -
+            z[i+3] = MLDSA_GAMMA1_19 -
                      (((sword32)s[7] >> 4) | ((sword32)s[8] << 4) |
                      (((sword32)s[9]       ) << 12));
     #endif
             /* Move to next place to decode from. */
-            s += DILITHIUM_GAMMA1_19_ENC_BITS / 2;
+            s += MLDSA_GAMMA1_19_ENC_BITS / 2;
         }
 #else
         /* Step 4: Get 20 bits as a number. */
-        for (i = 0; i < DILITHIUM_N; i += 8) {
+        for (i = 0; i < MLDSA_N; i += 8) {
             /* 20 bits per number.
              * 8 numbers from 20 bytes. (8 * 20 bits = 20 * 8 bits) */
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT <= 2)
@@ -2125,22 +2126,22 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
         #ifdef WC_64BIT_CPU
             word64 s64_0 = *(const word64*)(s+0);
             word64 s64_1 = *(const word64*)(s+10);
-            z[i+0] = DILITHIUM_GAMMA1_19 -
+            z[i+0] = MLDSA_GAMMA1_19 -
                      ((sword32)(  s64_0        & 0xfffff))   ;
-            z[i+1] = DILITHIUM_GAMMA1_19 -
+            z[i+1] = MLDSA_GAMMA1_19 -
                      ((sword32)( (s64_0 >> 20) & 0xfffff))   ;
-            z[i+2] = DILITHIUM_GAMMA1_19 -
+            z[i+2] = MLDSA_GAMMA1_19 -
                      ((sword32)( (s64_0 >> 40) & 0xfffff))   ;
-            z[i+3] = DILITHIUM_GAMMA1_19 -
+            z[i+3] = MLDSA_GAMMA1_19 -
                      ((sword32)(((s64_0 >> 60) & 0xfffff))   |
                       ((sword32)s16_0      <<  4));
-            z[i+4] = DILITHIUM_GAMMA1_19 -
+            z[i+4] = MLDSA_GAMMA1_19 -
                      ((sword32)(  s64_1        & 0xfffff))   ;
-            z[i+5] = DILITHIUM_GAMMA1_19 -
+            z[i+5] = MLDSA_GAMMA1_19 -
                      ((sword32)( (s64_1 >> 20) & 0xfffff))   ;
-            z[i+6] = DILITHIUM_GAMMA1_19 -
+            z[i+6] = MLDSA_GAMMA1_19 -
                      ((sword32)( (s64_1 >> 40) & 0xfffff))   ;
-            z[i+7] = DILITHIUM_GAMMA1_19 -
+            z[i+7] = MLDSA_GAMMA1_19 -
                      ((sword32)(((s64_1 >> 60) & 0xfffff))   |
                       ((sword32)s16_1      <<  4));
         #else
@@ -2148,55 +2149,55 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
             word32 s32_1 = ((const word32*)(s+ 0))[1];
             word32 s32_2 = ((const word32*)(s+10))[0];
             word32 s32_3 = ((const word32*)(s+10))[1];
-            z[i+0] = DILITHIUM_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
-            z[i+1] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
+            z[i+0] = MLDSA_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
+            z[i+1] = MLDSA_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
                                                      ((s32_1 & 0x000ff) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 - (sword32)( (s32_1 >>  8) & 0xfffff);
-            z[i+3] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_1            >> 28) |
+            z[i+2] = MLDSA_GAMMA1_19 - (sword32)( (s32_1 >>  8) & 0xfffff);
+            z[i+3] = MLDSA_GAMMA1_19 - (sword32)(( s32_1            >> 28) |
                                                      ((word32)s16_0     <<  4));
-            z[i+4] = DILITHIUM_GAMMA1_19 - (sword32)(  s32_2       & 0xfffff);
-            z[i+5] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_2            >> 20) |
+            z[i+4] = MLDSA_GAMMA1_19 - (sword32)(  s32_2       & 0xfffff);
+            z[i+5] = MLDSA_GAMMA1_19 - (sword32)(( s32_2            >> 20) |
                                                      ((s32_3 & 0x000ff) << 12));
-            z[i+6] = DILITHIUM_GAMMA1_19 - (sword32)( (s32_3 >>  8) & 0xfffff);
-            z[i+7] = DILITHIUM_GAMMA1_19 - (sword32)(( s32_3            >> 28) |
+            z[i+6] = MLDSA_GAMMA1_19 - (sword32)( (s32_3 >>  8) & 0xfffff);
+            z[i+7] = MLDSA_GAMMA1_19 - (sword32)(( s32_3            >> 28) |
                                                      ((word32)s16_1     <<  4));
         #endif
     #else
-            z[i+0] = DILITHIUM_GAMMA1_19 -
+            z[i+0] = MLDSA_GAMMA1_19 -
                      (  (sword32)s[ 0]       |
                       ( (sword32)s[ 1] << 8) |
                       (((sword32)s[ 2] & 0x0f) << 16));
-            z[i+1] = DILITHIUM_GAMMA1_19 -
+            z[i+1] = MLDSA_GAMMA1_19 -
                      (((sword32)s[ 2] >> 4) |
                       ( (sword32)s[ 3] << 4) |
                       (((sword32)s[ 4]       ) << 12));
-            z[i+2] = DILITHIUM_GAMMA1_19 -
+            z[i+2] = MLDSA_GAMMA1_19 -
                      (  (sword32)s[ 5]       |
                       ( (sword32)s[ 6] << 8) |
                       (((sword32)s[ 7] & 0x0f) << 16));
-            z[i+3] = DILITHIUM_GAMMA1_19 -
+            z[i+3] = MLDSA_GAMMA1_19 -
                      ( ((sword32)s[ 7] >> 4) |
                       ( (sword32)s[ 8] << 4) |
                       (((sword32)s[ 9]       ) << 12));
-            z[i+4] = DILITHIUM_GAMMA1_19 -
+            z[i+4] = MLDSA_GAMMA1_19 -
                      (  (sword32)s[10]       |
                       ( (sword32)s[11] << 8) |
                       (((sword32)s[12] & 0x0f) << 16));
-            z[i+5] = DILITHIUM_GAMMA1_19 -
+            z[i+5] = MLDSA_GAMMA1_19 -
                      ( ((sword32)s[12] >> 4) |
                       ( (sword32)s[13] << 4) |
                       (((sword32)s[14]       ) << 12));
-            z[i+6] = DILITHIUM_GAMMA1_19 -
+            z[i+6] = MLDSA_GAMMA1_19 -
                      (  (sword32)s[15]       |
                       ( (sword32)s[16] << 8) |
                       (((sword32)s[17] & 0x0f) << 16));
-            z[i+7] = DILITHIUM_GAMMA1_19 -
+            z[i+7] = MLDSA_GAMMA1_19 -
                      ( ((sword32)s[17] >> 4) |
                       ( (sword32)s[18] << 4) |
                       (((sword32)s[19]       ) << 12));
     #endif
             /* Move to next place to decode from. */
-            s += DILITHIUM_GAMMA1_19_ENC_BITS;
+            s += MLDSA_GAMMA1_19_ENC_BITS;
         }
 #endif
     }
@@ -2213,7 +2214,7 @@ static void mldsa_decode_gamma1(const byte* s, int bits, sword32* z)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        if (bits == DILITHIUM_GAMMA1_BITS_17) {
+        if (bits == MLDSA_GAMMA1_BITS_17) {
             wc_mldsa_decode_gamma1_17_avx2(s, z);
         }
         else {
@@ -2232,7 +2233,7 @@ static void mldsa_decode_gamma1(const byte* s, int bits, sword32* z)
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
 /* Decode polynomial with range -(GAMMA1-1)..GAMMA1.
  *
- * FIPS 204. 8.2: Algorithm 21 sigDecode(sigma)
+ * FIPS 204 Section 7.2, Algorithm 27 sigDecode(sigma)
  *   ...
  *   3: for i from 0 to l - 1 do
  *   4:     z[i] <- BitUnpack(xi, GAMMA1 - 1, GAMMA1)
@@ -2254,8 +2255,8 @@ static void mldsa_vec_decode_gamma1(const byte* x, byte l, int bits,
         /* Step 4: Unpack a polynomial. */
         mldsa_decode_gamma1(x, bits, z);
         /* Move pointers on to next polynomial. */
-        x += DILITHIUM_N / 8 * (bits + 1);
-        z += DILITHIUM_N;
+        x += MLDSA_N / 8 * (bits + 1);
+        z += MLDSA_N;
     }
 }
 #endif
@@ -2264,7 +2265,7 @@ static void mldsa_vec_decode_gamma1(const byte* x, byte l, int bits,
 #ifndef WOLFSSL_NO_ML_DSA_44
 /* Encode w1 with range of 0..((q-1)/(2*GAMMA2)-1).
  *
- * FIPS 204. 8.2: Algorithm 22 w1Encode(w1)
+ * FIPS 204 Section 7.2, Algorithm 28 w1Encode(w1)
  *   ...
  *   3:     w1_tilde <- w1_tilde ||
  *                      ByteToBits(SimpleBitPack(w1[i], (q-1)/(2*GAMMA2)-1))
@@ -2279,7 +2280,7 @@ static void mldsa_encode_w1_88_c(const sword32* w1, byte* w1e)
     unsigned int j;
 
     /* Step 3: Encode a polynomial values 6 bits at a time. */
-    for (j = 0; j < DILITHIUM_N; j += 16) {
+    for (j = 0; j < MLDSA_N; j += 16) {
         /* 6 bits per number.
          * 16 numbers in 12 bytes. (16 * 6 bits = 12 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT <= 4)
@@ -2317,7 +2318,7 @@ static void mldsa_encode_w1_88_c(const sword32* w1, byte* w1e)
         w1e[11] = (byte)((w1[j+14] >> 4) | (w1[j+15] << 2));
 #endif
         /* Move to next place to encode to. */
-        w1e += DILITHIUM_Q_HI_88_ENC_BITS * 2;
+        w1e += MLDSA_Q_HI_88_ENC_BITS * 2;
     }
 }
 
@@ -2350,7 +2351,7 @@ WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e)
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Encode w1 with range of 0..((q-1)/(2*GAMMA2)-1).
  *
- * FIPS 204. 8.2: Algorithm 22 w1Encode(w1)
+ * FIPS 204 Section 7.2, Algorithm 28 w1Encode(w1)
  *   ...
  *   3:     w1_tilde <- w1_tilde ||
  *                      ByteToBits(SimpleBitPack(w1[i], (q-1)/(2*GAMMA2)-1))
@@ -2365,7 +2366,7 @@ static void mldsa_encode_w1_32_c(const sword32* w1, byte* w1e)
     unsigned int j;
 
     /* Step 3: Encode a polynomial values 4 bits at a time. */
-    for (j = 0; j < DILITHIUM_N; j += 16) {
+    for (j = 0; j < MLDSA_N; j += 16) {
         /* 4 bits per number.
          * 16 numbers in 8 bytes. (16 * 4 bits = 8 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT <= 8)
@@ -2397,7 +2398,7 @@ static void mldsa_encode_w1_32_c(const sword32* w1, byte* w1e)
         w1e[7] = (byte)(w1[j + 14] | (w1[j + 15] << 4));
 #endif
         /* Move to next place to encode to. */
-        w1e += DILITHIUM_Q_HI_32_ENC_BITS * 2;
+        w1e += MLDSA_Q_HI_32_ENC_BITS * 2;
     }
 }
 
@@ -2433,7 +2434,7 @@ WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e)
       !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM))
 /* Encode w1 with range of 0..((q-1)/(2*GAMMA2)-1).
  *
- * FIPS 204. 8.2: Algorithm 22 w1Encode(w1)
+ * FIPS 204 Section 7.2, Algorithm 28 w1Encode(w1)
  *   1: w1_tilde = ()
  *   2: for i form 0 to k - 1 do
  *   3:     w1_tilde <- w1_tilde ||
@@ -2454,25 +2455,25 @@ static void mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
     (void)k;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if (gamma2 == DILITHIUM_Q_LOW_88) {
+    if (gamma2 == MLDSA_Q_LOW_88) {
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < PARAMS_ML_DSA_44_K; i++) {
             mldsa_encode_w1_88(w1, w1e);
             /* Next polynomial. */
-            w1 += DILITHIUM_N;
-            w1e += DILITHIUM_Q_HI_88_ENC_BITS * 2 * DILITHIUM_N / 16;
+            w1 += MLDSA_N;
+            w1e += MLDSA_Q_HI_88_ENC_BITS * 2 * MLDSA_N / 16;
         }
     }
     else
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-    if (gamma2 == DILITHIUM_Q_LOW_32) {
+    if (gamma2 == MLDSA_Q_LOW_32) {
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < k; i++) {
             mldsa_encode_w1_32(w1, w1e);
             /* Next polynomial. */
-            w1 += DILITHIUM_N;
-            w1e += DILITHIUM_Q_HI_32_ENC_BITS * 2 * DILITHIUM_N / 16;
+            w1 += MLDSA_N;
+            w1e += MLDSA_Q_HI_32_ENC_BITS * 2 * MLDSA_N / 16;
         }
     }
     else
@@ -2488,7 +2489,7 @@ static void mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
 
 /* Generate a random polynomial by rejection.
  *
- * FIPS 204. 8.3: Algorithm 24 RejNTTPoly(rho)
+ * FIPS 204 Section 7.3, Algorithm 30 RejNTTPoly(rho)
  *   1: j <- 0
  *   2: c <- 0
  *   3: while j < 256 do
@@ -2501,7 +2502,7 @@ static void mldsa_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
  *   9: end while
  *  10: return a_hat
  *
- * FIPS 204. 8.1: Algorithm 8 CoeffFromThreeBytes(b0,b1,b2)
+ * FIPS 204 Section 7.1, Algorithm 14 CoeffFromThreeBytes(b0,b1,b2)
  *   1: if b2 > 127 then
  *   2:    b2 <- b2 - 128
  *   3. end if
@@ -2526,24 +2527,24 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
 
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
     /* Reading 4 bytes for 3 so need to set 1 past for last read. */
-    h[DILITHIUM_GEN_A_BLOCK_BYTES] = 0;
+    h[MLDSA_GEN_A_BLOCK_BYTES] = 0;
 #endif
 
     /* Initialize SHAKE-128 object for new hash. */
     ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
     if (ret == 0) {
         /* Absorb the seed. */
-        ret = wc_Shake128_Absorb(shake128, seed, DILITHIUM_GEN_A_SEED_SZ);
+        ret = wc_Shake128_Absorb(shake128, seed, MLDSA_GEN_A_SEED_SZ);
     }
     /* Keep generating more blocks and using triplets until we have enough.
      */
-    while ((ret == 0) && (j < DILITHIUM_N)) {
+    while ((ret == 0) && (j < MLDSA_N)) {
          /* Squeeze out a block - 168 bytes = 56 values. */
         ret = wc_Shake128_SqueezeBlocks(shake128, h, 1);
         if (ret == 0) {
             int c;
             /* Use triplets until run out or have enough for polynomial. */
-            for (c = 0; c < DILITHIUM_GEN_A_BLOCK_BYTES; c += 3) {
+            for (c = 0; c < MLDSA_GEN_A_BLOCK_BYTES; c += 3) {
             #if defined(LITTLE_ENDIAN_ORDER) && \
                 (WOLFSSL_MLDSA_ALIGNMENT == 0)
                 /* Load 32-bit value and mask out 23 bits. */
@@ -2554,12 +2555,12 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
                              ((sword32)h[c+2] << 16)) & 0x7fffff;
             #endif
                 /* Check if value is in valid range. */
-                if (t < DILITHIUM_Q) {
+                if (t < MLDSA_Q) {
                     /* Store value in polynomial and increment count of values.
                      */
                     a[j++] = t;
                     /* Check we whether we have enough yet. */
-                    if (j == DILITHIUM_N) {
+                    if (j == MLDSA_N) {
                         break;
                     }
                 }
@@ -2572,17 +2573,17 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
 
     /* Generate enough SHAKE-128 output blocks to give high probability of
      * being able to get 256 valid 3-byte, 23-bit values from it. */
-    ret = mldsa_squeeze128(shake128, seed, DILITHIUM_GEN_A_SEED_SZ, h,
-        DILITHIUM_GEN_A_NBLOCKS);
+    ret = mldsa_squeeze128(shake128, seed, MLDSA_GEN_A_SEED_SZ, h,
+        MLDSA_GEN_A_NBLOCKS);
     if (ret == 0) {
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
         /* Reading 4 bytes for 3 so need to set 1 past for last read. */
-        h[DILITHIUM_GEN_A_BYTES] = 0;
+        h[MLDSA_GEN_A_BYTES] = 0;
     #endif
 
         /* Use the first 256 triplets and know we won't exceed required. */
     #ifdef WOLFSSL_MLDSA_NO_LARGE_CODE
-        for (c = 0; c < (DILITHIUM_N - 1) * 3; c += 3) {
+        for (c = 0; c < (MLDSA_N - 1) * 3; c += 3) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
             /* Load 32-bit value and mask out 23 bits. */
             sword32 t = *((sword32*)(h + c)) & 0x7fffff;
@@ -2592,13 +2593,13 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
                          ((sword32)h[c+2] << 16)) & 0x7fffff;
         #endif
             /* Check if value is in valid range. */
-            if (t < DILITHIUM_Q) {
+            if (t < MLDSA_Q) {
                 /* Store value in polynomial and increment count of values. */
                 a[j++] = t;
             }
         }
         /* Use the remaining triplets, checking we have enough. */
-        for (; c < DILITHIUM_GEN_A_BYTES; c += 3) {
+        for (; c < MLDSA_GEN_A_BYTES; c += 3) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
             /* Load 32-bit value and mask out 23 bits. */
             sword32 t = *((sword32*)(h + c)) & 0x7fffff;
@@ -2608,18 +2609,18 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
                          ((sword32)h[c+2] << 16)) & 0x7fffff;
         #endif
             /* Check if value is in valid range. */
-            if (t < DILITHIUM_Q) {
+            if (t < MLDSA_Q) {
                 /* Store value in polynomial and increment count of values. */
                 a[j++] = t;
                 /* Check we whether we have enough yet. */
-                if (j == DILITHIUM_N) {
+                if (j == MLDSA_N) {
                     break;
                 }
             }
         }
     #else
         /* Do 24 bytes at a time: 256 * 3 / 24 = 32 */
-        for (c = 0; c < DILITHIUM_N * 3; c += 24) {
+        for (c = 0; c < MLDSA_N * 3; c += 24) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
             /* Load 32-bit value and mask out 23 bits. */
             sword32 t0 = *((sword32*)(h + c +  0)) & 0x7fffff;
@@ -2650,25 +2651,25 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
                           ((sword32)h[c + 23] << 16)) & 0x7fffff;
         #endif
             a[j] = t0;
-            j += (t0 < DILITHIUM_Q);
+            j += (t0 < MLDSA_Q);
             a[j] = t1;
-            j += (t1 < DILITHIUM_Q);
+            j += (t1 < MLDSA_Q);
             a[j] = t2;
-            j += (t2 < DILITHIUM_Q);
+            j += (t2 < MLDSA_Q);
             a[j] = t3;
-            j += (t3 < DILITHIUM_Q);
+            j += (t3 < MLDSA_Q);
             a[j] = t4;
-            j += (t4 < DILITHIUM_Q);
+            j += (t4 < MLDSA_Q);
             a[j] = t5;
-            j += (t5 < DILITHIUM_Q);
+            j += (t5 < MLDSA_Q);
             a[j] = t6;
-            j += (t6 < DILITHIUM_Q);
+            j += (t6 < MLDSA_Q);
             a[j] = t7;
-            j += (t7 < DILITHIUM_Q);
+            j += (t7 < MLDSA_Q);
         }
-        if (j < DILITHIUM_N) {
+        if (j < MLDSA_N) {
             /* Use the remaining triplets, checking we have enough. */
-            for (; c < DILITHIUM_GEN_A_BYTES; c += 3) {
+            for (; c < MLDSA_GEN_A_BYTES; c += 3) {
             #if defined(LITTLE_ENDIAN_ORDER) && \
                 (WOLFSSL_MLDSA_ALIGNMENT == 0)
                 /* Load 32-bit value and mask out 23 bits. */
@@ -2679,12 +2680,12 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
                              ((sword32)h[c+2] << 16)) & 0x7fffff;
             #endif
                 /* Check if value is in valid range. */
-                if (t < DILITHIUM_Q) {
+                if (t < MLDSA_Q) {
                     /* Store value in polynomial and increment count of values.
                      */
                     a[j++] = t;
                     /* Check we whether we have enough yet. */
-                    if (j == DILITHIUM_N) {
+                    if (j == MLDSA_N) {
                         break;
                     }
                 }
@@ -2693,14 +2694,14 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
     #endif
         /* Keep generating more blocks and using triplets until we have enough.
          */
-        while (j < DILITHIUM_N) {
+        while (j < MLDSA_N) {
             /* Squeeze out a block - 168 bytes = 56 values. */
             ret = wc_Shake128_SqueezeBlocks(shake128, h, 1);
             if (ret != 0) {
                 break;
             }
             /* Use triplets until run out or have enough for polynomial. */
-            for (c = 0; c < DILITHIUM_GEN_A_BLOCK_BYTES; c += 3) {
+            for (c = 0; c < MLDSA_GEN_A_BLOCK_BYTES; c += 3) {
             #if defined(LITTLE_ENDIAN_ORDER) && \
                 (WOLFSSL_MLDSA_ALIGNMENT == 0)
                 /* Load 32-bit value and mask out 23 bits. */
@@ -2711,12 +2712,12 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
                              ((sword32)h[c+2] << 16)) & 0x7fffff;
             #endif
                 /* Check if value is in valid range. */
-                if (t < DILITHIUM_Q) {
+                if (t < MLDSA_Q) {
                     /* Store value in polynomial and increment count of values.
                      */
                     a[j++] = t;
                     /* Check we whether we have enough yet. */
-                    if (j == DILITHIUM_N) {
+                    if (j == MLDSA_N) {
                         break;
                     }
                 }
@@ -2752,13 +2753,13 @@ static int mldsa_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
 #if defined(WOLFSSL_SMALL_STACK)
     byte* h = NULL;
 #else
-    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
+    byte h[MLDSA_REJ_NTT_POLY_H_SIZE];
 #endif
 
     (void)heap;
 
 #if defined(WOLFSSL_SMALL_STACK)
-    h = (byte*)XMALLOC(DILITHIUM_REJ_NTT_POLY_H_SIZE, heap,
+    h = (byte*)XMALLOC(MLDSA_REJ_NTT_POLY_H_SIZE, heap,
         DYNAMIC_TYPE_DILITHIUM);
     if (h == NULL) {
         ret = MEMORY_E;
@@ -3157,7 +3158,7 @@ static int wc_mldsa_gen_matrix_8x7_avx2(sword32* a, byte* seed)
 
 /* Expand the seed to create matrix a.
  *
- * FIPS 204. 8.3: Algorithm 26 ExpandA(rho)
+ * FIPS 204 Section 7.3, Algorithm 32 ExpandA(rho)
  *   1: for r from 0 to k - 1 do
  *   2:     for s from 0 to l - 1 do
  *   3:         A_hat[r,s] <- RejNTTPoly(rho||IntegerToBits(s,8)||
@@ -3181,22 +3182,22 @@ static int mldsa_expand_a_c(wc_Shake* shake128, const byte* pub_seed,
     int ret = 0;
     byte r;
     byte s;
-    byte seed[DILITHIUM_GEN_A_SEED_SZ];
+    byte seed[MLDSA_GEN_A_SEED_SZ];
 
     /* Copy the seed into a buffer that has space for s and r. */
-    XMEMCPY(seed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+    XMEMCPY(seed, pub_seed, MLDSA_PUB_SEED_SZ);
     /* Step 1: Loop over first dimension of matrix. */
     for (r = 0; (ret == 0) && (r < k); r++) {
         /* Put r into buffer to be hashed. */
-        seed[DILITHIUM_PUB_SEED_SZ + 1] = r;
+        seed[MLDSA_PUB_SEED_SZ + 1] = r;
         /* Step 2: Loop over second dimension of matrix. */
         for (s = 0; (ret == 0) && (s < l); s++) {
             /* Put s into buffer to be hashed. */
-            seed[DILITHIUM_PUB_SEED_SZ + 0] = s;
+            seed[MLDSA_PUB_SEED_SZ + 0] = s;
             /* Step 3: Create polynomial from hashing seed. */
             ret = mldsa_rej_ntt_poly(shake128, seed, a, heap);
             /* Next polynomial. */
-            a += DILITHIUM_N;
+            a += MLDSA_N;
         }
     }
 
@@ -3205,7 +3206,7 @@ static int mldsa_expand_a_c(wc_Shake* shake128, const byte* pub_seed,
 
 /* Expand the seed to create matrix a.
  *
- * FIPS 204. 8.3: Algorithm 26 ExpandA(rho)
+ * FIPS 204 Section 7.3, Algorithm 32 ExpandA(rho)
  *   1: for r from 0 to k - 1 do
  *   2:     for s from 0 to l - 1 do
  *   3:         A_hat[r,s] <- RejNTTPoly(rho||IntegerToBits(s,8)||
@@ -3228,14 +3229,14 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
 {
     int ret;
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
-    byte seed[DILITHIUM_GEN_A_SEED_SZ];
+    byte seed[MLDSA_GEN_A_SEED_SZ];
 #endif
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
 #ifndef WOLFSSL_NO_ML_DSA_44
     if ((k == 4) && (l == 4) && IS_INTEL_AVX2(cpuid_flags) &&
             IS_INTEL_BMI2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        XMEMCPY(seed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        XMEMCPY(seed, pub_seed, MLDSA_PUB_SEED_SZ);
         ret = wc_mldsa_gen_matrix_4x4_avx2(a, seed);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -3244,7 +3245,7 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
 #ifndef WOLFSSL_NO_ML_DSA_65
     if ((k == 6) && (l == 5) && IS_INTEL_AVX2(cpuid_flags) &&
             IS_INTEL_BMI2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        XMEMCPY(seed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        XMEMCPY(seed, pub_seed, MLDSA_PUB_SEED_SZ);
         ret = wc_mldsa_gen_matrix_6x5_avx2(a, seed);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -3253,7 +3254,7 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
 #ifndef WOLFSSL_NO_ML_DSA_87
     if ((k == 8) && (l == 7) && IS_INTEL_AVX2(cpuid_flags) &&
             IS_INTEL_BMI2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        XMEMCPY(seed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        XMEMCPY(seed, pub_seed, MLDSA_PUB_SEED_SZ);
         ret = wc_mldsa_gen_matrix_8x7_avx2(a, seed);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -3273,7 +3274,7 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
 #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Check random value is in valid range.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   1: if             b < 15
  *
  * @param [in] b    Random half-byte (nibble) value.
@@ -3281,8 +3282,8 @@ static int mldsa_expand_a(wc_Shake* shake128, const byte* pub_seed,
  * @return  1 when value less than 9.
  * @return  0 when value greater than or equal to 9.
  */
-#define DILITHIUM_COEFF_S_VALID_ETA2(b) \
-    ((b) < DILITHIUM_ETA_2_MOD)
+#define MLDSA_COEFF_S_VALID_ETA2(b) \
+    ((b) < MLDSA_ETA_2_MOD)
 
 static const signed char mldsa_coeff_eta2[] = {
     2, 1, 0, -1, -2,
@@ -3291,20 +3292,20 @@ static const signed char mldsa_coeff_eta2[] = {
 };
 /* Convert random value 0..15 to a value in range of -2..2.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   1:                            return 2 - (b mod 5)
  *
  * @param [in] b    Random half-byte (nibble) value.
  * @return  Value in range of -2..2 on success.
  */
-#define DILITHIUM_COEFF_S_ETA2(b)       \
+#define MLDSA_COEFF_S_ETA2(b)       \
     (mldsa_coeff_eta2[b])
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_65
 /* Check random value is in valid range.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   3:     if             b < 9
  *
  * @param [in] b    Random half-byte (nibble) value.
@@ -3312,19 +3313,19 @@ static const signed char mldsa_coeff_eta2[] = {
  * @return  1 when value less than 9.
  * @return  0 when value greater than or equal to 9.
  */
-#define DILITHIUM_COEFF_S_VALID_ETA4(b) \
-    ((b) < DILITHIUM_ETA_4_MOD)
+#define MLDSA_COEFF_S_VALID_ETA4(b) \
+    ((b) < MLDSA_ETA_4_MOD)
 
 /* Convert random value 0..15 to a value in range of -4..4.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   3:                               return 4 - b
  *
  * @param [in] b    Random half-byte (nibble) value.
  * @param [in] eta  Range specifier of result. Will always be 4 - unused.
  * @return  Value in range of -4..4 on success.
  */
-#define DILITHIUM_COEFF_S_ETA4(b)       \
+#define MLDSA_COEFF_S_ETA4(b)       \
     (4 - (b))
 #endif
 
@@ -3333,7 +3334,7 @@ static const signed char mldsa_coeff_eta2[] = {
 
 /* Check random value is in valid range.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   1: if eta = 2 and b < 15
  *   2: else
  *   3:     if eta = 4 and b < 9
@@ -3342,13 +3343,13 @@ static const signed char mldsa_coeff_eta2[] = {
  * @param [in] eta  Range specifier of result.
  * @return  Value in range of -ETA..ETA on success.
  */
-#define DILITHIUM_COEFF_S_VALID(b, eta)                             \
-    (((eta) == DILITHIUM_ETA_2) ? DILITHIUM_COEFF_S_VALID_ETA2(b)   \
-                                : DILITHIUM_COEFF_S_VALID_ETA4(b))
+#define MLDSA_COEFF_S_VALID(b, eta)                             \
+    (((eta) == MLDSA_ETA_2) ? MLDSA_COEFF_S_VALID_ETA2(b)   \
+                                : MLDSA_COEFF_S_VALID_ETA4(b))
 
 /* Convert random value 0..15 to a value in range of -ETA..ETA.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   1: if eta = 2            then return 2 - (b mod 5)
  *   2: else
  *   3:     if eta = 4           then return 4 - b
@@ -3359,15 +3360,15 @@ static const signed char mldsa_coeff_eta2[] = {
  * @param [in] eta  Range specifier of result.
  * @return  Value in range of -ETA..ETA on success.
  */
-#define DILITHIUM_COEFF_S(b, eta)                               \
-    (((eta) == DILITHIUM_ETA_2) ? DILITHIUM_COEFF_S_ETA2(b)     \
-                                : DILITHIUM_COEFF_S_ETA4(b))
+#define MLDSA_COEFF_S(b, eta)                               \
+    (((eta) == MLDSA_ETA_2) ? MLDSA_COEFF_S_ETA2(b)     \
+                                : MLDSA_COEFF_S_ETA4(b))
 
 #else
 
 /* Check random value is in valid range.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   1: if             b < 15
  *
  * @param [in] b    Random half-byte (nibble) value.
@@ -3375,20 +3376,20 @@ static const signed char mldsa_coeff_eta2[] = {
  * @return  1 when value less than 9.
  * @return  0 when value greater than or equal to 9.
  */
-#define DILITHIUM_COEFF_S_VALID(b, eta) \
-    DILITHIUM_COEFF_S_VALID_ETA2(b)
+#define MLDSA_COEFF_S_VALID(b, eta) \
+    MLDSA_COEFF_S_VALID_ETA2(b)
 
 /* Convert random value 0..15 to a value in range of -2..2.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   1:                            return 2 - (b mod 5)
  *
  * @param [in] b    Random half-byte (nibble) value.
  * @param [in] eta  Range specifier of result. Will always be 2 - unused.
  * @return  Value in range of -2..2 on success.
  */
-#define DILITHIUM_COEFF_S(b, eta)   \
-    DILITHIUM_COEFF_S_ETA2(b)
+#define MLDSA_COEFF_S(b, eta)   \
+    MLDSA_COEFF_S_ETA2(b)
 
 #endif /*  WOLFSSL_NO_ML_DSA_65 */
 
@@ -3396,7 +3397,7 @@ static const signed char mldsa_coeff_eta2[] = {
 
 /* Check random value is in valid range.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   3:     if             b < 9
  *
  * @param [in] b    Random half-byte (nibble) value.
@@ -3404,20 +3405,20 @@ static const signed char mldsa_coeff_eta2[] = {
  * @return  1 when value less than 9.
  * @return  0 when value greater than or equal to 9.
  */
-#define DILITHIUM_COEFF_S_VALID(b, eta) \
-    DILITHIUM_COEFF_S_VALID_ETA4(b)
+#define MLDSA_COEFF_S_VALID(b, eta) \
+    MLDSA_COEFF_S_VALID_ETA4(b)
 
 /* Convert random value 0..15 to a value in range of -4..4.
  *
- * FIPS 204. 8.1: Algorithm 9 CoeffFromHalfByte(b)
+ * FIPS 204 Section 7.1, Algorithm 15 CoeffFromHalfByte(b)
  *   3:                               return 4 - b
  *
  * @param [in] b    Random half-byte (nibble) value.
  * @param [in] eta  Range specifier of result. Will always be 4 - unused.
  * @return  Value in range of -4..4 on success.
  */
-#define DILITHIUM_COEFF_S(b, eta)   \
-    DILITHIUM_COEFF_S_ETA4(b)
+#define MLDSA_COEFF_S(b, eta)   \
+    MLDSA_COEFF_S_ETA4(b)
 
 #endif /* !WOLFSSL_NO_ML_DSA_44 || !WOLFSSL_NO_ML_DSA_87 */
 
@@ -3435,12 +3436,12 @@ static const signed char mldsa_coeff_eta2[] = {
 #define EXTRACT_COEFF_NIBBLE_CHECK_J(z, rs, t, eta)                     \
         (t) = (sword8)(((z) >> (rs)) & 0xf);                            \
         /* Step 7: Check we have a valid coefficient. */                \
-        if (DILITHIUM_COEFF_S_VALID(t, eta)) {                          \
-            (t) = (sword8)DILITHIUM_COEFF_S(t, eta);                    \
+        if (MLDSA_COEFF_S_VALID(t, eta)) {                          \
+            (t) = (sword8)MLDSA_COEFF_S(t, eta);                    \
             /* Step 8: Store coefficient as next polynomial value.      \
              * Step 9: Increment count of polynomial values set. */     \
             s[j++] = (sword32)(t);                                      \
-            if (j == DILITHIUM_N) {                                     \
+            if (j == MLDSA_N) {                                     \
                 break;                                                  \
             }                                                           \
         }
@@ -3457,8 +3458,8 @@ static const signed char mldsa_coeff_eta2[] = {
 #define EXTRACT_COEFF_NIBBLE(z, rs, t, eta)                             \
         (t) = (sword8)(((z) >> (rs)) & 0xf);                            \
         /* Step 7: Check we have a valid coefficient. */                \
-        if (DILITHIUM_COEFF_S_VALID(t, eta)) {                          \
-            (t) = (sword8)DILITHIUM_COEFF_S(t, eta);                    \
+        if (MLDSA_COEFF_S_VALID(t, eta)) {                          \
+            (t) = (sword8)MLDSA_COEFF_S(t, eta);                    \
             /* Step 8: Store coefficient as next polynomial value.      \
              * Step 9: Increment count of polynomial values set. */     \
             s[j++] = (sword32)(t);                                      \
@@ -3467,7 +3468,7 @@ static const signed char mldsa_coeff_eta2[] = {
 
 /* Extract coefficients from hash - z.
  *
- * FIPS 204. 8.3: Algorithm 25 RejBoundedPoly(rho)
+ * FIPS 204 Section 7.3, Algorithm 31 RejBoundedPoly(rho)
  *   2: c <- 0
  *   5:    z0 <- CoeffFromHalfByte(z mod 16, eta)
  *   6:    z1 <- CoeffFromHalfByte(lower(z / 16), eta)
@@ -3510,7 +3511,7 @@ static void mldsa_extract_coeffs(const byte* z, unsigned int zLen,
 #else
     unsigned int j = *cnt;
     unsigned int c;
-    unsigned int min = (DILITHIUM_N - j) / 2;
+    unsigned int min = (MLDSA_N - j) / 2;
 
     (void)eta;
 
@@ -3568,7 +3569,7 @@ static void mldsa_extract_coeffs(const byte* z, unsigned int zLen,
         EXTRACT_COEFF_NIBBLE(z[c], 4, t, eta);
     }
 #endif
-    if (j != DILITHIUM_N) {
+    if (j != MLDSA_N) {
         /* Extract values from the squeezed data. */
         for (; c < zLen; c++) {
             sword8 t;
@@ -3584,7 +3585,7 @@ static void mldsa_extract_coeffs(const byte* z, unsigned int zLen,
 
 /* Create polynomial from hashing the seed with bounded values.
  *
- * FIPS 204. 8.3: Algorithm 25 RejBoundedPoly(rho)
+ * FIPS 204 Section 7.3, Algorithm 31 RejBoundedPoly(rho)
  *   1: j <- 0
  *      ...
  *   3: while j < 256 do
@@ -3605,13 +3606,13 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
 #ifdef WOLFSSL_MLDSA_SMALL
     int ret;
     unsigned int j = 0;
-    byte z[DILITHIUM_GEN_S_BLOCK_BYTES];
+    byte z[MLDSA_GEN_S_BLOCK_BYTES];
 
     /* Initialize SHAKE-256 object for new hash. */
     ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
     if (ret == 0) {
         /* Absorb the seed. */
-        ret = wc_Shake256_Absorb(shake256, seed, DILITHIUM_GEN_S_SEED_SZ);
+        ret = wc_Shake256_Absorb(shake256, seed, MLDSA_GEN_S_SEED_SZ);
     }
     if (ret == 0) {
         do {
@@ -3621,37 +3622,37 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
                 break;
             }
             /* Extract up to the 256 valid coefficients for polynomial. */
-            mldsa_extract_coeffs(z, DILITHIUM_GEN_S_BLOCK_BYTES, eta, s,
+            mldsa_extract_coeffs(z, MLDSA_GEN_S_BLOCK_BYTES, eta, s,
                 &j);
         }
         /* Check we got enough values to fill polynomial. */
-        while (j < DILITHIUM_N);
+        while (j < MLDSA_N);
     }
 
     return ret;
 #else
     int ret;
     unsigned int j = 0;
-    WC_DECLARE_VAR(z, byte, DILITHIUM_GEN_S_BYTES, NULL);
+    WC_DECLARE_VAR(z, byte, MLDSA_GEN_S_BYTES, NULL);
 
-    WC_ALLOC_VAR_EX(z, byte, DILITHIUM_GEN_S_BYTES, NULL, DYNAMIC_TYPE_DILITHIUM,
+    WC_ALLOC_VAR_EX(z, byte, MLDSA_GEN_S_BYTES, NULL, DYNAMIC_TYPE_DILITHIUM,
                     return MEMORY_E);
 
     /* Absorb seed and squeeze out some blocks. */
-    ret = mldsa_squeeze256(shake256, seed, DILITHIUM_GEN_S_SEED_SZ, z,
-        DILITHIUM_GEN_S_NBLOCKS);
+    ret = mldsa_squeeze256(shake256, seed, MLDSA_GEN_S_SEED_SZ, z,
+        MLDSA_GEN_S_NBLOCKS);
     if (ret == 0) {
         /* Extract up to 256 valid coefficients for polynomial. */
-        mldsa_extract_coeffs(z, DILITHIUM_GEN_S_BYTES, eta, s, &j);
+        mldsa_extract_coeffs(z, MLDSA_GEN_S_BYTES, eta, s, &j);
         /* Check we got enough values to fill polynomial. */
-        while (j < DILITHIUM_N) {
+        while (j < MLDSA_N) {
             /* Squeeze out another block. */
             ret = wc_Shake256_SqueezeBlocks(shake256, z, 1);
             if (ret != 0) {
                 break;
             }
             /* Extract up to the 256 valid coefficients for polynomial. */
-            mldsa_extract_coeffs(z, DILITHIUM_GEN_S_BLOCK_BYTES, eta, s,
+            mldsa_extract_coeffs(z, MLDSA_GEN_S_BLOCK_BYTES, eta, s,
                 &j);
         }
     }
@@ -3681,7 +3682,7 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * DILITHIUM_GEN_S_BLOCK_BYTES];
+    byte rand[4 * MLDSA_GEN_S_BLOCK_BYTES];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -3691,7 +3692,7 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
     byte* p;
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * DILITHIUM_GEN_S_BLOCK_BYTES, NULL,
+    rand = (byte*)XMALLOC(4 * MLDSA_GEN_S_BLOCK_BYTES, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -3714,34 +3715,34 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
 
         sha3_256_blocksx4_seed_64_avx2(state, seed);
         wc_mldsa_redistribute_17_rand_avx2(state,
-            rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+            rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
 
         do {
             p = rand;
             if (ctr0 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, s[k] + 0 * MLDSA_N + ctr0,
+                    MLDSA_GEN_S_BLOCK_BYTES, s[k] + 0 * MLDSA_N + ctr0,
                     &ctr0);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr1 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, s[k] + 1 * MLDSA_N + ctr1,
+                    MLDSA_GEN_S_BLOCK_BYTES, s[k] + 1 * MLDSA_N + ctr1,
                     &ctr1);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr2 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, s[k] + 2 * MLDSA_N + ctr2,
+                    MLDSA_GEN_S_BLOCK_BYTES, s[k] + 2 * MLDSA_N + ctr2,
                     &ctr2);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr3 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, s[k] + 3 * MLDSA_N + ctr3,
+                    MLDSA_GEN_S_BLOCK_BYTES, s[k] + 3 * MLDSA_N + ctr3,
                     &ctr3);
             }
 
@@ -3749,10 +3750,10 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
                    (ctr3 < MLDSA_N)) {
                 sha3_blocksx4_avx2(state);
                 wc_mldsa_redistribute_17_rand_avx2(state,
-                    rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+                    rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
             }
         }
         /* Create more blocks if too many rejected. */
@@ -3786,7 +3787,7 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * DILITHIUM_GEN_S_BLOCK_BYTES];
+    byte rand[4 * MLDSA_GEN_S_BLOCK_BYTES];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -3804,7 +3805,7 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
     };
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * DILITHIUM_GEN_S_BLOCK_BYTES, NULL,
+    rand = (byte*)XMALLOC(4 * MLDSA_GEN_S_BLOCK_BYTES, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -3827,41 +3828,41 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
 
         sha3_256_blocksx4_seed_64_avx2(state, seed);
         wc_mldsa_redistribute_17_rand_avx2(state,
-            rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+            rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
 
         do {
             p = rand;
             if (ctr0 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta4_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][0] + ctr0, &ctr0);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][0] + ctr0, &ctr0);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr1 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta4_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][1] + ctr1, &ctr1);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][1] + ctr1, &ctr1);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr2 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta4_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][2] + ctr2, &ctr2);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][2] + ctr2, &ctr2);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr3 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta4_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][3] + ctr3, &ctr3);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][3] + ctr3, &ctr3);
             }
 
             if ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N) ||
                    (ctr3 < MLDSA_N)) {
                 sha3_blocksx4_avx2(state);
                 wc_mldsa_redistribute_17_rand_avx2(state,
-                    rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+                    rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
             }
         }
         /* Create more blocks if too many rejected. */
@@ -3879,35 +3880,35 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
 
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
-        rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-        rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-        rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-        rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+        rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+        rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+        rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+        rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
 
     do {
         p = rand;
         if (ctr0 < MLDSA_N) {
-            wc_mldsa_extract_coeffs_eta4_avx2(p, DILITHIUM_GEN_S_BLOCK_BYTES,
+            wc_mldsa_extract_coeffs_eta4_avx2(p, MLDSA_GEN_S_BLOCK_BYTES,
                 sa[k][0] + ctr0, &ctr0);
         }
-        p += DILITHIUM_GEN_S_BLOCK_BYTES;
+        p += MLDSA_GEN_S_BLOCK_BYTES;
         if (ctr1 < MLDSA_N) {
-            wc_mldsa_extract_coeffs_eta4_avx2(p, DILITHIUM_GEN_S_BLOCK_BYTES,
+            wc_mldsa_extract_coeffs_eta4_avx2(p, MLDSA_GEN_S_BLOCK_BYTES,
                 sa[k][1] + ctr1, &ctr1);
         }
-        p += DILITHIUM_GEN_S_BLOCK_BYTES;
+        p += MLDSA_GEN_S_BLOCK_BYTES;
         if (ctr2 < MLDSA_N) {
-            wc_mldsa_extract_coeffs_eta4_avx2(p, DILITHIUM_GEN_S_BLOCK_BYTES,
+            wc_mldsa_extract_coeffs_eta4_avx2(p, MLDSA_GEN_S_BLOCK_BYTES,
                 sa[k][2] + ctr2, &ctr2);
         }
 
         if ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N)) {
             sha3_blocksx4_avx2(state);
             wc_mldsa_redistribute_17_rand_avx2(state,
-                rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+                rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+                rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+                rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+                rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
         }
     }
     /* Create more blocks if too many rejected. */
@@ -3939,7 +3940,7 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * DILITHIUM_GEN_S_BLOCK_BYTES];
+    byte rand[4 * MLDSA_GEN_S_BLOCK_BYTES];
     word64 state[25 * 4];
 #endif
     unsigned int ctr0;
@@ -3959,7 +3960,7 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
     };
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * DILITHIUM_GEN_S_BLOCK_BYTES, NULL,
+    rand = (byte*)XMALLOC(4 * MLDSA_GEN_S_BLOCK_BYTES, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -3982,41 +3983,41 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
 
         sha3_256_blocksx4_seed_64_avx2(state, seed);
         wc_mldsa_redistribute_17_rand_avx2(state,
-            rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-            rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+            rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+            rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
 
         do {
             p = rand;
             if (ctr0 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][0] + ctr0, &ctr0);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][0] + ctr0, &ctr0);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr1 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][1] + ctr1, &ctr1);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][1] + ctr1, &ctr1);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr2 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][2] + ctr2, &ctr2);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][2] + ctr2, &ctr2);
             }
-            p += DILITHIUM_GEN_S_BLOCK_BYTES;
+            p += MLDSA_GEN_S_BLOCK_BYTES;
             if (ctr3 < MLDSA_N) {
                 wc_mldsa_extract_coeffs_eta2_avx2(p,
-                    DILITHIUM_GEN_S_BLOCK_BYTES, sa[k][3] + ctr3, &ctr3);
+                    MLDSA_GEN_S_BLOCK_BYTES, sa[k][3] + ctr3, &ctr3);
             }
 
             if ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N) ||
                    (ctr3 < MLDSA_N)) {
                 sha3_blocksx4_avx2(state);
                 wc_mldsa_redistribute_17_rand_avx2(state,
-                    rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                    rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+                    rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+                    rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
             }
         }
         /* Create more blocks if too many rejected. */
@@ -4034,35 +4035,35 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
 
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
-        rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-        rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-        rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-        rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+        rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+        rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+        rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+        rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
 
     do {
         p = rand;
         if (ctr0 < MLDSA_N) {
-            wc_mldsa_extract_coeffs_eta2_avx2(p, DILITHIUM_GEN_S_BLOCK_BYTES,
+            wc_mldsa_extract_coeffs_eta2_avx2(p, MLDSA_GEN_S_BLOCK_BYTES,
                 sa[k][0] + ctr0, &ctr0);
         }
-        p += DILITHIUM_GEN_S_BLOCK_BYTES;
+        p += MLDSA_GEN_S_BLOCK_BYTES;
         if (ctr1 < MLDSA_N) {
-            wc_mldsa_extract_coeffs_eta2_avx2(p, DILITHIUM_GEN_S_BLOCK_BYTES,
+            wc_mldsa_extract_coeffs_eta2_avx2(p, MLDSA_GEN_S_BLOCK_BYTES,
                 sa[k][1] + ctr1, &ctr1);
         }
-        p += DILITHIUM_GEN_S_BLOCK_BYTES;
+        p += MLDSA_GEN_S_BLOCK_BYTES;
         if (ctr2 < MLDSA_N) {
-            wc_mldsa_extract_coeffs_eta2_avx2(p, DILITHIUM_GEN_S_BLOCK_BYTES,
+            wc_mldsa_extract_coeffs_eta2_avx2(p, MLDSA_GEN_S_BLOCK_BYTES,
                 sa[k][2] + ctr2, &ctr2);
         }
 
         if ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N)) {
             sha3_blocksx4_avx2(state);
             wc_mldsa_redistribute_17_rand_avx2(state,
-                rand + 0 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                rand + 1 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                rand + 2 * DILITHIUM_GEN_S_BLOCK_BYTES,
-                rand + 3 * DILITHIUM_GEN_S_BLOCK_BYTES);
+                rand + 0 * MLDSA_GEN_S_BLOCK_BYTES,
+                rand + 1 * MLDSA_GEN_S_BLOCK_BYTES,
+                rand + 2 * MLDSA_GEN_S_BLOCK_BYTES,
+                rand + 3 * MLDSA_GEN_S_BLOCK_BYTES);
         }
     }
     /* Create more blocks if too many rejected. */
@@ -4078,7 +4079,7 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
 
 /* Expand private seed into vectors s1 and s2.
  *
- * FIPS 204. 8.3: Algorithm 27 ExpandS(rho)
+ * FIPS 204 Section 7.3, Algorithm 33 ExpandS(rho)
  *   1: for r from 0 to l - 1 do
  *   2:     s1[r] <- RejBoundedPoly(rho||IntegerToBits(r,16))
  *   3: end for
@@ -4102,30 +4103,30 @@ static int mldsa_expand_s_c(wc_Shake* shake256, byte* priv_seed, byte eta,
 {
     int ret = 0;
     byte r;
-    byte seed[DILITHIUM_GEN_S_SEED_SZ];
+    byte seed[MLDSA_GEN_S_SEED_SZ];
 
     /* Copy the seed into a buffer that has space for r. */
-    XMEMCPY(seed, priv_seed, DILITHIUM_PRIV_SEED_SZ);
+    XMEMCPY(seed, priv_seed, MLDSA_PRIV_SEED_SZ);
     /* Set top 8-bits of r in buffer to 0. */
-    seed[DILITHIUM_PRIV_SEED_SZ + 1] = 0;
+    seed[MLDSA_PRIV_SEED_SZ + 1] = 0;
     /* Step 1: Each polynomial in s1. */
     for (r = 0; (ret == 0) && (r < s1Len); r++) {
         /* Set bottom 8-bits of r into buffer - little endian. */
-        seed[DILITHIUM_PRIV_SEED_SZ] = r;
+        seed[MLDSA_PRIV_SEED_SZ] = r;
 
         /* Step 2: Generate polynomial for s1. */
         ret = mldsa_rej_bound_poly(shake256, seed, s1, eta);
         /* Next polynomial in s1. */
-        s1 += DILITHIUM_N;
+        s1 += MLDSA_N;
     }
     /* Step 4: Each polynomial in s2. */
     for (r = 0; (ret == 0) && (r < s2Len); r++) {
         /* Set bottom 8-bits of r + l into buffer - little endian. */
-        seed[DILITHIUM_PRIV_SEED_SZ] = (byte)(r + s1Len);
+        seed[MLDSA_PRIV_SEED_SZ] = (byte)(r + s1Len);
         /* Step 5: Generate polynomial for s1. */
         ret = mldsa_rej_bound_poly(shake256, seed, s2, eta);
         /* Next polynomial in s2. */
-        s2 += DILITHIUM_N;
+        s2 += MLDSA_N;
     }
 
     return ret;
@@ -4211,12 +4212,12 @@ static int wc_mldsa_gen_y_4_avx2(sword32* y, byte* seed, word16 kappa)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * DILITHIUM_MAX_V];
+    byte rand[4 * MLDSA_MAX_V];
     word64 state[25 * 4];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * DILITHIUM_MAX_V, NULL,
+    rand = (byte*)XMALLOC(4 * MLDSA_MAX_V, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -4232,26 +4233,26 @@ static int wc_mldsa_gen_y_4_avx2(sword32* y, byte* seed, word16 kappa)
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
-        rand + 0 * DILITHIUM_MAX_V,
-        rand + 1 * DILITHIUM_MAX_V,
-        rand + 2 * DILITHIUM_MAX_V,
-        rand + 3 * DILITHIUM_MAX_V);
-    for (l = 1; l < DILITHIUM_MAX_V_BLOCKS; l++) {
+        rand + 0 * MLDSA_MAX_V,
+        rand + 1 * MLDSA_MAX_V,
+        rand + 2 * MLDSA_MAX_V,
+        rand + 3 * MLDSA_MAX_V);
+    for (l = 1; l < MLDSA_MAX_V_BLOCKS; l++) {
         sha3_blocksx4_avx2(state);
         wc_mldsa_redistribute_17_rand_avx2(state,
-            rand + 0 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 1 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 2 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 3 * DILITHIUM_MAX_V + l * SHA3_256_BYTES);
+            rand + 0 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 1 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 2 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 3 * MLDSA_MAX_V + l * SHA3_256_BYTES);
     }
-    wc_mldsa_decode_gamma1_17_avx2(rand + 0 * DILITHIUM_MAX_V,
-        y + 0 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_17_avx2(rand + 1 * DILITHIUM_MAX_V,
-        y + 1 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_17_avx2(rand + 2 * DILITHIUM_MAX_V,
-        y + 2 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_17_avx2(rand + 3 * DILITHIUM_MAX_V,
-        y + 3 * DILITHIUM_N);
+    wc_mldsa_decode_gamma1_17_avx2(rand + 0 * MLDSA_MAX_V,
+        y + 0 * MLDSA_N);
+    wc_mldsa_decode_gamma1_17_avx2(rand + 1 * MLDSA_MAX_V,
+        y + 1 * MLDSA_N);
+    wc_mldsa_decode_gamma1_17_avx2(rand + 2 * MLDSA_MAX_V,
+        y + 2 * MLDSA_N);
+    wc_mldsa_decode_gamma1_17_avx2(rand + 3 * MLDSA_MAX_V,
+        y + 3 * MLDSA_N);
 
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4280,12 +4281,12 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * DILITHIUM_MAX_V];
+    byte rand[4 * MLDSA_MAX_V];
     word64 state[25 * 4];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * DILITHIUM_MAX_V, NULL,
+    rand = (byte*)XMALLOC(4 * MLDSA_MAX_V, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -4302,35 +4303,35 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
-        rand + 0 * DILITHIUM_MAX_V,
-        rand + 1 * DILITHIUM_MAX_V,
-        rand + 2 * DILITHIUM_MAX_V,
-        rand + 3 * DILITHIUM_MAX_V);
-    for (l = 1; l < DILITHIUM_MAX_V_BLOCKS; l++) {
+        rand + 0 * MLDSA_MAX_V,
+        rand + 1 * MLDSA_MAX_V,
+        rand + 2 * MLDSA_MAX_V,
+        rand + 3 * MLDSA_MAX_V);
+    for (l = 1; l < MLDSA_MAX_V_BLOCKS; l++) {
         sha3_blocksx4_avx2(state);
         wc_mldsa_redistribute_17_rand_avx2(state,
-            rand + 0 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 1 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 2 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 3 * DILITHIUM_MAX_V + l * SHA3_256_BYTES);
+            rand + 0 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 1 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 2 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 3 * MLDSA_MAX_V + l * SHA3_256_BYTES);
     }
-    wc_mldsa_decode_gamma1_19_avx2(rand + 0 * DILITHIUM_MAX_V,
-        y + 0 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 1 * DILITHIUM_MAX_V,
-        y + 1 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 2 * DILITHIUM_MAX_V,
-        y + 2 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 3 * DILITHIUM_MAX_V,
-        y + 3 * DILITHIUM_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 0 * MLDSA_MAX_V,
+        y + 0 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 1 * MLDSA_MAX_V,
+        y + 1 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 2 * MLDSA_MAX_V,
+        y + 2 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 3 * MLDSA_MAX_V,
+        y + 3 * MLDSA_N);
 
     kappa = (word16)(kappa + 4);
 
-    seed[DILITHIUM_PRIV_RAND_SEED_SZ + 0] = (byte)kappa;
-    seed[DILITHIUM_PRIV_RAND_SEED_SZ + 1] = (byte)(kappa >> 8);
-    ret = mldsa_squeeze256(shake256, seed, DILITHIUM_Y_SEED_SZ, rand,
-        DILITHIUM_MAX_V_BLOCKS);
+    seed[MLDSA_PRIV_RAND_SEED_SZ + 0] = (byte)kappa;
+    seed[MLDSA_PRIV_RAND_SEED_SZ + 1] = (byte)(kappa >> 8);
+    ret = mldsa_squeeze256(shake256, seed, MLDSA_Y_SEED_SZ, rand,
+        MLDSA_MAX_V_BLOCKS);
     if (ret == 0) {
-        wc_mldsa_decode_gamma1_19_avx2(rand, y + 4 * DILITHIUM_N);
+        wc_mldsa_decode_gamma1_19_avx2(rand, y + 4 * MLDSA_N);
     }
 
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4358,12 +4359,12 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     byte *rand = NULL;
     word64 *state = NULL;
 #else
-    byte rand[4 * DILITHIUM_MAX_V];
+    byte rand[4 * MLDSA_MAX_V];
     word64 state[25 * 4];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * DILITHIUM_MAX_V, NULL,
+    rand = (byte*)XMALLOC(4 * MLDSA_MAX_V, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
     state = (word64*)XMALLOC(sizeof(word64) * 25 * 4, NULL,
                           DYNAMIC_TYPE_TMP_BUFFER);
@@ -4380,26 +4381,26 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
-        rand + 0 * DILITHIUM_MAX_V,
-        rand + 1 * DILITHIUM_MAX_V,
-        rand + 2 * DILITHIUM_MAX_V,
-        rand + 3 * DILITHIUM_MAX_V);
-    for (l = 1; l < DILITHIUM_MAX_V_BLOCKS; l++) {
+        rand + 0 * MLDSA_MAX_V,
+        rand + 1 * MLDSA_MAX_V,
+        rand + 2 * MLDSA_MAX_V,
+        rand + 3 * MLDSA_MAX_V);
+    for (l = 1; l < MLDSA_MAX_V_BLOCKS; l++) {
         sha3_blocksx4_avx2(state);
         wc_mldsa_redistribute_17_rand_avx2(state,
-            rand + 0 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 1 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 2 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 3 * DILITHIUM_MAX_V + l * SHA3_256_BYTES);
+            rand + 0 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 1 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 2 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 3 * MLDSA_MAX_V + l * SHA3_256_BYTES);
     }
-    wc_mldsa_decode_gamma1_19_avx2(rand + 0 * DILITHIUM_MAX_V,
-        y + 0 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 1 * DILITHIUM_MAX_V,
-        y + 1 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 2 * DILITHIUM_MAX_V,
-        y + 2 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 3 * DILITHIUM_MAX_V,
-        y + 3 * DILITHIUM_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 0 * MLDSA_MAX_V,
+        y + 0 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 1 * MLDSA_MAX_V,
+        y + 1 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 2 * MLDSA_MAX_V,
+        y + 2 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 3 * MLDSA_MAX_V,
+        y + 3 * MLDSA_N);
 
     kappa = (word16)(kappa + 4);
 
@@ -4409,24 +4410,24 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     }
     sha3_256_blocksx4_seed_64_avx2(state, seed);
     wc_mldsa_redistribute_17_rand_avx2(state,
-        rand + 0 * DILITHIUM_MAX_V,
-        rand + 1 * DILITHIUM_MAX_V,
-        rand + 2 * DILITHIUM_MAX_V,
-        rand + 3 * DILITHIUM_MAX_V);
-    for (l = 1; l < DILITHIUM_MAX_V_BLOCKS; l++) {
+        rand + 0 * MLDSA_MAX_V,
+        rand + 1 * MLDSA_MAX_V,
+        rand + 2 * MLDSA_MAX_V,
+        rand + 3 * MLDSA_MAX_V);
+    for (l = 1; l < MLDSA_MAX_V_BLOCKS; l++) {
         sha3_blocksx4_avx2(state);
         wc_mldsa_redistribute_17_rand_avx2(state,
-            rand + 0 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 1 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 2 * DILITHIUM_MAX_V + l * SHA3_256_BYTES,
-            rand + 3 * DILITHIUM_MAX_V + l * SHA3_256_BYTES);
+            rand + 0 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 1 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 2 * MLDSA_MAX_V + l * SHA3_256_BYTES,
+            rand + 3 * MLDSA_MAX_V + l * SHA3_256_BYTES);
     }
-    wc_mldsa_decode_gamma1_19_avx2(rand + 0 * DILITHIUM_MAX_V,
-        y + 4 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 1 * DILITHIUM_MAX_V,
-        y + 5 * DILITHIUM_N);
-    wc_mldsa_decode_gamma1_19_avx2(rand + 2 * DILITHIUM_MAX_V,
-        y + 6 * DILITHIUM_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 0 * MLDSA_MAX_V,
+        y + 4 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 1 * MLDSA_MAX_V,
+        y + 5 * MLDSA_N);
+    wc_mldsa_decode_gamma1_19_avx2(rand + 2 * MLDSA_MAX_V,
+        y + 6 * MLDSA_N);
 
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4438,7 +4439,7 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
 
 /* Expand the private random seed into vector y.
  *
- * FIPS 204. 8.3: Algorithm 28 ExpandMask(rho, mu)
+ * FIPS 204 Section 7.3, Algorithm 34 ExpandMask(rho, mu)
  *   1: c <- 1 + bitlen(GAMMA1 - 1)
  *   2: for r from 0 to l - 1 do
  *   3:     n <- IntegerToBits(mu + r, 16)
@@ -4463,9 +4464,9 @@ static int mldsa_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
 {
     int ret = 0;
     byte r;
-    WC_DECLARE_VAR(v, byte, DILITHIUM_MAX_V, NULL);
+    WC_DECLARE_VAR(v, byte, MLDSA_MAX_V, NULL);
 
-    WC_ALLOC_VAR_EX(v, byte, DILITHIUM_MAX_V, NULL, DYNAMIC_TYPE_DILITHIUM,
+    WC_ALLOC_VAR_EX(v, byte, MLDSA_MAX_V, NULL, DYNAMIC_TYPE_DILITHIUM,
                     return MEMORY_E);
 
     /* Step 2: For each polynomial of vector. */
@@ -4474,15 +4475,15 @@ static int mldsa_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
         word16 n = (word16)(kappa + r);
 
         /* Step 4: Append to seed and squeeze out data. */
-        seed[DILITHIUM_PRIV_RAND_SEED_SZ + 0] = (byte)n;
-        seed[DILITHIUM_PRIV_RAND_SEED_SZ + 1] = (byte)(n >> 8);
-        ret = mldsa_squeeze256(shake256, seed, DILITHIUM_Y_SEED_SZ, v,
-            DILITHIUM_MAX_V_BLOCKS);
+        seed[MLDSA_PRIV_RAND_SEED_SZ + 0] = (byte)n;
+        seed[MLDSA_PRIV_RAND_SEED_SZ + 1] = (byte)(n >> 8);
+        ret = mldsa_squeeze256(shake256, seed, MLDSA_Y_SEED_SZ, v,
+            MLDSA_MAX_V_BLOCKS);
         if (ret == 0) {
             /* Decode v into polynomial. */
             mldsa_decode_gamma1(v, gamma1_bits, y);
             /* Next polynomial. */
-            y += DILITHIUM_N;
+            y += MLDSA_N;
         }
     }
 
@@ -4541,7 +4542,7 @@ static int mldsa_vec_expand_mask(wc_Shake* shake256, byte* seed,
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
 /* Expand commit to a polynomial.
  *
- * FIPS 204. 8.3: Algorithm 23 SampleInBall(rho)
+ * FIPS 204 Section 7.3, Algorithm 29 SampleInBall(rho)
  *   1: c <- 0
  *   2: k <- 8
  *   3: for i from 256 - TAU to 255 do
@@ -4569,41 +4570,41 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
 {
 #ifndef USE_INTEL_SPEEDUP
     int ret = 0;
-    byte signs[DILITHIUM_SIGN_BYTES];
+    byte signs[MLDSA_SIGN_BYTES];
     unsigned int i;
     /* Step 1: Initialize sign bit index. */
     unsigned int s = 0;
     /* Step 2: First 8 bytes are used for sign. */
-    unsigned int k = DILITHIUM_SIGN_BYTES;
+    unsigned int k = MLDSA_SIGN_BYTES;
 
     /* Set polynomial to all zeros. */
-    XMEMSET(c, 0, DILITHIUM_POLY_SIZE);
+    XMEMSET(c, 0, MLDSA_POLY_SIZE);
 
     /* Generate a block of data from seed. */
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (level >= WC_ML_DSA_DRAFT) {
-        ret = mldsa_shake256(shake256, seed, DILITHIUM_SEED_SZ, block,
-            DILITHIUM_GEN_C_BLOCK_BYTES);
+        ret = mldsa_shake256(shake256, seed, MLDSA_SEED_SZ, block,
+            MLDSA_GEN_C_BLOCK_BYTES);
     }
     else
 #endif
     {
         (void)level;
         ret = mldsa_shake256(shake256, seed, seedLen, block,
-            DILITHIUM_GEN_C_BLOCK_BYTES);
+            MLDSA_GEN_C_BLOCK_BYTES);
     }
     if (ret == 0) {
         /* Copy first 8 bytes of first hash block as random sign bits. */
-        XMEMCPY(signs, block, DILITHIUM_SIGN_BYTES);
+        XMEMCPY(signs, block, MLDSA_SIGN_BYTES);
     }
 
     /* Step 3: Put in TAU +/- 1s. */
-    for (i = (unsigned int)DILITHIUM_N - tau;
-                                         (ret == 0) && (i < DILITHIUM_N); i++) {
+    for (i = (unsigned int)MLDSA_N - tau;
+                                         (ret == 0) && (i < MLDSA_N); i++) {
         unsigned int j;
         do {
             /* Check whether block is exhausted. */
-            if (k == DILITHIUM_GEN_C_BLOCK_BYTES) {
+            if (k == MLDSA_GEN_C_BLOCK_BYTES) {
                 /* Generate a new block. */
                 ret = wc_Shake256_SqueezeBlocks(shake256, block, 1);
 
@@ -4634,25 +4635,25 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
     word64 signs;
     unsigned int i;
     /* Step 2: First 8 bytes are used for sign. */
-    unsigned int k = DILITHIUM_SIGN_BYTES;
+    unsigned int k = MLDSA_SIGN_BYTES;
 
     block = (byte*)state;
 
     /* Set polynomial to all zeros. */
-    XMEMSET(c, 0, DILITHIUM_POLY_SIZE);
+    XMEMSET(c, 0, MLDSA_POLY_SIZE);
 
     /* Generate a block of data from seed. */
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (level >= WC_ML_DSA_DRAFT) {
-        ret = mldsa_shake256(shake256, seed, DILITHIUM_SEED_SZ, block,
-            DILITHIUM_GEN_C_BLOCK_BYTES);
+        ret = mldsa_shake256(shake256, seed, MLDSA_SEED_SZ, block,
+            MLDSA_GEN_C_BLOCK_BYTES);
     }
     else
 #endif
     {
         (void)level;
         ret = mldsa_shake256(shake256, seed, seedLen, block,
-            DILITHIUM_GEN_C_BLOCK_BYTES);
+            MLDSA_GEN_C_BLOCK_BYTES);
     }
     if (ret == 0) {
         /* Step 1: Initialize sign bit index. */
@@ -4660,11 +4661,11 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
         signs = *(word64*)block;
 
         /* Step 3: Put in TAU +/- 1s. */
-        for (i = (unsigned int)DILITHIUM_N - tau; i < DILITHIUM_N; i++) {
+        for (i = (unsigned int)MLDSA_N - tau; i < MLDSA_N; i++) {
             unsigned int j;
             do {
                 /* Check whether block is exhausted. */
-                if (k == DILITHIUM_GEN_C_BLOCK_BYTES) {
+                if (k == MLDSA_GEN_C_BLOCK_BYTES) {
                     /* Generate a new block. */
 #ifndef WC_SHA3_NO_ASM
                     if (IS_INTEL_AVX2(cpuid_flags) &&
@@ -4729,13 +4730,13 @@ static int mldsa_sample_in_ball(int level, wc_Shake* shake256,
 #if defined(WOLFSSL_SMALL_STACK)
     byte* block = NULL;
 #else
-    byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
+    byte block[MLDSA_GEN_C_BLOCK_BYTES];
 #endif
 
     (void)heap;
 
 #if defined(WOLFSSL_SMALL_STACK)
-    block = (byte*)XMALLOC(DILITHIUM_GEN_C_BLOCK_BYTES, heap,
+    block = (byte*)XMALLOC(MLDSA_GEN_C_BLOCK_BYTES, heap,
         DYNAMIC_TYPE_DILITHIUM);
     if (block == NULL) {
         ret = MEMORY_E;
@@ -4764,7 +4765,7 @@ static int mldsa_sample_in_ball(int level, wc_Shake* shake256,
 #ifndef WOLFSSL_NO_ML_DSA_44
 /* Decompose value into high and low based on GAMMA2 being ((q-1) / 88).
  *
- * FIPS 204. 8.4: Algorithm 30 Decompose(r)
+ * FIPS 204 Section 7.4, Algorithm 36 Decompose(r)
  *   1: r+ <- r mod q
  *   2: r0 <- r+ mod+/- (2 * GAMMA2)
  *   3: if r+ - r0 = q - 1 then
@@ -4774,8 +4775,8 @@ static int mldsa_sample_in_ball(int level, wc_Shake* shake256,
  *   7: end if
  *   8: return (r1, r0)
  *
- * DILITHIUM_Q_LOW_88_2 = 0x2e800 = 0b101110100000000000
- * t1 * DILITHIUM_Q_LOW_88_2 = (t1 << 18) - (t1 << 16) - (t1 << 12) - (t1 << 11)
+ * MLDSA_Q_LOW_88_2 = 0x2e800 = 0b101110100000000000
+ * t1 * MLDSA_Q_LOW_88_2 = (t1 << 18) - (t1 << 16) - (t1 << 12) - (t1 << 11)
  *                           = ((93 * t1) << 11)
  * Nothing faster than straight multiply.
  *
@@ -4789,37 +4790,37 @@ static void mldsa_decompose_q88(sword32 r, sword32* r0, sword32* r1)
 {
     sword32 t0;
     sword32 t1;
-#ifdef DILITHIUM_MUL_SLOW
+#ifdef MLDSA_MUL_SLOW
     sword32 t2;
 #endif
 
     /* Roundup r and calculate approx high value. */
-#if !defined(DILITHIUM_MUL_44_SLOW)
-    t1 = ((r * 44) + ((DILITHIUM_Q_LOW_88 - 1) * 44)) >> 23;
-#elif !defined(DILITHIUM_MUL_11_SLOW)
-    t1 = ((r * 11) + ((DILITHIUM_Q_LOW_88 - 1) * 11)) >> 21;
+#if !defined(MLDSA_MUL_44_SLOW)
+    t1 = ((r * 44) + ((MLDSA_Q_LOW_88 - 1) * 44)) >> 23;
+#elif !defined(MLDSA_MUL_11_SLOW)
+    t1 = ((r * 11) + ((MLDSA_Q_LOW_88 - 1) * 11)) >> 21;
 #else
-    t0 = r + DILITHIUM_Q_LOW_88 - 1;
+    t0 = r + MLDSA_Q_LOW_88 - 1;
     t1 = ((t0 << 3) + (t0 << 1) + t0) >> 21;
 #endif
     /* Calculate approx low value. */
-    t0 = r - (t1 * DILITHIUM_Q_LOW_88_2);
-#ifndef DILITHIUM_MUL_SLOW
+    t0 = r - (t1 * MLDSA_Q_LOW_88_2);
+#ifndef MLDSA_MUL_SLOW
     /* Calculate real high value, When t0 > modulus, +1 to approx high value.
      * Sign-extraction trick: each ((word32)A - (word32)B) >> 31 evaluates
      * to 1 if (signed) A - B was negative thanks to two's-complement
      * wrap-around. The outer (sword32) cast lets us add the 0/1 flag back into
      * a sword32 accumulator without -Wsign- conversion firing on the implicit
      * narrowing. */
-    t1 += (sword32)(((word32)DILITHIUM_Q_LOW_88 - (word32)t0) >> 31);
+    t1 += (sword32)(((word32)MLDSA_Q_LOW_88 - (word32)t0) >> 31);
     /* Calculate real low value. */
-    t0 = r - (t1 * DILITHIUM_Q_LOW_88_2);
+    t0 = r - (t1 * MLDSA_Q_LOW_88_2);
 #else
     /* Calculate real high value, When t0 > modulus, +1 to approx high value. */
-    t2 = (sword32)(((word32)DILITHIUM_Q_LOW_88 - (word32)t0) >> 31);
+    t2 = (sword32)(((word32)MLDSA_Q_LOW_88 - (word32)t0) >> 31);
     t1 += t2;
     /* Calculate real low value. */
-    t0 -= (sword32)((word32)(0 - t2) & DILITHIUM_Q_LOW_88_2);
+    t0 -= (sword32)((word32)(0 - t2) & MLDSA_Q_LOW_88_2);
 #endif
     /* -1 from low value if high value is 44. Was 43 but low is negative. */
     t0 -= (sword32)(((word32)43 - (word32)t1) >> 31);
@@ -4834,7 +4835,7 @@ static void mldsa_decompose_q88(sword32 r, sword32* r0, sword32* r1)
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Decompose value into high and low based on GAMMA2 being ((q-1) / 32).
  *
- * FIPS 204. 8.4: Algorithm 30 Decompose(r)
+ * FIPS 204 Section 7.4, Algorithm 36 Decompose(r)
  *   1: r+ <- r mod q
  *   2: r0 <- r+ mod+/- (2 * GAMMA2)
  *   3: if r+ - r0 = q - 1 then
@@ -4844,8 +4845,8 @@ static void mldsa_decompose_q88(sword32 r, sword32* r0, sword32* r1)
  *   7: end if
  *   8: return (r1, r0)
  *
- * DILITHIUM_Q_LOW_32_2 = 0x7fe00 = 0b1111111111000000000
- * t1 * DILITHIUM_Q_LOW_32_2 = (t1 << 19) - (t1 << 9)
+ * MLDSA_Q_LOW_32_2 = 0x7fe00 = 0b1111111111000000000
+ * t1 * MLDSA_Q_LOW_32_2 = (t1 << 19) - (t1 << 9)
  *
  * Implementation using Barrett Reduction.
  *
@@ -4859,11 +4860,11 @@ static void mldsa_decompose_q32(sword32 r, sword32* r0, sword32* r1)
     sword32 t1;
 
     /* Roundup r and calculate approx high value. */
-    t1 = (r + DILITHIUM_Q_LOW_32 - 1) >> 19;
+    t1 = (r + MLDSA_Q_LOW_32 - 1) >> 19;
     /* Calculate approx low value. */
     t0 = r - (t1 << 19) + (t1 << 9);
     /* Calculate real high value, When t0 > modulus, +1 to approx high value. */
-    t1 += (sword32)(((word32)DILITHIUM_Q_LOW_32 - (word32)t0) >> 31);
+    t1 += (sword32)(((word32)MLDSA_Q_LOW_32 - (word32)t0) >> 31);
     /* Calculate real low value. */
     t0 = r - (t1 << 19) + (t1 << 9);
     /* -1 from low value if high value is 16. Was 15 but low is negative. */
@@ -4896,34 +4897,34 @@ static void mldsa_vec_decompose_c(const sword32* r, byte k, sword32 gamma2,
     unsigned int j;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if (gamma2 == DILITHIUM_Q_LOW_88) {
+    if (gamma2 == MLDSA_Q_LOW_88) {
         /* For each polynomial of vector. */
         for (i = 0; i < k; i++) {
             /* For each value of polynomial. */
-            for (j = 0; j < DILITHIUM_N; j++) {
+            for (j = 0; j < MLDSA_N; j++) {
                 /* Decompose value into two vectors. */
                 mldsa_decompose_q88(r[j], &r0[j], &r1[j]);
             }
             /* Next polynomial of vectors. */
-            r += DILITHIUM_N;
-            r0 += DILITHIUM_N;
-            r1 += DILITHIUM_N;
+            r += MLDSA_N;
+            r0 += MLDSA_N;
+            r1 += MLDSA_N;
         }
     }
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-    if (gamma2 == DILITHIUM_Q_LOW_32) {
+    if (gamma2 == MLDSA_Q_LOW_32) {
         /* For each polynomial of vector. */
         for (i = 0; i < k; i++) {
             /* For each value of polynomial. */
-            for (j = 0; j < DILITHIUM_N; j++) {
+            for (j = 0; j < MLDSA_N; j++) {
                 /* Decompose value into two vectors. */
                 mldsa_decompose_q32(r[j], &r0[j], &r1[j]);
             }
             /* Next polynomial of vectors. */
-            r += DILITHIUM_N;
-            r0 += DILITHIUM_N;
-            r1 += DILITHIUM_N;
+            r += MLDSA_N;
+            r0 += MLDSA_N;
+            r1 += MLDSA_N;
         }
     }
 #endif
@@ -4943,12 +4944,12 @@ static void mldsa_vec_decompose(const sword32* r, byte k, sword32 gamma2,
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
     #ifndef WOLFSSL_NO_ML_DSA_44
-        if (gamma2 == DILITHIUM_Q_LOW_88) {
+        if (gamma2 == MLDSA_Q_LOW_88) {
             wc_mldsa_decompose_q88_avx2(r, r0, r1);
         }
     #endif
     #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-        if (gamma2 == DILITHIUM_Q_LOW_32) {
+        if (gamma2 == MLDSA_Q_LOW_32) {
             wc_mldsa_decompose_q32_avx2(r, k, r0, r1);
         }
     #endif
@@ -4985,7 +4986,7 @@ static int mldsa_check_low(const sword32* a, sword32 hi)
     sword32 nhi = -hi;
 
     /* For each value of polynomial. */
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         /* Check range is -(hi-1)..(hi-1). */
         if ((a[j] <= nhi) || (a[j] >= hi)) {
             /* Check failed. */
@@ -5021,7 +5022,7 @@ static int mldsa_vec_check_low_c(const sword32* a, byte l, sword32 hi)
             break;
         }
         /* Next polynomial. */
-        a += DILITHIUM_N;
+        a += MLDSA_N;
     }
 
     return ret;
@@ -5061,7 +5062,7 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi)
 #ifndef WOLFSSL_NO_ML_DSA_44
 /* Compute hints indicating whether adding ct0 to w alters high bits of w.
  *
- * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *  26: h <- MakeHint(-<<ct0>>, w - <<sc2>> + <<ct0>>)
  *  27: if ... or the number of 1's in h is greater than OMEGA, then
@@ -5070,17 +5071,17 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi)
  *  32: sigma <- sigEncode(c_tilda, z mod+/- q, h)
  *   ...
  *
- * FIPS 204. 8.4: Algorithm 33 MakeHint(z, r)
+ * FIPS 204 Section 7.4, Algorithm 39 MakeHint(z, r)
  *   1: r1 <- HighBits(r)
  *   2: v1 <- HightBits(r+z)
  *   3: return [[r1 != v1]]
  *
- * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ * FIPS 204 Section 7.2, Algorithm 26 sigEncode(c_tilde, z, h)
  *   ...
  *   5: sigma <- sigma || HintBitPack(h)
  *   ...
  *
- * FIPS 204. 8.1: Algorithm 14 HintBitPack(h)
+ * FIPS 204 Section 7.2, Algorithm 20 HintBitPack(h)
  *   ...
  *   4:     for j from 0 to 255 do
  *   5:         if h[i]j != 0 then
@@ -5104,16 +5105,16 @@ static int mldsa_make_hint_88(const sword32* s, const sword32* w1, byte* h,
     byte idx = *idxp;
 
     /* Alg 14, Step 3: For each value of polynomial. */
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         /* Alg 14, Step 4: Check whether hint is required.
          * Did sum end up greater than low modulus or
          * sum end up less than the negative of low modulus or
          * sum is the negative of the low modulus and w1 is not zero,
          * then w1 will be modified.
          */
-        if ((s[j] > (sword32)DILITHIUM_Q_LOW_88) ||
-                (s[j] < -(sword32)DILITHIUM_Q_LOW_88) ||
-                ((s[j] == -(sword32)DILITHIUM_Q_LOW_88) &&
+        if ((s[j] > (sword32)MLDSA_Q_LOW_88) ||
+                (s[j] < -(sword32)MLDSA_Q_LOW_88) ||
+                ((s[j] == -(sword32)MLDSA_Q_LOW_88) &&
                  (w1[j] != 0))) {
             /* Alg 14, Step 6, 7: Put index as hint modifier. */
             h[idx++] = (byte)j;
@@ -5132,7 +5133,7 @@ static int mldsa_make_hint_88(const sword32* s, const sword32* w1, byte* h,
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Compute hints indicating whether adding ct0 to w alters high bits of w.
  *
- * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *  26: h <- MakeHint(-<<ct0>>, w - <<sc2>> + <<ct0>>)
  *  27: if ... or the number of 1's in h is greater than OMEGA, then
@@ -5141,17 +5142,17 @@ static int mldsa_make_hint_88(const sword32* s, const sword32* w1, byte* h,
  *  32: sigma <- sigEncode(c_tilda, z mod+/- q, h)
  *   ...
  *
- * FIPS 204. 8.4: Algorithm 33 MakeHint(z, r)
+ * FIPS 204 Section 7.4, Algorithm 39 MakeHint(z, r)
  *   1: r1 <- HighBits(r)
  *   2: v1 <- HightBits(r+z)
  *   3: return [[r1 != v1]]
  *
- * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ * FIPS 204 Section 7.2, Algorithm 26 sigEncode(c_tilde, z, h)
  *   ...
  *   5: sigma <- sigma || HintBitPack(h)
  *   ...
  *
- * FIPS 204. 8.1: Algorithm 14 HintBitPack(h)
+ * FIPS 204 Section 7.2, Algorithm 20 HintBitPack(h)
  *   ...
  *   4:     for j from 0 to 255 do
  *   5:         if h[i]j != 0 then
@@ -5178,16 +5179,16 @@ static int mldsa_make_hint_32(const sword32* s, const sword32* w1,
     (void)omega;
 
     /* Alg 14, Step 3: For each value of polynomial. */
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         /* Alg 14, Step 4: Check whether hint is required.
          * Did sum end up greater than low modulus or
          * sum end up less than the negative of low modulus or
          * sum is the negative of the low modulus and w1 is not zero,
          * then w1 will be modified.
          */
-        if ((s[j] > (sword32)DILITHIUM_Q_LOW_32) ||
-                (s[j] < -(sword32)DILITHIUM_Q_LOW_32) ||
-                ((s[j] == -(sword32)DILITHIUM_Q_LOW_32) &&
+        if ((s[j] > (sword32)MLDSA_Q_LOW_32) ||
+                (s[j] < -(sword32)MLDSA_Q_LOW_32) ||
+                ((s[j] == -(sword32)MLDSA_Q_LOW_32) &&
                  (w1[j] != 0))) {
             /* Alg 14, Step 6, 7: Put index as hint modifier. */
             h[idx++] = (byte)j;
@@ -5207,7 +5208,7 @@ static int mldsa_make_hint_32(const sword32* s, const sword32* w1,
 #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM
 /* Compute hints indicating whether adding ct0 to w alters high bits of w.
  *
- * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *  26: h <- MakeHint(-<<ct0>>, w - <<sc2>> + <<ct0>>)
  *  27: if ... or the number of 1's in h is greater than OMEGA, then
@@ -5216,17 +5217,17 @@ static int mldsa_make_hint_32(const sword32* s, const sword32* w1,
  *  32: sigma <- sigEncode(c_tilda, z mod+/- q, h)
  *   ...
  *
- * FIPS 204. 8.4: Algorithm 33 MakeHint(z, r)
+ * FIPS 204 Section 7.4, Algorithm 39 MakeHint(z, r)
  *   1: r1 <- HighBits(r)
  *   2: v1 <- HightBits(r+z)
  *   3: return [[r1 != v1]]
  *
- * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ * FIPS 204 Section 7.2, Algorithm 26 sigEncode(c_tilde, z, h)
  *   ...
  *   5: sigma <- sigma || HintBitPack(h)
  *   ...
  *
- * FIPS 204. 8.1: Algorithm 14 HintBitPack(h)
+ * FIPS 204 Section 7.2, Algorithm 20 HintBitPack(h)
  *   ...
  *   2: Index <- 0
  *   3. for i from 0 to k - 1 do
@@ -5259,7 +5260,7 @@ static int mldsa_make_hint(const sword32* s, const sword32* w1, byte k,
     (void)omega;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if (gamma2 == DILITHIUM_Q_LOW_88) {
+    if (gamma2 == MLDSA_Q_LOW_88) {
         /* Alg 14, Step 2: For each polynomial of vector. */
         for (i = 0; i < PARAMS_ML_DSA_44_K; i++) {
             if (mldsa_make_hint_88(s, w1, h, &idx) == -1) {
@@ -5269,14 +5270,14 @@ static int mldsa_make_hint(const sword32* s, const sword32* w1, byte k,
              *                  list. */
             h[PARAMS_ML_DSA_44_OMEGA + i] = idx;
             /* Next polynomial. */
-            s  += DILITHIUM_N;
-            w1 += DILITHIUM_N;
+            s  += MLDSA_N;
+            w1 += MLDSA_N;
         }
     }
     else
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-    if (gamma2 == DILITHIUM_Q_LOW_32) {
+    if (gamma2 == MLDSA_Q_LOW_32) {
         /* Alg 14, Step 2: For each polynomial of vector. */
         for (i = 0; i < k; i++) {
             if (mldsa_make_hint_32(s, w1, omega, h, &idx) == -1) {
@@ -5286,8 +5287,8 @@ static int mldsa_make_hint(const sword32* s, const sword32* w1, byte k,
              *                  list. */
             h[omega + i] = idx;
             /* Next polynomial. */
-            s  += DILITHIUM_N;
-            w1 += DILITHIUM_N;
+            s  += MLDSA_N;
+            w1 += MLDSA_N;
         }
     }
     else
@@ -5365,7 +5366,7 @@ static int mldsa_check_hint(const byte* h, byte k, byte omega)
 #ifndef WOLFSSL_NO_ML_DSA_44
 /* Use hints to modify w1.
  *
- * FIPS 204. 8.4: Algorithm 34 UseHint(h, r)
+ * FIPS 204 Section 7.4, Algorithm 40 UseHint(h, r)
  *   1: m <- (q - 1) / (2 * GAMMA2)
  *   2: (r1, r0) <- Decompose(r)
  *   3: if h == 1 and r0 > 0 return (r1 + 1) mod m
@@ -5384,11 +5385,11 @@ static void mldsa_use_hint_88(sword32* w1, const byte* h, unsigned int i,
     unsigned int j;
 
     /* For each value of polynomial. */
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         sword32 r;
         sword32 r0;
         sword32 r1;
-#ifdef DILITHIUM_USE_HINT_CT
+#ifdef MLDSA_USE_HINT_CT
         /* Hint is 1 when index is next in hint list. */
         sword32 hint = ((o < h[PARAMS_ML_DSA_44_OMEGA + i]) &
                         (h[o] == (byte)j));
@@ -5396,7 +5397,7 @@ static void mldsa_use_hint_88(sword32* w1, const byte* h, unsigned int i,
         /* Increment hint offset if this index has hint. */
         o += hint;
         /* Convert value to positive only range. */
-        r = w1[j] + ((0 - (((word32)w1[j]) >> 31)) & DILITHIUM_Q);
+        r = w1[j] + ((0 - (((word32)w1[j]) >> 31)) & MLDSA_Q);
         /* Decompose value into low and high parts. */
         mldsa_decompose_q88(r, &r0, &r1);
         /* Make hint positive or negative based on sign of r0. */
@@ -5410,7 +5411,7 @@ static void mldsa_use_hint_88(sword32* w1, const byte* h, unsigned int i,
         w1[j] += (sword32)((0 - (((word32)w1[j]) >> 31)) & 44);
 #else
         /* Convert value to positive only range. */
-        r = w1[j] + (sword32)((0 - (((word32)w1[j]) >> 31)) & DILITHIUM_Q);
+        r = w1[j] + (sword32)((0 - (((word32)w1[j]) >> 31)) & MLDSA_Q);
         /* Decompose value into low and high parts. */
         mldsa_decompose_q88(r, &r0, &r1);
         /* Check for hint. */
@@ -5435,7 +5436,7 @@ static void mldsa_use_hint_88(sword32* w1, const byte* h, unsigned int i,
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Use hints to modify w1.
  *
- * FIPS 204. 8.4: Algorithm 34 UseHint(h, r)
+ * FIPS 204 Section 7.4, Algorithm 40 UseHint(h, r)
  *   1: m <- (q - 1) / (2 * GAMMA2)
  *   2: (r1, r0) <- Decompose(r)
  *   3: if h == 1 and r0 > 0 return (r1 + 1) mod m
@@ -5455,18 +5456,18 @@ static void mldsa_use_hint_32(sword32* w1, const byte* h, byte omega,
     unsigned int j;
 
     /* For each value of polynomial. */
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         sword32 r;
         sword32 r0;
         sword32 r1;
-#ifdef DILITHIUM_USE_HINT_CT
+#ifdef MLDSA_USE_HINT_CT
         /* Hint is 1 when index is next in hint list. */
         sword32 hint = ((o < h[omega + i]) & (h[o] == (byte)j));
 
         /* Increment hint offset if this index has hint. */
         o += hint;
         /* Convert value to positive only range. */
-        r = w1[j] + (sword32)((0 - (((word32)w1[j]) >> 31)) & DILITHIUM_Q);
+        r = w1[j] + (sword32)((0 - (((word32)w1[j]) >> 31)) & MLDSA_Q);
         /* Decompose value into low and high parts. */
         mldsa_decompose_q32(r, &r0, &r1);
         /* Make hint positive or negative based on sign of r0. */
@@ -5478,7 +5479,7 @@ static void mldsa_use_hint_32(sword32* w1, const byte* h, byte omega,
         w1[j] &= 0xf;
 #else
         /* Convert value to positive only range. */
-        r = w1[j] + (sword32)((0 - (((word32)w1[j]) >> 31)) & DILITHIUM_Q);
+        r = w1[j] + (sword32)((0 - (((word32)w1[j]) >> 31)) & MLDSA_Q);
         /* Decompose value into low and high parts. */
         mldsa_decompose_q32(r, &r0, &r1);
         /* Check for hint. */
@@ -5499,7 +5500,7 @@ static void mldsa_use_hint_32(sword32* w1, const byte* h, byte omega,
 #ifndef WOLFSSL_MLDSA_VERIFY_SMALL_MEM
 /* Use hints to modify w1.
  *
- * FIPS 204. 8.4: Algorithm 34 UseHint(h, r)
+ * FIPS 204 Section 7.4, Algorithm 40 UseHint(h, r)
  *   1: m <- (q - 1) / (2 * GAMMA2)
  *   2: (r1, r0) <- Decompose(r)
  *   3: if h == 1 and r0 > 0 return (r1 + 1) mod m
@@ -5522,7 +5523,7 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
     (void)omega;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if (gamma2 == DILITHIUM_Q_LOW_88) {
+    if (gamma2 == MLDSA_Q_LOW_88) {
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             wc_mldsa_use_hint_88_avx2(w1, h);
@@ -5534,13 +5535,13 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
             /* For each polynomial of vector. */
             for (i = 0; i < PARAMS_ML_DSA_44_K; i++) {
                 mldsa_use_hint_88(w1, h, i, &o);
-                w1 += DILITHIUM_N;
+                w1 += MLDSA_N;
             }
         }
     }
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-    if (gamma2 == DILITHIUM_Q_LOW_32) {
+    if (gamma2 == MLDSA_Q_LOW_32) {
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             wc_mldsa_use_hint_32_avx2(w1, k, h);
@@ -5552,7 +5553,7 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
             /* For each polynomial of vector. */
             for (i = 0; i < k; i++) {
                 mldsa_use_hint_32(w1, h, omega, i, &o);
-                w1 += DILITHIUM_N;
+                w1 += MLDSA_N;
             }
         }
     }
@@ -5566,7 +5567,7 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
  ******************************************************************************/
 
 /* q^-1 mod 2^32 (inverse of 8380417 mod 2^32 = 58728449 = 0x3802001) */
-#define DILITHIUM_QINV          58728449
+#define MLDSA_QINV          58728449
 
 /* Montgomery reduce a.
  *
@@ -5575,14 +5576,14 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
  */
 static sword32 mldsa_mont_red(sword64 a)
 {
-#ifndef DILITHIUM_MUL_QINV_SLOW
-    sword64 t = (sword32)((sword32)a * (sword32)DILITHIUM_QINV);
+#ifndef MLDSA_MUL_QINV_SLOW
+    sword64 t = (sword32)((sword32)a * (sword32)MLDSA_QINV);
 #else
     sword64 t = (sword32)((sword32)a + (sword32)((sword32)a << 13) -
         (sword32)((sword32)a << 23) + (sword32)((sword32)a << 26));
 #endif
-#ifndef DILITHIUM_MUL_Q_SLOW
-    return (sword32)((a - ((sword32)t * (sword64)DILITHIUM_Q)) >> 32);
+#ifndef MLDSA_MUL_Q_SLOW
+    return (sword32)((a - ((sword32)t * (sword64)MLDSA_Q)) >> 32);
 #else
     return (sword32)((a - (t << 23) + (t << 13) - t) >> 32);
 #endif
@@ -5605,8 +5606,8 @@ static sword32 mldsa_mont_red(sword64 a)
 static sword32 mldsa_red(sword32 a)
 {
     sword32 t = (sword32)((a + ((sword32)1 << 22)) >> 23);
-#ifndef DILITHIUM_MUL_Q_SLOW
-    return (sword32)(a - (t * DILITHIUM_Q));
+#ifndef MLDSA_MUL_Q_SLOW
+    return (sword32)(a - (t * MLDSA_Q));
 #else
     return (sword32)(a - (t << 23) + (t << 13) - t);
 #endif
@@ -5614,7 +5615,7 @@ static sword32 mldsa_red(sword32 a)
 #endif
 
 /* Zetas for NTT. */
-static const sword32 zetas[DILITHIUM_N] = {
+static const sword32 zetas[MLDSA_N] = {
    -41978,    25847, -2608894,  -518909,   237124,  -777960,  -876248,   466468,
   1826347,  2353451,  -359251, -2091905,  3119733, -2884855,  3111497,  2680103,
   2725464,  1024112, -1079900,  3585928,  -549488, -1119584,  2619752, -2108549,
@@ -5651,7 +5652,7 @@ static const sword32 zetas[DILITHIUM_N] = {
 
 #ifndef WOLFSSL_MLDSA_SMALL
 /* Zetas for inverse NTT. */
-static const sword32 zetas_inv[DILITHIUM_N] = {
+static const sword32 zetas_inv[MLDSA_N] = {
  -1976782,   846154, -1400424, -3937738,  1362209,    48306, -3919660,   554416,
   3545687, -1612842,   976891,  -183443,  2286327,   420899,  2235985,  2939036,
   3833893,   260646,  1104333,  1667432, -1910376,  1803090, -1723600,   426683,
@@ -5697,7 +5698,7 @@ static const sword32 zetas_inv[DILITHIUM_N] = {
  */
 #define NTT(len)                                                            \
 do {                                                                        \
-    for (start = 0; start < DILITHIUM_N; start += 2 * (len)) {              \
+    for (start = 0; start < MLDSA_N; start += 2 * (len)) {              \
         zeta = zetas[++k];                                                  \
         for (j = 0; j < (len); ++j) {                                       \
             sword32 t =                                                     \
@@ -5722,9 +5723,9 @@ static void mldsa_ntt_c(sword32* r)
     unsigned int j;
 
     k = 0;
-    for (len = DILITHIUM_N / 2; len >= 1; len >>= 1) {
+    for (len = MLDSA_N / 2; len >= 1; len >>= 1) {
         unsigned int start;
-        for (start = 0; start < DILITHIUM_N; start = j + len) {
+        for (start = 0; start < MLDSA_N; start = j + len) {
             sword32 zeta = zetas[++k];
             for (j = start; j < start + len; ++j) {
                 sword32 t = mldsa_mont_red((sword64)zeta * r[j + len]);
@@ -5741,11 +5742,11 @@ static void mldsa_ntt_c(sword32* r)
     sword32 zeta;
 
     zeta = zetas[1];
-    for (j = 0; j < DILITHIUM_N / 2; j++) {
+    for (j = 0; j < MLDSA_N / 2; j++) {
         sword32 t =
-            mldsa_mont_red((sword64)zeta * r[j + DILITHIUM_N / 2]);
+            mldsa_mont_red((sword64)zeta * r[j + MLDSA_N / 2]);
         sword32 rj = r[j];
-        r[j + DILITHIUM_N / 2] = rj - t;
+        r[j + MLDSA_N / 2] = rj - t;
         r[j] = rj + t;
     }
 
@@ -5757,7 +5758,7 @@ static void mldsa_ntt_c(sword32* r)
     NTT(4);
     NTT(2);
 
-    for (j = 0; j < DILITHIUM_N; j += 2) {
+    for (j = 0; j < MLDSA_N; j += 2) {
         sword32 t = mldsa_mont_red((sword64)zetas[++k] * r[j + 1]);
         sword32 rj = r[j];
         r[j + 1] = rj - t;
@@ -5772,7 +5773,7 @@ static void mldsa_ntt_c(sword32* r)
     sword32 zeta128 = zetas[1];
     sword32 zeta640 = zetas[2];
     sword32 zeta641 = zetas[3];
-    for (j = 0; j < DILITHIUM_N / 4; j++) {
+    for (j = 0; j < MLDSA_N / 4; j++) {
         sword32 r0 = r[j +   0];
         sword32 r2 = r[j +  64];
         sword32 r4 = r[j + 128];
@@ -5798,7 +5799,7 @@ static void mldsa_ntt_c(sword32* r)
         r[j + 192] = r6;
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 64) {
+    for (j = 0; j < MLDSA_N; j += 64) {
         unsigned int i;
         sword32 zeta32  = zetas[ 4 + j / 64 + 0];
         sword32 zeta160 = zetas[ 8 + j / 32 + 0];
@@ -5830,7 +5831,7 @@ static void mldsa_ntt_c(sword32* r)
         }
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 16) {
+    for (j = 0; j < MLDSA_N; j += 16) {
         unsigned int i;
         sword32 zeta8   = zetas[16 + j / 16];
         sword32 zeta40  = zetas[32 + j / 8 + 0];
@@ -5863,7 +5864,7 @@ static void mldsa_ntt_c(sword32* r)
     }
 
     k = 128;
-    for (j = 0; j < DILITHIUM_N; j += 4) {
+    for (j = 0; j < MLDSA_N; j += 4) {
         sword32 zeta2 = zetas[64 + j / 4];
         sword32 r0 = r[j + 0];
         sword32 r2 = r[j + 1];
@@ -5900,7 +5901,7 @@ static void mldsa_ntt_c(sword32* r)
     sword32 zeta128 = zetas[1];
     sword32 zeta640 = zetas[2];
     sword32 zeta641 = zetas[3];
-    for (j = 0; j < DILITHIUM_N / 8; j++) {
+    for (j = 0; j < MLDSA_N / 8; j++) {
         sword32 r0 = r[j +   0];
         sword32 r1 = r[j +  32];
         sword32 r2 = r[j +  64];
@@ -5946,7 +5947,7 @@ static void mldsa_ntt_c(sword32* r)
         r[j + 224] = r7;
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 64) {
+    for (j = 0; j < MLDSA_N; j += 64) {
         unsigned int i;
         sword32 zeta32  = zetas[ 4 + j / 64 + 0];
         sword32 zeta160 = zetas[ 8 + j / 32 + 0];
@@ -6016,7 +6017,7 @@ static void mldsa_ntt_c(sword32* r)
     }
 
     k = 128;
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         sword32 zeta4  = zetas[32 + j / 8 + 0];
         sword32 zeta20 = zetas[64 + j / 4 + 0];
         sword32 zeta21 = zetas[64 + j / 4 + 1];
@@ -6142,7 +6143,7 @@ static void mldsa_vec_ntt(sword32* r, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_ntt(r);
-        r += DILITHIUM_N;
+        r += MLDSA_N;
     }
 }
 #endif
@@ -6166,7 +6167,7 @@ static void mldsa_vec_ntt_full(sword32* r, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_ntt_full(r);
-        r += DILITHIUM_N;
+        r += MLDSA_N;
     }
 }
 #endif
@@ -6174,7 +6175,7 @@ static void mldsa_vec_ntt_full(sword32* r, byte l)
 #ifndef WOLFSSL_MLDSA_SMALL
 
 /* Zeta index value 1 not in montgomery form. */
-#define DILITHIUM_NTT_ZETA_1    ((sword32)-3572223)
+#define MLDSA_NTT_ZETA_1    ((sword32)-3572223)
 
 /* Number-Theoretic Transform with small initial values.
  *
@@ -6188,11 +6189,11 @@ static void mldsa_ntt_small_c(sword32* r)
     unsigned int start;
     sword32 zeta;
 
-    for (j = 0; j < DILITHIUM_N / 2; ++j) {
-        sword32 t = mldsa_red(DILITHIUM_NTT_ZETA_1 *
-                                  r[j + DILITHIUM_N / 2]);
+    for (j = 0; j < MLDSA_N / 2; ++j) {
+        sword32 t = mldsa_red(MLDSA_NTT_ZETA_1 *
+                                  r[j + MLDSA_N / 2]);
         sword32 rj = r[j];
-        r[j + DILITHIUM_N / 2] = rj - t;
+        r[j + MLDSA_N / 2] = rj - t;
         r[j] = rj + t;
     }
 
@@ -6204,7 +6205,7 @@ static void mldsa_ntt_small_c(sword32* r)
     NTT(4);
     NTT(2);
 
-    for (j = 0; j < DILITHIUM_N; j += 2) {
+    for (j = 0; j < MLDSA_N; j += 2) {
         sword32 t = mldsa_mont_red((sword64)zetas[++k] * r[j + 1]);
         sword32 rj = r[j];
         r[j + 1] = rj - t;
@@ -6216,14 +6217,14 @@ static void mldsa_ntt_small_c(sword32* r)
 
     sword32 zeta640 = zetas[2];
     sword32 zeta641 = zetas[3];
-    for (j = 0; j < DILITHIUM_N / 4; j++) {
+    for (j = 0; j < MLDSA_N / 4; j++) {
         sword32 r0 = r[j +   0];
         sword32 r2 = r[j +  64];
         sword32 r4 = r[j + 128];
         sword32 r6 = r[j + 192];
 
-        t0 = mldsa_red(DILITHIUM_NTT_ZETA_1 * r4);
-        t2 = mldsa_red(DILITHIUM_NTT_ZETA_1 * r6);
+        t0 = mldsa_red(MLDSA_NTT_ZETA_1 * r4);
+        t2 = mldsa_red(MLDSA_NTT_ZETA_1 * r6);
         r4 = r0 - t0;
         r6 = r2 - t2;
         r0 += t0;
@@ -6242,7 +6243,7 @@ static void mldsa_ntt_small_c(sword32* r)
         r[j + 192] = r6;
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 64) {
+    for (j = 0; j < MLDSA_N; j += 64) {
         unsigned int i;
         sword32 zeta32  = zetas[ 4 + j / 64 + 0];
         sword32 zeta160 = zetas[ 8 + j / 32 + 0];
@@ -6274,7 +6275,7 @@ static void mldsa_ntt_small_c(sword32* r)
         }
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 16) {
+    for (j = 0; j < MLDSA_N; j += 16) {
         unsigned int i;
         sword32 zeta8   = zetas[16 + j / 16];
         sword32 zeta40  = zetas[32 + j / 8 + 0];
@@ -6307,7 +6308,7 @@ static void mldsa_ntt_small_c(sword32* r)
     }
 
     k = 128;
-    for (j = 0; j < DILITHIUM_N; j += 4) {
+    for (j = 0; j < MLDSA_N; j += 4) {
         sword32 zeta2 = zetas[64 + j / 4];
         sword32 r0 = r[j + 0];
         sword32 r2 = r[j + 1];
@@ -6340,7 +6341,7 @@ static void mldsa_ntt_small_c(sword32* r)
     sword32 t3;
     sword32 zeta640 = zetas[2];
     sword32 zeta641 = zetas[3];
-    for (j = 0; j < DILITHIUM_N / 8; j++) {
+    for (j = 0; j < MLDSA_N / 8; j++) {
         sword32 r0 = r[j +   0];
         sword32 r1 = r[j +  32];
         sword32 r2 = r[j +  64];
@@ -6350,10 +6351,10 @@ static void mldsa_ntt_small_c(sword32* r)
         sword32 r6 = r[j + 192];
         sword32 r7 = r[j + 224];
 
-        t0 = mldsa_red(DILITHIUM_NTT_ZETA_1 * r4);
-        t1 = mldsa_red(DILITHIUM_NTT_ZETA_1 * r5);
-        t2 = mldsa_red(DILITHIUM_NTT_ZETA_1 * r6);
-        t3 = mldsa_red(DILITHIUM_NTT_ZETA_1 * r7);
+        t0 = mldsa_red(MLDSA_NTT_ZETA_1 * r4);
+        t1 = mldsa_red(MLDSA_NTT_ZETA_1 * r5);
+        t2 = mldsa_red(MLDSA_NTT_ZETA_1 * r6);
+        t3 = mldsa_red(MLDSA_NTT_ZETA_1 * r7);
         r4 = r0 - t0;
         r5 = r1 - t1;
         r6 = r2 - t2;
@@ -6386,7 +6387,7 @@ static void mldsa_ntt_small_c(sword32* r)
         r[j + 224] = r7;
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 64) {
+    for (j = 0; j < MLDSA_N; j += 64) {
         unsigned int i;
         sword32 zeta32  = zetas[ 4 + j / 64 + 0];
         sword32 zeta160 = zetas[ 8 + j / 32 + 0];
@@ -6456,7 +6457,7 @@ static void mldsa_ntt_small_c(sword32* r)
     }
 
     k = 128;
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         sword32 zeta4  = zetas[32 + j / 8 + 0];
         sword32 zeta20 = zetas[64 + j / 4 + 0];
         sword32 zeta21 = zetas[64 + j / 4 + 1];
@@ -6578,7 +6579,7 @@ static void mldsa_vec_ntt_small(sword32* r, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_ntt_small(r);
-        r += DILITHIUM_N;
+        r += MLDSA_N;
     }
 }
 #endif
@@ -6596,7 +6597,7 @@ static void mldsa_vec_ntt_small_full(sword32* r, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_ntt_small_full(r);
-        r += DILITHIUM_N;
+        r += MLDSA_N;
     }
 }
 #endif
@@ -6636,7 +6637,7 @@ static void mldsa_vec_ntt_small_full(sword32* r, byte l)
  */
 #define INVNTT(len)                                                         \
 do {                                                                        \
-    for (start = 0; start < DILITHIUM_N; start += 2 * (len)) {              \
+    for (start = 0; start < MLDSA_N; start += 2 * (len)) {              \
         zeta = zetas_inv[k++];                                              \
         for (j = 0; j < (len); ++j) {                                       \
             sword32 rj = r[start + j];                                      \
@@ -6663,9 +6664,9 @@ static void mldsa_invntt_c(sword32* r)
     sword32 zeta;
 
     k = 256;
-    for (len = 1; len <= DILITHIUM_N / 2; len <<= 1) {
+    for (len = 1; len <= MLDSA_N / 2; len <<= 1) {
         unsigned int start;
-        for (start = 0; start < DILITHIUM_N; start = j + len) {
+        for (start = 0; start < MLDSA_N; start = j + len) {
             zeta = -zetas[--k];
             for (j = start; j < start + len; ++j) {
                 sword32 rj = r[j];
@@ -6679,7 +6680,7 @@ static void mldsa_invntt_c(sword32* r)
     }
 
     zeta = -zetas[0];
-    for (j = 0; j < DILITHIUM_N; ++j) {
+    for (j = 0; j < MLDSA_N; ++j) {
         r[j] = mldsa_mont_red((sword64)zeta * r[j]);
     }
 #elif defined(WOLFSSL_MLDSA_NO_LARGE_CODE)
@@ -6688,7 +6689,7 @@ static void mldsa_invntt_c(sword32* r)
     unsigned int start;
     sword32 zeta;
 
-    for (j = 0; j < DILITHIUM_N; j += 2) {
+    for (j = 0; j < MLDSA_N; j += 2) {
         sword32 rj = r[j];
         sword32 rjl = r[j + 1];
         sword32 t = rj + rjl;
@@ -6706,7 +6707,7 @@ static void mldsa_invntt_c(sword32* r)
     INVNTT(128);
 
     zeta = zetas_inv[255];
-    for (j = 0; j < DILITHIUM_N; ++j) {
+    for (j = 0; j < MLDSA_N; ++j) {
         r[j] = mldsa_mont_red((sword64)zeta * r[j]);
     }
 #elif defined(WC_32BIT_CPU)
@@ -6719,7 +6720,7 @@ static void mldsa_invntt_c(sword32* r)
     sword32 zeta641;
     sword32 zeta128;
     sword32 zeta256;
-    for (j = 0; j < DILITHIUM_N; j += 4) {
+    for (j = 0; j < MLDSA_N; j += 4) {
         sword32 zeta2 = zetas_inv[128 + j / 4];
         sword32 r0 = r[j + 0];
         sword32 r2 = r[j + 1];
@@ -6746,7 +6747,7 @@ static void mldsa_invntt_c(sword32* r)
         r[j + 3] = r6;
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 16) {
+    for (j = 0; j < MLDSA_N; j += 16) {
         unsigned int i;
         sword32 zeta40 = zetas_inv[192 + j / 8 + 0];
         sword32 zeta41 = zetas_inv[192 + j / 8 + 1];
@@ -6778,7 +6779,7 @@ static void mldsa_invntt_c(sword32* r)
         }
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 64) {
+    for (j = 0; j < MLDSA_N; j += 64) {
         unsigned int i;
         sword32 zeta160 = zetas_inv[240 + j / 32 + 0];
         sword32 zeta161 = zetas_inv[240 + j / 32 + 1];
@@ -6814,7 +6815,7 @@ static void mldsa_invntt_c(sword32* r)
     zeta641 = zetas_inv[253];
     zeta128 = zetas_inv[254];
     zeta256 = zetas_inv[255];
-    for (j = 0; j < DILITHIUM_N / 4; j++) {
+    for (j = 0; j < MLDSA_N / 4; j++) {
         sword32 r0 = r[j +   0];
         sword32 r2 = r[j +  64];
         sword32 r4 = r[j + 128];
@@ -6856,7 +6857,7 @@ static void mldsa_invntt_c(sword32* r)
     sword32 zeta641;
     sword32 zeta128;
     sword32 zeta256;
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         sword32 zeta20 = zetas_inv[128 + j / 4 + 0];
         sword32 zeta21 = zetas_inv[128 + j / 4 + 1];
         sword32 zeta4  = zetas_inv[192 + j / 8 + 0];
@@ -6918,7 +6919,7 @@ static void mldsa_invntt_c(sword32* r)
         r[j + 7] = r7;
     }
 
-    for (j = 0; j < DILITHIUM_N; j += 64) {
+    for (j = 0; j < MLDSA_N; j += 64) {
         unsigned int i;
         sword32 zeta80  = zetas_inv[224 + j / 16 + 0];
         sword32 zeta81  = zetas_inv[224 + j / 16 + 1];
@@ -6991,7 +6992,7 @@ static void mldsa_invntt_c(sword32* r)
     zeta641 = zetas_inv[253];
     zeta128 = zetas_inv[254];
     zeta256 = zetas_inv[255];
-    for (j = 0; j < DILITHIUM_N / 8; j++) {
+    for (j = 0; j < MLDSA_N / 8; j++) {
         sword32 r0 = r[j +   0];
         sword32 r1 = r[j +  32];
         sword32 r2 = r[j +  64];
@@ -7103,7 +7104,7 @@ static void mldsa_vec_invntt_full(sword32* r, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_invntt_full(r);
-        r += DILITHIUM_N;
+        r += MLDSA_N;
     }
 }
 #endif
@@ -7133,32 +7134,32 @@ static void mldsa_matrix_mul_c(sword32* r, const sword32* m,
         const sword32* vt = v;
 
 #ifdef WOLFSSL_MLDSA_SMALL
-        for (e = 0; e < DILITHIUM_N; e++) {
+        for (e = 0; e < MLDSA_N; e++) {
             r[e] = mldsa_mont_red((sword64)m[e] * vt[e]);
         }
-        m += DILITHIUM_N;
-        vt += DILITHIUM_N;
+        m += MLDSA_N;
+        vt += MLDSA_N;
         for (j = 1; j < l; j++) {
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 r[e] += mldsa_mont_red((sword64)m[e] * vt[e]);
             }
-            m += DILITHIUM_N;
-            vt += DILITHIUM_N;
+            m += MLDSA_N;
+            vt += MLDSA_N;
         }
 #elif defined(WOLFSSL_MLDSA_NO_LARGE_CODE)
         (void)j;
         if (l == 4) {
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 sword64 t = ((sword64)m[e + 0 * 256] * vt[e + 0 * 256]) +
                             ((sword64)m[e + 1 * 256] * vt[e + 1 * 256]) +
                             ((sword64)m[e + 2 * 256] * vt[e + 2 * 256]) +
                             ((sword64)m[e + 3 * 256] * vt[e + 3 * 256]);
                 r[e] = mldsa_mont_red(t);
             }
-            m += DILITHIUM_N * 4;
+            m += MLDSA_N * 4;
         }
         if (l == 5) {
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 sword64 t = ((sword64)m[e + 0 * 256] * vt[e + 0 * 256]) +
                             ((sword64)m[e + 1 * 256] * vt[e + 1 * 256]) +
                             ((sword64)m[e + 2 * 256] * vt[e + 2 * 256]) +
@@ -7166,10 +7167,10 @@ static void mldsa_matrix_mul_c(sword32* r, const sword32* m,
                             ((sword64)m[e + 4 * 256] * vt[e + 4 * 256]);
                 r[e] = mldsa_mont_red(t);
             }
-            m += DILITHIUM_N * 5;
+            m += MLDSA_N * 5;
         }
         if (l == 7) {
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 sword64 t = ((sword64)m[e + 0 * 256] * vt[e + 0 * 256]) +
                             ((sword64)m[e + 1 * 256] * vt[e + 1 * 256]) +
                             ((sword64)m[e + 2 * 256] * vt[e + 2 * 256]) +
@@ -7179,7 +7180,7 @@ static void mldsa_matrix_mul_c(sword32* r, const sword32* m,
                             ((sword64)m[e + 6 * 256] * vt[e + 6 * 256]);
                 r[e] = mldsa_mont_red(t);
             }
-            m += DILITHIUM_N * 7;
+            m += MLDSA_N * 7;
         }
 #else
         sword64 t0;
@@ -7192,7 +7193,7 @@ static void mldsa_matrix_mul_c(sword32* r, const sword32* m,
         (void)j;
 #ifndef WOLFSSL_NO_ML_DSA_44
         if (l == 4) {
-            for (e = 0; e < DILITHIUM_N; e += 4) {
+            for (e = 0; e < MLDSA_N; e += 4) {
                 t0 = ((sword64)m[e + 0 + 0 * 256] * vt[e + 0 + 0 * 256]) +
                      ((sword64)m[e + 0 + 1 * 256] * vt[e + 0 + 1 * 256]) +
                      ((sword64)m[e + 0 + 2 * 256] * vt[e + 0 + 2 * 256]) +
@@ -7214,12 +7215,12 @@ static void mldsa_matrix_mul_c(sword32* r, const sword32* m,
                 r[e + 2] = mldsa_mont_red(t2);
                 r[e + 3] = mldsa_mont_red(t3);
             }
-            m += DILITHIUM_N * 4;
+            m += MLDSA_N * 4;
         }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
         if (l == 5) {
-            for (e = 0; e < DILITHIUM_N; e += 4) {
+            for (e = 0; e < MLDSA_N; e += 4) {
                 t0 = ((sword64)m[e + 0 + 0 * 256] * vt[e + 0 + 0 * 256]) +
                      ((sword64)m[e + 0 + 1 * 256] * vt[e + 0 + 1 * 256]) +
                      ((sword64)m[e + 0 + 2 * 256] * vt[e + 0 + 2 * 256]) +
@@ -7245,12 +7246,12 @@ static void mldsa_matrix_mul_c(sword32* r, const sword32* m,
                 r[e + 2] = mldsa_mont_red(t2);
                 r[e + 3] = mldsa_mont_red(t3);
             }
-            m += DILITHIUM_N * 5;
+            m += MLDSA_N * 5;
         }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
         if (l == 7) {
-            for (e = 0; e < DILITHIUM_N; e += 2) {
+            for (e = 0; e < MLDSA_N; e += 2) {
                 t0 = ((sword64)m[e + 0 + 0 * 256] * vt[e + 0 + 0 * 256]) +
                      ((sword64)m[e + 0 + 1 * 256] * vt[e + 0 + 1 * 256]) +
                      ((sword64)m[e + 0 + 2 * 256] * vt[e + 0 + 2 * 256]) +
@@ -7268,11 +7269,11 @@ static void mldsa_matrix_mul_c(sword32* r, const sword32* m,
                 r[e + 0] = mldsa_mont_red(t0);
                 r[e + 1] = mldsa_mont_red(t1);
             }
-            m += DILITHIUM_N * 7;
+            m += MLDSA_N * 7;
         }
 #endif
 #endif
-        r += DILITHIUM_N;
+        r += MLDSA_N;
     }
 }
 
@@ -7293,22 +7294,22 @@ static void mldsa_matrix_mul(sword32* r, const sword32* m, const sword32* v,
         if (l == 4) {
             for (i = 0; i < k; i++) {
                 wc_mldsa_mul_vec_4_avx2(r, m, v);
-                m += l * DILITHIUM_N;
-                r += DILITHIUM_N;
+                m += l * MLDSA_N;
+                r += MLDSA_N;
             }
         }
         else if (l == 5) {
             for (i = 0; i < k; i++) {
                 wc_mldsa_mul_vec_5_avx2(r, m, v);
-                m += l * DILITHIUM_N;
-                r += DILITHIUM_N;
+                m += l * MLDSA_N;
+                r += MLDSA_N;
             }
         }
         else {
             for (i = 0; i < k; i++) {
                 wc_mldsa_mul_vec_7_avx2(r, m, v);
-                m += l * DILITHIUM_N;
-                r += DILITHIUM_N;
+                m += l * MLDSA_N;
+                r += MLDSA_N;
             }
         }
         RESTORE_VECTOR_REGISTERS();
@@ -7334,11 +7335,11 @@ static void mldsa_mul_c(sword32* r, sword32* a, sword32* b)
 {
     unsigned int e;
 #ifdef WOLFSSL_MLDSA_SMALL
-    for (e = 0; e < DILITHIUM_N; e++) {
+    for (e = 0; e < MLDSA_N; e++) {
         r[e] = mldsa_mont_red((sword64)a[e] * b[e]);
     }
 #elif defined(WOLFSSL_MLDSA_NO_LARGE_CODE)
-    for (e = 0; e < DILITHIUM_N; e += 8) {
+    for (e = 0; e < MLDSA_N; e += 8) {
         r[e+0] = mldsa_mont_red((sword64)a[e+0] * b[e+0]);
         r[e+1] = mldsa_mont_red((sword64)a[e+1] * b[e+1]);
         r[e+2] = mldsa_mont_red((sword64)a[e+2] * b[e+2]);
@@ -7349,7 +7350,7 @@ static void mldsa_mul_c(sword32* r, sword32* a, sword32* b)
         r[e+7] = mldsa_mont_red((sword64)a[e+7] * b[e+7]);
     }
 #else
-    for (e = 0; e < DILITHIUM_N; e += 16) {
+    for (e = 0; e < MLDSA_N; e += 16) {
         r[e+ 0] = mldsa_mont_red((sword64)a[e+ 0] * b[e+ 0]);
         r[e+ 1] = mldsa_mont_red((sword64)a[e+ 1] * b[e+ 1]);
         r[e+ 2] = mldsa_mont_red((sword64)a[e+ 2] * b[e+ 2]);
@@ -7409,8 +7410,8 @@ static void mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         for (i = 0; i < l; i++) {
             wc_mldsa_mul_avx2(r, a, b);
-            r += DILITHIUM_N;
-            b += DILITHIUM_N;
+            r += MLDSA_N;
+            b += MLDSA_N;
         }
         RESTORE_VECTOR_REGISTERS();
     }
@@ -7419,8 +7420,8 @@ static void mldsa_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
     {
         for (i = 0; i < l; i++) {
             mldsa_mul_c(r, a, b);
-            r += DILITHIUM_N;
-            b += DILITHIUM_N;
+            r += MLDSA_N;
+            b += MLDSA_N;
         }
     }
 }
@@ -7441,11 +7442,11 @@ static void mldsa_poly_red_c(sword32* a)
 {
     unsigned int j;
 #ifdef WOLFSSL_MLDSA_SMALL
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         a[j] = mldsa_red(a[j]);
     }
 #else
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         a[j+0] = mldsa_red(a[j+0]);
         a[j+1] = mldsa_red(a[j+1]);
         a[j+2] = mldsa_red(a[j+2]);
@@ -7494,7 +7495,7 @@ static void mldsa_vec_red(sword32* a, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_poly_red(a);
-        a += DILITHIUM_N;
+        a += MLDSA_N;
     }
 }
 #endif
@@ -7513,11 +7514,11 @@ static void mldsa_sub_c(sword32* r, const sword32* a)
 {
     unsigned int j;
 #ifdef WOLFSSL_MLDSA_SMALL
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         r[j] -= a[j];
     }
 #else
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         r[j+0] -= a[j+0];
         r[j+1] -= a[j+1];
         r[j+2] -= a[j+2];
@@ -7564,8 +7565,8 @@ static void mldsa_vec_sub(sword32* r, const sword32* a, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_sub(r, a);
-        r += DILITHIUM_N;
-        a += DILITHIUM_N;
+        r += MLDSA_N;
+        a += MLDSA_N;
     }
 }
 #endif
@@ -7581,11 +7582,11 @@ static void mldsa_add_c(sword32* r, const sword32* a)
 {
     unsigned int j;
 #ifdef WOLFSSL_MLDSA_SMALL
-    for (j = 0; j < DILITHIUM_N; j++) {
+    for (j = 0; j < MLDSA_N; j++) {
         r[j] += a[j];
     }
 #else
-    for (j = 0; j < DILITHIUM_N; j += 8) {
+    for (j = 0; j < MLDSA_N; j += 8) {
         r[j+0] += a[j+0];
         r[j+1] += a[j+1];
         r[j+2] += a[j+2];
@@ -7633,8 +7634,8 @@ static void mldsa_vec_add(sword32* r, const sword32* a, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_add(r, a);
-        r += DILITHIUM_N;
-        a += DILITHIUM_N;
+        r += MLDSA_N;
+        a += MLDSA_N;
     }
 }
 #endif
@@ -7642,8 +7643,8 @@ static void mldsa_vec_add(sword32* r, const sword32* a, byte l)
 /* If v is negative, evaluate to Q. Otherwise evaluate to 0. Constant-time.
  * (word32)v >> 31 is 1 when v's sign bit is set. 0U - 1 = all-ones,
  * 0U - 0 = 0. & Q yields Q or 0. */
-#define DILITHIUM_POS_OFFSET(v) \
-    ((sword32)((0U - (((word32)(v)) >> 31)) & DILITHIUM_Q))
+#define MLDSA_POS_OFFSET(v) \
+    ((sword32)((0U - (((word32)(v)) >> 31)) & MLDSA_Q))
 
 /* Make values in polynomial be in positive range.
  *
@@ -7653,19 +7654,19 @@ static void mldsa_make_pos_c(sword32* a)
 {
     unsigned int j;
 #ifdef WOLFSSL_MLDSA_SMALL
-    for (j = 0; j < DILITHIUM_N; j++) {
-        a[j] += DILITHIUM_POS_OFFSET(a[j]);
+    for (j = 0; j < MLDSA_N; j++) {
+        a[j] += MLDSA_POS_OFFSET(a[j]);
     }
 #else
-    for (j = 0; j < DILITHIUM_N; j += 8) {
-        a[j+0] += DILITHIUM_POS_OFFSET(a[j+0]);
-        a[j+1] += DILITHIUM_POS_OFFSET(a[j+1]);
-        a[j+2] += DILITHIUM_POS_OFFSET(a[j+2]);
-        a[j+3] += DILITHIUM_POS_OFFSET(a[j+3]);
-        a[j+4] += DILITHIUM_POS_OFFSET(a[j+4]);
-        a[j+5] += DILITHIUM_POS_OFFSET(a[j+5]);
-        a[j+6] += DILITHIUM_POS_OFFSET(a[j+6]);
-        a[j+7] += DILITHIUM_POS_OFFSET(a[j+7]);
+    for (j = 0; j < MLDSA_N; j += 8) {
+        a[j+0] += MLDSA_POS_OFFSET(a[j+0]);
+        a[j+1] += MLDSA_POS_OFFSET(a[j+1]);
+        a[j+2] += MLDSA_POS_OFFSET(a[j+2]);
+        a[j+3] += MLDSA_POS_OFFSET(a[j+3]);
+        a[j+4] += MLDSA_POS_OFFSET(a[j+4]);
+        a[j+5] += MLDSA_POS_OFFSET(a[j+5]);
+        a[j+6] += MLDSA_POS_OFFSET(a[j+6]);
+        a[j+7] += MLDSA_POS_OFFSET(a[j+7]);
     }
 #endif
 }
@@ -7703,7 +7704,7 @@ static void mldsa_vec_make_pos(sword32* a, byte l)
 
     for (i = 0; i < l; i++) {
         mldsa_make_pos(a);
-        a += DILITHIUM_N;
+        a += MLDSA_N;
     }
 }
 #endif
@@ -7717,7 +7718,7 @@ static void mldsa_vec_make_pos(sword32* a, byte l)
 /* Make a key from a random seed.
  *
  * xi is seed passed in.
- * FIPS 204. 6.1: Algorithm 6 ML-DSA.KeyGen_internal(xi)
+ * FIPS 204 Section 6.1, Algorithm 6 ML-DSA.KeyGen_internal(xi)
  *   1: (rho, rho', K) E B32 x B64 x B32 <- H(xi||k||l, 1024)
  *   2:
  *   3: A_circum <- ExpandA(rho)
@@ -7729,14 +7730,14 @@ static void mldsa_vec_make_pos(sword32* a, byte l)
  *   9: sk <- skEncode(rho, K, tr, s1, s2, t0)
  *  10: return (pk, sk)
  *
- * FIPS 204. 7.2: Algorithm 22 pkEncode(rho, t1)
+ * FIPS 204 Section 7.2, Algorithm 22 pkEncode(rho, t1)
  *   1: pk <- rho
  *   2: for i from 0 to k - 1 do
  *   3:     pk <- pk || SimpleBitPack(t1[i], 2^(bitlen(q-1)-d) - 1)
  *   4: end for
  *   5: return pk
  *
- * FIPS 204. 7.2: Algorithm 24 skEncode(rho, K, tr, s, s2, t0)
+ * FIPS 204 Section 7.2, Algorithm 24 skEncode(rho, K, tr, s1, s2, t0)
  *   1: sk <- rho || K || tr
  *   2: for i from 0 to l - 1 do
  *   3:     sk <- sk || BitPack(s1[i], eta, eta)
@@ -7844,8 +7845,8 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             /* Step 2: Create public seed, private seed and K from seed.
              * Step 9; Alg 18, Step 1: Public seed is placed into private key.
              */
-            ret = mldsa_shake256(&key->shake, seed, DILITHIUM_SEED_SZ,
-                pub_seed, DILITHIUM_SEEDS_SZ);
+            ret = mldsa_shake256(&key->shake, seed, MLDSA_SEED_SZ,
+                pub_seed, MLDSA_SEEDS_SZ);
         }
         else
 #endif
@@ -7855,35 +7856,35 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             /* Step 1: Create public seed, private seed and K from seed.
              * Step 9; Alg 24, Step 1: Public seed is placed into private key.
              */
-            ret = mldsa_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
-                pub_seed, DILITHIUM_SEEDS_SZ);
+            ret = mldsa_hash256(&key->shake, seed, MLDSA_SEED_SZ, kl, 2,
+                pub_seed, MLDSA_SEEDS_SZ);
         }
     }
     if (ret == 0) {
         /* Step 7; Alg 22 Step 1: Copy public seed into public key. */
-        XMEMCPY(key->p, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        XMEMCPY(key->p, pub_seed, MLDSA_PUB_SEED_SZ);
 
         /* Step 3: Expand public seed into a matrix of polynomials. */
         ret = mldsa_expand_a(&key->shake, pub_seed, params->k, params->l,
             a, key->heap);
     }
     if (ret == 0) {
-        byte* priv_seed = key->k + DILITHIUM_PUB_SEED_SZ;
+        byte* priv_seed = key->k + MLDSA_PUB_SEED_SZ;
 
         /* Step 4: Expand private seed into to vectors of polynomials. */
         ret = mldsa_expand_s(&key->shake, priv_seed, params->eta, s1,
             params->l, s2, params->k);
     }
     if (ret == 0) {
-        byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-        byte* tr = k + DILITHIUM_K_SZ;
-        byte* s1p = tr + DILITHIUM_TR_SZ;
+        byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+        byte* tr = k + MLDSA_K_SZ;
+        byte* s1p = tr + MLDSA_TR_SZ;
         byte* s2p = s1p + params->s1EncSz;
         byte* t0 = s2p + params->s2EncSz;
-        byte* t1 = key->p + DILITHIUM_PUB_SEED_SZ;
+        byte* t1 = key->p + MLDSA_PUB_SEED_SZ;
 
         /* Step 9: Move k down to after public seed. */
-        XMEMCPY(k, k + DILITHIUM_PRIV_SEED_SZ, DILITHIUM_K_SZ);
+        XMEMCPY(k, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
         /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
         mldsa_vec_encode_eta_bits(s1, params->l, params->eta, s1p);
         /* Step 9. Alg 24 Steps 5-7: Encode s2 into private key. */
@@ -7906,7 +7907,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         mldsa_vec_encode_t0_t1(t, params->k, t0, t1);
         /* Step 8. Alg 24, Step 1: Hash public key into private key. */
         ret = mldsa_shake256(&key->shake, key->p, params->pkSz, tr,
-            DILITHIUM_TR_SZ);
+            MLDSA_TR_SZ);
     }
     if (ret == 0) {
         /* Public key and private key are available. */
@@ -7963,11 +7964,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
         /* s1-l, s2-k, t-k, a-1 */
         allocSz  = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
-                   (unsigned int)DILITHIUM_REJ_NTT_POLY_H_SIZE +
-                   (unsigned int)DILITHIUM_POLY_SIZE;
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
+                   (unsigned int)MLDSA_POLY_SIZE;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         /* t64 */
-        allocSz += (unsigned int)DILITHIUM_POLY_SIZE * 2U;
+        allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
         s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (s1 == NULL) {
@@ -7977,9 +7978,9 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             s2 = s1 + params->s1Sz / sizeof(*s1);
             t  = s2 + params->s2Sz / sizeof(*s2);
             h  = (byte*)(t  + params->s2Sz / sizeof(*t));
-            a  = (sword32*)(h + DILITHIUM_REJ_NTT_POLY_H_SIZE);
+            a  = (sword32*)(h + MLDSA_REJ_NTT_POLY_H_SIZE);
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            t64 = (sword64*)(a + DILITHIUM_N);
+            t64 = (sword64*)(a + MLDSA_N);
         #endif
         }
     }
@@ -7990,8 +7991,8 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             /* Step 2: Create public seed, private seed and K from seed.
              * Step 9; Alg 18, Step 1: Public seed is placed into private key.
              */
-            ret = mldsa_shake256(&key->shake, seed, DILITHIUM_SEED_SZ,
-                pub_seed, DILITHIUM_SEEDS_SZ);
+            ret = mldsa_shake256(&key->shake, seed, MLDSA_SEED_SZ,
+                pub_seed, MLDSA_SEEDS_SZ);
         }
         else
 #endif
@@ -8001,33 +8002,33 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             /* Step 1: Create public seed, private seed and K from seed.
              * Step 9; Alg 24, Step 1: Public seed is placed into private key.
              */
-            ret = mldsa_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
-                pub_seed, DILITHIUM_SEEDS_SZ);
+            ret = mldsa_hash256(&key->shake, seed, MLDSA_SEED_SZ, kl, 2,
+                pub_seed, MLDSA_SEEDS_SZ);
         }
     }
     if (ret == 0) {
-        byte* priv_seed = key->k + DILITHIUM_PUB_SEED_SZ;
+        byte* priv_seed = key->k + MLDSA_PUB_SEED_SZ;
 
         /* Step 7; Alg 22 Step 1: Copy public seed into public key. */
-        XMEMCPY(key->p, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        XMEMCPY(key->p, pub_seed, MLDSA_PUB_SEED_SZ);
 
         /* Step 4: Expand private seed into to vectors of polynomials. */
         ret = mldsa_expand_s(&key->shake, priv_seed, params->eta, s1,
             params->l, s2, params->k);
     }
     if (ret == 0) {
-        byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-        byte* tr = k + DILITHIUM_K_SZ;
-        byte* s1p = tr + DILITHIUM_TR_SZ;
+        byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+        byte* tr = k + MLDSA_K_SZ;
+        byte* s1p = tr + MLDSA_TR_SZ;
         byte* s2p = s1p + params->s1EncSz;
         byte* t0 = s2p + params->s2EncSz;
-        byte* t1 = key->p + DILITHIUM_PUB_SEED_SZ;
-        byte aseed[DILITHIUM_GEN_A_SEED_SZ];
+        byte* t1 = key->p + MLDSA_PUB_SEED_SZ;
+        byte aseed[MLDSA_GEN_A_SEED_SZ];
         sword32* s2t = s2;
         sword32* tt = t;
 
         /* Step 9: Move k down to after public seed. */
-        XMEMCPY(k, k + DILITHIUM_PRIV_SEED_SZ, DILITHIUM_K_SZ);
+        XMEMCPY(k, k + MLDSA_PRIV_SEED_SZ, MLDSA_K_SZ);
         /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
         mldsa_vec_encode_eta_bits(s1, params->l, params->eta, s1p);
         /* Step 9. Alg 24 Steps 5-7: Encode s2 into private key. */
@@ -8036,16 +8037,16 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         /* Step 5: NTT(s1) */
         mldsa_vec_ntt_small_full(s1, params->l);
         /* Step 5: t <- NTT-1(A_circum o NTT(s1)) + s2 */
-        XMEMCPY(aseed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        XMEMCPY(aseed, pub_seed, MLDSA_PUB_SEED_SZ);
         for (r = 0; (ret == 0) && (r < params->k); r++) {
             sword32* s1t = s1;
             unsigned int e;
 
             /* Put r/i into buffer to be hashed. */
-            aseed[DILITHIUM_PUB_SEED_SZ + 1] = (byte)r;
+            aseed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
             for (s = 0; (ret == 0) && (s < params->l); s++) {
                 /* Put s into buffer to be hashed. */
-                aseed[DILITHIUM_PUB_SEED_SZ + 0] = (byte)s;
+                aseed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
                 /* Step 3: Expand public seed into a matrix of polynomials. */
                 ret = mldsa_rej_ntt_poly_ex(&key->shake, aseed, a, h);
                 if (ret != 0) {
@@ -8055,11 +8056,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
                 if (s == 0) {
                 #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < DILITHIUM_N; e++) {
+                    for (e = 0; e < MLDSA_N; e++) {
                         tt[e] = mldsa_mont_red((sword64)a[e] * s1t[e]);
                     }
                 #else
-                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                    for (e = 0; e < MLDSA_N; e += 8) {
                         tt[e+0] = mldsa_mont_red((sword64)a[e+0]*s1t[e+0]);
                         tt[e+1] = mldsa_mont_red((sword64)a[e+1]*s1t[e+1]);
                         tt[e+2] = mldsa_mont_red((sword64)a[e+2]*s1t[e+2]);
@@ -8073,11 +8074,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
                 }
                 else {
                 #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < DILITHIUM_N; e++) {
+                    for (e = 0; e < MLDSA_N; e++) {
                         tt[e] += mldsa_mont_red((sword64)a[e] * s1t[e]);
                     }
                 #else
-                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                    for (e = 0; e < MLDSA_N; e += 8) {
                         tt[e+0] += mldsa_mont_red((sword64)a[e+0]*s1t[e+0]);
                         tt[e+1] += mldsa_mont_red((sword64)a[e+1]*s1t[e+1]);
                         tt[e+2] += mldsa_mont_red((sword64)a[e+2]*s1t[e+2]);
@@ -8092,11 +8093,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             #else
                 if (s == 0) {
                 #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < DILITHIUM_N; e++) {
+                    for (e = 0; e < MLDSA_N; e++) {
                         t64[e] = (sword64)a[e] * s1t[e];
                     }
                 #else
-                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                    for (e = 0; e < MLDSA_N; e += 8) {
                         t64[e+0] = (sword64)a[e+0] * s1t[e+0];
                         t64[e+1] = (sword64)a[e+1] * s1t[e+1];
                         t64[e+2] = (sword64)a[e+2] * s1t[e+2];
@@ -8110,11 +8111,11 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
                 }
                 else {
                 #ifdef WOLFSSL_MLDSA_SMALL
-                    for (e = 0; e < DILITHIUM_N; e++) {
+                    for (e = 0; e < MLDSA_N; e++) {
                         t64[e] += (sword64)a[e] * s1t[e];
                     }
                 #else
-                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                    for (e = 0; e < MLDSA_N; e += 8) {
                         t64[e+0] += (sword64)a[e+0] * s1t[e+0];
                         t64[e+1] += (sword64)a[e+1] * s1t[e+1];
                         t64[e+2] += (sword64)a[e+2] * s1t[e+2];
@@ -8128,10 +8129,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
                 }
             #endif
                 /* Next polynomial. */
-                s1t += DILITHIUM_N;
+                s1t += MLDSA_N;
             }
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 tt[e] = mldsa_mont_red(t64[e]);
             }
         #endif
@@ -8140,8 +8141,8 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
             /* Make positive for decomposing. */
             mldsa_make_pos(tt);
 
-            tt += DILITHIUM_N;
-            s2t += DILITHIUM_N;
+            tt += MLDSA_N;
+            s2t += MLDSA_N;
         }
 
         /* Step 6, Step 7, Step 9. Alg 22 Steps 2-4, Alg 24 Steps 8-10.
@@ -8150,7 +8151,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         mldsa_vec_encode_t0_t1(t, params->k, t0, t1);
         /* Step 8. Alg 24, Step 1: Hash public key into private key. */
         ret = mldsa_shake256(&key->shake, key->p, params->pkSz, tr,
-            DILITHIUM_TR_SZ);
+            MLDSA_TR_SZ);
     }
     if (ret == 0) {
         /* Public key and private key are available. */
@@ -8165,7 +8166,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
 /* Make a key from a random seed.
  *
- * FIPS 204. 5.1: Algorithm 1 ML-DSA.KeyGen()
+ * FIPS 204 Section 5.1, Algorithm 1 ML-DSA.KeyGen()
  *   1: xi <- B32  [Choose random seed]
  *   2: if xi = NULL then
  *   3:   return falsam
@@ -8181,10 +8182,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
 {
     int ret;
-    byte seed[DILITHIUM_SEED_SZ];
+    byte seed[MLDSA_SEED_SZ];
 
     /* Step 1: Generate a 32 byte random seed. */
-    ret = wc_RNG_GenerateBlock(rng, seed, DILITHIUM_SEED_SZ);
+    ret = wc_RNG_GenerateBlock(rng, seed, MLDSA_SEED_SZ);
     /* Step 2: Check for error. */
     if (ret == 0) {
         /* Step 5: Make key with random seed. */
@@ -8203,7 +8204,7 @@ static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
     defined(WC_MLDSA_CACHE_PRIV_VECTORS)
 /* Decode, from private key, and NTT private key vectors s1, s2, and t0.
  *
- * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   1: (rho, K, tr, s1, s2, t0) <- skDecode(sk)
  *   2: s1_circum <- NTT(s1)
  *   3: s2_circum <- NTT(s2)
@@ -8219,9 +8220,9 @@ static void mldsa_make_priv_vecs(wc_MlDsaKey* key, sword32* s1,
 {
     const wc_MlDsaParams* params = key->params;
     const byte* pubSeed = key->k;
-    const byte* k = pubSeed + DILITHIUM_PUB_SEED_SZ;
-    const byte* tr = k + DILITHIUM_K_SZ;
-    const byte* s1p = tr + DILITHIUM_TR_SZ;
+    const byte* k = pubSeed + MLDSA_PUB_SEED_SZ;
+    const byte* tr = k + MLDSA_K_SZ;
+    const byte* s1p = tr + MLDSA_TR_SZ;
     const byte* s2p = s1p + params->s1EncSz;
     const byte* t0p = s2p + params->s2EncSz;
 
@@ -8246,13 +8247,13 @@ static void mldsa_make_priv_vecs(wc_MlDsaKey* key, sword32* s1,
 
 /* Sign a message with the key and a seed.
  *
- * FIPS 204. 5.2: Algorithm 2 ML-DSA.sign(sk, M, ctx)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *  10: M' <- ByyesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
  *                        ctx) || M
  *   ...
  *
- * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   1: (rho, K, tr, s1, s2, t0) <- skDecode(sk)
  *   2: s1_circum <- NTT(s1)
  *   3: s2_circum <- NTT(s2)
@@ -8308,8 +8309,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     int ret = 0;
     const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->k;
-    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    const byte* mu = seedMu + DILITHIUM_RND_SZ;
+    const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+    const byte* mu = seedMu + MLDSA_RND_SZ;
     sword32* a = NULL;
     sword32* s1 = NULL;
     sword32* s2 = NULL;
@@ -8320,7 +8321,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     sword32* c = NULL;
     sword32* z = NULL;
     sword32* ct0 = NULL;
-    byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
+    byte priv_rand_seed[MLDSA_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
     unsigned int allocSz = 0;
 #ifdef WC_MLDSA_FAULT_HARDEN
@@ -8378,7 +8379,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     if (ret == 0) {
         /* y-l, w0-k, w1-k, c-1, z-l, ct0-k */
         allocSz = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
-            (unsigned int)DILITHIUM_POLY_SIZE + params->s1Sz + params->s2Sz;
+            (unsigned int)MLDSA_POLY_SIZE + params->s1Sz + params->s2Sz;
 #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
         /* s1-l, s2-k, t0-k */
         allocSz += (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
@@ -8398,7 +8399,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             w0  = y   + params->s1Sz / sizeof(*y);
             w1  = w0  + params->s2Sz / sizeof(*w0);
             c   = w1  + params->s2Sz / sizeof(*w1);
-            z   = c   + DILITHIUM_N;
+            z   = c   + MLDSA_N;
             ct0 = z   + params->s1Sz / sizeof(*z);
 #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
             s1  = ct0 + params->s2Sz / sizeof(*ct0);
@@ -8436,9 +8437,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     }
     if (ret == 0) {
         /* Step 9: Compute private random using hash. */
-        ret = mldsa_hash256(&key->shake, k, DILITHIUM_K_SZ, seedMu,
-            DILITHIUM_RND_SZ + DILITHIUM_MU_SZ, priv_rand_seed,
-            DILITHIUM_PRIV_RAND_SEED_SZ);
+        ret = mldsa_hash256(&key->shake, k, MLDSA_K_SZ, seedMu,
+            MLDSA_RND_SZ + MLDSA_MU_SZ, priv_rand_seed,
+            MLDSA_PRIV_RAND_SEED_SZ);
     }
     if (ret == 0) {
         word16 kappa = 0;
@@ -8446,7 +8447,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
         /* Step 11: Start rejection sampling loop */
         do {
-            WC_DECLARE_VAR(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, 0);
+            WC_DECLARE_VAR(w1e, byte, MLDSA_MAX_W1_ENC_SZ, 0);
             sword32* w = w1;
             sword32* y_ntt = z;
             sword32* cs2 = ct0;
@@ -8487,14 +8488,14 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             if (valid) {
         #endif
                 /* Step 15: Encode w1. */
-                WC_ALLOC_VAR_EX(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, key->heap,
+                WC_ALLOC_VAR_EX(w1e, byte, MLDSA_MAX_W1_ENC_SZ, key->heap,
                     DYNAMIC_TYPE_DILITHIUM, ret=MEMORY_E);
                 if (WC_VAR_OK(w1e))
                 {
                     mldsa_vec_encode_w1(w1, params->k, params->gamma2, w1e);
                     /* Step 15: Hash mu and encoded w1.
                      * Step 32: Hash is stored in signature. */
-                    ret = mldsa_hash256(&key->shake, mu, DILITHIUM_MU_SZ,
+                    ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ,
                         w1e, params->w1EncSz, commit, params->lambda / 4);
                 }
                 if (ret == 0) {
@@ -8512,37 +8513,37 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     hi = params->gamma2 - params->beta;
                     for (i = 0; valid && i < params->k; i++) {
                         /* Step 20: cs2 = NTT-1(c o s2) */
-                        mldsa_mul(cs2 + i * DILITHIUM_N, c,
-                            s2 + i * DILITHIUM_N);
-                        mldsa_invntt(cs2 + i * DILITHIUM_N);
+                        mldsa_mul(cs2 + i * MLDSA_N, c,
+                            s2 + i * MLDSA_N);
+                        mldsa_invntt(cs2 + i * MLDSA_N);
                         /* Step 22: w0 - cs2 */
-                        mldsa_sub(w0 + i * DILITHIUM_N,
-                            cs2 + i * DILITHIUM_N);
+                        mldsa_sub(w0 + i * MLDSA_N,
+                            cs2 + i * MLDSA_N);
                         /* Step 23: Check w0 - cs2 has low enough values. */
-                        valid = mldsa_vec_check_low(w0 + i * DILITHIUM_N, 1,
+                        valid = mldsa_vec_check_low(w0 + i * MLDSA_N, 1,
                             hi);
                     }
                     hi = ((sword32)1 << params->gamma1_bits) - params->beta;
                     for (i = 0; valid && i < params->l; i++) {
                         /* Step 19: cs1 = NTT-1(c o s1) */
-                        mldsa_mul(z + i * DILITHIUM_N, c,
-                            s1 + i * DILITHIUM_N);
-                        mldsa_invntt(z + i * DILITHIUM_N);
+                        mldsa_mul(z + i * MLDSA_N, c,
+                            s1 + i * MLDSA_N);
+                        mldsa_invntt(z + i * MLDSA_N);
                         /* Step 21: z = y + cs1 */
-                        mldsa_add(z + i * DILITHIUM_N, y + i * DILITHIUM_N);
-                        mldsa_poly_red(z + i * DILITHIUM_N);
+                        mldsa_add(z + i * MLDSA_N, y + i * MLDSA_N);
+                        mldsa_poly_red(z + i * MLDSA_N);
                         /* Step 23: Check z has low enough values. */
-                        valid = mldsa_vec_check_low(z + i * DILITHIUM_N, 1,
+                        valid = mldsa_vec_check_low(z + i * MLDSA_N, 1,
                             hi);
                     }
                     for (i = 0; valid && i < params->k; i++) {
                         /* Step 25: ct0 = NTT-1(c o t0) */
-                        mldsa_mul(ct0 + i * DILITHIUM_N, c,
-                            t0 + i * DILITHIUM_N);
-                        mldsa_invntt(ct0 + i * DILITHIUM_N);
+                        mldsa_mul(ct0 + i * MLDSA_N, c,
+                            t0 + i * MLDSA_N);
+                        mldsa_invntt(ct0 + i * MLDSA_N);
                         /* Step 27: Check ct0 has low enough values. */
                         hi = params->gamma2;
-                        valid = mldsa_vec_check_low(ct0 + i * DILITHIUM_N,
+                        valid = mldsa_vec_check_low(ct0 + i * MLDSA_N,
                             1, hi);
                     }
                     if (valid) {
@@ -8592,12 +8593,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     int ret = 0;
     const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->k;
-    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    const byte* tr = k + DILITHIUM_K_SZ;
-    const byte* s1p = tr + DILITHIUM_TR_SZ;
+    const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+    const byte* tr = k + MLDSA_K_SZ;
+    const byte* s1p = tr + MLDSA_TR_SZ;
     const byte* s2p = s1p + params->s1EncSz;
     const byte* t0p = s2p + params->s2EncSz;
-    const byte* mu = seedMu + DILITHIUM_RND_SZ;
+    const byte* mu = seedMu + MLDSA_RND_SZ;
     sword32* a = NULL;
     sword32* s1 = NULL;
     sword32* s2 = NULL;
@@ -8613,7 +8614,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     sword64* t64 = NULL;
 #endif
     byte* blocks = NULL;
-    byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
+    byte priv_rand_seed[MLDSA_Y_SEED_SZ];
     byte* h = sig + params->lambda / 4 + params->zEncSz;
     unsigned int allocSz = 0;
 #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A
@@ -8637,18 +8638,18 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     if (ret == 0) {
         /* y-l, w0-k, w1-k, blocks, c-1, z-1, A-1 */
         allocSz  = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
-                   (unsigned int)DILITHIUM_REJ_NTT_POLY_H_SIZE +
-                   (unsigned int)DILITHIUM_POLY_SIZE +
-                   (unsigned int)DILITHIUM_POLY_SIZE +
-                   (unsigned int)DILITHIUM_POLY_SIZE;
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
+                   (unsigned int)MLDSA_POLY_SIZE +
+                   (unsigned int)MLDSA_POLY_SIZE +
+                   (unsigned int)MLDSA_POLY_SIZE;
     #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
         allocSz += (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz;
     #elif defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
         allocSz += (unsigned int)maxK * params->l *
-                   (unsigned int)DILITHIUM_POLY_SIZE;
+                   (unsigned int)MLDSA_POLY_SIZE;
     #endif
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-        allocSz += (unsigned int)DILITHIUM_POLY_SIZE * 2U;
+        allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
         y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (y == NULL) {
@@ -8661,9 +8662,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             w0     = y  + params->s1Sz / sizeof(*y_ntt);
             w1     = w0 + params->s2Sz / sizeof(*w0);
             blocks = (byte*)(w1 + params->s2Sz / sizeof(*w1));
-            c      = (sword32*)(blocks + DILITHIUM_REJ_NTT_POLY_H_SIZE);
-            z      = c  + DILITHIUM_N;
-            a      = z  + DILITHIUM_N;
+            c      = (sword32*)(blocks + MLDSA_REJ_NTT_POLY_H_SIZE);
+            z      = c  + MLDSA_N;
+            a      = z  + MLDSA_N;
             ct0    = z;
     #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)
             y_ntt  = w0;
@@ -8671,11 +8672,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             s2     = z;
             t0     = z;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            t64    = (sword64*)(a + (1 + maxK * params->l) * DILITHIUM_N);
+            t64    = (sword64*)(a + (1 + maxK * params->l) * MLDSA_N);
         #endif
     #elif defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC)
             y_ntt  = z;
-            s1     = a  + DILITHIUM_N;
+            s1     = a  + MLDSA_N;
             s2     = s1 + params->s1Sz / sizeof(*s1);
             t0     = s2 + params->s2Sz / sizeof(*s2);
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
@@ -8687,7 +8688,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             s2     = z;
             t0     = z;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            t64    = (sword64*)(a + DILITHIUM_N);
+            t64    = (sword64*)(a + MLDSA_N);
         #endif
     #endif
         }
@@ -8695,9 +8696,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
     if (ret == 0) {
         /* Step 9: Compute private random using hash. */
-        ret = mldsa_hash256(&key->shake, k, DILITHIUM_K_SZ, seedMu,
-            DILITHIUM_RND_SZ + DILITHIUM_MU_SZ, priv_rand_seed,
-            DILITHIUM_PRIV_RAND_SEED_SZ);
+        ret = mldsa_hash256(&key->shake, k, MLDSA_K_SZ, seedMu,
+            MLDSA_RND_SZ + MLDSA_MU_SZ, priv_rand_seed,
+            MLDSA_PRIV_RAND_SEED_SZ);
     }
 #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
     if (ret == 0) {
@@ -8717,8 +8718,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
         /* Step 11: Start rejection sampling loop */
         do {
-            byte aseed[DILITHIUM_GEN_A_SEED_SZ];
-            WC_DECLARE_VAR(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, 0);
+            byte aseed[MLDSA_GEN_A_SEED_SZ];
+            WC_DECLARE_VAR(w1e, byte, MLDSA_MAX_W1_ENC_SZ, 0);
             sword32* w = w1;
             byte* commit = sig;
             byte r;
@@ -8730,11 +8731,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             sword32* at = a;
 
         #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A
-            w0t += WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
-            w1t += WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
-            wt += WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
+            w0t += WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A * MLDSA_N;
+            w1t += WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A * MLDSA_N;
+            wt += WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A * MLDSA_N;
             at += WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A * params->l *
-                DILITHIUM_N;
+                MLDSA_N;
         #endif
 
             valid = 1;
@@ -8761,7 +8762,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         #endif
             /* Step 5: Create the matrix A from the public seed. */
             /* Copy the seed into a buffer that has space for s and r. */
-            XMEMCPY(aseed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+            XMEMCPY(aseed, pub_seed, MLDSA_PUB_SEED_SZ);
         #ifdef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A
             r = WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A;
         #else
@@ -8788,20 +8789,20 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             #endif
 
                 /* Put r/i into buffer to be hashed. */
-                aseed[DILITHIUM_PUB_SEED_SZ + 1] = r;
+                aseed[MLDSA_PUB_SEED_SZ + 1] = r;
                 /* Alg 26. Step 2: Loop over second dimension of matrix. */
                 for (s = 0; (ret == 0) && (s < params->l); s++) {
                     /* Put s into buffer to be hashed. */
-                    aseed[DILITHIUM_PUB_SEED_SZ + 0] = s;
+                    aseed[MLDSA_PUB_SEED_SZ + 0] = s;
                     /* Alg 26. Step 3: Create polynomial from hashing seed. */
                     ret = mldsa_rej_ntt_poly_ex(&key->shake, aseed, at,
                         blocks);
                     if (ret != 0) {
                         break;
                     }
-                    XMEMCPY(y_ntt_t, yt, DILITHIUM_POLY_SIZE);
+                    XMEMCPY(y_ntt_t, yt, MLDSA_POLY_SIZE);
                 #ifdef WC_MLDSA_FAULT_HARDEN
-                    if (yt_check + s * DILITHIUM_N != yt) {
+                    if (yt_check + s * MLDSA_N != yt) {
                         ret = BAD_COND_E;
                         break;
                     }
@@ -8811,12 +8812,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
                     if (s == 0) {
                     #ifdef WOLFSSL_MLDSA_SMALL
-                        for (e = 0; e < DILITHIUM_N; e++) {
+                        for (e = 0; e < MLDSA_N; e++) {
                             wt[e] = mldsa_mont_red((sword64)at[e] *
                                 y_ntt_t[e]);
                         }
                     #else
-                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                        for (e = 0; e < MLDSA_N; e += 8) {
                             wt[e + 0] = mldsa_mont_red((sword64)at[e + 0] *
                                 y_ntt_t[e + 0]);
                             wt[e + 1] = mldsa_mont_red((sword64)at[e + 1] *
@@ -8838,12 +8839,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     }
                     else {
                     #ifdef WOLFSSL_MLDSA_SMALL
-                        for (e = 0; e < DILITHIUM_N; e++) {
+                        for (e = 0; e < MLDSA_N; e++) {
                             wt[e] += mldsa_mont_red((sword64)at[e] *
                                 y_ntt_t[e]);
                         }
                     #else
-                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                        for (e = 0; e < MLDSA_N; e += 8) {
                             wt[e + 0] += mldsa_mont_red((sword64)at[e + 0] *
                                 y_ntt_t[e + 0]);
                             wt[e + 1] += mldsa_mont_red((sword64)at[e + 1] *
@@ -8866,11 +8867,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 #else
                     if (s == 0) {
                     #ifdef WOLFSSL_MLDSA_SMALL
-                        for (e = 0; e < DILITHIUM_N; e++) {
+                        for (e = 0; e < MLDSA_N; e++) {
                             t64[e] = (sword64)at[e] * y_ntt_t[e];
                         }
                     #else
-                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                        for (e = 0; e < MLDSA_N; e += 8) {
                             t64[e+0] = (sword64)at[e+0] * y_ntt_t[e+0];
                             t64[e+1] = (sword64)at[e+1] * y_ntt_t[e+1];
                             t64[e+2] = (sword64)at[e+2] * y_ntt_t[e+2];
@@ -8884,11 +8885,11 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     }
                     else {
                     #ifdef WOLFSSL_MLDSA_SMALL
-                        for (e = 0; e < DILITHIUM_N; e++) {
+                        for (e = 0; e < MLDSA_N; e++) {
                             t64[e] += (sword64)at[e] * y_ntt_t[e];
                         }
                     #else
-                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                        for (e = 0; e < MLDSA_N; e += 8) {
                             t64[e+0] += (sword64)at[e+0] * y_ntt_t[e+0];
                             t64[e+1] += (sword64)at[e+1] * y_ntt_t[e+1];
                             t64[e+2] += (sword64)at[e+2] * y_ntt_t[e+2];
@@ -8902,13 +8903,13 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     }
                 #endif
                     /* Next polynomial. */
-                    yt += DILITHIUM_N;
+                    yt += MLDSA_N;
                 }
                 if (ret != 0) {
                     break;
                 }
             #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-                for (e = 0; e < DILITHIUM_N; e++) {
+                for (e = 0; e < MLDSA_N; e++) {
                     wt[e] = mldsa_mont_red(t64[e]);
                 }
             #endif
@@ -8916,18 +8917,18 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 /* Step 14, Step 22: Make values positive and decompose. */
                 mldsa_make_pos(wt);
             #ifndef WOLFSSL_NO_ML_DSA_44
-                if (params->gamma2 == DILITHIUM_Q_LOW_88) {
+                if (params->gamma2 == MLDSA_Q_LOW_88) {
                     /* For each value of polynomial. */
-                    for (e = 0; e < DILITHIUM_N; e++) {
+                    for (e = 0; e < MLDSA_N; e++) {
                         /* Decompose value into two vectors. */
                         mldsa_decompose_q88(wt[e], &w0t[e], &w1t[e]);
                     }
                 }
             #endif
             #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-                if (params->gamma2 == DILITHIUM_Q_LOW_32) {
+                if (params->gamma2 == MLDSA_Q_LOW_32) {
                     /* For each value of polynomial. */
-                    for (e = 0; e < DILITHIUM_N; e++) {
+                    for (e = 0; e < MLDSA_N; e++) {
                         /* Decompose value into two vectors. */
                         mldsa_decompose_q32(wt[e], &w0t[e], &w1t[e]);
                     }
@@ -8937,9 +8938,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 valid = mldsa_vec_check_low(w0t,
                     params->gamma2 - params->beta);
             #endif
-                wt  += DILITHIUM_N;
-                w0t += DILITHIUM_N;
-                w1t += DILITHIUM_N;
+                wt  += MLDSA_N;
+                w0t += MLDSA_N;
+                w1t += MLDSA_N;
             }
             if ((ret == 0) && valid) {
                 sword32* yt = y;
@@ -8949,14 +8950,14 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 byte* ze = sig + params->lambda / 4;
 
                 /* Step 15: Encode w1. */
-                WC_ALLOC_VAR_EX(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ,
+                WC_ALLOC_VAR_EX(w1e, byte, MLDSA_MAX_W1_ENC_SZ,
                     key->heap, DYNAMIC_TYPE_DILITHIUM, ret=MEMORY_E);
                 if (WC_VAR_OK(w1e)) {
                     mldsa_vec_encode_w1(w1, params->k, params->gamma2,
                         w1e);
                     /* Step 15: Hash mu and encoded w1.
                      * Step 32: Hash is stored in signature. */
-                    ret = mldsa_hash256(&key->shake, mu, DILITHIUM_MU_SZ,
+                    ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ,
                         w1e, params->w1EncSz, commit, params->lambda / 4);
                 }
                 WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
@@ -8976,22 +8977,22 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 #if !defined(WOLFSSL_NO_ML_DSA_44) || \
                     !defined(WOLFSSL_NO_ML_DSA_87)
                     /* -2..2 */
-                    if (params->eta == DILITHIUM_ETA_2) {
+                    if (params->eta == MLDSA_ETA_2) {
                         mldsa_decode_eta_2_bits(s1pt, s1);
-                        s1pt += DILITHIUM_ETA_2_BITS * DILITHIUM_N / 8;
+                        s1pt += MLDSA_ETA_2_BITS * MLDSA_N / 8;
                     }
                 #endif
                 #ifndef WOLFSSL_NO_ML_DSA_65
                     /* -4..4 */
-                    if (params->eta == DILITHIUM_ETA_4) {
+                    if (params->eta == MLDSA_ETA_4) {
                         mldsa_decode_eta_4_bits(s1pt, s1);
-                        s1pt += DILITHIUM_N / 2;
+                        s1pt += MLDSA_N / 2;
                     }
                 #endif
                     mldsa_ntt_small(s1);
                     mldsa_mul(z, c, s1);
             #else
-                    mldsa_mul(z, c, s1 + s * DILITHIUM_N);
+                    mldsa_mul(z, c, s1 + s * MLDSA_N);
             #endif
                     /* Step 19: cs1 = NTT-1(c o s1) */
                     mldsa_invntt(z);
@@ -9005,25 +9006,25 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         /* Step 32: Encode z into signature.
                          * Commit (c) and h already encoded into signature. */
                     #if !defined(WOLFSSL_NO_ML_DSA_44)
-                        if (params->gamma1_bits == DILITHIUM_GAMMA1_BITS_17) {
+                        if (params->gamma1_bits == MLDSA_GAMMA1_BITS_17) {
                             mldsa_encode_gamma1_17_bits(z, ze);
                             /* Move to next place to encode to. */
-                            ze += DILITHIUM_GAMMA1_17_ENC_BITS / 2 *
-                                  DILITHIUM_N / 4;
+                            ze += MLDSA_GAMMA1_17_ENC_BITS / 2 *
+                                  MLDSA_N / 4;
                         }
                     #endif
                     #if !defined(WOLFSSL_NO_ML_DSA_65) || \
                         !defined(WOLFSSL_NO_ML_DSA_87)
-                        if (params->gamma1_bits == DILITHIUM_GAMMA1_BITS_19) {
+                        if (params->gamma1_bits == MLDSA_GAMMA1_BITS_19) {
                             mldsa_encode_gamma1_19_bits(z, ze);
                             /* Move to next place to encode to. */
-                            ze += DILITHIUM_GAMMA1_19_ENC_BITS / 2 *
-                                  DILITHIUM_N / 4;
+                            ze += MLDSA_GAMMA1_19_ENC_BITS / 2 *
+                                  MLDSA_N / 4;
                         }
                     #endif
                     }
 
-                    yt += DILITHIUM_N;
+                    yt += MLDSA_N;
                 }
             }
             if ((ret == 0) && valid) {
@@ -9041,16 +9042,16 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 #if !defined(WOLFSSL_NO_ML_DSA_44) || \
                     !defined(WOLFSSL_NO_ML_DSA_87)
                     /* -2..2 */
-                    if (params->eta == DILITHIUM_ETA_2) {
+                    if (params->eta == MLDSA_ETA_2) {
                         mldsa_decode_eta_2_bits(s2pt, s2);
-                        s2pt += DILITHIUM_ETA_2_BITS * DILITHIUM_N / 8;
+                        s2pt += MLDSA_ETA_2_BITS * MLDSA_N / 8;
                     }
                 #endif
                 #ifndef WOLFSSL_NO_ML_DSA_65
                     /* -4..4 */
-                    if (params->eta == DILITHIUM_ETA_4) {
+                    if (params->eta == MLDSA_ETA_4) {
                         mldsa_decode_eta_4_bits(s2pt, s2);
-                        s2pt += DILITHIUM_N / 2;
+                        s2pt += MLDSA_N / 2;
                     }
                 #endif
                     mldsa_ntt_small(s2);
@@ -9058,7 +9059,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     mldsa_mul(cs2, c, s2);
             #else
                     /* Step 20: cs2 = NTT-1(c o s2) */
-                    mldsa_mul(cs2, c, s2 + r * DILITHIUM_N);
+                    mldsa_mul(cs2, c, s2 + r * MLDSA_N);
             #endif
                     mldsa_invntt(cs2);
                     /* Step 22: w0 - cs2 */
@@ -9076,7 +9077,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         mldsa_mul(ct0, c, t0);
                     #else
                         /* Step 25: ct0 = NTT-1(c o t0) */
-                        mldsa_mul(ct0, c, t0 + r * DILITHIUM_N);
+                        mldsa_mul(ct0, c, t0 + r * MLDSA_N);
                     #endif
                         mldsa_invntt(ct0);
                         /* Step 27: Check ct0 has low enough values. */
@@ -9092,7 +9093,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                          * Step 32: h is encoded into signature.
                          */
                     #ifndef WOLFSSL_NO_ML_DSA_44
-                        if (params->gamma2 == DILITHIUM_Q_LOW_88) {
+                        if (params->gamma2 == MLDSA_Q_LOW_88) {
                             valid = (mldsa_make_hint_88(ct0, w1t, h,
                                 &idx) == 0);
                             /* Alg 14, Step 10: Store count of hints for
@@ -9102,7 +9103,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     #endif
                     #if !defined(WOLFSSL_NO_ML_DSA_65) || \
                         !defined(WOLFSSL_NO_ML_DSA_87)
-                        if (params->gamma2 == DILITHIUM_Q_LOW_32) {
+                        if (params->gamma2 == MLDSA_Q_LOW_32) {
                             valid = (mldsa_make_hint_32(ct0, w1t,
                                 params->omega, h, &idx) == 0);
                             /* Alg 14, Step 10: Store count of hints for
@@ -9112,9 +9113,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     #endif
                     }
 
-                    t0pt += DILITHIUM_D * DILITHIUM_N / 8;
-                    w0t += DILITHIUM_N;
-                    w1t += DILITHIUM_N;
+                    t0pt += MLDSA_D * MLDSA_N / 8;
+                    w0t += MLDSA_N;
+                    w1t += MLDSA_N;
                 }
                 /* Set remaining hints to zero. */
                 XMEMSET(h + idx, 0, (size_t)(params->omega - idx));
@@ -9146,14 +9147,14 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
 /* Sign a message with the key and a seed.
  *
- * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *  10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
  *                        ctx || M)
  *  11: sigma <- ML-DSA.Sign_internal(sk, M', rnd)
  *  12: return sigma
  *
- * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ * FIPS 204 Section 6.2, Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
  *   ...
  *   6: mu <- H(BytesToBits(tr)||M', 64)
  *   ...
@@ -9179,15 +9180,15 @@ static int mldsa_sign_ctx_msg_with_seed(wc_MlDsaKey* key,
 {
     int ret;
     const byte* pub_seed = key->k;
-    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    const byte* tr = k + DILITHIUM_K_SZ;
-    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-    byte* mu = seedMu + DILITHIUM_RND_SZ;
+    const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+    const byte* tr = k + MLDSA_K_SZ;
+    byte seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    byte* mu = seedMu + MLDSA_RND_SZ;
 
-    XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
+    XMEMCPY(seedMu, seed, MLDSA_RND_SZ);
     /* Step 6. Calculate mu. */
-    ret = mldsa_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 0,
-        ctx, ctxLen, msg, msgLen, mu, DILITHIUM_MU_SZ);
+    ret = mldsa_hash256_ctx_msg(&key->shake, tr, MLDSA_TR_SZ, 0,
+        ctx, ctxLen, msg, msgLen, mu, MLDSA_MU_SZ);
     if (ret == 0) {
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
@@ -9198,14 +9199,14 @@ static int mldsa_sign_ctx_msg_with_seed(wc_MlDsaKey* key,
 
 /* Sign a message with the key and a seed.
  *
- * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *  10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
  *                        ctx || M)
  *  11: sigma <- ML-DSA.Sign_internal(sk, M', rnd)
  *  12: return sigma
  *
- * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ * FIPS 204 Section 6.2, Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
  *   ...
  *   6: mu <- H(BytesToBits(tr)||M', 64)
  *   ...
@@ -9229,15 +9230,15 @@ static int mldsa_sign_msg_with_seed(wc_MlDsaKey* key, const byte* seed,
 {
     int ret;
     const byte* pub_seed = key->k;
-    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    const byte* tr = k + DILITHIUM_K_SZ;
-    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-    byte* mu = seedMu + DILITHIUM_RND_SZ;
+    const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+    const byte* tr = k + MLDSA_K_SZ;
+    byte seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    byte* mu = seedMu + MLDSA_RND_SZ;
 
-    XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
+    XMEMCPY(seedMu, seed, MLDSA_RND_SZ);
     /* Step 6. Calculate mu. */
-    ret = mldsa_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen, mu,
-        DILITHIUM_MU_SZ);
+    ret = mldsa_hash256(&key->shake, tr, MLDSA_TR_SZ, msg, msgLen, mu,
+        MLDSA_MU_SZ);
     if (ret == 0) {
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
@@ -9249,7 +9250,7 @@ static int mldsa_sign_msg_with_seed(wc_MlDsaKey* key, const byte* seed,
 
 /* Sign a message with the key and a random number generator.
  *
- * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *   5: rnd <- B32  [Randomly generated.]
  *   6: if rnd = NULL then
@@ -9260,7 +9261,7 @@ static int mldsa_sign_msg_with_seed(wc_MlDsaKey* key, const byte* seed,
  *                        ctx || M)
  *   ...
  *
- * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ * FIPS 204 Section 6.2, Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
  *   ...
  *   6: mu <- H(BytesToBits(tr)||M', 64)
  *   ...
@@ -9285,10 +9286,10 @@ static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
 {
     int ret = 0;
     const byte* pub_seed = key->k;
-    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    const byte* tr = k + DILITHIUM_K_SZ;
-    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-    byte* mu = seedMu + DILITHIUM_RND_SZ;
+    const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+    const byte* tr = k + MLDSA_K_SZ;
+    byte seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    byte* mu = seedMu + MLDSA_RND_SZ;
 
     /* Must have a random number generator. */
     if (rng == NULL) {
@@ -9297,12 +9298,12 @@ static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
 
     if (ret == 0) {
         /* Step 7: Generate random seed. */
-        ret = wc_RNG_GenerateBlock(rng, seedMu, DILITHIUM_RND_SZ);
+        ret = wc_RNG_GenerateBlock(rng, seedMu, MLDSA_RND_SZ);
     }
     if (ret == 0) {
         /* Step 6. Calculate mu. */
-        ret = mldsa_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 0,
-            ctx, ctxLen, msg, msgLen, mu, DILITHIUM_MU_SZ);
+        ret = mldsa_hash256_ctx_msg(&key->shake, tr, MLDSA_TR_SZ, 0,
+            ctx, ctxLen, msg, msgLen, mu, MLDSA_MU_SZ);
     }
     if (ret == 0) {
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
@@ -9314,7 +9315,7 @@ static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
 
 /* Sign a message with the key and a random number generator.
  *
- * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ * FIPS 204 Section 5.2, Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
  *   5: rnd <- B32  [Randomly generated.]
  *   6: if rnd = NULL then
@@ -9325,7 +9326,7 @@ static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
  *                        ctx || M)
  *   ...
  *
- * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ * FIPS 204 Section 6.2, Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
  *   ...
  *   6: mu <- H(BytesToBits(tr)||M', 64)
  *   ...
@@ -9348,10 +9349,10 @@ static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
 {
     int ret = 0;
     const byte* pub_seed = key->k;
-    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    const byte* tr = k + DILITHIUM_K_SZ;
-    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-    byte* mu = seedMu + DILITHIUM_RND_SZ;
+    const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+    const byte* tr = k + MLDSA_K_SZ;
+    byte seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    byte* mu = seedMu + MLDSA_RND_SZ;
 
     /* Must have a random number generator. */
     if (rng == NULL) {
@@ -9360,12 +9361,12 @@ static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
 
     if (ret == 0) {
         /* Step 7: Generate random seed. */
-        ret = wc_RNG_GenerateBlock(rng, seedMu, DILITHIUM_RND_SZ);
+        ret = wc_RNG_GenerateBlock(rng, seedMu, MLDSA_RND_SZ);
     }
     if (ret == 0) {
         /* Step 6. Calculate mu. */
-        ret = mldsa_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
-            mu, DILITHIUM_MU_SZ);
+        ret = mldsa_hash256(&key->shake, tr, MLDSA_TR_SZ, msg, msgLen,
+            mu, MLDSA_MU_SZ);
     }
     if (ret == 0) {
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
@@ -9378,7 +9379,7 @@ static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
 
 /* Sign a pre-hashed message with the key and a seed.
  *
- * FIPS 204. 5.4.1: Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
+ * FIPS 204 Section 5.4.1, Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
  *   ...
  *  10: switch PH do
  *  11:    case SHA-256:
@@ -9391,7 +9392,7 @@ static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
  *  24: sigma <- ML-DSA.Sign_internal(sk, M', rnd)
  *  25: return sigma
  *
- * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ * FIPS 204 Section 6.2, Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
  *   ...
  *   6: mu <- H(BytesToBits(tr)||M', 64)
  *   ...
@@ -9417,11 +9418,11 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
 {
     int ret = 0;
     const byte* pub_seed = key->k;
-    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    const byte* tr = k + DILITHIUM_K_SZ;
-    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-    byte* mu = seedMu + DILITHIUM_RND_SZ;
-    byte oidMsgHash[DILITHIUM_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
+    const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+    const byte* tr = k + MLDSA_K_SZ;
+    byte seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    byte* mu = seedMu + MLDSA_RND_SZ;
+    byte oidMsgHash[MLDSA_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
     word32 oidMsgHashLen = 0;
 
     /* Check that the input hash length is valid. */
@@ -9430,7 +9431,7 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
     }
 
     if (ret == 0) {
-        XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
+        XMEMCPY(seedMu, seed, MLDSA_RND_SZ);
 
         ret = mldsa_get_hash_oid(hashAlg, oidMsgHash, &oidMsgHashLen);
     }
@@ -9439,8 +9440,8 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
         oidMsgHashLen += hashLen;
 
         /* Step 6. Calculate mu. */
-        ret = mldsa_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 1,
-            ctx, ctxLen, oidMsgHash, oidMsgHashLen, mu, DILITHIUM_MU_SZ);
+        ret = mldsa_hash256_ctx_msg(&key->shake, tr, MLDSA_TR_SZ, 1,
+            ctx, ctxLen, oidMsgHash, oidMsgHashLen, mu, MLDSA_MU_SZ);
     }
     if (ret == 0) {
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
@@ -9452,7 +9453,7 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
 
 /* Sign a pre-hashed message with the key and a random number generator.
  *
- * FIPS 204. 5.4.1: Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
+ * FIPS 204 Section 5.4.1, Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
  *   ...
  *   5: rnd <- B32  [Randomly generated.]
  *   6: if rnd = NULL then
@@ -9480,7 +9481,7 @@ static int mldsa_sign_ctx_hash(wc_MlDsaKey* key, WC_RNG* rng,
     byte* sig, word32 *sigLen)
 {
     int ret = 0;
-    byte seed[DILITHIUM_RND_SZ];
+    byte seed[MLDSA_RND_SZ];
 
     /* Must have a random number generator. */
     if (rng == NULL) {
@@ -9488,7 +9489,7 @@ static int mldsa_sign_ctx_hash(wc_MlDsaKey* key, WC_RNG* rng,
     }
     if (ret == 0) {
         /* Step 7: Generate random seed. */
-        ret = wc_RNG_GenerateBlock(rng, seed, DILITHIUM_RND_SZ);
+        ret = wc_RNG_GenerateBlock(rng, seed, MLDSA_RND_SZ);
     }
 
     if (ret == 0) {
@@ -9514,7 +9515,7 @@ static int mldsa_sign_ctx_hash(wc_MlDsaKey* key, WC_RNG* rng,
 static void mldsa_make_pub_vec(wc_MlDsaKey* key, sword32* t1)
 {
     const wc_MlDsaParams* params = key->params;
-    const byte* t1p = key->p + DILITHIUM_PUB_SEED_SZ;
+    const byte* t1p = key->p + MLDSA_PUB_SEED_SZ;
 
     mldsa_vec_decode_t1(t1p, params->k, t1);
     mldsa_vec_ntt_full(t1, params->k);
@@ -9527,7 +9528,7 @@ static void mldsa_make_pub_vec(wc_MlDsaKey* key, sword32* t1)
 
 /* Verify signature of message using public key.
  *
- * FIPS 204. 6: Algorithm 3 ML-DSA.Verify(pk, M, sigma)
+ * FIPS 204 Section 5.3, Algorithm 3 ML-DSA.Verify(pk, M, sigma, ctx)
  *  1: (rho, t1) <- pkDecode(pk)
  *  2: (c_tilde, z, h) <- sigDecode(sigma)
  *  3: if h = falsam then return false
@@ -9571,7 +9572,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     sword32* z = NULL;
     sword32* w = NULL;
     sword32* t1c = NULL;
-    byte commit_calc[DILITHIUM_TR_SZ];
+    byte commit_calc[MLDSA_TR_SZ];
     byte* w1e = NULL;
     int valid = 0;
     sword32 hi;
@@ -9624,7 +9625,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         unsigned int allocSz;
 
         /* z, c, w, t1/t1c */
-        allocSz = (unsigned int)DILITHIUM_POLY_SIZE + params->s1Sz +
+        allocSz = (unsigned int)MLDSA_POLY_SIZE + params->s1Sz +
             params->s2Sz + params->s2Sz;
 #ifndef WC_MLDSA_CACHE_MATRIX_A
         /* a */
@@ -9638,7 +9639,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         else {
             XMEMSET(z, 0, allocSz);
             c   = z  + params->s1Sz / sizeof(*z);
-            w   = c  + DILITHIUM_N;
+            w   = c  + MLDSA_N;
 #ifndef WC_MLDSA_CACHE_PUB_VECTORS
             t1  = w  + params->s2Sz / sizeof(*w);
             t1c = t1;
@@ -9704,7 +9705,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         /* Step 12: Encode w1. */
         mldsa_vec_encode_w1(w, params->k, params->gamma2, w1e);
         /* Step 12: Hash mu and encoded w1. */
-        ret = mldsa_hash256(&key->shake, mu, DILITHIUM_MU_SZ, w1e,
+        ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ, w1e,
             params->w1EncSz, commit_calc, params->lambda / 4);
     }
     if ((ret == 0) && valid) {
@@ -9719,7 +9720,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     int ret = 0;
     const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->p;
-    const byte* t1p = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* t1p = pub_seed + MLDSA_PUB_SEED_SZ;
     const byte* commit = sig;
     const byte* ze = sig + params->lambda / 4;
     const byte* h = ze + params->zEncSz;
@@ -9735,7 +9736,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     byte*    block = NULL;
 #endif
     byte* w1e = NULL;
-    byte commit_calc[DILITHIUM_TR_SZ];
+    byte commit_calc[MLDSA_TR_SZ];
     int valid = 0;
     sword32 hi;
     unsigned int r;
@@ -9759,10 +9760,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         unsigned int allocSz;
 
         allocSz  = (unsigned int)params->s1Sz + params->w1EncSz +
-                   3U * (unsigned int)DILITHIUM_POLY_SIZE +
-                   (unsigned int)DILITHIUM_REJ_NTT_POLY_H_SIZE;
+                   3U * (unsigned int)MLDSA_POLY_SIZE +
+                   (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE;
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-        allocSz += (unsigned int)DILITHIUM_POLY_SIZE * 2U;
+        allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
         z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (z == NULL) {
@@ -9771,10 +9772,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         else {
             XMEMSET(z, 0, allocSz);
             c     = z + params->s1Sz / sizeof(*t1);
-            w     = c + DILITHIUM_N;
-            t1    = w + DILITHIUM_N;
-            block = (byte*)(t1 + DILITHIUM_N);
-            w1e   = block + DILITHIUM_REJ_NTT_POLY_H_SIZE;
+            w     = c + MLDSA_N;
+            t1    = w + MLDSA_N;
+            block = (byte*)(t1 + MLDSA_N);
+            w1e   = block + MLDSA_REJ_NTT_POLY_H_SIZE;
             a     = t1;
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             t64   = (sword64*)(w1e + params->w1EncSz);
@@ -9822,7 +9823,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         encW1 = w1e;
 
         /* Copy the seed into a buffer that has space for s and r. */
-        XMEMCPY(seed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        XMEMCPY(seed, pub_seed, MLDSA_PUB_SEED_SZ);
         /* Step 1: Loop over first dimension of matrix. */
         for (r = 0; (ret == 0) && (r < params->k); r++) {
             unsigned int s;
@@ -9832,17 +9833,17 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             /* Step 1: Decode and NTT vector t1. */
             mldsa_decode_t1(t1p, w);
             /* Next polynomial. */
-            t1p += DILITHIUM_U * DILITHIUM_N / 8;
+            t1p += MLDSA_U * MLDSA_N / 8;
 
             /* Step 10: - NTT(c) o NTT(t1)) */
             mldsa_ntt_full(w);
     #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         #ifdef WOLFSSL_MLDSA_SMALL
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 w[e] = -mldsa_mont_red((sword64)c[e] * w[e]);
             }
         #else
-            for (e = 0; e < DILITHIUM_N; e += 8) {
+            for (e = 0; e < MLDSA_N; e += 8) {
                 w[e+0] = -mldsa_mont_red((sword64)c[e+0] * w[e+0]);
                 w[e+1] = -mldsa_mont_red((sword64)c[e+1] * w[e+1]);
                 w[e+2] = -mldsa_mont_red((sword64)c[e+2] * w[e+2]);
@@ -9855,11 +9856,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         #endif
     #else
         #ifdef WOLFSSL_MLDSA_SMALL
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 t64[e] = -(sword64)c[e] * w[e];
             }
         #else
-            for (e = 0; e < DILITHIUM_N; e += 8) {
+            for (e = 0; e < MLDSA_N; e += 8) {
                 t64[e+0] = -(sword64)c[e+0] * w[e+0];
                 t64[e+1] = -(sword64)c[e+1] * w[e+1];
                 t64[e+2] = -(sword64)c[e+2] * w[e+2];
@@ -9874,10 +9875,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 
             /* Step 5: Expand pub seed to compute matrix A. */
             /* Put r into buffer to be hashed. */
-            seed[DILITHIUM_PUB_SEED_SZ + 1] = (byte)r;
+            seed[MLDSA_PUB_SEED_SZ + 1] = (byte)r;
             for (s = 0; (ret == 0) && (s < params->l); s++) {
                 /* Put s into buffer to be hashed. */
-                seed[DILITHIUM_PUB_SEED_SZ + 0] = (byte)s;
+                seed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
                 /* Step 3: Create polynomial from hashing seed. */
             #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
                 ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
@@ -9888,11 +9889,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
                 /* Step 10: w = A o NTT(z) - NTT(c) o NTT(t1) */
         #ifndef WOLFSSL_MLDSA_SMALL_MEM_POLY64
             #ifdef WOLFSSL_MLDSA_SMALL
-                for (e = 0; e < DILITHIUM_N; e++) {
+                for (e = 0; e < MLDSA_N; e++) {
                     w[e] += mldsa_mont_red((sword64)a[e] * zt[e]);
                 }
             #else
-                for (e = 0; e < DILITHIUM_N; e += 8) {
+                for (e = 0; e < MLDSA_N; e += 8) {
                     w[e+0] += mldsa_mont_red((sword64)a[e+0] * zt[e+0]);
                     w[e+1] += mldsa_mont_red((sword64)a[e+1] * zt[e+1]);
                     w[e+2] += mldsa_mont_red((sword64)a[e+2] * zt[e+2]);
@@ -9905,11 +9906,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             #endif
         #else
             #ifdef WOLFSSL_MLDSA_SMALL
-                for (e = 0; e < DILITHIUM_N; e++) {
+                for (e = 0; e < MLDSA_N; e++) {
                     t64[e] += (sword64)a[e] * zt[e];
                 }
             #else
-                for (e = 0; e < DILITHIUM_N; e += 8) {
+                for (e = 0; e < MLDSA_N; e += 8) {
                     t64[e+0] += (sword64)a[e+0] * zt[e+0];
                     t64[e+1] += (sword64)a[e+1] * zt[e+1];
                     t64[e+2] += (sword64)a[e+2] * zt[e+2];
@@ -9922,10 +9923,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             #endif
         #endif
                 /* Next polynomial. */
-                zt += DILITHIUM_N;
+                zt += MLDSA_N;
             }
         #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
-            for (e = 0; e < DILITHIUM_N; e++) {
+            for (e = 0; e < MLDSA_N; e++) {
                 w[e] = mldsa_mont_red(t64[e]);
             }
         #endif
@@ -9934,22 +9935,22 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             mldsa_invntt_full(w);
 
         #ifndef WOLFSSL_NO_ML_DSA_44
-            if (params->gamma2 == DILITHIUM_Q_LOW_88) {
+            if (params->gamma2 == MLDSA_Q_LOW_88) {
                 /* Step 11: Use hint to give full w1. */
                 mldsa_use_hint_88(w, h, r, &o);
                 /* Step 12: Encode w1. */
                 mldsa_encode_w1_88(w, encW1);
-                encW1 += DILITHIUM_Q_HI_88_ENC_BITS * 2 * DILITHIUM_N / 16;
+                encW1 += MLDSA_Q_HI_88_ENC_BITS * 2 * MLDSA_N / 16;
             }
             else
         #endif
         #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-            if (params->gamma2 == DILITHIUM_Q_LOW_32) {
+            if (params->gamma2 == MLDSA_Q_LOW_32) {
                 /* Step 11: Use hint to give full w1. */
                 mldsa_use_hint_32(w, h, params->omega, r, &o);
                 /* Step 12: Encode w1. */
                 mldsa_encode_w1_32(w, encW1);
-                encW1 += DILITHIUM_Q_HI_32_ENC_BITS * 2 * DILITHIUM_N / 16;
+                encW1 += MLDSA_Q_HI_32_ENC_BITS * 2 * MLDSA_N / 16;
             }
             else
         #endif
@@ -9959,7 +9960,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
     if ((ret == 0) && valid) {
         /* Step 12: Hash mu and encoded w1. */
-        ret = mldsa_hash256(&key->shake, mu, DILITHIUM_MU_SZ, w1e,
+        ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ, w1e,
             params->w1EncSz, commit_calc, params->lambda / 4);
     }
     if ((ret == 0) && valid) {
@@ -9997,7 +9998,7 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
     int* res)
 {
     int ret = 0;
-    byte tr[DILITHIUM_TR_SZ];
+    byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
 
     if (key == NULL) {
@@ -10007,12 +10008,12 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
     if (ret == 0) {
         /* Step 6: Hash public key. */
         ret = mldsa_shake256(&key->shake, key->p, key->params->pkSz, tr,
-            DILITHIUM_TR_SZ);
+            MLDSA_TR_SZ);
     }
     if (ret == 0) {
         /* Step 6. Calculate mu. */
-        ret = mldsa_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 0,
-            ctx, (byte)ctxLen, msg, msgLen, mu, DILITHIUM_MU_SZ);
+        ret = mldsa_hash256_ctx_msg(&key->shake, tr, MLDSA_TR_SZ, 0,
+            ctx, (byte)ctxLen, msg, msgLen, mu, MLDSA_MU_SZ);
     }
     if (ret == 0) {
         ret = mldsa_verify_with_mu(key, mu, sig, sigLen, res);
@@ -10041,7 +10042,7 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
     word32 msgLen, const byte* sig, word32 sigLen, int* res)
 {
     int ret = 0;
-    byte tr[DILITHIUM_TR_SZ];
+    byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
 
     if (key == NULL) {
@@ -10051,12 +10052,12 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
     if (ret == 0) {
         /* Step 6: Hash public key. */
         ret = mldsa_shake256(&key->shake, key->p, key->params->pkSz, tr,
-            DILITHIUM_TR_SZ);
+            MLDSA_TR_SZ);
     }
     if (ret == 0) {
         /* Step 6. Calculate mu. */
-        ret = mldsa_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
-            mu, DILITHIUM_MU_SZ);
+        ret = mldsa_hash256(&key->shake, tr, MLDSA_TR_SZ, msg, msgLen,
+            mu, MLDSA_MU_SZ);
     }
     if (ret == 0) {
         ret = mldsa_verify_with_mu(key, mu, sig, sigLen, res);
@@ -10089,9 +10090,9 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     word32 sigLen, int* res)
 {
     int ret = 0;
-    byte tr[DILITHIUM_TR_SZ];
+    byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
-    byte oidMsgHash[DILITHIUM_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
+    byte oidMsgHash[MLDSA_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
     word32 oidMsgHashLen = 0;
 
     if (key == NULL) {
@@ -10107,7 +10108,7 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     if (ret == 0) {
         /* Step 6: Hash public key. */
         ret = mldsa_shake256(&key->shake, key->p, key->params->pkSz, tr,
-            DILITHIUM_TR_SZ);
+            MLDSA_TR_SZ);
     }
     if (ret == 0) {
         ret = mldsa_get_hash_oid(hashAlg, oidMsgHash, &oidMsgHashLen);
@@ -10117,8 +10118,8 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
         oidMsgHashLen += hashLen;
 
         /* Step 6. Calculate mu. */
-        ret = mldsa_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 1,
-            ctx, (byte)ctxLen, oidMsgHash, oidMsgHashLen, mu, DILITHIUM_MU_SZ);
+        ret = mldsa_hash256_ctx_msg(&key->shake, tr, MLDSA_TR_SZ, 1,
+            ctx, (byte)ctxLen, oidMsgHash, oidMsgHashLen, mu, MLDSA_MU_SZ);
     }
     if (ret == 0) {
         ret = mldsa_verify_with_mu(key, mu, sig, sigLen, res);
@@ -10171,11 +10172,11 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
      * Runs on every key generation. */
     if (ret == 0) {
         static const byte pct_msg[] = "wolfSSL ML-DSA PCT";
-        WC_DECLARE_VAR(pct_sig, byte, DILITHIUM_MAX_SIG_SIZE, key->heap);
-        word32 pct_sigSz = DILITHIUM_MAX_SIG_SIZE;
+        WC_DECLARE_VAR(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap);
+        word32 pct_sigSz = MLDSA_MAX_SIG_SIZE;
         int pct_res = 0;
 
-        WC_ALLOC_VAR_EX(pct_sig, byte, DILITHIUM_MAX_SIG_SIZE, key->heap,
+        WC_ALLOC_VAR_EX(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap,
             DYNAMIC_TYPE_DILITHIUM, ret = MEMORY_E);
 
         if (ret == 0) {
@@ -10189,7 +10190,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
             ret = ML_DSA_PCT_E;
 
         if (WC_VAR_OK(pct_sig))
-            ForceZero(pct_sig, DILITHIUM_MAX_SIG_SIZE);
+            ForceZero(pct_sig, MLDSA_MAX_SIG_SIZE);
 
         WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_DILITHIUM);
 
@@ -10233,7 +10234,7 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_SIGN
-/* Sign the message using the dilithium private key.
+/* Sign the message using the ML-DSA private key.
  *
  *  ctx         [in]      Context of signature.
  *  ctxLen      [in]      Length of context in bytes.
@@ -10245,7 +10246,7 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
  *  key         [in]      ML-DSA key to use when signing
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
- *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
 int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
@@ -10290,7 +10291,7 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
 }
 
 #ifdef WOLFSSL_MLDSA_NO_CTX
-/* Sign the message using the dilithium private key.
+/* Sign the message using the ML-DSA private key.
  *
  *  msg         [in]      Message to sign.
  *  msgLen      [in]      Length of the message in bytes.
@@ -10299,7 +10300,7 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
  *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
- *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
  *       use wc_MlDsaKey_SignCtx() with ctx=NULL/ctxLen=0 instead.
@@ -10339,7 +10340,7 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
 }
 #endif /* WOLFSSL_MLDSA_NO_CTX */
 
-/* Sign the message hash using the dilithium private key.
+/* Sign the message hash using the ML-DSA private key.
  *
  *  ctx         [in]      Context of signature.
  *  ctxLen      [in]      Length of context in bytes.
@@ -10352,7 +10353,7 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  key         [in]      ML-DSA key to use when signing
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
- *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
 int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
@@ -10394,7 +10395,7 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     return ret;
 }
 
-/* Sign the message using the dilithium private key.
+/* Sign the message using the ML-DSA private key.
  *
  *  ctx         [in]      Context of signature.
  *  ctxLen      [in]      Length of context in bytes.
@@ -10406,7 +10407,7 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *  key         [in]      ML-DSA key to use when signing
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
- *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
 int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
@@ -10433,7 +10434,7 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
 }
 
 #ifdef WOLFSSL_MLDSA_NO_CTX
-/* Sign the message using the dilithium private key.
+/* Sign the message using the ML-DSA private key.
  *
  *  msg         [in]      Message to sign.
  *  msgLen      [in]      Length of the message in bytes.
@@ -10442,7 +10443,7 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
  *                        On out, the length of the signature in bytes.
  *  key         [in]      ML-DSA key to use when signing
  *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
- *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
  *       use wc_MlDsaKey_SignCtxWithSeed() instead.
@@ -10466,7 +10467,7 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
 }
 #endif /* WOLFSSL_MLDSA_NO_CTX */
 
-/* Sign the message using the dilithium private key.
+/* Sign the message using the ML-DSA private key.
  *
  *  ctx         [in]      Context of signature.
  *  ctxLen      [in]      Length of context in bytes.
@@ -10479,7 +10480,7 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  key         [in]      ML-DSA key to use when signing
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
- *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when outLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
 int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
@@ -10533,15 +10534,15 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
             (seed == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (muLen != DILITHIUM_MU_SZ)) {
+    if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
         /* Build [seed||mu] buffer and call internal sign function. */
-        byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-        XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
-        XMEMCPY(seedMu + DILITHIUM_RND_SZ, mu, DILITHIUM_MU_SZ);
+        byte seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+        XMEMCPY(seedMu, seed, MLDSA_RND_SZ);
+        XMEMCPY(seedMu + MLDSA_RND_SZ, mu, MLDSA_MU_SZ);
         ret = mldsa_sign_with_seed_mu(key, seedMu, sig, sigLen);
         ForceZero(seedMu, sizeof(seedMu));
     }
@@ -10551,7 +10552,7 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
 #endif /* !WOLFSSL_MLDSA_NO_SIGN */
 
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
-/* Verify the message using the dilithium public key.
+/* Verify the message using the ML-DSA public key.
  *
  *  sig         [in]  Signature to verify.
  *  sigLen      [in]  Size of signature in bytes.
@@ -10563,7 +10564,7 @@ int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
- *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
 int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
@@ -10609,7 +10610,7 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 }
 
 #ifdef WOLFSSL_MLDSA_NO_CTX
-/* Verify the message using the dilithium public key.
+/* Verify the message using the ML-DSA public key.
  *
  *  sig         [in]  Signature to verify.
  *  sigLen      [in]  Size of signature in bytes.
@@ -10618,7 +10619,7 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  res         [out] *res is set to 1 on successful verification.
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
- *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  * NOTE: This is a pre-FIPS 204 API without context support. New code should
  *       use wc_MlDsaKey_VerifyCtx() with ctx=NULL/ctxLen=0 instead.
@@ -10658,7 +10659,7 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 }
 #endif /* WOLFSSL_MLDSA_NO_CTX */
 
-/* Verify the message using the dilithium public key.
+/* Verify the message using the ML-DSA public key.
  *
  *  sig         [in]  Signature to verify.
  *  sigLen      [in]  Size of signature in bytes.
@@ -10671,7 +10672,7 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
  *  key         [in]  ML-DSA key to use to verify.
  *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
  *          or ctx is NULL and ctxLen is not 0,
- *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          BUFFER_E when sigLen is less than WC_MLDSA_44_SIG_SIZE,
  *          0 otherwise.
  */
 int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
@@ -10737,7 +10738,7 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((key == NULL) || (sig == NULL) || (mu == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (muLen != DILITHIUM_MU_SZ)) {
+    if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10751,7 +10752,7 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 
 #ifndef WC_NO_CONSTRUCTORS
 /**
- * Create a new dilithium key object.
+ * Create a new ML-DSA key object.
  *
  * heap  [in]  Dynamic memory hint.
  * devId [in]  Device Id.
@@ -10775,9 +10776,9 @@ wc_MlDsaKey* wc_MlDsaKey_New(void* heap, int devId)
 }
 
 /**
- * Delete and free a dilithium key object.
+ * Delete and free a ML-DSA key object.
  *
- * key   [in]       dilithium key object to delete.
+ * key   [in]       ML-DSA key object to delete.
  * key_p [in, out]  Pointer to key pointer to set to NULL.
  * returns BAD_FUNC_ARG when key is NULL
  */
@@ -10846,7 +10847,7 @@ int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && ((len < 0) || (len > DILITHIUM_MAX_ID_LEN))) {
+    if ((ret == 0) && ((len < 0) || (len > MLDSA_MAX_ID_LEN))) {
         ret = BUFFER_E;
     }
 
@@ -10875,7 +10876,7 @@ int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
     }
     if (ret == 0) {
         labelLen = (int)XSTRLEN(label);
-        if ((labelLen == 0) || (labelLen > DILITHIUM_MAX_LABEL_LEN)) {
+        if ((labelLen == 0) || (labelLen > MLDSA_MAX_LABEL_LEN)) {
             ret = BUFFER_E;
         }
     }
@@ -10895,7 +10896,7 @@ int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
 }
 #endif
 
-/* Set the level of the dilithium private/public key.
+/* Set the level of the ML-DSA private/public key.
  *
  * key   [out]  ML-DSA key.
  * level [in]   Either 2,3 or 5.
@@ -10971,7 +10972,7 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
     return ret;
 }
 
-/* Get the level of the dilithium private/public key.
+/* Get the level of the ML-DSA private/public key.
  *
  * key   [in]  ML-DSA key.
  * level [out] The level.
@@ -10998,7 +10999,7 @@ int wc_MlDsaKey_GetParams(wc_MlDsaKey* key, byte* level)
     return ret;
 }
 
-/* Clears the dilithium key data
+/* Clears the ML-DSA key data
  *
  * key  [in]  ML-DSA key.
  */
@@ -11046,9 +11047,9 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
 }
 
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
-/* Returns the size of a dilithium private key.
+/* Returns the size of a ML-DSA private key.
  *
- * @param [in] key  Dilithium private/public key.
+ * @param [in] key  ML-DSA private/public key.
  * @return  Private key size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
@@ -11062,24 +11063,24 @@ int wc_MlDsaKey_Size(wc_MlDsaKey* key)
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = DILITHIUM_LEVEL2_KEY_SIZE;
+            ret = WC_MLDSA_44_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = DILITHIUM_LEVEL3_KEY_SIZE;
+            ret = WC_MLDSA_65_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = DILITHIUM_LEVEL5_KEY_SIZE;
+            ret = WC_MLDSA_87_KEY_SIZE;
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = ML_DSA_LEVEL2_KEY_SIZE;
+            ret = WC_MLDSA_44_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = ML_DSA_LEVEL3_KEY_SIZE;
+            ret = WC_MLDSA_65_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = ML_DSA_LEVEL5_KEY_SIZE;
+            ret = WC_MLDSA_87_KEY_SIZE;
         }
     }
 
@@ -11087,9 +11088,9 @@ int wc_MlDsaKey_Size(wc_MlDsaKey* key)
 }
 
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-/* Returns the size of a dilithium private plus public key.
+/* Returns the size of a ML-DSA private plus public key.
  *
- * @param [in] key  Dilithium private/public key.
+ * @param [in] key  ML-DSA private/public key.
  * @return  Private key size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
@@ -11103,32 +11104,32 @@ int wc_MlDsaKey_PrivSize(wc_MlDsaKey* key)
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = DILITHIUM_LEVEL2_PRV_KEY_SIZE;
+            ret = WC_MLDSA_44_PRV_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = DILITHIUM_LEVEL3_PRV_KEY_SIZE;
+            ret = WC_MLDSA_65_PRV_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = DILITHIUM_LEVEL5_PRV_KEY_SIZE;
+            ret = WC_MLDSA_87_PRV_KEY_SIZE;
         }
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = ML_DSA_LEVEL2_PRV_KEY_SIZE;
+            ret = WC_MLDSA_44_PRV_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = ML_DSA_LEVEL3_PRV_KEY_SIZE;
+            ret = WC_MLDSA_65_PRV_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = ML_DSA_LEVEL5_PRV_KEY_SIZE;
+            ret = WC_MLDSA_87_PRV_KEY_SIZE;
         }
     }
 
     return ret;
 }
 
-/* Returns the size of a dilithium private plus public key.
+/* Returns the size of a ML-DSA private plus public key.
  *
- * @param [in]  key  Dilithium private/public key.
+ * @param [in]  key  ML-DSA private/public key.
  * @param [out] len  Private key size for set level.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
@@ -11148,9 +11149,9 @@ int wc_MlDsaKey_GetPrivLen(wc_MlDsaKey* key, int* len)
 #endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-/* Returns the size of a dilithium public key.
+/* Returns the size of a ML-DSA public key.
  *
- * @param [in] key  Dilithium private/public key.
+ * @param [in] key  ML-DSA private/public key.
  * @return  Public key size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
@@ -11164,33 +11165,33 @@ int wc_MlDsaKey_PubSize(wc_MlDsaKey* key)
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
+            ret = WC_MLDSA_44_PUB_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
+            ret = WC_MLDSA_65_PUB_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+            ret = WC_MLDSA_87_PUB_KEY_SIZE;
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = ML_DSA_LEVEL2_PUB_KEY_SIZE;
+            ret = WC_MLDSA_44_PUB_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+            ret = WC_MLDSA_65_PUB_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = ML_DSA_LEVEL5_PUB_KEY_SIZE;
+            ret = WC_MLDSA_87_PUB_KEY_SIZE;
         }
     }
 
     return ret;
 }
 
-/* Returns the size of a dilithium public key.
+/* Returns the size of a ML-DSA public key.
  *
- * @param [in]  key  Dilithium private/public key.
+ * @param [in]  key  ML-DSA private/public key.
  * @param [out] len  Public key size for set level.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
@@ -11209,9 +11210,9 @@ int wc_MlDsaKey_GetPubLen(wc_MlDsaKey* key, int* len)
 #endif
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
-/* Returns the size of a dilithium signature.
+/* Returns the size of a ML-DSA signature.
  *
- * @param [in] key  Dilithium private/public key.
+ * @param [in] key  ML-DSA private/public key.
  * @return  Signature size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
@@ -11225,33 +11226,33 @@ int wc_MlDsaKey_SigSize(wc_MlDsaKey* key)
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = DILITHIUM_LEVEL2_SIG_SIZE;
+            ret = WC_MLDSA_44_SIG_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = DILITHIUM_LEVEL3_SIG_SIZE;
+            ret = WC_MLDSA_65_SIG_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = DILITHIUM_LEVEL5_SIG_SIZE;
+            ret = WC_MLDSA_87_SIG_SIZE;
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = ML_DSA_LEVEL2_SIG_SIZE;
+            ret = WC_MLDSA_44_SIG_SIZE;
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = ML_DSA_LEVEL3_SIG_SIZE;
+            ret = WC_MLDSA_65_SIG_SIZE;
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = ML_DSA_LEVEL5_SIG_SIZE;
+            ret = WC_MLDSA_87_SIG_SIZE;
         }
     }
 
     return ret;
 }
 
-/* Returns the size of a dilithium signature.
+/* Returns the size of a ML-DSA signature.
  *
- * @param [in]  key  Dilithium private/public key.
+ * @param [in]  key  ML-DSA private/public key.
  * @param [out] len  Signature size for set level.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
@@ -11270,9 +11271,9 @@ int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len)
 #endif
 
 #ifdef WOLFSSL_MLDSA_CHECK_KEY
-/* Check the public key of the dilithium key matches the private key.
+/* Check the public key of the ML-DSA key matches the private key.
  *
- * @param [in] key  Dilithium private/public key.
+ * @param [in] key  ML-DSA private/public key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or no private key available,
  * @return  PUBLIC_KEY_E when the public key is not set or doesn't match,
@@ -11353,11 +11354,11 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
         }
     }
     if (ret == 0) {
-        const byte* s1p = key->k + DILITHIUM_PUB_SEED_SZ + DILITHIUM_K_SZ +
-                                   DILITHIUM_TR_SZ;
+        const byte* s1p = key->k + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ +
+                                   MLDSA_TR_SZ;
         const byte* s2p = s1p + params->s1EncSz;
         const byte* t0p = s2p + params->s2EncSz;
-        const byte* t1p = key->p + DILITHIUM_PUB_SEED_SZ;
+        const byte* t1p = key->p + MLDSA_PUB_SEED_SZ;
         sword32* tt = t;
         unsigned int i;
         unsigned int j;
@@ -11386,14 +11387,14 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 
         /* Check t - t0 and t1 are the same. */
         for (i = 0; i < params->k; i++) {
-            for (j = 0; j < DILITHIUM_N; j++) {
+            for (j = 0; j < MLDSA_N; j++) {
                 x |= tt[j] ^ t1[j];
             }
-            tt += DILITHIUM_N;
-            t1 += DILITHIUM_N;
+            tt += MLDSA_N;
+            t1 += MLDSA_N;
         }
         /* Check the public seed is the same in private and public key. */
-        for (i = 0; i < DILITHIUM_PUB_SEED_SZ; i++) {
+        for (i = 0; i < MLDSA_PUB_SEED_SZ; i++) {
             x |= key->p[i] ^ key->k[i];
         }
 
@@ -11412,15 +11413,15 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
 
-/* Export the dilithium public key.
+/* Export the ML-DSA public key.
  *
- * @param [in]      key     Dilithium public key.
+ * @param [in]      key     ML-DSA public key.
  * @param [out]     out     Array to hold public key.
  * @param [in, out] outLen  On in, the number of bytes in array.
  *                          On out, the number bytes put into array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_PUB_KEY_SIZE.
+ * @return  BUFFER_E when outLen is less than WC_MLDSA_44_PUB_KEY_SIZE.
  */
 int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
 {
@@ -11440,25 +11441,25 @@ int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             /* Set out length. */
-            *outLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
+            *outLen = WC_MLDSA_44_PUB_KEY_SIZE;
             /* Validate length passed in. */
-            if (inLen < DILITHIUM_LEVEL2_PUB_KEY_SIZE) {
+            if (inLen < WC_MLDSA_44_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
             }
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             /* Set out length. */
-            *outLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
+            *outLen = WC_MLDSA_65_PUB_KEY_SIZE;
             /* Validate length passed in. */
-            if (inLen < DILITHIUM_LEVEL3_PUB_KEY_SIZE) {
+            if (inLen < WC_MLDSA_65_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
             }
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             /* Set out length. */
-            *outLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+            *outLen = WC_MLDSA_87_PUB_KEY_SIZE;
             /* Validate length passed in. */
-            if (inLen < DILITHIUM_LEVEL5_PUB_KEY_SIZE) {
+            if (inLen < WC_MLDSA_87_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
             }
         }
@@ -11466,25 +11467,25 @@ int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
     #endif
         if (key->level == WC_ML_DSA_44) {
             /* Set out length. */
-            *outLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
+            *outLen = WC_MLDSA_44_PUB_KEY_SIZE;
             /* Validate length passed in. */
-            if (inLen < ML_DSA_LEVEL2_PUB_KEY_SIZE) {
+            if (inLen < WC_MLDSA_44_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
             }
         }
         else if (key->level == WC_ML_DSA_65) {
             /* Set out length. */
-            *outLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+            *outLen = WC_MLDSA_65_PUB_KEY_SIZE;
             /* Validate length passed in. */
-            if (inLen < ML_DSA_LEVEL3_PUB_KEY_SIZE) {
+            if (inLen < WC_MLDSA_65_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
             }
         }
         else if (key->level == WC_ML_DSA_87) {
             /* Set out length. */
-            *outLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
+            *outLen = WC_MLDSA_87_PUB_KEY_SIZE;
             /* Validate length passed in. */
-            if (inLen < ML_DSA_LEVEL5_PUB_KEY_SIZE) {
+            if (inLen < WC_MLDSA_87_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
             }
         }
@@ -11507,13 +11508,13 @@ int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen)
     return ret;
 }
 
-/* Import a dilithium public key from a byte array.
+/* Import a ML-DSA public key from a byte array.
  *
  * Public key encoded in big-endian.
  *
  * @param [in]      in     Array holding public key.
  * @param [in]      inLen  Number of bytes of data in array.
- * @param [in, out] key    Dilithium public key.
+ * @param [in, out] key    ML-DSA public key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
  */
@@ -11532,19 +11533,19 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             /* Check length. */
-            if (inLen != DILITHIUM_LEVEL2_PUB_KEY_SIZE) {
+            if (inLen != WC_MLDSA_44_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             /* Check length. */
-            if (inLen != DILITHIUM_LEVEL3_PUB_KEY_SIZE) {
+            if (inLen != WC_MLDSA_65_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             /* Check length. */
-            if (inLen != DILITHIUM_LEVEL5_PUB_KEY_SIZE) {
+            if (inLen != WC_MLDSA_87_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
@@ -11552,19 +11553,19 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
     #endif
         if (key->level == WC_ML_DSA_44) {
             /* Check length. */
-            if (inLen != ML_DSA_LEVEL2_PUB_KEY_SIZE) {
+            if (inLen != WC_MLDSA_44_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
         else if (key->level == WC_ML_DSA_65) {
             /* Check length. */
-            if (inLen != ML_DSA_LEVEL3_PUB_KEY_SIZE) {
+            if (inLen != WC_MLDSA_65_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
         else if (key->level == WC_ML_DSA_87) {
             /* Check length. */
-            if (inLen != ML_DSA_LEVEL5_PUB_KEY_SIZE) {
+            if (inLen != WC_MLDSA_87_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
@@ -11749,11 +11750,11 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     return ret;
 }
 
-/* Import a dilithium private key from a byte array.
+/* Import a ML-DSA private key from a byte array.
  *
  * @param [in]      priv    Array holding private key.
  * @param [in]      privSz  Number of bytes of data in array.
- * @param [in, out] key     Dilithium private key.
+ * @param [in, out] key     ML-DSA private key.
  * @return  0 otherwise.
  * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
  *          required for level,
@@ -11780,13 +11781,13 @@ int wc_MlDsaKey_ImportPrivRaw(wc_MlDsaKey* key, const byte* priv, word32 privSz)
 }
 
 #if defined(WOLFSSL_MLDSA_PUBLIC_KEY)
-/* Import a dilithium private and public keys from byte array(s).
+/* Import a ML-DSA private and public keys from byte array(s).
  *
  * @param [in] priv    Array holding private key or private+public keys
  * @param [in] privSz  Number of bytes of data in private key array.
  * @param [in] pub     Array holding public key (or NULL).
  * @param [in] pubSz   Number of bytes of data in public key array (or 0).
- * @param [in] key     Dilithium private/public key.
+ * @param [in] key     ML-DSA private/public key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a required parameter is NULL an invalid
  *          combination of keys/lengths is supplied.
@@ -11820,15 +11821,15 @@ int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
 }
 #endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 
-/* Export the dilithium private key.
+/* Export the ML-DSA private key.
  *
- * @param [in]      key     Dilithium private key.
+ * @param [in]      key     ML-DSA private key.
  * @param [out]     out     Array to hold private key.
  * @param [in, out] outLen  On in, the number of bytes in array.
  *                          On out, the number bytes put into array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
+ * @return  BUFFER_E when outLen is less than WC_MLDSA_44_KEY_SIZE.
  */
 int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
     word32* outLen)
@@ -11854,24 +11855,24 @@ int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            *outLen = DILITHIUM_LEVEL2_KEY_SIZE;
+            *outLen = WC_MLDSA_44_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            *outLen = DILITHIUM_LEVEL3_KEY_SIZE;
+            *outLen = WC_MLDSA_65_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            *outLen = DILITHIUM_LEVEL5_KEY_SIZE;
+            *outLen = WC_MLDSA_87_KEY_SIZE;
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            *outLen = ML_DSA_LEVEL2_KEY_SIZE;
+            *outLen = WC_MLDSA_44_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_65) {
-            *outLen = ML_DSA_LEVEL3_KEY_SIZE;
+            *outLen = WC_MLDSA_65_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_87) {
-            *outLen = ML_DSA_LEVEL5_KEY_SIZE;
+            *outLen = WC_MLDSA_87_KEY_SIZE;
         }
         else {
             /* Level not set. */
@@ -11893,9 +11894,9 @@ int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out,
 }
 
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-/* Export the dilithium private and public key.
+/* Export the ML-DSA private and public key.
  *
- * @param [in]      key     Dilithium private/public key.
+ * @param [in]      key     ML-DSA private/public key.
  * @param [out]     priv    Array to hold private key.
  * @param [in, out] privSz  On in, the number of bytes in private key array.
  *                          On out, the number bytes put into private key.
@@ -11949,7 +11950,7 @@ static int mapOidToSecLevel(int oid)
     }
 }
 
-/* Get OID sum from dilithium key */
+/* Get OID sum from ML-DSA key */
 int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat) {
     int ret = 0;
 
@@ -12108,42 +12109,42 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
             ret = BAD_FUNC_ARG;
         }
         else if ((key->params->level == WC_ML_DSA_44_DRAFT) &&
-            (privKeyLen == DILITHIUM_LEVEL2_PRV_KEY_SIZE)) {
-            pubKey = privKey + DILITHIUM_LEVEL2_KEY_SIZE;
-            pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
-            privKeyLen -= DILITHIUM_LEVEL2_PUB_KEY_SIZE;
+            (privKeyLen == WC_MLDSA_44_PRV_KEY_SIZE)) {
+            pubKey = privKey + WC_MLDSA_44_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_44_PUB_KEY_SIZE;
+            privKeyLen -= WC_MLDSA_44_PUB_KEY_SIZE;
         }
         else if ((key->params->level == WC_ML_DSA_65_DRAFT) &&
-                 (privKeyLen == DILITHIUM_LEVEL3_PRV_KEY_SIZE)) {
-            pubKey = privKey + DILITHIUM_LEVEL3_KEY_SIZE;
-            pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
-            privKeyLen -= DILITHIUM_LEVEL3_PUB_KEY_SIZE;
+                 (privKeyLen == WC_MLDSA_65_PRV_KEY_SIZE)) {
+            pubKey = privKey + WC_MLDSA_65_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_65_PUB_KEY_SIZE;
+            privKeyLen -= WC_MLDSA_65_PUB_KEY_SIZE;
         }
         else if ((key->params->level == WC_ML_DSA_87_DRAFT) &&
-                 (privKeyLen == DILITHIUM_LEVEL5_PRV_KEY_SIZE)) {
-            pubKey = privKey + DILITHIUM_LEVEL5_KEY_SIZE;
-            pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
-            privKeyLen -= DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+                 (privKeyLen == WC_MLDSA_87_PRV_KEY_SIZE)) {
+            pubKey = privKey + WC_MLDSA_87_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_87_PUB_KEY_SIZE;
+            privKeyLen -= WC_MLDSA_87_PUB_KEY_SIZE;
         }
         else
     #endif
         if ((key->level == WC_ML_DSA_44) &&
-            (privKeyLen == ML_DSA_LEVEL2_PRV_KEY_SIZE)) {
-            pubKey = privKey + ML_DSA_LEVEL2_KEY_SIZE;
-            pubKeyLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
-            privKeyLen -= ML_DSA_LEVEL2_PUB_KEY_SIZE;
+            (privKeyLen == WC_MLDSA_44_PRV_KEY_SIZE)) {
+            pubKey = privKey + WC_MLDSA_44_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_44_PUB_KEY_SIZE;
+            privKeyLen -= WC_MLDSA_44_PUB_KEY_SIZE;
         }
         else if ((key->level == WC_ML_DSA_65) &&
-                 (privKeyLen == ML_DSA_LEVEL3_PRV_KEY_SIZE)) {
-            pubKey = privKey + ML_DSA_LEVEL3_KEY_SIZE;
-            pubKeyLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
-            privKeyLen -= ML_DSA_LEVEL3_PUB_KEY_SIZE;
+                 (privKeyLen == WC_MLDSA_65_PRV_KEY_SIZE)) {
+            pubKey = privKey + WC_MLDSA_65_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_65_PUB_KEY_SIZE;
+            privKeyLen -= WC_MLDSA_65_PUB_KEY_SIZE;
         }
         else if ((key->level == WC_ML_DSA_87) &&
-                 (privKeyLen == ML_DSA_LEVEL5_PRV_KEY_SIZE)) {
-            pubKey = privKey + ML_DSA_LEVEL5_KEY_SIZE;
-            pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
-            privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
+                 (privKeyLen == WC_MLDSA_87_PRV_KEY_SIZE)) {
+            pubKey = privKey + WC_MLDSA_87_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_87_PUB_KEY_SIZE;
+            privKeyLen -= WC_MLDSA_87_PUB_KEY_SIZE;
         }
     }
 
@@ -12151,7 +12152,7 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
         /* Generate a key pair if seed exists and decoded key pair is ignored */
         if (seedLen != 0) {
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
-            if (seedLen == DILITHIUM_SEED_SZ) {
+            if (seedLen == MLDSA_SEED_SZ) {
                 ret = wc_MlDsaKey_MakeKeyFromSeed(key, seed);
             }
             else {
@@ -12226,7 +12227,7 @@ static unsigned char mldsa_oid_87[] = {
 #endif
 #endif
 
-static int dilitihium_get_der_length(const byte* input, word32* inOutIdx,
+static int mldsa_get_der_length(const byte* input, word32* inOutIdx,
     int *length, word32 inSz)
 {
     int ret = 0;
@@ -12299,7 +12300,7 @@ static int mldsa_check_type(const byte* input, word32* inOutIdx, byte type,
 
 #endif /* WOLFSSL_MLDSA_NO_ASN1 */
 
-/* Decode the DER encoded Dilithium public key.
+/* Decode the DER encoded ML-DSA public key.
  *
  * @param [in]      input     Array holding DER encoded data.
  * @param [in, out] inOutIdx  On in, index into array of start of DER encoding.
@@ -12450,19 +12451,19 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
                 ret = mldsa_check_type(input, &idx, 0x30, inSz);
             }
             if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+                ret = mldsa_get_der_length(input, &idx, &length, inSz);
             }
             if (ret == 0) {
                 ret = mldsa_check_type(input, &idx, 0x30, inSz);
             }
             if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+                ret = mldsa_get_der_length(input, &idx, &length, inSz);
             }
             if (ret == 0) {
                 ret = mldsa_check_type(input, &idx, 0x06, inSz);
             }
             if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+                ret = mldsa_get_der_length(input, &idx, &length, inSz);
             }
             if (ret == 0) {
                 if (((word32)length != oidLen) ||
@@ -12475,7 +12476,7 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
                 ret = mldsa_check_type(input, &idx, 0x03, inSz);
             }
             if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+                ret = mldsa_get_der_length(input, &idx, &length, inSz);
             }
             if (ret == 0) {
                 if ((input[idx] != 0) || (length == 0)) {
@@ -12540,29 +12541,29 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             keyType = DILITHIUM_LEVEL2k;
-            pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_44_PUB_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             keyType = DILITHIUM_LEVEL3k;
-            pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_65_PUB_KEY_SIZE;
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             keyType = DILITHIUM_LEVEL5k;
-            pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_87_PUB_KEY_SIZE;
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
             keyType = ML_DSA_LEVEL2k;
-            pubKeyLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_44_PUB_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_65) {
             keyType = ML_DSA_LEVEL3k;
-            pubKeyLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_65_PUB_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_87) {
             keyType = ML_DSA_LEVEL5k;
-            pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
+            pubKeyLen = WC_MLDSA_87_PUB_KEY_SIZE;
         }
         else {
             /* Level not set. */
@@ -12611,30 +12612,30 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, key->p,
-                DILITHIUM_LEVEL2_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL2k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, key->p,
+                WC_MLDSA_44_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL2k);
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, key->p,
-                DILITHIUM_LEVEL3_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL3k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, key->p,
+                WC_MLDSA_65_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL3k);
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, key->p,
-                DILITHIUM_LEVEL5_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL5k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, key->p,
+                WC_MLDSA_87_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL5k);
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL2_KEY_SIZE, key->p,
-                ML_DSA_LEVEL2_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL2k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, key->p,
+                WC_MLDSA_44_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL2k);
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL3_KEY_SIZE, key->p,
-                ML_DSA_LEVEL3_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL3k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, key->p,
+                WC_MLDSA_65_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL3k);
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL5_KEY_SIZE, key->p,
-                ML_DSA_LEVEL5_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL5k);
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, key->p,
+                WC_MLDSA_87_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL5k);
         }
     }
 
@@ -12665,29 +12666,29 @@ int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
-            ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, NULL, 0,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL2k);
         }
         else if (key->params->level == WC_ML_DSA_65_DRAFT) {
-            ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, NULL, 0,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL3k);
         }
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
-            ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, NULL, 0,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL5k);
         }
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL2_KEY_SIZE, NULL, 0, output,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, NULL, 0, output,
                 len, ML_DSA_LEVEL2k);
         }
         else if (key->level == WC_ML_DSA_65) {
-            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL3_KEY_SIZE, NULL, 0, output,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, NULL, 0, output,
                 len, ML_DSA_LEVEL3k);
         }
         else if (key->level == WC_ML_DSA_87) {
-            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL5_KEY_SIZE, NULL, 0, output,
+            ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, NULL, 0, output,
                 len, ML_DSA_LEVEL5k);
         }
     }
