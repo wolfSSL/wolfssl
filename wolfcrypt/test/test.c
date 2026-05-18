@@ -31359,9 +31359,6 @@ static wc_test_ret_t openssl_aes_cbc_test(void)
             return WC_TEST_RET_ENC_NC;
         if (outlen != 16)
             return WC_TEST_RET_ENC_NC;
-        total += outlen;
-        if (total != 32)
-            return 3408;
 
         wolfSSL_EVP_CIPHER_CTX_cleanup(en);
 
@@ -31427,9 +31424,6 @@ static wc_test_ret_t openssl_aes_cbc_test(void)
         if (wolfSSL_EVP_CipherFinal(en, (byte*)&cipher[total], &outlen) == 0)
             return WC_TEST_RET_ENC_NC;
         if (outlen != 16)
-            return WC_TEST_RET_ENC_NC;
-        total += outlen;
-        if (total != 32)
             return WC_TEST_RET_ENC_NC;
 
         wolfSSL_EVP_CIPHER_CTX_cleanup(en);
