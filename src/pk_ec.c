@@ -426,7 +426,6 @@ void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef OPENSSL_EXTRA
-#ifndef NO_BIO
 
 /* Creates an EC group from the DER encoding.
  *
@@ -506,6 +505,7 @@ static WOLFSSL_EC_GROUP* wolfssl_ec_group_d2i(WOLFSSL_EC_GROUP** group,
     return ret;
 }
 
+#ifndef NO_BIO
 /* Creates a new EC group from the PEM encoding in the BIO.
  *
  * @param [in]  bio    BIO to read PEM encoding from.
@@ -545,6 +545,7 @@ WOLFSSL_EC_GROUP* wolfSSL_PEM_read_bio_ECPKParameters(WOLFSSL_BIO* bio,
     FreeDer(&der);
     return ret;
 }
+#endif /* !NO_BIO */
 
 WOLFSSL_EC_GROUP *wolfSSL_d2i_ECPKParameters(WOLFSSL_EC_GROUP **out,
         const unsigned char **in, long len)
@@ -592,7 +593,6 @@ int wolfSSL_i2d_ECPKParameters(const WOLFSSL_EC_GROUP* grp, unsigned char** pp)
 
     return len;
 }
-#endif /* !NO_BIO */
 
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS)
 /* Copy an EC group.

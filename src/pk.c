@@ -211,7 +211,8 @@ static int pem_read_file_key(XFILE fp, wc_pem_password_cb* cb, void* pass,
 #endif
 
 #if defined(OPENSSL_EXTRA) && ((!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) \
-    || !defined(WOLFCRYPT_ONLY))
+    || !defined(WOLFCRYPT_ONLY)) \
+    && (!defined(NO_BIO) || !defined(NO_FILESYSTEM))
 /* Convert DER data to PEM in an allocated buffer.
  *
  * @param [in]  der    Buffer containing DER data.

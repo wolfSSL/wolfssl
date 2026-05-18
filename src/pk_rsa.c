@@ -986,7 +986,6 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
-#if !defined(NO_BIO) || !defined(NO_FILESYSTEM)
 /* Load DER encoded data into WOLFSSL_RSA object.
  *
  * Creates a new WOLFSSL_RSA object if one is not passed in.
@@ -1026,7 +1025,6 @@ static WOLFSSL_RSA* wolfssl_rsa_d2i(WOLFSSL_RSA** rsa, const unsigned char* in,
     }
     return ret;
 }
-#endif
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 

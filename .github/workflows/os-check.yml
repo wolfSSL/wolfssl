@@ -128,6 +128,7 @@ jobs:
             CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_TLS12 -DNO_SESSION_CACHE
             -DWOLFSSL_AES_NO_UNROLL -DUSE_SLOW_SHA256 -DWOLFSSL_NO_ASYNC_IO
             -DWOLFSSL_DTLS_ONLY'' ',
+          '--enable-opensslextra --disable-filesystem CPPFLAGS="-DNO_BIO"',
           'CPPFLAGS=-DNO_VERIFY_OID',
           'CPPFLAGS="-DNO_VERIFY_OID -DWOLFSSL_FPKI"',
         ]
