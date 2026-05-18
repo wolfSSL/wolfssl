@@ -27,7 +27,7 @@ jobs:
   analyze:
     needs: load-targets
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +44,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: ${{ matrix.apt_packages }}
+          cache: ${{ matrix.apt_cache || 'true' }}
 
       - name: Build firmware
         run: ${{ matrix.build_cmd }}
@@ -59,4 +60,3 @@ jobs:
           api_key: ${{ secrets.MEMBROWSE_API_KEY }}
           api_url: ${{ vars.MEMBROWSE_API_URL }}
           verbose: INFO
-
