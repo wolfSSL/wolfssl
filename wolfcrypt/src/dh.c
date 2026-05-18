@@ -1122,10 +1122,21 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     byte cBuf[DH_MAX_SIZE + 64 / WOLFSSL_BIT_SIZE];
 #endif
 
-    /* Parameters validated in calling functions. */
+    /* Pointer parameters validated by the public entry wc_DhGenerateKeyPair. */
 
     if (mp_iszero(&key->q) == MP_YES) {
         WOLFSSL_MSG("DH q parameter needed for FIPS 186-4 key generation");
+        return BAD_FUNC_ARG;
+    }
+
+    /* Bound *privSz so cSz (= *privSz + 8) cannot exceed the cBuf capacity.
+     * Note: DH_MAX_SIZE is documented as a bit count, but the cBuf declaration
+     * above uses it directly as a byte count (cBuf is DH_MAX_SIZE + 8 bytes).
+     * This check matches that convention so *privSz (in bytes) is bounded by
+     * the actual byte capacity of cBuf. The same bound is applied to the
+     * WOLFSSL_SMALL_STACK path to avoid unbounded heap allocation. */
+    if (*privSz > DH_MAX_SIZE) {
+        WOLFSSL_MSG("DH private key size exceeds DH_MAX_SIZE");
         return BAD_FUNC_ARG;
     }
 
