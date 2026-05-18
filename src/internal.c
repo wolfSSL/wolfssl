@@ -42670,6 +42670,27 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
         return BAD_FUNC_ARG;
 
     if (isEncrypted) {
+        /* AEAD overhead is constant per cache key (cipher, version, CID, DTLS
+         * 1.3 epoch); use the cached value when available. DTLS 1.3 pads
+         * records up to Dtls13MinimumRecordLength() (RFC 9147 5.5), so:
+         *   - on read: only return the cached overhead when the resulting
+         *     record would not be padded;
+         *   - on populate: only store the overhead when BuildMessage returned
+         *     a record strictly above the minimum, which guarantees no
+         *     padding was applied. */
+#ifdef WOLFSSL_DTLS13
+        int isDtls13 = ssl->options.dtls && ssl->options.tls1_3;
+#endif
+
+        if (ssl->specs.cipher_type == aead && ssl->recordSzOverhead != 0
+#ifdef WOLFSSL_DTLS13
+                && (!isDtls13 || payloadSz + (int)ssl->recordSzOverhead
+                                    >= Dtls13MinimumRecordLength(ssl))
+#endif
+                ) {
+            return payloadSz + (int)ssl->recordSzOverhead;
+        }
+
         recordSz = BuildMessage(ssl, NULL, 0, NULL, payloadSz, application_data,
              0, 1, 0, CUR_ORDER);
         /* use a safe upper bound in case of error */
@@ -42679,6 +42700,14 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
             if (ssl->options.dtls) {
                 recordSz += DTLS_RECORD_EXTRA;
             }
+        }
+        else if (ssl->specs.cipher_type == aead && recordSz > payloadSz
+#ifdef WOLFSSL_DTLS13
+                && (!isDtls13 || recordSz > Dtls13MinimumRecordLength(ssl))
+#endif
+                ) {
+            /* Populate cache only on success; never from the fallback. */
+            ssl->recordSzOverhead = (word32)(recordSz - payloadSz);
         }
     }
     else {
