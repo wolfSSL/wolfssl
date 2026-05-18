@@ -1246,6 +1246,9 @@ WOLFSSL_API int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
 
 WOLFSSL_API void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable);
 
+WOLFSSL_API void wolfSSL_CTX_SetEchEnableTrialDecrypt(WOLFSSL_CTX* ctx,
+    byte enable);
+
 WOLFSSL_API int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl,
     const char* echConfigs64, word32 echConfigs64Len);
 
@@ -1259,6 +1262,14 @@ WOLFSSL_API int wolfSSL_GetEchRetryConfigs(WOLFSSL* ssl, byte* echConfigs,
     word32* echConfigsLen);
 
 WOLFSSL_API void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable);
+
+WOLFSSL_API void wolfSSL_SetEchEnableTrialDecrypt(WOLFSSL* ssl, byte enable);
+
+#define WOLFSSL_ECH_STATUS_NOT_OFFERED  0
+#define WOLFSSL_ECH_STATUS_GREASE       1
+#define WOLFSSL_ECH_STATUS_REJECTED     2
+#define WOLFSSL_ECH_STATUS_ACCEPTED     3
+WOLFSSL_API int wolfSSL_GetEchStatus(const WOLFSSL* ssl);
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 #ifdef HAVE_POLY1305
