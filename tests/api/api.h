@@ -268,9 +268,6 @@ static WC_INLINE int test_pkcs8_get_version_byte(const byte* der, word32 derSz)
     if (der[idx++] != 0x30) {
         return -1;
     }
-    if (idx >= derSz) {
-        return -1;
-    }
     if ((der[idx] & 0x80) == 0) {
         /* short-form length */
         idx += 1;
