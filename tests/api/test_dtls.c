@@ -2955,23 +2955,21 @@ int test_dtls13_no_session_id_echo(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
-    defined(HAVE_SESSION_TICKET)
+    defined(HAVE_SESSION_TICKET) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_DTLS13_5_9_0_COMPAT)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION *sess = NULL;
     char readBuf[1];
-    /* Use traditional groups to avoid HRR from PQ key share mismatch */
-    int groups[] = {
-        WOLFSSL_ECC_SECP256R1,
-        WOLFSSL_ECC_SECP384R1,
-    };
+    /* Pin to SECP256R1 to avoid a PQ-induced key-share HRR */
+    int groups[] = { WOLFSSL_ECC_SECP256R1 };
 
     /* First connection: complete a DTLS 1.3 handshake to get a session */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     /* Read to process any NewSessionTicket */
@@ -3000,8 +2998,7 @@ int test_dtls13_no_session_id_echo(void)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
-    /* Use traditional groups to avoid HRR from key share mismatch */
-    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
     /* Disable HRR cookie so the server directly sends a ServerHello */
     ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
 
@@ -3024,6 +3021,132 @@ int test_dtls13_no_session_id_echo(void)
         DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN], 0);
 
     /* Complete the handshake */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a server built with WOLFSSL_DTLS13_5_9_0_COMPAT echoes the
+ * client's legacy_session_id in both the direct ServerHello path and the
+ * stateless HRR path (which also exercises RestartHandshakeHashWithCookie). */
+int test_dtls13_5_9_0_compat(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_5_9_0_COMPAT) && \
+    defined(HAVE_ECC)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char readBuf[1];
+    /* Pin to SECP256R1 to avoid a PQ-induced key-share HRR */
+    int groups[] = { WOLFSSL_ECC_SECP256R1 };
+    /* RFC 8446 Section 4.1.3: an HRR is a ServerHello carrying this magic
+     * random. Used to assert sub-test 1 is a real ServerHello, not an HRR. */
+    static const byte hrrRandom[RAN_LEN] = {
+        0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
+        0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91,
+        0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
+        0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C
+    };
+
+    /* --- initial connection: get a real session to carry the session ID --- */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* drain any NewSessionTicket before calling get1_session */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Force a non-zero session ID — simulates a wolfSSL <=v5.9.0 client that
+     * mistakenly sends 32 bytes as legacy_session_id in DTLS 1.3. */
+    if (sess != NULL && sess->sessionIDSz == 0) {
+        sess->sessionIDSz = ID_LEN;
+        XMEMSET(sess->sessionID, 0x42, ID_LEN);
+    }
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* --- sub-test 1: direct ServerHello (HRR cookie disabled) ---
+     * Exercises DoTls13ClientHello (change 1) and
+     * SendTls13ServerHello (change 2). */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Client sends CH1 with non-empty legacy_session_id */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Server processes CH1 and sends ServerHello */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Verify that the ServerHello on the wire echoes the session ID.
+     * Layout: DTLS Record Header (13) + DTLS Handshake Header (12) +
+     *         ProtocolVersion (2) + Random (32) = byte 59 for
+     *         legacy_session_id_echo length. */
+    ExpectIntGE(test_ctx.c_len, 60);
+    ExpectIntEQ(test_ctx.c_buff[0], handshake);
+    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], server_hello);
+    /* Confirm it is a real ServerHello, not an HRR (also encoded as a
+     * ServerHello but bearing the HelloRetryRequest magic random). */
+    ExpectIntNE(XMEMCMP(&test_ctx.c_buff[DTLS_RECORD_HEADER_SZ +
+        DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN], hrrRandom, RAN_LEN), 0);
+    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ +
+        DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN], ID_LEN);
+
+    /* Complete the handshake — Finished MAC validates the transcript */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* --- sub-test 2: stateless HRR (HRR cookie enabled by default) ---
+     * Exercises SendStatelessReplyDtls13 (change 4) and
+     * RestartHandshakeHashWithCookie (change 3). */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+
+    /* Client sends CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Server sends stateless HRR (SendStatelessReplyDtls13) */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Verify the HRR echoes the session ID at the same wire offset */
+    ExpectIntGE(test_ctx.c_len, 60);
+    ExpectIntEQ(test_ctx.c_buff[0], handshake);
+    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], server_hello);
+    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ +
+        DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN], ID_LEN);
+
+    /* Complete the handshake — Finished MAC validates RestartHandshakeHashWithCookie */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_SESSION_free(sess);
