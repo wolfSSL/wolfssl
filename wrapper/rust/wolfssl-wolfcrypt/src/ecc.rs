@@ -985,6 +985,10 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_unsigned(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let curve_size = Self::get_curve_size_from_id(curve_id)? as usize;
+        if qx.len() < curve_size || qy.len() < curve_size || d.len() < curve_size {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let heap = heap.unwrap_or(core::ptr::null_mut());
         let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
         let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;

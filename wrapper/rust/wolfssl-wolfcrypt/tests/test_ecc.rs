@@ -9,6 +9,8 @@ use std::rc::Rc;
 use wolfssl_wolfcrypt::ecc::*;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
+#[cfg(ecc_import)]
+use wolfssl_wolfcrypt::sys;
 
 #[test]
 #[cfg(random)]
@@ -290,6 +292,33 @@ fn test_ecc_import_unsigned() {
     let signature = &signature[0..signature_length];
     let valid = ecc2.verify_hash(signature, &hash).expect("Error with verify_hash()");
     assert_eq!(valid, true);
+}
+
+#[test]
+#[cfg(ecc_import)]
+fn test_ecc_import_unsigned_short_slices() {
+    common::setup();
+
+    let curve_id = ECC::SECP256R1;
+    let qx = [0u8; 32];
+    let qy = [0u8; 32];
+    let d = [0u8; 32];
+    let empty: [u8; 0] = [];
+
+    let cases: [(&[u8], &[u8], &[u8]); 6] = [
+        (&qx[..31], &qy,        &d       ),
+        (&qx,       &qy[..31],  &d       ),
+        (&qx,       &qy,        &d[..31] ),
+        (&empty,    &qy,        &d       ),
+        (&qx,       &empty,     &d       ),
+        (&qx,       &qy,        &empty   ),
+    ];
+    for (qx, qy, d) in cases {
+        match ECC::import_unsigned(qx, qy, d, curve_id, None, None) {
+            Ok(_) => panic!("import_unsigned() should fail with short slice"),
+            Err(rc) => assert_eq!(rc, sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+        }
+    }
 }
 
 #[test]
