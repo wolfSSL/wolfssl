@@ -35,6 +35,13 @@
 
 #include <wolfssl/wolfcrypt/port/tropicsquare/tropic01.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 static Tropic01CryptoDevCtx g_ctx = {0};
 static lt_handle_t g_h;
 

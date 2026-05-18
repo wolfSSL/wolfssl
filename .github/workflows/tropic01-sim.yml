@@ -1,0 +1,88 @@
+name: TROPIC01 simulator test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+# Build the TROPIC01 software simulator (https://github.com/wolfSSL/simulators,
+# TROPIC01Sim/ subdirectory), build wolfSSL --with-tropic01 against libtropic
+# v0.1.0 + the simulator's TCP HAL, and run Tropic Square's wolfssl-test app
+# against the simulator TCP server.
+#
+# The simulator's own Dockerfile.wolfcrypt clones wolfSSL master and applies
+# one sed patch to it (s/ForceZero/wc_ForceZero/ in
+# wolfcrypt/src/port/tropicsquare/tropic01.c). That patch is now upstreamed
+# in wolfSSL itself, so we:
+#   1. COPY the PR checkout instead of cloning master.
+#   2. Neutralise the now-redundant ForceZero sed RUN block.
+# The -DLT_SEPARATE_L3_BUFF=0 CFLAG stays in the Dockerfile -- it's a
+# libtropic v0.1.0 compatibility shim, not a wolfSSL concern.
+
+env:
+  SIMULATORS_REF: 32a14301983acab4663fe31b5fd7f3e51cf8a534
+
+jobs:
+  tropic01_sim:
+    name: wolfCrypt against TROPIC01 simulator
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout wolfSSL (PR source)
+        uses: actions/checkout@v4
+        with:
+          path: wolfssl-src
+
+      - name: Clone TROPIC01 simulator
+        run: |
+          git clone https://github.com/wolfSSL/simulators simulators
+          cd simulators && git checkout "$SIMULATORS_REF"
+
+      - name: Stage PR wolfSSL into simulator build context
+        run: mv wolfssl-src simulators/TROPIC01Sim/wolfssl
+
+      - name: Patch Dockerfile to use PR wolfSSL and drop redundant ForceZero patch
+        working-directory: simulators/TROPIC01Sim
+        run: |
+          # 1. Replace the (two-line) upstream `RUN git clone --branch
+          #    ${WOLFSSL_REF} --depth 1 \ https://.../wolfssl.git /app/wolfssl`
+          #    with a COPY of the PR checkout.
+          sed -i '/^RUN git clone --branch \${WOLFSSL_REF} --depth 1 \\$/,/wolfssl\.git \/app\/wolfssl$/c\
+          COPY wolfssl /app/wolfssl' Dockerfile.wolfcrypt
+          # Fail fast if the pattern drifted upstream -- better a clear error
+          # than a CI run that silently tests master.
+          grep -q '^COPY wolfssl /app/wolfssl$' Dockerfile.wolfcrypt
+          ! grep -q 'git clone .*wolfssl\.git' Dockerfile.wolfcrypt
+
+          # 2. Neutralise the ForceZero sed-patch RUN block: the fix
+          #    (s/ForceZero/wc_ForceZero/ in tropic01.c) is now upstream,
+          #    and rerunning the non-word-boundary-anchored simulator
+          #    substitution on already-fixed source would corrupt it to
+          #    `wc_wc_ForceZero`. Range matches from the ForceZero RUN sed
+          #    line to its tropic01.c continuation line.
+          sed -i '/^RUN sed -i .*ForceZero/,/tropic01\.c$/c\RUN true' Dockerfile.wolfcrypt
+          ! grep -q 'sed -i .*ForceZero' Dockerfile.wolfcrypt
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build wolfCrypt-TROPIC01 test image
+        uses: docker/build-push-action@v5
+        with:
+          context: simulators/TROPIC01Sim
+          file: simulators/TROPIC01Sim/Dockerfile.wolfcrypt
+          push: false
+          load: true
+          tags: wolfssl-tropic01-sim:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run wolfCrypt tests against simulator
+        run: docker run --rm wolfssl-tropic01-sim:ci
