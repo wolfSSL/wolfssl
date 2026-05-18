@@ -24,6 +24,10 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #if FIPS_VERSION3_GE(7,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif
@@ -591,6 +595,11 @@ typedef struct SlhDsaParameters {
 #define WC_SLHDSA_FLAG_BOTH_KEYS     (WC_SLHDSA_FLAG_PRIVATE | \
                                       WC_SLHDSA_FLAG_PUBLIC)
 
+#ifdef WOLF_PRIVATE_KEY_ID
+#define SLHDSA_MAX_ID_LEN    32
+#define SLHDSA_MAX_LABEL_LEN 32
+#endif
+
 /* SLH-DSA key data and state. */
 typedef struct SlhDsaKey {
     /* Parameters. */
@@ -600,8 +609,16 @@ typedef struct SlhDsaKey {
     /* Dynamic memory hint. */
     void* heap;
 #ifdef WOLF_CRYPTO_CB
+    /* Device context (opaque, owned by the registered callback). */
+    void* devCtx;
     /* Device Identifier. */
     int devId;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[SLHDSA_MAX_ID_LEN];
+    int  idLen;
+    char label[SLHDSA_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 
     /* sk_seed | sk_prf | pk_seed, pk_root */
@@ -641,6 +658,12 @@ typedef struct SlhDsaKey {
 
 WOLFSSL_API int  wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param,
     void* heap, int devId);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API int  wc_SlhDsaKey_Init_id(SlhDsaKey* key, enum SlhDsaParam param,
+    const unsigned char* id, int len, void* heap, int devId);
+WOLFSSL_API int  wc_SlhDsaKey_Init_label(SlhDsaKey* key, enum SlhDsaParam param,
+    const char* label, void* heap, int devId);
+#endif
 WOLFSSL_API void wc_SlhDsaKey_Free(SlhDsaKey* key);
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY

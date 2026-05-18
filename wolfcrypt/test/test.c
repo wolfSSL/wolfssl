@@ -57249,7 +57249,11 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_Init(key, param, NULL, INVALID_DEVID);
+    /* Use the module-global devId so that when cryptocb_test() runs this
+     * test with a registered callback, MakeKey/Sign/Verify route through
+     * the cryptocb dispatcher. In standalone runs devId == INVALID_DEVID
+     * and the calls go straight to the SW implementation. */
+    ret = wc_SlhDsaKey_Init(key, param, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -57272,7 +57276,7 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_Init(key_vfy, param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, param, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -57412,6 +57416,163 @@ out:
       defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)))
     #define SLHDSA_TEST_HAVE_ANY_PARAM
 #endif
+
+#if defined(WOLF_PRIVATE_KEY_ID) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || defined(WOLFSSL_SLHDSA_PARAM_128F) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F))
+/* Exercise wc_SlhDsaKey_Init_id / _Init_label argument validation and
+ * id/label storage round-trip. Independent of any cryptocb device. */
+static wc_test_ret_t slhdsa_id_label_test(void)
+{
+    wc_test_ret_t ret;
+    SlhDsaKey key;
+    static const unsigned char id[] = {
+        0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x07, 0x18,
+        0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0x90
+    };
+    static const char label[] = "slh-dsa-test-label";
+    enum SlhDsaParam param =
+#ifdef WOLFSSL_SLHDSA_PARAM_128S
+        SLHDSA_SHAKE128S;
+#elif defined(WOLFSSL_SLHDSA_PARAM_128F)
+        SLHDSA_SHAKE128F;
+#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        SLHDSA_SHA2_128S;
+#else
+        SLHDSA_SHA2_128F;
+#endif
+
+    /* Zero the stack key so rejection-path tests below don't read
+     * uninitialized fields if a future Init refactor inspects key state
+     * before zeroizing it. */
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* NULL key rejected. */
+    ret = wc_SlhDsaKey_Init_id(NULL, param, id, (int)sizeof(id), HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* (id == NULL, len > 0) is the silent-contradiction case the original
+     * review flagged; must be rejected. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, NULL, 8, HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Length over the cap rejected with BUFFER_E. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, SLHDSA_MAX_ID_LEN + 1,
+        HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Negative length rejected. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, -1, HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Successful init copies the id and stores its length. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, (int)sizeof(id), HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (key.idLen != (int)sizeof(id))
+        ret = WC_TEST_RET_ENC_NC;
+    if ((ret == 0) && (XMEMCMP(key.id, id, sizeof(id)) != 0))
+        ret = WC_TEST_RET_ENC_NC;
+    wc_SlhDsaKey_Free(&key);
+    if (ret != 0)
+        return ret;
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* (id != NULL, len == 0) is accepted as a no-op. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, 0, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (key.idLen != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    wc_SlhDsaKey_Free(&key);
+    if (ret != 0)
+        return ret;
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* Boundary: exactly SLHDSA_MAX_ID_LEN bytes must be accepted and round
+     * trip byte-for-byte. */
+    {
+        unsigned char id_max[SLHDSA_MAX_ID_LEN];
+        int i;
+        for (i = 0; i < SLHDSA_MAX_ID_LEN; i++)
+            id_max[i] = (unsigned char)(0x40 + i);
+        ret = wc_SlhDsaKey_Init_id(&key, param, id_max, SLHDSA_MAX_ID_LEN,
+            HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (key.idLen != SLHDSA_MAX_ID_LEN)
+            ret = WC_TEST_RET_ENC_NC;
+        if ((ret == 0) &&
+                (XMEMCMP(key.id, id_max, SLHDSA_MAX_ID_LEN) != 0))
+            ret = WC_TEST_RET_ENC_NC;
+        wc_SlhDsaKey_Free(&key);
+        if (ret != 0)
+            return ret;
+        XMEMSET(&key, 0, sizeof(key));
+    }
+
+    /* Init_label: NULL label / NULL key rejected. */
+    ret = wc_SlhDsaKey_Init_label(NULL, param, label, HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SlhDsaKey_Init_label(&key, param, NULL, HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Empty label is rejected. */
+    ret = wc_SlhDsaKey_Init_label(&key, param, "", HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Successful init copies the label and stores its length. */
+    ret = wc_SlhDsaKey_Init_label(&key, param, label, HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (key.labelLen != (int)XSTRLEN(label))
+        ret = WC_TEST_RET_ENC_NC;
+    if ((ret == 0) &&
+            (XMEMCMP(key.label, label, (size_t)key.labelLen) != 0))
+        ret = WC_TEST_RET_ENC_NC;
+    wc_SlhDsaKey_Free(&key);
+    if (ret != 0)
+        return ret;
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* Boundary: a SLHDSA_MAX_LABEL_LEN-char label (33-byte buffer with the
+     * trailing NUL) must be accepted. The stored copy fills the whole
+     * key->label array and is NOT NUL-terminated; callers must use
+     * key->labelLen. */
+    {
+        char label_max[SLHDSA_MAX_LABEL_LEN + 1];
+        int i;
+        for (i = 0; i < SLHDSA_MAX_LABEL_LEN; i++)
+            label_max[i] = 'L';
+        label_max[SLHDSA_MAX_LABEL_LEN] = '\0';
+        ret = wc_SlhDsaKey_Init_label(&key, param, label_max, HEAP_HINT,
+            INVALID_DEVID);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (key.labelLen != SLHDSA_MAX_LABEL_LEN)
+            ret = WC_TEST_RET_ENC_NC;
+        if ((ret == 0) &&
+                (XMEMCMP(key.label, label_max, SLHDSA_MAX_LABEL_LEN) != 0))
+            ret = WC_TEST_RET_ENC_NC;
+        wc_SlhDsaKey_Free(&key);
+    }
+
+    return ret;
+}
+#endif /* WOLF_PRIVATE_KEY_ID && (SHAKE128S|F || SHA2_128S|F) */
 
 wc_test_ret_t slhdsa_test(void)
 {
@@ -58505,7 +58666,10 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
-    ret = wc_SlhDsaKey_Init(key_vfy, SLHDSA_SHAKE128S, NULL, INVALID_DEVID);
+    /* Use module-global devId so this verify routes through the cryptocb
+     * when registered. In VERIFY_ONLY builds this is the only path through
+     * slhdsa_test() that exercises the cb. */
+    ret = wc_SlhDsaKey_Init(key_vfy, SLHDSA_SHAKE128S, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -59223,6 +59387,22 @@ wc_test_ret_t slhdsa_test(void)
 #endif
 
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+#if defined(WOLF_PRIVATE_KEY_ID) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || defined(WOLFSSL_SLHDSA_PARAM_128F) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F))
+    /* Init_id/Init_label/Free are available in VERIFY_ONLY builds, so this
+     * runs regardless of VERIFY_ONLY. Fall through to cleanup on failure
+     * (no `goto out;` because `out:` is not defined in 128F-only +
+     * VERIFY_ONLY builds, and no allocations precede this point that
+     * would need an early bail-out). */
+    if (ret == 0) {
+        ret = slhdsa_id_label_test();
+        if (ret != 0)
+            wc_test_render_error_message("SLHDSA_ID_LABEL", ret);
+    }
+#endif
 
 #ifdef SLHDSA_TEST_HAVE_ANY_PARAM
 out:
@@ -71902,6 +72082,95 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             ret = 0;
         }
     #endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+    #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) {
+            int pqcType = info->pk.pqc_sig_kg.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sig_kg.key;
+                sk->devId = INVALID_DEVID;
+                ret = wc_SlhDsaKey_MakeKey(sk, info->pk.pqc_sig_kg.rng);
+                sk->devId = devIdArg;
+                myCtx->exampleVar++;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN) {
+            int pqcType = info->pk.pqc_sign.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sign.key;
+                enum wc_HashType phType =
+                    (enum wc_HashType)info->pk.pqc_sign.preHashType;
+                sk->devId = INVALID_DEVID;
+                if (phType == WC_HASH_TYPE_NONE) {
+                    ret = wc_SlhDsaKey_Sign(sk,
+                        info->pk.pqc_sign.context,
+                        info->pk.pqc_sign.contextLen,
+                        info->pk.pqc_sign.in,
+                        info->pk.pqc_sign.inlen,
+                        info->pk.pqc_sign.out,
+                        info->pk.pqc_sign.outlen,
+                        info->pk.pqc_sign.rng);
+                }
+                else {
+                    ret = wc_SlhDsaKey_SignHash(sk,
+                        info->pk.pqc_sign.context,
+                        info->pk.pqc_sign.contextLen,
+                        info->pk.pqc_sign.in,
+                        info->pk.pqc_sign.inlen,
+                        phType,
+                        info->pk.pqc_sign.out,
+                        info->pk.pqc_sign.outlen,
+                        info->pk.pqc_sign.rng);
+                }
+                sk->devId = devIdArg;
+                myCtx->exampleVar++;
+            }
+        }
+        else
+    #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY) {
+            int pqcType = info->pk.pqc_verify.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_verify.key;
+                enum wc_HashType phType =
+                    (enum wc_HashType)info->pk.pqc_verify.preHashType;
+                int verifyRet = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                sk->devId = INVALID_DEVID;
+                if (phType == WC_HASH_TYPE_NONE) {
+                    verifyRet = wc_SlhDsaKey_Verify(sk,
+                        info->pk.pqc_verify.context,
+                        info->pk.pqc_verify.contextLen,
+                        info->pk.pqc_verify.msg,
+                        info->pk.pqc_verify.msglen,
+                        info->pk.pqc_verify.sig,
+                        info->pk.pqc_verify.siglen);
+                }
+                else {
+                    verifyRet = wc_SlhDsaKey_VerifyHash(sk,
+                        info->pk.pqc_verify.context,
+                        info->pk.pqc_verify.contextLen,
+                        info->pk.pqc_verify.msg,
+                        info->pk.pqc_verify.msglen,
+                        phType,
+                        info->pk.pqc_verify.sig,
+                        info->pk.pqc_verify.siglen);
+                }
+                sk->devId = devIdArg;
+                if (info->pk.pqc_verify.res != NULL) {
+                    *info->pk.pqc_verify.res = (verifyRet == 0) ? 1 : 0;
+                }
+                /* SIG_VERIFY_E is a validity signal, not a crypto error, so
+                 * translate it back to success for the dispatcher. */
+                if (verifyRet == WC_NO_ERR_TRACE(SIG_VERIFY_E))
+                    verifyRet = 0;
+                ret = verifyRet;
+                myCtx->exampleVar++;
+            }
+        }
+    #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifdef WOLFSSL_HAVE_MLKEM
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
             if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_KYBER) &&
@@ -72685,15 +72954,25 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
-#ifdef HAVE_DILITHIUM
+#if defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA)
                 case WC_PK_TYPE_PQC_SIG_KEYGEN:
                 {
+            #ifdef HAVE_DILITHIUM
                     if (info->free.subType == WC_PQC_SIG_TYPE_DILITHIUM) {
                         dilithium_key* dil = (dilithium_key*)info->free.obj;
                         dil->devId = INVALID_DEVID;
                         wc_dilithium_free(dil);
                         ret = 0;
                     }
+            #endif
+            #ifdef WOLFSSL_HAVE_SLHDSA
+                    if (info->free.subType == WC_PQC_SIG_TYPE_SLHDSA) {
+                        SlhDsaKey* slh = (SlhDsaKey*)info->free.obj;
+                        slh->devId = INVALID_DEVID;
+                        wc_SlhDsaKey_Free(slh);
+                        ret = 0;
+                    }
+            #endif
                     break;
                 }
 #endif
@@ -73360,6 +73639,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef HAVE_DILITHIUM
     if (ret == 0)
         ret = dilithium_test();
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    if (ret == 0) {
+        /* Reuse exampleVar as a hit counter for the SLH-DSA cb branches.
+         * baseline holds the value seen by every other cb at this point;
+         * we restore it after, so subsequent tests are unaffected.
+         * Confirms the SLH-DSA cb path was actually exercised; a silent
+         * SW fallback would otherwise mask a regression in the dispatch.
+         *
+         * Only enforce when slhdsa_test() actually runs a cb-routed op:
+         * !VERIFY_ONLY runs slhdsa_test_param (uses devId), or
+         * PARAM_128S enables the in-tree KAT verify (also uses devId). */
+        int baseline = myCtx.exampleVar;
+        ret = slhdsa_test();
+    #if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || \
+        defined(WOLFSSL_SLHDSA_PARAM_128S)
+        if ((ret == 0) && (myCtx.exampleVar == baseline))
+            ret = WC_TEST_RET_ENC_NC;
+    #endif
+        myCtx.exampleVar = baseline;
+    }
 #endif
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
     if (ret == 0)
