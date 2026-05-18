@@ -937,7 +937,7 @@ static int stm32_getabs_from_mp_int(uint8_t *dst, const mp_int *a, int sz,
     #if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
         ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
             defined(WOLFSSL_SP_INT_NEGATIVE))
-        *abs_sign = x.sign;
+        *abs_sign = a->sign;
     #else
         *abs_sign = 1; /* default to negative */
     #endif
