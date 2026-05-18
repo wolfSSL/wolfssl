@@ -527,6 +527,9 @@ int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devid)
     int ret;
     (void)heap;
     (void)devid;
+    if (sha == NULL) {
+        return BAD_FUNC_ARG;
+    }
     XMEMSET(sha, 0, sizeof(wc_Sha512));
     /* Lock the mutex to perform crypto operations */
     ret = wolfSSL_CryptHwMutexLock();
