@@ -5092,7 +5092,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                 return ret;
         }
 #endif
-        ret = TLSX_FinalizeEch(args->ech,
+        ret = TLSX_FinalizeEch(ssl, args->ech,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
             (word32)(args->sendSz - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)));
 
@@ -16073,6 +16073,12 @@ int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
             str = "SERVER_TRAFFIC_SECRET_0"; break;
         case EXPORTER_SECRET:
             str = "EXPORTER_SECRET"; break;
+#ifdef HAVE_ECH
+        case ECH_SECRET:
+            str = "ECH_SECRET"; break;
+        case ECH_CONFIG:
+            str = "ECH_CONFIG"; break;
+#endif
         default:
 #ifdef WOLFSSL_SSLKEYLOGFILE_OUTPUT
             XFCLOSE(fp);

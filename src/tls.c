@@ -13813,6 +13813,42 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
     return (int)size;
 }
 
+#ifdef HAVE_SECRET_CALLBACK
+/* log ECH_SECRET and ECH_CONFIG
+ * returns 0 on success, TLS13_SECRET_CB_E otherwise */
+static int EchWriteKeyLog(WOLFSSL* ssl, const byte* secret, word32 secretSz,
+    const byte* config, word32 configSz)
+{
+    int ret = 0;
+    if (ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, ECH_SECRET, secret, (int)secretSz,
+                ssl->tls13SecretCtx);
+        if (ret == 0) {
+            ret = ssl->tls13SecretCb(ssl, ECH_CONFIG, config, (int)configSz,
+                    ssl->tls13SecretCtx);
+        }
+        if (ret != 0) {
+            WOLFSSL_ERROR_VERBOSE(TLS13_SECRET_CB_E);
+            ret = TLS13_SECRET_CB_E;
+        }
+    }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, ECH_SECRET, secret, (int)secretSz, NULL);
+        if (ret == 0) {
+            ret = ssl->tls13KeyLogCb(ssl, ECH_CONFIG, config, (int)configSz,
+                    NULL);
+        }
+        if (ret != 0) {
+            WOLFSSL_ERROR_VERBOSE(TLS13_SECRET_CB_E);
+            ret = TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
+    return ret;
+}
+#endif /* HAVE_SECRET_CALLBACK */
+
 /* rough check that inner hello fields do not exceed length of decrypted
  * information. Additionally, this function will check that all padding bytes
  * are zero and decrease the innerHelloLen accordingly if so.
@@ -14222,8 +14258,8 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
 /* return status after attempting to open the hpke encrypted ech extension, if
  * successful the inner client hello will be stored in
  * ech->innerClientHelloLen */
-static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
-    byte* aad, word32 aadLen, void* heap)
+static int TLSX_ExtractEch(WOLFSSL* ssl, WOLFSSL_ECH* ech,
+    WOLFSSL_EchConfig* echConfig, byte* aad, word32 aadLen)
 {
     int ret = 0;
     int i;
@@ -14231,7 +14267,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
     word32 rawConfigLen = 0;
     byte* info = NULL;
     word32 infoLen = 0;
-    if (ech == NULL || echConfig == NULL || aad == NULL)
+    if (ssl == NULL || ech == NULL || echConfig == NULL || aad == NULL)
         return BAD_FUNC_ARG;
     /* verify the kem and key len */
     if (wc_HpkeKemGetEncLen(echConfig->kemId) != ech->encLen)
@@ -14249,13 +14285,14 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
     /* check if hpke already exists, may if HelloRetryRequest */
     if (ech->hpke == NULL) {
         allocatedHpke = 1;
-        ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), heap, DYNAMIC_TYPE_TMP_BUFFER);
+        ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), ssl->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (ech->hpke == NULL)
             ret = MEMORY_E;
         /* init the hpke struct */
         if (ret == 0) {
             ret = wc_HpkeInit(ech->hpke, echConfig->kemId,
-                ech->cipherSuite.kdfId, ech->cipherSuite.aeadId, heap);
+                ech->cipherSuite.kdfId, ech->cipherSuite.aeadId, ssl->heap);
         }
         if (ret == 0) {
             /* allocate hpkeContext */
@@ -14273,7 +14310,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
         /* create info */
         if (ret == 0) {
             infoLen = TLS_INFO_CONST_STRING_SZ + 1 + rawConfigLen;
-            info = (byte*)XMALLOC(infoLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            info = (byte*)XMALLOC(infoLen, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (info == NULL)
                 ret = MEMORY_E;
@@ -14284,6 +14321,16 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
                     TLS_INFO_CONST_STRING_SZ + 1, &rawConfigLen);
             }
         }
+#ifdef HAVE_SECRET_CALLBACK
+        /* allocate secret buffer for wc_HpkeInitOpenContext to copy into */
+        if (ret == 0 && (ssl->tls13SecretCb != NULL
+#ifdef OPENSSL_EXTRA
+                || ssl->tls13KeyLogCb != NULL
+#endif
+                )) {
+            ret = wc_HpkeInitEchSecret(ech->hpke);
+        }
+#endif /* HAVE_SECRET_CALLBACK */
         /* init the context for opening */
         if (ret == 0) {
             ret = wc_HpkeInitOpenContext(ech->hpke, ech->hpkeContext,
@@ -14297,17 +14344,29 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
             ech->outerClientPayload, ech->innerClientHelloLen,
             ech->innerClientHello + HANDSHAKE_HEADER_SZ);
     }
+
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ech->hpke->echSecret != NULL) {
+        ret = EchWriteKeyLog(ssl, ech->hpke->echSecret, ech->hpke->Nsecret,
+                info + TLS_INFO_CONST_STRING_SZ + 1, rawConfigLen);
+    }
+    wc_HpkeFreeEchSecret(ech->hpke);
+#endif /* HAVE_SECRET_CALLBACK */
+
     /* only free hpke/hpkeContext if allocated in this call; otherwise preserve
      * them for clientHello2 */
     if (ret != 0 && allocatedHpke) {
-        XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(ech->hpke, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         ech->hpke = NULL;
-        XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        ech->hpkeContext = NULL;
+        if (ech->hpkeContext != NULL) {
+            ForceZero(ech->hpkeContext, sizeof(HpkeBaseContext));
+            XFREE(ech->hpkeContext, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            ech->hpkeContext = NULL;
+        }
     }
 
     if (info != NULL)
-        XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(info, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -14511,8 +14570,8 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         echConfig = ssl->ctx->echConfigs;
         while (echConfig != NULL) {
             if (echConfig->configId == ech->configId) {
-                ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
-                    ssl->heap);
+                ret = TLSX_ExtractEch(ssl, ech, echConfig, aadCopy,
+                        ech->aadLen);
                 break;
             }
             echConfig = echConfig->next;
@@ -14521,8 +14580,8 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         if (echConfig == NULL || ret != 0) {
             echConfig = ssl->ctx->echConfigs;
             while (echConfig != NULL) {
-                ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
-                    ssl->heap);
+                ret = TLSX_ExtractEch(ssl, ech, echConfig, aadCopy,
+                        ech->aadLen);
                 if (ret == 0)
                     break;
                 echConfig = echConfig->next;
@@ -14584,8 +14643,10 @@ static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
                 ech->hpke->heap);
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (ech->hpkeContext != NULL)
+    if (ech->hpkeContext != NULL) {
+        ForceZero(ech->hpkeContext, sizeof(HpkeBaseContext));
         XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     if (ech->privateName != NULL)
         XFREE((char*)ech->privateName, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -14595,13 +14656,15 @@ static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
 
 /* encrypt the client hello and store it in ech->outerClientPayload, return
  * status */
-int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
+int TLSX_FinalizeEch(WOLFSSL* ssl, WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
 {
     int ret = 0;
     void* receiverPubkey = NULL;
     byte* info = NULL;
     int infoLen = 0;
     byte* aadCopy = NULL;
+    if (ssl == NULL || ech == NULL || aad == NULL)
+        return BAD_FUNC_ARG;
     /* setup hpke context to seal, should be done at most once per connection */
     if (ech->hpkeContext == NULL) {
         /* import the server public key */
@@ -14629,6 +14692,18 @@ int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
                 TLS_INFO_CONST_STRING_SZ + 1);
             XMEMCPY(info + TLS_INFO_CONST_STRING_SZ + 1,
                 ech->echConfig->raw, ech->echConfig->rawLen);
+        }
+#ifdef HAVE_SECRET_CALLBACK
+        /* allocate secret buffer for wc_HpkeInitSealContext to copy into */
+        if (ret == 0 && (ssl->tls13SecretCb != NULL
+#ifdef OPENSSL_EXTRA
+                || ssl->tls13KeyLogCb != NULL
+#endif
+                )) {
+            ret = wc_HpkeInitEchSecret(ech->hpke);
+        }
+#endif /* HAVE_SECRET_CALLBACK */
+        if (ret == 0) {
             /* init the context for seal with info and keys */
             ret = wc_HpkeInitSealContext(ech->hpke, ech->hpkeContext,
                 ech->ephemeralKey, receiverPubkey, info, infoLen);
@@ -14649,6 +14724,15 @@ int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
             aadLen, ech->innerClientHello,
             ech->innerClientHelloLen - ech->hpke->Nt, ech->outerClientPayload);
     }
+
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ech->hpke->echSecret != NULL) {
+        ret = EchWriteKeyLog(ssl, ech->hpke->echSecret, ech->hpke->Nsecret,
+            ech->echConfig->raw, ech->echConfig->rawLen);
+    }
+    wc_HpkeFreeEchSecret(ech->hpke);
+#endif /* HAVE_SECRET_CALLBACK */
+
     if (info != NULL)
         XFREE(info, ech->hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (aadCopy != NULL)
@@ -14667,7 +14751,7 @@ int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
 #define ECH_PARSE TLSX_ECH_Parse
 #define ECH_FREE TLSX_ECH_Free
 
-#endif
+#endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 /** Releases all extensions in the provided list. */
 void TLSX_FreeAll(TLSX* list, void* heap)
