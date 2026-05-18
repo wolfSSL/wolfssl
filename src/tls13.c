@@ -13198,6 +13198,21 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            /* RFC 8446 4.6.2: A client that receives a post-handshake
+             * CertificateRequest message without having sent the
+             * "post_handshake_auth" extension MUST send an
+             * "unexpected_message" fatal alert. wolfSSL_allow_post_handshake_auth()
+             * must be called before wolfSSL_connect() so postHandshakeAuth
+             * reflects whether the extension was offered. */
+            if (ssl->options.serverState >= SERVER_FINISHED_COMPLETE &&
+                ssl->options.clientState == CLIENT_FINISHED_COMPLETE &&
+                !ssl->options.postHandshakeAuth) {
+                WOLFSSL_MSG("Post-handshake CertificateRequest received "
+                            "without having sent post_handshake_auth "
+                            "extension");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
         #endif
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             /* Server's authenticating with PSK must not send this. */
@@ -14894,7 +14909,11 @@ int wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx)
  *
  * ssl  The SSL/TLS object.
  * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a client and 0 on success.
+ * SIDE_ERROR when not a client, BAD_STATE_E when called after the handshake
+ * has started, and 0 on success.
+ *
+ * Must be called before wolfSSL_connect() so the post_handshake_auth
+ * extension can be included in the ClientHello.
  */
 int wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl)
 {
@@ -14902,6 +14921,8 @@ int wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return SIDE_ERROR;
+    if (ssl->options.handShakeState != NULL_STATE)
+        return BAD_STATE_E;
 
     ssl->options.postHandshakeAuth = 1;
 

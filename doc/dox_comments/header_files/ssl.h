@@ -14232,10 +14232,13 @@ int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
     This is useful when connecting to a web server that has some pages that
     require client authentication and others that don't.
 
+    This function must be called before wolfSSL_connect() on the WOLFSSL object.
+
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return SIDE_ERROR if called with a server.
+    \return BAD_STATE_E if called after the handshake has started.
     \return 0 if successful.
 
     _Example_
