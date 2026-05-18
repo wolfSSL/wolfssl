@@ -10215,7 +10215,11 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
             keyShareEntry->lastRet = WC_PENDING_E;
             /* Prevent freeing of the ECC and ML-KEM private keys */
             ecc_kse->key = NULL;
+        #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
             pqc_kse->privKey = NULL;
+        #else
+            pqc_kse->key = NULL;
+        #endif
         }
         else
     #endif
