@@ -6019,9 +6019,6 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     /* Move index to byte after message. */
     *inOutIdx = i + totalExtSz;
 
-    /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
-
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data) {
         TLSX* ext = TLSX_Find(ssl->extensions, TLSX_EARLY_DATA);
@@ -6164,9 +6161,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return NO_CERT_ERROR;
 #endif
     }
-
-    /* This message is always encrypted so add encryption padding. */
-    *inOutIdx += ssl->keys.padSz;
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     {
@@ -11636,9 +11630,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             args->idx += args->sz;
             *inOutIdx = args->idx;
 
-            /* Encryption is always on: add padding */
-            *inOutIdx += ssl->keys.padSz;
-
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
 
@@ -11836,8 +11827,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
     }
 
-    /* Force input exhaustion at ProcessReply by consuming padSz. */
-    *inOutIdx += size + ssl->keys.padSz;
+    *inOutIdx += size;
 
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END &&
@@ -12290,8 +12280,6 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     /* Move index to byte after message. */
     *inOutIdx += totalSz;
-    /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
 
     /* Future traffic uses new decryption keys. */
     if ((ret = DeriveTls13Keys(ssl, update_traffic_key, DECRYPT_SIDE_ONLY, 1))
@@ -12441,9 +12429,6 @@ static int DoTls13EndOfEarlyData(WOLFSSL* ssl, const byte* input,
     }
 
     ssl->earlyData = done_early_data;
-
-    /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
 
     ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY);
 
@@ -12616,9 +12601,6 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
         AddSession(ssl);
     #endif
 
-    /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
-
     ssl->expect_session_ticket = 0;
 #else
     (void)ssl;
@@ -12626,7 +12608,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
 
-    *inOutIdx += size + ssl->keys.padSz;
+    *inOutIdx += size;
 #endif /* HAVE_SESSION_TICKET */
 
     WOLFSSL_LEAVE("DoTls13NewSessionTicket", 0);
@@ -13969,7 +13951,11 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                        totalSz);
     }
 
-    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx - ssl->keys.padSz;
+    /* totalSz is now curStartIdx + curSize (content-only, padSz already
+     * subtracted in ProcessReply). */
+    if (*inOutIdx > totalSz)
+        return BUFFER_ERROR;
+    inputLength = totalSz - *inOutIdx;
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
@@ -14011,7 +13997,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     input + *inOutIdx - HANDSHAKE_HEADER_SZ,
                     inputLength);
             ssl->arrays->pendingMsgOffset = inputLength;
-            *inOutIdx += inputLength + ssl->keys.padSz - HANDSHAKE_HEADER_SZ;
+            *inOutIdx += inputLength - HANDSHAKE_HEADER_SZ;
             return 0;
         }
 
@@ -14035,7 +14021,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
                 input + *inOutIdx, inputLength);
         ssl->arrays->pendingMsgOffset += inputLength;
-        *inOutIdx += inputLength + ssl->keys.padSz;
+        *inOutIdx += inputLength;
 
         if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
         {
@@ -14050,7 +14036,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
                 /* setup to process fragment again */
                 ssl->arrays->pendingMsgOffset -= inputLength;
-                *inOutIdx -= inputLength + ssl->keys.padSz;
+                *inOutIdx -= inputLength;
             }
             else
         #endif

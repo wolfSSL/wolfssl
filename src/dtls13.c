@@ -1904,7 +1904,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 #endif /* WOLFSSL_DEBUG_TLS */
 
         /* ignore the message */
-        *processedSize = idx + fragLength + ssl->keys.padSz;
+        *processedSize = idx + fragLength;
 
         return 0;
     }
@@ -1938,7 +1938,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             WOLFSSL_MSG("DTLS1.3 not accepting fragmented plaintext message");
 #endif /* WOLFSSL_DEBUG_TLS */
             /* ignore the message */
-            *processedSize = idx + fragLength + ssl->keys.padSz;
+            *processedSize = idx + fragLength;
             return 0;
         }
     }
@@ -1966,7 +1966,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             return DTLS_TOO_MANY_FRAGMENTS_E;
         }
 
-        *processedSize = idx + fragLength + ssl->keys.padSz;
+        *processedSize = idx + fragLength;
         if (Dtls13NextMessageComplete(ssl))
             return Dtls13ProcessBufferedMessages(ssl);
 
