@@ -79,7 +79,7 @@
     <ClCompile Include="..\..\wolfcrypt\src\cpuid.c" />
     <ClCompile Include="..\..\wolfcrypt\src\cryptocb.c" />
     <ClCompile Include="..\..\wolfcrypt\src\curve448.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\dilithium.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_mldsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\eccsi.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ed448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\evp.c">

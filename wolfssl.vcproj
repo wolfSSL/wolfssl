@@ -244,7 +244,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\dilithium.c"
+				RelativePath=".\wolfcrypt\src\wc_mldsa.c"
 				>
 			</File>
 			<File

@@ -3,7 +3,8 @@
 # All paths should be given relative to the root
 
 dist_doc_DATA+= doc/README.txt \
-	doc/QUIC.md
+	doc/QUIC.md \
+	doc/dilithium-to-mldsa-migration.md
 
 
 dox-pdf:

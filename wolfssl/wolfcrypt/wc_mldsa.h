@@ -1,0 +1,1039 @@
+/* wc_mldsa.h
+ *
+ * Copyright (C) 2006-2026 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+/*!
+    \file wolfssl/wolfcrypt/wc_mldsa.h
+*/
+
+/* Interfaces for ML-DSA (FIPS 204), the NIST-standardized form of the
+ * post-quantum signature algorithm formerly known as Dilithium.
+ *
+ * This header declares the canonical wc_MlDsaKey / wc_MlDsaKey_* API. New
+ * code must include this header directly.
+ *
+ * Backwards-compatibility for the pre-standardization names is delivered
+ * by a single TEMPORARY shim, <wolfssl/wolfcrypt/dilithium.h>, that will
+ * be removed in a future release. The shim provides:
+ *
+ *   - Bi-directional propagation of the legacy / canonical sub-config
+ *     build-gate names (WOLFSSL_DILITHIUM_* <-> WOLFSSL_MLDSA_*,
+ *     WC_DILITHIUM_* <-> WC_MLDSA_*). Suppressible by defining
+ *     WOLFSSL_NO_DILITHIUM_LEGACY_GATES. The parent gate
+ *     (HAVE_DILITHIUM <-> WOLFSSL_HAVE_MLDSA) is mapped earlier in
+ *     <wolfssl/wolfcrypt/settings.h> and is always active.
+ *
+ *   - Macro / static-inline aliases for the legacy type and function
+ *     names (dilithium_key, wc_dilithium_params, wc_dilithium_*,
+ *     wc_Dilithium_*). Suppressible by defining
+ *     WOLFSSL_NO_DILITHIUM_LEGACY_NAMES. */
+
+#ifndef WOLF_CRYPT_WC_MLDSA_H
+#define WOLF_CRYPT_WC_MLDSA_H
+
+#include <wolfssl/wolfcrypt/types.h>
+
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+#if defined(WOLFSSL_HAVE_MLDSA)
+
+#if defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+        defined(WOLFSSL_MLDSA_NO_SIGN) && \
+        !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+    #define WOLFSSL_MLDSA_VERIFY_ONLY
+#endif
+#ifdef WOLFSSL_MLDSA_VERIFY_ONLY
+    #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+        #define WOLFSSL_MLDSA_NO_MAKE_KEY
+    #endif
+    #ifndef WOLFSSL_MLDSA_NO_SIGN
+        #define WOLFSSL_MLDSA_NO_SIGN
+    #endif
+#endif
+
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+        !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    #define WOLFSSL_MLDSA_PUBLIC_KEY
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+        !defined(WOLFSSL_MLDSA_NO_SIGN)
+    #define WOLFSSL_MLDSA_PRIVATE_KEY
+#endif
+
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+        defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_CHECK_KEY) && \
+        !defined(WOLFSSL_MLDSA_CHECK_KEY)
+    #define WOLFSSL_MLDSA_CHECK_KEY
+#endif
+
+#include <wolfssl/wolfcrypt/sha3.h>
+#ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
+
+#if defined(WC_MLDSA_CACHE_PRIV_VECTORS) && \
+        !defined(WC_MLDSA_CACHE_MATRIX_A)
+    #define WC_MLDSA_CACHE_MATRIX_A
+#endif
+#if defined(WC_MLDSA_CACHE_PUB_VECTORS) && \
+        !defined(WC_MLDSA_CACHE_MATRIX_A)
+    #define WC_MLDSA_CACHE_MATRIX_A
+#endif
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+/* Macros Definitions */
+
+#ifndef WOLFSSL_MLDSA_ALIGNMENT
+    #if defined(__arch64__)
+        #define WOLFSSL_MLDSA_ALIGNMENT     8
+    #elif defined(__arm__)
+        #define WOLFSSL_MLDSA_ALIGNMENT     4
+    #elif !defined(WOLFSSL_AESNI) && defined(WOLFSSL_GENERAL_ALIGNMENT)
+        #define WOLFSSL_MLDSA_ALIGNMENT     WOLFSSL_GENERAL_ALIGNMENT
+    #else
+        #define WOLFSSL_MLDSA_ALIGNMENT     8
+    #endif
+#endif /* WOLFSSL_MLDSA_ALIGNMENT */
+
+#define DILITHIUM_LEVEL2_KEY_SIZE       2560
+#define DILITHIUM_LEVEL2_SIG_SIZE       2420
+#define DILITHIUM_LEVEL2_PUB_KEY_SIZE   1312
+#define DILITHIUM_LEVEL2_PRV_KEY_SIZE   \
+    (DILITHIUM_LEVEL2_PUB_KEY_SIZE + DILITHIUM_LEVEL2_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE 1334
+#define DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE 2588
+#define DILITHIUM_LEVEL2_BOTH_KEY_DER_SIZE 3904
+/* PEM size with the header "-----BEGIN PRIVATE KEY-----" and
+ * the footer "-----END PRIVATE KEY-----" */
+#define DILITHIUM_LEVEL2_BOTH_KEY_PEM_SIZE 5344
+
+#define DILITHIUM_LEVEL3_KEY_SIZE       4032
+#define DILITHIUM_LEVEL3_SIG_SIZE       3309
+#define DILITHIUM_LEVEL3_PUB_KEY_SIZE   1952
+#define DILITHIUM_LEVEL3_PRV_KEY_SIZE   \
+    (DILITHIUM_LEVEL3_PUB_KEY_SIZE + DILITHIUM_LEVEL3_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE 1974
+#define DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE 4060
+#define DILITHIUM_LEVEL3_BOTH_KEY_DER_SIZE 6016
+/* PEM size with the header "-----BEGIN PRIVATE KEY-----" and
+ * the footer "-----END PRIVATE KEY-----" */
+#define DILITHIUM_LEVEL3_BOTH_KEY_PEM_SIZE 8204
+
+#define DILITHIUM_LEVEL5_KEY_SIZE       4896
+#define DILITHIUM_LEVEL5_SIG_SIZE       4627
+#define DILITHIUM_LEVEL5_PUB_KEY_SIZE   2592
+#define DILITHIUM_LEVEL5_PRV_KEY_SIZE   \
+    (DILITHIUM_LEVEL5_PUB_KEY_SIZE + DILITHIUM_LEVEL5_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE 2614
+#define DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE 4924
+#define DILITHIUM_LEVEL5_BOTH_KEY_DER_SIZE 7520
+/* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
+ * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
+#define DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE 10267
+
+#define ML_DSA_LEVEL2_KEY_SIZE          2560
+#define ML_DSA_LEVEL2_SIG_SIZE          2420
+#define ML_DSA_LEVEL2_PUB_KEY_SIZE      1312
+#define ML_DSA_LEVEL2_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL2_PUB_KEY_SIZE + ML_DSA_LEVEL2_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL2_PUB_KEY_DER_SIZE DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL2_PRV_KEY_DER_SIZE DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE
+#define ML_DSA_LEVEL2_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL2_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN PRIVATE KEY-----" and
+ * the footer "-----END PRIVATE KEY-----" */
+#define ML_DSA_LEVEL2_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL2_BOTH_KEY_PEM_SIZE
+
+#define ML_DSA_LEVEL3_KEY_SIZE          4032
+#define ML_DSA_LEVEL3_SIG_SIZE          3309
+#define ML_DSA_LEVEL3_PUB_KEY_SIZE      1952
+#define ML_DSA_LEVEL3_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL3_PUB_KEY_SIZE + ML_DSA_LEVEL3_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL3_PUB_KEY_DER_SIZE DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL3_PRV_KEY_DER_SIZE DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE
+#define ML_DSA_LEVEL3_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL3_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN PRIVATE KEY-----" and
+ * the footer "-----END PRIVATE KEY-----" */
+#define ML_DSA_LEVEL3_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL3_BOTH_KEY_PEM_SIZE
+
+#define ML_DSA_LEVEL5_KEY_SIZE          4896
+#define ML_DSA_LEVEL5_SIG_SIZE          4627
+#define ML_DSA_LEVEL5_PUB_KEY_SIZE      2592
+#define ML_DSA_LEVEL5_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL5_PUB_KEY_SIZE + ML_DSA_LEVEL5_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL5_PUB_KEY_DER_SIZE DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL5_PRV_KEY_DER_SIZE DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE
+#define ML_DSA_LEVEL5_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL5_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
+ * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
+#define ML_DSA_LEVEL5_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE
+
+
+
+/* Modulus. */
+#define DILITHIUM_Q                     0x7fe001
+/* Number of bits in modulus. */
+#define DILITHIUM_Q_BITS                23
+/* Number of elements in polynomial. */
+#define DILITHIUM_N                     256
+#define MLDSA_N                         256
+
+/* Number of dropped bits. */
+#define DILITHIUM_D                     13
+/* Maximum value of dropped bits. */
+#define DILITHIUM_D_MAX                 ((sword32)1 << DILITHIUM_D)
+/* Half maximum value. */
+#define DILITHIUM_D_MAX_HALF            ((sword32)1 << (DILITHIUM_D - 1))
+/* Number of undropped bits. */
+#define DILITHIUM_U                     (DILITHIUM_Q_BITS - DILITHIUM_D)
+
+/* Bits in coefficient range of y, GAMMA1, of 2^17 is 17. */
+#define DILITHIUM_GAMMA1_BITS_17        17
+/* Coefficient range of y, GAMMA1, of 2^17. */
+#define DILITHIUM_GAMMA1_17             ((sword32)1 << 17)
+/* # encoding bits of y is GAMMA1 + 1. */
+#define DILITHIUM_GAMMA1_17_ENC_BITS    18
+/* Coefficient range of y, GAMMA1, of 2^17. */
+/* Bits in coefficient range of y, GAMMA1, of 2^19 is 19. */
+#define DILITHIUM_GAMMA1_BITS_19        19
+/* Coefficient range of y, GAMMA1, of 2^19. */
+#define DILITHIUM_GAMMA1_19             ((sword32)1 << 19)
+/* # encoding bits of y is GAMMA1 + 1. */
+#define DILITHIUM_GAMMA1_19_ENC_BITS    20
+
+/* Low-order rounding range, GAMMA2, is Q divided by 88. */
+#define DILITHIUM_Q_LOW_88              ((DILITHIUM_Q - 1) / 88)
+/* Absolute low-order rounding range, GAMMA2, is Q divided by 88. */
+#define DILITHIUM_Q_LOW_88_2            (((DILITHIUM_Q - 1) / 88) * 2)
+/* # encoding bits of w1 when range is 88. */
+#define DILITHIUM_Q_HI_88_ENC_BITS      6
+/* Low-order rounding range, GAMMA2, is Q divided by 32. */
+#define DILITHIUM_Q_LOW_32              ((DILITHIUM_Q - 1) / 32)
+/* Absolute low-order rounding range, GAMMA2, is Q divided by 32. */
+#define DILITHIUM_Q_LOW_32_2            (((DILITHIUM_Q - 1) / 32) * 2)
+/* # encoding bits of w1 when range is 32. */
+#define DILITHIUM_Q_HI_32_ENC_BITS      4
+
+/* Private key range, eta, of 2. */
+#define DILITHIUM_ETA_2                 2
+/* Bits needed to encode values in range -2..2 as a positive number. */
+#define DILITHIUM_ETA_2_BITS            3
+/* Extract count of valid values. */
+#define DILITHIUM_ETA_2_MOD             15
+/* Private key range, eta, of 4. */
+#define DILITHIUM_ETA_4                 4
+/* Bits needed to encode values in range -4..4 as a positive number. */
+#define DILITHIUM_ETA_4_BITS            4
+/* Extract count of valid values. */
+#define DILITHIUM_ETA_4_MOD             9
+
+/* Number of bytes in a polynomial in memory. */
+#define DILITHIUM_POLY_SIZE             (DILITHIUM_N * sizeof(sword32))
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+
+/* Fist dimension of A, k, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_K              4
+/* Second dimension of A, l, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_L              4
+/* Private key range, ETA, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_ETA            DILITHIUM_ETA_2
+/* Number of bits in private key for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_ETA_BITS       DILITHIUM_ETA_2_BITS
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_LAMBDA         128
+/* # +/-1's in polynomial c, TAU, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_TAU            39
+/* BETA = TAU * ETA for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_BETA           \
+(PARAMS_ML_DSA_44_TAU * PARAMS_ML_DSA_44_ETA)
+/* Max # 1's in the hint h, OMEGA, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_OMEGA          80
+/* Bits in coefficient range of y, GAMMA1, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_GAMMA1_BITS    DILITHIUM_GAMMA1_BITS_17
+/* Ccoefficient range of y, GAMMA1, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_GAMMA1         \
+    ((sword32)1 << PARAMS_ML_DSA_44_GAMMA1_BITS)
+/* Low-order rounding range, GAMMA2, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_GAMMA2         DILITHIUM_Q_LOW_88
+/* Bits in high-order rounding range, GAMMA2, for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_GAMMA2_HI_BITS 6
+/* Encoding size of w1 in bytes for ML-DSA-44.
+ * K * N / 8 * 6 - 6 bits as max value is 43 in high bits. */
+#define PARAMS_ML_DSA_44_W1_ENC_SZ      \
+    (PARAMS_ML_DSA_44_K * DILITHIUM_N / 8 * PARAMS_ML_DSA_44_GAMMA2_HI_BITS)
+/* Size of memory used for matrix a in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_A_SIZE         \
+    (PARAMS_ML_DSA_44_K * PARAMS_ML_DSA_44_L * DILITHIUM_POLY_SIZE)
+/* Size of memory used for vector s1 in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_S1_SIZE        \
+    (PARAMS_ML_DSA_44_L * DILITHIUM_POLY_SIZE)
+/* Encoding size of s1 in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_S1_ENC_SIZE    \
+    (PARAMS_ML_DSA_44_S1_SIZE / sizeof(sword32) * PARAMS_ML_DSA_44_ETA_BITS / 8)
+/* Size of memory used for vector s2 in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_S2_SIZE        \
+    (PARAMS_ML_DSA_44_K * DILITHIUM_POLY_SIZE)
+/* Encoding size of s2 in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_S2_ENC_SIZE    \
+    (PARAMS_ML_DSA_44_S2_SIZE / sizeof(sword32) * PARAMS_ML_DSA_44_ETA_BITS / 8)
+/* Encoding size of z in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_Z_ENC_SIZE     \
+    (PARAMS_ML_DSA_44_S1_SIZE / sizeof(sword32) / 8 * \
+     (PARAMS_ML_DSA_44_GAMMA1_BITS + 1))
+/* Encoding size of public key in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_PK_SIZE        \
+    (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_44_K * DILITHIUM_N * DILITHIUM_U / 8)
+/* Encoding size of signature in bytes for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_SIG_SIZE       \
+    ((PARAMS_ML_DSA_44_LAMBDA / 4) +    \
+     PARAMS_ML_DSA_44_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_44_GAMMA1_BITS + 1) + \
+     PARAMS_ML_DSA_44_OMEGA + PARAMS_ML_DSA_44_K)
+
+#endif /* WOLFSSL_NO_ML_DSA_44 */
+
+#ifndef WOLFSSL_NO_ML_DSA_65
+
+/* Fist dimension of A, k, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_K              6
+/* Second dimension of A, l, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_L              5
+/* Private key range, ETA, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_ETA            DILITHIUM_ETA_4
+/* Number of bits in private key for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_ETA_BITS       DILITHIUM_ETA_4_BITS
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_LAMBDA         192
+/* # +/-1's in polynomial c, TAU, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_TAU            49
+/* BETA = TAU * ETA for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_BETA           \
+    (PARAMS_ML_DSA_65_TAU * PARAMS_ML_DSA_65_ETA)
+/* Max # 1's in the hint h, OMEGA, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_OMEGA          55
+/* Bits in coefficient range of y, GAMMA1, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_GAMMA1_BITS    DILITHIUM_GAMMA1_BITS_19
+/* Coefficient range of y, GAMMA1, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_GAMMA1         \
+    ((sword32)1 << PARAMS_ML_DSA_65_GAMMA1_BITS)
+/* Low-order rounding range, GAMMA2, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_GAMMA2         DILITHIUM_Q_LOW_32
+/* Bits in high-order rounding range, GAMMA2, for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_GAMMA2_HI_BITS 4
+/* Encoding size of w1 in bytes for ML-DSA-65.
+ * K * N / 8 * 4 - 4 bits as max value is 15 in high bits. */
+#define PARAMS_ML_DSA_65_W1_ENC_SZ      \
+    (PARAMS_ML_DSA_65_K * DILITHIUM_N / 8 * PARAMS_ML_DSA_65_GAMMA2_HI_BITS)
+/* Size of memory used for matrix a in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_A_SIZE         \
+    (PARAMS_ML_DSA_65_K * PARAMS_ML_DSA_65_L * DILITHIUM_POLY_SIZE)
+/* Size of memory used for vector s1 in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_S1_SIZE        \
+    (PARAMS_ML_DSA_65_L * DILITHIUM_POLY_SIZE)
+/* Encoding size of s1 in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_S1_ENC_SIZE    \
+    (PARAMS_ML_DSA_65_S1_SIZE / sizeof(sword32) * PARAMS_ML_DSA_65_ETA_BITS / 8)
+/* Size of memory used for vector s2 in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_S2_SIZE        \
+    (PARAMS_ML_DSA_65_K * DILITHIUM_POLY_SIZE)
+/* Encoding size of s2 in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_S2_ENC_SIZE    \
+    (PARAMS_ML_DSA_65_S2_SIZE / sizeof(sword32) * PARAMS_ML_DSA_65_ETA_BITS / 8)
+/* Encoding size of z in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_Z_ENC_SIZE     \
+    (PARAMS_ML_DSA_65_S1_SIZE / sizeof(sword32) / 8 * \
+     (PARAMS_ML_DSA_65_GAMMA1_BITS + 1))
+/* Encoding size of public key in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_PK_SIZE        \
+    (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_65_K * DILITHIUM_N * DILITHIUM_U / 8)
+/* Encoding size of signature in bytes for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_SIG_SIZE       \
+    ((PARAMS_ML_DSA_65_LAMBDA / 4) +    \
+     PARAMS_ML_DSA_65_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_65_GAMMA1_BITS + 1) + \
+     PARAMS_ML_DSA_65_OMEGA + PARAMS_ML_DSA_65_K)
+
+#endif /* WOLFSSL_NO_ML_DSA_65 */
+
+#ifndef WOLFSSL_NO_ML_DSA_87
+
+/* Fist dimension of A, k, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_K              8
+/* Second dimension of A, l, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_L              7
+/* Private key range, ETA, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_ETA            DILITHIUM_ETA_2
+/* Number of bits in private key for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_ETA_BITS       DILITHIUM_ETA_2_BITS
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_LAMBDA         256
+/* # +/-1's in polynomial c, TAU, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_TAU            60
+/* BETA = TAU * ETA for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_BETA           \
+    (PARAMS_ML_DSA_87_TAU * PARAMS_ML_DSA_87_ETA)
+/* Max # 1's in the hint h, OMEGA, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_OMEGA          75
+/* Bits in coefficient range of y, GAMMA1, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_GAMMA1_BITS    DILITHIUM_GAMMA1_BITS_19
+/* Ccoefficient range of y, GAMMA1, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_GAMMA1         \
+    ((sword32)1 << PARAMS_ML_DSA_87_GAMMA1_BITS)
+/* Low-order rounding range, GAMMA2, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_GAMMA2         DILITHIUM_Q_LOW_32
+/* Bits in high-order rounding range, GAMMA2, for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_GAMMA2_HI_BITS 4
+/* Encoding size of w1 in bytes for ML-DSA-87.
+ * K * N / 8 * 4 - 4 bits as max value is 15 in high bits. */
+#define PARAMS_ML_DSA_87_W1_ENC_SZ      \
+    (PARAMS_ML_DSA_87_K * DILITHIUM_N / 8 * PARAMS_ML_DSA_87_GAMMA2_HI_BITS)
+/* Size of memory used for matrix A in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_A_SIZE         \
+    (PARAMS_ML_DSA_87_K * PARAMS_ML_DSA_87_L * DILITHIUM_POLY_SIZE)
+#define PARAMS_ML_DSA_87_S_SIZE         4
+/* Size of memory used for vector s1 in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_S1_SIZE        \
+    (PARAMS_ML_DSA_87_L * DILITHIUM_POLY_SIZE)
+/* Encoding size of s1 in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_S1_ENC_SIZE    \
+    (PARAMS_ML_DSA_87_S1_SIZE / sizeof(sword32) * PARAMS_ML_DSA_87_ETA_BITS / 8)
+/* Size of memory used for vector s2 in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_S2_SIZE        \
+    (PARAMS_ML_DSA_87_K * DILITHIUM_POLY_SIZE)
+/* Encoding size of s2 in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_S2_ENC_SIZE    \
+    (PARAMS_ML_DSA_87_S2_SIZE / sizeof(sword32) * PARAMS_ML_DSA_87_ETA_BITS / 8)
+/* Encoding size of z in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_Z_ENC_SIZE     \
+    (PARAMS_ML_DSA_87_S1_SIZE / sizeof(sword32) / 8 * \
+     (PARAMS_ML_DSA_87_GAMMA1_BITS + 1))
+/* Encoding size of public key in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_PK_SIZE        \
+    (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_87_K * DILITHIUM_N * DILITHIUM_U / 8)
+/* Encoding size of signature in bytes for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_SIG_SIZE       \
+    ((PARAMS_ML_DSA_87_LAMBDA / 4) +    \
+     PARAMS_ML_DSA_87_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_87_GAMMA1_BITS + 1) + \
+     PARAMS_ML_DSA_87_OMEGA + PARAMS_ML_DSA_87_K)
+
+#endif /* WOLFSSL_NO_ML_DSA_87 */
+
+
+#ifndef WOLFSSL_NO_ML_DSA_87
+
+#define DILITHIUM_MAX_W1_ENC_SZ         PARAMS_ML_DSA_87_W1_ENC_SZ
+/* Maximum collision strength of c-tilde in bytes. */
+#define DILITHIUM_MAX_LAMBDA            PARAMS_ML_DSA_87_LAMBDA
+
+/* Maximum count of elements of a vector with dimension K. */
+#define DILITHIUM_MAX_K_VECTOR_COUNT     \
+    (PARAMS_ML_DSA_87_K * DILITHIUM_N)
+/* Maximum count of elements of a vector with dimension L. */
+#define DILITHIUM_MAX_L_VECTOR_COUNT     \
+    (PARAMS_ML_DSA_87_L * DILITHIUM_N)
+/* Maximum count of elements of a matrix with dimension KxL. */
+#define DILITHIUM_MAX_MATRIX_COUNT        \
+    (PARAMS_ML_DSA_87_K * PARAMS_ML_DSA_87_L * DILITHIUM_N)
+
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+
+/* Maximum w1 encoding size in bytes. */
+#define DILITHIUM_MAX_W1_ENC_SZ         PARAMS_ML_DSA_65_W1_ENC_SZ
+/* Maximum collision strength of c-tilde in bytes. */
+#define DILITHIUM_MAX_LAMBDA            PARAMS_ML_DSA_65_LAMBDA
+
+/* Maximum count of elements of a vector with dimension K. */
+#define DILITHIUM_MAX_K_VECTOR_COUNT     \
+    (PARAMS_ML_DSA_65_K * DILITHIUM_N)
+/* Maximum count of elements of a vector with dimension L. */
+#define DILITHIUM_MAX_L_VECTOR_COUNT     \
+    (PARAMS_ML_DSA_65_L * DILITHIUM_N)
+/* Maximum count of elements of a matrix with dimension KxL. */
+#define DILITHIUM_MAX_MATRIX_COUNT        \
+    (PARAMS_ML_DSA_65_K * PARAMS_ML_DSA_65_L * DILITHIUM_N)
+
+#else
+
+/* Maximum w1 encoding size in bytes. */
+#define DILITHIUM_MAX_W1_ENC_SZ         PARAMS_ML_DSA_44_W1_ENC_SZ
+/* Maximum collision strength of c-tilde in bytes. */
+#define DILITHIUM_MAX_LAMBDA            PARAMS_ML_DSA_44_LAMBDA
+
+/* Maximum count of elements of a vector with dimension K. */
+#define DILITHIUM_MAX_K_VECTOR_COUNT     \
+    (PARAMS_ML_DSA_44_K * DILITHIUM_N)
+/* Maximum count of elements of a vector with dimension L. */
+#define DILITHIUM_MAX_L_VECTOR_COUNT     \
+    (PARAMS_ML_DSA_44_L * DILITHIUM_N)
+/* Maximum count of elements of a matrix with dimension KxL. */
+#define DILITHIUM_MAX_MATRIX_COUNT        \
+    (PARAMS_ML_DSA_44_K * PARAMS_ML_DSA_44_L * DILITHIUM_N)
+
+#endif
+
+/* Length of K in bytes. */
+#define DILITHIUM_K_SZ                  32
+/* Length of TR in bytes. */
+#define DILITHIUM_TR_SZ                 64
+/* Length of public key seed in bytes when expanding a. */
+#define DILITHIUM_PUB_SEED_SZ           32
+/* Length of private key seed in bytes when generating a key. */
+#define DILITHIUM_PRIV_SEED_SZ          64
+
+/* Length of seed when creating vector c. */
+#define DILITHIUM_SEED_SZ               32
+/* Length of seeds created when making a key. */
+#define DILITHIUM_SEEDS_SZ              128
+
+/* Length of MU in bytes. */
+#define DILITHIUM_MU_SZ                 64
+/* Length of random in bytes when generating a signature. */
+#define DILITHIUM_RND_SZ                32
+/* Length of private random in bytes when generating a signature. */
+#define DILITHIUM_PRIV_RAND_SEED_SZ     64
+
+/* 5 blocks, each block 21 * 8 bytes = 840 bytes.
+ * Minimum required is 256 * 3 = 768. */
+#define DILITHIUM_GEN_A_NBLOCKS         5
+/* Number of bytes to generate with Shake128 when generating A. */
+#define DILITHIUM_GEN_A_BYTES           \
+    (DILITHIUM_GEN_A_NBLOCKS * WC_SHA3_128_COUNT * 8)
+/* Number of bytes to a block of SHAKE-128 when generating A. */
+#define DILITHIUM_GEN_A_BLOCK_BYTES     (WC_SHA3_128_COUNT * 8)
+
+/* Number of bytes to a block of SHAKE-256 when generating c. */
+#define DILITHIUM_GEN_C_BLOCK_BYTES     (WC_SHA3_256_COUNT * 8)
+
+
+#ifndef WOLFSSL_MLDSA_SMALL
+#if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
+    /* A block SHAKE-128 output plus one for reading 4 bytes at a time. */
+    #define DILITHIUM_REJ_NTT_POLY_H_SIZE    (DILITHIUM_GEN_A_BYTES + 1)
+#else
+    /* A block SHAKE-128 output. */
+    #define DILITHIUM_REJ_NTT_POLY_H_SIZE    DILITHIUM_GEN_A_BYTES
+#endif /* LITTLE_ENDIAN_ORDER && WOLFSSL_MLDSA_ALIGNMENT == 0 */
+#else
+#if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
+    /* A block SHAKE-128 output plus one for reading 4 bytes at a time. */
+    #define DILITHIUM_REJ_NTT_POLY_H_SIZE    (DILITHIUM_GEN_A_BLOCK_BYTES + 1)
+#else
+    /* A block SHAKE-128 output. */
+    #define DILITHIUM_REJ_NTT_POLY_H_SIZE    DILITHIUM_GEN_A_BLOCK_BYTES
+#endif /* LITTLE_ENDIAN_ORDER && WOLFSSL_MLDSA_ALIGNMENT == 0 */
+#endif
+
+#ifndef WOLFSSL_NO_ML_DSA_87
+
+#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL5_KEY_SIZE
+#define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL5_SIG_SIZE
+#define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL5_PUB_KEY_SIZE
+#define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL5_PRV_KEY_SIZE
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL5_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----" and
+ * the footer "-----END ML_DSA_LEVEL5 PRIVATE KEY-----" */
+#define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE
+
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+
+#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL3_KEY_SIZE
+#define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL3_SIG_SIZE
+#define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL3_PUB_KEY_SIZE
+#define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL3_PRV_KEY_SIZE
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL3_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN PRIVATE KEY-----" and
+ * the footer "-----END PRIVATE KEY-----" */
+#define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL3_BOTH_KEY_PEM_SIZE
+
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+
+#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL2_KEY_SIZE
+#define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL2_SIG_SIZE
+#define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL2_PUB_KEY_SIZE
+#define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL2_PRV_KEY_SIZE
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_DER_SIZE DILITHIUM_LEVEL2_BOTH_KEY_DER_SIZE
+/* PEM size with the header "-----BEGIN PRIVATE KEY-----" and
+ * the footer "-----END PRIVATE KEY-----" */
+#define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE DILITHIUM_LEVEL2_BOTH_KEY_PEM_SIZE
+
+#else
+
+#error ML-DSA: All levels disabled.
+
+#endif
+
+
+#ifdef WOLF_PRIVATE_KEY_ID
+#define DILITHIUM_MAX_ID_LEN    32
+#define DILITHIUM_MAX_LABEL_LEN 32
+#endif
+
+/* Structs */
+
+typedef struct wc_MlDsaParams {
+    byte level;
+    byte k;
+    byte l;
+    byte eta;
+    byte eta_bits;
+    byte tau;
+    byte beta;
+    byte omega;
+    word16 lambda;
+    byte gamma1_bits;
+    sword32 gamma2;
+    word32 w1EncSz;
+    word16 aSz;
+    word16 s1Sz;
+    word16 s1EncSz;
+    word16 s2Sz;
+    word16 s2EncSz;
+    word16 zEncSz;
+    word16 pkSz;
+    word16 sigSz;
+} wc_MlDsaParams;
+
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+typedef struct wc_MlDsaParams MlDsaParams;
+#endif
+
+struct wc_MlDsaKey {
+    byte pubKeySet;
+    byte prvKeySet;
+    byte level; /* 2,3 or 5 */
+#if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS)
+    word32 kSz; /* allocated size of secret key buffer */
+#endif
+
+    void* heap; /* heap hint */
+
+#ifdef WOLF_CRYPTO_CB
+    void* devCtx;
+    int   devId;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[DILITHIUM_MAX_ID_LEN];
+    int  idLen;
+    char label[DILITHIUM_MAX_LABEL_LEN];
+    int  labelLen;
+#endif
+
+#if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS)
+    byte* p;    /* heap-allocated, right-sized public key */
+    byte* k;    /* heap-allocated, right-sized secret key */
+#elif !defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+#ifdef USE_INTEL_SPEEDUP
+    byte p[DILITHIUM_MAX_PUB_KEY_SIZE+8];
+#if !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+    byte k[DILITHIUM_MAX_KEY_SIZE+8];
+#endif
+#else
+    byte p[DILITHIUM_MAX_PUB_KEY_SIZE];
+#if !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+    byte k[DILITHIUM_MAX_KEY_SIZE];
+#endif
+#endif
+#else
+    const byte* p;
+    const byte* k;
+#endif
+
+    const wc_MlDsaParams* params;
+    wc_Shake shake;
+#ifndef WC_MLDSA_FIXED_ARRAY
+#ifdef WC_MLDSA_CACHE_MATRIX_A
+    sword32* a;
+    byte aSet;
+#endif
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    sword32* s1;
+    sword32* s2;
+    sword32* t0;
+    byte privVecsSet;
+#endif
+#ifdef WC_MLDSA_CACHE_PUB_VECTORS
+    sword32* t1;
+    byte pubVecSet;
+#endif
+#else
+#ifdef WC_MLDSA_CACHE_MATRIX_A
+    sword32 a[DILITHIUM_MAX_MATRIX_COUNT];
+    byte aSet;
+#endif
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    sword32 s1[DILITHIUM_MAX_L_VECTOR_COUNT];
+    sword32 s2[DILITHIUM_MAX_K_VECTOR_COUNT];
+    sword32 t0[DILITHIUM_MAX_K_VECTOR_COUNT];
+    byte privVecsSet;
+#endif
+#ifdef WC_MLDSA_CACHE_PUB_VECTORS
+    sword32 t1[DILITHIUM_MAX_K_VECTOR_COUNT];
+    byte pubVecSet;
+#endif
+#endif
+#if defined(WOLFSSL_MLDSA_VERIFY_NO_MALLOC) && \
+    defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+    sword32 z[DILITHIUM_MAX_L_VECTOR_COUNT];
+    sword32 c[DILITHIUM_N];
+    sword32 w[DILITHIUM_N];
+    sword32 t1[DILITHIUM_N];
+    byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
+#ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+    sword64 t64[DILITHIUM_N];
+#endif
+    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
+    byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
+#endif /* WOLFSSL_MLDSA_VERIFY_NO_MALLOC &&
+        * WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
+};
+
+#ifndef WC_MLDSAKEY_TYPE_DEFINED
+    typedef struct wc_MlDsaKey wc_MlDsaKey;
+    #define WC_MLDSAKEY_TYPE_DEFINED
+#endif
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+#ifndef WC_DILITHIUMKEY_TYPE_DEFINED
+    typedef struct wc_MlDsaKey dilithium_key;
+    #define WC_DILITHIUMKEY_TYPE_DEFINED
+#endif
+#ifndef WC_MLDSAKEY_LEGACY_TYPE_DEFINED
+    typedef struct wc_MlDsaKey MlDsaKey;
+    #define WC_MLDSAKEY_LEGACY_TYPE_DEFINED
+#endif
+#endif
+
+/* When WOLFSSL_MLDSA_FIPS204_DRAFT is enabled the legacy (pre-FIPS 204)
+ * no-context sign/verify API is required to handle draft-format signatures. */
+#if defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
+    !defined(WOLFSSL_MLDSA_NO_CTX)
+    #define WOLFSSL_MLDSA_NO_CTX
+#endif
+
+/* Functions */
+
+#ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+WOLFSSL_API
+int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
+
+/* Legacy sign API without context parameter (pre-FIPS 204).
+ * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
+ * New code should use wc_MlDsaKey_SignCtx() with ctx=NULL/ctxLen=0
+ * for FIPS 204 compliant signing with an empty context. */
+#ifdef WOLFSSL_MLDSA_NO_CTX
+WOLFSSL_API
+int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32* sigLen,
+    const byte* msg, word32 msgLen, WC_RNG* rng);
+#endif /* WOLFSSL_MLDSA_NO_CTX */
+WOLFSSL_API
+int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
+    byte* sig, word32* sigLen, const byte* msg, word32 msgLen, WC_RNG* rng);
+WOLFSSL_API
+int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
+    byte* sig, word32* sigLen, const byte* hash, word32 hashLen,
+    int hashAlg, WC_RNG* rng);
+/* Legacy seed-based sign API without context parameter (pre-FIPS 204).
+ * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
+ * New code should use wc_MlDsaKey_SignCtxWithSeed() instead. */
+#ifdef WOLFSSL_MLDSA_NO_CTX
+WOLFSSL_API
+int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
+    const byte* msg, word32 msgLen, const byte* seed);
+#endif /* WOLFSSL_MLDSA_NO_CTX */
+WOLFSSL_API
+int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
+    byte* sig, word32* sigLen, const byte* msg, word32 msgLen,
+    const byte* seed);
+WOLFSSL_API
+int wc_MlDsaKey_SignCtxHashWithSeed(wc_MlDsaKey* key, const byte* ctx,
+    byte ctxLen, byte* sig, word32* sigLen, const byte* hash,
+    word32 hashLen, int hashAlg, const byte* seed);
+WOLFSSL_API
+int wc_MlDsaKey_SignMuWithSeed(wc_MlDsaKey* key, byte* sig, word32* sigLen,
+    const byte* mu, word32 muLen, const byte* seed);
+#endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
+/* Legacy verify API without context parameter (pre-FIPS 204).
+ * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
+ * New code should use wc_MlDsaKey_VerifyCtx() with ctx=NULL/ctxLen=0
+ * for FIPS 204 compliant verification with an empty context. */
+#ifdef WOLFSSL_MLDSA_NO_CTX
+WOLFSSL_API
+int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
+    const byte* msg, word32 msgLen, int* res);
+#endif /* WOLFSSL_MLDSA_NO_CTX */
+WOLFSSL_API
+int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
+    const byte* ctx, byte ctxLen, const byte* msg, word32 msgLen, int* res);
+WOLFSSL_API
+int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
+    const byte* ctx, byte ctxLen, const byte* hash, word32 hashLen,
+    int hashAlg, int* res);
+WOLFSSL_API
+int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
+    const byte* mu, word32 muLen, int* res);
+
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API
+wc_MlDsaKey* wc_MlDsaKey_New(void* heap, int devId);
+WOLFSSL_API
+int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
+#endif /* !WC_NO_CONSTRUCTORS */
+
+WOLFSSL_API
+int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API
+int wc_MlDsaKey_InitId(wc_MlDsaKey* key, const unsigned char* id, int len,
+    void* heap, int devId);
+WOLFSSL_API
+int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
+    int devId);
+#endif
+
+WOLFSSL_API
+int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level);
+WOLFSSL_API
+int wc_MlDsaKey_GetParams(wc_MlDsaKey* key, byte* level);
+WOLFSSL_API
+void wc_MlDsaKey_Free(wc_MlDsaKey* key);
+
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+WOLFSSL_API
+int wc_MlDsaKey_Size(wc_MlDsaKey* key);
+#endif
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+WOLFSSL_API
+int wc_MlDsaKey_PrivSize(wc_MlDsaKey* key);
+#endif
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+WOLFSSL_API
+int wc_MlDsaKey_PubSize(wc_MlDsaKey* key);
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+WOLFSSL_API
+int wc_MlDsaKey_SigSize(wc_MlDsaKey* key);
+#endif
+
+#ifdef WOLFSSL_MLDSA_CHECK_KEY
+WOLFSSL_API
+int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key);
+#endif
+
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+WOLFSSL_API
+int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen);
+#endif
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+WOLFSSL_API
+int wc_MlDsaKey_ImportPrivRaw(wc_MlDsaKey* key, const byte* priv, word32 privSz);
+WOLFSSL_API
+int wc_MlDsaKey_ImportKey(wc_MlDsaKey* key, const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz);
+#endif
+
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+WOLFSSL_API
+int wc_MlDsaKey_ExportPubRaw(wc_MlDsaKey* key, byte* out, word32* outLen);
+#endif
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+WOLFSSL_API
+int wc_MlDsaKey_ExportPrivRaw(wc_MlDsaKey* key, byte* out, word32* outLen);
+#endif
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+WOLFSSL_API
+int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
+    byte* pub, word32 *pubSz);
+#endif
+
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+WOLFSSL_LOCAL int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat);
+#endif /* WOLFSSL_MLDSA_NO_ASN1 */
+
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+WOLFSSL_API int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+#endif
+#endif /* WOLFSSL_MLDSA_NO_ASN1 */
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+WOLFSSL_API int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+#endif
+
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+WOLFSSL_API int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output,
+    word32 inLen, int withAlg);
+#endif
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+WOLFSSL_API int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output,
+    word32 inLen);
+#endif
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+WOLFSSL_API int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output,
+    word32 inLen);
+#endif
+#endif /* WOLFSSL_MLDSA_NO_ASN1 */
+
+#ifdef USE_INTEL_SPEEDUP
+WOLFSSL_LOCAL void wc_mldsa_poly_red_avx2(sword32* a);
+
+WOLFSSL_LOCAL void wc_mldsa_ntt_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_ntt_full_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_invntt_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_invntt_full_avx2(sword32* r);
+
+WOLFSSL_LOCAL void wc_mldsa_mul_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_4_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_5_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_7_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_matrix_mul_4x4_avx2(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void wc_mldsa_matrix_mul_6x5_avx2(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void wc_mldsa_matrix_mul_8x7_avx2(sword32* r, const sword32* m,
+    const sword32* v);
+
+WOLFSSL_LOCAL void wc_mldsa_redistribute_21_rand_avx2(word64* s, byte* r0,
+    byte* r1, byte* r2, byte* r3);
+WOLFSSL_LOCAL int wc_mldsa_rej_uniform_n_avx2(sword32* a, word32 len,
+    const byte* r, word32 rLen);
+WOLFSSL_LOCAL int wc_mldsa_rej_uniform_avx2(sword32* a, word32 len,
+    const byte* r, word32 rLen);
+
+WOLFSSL_LOCAL void wc_mldsa_redistribute_17_rand_avx2(word64* s, byte* r0,
+    byte* r1, byte* r2, byte* r3);
+WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta2_avx2(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta4_avx2(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_2_avx2(const sword32* s, byte d,
+    byte* p);
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_4_avx2(const sword32* t, byte* p);
+WOLFSSL_LOCAL void wc_mldsa_decode_eta_2_avx2(const byte* p, sword32* s);
+WOLFSSL_LOCAL void wc_mldsa_decode_eta_4_avx2(const byte* p, sword32* s);
+
+WOLFSSL_LOCAL void wc_mldsa_encode_w1_88_avx2(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void wc_mldsa_encode_w1_32_avx2(const sword32* w1, byte* w1e);
+
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_t0_t1_avx2(const sword32* t, byte d,
+    byte* t0, byte* t1);
+WOLFSSL_LOCAL void wc_mldsa_decode_t0_avx2(const byte* t0, sword32* t);
+WOLFSSL_LOCAL void wc_mldsa_decode_t1_avx2(const byte* t1, sword32* t);
+
+WOLFSSL_LOCAL void wc_mldsa_decode_gamma1_17_avx2(const byte* s, sword32* z);
+WOLFSSL_LOCAL void wc_mldsa_decode_gamma1_19_avx2(const byte* s, sword32* z);
+WOLFSSL_LOCAL void wc_mldsa_encode_gamma1_17_avx2(const sword32* z, byte* s);
+WOLFSSL_LOCAL void wc_mldsa_encode_gamma1_19_avx2(const sword32* z, byte* s);
+
+WOLFSSL_LOCAL void wc_mldsa_decompose_q88_avx2(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void wc_mldsa_decompose_q32_avx2(const sword32* r, byte k,
+    sword32* r0, sword32* r1);
+
+WOLFSSL_LOCAL void wc_mldsa_use_hint_88_avx2(sword32* w1, const byte* h);
+WOLFSSL_LOCAL void wc_mldsa_use_hint_32_avx2(sword32* w1, byte k,
+    const byte* h);
+
+WOLFSSL_LOCAL int wc_mldsa_vec_check_low_avx2(const sword32* a, byte l,
+    sword32 hi);
+
+WOLFSSL_LOCAL void wc_mldsa_poly_add_avx2(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void wc_mldsa_poly_sub_avx2(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
+#endif
+
+
+#define WC_ML_DSA_DRAFT         10
+
+#define WC_ML_DSA_44            2
+#define WC_ML_DSA_65            3
+#define WC_ML_DSA_87            5
+#define WC_ML_DSA_44_DRAFT      (2 + WC_ML_DSA_DRAFT)
+#define WC_ML_DSA_65_DRAFT      (3 + WC_ML_DSA_DRAFT)
+#define WC_ML_DSA_87_DRAFT      (5 + WC_ML_DSA_DRAFT)
+
+#define DILITHIUM_ML_DSA_44_KEY_SIZE        2560
+#define DILITHIUM_ML_DSA_44_SIG_SIZE        2420
+#define DILITHIUM_ML_DSA_44_PUB_KEY_SIZE    1312
+#define DILITHIUM_ML_DSA_44_PRV_KEY_SIZE    \
+    (DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + DILITHIUM_ML_DSA_44_KEY_SIZE)
+
+#define DILITHIUM_ML_DSA_65_KEY_SIZE        4032
+#define DILITHIUM_ML_DSA_65_SIG_SIZE        3309
+#define DILITHIUM_ML_DSA_65_PUB_KEY_SIZE    1952
+#define DILITHIUM_ML_DSA_65_PRV_KEY_SIZE    \
+    (DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + DILITHIUM_ML_DSA_65_KEY_SIZE)
+
+#define DILITHIUM_ML_DSA_87_KEY_SIZE        4896
+#define DILITHIUM_ML_DSA_87_SIG_SIZE        4627
+#define DILITHIUM_ML_DSA_87_PUB_KEY_SIZE    2592
+#define DILITHIUM_ML_DSA_87_PRV_KEY_SIZE    \
+    (DILITHIUM_ML_DSA_87_PUB_KEY_SIZE + DILITHIUM_ML_DSA_87_KEY_SIZE)
+
+
+WOLFSSL_API int wc_MlDsaKey_GetPrivLen(wc_MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetPubLen(wc_MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len);
+
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+#ifndef WOLFSSL_NO_ML_DSA_44
+WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e);
+#endif
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
+#endif
+#endif
+
+#ifdef __cplusplus
+    }    /* extern "C" */
+#endif
+
+#endif /* WOLFSSL_HAVE_MLDSA */
+#endif /* WOLF_CRYPT_WC_MLDSA_H */

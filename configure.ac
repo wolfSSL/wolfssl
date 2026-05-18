@@ -1810,54 +1810,54 @@ AC_ARG_ENABLE([extra-pqc-hybrids],
 #  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([mldsa],
     [AS_HELP_STRING([--enable-mldsa],[Enable ML-DSA/Dilithium (default: disabled)])],
-    [ ENABLED_DILITHIUM=$enableval ],
-    [ ENABLED_DILITHIUM=no ]
+    [ ENABLED_MLDSA=$enableval ],
+    [ ENABLED_MLDSA=no ]
     )
 # note, inherits default from "mldsa" clause above.
 AC_ARG_ENABLE([dilithium],
     [AS_HELP_STRING([--enable-dilithium],[Alias for --enable-mldsa])],
-    [ ENABLED_DILITHIUM=$enableval ]
+    [ ENABLED_MLDSA=$enableval ]
     )
 
-ENABLED_DILITHIUM_OPTS=$ENABLED_DILITHIUM
-ENABLED_DILITHIUM_MAKE_KEY=no
-ENABLED_DILITHIUM_SIGN=no
-ENABLED_DILITHIUM_VERIFY=no
-for v in `echo $ENABLED_DILITHIUM_OPTS | tr "," " "`
+ENABLED_MLDSA_OPTS=$ENABLED_MLDSA
+ENABLED_MLDSA_MAKE_KEY=no
+ENABLED_MLDSA_SIGN=no
+ENABLED_MLDSA_VERIFY=no
+for v in `echo $ENABLED_MLDSA_OPTS | tr "," " "`
 do
   case $v in
   yes)
     ENABLED_MLDSA44=yes
     ENABLED_MLDSA65=yes
     ENABLED_MLDSA87=yes
-    ENABLED_DILITHIUM_MAKE_KEY=yes
-    ENABLED_DILITHIUM_SIGN=yes
-    ENABLED_DILITHIUM_VERIFY=yes
+    ENABLED_MLDSA_MAKE_KEY=yes
+    ENABLED_MLDSA_SIGN=yes
+    ENABLED_MLDSA_VERIFY=yes
     ;;
   no)
     ;;
   all)
-    ENABLED_DILITHIUM_MAKE_KEY=yes
-    ENABLED_DILITHIUM_SIGN=yes
-    ENABLED_DILITHIUM_VERIFY=yes
+    ENABLED_MLDSA_MAKE_KEY=yes
+    ENABLED_MLDSA_SIGN=yes
+    ENABLED_MLDSA_VERIFY=yes
     ;;
   make)
-    ENABLED_DILITHIUM_MAKE_KEY=yes
+    ENABLED_MLDSA_MAKE_KEY=yes
     ;;
   sign)
-    ENABLED_DILITHIUM_SIGN=yes
+    ENABLED_MLDSA_SIGN=yes
     ;;
   verify)
-    ENABLED_DILITHIUM_VERIFY=yes
+    ENABLED_MLDSA_VERIFY=yes
     ;;
   verify-only)
-    ENABLED_DILITHIUM_MAKE_KEY=no
-    ENABLED_DILITHIUM_SIGN=no
-    ENABLED_DILITHIUM_VERIFY=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_VERIFY_ONLY"
+    ENABLED_MLDSA_MAKE_KEY=no
+    ENABLED_MLDSA_SIGN=no
+    ENABLED_MLDSA_VERIFY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_VERIFY_ONLY"
     ;;
   small)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_SMALL"
     ;;
   44)
     ENABLED_MLDSA44=yes
@@ -1869,13 +1869,13 @@ do
     ENABLED_MLDSA87=yes
     ;;
   draft|fips204-draft)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_FIPS204_DRAFT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_FIPS204_DRAFT"
     ;;
   no-ctx)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_CTX"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_CTX"
     ;;
   *)
-    AC_MSG_ERROR([Invalid choice for DILITHIUM [all,make,sign,verify,verify-only,small,44,65,87,no-ctx]: $ENABLED_DILITHIUM.])
+    AC_MSG_ERROR([Invalid choice for ML-DSA [all,make,sign,verify,verify-only,small,44,65,87,no-ctx]: $ENABLED_MLDSA.])
     break;;
   esac
 done
@@ -6400,15 +6400,15 @@ AS_CASE([$FIPS_VERSION],
              ENABLED_MLKEM_ENCAPSULATE="yes"
              ENABLED_MLKEM_DECAPSULATE="yes"])
 
-        AS_IF([test "$ENABLED_DILITHIUM" != "yes" &&
+        AS_IF([test "$ENABLED_MLDSA" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_dilithium" != "no")],
-            [ENABLED_DILITHIUM="yes"
+            [ENABLED_MLDSA="yes"
              ENABLED_MLDSA44="yes"
              ENABLED_MLDSA65="yes"
              ENABLED_MLDSA87="yes"
-             ENABLED_DILITHIUM_MAKE_KEY="yes"
-             ENABLED_DILITHIUM_SIGN="yes"
-             ENABLED_DILITHIUM_VERIFY="yes"])
+             ENABLED_MLDSA_MAKE_KEY="yes"
+             ENABLED_MLDSA_SIGN="yes"
+             ENABLED_MLDSA_VERIFY="yes"])
 
         AS_IF([test "$ENABLED_XMSS" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_xmss" != "no")],
@@ -7330,7 +7330,7 @@ then
     ENABLED_SHAKE128=yes
     ENABLED_SHAKE256=yes
 fi
-if test "$ENABLED_DILITHIUM" != "no"
+if test "$ENABLED_MLDSA" != "no"
 then
     ENABLED_SHA3=yes
     ENABLED_SHAKE128=yes
@@ -7496,11 +7496,11 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_PQC_HYBRIDS"
 fi
 
-# Dilithium CFLAG processing (after FIPS section for sandwich pattern)
-if test "$ENABLED_DILITHIUM" != "no"
+# ML-DSA CFLAG processing (after FIPS section for sandwich pattern)
+if test "$ENABLED_MLDSA" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_DILITHIUM"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_DILITHIUM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLDSA"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_MLDSA"
 
     if test "$ENABLED_MLDSA44" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_44"
@@ -7511,14 +7511,14 @@ then
     if test "$ENABLED_MLDSA87" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_87"
     fi
-    if test "$ENABLED_DILITHIUM_MAKE_KEY" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_MAKE_KEY"
+    if test "$ENABLED_MLDSA_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_MAKE_KEY"
     fi
-    if test "$ENABLED_DILITHIUM_SIGN" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_SIGN"
+    if test "$ENABLED_MLDSA_SIGN" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_SIGN"
     fi
-    if test "$ENABLED_DILITHIUM_VERIFY" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_VERIFY"
+    if test "$ENABLED_MLDSA_VERIFY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_VERIFY"
     fi
 
     test "$enable_sha3" = "" && enable_sha3=yes
@@ -12214,7 +12214,7 @@ AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_LMS" != "xno" || test "x$ENABLED_
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_SLHDSA],[test "x$ENABLED_SLHDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_MLDSA],[test "x$ENABLED_MLDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -12768,7 +12768,7 @@ echo "   * LMS:                        $ENABLED_LMS"
 echo "   * XMSS:                       $ENABLED_XMSS"
 echo "   * SLH-DSA                     $ENABLED_SLHDSA"
 echo "   * MLKEM:                      $ENABLED_MLKEM"
-echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
+echo "   * ML-DSA:                     $ENABLED_MLDSA"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"

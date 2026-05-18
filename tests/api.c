@@ -1567,7 +1567,7 @@ static int test_dual_alg_ecdsa_mldsa(void)
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
     WOLFSSL_CERT_MANAGER * cm = NULL;
-    MlDsaKey    alt_ca_key;
+    wc_MlDsaKey alt_ca_key;
     ecc_key     ca_key;
     WC_RNG      rng;
     int         ret = 0;

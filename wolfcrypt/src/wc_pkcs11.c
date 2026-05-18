@@ -1786,7 +1786,7 @@ static int Pkcs11CreateMlKemPrivateKey(CK_OBJECT_HANDLE* privateKey,
  */
 static int Pkcs11CreateMldsaPublicKey(CK_OBJECT_HANDLE* handle,
                                       Pkcs11Session* session,
-                                      MlDsaKey* key,
+                                      wc_MlDsaKey* key,
                                       CK_MECHANISM_INFO_PTR mechInfo)
 {
     int                          ret = 0;
@@ -1873,7 +1873,7 @@ static int Pkcs11CreateMldsaPublicKey(CK_OBJECT_HANDLE* handle,
  */
 static int Pkcs11CreateMldsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
                                        Pkcs11Session* session,
-                                       MlDsaKey* key,
+                                       wc_MlDsaKey* key,
                                        CK_MECHANISM_INFO_PTR mechInfo)
 {
     int                          ret = 0;
@@ -2222,7 +2222,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
     #endif /* WOLFSSL_HAVE_MLKEM */
     #if defined(HAVE_DILITHIUM)
             case PKCS11_KEY_TYPE_MLDSA: {
-                MlDsaKey* mldsaKey = (MlDsaKey*) key;
+                wc_MlDsaKey* mldsaKey = (wc_MlDsaKey*) key;
                 CK_MECHANISM_INFO mechInfo;
 
                 ret = Pkcs11MechAvail(&session, CKM_ML_DSA, &mechInfo);
@@ -4763,7 +4763,7 @@ static int Pkcs11PqcKemDecapsulate(Pkcs11Session* session, wc_CryptoInfo* info)
 static int Pkcs11FindMldsaKey(CK_OBJECT_HANDLE* handle,
                               CK_OBJECT_CLASS keyClass,
                               Pkcs11Session* session,
-                              MlDsaKey* key)
+                              wc_MlDsaKey* key)
 {
     int                          ret = 0;
     CK_ULONG                     count = 0;
@@ -4810,7 +4810,7 @@ static int Pkcs11FindMldsaKey(CK_OBJECT_HANDLE* handle,
  * @return  MEMORY_E when a memory allocation fails.
  * @return  0 on success.
  */
-static int Pkcs11GetMldsaPublicKey(MlDsaKey* key,
+static int Pkcs11GetMldsaPublicKey(wc_MlDsaKey* key,
                                    Pkcs11Session* session,
                                    CK_OBJECT_HANDLE keyHandle)
 {
@@ -4930,7 +4930,7 @@ static int Pkcs11GetMldsaPreHash(int hashType,
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
-static int Pkcs11MldsaKeyGen(Pkcs11Session* session, MlDsaKey* key)
+static int Pkcs11MldsaKeyGen(Pkcs11Session* session, wc_MlDsaKey* key)
 {
     int                          ret = 0;
     CK_RV                        rv;
@@ -5057,7 +5057,7 @@ static int Pkcs11MldsaSign(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_MECHANISM      mech;
     CK_MECHANISM_INFO mechInfo;
     CK_OBJECT_HANDLE  privateKey = NULL_PTR;
-    MlDsaKey*         key = (MlDsaKey*) info->pk.pqc_sign.key;
+    wc_MlDsaKey*         key = (wc_MlDsaKey*) info->pk.pqc_sign.key;
 
     union {
         CK_SIGN_ADDITIONAL_CONTEXT      pure;
@@ -5200,7 +5200,7 @@ static int Pkcs11MldsaVerify(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_MECHANISM      mech;
     CK_MECHANISM_INFO mechInfo;
     CK_OBJECT_HANDLE  publicKey = NULL_PTR;
-    MlDsaKey*         key = (MlDsaKey*) info->pk.pqc_verify.key;
+    wc_MlDsaKey*         key = (wc_MlDsaKey*) info->pk.pqc_verify.key;
 
     union {
         CK_SIGN_ADDITIONAL_CONTEXT      pure;
@@ -5330,10 +5330,10 @@ static int Pkcs11MldsaCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
     word32           storedKeySize = 0;
     word32           idx = 0;
     CK_OBJECT_HANDLE privKeyHandle;
-    MlDsaKey*        privKey = (MlDsaKey*) info->pk.pqc_sig_check.key;
-    WC_DECLARE_VAR(pubKey, MlDsaKey, 1, privKey->heap);
+    wc_MlDsaKey*        privKey = (wc_MlDsaKey*) info->pk.pqc_sig_check.key;
+    WC_DECLARE_VAR(pubKey, wc_MlDsaKey, 1, privKey->heap);
 
-    WC_ALLOC_VAR_EX(pubKey, MlDsaKey, 1, privKey->heap, DYNAMIC_TYPE_DILITHIUM,
+    WC_ALLOC_VAR_EX(pubKey, wc_MlDsaKey, 1, privKey->heap, DYNAMIC_TYPE_DILITHIUM,
         ret = MEMORY_E);
 
     /* Get the ML-DSA public key object. */
@@ -5397,7 +5397,7 @@ static int Pkcs11MldsaCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
  * @param  [in]  key      ML-DSA key.
  * @return  0 on success.
  */
-static int Pkcs11MldsaDeletePrivKey(Pkcs11Session* session, MlDsaKey* key)
+static int Pkcs11MldsaDeletePrivKey(Pkcs11Session* session, wc_MlDsaKey* key)
 {
     CK_OBJECT_HANDLE privateKey;
 
@@ -5428,7 +5428,7 @@ static int Pkcs11PqcSigKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     switch (info->pk.pqc_sig_kg.type) {
         case WC_PQC_SIG_TYPE_DILITHIUM:
             ret = Pkcs11MldsaKeyGen(session,
-                                    (MlDsaKey*)info->pk.pqc_sig_kg.key);
+                                    (wc_MlDsaKey*)info->pk.pqc_sig_kg.key);
             break;
         default:
             ret = NOT_COMPILED_IN;
@@ -6636,7 +6636,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 ret = Pkcs11OpenSession(token, &session, readWrite);
                 if (ret == 0) {
                     ret = Pkcs11MldsaDeletePrivKey(&session,
-                                                   (MlDsaKey*)info->free.obj);
+                                                   (wc_MlDsaKey*)info->free.obj);
                     Pkcs11CloseSession(token, &session);
                 }
             }
