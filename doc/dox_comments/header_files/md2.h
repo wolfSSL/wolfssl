@@ -5,6 +5,7 @@
     called by wc_Md2Hash.
 
     \return 0 Returned upon successfully initializing
+    \return BAD_FUNC_ARG Returned if md2 is NULL
 
     \param md2 pointer to the md2 structure to use for encryption
 
@@ -24,7 +25,7 @@
     \sa wc_Md2Update
     \sa wc_Md2Final
 */
-void wc_InitMd2(wc_Md2* md2);
+int wc_InitMd2(wc_Md2* md2);
 
 /*!
     \ingroup MD2
@@ -33,6 +34,8 @@ void wc_InitMd2(wc_Md2* md2);
     array of length len.
 
     \return 0 Returned upon successfully adding the data to the digest.
+    \return BAD_FUNC_ARG Returned if md2 is NULL, or if data is NULL and
+    len is non-zero
 
     \param md2 pointer to the md2 structure to use for encryption
     \param data the data to be hashed
@@ -57,7 +60,7 @@ void wc_InitMd2(wc_Md2* md2);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
+int wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
 
 /*!
     \ingroup MD2
@@ -65,6 +68,7 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
     \brief Finalizes hashing of data. Result is placed into hash.
 
     \return 0 Returned upon successfully finalizing.
+    \return BAD_FUNC_ARG Returned if md2 or hash is NULL
 
     \param md2 pointer to the md2 structure to use for encryption
     \param hash Byte array to hold hash value.
@@ -88,7 +92,7 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-void wc_Md2Final(wc_Md2* md2, byte* hash);
+int wc_Md2Final(wc_Md2* md2, byte* hash);
 
 /*!
     \ingroup MD2

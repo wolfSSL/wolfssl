@@ -5,6 +5,7 @@
     called by wc_Md4Hash.
 
     \return 0 Returned upon successfully initializing
+    \return BAD_FUNC_ARG Returned if md4 is NULL
 
     \param md4 pointer to the md4 structure to use for encryption
 
@@ -24,7 +25,7 @@
     \sa wc_Md4Update
     \sa wc_Md4Final
 */
-void wc_InitMd4(wc_Md4* md4);
+int wc_InitMd4(wc_Md4* md4);
 
 /*!
     \ingroup MD4
@@ -33,6 +34,8 @@ void wc_InitMd4(wc_Md4* md4);
     of length len.
 
     \return 0 Returned upon successfully adding the data to the digest.
+    \return BAD_FUNC_ARG Returned if md4 is NULL, or if data is NULL and
+    len is non-zero
 
     \param md4 pointer to the md4 structure to use for encryption
     \param data the data to be hashed
@@ -57,7 +60,7 @@ void wc_InitMd4(wc_Md4* md4);
     \sa wc_Md4Final
     \sa wc_InitMd4
 */
-void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
+int wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
 
 /*!
     \ingroup MD4
@@ -65,6 +68,7 @@ void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
     \brief Finalizes hashing of data. Result is placed into hash.
 
     \return 0 Returned upon successfully finalizing.
+    \return BAD_FUNC_ARG Returned if md4 or hash is NULL
 
     \param md4 pointer to the md4 structure to use for encryption
     \param hash Byte array to hold hash value.
@@ -85,4 +89,4 @@ void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len);
     \sa wc_Md4Final
     \sa wc_InitMd4
 */
-void wc_Md4Final(wc_Md4* md4, byte* hash);
+int wc_Md4Final(wc_Md4* md4, byte* hash);

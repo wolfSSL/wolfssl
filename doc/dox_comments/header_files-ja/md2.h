@@ -4,6 +4,7 @@
     \brief この関数はmd2を初期化します。これはwc_Md2Hashによって自動的に呼び出されます。
 
     \return 0 初期化に成功した場合に返されます
+    \return BAD_FUNC_ARG md2がNULLの場合に返されます
 
     \param md2 暗号化に使用するmd2構造体へのポインタ
 
@@ -23,7 +24,7 @@
     \sa wc_Md2Update
     \sa wc_Md2Final
 */
-void wc_InitMd2(wc_Md2* md2);
+int wc_InitMd2(wc_Md2* md2);
 
 /*!
     \ingroup MD2
@@ -31,6 +32,7 @@ void wc_InitMd2(wc_Md2* md2);
     \brief 長さlenの提供されたバイト配列を継続的にハッシュするために呼び出すことができます。
 
     \return 0 ダイジェストへのデータ追加に成功した場合に返されます。
+    \return BAD_FUNC_ARG md2がNULLの場合、またはdataがNULLでlenが0でない場合に返されます
 
     \param md2 暗号化に使用するmd2構造体へのポインタ
     \param data ハッシュ化されるデータ
@@ -55,7 +57,7 @@ void wc_InitMd2(wc_Md2* md2);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
+int wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
 
 /*!
     \ingroup MD2
@@ -63,6 +65,7 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
     \brief データのハッシュ化を完了します。結果はhashに格納されます。
 
     \return 0 完了に成功した場合に返されます。
+    \return BAD_FUNC_ARG md2またはhashがNULLの場合に返されます
 
     \param md2 暗号化に使用するmd2構造体へのポインタ
     \param hash ハッシュ値を保持するバイト配列。
@@ -86,7 +89,7 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-void wc_Md2Final(wc_Md2* md2, byte* hash);
+int wc_Md2Final(wc_Md2* md2, byte* hash);
 
 /*!
     \ingroup MD2

@@ -151,6 +151,9 @@ static int wc_CAAM_CommonHash(caam_handle_t* hndl, caam_hash_ctx_t *ctx,
             /* input not aligned */
             tmpIn = (byte*)XMALLOC(inSz + CAAM_BUFFER_ALIGN, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmpIn == NULL) {
+                return MEMORY_E;
+            }
             alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
                 ((wc_ptr_t)tmpIn % CAAM_BUFFER_ALIGN));
             XMEMCPY(alignedIn, in, inSz);
@@ -176,6 +179,9 @@ static int wc_CAAM_CommonHash(caam_handle_t* hndl, caam_hash_ctx_t *ctx,
             /* input not aligned */
             tmpOut = (byte*)XMALLOC(sz + CAAM_BUFFER_ALIGN, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmpOut == NULL) {
+                return MEMORY_E;
+            }
             alignedOut = tmpOut + (CAAM_BUFFER_ALIGN -
                 ((wc_ptr_t)tmpOut % CAAM_BUFFER_ALIGN));
         }
@@ -308,6 +314,9 @@ static int DoAesCTR(unsigned int args[4], CAAM_BUFFER *buf, int sz)
         /* input not aligned */
         tmpIn = (byte*)XMALLOC(buf[2].Length + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpIn == NULL) {
+            return MEMORY_E;
+        }
         alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
             ((wc_ptr_t)tmpIn % CAAM_BUFFER_ALIGN));
         XMEMCPY(alignedIn, (byte*)buf[2].TheAddress, buf[2].Length);
@@ -320,6 +329,10 @@ static int DoAesCTR(unsigned int args[4], CAAM_BUFFER *buf, int sz)
         /* output not aligned */
         tmpOut = (byte*)XMALLOC(buf[3].Length + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpOut == NULL) {
+            XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
         alignedOut = tmpOut + (CAAM_BUFFER_ALIGN -
             ((wc_ptr_t)tmpOut % CAAM_BUFFER_ALIGN));
     }
@@ -480,6 +493,10 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         /* input not aligned */
         tmpIn = (byte*)XMALLOC(inlen + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpIn == NULL) {
+            ForceZero(k, sizeof(k));
+            return MEMORY_E;
+        }
         alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
             ((wc_ptr_t)tmpIn % CAAM_BUFFER_ALIGN));
         XMEMCPY(alignedIn, in, inlen);
@@ -594,6 +611,9 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
         /* input not aligned */
         tmpIn = (byte*)XMALLOC(hashlen + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpIn == NULL) {
+            return MEMORY_E;
+        }
         alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
             ((wc_ptr_t)tmpIn % CAAM_BUFFER_ALIGN));
         XMEMCPY(alignedIn, hash, hashlen);

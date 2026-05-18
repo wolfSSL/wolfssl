@@ -4504,6 +4504,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t asn_test(void)
 #ifdef WOLFSSL_MD2
 static wc_test_ret_t md2_kat_test(void)
 {
+    wc_test_ret_t ret = 0;
     wc_Md2 md2;
     byte hash[WC_MD2_DIGEST_SIZE];
 
@@ -4563,11 +4564,18 @@ static wc_test_ret_t md2_kat_test(void)
     test_md2[5] = f;
     test_md2[6] = g;
 
-    wc_InitMd2(&md2);
+    ret = wc_InitMd2(&md2);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
 
     for (i = 0; i < times; ++i) {
-        wc_Md2Update(&md2, (byte*)test_md2[i].input, (word32)test_md2[i].inLen);
-        wc_Md2Final(&md2, hash);
+        ret = wc_Md2Update(&md2, (byte*)test_md2[i].input,
+                           (word32)test_md2[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
+        ret = wc_Md2Final(&md2, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
 
         if (XMEMCMP(hash, test_md2[i].output, WC_MD2_DIGEST_SIZE) != 0)
             return WC_TEST_RET_ENC_I(i);
@@ -4871,6 +4879,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md5_test(void)
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md4_test(void)
 {
+    wc_test_ret_t ret = 0;
     wc_Md4 md4;
     byte hash[WC_MD4_DIGEST_SIZE];
 
@@ -4931,11 +4940,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t md4_test(void)
     test_md4[5] = f;
     test_md4[6] = g;
 
-    wc_InitMd4(&md4);
+    ret = wc_InitMd4(&md4);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
 
     for (i = 0; i < times; ++i) {
-        wc_Md4Update(&md4, (byte*)test_md4[i].input, (word32)test_md4[i].inLen);
-        wc_Md4Final(&md4, hash);
+        ret = wc_Md4Update(&md4, (byte*)test_md4[i].input,
+                           (word32)test_md4[i].inLen);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
+        ret = wc_Md4Final(&md4, hash);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
 
         if (XMEMCMP(hash, test_md4[i].output, WC_MD4_DIGEST_SIZE) != 0)
             return WC_TEST_RET_ENC_I(i);
@@ -10818,6 +10834,45 @@ static wc_test_ret_t chacha_vector_test(ChaCha* enc, ChaCha* dec)
 
     if (XMEMCMP(plain + 64, sliver, 64))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Test unaligned input buffer case */
+    {
+        ChaCha encAligned;
+        ChaCha encUnaligned;
+        byte   keyBuf[32 + 1];
+        byte   ivBuf[12 + 1];
+        byte   pt[64];
+        byte   ctAligned[64];
+        byte   ctUnaligned[64];
+
+        XMEMCPY(keyBuf + 1, keys[0], 32);
+        XMEMCPY(ivBuf + 1,  ivs[2],  12);
+        XMEMSET(pt, 0xa5, sizeof(pt));
+
+        ret = wc_Chacha_SetKey(&encAligned, keys[0], 32);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_Chacha_SetKey(&encUnaligned, keyBuf + 1, 32);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        ret = wc_Chacha_SetIV(&encAligned, ivs[2], 0);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_Chacha_SetIV(&encUnaligned, ivBuf + 1, 0);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        ret = wc_Chacha_Process(&encAligned, ctAligned, pt, sizeof(pt));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_Chacha_Process(&encUnaligned, ctUnaligned, pt, sizeof(pt));
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        if (XMEMCMP(ctAligned, ctUnaligned, sizeof(ctAligned)))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
 
 out:
     return ret;
@@ -23347,6 +23402,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha_test(void) {
 
     if (XMEMCMP(buf2, Plaintext, sizeof Plaintext))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Test unaligned input buffer case */
+    {
+        byte keyBuf[sizeof Key + 1];
+        byte ivBuf[sizeof IV + 1];
+
+        XMEMCPY(keyBuf + 1, Key, sizeof Key);
+        XMEMCPY(ivBuf + 1,  IV,  sizeof IV);
+
+        ret = wc_XChacha_SetKey(chacha, keyBuf + 1, sizeof Key,
+                                ivBuf + 1, sizeof IV, 0);
+        if (ret < 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        ret = wc_Chacha_Process(chacha, buf2, Plaintext, sizeof Plaintext);
+        if (ret < 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        if (XMEMCMP(buf2, Ciphertext, sizeof Plaintext))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
 
   out:
 

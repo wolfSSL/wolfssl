@@ -51,10 +51,10 @@ typedef struct wc_Md2 {
 } wc_Md2;
 
 
-WOLFSSL_API void wc_InitMd2(wc_Md2* md2);
-WOLFSSL_API void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
-WOLFSSL_API void wc_Md2Final(wc_Md2* md2, byte* hash);
-WOLFSSL_API int  wc_Md2Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_InitMd2(wc_Md2* md2);
+WOLFSSL_API int wc_Md2Update(wc_Md2* md2, const byte* data, word32 len);
+WOLFSSL_API int wc_Md2Final(wc_Md2* md2, byte* hash);
+WOLFSSL_API int wc_Md2Hash(const byte* data, word32 len, byte* hash);
 
 #ifndef OPENSSL_COEXIST
 

@@ -960,6 +960,10 @@ static hsm_err_t wc_SECO_AESCCM(unsigned int args[4], CAAM_BUFFER* buf, int sz)
     cipherAndTagSz = buf[4].Length + buf[2].Length;
     cipherAndTag   = (byte*)XMALLOC(cipherAndTagSz, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
+    if (cipherAndTag == NULL) {
+        return HSM_OUT_OF_MEMORY;
+    }
+
     dir = args[0] & 0xFFFF; /* get if doing enc or dec */
     if (dir == CAAM_ENC) {
         in = (uint8_t*)buf[2].TheAddress;
@@ -1012,6 +1016,11 @@ static hsm_err_t wc_SECO_AESGCM(unsigned int args[4], CAAM_BUFFER* buf, int sz)
         cipherAndTagSz = buf[4].Length + buf[2].Length;
         cipherAndTag   = (byte*)XMALLOC(cipherAndTagSz, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
+        if (cipherAndTag == NULL) {
+            (void)hsm_close_cipher_service(cipher_hdl);
+            return HSM_OUT_OF_MEMORY;
+        }
+
         if (dir == CAAM_ENC) {
             in = (uint8_t*)buf[2].TheAddress;
             inSz  = buf[2].Length;
@@ -1141,6 +1150,8 @@ word32 wc_SECO_WrapKey(word32 keyId, byte* in, word32 inSz, byte* iv,
                 WOLFSSL_MSG("error with AES-GCM set key");
             }
         }
+
+        ForceZero(KEK, sizeof(KEK));
 
         key_args.flags |= HSM_OP_MANAGE_KEY_FLAGS_PART_UNIQUE_ROOT_KEK;
         #if 0

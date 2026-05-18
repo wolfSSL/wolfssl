@@ -37,9 +37,12 @@
 /* Unit test for wc_InitMd2() and wc_InitMd2_ex() */
 int test_wc_InitMd2(void)
 {
-    EXPECT_SUCCESS_DECLS;
+    EXPECT_DECLS;
 #ifdef WOLFSSL_MD2
-    DIGEST_INIT_ONLY_TEST(wc_Md2, Md2);
+    wc_Md2 md2;
+
+    ExpectIntEQ(wc_InitMd2(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_InitMd2(&md2), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -47,9 +50,19 @@ int test_wc_InitMd2(void)
 /* Unit test for wc_UpdateMd2() */
 int test_wc_Md2Update(void)
 {
-    EXPECT_SUCCESS_DECLS;
+    EXPECT_DECLS;
 #ifdef WOLFSSL_MD2
-    DIGEST_UPDATE_ONLY_TEST(wc_Md2, Md2);
+    wc_Md2 md2;
+
+    ExpectIntEQ(wc_InitMd2(&md2), 0);
+
+    ExpectIntEQ(wc_Md2Update(NULL, NULL, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md2Update(&md2, NULL, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md2Update(NULL, (byte*)"a", 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_Md2Update(&md2, NULL, 0), 0);
+    ExpectIntEQ(wc_Md2Update(&md2, (byte*)"a", 1), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -57,9 +70,18 @@ int test_wc_Md2Update(void)
 /* Unit test for wc_Md2Final() */
 int test_wc_Md2Final(void)
 {
-    EXPECT_SUCCESS_DECLS;
+    EXPECT_DECLS;
 #ifdef WOLFSSL_MD2
-    DIGEST_FINAL_ONLY_TEST(wc_Md2, Md2, MD2);
+    wc_Md2 md2;
+    byte   hash[WC_MD2_DIGEST_SIZE];
+
+    ExpectIntEQ(wc_InitMd2(&md2), 0);
+
+    ExpectIntEQ(wc_Md2Final(NULL, NULL),  WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md2Final(&md2, NULL),  WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md2Final(NULL, hash),  WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wc_Md2Final(&md2, hash), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -120,8 +142,20 @@ int test_wc_Md2Hash(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_MD2)
-    DIGEST_HASH_ONLY_TEST(Md2, MD2);
+    byte data[WC_MD2_BLOCK_SIZE];
+    byte hash[WC_MD2_DIGEST_SIZE];
+
+    XMEMSET(data, 0xa5, sizeof(data));
+
+    /* Invalid parameters. */
+    ExpectIntEQ(wc_Md2Hash(NULL, sizeof(data), hash),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Md2Hash(data, sizeof(data), NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Valid parameters. */
+    ExpectIntEQ(wc_Md2Hash(data, sizeof(data), hash), 0);
 #endif
     return EXPECT_RESULT();
-}  /* END test_wc_Sm3Hash */
+}
 
