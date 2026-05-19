@@ -895,9 +895,11 @@ while (0)
 #define DECL_MP_INT_SIZE(name, bits)                               \
     sp_int_digit name##d[MP_INT_SIZEOF_DIGITS(MP_BITS_CNT(bits))]; \
     sp_int* (name) = (sp_int*)name##d
-/* Zero out mp_int of minimal size. */
+/* Zero out mp_int of minimal size.
+ * Use the declared digit array size, not bits, so memset cannot exceed the
+ * buffer allocated by DECL_MP_INT_SIZE_DYN(..., bits, max). */
 #define NEW_MP_INT_SIZE(name, bits, heap, type) \
-    XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)))
+    XMEMSET(name, 0, sizeof(name##d))
 /* Dispose of static mp_int. */
 #define FREE_MP_INT_SIZE(name, heap, type) WC_DO_NOTHING
 /* Type to force compiler to not complain about size. */

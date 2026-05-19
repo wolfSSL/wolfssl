@@ -1212,6 +1212,56 @@ int test_wc_RsaDecrypt_BoundsCheck(void)
 } /* END test_wc_RsaDecryptBoundsCheck */
 
 /*
+ * Oversized RSA modulus (mp_bitsused(n) > RSA_MAX_SIZE) must not overflow the
+ * static stack buffer used by RsaFunctionCheckIn (DECL_MP_INT_SIZE_DYN).
+ */
+int test_wc_RsaFunctionCheckIn_OversizedModulus(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && defined(WC_RSA_NO_PADDING) && defined(WC_RSA_DIRECT) && \
+    defined(WOLFSSL_PUBLIC_MP) && !defined(NO_RSA_BOUNDS_CHECK) && \
+    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    !defined(WOLFSSL_SMALL_STACK) && \
+    (defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048))
+    WC_RNG rng;
+    RsaKey key;
+    const byte* derKey;
+    word32 derKeySz;
+    word32 idx = 0;
+    byte flatC[256];
+    word32 flatCSz;
+    byte out[256];
+    word32 outSz = sizeof(out);
+
+    #ifdef USE_CERT_BUFFERS_1024
+        derKey = server_key_der_1024;
+        derKeySz = (word32)sizeof_server_key_der_1024;
+        flatCSz = 128;
+    #else
+        derKey = server_key_der_2048;
+        derKeySz = (word32)sizeof_server_key_der_2048;
+        flatCSz = 256;
+    #endif
+
+    XMEMSET(&key, 0, sizeof(RsaKey));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(derKey, &idx, &key, derKeySz), 0);
+    /* Force modulus bit count above RSA_MAX_SIZE. */
+    ExpectIntEQ(mp_set_bit(&key.n, RSA_MAX_SIZE), 0);
+    XMEMSET(flatC, 0, flatCSz);
+    ExpectIntEQ(wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
+        RSA_PRIVATE_DECRYPT, &rng), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_RsaFunctionCheckIn_OversizedModulus */
+
+/*
  * Test wc_RsaKeyToDer with an mp_int large enough to wrap size calculations.
  */
 int test_wc_RsaKeyToDer_SizeOverflow(void)
