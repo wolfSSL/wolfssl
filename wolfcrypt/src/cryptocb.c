@@ -1176,7 +1176,7 @@ int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
         return devId;
 
     /* get devId */
-    if (type == WC_PQC_KEM_TYPE_KYBER) {
+    if (type == WC_PQC_KEM_TYPE_MLKEM) {
         devId = ((KyberKey*) key)->devId;
     }
 
@@ -1299,7 +1299,7 @@ int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
 
     /* get devId */
 #if defined(HAVE_DILITHIUM)
-    if (type == WC_PQC_SIG_TYPE_DILITHIUM) {
+    if (type == WC_PQC_SIG_TYPE_MLDSA) {
         devId = ((dilithium_key*) key)->devId;
     }
 #endif

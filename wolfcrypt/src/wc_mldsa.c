@@ -396,7 +396,7 @@ static int mldsa_alloc_priv_buf(wc_MlDsaKey* key)
             secSz += 8;
         #endif
             key->k = (byte*)XMALLOC((word32)secSz, key->heap,
-                                    DYNAMIC_TYPE_DILITHIUM);
+                                    DYNAMIC_TYPE_MLDSA);
             if (key->k == NULL) {
                 ret = MEMORY_E;
             }
@@ -430,7 +430,7 @@ static int mldsa_alloc_pub_buf(wc_MlDsaKey* key)
             pubSz += 8;
         #endif
             key->p = (byte*)XMALLOC((word32)pubSz, key->heap,
-                                    DYNAMIC_TYPE_DILITHIUM);
+                                    DYNAMIC_TYPE_MLDSA);
             if (key->p == NULL) {
                 ret = MEMORY_E;
             }
@@ -2760,7 +2760,7 @@ static int mldsa_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
 
 #if defined(WOLFSSL_SMALL_STACK)
     h = (byte*)XMALLOC(MLDSA_REJ_NTT_POLY_H_SIZE, heap,
-        DYNAMIC_TYPE_DILITHIUM);
+        DYNAMIC_TYPE_MLDSA);
     if (h == NULL) {
         ret = MEMORY_E;
     }
@@ -2770,7 +2770,7 @@ static int mldsa_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
         ret = mldsa_rej_ntt_poly_ex(shake128, seed, a, h);
 
 #if defined(WOLFSSL_SMALL_STACK)
-    XFREE(h, heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(h, heap, DYNAMIC_TYPE_MLDSA);
 #endif
 
     return ret;
@@ -3635,7 +3635,7 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
     unsigned int j = 0;
     WC_DECLARE_VAR(z, byte, MLDSA_GEN_S_BYTES, NULL);
 
-    WC_ALLOC_VAR_EX(z, byte, MLDSA_GEN_S_BYTES, NULL, DYNAMIC_TYPE_DILITHIUM,
+    WC_ALLOC_VAR_EX(z, byte, MLDSA_GEN_S_BYTES, NULL, DYNAMIC_TYPE_MLDSA,
                     return MEMORY_E);
 
     /* Absorb seed and squeeze out some blocks. */
@@ -3657,7 +3657,7 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
         }
     }
 
-    WC_FREE_VAR_EX(z, NULL, DYNAMIC_TYPE_DILITHIUM);
+    WC_FREE_VAR_EX(z, NULL, DYNAMIC_TYPE_MLDSA);
     return ret;
 #endif
 }
@@ -4466,7 +4466,7 @@ static int mldsa_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
     byte r;
     WC_DECLARE_VAR(v, byte, MLDSA_MAX_V, NULL);
 
-    WC_ALLOC_VAR_EX(v, byte, MLDSA_MAX_V, NULL, DYNAMIC_TYPE_DILITHIUM,
+    WC_ALLOC_VAR_EX(v, byte, MLDSA_MAX_V, NULL, DYNAMIC_TYPE_MLDSA,
                     return MEMORY_E);
 
     /* Step 2: For each polynomial of vector. */
@@ -4487,7 +4487,7 @@ static int mldsa_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
         }
     }
 
-    WC_FREE_VAR_EX(v, NULL, DYNAMIC_TYPE_DILITHIUM);
+    WC_FREE_VAR_EX(v, NULL, DYNAMIC_TYPE_MLDSA);
     return ret;
 }
 
@@ -4737,7 +4737,7 @@ static int mldsa_sample_in_ball(int level, wc_Shake* shake256,
 
 #if defined(WOLFSSL_SMALL_STACK)
     block = (byte*)XMALLOC(MLDSA_GEN_C_BLOCK_BYTES, heap,
-        DYNAMIC_TYPE_DILITHIUM);
+        DYNAMIC_TYPE_MLDSA);
     if (block == NULL) {
         ret = MEMORY_E;
     }
@@ -4749,7 +4749,7 @@ static int mldsa_sample_in_ball(int level, wc_Shake* shake256,
     }
 
 #if defined(WOLFSSL_SMALL_STACK)
-    XFREE(block, heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(block, heap, DYNAMIC_TYPE_MLDSA);
 #endif
     return ret;
 }
@@ -7786,7 +7786,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 #ifndef WC_MLDSA_FIXED_ARRAY
     if (key->a == NULL) {
         key->a = (sword32*)XMALLOC(params->aSz, key->heap,
-            DYNAMIC_TYPE_DILITHIUM);
+            DYNAMIC_TYPE_MLDSA);
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
@@ -7800,7 +7800,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 #ifndef WC_MLDSA_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         key->s1 = (sword32*)XMALLOC(params->aSz, key->heap,
-            DYNAMIC_TYPE_DILITHIUM);
+            DYNAMIC_TYPE_MLDSA);
         if (key->s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -7825,7 +7825,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 #endif
 
         /* s1, s2, t, a */
-        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -7928,7 +7928,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     }
 
 #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
-    XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
 #endif
     return ret;
 #else
@@ -7970,7 +7970,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         /* t64 */
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
-        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -8159,7 +8159,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         key->pubKeySet = 1;
     }
 
-    XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #endif
 }
@@ -8342,7 +8342,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #ifndef WC_MLDSA_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
         key->a = (sword32*)XMALLOC((size_t)params->aSz, key->heap,
-            DYNAMIC_TYPE_DILITHIUM);
+            DYNAMIC_TYPE_MLDSA);
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
@@ -8359,7 +8359,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #ifndef WC_MLDSA_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         key->s1 = (sword32*)XMALLOC(params->aSz, key->heap,
-            DYNAMIC_TYPE_DILITHIUM);
+            DYNAMIC_TYPE_MLDSA);
         if (key->s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -8388,7 +8388,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         /* A */
         allocSz += params->aSz;
 #endif
-        y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (y == NULL) {
             ret = MEMORY_E;
         }
@@ -8489,7 +8489,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         #endif
                 /* Step 15: Encode w1. */
                 WC_ALLOC_VAR_EX(w1e, byte, MLDSA_MAX_W1_ENC_SZ, key->heap,
-                    DYNAMIC_TYPE_DILITHIUM, ret=MEMORY_E);
+                    DYNAMIC_TYPE_MLDSA, ret=MEMORY_E);
                 if (WC_VAR_OK(w1e))
                 {
                     mldsa_vec_encode_w1(w1, params->k, params->gamma2, w1e);
@@ -8559,7 +8559,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     }
                 }
 
-                WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
+                WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_MLDSA);
             }
 
             if (!valid) {
@@ -8587,7 +8587,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     if (y != NULL) {
         ForceZero(y, allocSz);
     }
-    XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(y, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #else
     int ret = 0;
@@ -8651,7 +8651,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
-        y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (y == NULL) {
             ret = MEMORY_E;
         }
@@ -8951,7 +8951,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
                 /* Step 15: Encode w1. */
                 WC_ALLOC_VAR_EX(w1e, byte, MLDSA_MAX_W1_ENC_SZ,
-                    key->heap, DYNAMIC_TYPE_DILITHIUM, ret=MEMORY_E);
+                    key->heap, DYNAMIC_TYPE_MLDSA, ret=MEMORY_E);
                 if (WC_VAR_OK(w1e)) {
                     mldsa_vec_encode_w1(w1, params->k, params->gamma2,
                         w1e);
@@ -8960,7 +8960,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     ret = mldsa_hash256(&key->shake, mu, MLDSA_MU_SZ,
                         w1e, params->w1EncSz, commit, params->lambda / 4);
                 }
-                WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
+                WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_MLDSA);
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
                     ret = mldsa_sample_in_ball_ex(params->level,
@@ -9140,7 +9140,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     if (y != NULL) {
         ForceZero(y, allocSz);
     }
-    XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(y, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #endif
 }
@@ -9591,7 +9591,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #ifndef WC_MLDSA_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
         key->a = (sword32*)XMALLOC(params->aSz, key->heap,
-            DYNAMIC_TYPE_DILITHIUM);
+            DYNAMIC_TYPE_MLDSA);
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
@@ -9608,7 +9608,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #ifndef WC_MLDSA_FIXED_ARRAY
     if ((ret == 0) && (key->t1 == NULL)) {
         key->t1 = (sword32*)XMALLOC(params->s2Sz, key->heap,
-            DYNAMIC_TYPE_DILITHIUM);
+            DYNAMIC_TYPE_MLDSA);
         if (key->t1 == NULL) {
             ret = MEMORY_E;
         }
@@ -9632,7 +9632,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
         allocSz += params->aSz;
 #endif
 
-        z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (z == NULL) {
             ret = MEMORY_E;
         }
@@ -9714,7 +9714,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
 
     *res = valid;
-    XFREE(z, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #else
     int ret = 0;
@@ -9765,7 +9765,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
-        z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (z == NULL) {
             ret = MEMORY_E;
         }
@@ -9970,7 +9970,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 
     *res = valid;
 #ifndef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
-    XFREE(z, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
 #endif
     return ret;
 #endif /* !WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
@@ -10146,7 +10146,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     #endif
         {
             ret = wc_CryptoCb_MakePqcSignatureKey(rng,
-                WC_PQC_SIG_TYPE_DILITHIUM, key->level, key);
+                WC_PQC_SIG_TYPE_MLDSA, key->level, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10177,7 +10177,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
         int pct_res = 0;
 
         WC_ALLOC_VAR_EX(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap,
-            DYNAMIC_TYPE_DILITHIUM, ret = MEMORY_E);
+            DYNAMIC_TYPE_MLDSA, ret = MEMORY_E);
 
         if (ret == 0) {
             ret = wc_MlDsaKey_SignCtx(key, NULL, 0, pct_sig, &pct_sigSz, pct_msg, sizeof(pct_msg), rng);
@@ -10192,7 +10192,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
         if (WC_VAR_OK(pct_sig))
             ForceZero(pct_sig, MLDSA_MAX_SIG_SIZE);
 
-        WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_MLDSA);
 
         /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
          * must be rendered unusable.  Zeroize the generated key material so
@@ -10272,7 +10272,7 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     #endif
         {
             ret = wc_CryptoCb_PqcSign(msg, msgLen, sig, sigLen, ctx, ctxLen,
-                    WC_HASH_TYPE_NONE, rng, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    WC_HASH_TYPE_NONE, rng, WC_PQC_SIG_TYPE_MLDSA, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10322,7 +10322,7 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     #endif
         {
             ret = wc_CryptoCb_PqcSign(msg, msgLen, sig, sigLen, NULL, 0,
-                    WC_HASH_TYPE_NONE, rng, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    WC_HASH_TYPE_NONE, rng, WC_PQC_SIG_TYPE_MLDSA, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10377,7 +10377,7 @@ int wc_MlDsaKey_SignCtxHash(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     #endif
         {
             ret = wc_CryptoCb_PqcSign(hash, hashLen, sig, sigLen, ctx, ctxLen,
-                    (word32)hashAlg, rng, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    (word32)hashAlg, rng, WC_PQC_SIG_TYPE_MLDSA, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10591,7 +10591,7 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     #endif
         {
             ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, ctx, ctxLen,
-                    WC_HASH_TYPE_NONE, res, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    WC_HASH_TYPE_NONE, res, WC_PQC_SIG_TYPE_MLDSA, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10641,7 +10641,7 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     #endif
         {
             ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, NULL, 0,
-                    WC_HASH_TYPE_NONE, res, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    WC_HASH_TYPE_NONE, res, WC_PQC_SIG_TYPE_MLDSA, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10696,7 +10696,7 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     #endif
         {
             ret = wc_CryptoCb_PqcVerify(sig, sigLen, hash, hashLen, ctx, ctxLen,
-                    (word32)hashAlg, res, WC_PQC_SIG_TYPE_DILITHIUM, key);
+                    (word32)hashAlg, res, WC_PQC_SIG_TYPE_MLDSA, key);
             if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
@@ -10763,11 +10763,11 @@ wc_MlDsaKey* wc_MlDsaKey_New(void* heap, int devId)
 {
     int ret;
     wc_MlDsaKey* key = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), heap,
-        DYNAMIC_TYPE_DILITHIUM);
+        DYNAMIC_TYPE_MLDSA);
     if (key != NULL) {
         ret = wc_MlDsaKey_Init(key, heap, devId);
         if (ret != 0) {
-            XFREE(key, heap, DYNAMIC_TYPE_DILITHIUM);
+            XFREE(key, heap, DYNAMIC_TYPE_MLDSA);
             key = NULL;
         }
     }
@@ -10790,7 +10790,7 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p)
         return BAD_FUNC_ARG;
     heap = key->heap;
     wc_MlDsaKey_Free(key);
-    XFREE(key, heap, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(key, heap, DYNAMIC_TYPE_MLDSA);
     if (key_p != NULL)
         *key_p = NULL;
 
@@ -10932,19 +10932,19 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
         /* Clear any cached items. */
 #ifndef WC_MLDSA_FIXED_ARRAY
     #ifdef WC_MLDSA_CACHE_MATRIX_A
-        XFREE(key->a, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XFREE(key->a, key->heap, DYNAMIC_TYPE_MLDSA);
         key->a = NULL;
         key->aSet = 0;
     #endif
     #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
-        XFREE(key->s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XFREE(key->s1, key->heap, DYNAMIC_TYPE_MLDSA);
         key->s1 = NULL;
         key->s2 = NULL;
         key->t0 = NULL;
         key->privVecsSet = 0;
     #endif
     #ifdef WC_MLDSA_CACHE_PUB_VECTORS
-        XFREE(key->t1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XFREE(key->t1, key->heap, DYNAMIC_TYPE_MLDSA);
         key->t1 = NULL;
         key->pubVecSet = 0;
     #endif
@@ -10953,12 +10953,12 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
 #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
         if (key->k != NULL) {
             ForceZero(key->k, key->kSz);
-            XFREE(key->k, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            XFREE(key->k, key->heap, DYNAMIC_TYPE_MLDSA);
             key->k = NULL;
             key->kSz = 0;
         }
         if (key->p != NULL) {
-            XFREE(key->p, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            XFREE(key->p, key->heap, DYNAMIC_TYPE_MLDSA);
             key->p = NULL;
         }
 #endif
@@ -11010,7 +11010,7 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
         if (key->devId != INVALID_DEVID) {
             (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
                              WC_PK_TYPE_PQC_SIG_KEYGEN,
-                             WC_PQC_SIG_TYPE_DILITHIUM,
+                             WC_PQC_SIG_TYPE_MLDSA,
                              (void*)key);
             /* always continue to software cleanup */
         }
@@ -11018,13 +11018,13 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
 #ifndef WC_MLDSA_FIXED_ARRAY
         /* Dispose of cached items. */
     #ifdef WC_MLDSA_CACHE_PUB_VECTORS
-        XFREE(key->t1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XFREE(key->t1, key->heap, DYNAMIC_TYPE_MLDSA);
     #endif
     #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
-        XFREE(key->s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XFREE(key->s1, key->heap, DYNAMIC_TYPE_MLDSA);
     #endif
     #ifdef WC_MLDSA_CACHE_MATRIX_A
-        XFREE(key->a, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XFREE(key->a, key->heap, DYNAMIC_TYPE_MLDSA);
     #endif
 #endif
         /* Intel speedup code manually manipulates the state. */
@@ -11035,10 +11035,10 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
 #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
         if (key->k != NULL) {
             ForceZero(key->k, key->kSz);
-            XFREE(key->k, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            XFREE(key->k, key->heap, DYNAMIC_TYPE_MLDSA);
         }
         if (key->p != NULL) {
-            XFREE(key->p, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            XFREE(key->p, key->heap, DYNAMIC_TYPE_MLDSA);
         }
 #endif
         /* Ensure all private data is zeroized. */
@@ -11320,7 +11320,7 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 #endif
 
         /* Allocate memory for large intermediates. */
-        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -11405,7 +11405,7 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 
     if (key != NULL) {
         /* Dispose of allocated memory. */
-        XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
     }
     return ret;
 }
@@ -11595,7 +11595,7 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         /* Allocate t1 if required. */
         if (key->t1 == NULL) {
             key->t1 = (sword32*)XMALLOC(key->params->s2Sz, key->heap,
-                DYNAMIC_TYPE_DILITHIUM);
+                DYNAMIC_TYPE_MLDSA);
             if (key->t1 == NULL) {
                 ret = MEMORY_E;
             }
@@ -11614,7 +11614,7 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         /* Allocate matrix a if required. */
         if (key->a == NULL) {
             key->a = (sword32*)XMALLOC(key->params->aSz, key->heap,
-                DYNAMIC_TYPE_DILITHIUM);
+                DYNAMIC_TYPE_MLDSA);
             if (key->a == NULL) {
                 ret = MEMORY_E;
             }
@@ -11698,7 +11698,7 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
         /* Allocate matrix a if required. */
         if (key->a == NULL) {
             key->a = (sword32*)XMALLOC(params->aSz, key->heap,
-                DYNAMIC_TYPE_DILITHIUM);
+                DYNAMIC_TYPE_MLDSA);
             if (key->a == NULL) {
                 ret = MEMORY_E;
             }
@@ -11722,7 +11722,7 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     if ((ret == 0) && (key->s1 == NULL)) {
         /* Allocate L vector s1, K vector s2 and K vector t0 if required. */
         key->s1 = (sword32*)XMALLOC((unsigned int)params->s1Sz + params->s2Sz +
-            params->s2Sz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            params->s2Sz, key->heap, DYNAMIC_TYPE_MLDSA);
         if (key->s1 == NULL) {
             ret = MEMORY_E;
         }

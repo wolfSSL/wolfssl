@@ -259,6 +259,11 @@
         #define MLDSA_MUL_Q_SLOW
     #endif
 #endif
+#ifdef DILITHIUM_USE_HINT_CT
+    #ifndef MLDSA_USE_HINT_CT
+        #define MLDSA_USE_HINT_CT
+    #endif
+#endif
 
 #endif /* !WOLFSSL_NO_DILITHIUM_LEGACY_GATES */
 

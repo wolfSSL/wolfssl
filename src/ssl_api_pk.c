@@ -122,7 +122,7 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
             case DILITHIUM_LEVEL5k:
         #endif
                 ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
-                    WC_PQC_SIG_TYPE_DILITHIUM, pubKey, pubSz);
+                    WC_PQC_SIG_TYPE_MLDSA, pubKey, pubSz);
                 break;
     #endif
     #if defined(HAVE_FALCON)
