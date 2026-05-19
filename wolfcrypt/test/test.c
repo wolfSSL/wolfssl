@@ -72301,6 +72301,40 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         else
     #endif
+    #ifdef WOLFSSL_SHA224
+        if (info->hash.type == WC_HASH_TYPE_SHA224) {
+            if (info->hash.sha224 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha224->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha224->devId = devIdArg;
+                return 0;
+            }
+            #endif
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha224Update(
+                    info->hash.sha224,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha224Final(
+                    info->hash.sha224,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha224->devId = devIdArg;
+        }
+        else
+    #endif
     #ifdef WOLFSSL_SHA384
         if (info->hash.type == WC_HASH_TYPE_SHA384) {
             if (info->hash.sha384 == NULL)

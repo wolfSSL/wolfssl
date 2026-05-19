@@ -209,6 +209,44 @@ out:
     wc_Sha256Free(&shadow);
     return ret;
 }
+
+#ifdef WOLFSSL_SHA224
+/* SHA-224 is SHA-256 with a different IV/truncation; wc_Sha224 is a typedef
+ * of wc_Sha256, so the same shadow/copy-state dance applies. */
+static int swdev_sha224(wc_CryptoInfo* info)
+{
+    wc_Sha224* sha224 = info->hash.sha224;
+    wc_Sha224 shadow;
+    int ret;
+
+    if (sha224 == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitSha224(&shadow);
+    if (ret != 0)
+        return ret;
+
+    swdev_sha256_copy_state((wc_Sha256*)&shadow, (const wc_Sha256*)sha224);
+
+    if (info->hash.in != NULL) {
+        ret = wc_Sha224Update(&shadow, info->hash.in, info->hash.inSz);
+        if (ret != 0)
+            goto out;
+    }
+
+    if (info->hash.digest != NULL) {
+        ret = wc_Sha224Final(&shadow, info->hash.digest);
+        if (ret != 0)
+            goto out;
+    }
+
+    swdev_sha256_copy_state((wc_Sha256*)sha224, (const wc_Sha256*)&shadow);
+
+out:
+    wc_Sha224Free(&shadow);
+    return ret;
+}
+#endif /* WOLFSSL_SHA224 */
 #endif /* !NO_SHA256 */
 
 #ifndef NO_AES
@@ -513,6 +551,10 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         switch (info->hash.type) {
         case WC_HASH_TYPE_SHA256:
             return swdev_sha256(info);
+    #ifdef WOLFSSL_SHA224
+        case WC_HASH_TYPE_SHA224:
+            return swdev_sha224(info);
+    #endif
         default:
             return CRYPTOCB_UNAVAILABLE;
         }
