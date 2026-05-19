@@ -86,6 +86,9 @@
 #if defined(HAVE_FALCON)
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
+#if defined(WOLFSSL_HAVE_SLHDSA)
+    #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 #if defined(WOLFSSL_HAVE_LMS)
     #include <wolfssl/wolfcrypt/wc_lms.h>
 #endif
@@ -312,7 +315,8 @@ typedef struct wc_CryptoInfo {
                 int         type; /* enum wc_PqcKemType */
             } pqc_decaps;
         #endif
-        #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+        #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
+            defined(WOLFSSL_HAVE_SLHDSA)
             struct {
                 WC_RNG*     rng;
                 int         size;
@@ -776,7 +780,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext,
     int type, void* key);
 #endif /* WOLFSSL_HAVE_MLKEM */
 
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSigGetDevId(int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type,
@@ -792,7 +797,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen,
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz);
-#endif /* HAVE_FALCON || HAVE_DILITHIUM */
+#endif /* HAVE_FALCON || HAVE_DILITHIUM || WOLFSSL_HAVE_SLHDSA */
 
 #ifndef NO_AES
 #ifdef HAVE_AESGCM

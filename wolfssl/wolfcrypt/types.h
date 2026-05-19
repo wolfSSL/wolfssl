@@ -1559,7 +1559,8 @@ enum wc_PkType {
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_KEM_DECAPS
 #endif
-#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON)
+#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     WC_PK_TYPE_PQC_SIG_KEYGEN = 21,
     WC_PK_TYPE_PQC_SIG_SIGN = 22,
     WC_PK_TYPE_PQC_SIG_VERIFY = 23,
@@ -1597,7 +1598,8 @@ enum wc_PkType {
     };
 #endif
 
-#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON)
+#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
     /* Post quantum signature algorithms */
     enum wc_PqcSignatureType {
         WC_PQC_SIG_TYPE_NONE = 0,
@@ -1611,6 +1613,11 @@ enum wc_PkType {
         WC_PQC_SIG_TYPE_FALCON = 2,
         #undef _WC_PQC_SIG_TYPE_MAX
         #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_FALCON
+    #endif
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+        WC_PQC_SIG_TYPE_SLHDSA = 3,
+        #undef _WC_PQC_SIG_TYPE_MAX
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_SLHDSA
     #endif
         WC_PQC_SIG_TYPE_MAX = _WC_PQC_SIG_TYPE_MAX
     };
