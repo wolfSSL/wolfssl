@@ -25,7 +25,7 @@ jobs:
   freertos_mem_track:
     name: mem_track.h non-Linux multi-threaded compile
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Checkout wolfSSL

@@ -20,7 +20,7 @@ jobs:
   keytools:
     name: keytools
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
 
     steps:
@@ -121,7 +121,7 @@ jobs:
   host_smoke:
     name: host-smoke
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
 
     steps:

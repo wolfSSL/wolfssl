@@ -16,7 +16,7 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 4
     steps:
       - name: Build wolfSSL
@@ -56,7 +56,7 @@ jobs:
   build_openssl_ech:
     name: Build OpenSSL (feature/ech)
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Checkout OpenSSL feature/ech branch
@@ -89,7 +89,7 @@ jobs:
     name: ECH Interop Test
     if: github.repository_owner == 'wolfssl'
     needs: [build_wolfssl, build_openssl_ech]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Download wolfSSL build

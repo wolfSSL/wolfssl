@@ -77,7 +77,7 @@ concurrency:
 jobs:
   build:
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Teensy is allowed to fail: its board index lives at pjrc.com, which is
     # chronically unreachable from GitHub Actions runner egress IPs (DNS
     # timeouts / connection refused). A pjrc.com outage should not block PRs

@@ -134,7 +134,7 @@ jobs:
         ]
     name: make check linux
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
@@ -211,7 +211,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-24.04, macos-latest ]
+        os: [ ubuntu-26.04, macos-latest ]
         user-settings: [
           # Add new user_settings.h here
           'examples/configs/user_settings_all.h',
@@ -265,7 +265,7 @@ jobs:
         ]
     name: make user_setting.h (testwolfcrypt only)
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
@@ -286,7 +286,7 @@ jobs:
   make_user_all:
     name: make user_setting.h (with sed)
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:

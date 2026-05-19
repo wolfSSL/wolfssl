@@ -16,7 +16,7 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Build wolfSSL
@@ -94,7 +94,7 @@ jobs:
                 test_docxmlrpc
     name: Python ${{ matrix.python_ver }}
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     needs: build_wolfssl
     steps:

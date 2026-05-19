@@ -23,7 +23,7 @@ jobs:
   emnet_nonblock:
     name: wolfSSL emNET non-blocking handshake
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - name: Checkout wolfSSL
