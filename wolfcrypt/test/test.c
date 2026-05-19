@@ -55982,10 +55982,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     word32          bufSz = 0;
 #ifdef WOLFSSL_NO_MALLOC
     static byte     sk[2048];
-    static byte     old_sk[2048];
 #else
     byte *          sk = NULL;
-    byte *          old_sk = NULL;
 #endif
     const char *    msg = "XMSS post quantum signature test";
     word32          msgSz = (word32) XSTRLEN(msg);
@@ -56000,8 +55998,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
 #ifdef WOLFSSL_NO_MALLOC
     static byte     sig[4096];
+    static byte     old_sig[4096];
 #else
     byte *          sig = NULL;
+    byte *          old_sig = NULL;
 #endif
     int             ret2 = -1;
     int             ret = WC_TEST_RET_ENC_NC;
@@ -56038,13 +56038,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     ret = wc_XmssKey_GetSigLen(&signingKey, &sigSz);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
-    /* Allocate signature array. */
+    /* Allocate signature buffers (current and previous iteration). */
 #ifdef WOLFSSL_NO_MALLOC
+
     if (sigSz > sizeof(sig))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #else
     sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
+
+    old_sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (old_sig == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
 #endif
 
     bufSz = sigSz;
@@ -56056,20 +56060,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     fprintf(stderr, "sigSz: %d\n", sigSz);
 #endif
 
-    /* Allocate current and old secret keys.*/
+    /* Allocate the secret key buffer used by the software write/read
+     * callbacks. */
 #ifdef WOLFSSL_NO_MALLOC
     if (skSz > sizeof(sk))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #else
     sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
-
-    old_sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (old_sk == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
 #endif
 
     XMEMSET(sk, 0, skSz);
-    XMEMSET(old_sk, 0, skSz);
     XMEMSET(sig, 0, sigSz);
 
     ret = wc_XmssKey_SetWriteCb(&signingKey, xmss_write_key_mem);
@@ -56089,20 +56090,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
     /* Repeat a few times to check that:
-     *   1. The secret key is mutated on each sign.
+     *   1. Each Sign advances state (so signing the same message yields a
+     *      different signature than the previous iteration).
      *   2. We can verify each new signature.
      * Only do a few times, because the full signature space
      * for this parameter set is huge. */
     for (i = 0; i < 10; ++i) {
-        XMEMCPY(old_sk, sk, skSz);
-
         ret = wc_XmssKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
         if (sigSz != bufSz) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
-        /* Old secret key and current secret key should not match. */
-        ret = XMEMCMP(old_sk, sk, skSz);
-        if (ret == 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
+        /* XMSS is deterministic given (SK_state, msg); a stuck leaf would
+         * produce an identical signature. This check is agnostic to whether
+         * the private state lives in user memory (software path) or on a
+         * cryptocb device. */
+        if (i > 0) {
+            ret = XMEMCMP(old_sig, sig, sigSz);
+            if (ret == 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
+        }
+        XMEMCPY(old_sig, sig, sigSz);
 
         ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
@@ -56131,11 +56137,11 @@ out:
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     sig = NULL;
 
+    XFREE(old_sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    old_sig = NULL;
+
     XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     sk = NULL;
-
-    XFREE(old_sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    old_sk = NULL;
 #endif /* !WOLFSSL_NO_MALLOC */
 
     wc_XmssKey_Free(&signingKey);
@@ -56660,16 +56666,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     word32        msgSz = (word32) XSTRLEN(msg);
 #ifndef WOLFSSL_WC_LMS_SERIALIZE_STATE
     unsigned char priv[HSS_MAX_PRIVATE_KEY_LEN];
-    unsigned char old_priv[HSS_MAX_PRIVATE_KEY_LEN];
 #else
     static unsigned char priv[64 * 1024 + HSS_MAX_PRIVATE_KEY_LEN];
-    static unsigned char old_priv[64 * 1024 + HSS_MAX_PRIVATE_KEY_LEN];
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte *        sig = (byte*)XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
+    byte *        old_sig = (byte*)XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER);
 #else
     byte          sig[WC_TEST_LMS_SIG_LEN];
+    byte          old_sig[WC_TEST_LMS_SIG_LEN];
 #endif
     const byte *  kid;
     word32        kidSz;
@@ -56677,14 +56684,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     WOLFSSL_ENTER("lms_test");
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if (sig == NULL) {
+    if ((sig == NULL) || (old_sig == NULL)) {
+        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(old_sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return WC_TEST_RET_ENC_ERRNO;
     }
 #endif
 
     XMEMSET(priv, 0, sizeof(priv));
-    XMEMSET(old_priv, 0, sizeof(old_priv));
     XMEMSET(sig, 0, WC_TEST_LMS_SIG_LEN);
+    XMEMSET(old_sig, 0, WC_TEST_LMS_SIG_LEN);
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&signingKey, 0, sizeof(signingKey));
     XMEMSET(&verifyKey, 0, sizeof(verifyKey));
@@ -56729,8 +56738,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     ret = wc_LmsKey_MakeKey(&signingKey, &rng);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
-    XMEMCPY(old_priv, priv, sizeof(priv));
-
     ret = wc_LmsKey_GetKid(NULL, NULL, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -56772,21 +56779,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     /* Test wc_LmsKey_Sign input validation. */
     {
         word32 smallSz = 1;
-        wc_lms_write_private_key_cb saved_write_cb;
 
-        /* Undersized sig buffer should return BUFFER_E. */
+        /* Undersized sig buffer should return BUFFER_E. This check runs in
+         * wc_LmsKey_Sign before the cryptocb dispatch, so it applies in both
+         * software and HSM modes. */
         ret = wc_LmsKey_Sign(&signingKey, sig, &smallSz, (byte *) msg, msgSz);
         if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
 
-        /* NULL write callback should return BAD_FUNC_ARG. */
-        saved_write_cb = signingKey.write_private_key;
-        signingKey.write_private_key = NULL;
-        ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
-        signingKey.write_private_key = saved_write_cb;
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifdef WOLF_CRYPTO_CB
+        /* The NULL-WriteCb -> BAD_FUNC_ARG check in wc_LmsKey_Sign sits after
+         * the cryptocb dispatch; an HSM-backed Sign succeeds without ever
+         * reaching it. Only exercise this on the pure software path. */
+        if (devId == INVALID_DEVID)
+#endif
+        {
+            wc_lms_write_private_key_cb saved_write_cb;
+
+            /* NULL write callback should return BAD_FUNC_ARG. */
+            saved_write_cb = signingKey.write_private_key;
+            signingKey.write_private_key = NULL;
+            ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
+            signingKey.write_private_key = saved_write_cb;
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            }
         }
 
         ret = 0;
@@ -56800,17 +56818,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
 
-        /* Sign with key. The private key will be updated on every signature. */
+        /* Sign with key. State advances on every signature. */
         ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
-        /* The updated private key should not match the old one. */
-        if (XMEMCMP(old_priv, priv, sizeof(priv)) == 0) {
-            printf("error: current priv key should not match old: %d\n", i);
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        /* LMS/HSS is deterministic given (state, msg); a stuck leaf would
+         * produce an identical signature. This check is agnostic to whether
+         * the private state lives in user memory (software path) or on a
+         * cryptocb device. */
+        if (i > 0) {
+            if (XMEMCMP(old_sig, sig, sigSz) == 0) {
+                printf("error: current signature should not match old: %d\n", i);
+                ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+            }
         }
-
-        XMEMCPY(old_priv, priv, sizeof(priv));
+        XMEMCPY(old_sig, sig, sigSz);
 
         ret = wc_LmsKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
@@ -56850,6 +56872,7 @@ out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(old_sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
