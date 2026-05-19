@@ -44,6 +44,14 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#define RSA_DECL_MP_OVER_MAX(bits) \
+    (MP_BITS_CNT(bits) > MP_BITS_CNT(RSA_MAX_SIZE))
+#else
+#define RSA_DECL_MP_OVER_MAX(bits) \
+    ((bits) > RSA_MAX_SIZE)
+#endif
+
 #ifdef WOLFSSL_AFALG_XILINX_RSA
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #endif
@@ -839,7 +847,7 @@ int wc_CheckRsaKey(RsaKey* key)
     }
 #endif
 
-    if (mp_bitsused(&key->n) > RSA_MAX_SIZE) {
+    if (RSA_DECL_MP_OVER_MAX(mp_bitsused(&key->n))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -2879,7 +2887,7 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
     DECL_MP_INT_SIZE_DYN(rndi, mp_bitsused(&key->n), RSA_MAX_SIZE);
 #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
 
-    if (mp_bitsused(&key->n) > RSA_MAX_SIZE) {
+    if (RSA_DECL_MP_OVER_MAX(mp_bitsused(&key->n))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -3062,7 +3070,7 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     DECL_MP_INT_SIZE_DYN(tmp, mp_bitsused(&key->n), RSA_MAX_SIZE);
     int    ret = 0;
 
-    if (mp_bitsused(&key->n) > RSA_MAX_SIZE) {
+    if (RSA_DECL_MP_OVER_MAX(mp_bitsused(&key->n))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -3496,7 +3504,7 @@ int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
 
     DECL_MP_INT_SIZE_DYN(c, mp_bitsused(&key->n), RSA_MAX_SIZE);
 
-    if (mp_bitsused(&key->n) > RSA_MAX_SIZE) {
+    if (RSA_DECL_MP_OVER_MAX(mp_bitsused(&key->n))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -4838,10 +4846,6 @@ int wc_RsaEncryptSize(const RsaKey* key)
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
-    }
-
-    if (mp_bitsused(&key->n) > RSA_MAX_SIZE) {
-        return WC_KEY_SIZE_E;
     }
 
     ret = mp_unsigned_bin_size(&key->n);

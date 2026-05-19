@@ -327,6 +327,14 @@ ECC Curve Sizes:
 #define MAX_ECC_BITS_USE    MAX_ECC_BITS_NEEDED
 #endif
 
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#define ECC_DECL_MP_OVER_MAX(bits) \
+    (MP_BITS_CNT(bits) > MP_BITS_CNT(MAX_ECC_BITS_USE))
+#else
+#define ECC_DECL_MP_OVER_MAX(bits) \
+    ((bits) > MAX_ECC_BITS_USE)
+#endif
+
 #if !defined(WOLFSSL_CUSTOM_CURVES) && (ECC_MIN_KEY_SZ > 160) && \
     (!defined(HAVE_ECC_KOBLITZ) || (ECC_MIN_KEY_SZ > 224))
 
@@ -2012,7 +2020,7 @@ static int _ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    mp_int  *x, *y, *z;
    int     err;
 
-   if (mp_bitsused(modulus) > MAX_ECC_BITS_USE) {
+   if (ECC_DECL_MP_OVER_MAX(mp_bitsused(modulus))) {
        return WC_KEY_SIZE_E;
    }
 
@@ -2416,7 +2424,7 @@ static int _ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    mp_int *x, *y, *z;
    int    err;
 
-   if (mp_bitsused(modulus) > MAX_ECC_BITS_USE) {
+   if (ECC_DECL_MP_OVER_MAX(mp_bitsused(modulus))) {
        return WC_KEY_SIZE_E;
    }
 
@@ -2770,7 +2778,7 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
         #endif
         mp_int *x, *y, *z;
 
-        if (mp_bitsused(modulus) > MAX_ECC_BITS_USE) {
+        if (ECC_DECL_MP_OVER_MAX(mp_bitsused(modulus))) {
             return WC_KEY_SIZE_E;
         }
 
@@ -3595,7 +3603,7 @@ static int ecc_point_to_mont(ecc_point* p, ecc_point* r, mp_int* modulus,
 
    DECL_MP_INT_SIZE_DYN(mu, mp_bitsused(modulus), MAX_ECC_BITS_USE);
 
-   if (mp_bitsused(modulus) > MAX_ECC_BITS_USE) {
+   if (ECC_DECL_MP_OVER_MAX(mp_bitsused(modulus))) {
        return WC_KEY_SIZE_E;
    }
 
@@ -3903,8 +3911,8 @@ static int ecc_check_order_minus_1(const mp_int* k, ecc_point* tG, ecc_point* R,
     int err;
     DECL_MP_INT_SIZE_DYN(t, mp_bitsused(order), MAX_ECC_BITS_USE);
 
-    if (mp_bitsused(order) > MAX_ECC_BITS_USE ||
-            mp_bitsused(modulus) > MAX_ECC_BITS_USE) {
+    if (ECC_DECL_MP_OVER_MAX(mp_bitsused(order)) ||
+            ECC_DECL_MP_OVER_MAX(mp_bitsused(modulus))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -6858,7 +6866,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     word32 keySz;
 #endif
 
-    if (ECC_KEY_MAX_BITS(key) > MAX_ECC_BITS_USE) {
+    if (ECC_DECL_MP_OVER_MAX(ECC_KEY_MAX_BITS(key))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -7063,7 +7071,7 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 
     DECL_MP_INT_SIZE_DYN(b, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
 
-    if (ECC_KEY_MAX_BITS_NONULLCHECK(key) > MAX_ECC_BITS_USE) {
+    if (ECC_DECL_MP_OVER_MAX(ECC_KEY_MAX_BITS_NONULLCHECK(key))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -7394,7 +7402,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #else
    DECLARE_CURVE_SPECS(1);
 #endif
-   if (ECC_KEY_MAX_BITS(key) > MAX_ECC_BITS_USE) {
+   if (ECC_DECL_MP_OVER_MAX(ECC_KEY_MAX_BITS(key))) {
        return WC_KEY_SIZE_E;
    }
 #endif /* !WOLFSSL_SP_MATH */
@@ -8317,7 +8325,7 @@ static int ecc_mont_norm_points(ecc_point* A, ecc_point* Am, ecc_point* B,
 
     DECL_MP_INT_SIZE_DYN(mu, mp_bitsused(modulus), MAX_ECC_BITS_USE);
 
-    if (mp_bitsused(modulus) > MAX_ECC_BITS_USE) {
+    if (ECC_DECL_MP_OVER_MAX(mp_bitsused(modulus))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -8707,7 +8715,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     word32 keySz;
 #endif
 
-    if (ECC_KEY_MAX_BITS(key) > MAX_ECC_BITS_USE) {
+    if (ECC_DECL_MP_OVER_MAX(ECC_KEY_MAX_BITS(key))) {
         return WC_KEY_SIZE_E;
     }
 
@@ -9095,7 +9103,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    mp_int*    u1 = NULL;     /* Will be e. */
    mp_int*    u2 = NULL;     /* Will be w. */
 
-   if (ECC_KEY_MAX_BITS_NONULLCHECK(key) > MAX_ECC_BITS_USE) {
+   if (ECC_DECL_MP_OVER_MAX(ECC_KEY_MAX_BITS_NONULLCHECK(key))) {
        return WC_KEY_SIZE_E;
    }
 
