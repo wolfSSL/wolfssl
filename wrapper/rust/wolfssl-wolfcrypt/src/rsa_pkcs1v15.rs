@@ -260,9 +260,15 @@ impl<H: Hash, const N: usize> VerifyingKey<H, N> {
         let mut e = [0u8; MAX_E_LEN];
         let mut n_len: u32 = n.len() as u32;
         let mut e_len: u32 = e.len() as u32;
+        #[cfg(rsa_const_api)]
+        let key = &rsa.wc_rsakey;
+        // SAFETY: older wolfSSL declared the first arg as non-const, but the
+        // function only reads from the key (newer versions declare it const).
+        #[cfg(not(rsa_const_api))]
+        let key = core::ptr::addr_of!(rsa.wc_rsakey) as *mut sys::RsaKey;
         let rc = unsafe {
             sys::wc_RsaFlattenPublicKey(
-                &rsa.wc_rsakey,
+                key,
                 e.as_mut_ptr(), &mut e_len,
                 n.as_mut_ptr(), &mut n_len,
             )
@@ -328,9 +334,15 @@ impl<H: Hash, const N: usize> Keypair for SigningKey<H, N> {
         let mut e = [0u8; MAX_E_LEN];
         let mut n_len: u32 = n.len() as u32;
         let mut e_len: u32 = e.len() as u32;
+        #[cfg(rsa_const_api)]
+        let key = &self.inner.wc_rsakey;
+        // SAFETY: older wolfSSL declared the first arg as non-const, but the
+        // function only reads from the key (newer versions declare it const).
+        #[cfg(not(rsa_const_api))]
+        let key = core::ptr::addr_of!(self.inner.wc_rsakey) as *mut sys::RsaKey;
         let rc = unsafe {
             sys::wc_RsaFlattenPublicKey(
-                &self.inner.wc_rsakey,
+                key,
                 e.as_mut_ptr(), &mut e_len,
                 n.as_mut_ptr(), &mut n_len,
             )
