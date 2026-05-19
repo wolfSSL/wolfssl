@@ -3070,7 +3070,7 @@ int test_dtls13_5_9_0_compat(void)
 
     ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
 
-    /* Force a non-zero session ID — simulates a wolfSSL <=v5.9.0 client that
+    /* Force a non-zero session ID - simulates a wolfSSL <=v5.9.0 client that
      * mistakenly sends 32 bytes as legacy_session_id in DTLS 1.3. */
     if (sess != NULL && sess->sessionIDSz == 0) {
         sess->sessionIDSz = ID_LEN;
@@ -3114,7 +3114,7 @@ int test_dtls13_5_9_0_compat(void)
     ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ +
         DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN], ID_LEN);
 
-    /* Complete the handshake — Finished MAC validates the transcript */
+    /* Complete the handshake - Finished MAC validates the transcript */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c); ssl_c = NULL;
@@ -3146,7 +3146,7 @@ int test_dtls13_5_9_0_compat(void)
     ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ +
         DTLS_HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN], ID_LEN);
 
-    /* Complete the handshake — Finished MAC validates RestartHandshakeHashWithCookie */
+    /* Complete the handshake - Finished MAC validates RestartHandshakeHashWithCookie */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_SESSION_free(sess);
