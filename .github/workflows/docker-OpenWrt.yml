@@ -18,7 +18,10 @@ concurrency:
 jobs:
     build_library:
         name: Compile libwolfssl.so
-        if: github.repository_owner == 'wolfssl'
+        if: >-
+          github.repository_owner == 'wolfssl' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.draft == false)
         runs-on: ubuntu-24.04
         # This should be a safe limit for the tests to run.
         timeout-minutes: 4
@@ -42,7 +45,10 @@ jobs:
                 retention-days: 5
     compile_container:
         name: Compile container
-        if: github.repository_owner == 'wolfssl'
+        if: >-
+          github.repository_owner == 'wolfssl' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.draft == false)
         runs-on: ubuntu-24.04
         # This should be a safe limit for the tests to run.
         timeout-minutes: 2
