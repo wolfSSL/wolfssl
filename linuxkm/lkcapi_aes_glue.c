@@ -408,7 +408,7 @@ static int km_AesInitCommon(
         if (! ctx->aes_decrypt_C) {
             pr_err("%s: allocation of %zu bytes for decryption key failed.\n",
                    name, sizeof(*ctx->aes_decrypt_C));
-            err = -MEMORY_E;
+            err = -ENOMEM;
             goto out;
         }
 
