@@ -8295,11 +8295,9 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
         ret = MISSING_KEY;
     }
-    /* The cryptocb path below casts hashType to word32 to fit the
-     * wc_CryptoInfo.preHashType field. Reject negative enum values here so
-     * the cast can't smuggle a huge unsigned value past the callback (the
-     * downstream prehash validator only inspects values it knows about). */
-    else if ((int)hashType < 0) {
+    /* First sanity check on hashType; the downstream prehash validator does
+     * the detailed check for the actual type. */
+    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -8421,11 +8419,9 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
         ret = MISSING_KEY;
     }
-    /* The cryptocb path below casts hashType to word32 to fit the
-     * wc_CryptoInfo.preHashType field. Reject negative enum values here so
-     * the cast can't smuggle a huge unsigned value past the callback (the
-     * downstream prehash validator only inspects values it knows about). */
-    else if ((int)hashType < 0) {
+    /* First sanity check on hashType; the downstream prehash validator does
+     * the detailed check for the actual type. */
+    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
         ret = BAD_FUNC_ARG;
     }
 
