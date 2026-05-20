@@ -97,6 +97,42 @@ on the specific device platform.
     #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 #endif
 
+/* WOLF_CRYPTO_CB_ONLY_SHA256 strips the software SHA-256 implementation and
+ * routes every operation through the crypto callback. It is mutually exclusive
+ * with any in-tree SHA-256 hardware/asm backend below: keep this list in sync
+ * with the #elif chain at the start of the "Hardware Acceleration" section. */
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && ( \
+        defined(WOLFSSL_TI_HASH) || \
+        defined(WOLFSSL_CRYPTOCELL) || \
+        defined(MAX3266X_SHA) || \
+        defined(FREESCALE_LTC_SHA) || \
+        defined(FREESCALE_MMCAU_SHA) || \
+        defined(WOLFSSL_PIC32MZ_HASH) || \
+        defined(STM32_HASH_SHA2) || \
+        (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)) || \
+        (defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)) || \
+        defined(WOLFSSL_AFALG_HASH) || \
+        defined(WOLFSSL_DEVCRYPTO_HASH) || \
+        (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_HASH)) || \
+        defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) || \
+        defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+        defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+        defined(WOLFSSL_RENESAS_RSIP) || \
+        defined(PSOC6_HASH_SHA2) || \
+        defined(WOLFSSL_IMXRT_DCP) || \
+        defined(WOLFSSL_NXP_HASHCRYPT_SHA) || \
+        defined(WOLFSSL_SILABS_SE_ACCEL) || \
+        defined(WOLFSSL_KCAPI_HASH) || \
+        (defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)) || \
+        defined(WOLFSSL_RENESAS_RX64_HASH) || \
+        defined(WOLFSSL_PPC32_ASM) || \
+        defined(WOLFSSL_ARMASM) || \
+        (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+            (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))))
+    #error "WOLF_CRYPTO_CB_ONLY_SHA256 is incompatible with SHA-256 hardware" \
+           " acceleration backends"
+#endif
+
 #ifdef WOLFSSL_ESPIDF
     /* Define the ESP_LOGx(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE value for output messages here.
     **
