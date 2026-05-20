@@ -224,6 +224,47 @@
     #endif
 #endif
 
+/* Developer / performance tuning knobs documented at the top of
+ * wolfcrypt/src/wc_mldsa.c. These are user-set in user_settings.h or
+ * via -D on the compiler command line; forward-translate so a
+ * consumer with the legacy DILITHIUM_* spelling still gets the
+ * intended code path. */
+#ifdef DEBUG_DILITHIUM
+    #ifndef DEBUG_MLDSA
+        #define DEBUG_MLDSA
+    #endif
+#endif
+#ifdef DILITHIUM_MUL_SLOW
+    #ifndef MLDSA_MUL_SLOW
+        #define MLDSA_MUL_SLOW
+    #endif
+#endif
+#ifdef DILITHIUM_MUL_44_SLOW
+    #ifndef MLDSA_MUL_44_SLOW
+        #define MLDSA_MUL_44_SLOW
+    #endif
+#endif
+#ifdef DILITHIUM_MUL_11_SLOW
+    #ifndef MLDSA_MUL_11_SLOW
+        #define MLDSA_MUL_11_SLOW
+    #endif
+#endif
+#ifdef DILITHIUM_MUL_QINV_SLOW
+    #ifndef MLDSA_MUL_QINV_SLOW
+        #define MLDSA_MUL_QINV_SLOW
+    #endif
+#endif
+#ifdef DILITHIUM_MUL_Q_SLOW
+    #ifndef MLDSA_MUL_Q_SLOW
+        #define MLDSA_MUL_Q_SLOW
+    #endif
+#endif
+#ifdef DILITHIUM_USE_HINT_CT
+    #ifndef MLDSA_USE_HINT_CT
+        #define MLDSA_USE_HINT_CT
+    #endif
+#endif
+
 #endif /* !WOLFSSL_NO_DILITHIUM_LEGACY_GATES */
 
 /* === wc_mldsa.h is now reachable with canonical gates correctly set === */
@@ -444,6 +485,163 @@
 #define dilithium_get_oid_sum               mldsa_get_oid_sum
 #define wc_dilithium_encode_w1_88           wc_mldsa_encode_w1_88
 #define wc_dilithium_encode_w1_32           wc_mldsa_encode_w1_32
+
+/* Legacy parameter / size macros. wc_mldsa.h now defines the canonical
+ * MLDSA_* spellings; these aliases keep the pre-standardization
+ * DILITHIUM_* names reachable for unmigrated in-tree consumers
+ * (wolfcrypt/src/asn.c, src/ssl_load.c, src/internal.c, src/tls13.c,
+ * src/ssl.c, src/x509.c, src/ssl_api_pk.c, src/ssl_certman.c,
+ * wolfssl/internal.h, wolfssl/wolfcrypt/asn.h, asn_public.h,
+ * oid_sum.h, examples/configs/user_settings_pq.h,
+ * wolfcrypt/benchmark/benchmark.c, wolfcrypt/test/test.c,
+ * tests/api/test_mldsa.c) and for downstream code. The DILITHIUM_ML_DSA_NN_*
+ * spellings collapse to MLDSA_NN_* (the intermediate _ML_DSA_ is
+ * redundant once the outer prefix is MLDSA_; the resulting MLDSA_44 /
+ * _65 / _87 names match the FIPS 204 parameter-set spellings). */
+
+/* Algorithm parameters (FIPS 204 Section 4) */
+#define DILITHIUM_Q                         MLDSA_Q
+#define DILITHIUM_Q_BITS                    MLDSA_Q_BITS
+#define DILITHIUM_N                         MLDSA_N
+#define DILITHIUM_D                         MLDSA_D
+#define DILITHIUM_D_MAX                     MLDSA_D_MAX
+#define DILITHIUM_D_MAX_HALF                MLDSA_D_MAX_HALF
+#define DILITHIUM_U                         MLDSA_U
+#define DILITHIUM_GAMMA1_17                 MLDSA_GAMMA1_17
+#define DILITHIUM_GAMMA1_19                 MLDSA_GAMMA1_19
+#define DILITHIUM_GAMMA1_BITS_17            MLDSA_GAMMA1_BITS_17
+#define DILITHIUM_GAMMA1_BITS_19            MLDSA_GAMMA1_BITS_19
+#define DILITHIUM_GAMMA1_17_ENC_BITS        MLDSA_GAMMA1_17_ENC_BITS
+#define DILITHIUM_GAMMA1_19_ENC_BITS        MLDSA_GAMMA1_19_ENC_BITS
+#define DILITHIUM_Q_LOW_32                  MLDSA_Q_LOW_32
+#define DILITHIUM_Q_LOW_32_2                MLDSA_Q_LOW_32_2
+#define DILITHIUM_Q_LOW_88                  MLDSA_Q_LOW_88
+#define DILITHIUM_Q_LOW_88_2                MLDSA_Q_LOW_88_2
+#define DILITHIUM_Q_HI_32_ENC_BITS          MLDSA_Q_HI_32_ENC_BITS
+#define DILITHIUM_Q_HI_88_ENC_BITS          MLDSA_Q_HI_88_ENC_BITS
+#define DILITHIUM_ETA_2                     MLDSA_ETA_2
+#define DILITHIUM_ETA_2_BITS                MLDSA_ETA_2_BITS
+#define DILITHIUM_ETA_2_MOD                 MLDSA_ETA_2_MOD
+#define DILITHIUM_ETA_4                     MLDSA_ETA_4
+#define DILITHIUM_ETA_4_BITS                MLDSA_ETA_4_BITS
+#define DILITHIUM_ETA_4_MOD                 MLDSA_ETA_4_MOD
+#define DILITHIUM_POLY_SIZE                 MLDSA_POLY_SIZE
+#define DILITHIUM_REJ_NTT_POLY_H_SIZE       MLDSA_REJ_NTT_POLY_H_SIZE
+
+/* Seed / label / hash sizes */
+#define DILITHIUM_PUB_SEED_SZ               MLDSA_PUB_SEED_SZ
+#define DILITHIUM_PRIV_SEED_SZ              MLDSA_PRIV_SEED_SZ
+#define DILITHIUM_PRIV_RAND_SEED_SZ         MLDSA_PRIV_RAND_SEED_SZ
+#define DILITHIUM_SEED_SZ                   MLDSA_SEED_SZ
+#define DILITHIUM_SEEDS_SZ                  MLDSA_SEEDS_SZ
+#define DILITHIUM_K_SZ                      MLDSA_K_SZ
+#define DILITHIUM_TR_SZ                     MLDSA_TR_SZ
+#define DILITHIUM_MU_SZ                     MLDSA_MU_SZ
+#define DILITHIUM_RND_SZ                    MLDSA_RND_SZ
+
+/* ExpandA / ExpandS sampling block constants (FIPS 204 Section 8.4) */
+#define DILITHIUM_GEN_A_BLOCK_BYTES         MLDSA_GEN_A_BLOCK_BYTES
+#define DILITHIUM_GEN_A_BYTES               MLDSA_GEN_A_BYTES
+#define DILITHIUM_GEN_A_NBLOCKS             MLDSA_GEN_A_NBLOCKS
+#define DILITHIUM_GEN_C_BLOCK_BYTES         MLDSA_GEN_C_BLOCK_BYTES
+
+/* Per-parameter-set sizes. The canonical spelling in
+ * <wolfssl/wolfcrypt/wc_mldsa.h> is WC_MLDSA_{44,65,87}_*_SIZE. The
+ * aliases below keep three legacy spelling families reachable for
+ * unmigrated consumers:
+ *   - "LEVEL2/3/5" forms (`ML_DSA_LEVEL2_KEY_SIZE`,
+ *     `DILITHIUM_LEVEL2_KEY_SIZE`) - the three NIST security
+ *     categories (2 / 3 / 5).
+ *   - The pre-standardization `DILITHIUM_ML_DSA_44_*` form. */
+
+/* LEVEL2 (= ML-DSA-44) */
+#define ML_DSA_LEVEL2_KEY_SIZE              WC_MLDSA_44_KEY_SIZE
+#define ML_DSA_LEVEL2_PRV_KEY_SIZE          WC_MLDSA_44_PRV_KEY_SIZE
+#define ML_DSA_LEVEL2_PUB_KEY_SIZE          WC_MLDSA_44_PUB_KEY_SIZE
+#define ML_DSA_LEVEL2_SIG_SIZE              WC_MLDSA_44_SIG_SIZE
+#define ML_DSA_LEVEL2_PRV_KEY_DER_SIZE      WC_MLDSA_44_PRV_KEY_DER_SIZE
+#define ML_DSA_LEVEL2_PUB_KEY_DER_SIZE      WC_MLDSA_44_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL2_BOTH_KEY_DER_SIZE     WC_MLDSA_44_BOTH_KEY_DER_SIZE
+#define ML_DSA_LEVEL2_BOTH_KEY_PEM_SIZE     WC_MLDSA_44_BOTH_KEY_PEM_SIZE
+#define DILITHIUM_LEVEL2_KEY_SIZE           WC_MLDSA_44_KEY_SIZE
+#define DILITHIUM_LEVEL2_PRV_KEY_SIZE       WC_MLDSA_44_PRV_KEY_SIZE
+#define DILITHIUM_LEVEL2_PUB_KEY_SIZE       WC_MLDSA_44_PUB_KEY_SIZE
+#define DILITHIUM_LEVEL2_SIG_SIZE           WC_MLDSA_44_SIG_SIZE
+#define DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE   WC_MLDSA_44_PRV_KEY_DER_SIZE
+#define DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE   WC_MLDSA_44_PUB_KEY_DER_SIZE
+#define DILITHIUM_LEVEL2_BOTH_KEY_DER_SIZE  WC_MLDSA_44_BOTH_KEY_DER_SIZE
+#define DILITHIUM_LEVEL2_BOTH_KEY_PEM_SIZE  WC_MLDSA_44_BOTH_KEY_PEM_SIZE
+
+/* LEVEL3 (= ML-DSA-65) */
+#define ML_DSA_LEVEL3_KEY_SIZE              WC_MLDSA_65_KEY_SIZE
+#define ML_DSA_LEVEL3_PRV_KEY_SIZE          WC_MLDSA_65_PRV_KEY_SIZE
+#define ML_DSA_LEVEL3_PUB_KEY_SIZE          WC_MLDSA_65_PUB_KEY_SIZE
+#define ML_DSA_LEVEL3_SIG_SIZE              WC_MLDSA_65_SIG_SIZE
+#define ML_DSA_LEVEL3_PRV_KEY_DER_SIZE      WC_MLDSA_65_PRV_KEY_DER_SIZE
+#define ML_DSA_LEVEL3_PUB_KEY_DER_SIZE      WC_MLDSA_65_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL3_BOTH_KEY_DER_SIZE     WC_MLDSA_65_BOTH_KEY_DER_SIZE
+#define ML_DSA_LEVEL3_BOTH_KEY_PEM_SIZE     WC_MLDSA_65_BOTH_KEY_PEM_SIZE
+#define DILITHIUM_LEVEL3_KEY_SIZE           WC_MLDSA_65_KEY_SIZE
+#define DILITHIUM_LEVEL3_PRV_KEY_SIZE       WC_MLDSA_65_PRV_KEY_SIZE
+#define DILITHIUM_LEVEL3_PUB_KEY_SIZE       WC_MLDSA_65_PUB_KEY_SIZE
+#define DILITHIUM_LEVEL3_SIG_SIZE           WC_MLDSA_65_SIG_SIZE
+#define DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE   WC_MLDSA_65_PRV_KEY_DER_SIZE
+#define DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE   WC_MLDSA_65_PUB_KEY_DER_SIZE
+#define DILITHIUM_LEVEL3_BOTH_KEY_DER_SIZE  WC_MLDSA_65_BOTH_KEY_DER_SIZE
+#define DILITHIUM_LEVEL3_BOTH_KEY_PEM_SIZE  WC_MLDSA_65_BOTH_KEY_PEM_SIZE
+
+/* LEVEL5 (= ML-DSA-87) */
+#define ML_DSA_LEVEL5_KEY_SIZE              WC_MLDSA_87_KEY_SIZE
+#define ML_DSA_LEVEL5_PRV_KEY_SIZE          WC_MLDSA_87_PRV_KEY_SIZE
+#define ML_DSA_LEVEL5_PUB_KEY_SIZE          WC_MLDSA_87_PUB_KEY_SIZE
+#define ML_DSA_LEVEL5_SIG_SIZE              WC_MLDSA_87_SIG_SIZE
+#define ML_DSA_LEVEL5_PRV_KEY_DER_SIZE      WC_MLDSA_87_PRV_KEY_DER_SIZE
+#define ML_DSA_LEVEL5_PUB_KEY_DER_SIZE      WC_MLDSA_87_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL5_BOTH_KEY_DER_SIZE     WC_MLDSA_87_BOTH_KEY_DER_SIZE
+#define ML_DSA_LEVEL5_BOTH_KEY_PEM_SIZE     WC_MLDSA_87_BOTH_KEY_PEM_SIZE
+#define DILITHIUM_LEVEL5_KEY_SIZE           WC_MLDSA_87_KEY_SIZE
+#define DILITHIUM_LEVEL5_PRV_KEY_SIZE       WC_MLDSA_87_PRV_KEY_SIZE
+#define DILITHIUM_LEVEL5_PUB_KEY_SIZE       WC_MLDSA_87_PUB_KEY_SIZE
+#define DILITHIUM_LEVEL5_SIG_SIZE           WC_MLDSA_87_SIG_SIZE
+#define DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE   WC_MLDSA_87_PRV_KEY_DER_SIZE
+#define DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE   WC_MLDSA_87_PUB_KEY_DER_SIZE
+#define DILITHIUM_LEVEL5_BOTH_KEY_DER_SIZE  WC_MLDSA_87_BOTH_KEY_DER_SIZE
+#define DILITHIUM_LEVEL5_BOTH_KEY_PEM_SIZE  WC_MLDSA_87_BOTH_KEY_PEM_SIZE
+
+/* Pre-standardization DILITHIUM_ML_DSA_NN_* spelling. */
+#define DILITHIUM_ML_DSA_44_KEY_SIZE        WC_MLDSA_44_KEY_SIZE
+#define DILITHIUM_ML_DSA_44_PRV_KEY_SIZE    WC_MLDSA_44_PRV_KEY_SIZE
+#define DILITHIUM_ML_DSA_44_PUB_KEY_SIZE    WC_MLDSA_44_PUB_KEY_SIZE
+#define DILITHIUM_ML_DSA_44_SIG_SIZE        WC_MLDSA_44_SIG_SIZE
+#define DILITHIUM_ML_DSA_65_KEY_SIZE        WC_MLDSA_65_KEY_SIZE
+#define DILITHIUM_ML_DSA_65_PRV_KEY_SIZE    WC_MLDSA_65_PRV_KEY_SIZE
+#define DILITHIUM_ML_DSA_65_PUB_KEY_SIZE    WC_MLDSA_65_PUB_KEY_SIZE
+#define DILITHIUM_ML_DSA_65_SIG_SIZE        WC_MLDSA_65_SIG_SIZE
+#define DILITHIUM_ML_DSA_87_KEY_SIZE        WC_MLDSA_87_KEY_SIZE
+#define DILITHIUM_ML_DSA_87_PRV_KEY_SIZE    WC_MLDSA_87_PRV_KEY_SIZE
+#define DILITHIUM_ML_DSA_87_PUB_KEY_SIZE    WC_MLDSA_87_PUB_KEY_SIZE
+#define DILITHIUM_ML_DSA_87_SIG_SIZE        WC_MLDSA_87_SIG_SIZE
+
+/* Maxima (largest value across the three parameter sets, used for
+ * stack/heap sizing) */
+#define DILITHIUM_MAX_KEY_SIZE              MLDSA_MAX_KEY_SIZE
+#define DILITHIUM_MAX_PRV_KEY_SIZE          MLDSA_MAX_PRV_KEY_SIZE
+#define DILITHIUM_MAX_PUB_KEY_SIZE          MLDSA_MAX_PUB_KEY_SIZE
+#define DILITHIUM_MAX_SIG_SIZE              MLDSA_MAX_SIG_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE      MLDSA_MAX_PRV_KEY_DER_SIZE
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE      MLDSA_MAX_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_DER_SIZE     MLDSA_MAX_BOTH_KEY_DER_SIZE
+#define DILITHIUM_MAX_BOTH_KEY_PEM_SIZE     MLDSA_MAX_BOTH_KEY_PEM_SIZE
+#ifdef WOLF_PRIVATE_KEY_ID
+    #define DILITHIUM_MAX_LABEL_LEN         MLDSA_MAX_LABEL_LEN
+    #define DILITHIUM_MAX_ID_LEN            MLDSA_MAX_ID_LEN
+#endif
+#define DILITHIUM_MAX_LAMBDA                MLDSA_MAX_LAMBDA
+#define DILITHIUM_MAX_K_VECTOR_COUNT        MLDSA_MAX_K_VECTOR_COUNT
+#define DILITHIUM_MAX_L_VECTOR_COUNT        MLDSA_MAX_L_VECTOR_COUNT
+#define DILITHIUM_MAX_MATRIX_COUNT          MLDSA_MAX_MATRIX_COUNT
+#define DILITHIUM_MAX_W1_ENC_SZ             MLDSA_MAX_W1_ENC_SZ
+
 
 #endif /* WOLFSSL_HAVE_MLDSA && !WOLFSSL_NO_DILITHIUM_LEGACY_NAMES */
 

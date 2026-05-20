@@ -4703,7 +4703,7 @@ static int Pkcs11PqcKemKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     int ret = 0;
 
     switch (info->pk.pqc_kem_kg.type) {
-        case WC_PQC_KEM_TYPE_KYBER:
+        case WC_PQC_KEM_TYPE_MLKEM:
             ret = Pkcs11MlKemKeyGen(session,
                                     (MlKemKey*)info->pk.pqc_kem_kg.key);
             break;
@@ -4720,7 +4720,7 @@ static int Pkcs11PqcKemEncapsulate(Pkcs11Session* session, wc_CryptoInfo* info)
     int ret = 0;
 
     switch (info->pk.pqc_encaps.type) {
-        case WC_PQC_KEM_TYPE_KYBER:
+        case WC_PQC_KEM_TYPE_MLKEM:
             ret = Pkcs11MlKemEncapsulate(session, info);
             break;
         default:
@@ -4736,7 +4736,7 @@ static int Pkcs11PqcKemDecapsulate(Pkcs11Session* session, wc_CryptoInfo* info)
     int ret = 0;
 
     switch (info->pk.pqc_decaps.type) {
-        case WC_PQC_KEM_TYPE_KYBER:
+        case WC_PQC_KEM_TYPE_MLKEM:
             ret = Pkcs11MlKemDecapsulate(session, info);
             break;
         default:
@@ -5426,7 +5426,7 @@ static int Pkcs11PqcSigKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     int ret = 0;
 
     switch (info->pk.pqc_sig_kg.type) {
-        case WC_PQC_SIG_TYPE_DILITHIUM:
+        case WC_PQC_SIG_TYPE_MLDSA:
             ret = Pkcs11MldsaKeyGen(session,
                                     (wc_MlDsaKey*)info->pk.pqc_sig_kg.key);
             break;
@@ -5451,7 +5451,7 @@ static int Pkcs11PqcSigSign(Pkcs11Session* session, wc_CryptoInfo* info)
     int ret = 0;
 
     switch (info->pk.pqc_sign.type) {
-        case WC_PQC_SIG_TYPE_DILITHIUM:
+        case WC_PQC_SIG_TYPE_MLDSA:
             ret = Pkcs11MldsaSign(session, info);
             break;
         default:
@@ -5476,7 +5476,7 @@ static int Pkcs11PqcSigVerify(Pkcs11Session* session, wc_CryptoInfo* info)
     int ret = 0;
 
     switch (info->pk.pqc_verify.type) {
-        case WC_PQC_SIG_TYPE_DILITHIUM:
+        case WC_PQC_SIG_TYPE_MLDSA:
             ret = Pkcs11MldsaVerify(session, info);
             break;
         default:
@@ -5502,7 +5502,7 @@ static int Pkcs11PqcSigCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
     int ret = 0;
 
     switch (info->pk.pqc_sig_check.type) {
-        case WC_PQC_SIG_TYPE_DILITHIUM:
+        case WC_PQC_SIG_TYPE_MLDSA:
             ret = Pkcs11MldsaCheckPrivKey(session, info);
             break;
         default:
@@ -6632,7 +6632,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #ifdef HAVE_DILITHIUM
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN &&
-                info->free.subType == WC_PQC_SIG_TYPE_DILITHIUM) {
+                info->free.subType == WC_PQC_SIG_TYPE_MLDSA) {
                 ret = Pkcs11OpenSession(token, &session, readWrite);
                 if (ret == 0) {
                     ret = Pkcs11MldsaDeletePrivKey(&session,
@@ -6645,7 +6645,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #ifdef WOLFSSL_HAVE_MLKEM
             if (info->free.algo == WC_ALGO_TYPE_PK &&
                 info->free.type == WC_PK_TYPE_PQC_KEM_KEYGEN &&
-                info->free.subType == WC_PQC_KEM_TYPE_KYBER) {
+                info->free.subType == WC_PQC_KEM_TYPE_MLKEM) {
                 ret = Pkcs11OpenSession(token, &session, readWrite);
                 if (ret == 0) {
                     ret = Pkcs11MlKemDeletePrivKey(&session,

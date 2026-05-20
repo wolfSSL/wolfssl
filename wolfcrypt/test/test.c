@@ -72266,7 +72266,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifdef WOLFSSL_HAVE_MLKEM
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
-            if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_KYBER) &&
+            if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_kem_kg.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_kem_kg.key;
                 int hashDevId = key->hash.devId;
@@ -72286,7 +72286,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
-            if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_KYBER) &&
+            if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_encaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_encaps.key;
                 int hashDevId = key->hash.devId;
@@ -72309,7 +72309,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
-            if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_KYBER) &&
+            if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_decaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_decaps.key;
                 int hashDevId = key->hash.devId;
@@ -73051,7 +73051,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 case WC_PK_TYPE_PQC_SIG_KEYGEN:
                 {
             #ifdef HAVE_DILITHIUM
-                    if (info->free.subType == WC_PQC_SIG_TYPE_DILITHIUM) {
+                    if (info->free.subType == WC_PQC_SIG_TYPE_MLDSA) {
                         dilithium_key* dil = (dilithium_key*)info->free.obj;
                         dil->devId = INVALID_DEVID;
                         wc_dilithium_free(dil);
@@ -73072,7 +73072,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #ifdef WOLFSSL_HAVE_MLKEM
                 case WC_PK_TYPE_PQC_KEM_KEYGEN:
                 {
-                    if (info->free.subType == WC_PQC_KEM_TYPE_KYBER) {
+                    if (info->free.subType == WC_PQC_KEM_TYPE_MLKEM) {
                         MlKemKey* mlkem = (MlKemKey*)info->free.obj;
                         mlkem->devId = INVALID_DEVID;
                         mlkem->hash.devId = INVALID_DEVID;

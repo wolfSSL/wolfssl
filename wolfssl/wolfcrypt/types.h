@@ -1369,7 +1369,7 @@ enum {
     DYNAMIC_TYPE_CMAC         = 94,
     DYNAMIC_TYPE_FALCON       = 95,
     DYNAMIC_TYPE_SESSION      = 96,
-    DYNAMIC_TYPE_DILITHIUM    = 97,
+    DYNAMIC_TYPE_MLDSA        = 97,
     DYNAMIC_TYPE_SPHINCS      = 98, /* deprecated: kept for ABI compat */
     DYNAMIC_TYPE_SM4_BUFFER   = 99,
     DYNAMIC_TYPE_DEBUG_TAG    = 100,
@@ -1393,6 +1393,11 @@ enum {
     DYNAMIC_TYPE_SNIFFER_CHAIN_BUFFER = 1008,
     DYNAMIC_TYPE_AES_EAX = 1009
 };
+
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+/* Legacy name retained for backwards compatibility. */
+#define DYNAMIC_TYPE_DILITHIUM DYNAMIC_TYPE_MLDSA
+#endif
 
 /* max error buffer string size */
 #ifdef WOLFSSL_MAX_ERROR_SZ
@@ -1591,11 +1596,14 @@ enum wc_PkType {
     enum wc_PqcKemType {
         WC_PQC_KEM_TYPE_NONE = 0,
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_NONE
-        WC_PQC_KEM_TYPE_KYBER = 1,
+        WC_PQC_KEM_TYPE_MLKEM = 1,
         #undef _WC_PQC_KEM_TYPE_MAX
-        #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_KYBER
+        #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_MLKEM
         WC_PQC_KEM_TYPE_MAX = _WC_PQC_KEM_TYPE_MAX
     };
+
+    /* Pre-standardization name retained for backwards compatibility. */
+    #define WC_PQC_KEM_TYPE_KYBER WC_PQC_KEM_TYPE_MLKEM
 #endif
 
 #if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
@@ -1605,9 +1613,9 @@ enum wc_PkType {
         WC_PQC_SIG_TYPE_NONE = 0,
         #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_NONE
     #if defined(HAVE_DILITHIUM)
-        WC_PQC_SIG_TYPE_DILITHIUM = 1,
+        WC_PQC_SIG_TYPE_MLDSA = 1,
         #undef _WC_PQC_SIG_TYPE_MAX
-        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_DILITHIUM
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_MLDSA
     #endif
     #if defined(HAVE_FALCON)
         WC_PQC_SIG_TYPE_FALCON = 2,
@@ -1621,6 +1629,11 @@ enum wc_PkType {
     #endif
         WC_PQC_SIG_TYPE_MAX = _WC_PQC_SIG_TYPE_MAX
     };
+
+    #if defined(HAVE_DILITHIUM)
+        /* Pre-standardization name retained for backwards compatibility. */
+        #define WC_PQC_SIG_TYPE_DILITHIUM WC_PQC_SIG_TYPE_MLDSA
+    #endif
 #endif
 
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
