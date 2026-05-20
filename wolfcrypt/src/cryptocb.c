@@ -62,6 +62,7 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_ECC: Use only callbacks for ECC          default: off
  * WOLF_CRYPTO_CB_ONLY_RSA: Use only callbacks for RSA          default: off
  * WOLF_CRYPTO_CB_ONLY_SHA256: Use only callbacks for SHA-256   default: off
+ * WOLF_CRYPTO_CB_ONLY_SHA512: Use only callbacks for SHA-512   default: off
  * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  */
 
@@ -2154,7 +2155,7 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
         if (ret == 0 && digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE) {
             XMEMCPY(digest, localHash, digestSz);
 #if !defined(WOLFSSL_NOSHA512_224)
-            if (digestSz == WC_SHA512_224_DIGEST_SIZE) {
+            if (sha512 != NULL && digestSz == WC_SHA512_224_DIGEST_SIZE) {
               sha512->digest[0] = W64LIT(0x8c3d37c819544da2);
               sha512->digest[1] = W64LIT(0x73e1996689dcd4d6);
               sha512->digest[2] = W64LIT(0x1dfab7ae32ff9c82);
@@ -2166,7 +2167,7 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
             }
 #endif
 #if !defined(WOLFSSL_NOSHA512_256)
-            if (digestSz == WC_SHA512_256_DIGEST_SIZE) {
+            if (sha512 != NULL && digestSz == WC_SHA512_256_DIGEST_SIZE) {
               sha512->digest[0] = W64LIT(0x22312194fc2bf72c);
               sha512->digest[1] = W64LIT(0x9f555fa3c84c64c2);
               sha512->digest[2] = W64LIT(0x2393b86b6f53b151);

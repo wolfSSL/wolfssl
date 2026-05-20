@@ -611,7 +611,8 @@ int wolfSSL_SHA512_Final(byte* output, WOLFSSL_SHA512_CTX* sha512)
 
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
-    !defined(WOLFSSL_KCAPI_HASH) /* doesn't support direct transform */
+    !defined(WOLFSSL_KCAPI_HASH) /* doesn't support direct transform */ && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512) /* no wc_Sha512Transform in CB-only */
 /* Apply SHA-512 transformation to the data.
  *
  * @param [in, out] sha512  SHA512 context object.
@@ -687,7 +688,8 @@ int wolfSSL_SHA512_224_Final(byte* output, WOLFSSL_SHA512_224_CTX* sha512)
 }
 
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512) /* no wc_Sha512_224Transform in CB-only */
 /* Apply SHA-512-224 transformation to the data.
  *
  * @param [in, out] sha512  SHA512 context object.
@@ -765,7 +767,8 @@ int wolfSSL_SHA512_256_Final(byte* output, WOLFSSL_SHA512_256_CTX* sha512)
 }
 
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512) /* no wc_Sha512_256Transform in CB-only */
 /* Apply SHA-512-256 transformation to the data.
  *
  * @param [in, out] sha512  SHA512 context object.

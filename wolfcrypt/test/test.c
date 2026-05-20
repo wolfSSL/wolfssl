@@ -73231,6 +73231,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* set devId to invalid, so software is used */
             info->hash.sha384->devId = INVALID_DEVID;
             #endif
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha384->devId = devIdArg;
+                return 0;
+            }
+            #endif
 
             if (info->hash.in != NULL) {
                 ret = wc_Sha384Update(
@@ -73259,6 +73268,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             #ifndef NO_SHA2_CRYPTO_CB
             /* set devId to invalid, so software is used */
             info->hash.sha512->devId = INVALID_DEVID;
+            #endif
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha512->devId = devIdArg;
+                return 0;
+            }
             #endif
 
             if (info->hash.in != NULL) {

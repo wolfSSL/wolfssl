@@ -1058,3 +1058,100 @@ int test_wc_sha512_cryptocb_fallback(void)
     return EXPECT_RESULT();
 }
 
+/* Regression test for the no-_ex SHA-512/224 and SHA-512/256 initializers under
+ * WOLF_CRYPTO_CB_ONLY_SHA512. With the software path stripped, they must adopt
+ * the registered default CryptoCb device just like wc_InitSha512() and
+ * wc_InitSha384(); otherwise devId stays INVALID_DEVID and the public streaming
+ * API returns NO_VALID_DEVID even though a default device is registered. */
+int test_wc_sha512_variants_default_devid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
+    defined(WOLFSSL_SHA512) && !defined(NO_SHA2_CRYPTO_CB) && \
+    !defined(WC_NO_DEFAULT_DEVID) && \
+    (!defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256))
+    typedef struct {
+        const char* name;
+        int (*initFn)(wc_Sha512* sha);
+    } Sha512VariantCase;
+    static const Sha512VariantCase cases[] = {
+#ifndef WOLFSSL_NOSHA512_224
+        { "SHA-512/224", wc_InitSha512_224 },
+#endif
+#ifndef WOLFSSL_NOSHA512_256
+        { "SHA-512/256", wc_InitSha512_256 },
+#endif
+    };
+    Sha512DevCbCtx cbCtx;
+    int defaultDevId;
+    wc_Sha512 sha;
+    const Sha512VariantCase* tc;
+    size_t c;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SHA512_DEVID,
+        sha512_dev_cb, &cbCtx), 0);
+    defaultDevId = wc_CryptoCb_DefaultDevID();
+    ExpectIntNE(defaultDevId, INVALID_DEVID);
+
+    for (c = 0; c < sizeof(cases) / sizeof(cases[0]); c++) {
+        tc = &cases[c];
+
+        XMEMSET(&sha, 0, sizeof(sha));
+        sha.devId = INVALID_DEVID;
+
+        /* the no-_ex initializer must adopt the default device rather than
+         * leaving devId INVALID_DEVID (which the stripped software path would
+         * surface as NO_VALID_DEVID from the public streaming API) */
+        ExpectIntEQ(tc->initFn(&sha), 0);
+        ExpectIntEQ(sha.devId, defaultDevId);
+
+        wc_Sha512Free(&sha);
+    }
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SHA512_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* WOLF_CRYPTO_CB_FREE under WOLF_CRYPTO_CB_ONLY_SHA512: the
+ * stripped-software wc_Sha512Free()/wc_Sha384Free() must route through the
+ * crypto callback. */
+int test_wc_sha512_cryptocb_free(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLF_CRYPTO_CB_ONLY_SHA512) && defined(WOLFSSL_SHA512)
+    Sha512DevCbCtx cbCtx;
+    wc_Sha512 sha512;
+#ifdef WOLFSSL_SHA384
+    wc_Sha384 sha384;
+#endif
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SHA512_DEVID,
+        sha512_dev_cb, &cbCtx), 0);
+
+    XMEMSET(&sha512, 0, sizeof(sha512));
+    ExpectIntEQ(wc_InitSha512_ex(&sha512, HEAP_HINT,
+        TEST_CRYPTOCB_SHA512_DEVID), 0);
+    wc_Sha512Free(&sha512);
+    /* the free must reach the device callback */
+    ExpectIntEQ(cbCtx.freeSeen, 1);
+
+#ifdef WOLFSSL_SHA384
+    cbCtx.freeSeen = 0;
+    XMEMSET(&sha384, 0, sizeof(sha384));
+    ExpectIntEQ(wc_InitSha384_ex(&sha384, HEAP_HINT,
+        TEST_CRYPTOCB_SHA512_DEVID), 0);
+    wc_Sha384Free(&sha384);
+    ExpectIntEQ(cbCtx.freeSeen, 1);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SHA512_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+

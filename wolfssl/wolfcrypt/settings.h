@@ -5224,6 +5224,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_SHA256 requires WOLF_CRYPTO_CB"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA512) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA512 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA512) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA512 is incompatible with FIPS builds"
+#endif
 #if defined(WOLF_CRYPTO_CB_ONLY_AES) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_AES requires WOLF_CRYPTO_CB"
 #endif
