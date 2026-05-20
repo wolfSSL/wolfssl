@@ -13696,6 +13696,17 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
             continue;
         }
 
+        /* RFC 6125 Sec. 6.4 / RFC 9525 Sec. 6.3: a DNS-ID reference
+         * identifier is matched only against dNSName SAN entries, never
+         * uniformResourceIdentifier (even when the URI value resembles a
+         * hostname). URI-ID matching requires scheme and host parsing
+         * (RFC 9525 Sec. 6.5, Sec. 7.2). */
+        if (!isIP && altName->type == ASN_URI_TYPE) {
+            WOLFSSL_MSG("\tAltName is uniformResourceIdentifier, "
+                        "skipping for DNS hostname");
+            continue;
+        }
+
         if (MatchDomainName(buf, (int)len, domain, domainLen, flags)) {
             match = 1;
             if (checkCN != NULL) {
