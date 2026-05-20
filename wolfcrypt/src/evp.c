@@ -6757,6 +6757,10 @@ void wolfSSL_EVP_init(void)
         if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
             goto end;
 
+        /* OpenSSL treats count <= 0 as 1 iteration */
+        if (count <= 0)
+            count = 1;
+
         ret = wc_PBKDF1_ex(key, (int)info->keySz, iv, (int)info->ivSz, data, sz,
                            salt, EVP_SALT_SIZE, count, hashType, NULL);
         if (ret == 0)
