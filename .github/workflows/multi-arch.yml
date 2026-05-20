@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -51,7 +52,10 @@ jobs:
             OPT_CFLAGS: '-Os'
           - name: '-Ofast'
             OPT_CFLAGS: '-Ofast'
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10

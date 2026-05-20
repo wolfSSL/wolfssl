@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -14,7 +15,10 @@ concurrency:
 
 jobs:
   wolfssl_watcomc_windows:
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     strategy:
       fail-fast: false
       matrix:

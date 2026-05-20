@@ -4,6 +4,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
   workflow_dispatch:
 
@@ -19,7 +20,10 @@ env:
 jobs:
   keytools:
     name: keytools
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -120,7 +124,10 @@ jobs:
 
   host_smoke:
     name: host-smoke
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
@@ -192,7 +199,10 @@ jobs:
 
   renode_multimem_smallstack:
     name: renode-multimem-smallstack
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     permissions:
@@ -318,7 +328,10 @@ jobs:
 
   renode_multimem_smallstack_fastmath:
     name: renode-multimem-smallstack-fastmath
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     permissions:
@@ -426,7 +439,10 @@ jobs:
 
   renode_multimem_smallstack_noasm:
     name: renode-multimem-smallstack-noasm
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     permissions:

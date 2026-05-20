@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -54,7 +55,10 @@ jobs:
               -DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA
               -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_AES
     name: make check (${{ matrix.name }})
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:

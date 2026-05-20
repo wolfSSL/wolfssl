@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -15,7 +16,10 @@ concurrency:
 jobs:
   build:
     name: ${{ matrix.zephyr-ref }} | ${{ matrix.board }} | ${{ matrix.sample }}${{ matrix.extra-conf != '' && ' | extlibc' || '' }}
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     strategy:

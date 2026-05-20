@@ -57,6 +57,7 @@ on:
       - 'wolfcrypt/**'
       - 'wolfssl/**'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '**' ]
     paths:
       - '.github/workflows/arduino.yml'
@@ -76,7 +77,10 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     # Teensy is allowed to fail: its board index lives at pjrc.com, which is
     # chronically unreachable from GitHub Actions runner egress IPs (DNS

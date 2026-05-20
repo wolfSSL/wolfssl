@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -37,7 +38,10 @@ jobs:
           - CC: clang-19
             CXX: clang++-19
             OS: ubuntu-24.04
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ${{ matrix.OS }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4

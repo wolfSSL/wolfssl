@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -16,7 +17,10 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     steps:
       - name: Build wolfSSL
@@ -47,7 +51,10 @@ jobs:
         include:
           - ref: 1.6.22
     name: ${{ matrix.ref }}
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     needs: build_wolfssl
     steps:

@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -31,7 +32,10 @@ jobs:
           '--disable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,small --enable-slhdsa --enable-lms --enable-xmss CPPFLAGS="-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
         ]
     name: build library
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10

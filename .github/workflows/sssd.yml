@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -14,7 +15,10 @@ concurrency:
 
 jobs:
   build_wolfssl:
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     name: Build wolfSSL
     # Just to keep it the same as the testing target
     runs-on: ubuntu-24.04
@@ -46,7 +50,10 @@ jobs:
         # List of releases to test
         ref: [ 2.9.1, 2.10.2 ]
     name: ${{ matrix.ref }}
-    if: github.repository_owner == 'wolfssl'
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     container:
       image: quay.io/sssd/ci-client-devel:ubuntu-latest
