@@ -247,6 +247,15 @@ int test_ocsp_basic_verify(void)
     ExpectNull(
         response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_bad)));
 
+    /* reuse failure must clear caller pointer */
+    ptr = (const unsigned char*)resp;
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(&response, &ptr, sizeof(resp)));
+    ptr = (const unsigned char*)resp_bad;
+    ExpectNull(
+        wolfSSL_d2i_OCSP_RESPONSE(&response, &ptr, sizeof(resp_bad)));
+    ExpectNull(response);
+
     ptr = (const unsigned char*)resp;
     ExpectNotNull(
         response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp)));

@@ -1286,6 +1286,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     resp->source = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (resp->source == NULL) {
         XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        if (response != NULL && *response == resp)
+            *response = NULL;
         return NULL;
     }
     resp->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
@@ -1293,6 +1295,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     if (resp->single == NULL) {
         XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        if (response != NULL && *response == resp)
+            *response = NULL;
         return NULL;
     }
     XMEMSET(resp->single, 0, sizeof(OcspEntry));
@@ -1303,6 +1307,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
         XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        if (response != NULL && *response == resp)
+            *response = NULL;
         return NULL;
     }
     XMEMSET(resp->single->status, 0, sizeof(CertStatus));
@@ -1315,6 +1321,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         /* for just converting from a DER to an internal structure the CA may
          * not yet be known to this function for signature verification */
         wolfSSL_OCSP_RESPONSE_free(resp);
+        if (response != NULL && *response == resp)
+            *response = NULL;
         return NULL;
     }
 
