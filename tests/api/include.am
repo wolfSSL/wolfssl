@@ -65,6 +65,8 @@ tests_unit_test_SOURCES += tests/api/test_asn.c
 tests_unit_test_SOURCES += tests/api/test_pkcs7.c
 # PKCS#12
 tests_unit_test_SOURCES += tests/api/test_pkcs12.c
+# pwdbased (PBKDF1/PBKDF2)
+tests_unit_test_SOURCES += tests/api/test_pwdbased.c
 # OpenSSL ASN.1
 tests_unit_test_SOURCES += tests/api/test_ossl_asn1.c
 # OpenSSL BN
@@ -165,6 +167,7 @@ EXTRA_DIST += tests/api/test_x509.h
 EXTRA_DIST += tests/api/test_asn.h
 EXTRA_DIST += tests/api/test_pkcs7.h
 EXTRA_DIST += tests/api/test_pkcs12.h
+EXTRA_DIST += tests/api/test_pwdbased.h
 EXTRA_DIST += tests/api/test_ossl_asn1.h
 EXTRA_DIST += tests/api/test_ossl_bn.h
 EXTRA_DIST += tests/api/test_ossl_bio.h
