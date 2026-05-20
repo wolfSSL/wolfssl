@@ -5854,9 +5854,11 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (args->extMsgType == hello_retry_request &&
                 ((WOLFSSL_ECH*)args->echX->data)->confBuf == NULL) {
-            /* server rejected ECH, fallback to outer */
+            /* server rejected ECH, fallback to outer.  Swap ECH to GREASE so
+             * CH2 still carries an ECH extension */
             Free_HS_Hashes(ssl->hsHashesEch, ssl->heap);
             ssl->hsHashesEch = NULL;
+            ((WOLFSSL_ECH*)args->echX->data)->state = ECH_WRITE_GREASE;
         }
         else {
             /* account for hrr extension instead of server random */
@@ -5878,6 +5880,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             if (ret != 0)
                 return ret;
+            /* When rejected on HRR, swap ECH to GREASE so CH2 still carries an
+             * ECH extension */
+            if (args->extMsgType == hello_retry_request &&
+                    !ssl->options.echAccepted) {
+                ((WOLFSSL_ECH*)args->echX->data)->state = ECH_WRITE_GREASE;
+            }
             /* use the inner random for client random */
             if (args->extMsgType != hello_retry_request) {
                 XMEMCPY(ssl->arrays->clientRandom,

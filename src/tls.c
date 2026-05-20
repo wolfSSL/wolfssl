@@ -13840,7 +13840,9 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
         *writeBuf_p = ech->configId;
         writeBuf_p += sizeof(ech->configId);
         /* encLen */
-        if (ech->hpkeContext == NULL) {
+        if (ech->hpkeContext == NULL || ech->state == ECH_WRITE_GREASE) {
+            /* GREASE always writes a fresh enc, even when a prior hpkeContext
+             * exists from a real CH1 that was rejected */
             c16toa(ech->encLen, writeBuf_p);
         }
         else {
@@ -16460,9 +16462,7 @@ static int TLSX_EchChangeSNI(WOLFSSL* ssl, TLSX** pEchX,
 
     /* if type is outer change sni to public name */
     if (echX != NULL &&
-        ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER &&
-        (ssl->options.echAccepted ||
-        ((WOLFSSL_ECH*)echX->data)->innerCount == 0)) {
+        ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER) {
         if (ssl->extensions) {
             serverNameX = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
 
@@ -16656,12 +16656,6 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
 
     if (echX != NULL)
         ech = (WOLFSSL_ECH*)echX->data;
-
-    /* If ECH won't be written exclude it from the size calculation */
-    if (r == 0 && !ssl->options.echAccepted && ech != NULL &&
-            ech->innerCount != 0) {
-        TURN_ON(semaphore, TLSX_ToSemaphore(echX->type));
-    }
 
     /* if encoding, then count encoded form of inner ClientHello.
      * `semaphore` is in/out so encodable extensions will later be ignored */
@@ -16869,14 +16863,10 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
                          msgType, pOffset);
     }
 
-    /* only write ECH if there is a shot at acceptance */
-    if (ret == 0 && echX != NULL &&
-        (ssl->options.echAccepted ||
-        ((WOLFSSL_ECH*)echX->data)->innerCount == 0)) {
-        if (echX != NULL) {
-            /* turn off and write it last */
-            TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
-        }
+    /* write ECH last */
+    if (ret == 0 && echX != NULL) {
+        /* turn off and write it last */
+        TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
 
         if (ret == 0 && ssl->extensions) {
             ret = TLSX_Write(ssl->extensions, output + *pOffset, semaphore,
