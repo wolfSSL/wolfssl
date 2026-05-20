@@ -152,12 +152,19 @@ static int wc_MXC_TPU_SHA_Init(unsigned int* digest, int stateWords,
 static int wc_MxcShaCbDispatch(
                     unsigned int* digest, unsigned int* buffer,
                     unsigned int* buffLen, unsigned int* loLen,
-                    unsigned int* hiLen, int stateWords,
+                    unsigned int* hiLen, void** devCtx, int stateWords,
                     unsigned int blockSz, unsigned int digestSz,
                     MXC_TPU_HASH_TYPE algo,
                     const unsigned char* in, unsigned int inSz,
                     unsigned char* outDigest)
 {
+    if (*devCtx == NULL) {
+        int initRet = wc_MXC_TPU_SHA_Init(digest, stateWords, algo);
+        if (initRet != 0)
+            return initRet;
+        *devCtx = (void*)1;
+    }
+
     if (in != NULL && outDigest == NULL) {
         MAX3266X_MSG("Update CB");
         return wc_MXC_TPU_SHA_Update(digest, buffer, buffLen, loLen, hiLen,
@@ -200,8 +207,8 @@ static int wc_MxcShaCbDispatch512(wc_Sha512* ctx, int stateWords,
     ret = wc_MxcShaCbDispatch((unsigned int*)ctx->digest,
                                (unsigned int*)ctx->buffer,
                                &ctx->buffLen, &loLen, &hiLen,
-                               stateWords, blockSz, digestSz, algo,
-                               in, inSz, digest);
+                               &ctx->devCtx, stateWords, blockSz, digestSz,
+                               algo, in, inSz, digest);
 
     ctx->loLen = (word64)loLen | ((word64)hiLen << 32);
     return ret;
@@ -217,6 +224,7 @@ int wc_MxcShaCryptoCb(wc_CryptoInfo* info)
                         info->hash.sha1->buffer,
                         &info->hash.sha1->buffLen,
                         &info->hash.sha1->loLen, &info->hash.sha1->hiLen,
+                        &info->hash.sha1->devCtx,
                         MXC_SHA1_STATE_WORDS, WC_SHA_BLOCK_SIZE,
                         WC_SHA_DIGEST_SIZE, MXC_TPU_HASH_SHA1,
                         info->hash.in, info->hash.inSz, info->hash.digest);
@@ -228,6 +236,7 @@ int wc_MxcShaCryptoCb(wc_CryptoInfo* info)
                         info->hash.sha224->buffer,
                         &info->hash.sha224->buffLen,
                         &info->hash.sha224->loLen, &info->hash.sha224->hiLen,
+                        &info->hash.sha224->devCtx,
                         MXC_SHA224_STATE_WORDS, WC_SHA224_BLOCK_SIZE,
                         WC_SHA224_DIGEST_SIZE, MXC_TPU_HASH_SHA224,
                         info->hash.in, info->hash.inSz, info->hash.digest);
@@ -239,6 +248,7 @@ int wc_MxcShaCryptoCb(wc_CryptoInfo* info)
                         info->hash.sha256->buffer,
                         &info->hash.sha256->buffLen,
                         &info->hash.sha256->loLen, &info->hash.sha256->hiLen,
+                        &info->hash.sha256->devCtx,
                         MXC_SHA256_STATE_WORDS, WC_SHA256_BLOCK_SIZE,
                         WC_SHA256_DIGEST_SIZE, MXC_TPU_HASH_SHA256,
                         info->hash.in, info->hash.inSz, info->hash.digest);
