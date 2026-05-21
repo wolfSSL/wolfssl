@@ -6189,3 +6189,216 @@ int test_tls13_cipher_fuzz_aes128_ccm_8_sha256(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Regression test for the AEAD record-protection limit constants in
+ * internal.h. The macros expand to w64From32(hi, lo). A prior version split
+ * the intended 32-bit constants into 16-bit halves and passed each half as
+ * a separate 32-bit argument, producing a 64-bit value many orders of
+ * magnitude larger than RFC 8446 / RFC 9147 require. That made
+ * CheckTLS13AEADSendLimit's key-update trigger effectively unreachable.
+ * Compare against the hard-coded spec values so a recurrence is caught even
+ * if the macro is reused on both sides of the comparison. */
+int test_tls13_AEAD_limit_macros(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+    w64wrapper limit;
+
+    /* RFC 8446 5.5: 2^24.5 ~= 23726566 (0x016A09E6). */
+    limit = AEAD_AES_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0);
+    ExpectIntEQ(w64GetLow32(limit),  0x016A09E6);
+
+#ifdef WOLFSSL_DTLS13
+    /* RFC 9147 (AES-CCM integrity): 2^23.5 ~= 11863283 (0x00B504F3). */
+    limit = DTLS_AEAD_AES_CCM_FAIL_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0);
+    ExpectIntEQ(w64GetLow32(limit),  0x00B504F3);
+
+    /* Key-update threshold is half the fail limit: 5931641 (0x005A8279). */
+    limit = DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT;
+    ExpectIntEQ(w64GetHigh32(limit), 0);
+    ExpectIntEQ(w64GetLow32(limit),  0x005A8279);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (defined(BUILD_TLS_AES_128_GCM_SHA256) || \
+     defined(BUILD_TLS_AES_256_GCM_SHA384) || \
+     defined(BUILD_TLS_AES_128_CCM_SHA256) || \
+     defined(BUILD_TLS_AES_128_CCM_8_SHA256))
+/* Drive the client's encrypt sequence number towards the spec limit for
+ * `suite` and verify CheckTLS13AEADSendLimit's KeyUpdate trigger fires at
+ * exactly the right boundary.
+ *
+ * Two writes are exercised:
+ *   1. Counter set to limit - 2. After the write the counter must read
+ *      limit - 1 (record incremented it by 1) and no KeyUpdate must have
+ *      been emitted. CheckTLS13AEADSendLimit uses `seq >= limit`, so neither
+ *      the pre-send check nor the trailing loop check (which runs once more
+ *      after the last record before wolfSSL_write exits) is allowed to fire.
+ *   2. A second write follows with the counter already sitting at limit - 1
+ *      from the previous record. The user record goes out at seq = limit-1,
+ *      which bumps the counter to limit; the trailing limit check then
+ *      fires SendTls13KeyUpdate. SetKeysSide zeroes the encrypt counter, so
+ *      the post-write counter is 0.
+ *
+ * With the previous broken AEAD-limit macros the limit was unreachable, no
+ * KeyUpdate would ever fire, and the counter would simply advance to
+ * limit_lo + 1 in the second case instead of being reset.
+ *
+ * The AEAD nonce mixes in the record sequence number on both sides, so the
+ * server's decrypt counter has to be advanced in lockstep with the client's
+ * encrypt counter or the record fails the integrity check. */
+static int test_tls13_AEAD_limit_triggers_KeyUpdate_cs(const char* suite,
+        word32 limit_hi, word32 limit_lo, int expected_bulk_cipher)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "post-limit-record";
+    char buf[sizeof(msg)];
+    int written;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = suite;
+    test_ctx.s_ciphers = suite;
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL && ssl_s != NULL) {
+        /* Sanity check: the negotiated bulk cipher matches what the caller
+         * intends to exercise. If a build flag combination falls through to
+         * a different suite, the limit constant would be wrong. */
+        ExpectIntEQ(ssl_c->specs.bulk_cipher_algorithm, expected_bulk_cipher);
+
+        /* Stage the counters two below the limit so the first write stays
+         * comfortably below the trigger threshold. */
+        ssl_c->keys.sequence_number_hi      = limit_hi;
+        ssl_c->keys.sequence_number_lo      = limit_lo - 2;
+        ssl_s->keys.peer_sequence_number_hi = limit_hi;
+        ssl_s->keys.peer_sequence_number_lo = limit_lo - 2;
+    }
+
+    /* First write: below the limit, no KeyUpdate expected. */
+    written = wolfSSL_write(ssl_c, msg, (int)sizeof(msg));
+    ExpectIntEQ(written, (int)sizeof(msg));
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* The record bumped the counter from limit-2 to limit-1. A
+         * KeyUpdate would have zeroed it via SetKeysSide and bumped to 1. */
+        ExpectIntEQ((int)ssl_c->keys.sequence_number_hi, (int)limit_hi);
+        ExpectIntEQ(ssl_c->keys.sequence_number_lo,      limit_lo - 1);
+    }
+
+    /* Server consumes the below-limit record with its existing keys. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+
+    /* Second write: the client's counter is now at limit-1. Sending this
+     * record will push it to limit, at which point the trailing check
+     * inside SendData's loop fires SendTls13KeyUpdate. No manual counter
+     * adjustment is needed -- the counter is allowed to "naturally" reach
+     * the limit through the previous send. */
+    written = wolfSSL_write(ssl_c, msg, (int)sizeof(msg));
+    ExpectIntEQ(written, (int)sizeof(msg));
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* SendTls13KeyUpdate -> DeriveTls13Keys -> SetKeysSide zeroes the
+         * encrypt sequence number. The user record went out before the
+         * trigger fired, so no record was sent on the new keys. */
+        ExpectIntEQ((int)ssl_c->keys.sequence_number_hi, 0);
+        ExpectIntEQ((int)ssl_c->keys.sequence_number_lo, 0);
+    }
+
+    /* The server reads the user record (sent under the pre-update keys at
+     * seq = limit - 1) before it sees the KeyUpdate record. The KeyUpdate
+     * is consumed transparently on a subsequent read; for the test we just
+     * need to confirm the user data round-trips. */
+    XMEMSET(buf, 0, sizeof(buf));
+    {
+        int r = -1, attempts;
+        for (attempts = 0; attempts < 5; attempts++) {
+            r = wolfSSL_read(ssl_s, buf, (int)sizeof(buf));
+            if (r > 0)
+                break;
+            if (wolfSSL_get_error(ssl_s, r) != WOLFSSL_ERROR_WANT_READ)
+                break;
+        }
+        ExpectIntEQ(r, (int)sizeof(msg));
+    }
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_tls13_AEAD_limit_KU_aes128_gcm_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES128-GCM-SHA256", 0, 0x016A09E6, wolfssl_aes_gcm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_AEAD_limit_KU_aes256_gcm_sha384(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384)
+    ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES256-GCM-SHA384", 0, 0x016A09E6, wolfssl_aes_gcm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_AEAD_limit_KU_aes128_ccm_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_CCM_SHA256)
+    ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES128-CCM-SHA256", 0, 0x016A09E6, wolfssl_aes_ccm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_AES_128_CCM_8_SHA256)
+    ExpectIntEQ(test_tls13_AEAD_limit_triggers_KeyUpdate_cs(
+            "TLS13-AES128-CCM-8-SHA256", 0, 0x016A09E6, wolfssl_aes_ccm),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
