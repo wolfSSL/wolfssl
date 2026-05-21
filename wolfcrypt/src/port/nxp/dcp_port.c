@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) && defined(DCP_USE_DCACHE) && (DCP_USE_DCACHE == 1U)
 #error "DCACHE not supported by this driver. Please undefine DCP_USE_DCACHE."
@@ -209,7 +215,9 @@ static unsigned char  aes_key_aligned[16] __attribute__((aligned(0x10)));
 
 void DCPAesFree(Aes *aes)
 {
+    dcp_lock();
     ForceZero(aes_key_aligned, sizeof(aes_key_aligned));
+    dcp_unlock();
     dcp_free(aes->handle.channel);
     aes->handle.channel = 0;
 }
