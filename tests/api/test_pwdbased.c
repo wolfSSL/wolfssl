@@ -28,7 +28,8 @@
 int test_wc_PBKDF1_ex_iterations(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PBKDF1) && !defined(NO_SHA) && !defined(HAVE_SELFTEST)
+#if defined(HAVE_PBKDF1) && !defined(NO_PWDBASED) && !defined(NO_SHA) && \
+    !defined(HAVE_SELFTEST)
     static const byte passwd[] = { 'p', 'a', 's', 's' };
     static const byte salt[]   = { 0x78, 0x57, 0x8E, 0x5a,
                                    0x5d, 0x63, 0xcb, 0x06 };
@@ -50,8 +51,8 @@ int test_wc_PBKDF1_ex_iterations(void)
 int test_wc_PBKDF2_ex_iterations(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_SHA256) && \
-    !defined(HAVE_SELFTEST) && \
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+    !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     static const byte passwd[] = { 'p', 'a', 's', 's' };
     static const byte salt[]   = { 0x78, 0x57, 0x8E, 0x5a,

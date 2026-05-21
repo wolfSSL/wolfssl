@@ -2950,6 +2950,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_asn.c
         tests/api/test_pkcs7.c
         tests/api/test_pkcs12.c
+        tests/api/test_pwdbased.c
         tests/api/test_ossl_asn1.c
         tests/api/test_ossl_bio.c
         tests/api/test_ossl_bn.c
