@@ -3,8 +3,9 @@ name: FreeRTOS mem_track.h compile regression
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -24,7 +25,7 @@ concurrency:
 jobs:
   freertos_mem_track:
     name: mem_track.h non-Linux multi-threaded compile
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -1,14 +1,17 @@
 name: Membrowse Memory Report
 
+# Runs nightly instead of per-PR - the report is for trend tracking, not
+# gating individual PRs, and the build matrix is too heavy to run on every
+# push.  Use workflow_dispatch to trigger an ad-hoc run.
+
 on:
-  pull_request:
-  push:
-    branches:
-      - master
+  schedule:
+    - cron: '0 4 * * *'   # daily at 04:00 UTC
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   load-targets:
@@ -59,4 +62,3 @@ jobs:
           api_key: ${{ secrets.MEMBROWSE_API_KEY }}
           api_url: ${{ vars.MEMBROWSE_API_URL }}
           verbose: INFO
-

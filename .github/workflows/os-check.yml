@@ -3,8 +3,9 @@ name: Ubuntu-Macos-Windows Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -133,7 +134,7 @@ jobs:
           'CPPFLAGS="-DNO_VERIFY_OID -DWOLFSSL_FPKI"',
         ]
     name: make check linux
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -184,7 +185,7 @@ jobs:
           '--enable-cryptocb --enable-keygen --enable-cryptocbutils=setkey',
         ]
     name: make check macos
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -217,7 +218,7 @@ jobs:
           'examples/configs/user_settings_all.h',
         ]
     name: make user_setting.h
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -264,7 +265,7 @@ jobs:
           # - user_settings_baremetal.h: Requires static memory, custom platform
         ]
     name: make user_setting.h (testwolfcrypt only)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -285,7 +286,7 @@ jobs:
   # the equivalent code paths on Darwin.
   make_user_all:
     name: make user_setting.h (with sed)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -308,7 +309,7 @@ jobs:
 
   windows_build:
     name: Windows Build Test
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
     strategy:
       fail-fast: false

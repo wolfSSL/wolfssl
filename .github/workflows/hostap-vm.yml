@@ -3,8 +3,9 @@ name: hostap and wpa-supplicant Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -27,7 +28,7 @@ jobs:
               --enable-wpas-dpp --enable-brainpool --with-eccminsz=192
               --enable-tlsv10 --enable-oldtls
     name: Build wolfSSL
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
@@ -65,7 +66,7 @@ jobs:
 
   checkout_hostap:
     name: Checkout hostap repo
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
@@ -93,7 +94,7 @@ jobs:
 
   build_uml_linux:
     name: Build UML (UserMode Linux)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
@@ -181,7 +182,7 @@ jobs:
               build_id: hostap-vm-build2
             }
     name: hwsim test
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 45
