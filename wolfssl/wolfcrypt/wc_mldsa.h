@@ -54,38 +54,28 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+/* TEMPORARY: pull in the legacy compatibility shim so its forward-arm
+ * sub-config gate translation (legacy WOLFSSL_DILITHIUM_* /
+ * WC_DILITHIUM_* -> canonical WOLFSSL_MLDSA_* / WC_MLDSA_*) and the
+ * derivation of secondary canonical gates (WOLFSSL_MLDSA_VERIFY_ONLY,
+ * _PUBLIC_KEY, _PRIVATE_KEY, _CHECK_KEY) run before this header's
+ * struct definition and conditional declarations are parsed. Required
+ * because this header is reachable via <asn.h> / <asn_public.h>
+ * without going through dilithium.h, and any gate that affects
+ * wc_MlDsaKey struct layout (e.g. WOLFSSL_MLDSA_DYNAMIC_KEYS) must be
+ * normalized to its canonical spelling in every TU before the struct
+ * is parsed -- otherwise TUs disagree about sizeof / field offsets.
+ *
+ * The recursive #include of this file from dilithium.h is a no-op
+ * (header guard above is already set); dilithium.h's reverse arm and
+ * legacy aliases see the derived gates because the derivation in
+ * dilithium.h runs before that recursive include returns.
+ *
+ * To be removed alongside <wolfssl/wolfcrypt/dilithium.h> when the
+ * legacy compatibility shim is dropped. */
+#include <wolfssl/wolfcrypt/dilithium.h>
+
 #if defined(WOLFSSL_HAVE_MLDSA)
-
-#if defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
-        defined(WOLFSSL_MLDSA_NO_SIGN) && \
-        !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
-        !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
-    #define WOLFSSL_MLDSA_VERIFY_ONLY
-#endif
-#ifdef WOLFSSL_MLDSA_VERIFY_ONLY
-    #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
-        #define WOLFSSL_MLDSA_NO_MAKE_KEY
-    #endif
-    #ifndef WOLFSSL_MLDSA_NO_SIGN
-        #define WOLFSSL_MLDSA_NO_SIGN
-    #endif
-#endif
-
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
-        !defined(WOLFSSL_MLDSA_NO_VERIFY)
-    #define WOLFSSL_MLDSA_PUBLIC_KEY
-#endif
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
-        !defined(WOLFSSL_MLDSA_NO_SIGN)
-    #define WOLFSSL_MLDSA_PRIVATE_KEY
-#endif
-
-#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
-        defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
-        !defined(WOLFSSL_MLDSA_NO_CHECK_KEY) && \
-        !defined(WOLFSSL_MLDSA_CHECK_KEY)
-    #define WOLFSSL_MLDSA_CHECK_KEY
-#endif
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #ifndef WOLFSSL_MLDSA_VERIFY_ONLY

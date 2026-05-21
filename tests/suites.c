@@ -1263,7 +1263,7 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
-#if defined(WOLFSSL_HAVE_SLHDSA) && defined(HAVE_DILITHIUM) && \
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_HAVE_MLDSA) && \
     defined(WOLFSSL_SLHDSA_PARAM_128S) && \
     defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
     /* SLH-DSA-SHAKE-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
@@ -1294,7 +1294,7 @@ int SuiteTest(int argc, char** argv)
     args.argc = 2;
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_SHA2) && \
-    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) && defined(HAVE_DILITHIUM) && \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) && defined(WOLFSSL_HAVE_MLDSA) && \
     defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
     /* SLH-DSA-SHA2-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
     XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-sha2.conf",

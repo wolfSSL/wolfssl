@@ -396,8 +396,9 @@
  * gencertbuf.pl with zero #include directives, so a TU can pull it in
  * (transitively, via <wolfssl/ssl.h> etc.) without ever including
  * dilithium.h. The remaining ML-DSA sub-gates are read only from
- * wc_mldsa.h / wc_mldsa.c, both of which transitively pull in
- * dilithium.h first; their forward translations live there.
+ * wc_mldsa.h / wc_mldsa.c; wc_mldsa.c includes dilithium.h before
+ * asn.h so the canonical names are set before wc_mldsa.h is first
+ * parsed via either route. Their forward translations live there.
  * Suppressible by defining WOLFSSL_NO_DILITHIUM_LEGACY_GATES. */
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_GATES
     #ifdef WOLFSSL_DILITHIUM_NO_SIGN

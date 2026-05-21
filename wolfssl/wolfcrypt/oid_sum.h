@@ -191,11 +191,11 @@ enum Key_Sum {
     /* 0x2b,0x06,0x01,0x04,0x01,0x02,0x82,0x0b,0x0c,0x08,0x07  */
     DILITHIUM_LEVEL5k           = 225,           /* 1.3.6.1.4.1.2.267.12.8.7 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11  */
-    ML_DSA_LEVEL2k              = 431,           /* 2.16.840.1.101.3.4.3.17 */
+    ML_DSA_44k                  = 431,           /* 2.16.840.1.101.3.4.3.17 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12  */
-    ML_DSA_LEVEL3k              = 432,           /* 2.16.840.1.101.3.4.3.18 */
+    ML_DSA_65k                  = 432,           /* 2.16.840.1.101.3.4.3.18 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x13  */
-    ML_DSA_LEVEL5k              = 433,           /* 2.16.840.1.101.3.4.3.19 */
+    ML_DSA_87k                  = 433,           /* 2.16.840.1.101.3.4.3.19 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x14  */
     SLH_DSA_SHA2_128Sk          = 434,           /* 2.16.840.1.101.3.4.3.20 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x15  */
@@ -262,11 +262,11 @@ enum Key_Sum {
     /* 0x2b,0x06,0x01,0x04,0x01,0x02,0x82,0x0b,0x0c,0x08,0x07  */
     DILITHIUM_LEVEL5k           = 0x707b0cd9,    /* 1.3.6.1.4.1.2.267.12.8.7 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11  */
-    ML_DSA_LEVEL2k              = 0x7db37aeb,    /* 2.16.840.1.101.3.4.3.17 */
+    ML_DSA_44k                  = 0x7db37aeb,    /* 2.16.840.1.101.3.4.3.17 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12  */
-    ML_DSA_LEVEL3k              = 0x7db37ae8,    /* 2.16.840.1.101.3.4.3.18 */
+    ML_DSA_65k                  = 0x7db37ae8,    /* 2.16.840.1.101.3.4.3.18 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x13  */
-    ML_DSA_LEVEL5k              = 0x7db37ae9,    /* 2.16.840.1.101.3.4.3.19 */
+    ML_DSA_87k                  = 0x7db37ae9,    /* 2.16.840.1.101.3.4.3.19 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x14  */
     SLH_DSA_SHA2_128Sk          = 0x7db37aee,    /* 2.16.840.1.101.3.4.3.20 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x15  */
@@ -299,6 +299,14 @@ enum Key_Sum {
     XMSSMTk                     = 0x2607012e     /* 1.3.6.1.5.5.7.6.35 */
 #endif
 };
+
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+/* Legacy LEVEL2/3/5 spellings for the pre-standardization names. Will
+ * be removed alongside the dilithium.h shim. */
+#define ML_DSA_LEVEL2k ML_DSA_44k
+#define ML_DSA_LEVEL3k ML_DSA_65k
+#define ML_DSA_LEVEL5k ML_DSA_87k
+#endif
 
 enum KeyWrap_Sum {
 #ifdef WOLFSSL_OLD_OID_SUM
@@ -1611,11 +1619,11 @@ enum Ctc_SigType {
     /* 0x2b,0x06,0x01,0x04,0x01,0x02,0x82,0x0b,0x0c,0x08,0x07  */
     CTC_DILITHIUM_LEVEL5        = 225,           /* 1.3.6.1.4.1.2.267.12.8.7 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11  */
-    CTC_ML_DSA_LEVEL2           = 431,           /* 2.16.840.1.101.3.4.3.17 */
+    CTC_ML_DSA_44               = 431,           /* 2.16.840.1.101.3.4.3.17 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12  */
-    CTC_ML_DSA_LEVEL3           = 432,           /* 2.16.840.1.101.3.4.3.18 */
+    CTC_ML_DSA_65               = 432,           /* 2.16.840.1.101.3.4.3.18 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x13  */
-    CTC_ML_DSA_LEVEL5           = 433,           /* 2.16.840.1.101.3.4.3.19 */
+    CTC_ML_DSA_87               = 433,           /* 2.16.840.1.101.3.4.3.19 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x14  */
     CTC_SLH_DSA_SHA2_128S       = 434,           /* 2.16.840.1.101.3.4.3.20 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x15  */
@@ -1710,11 +1718,11 @@ enum Ctc_SigType {
     /* 0x2b,0x06,0x01,0x04,0x01,0x02,0x82,0x0b,0x0c,0x08,0x07  */
     CTC_DILITHIUM_LEVEL5        = 0x707b0cd9,    /* 1.3.6.1.4.1.2.267.12.8.7 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11  */
-    CTC_ML_DSA_LEVEL2           = 0x7db37aeb,    /* 2.16.840.1.101.3.4.3.17 */
+    CTC_ML_DSA_44               = 0x7db37aeb,    /* 2.16.840.1.101.3.4.3.17 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12  */
-    CTC_ML_DSA_LEVEL3           = 0x7db37ae8,    /* 2.16.840.1.101.3.4.3.18 */
+    CTC_ML_DSA_65               = 0x7db37ae8,    /* 2.16.840.1.101.3.4.3.18 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x13  */
-    CTC_ML_DSA_LEVEL5           = 0x7db37ae9,    /* 2.16.840.1.101.3.4.3.19 */
+    CTC_ML_DSA_87               = 0x7db37ae9,    /* 2.16.840.1.101.3.4.3.19 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x14  */
     CTC_SLH_DSA_SHA2_128S       = 0x7db37aee,    /* 2.16.840.1.101.3.4.3.20 */
     /* 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x15  */
@@ -1747,6 +1755,14 @@ enum Ctc_SigType {
     CTC_XMSSMT                  = 0x2607012e     /* 1.3.6.1.5.5.7.6.35 */
 #endif
 };
+
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+/* Legacy LEVEL2/3/5 spellings for the pre-standardization names. Will
+ * be removed alongside the dilithium.h shim. */
+#define CTC_ML_DSA_LEVEL2 CTC_ML_DSA_44
+#define CTC_ML_DSA_LEVEL3 CTC_ML_DSA_65
+#define CTC_ML_DSA_LEVEL5 CTC_ML_DSA_87
+#endif
 
 enum PKCS7_TYPES {
 #ifdef WOLFSSL_OLD_OID_SUM

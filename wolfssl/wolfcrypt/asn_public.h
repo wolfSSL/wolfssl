@@ -154,9 +154,9 @@ enum CertType {
     DILITHIUM_LEVEL2_TYPE,
     DILITHIUM_LEVEL3_TYPE,
     DILITHIUM_LEVEL5_TYPE,
-    ML_DSA_LEVEL2_TYPE,
-    ML_DSA_LEVEL3_TYPE,
-    ML_DSA_LEVEL5_TYPE,
+    ML_DSA_44_TYPE,
+    ML_DSA_65_TYPE,
+    ML_DSA_87_TYPE,
     SLH_DSA_SHA2_128S_TYPE,
     SLH_DSA_SHA2_128F_TYPE,
     SLH_DSA_SHA2_192S_TYPE,
@@ -174,6 +174,14 @@ enum CertType {
     PKCS7_TYPE,
     TRUSTED_CERT_TYPE
 };
+
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+/* Legacy LEVEL2/3/5 spellings for the pre-standardization names. Will
+ * be removed alongside the dilithium.h shim. */
+#define ML_DSA_LEVEL2_TYPE ML_DSA_44_TYPE
+#define ML_DSA_LEVEL3_TYPE ML_DSA_65_TYPE
+#define ML_DSA_LEVEL5_TYPE ML_DSA_87_TYPE
+#endif
 
 
 enum Ctc_Encoding {

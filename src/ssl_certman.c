@@ -158,9 +158,9 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     #ifdef HAVE_FALCON
         cm->minFalconKeySz = MIN_FALCONKEY_SZ;
     #endif /* HAVE_FALCON */
-    #ifdef HAVE_DILITHIUM
-        cm->minDilithiumKeySz = MIN_DILITHIUMKEY_SZ;
-    #endif /* HAVE_DILITHIUM */
+    #ifdef WOLFSSL_HAVE_MLDSA
+        cm->minMlDsaKeySz = MIN_MLDSAKEY_SZ;
+    #endif /* WOLFSSL_HAVE_MLDSA */
     }
 
     /* Dispose of certificate manager on error. The reference count may not
@@ -3145,52 +3145,52 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_FALCON */
-            #if defined(HAVE_DILITHIUM)
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+            #if defined(WOLFSSL_HAVE_MLDSA)
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
             case DILITHIUM_LEVEL2k:
-                if (cm->minDilithiumKeySz < 0 ||
-                    DILITHIUM_LEVEL2_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
-                    ret = DILITHIUM_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Dilithium level 2 key size error");
+                if (cm->minMlDsaKeySz < 0 ||
+                    WC_MLDSA_44_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                    ret = MLDSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ML-DSA level 2 key size error");
                 }
                 break;
             case DILITHIUM_LEVEL3k:
-                if (cm->minDilithiumKeySz < 0 ||
-                    DILITHIUM_LEVEL3_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
-                    ret = DILITHIUM_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Dilithium level 3 key size error");
+                if (cm->minMlDsaKeySz < 0 ||
+                    WC_MLDSA_65_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                    ret = MLDSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ML-DSA level 3 key size error");
                 }
                 break;
             case DILITHIUM_LEVEL5k:
-                if (cm->minDilithiumKeySz < 0 ||
-                    DILITHIUM_LEVEL5_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
-                    ret = DILITHIUM_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Dilithium level 5 key size error");
+                if (cm->minMlDsaKeySz < 0 ||
+                    WC_MLDSA_87_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                    ret = MLDSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ML-DSA level 5 key size error");
                 }
                 break;
-            #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
-            case ML_DSA_LEVEL2k:
-                if (cm->minDilithiumKeySz < 0 ||
-                    ML_DSA_LEVEL2_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
-                    ret = DILITHIUM_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Dilithium level 2 key size error");
+            #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
+            case ML_DSA_44k:
+                if (cm->minMlDsaKeySz < 0 ||
+                    WC_MLDSA_44_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                    ret = MLDSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ML-DSA level 2 key size error");
                 }
                 break;
-            case ML_DSA_LEVEL3k:
-                if (cm->minDilithiumKeySz < 0 ||
-                    ML_DSA_LEVEL3_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
-                    ret = DILITHIUM_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Dilithium level 3 key size error");
+            case ML_DSA_65k:
+                if (cm->minMlDsaKeySz < 0 ||
+                    WC_MLDSA_65_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                    ret = MLDSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ML-DSA level 3 key size error");
                 }
                 break;
-            case ML_DSA_LEVEL5k:
-                if (cm->minDilithiumKeySz < 0 ||
-                    ML_DSA_LEVEL5_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
-                    ret = DILITHIUM_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA Dilithium level 5 key size error");
+            case ML_DSA_87k:
+                if (cm->minMlDsaKeySz < 0 ||
+                    WC_MLDSA_87_KEY_SIZE < (word16)cm->minMlDsaKeySz) {
+                    ret = MLDSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ML-DSA level 5 key size error");
                 }
                 break;
-            #endif /* HAVE_DILITHIUM */
+            #endif /* WOLFSSL_HAVE_MLDSA */
 
             default:
                 WOLFSSL_MSG("\tNo key size check done on CA");

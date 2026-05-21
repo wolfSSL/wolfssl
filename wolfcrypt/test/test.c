@@ -395,8 +395,8 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFSSL_HAVE_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
-#ifdef HAVE_DILITHIUM
-    #include <wolfssl/wolfcrypt/dilithium.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #include <wolfssl/wolfcrypt/wc_xmss.h>
@@ -965,8 +965,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef WOLFSSL_HAVE_MLKEM
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mlkem_test(void);
 #endif
-#ifdef HAVE_DILITHIUM
-    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dilithium_test(void);
+#ifdef WOLFSSL_HAVE_MLDSA
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mldsa_test(void);
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10
@@ -1447,14 +1447,14 @@ static WC_MAYBE_UNUSED Aes* test_AesGcmNew(void* heap, int declaredDevId,
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(WOLFSSL_STATIC_MEMORY_TEST_SZ)
         static byte gTestMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
-    #elif defined(HAVE_DILITHIUM)
-        #if defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) && \
-            defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) && \
-            defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM) && \
-            defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
-            static byte gTestMemory[192*1024];  /* Dilithium low mem */
+    #elif defined(WOLFSSL_HAVE_MLDSA)
+        #if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+            defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && \
+            defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM) && \
+            defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+            static byte gTestMemory[192*1024];  /* ML-DSA low mem */
         #else
-            static byte gTestMemory[576*1024];  /* Dilithium full mem */
+            static byte gTestMemory[576*1024];  /* ML-DSA full mem */
         #endif
     #elif defined(BENCH_EMBEDDED)
         static byte gTestMemory[14000];
@@ -3130,12 +3130,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif
 
-#ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_HAVE_MLDSA
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = dilithium_test()) != 0)
-        TEST_FAIL("DILITHIUM test failed!\n", ret);
+    if ( (ret = mldsa_test()) != 0)
+        TEST_FAIL("ML-DSA   test failed!\n", ret);
     else
-        TEST_PASS("DILITHIUM test passed!\n");
+        TEST_PASS("ML-DSA   test passed!\n");
     PRIVATE_KEY_LOCK();
 #endif
 
@@ -52263,22 +52263,22 @@ out:
 }
 #endif /* WOLFSSL_HAVE_MLKEM */
 
-#ifdef HAVE_DILITHIUM
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
+#ifdef WOLFSSL_HAVE_MLDSA
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+static wc_test_ret_t mldsa_param_vfy_test(int param, const byte* pubKey,
     word32 pubKeyLen, const byte* sig, word32 sigLen)
 {
-    #ifndef DILITHIUM_TEST_MSG_SZ
-    #define DILITHIUM_TEST_MSG_SZ 512
+    #ifndef WC_MLDSA_TEST_MSG_SZ
+    #define WC_MLDSA_TEST_MSG_SZ 512
     #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* msg = NULL;
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     byte* pubExported = NULL;
 #else
-    byte msg[DILITHIUM_TEST_MSG_SZ];
-    dilithium_key key[1];
-    byte pubExported[DILITHIUM_MAX_PUB_KEY_SIZE];
+    byte msg[WC_MLDSA_TEST_MSG_SZ];
+    wc_MlDsaKey key[1];
+    byte pubExported[MLDSA_MAX_PUB_KEY_SIZE];
 #endif
     wc_test_ret_t ret;
     int i;
@@ -52287,9 +52287,9 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
     int n_diff = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    msg = (byte*)XMALLOC(DILITHIUM_TEST_MSG_SZ, HEAP_HINT,
+    msg = (byte*)XMALLOC(WC_MLDSA_TEST_MSG_SZ, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     pubExported = (byte*)XMALLOC(pubKeyLen, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
@@ -52299,33 +52299,33 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
 #endif
 
     /* make dummy msg */
-    for (i = 0; i < DILITHIUM_TEST_MSG_SZ; i++) {
+    for (i = 0; i < WC_MLDSA_TEST_MSG_SZ; i++) {
         msg[i] = (byte)i;
     }
 
-    ret = wc_dilithium_init_ex(key, NULL, devId);
+    ret = wc_MlDsaKey_Init(key, NULL, devId);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         return ret;
     }
 
-    ret = wc_dilithium_set_level(key, param);
+    ret = wc_MlDsaKey_SetParams(key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_dilithium_import_public(pubKey, pubKeyLen, key);
+    ret = wc_MlDsaKey_ImportPubRaw(key, pubKey, pubKeyLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (param >= WC_ML_DSA_DRAFT) {
-        ret = wc_dilithium_verify_msg(sig, sigLen, msg, DILITHIUM_TEST_MSG_SZ,
-            &res, key);
+        ret = wc_MlDsaKey_Verify(key, sig, sigLen, msg, WC_MLDSA_TEST_MSG_SZ,
+            &res);
     }
     else
 #endif
     {
-        ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
-            DILITHIUM_TEST_MSG_SZ, &res, key);
+        ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+            WC_MLDSA_TEST_MSG_SZ, &res);
     }
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -52333,7 +52333,7 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
         ERROR_OUT(WC_TEST_RET_ENC_EC(res), out);
 
     /* Now test the export pub raw API, verify we recover the original pub. */
-    ret = wc_dilithium_export_public(key, pubExported, &lenExported);
+    ret = wc_MlDsaKey_ExportPubRaw(key, pubExported, &lenExported);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -52349,7 +52349,7 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
     }
 
 out:
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -52359,7 +52359,7 @@ out:
 }
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-static wc_test_ret_t dilithium_param_44_vfy_test(void)
+static wc_test_ret_t mldsa_param_44_vfy_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_44_pub_key[] = {
         0xd8, 0xac, 0xaf, 0xd8, 0x2e, 0x14, 0x23, 0x78, 0xf7, 0x0d, 0x9a, 0x04,
@@ -52473,7 +52473,7 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
         0x2f, 0x4b, 0x2e, 0x23, 0x4c, 0x0f, 0x0f, 0xe0, 0x14, 0xa5, 0xe7, 0xe5,
         0x70, 0x8d, 0x8b, 0x9c
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_44_draft_pub_key[] = {
     0xea, 0x05, 0x24, 0x0d, 0x80, 0x72, 0x25, 0x55, 0xf4, 0x5b,
     0xc2, 0x13, 0x8b, 0x87, 0x5d, 0x31, 0x99, 0x2f, 0x1d, 0xa9,
@@ -52813,7 +52813,7 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
         0x7c, 0x8c, 0x8d, 0x92, 0x99, 0x9c, 0xad, 0xb5, 0xb7, 0xce, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x16, 0x23, 0x36, 0x4a
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_44_draft_sig[] = {
     0x5e, 0xc1, 0xce, 0x0e, 0x31, 0xea, 0x10, 0x52, 0xa3, 0x7a,
     0xfe, 0x4d, 0xac, 0x07, 0x89, 0x5a, 0x45, 0xbd, 0x5a, 0xe5,
@@ -53061,12 +53061,12 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
 #endif
     wc_test_ret_t ret;
 
-    ret = dilithium_param_vfy_test(WC_ML_DSA_44, ml_dsa_44_pub_key,
+    ret = mldsa_param_vfy_test(WC_ML_DSA_44, ml_dsa_44_pub_key,
         (word32)sizeof(ml_dsa_44_pub_key), ml_dsa_44_sig,
         (word32)sizeof(ml_dsa_44_sig));
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
-        ret = dilithium_param_vfy_test(WC_ML_DSA_44_DRAFT,
+        ret = mldsa_param_vfy_test(WC_ML_DSA_44_DRAFT,
             ml_dsa_44_draft_pub_key, (word32)sizeof(ml_dsa_44_draft_pub_key),
             ml_dsa_44_draft_sig, (word32)sizeof(ml_dsa_44_draft_sig));
     }
@@ -53077,7 +53077,7 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_65
-static wc_test_ret_t dilithium_param_65_vfy_test(void)
+static wc_test_ret_t mldsa_param_65_vfy_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_65_pub_key[] = {
         0x2c, 0x32, 0xfa, 0x59, 0x71, 0x16, 0x4a, 0x0e, 0x45, 0x0f, 0x21, 0xfd,
@@ -53244,7 +53244,7 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
         0xa1, 0xe9, 0xa4, 0xb7, 0x42, 0x62, 0xee, 0xea, 0x43, 0xf3, 0xd8, 0xd0,
         0x7a, 0x53, 0x91, 0x34, 0x7f, 0xe7, 0x9a, 0xc6
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_65_draft_pub_key[] = {
     0x15, 0xc9, 0xe5, 0x53, 0x2f, 0xd8, 0x1f, 0xb4, 0xa3, 0x9f,
     0xae, 0xad, 0xb3, 0x10, 0xd0, 0x72, 0x69, 0xd3, 0x02, 0xf3,
@@ -53722,7 +53722,7 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x03, 0x0b, 0x13, 0x1a, 0x1d, 0x25
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_65_draft_sig[] = {
     0x3e, 0xff, 0xf4, 0x48, 0x80, 0x2d, 0x88, 0x87, 0xf4, 0xcc,
     0xa4, 0x61, 0xe1, 0x27, 0x20, 0x55, 0x66, 0xc8, 0xfe, 0x3e,
@@ -54059,12 +54059,12 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
 #endif
     wc_test_ret_t ret;
 
-    ret = dilithium_param_vfy_test(WC_ML_DSA_65, ml_dsa_65_pub_key,
+    ret = mldsa_param_vfy_test(WC_ML_DSA_65, ml_dsa_65_pub_key,
         (word32)sizeof(ml_dsa_65_pub_key), ml_dsa_65_sig,
         (word32)sizeof(ml_dsa_65_sig));
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
-        ret = dilithium_param_vfy_test(WC_ML_DSA_65_DRAFT,
+        ret = mldsa_param_vfy_test(WC_ML_DSA_65_DRAFT,
             ml_dsa_65_draft_pub_key, (word32)sizeof(ml_dsa_65_draft_pub_key),
             ml_dsa_65_draft_sig, (word32)sizeof(ml_dsa_65_draft_sig));
     }
@@ -54075,7 +54075,7 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_87
-static wc_test_ret_t dilithium_param_87_vfy_test(void)
+static wc_test_ret_t mldsa_param_87_vfy_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_87_pub_key[] = {
         0x8a, 0x66, 0xe3, 0x6e, 0x3c, 0x11, 0x70, 0x9f, 0x82, 0xdd, 0xeb, 0x9e,
@@ -54295,7 +54295,7 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
         0xe5, 0xef, 0x19, 0xbe, 0x04, 0xf6, 0x6b, 0xad, 0x41, 0x4c, 0x5a, 0x50,
         0xf6, 0xac, 0x1b, 0x25, 0x8a, 0xdd, 0xe3, 0x57, 0xab, 0x7c, 0x92, 0xe4
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_87_draft_pub_key[] = {
     0xef, 0x49, 0x79, 0x47, 0x15, 0xc4, 0x8a, 0xa9, 0x74, 0x2a,
     0xf0, 0x36, 0x94, 0x5c, 0x91, 0x1c, 0x5d, 0xff, 0x2c, 0x83,
@@ -54947,7 +54947,7 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06,
         0x0c, 0x18, 0x20, 0x24, 0x2f, 0x33, 0x3f
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_87_draft_sig[] = {
     0x78, 0xed, 0x1a, 0x3f, 0x41, 0xab, 0xf8, 0x93, 0x80, 0xf0,
     0xc6, 0xbf, 0x4a, 0xde, 0xaf, 0x29, 0x93, 0xe5, 0x9a, 0xbf,
@@ -55416,12 +55416,12 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
 #endif
     wc_test_ret_t ret;
 
-    ret = dilithium_param_vfy_test(WC_ML_DSA_87, ml_dsa_87_pub_key,
+    ret = mldsa_param_vfy_test(WC_ML_DSA_87, ml_dsa_87_pub_key,
         (word32)sizeof(ml_dsa_87_pub_key), ml_dsa_87_sig,
         (word32)sizeof(ml_dsa_87_sig));
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
-        ret = dilithium_param_vfy_test(WC_ML_DSA_87_DRAFT,
+        ret = mldsa_param_vfy_test(WC_ML_DSA_87_DRAFT,
             ml_dsa_87_draft_pub_key, (word32)sizeof(ml_dsa_87_draft_pub_key),
             ml_dsa_87_draft_sig, (word32)sizeof(ml_dsa_87_draft_sig));
     }
@@ -55432,64 +55432,64 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
 #endif
 #endif
 
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     byte* sig = NULL;
 #else
-    dilithium_key  key[1];
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
-    byte sig[DILITHIUM_MAX_SIG_SIZE];
+    wc_MlDsaKey  key[1];
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    byte sig[MLDSA_MAX_SIG_SIZE];
 #endif
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
     word32 sigLen;
     byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
     int res = 0;
 #endif
 #endif
-    dilithium_key* tmpKey = NULL;
+    wc_MlDsaKey* tmpKey = NULL;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL || sig == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
 #endif
 
-    ret = wc_dilithium_init_ex(key, NULL, devId);
+    ret = wc_MlDsaKey_Init(key, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_dilithium_set_level(key, param);
+    ret = wc_MlDsaKey_SetParams(key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_make_key(key, rng);
+    ret = wc_MlDsaKey_MakeKey(key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
-    sigLen = wc_dilithium_sig_size(key);
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    sigLen = wc_MlDsaKey_SigSize(key);
     if (sigLen <= 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_sign_ctx_msg(NULL, 0, msg, (word32)sizeof(msg), sig,
-        &sigLen, key, rng);
+    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen,
+        msg, (word32)sizeof(msg), rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
-        (word32)sizeof(msg), &res, key);
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
@@ -55497,16 +55497,16 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
 #endif
 #endif
 
-    tmpKey = wc_dilithium_new(HEAP_HINT, devId);
+    tmpKey = wc_MlDsaKey_New(HEAP_HINT, devId);
     if (tmpKey == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_delete(tmpKey, &tmpKey);
+    ret = wc_MlDsaKey_Delete(tmpKey, &tmpKey);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 out:
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -55515,77 +55515,77 @@ out:
 }
 #endif
 
-#if defined(WC_DILITHIUM_CACHE_MATRIX_A) && \
-    !defined(WC_DILITHIUM_FIXED_ARRAY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if defined(WC_MLDSA_CACHE_MATRIX_A) && \
+    !defined(WC_MLDSA_FIXED_ARRAY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
 /* Regression test for sign path matrix A cache allocation.
  *
- * dilithium_sign_with_seed_mu() previously stored the result of XMALLOC for
+ * mldsa_sign_with_seed_mu() previously stored the result of XMALLOC for
  * the matrix A cache into a local variable instead of key->a. The local was
  * then immediately overwritten by `a = key->a` (still NULL), so the just-
  * allocated buffer was leaked and a NULL pointer was passed to
- * dilithium_expand_a().
+ * mldsa_expand_a().
  *
  * This test exercises that exact code path by clearing the cache state on a
  * key after make_key, then signing. The post-condition asserts that key->a
  * was populated (proving the allocation made it into the key, not the local)
  * and that signing produces a verifiable signature.
  */
-static wc_test_ret_t dilithium_sign_cache_alloc_test(int param, WC_RNG* rng)
+static wc_test_ret_t mldsa_sign_cache_alloc_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     byte* sig = NULL;
     word32 sigLen;
     byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
     int res = 0;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
-    /* Init before further allocations so wc_dilithium_free() in the cleanup
+    /* Init before further allocations so wc_MlDsaKey_Free() in the cleanup
      * path operates on a zeroed struct, not garbage cached-pointer fields. */
-    ret = wc_dilithium_init_ex(key, NULL, devId);
+    ret = wc_MlDsaKey_Init(key, NULL, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
 
-    ret = wc_dilithium_set_level(key, param);
+    ret = wc_MlDsaKey_SetParams(key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_make_key(key, rng);
+    ret = wc_MlDsaKey_MakeKey(key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* Drop the cached matrix A so the next sign exercises the allocation
-     * branch in dilithium_sign_with_seed_mu(). */
-    XFREE(key->a, key->heap, DYNAMIC_TYPE_DILITHIUM);
+     * branch in mldsa_sign_with_seed_mu(). */
+    XFREE(key->a, key->heap, DYNAMIC_TYPE_MLDSA);
     key->a = NULL;
     key->aSet = 0;
-#ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
-    XFREE(key->s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    XFREE(key->s1, key->heap, DYNAMIC_TYPE_MLDSA);
     key->s1 = NULL;
     key->s2 = NULL;
     key->t0 = NULL;
     key->privVecsSet = 0;
 #endif
 
-    sigLen = wc_dilithium_sig_size(key);
+    sigLen = wc_MlDsaKey_SigSize(key);
     if (sigLen <= 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_sign_ctx_msg(NULL, 0, msg, (word32)sizeof(msg), sig,
-        &sigLen, key, rng);
+    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen,
+        msg, (word32)sizeof(msg), rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -55597,8 +55597,8 @@ static wc_test_ret_t dilithium_sign_cache_alloc_test(int param, WC_RNG* rng)
     if (key->aSet != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
-        (word32)sizeof(msg), &res, key);
+    ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
@@ -55606,48 +55606,48 @@ static wc_test_ret_t dilithium_sign_cache_alloc_test(int param, WC_RNG* rng)
 
 out:
     if (key != NULL)
-        wc_dilithium_free(key);
+        wc_MlDsaKey_Free(key);
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* WC_DILITHIUM_CACHE_MATRIX_A && !WC_DILITHIUM_FIXED_ARRAY &&
-        * !WOLFSSL_DILITHIUM_NO_MAKE_KEY && !WOLFSSL_DILITHIUM_NO_SIGN &&
-        * !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* WC_MLDSA_CACHE_MATRIX_A && !WC_MLDSA_FIXED_ARRAY &&
+        * !WOLFSSL_MLDSA_NO_MAKE_KEY && !WOLFSSL_MLDSA_NO_SIGN &&
+        * !WOLFSSL_MLDSA_NO_VERIFY */
 
 
-#if (defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_SIGN)) || \
-    (defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
+#if (defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_SIGN)) || \
+    (defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_VERIFY))
 /* Tests decoding a key from DER without the security level specified */
-static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
+static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
                                                  word32      rawKeySz,
                                                  int         expectedLevel,
                                                  int         isPublicOnlyKey)
 {
     int           ret = 0;
-#if !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
     /* Size the buffer to accommodate the largest encoded key size */
-    const word32  maxDerSz = DILITHIUM_MAX_PRV_KEY_DER_SIZE;
+    const word32  maxDerSz = MLDSA_MAX_PRV_KEY_DER_SIZE;
     word32        derSz;
     word32        idx;
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte*         der = NULL;
     #else
-    byte          der[DILITHIUM_MAX_PRV_KEY_DER_SIZE];
+    byte          der[MLDSA_MAX_PRV_KEY_DER_SIZE];
     #endif
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    dilithium_key *key = NULL;
+    wc_MlDsaKey *key = NULL;
 #else
-    dilithium_key  key[1];
+    wc_MlDsaKey  key[1];
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate DER buffer */
     der = (byte*)XMALLOC(maxDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT,
+    key = (wc_MlDsaKey *)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL || key == NULL) {
         ret = MEMORY_E;
@@ -55656,38 +55656,38 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 
     /* Initialize key */
     if (ret == 0) {
-        ret = wc_dilithium_init_ex(key, NULL, devId);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
     }
 
     /* Import raw key, setting the security level */
     if (ret == 0) {
-        ret = wc_dilithium_set_level(key, expectedLevel);
+        ret = wc_MlDsaKey_SetParams(key, expectedLevel);
     }
 
     if (ret == 0) {
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_dilithium_import_public(rawKey, rawKeySz, key);
+            ret = wc_MlDsaKey_ImportPubRaw(key, rawKey, rawKeySz);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_dilithium_import_private(rawKey, rawKeySz, key);
+            ret = wc_MlDsaKey_ImportPrivRaw(key, rawKey, rawKeySz);
         }
 #endif
     }
 
-#if !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
     /* Export raw key as DER */
     if (ret == 0) {
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyToDer(key, der, maxDerSz, 1);
+            ret = wc_MlDsaKey_PublicKeyToDer(key, der, maxDerSz, 1);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyToDer(key, der, maxDerSz);
+            ret = wc_MlDsaKey_PrivateKeyToDer(key, der, maxDerSz);
         }
 #endif
         if (ret >= 0) {
@@ -55698,63 +55698,63 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
-        wc_dilithium_free(key);
-        ret = wc_dilithium_init_ex(key, NULL, devId);
+        wc_MlDsaKey_Free(key);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
     }
 
     /* First test decoding when security level is set externally */
     if (ret == 0) {
-        ret = wc_dilithium_set_level(key, expectedLevel);
+        ret = wc_MlDsaKey_SetParams(key, expectedLevel);
     }
 
     if (ret == 0) {
         idx = 0;
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PublicKeyDecode(key, der, derSz, &idx);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PrivateKeyDecode(key, der, derSz, &idx);
         }
 #endif
     }
 
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
-        wc_dilithium_free(key);
-        ret = wc_dilithium_init_ex(key, NULL, devId);
+        wc_MlDsaKey_Free(key);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
     }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifndef WOLFSSL_MLDSA_FIPS204_DRAFT
     /* Test decoding without setting security level - should auto-detect */
     if (ret == 0) {
         idx = 0;
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PublicKeyDecode(key, der, derSz, &idx);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PrivateKeyDecode(key, der, derSz, &idx);
         }
 #endif
     }
 
     /* Verify auto-detected security level */
     if (ret == 0 && key->level != expectedLevel) {
-        printf("Dilithium key decode failed to detect level.\n"
+        printf("ML-DSA key decode failed to detect level.\n"
                "\tExpected level=%d\n\tGot level=%d\n",
                expectedLevel, key->level);
         ret = WC_TEST_RET_ENC_NC;
     }
-#endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
-#endif /* !WOLFSSL_DILITHIUM_NO_ASN1 && WOLFSSL_ASN_TEMPLATE */
+#endif /* !WOLFSSL_MLDSA_FIPS204_DRAFT */
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 && WOLFSSL_ASN_TEMPLATE */
 
     /* Cleanup */
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -55763,97 +55763,97 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 }
 
 /* Test Dilithium key decoding and security level detection */
-static wc_test_ret_t dilithium_decode_test(void)
+static wc_test_ret_t mldsa_decode_test(void)
 {
     wc_test_ret_t ret;
     const byte*   key;
     word32        keySz;
 
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     const int isPrvKey = 0;
 #endif
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
     const int isPubKey = 1;
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     /* Test ML-DSA-44 */
-    key   = bench_dilithium_level2_key;
-    keySz = sizeof_bench_dilithium_level2_key;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPrvKey);
+    key   = bench_mldsa_44_key;
+    keySz = sizeof_bench_mldsa_44_key;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_44, isPrvKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
+#endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    key   = bench_dilithium_level2_pubkey;
-    keySz = sizeof_bench_dilithium_level2_pubkey;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPubKey);
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    key   = bench_mldsa_44_pubkey;
+    keySz = sizeof_bench_mldsa_44_pubkey;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_44, isPubKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_44 */
 
 #ifndef WOLFSSL_NO_ML_DSA_65
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     /* Test ML-DSA-65 */
-    key   = bench_dilithium_level3_key;
-    keySz = sizeof_bench_dilithium_level3_key;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPrvKey);
+    key   = bench_mldsa_65_key;
+    keySz = sizeof_bench_mldsa_65_key;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_65, isPrvKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
+#endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    key   = bench_dilithium_level3_pubkey;
-    keySz = sizeof_bench_dilithium_level3_pubkey;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPubKey);
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    key   = bench_mldsa_65_pubkey;
+    keySz = sizeof_bench_mldsa_65_pubkey;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_65, isPubKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_65 */
 
 #ifndef WOLFSSL_NO_ML_DSA_87
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     /* Test ML-DSA-87 */
-    key   = bench_dilithium_level5_key;
-    keySz = sizeof_bench_dilithium_level5_key;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPrvKey);
+    key   = bench_mldsa_87_key;
+    keySz = sizeof_bench_mldsa_87_key;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_87, isPrvKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
+#endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    key   = bench_dilithium_level5_pubkey;
-    keySz = sizeof_bench_dilithium_level5_pubkey;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPubKey);
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    key   = bench_mldsa_87_pubkey;
+    keySz = sizeof_bench_mldsa_87_pubkey;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_87, isPubKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_87 */
 
     return ret;
 }
-#endif /* (WOLFSSL_DILITHIUM_PUBLIC_KEY && !WOLFSSL_DILITHIUM_NO_VERIFY) ||
-        * (WOLFSSL_DILITHIUM_PRIVATE_KEY && !WOLFSSL_DILITHIUM_NO_SIGN) */
+#endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
+        * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
 
 
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 {
     wc_test_ret_t ret;
     WC_RNG rng;
@@ -55869,85 +55869,85 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
     }
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = dilithium_param_44_vfy_test();
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = mldsa_param_44_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-    ret = dilithium_param_test(WC_ML_DSA_44, &rng);
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    ret = mldsa_param_test(WC_ML_DSA_44, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = dilithium_param_65_vfy_test();
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = mldsa_param_65_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-    ret = dilithium_param_test(WC_ML_DSA_65, &rng);
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    ret = mldsa_param_test(WC_ML_DSA_65, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = dilithium_param_87_vfy_test();
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = mldsa_param_87_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-    ret = dilithium_param_test(WC_ML_DSA_87, &rng);
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    ret = mldsa_param_test(WC_ML_DSA_87, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 
-#if defined(WC_DILITHIUM_CACHE_MATRIX_A) && \
-    !defined(WC_DILITHIUM_FIXED_ARRAY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if defined(WC_MLDSA_CACHE_MATRIX_A) && \
+    !defined(WC_MLDSA_FIXED_ARRAY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ret = dilithium_sign_cache_alloc_test(WC_ML_DSA_44, &rng);
+    ret = mldsa_sign_cache_alloc_test(WC_ML_DSA_44, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ret = dilithium_sign_cache_alloc_test(WC_ML_DSA_65, &rng);
+    ret = mldsa_sign_cache_alloc_test(WC_ML_DSA_65, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    ret = dilithium_sign_cache_alloc_test(WC_ML_DSA_87, &rng);
+    ret = mldsa_sign_cache_alloc_test(WC_ML_DSA_87, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 
-#if (defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_SIGN)) || \
-    (defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
-    ret = dilithium_decode_test();
+#if (defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_SIGN)) || \
+    (defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_VERIFY))
+    ret = mldsa_decode_test();
     if (ret != 0) {
         ERROR_OUT(ret, out);
     }
-#endif /* (WOLFSSL_DILITHIUM_PUBLIC_KEY && !WOLFSSL_DILITHIUM_NO_VERIFY) ||
-        * (WOLFSSL_DILITHIUM_PRIVATE_KEY && !WOLFSSL_DILITHIUM_NO_SIGN) */
+#endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
+        * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
 
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) || \
-    defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) || \
-    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) || \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY)
 out:
 #endif
     wc_FreeRng(&rng);
     return ret;
 }
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
 static enum wc_XmssRc xmss_write_key_mem(const byte * priv, word32 privSz,
@@ -73047,14 +73047,14 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
-#if defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA)
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
                 case WC_PK_TYPE_PQC_SIG_KEYGEN:
                 {
-            #ifdef HAVE_DILITHIUM
+            #ifdef WOLFSSL_HAVE_MLDSA
                     if (info->free.subType == WC_PQC_SIG_TYPE_MLDSA) {
-                        dilithium_key* dil = (dilithium_key*)info->free.obj;
+                        wc_MlDsaKey* dil = (wc_MlDsaKey*)info->free.obj;
                         dil->devId = INVALID_DEVID;
-                        wc_dilithium_free(dil);
+                        wc_MlDsaKey_Free(dil);
                         ret = 0;
                     }
             #endif
@@ -73729,9 +73729,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = mlkem_test();
 #endif
-#ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_HAVE_MLDSA
     if (ret == 0)
-        ret = dilithium_test();
+        ret = mldsa_test();
 #endif
 #ifdef WOLFSSL_HAVE_SLHDSA
     if (ret == 0) {

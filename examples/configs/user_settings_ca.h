@@ -146,9 +146,8 @@ extern "C" {
 /* ------------------------------------------------- */
 /* Post-Quantum Certificates */
 /* ------------------------------------------------- */
-#if 0 /* ML-DSA / Dilithium certificates */
-    #define WOLFSSL_EXPERIMENTAL_SETTINGS
-    #define HAVE_DILITHIUM
+#if 0 /* ML-DSA (FIPS 204) certificates */
+    #define WOLFSSL_HAVE_MLDSA
     #define WOLFSSL_SHAKE128
     #define WOLFSSL_SHAKE256
 #endif

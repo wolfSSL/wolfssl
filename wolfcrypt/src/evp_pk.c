@@ -852,9 +852,9 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 }
 #endif /* HAVE_FALCON */
 
-#ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_HAVE_MLDSA
 /**
- * Try to make a Dilithium EVP PKEY from data.
+ * Try to make an ML-DSA EVP PKEY from data.
  *
  * Accepts either raw key bytes or DER (PKCS#8 / SPKI). Raw bytes are
  * size-keyed, so each level is tried in turn. DER input is decoded once,
@@ -870,81 +870,81 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  *            object creation/import failed.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
-static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
+static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     long memSz, int priv)
 {
     static const byte levels[] = { WC_ML_DSA_44, WC_ML_DSA_65, WC_ML_DSA_87 };
     word32 inSz = (word32)memSz;
     word32 keyIdx = 0;
-    int isDilithium = 0;
+    int isMlDsa = 0;
     int i, numLevels, rc;
-    WC_DECLARE_VAR(dilithium, dilithium_key, 1, NULL);
+    WC_DECLARE_VAR(mldsa, wc_MlDsaKey, 1, NULL);
 
-#if !defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+#if !defined(WOLFSSL_MLDSA_PRIVATE_KEY)
     if (priv) {
         return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
-    WC_ALLOC_VAR_EX(dilithium, dilithium_key, 1, NULL, DYNAMIC_TYPE_DILITHIUM,
+    WC_ALLOC_VAR_EX(mldsa, wc_MlDsaKey, 1, NULL, DYNAMIC_TYPE_MLDSA,
         return 0);
 
-    if (wc_dilithium_init(dilithium) != 0) {
-        WC_FREE_VAR_EX(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+    if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+        WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
         return 0;
     }
 
     /* Raw key bytes are size-keyed, try each level */
     numLevels = (int)(sizeof(levels) / sizeof(levels[0]));
-    for (i = 0; i < numLevels && !isDilithium; i++) {
-        if (wc_dilithium_set_level(dilithium, levels[i]) != 0) {
+    for (i = 0; i < numLevels && !isMlDsa; i++) {
+        if (wc_MlDsaKey_SetParams(mldsa, levels[i]) != 0) {
             continue;
         }
-    #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+    #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
         if (priv) {
-            rc = wc_dilithium_import_private(mem, inSz, dilithium);
+            rc = wc_MlDsaKey_ImportPrivRaw(mldsa, mem, inSz);
         }
         else
     #endif
         {
-            rc = wc_dilithium_import_public(mem, inSz, dilithium);
+            rc = wc_MlDsaKey_ImportPubRaw(mldsa, mem, inSz);
         }
         if (rc == 0) {
-            isDilithium = 1;
+            isMlDsa = 1;
         }
     }
 
     /* DER input includes auto level detection */
-    if (!isDilithium) {
-        wc_dilithium_free(dilithium);
-        if (wc_dilithium_init(dilithium) != 0) {
-            WC_FREE_VAR_EX(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+    if (!isMlDsa) {
+        wc_MlDsaKey_Free(mldsa);
+        if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+            WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
             return 0;
         }
-    #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+    #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
         if (priv) {
-            rc = wc_Dilithium_PrivateKeyDecode(mem, &keyIdx, dilithium, inSz);
+            rc = wc_MlDsaKey_PrivateKeyDecode(mldsa, mem, inSz, &keyIdx);
         }
         else
     #endif
         {
-            rc = wc_Dilithium_PublicKeyDecode(mem, &keyIdx, dilithium, inSz);
+            rc = wc_MlDsaKey_PublicKeyDecode(mldsa, mem, inSz, &keyIdx);
         }
         if (rc == 0) {
-            isDilithium = 1;
+            isMlDsa = 1;
         }
     }
 
-    wc_dilithium_free(dilithium);
-    WC_FREE_VAR_EX(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+    wc_MlDsaKey_Free(mldsa);
+    WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
 
-    if (!isDilithium) {
+    if (!isMlDsa) {
         return WOLFSSL_FATAL_ERROR;
     }
 
     return d2i_make_pkey(out, NULL, 0, priv, WC_EVP_PKEY_DILITHIUM);
 }
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 
 /**
  * Try to make a WOLFSSL_EVP_PKEY from data.
@@ -1030,12 +1030,12 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
     }
     else
 #endif /* HAVE_FALCON */
-#ifdef HAVE_DILITHIUM
-    if (d2iTryDilithiumKey(&pkey, *in, inSz, priv) >= 0) {
+#ifdef WOLFSSL_HAVE_MLDSA
+    if (d2iTryMlDsaKey(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
     }
     else
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
     {
         WOLFSSL_MSG("d2i_evp_pkey_try couldn't determine key type");
     }

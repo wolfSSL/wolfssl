@@ -7840,7 +7840,7 @@ static const byte slhdsakey_oid_sha3_512[] = {
  * corresponding OID for the chosen hash algorithm.
  *
  * The HashSLH-DSA family takes the digest as input rather than the full
- * message. This mirrors the wc_dilithium_*_ctx_hash interface and matches the
+ * message. This mirrors the wc_MlDsaKey_*Ctx_Hash interface and matches the
  * convention used by NIST ACVP signatureInterface=external / preHash test
  * vectors and other libraries (OpenSSL HASH-ML-DSA, leancrypto SLH-DSA,
  * mldsa-native pre_hash_internal). The expected digest length is fixed by
@@ -9185,7 +9185,7 @@ int wc_SlhDsaKey_PublicKeyDecode(const byte* input, word32* inOutIdx,
      * parameter set -- callers chaining decoders must pass inSz scoped to
      * just the public-key buffer or the import will reject the length and
      * fall through to SPKI parsing. Mirrors the raw-first fallback in
-     * wc_Dilithium_PublicKeyDecode and wc_Falcon_PublicKeyDecode so all PQ
+     * wc_MlDsaKey_PublicKeyDecode and wc_Falcon_PublicKeyDecode so all PQ
      * public-key decoders accept either raw bytes or SPKI.
      *
      * The length check in ImportPublic is the disambiguator: a real SPKI

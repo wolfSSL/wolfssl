@@ -148,13 +148,12 @@
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
-/* Pull in the legacy compatibility shim. settings.h has already run the
- * forward arm of the sub-config gate translation block (legacy
- * WOLFSSL_DILITHIUM_* / WC_DILITHIUM_* -> canonical WOLFSSL_MLDSA_* /
- * WC_MLDSA_*) so wc_mldsa.h's own conditional declarations read the
- * canonical gates regardless of which spelling was used by the build
- * system or user_settings.h. This include brings in the reverse arm
- * (canonical -> legacy) and the legacy macro / inline aliases. */
+/* Pull in the legacy compatibility shim. wc_mldsa.h pulls in dilithium.h
+ * itself for the forward arm of the sub-config gate translation (so the
+ * canonical WOLFSSL_MLDSA_* gates are visible to wc_mldsa.h's own
+ * conditional declarations regardless of which spelling was used by the
+ * build system or user_settings.h). This include brings in the reverse
+ * arm (canonical -> legacy) and the legacy macro / inline aliases. */
 #include <wolfssl/wolfcrypt/dilithium.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/sha3.h>
@@ -11931,11 +11930,11 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 static int mapOidToSecLevel(int oid)
 {
     switch (oid) {
-        case ML_DSA_LEVEL2k:
+        case ML_DSA_44k:
             return WC_ML_DSA_44;
-        case ML_DSA_LEVEL3k:
+        case ML_DSA_65k:
             return WC_ML_DSA_65;
-        case ML_DSA_LEVEL5k:
+        case ML_DSA_87k:
             return WC_ML_DSA_87;
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
         case DILITHIUM_LEVEL2k:
@@ -11970,13 +11969,13 @@ int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat) {
     else
     #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
     if (key->level == WC_ML_DSA_44) {
-        *keyFormat = ML_DSA_LEVEL2k;
+        *keyFormat = ML_DSA_44k;
     }
     else if (key->level == WC_ML_DSA_65) {
-        *keyFormat = ML_DSA_LEVEL3k;
+        *keyFormat = ML_DSA_65k;
     }
     else if (key->level == WC_ML_DSA_87) {
-        *keyFormat = ML_DSA_LEVEL5k;
+        *keyFormat = ML_DSA_87k;
     }
     else {
         /* Level is not set */
@@ -12048,13 +12047,13 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
         }
     #endif
         else if (key->level == WC_ML_DSA_44) {
-            keyType = ML_DSA_LEVEL2k;
+            keyType = ML_DSA_44k;
         }
         else if (key->level == WC_ML_DSA_65) {
-            keyType = ML_DSA_LEVEL3k;
+            keyType = ML_DSA_65k;
         }
         else if (key->level == WC_ML_DSA_87) {
-            keyType = ML_DSA_LEVEL5k;
+            keyType = ML_DSA_87k;
         }
         else {
             ret = BAD_FUNC_ARG;
@@ -12368,13 +12367,13 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
             else
         #endif
             if (key->level == WC_ML_DSA_44) {
-                keyType = ML_DSA_LEVEL2k;
+                keyType = ML_DSA_44k;
             }
             else if (key->level == WC_ML_DSA_65) {
-                keyType = ML_DSA_LEVEL3k;
+                keyType = ML_DSA_65k;
             }
             else if (key->level == WC_ML_DSA_87) {
-                keyType = ML_DSA_LEVEL5k;
+                keyType = ML_DSA_87k;
             }
             else {
                 /* Level not set by caller, decode from DER */
@@ -12554,15 +12553,15 @@ int wc_MlDsaKey_PublicKeyToDer(wc_MlDsaKey* key, byte* output, word32 len,
         else
     #endif
         if (key->level == WC_ML_DSA_44) {
-            keyType = ML_DSA_LEVEL2k;
+            keyType = ML_DSA_44k;
             pubKeyLen = WC_MLDSA_44_PUB_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_65) {
-            keyType = ML_DSA_LEVEL3k;
+            keyType = ML_DSA_65k;
             pubKeyLen = WC_MLDSA_65_PUB_KEY_SIZE;
         }
         else if (key->level == WC_ML_DSA_87) {
-            keyType = ML_DSA_LEVEL5k;
+            keyType = ML_DSA_87k;
             pubKeyLen = WC_MLDSA_87_PUB_KEY_SIZE;
         }
         else {
@@ -12627,15 +12626,15 @@ int wc_MlDsaKey_KeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
     #endif
         if (key->level == WC_ML_DSA_44) {
             ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, key->p,
-                WC_MLDSA_44_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL2k);
+                WC_MLDSA_44_PUB_KEY_SIZE, output, len, ML_DSA_44k);
         }
         else if (key->level == WC_ML_DSA_65) {
             ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, key->p,
-                WC_MLDSA_65_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL3k);
+                WC_MLDSA_65_PUB_KEY_SIZE, output, len, ML_DSA_65k);
         }
         else if (key->level == WC_ML_DSA_87) {
             ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, key->p,
-                WC_MLDSA_87_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL5k);
+                WC_MLDSA_87_PUB_KEY_SIZE, output, len, ML_DSA_87k);
         }
     }
 
@@ -12681,15 +12680,15 @@ int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output, word32 len)
     #endif
         if (key->level == WC_ML_DSA_44) {
             ret = SetAsymKeyDer(key->k, WC_MLDSA_44_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_LEVEL2k);
+                len, ML_DSA_44k);
         }
         else if (key->level == WC_ML_DSA_65) {
             ret = SetAsymKeyDer(key->k, WC_MLDSA_65_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_LEVEL3k);
+                len, ML_DSA_65k);
         }
         else if (key->level == WC_ML_DSA_87) {
             ret = SetAsymKeyDer(key->k, WC_MLDSA_87_KEY_SIZE, NULL, 0, output,
-                len, ML_DSA_LEVEL5k);
+                len, ML_DSA_87k);
         }
     }
 
