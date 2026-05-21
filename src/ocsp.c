@@ -1283,18 +1283,23 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         XMEMSET(resp, 0, sizeof(OcspResponse));
     }
 
+    if (resp->source != NULL)
+        XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     resp->source = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (resp->source == NULL) {
-        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        wolfSSL_OCSP_RESPONSE_free(resp);
         if (response != NULL && *response == resp)
             *response = NULL;
         return NULL;
     }
+    if (resp->single != NULL) {
+        FreeOcspEntry(resp->single, NULL);
+        XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+    }
     resp->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
                                       DYNAMIC_TYPE_OCSP_ENTRY);
     if (resp->single == NULL) {
-        XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        wolfSSL_OCSP_RESPONSE_free(resp);
         if (response != NULL && *response == resp)
             *response = NULL;
         return NULL;
@@ -1304,9 +1309,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
                                       DYNAMIC_TYPE_OCSP_STATUS);
     resp->single->ownStatus = 1;
     if (resp->single->status == NULL) {
-        XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        wolfSSL_OCSP_RESPONSE_free(resp);
         if (response != NULL && *response == resp)
             *response = NULL;
         return NULL;
