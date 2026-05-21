@@ -249,6 +249,13 @@
         #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #endif
 
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)) && \
+        defined(WC_SYM_RELOC_TABLES) && \
+        !defined(WC_LINUXKM_NO_USE_HEAP_WRAPPERS) && \
+        !defined(WC_LINUXKM_USE_HEAP_WRAPPERS)
+        #define WC_LINUXKM_USE_HEAP_WRAPPERS
+    #endif
+
     #ifdef BUILDING_WOLFSSL
 
     #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
@@ -519,6 +526,13 @@
             #endif
         #endif
         #include <linux/mm.h>
+    #endif
+
+    #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
+        WOLFSSL_API void *wc_linuxkm_malloc(size_t size);
+        WOLFSSL_API void wc_linuxkm_free(void *ptr);
+        WOLFSSL_API void *wc_linuxkm_realloc(void *ptr, size_t newsize);
+        WOLFSSL_API size_t wc_linuxkm_malloc_usable_size(void *ptr);
     #endif
 
 #ifndef WC_CONTAINERIZE_THIS
@@ -973,6 +987,12 @@
 
         const unsigned char *_ctype;
 
+#ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
+        typeof(wc_linuxkm_malloc) *wc_linuxkm_malloc;
+        typeof(wc_linuxkm_free) *wc_linuxkm_free;
+        typeof(wc_linuxkm_realloc) *wc_linuxkm_realloc;
+        typeof(wc_linuxkm_malloc_usable_size) *wc_linuxkm_malloc_usable_size;
+#else /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_node_align_noprof) *krealloc_node_align_noprof;
@@ -1023,6 +1043,7 @@
         #endif
         typeof(kfree) *kfree;
         typeof(ksize) *ksize;
+#endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
         typeof(get_random_bytes) *get_random_bytes;
@@ -1313,6 +1334,11 @@
 
     #define _ctype WC_PIE_INDIRECT_SYM(_ctype)
 
+#ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
+    /* no native heap call masking -- wc_linuxkm wrapper functions bound
+     * directly to malloc() and friends.
+     */
+#else /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof WC_PIE_INDIRECT_SYM(kmalloc_noprof)
@@ -1368,6 +1394,7 @@
         #define kvfree WC_PIE_INDIRECT_SYM(kvfree)
     #endif
     #define ksize WC_PIE_INDIRECT_SYM(ksize)
+#endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #define get_random_bytes WC_PIE_INDIRECT_SYM(get_random_bytes)
@@ -1705,6 +1732,12 @@
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
             #endif /* !CONFIG_X86 */
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+        #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
+            WOLFSSL_API extern void *wc_linuxkm_malloc(size_t size);
+            WOLFSSL_API void wc_linuxkm_free(void *ptr);
+            WOLFSSL_API void *wc_linuxkm_realloc(void *ptr, size_t newsize);
+            WOLFSSL_API size_t wc_linuxkm_malloc_usable_size(void *ptr);
+        #endif
     #endif /* !BUILDING_WOLFSSL */
 
     /* Copied from wc_port.h */
@@ -1859,9 +1892,25 @@
               ((sizeof(_alloc_sz) * 8UL) - __builtin_clzl(_alloc_sz - 1)); \
         _alloc_sz;                                                         \
     })
+
+    #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
+        #ifdef WC_CONTAINERIZE_THIS
+            #define malloc(size) WC_PIE_INDIRECT_SYM(wc_linuxkm_malloc)(size)
+            #define free(ptr) WC_PIE_INDIRECT_SYM(wc_linuxkm_free)(ptr)
+            #define realloc(ptr, newsize) WC_PIE_INDIRECT_SYM(wc_linuxkm_realloc)(ptr, newsize)
+        #else
+            #define malloc(size) wc_linuxkm_malloc(size)
+            #define free(ptr) wc_linuxkm_free(ptr)
+            #define realloc(ptr, newsize) wc_linuxkm_realloc(ptr, newsize)
+        #endif
+    #else /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
     #ifdef USE_KVMALLOC
         #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
-        #define free(ptr) kvfree(ptr)
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
+            #define free(ptr) (preempt_count() == 0 ? kvfree(ptr) : kvfree_atomic(ptr))
+        #else
+            #define free(ptr) kvfree(ptr)
+        #endif
         #ifdef USE_KVREALLOC
             #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
         #else
@@ -1872,6 +1921,7 @@
         #define free(ptr) kfree(ptr)
         #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
     #endif
+    #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
     #ifndef static_assert
         #define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)

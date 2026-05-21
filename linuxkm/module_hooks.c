@@ -1275,6 +1275,41 @@ static const struct wc_reloc_table_segments seg_map = {
 
 #endif /* !WC_SYM_RELOC_TABLES && HAVE_FIPS */
 
+#ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
+
+#ifndef USE_KVREALLOC
+    #error WC_LINUXKM_USE_HEAP_WRAPPERS requires USE_KVREALLOC
+#endif
+
+void *wc_linuxkm_malloc(size_t size)
+{
+    return kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE);
+}
+
+void wc_linuxkm_free(void *ptr)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
+    if (preempt_count() == 0)
+        kvfree(ptr);
+    else
+        kvfree_atomic(ptr);
+#else
+    kvfree(ptr);
+#endif
+}
+
+void *wc_linuxkm_realloc(void *ptr, size_t newsize)
+{
+    return kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC));
+}
+
+size_t wc_linuxkm_malloc_usable_size(void *ptr)
+{
+    return ksize(ptr);
+}
+
+#endif /* WC_LINUXKM_USE_HEAP_WRAPPERS */
+
 #ifdef WC_SYM_RELOC_TABLES
 
 /* get_current() is an inline or macro, depending on the target -- sidestep the
@@ -1361,6 +1396,13 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table._ctype = _ctype;
 
+#ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_malloc = wc_linuxkm_malloc;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_free = wc_linuxkm_free;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_realloc = wc_linuxkm_realloc;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_malloc_usable_size = wc_linuxkm_malloc_usable_size;
+#else /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
     wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
     wolfssl_linuxkm_pie_redirect_table.krealloc_node_align_noprof = krealloc_node_align_noprof;
@@ -1415,6 +1457,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifdef HAVE_KVMALLOC
     wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
 #endif
+
+#endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
