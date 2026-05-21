@@ -22,6 +22,7 @@
 #define __RENESAS_FSPSM_CRYPT_H__
 
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-types.h>
+#include <stdint.h>     /* uint8_t */
 
 #ifdef __cplusplus
 extern "C" {

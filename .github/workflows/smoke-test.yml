@@ -62,6 +62,12 @@ jobs:
             args: "--enable-psk --enable-dtls --enable-dtls13 --enable-dtls-mtu --enable-aesccm --enable-opensslextra"
           - name: integration
             args: "--enable-openssh --enable-lighty --enable-stunnel --enable-opensslextra"
+          # AddressSanitizer (UBSAN excluded - current master has known
+          # left-shift UB in auto-generated SP math).
+          - name: sanitize-asan
+            args: "--enable-all"
+            cflags: "-fsanitize=address -fno-omit-frame-pointer -g -O1"
+            ldflags: "-fsanitize=address"
     env:
       MAKE_CFLAGS: "-Werror"
     steps:
@@ -111,10 +117,20 @@ jobs:
         if: steps.merge_check.outputs.skip != 'true'
         run: ./configure ${{ matrix.config.args }}
 
-      - name: make (CFLAGS=-Werror)
+      - name: make
         if: steps.merge_check.outputs.skip != 'true'
-        run: make -j$(nproc) CFLAGS="$MAKE_CFLAGS"
+        env:
+          ENTRY_CFLAGS: ${{ matrix.config.cflags }}
+          ENTRY_LDFLAGS: ${{ matrix.config.ldflags }}
+        run: |
+          FLAGS="${ENTRY_CFLAGS:-$MAKE_CFLAGS}"
+          make -j"$(nproc)" CFLAGS="$FLAGS" LDFLAGS="$ENTRY_LDFLAGS"
 
-      - name: make check (CFLAGS=-Werror)
+      - name: make check
         if: steps.merge_check.outputs.skip != 'true'
-        run: make check CFLAGS="$MAKE_CFLAGS"
+        env:
+          ENTRY_CFLAGS: ${{ matrix.config.cflags }}
+          ENTRY_LDFLAGS: ${{ matrix.config.ldflags }}
+        run: |
+          FLAGS="${ENTRY_CFLAGS:-$MAKE_CFLAGS}"
+          make check CFLAGS="$FLAGS" LDFLAGS="$ENTRY_LDFLAGS"

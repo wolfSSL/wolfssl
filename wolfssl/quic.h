@@ -35,13 +35,10 @@
 #ifndef NO_STDINT_H
     #include <stdint.h>
 #endif
+#include <stddef.h>     /* size_t */
 
-/* QUIC operates on three encryption levels which determine
- * which keys/algos are used for de-/encryption. These are
- * kept separately for incoming and outgoing data and.
- * Due to the nature of UDP, more than one might be in use
- * at the same time due to resends or out-of-order arrivals.
- */
+/* Defined before ssl.h: openssl/ssl.h pulls quic.h mid-include and
+ * references WOLFSSL_ENCRYPTION_LEVEL and WOLFSSL_QUIC_METHOD. */
 typedef enum wolfssl_encryption_level_t {
     wolfssl_encryption_initial = 0,
     wolfssl_encryption_early_data,
@@ -49,11 +46,12 @@ typedef enum wolfssl_encryption_level_t {
     wolfssl_encryption_application
 } WOLFSSL_ENCRYPTION_LEVEL;
 
-
-/* All QUIC related callbacks to the application.
- */
 typedef struct wolfssl_quic_method_t WOLFSSL_QUIC_METHOD;
 
+#include <wolfssl/ssl.h>
+
+
+/* All QUIC related callbacks to the application. */
 struct wolfssl_quic_method_t {
     /**
      * Provide secrets to the QUIC stack when they become available in the SSL
