@@ -139,6 +139,13 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
+      # Local composite actions (./.github/actions/*) need the repo on
+      # disk before the runner can resolve them. The autotools-project
+      # step further down does its own checkout into the workspace, so
+      # this explicit checkout is only required for the ccache-setup
+      # composite below.
+      - uses: actions/checkout@v4
+
       # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
       # `make check`); without it that test is SKIPped.
       - uses: actions/setup-python@v5
@@ -146,11 +153,23 @@ jobs:
           python-version: '3.x'
       - run: pip install tlslite-ng
 
+      # ccache cuts ~50% off rebuild time. /usr/lib/ccache is prepended to
+      # PATH so gcc/cc invocations from the autotools action are
+      # transparently intercepted - no other step needs to change.
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: os-check-linux
+
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           configure: CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
           check: true
+
+      - name: ccache stats (post-build)
+        if: always()
+        run: command -v ccache >/dev/null && ccache -s || echo "ccache not installed - composite likely skipped"
 
   # Curated macOS subset. Each config exists for a Darwin-specific reason;
   # do not add entries that only re-test platform-agnostic crypto already
