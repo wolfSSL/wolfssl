@@ -4716,6 +4716,64 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
     return ret;
 }
 
+/*
+ * Decode an octet-encoded EC public point into @key.
+ *
+ * Return code compliant with OpenSSL.
+ *
+ * @param [in, out] key  EC key (must already have a group set).
+ * @param [in]      buf  Octet-encoded public point.
+ * @param [in]      len  Length of @buf in bytes.
+ * @param [in]      ctx  BN context. May be NULL.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_EC_KEY_oct2key(WOLFSSL_EC_KEY *key, const unsigned char *buf,
+    size_t len, WOLFSSL_BN_CTX *ctx)
+{
+    int ret = 1;
+    const WOLFSSL_EC_GROUP *group = NULL;
+    WOLFSSL_EC_POINT *point = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_EC_KEY_oct2key");
+
+    if ((key == NULL) || (buf == NULL) || (len == 0)) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_oct2key Bad arguments");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        group = wolfSSL_EC_KEY_get0_group(key);
+        if (group == NULL) {
+            WOLFSSL_MSG("EC_KEY has no group set");
+            ret = 0;
+        }
+    }
+
+    if (ret == 1) {
+        point = wolfSSL_EC_POINT_new((WOLFSSL_EC_GROUP*)group);
+        if (point == NULL) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_new failed");
+            ret = 0;
+        }
+    }
+
+    if ((ret == 1) &&
+            (wolfSSL_EC_POINT_oct2point(group, point, buf, len, ctx) != 1)) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_oct2point failed");
+        ret = 0;
+    }
+
+    if ((ret == 1) && (wolfSSL_EC_KEY_set_public_key(key, point) != 1)) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_set_public_key failed");
+        ret = 0;
+    }
+
+    wolfSSL_EC_POINT_free(point);
+
+    return ret;
+}
+
 #ifndef NO_WOLFSSL_STUB
 /* Set the ASN.1 encoding flag against the EC key.
  *

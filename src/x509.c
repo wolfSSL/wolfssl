@@ -3573,6 +3573,43 @@ err_cleanup:
     return NULL;
 }
 
+/**
+ * Encode @value as an extension of type @nid and append it to @x.
+ *
+ * The @flags argument (X509V3_ADD_DEFAULT / APPEND / REPLACE / KEEP_EXISTING
+ * in OpenSSL) is not supported here; non-zero values are treated as the
+ * default append behavior.
+ *
+ * @return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
+ */
+int wolfSSL_X509_add1_ext_i2d(WOLFSSL_X509 *x, int nid, void *value,
+                              int crit, unsigned long flags)
+{
+    WOLFSSL_X509_EXTENSION *ext = NULL;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_X509_add1_ext_i2d");
+
+    if (x == NULL || value == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (flags != 0) {
+        WOLFSSL_MSG("X509V3_ADD_* flags not supported; using default behavior");
+    }
+
+    ext = wolfSSL_X509V3_EXT_i2d(nid, crit, value);
+    if (ext == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_X509_add_ext(x, ext, -1);
+    wolfSSL_X509_EXTENSION_free(ext);
+
+    return ret;
+}
+
 /* Returns pointer to ASN1_OBJECT from an X509_EXTENSION object */
 WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(
     WOLFSSL_X509_EXTENSION* ext)
