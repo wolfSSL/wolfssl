@@ -275,8 +275,8 @@ check_SCRIPTS+= $(dist_noinst_SCRIPTS)
 TESTS += $(check_SCRIPTS)
 
 test: check
-tests/unit.log: testsuite/testsuite.log
-scripts/unit.log: testsuite/testsuite.log
+@BUILD_EXAMPLE_SERVERS_TRUE@tests/unit.log: testsuite/testsuite.log
+@BUILD_EXAMPLE_SERVERS_TRUE@scripts/unit.log: testsuite/testsuite.log
 
 DISTCLEANFILES+= wolfssl-config
 
