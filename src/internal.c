@@ -8024,7 +8024,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.disallowEncThenMac = ctx->disallowEncThenMac;
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    ssl->options.disableECH         = ctx->disableECH;
+    ssl->options.disableECH             = ctx->disableECH;
+    ssl->options.enableEchTrialDecrypt  = ctx->enableEchTrialDecrypt;
 #endif
 
     /* default alert state (none) */

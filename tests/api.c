@@ -14983,7 +14983,7 @@ static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
     /* connect like normal */
     ExpectIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
-    ExpectIntEQ(ssl->options.echAccepted, 1);
+    ExpectIntEQ(wolfSSL_GetEchStatus(ssl), WOLFSSL_ECH_STATUS_ACCEPTED);
     ExpectIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
         privateNameLen);
     ExpectIntGT((replyLen = wolfSSL_read(ssl, reply, sizeof(reply))), 0);
@@ -15089,6 +15089,16 @@ static int test_ech_server_ctx_ready(WOLFSSL_CTX* ctx)
     return TEST_SUCCESS;
 }
 
+/* Server ctx_ready callback: generate ECH config and opt into trial
+ * decryption at the CTX level so the SSL inherits it on creation */
+static int test_ech_server_ctx_ready_trial_decrypt(WOLFSSL_CTX* ctx)
+{
+    int ret = test_ech_server_ctx_ready(ctx);
+    if (ret == TEST_SUCCESS)
+        wolfSSL_CTX_SetEchEnableTrialDecrypt(ctx, 1);
+    return ret;
+}
+
 /* Server ssl_ready callback: set SNI */
 static int test_ech_server_ssl_ready(WOLFSSL* ssl)
 {
@@ -15136,7 +15146,10 @@ static int test_wolfSSL_Tls13_ECH_all_algos_ex(void)
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
 
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     if (echCbTestKemID != 0 && echCbTestKdfID != 0 && echCbTestAeadID != 0) {
         TLSX* echX = TLSX_Find(test_ctx.c_ssl->extensions, TLSX_ECH);
@@ -15249,7 +15262,10 @@ static int test_wolfSSL_Tls13_ECH_no_private_name(void)
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
 
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15269,7 +15285,10 @@ static int test_wolfSSL_Tls13_ECH_no_private_name(void)
         echCbTestConfigsLen), WOLFSSL_SUCCESS);
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15288,7 +15307,10 @@ static int test_wolfSSL_Tls13_ECH_no_private_name(void)
         echCbTestConfigsLen), WOLFSSL_SUCCESS);
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15347,7 +15369,10 @@ static int test_wolfSSL_Tls13_ECH_bad_configs_ex(int hrr, int sniCb)
     }
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15383,7 +15408,12 @@ static int test_wolfSSL_Tls13_ECH_bad_configs_ex(int hrr, int sniCb)
     }
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    /* server decrypts inner successfully but rejects SNI, thus the client does
+     * not receive the acceptance signal */
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15444,7 +15474,10 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_ex(int hrr)
 
     /* ECH must fail and retry configs must be present */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
         WC_NO_ERR_TRACE(ECH_REQUIRED_E));
 
@@ -15482,7 +15515,10 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_ex(int hrr)
 
         ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
             TEST_SUCCESS);
-        ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+            WOLFSSL_ECH_STATUS_ACCEPTED);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+            WOLFSSL_ECH_STATUS_ACCEPTED);
 
         wolfSSL_CTX_free(test_ctx.s_ctx);
         test_ctx.s_ctx = NULL;
@@ -15604,7 +15640,10 @@ static int test_wolfSSL_Tls13_ECH_retry_configs_bad(void)
     /* bad retry configs are discarded - failure must be ECH_REQUIRED_E,
      * not a retry-config parse error */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
         WC_NO_ERR_TRACE(ECH_REQUIRED_E));
 
@@ -15689,7 +15728,94 @@ static int test_wolfSSL_Tls13_ECH_new_config(void)
         WOLFSSL_SUCCESS);
 
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 1);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+/* Test trial decryption for ECH: server has a single config, client receives a
+ * copy of it but its configId is overwritten so it cannot match the server's */
+static int test_wolfSSL_Tls13_ECH_trial_decrypt(void)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+
+    /* --- CTX-enabled, SSL-disabled override: ECH rejected --- */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    /* *_trial_decrypt sets enableEchTrialDecrypt to 1 - overriding the default
+     * value of 0 */
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready_trial_decrypt;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* SSL inherited the CTX setting */
+    ExpectIntEQ(test_ctx.s_ctx->enableEchTrialDecrypt, 1);
+    ExpectIntEQ(test_ctx.s_ssl->options.enableEchTrialDecrypt, 1);
+
+    /* override on the SSL */
+    wolfSSL_SetEchEnableTrialDecrypt(test_ctx.s_ssl, 0);
+    ExpectIntEQ(test_ctx.s_ssl->options.enableEchTrialDecrypt, 0);
+
+    /* alter the client's configId so it does not match the server's configId */
+    ExpectNotNull(test_ctx.c_ssl->echConfigs);
+    ExpectNotNull(test_ctx.s_ctx->echConfigs);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_ssl->echConfigs->configId =
+            (byte)(test_ctx.s_ctx->echConfigs->configId ^ 0x01);
+    }
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(ECH_REQUIRED_E));
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    /* --- trial decryption opted in on the SSL: ECH accepted --- */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+    test_ctx.c_cb.ssl_ready = test_ech_client_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* opt into trial decryption on the SSL */
+    wolfSSL_SetEchEnableTrialDecrypt(test_ctx.s_ssl, 1);
+    ExpectIntEQ(test_ctx.s_ssl->options.enableEchTrialDecrypt, 1);
+
+    /* alter the client's configId so it does not match the server's configId */
+    ExpectNotNull(test_ctx.c_ssl->echConfigs);
+    ExpectNotNull(test_ctx.s_ctx->echConfigs);
+    if (EXPECT_SUCCESS()) {
+        test_ctx.c_ssl->echConfigs->configId =
+            (byte)(test_ctx.s_ctx->echConfigs->configId ^ 0x01);
+    }
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15731,9 +15857,11 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
     /* handshake should succeed - server ignores the GREASE ECH extension */
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
 
-    /* ECH should NOT be accepted since this was GREASE */
-    ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 0);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    /* server has no configs and client did not offer real ECH */
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_GREASE);
     /* verify no ECH configs are received */
     ExpectNull(test_ctx.c_ssl->echConfigs);
     /* retry configs must not be saved */
@@ -15769,9 +15897,12 @@ static int test_wolfSSL_Tls13_ECH_GREASE(void)
     /* handshake should succeed - server responds to the GREASE ECH extension */
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
 
-    /* ECH should NOT be accepted since this was GREASE */
-    ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 0);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    /* server was unable to decrypt the ECH extension's payload
+     * client never offered real ECH */
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_GREASE);
     /* verify no ECH configs are received */
     ExpectNull(test_ctx.c_ssl->echConfigs);
     /* retry configs must not be saved */
@@ -15816,6 +15947,8 @@ static int test_wolfSSL_Tls13_ECH_disable_conn_ex(int enableServer,
          * normally but ECH is not accepted */
         ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
             TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+            WOLFSSL_ECH_STATUS_NOT_OFFERED);
     }
     else if (!enableServer) {
         /* client sends ECH but server can't process it: server has no ECH
@@ -15823,8 +15956,11 @@ static int test_wolfSSL_Tls13_ECH_disable_conn_ex(int enableServer,
          * rejection and aborts the handshake */
         ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
             TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+            WOLFSSL_ECH_STATUS_REJECTED);
     }
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15929,7 +16065,10 @@ static int test_wolfSSL_Tls13_ECH_HRR_rejection(void)
 
     /* Handshake must fail: client aborts with ech_required */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
     /* hsHashesEch must have been freed by the HRR rejection code path */
     ExpectNull(test_ctx.c_ssl->hsHashesEch);
     ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
@@ -15967,7 +16106,10 @@ static int test_wolfSSL_Tls13_ECH_ch2_no_ech(void)
     /* server must have committed to ECH acceptance in the HRR */
     ExpectIntEQ(test_ctx.s_ssl->options.serverState,
         SERVER_HELLO_RETRY_REQUEST_COMPLETE);
-    ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 1);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     /* disable ECH on the client so CH2 omits the ECH extension entirely */
     wolfSSL_SetEchEnable(test_ctx.c_ssl, 0);
@@ -16009,7 +16151,10 @@ static int test_wolfSSL_Tls13_ECH_ch2_decrypt_error(void)
 
     ExpectIntEQ(test_ctx.s_ssl->options.serverState,
         SERVER_HELLO_RETRY_REQUEST_COMPLETE);
-    ExpectIntEQ(test_ctx.s_ssl->options.echAccepted, 1);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     if (EXPECT_SUCCESS()) {
         /* Client reads HRR and writes CH2 into s_buff */
@@ -16087,7 +16232,10 @@ static int test_wolfSSL_Tls13_ECH_rejected_cert_valid_ex(const char* publicName,
     /* client sends ECH but server can't process it, however it is possible to
      * fall back to the outer handshake */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
 
     if (validName) {
         /* the server should see the handshake as successful
@@ -16165,7 +16313,10 @@ static int test_wolfSSL_Tls13_ECH_rejected_empty_client_cert(void)
         publicName, (word16)XSTRLEN(publicName)), WOLFSSL_SUCCESS);
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_NOT_OFFERED);
 
     /* Server cert is valid for public_name, cert check passes, ech_required
      * is sent on the client side. */
@@ -40615,6 +40766,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs_bad),
     TEST_DECL(test_wolfSSL_Tls13_ECH_retry_configs_auth_fail),
     TEST_DECL(test_wolfSSL_Tls13_ECH_new_config),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_trial_decrypt),
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
     TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
