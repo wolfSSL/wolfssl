@@ -51,6 +51,36 @@
     #endif
 #endif
 
+/* Minimum hash strength accepted by the wc_SignatureVerify/Generate
+ * convenience APIs. Default is SHA-256 to keep MD5 and SHA-1 (both with
+ * known collision attacks) out of new code. Define WC_SIG_MIN_HASH_TYPE
+ * to a weaker wc_HashType (e.g. WC_HASH_TYPE_SHA) to opt back into legacy
+ * behavior. The lower-level wc_SignatureVerifyHash/wc_SignatureGenerateHash
+ * APIs are unaffected. */
+#ifndef WC_SIG_MIN_HASH_TYPE
+    #define WC_SIG_MIN_HASH_TYPE WC_HASH_TYPE_SHA256
+#endif
+
+static int wc_SignatureCheckHashStrength(enum wc_HashType hash_type)
+{
+    int min_sz, this_sz;
+
+    min_sz = wc_HashGetDigestSize(WC_SIG_MIN_HASH_TYPE);
+    if (min_sz < 0) {
+        /* configured floor not compiled in - skip enforcement */
+        return 0;
+    }
+    this_sz = wc_HashGetDigestSize(hash_type);
+    if (this_sz < 0) {
+        return this_sz;
+    }
+    if (this_sz < min_sz) {
+        WOLFSSL_MSG("wc_Signature*: hash weaker than WC_SIG_MIN_HASH_TYPE");
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+
 
 #if !defined(NO_RSA) && defined(WOLFSSL_CRYPTOCELL)
     extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
@@ -356,6 +386,12 @@ int wc_SignatureVerify(
     }
     hash_enc_len = hash_len = (word32)ret;
 
+    /* Reject hashes weaker than WC_SIG_MIN_HASH_TYPE (default SHA-256) */
+    ret = wc_SignatureCheckHashStrength(hash_type);
+    if (ret != 0) {
+        return ret;
+    }
+
 #ifndef NO_RSA
     if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
         /* For RSA with ASN.1 encoding include room */
@@ -554,6 +590,12 @@ int wc_SignatureGenerate_ex(
         return ret;
     }
     hash_enc_len = hash_len = (word32)ret;
+
+    /* Reject hashes weaker than WC_SIG_MIN_HASH_TYPE (default SHA-256) */
+    ret = wc_SignatureCheckHashStrength(hash_type);
+    if (ret != 0) {
+        return ret;
+    }
 
 #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {

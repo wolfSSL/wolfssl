@@ -272,6 +272,7 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
     }
 
     if (buf_aligned != NULL) {
+        ForceZero(buf_aligned, keySz * 2);
     #ifdef KCAPI_USE_XMALLOC
         XFREE(buf_aligned, private_key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #else
