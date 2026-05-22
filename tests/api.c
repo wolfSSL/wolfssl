@@ -3693,6 +3693,53 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_add0_chain_cert_increments_count(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    const char*  chainCerts[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        "./certs/ca-cert.pem",
+        NULL
+    };
+    const char** cert;
+    WOLFSSL_X509* x509 = NULL;
+    int expectedCnt = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/client-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_add0_chain_cert(ssl, x509), 1);
+    /* Leaf -> ssl->buffers.certificate, not chain. certChainCnt unchanged. */
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->buffers.certChainCnt, 0);
+    }
+    x509 = NULL; 
+
+    for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(SSL_add0_chain_cert(ssl, x509), 1);
+        x509 = NULL; 
+        expectedCnt++;
+        if (ssl != NULL) {
+            ExpectIntEQ(ssl->buffers.certChainCnt, expectedCnt);
+        }
+    }
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfssl_add_to_chain rejects sizes that would overflow word32.
  * ZD #21241 */
 static int test_wolfSSL_add_to_chain_overflow(void)
@@ -40634,6 +40681,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
+    TEST_DECL(test_wolfSSL_add0_chain_cert_increments_count),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
