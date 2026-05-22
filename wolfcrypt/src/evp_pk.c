@@ -2441,6 +2441,7 @@ int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int derSz = 0;
     byte* der = NULL;
+    byte* derPtr = NULL;
 
     WOLFSSL_ENTER("wolfSSL_i2d_PUBKEY_bio");
 
@@ -2448,12 +2449,23 @@ int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
         return WOLFSSL_FAILURE;
     }
 
-    /* Let wolfSSL_i2d_PUBKEY allocate the buffer (pass NULL to trigger
-     * internal allocation). We free it ourselves after writing to the BIO. */
-    derSz = wolfSSL_i2d_PUBKEY(key, &der);
-    if (derSz <= 0 || der == NULL) {
-        WOLFSSL_MSG("wolfSSL_i2d_PUBKEY failed");
+    derSz = wolfSSL_i2d_PUBKEY(key, NULL);
+    if (derSz <= 0) {
+        WOLFSSL_MSG("wolfSSL_i2d_PUBKEY size query failed");
         return WOLFSSL_FAILURE;
+    }
+
+    der = (byte*)XMALLOC((size_t)derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        WOLFSSL_MSG("XMALLOC failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    derPtr = der;
+    derSz = wolfSSL_i2d_PUBKEY(key, &derPtr);
+    if (derSz <= 0) {
+        WOLFSSL_MSG("wolfSSL_i2d_PUBKEY failed");
+        goto cleanup;
     }
 
     if (wolfSSL_BIO_write(bio, der, derSz) != derSz) {

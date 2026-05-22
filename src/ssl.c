@@ -8636,7 +8636,7 @@ const char* wolfSSL_OpenSSL_version(int type)
         case OPENSSL_ENGINES_DIR:
             return "ENGINESDIR: N/A";
         default:
-            return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
+            return "not available";
     }
 }
 #else
