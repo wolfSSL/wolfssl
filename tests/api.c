@@ -3930,6 +3930,89 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     return EXPECT_RESULT();
 }
 
+/* Test SSL_clear_chain_certs: must drop chain certs added via add0/add1,
+ * leave leaf certificate intact, and tolerate repeated calls / NULL input. */
+static int test_wolfSSL_clear_chain_certs(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLF_STACK_OF(X509)* chain = NULL;
+    const char* chainCerts[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        NULL
+    };
+    const char** cert;
+
+    /* NULL arg. */
+    ExpectIntEQ(SSL_clear_chain_certs(NULL), 0);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Clear on an SSL with no chain is a no-op success. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+
+    /* Set leaf so subsequent adds go to the chain. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/client-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+
+    /* Chain populated with the 2 intermediates. */
+    ExpectIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
+    ExpectIntEQ(sk_X509_num(chain), 2);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->buffers.certChainCnt, 2);
+        ExpectNotNull(ssl->buffers.certChain);
+        ExpectNotNull(ssl->ourCertChain);
+    }
+
+    /* Clear. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+    if (ssl != NULL) {
+        ExpectNull(ssl->buffers.certChain);
+        ExpectNull(ssl->ourCertChain);
+        ExpectIntEQ(ssl->buffers.weOwnCertChain, 0);
+        /* Leaf untouched. */
+        ExpectNotNull(ssl->ourCert);
+    }
+    chain = NULL;
+    ExpectIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
+    ExpectIntEQ(sk_X509_num(chain), 0);
+
+    /* Idempotent: clearing again still succeeds. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+
+    /* Re-adding after clear works. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+    wolfSSL_X509_free(x509);
+    chain = NULL;
+    ExpectIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
+    ExpectIntEQ(sk_X509_num(chain), 1);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfssl_add_to_chain rejects sizes that would overflow word32.
  * ZD #21241 */
 static int test_wolfSSL_add_to_chain_overflow(void)
@@ -35419,6 +35502,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
+    TEST_DECL(test_wolfSSL_clear_chain_certs),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
