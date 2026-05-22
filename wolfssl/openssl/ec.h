@@ -295,6 +295,9 @@ void wolfSSL_EC_KEY_set_asn1_flag(WOLFSSL_EC_KEY *key, int asn1_flag);
 WOLFSSL_API
 int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
                                   const WOLFSSL_EC_POINT *pub);
+WOLFSSL_API
+int wolfSSL_EC_KEY_oct2key(WOLFSSL_EC_KEY *key, const unsigned char *buf,
+                           size_t len, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API int wolfSSL_EC_KEY_check_key(const WOLFSSL_EC_KEY *key);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 WOLFSSL_API int wolfSSL_EC_KEY_print_fp(XFILE fp, WOLFSSL_EC_KEY* key,
@@ -491,6 +494,7 @@ typedef WOLFSSL_EC_KEY_METHOD         EC_KEY_METHOD;
 #define ECPoint_d2i                     wolfSSL_ECPoint_d2i
 #define EC_POINT_point2oct              wolfSSL_EC_POINT_point2oct
 #define EC_POINT_oct2point              wolfSSL_EC_POINT_oct2point
+#define EC_KEY_oct2key                  wolfSSL_EC_KEY_oct2key
 #define EC_POINT_point2bn               wolfSSL_EC_POINT_point2bn
 #define EC_POINT_is_on_curve            wolfSSL_EC_POINT_is_on_curve
 #define o2i_ECPublicKey                 wolfSSL_o2i_ECPublicKey
