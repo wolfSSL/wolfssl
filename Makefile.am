@@ -149,6 +149,7 @@ EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= valgrind-bash.supp
 EXTRA_DIST+= fips-hash.sh
+EXTRA_DIST+= .github/scripts/check-source-text.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
 EXTRA_DIST+= README-async.md

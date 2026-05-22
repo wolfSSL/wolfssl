@@ -1,0 +1,95 @@
+name: 'Wait for Smoke Test'
+description: 'Polls the Smoke Test workflow for the current commit and fails if it failed.'
+
+# Designed to be the leading job in pull_request-triggered workflows so that
+# expensive integration CI does not run unless the smoke build passes.
+#
+# Push events bypass the wait entirely (we still get smoke results for those
+# pushes, but other CI is not gated on push). For drafts, callers should
+# skip dependent jobs via `if: github.event.pull_request.draft == false` -
+# this action will still pass through if smoke is skipped or absent.
+
+inputs:
+  workflow:
+    description: 'Name of the smoke workflow file to wait on'
+    required: false
+    default: 'smoke-test.yml'
+  timeout-seconds:
+    description: 'Maximum time to wait for smoke to complete'
+    required: false
+    default: '1800'
+  poll-seconds:
+    description: 'Polling interval'
+    required: false
+    default: '20'
+  github-token:
+    description: 'GITHUB_TOKEN with actions:read permission'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Wait for smoke
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        SMOKE_WORKFLOW: ${{ inputs.workflow }}
+        TIMEOUT: ${{ inputs.timeout-seconds }}
+        POLL: ${{ inputs.poll-seconds }}
+        REPO: ${{ github.repository }}
+      run: |
+        set -u
+        # Only gate pull_request events. Push events are not gated.
+        if [ "${{ github.event_name }}" != "pull_request" ]; then
+          echo "Not a pull_request event - skipping smoke gate."
+          exit 0
+        fi
+
+        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        echo "Waiting for $SMOKE_WORKFLOW on $HEAD_SHA (timeout ${TIMEOUT}s)"
+
+        START=$(date +%s)
+        while :; do
+          NOW=$(date +%s)
+          ELAPSED=$((NOW - START))
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "::error::Timed out after ${TIMEOUT}s waiting for $SMOKE_WORKFLOW on $HEAD_SHA"
+            exit 1
+          fi
+
+          # Look up the latest run for this workflow + head SHA.
+          RUN_JSON=$(gh api \
+            "repos/${REPO}/actions/workflows/${SMOKE_WORKFLOW}/runs?head_sha=${HEAD_SHA}&per_page=1" \
+            2>/dev/null || echo '{}')
+
+          STATUS=$(echo "$RUN_JSON"   | jq -r '.workflow_runs[0].status   // "missing"')
+          CONCLUSION=$(echo "$RUN_JSON" | jq -r '.workflow_runs[0].conclusion // ""')
+          RUN_URL=$(echo "$RUN_JSON"    | jq -r '.workflow_runs[0].html_url   // ""')
+
+          case "$STATUS" in
+            completed)
+              case "$CONCLUSION" in
+                success)
+                  echo "Smoke test passed: $RUN_URL"
+                  exit 0
+                  ;;
+                skipped|neutral)
+                  echo "Smoke test was $CONCLUSION - treating as pass: $RUN_URL"
+                  exit 0
+                  ;;
+                *)
+                  echo "::error::Smoke test concluded as '$CONCLUSION': $RUN_URL"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            missing)
+              echo "[$ELAPSED s] No smoke run yet for $HEAD_SHA"
+              ;;
+            *)
+              echo "[$ELAPSED s] Smoke status=$STATUS ($RUN_URL)"
+              ;;
+          esac
+
+          sleep "$POLL"
+        done

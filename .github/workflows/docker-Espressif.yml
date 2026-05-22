@@ -2,8 +2,9 @@ name: Espressif examples tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -14,7 +15,7 @@ concurrency:
 jobs:
   espressif_latest:
     name: latest Docker container
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 12
@@ -28,7 +29,7 @@ jobs:
         run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; IDE/Espressif/ESP-IDF/compileAllExamples.sh
   espressif_v4_4:
     name: v4.4 Docker container
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     container:
       image: espressif/idf:release-v4.4
@@ -38,7 +39,7 @@ jobs:
         run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; IDE/Espressif/ESP-IDF/compileAllExamples.sh
   espressif_v5_0:
     name: v5.0 Docker container
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     container:
       image: espressif/idf:release-v5.0

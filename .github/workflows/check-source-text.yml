@@ -1,0 +1,107 @@
+name: Check Source Text
+
+# Source-hygiene + shell-script lint. Runs on drafts too - fast feedback.
+#
+# Checks:
+#   * check-source-text.sh: trailing whitespace, hard tabs in C/H, CRLF,
+#     BOM / non-ASCII.
+#   * bash -n + shellcheck (warning level) on shell scripts.
+#
+# Scope:
+#   * pull_request: only files changed in the PR (catches new violations
+#     without failing on historical debt).
+#   * push: scan the full tree (baseline guard on master).
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ master, main ]
+
+concurrency:
+  group: check-source-text-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install shellcheck
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: shellcheck
+
+      - name: Collect files to check
+        id: files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" \
+              > changed.txt || true
+            grep -E '\.sh$' changed.txt > changed-sh.txt || true
+            echo "Files changed in PR:"
+            cat changed.txt
+            echo "Shell scripts changed:"
+            cat changed-sh.txt
+            echo "count=$(wc -l < changed.txt)"     >> "$GITHUB_OUTPUT"
+            echo "sh_count=$(wc -l < changed-sh.txt)" >> "$GITHUB_OUTPUT"
+          else
+            : > changed.txt
+            git ls-files '*.sh' > changed-sh.txt
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            echo "sh_count=$(wc -l < changed-sh.txt)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run check-source-text (PR changed files)
+        if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'
+        run: |
+          # shellcheck disable=SC2046
+          ./.github/scripts/check-source-text.sh $(cat changed.txt)
+
+      - name: Run check-source-text (full tree)
+        if: github.event_name != 'pull_request'
+        run: ./.github/scripts/check-source-text.sh
+
+      - name: bash -n (syntax check)
+        if: steps.files.outputs.sh_count != '0'
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            if ! bash -n "$f"; then
+              echo "::error file=$f::bash -n syntax error"
+              fail=1
+            fi
+          done < changed-sh.txt
+          exit "$fail"
+
+      - name: shellcheck (warning level)
+        if: steps.files.outputs.sh_count != '0'
+        run: |
+          # Mirrors the internal multi-test check-shell-scripts subtest:
+          #   --severity=warning
+          #   -e SC2226,SC2166,SC2164,SC2046,SC2034,SC2188,SC2043
+          # SC2226 (no ln destination), SC2166 ([ p -a q ]), SC2164 (cd ||),
+          # SC2046 (word splitting), SC2034 (unused var), SC2188 (redirect
+          # w/o command), SC2043 (loop runs once) - common in this codebase,
+          # suppressed in the internal multi-test for the same reason.
+          fail=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            if ! shellcheck --severity=warning \
+                            --exclude=SC2226,SC2166,SC2164,SC2046,SC2034,SC2188,SC2043 \
+                            --format=gcc "$f"; then
+              fail=1
+            fi
+          done < changed-sh.txt
+          exit "$fail"
