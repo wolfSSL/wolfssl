@@ -292,7 +292,10 @@ static int der_write_to_bio_as_pem(const unsigned char* der, int derSz,
 #endif
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && \
+    ((defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+      !defined(NO_PWDBASED)) || \
+     defined(WOLFSSL_DH_EXTRA))
 /* Write the DER data as PEM into file pointer.
  *
  * @param [in] der    Buffer containing DER data.
@@ -322,7 +325,9 @@ static int der_write_to_file_as_pem(const unsigned char* der, int derSz,
     XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM &&
+        * ((OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED) ||
+        *  WOLFSSL_DH_EXTRA) */
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
     defined(WOLFSSL_PEM_TO_DER)
@@ -6277,9 +6282,8 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 }
 #endif /* !NO_BIO */
 
-#ifndef NO_FILESYSTEM
-#ifndef NO_CERTS
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED)
 /* Writes a public key to a file pointer encoded in PEM format.
  *
  * @param [in] fp   File pointer to write to.
@@ -6295,18 +6299,33 @@ int wolfSSL_PEM_write_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY* key)
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_PUBKEY");
 
-    /* Validate parameters. */
     if ((fp == XBADFILE) || (key == NULL)) {
         WOLFSSL_MSG("Bad Function Arguments");
         err = 1;
     }
 
-    /* Encode the public key as DER. */
     if (!err) {
-        derSz = wolfSSL_i2d_PUBKEY(key, &derBuf);
+        derSz = wolfSSL_i2d_PUBKEY(key, NULL);
         if (derSz <= 0) {
-            WOLFSSL_MSG("Failed to convert key to DER");
+            WOLFSSL_MSG("Failed to get DER size for key");
             err = 1;
+        }
+    }
+
+    if (!err) {
+        unsigned char* tmp;
+        derBuf = (unsigned char*)XMALLOC((size_t)derSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (derBuf == NULL) {
+            WOLFSSL_MSG("Failed to allocate DER buffer");
+            err = 1;
+        }
+        else {
+            tmp = derBuf;
+            if (wolfSSL_i2d_PUBKEY(key, &tmp) <= 0) {
+                WOLFSSL_MSG("Failed to convert key to DER");
+                err = 1;
+            }
         }
     }
 
@@ -6382,12 +6401,28 @@ int wolfSSL_PEM_write_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* key,
         }
     }
 
-    /* Encode the private key as DER. */
     if (!err) {
-        derSz = wolfSSL_i2d_PrivateKey(key, &derBuf);
+        derSz = wolfSSL_i2d_PrivateKey(key, NULL);
         if (derSz <= 0) {
-            WOLFSSL_MSG("Error encoding private key as DER");
+            WOLFSSL_MSG("Failed to get DER size for private key");
             err = 1;
+        }
+    }
+
+    if (!err) {
+        unsigned char* tmp;
+        derBuf = (unsigned char*)XMALLOC((size_t)derSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (derBuf == NULL) {
+            WOLFSSL_MSG("Failed to allocate DER buffer");
+            err = 1;
+        }
+        else {
+            tmp = derBuf;
+            if (wolfSSL_i2d_PrivateKey(key, &tmp) <= 0) {
+                WOLFSSL_MSG("Error encoding private key as DER");
+                err = 1;
+            }
         }
     }
 
@@ -6404,9 +6439,8 @@ int wolfSSL_PEM_write_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY* key,
     WOLFSSL_LEAVE("wolfSSL_PEM_write_PrivateKey", err);
     return !err;
 }
-#endif /* OPENSSL_EXTRA && !NO_ASN && !NO_PWDBASED */
-#endif /* !NO_CERTS */
-#endif /* !NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM && !NO_CERTS && OPENSSL_EXTRA && !NO_ASN &&
+        * !NO_PWDBASED */
 
 #ifndef NO_BIO
 /* Create a private key object from the data in the BIO.
