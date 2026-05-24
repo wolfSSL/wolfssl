@@ -3721,13 +3721,12 @@ static int test_wolfSSL_add0_chain_cert_increments_count(void)
     if (ssl != NULL) {
         ExpectIntEQ(ssl->buffers.certChainCnt, 0);
     }
-    x509 = NULL; 
-
+    x509 = NULL;
     for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
         ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
             WOLFSSL_FILETYPE_PEM));
         ExpectIntEQ(SSL_add0_chain_cert(ssl, x509), 1);
-        x509 = NULL; 
+        x509 = NULL;
         expectedCnt++;
         if (ssl != NULL) {
             ExpectIntEQ(ssl->buffers.certChainCnt, expectedCnt);
