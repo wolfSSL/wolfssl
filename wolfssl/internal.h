@@ -1893,13 +1893,15 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
-#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
-    /* If we are building with post-quantum algorithms, we likely want to
-     * inter-op with OQS's OpenSSL and they send a lot more sigalgs.
+#if (defined(WOLFSSL_LEANPSK) || defined(WOLFSSL_LEANTLS)) && \
+    !defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA)
+    /* Lean builds keep the list small to minimize the memory footprint, unless
+     * they are post-quantum builds: those want to inter-op with OQS's OpenSSL
+     * that sends a lot more sigalgs, so they fall through to the larger default.
      */
-    #define WOLFSSL_MAX_SIGALGO 128
-#else
     #define WOLFSSL_MAX_SIGALGO 44
+#else
+    #define WOLFSSL_MAX_SIGALGO 128
 #endif
 #endif
 
