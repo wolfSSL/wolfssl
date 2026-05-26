@@ -46,6 +46,14 @@
   per-record nonce.  Scoped to TLS 1.3, non-DTLS, non-QUIC; requires
   `WOLF_CRYPTO_CB` and `WOLF_CRYPTO_CB_AES_SETKEY`.
 
+* **BREAKING (RFC 6960 4.2.2.2)**: OCSP responder authorization is now
+    strictly enforced. Removes the non-compliant `CheckOcspResponderChain()`
+    fallback, which authorized any OCSP responder cert issued by an ancestor
+    of the target's issuer; [RFC 6960 4.2.2.2](https://datatracker.ietf.org/doc/html/rfc6960#section-4.2.2.2)
+    requires direct issuance by the CA identified in the request. Also
+    removes the now-unused `WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK` macro and
+    the `vp` parameter from `CheckOcspResponder()`.
+
 # wolfSSL Release 5.9.1 (Apr. 8, 2026)
 
 Release 5.9.1 has been developed according to wolfSSL's development and QA
