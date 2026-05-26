@@ -363,8 +363,8 @@ fi
 # purposes!
 openssl ocsp -port "$port2" -nmin 1                               \
     -index   certs/ocsp/index-intermediate1-ca-issued-certs.txt \
-    -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
-    -rkey    certs/ocsp/ocsp-responder-key.pem                  \
+    -rsigner certs/ocsp/ocsp-responder-int1-cert.pem            \
+    -rkey    certs/ocsp/ocsp-responder-int1-key.pem             \
     -CA      certs/ocsp/intermediate1-ca-cert.pem               \
     "$@" &
 

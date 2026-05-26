@@ -421,6 +421,23 @@ if __name__ == '__main__':
             'name': 'resp_bad_embedded_cert'
         },
         {
+            # intermediate1 signs OCSP for its subordinate server1
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'responder_by_name': True,
+            'responder_cert': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem',
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem',
+                    'serial': 0x05,
+                    'status': CERT_GOOD
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-key.pem',
+            'name': 'resp_server1_cert'
+        },
+        {
+            # Ancestor-issued responder; rejected by RFC 6960 4.2.2.2 enforcement
             'response_status': 0,
             'signature_algorithm': signature_algorithm(),
             'certs_path': [WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-cert.pem'],
@@ -433,7 +450,7 @@ if __name__ == '__main__':
                 }
             ],
             'responder_key': WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-key.pem',
-            'name': 'resp_server1_cert'
+            'name': 'resp_server1_cert_ancestor_responder'
         },
         {
             'response_status': 0,
@@ -557,6 +574,7 @@ if __name__ == '__main__':
         add_certificate(WOLFSSL_OCSP_CERT_PATH + '../server-cert.pem', f)
         add_certificate(WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem', f)
         add_certificate(WOLFSSL_OCSP_CERT_PATH + 'imposter-root-ca-cert.pem', f)
+        add_certificate(WOLFSSL_OCSP_CERT_PATH + 'server1-cert.pem', f)
         br = create_bad_response({
             'response_status': 0,
             'responder_by_key': True,

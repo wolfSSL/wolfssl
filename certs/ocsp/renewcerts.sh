@@ -131,6 +131,13 @@ update_cert intermediate3-ca "wolfSSL REVOKED intermediate CA" root-ca          
 
 update_cert ocsp-responder   "wolfSSL OCSP Responder"          root-ca          v3_ocsp 04
 
+# Delegated OCSP responder issued directly by intermediate1-ca. RFC 6960
+# 4.2.2.2 authorizes a delegated responder only for the CA that issued it.
+# We keep one (int1) to exercise the delegated-responder path in the live
+# tests; the intermediate2/3 responders sign their OCSP responses directly
+# with the CA key (the CA-direct path), so no extra responder certs are needed.
+update_cert ocsp-responder-int1 "wolfSSL OCSP Responder Int1"  intermediate1-ca v3_ocsp 10
+
 update_cert server1          "www1.wolfssl.com"                intermediate1-ca v3_req1 05
 update_cert server2          "www2.wolfssl.com"                intermediate1-ca v3_req1 06 # REVOKED
 update_cert server3          "www3.wolfssl.com"                intermediate2-ca v3_req2 07
@@ -153,10 +160,12 @@ openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -cert 
 kill $PID
 wait $PID
 
-# Create a response DER buffer for testing leaf certificate
+# Create a response DER buffer for testing leaf certificate. Signed by the
+# intermediate1-issued responder (RFC 6960 4.2.2.2 requires the delegated
+# responder to be directly issued by the CA named in the CertID).
 openssl ocsp -port 22221 -ndays 1000 -index \
-./index-intermediate1-ca-issued-certs.txt -rsigner ocsp-responder-cert.pem \
--rkey ocsp-responder-key.pem -CA intermediate1-ca-cert.pem -partial_chain &
+./index-intermediate1-ca-issued-certs.txt -rsigner ocsp-responder-int1-cert.pem \
+-rkey ocsp-responder-int1-key.pem -CA intermediate1-ca-cert.pem -partial_chain &
 PID=$!
 sleep 1 # Make sure server is ready
 
