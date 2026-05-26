@@ -554,14 +554,7 @@ static WC_INLINE void Sha512Transform(wc_Sha512* sha512, const byte* data,
         LOAD_DWORD_REV(s6, 48, %[data], a4, a5, a6, a7)
         LOAD_DWORD_REV(s7, 56, %[data], a4, a5, a6, a7)
 #else
-        "ld     t4,  0(%[data])\n\t"
-        "ld     s1,  8(%[data])\n\t"
-        "ld     s2, 16(%[data])\n\t"
-        "ld     s3, 24(%[data])\n\t"
-        "ld     s4, 32(%[data])\n\t"
-        "ld     s5, 40(%[data])\n\t"
-        "ld     s6, 48(%[data])\n\t"
-        "ld     s7, 56(%[data])\n\t"
+        UNALIGNED_LD8(t4, s1, s2, s3, s4, s5, s6, s7, 0, %[data], t5)
         REV8(REG_T4, REG_T4)
         REV8(REG_S1, REG_S1)
         REV8(REG_S2, REG_S2)
@@ -946,14 +939,7 @@ static WC_INLINE void Sha512Final(wc_Sha512* sha512, byte* hash, int hashLen)
         REV8(REG_S9, REG_S9)
         REV8(REG_S10, REG_S10)
         REV8(REG_S11, REG_S11)
-        "sd     t0, 0(%[hash])\n\t"
-        "sd     t1, 8(%[hash])\n\t"
-        "sd     t2, 16(%[hash])\n\t"
-        "sd     t3, 24(%[hash])\n\t"
-        "sd     s8, 32(%[hash])\n\t"
-        "sd     s9, 40(%[hash])\n\t"
-        "sd     s10, 48(%[hash])\n\t"
-        "sd     s11, 56(%[hash])\n\t"
+        UNALIGNED_SD8(t0, t1, t2, t3, s8, s9, s10, s11, 0, %[hash], t4)
 #else
         LOAD_DWORD_REV(t0,  0, %[digest], a4, a5, a6, a7)
         LOAD_DWORD_REV(t1,  8, %[digest], a4, a5, a6, a7)
@@ -963,14 +949,7 @@ static WC_INLINE void Sha512Final(wc_Sha512* sha512, byte* hash, int hashLen)
         LOAD_DWORD_REV(s9,  40, %[digest], a4, a5, a6, a7)
         LOAD_DWORD_REV(s10,  48, %[digest], a4, a5, a6, a7)
         LOAD_DWORD_REV(s11,  56, %[digest], a4, a5, a6, a7)
-        "sd     t0, 0(%[hash])\n\t"
-        "sd     t1, 8(%[hash])\n\t"
-        "sd     t2, 16(%[hash])\n\t"
-        "sd     t3, 24(%[hash])\n\t"
-        "sd     s8, 32(%[hash])\n\t"
-        "sd     s9, 40(%[hash])\n\t"
-        "sd     s10, 48(%[hash])\n\t"
-        "sd     s11, 56(%[hash])\n\t"
+        UNALIGNED_SD8(t0, t1, t2, t3, s8, s9, s10, s11, 0, %[hash], t4)
 #endif
         :
         : [digest] "r" (sha512->digest), [hash] "r" (hashRes)

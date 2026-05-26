@@ -3859,7 +3859,7 @@ do
     # FSL, FSR, FSRI, CMOV, CMIX - QEMU doesn't know about these instructions
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BIT_MANIPULATION_TERNARY"
     ;;
-  zkn|zkned)
+  zkned)
     # AES encrypt/decrpyt, SHA-2
     ENABLED_RISCV_ASM=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_SCALAR_CRYPTO_ASM"

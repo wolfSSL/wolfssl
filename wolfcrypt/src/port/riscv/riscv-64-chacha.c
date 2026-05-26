@@ -1825,9 +1825,9 @@ static WC_INLINE void wc_chacha_encrypt_64(const word32* input, const byte* m,
         VSETIVLI(REG_X0, 2, 1, 1, 0b011, 0b000)
         VMV_X_S(REG_T0, REG_V0)
         VSETIVLI(REG_X0, 4, 1, 1, 0b010, 0b000)
-        "ld     t1, (%[m])\n\t"
+        UNALIGNED_LD(t1, 0, %[m], t2)
         "xor    t1, t1, t0\n\t"
-        "sd     t1, (%[c])\n\t"
+        UNALIGNED_SD(t1, 0, %[c], t2)
         "addi   %[bytes], %[bytes], -8\n\t"
         "addi   %[c], %[c], 8\n\t"
         "addi   %[m], %[m], 8\n\t"
@@ -2155,10 +2155,7 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
         "bltz   %[bytes], L_chacha20_riscv_over\n\t"
 
 #if !defined(WOLFSSL_RISCV_BIT_MANIPULATION)
-        "ld     t0, 0(%[m])\n\t"
-        "ld     t1, 8(%[m])\n\t"
-        "ld     t2, 16(%[m])\n\t"
-        "ld     s1, 24(%[m])\n\t"
+        UNALIGNED_LD4(t0, t1, t2, s1, 0, %[m], a3)
         "xor    a4, a4, t0\n\t"
         "xor    a6, a6, t1\n\t"
         "xor    t3, t3, t2\n\t"
@@ -2171,10 +2168,7 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
         "xor    a7, a7, t1\n\t"
         "xor    t4, t4, t2\n\t"
         "xor    t6, t6, s1\n\t"
-        "ld     t0, 32(%[m])\n\t"
-        "ld     t1, 40(%[m])\n\t"
-        "ld     t2, 48(%[m])\n\t"
-        "ld     s1, 56(%[m])\n\t"
+        UNALIGNED_LD4(t0, t1, t2, s1, 32, %[m], a3)
         "xor    s2, s2, t0\n\t"
         "xor    s4, s4, t1\n\t"
         "xor    s6, s6, t2\n\t"
@@ -2187,22 +2181,8 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
         "xor    s5, s5, t1\n\t"
         "xor    s7, s7, t2\n\t"
         "xor    s9, s9, s1\n\t"
-        "sw     a4, 0(%[c])\n\t"
-        "sw     a5, 4(%[c])\n\t"
-        "sw     a6, 8(%[c])\n\t"
-        "sw     a7, 12(%[c])\n\t"
-        "sw     t3, 16(%[c])\n\t"
-        "sw     t4, 20(%[c])\n\t"
-        "sw     t5, 24(%[c])\n\t"
-        "sw     t6, 28(%[c])\n\t"
-        "sw     s2, 32(%[c])\n\t"
-        "sw     s3, 36(%[c])\n\t"
-        "sw     s4, 40(%[c])\n\t"
-        "sw     s5, 44(%[c])\n\t"
-        "sw     s6, 48(%[c])\n\t"
-        "sw     s7, 52(%[c])\n\t"
-        "sw     s8, 56(%[c])\n\t"
-        "sw     s9, 60(%[c])\n\t"
+        UNALIGNED_SW8(a4, a5, a6, a7, t3, t4, t5, t6, 0, %[c], t0)
+        UNALIGNED_SW8(s2, s3, s4, s5, s6, s7, s8, s9, 32, %[c], t0)
 #else
         PACK(REG_A4, REG_A4, REG_A5)
         PACK(REG_A6, REG_A6, REG_A7)
@@ -2212,14 +2192,7 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
         PACK(REG_S4, REG_S4, REG_S5)
         PACK(REG_S6, REG_S6, REG_S7)
         PACK(REG_S8, REG_S8, REG_S9)
-        "ld     a5, 0(%[m])\n\t"
-        "ld     a7, 8(%[m])\n\t"
-        "ld     t4, 16(%[m])\n\t"
-        "ld     t6, 24(%[m])\n\t"
-        "ld     s3, 32(%[m])\n\t"
-        "ld     s5, 40(%[m])\n\t"
-        "ld     s7, 48(%[m])\n\t"
-        "ld     s9, 56(%[m])\n\t"
+        UNALIGNED_LD8(a5, a7, t4, t6, s3, s5, s7, s9, 0, %[m], t0)
         "xor    a4, a4, a5\n\t"
         "xor    a6, a6, a7\n\t"
         "xor    t3, t3, t4\n\t"
@@ -2228,14 +2201,7 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
         "xor    s4, s4, s5\n\t"
         "xor    s6, s6, s7\n\t"
         "xor    s8, s8, s9\n\t"
-        "sd     a4, 0(%[c])\n\t"
-        "sd     a6, 8(%[c])\n\t"
-        "sd     t3, 16(%[c])\n\t"
-        "sd     t5, 24(%[c])\n\t"
-        "sd     s2, 32(%[c])\n\t"
-        "sd     s4, 40(%[c])\n\t"
-        "sd     s6, 48(%[c])\n\t"
-        "sd     s8, 56(%[c])\n\t"
+        UNALIGNED_SD8(a4, a6, t3, t5, s2, s4, s6, s8, 0, %[c], t0)
 #endif
 
         "addi   %[m], %[m], 64\n\t"
@@ -2268,10 +2234,10 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
         "bltz   t0, L_chacha20_riscv_32bit\n\t"
         "addi   a3, a3, -1\n\t"
      "L_chacha20_riscv_64bit_loop:\n\t"
-        "ld     t0, (%[m])\n\t"
+        UNALIGNED_LD(t0, 0, %[m], t2)
         "ld     t1, (%[over])\n\t"
         "xor    t0, t0, t1\n\t"
-        "sd     t0, (%[c])\n\t"
+        UNALIGNED_SD(t0, 0, %[c], t2)
         "addi   %[m], %[m], 8\n\t"
         "addi   %[c], %[c], 8\n\t"
         "addi   %[over], %[over], 8\n\t"
@@ -2282,10 +2248,10 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
      "L_chacha20_riscv_32bit:\n\t"
         "addi   t0, a3, -4\n\t"
         "bltz   t0, L_chacha20_riscv_16bit\n\t"
-        "lw     t0, (%[m])\n\t"
+        UNALIGNED_LW(t0, 0, %[m], t2)
         "lw     t1, (%[over])\n\t"
         "xor    t0, t0, t1\n\t"
-        "sw     t0, (%[c])\n\t"
+        UNALIGNED_SW(t0, 0, %[c], t2)
         "addi   %[m], %[m], 4\n\t"
         "addi   %[c], %[c], 4\n\t"
         "addi   %[over], %[over], 4\n\t"
@@ -2293,10 +2259,10 @@ static WC_INLINE void wc_chacha_encrypt(const word32* input, const byte* m,
      "L_chacha20_riscv_16bit:\n\t"
         "addi   t0, a3, -2\n\t"
         "bltz   t0, L_chacha20_riscv_8bit\n\t"
-        "lh     t0, (%[m])\n\t"
+        UNALIGNED_LH(t0, 0, %[m], t2)
         "lh     t1, (%[over])\n\t"
         "xor    t0, t0, t1\n\t"
-        "sh     t0, (%[c])\n\t"
+        UNALIGNED_SH(t0, 0, %[c], t2)
         "addi   %[m], %[m], 2\n\t"
         "addi   %[c], %[c], 2\n\t"
         "addi   %[over], %[over], 2\n\t"
