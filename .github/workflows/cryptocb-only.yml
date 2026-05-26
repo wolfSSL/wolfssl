@@ -30,9 +30,8 @@ jobs:
           - name: RSA
             cppflags: -DWOLF_CRYPTO_CB_ONLY_RSA
           # WOLF_CRYPTO_CB_ONLY_SHA256: strips software SHA-256; swdev provides
-          # the software path via cryptocb.  SHA-224 not yet supported.
+          # the software path via cryptocb.
           - name: SHA256
-            extra_config: --disable-sha224
             cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA256
           # WOLF_CRYPTO_CB_ONLY_AES: strips software AES; swdev provides the
           # software path via cryptocb.
@@ -50,7 +49,6 @@ jobs:
           # algorithm call that a single-strip entry would still resolve via
           # the remaining software paths.
           - name: ALL
-            extra_config: --disable-sha224
             cppflags: >-
               -DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA
               -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_AES
