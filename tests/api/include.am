@@ -48,6 +48,7 @@ tests_unit_test_SOURCES += tests/api/test_curve448.c
 tests_unit_test_SOURCES += tests/api/test_ed448.c
 tests_unit_test_SOURCES += tests/api/test_mlkem.c
 tests_unit_test_SOURCES += tests/api/test_mldsa.c
+tests_unit_test_SOURCES += tests/api/test_mldsa_legacy.c
 tests_unit_test_SOURCES += tests/api/test_slhdsa.c
 tests_unit_test_SOURCES += tests/api/test_signature.c
 # TLS Protocol

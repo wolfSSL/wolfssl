@@ -115,9 +115,9 @@
     #if defined(HAVE_FALCON)
         #include <wolfssl/wolfcrypt/falcon.h>
     #endif /* HAVE_FALCON */
-    #if defined(HAVE_DILITHIUM)
-        #include <wolfssl/wolfcrypt/dilithium.h>
-    #endif /* HAVE_DILITHIUM */
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        #include <wolfssl/wolfcrypt/wc_mldsa.h>
+    #endif /* WOLFSSL_HAVE_MLDSA */
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #ifdef HAVE_OCSP
             #include <wolfssl/openssl/ocsp.h>
@@ -8632,14 +8632,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         case falcon_level5_sa_algo:
             *sigAlgo = FALCON_LEVEL5k;
             break;
-        case dilithium_level2_sa_algo:
-            *sigAlgo = ML_DSA_LEVEL2k;
+        case mldsa_44_sa_algo:
+            *sigAlgo = ML_DSA_44k;
             break;
-        case dilithium_level3_sa_algo:
-            *sigAlgo = ML_DSA_LEVEL3k;
+        case mldsa_65_sa_algo:
+            *sigAlgo = ML_DSA_65k;
             break;
-        case dilithium_level5_sa_algo:
-            *sigAlgo = ML_DSA_LEVEL5k;
+        case mldsa_87_sa_algo:
+            *sigAlgo = ML_DSA_87k;
             break;
         case sm2_sa_algo:
             *sigAlgo = SM2k;
@@ -13488,22 +13488,25 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         { CTC_FALCON_LEVEL5, FALCON_LEVEL5k,  oidKeyType, "Falcon Level 5",
                                                           "Falcon Level 5"},
     #endif /* HAVE_FALCON */
-    #ifdef HAVE_DILITHIUM
-    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #ifdef WOLFSSL_HAVE_MLDSA
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        /* Pre-standardization (NIST PQC round 3) Dilithium OID labels.
+         * These coexist with the FIPS 204 "ML-DSA 44/65/87" entries below
+         * and are intentionally kept under the Dilithium name. */
         { CTC_DILITHIUM_LEVEL2, DILITHIUM_LEVEL2k,  oidKeyType,
           "Dilithium Level 2", "Dilithium Level 2"},
         { CTC_DILITHIUM_LEVEL3, DILITHIUM_LEVEL3k,  oidKeyType,
           "Dilithium Level 3", "Dilithium Level 3"},
         { CTC_DILITHIUM_LEVEL5, DILITHIUM_LEVEL5k,  oidKeyType,
           "Dilithium Level 5", "Dilithium Level 5"},
-    #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
-        { CTC_ML_DSA_LEVEL2, ML_DSA_LEVEL2k,  oidKeyType,
+    #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
+        { CTC_ML_DSA_44, ML_DSA_44k,  oidKeyType,
           "ML-DSA 44", "ML-DSA 44"},
-        { CTC_ML_DSA_LEVEL3, ML_DSA_LEVEL3k,  oidKeyType,
+        { CTC_ML_DSA_65, ML_DSA_65k,  oidKeyType,
           "ML-DSA 65", "ML-DSA 65"},
-        { CTC_ML_DSA_LEVEL5, ML_DSA_LEVEL5k,  oidKeyType,
+        { CTC_ML_DSA_87, ML_DSA_87k,  oidKeyType,
           "ML-DSA 87", "ML-DSA 87"},
-    #endif /* HAVE_DILITHIUM */
+    #endif /* WOLFSSL_HAVE_MLDSA */
 
         /* oidCurveType */
     #ifdef HAVE_ECC
@@ -13885,14 +13888,14 @@ static int SaToNid(byte sa, int* nid)
         case falcon_level5_sa_algo:
             *nid = CTC_FALCON_LEVEL5;
             break;
-        case dilithium_level2_sa_algo:
-            *nid = CTC_ML_DSA_LEVEL2;
+        case mldsa_44_sa_algo:
+            *nid = CTC_ML_DSA_44;
             break;
-        case dilithium_level3_sa_algo:
-            *nid = CTC_ML_DSA_LEVEL3;
+        case mldsa_65_sa_algo:
+            *nid = CTC_ML_DSA_65;
             break;
-        case dilithium_level5_sa_algo:
-            *nid = CTC_ML_DSA_LEVEL5;
+        case mldsa_87_sa_algo:
+            *nid = CTC_ML_DSA_87;
             break;
         case sm2_sa_algo:
             *nid = WC_NID_sm2;
@@ -15993,7 +15996,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.haveECC          = ctx->haveECC;
     ssl->options.haveStaticECC    = ctx->haveStaticECC;
     ssl->options.haveFalconSig    = ctx->haveFalconSig;
-    ssl->options.haveDilithiumSig = ctx->haveDilithiumSig;
+    ssl->options.haveMlDsaSig = ctx->haveMlDsaSig;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
     ssl->buffers.altKey   = ctx->altPrivateKey;

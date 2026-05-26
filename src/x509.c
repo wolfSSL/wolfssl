@@ -6405,10 +6405,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             else if (x509->pubKeyOID == DSAk) {
                 key->type = WC_EVP_PKEY_DSA;
             }
-        #ifdef HAVE_DILITHIUM
-            else if (x509->pubKeyOID == ML_DSA_LEVEL2k ||
-                     x509->pubKeyOID == ML_DSA_LEVEL3k ||
-                     x509->pubKeyOID == ML_DSA_LEVEL5k) {
+        #ifdef WOLFSSL_HAVE_MLDSA
+            else if (x509->pubKeyOID == ML_DSA_44k ||
+                     x509->pubKeyOID == ML_DSA_65k ||
+                     x509->pubKeyOID == ML_DSA_87k) {
                 key->type = WC_EVP_PKEY_DILITHIUM;
             }
         #endif
@@ -12258,8 +12258,8 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     #if defined(HAVE_FALCON)
         falcon_key* falcon = NULL;
     #endif
-    #if defined(HAVE_DILITHIUM)
-        dilithium_key* dilithium = NULL;
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        wc_MlDsaKey* mldsa = NULL;
     #endif
     #if defined(WOLFSSL_HAVE_SLHDSA)
         SlhDsaKey* slhdsa = NULL;
@@ -12429,68 +12429,68 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             key = (void*)falcon;
         }
     #endif
-    #if defined(HAVE_DILITHIUM)
-        if ((x509->pubKeyOID == ML_DSA_LEVEL2k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL3k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL5k)
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        if ((x509->pubKeyOID == ML_DSA_44k) ||
+            (x509->pubKeyOID == ML_DSA_65k) ||
+            (x509->pubKeyOID == ML_DSA_87k)
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
          || (x509->pubKeyOID == DILITHIUM_LEVEL2k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL3k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL5k)
-            #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+            #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
             ) {
-            dilithium = (dilithium_key*)XMALLOC(sizeof(dilithium_key), NULL,
-                                          DYNAMIC_TYPE_DILITHIUM);
-            if (dilithium == NULL) {
-                WOLFSSL_MSG("Failed to allocate memory for dilithium_key");
+            mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), NULL,
+                                          DYNAMIC_TYPE_MLDSA);
+            if (mldsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for wc_MlDsaKey");
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return WOLFSSL_FAILURE;
             }
 
-            ret = wc_dilithium_init(dilithium);
+            ret = wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID);
             if (ret != 0) {
-                XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
 
-            if (x509->pubKeyOID == ML_DSA_LEVEL2k) {
-                type = ML_DSA_LEVEL2_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_44);
+            if (x509->pubKeyOID == ML_DSA_44k) {
+                type = ML_DSA_44_TYPE;
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_44);
             }
-            else if (x509->pubKeyOID == ML_DSA_LEVEL3k) {
-                type = ML_DSA_LEVEL3_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_65);
+            else if (x509->pubKeyOID == ML_DSA_65k) {
+                type = ML_DSA_65_TYPE;
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_65);
             }
-            else if (x509->pubKeyOID == ML_DSA_LEVEL5k) {
-                type = ML_DSA_LEVEL5_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_87);
+            else if (x509->pubKeyOID == ML_DSA_87k) {
+                type = ML_DSA_87_TYPE;
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_87);
             }
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
             else if (x509->pubKeyOID == DILITHIUM_LEVEL2k) {
                 type = DILITHIUM_LEVEL2_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_44_DRAFT);
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_44_DRAFT);
             }
             else if (x509->pubKeyOID == DILITHIUM_LEVEL3k) {
                 type = DILITHIUM_LEVEL3_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_65_DRAFT);
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_65_DRAFT);
             }
             else if (x509->pubKeyOID == DILITHIUM_LEVEL5k) {
                 type = DILITHIUM_LEVEL5_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_87_DRAFT);
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_87_DRAFT);
             }
-            #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+            #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
 
-            ret = wc_Dilithium_PublicKeyDecode(x509->pubKey.buffer, &idx,
-                                    dilithium, x509->pubKey.length);
+            ret = wc_MlDsaKey_PublicKeyDecode(mldsa, x509->pubKey.buffer,
+                                    x509->pubKey.length, &idx);
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
-                wc_dilithium_free(dilithium);
-                XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
-            key = (void*)dilithium;
+            key = (void*)mldsa;
         }
     #endif
     #if defined(WOLFSSL_HAVE_SLHDSA)
@@ -12654,18 +12654,18 @@ cleanup:
             XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
         }
     #endif
-    #if defined(HAVE_DILITHIUM)
-        if ((x509->pubKeyOID == ML_DSA_LEVEL2k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL3k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL5k)
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        if ((x509->pubKeyOID == ML_DSA_44k) ||
+            (x509->pubKeyOID == ML_DSA_65k) ||
+            (x509->pubKeyOID == ML_DSA_87k)
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
          || (x509->pubKeyOID == DILITHIUM_LEVEL2k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL3k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL5k)
         #endif
         ) {
-            wc_dilithium_free(dilithium);
-            XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+            wc_MlDsaKey_Free(mldsa);
+            XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
         }
     #endif
     #if defined(WOLFSSL_HAVE_SLHDSA)

@@ -6070,7 +6070,7 @@ static int SetValidity(byte* output, int daysValid)
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                       WC_RNG* rng, DsaKey* dsaKey, ed25519_key* ed25519Key,
                       ed448_key* ed448Key, falcon_key* falconKey,
-                      dilithium_key* dilithiumKey, SlhDsaKey* slhDsaKey)
+                      wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey)
 {
     int ret;
 
@@ -6080,7 +6080,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* make sure at least one key type is provided */
     if (rsaKey == NULL && eccKey == NULL && ed25519Key == NULL &&
         dsaKey == NULL && ed448Key == NULL && falconKey == NULL &&
-        dilithiumKey == NULL && slhDsaKey == NULL) {
+        mldsaKey == NULL && slhDsaKey == NULL) {
         return PUBLIC_KEY_E;
     }
 
@@ -6168,24 +6168,24 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                                      (word32)sizeof(der->publicKey), 1);
     }
 #endif /* HAVE_FALCON */
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
-    if ((cert->keyType == ML_DSA_LEVEL2_KEY) ||
-        (cert->keyType == ML_DSA_LEVEL3_KEY) ||
-        (cert->keyType == ML_DSA_LEVEL5_KEY)
-    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1)
+    if ((cert->keyType == ML_DSA_44_KEY) ||
+        (cert->keyType == ML_DSA_65_KEY) ||
+        (cert->keyType == ML_DSA_87_KEY)
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
      || (cert->keyType == DILITHIUM_LEVEL2_KEY)
      || (cert->keyType == DILITHIUM_LEVEL3_KEY)
      || (cert->keyType == DILITHIUM_LEVEL5_KEY)
     #endif
         ) {
-        if (dilithiumKey == NULL)
+        if (mldsaKey == NULL)
             return PUBLIC_KEY_E;
 
         der->publicKeySz =
-            wc_Dilithium_PublicKeyToDer(dilithiumKey, der->publicKey,
+            wc_MlDsaKey_PublicKeyToDer(mldsaKey, der->publicKey,
                                      (word32)sizeof(der->publicKey), 1);
     }
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 #if defined(WOLFSSL_HAVE_SLHDSA)
     if ((cert->keyType == SLH_DSA_SHAKE_128F_KEY) ||
         (cert->keyType == SLH_DSA_SHAKE_192F_KEY) ||
@@ -6669,7 +6669,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
                        DsaKey* dsaKey, ed25519_key* ed25519Key,
                        ed448_key* ed448Key, falcon_key* falconKey,
-                       dilithium_key* dilithiumKey, SlhDsaKey* slhDsaKey)
+                       wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey)
 {
     int ret;
     WC_DECLARE_VAR(der, DerCert, 1, 0);
@@ -6693,34 +6693,34 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     else if ((falconKey != NULL) && (falconKey->level == 5))
         cert->keyType = FALCON_LEVEL5_KEY;
 #endif /* HAVE_FALCON */
-#ifdef HAVE_DILITHIUM
-    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_44_DRAFT)) {
+#ifdef WOLFSSL_HAVE_MLDSA
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_44_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL2_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT)) {
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_65_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL3_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_87_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL5_KEY;
     }
     #endif
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_44)) {
-        cert->keyType = ML_DSA_LEVEL2_KEY;
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_44)) {
+        cert->keyType = ML_DSA_44_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_65)) {
-        cert->keyType = ML_DSA_LEVEL3_KEY;
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_65)) {
+        cert->keyType = ML_DSA_65_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_87)) {
-        cert->keyType = ML_DSA_LEVEL5_KEY;
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_87)) {
+        cert->keyType = ML_DSA_87_KEY;
     }
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 #ifdef WOLFSSL_HAVE_SLHDSA
     else if ((slhDsaKey != NULL) && (slhDsaKey->params != NULL) &&
              (SlhDsaParamToKeyType(slhDsaKey->params->param) != 0)) {
@@ -6734,7 +6734,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         return MEMORY_E);
 
     ret = EncodeCert(cert, der, rsaKey, eccKey, rng, dsaKey, ed25519Key,
-                     ed448Key, falconKey, dilithiumKey, slhDsaKey);
+                     ed448Key, falconKey, mldsaKey, slhDsaKey);
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
             ret = BUFFER_E;
@@ -6909,7 +6909,7 @@ static int SetCustomObjectId(Cert* cert, byte* output, word32 outSz,
 static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
                          DsaKey* dsaKey, ecc_key* eccKey,
                          ed25519_key* ed25519Key, ed448_key* ed448Key,
-                         falcon_key* falconKey, dilithium_key* dilithiumKey,
+                         falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
                          SlhDsaKey* slhDsaKey)
 {
     int ret;
@@ -6918,7 +6918,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     (void)ed25519Key;
     (void)ed448Key;
     (void)falconKey;
-    (void)dilithiumKey;
+    (void)mldsaKey;
     (void)slhDsaKey;
 
     if (cert == NULL || der == NULL)
@@ -6926,7 +6926,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 
     if (rsaKey == NULL && eccKey == NULL && ed25519Key == NULL &&
         dsaKey == NULL && ed448Key == NULL && falconKey == NULL &&
-        dilithiumKey == NULL && slhDsaKey == NULL) {
+        mldsaKey == NULL && slhDsaKey == NULL) {
         return PUBLIC_KEY_E;
     }
 
@@ -7017,19 +7017,19 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
             der->publicKey, (word32)sizeof(der->publicKey), 1);
     }
 #endif
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
-    if ((cert->keyType == ML_DSA_LEVEL2_KEY) ||
-        (cert->keyType == ML_DSA_LEVEL3_KEY) ||
-        (cert->keyType == ML_DSA_LEVEL5_KEY)
-    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1)
+    if ((cert->keyType == ML_DSA_44_KEY) ||
+        (cert->keyType == ML_DSA_65_KEY) ||
+        (cert->keyType == ML_DSA_87_KEY)
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
      || (cert->keyType == DILITHIUM_LEVEL2_KEY)
      || (cert->keyType == DILITHIUM_LEVEL3_KEY)
      || (cert->keyType == DILITHIUM_LEVEL5_KEY)
    #endif
         ) {
-        if (dilithiumKey == NULL)
+        if (mldsaKey == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = wc_Dilithium_PublicKeyToDer(dilithiumKey,
+        der->publicKeySz = wc_MlDsaKey_PublicKeyToDer(mldsaKey,
             der->publicKey, (word32)sizeof(der->publicKey), 1);
     }
 #endif
@@ -7301,7 +7301,7 @@ static int WriteCertReqBody(DerCert* der, byte* buf)
 static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
                    ed25519_key* ed25519Key, ed448_key* ed448Key,
-                   falcon_key* falconKey, dilithium_key* dilithiumKey,
+                   falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
                    SlhDsaKey* slhDsaKey)
 {
     int ret;
@@ -7323,34 +7323,34 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     else if ((falconKey != NULL) && (falconKey->level == 5))
         cert->keyType = FALCON_LEVEL5_KEY;
 #endif /* HAVE_FALCON */
-#ifdef HAVE_DILITHIUM
-    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_44_DRAFT)) {
+#ifdef WOLFSSL_HAVE_MLDSA
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_44_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL2_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT)) {
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_65_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL3_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_87_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL5_KEY;
     }
     #endif
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_44)) {
-        cert->keyType = ML_DSA_LEVEL2_KEY;
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_44)) {
+        cert->keyType = ML_DSA_44_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_65)) {
-        cert->keyType = ML_DSA_LEVEL3_KEY;
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_65)) {
+        cert->keyType = ML_DSA_65_KEY;
     }
-    else if ((dilithiumKey != NULL) &&
-                (dilithiumKey->params->level == WC_ML_DSA_87)) {
-        cert->keyType = ML_DSA_LEVEL5_KEY;
+    else if ((mldsaKey != NULL) &&
+                (mldsaKey->params->level == WC_ML_DSA_87)) {
+        cert->keyType = ML_DSA_87_KEY;
     }
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 #ifdef WOLFSSL_HAVE_SLHDSA
     else if ((slhDsaKey != NULL) && (slhDsaKey->params != NULL) &&
              (SlhDsaParamToKeyType(slhDsaKey->params->param) != 0)) {
@@ -7364,7 +7364,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         return MEMORY_E);
 
     ret = EncodeCertReq(cert, der, rsaKey, dsaKey, eccKey, ed25519Key, ed448Key,
-                        falconKey, dilithiumKey, slhDsaKey);
+                        falconKey, mldsaKey, slhDsaKey);
 
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)

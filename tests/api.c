@@ -169,8 +169,8 @@
     #include <sys/uio.h>
 #endif
 
-#ifdef HAVE_DILITHIUM
-    #include <wolfssl/wolfcrypt/dilithium.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
 #if defined(WOLFSSL_HAVE_MLKEM)
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
@@ -1561,11 +1561,11 @@ static int test_dual_alg_crit_ext_support(void)
 static int test_dual_alg_ecdsa_mldsa(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(HAVE_DILITHIUM) && \
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(WOLFSSL_HAVE_MLDSA) && \
     defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
     WOLFSSL_CERT_MANAGER * cm = NULL;
     wc_MlDsaKey alt_ca_key;
     ecc_key     ca_key;
@@ -1660,8 +1660,8 @@ static int test_dual_alg_ecdsa_mldsa(void)
     ExpectIntGT(tbs_der_sz, 0);
 
     alt_sig_sz = wc_MakeSigWithBitStr(alt_sig, alt_sig_sz,
-                                      CTC_ML_DSA_LEVEL2, tbs_der, tbs_der_sz,
-                                      ML_DSA_LEVEL2_TYPE, &alt_ca_key, &rng);
+                                      CTC_ML_DSA_44, tbs_der, tbs_der_sz,
+                                      ML_DSA_44_TYPE, &alt_ca_key, &rng);
     ExpectIntGT(alt_sig_sz, 0);
 
     ret = wc_SetCustomExtension(&new_cert, 0, "2.5.29.74", alt_sig, alt_sig_sz);
@@ -19273,7 +19273,7 @@ static int test_wolfSSL_sigalg_info(void)
     byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
     word16 len = 0;
     word16 idx = 0;
-    int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_DILITHIUM;
+    int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_MLDSA;
 
     InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs, 1, 1, 0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
@@ -19946,47 +19946,47 @@ static int test_wolfSSL_ticket_keys(void)
 
 #ifndef NO_BIO
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_DILITHIUM)
-/* Verify wc_dilithium auto detects the expected ML-DSA level from the OID
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA)
+/* Verify wc_MlDsaKey auto detects the expected ML-DSA level from the OID
  * in a SPKI / PKCS#8 DER buffer. Returns 0 on match. */
-static int check_dilithium_der_level(const byte* der, word32 derSz,
+static int check_mldsa_der_level(const byte* der, word32 derSz,
     byte expectedLevel, int isPrivate)
 {
-    dilithium_key key;
+    wc_MlDsaKey key;
     word32 idx = 0;
     byte level = 0;
     int rc;
-#ifndef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifndef WOLFSSL_MLDSA_PRIVATE_KEY
     (void)isPrivate;
 #endif
 
-    if ((rc = wc_dilithium_init(&key)) != 0) {
+    if ((rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID)) != 0) {
         return rc;
     }
 
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
     if (isPrivate) {
-        rc = wc_Dilithium_PrivateKeyDecode(der, &idx, &key, derSz);
+        rc = wc_MlDsaKey_PrivateKeyDecode(&key, der, derSz, &idx);
     }
     else
 #endif
     {
-        rc = wc_Dilithium_PublicKeyDecode(der, &idx, &key, derSz);
+        rc = wc_MlDsaKey_PublicKeyDecode(&key, der, derSz, &idx);
     }
 
     if (rc == 0) {
-        rc = wc_dilithium_get_level(&key, &level);
+        rc = wc_MlDsaKey_GetParams(&key, &level);
     }
 
     if (rc == 0 && level != expectedLevel) {
         rc = -1;
     }
 
-    wc_dilithium_free(&key);
+    wc_MlDsaKey_Free(&key);
 
     return rc;
 }
-#endif /* OPENSSL_EXTRA && HAVE_DILITHIUM */
+#endif /* OPENSSL_EXTRA && WOLFSSL_HAVE_MLDSA */
 
 static int test_wolfSSL_d2i_PUBKEY(void)
 {
@@ -20038,12 +20038,12 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /*  USE_CERT_BUFFERS_2048 && !NO_DH &&  && OPENSSL_EXTRA */
 
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
 
 #if !defined(WOLFSSL_NO_ML_DSA_44)
     /* ML-DSA-44 PUBKEY test (raw key bytes) */
-    ExpectIntGT(BIO_write(bio, bench_dilithium_level2_pubkey,
-        sizeof_bench_dilithium_level2_pubkey), 0);
+    ExpectIntGT(BIO_write(bio, bench_mldsa_44_pubkey,
+        sizeof_bench_mldsa_44_pubkey), 0);
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     EVP_PKEY_free(pkey);
@@ -20053,7 +20053,7 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     ExpectIntGT(BIO_write(bio, mldsa44_pub_spki, sizeof_mldsa44_pub_spki), 0);
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
-    ExpectIntEQ(check_dilithium_der_level(mldsa44_pub_spki,
+    ExpectIntEQ(check_mldsa_der_level(mldsa44_pub_spki,
         sizeof_mldsa44_pub_spki, WC_ML_DSA_44, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -20061,8 +20061,8 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
 
 #if !defined(WOLFSSL_NO_ML_DSA_65)
     /* ML-DSA-65 PUBKEY test (raw key bytes) */
-    ExpectIntGT(BIO_write(bio, bench_dilithium_level3_pubkey,
-        sizeof_bench_dilithium_level3_pubkey), 0);
+    ExpectIntGT(BIO_write(bio, bench_mldsa_65_pubkey,
+        sizeof_bench_mldsa_65_pubkey), 0);
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     EVP_PKEY_free(pkey);
@@ -20072,7 +20072,7 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     ExpectIntGT(BIO_write(bio, mldsa65_pub_spki, sizeof_mldsa65_pub_spki), 0);
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
-    ExpectIntEQ(check_dilithium_der_level(mldsa65_pub_spki,
+    ExpectIntEQ(check_mldsa_der_level(mldsa65_pub_spki,
         sizeof_mldsa65_pub_spki, WC_ML_DSA_65, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -20080,8 +20080,8 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
 
 #if !defined(WOLFSSL_NO_ML_DSA_87)
     /* ML-DSA-87 PUBKEY test (raw key bytes) */
-    ExpectIntGT(BIO_write(bio, bench_dilithium_level5_pubkey,
-        sizeof_bench_dilithium_level5_pubkey), 0);
+    ExpectIntGT(BIO_write(bio, bench_mldsa_87_pubkey,
+        sizeof_bench_mldsa_87_pubkey), 0);
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     EVP_PKEY_free(pkey);
@@ -20091,13 +20091,13 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     ExpectIntGT(BIO_write(bio, mldsa87_pub_spki, sizeof_mldsa87_pub_spki), 0);
     ExpectNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
-    ExpectIntEQ(check_dilithium_der_level(mldsa87_pub_spki,
+    ExpectIntEQ(check_mldsa_der_level(mldsa87_pub_spki,
         sizeof_mldsa87_pub_spki, WC_ML_DSA_87, 0), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
 
-#endif /* HAVE_DILITHIUM && !NO_VERIFY */
+#endif /* WOLFSSL_HAVE_MLDSA && !NO_VERIFY */
 
     /* Negative test, invalid input must return NULL */
     {
@@ -20211,12 +20211,12 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     }
 #endif
 
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN)
 #if !defined(WOLFSSL_NO_ML_DSA_44)
     /* ML-DSA-44 PrivateKey test (raw bytes) */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
-    ExpectIntGT(BIO_write(bio, bench_dilithium_level2_key,
-        sizeof_bench_dilithium_level2_key), 0);
+    ExpectIntGT(BIO_write(bio, bench_mldsa_44_key,
+        sizeof_bench_mldsa_44_key), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     EVP_PKEY_free(pkey);
@@ -20230,7 +20230,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         sizeof_mldsa44_priv_only), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
-    ExpectIntEQ(check_dilithium_der_level(mldsa44_priv_only,
+    ExpectIntEQ(check_mldsa_der_level(mldsa44_priv_only,
         sizeof_mldsa44_priv_only, WC_ML_DSA_44, 1), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -20248,7 +20248,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
     /* ML-DSA-44 PrivateKey test (LAMPS PKCS#8 seed-only DER) --
      * requires wc_dilithium_make_key_from_seed to expand the seed. */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
@@ -20266,8 +20266,8 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
 #if !defined(WOLFSSL_NO_ML_DSA_65)
     /* ML-DSA-65 PrivateKey test (raw bytes) */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
-    ExpectIntGT(BIO_write(bio, bench_dilithium_level3_key,
-        sizeof_bench_dilithium_level3_key), 0);
+    ExpectIntGT(BIO_write(bio, bench_mldsa_65_key,
+        sizeof_bench_mldsa_65_key), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     EVP_PKEY_free(pkey);
@@ -20281,7 +20281,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         sizeof_mldsa65_priv_only), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
-    ExpectIntEQ(check_dilithium_der_level(mldsa65_priv_only,
+    ExpectIntEQ(check_mldsa_der_level(mldsa65_priv_only,
         sizeof_mldsa65_priv_only, WC_ML_DSA_65, 1), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -20299,7 +20299,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
     /* ML-DSA-65 PrivateKey test (LAMPS PKCS#8 seed-only DER) --
      * requires wc_dilithium_make_key_from_seed to expand the seed. */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
@@ -20317,8 +20317,8 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
 #if !defined(WOLFSSL_NO_ML_DSA_87)
     /* ML-DSA-87 PrivateKey test (raw bytes) */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
-    ExpectIntGT(BIO_write(bio, bench_dilithium_level5_key,
-        sizeof_bench_dilithium_level5_key), 0);
+    ExpectIntGT(BIO_write(bio, bench_mldsa_87_key,
+        sizeof_bench_mldsa_87_key), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
     EVP_PKEY_free(pkey);
@@ -20332,7 +20332,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         sizeof_mldsa87_priv_only), 0);
     ExpectNotNull(pkey = d2i_PrivateKey_bio(bio, NULL));
     ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_DILITHIUM);
-    ExpectIntEQ(check_dilithium_der_level(mldsa87_priv_only,
+    ExpectIntEQ(check_mldsa_der_level(mldsa87_priv_only,
         sizeof_mldsa87_priv_only, WC_ML_DSA_87, 1), 0);
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -20350,7 +20350,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO_free(bio);
     bio = NULL;
 
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
     /* ML-DSA-87 PrivateKey test (LAMPS PKCS#8 seed-only DER) --
      * requires wc_dilithium_make_key_from_seed to expand the seed. */
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
@@ -20364,7 +20364,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     bio = NULL;
 #endif
 #endif
-#endif /* HAVE_DILITHIUM && !NO_SIGN */
+#endif /* WOLFSSL_HAVE_MLDSA && !NO_SIGN */
 
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
 #ifndef NO_WOLFSSL_SERVER
@@ -39041,10 +39041,10 @@ static int test_DhAgree_rejects_p_minus_1(void)
 static int test_mldsa_verify_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    dilithium_key key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
     WC_RNG rng;
     int res = 0;
     byte sig[4000];
@@ -39056,22 +39056,22 @@ static int test_mldsa_verify_hash(void)
     XMEMSET(hash, 'A', sizeof(hash));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(&key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_44)
-    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
 #endif
-    ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
 
     /* hashLen=4096 must be rejected, not overflow the stack */
-    ExpectIntEQ(wc_dilithium_verify_ctx_hash(sig, sizeof(sig), NULL, 0,
-        WC_HASH_TYPE_SHA256, hash, sizeof(hash), &res, &key),
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(&key, sig, sizeof(sig), NULL, 0,
+        hash, sizeof(hash), WC_HASH_TYPE_SHA256, &res),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
 
-    wc_dilithium_free(&key);
+    wc_MlDsaKey_Free(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
@@ -39959,10 +39959,10 @@ static int test_pkcs7_enveloped_content_size_overflow(void)
 static int test_dilithium_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    dilithium_key key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
     WC_RNG rng;
     int res = 0;
     byte sig[4000];
@@ -39974,20 +39974,20 @@ static int test_dilithium_hash(void)
     XMEMSET(msg, 'A', sizeof(msg));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(&key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_44)
-    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(&key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
 #endif
-    ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
 
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig, sizeof(sig), NULL, 0,
-        msg, 0xFFFFFFC0, &res, &key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sizeof(sig), NULL, 0,
+        msg, 0xFFFFFFC0, &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    wc_dilithium_free(&key);
+    wc_MlDsaKey_Free(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();

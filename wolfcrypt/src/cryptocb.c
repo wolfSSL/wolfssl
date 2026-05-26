@@ -1288,7 +1288,7 @@ int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
 }
 #endif /* WOLFSSL_HAVE_MLKEM */
 
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
+#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
     defined(WOLFSSL_HAVE_SLHDSA)
 int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
 {
@@ -1298,9 +1298,9 @@ int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
         return devId;
 
     /* get devId */
-#if defined(HAVE_DILITHIUM)
+#if defined(WOLFSSL_HAVE_MLDSA)
     if (type == WC_PQC_SIG_TYPE_MLDSA) {
-        devId = ((dilithium_key*) key)->devId;
+        devId = ((wc_MlDsaKey*) key)->devId;
     }
 #endif
 #if defined(HAVE_FALCON)
@@ -1462,7 +1462,7 @@ int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* HAVE_FALCON || HAVE_DILITHIUM || WOLFSSL_HAVE_SLHDSA */
+#endif /* HAVE_FALCON || WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
 
 #ifndef NO_AES
 #ifdef HAVE_AESGCM

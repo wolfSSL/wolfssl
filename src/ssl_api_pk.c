@@ -72,16 +72,16 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                 type = DYNAMIC_TYPE_ECC;
                 break;
         #endif
-    #if defined(HAVE_DILITHIUM)
-            case ML_DSA_LEVEL2k:
-            case ML_DSA_LEVEL3k:
-            case ML_DSA_LEVEL5k:
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+            case ML_DSA_44k:
+            case ML_DSA_65k:
+            case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
             case DILITHIUM_LEVEL2k:
             case DILITHIUM_LEVEL3k:
             case DILITHIUM_LEVEL5k:
         #endif
-                type = DYNAMIC_TYPE_DILITHIUM;
+                type = DYNAMIC_TYPE_MLDSA;
                 break;
     #endif
     #if defined(HAVE_FALCON)
@@ -112,11 +112,11 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                     pubSz);
                 break;
     #endif
-    #if defined(HAVE_DILITHIUM)
-            case ML_DSA_LEVEL2k:
-            case ML_DSA_LEVEL3k:
-            case ML_DSA_LEVEL5k:
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+            case ML_DSA_44k:
+            case ML_DSA_65k:
+            case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
             case DILITHIUM_LEVEL2k:
             case DILITHIUM_LEVEL3k:
             case DILITHIUM_LEVEL5k:
@@ -157,16 +157,16 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
             wc_ecc_free((ecc_key*)pkey);
             break;
     #endif
-    #if defined(HAVE_DILITHIUM)
-        case ML_DSA_LEVEL2k:
-        case ML_DSA_LEVEL3k:
-        case ML_DSA_LEVEL5k:
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        case ML_DSA_44k:
+        case ML_DSA_65k:
+        case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
         case DILITHIUM_LEVEL2k:
         case DILITHIUM_LEVEL3k:
         case DILITHIUM_LEVEL5k:
         #endif
-            wc_dilithium_free((dilithium_key*)pkey);
+            wc_MlDsaKey_Free((wc_MlDsaKey*)pkey);
             break;
     #endif
     #if defined(HAVE_FALCON)

@@ -57,6 +57,26 @@
  *      written against the pre-standardization API keeps compiling. Suppressed
  *      by defining WOLFSSL_NO_DILITHIUM_LEGACY_NAMES.
  *
+ *      WOLFSSL_NO_DILITHIUM_LEGACY_NAMES additionally suppresses several
+ *      identifier families that share its opt-out gate but are not
+ *      defined inside this header:
+ *
+ *        - `ML_DSA_LEVEL{2,3,5}_TYPE` / `_KEY` / `k`, `CTC_ML_DSA_LEVEL{2,3,5}`
+ *          aliases in <wolfssl/wolfcrypt/asn_public.h>,
+ *          <wolfssl/wolfcrypt/asn.h>, <wolfssl/wolfcrypt/oid_sum.h>.
+ *          These were spelled in ML-DSA form on master but used the
+ *          pre-standardization NIST-security-category numbering (2/3/5)
+ *          rather than the FIPS 204 parameter-set numbers (44/65/87).
+ *
+ *        - The `DILITHIUM_KEY_SIZE_E` error-code alias in
+ *          <wolfssl/error-ssl.h>.
+ *
+ *        - The three per-parameter-set size-constant alias families
+ *          (`ML_DSA_LEVEL{2,3,5}_*_SIZE`,
+ *          `DILITHIUM_LEVEL{2,3,5}_*_SIZE`,
+ *          `DILITHIUM_ML_DSA_{44,65,87}_*_SIZE`) defined immediately
+ *          below in this header.
+ *
  * New code must include <wolfssl/wolfcrypt/wc_mldsa.h> directly and use
  * the wc_MlDsaKey / wc_MlDsaKey_* / WOLFSSL_MLDSA_* names. */
 
@@ -71,7 +91,10 @@
  * <wolfssl/wolfcrypt/settings.h> so that header sees the canonical
  * spelling without going through dilithium.h. The block below covers
  * the remaining sub-gates, all of which are read only by wc_mldsa.h /
- * wc_mldsa.c (which transitively include this file first). */
+ * wc_mldsa.c. wc_mldsa.h pulls this file in at its own top (see the
+ * #include block in <wolfssl/wolfcrypt/wc_mldsa.h>) so the forward arm
+ * fires before wc_mldsa.h reads any canonical gate -- including when
+ * wc_mldsa.h is reached transitively via <asn.h> / <asn_public.h>. */
 
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_GATES
 
@@ -267,6 +290,46 @@
 
 #endif /* !WOLFSSL_NO_DILITHIUM_LEGACY_GATES */
 
+/* === Derived canonical gates ========================================== */
+
+/* Derive secondary canonical gates from the primary NO_* gates. Lives in
+ * this file (rather than in wc_mldsa.h alongside the struct definition)
+ * so the reverse arm at the bottom of this file sees the derived set
+ * fully populated without needing wc_mldsa.h to finish parsing first.
+ * wc_mldsa.h includes this file at its top, so by the time control
+ * returns from that include the gates are already set and wc_mldsa.h's
+ * struct definition / conditional declarations read them directly. */
+#if defined(WOLFSSL_HAVE_MLDSA)
+#if defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+        defined(WOLFSSL_MLDSA_NO_SIGN) && \
+        !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+        !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+    #define WOLFSSL_MLDSA_VERIFY_ONLY
+#endif
+#ifdef WOLFSSL_MLDSA_VERIFY_ONLY
+    #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+        #define WOLFSSL_MLDSA_NO_MAKE_KEY
+    #endif
+    #ifndef WOLFSSL_MLDSA_NO_SIGN
+        #define WOLFSSL_MLDSA_NO_SIGN
+    #endif
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+        !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    #define WOLFSSL_MLDSA_PUBLIC_KEY
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+        !defined(WOLFSSL_MLDSA_NO_SIGN)
+    #define WOLFSSL_MLDSA_PRIVATE_KEY
+#endif
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+        defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_CHECK_KEY) && \
+        !defined(WOLFSSL_MLDSA_CHECK_KEY)
+    #define WOLFSSL_MLDSA_CHECK_KEY
+#endif
+#endif /* WOLFSSL_HAVE_MLDSA */
+
 /* === wc_mldsa.h is now reachable with canonical gates correctly set === */
 
 #include <wolfssl/wolfcrypt/wc_mldsa.h>
@@ -397,27 +460,53 @@
  * dlsym() or callback tables that key off the legacy spelling will see the
  * canonical name in the resulting pointer. */
 #define wc_dilithium_init_ex                wc_MlDsaKey_Init
-#define wc_dilithium_init_id                wc_MlDsaKey_InitId
-#define wc_dilithium_init_label             wc_MlDsaKey_InitLabel
-#define wc_dilithium_new                    wc_MlDsaKey_New
-#define wc_dilithium_delete                 wc_MlDsaKey_Delete
+#ifdef WOLF_PRIVATE_KEY_ID
+    #define wc_dilithium_init_id            wc_MlDsaKey_InitId
+    #define wc_dilithium_init_label         wc_MlDsaKey_InitLabel
+#endif
+#ifndef WC_NO_CONSTRUCTORS
+    #define wc_dilithium_new                wc_MlDsaKey_New
+    #define wc_dilithium_delete             wc_MlDsaKey_Delete
+#endif
 #define wc_dilithium_free                   wc_MlDsaKey_Free
 #define wc_dilithium_set_level              wc_MlDsaKey_SetParams
 #define wc_dilithium_get_level              wc_MlDsaKey_GetParams
-#define wc_dilithium_make_key               wc_MlDsaKey_MakeKey
-#define wc_dilithium_make_key_from_seed     wc_MlDsaKey_MakeKeyFromSeed
-#define wc_dilithium_size                   wc_MlDsaKey_Size
-#define wc_dilithium_priv_size              wc_MlDsaKey_PrivSize
-#define wc_dilithium_pub_size               wc_MlDsaKey_PubSize
-#define wc_dilithium_sig_size               wc_MlDsaKey_SigSize
-#define wc_dilithium_check_key              wc_MlDsaKey_CheckKey
-#define wc_dilithium_export_public          wc_MlDsaKey_ExportPubRaw
-#define wc_dilithium_export_private         wc_MlDsaKey_ExportPrivRaw
-#define wc_dilithium_export_private_only    wc_MlDsaKey_ExportPrivRaw
-#define wc_dilithium_export_key             wc_MlDsaKey_ExportKey
-#define wc_Dilithium_PublicKeyToDer         wc_MlDsaKey_PublicKeyToDer
-#define wc_Dilithium_PrivateKeyToDer        wc_MlDsaKey_PrivateKeyToDer
-#define wc_Dilithium_KeyToDer               wc_MlDsaKey_KeyToDer
+#ifndef WOLFSSL_MLDSA_VERIFY_ONLY
+    #define wc_dilithium_make_key           wc_MlDsaKey_MakeKey
+    #define wc_dilithium_make_key_from_seed wc_MlDsaKey_MakeKeyFromSeed
+#endif
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    #define wc_dilithium_size               wc_MlDsaKey_Size
+#endif
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+    #define wc_dilithium_priv_size          wc_MlDsaKey_PrivSize
+#endif
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    #define wc_dilithium_pub_size           wc_MlDsaKey_PubSize
+#endif
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    #define wc_dilithium_sig_size           wc_MlDsaKey_SigSize
+#endif
+#ifdef WOLFSSL_MLDSA_CHECK_KEY
+    #define wc_dilithium_check_key          wc_MlDsaKey_CheckKey
+#endif
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    #define wc_dilithium_export_public      wc_MlDsaKey_ExportPubRaw
+#endif
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    #define wc_dilithium_export_private         wc_MlDsaKey_ExportPrivRaw
+    #define wc_dilithium_export_private_only    wc_MlDsaKey_ExportPrivRaw
+    #define wc_dilithium_export_key             wc_MlDsaKey_ExportKey
+#endif
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+    #ifdef WC_ENABLE_ASYM_KEY_EXPORT
+        #define wc_Dilithium_PublicKeyToDer     wc_MlDsaKey_PublicKeyToDer
+    #endif
+    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+        #define wc_Dilithium_PrivateKeyToDer    wc_MlDsaKey_PrivateKeyToDer
+        #define wc_Dilithium_KeyToDer           wc_MlDsaKey_KeyToDer
+    #endif
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 */
 
 /* Legacy default-args / arg-reorder wrappers. The legacy form takes the key
  * pointer last (or near last); the FIPS 204 / ML-KEM convention used by the

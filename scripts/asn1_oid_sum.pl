@@ -170,6 +170,25 @@ sub print_sum_enum {
     print_enum($_[0] . "_Sum", $_[1], $_[2], 32, 48);
 }
 
+# Emit legacy ML-DSA "LEVEL{2,3,5}" #define aliases for an enum whose
+# canonical entries use the FIPS 204 parameter-set numbers (44/65/87).
+# Required for source-level back-compat with code written before the
+# pre-standardization Dilithium identifiers were renamed.
+#   $_[0] - canonical prefix (e.g. "ML_DSA_", "CTC_ML_DSA_")
+#   $_[1] - canonical suffix appended to each entry (e.g. "k", "")
+sub print_mldsa_legacy_aliases {
+    my $prefix = $_[0];
+    my $suffix = $_[1];
+
+    print "#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES\n";
+    print "/* Legacy LEVEL2/3/5 spellings for the pre-standardization names. Will\n";
+    print " * be removed alongside the dilithium.h shim. */\n";
+    print "#define ${prefix}LEVEL2${suffix} ${prefix}44${suffix}\n";
+    print "#define ${prefix}LEVEL3${suffix} ${prefix}65${suffix}\n";
+    print "#define ${prefix}LEVEL5${suffix} ${prefix}87${suffix}\n";
+    print "#endif\n\n";
+}
+
 sub print_header {
     my $t = Time::Piece->new();
 
@@ -336,9 +355,9 @@ my @keys = (
     { name => "DILITHIUM_LEVEL2",     oid => \@dilithium_2     },
     { name => "DILITHIUM_LEVEL3",     oid => \@dilithium_3     },
     { name => "DILITHIUM_LEVEL5",     oid => \@dilithium_5     },
-    { name => "ML_DSA_LEVEL2",        oid => \@mldsa_2         },
-    { name => "ML_DSA_LEVEL3",        oid => \@mldsa_3         },
-    { name => "ML_DSA_LEVEL5",        oid => \@mldsa_5         },
+    { name => "ML_DSA_44",            oid => \@mldsa_2         },
+    { name => "ML_DSA_65",            oid => \@mldsa_3         },
+    { name => "ML_DSA_87",            oid => \@mldsa_5         },
     { name => "SLH_DSA_SHA2_128S",    oid => \@slhdsa_sha2_128s  },
     { name => "SLH_DSA_SHA2_128F",    oid => \@slhdsa_sha2_128f  },
     { name => "SLH_DSA_SHA2_192S",    oid => \@slhdsa_sha2_192s  },
@@ -357,6 +376,7 @@ my @keys = (
 );
 
 print_sum_enum("Key", "k", \@keys);
+print_mldsa_legacy_aliases("ML_DSA_", "k");
 
 
 my @aes128_kw = ( 2, 16, 840, 1, 101, 3, 4, 1, 5 );
@@ -1137,11 +1157,11 @@ my @sig_types = (
                                             same => 1                       },
     { name => "CTC_DILITHIUM_LEVEL5",       oid => \@dilithium_5,
                                             same => 1                       },
-    { name => "CTC_ML_DSA_LEVEL2",          oid => \@mldsa_2,
+    { name => "CTC_ML_DSA_44",              oid => \@mldsa_2,
                                             same => 1                       },
-    { name => "CTC_ML_DSA_LEVEL3",          oid => \@mldsa_3,
+    { name => "CTC_ML_DSA_65",              oid => \@mldsa_3,
                                             same => 1                       },
-    { name => "CTC_ML_DSA_LEVEL5",          oid => \@mldsa_5,
+    { name => "CTC_ML_DSA_87",              oid => \@mldsa_5,
                                             same => 1                       },
     { name => "CTC_SLH_DSA_SHA2_128S",     oid => \@slhdsa_sha2_128s,
                                             same => 1                       },
@@ -1176,6 +1196,7 @@ my @sig_types = (
 );
 
 print_enum("Ctc_SigType", "", \@sig_types, 32, 48);
+print_mldsa_legacy_aliases("CTC_ML_DSA_", "");
 
 
 my @p7t_pkcs7_msg = ( 1, 2, 840, 113549, 1, 7 );

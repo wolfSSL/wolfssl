@@ -1564,7 +1564,7 @@ enum wc_PkType {
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_KEM_DECAPS
 #endif
-#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_SLHDSA)
     WC_PK_TYPE_PQC_SIG_KEYGEN = 21,
     WC_PK_TYPE_PQC_SIG_SIGN = 22,
@@ -1606,13 +1606,13 @@ enum wc_PkType {
     #define WC_PQC_KEM_TYPE_KYBER WC_PQC_KEM_TYPE_MLKEM
 #endif
 
-#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_SLHDSA)
     /* Post quantum signature algorithms */
     enum wc_PqcSignatureType {
         WC_PQC_SIG_TYPE_NONE = 0,
         #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_NONE
-    #if defined(HAVE_DILITHIUM)
+    #if defined(WOLFSSL_HAVE_MLDSA)
         WC_PQC_SIG_TYPE_MLDSA = 1,
         #undef _WC_PQC_SIG_TYPE_MAX
         #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_MLDSA
@@ -1630,7 +1630,7 @@ enum wc_PkType {
         WC_PQC_SIG_TYPE_MAX = _WC_PQC_SIG_TYPE_MAX
     };
 
-    #if defined(HAVE_DILITHIUM)
+    #if defined(WOLFSSL_HAVE_MLDSA)
         /* Pre-standardization name retained for backwards compatibility. */
         #define WC_PQC_SIG_TYPE_DILITHIUM WC_PQC_SIG_TYPE_MLDSA
     #endif
@@ -2379,7 +2379,7 @@ enum Max_ASN {
     /* Largest raw SLH-DSA signature (SHAKE-256f) is 49856 bytes; round up
      * to leave headroom for ASN.1 wrapping (BIT STRING tag + length). */
     MAX_ENCODED_SIG_SZ  = 51200,
-#elif defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+#elif defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     MAX_ENCODED_SIG_SZ  = 5120,
 #elif !defined(NO_RSA)
 #if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
@@ -2418,8 +2418,8 @@ enum Max_ASN {
     MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
                           MAX_VERSION_SZ, /* Maximum size of a DSA Private
                                       key taken from DsaKeyIntsToDer. */
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    MAX_PQC_PUBLIC_KEY_SZ = 2592, /* Maximum size of a Dilithium public key. */
+#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    MAX_PQC_PUBLIC_KEY_SZ = 2592, /* Maximum size of an ML-DSA public key. */
 #endif
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
@@ -2430,13 +2430,13 @@ enum Max_ASN {
                             /* Maximum DER digest ASN header size */
                             /* Max X509 header length indicates the
                              * max length + 2 ('\n', '\0') */
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA)
+#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
     MAX_X509_HEADER_SZ  = (48 + 2), /* Maximum PEM Header/Footer Size */
 #else
     MAX_X509_HEADER_SZ  = (37 + 2), /* Maximum PEM Header/Footer Size */
 #endif
 
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
 #else
     MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
