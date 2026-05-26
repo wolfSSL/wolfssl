@@ -2956,7 +2956,7 @@ int test_dtls13_no_session_id_echo(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
     defined(HAVE_SESSION_TICKET) && defined(HAVE_ECC) && \
-    !defined(WOLFSSL_DTLS13_5_9_0_COMPAT)
+    !defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -3032,14 +3032,14 @@ int test_dtls13_no_session_id_echo(void)
     return EXPECT_RESULT();
 }
 
-/* Test that a server built with WOLFSSL_DTLS13_5_9_0_COMPAT echoes the
+/* Test that a server built with WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID echoes the
  * client's legacy_session_id in both the direct ServerHello path and the
  * stateless HRR path (which also exercises RestartHandshakeHashWithCookie). */
 int test_dtls13_5_9_0_compat(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
-    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_5_9_0_COMPAT) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID) && \
     defined(HAVE_ECC)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;

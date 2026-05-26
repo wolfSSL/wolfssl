@@ -5776,7 +5776,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* RFC 9147 Section 5.3 / RFC 9001 Section 8.4: DTLS 1.3 and QUIC
          * ServerHello must have empty legacy_session_id_echo. */
         int requireEmptyEcho = 1;
-#ifdef WOLFSSL_DTLS13_5_9_0_COMPAT
+#ifdef WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID
         /* Compat: a wolfSSL <= 5.9.0 DTLS 1.3 server echoes the client's
          * legacy_session_id; accept any echo. */
         if (ssl->options.dtls)
@@ -6980,7 +6980,7 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
 
     /* Reconstruct the HelloRetryMessage for handshake hash. */
     sessIdSz = ssl->session->sessionIDSz;
-#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_5_9_0_COMPAT)
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID)
     /* RFC 9147 Section 5.3: DTLS 1.3 must use empty legacy_session_id. */
     if (ssl->options.dtls)
         sessIdSz = 0;
@@ -7460,7 +7460,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (sessIdSz + args->idx > helloSz)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
 
-#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_5_9_0_COMPAT)
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID)
     /* RFC 9147 Section 5.3: DTLS 1.3 ServerHello must have empty
      * legacy_session_id_echo. Don't store the client's value so it
      * won't be echoed in SendTls13ServerHello. */
@@ -8065,7 +8065,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     WOLFSSL_BUFFER(ssl->arrays->serverRandom, RAN_LEN);
 #endif
 
-#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_5_9_0_COMPAT)
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID)
     if (ssl->options.dtls) {
         /* RFC 9147 Section 5.3: DTLS 1.3 ServerHello must have empty
          * legacy_session_id_echo. */

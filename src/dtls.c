@@ -860,7 +860,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         nonConstSSL->options.tls1_1 = 1;
         nonConstSSL->options.tls1_3 = 1;
 
-#ifdef WOLFSSL_DTLS13_5_9_0_COMPAT
+#ifdef WOLFSSL_DTLS13_ECHO_LEGACY_SESSION_ID
         nonConstSSL->session->sessionIDSz = (byte)ch->sessionId.size;
         if (ch->sessionId.size > 0)
             XMEMCPY(nonConstSSL->session->sessionID, ch->sessionId.elements,
