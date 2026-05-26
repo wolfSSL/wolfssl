@@ -5879,7 +5879,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ret != 0)
                 return ret;
             /* use the inner random for client random */
-            if (args->extMsgType != hello_retry_request) {
+            if (args->extMsgType != hello_retry_request &&
+                    ssl->options.echAccepted) {
                 XMEMCPY(ssl->arrays->clientRandom,
                     ssl->arrays->clientRandomInner, RAN_LEN);
             }
@@ -7452,7 +7453,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     /* From here on we are a TLS 1.3 ClientHello. */
 
-    /* Client random */
+    /* Client random
+     * ECH Accepted -> This will fill with the innerClientRandom */
     XMEMCPY(ssl->arrays->clientRandom, input + args->idx, RAN_LEN);
     args->idx += RAN_LEN;
 
@@ -13686,8 +13688,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      * Only on first inner ClientHello (before HRR), not CH2. */
                     if (copyRandom) {
                         XMEMCPY(ssl->arrays->clientRandomInner,
-                                ((WOLFSSL_ECH*)echX->data)->innerClientHello +
-                                HANDSHAKE_HEADER_SZ + VERSION_SZ, RAN_LEN);
+                                ssl->arrays->clientRandom, RAN_LEN);
                     }
                     *inOutIdx += size;
                 }

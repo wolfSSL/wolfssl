@@ -14534,7 +14534,7 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
 
     XMEMSET(buff, 0, sizeof(buff));
     while (EXPECT_SUCCESS() && XFGETS(buff, (int)sizeof(buff), fp) != NULL) {
-        if (0 == strncmp(buff,"CLIENT_RANDOM ", sizeof("CLIENT_RANDOM ")-1)) {
+        if (0 == XSTRNCMP(buff,"CLIENT_RANDOM ", sizeof("CLIENT_RANDOM ")-1)) {
             found = 1;
             break;
         }
@@ -14616,13 +14616,6 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
     test_ssl_cbf server_cbf;
     test_ssl_cbf client_cbf;
     XFILE fp = XBADFILE;
-    int label_count = 4;
-#ifdef HAVE_KEYING_MATERIAL
-    label_count += 1;
-#endif
-#ifdef HAVE_ECH
-    label_count += 2;
-#endif
 
     XMEMSET(&server_cbf, 0, sizeof(test_ssl_cbf));
     XMEMSET(&client_cbf, 0, sizeof(test_ssl_cbf));
@@ -14646,47 +14639,56 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
     {
         char buff[300] = {0};
         int  found[7]  = {0};
-        int  numfnd = 0;
-        int  i;
+#ifdef HAVE_ECH
+        char echRandom[RAN_LEN * 2]  = {0};
+        char chtsRandom[RAN_LEN * 2] = {0};
+#endif
 
         ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "rb")) != XBADFILE);
 
         while (EXPECT_SUCCESS() &&
                 XFGETS(buff, (int)sizeof(buff), fp) != NULL) {
-            if (0 == strncmp(buff, "CLIENT_HANDSHAKE_TRAFFIC_SECRET ",
+            if (0 == XSTRNCMP(buff, "CLIENT_HANDSHAKE_TRAFFIC_SECRET ",
                     sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
                 found[0]++;
+#ifdef HAVE_ECH
+                XMEMCPY(chtsRandom,
+                    buff + sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1,
+                    RAN_LEN * 2);
+#endif
                 continue;
             }
-            else if (0 == strncmp(buff, "SERVER_HANDSHAKE_TRAFFIC_SECRET ",
+            else if (0 == XSTRNCMP(buff, "SERVER_HANDSHAKE_TRAFFIC_SECRET ",
                     sizeof("SERVER_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
                 found[1]++;
                 continue;
             }
-            else if (0 == strncmp(buff, "CLIENT_TRAFFIC_SECRET_0 ",
+            else if (0 == XSTRNCMP(buff, "CLIENT_TRAFFIC_SECRET_0 ",
                     sizeof("CLIENT_TRAFFIC_SECRET_0 ")-1)) {
                 found[2]++;
                 continue;
             }
-            else if (0 == strncmp(buff, "SERVER_TRAFFIC_SECRET_0 ",
+            else if (0 == XSTRNCMP(buff, "SERVER_TRAFFIC_SECRET_0 ",
                     sizeof("SERVER_TRAFFIC_SECRET_0 ")-1)) {
                 found[3]++;
                 continue;
             }
 #ifdef HAVE_KEYING_MATERIAL
-            else if (0 == strncmp(buff, "EXPORTER_SECRET ",
+            else if (0 == XSTRNCMP(buff, "EXPORTER_SECRET ",
                     sizeof("EXPORTER_SECRET ")-1)) {
                 found[4]++;
                 continue;
             }
 #endif
 #ifdef HAVE_ECH
-            else if (0 == strncmp(buff, "ECH_SECRET ",
+            else if (0 == XSTRNCMP(buff, "ECH_SECRET ",
                     sizeof("ECH_SECRET ")-1)) {
                 found[5]++;
+                XMEMCPY(echRandom, buff + sizeof("ECH_SECRET ")-1,
+                    RAN_LEN * 2);
                 continue;
             }
-            else if (0 == strncmp(buff, "ECH_CONFIG ",
+            else if (0 == XSTRNCMP(buff, "ECH_CONFIG ",
                     sizeof("ECH_CONFIG ")-1)) {
                 found[6]++;
                 continue;
@@ -14695,11 +14697,6 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
         }
         if (fp != XBADFILE)
             XFCLOSE(fp);
-        for (i = 0; i < (int)(sizeof(found) / sizeof(found[0])); i++) {
-            if (found[i] != 0)
-                numfnd++;
-        }
-        ExpectIntEQ(numfnd, label_count);
         /* the four traffic secrets are derived by both client and server, so
          * each label should appear twice with the callback set on both sides */
         ExpectIntEQ(found[0], 2);
@@ -14716,74 +14713,104 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
          * open on server) */
         ExpectIntEQ(found[5], 2);
         ExpectIntEQ(found[6], 2);
+        /* both lines must have been logged */
+        ExpectIntNE(echRandom[0], 0);
+        ExpectIntNE(chtsRandom[0], 0);
+        /* ECH_SECRET MUST be logged against the outer random while
+         *   CLIENT_HANDSHAKE_TRAFFIC_SECRET uses the inner random when ECH is
+         *   accepted */
+        ExpectIntNE(XSTRNCMP(echRandom, chtsRandom, RAN_LEN * 2), 0);
 #endif
     }
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
-    defined(HAVE_SECRET_CALLBACK) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
-/* Fails only when the derive site fires with an id matching *ctx, so the
- * caller can drive each Derive*Secret call site's failure path in isolation. */
-static int keylog_fail_cb(WOLFSSL* ssl, int id, const unsigned char* secret,
-    int secretSz, void* ctx)
-{
-    (void)ssl;
-    (void)secret;
-    (void)secretSz;
-    return (ctx != NULL && id == *(const int*)ctx) ? -1 : 0;
-}
-#endif
-
-static int test_wolfSSL_Tls13_Key_Logging_callback_fail(void)
+/* When ECH is rejected the inner random is never swapped in, so ECH_SECRET and
+ * CLIENT_HANDSHAKE_TRAFFIC_SECRET are both logged against the outer random. */
+static int test_wolfSSL_Tls13_Key_Logging_ech_rejected(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
-    defined(HAVE_SECRET_CALLBACK) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
-    /* A non-zero return from Tls13SecretCb at any derive site must surface as
-     * TLS13_SECRET_CB_E and fail the handshake. */
-    const int labels[] = {
-        CLIENT_HANDSHAKE_TRAFFIC_SECRET,
-        SERVER_HANDSHAKE_TRAFFIC_SECRET,
-        CLIENT_TRAFFIC_SECRET,
-        SERVER_TRAFFIC_SECRET,
-#ifdef HAVE_KEYING_MATERIAL
-        EXPORTER_SECRET,
-#endif
-#ifdef HAVE_ECH
-        ECH_SECRET,
-        ECH_CONFIG,
-#endif
-    };
-    struct test_ssl_memio_ctx test_ctx;
-    int fail_id;
-    int i;
+    defined(HAVE_SECRET_CALLBACK) && defined(HAVE_ECH) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_memio_ctx test_ctx;
+    WOLFSSL_CTX* tempCtx = NULL;
+    byte badConfig[128];
+    word32 badConfigLen = sizeof(badConfig);
+    XFILE fp = XBADFILE;
 
-    for (i = 0; i < (int)(sizeof(labels) / sizeof(labels[0])); i++) {
-        fail_id = labels[i];
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+    /* server generates its real ECH config and sets the keylog callback */
+    test_ctx.s_cb.ctx_ready = test_wolfSSL_Tls13_Key_Logging_server_ctx_ready;
+    /* client sets the keylog callback */
+    test_ctx.c_cb.ctx_ready = test_wolfSSL_Tls13_Key_Logging_client_ctx_ready;
 
-        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-        test_ctx.s_cb.method = wolfTLSv1_3_server_method;
-        test_ctx.c_cb.method = wolfTLSv1_3_client_method;
-        test_ctx.c_cb.ctx_ready = &test_wolfSSL_Tls13_Key_Logging_client_ctx_ready;
-        test_ctx.c_cb.ssl_ready = &test_wolfSSL_Tls13_Key_Logging_client_ssl_ready;
-        test_ctx.s_cb.ctx_ready = &test_wolfSSL_Tls13_Key_Logging_server_ctx_ready;
-        test_ctx.s_cb.ssl_ready = &test_wolfSSL_Tls13_Key_Logging_server_ssl_ready;
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
 
-        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
-        ExpectIntEQ(wolfSSL_set_tls13_secret_cb(test_ctx.c_ssl,
-            keylog_fail_cb, &fail_id), WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_set_tls13_secret_cb(test_ctx.s_ssl,
-            keylog_fail_cb, &fail_id), WOLFSSL_SUCCESS);
-        ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
-            TEST_SUCCESS);
-        /* either peer may surface the error first depending on derive order */
-        ExpectTrue(wolfSSL_get_error(test_ctx.c_ssl, 0)
-                    == WC_NO_ERR_TRACE(TLS13_SECRET_CB_E) ||
-                   wolfSSL_get_error(test_ctx.s_ssl, 0)
-                    == WC_NO_ERR_TRACE(TLS13_SECRET_CB_E));
-        test_ssl_memio_cleanup(&test_ctx);
+    /* generate a throwaway ECH config the server cannot decrypt */
+    ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, "ech-public-name.com",
+        0, 0, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(tempCtx, badConfig, &badConfigLen),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(tempCtx);
+    tempCtx = NULL;
+
+    /* client uses the bad config so the server rejects ECH */
+    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, badConfig, badConfigLen),
+        WOLFSSL_SUCCESS);
+    /* set inner SNI */
+    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+        "ech-private-name.com", (word16)XSTRLEN("ech-private-name.com")),
+        WOLFSSL_SUCCESS);
+    /* client sends empty cert on rejection, server should not ask for one */
+    wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
+
+    /* clean up keylog file */
+    ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "w")) != XBADFILE);
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* handshake fails because ECH was rejected */
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    {
+        char buff[300] = {0};
+        char echRandom[RAN_LEN * 2] = {0};
+        char chtsRandom[RAN_LEN * 2] = {0};
+
+        ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "rb")) != XBADFILE);
+        while (EXPECT_SUCCESS() &&
+                XFGETS(buff, (int)sizeof(buff), fp) != NULL) {
+            if (0 == XSTRNCMP(buff, "CLIENT_HANDSHAKE_TRAFFIC_SECRET ",
+                    sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
+                XMEMCPY(chtsRandom,
+                    buff + sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1,
+                    RAN_LEN * 2);
+            }
+            else if (0 == XSTRNCMP(buff, "ECH_SECRET ",
+                    sizeof("ECH_SECRET ")-1)) {
+                XMEMCPY(echRandom, buff + sizeof("ECH_SECRET ")-1, RAN_LEN * 2);
+            }
+        }
+        if (fp != XBADFILE)
+            XFCLOSE(fp);
+        /* both lines must have been logged */
+        ExpectIntNE(echRandom[0], 0);
+        ExpectIntNE(chtsRandom[0], 0);
+        /* ECH was rejected so both should be the outer random */
+        ExpectIntEQ(XSTRNCMP(echRandom, chtsRandom, RAN_LEN * 2), 0);
     }
 #endif
     return EXPECT_RESULT();
@@ -40867,7 +40894,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls12_Key_Logging_test),
     /* Can't memory test as server hangs. */
     TEST_DECL(test_wolfSSL_Tls13_Key_Logging_test),
-    TEST_DECL(test_wolfSSL_Tls13_Key_Logging_callback_fail),
+    TEST_DECL(test_wolfSSL_Tls13_Key_Logging_ech_rejected),
     TEST_DECL(test_wolfSSL_Tls13_postauth),
     TEST_DECL(test_wolfSSL_set_ecdh_auto),
     TEST_DECL(test_wolfSSL_CTX_set_ecdh_auto),
