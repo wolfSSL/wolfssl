@@ -30040,6 +30040,179 @@ static int test_wolfSSL_crypto_policy_ciphers(void)
     return EXPECT_RESULT();
 }
 
+/* Helper: count how many ciphers are exposed by `ssl`. */
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY) && !defined(NO_TLS)
+static int crypto_policy_cipher_count(const WOLFSSL * ssl)
+{
+    WOLF_STACK_OF(WOLFSSL_CIPHER) * sk = NULL;
+    WOLFSSL_CIPHER *                current = NULL;
+    int                             i = 0;
+
+    if (ssl == NULL) {
+        return -1;
+    }
+
+    sk = wolfSSL_get_ciphers_compat(ssl);
+
+    if (sk == NULL) {
+        return 0;
+    }
+
+    do {
+        current = wolfSSL_sk_SSL_CIPHER_value(sk, i);
+        if (current) {
+            i++;
+        }
+    } while (current);
+
+    return i;
+}
+#endif
+
+/* System wide crypto-policy test: granular allowlist mode.
+ *
+ * Drives the new granular code path: wolfSSL_crypto_policy_enable() must
+ * detect the allowlist header, parse the sectioned file, and the CTX
+ * created afterwards must reflect the policy's primitives — cipher
+ * count, suite membership, security level, and DTLS support.
+ * */
+static int test_wolfSSL_crypto_policy_granular(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY) && !defined(NO_TLS)
+    int          rc = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    const char * policy_list[] = {
+        "examples/crypto_policies/legacy/wolfssl-allowlist.txt",
+        "examples/crypto_policies/default/wolfssl-allowlist.txt",
+        "examples/crypto_policies/future/wolfssl-allowlist.txt",
+    };
+    int          seclevel_list[] = { 1, 2, 3 };
+    int          i = 0;
+    int          legacy_suites = 0;
+    int          future_suites = 0;
+
+    for (i = 0; i < 3; ++i) {
+        WOLFSSL_CTX * ctx = NULL;
+        WOLFSSL     * ssl = NULL;
+        int           is_future = (XSTRSTR(policy_list[i], "future") != NULL);
+        int           is_legacy = (XSTRSTR(policy_list[i], "legacy") != NULL);
+        int           found_tls13 = 0;
+        int           found_aes128 = 0;
+        int           n_suites = 0;
+
+        rc = wolfSSL_crypto_policy_enable(policy_list[i]);
+        ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 1);
+
+        rc = wolfSSL_crypto_policy_get_level();
+        ExpectIntEQ(rc, seclevel_list[i]);
+
+        ctx = wolfSSL_CTX_new(TLS_method());
+        ExpectNotNull(ctx);
+
+        ssl = SSL_new(ctx);
+        ExpectNotNull(ssl);
+
+        n_suites = crypto_policy_cipher_count(ssl);
+        ExpectIntGT(n_suites, 0);
+
+        /* Every fixture enables at least one TLS 1.3 AES-GCM suite, so
+         * the resolved cipher list is never empty. Different wolfSSL
+         * builds use different suite-name conventions ("AES_256" vs
+         * "AES256" vs "TLS13-AES256-GCM-SHA384"), so we accept any of
+         * the three. */
+        if (crypto_policy_cipher_found(ssl, "AES_256", 0) == 1
+            || crypto_policy_cipher_found(ssl, "AES256", 0) == 1
+            || crypto_policy_cipher_found(ssl, "TLS13", 0) == 1) {
+            found_tls13 = 1;
+        }
+        ExpectIntEQ(found_tls13, 1);
+
+        /* AES-128 cipher (any name form) must be absent from FUTURE and
+         * present in LEGACY/DEFAULT (the FUTURE fixture enables only
+         * AES-256-GCM, AES-256-CCM and CHACHA20-POLY1305). */
+        if (crypto_policy_cipher_found(ssl, "AES_128", 0) == 1
+            || crypto_policy_cipher_found(ssl, "AES128", 0) == 1) {
+            found_aes128 = 1;
+        }
+        ExpectIntEQ(found_aes128, !is_future);
+
+        if (is_legacy) legacy_suites = n_suites;
+        if (is_future) future_suites = n_suites;
+
+        if (ssl != NULL) {
+            SSL_free(ssl);
+            ssl = NULL;
+        }
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        wolfSSL_crypto_policy_disable();
+    }
+
+    /* Monotonicity: stricter policies must derive fewer (or equal) TLS
+     * cipher suites. FUTURE excludes AES-128, so its suite count must
+     * be strictly less than LEGACY's. */
+    ExpectIntGT(legacy_suites, future_suites);
+
+    /* DTLS-only fixture: the parser/applier must accept a policy whose
+     * sole protocol is DTLS 1.2 and produce a usable CTX. */
+#ifdef WOLFSSL_DTLS
+    {
+        WOLFSSL_CTX * dtls_ctx = NULL;
+
+        rc = wolfSSL_crypto_policy_enable(
+                 "examples/crypto_policies/default/wolfssl-allowlist-dtls.txt");
+        ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 1);
+
+        dtls_ctx = wolfSSL_CTX_new(wolfDTLS_method());
+        ExpectNotNull(dtls_ctx);
+
+        if (dtls_ctx != NULL) {
+            wolfSSL_CTX_free(dtls_ctx);
+        }
+        wolfSSL_crypto_policy_disable();
+    }
+#endif /* WOLFSSL_DTLS */
+
+    /* Forward-compat guard: a `version = 2` file must be rejected
+     * outright rather than parsed under our v1 semantics. */
+    {
+        const char * v2_buf =
+            "version = 2\n"
+            "override-mode = allowlist\n"
+            "[protocols]\n"
+            "enabled-version = TLS1.3\n";
+        rc = wolfSSL_crypto_policy_enable_buffer(v2_buf);
+        ExpectIntLT(rc, 0);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 0);
+    }
+
+    /* Override-mode != allowlist must be rejected. */
+    {
+        const char * bad_buf =
+            "version = 1\n"
+            "override-mode = blocklist\n"
+            "[protocols]\n"
+            "enabled-version = TLS1.3\n";
+        rc = wolfSSL_crypto_policy_enable_buffer(bad_buf);
+        ExpectIntLT(rc, 0);
+    }
+
+    wolfSSL_crypto_policy_disable();
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY && !NO_TLS */
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_SSL_in_init(void)
 {
     EXPECT_DECLS;
@@ -40564,6 +40737,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_crypto_policy_certs_and_keys),
     TEST_DECL(test_wolfSSL_crypto_policy_tls_methods),
     TEST_DECL(test_wolfSSL_crypto_policy_ciphers),
+    TEST_DECL(test_wolfSSL_crypto_policy_granular),
     TEST_DECL(test_wolfSSL_SSL_in_init),
     TEST_DECL(test_wolfSSL_CTX_set_timeout),
     TEST_DECL(test_wolfSSL_set_psk_use_session_callback),
