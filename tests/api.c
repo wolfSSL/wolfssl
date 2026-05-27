@@ -36696,11 +36696,15 @@ static int test_write_dup(void)
     } methods[] = {
 #ifndef WOLFSSL_NO_TLS12
         {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLS 1.2", WOLFSSL_TLSV1_2},
+#ifdef WOLFSSL_DTLS
         {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLS 1.2", WOLFSSL_TLSV1_2},
+#endif
 #endif
 #ifdef WOLFSSL_TLS13
         {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3", WOLFSSL_TLSV1_3},
+#ifdef WOLFSSL_DTLS13
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLS 1.3", WOLFSSL_TLSV1_3},
+#endif
 #endif
     };
     struct {
@@ -36907,11 +36911,15 @@ static int test_write_dup_want_write(void)
     } methods[] = {
 #ifndef WOLFSSL_NO_TLS12
         {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLS 1.2", WOLFSSL_TLSV1_2},
+#ifdef WOLFSSL_DTLS
         {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLS 1.2", WOLFSSL_TLSV1_2},
+#endif
 #endif
 #ifdef WOLFSSL_TLS13
         {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3", WOLFSSL_TLSV1_3},
+#ifdef WOLFSSL_DTLS13
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLS 1.3", WOLFSSL_TLSV1_3},
+#endif
 #endif
     };
 
@@ -37039,7 +37047,9 @@ static int test_write_dup_want_write_simul(void)
     } methods[] = {
 #ifdef WOLFSSL_TLS13
         {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3"},
+#ifdef WOLFSSL_DTLS13
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLS 1.3"},
+#endif
 #endif
     };
 
