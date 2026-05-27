@@ -2564,6 +2564,21 @@ int wolfSSL_crypto_policy_init_ctx(WOLFSSL_CTX * ctx,
     }
     #endif /* HAVE_ECC */
 
+    /* Override SECLEVEL-derived minimum version with explicit MinProtocol
+     * if it was set in the config file. */
+    {
+        byte explicit_min = 0;
+        #ifdef WOLFSSL_DTLS
+        if (dtls)
+            explicit_min = wolfSSL_crypto_policy_get_min_dtls_downgrade();
+        else
+        #endif /* WOLFSSL_DTLS */
+            explicit_min = wolfSSL_crypto_policy_get_min_downgrade();
+
+        if (explicit_min != 0)
+            minDowngrade = explicit_min;
+    }
+
     /* Finally set the ctx values. */
     ctx->minDowngrade = minDowngrade;
     ctx->secLevel = level;

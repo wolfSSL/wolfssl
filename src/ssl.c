@@ -618,10 +618,11 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 #endif
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    /* Load the crypto-policy ciphers if configured. */
+    /* Apply crypto-policy CipherString and Ciphersuites if configured. */
     if (ctx && wolfSSL_crypto_policy_is_enabled()) {
-        const char * list = wolfSSL_crypto_policy_get_ciphers();
-        int          ret = 0;
+        const char * list    = wolfSSL_crypto_policy_get_ciphers();
+        const char * tls13   = wolfSSL_crypto_policy_get_ciphersuites();
+        int          ret     = 0;
 
         if (list != NULL && *list != '\0') {
             if (AllocateCtxSuites(ctx) != 0) {
@@ -636,6 +637,16 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
                     wolfSSL_CTX_free(ctx);
                     ctx = NULL;
                 }
+            }
+        }
+
+        /* Apply TLS 1.3 Ciphersuites if specified in the config. */
+        if (ctx != NULL && tls13 != NULL && *tls13 != '\0') {
+            ret = wolfSSL_parse_cipher_list(ctx, NULL, ctx->suites, tls13);
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("parse TLS 1.3 ciphersuites failed");
+                wolfSSL_CTX_free(ctx);
+                ctx = NULL;
             }
         }
     }
@@ -5260,64 +5271,220 @@ int wolfSSL_Init(void)
 }
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-/* Helper function for wolfSSL_crypto_policy_enable and
- * wolfSSL_crypto_policy_enable_buffer.
- *
- * Parses the crypto policy string, verifies values,
- * and sets in global crypto policy struct. Not thread
- * safe. String length has already been verified.
- *
- * Returns WOLFSSL_SUCCESS on success.
- * Returns CRYPTO_POLICY_FORBIDDEN if already enabled.
- * Returns < 0 on misc error.
- * */
-static int crypto_policy_parse(void)
+
+/* Returns TLS minor version byte for "TLSv1.x" string.  Returns 0 on error. */
+static byte crypto_policy_parse_min_tls_version(const char * val)
 {
-    const char * hdr = WOLFSSL_SECLEVEL_STR;
-    int          sec_level = 0;
-    size_t       i = 0;
+#ifndef NO_TLS
+#ifndef NO_OLD_TLS
+#ifdef WOLFSSL_ALLOW_TLSV10
+    if (XSTRCMP(val, "TLSv1.0") == 0 || XSTRCMP(val, "TLSv1") == 0)
+        return TLSv1_MINOR;
+#endif
+    if (XSTRCMP(val, "TLSv1.1") == 0) return TLSv1_1_MINOR;
+#endif /* NO_OLD_TLS */
+#ifndef WOLFSSL_NO_TLS12
+    if (XSTRCMP(val, "TLSv1.2") == 0) return TLSv1_2_MINOR;
+#endif
+#ifdef WOLFSSL_TLS13
+    if (XSTRCMP(val, "TLSv1.3") == 0) return TLSv1_3_MINOR;
+#endif
+#endif /* NO_TLS */
+    (void)val;
+    return 0;
+}
 
-    /* All policies should begin with "@SECLEVEL=<N>" (N={0..5}) followed
-     * by bulk cipher list. */
-    if (XMEMCMP(crypto_policy.str, hdr, strlen(hdr)) != 0) {
-        WOLFSSL_MSG("error: crypto policy: invalid header");
-        return WOLFSSL_BAD_FILE;
+/* Returns DTLS minor version byte for "DTLSv1.x" string.  Returns 0 on error. */
+static byte crypto_policy_parse_min_dtls_version(const char * val)
+{
+#ifdef WOLFSSL_DTLS
+    if (XSTRCMP(val, "DTLSv1.0") == 0) return DTLS_MINOR;
+    if (XSTRCMP(val, "DTLSv1.2") == 0) return DTLSv1_2_MINOR;
+#ifdef WOLFSSL_DTLS13
+    if (XSTRCMP(val, "DTLSv1.3") == 0) return DTLSv1_3_MINOR;
+#endif
+#endif /* WOLFSSL_DTLS */
+    (void)val;
+    return 0;
+}
+
+/* Parse one "key = value" line.  Trims whitespace from key and value.
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns 1 if no '=' found (not a key=value line, skip).
+ * Returns negative on error.
+ * */
+static int crypto_policy_parse_kv_line(const char * line, size_t line_len,
+                                       char * key_out, size_t key_max,
+                                       char * val_out, size_t val_max)
+{
+    const char * eq = NULL;
+    const char * kp;
+    const char * vp;
+    size_t       klen;
+    size_t       vlen;
+    size_t       i;
+
+    for (i = 0; i < line_len; i++) {
+        if (line[i] == '=') { eq = line + i; break; }
     }
+    if (eq == NULL) return 1; /* no '=', skip */
 
-    {
-        /* Extract the security level. */
-        char *       policy_mem = crypto_policy.str;
-        policy_mem += strlen(hdr);
-        sec_level = (int) (*policy_mem - '0');
-    }
+    kp   = line;
+    klen = (size_t)(eq - line);
+    while (klen > 0 && (kp[klen - 1] == ' ' || kp[klen - 1] == '\t')) klen--;
+    if (klen == 0 || klen >= key_max) return WOLFSSL_BAD_FILE;
+    XMEMCPY(key_out, kp, klen);
+    key_out[klen] = '\0';
 
-    if (sec_level < MIN_WOLFSSL_SEC_LEVEL ||
-        sec_level > MAX_WOLFSSL_SEC_LEVEL) {
-        WOLFSSL_MSG_EX("error: invalid SECLEVEL: %d", sec_level);
-        return WOLFSSL_BAD_FILE;
-    }
-
-    /* Remove trailing '\r' or '\n'. */
-    for (i = 0; i < MAX_WOLFSSL_CRYPTO_POLICY_SIZE; ++i) {
-        if (crypto_policy.str[i] == '\0') {
-            break;
-        }
-
-        if (crypto_policy.str[i] == '\r' || crypto_policy.str[i] == '\n') {
-            crypto_policy.str[i] = '\0';
-            break;
-        }
-    }
-
-    #if defined(DEBUG_WOLFSSL_VERBOSE)
-    WOLFSSL_MSG_EX("info: SECLEVEL=%d", sec_level);
-    WOLFSSL_MSG_EX("info: using crypto-policy file: %s, %ld", policy_file, sz);
-    #endif /* DEBUG_WOLFSSL_VERBOSE */
-
-    crypto_policy.secLevel = sec_level;
-    crypto_policy.enabled = 1;
+    vp   = eq + 1;
+    vlen = line_len - (size_t)(vp - line);
+    while (vlen > 0 && (*vp == ' ' || *vp == '\t')) { vp++; vlen--; }
+    while (vlen > 0 && (vp[vlen-1] == ' ' || vp[vlen-1] == '\t')) vlen--;
+    if (vlen >= val_max) return WOLFSSL_BAD_FILE;
+    XMEMCPY(val_out, vp, vlen);
+    val_out[vlen] = '\0';
 
     return WOLFSSL_SUCCESS;
+}
+
+/* Parse key=value format config (OpenSSL opensslcnf.config style).
+ * Recognised keys: MinProtocol, DTLS.MinProtocol, CipherString, Ciphersuites.
+ * Section headers ([...]) and comment lines (#) are silently ignored.
+ * Unknown keys are silently ignored for forward compatibility.
+ *
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns WOLFSSL_BAD_FILE if the buffer contains no recognised keys.
+ * Returns < 0 on error.
+ * */
+static int crypto_policy_parse_kv(const char * raw)
+{
+    const char * p = raw;
+    char   key[64];
+    char   val[MAX_WOLFSSL_CRYPTO_POLICY_SIZE + 1];
+    char   cipher_str[MAX_WOLFSSL_CRYPTO_POLICY_SIZE + 1];
+    char   cipher_suites[MAX_WOLFSSL_CRYPTO_POLICY_SIZE + 1];
+    byte   min_down      = 0;
+    byte   min_dtls_down = 0;
+    int    sec_level     = 0;
+    int    found         = 0;
+    int    ret;
+
+    XMEMSET(cipher_str,    0, sizeof(cipher_str));
+    XMEMSET(cipher_suites, 0, sizeof(cipher_suites));
+
+    while (*p != '\0') {
+        const char * line_start = p;
+        const char * line_end   = p;
+        size_t       line_len;
+
+        while (*line_end != '\0' && *line_end != '\n' && *line_end != '\r')
+            line_end++;
+        line_len = (size_t)(line_end - line_start);
+
+        /* Advance past line endings. */
+        p = line_end;
+        while (*p == '\r' || *p == '\n') p++;
+
+        if (line_len == 0 || *line_start == '#' || *line_start == '[')
+            continue;
+
+        ret = crypto_policy_parse_kv_line(line_start, line_len,
+                                          key, sizeof(key),
+                                          val, sizeof(val));
+        if (ret < 0) return ret;
+        if (ret == 1) continue; /* no '=' */
+
+        if (XSTRCMP(key, "MinProtocol") == 0) {
+            min_down = crypto_policy_parse_min_tls_version(val);
+            found++;
+        }
+        else if (XSTRCMP(key, "DTLS.MinProtocol") == 0) {
+            min_dtls_down = crypto_policy_parse_min_dtls_version(val);
+            found++;
+        }
+        else if (XSTRCMP(key, "CipherString") == 0) {
+            const char * hdr = WOLFSSL_SECLEVEL_STR;
+            if (XSTRNCMP(val, hdr, XSTRLEN(hdr)) == 0)
+                sec_level = (int)(val[XSTRLEN(hdr)] - '0');
+            XSTRNCPY(cipher_str, val, MAX_WOLFSSL_CRYPTO_POLICY_SIZE);
+            cipher_str[MAX_WOLFSSL_CRYPTO_POLICY_SIZE] = '\0';
+            found++;
+        }
+        else if (XSTRCMP(key, "Ciphersuites") == 0) {
+            XSTRNCPY(cipher_suites, val, MAX_WOLFSSL_CRYPTO_POLICY_SIZE);
+            cipher_suites[MAX_WOLFSSL_CRYPTO_POLICY_SIZE] = '\0';
+            found++;
+        }
+    }
+
+    if (found == 0) {
+        WOLFSSL_MSG("error: crypto policy: no recognised keys found");
+        return WOLFSSL_BAD_FILE;
+    }
+
+    if (sec_level < (int)MIN_WOLFSSL_SEC_LEVEL ||
+        sec_level > (int)MAX_WOLFSSL_SEC_LEVEL)
+        sec_level = 0;
+
+    XSTRNCPY(crypto_policy.str, cipher_str, MAX_WOLFSSL_CRYPTO_POLICY_SIZE);
+    crypto_policy.str[MAX_WOLFSSL_CRYPTO_POLICY_SIZE] = '\0';
+    XSTRNCPY(crypto_policy.cipherSuites, cipher_suites,
+             MAX_WOLFSSL_CRYPTO_POLICY_SIZE);
+    crypto_policy.cipherSuites[MAX_WOLFSSL_CRYPTO_POLICY_SIZE] = '\0';
+    crypto_policy.secLevel              = sec_level;
+    crypto_policy.explicitMinDowngrade  = min_down;
+    crypto_policy.explicitMinDtlsDowngrade = min_dtls_down;
+    crypto_policy.enabled               = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Parse crypto policy config from a raw NUL-terminated string.
+ * Detects format: legacy single-line "@SECLEVEL=N:..." or new key=value.
+ * Populates the global crypto_policy struct.
+ *
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns < 0 on error.
+ * */
+static int crypto_policy_parse(const char * raw)
+{
+    const char * hdr = WOLFSSL_SECLEVEL_STR;
+    size_t       raw_len;
+    size_t       i;
+    int          sec_level;
+
+    /* Legacy format: single line starting with "@SECLEVEL=N:cipher_string". */
+    if (XSTRNCMP(raw, hdr, XSTRLEN(hdr)) == 0) {
+        raw_len = XSTRLEN(raw);
+
+        if (raw_len > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
+            WOLFSSL_MSG("error: crypto policy: legacy format too large");
+            return WOLFSSL_BAD_FILE;
+        }
+
+        sec_level = (int)(raw[XSTRLEN(hdr)] - '0');
+        if (sec_level < (int)MIN_WOLFSSL_SEC_LEVEL ||
+            sec_level > (int)MAX_WOLFSSL_SEC_LEVEL) {
+            WOLFSSL_MSG_EX("error: invalid SECLEVEL: %d", sec_level);
+            return WOLFSSL_BAD_FILE;
+        }
+
+        XSTRNCPY(crypto_policy.str, raw, MAX_WOLFSSL_CRYPTO_POLICY_SIZE);
+        crypto_policy.str[MAX_WOLFSSL_CRYPTO_POLICY_SIZE] = '\0';
+        for (i = 0; i < MAX_WOLFSSL_CRYPTO_POLICY_SIZE; i++) {
+            if (crypto_policy.str[i] == '\r' || crypto_policy.str[i] == '\n') {
+                crypto_policy.str[i] = '\0';
+                break;
+            }
+        }
+
+        crypto_policy.secLevel = sec_level;
+        crypto_policy.enabled  = 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* New key=value format. */
+    return crypto_policy_parse_kv(raw);
 }
 
 #ifndef NO_FILESYSTEM
@@ -5390,30 +5557,44 @@ int wolfSSL_crypto_policy_enable(const char * policy_file)
         return WOLFSSL_BAD_FILE;
     }
 
-    if (sz <= 0 || sz > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
+    if (sz <= 0 || sz > (long)MAX_WOLFSSL_CRYPTO_POLICY_FILE_SIZE) {
         WOLFSSL_MSG_EX("error: crypto policy file %s, invalid size: %ld",
                        policy_file, sz);
         XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
     }
 
-    n_read = XFREAD(crypto_policy.str, 1, sz, file);
-    XFCLOSE(file);
+    {
+        char * raw;
+        int    ret;
 
-    if (n_read != (size_t) sz) {
-        WOLFSSL_MSG_EX("error: crypto policy file %s: read %zu, "
-                       "expected %ld", policy_file, n_read, sz);
-        return WOLFSSL_BAD_FILE;
+        raw = (char *)XMALLOC((size_t)sz + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (raw == NULL) {
+            XFCLOSE(file);
+            return MEMORY_E;
+        }
+
+        n_read = XFREAD(raw, 1, (size_t)sz, file);
+        XFCLOSE(file);
+
+        if (n_read != (size_t)sz) {
+            WOLFSSL_MSG_EX("error: crypto policy file %s: read %zu, "
+                           "expected %ld", policy_file, n_read, sz);
+            XFREE(raw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_BAD_FILE;
+        }
+
+        raw[n_read] = '\0';
+        ret = crypto_policy_parse(raw);
+        XFREE(raw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
     }
-
-    crypto_policy.str[n_read] = '\0';
-
-    return crypto_policy_parse();
 }
 #endif /* ! NO_FILESYSTEM */
 
 /* Same behavior as wolfSSL_crypto_policy_enable, but loads
- * via memory buf instead of file.
+ * via memory buf instead of file.  Supports both the legacy single-line
+ * "@SECLEVEL=N:..." format and the new key=value format.
  *
  * Returns WOLFSSL_SUCCESS on success.
  * Returns CRYPTO_POLICY_FORBIDDEN if already enabled.
@@ -5421,7 +5602,7 @@ int wolfSSL_crypto_policy_enable(const char * policy_file)
  * */
 int wolfSSL_crypto_policy_enable_buffer(const char * buf)
 {
-    size_t sz = 0;
+    size_t sz;
 
     WOLFSSL_ENTER("wolfSSL_crypto_policy_enable_buffer");
 
@@ -5435,15 +5616,12 @@ int wolfSSL_crypto_policy_enable_buffer(const char * buf)
     }
 
     sz = XSTRLEN(buf);
-
-    if (sz == 0 || sz > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
+    if (sz == 0 || sz > MAX_WOLFSSL_CRYPTO_POLICY_FILE_SIZE) {
         return BAD_FUNC_ARG;
     }
 
     XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
-    XMEMCPY(crypto_policy.str, buf, sz);
-
-    return crypto_policy_parse();
+    return crypto_policy_parse(buf);
 }
 
 /* Returns whether the system wide crypto-policy is enabled.
@@ -5505,6 +5683,30 @@ int wolfSSL_crypto_policy_get_level(void)
     }
 
     return 0;
+}
+
+/* Internal: explicit min TLS downgrade from MinProtocol key.  0 = not set. */
+byte wolfSSL_crypto_policy_get_min_downgrade(void)
+{
+    if (crypto_policy.enabled == 1)
+        return crypto_policy.explicitMinDowngrade;
+    return 0;
+}
+
+/* Internal: explicit min DTLS downgrade from DTLS.MinProtocol key.  0 = not set. */
+byte wolfSSL_crypto_policy_get_min_dtls_downgrade(void)
+{
+    if (crypto_policy.enabled == 1)
+        return crypto_policy.explicitMinDtlsDowngrade;
+    return 0;
+}
+
+/* Internal: TLS 1.3 Ciphersuites string from config.  NULL if not set. */
+const char * wolfSSL_crypto_policy_get_ciphersuites(void)
+{
+    if (crypto_policy.enabled == 1 && crypto_policy.cipherSuites[0] != '\0')
+        return crypto_policy.cipherSuites;
+    return NULL;
 }
 
 /* Get security level from ssl structure.

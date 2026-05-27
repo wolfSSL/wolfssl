@@ -1812,8 +1812,8 @@ enum Misc {
     MAX_WOLFSSL_FILE_SIZE = 1024UL * 1024UL * 4,  /* 4 mb file size alloc limit */
 #endif
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    MAX_WOLFSSL_CRYPTO_POLICY_SIZE = 1024UL, /* Crypto-policy file is one line.
-                                              * It should not be large. */
+    MAX_WOLFSSL_CRYPTO_POLICY_SIZE = 1024UL, /* Max size for individual policy values. */
+    MAX_WOLFSSL_CRYPTO_POLICY_FILE_SIZE = 4096UL, /* Max config file size (multi-line). */
     MIN_WOLFSSL_SEC_LEVEL = 0,
     MAX_WOLFSSL_SEC_LEVEL = 5,
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
@@ -6617,7 +6617,10 @@ struct WOLFSSL {
 struct SystemCryptoPolicy {
     int    enabled;
     int    secLevel;
-    char   str[MAX_WOLFSSL_CRYPTO_POLICY_SIZE + 1]; /* + 1 for null term */
+    byte   explicitMinDowngrade;        /* From MinProtocol key. 0 = use SECLEVEL default. */
+    byte   explicitMinDtlsDowngrade;    /* From DTLS.MinProtocol key. 0 = use SECLEVEL default. */
+    char   str[MAX_WOLFSSL_CRYPTO_POLICY_SIZE + 1];          /* CipherString value. */
+    char   cipherSuites[MAX_WOLFSSL_CRYPTO_POLICY_SIZE + 1]; /* TLS 1.3 Ciphersuites value. */
 };
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 

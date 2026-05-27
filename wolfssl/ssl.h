@@ -3432,8 +3432,11 @@ WOLFSSL_API void   wolfSSL_crypto_policy_disable(void);
 WOLFSSL_API int    wolfSSL_crypto_policy_is_enabled(void);
 WOLFSSL_API const char * wolfSSL_crypto_policy_get_ciphers(void);
 WOLFSSL_API int    wolfSSL_crypto_policy_get_level(void);
-WOLFSSL_LOCAL int  wolfSSL_crypto_policy_init_ctx(WOLFSSL_CTX * ctx,
-                                                  WOLFSSL_METHOD * method);
+WOLFSSL_LOCAL int         wolfSSL_crypto_policy_init_ctx(WOLFSSL_CTX * ctx,
+                                                         WOLFSSL_METHOD * method);
+WOLFSSL_LOCAL byte        wolfSSL_crypto_policy_get_min_downgrade(void);
+WOLFSSL_LOCAL byte        wolfSSL_crypto_policy_get_min_dtls_downgrade(void);
+WOLFSSL_LOCAL const char *wolfSSL_crypto_policy_get_ciphersuites(void);
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 /* compat functions. */
 WOLFSSL_API int    wolfSSL_get_security_level(const WOLFSSL * ssl);

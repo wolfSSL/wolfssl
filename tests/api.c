@@ -29358,6 +29358,7 @@ static int test_wolfSSL_crypto_policy(void)
         "examples/crypto_policies/default/wolfssl.txt",
         "examples/crypto_policies/future/wolfssl.txt",
     };
+    /* CipherString values extracted from the new key=value config files. */
     const char * ciphers_list[] = {
         "@SECLEVEL=1:EECDH:kRSA:EDH:PSK:DHEPSK:ECDHEPSK:RSAPSK"
         ":!eNULL:!aNULL",
