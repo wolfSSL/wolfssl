@@ -838,6 +838,17 @@ typedef struct sp_dh_ctx {
 #define MP_BITS_CNT(bits)                                       \
         ((unsigned int)(((((bits) + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)))
 
+/* True when 'bits' would require more digit storage than 'max'.
+ *
+ * Pairs with DECL_MP_INT_SIZE_DYN(name, bits, max) to guard against the
+ * static buffer (sized for 'max' digits) being undersized for 'bits' when
+ * the caller's 'bits' value can carry digit/byte alignment slack
+ * (e.g. mp_bitsused() returns used*SP_WORD_SIZE; dp->size*8 rounds up to a
+ * full byte).  Compare digit-rounded counts so curves like P-521 (521 bits,
+ * 17 32-bit digits) are not falsely rejected when max == 521. */
+#define MP_BITS_OVER_MAX(bits, max) \
+    (MP_BITS_CNT(bits) > MP_BITS_CNT(max))
+
 #if !defined(WOLFSSL_SP_NO_DYN_STACK) && defined(__STDC_VERSION__) && \
              (__STDC_VERSION__ >= 199901L) &&                         \
     (defined(WOLFSSL_SP_NO_MALLOC) ||                                 \
