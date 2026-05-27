@@ -4639,6 +4639,7 @@ L_curve25519_base_x64_3:
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
+        andq	%rax, %r10
         # Store
         movq	%rcx, (%rdi)
         movq	%r8, 8(%rdi)
@@ -7054,6 +7055,7 @@ L_curve25519_x64_3:
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
+        andq	%rax, %r11
         # Store
         movq	%rcx, (%rdi)
         movq	%r9, 8(%rdi)
@@ -15107,6 +15109,7 @@ L_curve25519_base_avx2_last_3:
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
+        andq	%rcx, %r11
         # Store
         movq	%r8, (%rdi)
         movq	%r9, 8(%rdi)
@@ -17116,6 +17119,7 @@ L_curve25519_avx2_last_3:
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
+        andq	%rcx, %r12
         # Store
         movq	%r9, (%rdi)
         movq	%r10, 8(%rdi)
