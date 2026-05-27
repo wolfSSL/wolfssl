@@ -5178,7 +5178,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 #endif /* not SINGLE_THREADED */
 
 #if (defined(__unix__) || defined(__APPLE__)) && \
-    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR) && \
+    !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_ZEPHYR) && \
     !defined(WOLFSSL_SGX)
 
 #include <fcntl.h>
@@ -5248,7 +5248,7 @@ int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
     return fd;
 }
 
-#endif /* (__unix__ || __APPLE__) && !WOLFSSL_LINUXKM && !WOLFSSL_ZEPHYR &&
+#endif /* (__unix__ || __APPLE__) && !WOLFSSL_KERNEL_MODE && !WOLFSSL_ZEPHYR &&
         * !WOLFSSL_SGX */
 
 #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
