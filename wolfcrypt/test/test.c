@@ -67422,6 +67422,24 @@ static wc_test_ret_t mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
     if (!mp_iszero(r))
         return WC_TEST_RET_ENC_NC;
 
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Negative values are written with a leading '-' and read back. */
+    ret = mp_set(a, 12345);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_toradix(a, str, MP_RADIX_DEC);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (str[0] != '-')
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_read_radix(r, str, MP_RADIX_DEC);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, a) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
     return 0;
 }
 #endif
@@ -67506,6 +67524,24 @@ static wc_test_ret_t mp_test_radix_16(mp_int* a, mp_int* r, WC_RNG* rng)
     if (!mp_iszero(r))
         return WC_TEST_RET_ENC_NC;
 
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Negative values are written with a leading '-' and read back. */
+    ret = mp_set(a, 0xABCD);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_toradix(a, str, MP_RADIX_HEX);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (str[0] != '-')
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_read_radix(r, str, MP_RADIX_HEX);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, a) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
 #ifdef WOLFSSL_SP_MATH
     ret = mp_toradix(a, str, 8);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
@@ -67563,10 +67599,12 @@ static wc_test_ret_t mp_test_shift(mp_int* a, mp_int* r1, WC_RNG* rng)
 
 #if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
     (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D))
-static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* r1)
+static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* b, mp_int* r1)
 {
     int i, j;
     wc_test_ret_t ret;
+
+    (void)b;
 
     for (i = 0; i <= DIGIT_BIT * 2; i++) {
         mp_zero(a);
@@ -67599,6 +67637,62 @@ static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* r1)
         return WC_TEST_RET_ENC_EC(ret);
     if (r1->used != 0)
         return WC_TEST_RET_ENC_NC;
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Adding/subtracting a digit to/from a negative value, and producing a
+     * negative result, exercise the signed digit paths. */
+    /* -100 + 5 = -95 */
+    ret = mp_set(a, 100);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_add_d(a, 5, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 95);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(b);
+    if (mp_cmp(r1, b) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* -3 + 10 = 7 */
+    ret = mp_set(a, 3);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_add_d(a, 10, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp_d(r1, 7) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* -5 - 3 = -8 */
+    ret = mp_set(a, 5);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_sub_d(a, 3, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 8);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(b);
+    if (mp_cmp(r1, b) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* 3 - 10 = -7 */
+    ret = mp_set(a, 3);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_sub_d(a, 10, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 7);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(b);
+    if (mp_cmp(r1, b) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+#endif /* WOLFSSL_SP_INT_NEGATIVE */
 
     return 0;
 }
@@ -68762,7 +68856,7 @@ static wc_test_ret_t mp_test_set_is_bit(mp_int* a)
     }
 #endif
 
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     mp_zero(a);
     for (j = 1; j <= 3; j++) {
         i = SP_INT_MAX_BITS - j;
@@ -69264,19 +69358,28 @@ static wc_test_ret_t mp_test_prime(mp_int* a, WC_RNG* rng)
 }
 #endif
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
+/* mp_gcd has less restrictive protections than mp_lcm.
+ * Test mp_gcd with and without mp_lcm. */
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(WC_RSA_BLINDING) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    #define MP_TEST_HAVE_LCM
+#endif
 static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
                            WC_RNG* rng)
 {
     wc_test_ret_t ret;
+#ifdef MP_TEST_HAVE_LCM
     int i;
     WOLFSSL_SMALL_STACK_STATIC const int kat[][3] = {
       { 1, 1, 1 }, { 2, 1, 2 }, { 1, 2, 2 }, { 2, 4, 4 }, { 4, 2, 4 },
       { 12, 56, 168 }, { 56, 12, 168 }
     };
+#endif
 
     (void)exp;
+    (void)rng;
 
+#ifdef MP_TEST_HAVE_LCM
     mp_set(a, 0);
     mp_set(b, 1);
     ret = mp_lcm(a, a, r);
@@ -69301,7 +69404,6 @@ static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* ex
             return WC_TEST_RET_ENC_NC;
     }
 
-    (void)rng;
 #if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA)) && \
     !defined(WC_NO_RNG)
     ret = mp_rand_prime(a, 20, rng, NULL);
@@ -69326,7 +69428,9 @@ static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* ex
     if (ret != MP_EQ)
         return WC_TEST_RET_ENC_NC;
 #endif
+#endif /* MP_TEST_HAVE_LCM */
 
+    /* GCD with zero - returns the non-zero operand, zero/zero is invalid. */
     mp_set(a, 11);
     mp_zero(b);
     ret = mp_gcd(a, b, r);
@@ -69344,6 +69448,57 @@ static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* ex
     ret = mp_gcd(b, b, r);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
+
+    /* Multi-digit GCD exercising the Euclidean reduction loops.
+     * Uses the identity gcd(2^m - 1, 2^n - 1) = 2^gcd(m,n) - 1.
+     * gcd(2^192-1, 2^128-1) = 2^64-1: both operands multi-word so the
+     * smaller is reduced with the multi-word sp_mod() path. */
+    ret = mp_set(a, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(a, 192, a);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(a, 1, a);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(b, 128, b);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(b, 1, b);
+    if (ret == MP_OKAY)
+        ret = mp_set(exp, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(exp, 64, exp);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(exp, 1, exp);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* a > b: exercises the operand swap. */
+    ret = mp_gcd(a, b, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, exp) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* b < a: no swap. */
+    ret = mp_gcd(b, a, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, exp) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+
+    /* gcd(2^192-1, 2^64-1) = 2^64-1: smaller operand is a single word so
+     * the sp_mod_d() reduction path is exercised. */
+    ret = mp_set(b, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(b, 64, b);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(b, 1, b);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_gcd(a, b, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, exp) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
 
     return 0;
 }
@@ -69479,14 +69634,47 @@ static wc_test_ret_t mp_test_mod_d(mp_int* a, WC_RNG* rng)
         if (r != rem)
             return WC_TEST_RET_ENC_NC;
     }
+
+    /* Power-of-2 divisor uses the bitmask fast path. */
+    ret = mp_set(a, 0x1234);
+    if (ret == MP_OKAY)
+        ret = mp_mod_d(a, 8, &r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r != (0x1234 & 7))
+        return WC_TEST_RET_ENC_NC;
+
+    /* Divisor of 10 has a dedicated multi-word fast path. */
+    ret = randNum(a, MP_MAX_TEST_BYTE_LEN, rng, NULL);
+    if (ret == MP_OKAY)
+        ret = mp_mod_d(a, 10, &r);
+    if (ret == MP_OKAY)
+        ret = mp_div_d(a, 10, a, &rem);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r != rem)
+        return WC_TEST_RET_ENC_NC;
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Test a negative value. */
+    ret = mp_set(a, 17);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_mod_d(a, 5, &r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r != 3)
+        return WC_TEST_RET_ENC_NC;
+#endif
 #endif
 
     return 0;
 }
 #endif
 
-static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1, mp_int* r2,
-                           WC_RNG* rng)
+static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1,
+    mp_int* r2, WC_RNG* rng)
 {
     wc_test_ret_t ret;
     int i;
@@ -69567,10 +69755,269 @@ static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1, mp_int* r
         return WC_TEST_RET_ENC_EC(ret);
 #endif /* HAVE_ECC && (ECC_SHAMIR || FP_ECC) */
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
+
+    /* Check that the maximum value squared works. */
+    ret = mp_2expt(a, SP_INT_DIGITS / 2 * SP_WORD_SIZE);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_sub(a, b, a);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_mul(a, a, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_sqr(a, r2);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r1, r2) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
 #endif /* WOLFSSL_SP_MATH_ALL */
 
     return 0;
 }
+
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+/* Functional tests for the constant-time modular arithmetic used by ECC:
+ * mp_addmod_ct, mp_submod_ct and mp_div_2_mod_ct.  These are not reached by
+ * the parameter-validation tests so their computation paths are exercised
+ * here against their variable-time equivalents. */
+static wc_test_ret_t mp_test_addsubmod_ct(mp_int* a, mp_int* b, mp_int* m,
+    mp_int* r, mp_int* t, WC_RNG* rng)
+{
+    wc_test_ret_t res = 0;
+    int ret;
+    int i;
+
+    for (i = 0; (i < 16) && (res == 0); i++) {
+        /* Odd, multi-word modulus (2 must be invertible for div_2_mod_ct). */
+        ret = randNum(m, 24, rng, NULL);
+        if (ret == MP_OKAY)
+            ret = mp_set_bit(m, 0);            /* force modulus odd */
+        /* Operands reduced to the range [0, m). */
+        if (ret == MP_OKAY)
+            ret = randNum(a, 24, rng, NULL);
+        if (ret == MP_OKAY)
+            ret = mp_mod(a, m, a);
+        if (ret == MP_OKAY)
+            ret = randNum(b, 24, rng, NULL);
+        if (ret == MP_OKAY)
+            ret = mp_mod(b, m, b);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+
+        /* addmod_ct must match the variable-time addmod. */
+        ret = mp_addmod_ct(a, b, m, r);
+        if (ret == MP_OKAY)
+            ret = mp_addmod(a, b, m, t);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+        if (mp_cmp(r, t) != MP_EQ) {
+            res = WC_TEST_RET_ENC_NC;
+            break;
+        }
+
+        /* submod_ct: (a - b) mod m, verified by adding b back gives a. */
+        ret = mp_submod_ct(a, b, m, r);
+        if (ret == MP_OKAY)
+            ret = mp_addmod_ct(r, b, m, t);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+        if (mp_cmp(t, a) != MP_EQ) {
+            res = WC_TEST_RET_ENC_NC;
+            break;
+        }
+
+        /* div_2_mod_ct: r = a/2 mod m, verified by doubling: 2*r mod m == a. */
+        ret = mp_div_2_mod_ct(a, m, r);
+        if (ret == MP_OKAY)
+            ret = mp_addmod_ct(r, r, m, t);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+        if (mp_cmp(t, a) != MP_EQ) {
+            res = WC_TEST_RET_ENC_NC;
+            break;
+        }
+    }
+
+    return res;
+}
+#endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
+
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Exercises mp_cmp_mag - magnitude comparison (sign-independent) including
+ * NULL operands. */
+static wc_test_ret_t mp_test_cmp_mag(mp_int* a, mp_int* b)
+{
+    int ret;
+
+    ret = mp_set(a, 7);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 5);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* NULL operands: both NULL are equal, a non-NULL has greater magnitude. */
+    if (mp_cmp_mag(NULL, NULL) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(a, NULL) != MP_GT)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(NULL, a) != MP_LT)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Same value and differing magnitudes. */
+    if (mp_cmp_mag(a, a) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(a, b) != MP_GT)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(b, a) != MP_LT)
+        return WC_TEST_RET_ENC_NC;
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Magnitude comparison ignores sign: |-7| > |5|. */
+    a->sign = MP_NEG;
+    if (mp_cmp_mag(a, b) != MP_GT)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(b, a) != MP_LT)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+    return 0;
+}
+#endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_PUBLIC_ONLY */
+
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Exercises the result-aliases-modulus paths of mp_mulmod (_sp_mulmod_tmp) and
+ * mp_sqrmod (_sp_sqrmod), including their zero-operand short-circuits. */
+static wc_test_ret_t mp_test_mulmod_sqrmod(mp_int* a, mp_int* b, mp_int* m,
+    mp_int* r)
+{
+    int ret;
+
+    /* mp_mulmod with the result aliasing the modulus uses the temporary
+     * buffer path (_sp_mulmod_tmp). */
+    ret = mp_set(a, 0x3);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0x5);
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0x65);                 /* modulus 101 */
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, b, m, r);           /* reference */
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, b, m, m);           /* result aliases modulus */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(m, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* Zero operand short-circuit in _sp_mulmod_tmp. */
+    ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0);
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, b, m, m);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!mp_iszero(m))
+        return WC_TEST_RET_ENC_NC;
+
+    /* mp_sqrmod with the result aliasing the modulus uses _sp_sqrmod. */
+    ret = mp_set(a, 0x7);
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_sqrmod(a, m, r);              /* reference */
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_sqrmod(a, m, m);              /* result aliases modulus */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(m, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* Zero operand short-circuit in _sp_sqrmod. */
+    ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_set(a, 0);
+    if (ret == MP_OKAY)
+        ret = mp_sqrmod(a, m, m);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!mp_iszero(m))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+/* Testing mp_exch. */
+static wc_test_ret_t mp_test_exch(mp_int* a, mp_int* b, mp_int* r1,
+    mp_int* r2)
+{
+    int ret;
+
+    /* mp_exch swaps the two values. */
+    ret = mp_set(a, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(a, 200, a);            /* multi-word value */
+    if (ret == MP_OKAY)
+        ret = mp_add_d(a, 0x55, a);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0x1234);               /* single-word value */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_copy(a, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_copy(b, r2);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_exch(a, b);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if ((mp_cmp(a, r2) != MP_EQ) || (mp_cmp(b, r1) != MP_EQ))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+/* Testing mp_to_unsigned_bin_len_ct against the variable-time export. */
+static wc_test_ret_t mp_test_to_unsigned_bin_len_ct(mp_int* a)
+{
+    int ret;
+    byte buf[40];
+    byte buf2[40];
+
+    /* mp_to_unsigned_bin_len_ct must match the variable-time export. */
+    ret = mp_set(a, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(a, 100, a);
+    if (ret == MP_OKAY)
+        ret = mp_add_d(a, 0xAB, a);            /* multi-word value */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    XMEMSET(buf, 0xff, sizeof(buf));
+    XMEMSET(buf2, 0xff, sizeof(buf2));
+    ret = mp_to_unsigned_bin_len_ct(a, buf, (int)sizeof(buf));
+    if (ret == MP_OKAY)
+        ret = mp_to_unsigned_bin_len(a, buf2, (int)sizeof(buf2));
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(buf, buf2, sizeof(buf)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif /* WOLFSSL_SP_MATH_ALL && !RSA_VERIFY_ONLY && !RSA_PUBLIC_ONLY */
 
 #if (!defined(NO_RSA) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
@@ -69690,9 +70137,15 @@ static wc_test_ret_t mp_test_invmod(mp_int* a, mp_int* m, mp_int* r)
 
 #if !defined(NO_RSA) || !defined(NO_DSA) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA)
-static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
+static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
+    mp_int* t)
 {
     wc_test_ret_t ret;
+#ifdef WOLFSSL_SP_MATH_ALL
+    int k;
+#endif
+
+    (void)t;
 
     mp_set(b, 0x2);
     mp_set(e, 0x3);
@@ -69815,6 +70268,110 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
 
+#ifdef WOLFSSL_SP_MATH_ALL
+    /* Larger, multi-word moduli to exercise the Montgomery, base-2 and
+     * windowed exponentiation paths that small single-word moduli do not
+     * reach. */
+
+    /* m = 2^521 - 1 (a Mersenne prime, multi-word and not an RSA/DH
+     * accelerated size); e = m - 1.  By Fermat's little theorem,
+     * b^(m-1) mod m == 1 when gcd(b, m) == 1. */
+    if ((ret = mp_set(m, 1)) != MP_OKAY ||
+            (ret = mp_mul_2d(m, 521, m)) != MP_OKAY ||
+            (ret = mp_sub_d(m, 1, m)) != MP_OKAY ||
+            (ret = mp_sub_d(m, 1, e)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Odd, multi-word modulus, base != 2:
+     *   mp_exptmod_ex  -> constant-time Montgomery exponentiation
+     *   mp_exptmod_nct -> windowed exponentiation (large exponent). */
+    if ((ret = mp_set(b, 3)) != MP_OKAY ||
+            (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_isone(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_isone(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Base 2 selects the dedicated base-2 exponentiation. */
+    if ((ret = mp_set(b, 2)) != MP_OKAY ||
+            (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_isone(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Smaller exponents reach the narrower window sizes of the windowed
+     * non-constant-time exponentiation (a 31-bit exponent uses a 3-bit
+     * window, a 101-bit exponent a 4-bit window).  Cross-check the
+     * windowed result against the constant-time Montgomery result. */
+    for (k = 0; k < 2; k++) {
+        int ebits = (k == 0) ? 30 : 100;
+        if ((ret = mp_set(e, 1)) != MP_OKAY ||
+                (ret = mp_mul_2d(e, ebits, e)) != MP_OKAY ||
+                (ret = mp_add_d(e, 0x9, e)) != MP_OKAY ||  /* odd exponent */
+                (ret = mp_set(b, 3)) != MP_OKAY ||
+                (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY ||
+                (ret = mp_exptmod_nct(b, e, m, t)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        if (mp_cmp(r, t) != MP_EQ) {
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* Restore exponent to m - 1 for the remaining odd-modulus case. */
+    if ((ret = mp_sub_d(m, 1, e)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Base == modulus: base reduces to zero so the result is zero. */
+    if ((ret = mp_copy(m, b)) != MP_OKAY ||
+            (ret = mp_set(e, 5)) != MP_OKAY ||
+            (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_iszero(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Even, multi-word modulus uses the generic exponentiation path for
+     * both mp_exptmod_ex and mp_exptmod_nct.  Verify b^6 mod m against
+     * repeated modular multiplication. */
+    if ((ret = mp_set(m, 1)) != MP_OKAY ||
+            (ret = mp_mul_2d(m, 521, m)) != MP_OKAY ||   /* m = 2^521 (even) */
+            (ret = mp_set(b, 7)) != MP_OKAY ||
+            (ret = mp_set(e, 6)) != MP_OKAY ||
+            (ret = mp_set(t, 1)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    for (k = 0; k < 6; k++) {
+        if ((ret = mp_mulmod(t, b, m, t)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+    }
+    if ((ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (mp_cmp(r, t) != MP_EQ) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (mp_cmp(r, t) != MP_EQ) {
+        return WC_TEST_RET_ENC_NC;
+    }
+#endif /* WOLFSSL_SP_MATH_ALL */
+
     return 0;
 }
 #endif /* !NO_RSA || !NO_DSA || !NO_DH || (HAVE_ECC && HAVE_COMP_KEY) ||
@@ -69935,6 +70492,41 @@ static wc_test_ret_t mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC
         if (mp_cmp(a, r) != MP_EQ && mp_iszero(a) != MP_YES)
             return WC_TEST_RET_ENC_NC;
     }
+
+#ifdef WOLFSSL_SP_INVMOD_MONT_CT
+    /* Constant-time modular inverse in Montgomery form over a multi-word
+     * prime exercises the table-based exponentiation in _sp_invmod_mont_ct
+     * that single-word moduli do not reach. */
+
+    /* m = 2^521 - 1 (a Mersenne prime, multi-word). */
+    ret = mp_2expt(m, 521);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(m, 1, m);
+    if (ret == MP_OKAY)
+        ret = mp_montgomery_setup(m, &mp);
+    if (ret == MP_OKAY)
+        ret = mp_montgomery_calc_normalization(n, m);
+    /* a = 5: non-zero and coprime to the prime modulus. */
+    if (ret == MP_OKAY)
+        ret = mp_set(a, 5);
+    /* n = a in Montgomery form (a * R mod m). */
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, n, m, n);
+    /* r = a^-1 in Montgomery form. */
+    if (ret == MP_OKAY)
+        ret = mp_invmod_mont_ct(n, m, r, mp);
+    /* Take r out of Montgomery form: r = a^-1 mod m. */
+    if (ret == MP_OKAY)
+        ret = mp_montgomery_reduce(r, m, mp);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* Verify a * a^-1 mod m == 1. */
+    ret = mp_mulmod(a, r, m, n);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!mp_isone(n))
+        return WC_TEST_RET_ENC_NC;
+#endif /* WOLFSSL_SP_INVMOD_MONT_CT */
 
     return 0;
 }
@@ -70237,7 +70829,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
         goto done;
 #if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
     (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D))
-    if ((ret = mp_test_add_sub_d(a, r1)) != 0)
+    if ((ret = mp_test_add_sub_d(a, b, r1)) != 0)
         goto done;
 #endif
     if ((ret = mp_test_read_to_bin(a)) != 0)
@@ -70267,7 +70859,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
     if ((ret = mp_test_prime(a, &rng)) != 0)
         goto done;
 #endif
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     if ((ret = mp_test_lcm_gcd(a, b, r1, r2, &rng)) != 0)
         goto done;
 #endif
@@ -70291,12 +70883,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
 #endif
 #if !defined(NO_RSA) || !defined(NO_DSA) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA)
-    if ((ret = mp_test_exptmod(a, b, r1, r2)) != 0)
+    if ((ret = mp_test_exptmod(a, b, r1, r2, p)) != 0)
         goto done;
 #endif
 #if defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
     if ((ret = mp_test_mont(a, b, r1, r2, &rng)) != 0)
+        goto done;
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+    if ((ret = mp_test_addsubmod_ct(a, b, r1, r2, p, &rng)) != 0)
+        goto done;
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if ((ret = mp_test_cmp_mag(a, b)) != 0)
+        goto done;
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if ((ret = mp_test_mulmod_sqrmod(a, b, p, r1)) != 0)
+        goto done;
+    if ((ret = mp_test_exch(a, b, r1, r2)) != 0)
+        goto done;
+    if ((ret = mp_test_to_unsigned_bin_len_ct(a)) != 0)
         goto done;
 #endif
 #ifdef MP_TEST_COND_SWAP_AVAILABLE

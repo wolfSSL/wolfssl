@@ -6143,6 +6143,13 @@ int sp_set_bit(sp_int* a, int i)
     /* Get index of word to set. */
     sp_size_t w = (sp_size_t)(i >> SP_WORD_SHIFT);
 
+#if SP_INT_DIGITS < (65536 / SP_WORD_SIZEOF)
+    /* Check bit index isn't bigger than maximum allowed. */
+    if (i > SP_INT_DIGITS * SP_WORD_SIZE) {
+        err = MP_VAL;
+    }
+    else
+#endif
     /* Check for valid number and space for bit. */
     if ((a == NULL) || (i < 0) || (w >= a->size)) {
         err = MP_VAL;
@@ -7408,9 +7415,7 @@ static void _sp_div_2(const sp_int* a, sp_int* r)
     /* Last word only needs to be shifted down. */
     r->dp[i] = a->dp[i] >> 1;
     /* Set used to be all words seen. */
-    r->used = (sp_size_t)(i + 1);
-    /* Remove leading zeros. */
-    sp_clamp(r);
+    r->used = (sp_size_t)(i + 1 - (int)((r->dp[i] - 1) >> (SP_WORD_SIZE - 1)));
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /* Same sign in result. */
     r->sign = a->sign;
@@ -7892,7 +7897,7 @@ int sp_sub(const sp_int* a, const sp_int* b, sp_int* r)
         else {
             /* Reverse subtract absolute values and use opposite sign of a */
             _sp_sub_off(b, a, r, 0);
-            r->sign = 1 - a->sign;
+            r->sign = (sp_sign_t)(1 - a->sign);
         }
     #endif
     }
@@ -8049,7 +8054,8 @@ static int _sp_submod(const sp_int* a, const sp_int* b, const sp_int* m,
     FREE_SP_INT(t0, NULL);
     FREE_SP_INT(t1, NULL);
 #else /* WOLFSSL_SP_INT_NEGATIVE */
-    sp_size_t used = ((a->used >= b->used) ? a->used + 1 : b->used + 1);
+    sp_size_t used = (sp_size_t)((a->used >= b->used) ? a->used + 1 :
+                                                        b->used + 1);
     DECL_SP_INT(t, used);
 
     ALLOC_SP_INT_SIZE(t, used, err, NULL);
@@ -9199,7 +9205,7 @@ static int _sp_mod(const sp_int* a, const sp_int* m, sp_int* r)
     /* In case remainder is modulus - allocate temporary. */
     ALLOC_SP_INT(t, a->used + 1, err, NULL);
     if (err == MP_OKAY) {
-        _sp_init_size(t, a->used + 1);
+        _sp_init_size(t, (sp_size_t)(a->used + 1));
         /* Use divide to calculate remainder and don't get quotient. */
         err = sp_div(a, m, NULL, t);
     }
@@ -15056,7 +15062,7 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
 #elif defined(WOLFSSL_SP_DYN_STACK)
     sp_int_digit t[((a->used + 1) / 2) * 2 + 1];
 #else
-    sp_int_digit t[(SP_INT_DIGITS + 1) / 2];
+    sp_int_digit t[(SP_INT_DIGITS + 1) / 2 + 1];
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
