@@ -32,11 +32,26 @@ extern char tmpDirName[16];
 extern const char* currentTestName;
 #endif
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    (!defined(NO_RSA) || defined(HAVE_RPK)) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+/* Base dependencies for the manual memio test harness. The harness itself does
+ * not require certificate support, so cert-less tests (e.g. PSK-only) can use
+ * it through this narrower macro. */
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && defined(NO_CERTS)
+#define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_NO_CERTS
+#define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
+#endif
+
+/* Full dependencies: the base harness plus certificate support. Most memio
+ * tests set up a certificate-based handshake and must use this macro. */
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    (!defined(NO_RSA) || defined(HAVE_RPK))
 #define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
+#define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
+#endif
+
+#ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 #define TEST_MEMIO_MAX_MSGS 32
 
@@ -85,7 +100,7 @@ int test_memio_move_message(struct test_memio_ctx *ctx, int client,
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos);
 int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int msg_pos, int new_len);
 int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz);
-#endif
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD */
 
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)

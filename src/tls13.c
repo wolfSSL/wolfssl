@@ -57,7 +57,6 @@
  * WOLFSSL_PSK_ONE_ID:       Single PSK identity per connect       default: off
  * WOLFSSL_PSK_MULTI_ID_PER_CS: Multiple PSK IDs per cipher suite default: off
  * WOLFSSL_PRIORITIZE_PSK:   Prioritize PSK over ciphersuite order default: off
- * WOLFSSL_PSK_ID_PROTECTION: Enable PSK identity protection       default: off
  *
  * TLS 1.3 Session Tickets:
  * WOLFSSL_TICKET_HAVE_ID:   Session tickets include ID            default: off
@@ -6527,20 +6526,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     }
 
     if (current == NULL) {
-#ifdef WOLFSSL_PSK_ID_PROTECTION
-    #ifndef NO_CERTS
-        if (ssl->buffers.certChainCnt != 0) {
-            ret = 0;
-            goto cleanup;
-        }
-    #endif
-        WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
-        ret = BAD_BINDER;
-        goto cleanup;
-#else
         ret = 0;
         goto cleanup;
-#endif
     }
 
     *first = (current == ext->data);
@@ -6646,6 +6633,20 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return ret;
     }
 #endif
+
+    if (!*usingPSK) {
+    #ifndef NO_CERTS
+        if (ssl->buffers.certificate == NULL
+        #ifdef WOLFSSL_CERT_SETUP_CB
+                && ssl->ctx->certSetupCb == NULL
+        #endif
+                )
+    #endif
+        {
+            WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
+            return BAD_BINDER;
+        }
+    }
 
     if (*usingPSK) {
         /* While verifying the selected PSK, we updated the
@@ -6817,14 +6818,16 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         TLSX_Remove(&ssl->extensions, TLSX_CERT_WITH_EXTERN_PSK, ssl->heap);
         ssl->options.certWithExternPsk = 0;
 #endif
-#ifdef WOLFSSL_PSK_ID_PROTECTION
     #ifndef NO_CERTS
-        if (ssl->buffers.certChainCnt != 0)
+        if (ssl->buffers.certificate != NULL
+        #ifdef WOLFSSL_CERT_SETUP_CB
+                || ssl->ctx->certSetupCb != NULL
+        #endif
+                )
             return 0;
     #endif
         WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
         return BAD_BINDER;
-#endif
     }
 
     WOLFSSL_LEAVE("CheckPreSharedKeys", ret);
