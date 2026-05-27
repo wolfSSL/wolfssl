@@ -89,7 +89,7 @@ wc_static_assert(sizeof(wc_dilithium_params) == sizeof(wc_MlDsaParams));
  * DILITHIUM_LEVEL{2,3,5}_*, DILITHIUM_ML_DSA_{44,65,87}_*) lives in its own
  * `#define` line in <dilithium.h>, so each is checked separately. */
 #define MLDSA_LEGACY_SIZE_ASSERT(LEGACY, CANONICAL) \
-    wc_static_assert(LEGACY == CANONICAL)
+    wc_static_assert((LEGACY) == (CANONICAL))
 
 /* LEVEL2 = ML-DSA-44 */
 MLDSA_LEGACY_SIZE_ASSERT(ML_DSA_LEVEL2_KEY_SIZE,           WC_MLDSA_44_KEY_SIZE);

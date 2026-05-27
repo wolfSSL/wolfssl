@@ -54,6 +54,13 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+/* When WOLFSSL_MLDSA_FIPS204_DRAFT is enabled the legacy (pre-FIPS 204)
+ * no-context sign/verify API is required to handle draft-format signatures. */
+#if defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
+    !defined(WOLFSSL_MLDSA_NO_CTX)
+    #define WOLFSSL_MLDSA_NO_CTX
+#endif
+
 /* TEMPORARY: pull in the legacy compatibility shim so its forward-arm
  * sub-config gate translation (legacy WOLFSSL_DILITHIUM_* /
  * WC_DILITHIUM_* -> canonical WOLFSSL_MLDSA_* / WC_MLDSA_*) and the
@@ -682,13 +689,6 @@ struct wc_MlDsaKey {
     typedef struct wc_MlDsaKey MlDsaKey;
     #define WC_MLDSAKEY_LEGACY_TYPE_DEFINED
 #endif
-#endif
-
-/* When WOLFSSL_MLDSA_FIPS204_DRAFT is enabled the legacy (pre-FIPS 204)
- * no-context sign/verify API is required to handle draft-format signatures. */
-#if defined(WOLFSSL_MLDSA_FIPS204_DRAFT) && \
-    !defined(WOLFSSL_MLDSA_NO_CTX)
-    #define WOLFSSL_MLDSA_NO_CTX
 #endif
 
 /* Functions */
