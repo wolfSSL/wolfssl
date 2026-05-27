@@ -29702,6 +29702,27 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
 
+#if !defined(WOLFSSL_NO_DH186) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+    /* Regression: an oversized *privSz must be rejected before
+     * GeneratePrivateDh186 writes (*privSz + 8) bytes of RNG output into the
+     * stack-allocated cBuf (sized DH_MAX_SIZE + 8 in non-WOLFSSL_SMALL_STACK
+     * builds). The key still has q set here, so the call dispatches through
+     * GeneratePrivateDh186. Only exercised when the local src/dh.c bound
+     * check is in play (not HAVE_SELFTEST / HAVE_FIPS builds, which use
+     * separate validated modules). */
+    {
+        word32 hugePrivSz = (word32)DH_MAX_SIZE + 1;
+        word32 outPubSz   = sizeof(pub);
+        ret = wc_DhGenerateKeyPair(key, rng, priv, &hugePrivSz, pub, &outPubSz);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+    }
+#endif /* !WOLFSSL_NO_DH186 && !HAVE_SELFTEST && !HAVE_FIPS */
+
     wc_FreeDhKey(key);
     ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
     if (ret != 0)
