@@ -11369,6 +11369,13 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING -DWOLFSSL_NO_ASN_STRICT"
 
+    # wolfCLU allows MD5 with wc_Signature*; lower the hash strength floor
+    # when MD5 is compiled in.
+    if test "$ENABLED_MD5" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_SIG_MIN_HASH_TYPE=WC_HASH_TYPE_MD5"
+    fi
+
     # OCSP responder
     if test "$ENABLED_OCSP" = "no"; then
         ENABLED_OCSP="yes"
