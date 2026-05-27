@@ -44,6 +44,7 @@ int test_dtls_memio_wolfio_stateless(void);
 int test_dtls_mtu_fragment_headroom(void);
 int test_dtls_mtu_split_messages(void);
 int test_dtls_set_session_min_downgrade(void);
+int test_dtls12_export_import_etm(void);
 
 /* DTLS tests moved out of tests/api.c. */
 int test_dtls_msg_from_other_peer(void);
@@ -133,5 +134,6 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_dropped_ccs),                        \
         TEST_DECL_GROUP("dtls", test_dtls_seq_num_downgrade),                  \
         TEST_DECL_GROUP("dtls", test_dtls_old_seq_number),                     \
-        TEST_DECL_GROUP("dtls", test_dtls12_missing_finished)
+        TEST_DECL_GROUP("dtls", test_dtls12_missing_finished),                 \
+        TEST_DECL_GROUP("dtls", test_dtls12_export_import_etm)
 #endif /* TESTS_API_DTLS_H */
