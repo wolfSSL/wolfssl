@@ -242,6 +242,7 @@
 #include <tests/api/test_asn.h>
 #include <tests/api/test_pkcs7.h>
 #include <tests/api/test_pkcs12.h>
+#include <tests/api/test_pwdbased.h>
 #include <tests/api/test_ossl_asn1.h>
 #include <tests/api/test_ossl_bn.h>
 #include <tests/api/test_ossl_bio.h>
@@ -40259,6 +40260,9 @@ TEST_CASE testCases[] = {
 
     /* wolfCrypt PKCS#12 */
     TEST_PKCS12_DECLS,
+
+    /* wolfCrypt pwdbased (PBKDF1/PBKDF2) */
+    TEST_PWDBASED_DECLS,
 
     /*
      * test_wolfCrypt_Cleanup needs to come after the above wolfCrypt tests to

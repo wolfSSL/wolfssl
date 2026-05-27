@@ -98,7 +98,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         return BAD_FUNC_ARG;
 
     if (iterations <= 0)
-        iterations = 1;
+        return BAD_FUNC_ARG;
 
     if (iterations > current_wc_pbkdf_max_iterations) {
         WOLFSSL_MSG("PBKDF1 iteration count exceeds current_wc_pbkdf_max_iterations");
@@ -239,7 +239,7 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     }
 #endif
     if (iterations <= 0)
-        iterations = 1;
+        return BAD_FUNC_ARG;
 
     if (iterations > current_wc_pbkdf_max_iterations) {
         WOLFSSL_MSG("PBKDF2 iteration count exceeds current_wc_pbkdf_max_iterations");
@@ -432,7 +432,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     }
 
     if (iterations <= 0)
-        iterations = 1;
+        return BAD_FUNC_ARG;
 
     if (iterations > current_wc_pbkdf_max_iterations) {
         WOLFSSL_MSG("PKCS12 PBKDF iteration count exceeds "
@@ -660,7 +660,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     }
 
     if (iterations <= 0) {
-        iterations = 1;
+        return BAD_FUNC_ARG;
     }
 
     if (iterations > current_wc_pbkdf_max_iterations) {
