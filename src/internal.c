@@ -7945,6 +7945,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;
+    ssl->buffers.dtlsCtx.isDGramCached  = 0;
 
 #ifdef WOLFSSL_RW_THREADED
     if (wc_InitRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
@@ -9659,6 +9660,37 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 
     if (!ssl->options.dtls) {
         GetSEQIncrement(ssl, verifyOrder, seq);
+    }
+    else {
+#ifdef WOLFSSL_DTLS
+        DtlsGetSEQ(ssl, verifyOrder, seq);
+#endif
+    }
+
+    c32toa(seq[0], out);
+    c32toa(seq[1], out + OPAQUE32_LEN);
+}
+
+/* Same as WriteSEQ() but does not advance the per-direction TLS sequence
+ * counter. Lets a caller share the 64-bit record sequence between fields
+ * that are written more than once per record (e.g. AES-GCM nonce_explicit
+ * and AAD seq_num): peek here, then a later WriteSEQ() inside
+ * writeAeadAuthData() does the single mandated increment. For DTLS the
+ * underlying GetSEQ is already read-only, so this is identical to
+ * WriteSEQ() in that path. */
+static WC_INLINE void PeekSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
+{
+    word32 seq[2] = {0, 0};
+
+    if (!ssl->options.dtls) {
+        if (verifyOrder) {
+            seq[0] = ssl->keys.peer_sequence_number_hi;
+            seq[1] = ssl->keys.peer_sequence_number_lo;
+        }
+        else {
+            seq[0] = ssl->keys.sequence_number_hi;
+            seq[1] = ssl->keys.sequence_number_lo;
+        }
     }
     else {
 #ifdef WOLFSSL_DTLS
@@ -24834,9 +24866,29 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     args->iv = args->staticIvBuffer;
                 }
 
-                ret = wc_RNG_GenerateBlock(ssl->rng, args->iv, args->ivSz);
-                if (ret != 0)
-                    goto exit_buildmsg;
+#ifdef HAVE_AEAD
+                /* When the explicit nonce is the 8-byte record sequence
+                 * number, write it directly rather than drawing a random
+                 * value: RFC 5288 sec 3 (AES-GCM), RFC 6655 sec 3 (AES-CCM),
+                 * RFC 8998 sec 3 + NIST SP 800-38D sec 8.2.1 (SM4-GCM/CCM);
+                 * Camellia-GCM (RFC 6367) and ARIA-GCM (RFC 6209) inherit the
+                 * RFC 5288 construction. The ivSz == AESGCM_EXP_IV_SZ test
+                 * selects exactly these suites: ChaCha20 has an implicit nonce
+                 * (ivSz 0, so it never enters this ivSz > 0 block), while the
+                 * cipher_type == aead test excludes 3DES-CBC, whose explicit
+                 * block IV is also 8 bytes. */
+                if (ssl->specs.cipher_type == aead &&
+                    args->ivSz == AESGCM_EXP_IV_SZ) {
+                    PeekSEQ(ssl, epochOrder, args->iv);
+                }
+                else
+#endif
+                {
+                    ret = wc_RNG_GenerateBlock(ssl->rng, args->iv,
+                                               args->ivSz);
+                    if (ret != 0)
+                        goto exit_buildmsg;
+                }
             }
 #if !defined(NO_PUBLIC_GCM_SET_IV) && \
     ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \

@@ -1131,6 +1131,7 @@ int wolfSSL_set_read_fd(WOLFSSL* ssl, int fd)
         if (ssl->options.dtls) {
             ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.rfd = fd;
+            ssl->buffers.dtlsCtx.isDGramCached = 0;
         }
     #endif
 
@@ -1155,6 +1156,7 @@ int wolfSSL_set_write_fd(WOLFSSL* ssl, int fd)
         if (ssl->options.dtls) {
             ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.wfd = fd;
+            ssl->buffers.dtlsCtx.isDGramCached = 0;
         }
     #endif
 
@@ -6819,6 +6821,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ssl->options.dtls) {
             ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.rfd = rfd;
+            ssl->buffers.dtlsCtx.isDGramCached = 0;
         }
     #endif
 
