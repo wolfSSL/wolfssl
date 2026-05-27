@@ -40,7 +40,8 @@
 
 static WC_INLINE word32 load32( const void *src )
 {
-#if defined(LITTLE_ENDIAN_ORDER)
+#if defined(LITTLE_ENDIAN_ORDER) && \
+    (!defined(WOLFSSL_GENERAL_ALIGNMENT) || (WOLFSSL_GENERAL_ALIGNMENT == 0))
   return *( const word32 * )( src );
 #else
   const byte *p = ( const byte * )src;
@@ -54,7 +55,8 @@ static WC_INLINE word32 load32( const void *src )
 
 static WC_INLINE word64 load64( const void *src )
 {
-#if defined(LITTLE_ENDIAN_ORDER)
+#if defined(LITTLE_ENDIAN_ORDER) && \
+    (!defined(WOLFSSL_GENERAL_ALIGNMENT) || (WOLFSSL_GENERAL_ALIGNMENT == 0))
   return *( const word64 * )( src );
 #else
   const byte *p = ( const byte * )src;
@@ -72,7 +74,8 @@ static WC_INLINE word64 load64( const void *src )
 
 static WC_INLINE void store32( void *dst, word32 w )
 {
-#if defined(LITTLE_ENDIAN_ORDER)
+#if defined(LITTLE_ENDIAN_ORDER) && \
+    (!defined(WOLFSSL_GENERAL_ALIGNMENT) || (WOLFSSL_GENERAL_ALIGNMENT == 0))
   *( word32 * )( dst ) = w;
 #else
   byte *p = ( byte * )dst;
@@ -85,7 +88,8 @@ static WC_INLINE void store32( void *dst, word32 w )
 
 static WC_INLINE void store64( void *dst, word64 w )
 {
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_GENERAL_ALIGNMENT)
+#if defined(LITTLE_ENDIAN_ORDER) && \
+    (!defined(WOLFSSL_GENERAL_ALIGNMENT) || (WOLFSSL_GENERAL_ALIGNMENT == 0))
   *( word64 * )( dst ) = w;
 #else
   byte *p = ( byte * )dst;

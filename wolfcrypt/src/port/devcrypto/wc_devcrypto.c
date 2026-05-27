@@ -234,7 +234,7 @@ void wc_SetupCryptAead(struct crypt_auth_op* crt, WC_CRYPTODEV* dev,
          byte* src, word32 srcSz, byte* dst, byte* iv, word32 ivSz, int flag,
          byte* authIn, word32 authInSz, byte* authTag, word32 authTagSz)
 {
-    XMEMSET(crt, 0, sizeof(struct crypt_op));
+    XMEMSET(crt, 0, sizeof(struct crypt_auth_op));
     crt->ses    = dev->sess.ses;
     crt->src    = src;
     crt->len    = srcSz;
