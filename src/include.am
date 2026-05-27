@@ -2004,7 +2004,10 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                src/wolfio.c \
                src/keys.c \
                src/ssl.c \
+               src/crypto_policy_granular.c \
                src/tls.c
+
+EXTRA_DIST += src/crypto_policy_granular.h
 
 if BUILD_TLS13
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += src/tls13.c
