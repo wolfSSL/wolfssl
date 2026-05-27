@@ -33,18 +33,12 @@
  * none.
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/types.h>
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -409,6 +403,39 @@ static const char *wcp_lookup_str(const struct wcp_kv_str *m, const char *cp)
 /* derive cipher list                                                   */
 /* -------------------------------------------------------------------- */
 
+/* The IANA cipher suites used by TLS 1.x and DTLS 1.x at the same minor
+ * version are identical (the DTLS variant is encoded as an alias of the
+ * TLS code-point). The suite table tags each row with its TLS label, so
+ * a DTLS-only allowlist (e.g. enabled-version = DTLS1.2) must still
+ * enable every TLS 1.2 row that survives the other constraints — and
+ * vice versa. Treat the protocol token as "TLS 1.x family" rather than
+ * exact string match. */
+static int wcp_protocol_family_enabled(const WolfCPList *protocols,
+                                       const char       *suite_version)
+{
+    static const struct { const char *tls; const char *dtls; } pair[] = {
+        { "TLS1.2", "DTLS1.2" },
+        { "TLS1.3", "DTLS1.3" },
+        { NULL,     NULL      }
+    };
+    int i;
+
+    if (wcp_has(protocols, suite_version)) {
+        return 1;
+    }
+    for (i = 0; pair[i].tls != NULL; i++) {
+        if (XSTRCMP(suite_version, pair[i].tls) == 0
+            && wcp_has(protocols, pair[i].dtls)) {
+            return 1;
+        }
+        if (XSTRCMP(suite_version, pair[i].dtls) == 0
+            && wcp_has(protocols, pair[i].tls)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int wolfSSL_crypto_policy_derive_cipher_list(const WolfGranularPolicy *p,
                                              char *out, size_t outlen)
 {
@@ -427,7 +454,7 @@ int wolfSSL_crypto_policy_derive_cipher_list(const WolfGranularPolicy *p,
         size_t need;
 
         if (!wcp_has(&p->ciphers, s->cipher))   continue;
-        if (!wcp_has(&p->protocols, s->version)) continue;
+        if (!wcp_protocol_family_enabled(&p->protocols, s->version)) continue;
         if (s->kx[0] != '\0' && !wcp_has(&p->kx, s->kx)) continue;
         if (!wcp_has(&p->macs, s->mac))         continue;
 
@@ -490,7 +517,14 @@ int wolfSSL_crypto_policy_derive_sigalgs_list(const WolfGranularPolicy *p,
 /* lowest enabled TLS/DTLS version                                      */
 /* -------------------------------------------------------------------- */
 
-int wolfSSL_crypto_policy_min_version(const WolfGranularPolicy *p)
+/* `wolfSSL_CTX_SetMinVersion` rejects a TLS constant on a DTLS CTX (and
+ * vice versa). The min-version computation must therefore be scoped to
+ * the CTX's protocol family, otherwise a policy that enables both TLS
+ * and DTLS would pass a TLS constant into a DTLS CTX and the floor
+ * would be silently dropped. is_dtls != 0 restricts the search to DTLS
+ * tokens, is_dtls == 0 restricts it to TLS tokens. */
+int wolfSSL_crypto_policy_min_version(const WolfGranularPolicy *p,
+                                      int is_dtls)
 {
     int i;
     int best = -1;
@@ -499,13 +533,22 @@ int wolfSSL_crypto_policy_min_version(const WolfGranularPolicy *p)
     if (p == NULL) return -1;
 
     for (i = 0; i < p->protocols.count; i++) {
-        int v = wcp_lookup_int(wcp_version_map, p->protocols.tok[i]);
-        int pri;
+        const char *tok = p->protocols.tok[i];
+        int         v;
+        int         tok_is_dtls = (XSTRNCMP(tok, "DTLS", 4) == 0);
+        if (tok_is_dtls != (is_dtls != 0)) {
+            continue;
+        }
+        v = wcp_lookup_int(wcp_version_map, tok);
         if (v < 0) continue;
-        /* Pin "min" to numerically lowest (TLSV1=1, TLSV1_3=4). */
-        pri = v;
-        if (pri < best_pri) {
-            best_pri = pri;
+        /* Pin "min" to numerically lowest within the family. The
+         * wolfSSL public enum is monotonic per family: TLSV1=1 <
+         * TLSV1_1=2 < TLSV1_2=3 < TLSV1_3=4, and DTLSV1=5 <
+         * DTLSV1_2=6 < DTLSV1_3=7. We've already filtered by family
+         * above, so the smallest value is the oldest version in that
+         * family — the right floor. */
+        if (v < best_pri) {
+            best_pri = v;
             best = v;
         }
     }
@@ -523,6 +566,7 @@ int wolfSSL_crypto_policy_apply_granular(WOLFSSL_CTX *ctx,
     int        i;
     char       buf[2048];
     int        min_ver;
+    int        is_dtls;
 
     if (ctx == NULL || p == NULL) {
         return BAD_FUNC_ARG;
@@ -530,12 +574,19 @@ int wolfSSL_crypto_policy_apply_granular(WOLFSSL_CTX *ctx,
 
     WOLFSSL_ENTER("wolfSSL_crypto_policy_apply_granular");
 
+    is_dtls = (ctx->method != NULL
+               && ctx->method->version.major == DTLS_MAJOR);
+
     /* 1. Protocol min version. Best-effort: a TLS 1.0 floor against a
      * build that lacks WOLFSSL_ALLOW_TLSV10 must not tear down the CTX
      * — we keep the wolfSSL-default downgrade floor and let the cipher
      * list + key-size floors carry the policy. The caller will still
-     * negotiate within the build's supported version range. */
-    min_ver = wolfSSL_crypto_policy_min_version(p);
+     * negotiate within the build's supported version range.
+     *
+     * We resolve the floor inside the CTX's protocol family. Passing a
+     * TLS constant to a DTLS CTX (or vice versa) makes SetMinVersion
+     * fail and the floor would be silently dropped. */
+    min_ver = wolfSSL_crypto_policy_min_version(p, is_dtls);
     if (min_ver >= 0) {
         rc = wolfSSL_CTX_SetMinVersion(ctx, min_ver);
         if (rc != WOLFSSL_SUCCESS) {
@@ -544,18 +595,25 @@ int wolfSSL_crypto_policy_apply_granular(WOLFSSL_CTX *ctx,
         }
     }
 
-    /* 2. Cipher list. */
+    /* 2. Cipher list. An allowlist is authoritative: if the
+     * intersection of policy-enabled cipher suites and the suite table
+     * is empty, the CTX would silently keep its default cipher list
+     * and the policy would not actually constrain anything. Refuse
+     * outright in that case. */
     rc = wolfSSL_crypto_policy_derive_cipher_list(p, buf, sizeof(buf));
     if (rc != WOLF_CP_OK) {
         WOLFSSL_MSG("granular policy: cipher list derivation failed");
         return WOLFSSL_FAILURE;
     }
-    if (buf[0] != '\0') {
-        rc = wolfSSL_CTX_set_cipher_list(ctx, buf);
-        if (rc != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG_EX("granular policy: set_cipher_list failed: %d", rc);
-            return rc;
-        }
+    if (buf[0] == '\0') {
+        WOLFSSL_MSG("granular policy: derived cipher list is empty — "
+                    "policy enables no suites this build can serve");
+        return WOLFSSL_FAILURE;
+    }
+    rc = wolfSSL_CTX_set_cipher_list(ctx, buf);
+    if (rc != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG_EX("granular policy: set_cipher_list failed: %d", rc);
+        return rc;
     }
 
     /* 3. Supported groups (TLS named groups). */

@@ -5468,6 +5468,21 @@ int wolfSSL_crypto_policy_enable(const char * policy_file)
         crypto_policy.secLevel = crypto_policy_gran.security_level > 0
                                  ? crypto_policy_gran.security_level
                                  : 0;
+        /* Mirror the derived cipher list into the legacy str buffer so
+         * wolfSSL_crypto_policy_get_ciphers() returns the actual list
+         * the policy enables (and not the empty string while
+         * `enabled == 1`). The cipher set is the same for the TLS and
+         * DTLS protocol families at a given minor version, so a single
+         * derivation feeds both CTX families. Truncation is safe: the
+         * string is informational, the authoritative apply happens per
+         * CTX in wolfSSL_crypto_policy_apply_granular(). */
+        rc = wolfSSL_crypto_policy_derive_cipher_list(
+                 &crypto_policy_gran,
+                 crypto_policy.str,
+                 sizeof(crypto_policy.str));
+        if (rc != WOLF_CP_OK) {
+            crypto_policy.str[0] = '\0';
+        }
         crypto_policy.enabled = 1;
         crypto_policy_gran_enabled = 1;
         return WOLFSSL_SUCCESS;
@@ -5529,6 +5544,15 @@ int wolfSSL_crypto_policy_enable_buffer(const char * buf)
         crypto_policy.secLevel = crypto_policy_gran.security_level > 0
                                  ? crypto_policy_gran.security_level
                                  : 0;
+        /* Mirror the derived cipher list — see comment in
+         * wolfSSL_crypto_policy_enable() above. */
+        rc = wolfSSL_crypto_policy_derive_cipher_list(
+                 &crypto_policy_gran,
+                 crypto_policy.str,
+                 sizeof(crypto_policy.str));
+        if (rc != WOLF_CP_OK) {
+            crypto_policy.str[0] = '\0';
+        }
         crypto_policy.enabled = 1;
         crypto_policy_gran_enabled = 1;
         return WOLFSSL_SUCCESS;

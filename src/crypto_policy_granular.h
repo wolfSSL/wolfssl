@@ -64,9 +64,11 @@ WOLFSSL_LOCAL int wolfSSL_crypto_policy_derive_cipher_list(
 WOLFSSL_LOCAL int wolfSSL_crypto_policy_derive_sigalgs_list(
     const WolfGranularPolicy *p, char *out, size_t outlen);
 
-/* Lowest TLS/DTLS version enabled. Returns -1 if none. */
+/* Lowest enabled version inside the requested protocol family.
+ * is_dtls != 0 considers only DTLS tokens, is_dtls == 0 considers
+ * only TLS tokens. Returns -1 if no token of that family is enabled. */
 WOLFSSL_LOCAL int wolfSSL_crypto_policy_min_version(
-    const WolfGranularPolicy *p);
+    const WolfGranularPolicy *p, int is_dtls);
 
 /* Apply the parsed policy to a CTX: drive SetMinVersion,
  * set_cipher_list, UseSupportedCurve, set1_sigalgs_list and
