@@ -1,0 +1,67 @@
+name: 'Set up ccache'
+description: >
+  Install ccache (on Ubuntu), restore the ccache directory from a previous
+  run, and prepend the ccache compiler-symlink dir to PATH. Subsequent
+  gcc/cc/g++/c++ invocations are transparently intercepted by ccache, so
+  no other workflow step needs to change. macOS is not supported yet.
+
+inputs:
+  workflow-id:
+    description: 'Cache namespace - typically the calling workflow name.'
+    required: true
+  config-hash:
+    description: >
+      Optional short string distinguishing matrix entries. Each unique
+      value gets its own primary cache key. Leave empty to share one
+      cache across all entries in the workflow.
+    required: false
+    default: 'shared'
+  max-size:
+    description: 'Per-job ccache max size (passed to ccache -M).'
+    required: false
+    default: '500M'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install ccache (Ubuntu)
+      shell: bash
+      run: |
+        if command -v ccache >/dev/null 2>&1; then
+          echo "ccache already installed: $(ccache --version | head -1)"
+        else
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            --no-install-recommends ccache
+        fi
+
+    - name: Restore + save ccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        # Unique per run+attempt+config so each job persists its own
+        # contribution; restore-keys falls back to the most recent
+        # cache for this workflow/os/config.
+        key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Configure ccache and PATH
+      shell: bash
+      run: |
+        ccache -M "${{ inputs.max-size }}"
+        # base_dir lets ccache reuse hits across different workspace
+        # checkout paths (different runs use different /home/.../work/ dirs).
+        ccache --set-config=base_dir="$GITHUB_WORKSPACE"
+        ccache --set-config=hash_dir=false
+        ccache -z   # zero stats so the post-build summary is per-job
+        # /usr/lib/ccache contains gcc, g++, cc, c++ symlinks that resolve
+        # to ccache. Prepending to PATH makes the build transparently use
+        # ccache without changing any configure/make invocation.
+        echo "/usr/lib/ccache" >> "$GITHUB_PATH"
+        echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+    - name: Show ccache stats (initial)
+      shell: bash
+      run: ccache -s
