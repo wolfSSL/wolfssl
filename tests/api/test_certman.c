@@ -3519,3 +3519,19 @@ cleanup:
 #endif
     return EXPECT_RESULT();
 }
+
+int test_wolfSSL_X509_V_ERR_strings(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ERROR_STRINGS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED))
+    ExpectStrEQ(wolfSSL_ERR_reason_error_string(
+        WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD),
+        "format error in certificate's notBefore field");
+    ExpectStrEQ(wolfSSL_ERR_reason_error_string(
+        WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD),
+        "format error in certificate's notAfter field");
+#endif
+    return EXPECT_RESULT();
+}

@@ -7591,11 +7591,15 @@ static int parseKeyLogFile(const char* fileName, char* error)
 
         if (ret != 0) {
             fclose(file);
+            ForceZero(secret, SECRET_LENGTH);
+            ForceZero(secretHex, sizeof(secretHex));
             return ret;
         }
     }
     fclose(file);
 
+    ForceZero(secret, SECRET_LENGTH);
+    ForceZero(secretHex, sizeof(secretHex));
     return 0;
 }
 
@@ -7613,6 +7617,7 @@ static void freeSecretList(void)
 
         while (current != NULL) {
             next = current->next;
+            ForceZero(current, sizeof(SecretNode));
             XFREE(current, NULL, DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
             current = next;
         }

@@ -20219,19 +20219,45 @@ int wolfSSL_RAND_poll(void)
     int wolfSSL_RAND_status(void)
     {
         int ret = WOLFSSL_SUCCESS;
+        int useGlobalRng = 1;
     #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
         if (wolfSSL_RAND_InitMutex() == 0 &&
                 wc_LockMutex(&gRandMethodMutex) == 0) {
-            if (gRandMethods && gRandMethods->status)
+            if (gRandMethods && gRandMethods->status) {
                 ret = gRandMethods->status();
+                useGlobalRng = 0;
+            }
             wc_UnLockMutex(&gRandMethodMutex);
         }
         else {
             ret = WOLFSSL_FAILURE;
+            useGlobalRng = 0;
         }
-    #else
-        /* wolfCrypt provides enough seed internally, so return success */
     #endif
+
+        /* Drive the global RNG so init / DRBG state failures (mutex
+         * acquisition, reseed required, corrupted state) surface to the
+         * caller. DRBG output is deterministic between reseeds, so this
+         * does not directly probe the entropy source. */
+    #ifdef HAVE_GLOBAL_RNG
+        if (useGlobalRng) {
+            if (wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+                ret = WOLFSSL_FAILURE;
+            }
+            else if (wc_LockMutex(&globalRNGMutex) != 0) {
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                byte b = 0;
+                int genRet = wc_RNG_GenerateBlock(&globalRNG, &b, 1);
+                wc_UnLockMutex(&globalRNGMutex);
+                ForceZero(&b, 1);
+                if (genRet != 0)
+                    ret = WOLFSSL_FAILURE;
+            }
+        }
+    #endif
+        (void)useGlobalRng;
         return ret;
     }
 
@@ -20263,14 +20289,106 @@ void wolfSSL_RAND_screen(void)
 }
 #endif
 
+#ifndef WOLFSSL_RAND_LOAD_FILE_BUF_SZ
+#define WOLFSSL_RAND_LOAD_FILE_BUF_SZ 256
+#endif
+#ifndef WOLFSSL_RAND_LOAD_FILE_MAX_BYTES
+#define WOLFSSL_RAND_LOAD_FILE_MAX_BYTES (1L << 20)
+#endif
+
 int wolfSSL_RAND_load_file(const char* fname, long len)
 {
+#if !defined(NO_FILESYSTEM) && defined(HAVE_HASHDRBG)
+    XFILE  f;
+    long   maxBytes;
+    long   readSoFar = 0;
+    int    ret = 0;
+#ifndef WOLFSSL_SMALL_STACK
+    unsigned char buf[WOLFSSL_RAND_LOAD_FILE_BUF_SZ];
+#else
+    unsigned char* buf;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_RAND_load_file");
+
+    if (fname == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    /* OpenSSL semantics: RAND_load_file(file, -1) reads up to an
+     * implementation-defined maximum. WOLFSSL_RAND_LOAD_FILE_MAX_BYTES
+     * caps the read so callers passing -1 to ingest a seed file aren't
+     * silently truncated at a small default. */
+    maxBytes = (len < 0) ? WOLFSSL_RAND_LOAD_FILE_MAX_BYTES : len;
+    if (maxBytes == 0)
+        return 0;
+
+    f = XFOPEN(fname, "rb");
+    if (f == XBADFILE) {
+        WOLFSSL_MSG("RAND_load_file: cannot open file");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    buf = (unsigned char*)XMALLOC(WOLFSSL_RAND_LOAD_FILE_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        XFCLOSE(f);
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wolfSSL_RAND_load_file buf", buf,
+        WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
+#endif
+
+    if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("RAND_load_file: global RNG not available");
+        ret = WOLFSSL_FATAL_ERROR;
+        goto cleanup;
+    }
+
+    while (readSoFar < maxBytes) {
+        size_t toRead = (size_t)((maxBytes - readSoFar) <
+                WOLFSSL_RAND_LOAD_FILE_BUF_SZ
+            ? (maxBytes - readSoFar) : WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
+        size_t n = XFREAD(buf, 1, toRead, f);
+        if (n == 0)
+            break;
+        if (wc_LockMutex(&globalRNGMutex) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+        }
+        if (wc_RNG_DRBG_Reseed(&globalRNG, buf, (word32)n) != 0) {
+            wc_UnLockMutex(&globalRNGMutex);
+            WOLFSSL_MSG("RAND_load_file: DRBG reseed failed");
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+        }
+        wc_UnLockMutex(&globalRNGMutex);
+        readSoFar += (long)n;
+    }
+
+cleanup:
+    XFCLOSE(f);
+    ForceZero(buf, WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(buf, WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
+#endif
+
+    if (ret < 0)
+        return WOLFSSL_FATAL_ERROR;
+    return (int)readSoFar;
+#else
+    /* Without HAVE_HASHDRBG / filesystem support there is no way to feed
+     * external entropy to the wolfCrypt RNG; return success so callers
+     * in those configurations are not broken. */
     (void)fname;
-    /* wolfCrypt provides enough entropy internally or will report error */
     if (len == -1)
         return 1024;
-    else
-        return (int)len;
+    return (int)len;
+#endif
 }
 
 #endif /* OPENSSL_EXTRA */

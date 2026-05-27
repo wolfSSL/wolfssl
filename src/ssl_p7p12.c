@@ -988,7 +988,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     outputHead = (byte*)XMALLOC(outputHeadSz, bio->heap,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (outputHead == NULL)
-        return MEMORY_E;
+        return WOLFSSL_FAILURE;
 
     outputFoot = (byte*)XMALLOC(outputFootSz, bio->heap,
         DYNAMIC_TYPE_TMP_BUFFER);
