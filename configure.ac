@@ -207,6 +207,15 @@ fi
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
 # Special case: Since types.h depends on HAVE_LIMITS_H, we must define it in options.h.
 AC_CHECK_HEADER([limits.h], [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIMITS_H=1"], [])
+# Propagate the measured integer sizes (from AC_CHECK_SIZEOF above) into
+# options.h. The library obtains these from config.h, but config.h is not
+# available to applications; without them, application code falls back to the
+# limits.h/architecture heuristics in types.h and can compute a CTC_SETTINGS
+# value that disagrees with the library's CheckRunTimeSettings().
+AS_IF([test "x$ac_cv_sizeof_long" != "x"],
+    [AM_CPPFLAGS="$AM_CPPFLAGS -DSIZEOF_LONG=$ac_cv_sizeof_long"])
+AS_IF([test "x$ac_cv_sizeof_long_long" != "x"],
+    [AM_CPPFLAGS="$AM_CPPFLAGS -DSIZEOF_LONG_LONG=$ac_cv_sizeof_long_long"])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
 AC_C___ATOMIC

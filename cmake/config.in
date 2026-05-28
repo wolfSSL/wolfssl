@@ -49,12 +49,6 @@
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "@CMAKE_PROJECT_NAME@"
 
-/* The size of `long', as computed by sizeof. */
-#cmakedefine SIZEOF_LONG @SIZEOF_LONG@
-
-/* The size of `long long', as computed by sizeof. */
-#cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
-
 /* The size of `time_t', as computed by sizeof. */
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
 
