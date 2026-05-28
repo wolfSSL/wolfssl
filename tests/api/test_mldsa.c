@@ -30508,3 +30508,85 @@ WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_canonical_api_check(void)
 PRAGMA_CLANG_DIAG_POP
 
 #endif /* WOLFSSL_HAVE_MLDSA */
+
+/*----------------------------------------------------------------------------*/
+/* ML-DSA / Dilithium negative length-validation tests                        */
+/*----------------------------------------------------------------------------*/
+
+/* ML-DSA HashML-DSA verify must reject hashLen > WC_MAX_DIGEST_SIZE */
+int test_mldsa_verify_hash(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
+    WC_RNG rng;
+    int res = 0;
+    byte sig[4000];
+    byte hash[4096]; /* larger than WC_MAX_DIGEST_SIZE */
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0x41, sizeof(sig));
+    XMEMSET(hash, 'A', sizeof(hash));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+#else
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+
+    /* hashLen=4096 must be rejected, not overflow the stack */
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(&key, sig, sizeof(sig), NULL, 0,
+        hash, sizeof(hash), WC_HASH_TYPE_SHA256, &res),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    wc_MlDsaKey_Free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Dilithium verify_ctx_msg must reject absurdly large msgLen */
+int test_dilithium_hash(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
+    WC_RNG rng;
+    int res = 0;
+    byte sig[4000];
+    byte msg[64];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 'A', sizeof(msg));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+#else
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sizeof(sig), NULL, 0,
+        msg, 0xFFFFFFC0, &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_MlDsaKey_Free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
