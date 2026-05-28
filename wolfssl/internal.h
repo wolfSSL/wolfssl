@@ -4525,6 +4525,10 @@ enum ClientCertificateType {
     mldsa_sign          = 68,
 };
 
+/* Maximum number of ClientCertificateType bytes the server emits in a
+ * CertificateRequest. Currently rsa_sign and ecdsa_sign. */
+#define MAX_CERT_REQ_CERT_TYPE_CNT 2
+
 
 #ifndef WOLFSSL_AEAD_ONLY
 enum CipherType { stream, block, aead };

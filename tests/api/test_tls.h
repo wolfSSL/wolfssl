@@ -36,6 +36,8 @@ int test_tls_set_session_min_downgrade(void);
 int test_tls_set_curves_list_ecc_fallback(void);
 int test_tls12_corrupted_finished(void);
 int test_tls12_peerauth_failsafe(void);
+int test_tls12_ecdhe_ecdsa_rsa_client_cert(void);
+int test_tls12_ecdhe_rsa_ecdsa_client_cert(void);
 int test_wolfSSL_alert_type_string(void);
 int test_wolfSSL_alert_desc_string(void);
 
@@ -54,6 +56,8 @@ int test_wolfSSL_alert_desc_string(void);
         TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback),         \
         TEST_DECL_GROUP("tls", test_tls12_corrupted_finished),                 \
         TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \
+        TEST_DECL_GROUP("tls", test_tls12_ecdhe_ecdsa_rsa_client_cert),        \
+        TEST_DECL_GROUP("tls", test_tls12_ecdhe_rsa_ecdsa_client_cert),        \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_type_string),                \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_desc_string)
 

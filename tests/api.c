@@ -30950,8 +30950,9 @@ static int test_session_ticket_hs_update(void)
 
 
 /**
- * Make sure we don't send RSA Signature Hash Algorithms in the
- * CertificateRequest when we don't have any such ciphers set.
+ * Make sure the CertificateRequest advertises ECDSA signature hash algorithms
+ * for an ECDHE-ECDSA server, and also includes RSA algorithms so that RSA
+ * clients can authenticate (the certificate_type advertised covers both).
  * @return EXPECT_RESULT()
  */
 static int test_certreq_sighash_algos(void)
@@ -31012,17 +31013,24 @@ static int test_certreq_sighash_algos(void)
             idx += OPAQUE16_LEN;
             maxIdx = idx + (int)len;
             for (; idx < maxIdx && EXPECT_SUCCESS(); idx += OPAQUE16_LEN) {
-                if (test_ctx.c_buff[idx+1] == ED25519_SA_MINOR ||
-                        test_ctx.c_buff[idx+1] == ED448_SA_MINOR ||
-                        test_ctx.c_buff[idx+1] ==
-                                      ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR ||
-                        test_ctx.c_buff[idx+1] ==
-                                      ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR ||
-                        test_ctx.c_buff[idx+1] ==
-                                      ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR)
-                    ExpectIntEQ(test_ctx.c_buff[idx], NEW_SA_MAJOR);
-                else
-                    ExpectIntEQ(test_ctx.c_buff[idx+1], ecc_dsa_sa_algo);
+                byte first = test_ctx.c_buff[idx];
+                byte second = test_ctx.c_buff[idx+1];
+                if (second == ED25519_SA_MINOR ||
+                        second == ED448_SA_MINOR ||
+                        second == ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR ||
+                        second == ECDSA_BRAINPOOLP384R1TLS13_SHA384_MINOR ||
+                        second == ECDSA_BRAINPOOLP512R1TLS13_SHA512_MINOR) {
+                    ExpectIntEQ(first, NEW_SA_MAJOR);
+                }
+                else {
+                    /* ECDHE-ECDSA suites advertise ECDSA so the negotiated
+                     * cipher can be used, and also RSA / RSA-PSS so RSA
+                     * clients can authenticate via mutual auth. Note that
+                     * RSA-PSS is encoded with sigAlgo first then mac. */
+                    ExpectTrue(second == ecc_dsa_sa_algo ||
+                               second == rsa_sa_algo ||
+                               first == rsa_pss_sa_algo);
+                }
             }
             break;
         }

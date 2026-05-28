@@ -25828,6 +25828,153 @@ int SendCertificate(WOLFSSL* ssl)
 
 
 #if !defined(NO_TLS)
+/* Returns the certificate_types this server advertises in its
+ * CertificateRequest. The list is broader than the negotiated cipher suite's
+ * own signature algorithm so a client may authenticate with a certificate of
+ * a different type (e.g. an RSA client on an ECDHE-ECDSA suite). */
+WC_MAYBE_UNUSED static int GetServerCertReqCertTypes(const WOLFSSL* ssl,
+                                                     byte* certTypes)
+{
+    int n = 0;
+    (void)ssl;
+    (void)certTypes;
+#ifdef HAVE_ECC
+    if ((ssl->options.cipherSuite0 == ECC_BYTE ||
+         ssl->options.cipherSuite0 == CHACHA_BYTE) &&
+                     ssl->specs.sig_algo == ecc_dsa_sa_algo) {
+        certTypes[n++] = ecdsa_sign;
+    #ifndef NO_RSA
+        certTypes[n++] = rsa_sign;
+    #endif
+    }
+    else
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
+    (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
+     defined(WOLFSSL_SM4_CCM))
+    if (ssl->options.cipherSuite0 == SM_BYTE && (0
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+    #endif
+        )) {
+        certTypes[n++] = ecdsa_sign;
+    }
+    else
+#endif
+#endif /* HAVE_ECC */
+    {
+#ifndef NO_RSA
+        certTypes[n++] = rsa_sign;
+#endif
+#ifdef HAVE_ECC
+        certTypes[n++] = ecdsa_sign;
+#endif
+    }
+    return n;
+}
+
+/* Returns the set of sig families covered by the given hash/sig algorithm
+ * list, as a bitmask of SIG_* values. Uses DecodeSigAlg so the NEW_SA_MAJOR
+ * encoding (ED25519/ED448/RSA-PSS-PSS/brainpool) is classified correctly. */
+WC_MAYBE_UNUSED static int HashSigAlgoCoverage(const byte* hashSigAlgo,
+                                               word16 hashSigAlgoSz)
+{
+    int coverage = 0;
+    word16 j;
+    byte hashAlgo;
+    byte sigAlgo;
+    for (j = 0; (j + 1) < hashSigAlgoSz; j += HELLO_EXT_SIGALGO_SZ) {
+        DecodeSigAlg(&hashSigAlgo[j], &hashAlgo, &sigAlgo);
+        (void)hashAlgo;
+        switch (sigAlgo) {
+            case rsa_sa_algo:
+        #ifdef WC_RSA_PSS
+            case rsa_pss_sa_algo:
+            case rsa_pss_pss_algo:
+        #endif
+                coverage |= SIG_RSA;
+                break;
+        #ifdef HAVE_ECC
+            case ecc_dsa_sa_algo:
+            #ifdef HAVE_ECC_BRAINPOOL
+            case ecc_brainpool_sa_algo:
+            #endif
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+            case sm2_sa_algo:
+            #endif
+                coverage |= SIG_ECDSA;
+                break;
+        #endif
+            default:
+                break;
+        }
+    }
+    return coverage;
+}
+
+/* Builds the signature_algorithms this server advertises in its
+ * CertificateRequest. Respects a user-configured suites->hashSigAlgo (e.g.
+ * via wolfSSL_set1_sigalgs_list) and only broadens the list when one of the
+ * advertised certificate_types has no matching signature algorithm in the
+ * configured list. The result is written to the caller's buffer; no SSL
+ * state is modified. */
+WC_MAYBE_UNUSED static void GetServerCertReqHashSigAlgo(const WOLFSSL* ssl,
+        byte* hashSigAlgo, word16* hashSigAlgoSz)
+{
+    const Suites* suites = WOLFSSL_SUITES(ssl);
+    byte    certTypes[MAX_CERT_REQ_CERT_TYPE_CNT];
+    int     typeTotal;
+    int     need = 0;
+    int     have;
+    int     j;
+    word16  localSz = 0;
+
+    typeTotal = GetServerCertReqCertTypes(ssl, certTypes);
+    for (j = 0; j < typeTotal; j++) {
+        if (certTypes[j] == rsa_sign)
+            need |= SIG_RSA;
+        else if (certTypes[j] == ecdsa_sign)
+            need |= SIG_ECDSA;
+    }
+    have = HashSigAlgoCoverage(suites->hashSigAlgo, suites->hashSigAlgoSz);
+
+    if ((need & ~have) != 0) {
+        /* The configured list is missing signature algorithms for at least
+         * one of the advertised certificate_types. Build a broader list
+         * locally that covers every advertised type. */
+        InitSuitesHashSigAlgo(hashSigAlgo, need | have, 1, 0,
+                ssl->buffers.keySz, &localSz);
+        *hashSigAlgoSz = localSz;
+        return;
+    }
+
+    XMEMCPY(hashSigAlgo, suites->hashSigAlgo, suites->hashSigAlgoSz);
+    *hashSigAlgoSz = suites->hashSigAlgoSz;
+}
+
+/* Returns 1 if algo (2 bytes) is in the server's CertificateRequest
+ * signature_algorithms list, 0 otherwise. Used to validate the client's
+ * CertificateVerify against what we actually advertised. */
+WC_MAYBE_UNUSED static int InServerCertReqHashSigAlgo(const WOLFSSL* ssl,
+                                                      const byte* algo)
+{
+    byte    list[WOLFSSL_MAX_SIGALGO];
+    word16  listSz = 0;
+    word16  j;
+
+    GetServerCertReqHashSigAlgo(ssl, list, &listSz);
+    for (j = 0; (j + 1) < listSz; j += HELLO_EXT_SIGALGO_SZ) {
+        if (XMEMCMP(&list[j], algo, HELLO_EXT_SIGALGO_SZ) == 0)
+            return 1;
+    }
+    return 0;
+}
+
 /* handle generation of certificate_request (13) */
 int SendCertificateRequest(WOLFSSL* ssl)
 {
@@ -25839,16 +25986,24 @@ int SendCertificateRequest(WOLFSSL* ssl)
 #ifndef WOLFSSL_NO_CA_NAMES
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
-    const Suites* suites = WOLFSSL_SUITES(ssl);
-
-    int  typeTotal = 1;  /* only 1 for now */
-    int  reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
+    byte   certTypes[MAX_CERT_REQ_CERT_TYPE_CNT];
+    int    typeTotal;
+    int    t;
+    byte   localHashSigAlgo[WOLFSSL_MAX_SIGALGO];
+    word16 localHashSigAlgoSz = 0;
+    int    reqSz;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
     WOLFSSL_ENTER("SendCertificateRequest");
 
+    typeTotal = GetServerCertReqCertTypes(ssl, certTypes);
     if (IsAtLeastTLSv1_2(ssl))
-        reqSz += LENGTH_SZ + suites->hashSigAlgoSz;
+        GetServerCertReqHashSigAlgo(ssl, localHashSigAlgo, &localHashSigAlgoSz);
+
+    reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
+
+    if (IsAtLeastTLSv1_2(ssl))
+        reqSz += LENGTH_SZ + localHashSigAlgoSz;
 
 #ifndef WOLFSSL_NO_CA_NAMES
     /* Certificate Authorities */
@@ -25901,43 +26056,16 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
     /* write to output */
     output[i++] = (byte)typeTotal;  /* # of types */
-#ifdef HAVE_ECC
-    if ((ssl->options.cipherSuite0 == ECC_BYTE ||
-         ssl->options.cipherSuite0 == CHACHA_BYTE) &&
-                     ssl->specs.sig_algo == ecc_dsa_sa_algo) {
-        output[i++] = ecdsa_sign;
-    }
-    else
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
-    (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
-     defined(WOLFSSL_SM4_CCM))
-    if (ssl->options.cipherSuite0 == SM_BYTE && (0
-    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
-        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
-    #endif
-    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
-        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
-    #endif
-    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
-        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
-    #endif
-        )) {
-        output[i++] = ecdsa_sign;
-    }
-    else
-#endif
-#endif /* HAVE_ECC */
-    {
-        output[i++] = rsa_sign;
-    }
+    for (t = 0; t < typeTotal; t++)
+        output[i++] = certTypes[t];
 
     /* supported hash/sig */
     if (IsAtLeastTLSv1_2(ssl)) {
-        c16toa(suites->hashSigAlgoSz, &output[i]);
+        c16toa(localHashSigAlgoSz, &output[i]);
         i += OPAQUE16_LEN;
 
-        XMEMCPY(&output[i], suites->hashSigAlgo, suites->hashSigAlgoSz);
-        i += suites->hashSigAlgoSz;
+        XMEMCPY(&output[i], localHashSigAlgo, localHashSigAlgoSz);
+        i += localHashSigAlgoSz;
     }
 
     /* Certificate Authorities */
@@ -38959,9 +39087,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         ERROR_OUT(BUFFER_ERROR, exit_dcv);
                     }
 
-                    /* Check if hashSigAlgo in CertificateVerify is supported
-                     * in our ssl->suites or ssl->ctx->suites. */
-                    if (!SupportedHashSigAlgo(ssl, &input[args->idx])) {
+                    /* Check the algorithm in CertificateVerify against the
+                     * list we actually advertised in our CertificateRequest. */
+                    if (!InServerCertReqHashSigAlgo(ssl, &input[args->idx])) {
                         WOLFSSL_MSG("Signature algorithm was not in "
                                                           "CertificateRequest");
                         ERROR_OUT(INVALID_PARAMETER, exit_dcv);
