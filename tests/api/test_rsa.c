@@ -1214,33 +1214,43 @@ int test_wc_RsaDecrypt_BoundsCheck(void)
 /*
  * Oversized RSA modulus (mp_bitsused(n) > RSA_MAX_SIZE) must not overflow the
  * static stack buffer used by RsaFunctionCheckIn (DECL_MP_INT_SIZE_DYN).
+ *
+ * The buffer is sized for RSA_MAX_SIZE digits, and NEW_MP_INT_SIZE would zero
+ * mp_bitsused(&key->n) digits of it -- so an oversized modulus must be
+ * caught by MP_BITS_OVER_MAX *before* NEW_MP_INT_SIZE is reached.  We feed
+ * wc_RsaDirect() an input/output buffer matching the oversized modulus byte
+ * size so we get past wc_RsaDirect()'s inLen sanity check and reach the
+ * RsaFunctionCheckIn() guard inside wc_RsaFunction_ex().
  */
 int test_wc_RsaFunctionCheckIn_OversizedModulus(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(WC_RSA_NO_PADDING) && defined(WC_RSA_DIRECT) && \
     defined(WOLFSSL_PUBLIC_MP) && !defined(NO_RSA_BOUNDS_CHECK) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
     (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
     !defined(WOLFSSL_SMALL_STACK) && \
     (defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048))
+    /* Setting bit RSA_MAX_SIZE makes the modulus RSA_MAX_SIZE+1 bits, i.e.
+     * (RSA_MAX_SIZE/8 + 1) bytes -- size buffers accordingly with slack. */
+    #define WC_RSA_OVERSIZED_BUF_LEN ((RSA_MAX_SIZE / 8) + 8)
     WC_RNG rng;
     RsaKey key;
     const byte* derKey;
     word32 derKeySz;
     word32 idx = 0;
-    byte flatC[256];
+    byte flatC[WC_RSA_OVERSIZED_BUF_LEN];
     word32 flatCSz;
-    byte out[256];
+    byte out[WC_RSA_OVERSIZED_BUF_LEN];
     word32 outSz = sizeof(out);
+    int    encSz;
 
     #ifdef USE_CERT_BUFFERS_1024
         derKey = server_key_der_1024;
         derKeySz = (word32)sizeof_server_key_der_1024;
-        flatCSz = 128;
     #else
         derKey = server_key_der_2048;
         derKeySz = (word32)sizeof_server_key_der_2048;
-        flatCSz = 256;
     #endif
 
     XMEMSET(&key, 0, sizeof(RsaKey));
@@ -1251,12 +1261,22 @@ int test_wc_RsaFunctionCheckIn_OversizedModulus(void)
     ExpectIntEQ(wc_RsaPrivateKeyDecode(derKey, &idx, &key, derKeySz), 0);
     /* Force modulus bit count above RSA_MAX_SIZE. */
     ExpectIntEQ(mp_set_bit(&key.n, RSA_MAX_SIZE), 0);
-    XMEMSET(flatC, 0, flatCSz);
-    ExpectIntEQ(wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
-        RSA_PRIVATE_DECRYPT, &rng), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+
+    /* Match wc_RsaDirect()'s inLen check so we actually reach
+     * RsaFunctionCheckIn() (where the MP_BITS_OVER_MAX guard lives). */
+    encSz = wc_RsaEncryptSize(&key);
+    ExpectIntGT(encSz, 0);
+    ExpectIntLE(encSz, (int)sizeof(flatC));
+    if (encSz > 0 && (size_t)encSz <= sizeof(flatC)) {
+        flatCSz = (word32)encSz;
+        XMEMSET(flatC, 0, flatCSz);
+        ExpectIntEQ(wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
+            RSA_PRIVATE_DECRYPT, &rng), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    }
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    #undef WC_RSA_OVERSIZED_BUF_LEN
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_RsaFunctionCheckIn_OversizedModulus */
