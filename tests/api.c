@@ -30064,7 +30064,7 @@ static int crypto_policy_cipher_count(const WOLFSSL * ssl)
  *
  * Drives the new granular code path: wolfSSL_crypto_policy_enable() must
  * detect the allowlist header, parse the sectioned file, and the CTX
- * created afterwards must reflect the policy's primitives — cipher
+ * created afterwards must reflect the policy's primitives -- cipher
  * count, suite membership, security level, and DTLS support.
  * */
 static int test_wolfSSL_crypto_policy_granular(void)
@@ -30155,7 +30155,7 @@ static int test_wolfSSL_crypto_policy_granular(void)
      * list reflects the policy. A previous version of the granular
      * back-end only matched the exact "TLS1.x" token against suites,
      * so a DTLS-only policy derived an empty cipher list and the
-     * applier silently kept the CTX's default suites — i.e. the
+     * applier silently kept the CTX's default suites -- i.e. the
      * allowlist did not constrain anything.
      *
      * We assert:
@@ -30163,7 +30163,7 @@ static int test_wolfSSL_crypto_policy_granular(void)
      *      DTLS1.2 protocol tokens enable their TLS1.2 cipher peers
      *      in the derivation (fix for the DTLS suite-match gap);
      *  (b) the DTLS CTX is created, proving apply_granular ran to
-     *      success — empty derive now returns WOLFSSL_FAILURE and
+     *      success -- empty derive now returns WOLFSSL_FAILURE and
      *      the CTX would be torn down before reaching this point;
      *  (c) the derived list round-trips through set_cipher_list on
      *      a fresh DTLS CTX (the CTX-level cipher store accepts the

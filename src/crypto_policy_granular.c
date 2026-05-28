@@ -14,13 +14,13 @@
  * Reentrancy / threading: the helpers in this file are pure (no global
  * state). The applier calls back into the wolfSSL public API and
  * temporarily lifts the `wolfSSL_CTX_SetMinVersion` policy guard via
- * the `crypto_policy_applying` flag in src/ssl.c — that is the only
+ * the `crypto_policy_applying` flag in src/ssl.c -- that is the only
  * coupling. Like the legacy crypto-policy parser, the apply step is
  * documented as init-time only and is not thread-safe.
  *
  * Forward compatibility: unknown vocabulary tokens are tolerated
  * silently so a wolfSSL build can consume a newer Fedora file without
- * upgrading; the intersection of "policy-enabled ∩ build-supported"
+ * upgrading; the intersection of "policy-enabled intersect build-supported"
  * is what actually reaches a WOLFSSL_CTX. The file *format* version
  * (`version = 1`) is conversely strict: a higher version is rejected
  * outright because it may redefine the meaning of existing keys.
@@ -256,7 +256,7 @@ overflow:
         return WOLF_CP_ERR_NOT_ALLOWLIST;
     }
     /* `version = 1` is the only format this parser knows. A newer file
-     * may add directives that change the *meaning* of existing keys —
+     * may add directives that change the *meaning* of existing keys --
      * silently consuming them would be unsafe, so we refuse the file
      * outright. Forward compatibility is the file-format author's job
      * (bump the version) and ours (ship a parser that handles it). */
@@ -407,7 +407,7 @@ static const char *wcp_lookup_str(const struct wcp_kv_str *m, const char *cp)
  * version are identical (the DTLS variant is encoded as an alias of the
  * TLS code-point). The suite table tags each row with its TLS label, so
  * a DTLS-only allowlist (e.g. enabled-version = DTLS1.2) must still
- * enable every TLS 1.2 row that survives the other constraints — and
+ * enable every TLS 1.2 row that survives the other constraints -- and
  * vice versa. Treat the protocol token as "TLS 1.x family" rather than
  * exact string match. */
 static int wcp_protocol_family_enabled(const WolfCPList *protocols,
@@ -546,7 +546,7 @@ int wolfSSL_crypto_policy_min_version(const WolfGranularPolicy *p,
          * TLSV1_1=2 < TLSV1_2=3 < TLSV1_3=4, and DTLSV1=5 <
          * DTLSV1_2=6 < DTLSV1_3=7. We've already filtered by family
          * above, so the smallest value is the oldest version in that
-         * family — the right floor. */
+         * family -- the right floor. */
         if (v < best_pri) {
             best_pri = v;
             best = v;
@@ -579,7 +579,7 @@ int wolfSSL_crypto_policy_apply_granular(WOLFSSL_CTX *ctx,
 
     /* 1. Protocol min version. Best-effort: a TLS 1.0 floor against a
      * build that lacks WOLFSSL_ALLOW_TLSV10 must not tear down the CTX
-     * — we keep the wolfSSL-default downgrade floor and let the cipher
+     * -- we keep the wolfSSL-default downgrade floor and let the cipher
      * list + key-size floors carry the policy. The caller will still
      * negotiate within the build's supported version range.
      *
@@ -606,7 +606,7 @@ int wolfSSL_crypto_policy_apply_granular(WOLFSSL_CTX *ctx,
         return WOLFSSL_FAILURE;
     }
     if (buf[0] == '\0') {
-        WOLFSSL_MSG("granular policy: derived cipher list is empty — "
+        WOLFSSL_MSG("granular policy: derived cipher list is empty -- "
                     "policy enables no suites this build can serve");
         return WOLFSSL_FAILURE;
     }
