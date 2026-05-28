@@ -33,13 +33,10 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use aead::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
 
 #[cfg(feature = "aead")]
-use aead::generic_array::typenum::{U0, U12, U16, U32};
+use aead::generic_array::typenum::{U0, U12, U16, U24, U32};
 
 #[cfg(all(feature = "cipher", not(feature = "aead")))]
-use cipher::typenum::consts::{U16, U32};
-
-#[cfg(feature = "cipher")]
-use cipher::typenum::consts::U24;
+use cipher::typenum::consts::{U16, U24, U32};
 
 #[cfg(feature = "cipher")]
 use cipher::{
@@ -535,6 +532,58 @@ impl KeyInit for Aes128Ccm {
 
 #[cfg(all(aes_ccm, feature = "aead"))]
 impl AeadInPlace for Aes128Ccm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        ccm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        ccm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
+    }
+}
+
+/// AES-192-CCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_ccm, feature = "aead"))]
+#[derive(Zeroize, ZeroizeOnDrop)]
+pub struct Aes192Ccm {
+    key: [u8; 24],
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeySizeUser for Aes192Ccm {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadCore for Aes192Ccm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl KeyInit for Aes192Ccm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 24];
+        k.copy_from_slice(key.as_ref());
+        Aes192Ccm { key: k }
+    }
+}
+
+#[cfg(all(aes_ccm, feature = "aead"))]
+impl AeadInPlace for Aes192Ccm {
     fn encrypt_in_place_detached(
         &self,
         nonce: &aead::Nonce<Self>,
@@ -1691,6 +1740,58 @@ impl KeyInit for Aes128Gcm {
 
 #[cfg(all(aes_gcm, feature = "aead"))]
 impl AeadInPlace for Aes128Gcm {
+    fn encrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<aead::Tag<Self>, aead::Error> {
+        let mut tag = aead::Tag::<Self>::default();
+        gcm_encrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_mut())?;
+        Ok(tag)
+    }
+
+    fn decrypt_in_place_detached(
+        &self,
+        nonce: &aead::Nonce<Self>,
+        associated_data: &[u8],
+        buffer: &mut [u8],
+        tag: &aead::Tag<Self>,
+    ) -> Result<(), aead::Error> {
+        gcm_decrypt_in_place(&self.key, nonce.as_ref(), associated_data, buffer, tag.as_ref())
+    }
+}
+
+/// AES-192-GCM authenticated encryption (12-byte nonce, 16-byte tag).
+#[cfg(all(aes_gcm, feature = "aead"))]
+#[derive(Zeroize, ZeroizeOnDrop)]
+pub struct Aes192Gcm {
+    key: [u8; 24],
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeySizeUser for Aes192Gcm {
+    type KeySize = U24;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadCore for Aes192Gcm {
+    type NonceSize = U12;
+    type TagSize = U16;
+    type CiphertextOverhead = U0;
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl KeyInit for Aes192Gcm {
+    fn new(key: &aead::Key<Self>) -> Self {
+        let mut k = [0u8; 24];
+        k.copy_from_slice(key.as_ref());
+        Aes192Gcm { key: k }
+    }
+}
+
+#[cfg(all(aes_gcm, feature = "aead"))]
+impl AeadInPlace for Aes192Gcm {
     fn encrypt_in_place_detached(
         &self,
         nonce: &aead::Nonce<Self>,

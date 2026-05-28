@@ -72,7 +72,7 @@ impl Ed25519 {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// ```
-    pub fn generate(rng: &mut RNG) -> Result<Self, i32> {
+    pub fn generate(rng: &RNG) -> Result<Self, i32> {
         Self::generate_ex(rng, None, None)
     }
 
@@ -97,7 +97,7 @@ impl Ed25519 {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
     /// ```
-    pub fn generate_ex(rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(rng: &RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<sys::ed25519_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -114,7 +114,7 @@ impl Ed25519 {
         let ws_key = unsafe { ws_key.assume_init() };
         let mut ed25519 = Ed25519 { ws_key };
         let rc = unsafe {
-            sys::wc_ed25519_make_key(&mut rng.wc_rng,
+            sys::wc_ed25519_make_key(rng.wc_rng,
                 sys::ED25519_KEY_SIZE as i32, &mut ed25519.ws_key)
         };
         if rc != 0 {

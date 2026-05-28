@@ -11,7 +11,7 @@ categories = ["cryptography", "security", "api-bindings"]
 readme = "README.md"
 
 [features]
-std = []
+alloc = []
 rand_core = ["dep:rand_core"]
 aead = ["dep:aead"]
 cipher = ["dep:cipher"]

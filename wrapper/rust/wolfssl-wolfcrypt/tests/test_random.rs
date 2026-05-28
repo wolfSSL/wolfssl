@@ -52,7 +52,7 @@ fn test_test_seed() {
 fn test_rng_generate_byte() {
     // Since a single 0x00 or 0xFF could occur occasionally, we'll combine four
     // bytes into a u32 and make sure they aren't all 0x00 or all 0xFF.
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    let rng = RNG::new().expect("Failed to create RNG");
     let mut v: u32 = 0;
     for _i in 0..4 {
         let byte = rng.generate_byte().expect("Failed to generate a single byte");
@@ -65,7 +65,7 @@ fn test_rng_generate_byte() {
 // Test that generate_block works for a slice of u8.
 #[test]
 fn test_rng_generate_block_u8() {
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    let rng = RNG::new().expect("Failed to create RNG");
     let mut buffer = [0u8; 32];
     rng.generate_block(&mut buffer).expect("Failed to generate a block of bytes");
 
@@ -77,7 +77,7 @@ fn test_rng_generate_block_u8() {
 // Test that generate_block works for a slice of u32.
 #[test]
 fn test_rng_generate_block_u32() {
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    let rng = RNG::new().expect("Failed to create RNG");
     let mut buffer = [0u32; 8];
     rng.generate_block(&mut buffer).expect("Failed to generate a block of u32");
 
@@ -93,7 +93,7 @@ fn test_rng_generate_block_u32() {
 #[test]
 #[cfg(random_hashdrbg)]
 fn test_rng_reseed() {
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    let rng = RNG::new().expect("Failed to create RNG");
     let seed = [1u8, 2, 3, 4];
     rng.reseed(&seed).expect("Error with reseed()");
 }

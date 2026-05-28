@@ -20,6 +20,9 @@
 
 #![no_std]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 /* bindgen-generated bindings to the C library */
 pub mod sys;
 
@@ -42,6 +45,10 @@ pub(crate) unsafe fn zeroize_raw<T>(val: &mut T) {
 
 pub mod aes;
 pub mod blake2;
+#[cfg(all(any(blake2b, blake2s), feature = "digest"))]
+pub mod blake2_digest;
+#[cfg(all(any(blake2b, blake2s), feature = "mac"))]
+pub mod blake2_mac;
 pub mod chacha20_poly1305;
 pub mod cmac;
 #[cfg(all(cmac, feature = "mac"))]

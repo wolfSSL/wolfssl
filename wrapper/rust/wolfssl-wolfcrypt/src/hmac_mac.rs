@@ -42,6 +42,7 @@ macro_rules! impl_hmac_mac {
         $name:ident, hmac_type = $hmac_type:expr, key = $key_size:ty, out = $out_size:ty
     ) => {
         $(#[$attr])*
+        #[derive(Clone)]
         pub struct $name {
             hmac: crate::hmac::HMAC,
         }
