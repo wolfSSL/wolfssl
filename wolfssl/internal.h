@@ -3111,6 +3111,7 @@ typedef struct RpkState {
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 #define ECH_ACCEPT_CONFIRMATION_SZ 8
+#define ECH_PADDING_TO_32(length) (31 - (((length) - 1) % 32))
 
 typedef enum {
     ECH_TYPE_OUTER = 0,

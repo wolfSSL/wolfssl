@@ -4781,7 +4781,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     /* find length of outer and inner */
 #if defined(HAVE_ECH)
-    if (ssl->echConfigs != NULL && !ssl->options.disableECH) {
+    if (!ssl->options.disableECH) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         if (echX == NULL)
             return WOLFSSL_FATAL_ERROR;
@@ -4790,8 +4790,17 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         if (args->ech == NULL)
             return WOLFSSL_FATAL_ERROR;
 
-        /* only prepare if we have a chance at acceptance */
-        if (ssl->options.echAccepted || args->ech->innerCount == 0) {
+        /* if ECH was rejected by the HRR then the server MUST stop
+         * decrypting ECH, so send a GREASE ECH for the follow-up CH */
+        if (ssl->echConfigs != NULL && !ssl->options.echAccepted &&
+                ssl->options.serverState ==
+                    SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+            args->ech->state = ECH_WRITE_GREASE;
+        }
+
+        /* only prepare if we have a chance at acceptance (real ECH only) */
+        if (ssl->echConfigs != NULL &&
+                (ssl->options.echAccepted || args->ech->innerCount == 0)) {
             word32 encodedLen;
             byte downgrade;
 
@@ -4845,8 +4854,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
             /* innerClientHelloLen and padding are based on the
              * encoded (sealed) inner */
-            args->ech->paddingLen += 31 -
-                ((encodedLen + args->ech->paddingLen - 1) % 32);
+            args->ech->paddingLen +=
+                ECH_PADDING_TO_32(encodedLen + args->ech->paddingLen);
             args->ech->innerClientHelloLen = encodedLen +
                 args->ech->paddingLen + args->ech->hpke->Nt;
 
@@ -5103,10 +5112,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
         if (ret != 0)
             return ret;
-
-        /* innerCount gates HRR re-prep and the server's copyRandom logic. */
-        args->ech->innerCount = 1;
     }
+    /* Mark CH1 done for any ECH extension (real or GREASE) */
+    if (args->ech != NULL)
+        args->ech->innerCount = 1;
 #endif
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -5854,11 +5863,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (args->extMsgType == hello_retry_request &&
                 ((WOLFSSL_ECH*)args->echX->data)->confBuf == NULL) {
-            /* server rejected ECH, fallback to outer.  Swap ECH to GREASE so
-             * CH2 still carries an ECH extension */
+            /* server rejected ECH, fall back to outer */
             Free_HS_Hashes(ssl->hsHashesEch, ssl->heap);
             ssl->hsHashesEch = NULL;
-            ((WOLFSSL_ECH*)args->echX->data)->state = ECH_WRITE_GREASE;
         }
         else {
             /* account for hrr extension instead of server random */
@@ -5880,12 +5887,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             if (ret != 0)
                 return ret;
-            /* When rejected on HRR, swap ECH to GREASE so CH2 still carries an
-             * ECH extension */
-            if (args->extMsgType == hello_retry_request &&
-                    !ssl->options.echAccepted) {
-                ((WOLFSSL_ECH*)args->echX->data)->state = ECH_WRITE_GREASE;
-            }
             /* use the inner random for client random */
             if (args->extMsgType != hello_retry_request) {
                 XMEMCPY(ssl->arrays->clientRandom,
