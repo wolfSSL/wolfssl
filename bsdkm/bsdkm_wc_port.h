@@ -36,6 +36,7 @@
 #ifndef CHAR_BIT
     #include <sys/limits.h>
 #endif /* !CHAR_BIT*/
+#include <sys/proc.h>
 
 #define NO_THREAD_LS
 #define NO_ATTRIBUTE_CONSTRUCTOR
@@ -80,20 +81,22 @@ extern struct malloc_type M_WOLFSSL[1];
 #if defined(WOLFSSL_BSDKM_MEMORY_DEBUG)
     #define XMALLOC(s, h, t) ({                                              \
         (void)(h); (void)(t);                                                \
-        void * _ptr = malloc(s, M_WOLFSSL, M_WAITOK | M_ZERO);               \
+        int _wait_flag = curthread->td_critnest == 0 ? M_WAITOK : M_NOWAIT;  \
+        void * _ptr = malloc((s), M_WOLFSSL, _wait_flag | M_ZERO);           \
         printf("info: malloc: %p, M_WOLFSSL, %zu\n", _ptr, (size_t) s);      \
         (void *)_ptr;                                                        \
     })
 
     #define XFREE(p, h, t) ({                                                \
         void* _xp; (void)(h); (void)(t); _xp = (p);                          \
-        printf("info: free: %p, M_WOLFSSL\n", p);                            \
+        printf("info: free: %p, M_WOLFSSL\n", _xp);                          \
         if(_xp) free(_xp, M_WOLFSSL);                                        \
     })
 #else
     #define XMALLOC(s, h, t) ({                                              \
         (void)(h); (void)(t);                                                \
-        void * _ptr = malloc(s, M_WOLFSSL, M_WAITOK | M_ZERO);               \
+        int _wait_flag = curthread->td_critnest == 0 ? M_WAITOK : M_NOWAIT;  \
+        void * _ptr = malloc((s), M_WOLFSSL, _wait_flag | M_ZERO);           \
         (void *)_ptr;                                                        \
     })
 
