@@ -29,7 +29,7 @@
 #include <machine/pcb.h>
 
 struct wolfkmod_fpu_state_t {
-    volatile lwpid_t td_tid; /* the thread curently using fpu. */
+    volatile lwpid_t td_tid; /* the thread currently using fpu. */
     volatile u_int   nest;   /* the fpu nesting level. */
 };
 
