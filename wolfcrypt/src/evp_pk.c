@@ -440,6 +440,64 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
             break;
         }
     #endif
+    #ifdef HAVE_CURVE25519
+        case WC_EVP_PKEY_X25519: {
+            curve25519_key* cKey;
+            if (len != CURVE25519_PUB_KEY_SIZE) {
+                break;
+            }
+            cKey = (curve25519_key*)XMALLOC(sizeof(curve25519_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE25519);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve25519_init_ex(cKey, pkey->heap, INVALID_DEVID) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            /* Raw X25519 keys are little-endian (RFC 7748). */
+            if (wc_curve25519_import_public_ex(pub, (word32)len, cKey,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                wc_curve25519_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            pkey->type          = WC_EVP_PKEY_X25519;
+            pkey->curve25519    = cKey;
+            pkey->ownCurve25519 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_EVP_PKEY_X448: {
+            curve448_key* cKey;
+            if (len != CURVE448_PUB_KEY_SIZE) {
+                break;
+            }
+            cKey = (curve448_key*)XMALLOC(sizeof(curve448_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE448);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve448_init(cKey) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            /* Raw X448 keys are little-endian (RFC 7748). */
+            if (wc_curve448_import_public_ex(pub, (word32)len, cKey,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                wc_curve448_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            pkey->type        = WC_EVP_PKEY_X448;
+            pkey->curve448    = cKey;
+            pkey->ownCurve448 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
         default:
             break;
     }
@@ -523,6 +581,68 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
             pkey->type     = WC_EVP_PKEY_ED448;
             pkey->ed448    = edKey;
             pkey->ownEd448 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_EVP_PKEY_X25519: {
+            curve25519_key* cKey;
+            if (len != CURVE25519_KEYSIZE) {
+                break;
+            }
+            cKey = (curve25519_key*)XMALLOC(sizeof(curve25519_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE25519);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve25519_init_ex(cKey, pkey->heap, INVALID_DEVID) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+        #ifdef WOLFSSL_CURVE25519_BLINDING
+            /* Use the EVP_PKEY's RNG for scalar blinding on shared-secret. */
+            (void)wc_curve25519_set_rng(cKey, &pkey->rng);
+        #endif
+            /* Raw X25519 keys are little-endian (RFC 7748). */
+            if (wc_curve25519_import_private_ex(priv, (word32)len, cKey,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                wc_curve25519_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            pkey->type          = WC_EVP_PKEY_X25519;
+            pkey->curve25519    = cKey;
+            pkey->ownCurve25519 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_EVP_PKEY_X448: {
+            curve448_key* cKey;
+            if (len != CURVE448_KEY_SIZE) {
+                break;
+            }
+            cKey = (curve448_key*)XMALLOC(sizeof(curve448_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE448);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve448_init(cKey) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            /* Raw X448 keys are little-endian (RFC 7748). */
+            if (wc_curve448_import_private_ex(priv, (word32)len, cKey,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                wc_curve448_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            pkey->type        = WC_EVP_PKEY_X448;
+            pkey->curve448    = cKey;
+            pkey->ownCurve448 = 1;
             ok = 1;
             break;
         }
