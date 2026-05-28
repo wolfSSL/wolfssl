@@ -945,10 +945,20 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
                     return NULL;
                 }
-                a->length = (int)x509->pathLength;
+                /* RFC 5280 4.2.1.9: only populate pathLen when the
+                 * pathLenConstraint field was actually present. When it is
+                 * absent no limit is imposed, and pathlen must remain NULL so
+                 * it is distinguishable from a pathLenConstraint of 0. */
+                if (x509->basicConstPlSet) {
+                    a->length = (int)x509->pathLength;
 
-                /* Save ASN1_INTEGER in x509 extension */
-                ext->obj->pathlen = a;
+                    /* Save ASN1_INTEGER in x509 extension */
+                    ext->obj->pathlen = a;
+                }
+                else {
+                    wolfSSL_ASN1_INTEGER_free(a);
+                    ext->obj->pathlen = NULL;
+                }
 
                 ext->obj->ca = x509->isCa;
                 break;
@@ -1234,6 +1244,136 @@ static int asn1_string_copy_to_buffer(WOLFSSL_ASN1_STRING* str, byte** buf,
     return WOLFSSL_SUCCESS;
 }
 
+/* Handle WC_NID_subject_alt_name for wolfSSL_X509_add_ext: iterate the
+ * GENERAL_NAME stack on the extension and add each entry to x509->altNames.
+ * Only types whose union member is WOLFSSL_ASN1_STRING* (DNS/RFC822/URI/IP/
+ * IA5) are read via gn->d.ia5; ASN_OTHER_TYPE is handled via SetOthername.
+ * Other types (DIRNAME/RID/X400/EDIPARTY) are rejected to avoid the
+ * type-confused union access that would XMEMCPY from a wild pointer in
+ * wolfSSL_X509_add_altname_ex. */
+static int wolfssl_x509_add_subj_alt_name_ext(WOLFSSL_X509 *x509,
+    WOLFSSL_X509_EXTENSION *ext)
+{
+    WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
+    while (gns) {
+        WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
+        if ((gn != NULL) && (gn->type == ASN_OTHER_TYPE)) {
+            char *buf = NULL;
+            int ret = 0;
+            word32 len = 0;
+
+            len = SetOthername(gn->d.otherName, NULL);
+            if (len == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+                return WOLFSSL_FAILURE;
+            }
+
+            buf = (char*)XMALLOC(len, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            if (buf == NULL) {
+                WOLFSSL_MSG("Couldn't allocate memory for othername");
+                return WOLFSSL_FAILURE;
+            }
+
+            /* SetOthername() cannot fail; already passed above. */
+            SetOthername(gn->d.otherName, (byte*)buf);
+
+            ret = wolfSSL_X509_add_altname_ex(x509, buf, len,
+                                              ASN_OTHER_TYPE);
+            XFREE(buf, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+                 WOLFSSL_MSG("wolfSSL_X509_add_altname_ex() failed");
+                 return WOLFSSL_FAILURE;
+            }
+        }
+        /* Only types whose union member are WOLFSSL_ASN1_STRING. */
+        else if (gn == NULL) {
+            WOLFSSL_MSG("Subject alternative name missing");
+            return WOLFSSL_FAILURE;
+        }
+        else {
+            if ((gn->type != ASN_RFC822_TYPE && gn->type != ASN_DNS_TYPE &&
+                 gn->type != ASN_URI_TYPE && gn->type != ASN_IP_TYPE &&
+                 gn->type != WOLFSSL_GEN_IA5) || (gn->d.ia5 == NULL)) {
+                WOLFSSL_MSG("Subject alternative name unsupported "
+                            "GeneralName type or missing name");
+                return WOLFSSL_FAILURE;
+            }
+            if (wolfSSL_X509_add_altname_ex(x509, gn->d.ia5->data,
+                         gn->d.ia5->length, gn->type) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Failed to add subject alternative name");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        gns = gns->next;
+    }
+    x509->subjAltNameSet = 1;
+    x509->subjAltNameCrit = (byte)ext->crit;
+    return WOLFSSL_SUCCESS;
+}
+
+#ifdef WOLFSSL_CUSTOM_OID
+/* Handle the default (unrecognized NID) case of wolfSSL_X509_add_ext when
+ * custom-OID extensions are enabled: copy the extension OID text and value
+ * into the next free slot in x509->custom_exts, taking ownership of the
+ * allocations on success. */
+static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
+    WOLFSSL_X509_EXTENSION *ext)
+{
+    char *oid = NULL;
+    byte *val = NULL;
+    int err = 0;
+
+    if ((ext->obj == NULL) || (ext->value.length == 0) ||
+        (ext->value.data == NULL)) {
+        WOLFSSL_MSG("Extension has insufficient information.");
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((x509->customExtCount < 0) ||
+        (x509->customExtCount >= NUM_CUSTOM_EXT)) {
+        WOLFSSL_MSG("Bad value for customExtCount.");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* This is a viable custom extension. */
+    oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
+        DYNAMIC_TYPE_X509_EXT);
+    val = (byte*)XMALLOC(ext->value.length, x509->heap,
+        DYNAMIC_TYPE_X509_EXT);
+    if ((oid == NULL) || (val == NULL)) {
+        WOLFSSL_MSG("Memory allocation failure.\n");
+        err = 1;
+    }
+
+    if (err == 0) {
+        XMEMCPY(val, ext->value.data, ext->value.length);
+        if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
+            err = 1;
+        }
+    }
+
+    if (err == 1) {
+        XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* ext->crit is WOLFSSL_ASN1_BOOLEAN */
+    if (ext->crit != 0 && ext->crit != -1) {
+        XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* x509->custom_exts now owns the buffers and they must be managed. */
+    x509->custom_exts[x509->customExtCount].oid = oid;
+    x509->custom_exts[x509->customExtCount].crit = (byte)ext->crit;
+    x509->custom_exts[x509->customExtCount].val = val;
+    x509->custom_exts[x509->customExtCount].valSz = ext->value.length;
+    x509->customExtCount++;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_CUSTOM_OID */
+
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
     int loc)
 {
@@ -1272,49 +1412,10 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
         x509->subjKeyIdCrit = (byte)ext->crit;
         break;
     case WC_NID_subject_alt_name:
-    {
-        WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
-        while (gns) {
-            WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
-            if ((gn != NULL) && (gn->type == ASN_OTHER_TYPE)) {
-                char *buf = NULL;
-                int ret = 0;
-                word32 len = 0;
-
-                len = SetOthername(gn->d.otherName, NULL);
-                if (len == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
-                    return WOLFSSL_FAILURE;
-                }
-
-                buf = (char*)XMALLOC(len, x509->heap, DYNAMIC_TYPE_X509_EXT);
-                if (buf == NULL) {
-                    WOLFSSL_MSG("Couldn't allocate memory for othername");
-                    return WOLFSSL_FAILURE;
-                }
-
-                /* SetOthername() cannot fail; already passed above. */
-                SetOthername(gn->d.otherName, (byte*)buf);
-
-                ret = wolfSSL_X509_add_altname_ex(x509, buf, len,
-                                                  ASN_OTHER_TYPE);
-                XFREE(buf, x509->heap, DYNAMIC_TYPE_X509_EXT);
-                if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
-                     WOLFSSL_MSG("wolfSSL_X509_add_altname_ex() failed");
-                     return WOLFSSL_FAILURE;
-                }
-            }
-            else if (!gn || !gn->d.ia5 ||
-                wolfSSL_X509_add_altname_ex(x509, gn->d.ia5->data,
-                    gn->d.ia5->length, gn->type) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("Subject alternative name missing extension");
-                return WOLFSSL_FAILURE;
-            }
-            gns = gns->next;
+        if (wolfssl_x509_add_subj_alt_name_ext(x509, ext) != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
         }
-        x509->subjAltNameSet = 1;
-        x509->subjAltNameCrit = (byte)ext->crit;
         break;
-    }
     case WC_NID_key_usage:
         if (ext && ext->value.data) {
             if (ext->value.length == sizeof(word16)) {
@@ -1376,60 +1477,10 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
         break;
     default:
 #ifdef WOLFSSL_CUSTOM_OID
-    {
-        char *oid = NULL;
-        byte *val = NULL;
-        int err = 0;
-
-        if ((ext->obj == NULL) || (ext->value.length == 0)) {
-            WOLFSSL_MSG("Extension has insufficient information.");
+        if (wolfssl_x509_add_custom_ext(x509, ext) != WOLFSSL_SUCCESS) {
             return WOLFSSL_FAILURE;
         }
-
-        if ((x509->customExtCount < 0) ||
-            (x509->customExtCount >= NUM_CUSTOM_EXT)) {
-            WOLFSSL_MSG("Bad value for customExtCount.");
-            return WOLFSSL_FAILURE;
-        }
-
-        /* This is a viable custom extension. */
-        oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
-            DYNAMIC_TYPE_X509_EXT);
-        val = (byte*)XMALLOC(ext->value.length, x509->heap,
-            DYNAMIC_TYPE_X509_EXT);
-        if ((oid == NULL) || (val == NULL)) {
-            WOLFSSL_MSG("Memory allocation failure.\n");
-            err = 1;
-        }
-
-        if (err == 0) {
-            XMEMCPY(val, ext->value.data, ext->value.length);
-            if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
-                err = 1;
-            }
-        }
-
-        if (err == 1) {
-            XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            return WOLFSSL_FAILURE;
-        }
-
-        /* ext->crit is WOLFSSL_ASN1_BOOLEAN */
-        if (ext->crit != 0 && ext->crit != -1) {
-            XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            return WOLFSSL_FAILURE;
-        }
-
-        /* x509->custom_exts now owns the buffers and they must be managed. */
-        x509->custom_exts[x509->customExtCount].oid = oid;
-        x509->custom_exts[x509->customExtCount].crit = (byte)ext->crit;
-        x509->custom_exts[x509->customExtCount].val = val;
-        x509->custom_exts[x509->customExtCount].valSz = ext->value.length;
-        x509->customExtCount++;
         break;
-    }
 #else
         WOLFSSL_MSG("Unsupported extension to add");
         return WOLFSSL_FAILURE;
@@ -1529,9 +1580,9 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                         WOLFSSL_MSG("Memory error");
                         return rc;
                     }
-                    valLen = XSNPRINTF(val, (size_t)len, "%*s%s", indent, "",
-                            str->strData);
-                    if ((valLen < 0) || (valLen >= len)
+                    valLen = XSNPRINTF(val, (size_t)len + indent,
+                            "%*s%.*s", indent, "", str->length, str->data);
+                    if ((valLen < 0) || (valLen >= len + indent)
                             || ((tmpLen + valLen) >= tmpSz)) {
                         XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return rc;
@@ -1549,6 +1600,10 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
         {
             char* asn1str;
             asn1str = wolfSSL_i2s_ASN1_STRING(NULL, str);
+            if (asn1str == NULL) {
+                WOLFSSL_MSG("wolfSSL_i2s_ASN1_STRING returned NULL");
+                return rc;
+            }
             tmpLen = XSNPRINTF(tmp, tmpSz, "%*s%s", indent, "", asn1str);
             XFREE(asn1str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (tmpLen >= tmpSz)
@@ -1961,7 +2016,13 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             }
             /* Copy pathlen and CA into BASIC_CONSTRAINTS from object */
             bc->ca = object->ca;
-            if (object->pathlen != NULL && object->pathlen->length > 0) {
+            /* RFC 5280 4.2.1.9:
+             *   "A pathLenConstraint of zero indicates that no non-self-issued
+             *    intermediate CA certificates may follow in a valid
+             *    certification path."
+             * Check for length of 0 or greater.
+             */
+            if ((object->pathlen != NULL) && (object->pathlen->length >= 0)) {
                 bc->pathlen = wolfSSL_ASN1_INTEGER_dup(object->pathlen);
                 if (bc->pathlen == NULL) {
                     WOLFSSL_MSG("Failed to duplicate ASN1_INTEGER");
@@ -2433,27 +2494,31 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
     switch (nid) {
         case BASIC_CA_OID:
             if (x509->basicConstSet) {
-                WOLFSSL_ASN1_INTEGER* a;
-
                 bc = wolfSSL_BASIC_CONSTRAINTS_new();
                 if (!bc) {
                     WOLFSSL_MSG("wolfSSL_BASIC_CONSTRAINTS_new error");
                     return NULL;
                 }
 
-                a = wolfSSL_ASN1_INTEGER_new();
-                if (!a) {
-                    WOLFSSL_MSG("wolfSSL_ASN1_INTEGER_new error");
-                    wolfSSL_BASIC_CONSTRAINTS_free(bc);
-                    return NULL;
-                }
-                a->length = (int)x509->pathLength;
-
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
         defined(WOLFSSL_APACHE_HTTPD)
                 bc->ca = x509->isCa;
 #endif
-                bc->pathlen = a;
+                /* RFC 5280 4.2.1.9: only populate pathLen when the
+                 * pathLenConstraint field was present. When absent, no limit
+                 * is imposed and pathlen must remain NULL so it is
+                 * distinguishable from a pathLenConstraint of 0. */
+                if (x509->basicConstPlSet) {
+                    WOLFSSL_ASN1_INTEGER* a = wolfSSL_ASN1_INTEGER_new();
+                    if (a == NULL) {
+                        WOLFSSL_MSG("wolfSSL_ASN1_INTEGER_new error");
+                        wolfSSL_BASIC_CONSTRAINTS_free(bc);
+                        return NULL;
+                    }
+                    a->length = (int)x509->pathLength;
+                    bc->pathlen = a;
+                }
+
                 if (c != NULL) {
                     *c = x509->basicConstCrit;
                 }
@@ -2648,14 +2713,15 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     WOLFSSL_MSG("wolfSSL_sk_GENERAL_NAME_push error");
                     goto err;
                 }
+                /* gn now owned by stack. */
+                gn = NULL;
 
                 /* push DIST_POINT onto stack */
                 if (wolfSSL_sk_DIST_POINT_push(sk, dp) <= 0) {
                     WOLFSSL_MSG("Error pushing DIST_POINT onto stack");
                     goto err;
                 }
-
-                gn = NULL;
+                /* dp now owned by stack. */
                 dp = NULL;
 
             }
@@ -5871,8 +5937,7 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
     case GEN_EMAIL:
         ret = wolfSSL_BIO_printf(out, "email:");
         ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-        if (ret == WOLFSSL_SUCCESS)
-        {
+        if (ret == WOLFSSL_SUCCESS) {
             ret = wolfSSL_ASN1_STRING_print(out, gen->d.rfc822Name);
         }
         break;
@@ -5881,8 +5946,7 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
         ret = wolfSSL_BIO_printf(out, "DNS:");
         ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         if (ret == WOLFSSL_SUCCESS) {
-            ret = wolfSSL_BIO_printf(out, "%s", gen->d.dNSName->strData);
-            ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+            ret = wolfSSL_ASN1_STRING_print(out, gen->d.dNSName);
         }
         break;
 
@@ -5893,6 +5957,7 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
 
     case GEN_DIRNAME:
         ret = wolfSSL_BIO_printf(out, "DirName:");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         if (ret == WOLFSSL_SUCCESS) {
             ret = wolfSSL_X509_NAME_print_ex(out, gen->d.directoryName, 0,
                                                          XN_FLAG_ONELINE);
@@ -7094,7 +7159,8 @@ static int X509PrintExtendedKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         EXTKEYUSE_EMAILPROT,
         EXTKEYUSE_CODESIGN,
         EXTKEYUSE_CLIENT_AUTH,
-        EXTKEYUSE_SERVER_AUTH
+        EXTKEYUSE_SERVER_AUTH,
+        EXTKEYUSE_ANY
     };
     const char* usageStrs[] = {
         "OCSP Signing",
@@ -7102,7 +7168,8 @@ static int X509PrintExtendedKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         "E-mail Protection",
         "Code Signing",
         "TLS Web Client Authentication",
-        "TLS Web Server Authentication"
+        "TLS Web Server Authentication",
+        "Any Extended Key Usage"
     };
 
     if (bio == NULL || x509 == NULL) {
@@ -7483,12 +7550,22 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                     ret = WOLFSSL_FAILURE;
                     break;
                 }
-                if ((scratchLen = XSNPRINTF(
-                         scratch, scratchSz,
-                         "%*sCA:%s\n",
-                         indent + 8, "", (x509->isCa)? "TRUE": "FALSE"))
-                    >= scratchSz)
-                {
+                /* Match OpenSSL output: print "CA:TRUE"/"CA:FALSE" and append
+                 * ", pathlen:N" only when a pathLenConstraint is present
+                 * (RFC 5280 4.2.1.9). An absent constraint imposes no limit
+                 * and must not be shown as pathlen:0. */
+                if (x509->basicConstPlSet) {
+                    scratchLen = XSNPRINTF(scratch, scratchSz,
+                        "%*sCA:%s, pathlen:%u\n",
+                        indent + 8, "", (x509->isCa) ? "TRUE" : "FALSE",
+                        (unsigned int)x509->pathLength);
+                }
+                else {
+                    scratchLen = XSNPRINTF(scratch, scratchSz,
+                        "%*sCA:%s\n",
+                        indent + 8, "", (x509->isCa) ? "TRUE" : "FALSE");
+                }
+                if (scratchLen >= scratchSz) {
                     ret = WOLFSSL_FAILURE;
                     break;
                 }

@@ -20566,6 +20566,7 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     ACCESS_DESCRIPTION* ad = NULL;
     ASN1_IA5STRING *dnsname = NULL;
     ASN1_OBJECT* ridObj = NULL;
+    X509_NAME* dirName = NULL;
 
     const unsigned char v4Addr[] = {192,168,53,1};
     const unsigned char v6Addr[] =
@@ -20820,22 +20821,35 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
 
     /* test for GEN_DIRNAME */
     ExpectNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    /* Build a real directoryName (X509_NAME) so the print path exercises
+     * wolfSSL_X509_NAME_print_ex on a valid object. Forcing the type without
+     * setting d.directoryName would leave it aliasing the default IA5 string
+     * and cause an out-of-bounds read when printed. */
+    ExpectNotNull(dirName = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(dirName, NID_commonName,
+        MBSTRING_UTF8, (unsigned char*)"wolfSSLDirNameTest", -1, -1, 0), 1);
     if (gn != NULL) {
+        /* Replace the default IA5 string allocated by GENERAL_NAME_new with
+         * the directoryName and take ownership of it. */
+        wolfSSL_ASN1_STRING_free(gn->d.ia5);
         gn->type = GEN_DIRNAME;
+        gn->d.directoryName = dirName;
+        dirName = NULL; /* gn owns it now; freed by GENERAL_NAME_free */
     }
     ExpectIntEQ(GENERAL_NAME_print(out, gn), 1);
     XMEMSET(outbuf,0,sizeof(outbuf));
     ExpectIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    /* Output must start with the label and contain the directory name. */
     ExpectIntEQ(XSTRNCMP((const char*)outbuf, dirNameStr, XSTRLEN(dirNameStr)),
         0);
+    ExpectNotNull(XSTRSTR((const char*)outbuf, "wolfSSLDirNameTest"));
     /* Duplicating GEN_DIRNAME not supported. */
     ExpectNull(dup_gn = GENERAL_NAME_dup(gn));
-    /* Restore to GEN_IA5 (default) to avoid memory leak. */
-    if (gn != NULL) {
-        gn->type = GEN_IA5;
-    }
     GENERAL_NAME_free(gn);
     gn = NULL;
+    /* Only freed here if ownership was not transferred (e.g. gn alloc failed). */
+    X509_NAME_free(dirName);
+    dirName = NULL;
 
     /* test for GEN_RID */
     p = ridData;
@@ -26970,6 +26984,111 @@ static int test_wolfSSL_X509_print(void)
 
     X509_free(x509);
     BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_print_basic_constraints(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && defined(XSNPRINTF) && !defined(WC_DISABLE_RADIX_ZERO_PAD)
+    /* X509_print must match OpenSSL's Basic Constraints output: "CA:TRUE"
+     * alone when no pathLenConstraint is present, and "CA:TRUE, pathlen:N"
+     * when one is (including the meaningful value 0). */
+    struct {
+        const char* file;
+        const char* expect; /* substring that must be present */
+        const char* absent; /* substring that must be absent, or NULL */
+    } cases[] = {
+        { "./certs/ca-cert.pem", "CA:TRUE", "pathlen" },
+        { "./certs/intermediate/ca-int-cert.pem", "CA:TRUE, pathlen:1", NULL },
+        { "./certs/test-pathlen/chainG-ICA1-pathlen0.pem",
+              "CA:TRUE, pathlen:0", NULL },
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        X509* x509 = NULL;
+        BIO*  bio  = NULL;
+        char* data = NULL;
+        int   len  = 0;
+        char  buf[8192];
+
+        ExpectNotNull(x509 = X509_load_certificate_file(cases[i].file,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+        /* Memory BIO data is not NUL-terminated; copy into a bounded buffer. */
+        ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+        ExpectIntLT(len, (int)sizeof(buf));
+        if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+            XMEMCPY(buf, data, (size_t)len);
+            buf[len] = '\0';
+            ExpectNotNull(XSTRSTR(buf, cases[i].expect));
+            if (cases[i].absent != NULL) {
+                ExpectNull(XSTRSTR(buf, cases[i].absent));
+            }
+        }
+        BIO_free(bio);
+        X509_free(x509);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_print_ext_key_usage(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && defined(XSNPRINTF) && !defined(WC_DISABLE_RADIX_ZERO_PAD)
+    /* Self-signed RSA cert (CN="wolfSSL anyEKU test", valid until 2126) whose
+     * only Extended Key Usage is anyExtendedKeyUsage (OID 2.5.29.37.0).
+     * X509_print must render it as "Any Extended Key Usage" to match OpenSSL,
+     * rather than omitting it. */
+    static const char anyEkuCertPem[] =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIDMDCCAhigAwIBAgIUGFipYIiuuQZHNjsi0R8t6nZrFVowDQYJKoZIhvcNAQEL\n"
+        "BQAwHjEcMBoGA1UEAwwTd29sZlNTTCBhbnlFS1UgdGVzdDAgFw0yNjA1MjgwMTI5\n"
+        "MjBaGA8yMTI2MDUwNDAxMjkyMFowHjEcMBoGA1UEAwwTd29sZlNTTCBhbnlFS1Ug\n"
+        "dGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKIXS15QjpWlqpqk\n"
+        "sUTD/mgm7akIZfp2DVoweJsf8BC/tnwMX1noWUFjBC8SLOHyhx4bmWxVBzFXv/uu\n"
+        "ICoUCq63pgnxj3rQbPAa1pwAX4UsYS1PS/2mO2o7lRLRdDLIaBXuUClVHGjti9x5\n"
+        "x5++4FFhOhKNt7CkYVAfXasTFKdZqSnKdlYX2rM8LoCjP3YHIC5jEIgjyNUEqzup\n"
+        "Ls02dIaAly5O8yzasUtULwE76E/UpyhE+o2dkhxnc6ukqU5CBLeHNOUJgvThW1lS\n"
+        "SlGXl8Kd5uvBvDflXb6y3TQBEY/hb40JzYeH+hHf4YIqCtvfy6PMA+Rcu2CKlDpP\n"
+        "FVf85pUCAwEAAaNkMGIwHQYDVR0OBBYEFAkmMlYp9K3sbeQ8/RluOviXZ3JcMB8G\n"
+        "A1UdIwQYMBaAFAkmMlYp9K3sbeQ8/RluOviXZ3JcMA8GA1UdEwEB/wQFMAMBAf8w\n"
+        "DwYDVR0lBAgwBgYEVR0lADANBgkqhkiG9w0BAQsFAAOCAQEAHX5wAZDAyFSmmsn4\n"
+        "Mu7TayCx+VbcBgvL4ZdxxJYXexslzI8OviKSgpC56LaVB5JpNqZtFS4pZZikG7nv\n"
+        "kYCoiU33XN82/gggq1bv8rKO740V6kGev3gfEeJuTX30fCPZ18znE1fU8+VQba1L\n"
+        "bPn0h746Ivom47/1VMg6y7CbTJg90+lloPWcTWujYfm5jWychqWurhfZmAYcUlBH\n"
+        "Ksk0l4kiEJA6lSnPp3MqBS0GzwsCixSqYc1W1TlwNGNg38cLP2Z5jerJZlazuVws\n"
+        "SeEbYO6TIhsy6QJy0Pd7hu9DUOKRxp+OQubL6WgWpjrGl1LUzH5sI5pyWueEAEBu\n"
+        "e74xbw==\n"
+        "-----END CERTIFICATE-----\n";
+    X509* x509 = NULL;
+    BIO*  bio  = NULL;
+    char* data = NULL;
+    int   len  = 0;
+    char  buf[8192];
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
+        (const unsigned char*)anyEkuCertPem, (int)XSTRLEN(anyEkuCertPem),
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+    /* Memory BIO data is not NUL-terminated; copy into a bounded buffer. */
+    ExpectIntGT((len = BIO_get_mem_data(bio, &data)), 0);
+    ExpectIntLT(len, (int)sizeof(buf));
+    if ((data != NULL) && (len > 0) && (len < (int)sizeof(buf))) {
+        XMEMCPY(buf, data, (size_t)len);
+        buf[len] = '\0';
+        ExpectNotNull(XSTRSTR(buf, "X509v3 Extended Key Usage"));
+        ExpectNotNull(XSTRSTR(buf, "Any Extended Key Usage"));
+    }
+    BIO_free(bio);
+    X509_free(x509);
 #endif
     return EXPECT_RESULT();
 }
@@ -40367,6 +40486,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_CRL),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_X509_print),
+    TEST_DECL(test_wolfSSL_X509_print_basic_constraints),
+    TEST_DECL(test_wolfSSL_X509_print_ext_key_usage),
     TEST_DECL(test_wolfSSL_X509_CRL_print),
 #endif
 
