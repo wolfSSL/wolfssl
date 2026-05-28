@@ -456,6 +456,12 @@ enum {
 #ifdef HAVE_ED448
     WC_EVP_PKEY_ED448         = WC_NID_ED448,
 #endif
+#ifdef HAVE_CURVE25519
+    WC_EVP_PKEY_X25519        = WC_NID_X25519,
+#endif
+#ifdef HAVE_CURVE448
+    WC_EVP_PKEY_X448          = WC_NID_X448,
+#endif
     WC_AES_128_CFB1_TYPE      = 24,
     WC_AES_192_CFB1_TYPE      = 25,
     WC_AES_256_CFB1_TYPE      = 26,
@@ -528,6 +534,12 @@ enum {
 #endif
 #ifdef HAVE_ED448
 #define EVP_PKEY_ED448 WC_EVP_PKEY_ED448
+#endif
+#ifdef HAVE_CURVE25519
+#define EVP_PKEY_X25519 WC_EVP_PKEY_X25519
+#endif
+#ifdef HAVE_CURVE448
+#define EVP_PKEY_X448 WC_EVP_PKEY_X448
 #endif
 #define AES_128_CFB1_TYPE WC_AES_128_CFB1_TYPE
 #define AES_192_CFB1_TYPE WC_AES_192_CFB1_TYPE

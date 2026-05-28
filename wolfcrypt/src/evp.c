@@ -47,6 +47,12 @@
 #ifdef HAVE_ED448
 #include <wolfssl/wolfcrypt/ed448.h>
 #endif
+#ifdef HAVE_CURVE25519
+#include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+#ifdef HAVE_CURVE448
+#include <wolfssl/wolfcrypt/curve448.h>
+#endif
 
 static const struct s_ent {
     const enum wc_HashType macType;
@@ -2767,7 +2773,7 @@ int wolfSSL_EVP_PKEY_CTX_ctrl_str(WOLFSSL_EVP_PKEY_CTX *ctx,
 #endif /* NO_WOLFSSL_STUB */
 
 #if (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || defined(HAVE_ECC) || \
-    defined(HAVE_HKDF)
+    defined(HAVE_HKDF) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
     int len;
@@ -2879,6 +2885,54 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
             ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
             wc_FreeRng(&rng);
 #endif
+            len = (int)len32;
+        }
+        *keylen = (size_t)len;
+        break;
+#endif
+#ifdef HAVE_CURVE25519
+    case WC_EVP_PKEY_X25519:
+        if (!ctx->pkey->curve25519 || !ctx->peerKey->curve25519) {
+            return WOLFSSL_FAILURE;
+        }
+        len = CURVE25519_KEYSIZE;
+        if (key) {
+            word32 len32 = (word32)*keylen;
+            if (*keylen < (size_t)len) {
+                WOLFSSL_MSG("buffer too short");
+                return WOLFSSL_FAILURE;
+            }
+            /* X25519 shared secret is little-endian (RFC 7748). */
+            if (wc_curve25519_shared_secret_ex(ctx->pkey->curve25519,
+                    ctx->peerKey->curve25519, key, &len32,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve25519_shared_secret_ex failed");
+                return WOLFSSL_FAILURE;
+            }
+            len = (int)len32;
+        }
+        *keylen = (size_t)len;
+        break;
+#endif
+#ifdef HAVE_CURVE448
+    case WC_EVP_PKEY_X448:
+        if (!ctx->pkey->curve448 || !ctx->peerKey->curve448) {
+            return WOLFSSL_FAILURE;
+        }
+        len = CURVE448_KEY_SIZE;
+        if (key) {
+            word32 len32 = (word32)*keylen;
+            if (*keylen < (size_t)len) {
+                WOLFSSL_MSG("buffer too short");
+                return WOLFSSL_FAILURE;
+            }
+            /* X448 shared secret is little-endian (RFC 7748). */
+            if (wc_curve448_shared_secret_ex(ctx->pkey->curve448,
+                    ctx->peerKey->curve448, key, &len32,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve448_shared_secret_ex failed");
+                return WOLFSSL_FAILURE;
+            }
             len = (int)len32;
         }
         *keylen = (size_t)len;
@@ -3761,6 +3815,12 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
         if (ctx->pkey == NULL ||
                 (ctx->pkey->type != WC_EVP_PKEY_EC &&
                  ctx->pkey->type != WC_EVP_PKEY_RSA &&
+            #ifdef HAVE_CURVE25519
+                 ctx->pkey->type != WC_EVP_PKEY_X25519 &&
+            #endif
+            #ifdef HAVE_CURVE448
+                 ctx->pkey->type != WC_EVP_PKEY_X448 &&
+            #endif
                  ctx->pkey->type != WC_EVP_PKEY_DH)) {
             WOLFSSL_MSG("Key not set or key type not supported");
             return WOLFSSL_FAILURE;
@@ -3822,6 +3882,57 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
             }
             break;
 #endif
+#ifdef HAVE_CURVE25519
+        case WC_EVP_PKEY_X25519:
+            if (pkey->curve25519 == NULL) {
+                pkey->curve25519 = (curve25519_key*)XMALLOC(
+                    sizeof(curve25519_key), pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                if (pkey->curve25519 == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+                if (wc_curve25519_init_ex(pkey->curve25519, pkey->heap,
+                        INVALID_DEVID) != 0) {
+                    XFREE(pkey->curve25519, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                    pkey->curve25519 = NULL;
+                    break;
+                }
+            #ifdef WOLFSSL_CURVE25519_BLINDING
+                /* Use the EVP_PKEY's RNG for scalar blinding on derive. */
+                (void)wc_curve25519_set_rng(pkey->curve25519, &pkey->rng);
+            #endif
+                pkey->ownCurve25519 = 1;
+            }
+            /* Reuse the RNG already initialized on the EVP_PKEY. */
+            if (wc_curve25519_make_key(&pkey->rng, CURVE25519_KEYSIZE,
+                    pkey->curve25519) == 0) {
+                ret = WOLFSSL_SUCCESS;
+            }
+            break;
+#endif
+#ifdef HAVE_CURVE448
+        case WC_EVP_PKEY_X448:
+            if (pkey->curve448 == NULL) {
+                pkey->curve448 = (curve448_key*)XMALLOC(sizeof(curve448_key),
+                    pkey->heap, DYNAMIC_TYPE_CURVE448);
+                if (pkey->curve448 == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+                if (wc_curve448_init(pkey->curve448) != 0) {
+                    XFREE(pkey->curve448, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                    pkey->curve448 = NULL;
+                    break;
+                }
+                pkey->ownCurve448 = 1;
+            }
+            /* Reuse the RNG already initialized on the EVP_PKEY. */
+            if (wc_curve448_make_key(&pkey->rng, CURVE448_KEY_SIZE,
+                    pkey->curve448) == 0) {
+                ret = WOLFSSL_SUCCESS;
+            }
+            break;
+#endif
         default:
             break;
     }
@@ -3870,6 +3981,16 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
         }
         return wc_ecc_sig_size((ecc_key*)(pkey->ecc->internal));
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_CURVE25519
+    case WC_EVP_PKEY_X25519:
+        return CURVE25519_KEYSIZE;
+#endif
+
+#ifdef HAVE_CURVE448
+    case WC_EVP_PKEY_X448:
+        return CURVE448_KEY_SIZE;
+#endif
 
     default:
         break;
@@ -11817,6 +11938,27 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     }
                     break;
                 #endif /* HAVE_ED448 */
+
+                #ifdef HAVE_CURVE25519
+                case WC_EVP_PKEY_X25519:
+                    if (key->curve25519 != NULL && key->ownCurve25519 == 1) {
+                        wc_curve25519_free(key->curve25519);
+                        XFREE(key->curve25519, key->heap,
+                            DYNAMIC_TYPE_CURVE25519);
+                        key->curve25519 = NULL;
+                    }
+                    break;
+                #endif /* HAVE_CURVE25519 */
+
+                #ifdef HAVE_CURVE448
+                case WC_EVP_PKEY_X448:
+                    if (key->curve448 != NULL && key->ownCurve448 == 1) {
+                        wc_curve448_free(key->curve448);
+                        XFREE(key->curve448, key->heap, DYNAMIC_TYPE_CURVE448);
+                        key->curve448 = NULL;
+                    }
+                    break;
+                #endif /* HAVE_CURVE448 */
 
                 #ifdef HAVE_HKDF
                 case WC_EVP_PKEY_HKDF:
