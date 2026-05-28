@@ -249,15 +249,14 @@ static int wolfkmod_load(void)
 
     error = wolfkmod_init();
     if (error != 0) {
-        return (ECANCELED);
+        goto wolfkmod_load_out;
     }
 
     #ifndef NO_CRYPT_TEST
     error = wolfcrypt_test(NULL);
     if (error != 0) {
         printf("error: wolfcrypt test failed: %d\n", error);
-        (void)wolfkmod_cleanup();
-        return (ECANCELED);
+        goto wolfkmod_load_out;
     }
     printf("info: wolfCrypt self-test passed.\n");
     #endif /* NO_CRYPT_TEST */
@@ -266,15 +265,19 @@ static int wolfkmod_load(void)
     error = benchmark_test(NULL);
     if (error != 0) {
         printf("error: wolfcrypt benchmark failed: %d\n", error);
-        (void)wolfkmod_cleanup();
-        return (ECANCELED);
+        goto wolfkmod_load_out;
     }
     printf("info: wolfCrypt benchmark passed.\n");
     #endif /* WOLFSSL_KERNEL_BENCHMARKS */
-
     printf("info: libwolfssl loaded\n");
 
-    return (0);
+wolfkmod_load_out:
+    if (error != 0) {
+        (void)wolfkmod_cleanup();
+        error = ECANCELED;
+    }
+
+    return (error);
 }
 
 static int wolfkmod_unload(void)
@@ -435,7 +438,8 @@ static int wolfkdriv_attach(device_t dev)
 
     ret = wolfkmod_init();
     if (ret != 0) {
-        return (ECANCELED);
+        error = ECANCELED;
+        goto attach_out;
     }
 
     /**
@@ -452,7 +456,8 @@ static int wolfkdriv_attach(device_t dev)
     if (softc->crid < 0) {
         device_printf(dev, "error: crypto_get_driverid failed: %d\n",
                softc->crid);
-        return (ENXIO);
+        error = ENXIO;
+        goto attach_out;
     }
 
     /*
@@ -487,7 +492,7 @@ static int wolfkdriv_attach(device_t dev)
 attach_out:
     if (error) {
         wolfkdriv_unregister(softc);
-        error = ENXIO;
+        (void)wolfkmod_cleanup();
     }
 
     return (error);
