@@ -849,6 +849,19 @@ int test_wolfssl_local_MatchBaseName(void)
                 "sub.domain.com", 14, ".domain.com", 11), 1);
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
                 "a.b.domain.com", 14, ".domain.com", 11), 1);
+    /* Trailing-dot normalization: absolute DNS form is equivalent. */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com.", (int)XSTRLEN("domain.com."),
+                "domain.com", (int)XSTRLEN("domain.com")), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com", (int)XSTRLEN("domain.com"),
+                "domain.com.", (int)XSTRLEN("domain.com.")), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com.", (int)XSTRLEN("domain.com."),
+                "domain.com.", (int)XSTRLEN("domain.com.")), 1);
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "sub.domain.com.", (int)XSTRLEN("sub.domain.com."),
+                ".domain.com.", (int)XSTRLEN(".domain.com.")), 1);
 
     /* Negative tests - should NOT match */
     /* Bug #3: fakedomain.com should NOT match domain.com (no dot boundary) */
@@ -870,6 +883,10 @@ int test_wolfssl_local_MatchBaseName(void)
     /* Name starting with dot */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
                 ".domain.com", 11, "domain.com", 10), 0);
+    /* More than one trailing dot leaves an empty label after normalization. */
+    ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
+                "domain.com..", (int)XSTRLEN("domain.com.."),
+                "domain.com", (int)XSTRLEN("domain.com")), 0);
 
     /*
      * Tests for email type (ASN_RFC822_TYPE = 0x01)
@@ -963,6 +980,210 @@ int test_wolfssl_local_MatchBaseName(void)
     /* Name shorter than base */
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_DNS_TYPE,
                 "a.com", 5, "domain.com", 10), 0);
+
+#endif /* !NO_CERTS && !NO_ASN && !IGNORE_NAME_CONSTRAINTS */
+
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(IGNORE_NAME_CONSTRAINTS)
+/* Convenience wrappers so the cases below read as (name, base) pairs and the
+ * string lengths can't drift out of sync with the literals. */
+static int dnsWildPermitted(const char* name, const char* base)
+{
+    return wolfssl_local_MatchDnsConstraintWildcard(name, (int)XSTRLEN(name),
+        base, (int)XSTRLEN(base), 1);
+}
+static int dnsWildExcluded(const char* name, const char* base)
+{
+    return wolfssl_local_MatchDnsConstraintWildcard(name, (int)XSTRLEN(name),
+        base, (int)XSTRLEN(base), 0);
+}
+static int uriNC(const char* uri, const char* base)
+{
+    return wolfssl_local_MatchUriNameConstraint(uri, (int)XSTRLEN(uri), base,
+        (int)XSTRLEN(base));
+}
+#endif
+
+/*
+ * Tests label-aware matching of a wildcard DNS SAN against a name-constraint
+ * subtree. The permitted variant must prove containment (every expansion of
+ * the wildcard stays inside the subtree); the excluded variant must detect
+ * intersection (some expansion falls inside the subtree). A '*' never crosses
+ * a label boundary, so the comparison is by label from the right.
+ */
+int test_wolfssl_local_MatchDnsConstraintWildcard(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /*
+     * PERMITTED subtree -- containment. Accept only when EVERY expansion of
+     * the wildcard is inside the base subtree.
+     */
+
+    /* Wildcard is an extra label to the left of the base: always contained. */
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     "example.com"),  1);
+    ExpectIntEQ(dnsWildPermitted("*.sub.example.com", "example.com"),  1);
+    ExpectIntEQ(dnsWildPermitted("foo*.example.com",  "example.com"),  1);
+    ExpectIntEQ(dnsWildPermitted("a*b.example.com",   "example.com"),  1);
+    /* Case-insensitive on the literal tail labels. */
+    ExpectIntEQ(dnsWildPermitted("*.EXAMPLE.CoM",      "example.com"),  1);
+    /* Single-label base; the matched tail "com" is literal. */
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     "com"),          1);
+    /* Leading-dot base requires at least one label before it -- the wildcard
+     * label satisfies that. */
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     ".example.com"), 1);
+    ExpectIntEQ(dnsWildPermitted("*.sub.example.com", ".example.com"), 1);
+    /* Trailing-dot normalization: absolute DNS form is equivalent. */
+    ExpectIntEQ(dnsWildPermitted("*.example.com.",    "example.com"),  1);
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     "example.com."), 1);
+    ExpectIntEQ(dnsWildPermitted("*.example.com.",    "example.com."), 1);
+    ExpectIntEQ(dnsWildPermitted("*.example.com.",    ".example.com."), 1);
+
+    /* Wildcard lands on a label that must equal the base: NOT provably
+     * contained, because the label can expand to something else. */
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     "foo.example.com"), 0);
+    ExpectIntEQ(dnsWildPermitted("*.example.com.",    "foo.example.com"), 0);
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     "foo.example.com."), 0);
+    ExpectIntEQ(dnsWildPermitted("ex*.com",           "example.com"),     0);
+    ExpectIntEQ(dnsWildPermitted("foo.exa*ple.com",   "example.com"),     0);
+    /* Tail labels do not match the base at all. */
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     "example.org"),     0);
+    ExpectIntEQ(dnsWildPermitted("*.evil.com",        "example.com"),     0);
+    /* Leading-dot base, but wildcard would have to equal an interior base
+     * label. */
+    ExpectIntEQ(dnsWildPermitted("*.example.com",     ".sub.example.com"), 0);
+    /* A bare '*' cannot be proven inside any multi-label-or-single subtree. */
+    ExpectIntEQ(dnsWildPermitted("*",                 "com"),             0);
+
+    /*
+     * EXCLUDED subtree -- intersection. Reject when SOME expansion of the
+     * wildcard falls inside the base subtree. A wildcard label is
+     * conservatively treated as able to match any single base label.
+     */
+
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "foo.example.com"), 1);
+    ExpectIntEQ(dnsWildExcluded("*.example.com.",     "foo.example.com"), 1);
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "foo.example.com."), 1);
+    ExpectIntEQ(dnsWildExcluded("*.example.com.",     "foo.example.com."), 1);
+    /* Wildcard adds a label on top of the excluded subtree. */
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "example.com"),     1);
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "com"),             1);
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      ".example.com"),    1);
+    /* Wildcard in a non-left label still intersects. */
+    ExpectIntEQ(dnsWildExcluded("foo.*.example.com",  "bar.example.com"), 1);
+    /* Partial-label wildcard: conservatively excluded even though "ex*"
+     * cannot actually expand to "foo" (over-rejection, safe). */
+    ExpectIntEQ(dnsWildExcluded("ex*.example.com",    "foo.example.com"), 1);
+    /* A bare '*' can expand to the apex label of a single-label subtree. */
+    ExpectIntEQ(dnsWildExcluded("*",                  "com"),             1);
+
+    /* No intersection: literal tail labels differ from the base. */
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "foo.other.com"),   0);
+    ExpectIntEQ(dnsWildExcluded("*.other.com",        "example.com"),     0);
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "example.org"),     0);
+    /* Leading-dot excluded base needs a label before it; the wildcard SAN has
+     * no room for one, so no expansion reaches the proper subtree. */
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      ".foo.example.com"), 0);
+    /* Same arity: '*' can expand to the apex label of the base, so the
+     * wildcard intersects (*.com can be example.com, which is excluded). */
+    ExpectIntEQ(dnsWildExcluded("*.com",              "example.com"),     1);
+    /* But a base with MORE labels than the name cannot be reached. */
+    ExpectIntEQ(dnsWildExcluded("*.com",              "a.example.com"),   0);
+
+    /*
+     * Error / degenerate inputs (both flags reject).
+     */
+    ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard(NULL, 5,
+                "com", 3, 1), 0);
+    ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard("*.com", 5,
+                NULL, 3, 1), 0);
+    ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard("*.com", 0,
+                "com", 3, 1), 0);
+    ExpectIntEQ(wolfssl_local_MatchDnsConstraintWildcard("*.com", 5,
+                "com", 0, 1), 0);
+    /* Name beginning with a dot is invalid. */
+    ExpectIntEQ(dnsWildPermitted(".x.com",            "com"),             0);
+    ExpectIntEQ(dnsWildExcluded(".x.com",             "com"),             0);
+    /* Base that is only dots collapses to nothing. */
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      "."),               0);
+    ExpectIntEQ(dnsWildExcluded("*.example.com",      ".."),              0);
+    /* SAN has an empty interior label ("*..com"), but only the right-most
+     * "com" label overlaps the base "com" -- the empty label sits outside the
+     * compared suffix, and '*' can expand to any label, so the matcher
+     * conservatively reports intersection. */
+    ExpectIntEQ(dnsWildExcluded("*..com",             "com"),             1);
+
+#endif /* !NO_CERTS && !NO_ASN && !IGNORE_NAME_CONSTRAINTS */
+
+    return EXPECT_RESULT();
+}
+
+/*
+ * Tests URI name-constraint matching (RFC 5280 4.2.1.10): the constraint
+ * applies to the host portion of the URI. A constraint that does NOT begin
+ * with a dot is an exact host match; one that begins with a dot matches any
+ * host with one or more additional leading labels (the bare host is excluded).
+ */
+int test_wolfssl_local_MatchUriNameConstraint(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /*
+     * Exact host match (no leading dot in the constraint).
+     */
+    ExpectIntEQ(uriNC("https://host.com/path",        "host.com"), 1);
+    ExpectIntEQ(uriNC("https://host.com",             "host.com"), 1);
+    ExpectIntEQ(uriNC("https://host.com:8443/x",      "host.com"), 1);
+    ExpectIntEQ(uriNC("ftp://user@host.com/x",        "host.com"), 1);
+    ExpectIntEQ(uriNC("https://HOST.COM",             "host.com"), 1);
+    ExpectIntEQ(uriNC("https://host.com?q=1",         "host.com"), 1);
+    ExpectIntEQ(uriNC("https://host.com#frag",        "host.com"), 1);
+
+    /* The bug this fix closes: an exact-host constraint must NOT subtree-match
+     * a sub-host. */
+    ExpectIntEQ(uriNC("https://www.host.com/",        "host.com"), 0);
+    ExpectIntEQ(uriNC("https://a.b.host.com",         "host.com"), 0);
+    /* Suffix that does not respect a label boundary. */
+    ExpectIntEQ(uriNC("https://xhost.com",            "host.com"), 0);
+    /* host.com is a prefix of the URI host but not the whole host. */
+    ExpectIntEQ(uriNC("https://host.com.evil.com",    "host.com"), 0);
+    ExpectIntEQ(uriNC("https://other.com",            "host.com"), 0);
+
+    /*
+     * Leading-dot constraint: proper subtree of hosts (apex excluded).
+     */
+    ExpectIntEQ(uriNC("https://www.host.com/",        ".host.com"), 1);
+    ExpectIntEQ(uriNC("https://a.b.host.com",         ".host.com"), 1);
+    ExpectIntEQ(uriNC("https://www.host.com:443",     ".host.com"), 1);
+    /* The bare host is NOT in the leading-dot subtree. */
+    ExpectIntEQ(uriNC("https://host.com",             ".host.com"), 0);
+    ExpectIntEQ(uriNC("https://evilhost.com",         ".host.com"), 0);
+
+    /*
+     * IPv6 literal host extraction ([..]) then exact match.
+     */
+    ExpectIntEQ(uriNC("https://[2001:db8::1]:443/x",  "2001:db8::1"), 1);
+    ExpectIntEQ(uriNC("https://[2001:db8::1]",        "2001:db8::2"), 0);
+
+    /*
+     * Malformed / degenerate URIs and inputs (reject).
+     */
+    ExpectIntEQ(uriNC("no-scheme-host.com",           "host.com"), 0);
+    ExpectIntEQ(uriNC("https://",                     "host.com"), 0);
+    /* double literal to abide source-check thinking it's a c++ comment */
+    ExpectIntEQ(uriNC("https://" "/path",             "host.com"), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint(NULL, 10,
+                "host.com", 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("https://host.com", 16,
+                NULL, 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("https://host.com", 0,
+                "host.com", 8), 0);
+    ExpectIntEQ(wolfssl_local_MatchUriNameConstraint("https://host.com", 16,
+                "host.com", 0), 0);
 
 #endif /* !NO_CERTS && !NO_ASN && !IGNORE_NAME_CONSTRAINTS */
 

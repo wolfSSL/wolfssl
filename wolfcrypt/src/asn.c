@@ -17898,9 +17898,28 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     const char* base, int baseSz)
 {
     if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
-            name[0] == '.' || nameSz < baseSz ||
+            name[0] == '.' ||
             (type != ASN_RFC822_TYPE && type != ASN_DNS_TYPE &&
              type != ASN_DIR_TYPE)) {
+        return 0;
+    }
+
+    if (type == ASN_DNS_TYPE) {
+        /* MatchDomainName treats one trailing dot as the absolute-FQDN marker.
+         * Apply the same normalization before enforcing DNS name constraints.
+         */
+        if (name[nameSz - 1] == '.') {
+            nameSz--;
+        }
+        if (base[baseSz - 1] == '.') {
+            baseSz--;
+        }
+        if (nameSz <= 0 || baseSz <= 0) {
+            return 0;
+        }
+    }
+
+    if (nameSz < baseSz) {
         return 0;
     }
 
@@ -17992,8 +18011,8 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     return 1;
 }
 
-static int MatchUriNameConstraint(const char* uri, int uriSz, const char* base,
-    int baseSz)
+int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
+    const char* base, int baseSz)
 {
     const char* hostStart;
     const char* hostEnd;
@@ -18001,7 +18020,10 @@ static int MatchUriNameConstraint(const char* uri, int uriSz, const char* base,
     const char* uriEnd;
     int hostSz;
 
-    if (uri == NULL || uriSz <= 0 || base == NULL || baseSz <= 0) {
+    /* Need at least 3 bytes for the "://" scheme separator; rejecting short
+     * inputs early also keeps the loop bound (uriEnd - 2) from forming a
+     * pointer before `uri`. */
+    if (uri == NULL || uriSz < 3 || base == NULL || baseSz <= 0) {
         return 0;
     }
 
@@ -18057,8 +18079,168 @@ static int MatchUriNameConstraint(const char* uri, int uriSz, const char* base,
         return 0;
     }
 
-    return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, hostStart, hostSz, base,
-        baseSz);
+    /* RFC 5280 4.2.1.10: for URIs the constraint applies to the host part.
+     * A constraint that begins with a '.' matches any host with one or more
+     * additional leading labels (the bare host is excluded) - this is the
+     * DNS subtree behaviour. A constraint without a leading '.' specifies a
+     * single host and must match it exactly. */
+    if (base[0] == '.') {
+        return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, hostStart, hostSz,
+            base, baseSz);
+    }
+    else {
+        int i;
+        if (hostSz != baseSz) {
+            return 0;
+        }
+        for (i = 0; i < baseSz; i++) {
+            if (XTOLOWER((unsigned char)hostStart[i]) !=
+                XTOLOWER((unsigned char)base[i])) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+}
+
+/* Locate the right-most label of `s` that ends (exclusive) at index `end`.
+ * Sets *outStart to its starting index (the index of its first byte). If
+ * outHasWild is non-NULL, sets *outHasWild to 1 iff the label contains '*'.
+ * The '.' immediately before *outStart (if any) is the label separator and is
+ * not part of either the current or the preceding label. */
+static void PrevDnsLabel(const char* s, int end, int* outStart,
+    int* outHasWild)
+{
+    int start = end;
+    int hasWild = 0;
+    while (start > 0 && s[start - 1] != '.') {
+        if (s[start - 1] == '*') {
+            hasWild = 1;
+        }
+        start--;
+    }
+    *outStart = start;
+    if (outHasWild != NULL) {
+        *outHasWild = hasWild;
+    }
+}
+
+/* Match a wildcard DNS SAN against a DNS name-constraint subtree.
+ *
+ * A wildcard SAN denotes the set of names its '*'(s) can expand to. Because a
+ * '*' never crosses a label boundary (see MatchDomainName), every expansion
+ * has the same number of labels and only the content of '*'-bearing labels
+ * varies. Matching is therefore done label-by-label from the right against the
+ * constraint base.
+ *
+ * permitted != 0: containment. Accept only if EVERY expansion stays inside the
+ *   subtree, i.e. each of the right-most base-length labels of the name is
+ *   wildcard-free and equal to the corresponding base label. Extra labels to
+ *   the left may be anything (adding labels on the left stays in-subtree).
+ *
+ * permitted == 0: intersection (for excluded subtrees). Reject if SOME
+ *   expansion falls inside the subtree. A label containing a '*' is
+ *   conservatively treated as able to match any single base label; a literal
+ *   label must equal the base label.
+ *
+ * A leading '.' on the base denotes a proper subtree (the apex is excluded),
+ * which requires at least one extra label on the left of the name.
+ *
+ * Returns 1 on match (contained / intersecting), 0 otherwise.
+ */
+int wolfssl_local_MatchDnsConstraintWildcard(const char* name, int nameSz,
+    const char* base, int baseSz, int permitted)
+{
+    int baseLead;
+    int ni, bi;
+
+    if (name == NULL || base == NULL || nameSz <= 0 || baseSz <= 0) {
+        return 0;
+    }
+
+    /* MatchDomainName treats one trailing dot as the absolute-FQDN marker.
+     * Apply the same normalization before label-wise constraint matching.
+     */
+    if (name[nameSz - 1] == '.') {
+        nameSz--;
+    }
+    if (base[baseSz - 1] == '.') {
+        baseSz--;
+    }
+    if (nameSz <= 0 || baseSz <= 0 || name[0] == '.') {
+        return 0;
+    }
+
+    baseLead = (base[0] == '.');
+    if (baseLead) {
+        base++;
+        baseSz--;
+    }
+    /* A base of only dots (".", "..") has no labels to match. */
+    if (baseSz <= 0 || base[0] == '.') {
+        return 0;
+    }
+
+    ni = nameSz; /* exclusive end of the unconsumed name */
+    bi = baseSz; /* exclusive end of the unconsumed base */
+
+    /* Compare each base label (right to left) with the aligned name label. */
+    while (bi > 0) {
+        int nStart, bStart, nLen, bLen, k;
+        int hasWild = 0;
+
+        /* Base labels remain but the name has none left -> name is shorter in
+         * labels and cannot contain the base. */
+        if (ni <= 0) {
+            return 0;
+        }
+
+        PrevDnsLabel(name, ni, &nStart, &hasWild);
+        PrevDnsLabel(base, bi, &bStart, NULL);
+        nLen = ni - nStart;
+        bLen = bi - bStart;
+
+        /* Empty label (e.g. "a..b" or an extra trailing dot) is invalid. */
+        if (nLen == 0 || bLen == 0) {
+            return 0;
+        }
+
+        if (hasWild) {
+            /* permitted: a wildcard label cannot prove containment.
+             * excluded: a wildcard label is conservatively treated as
+             * compatible, so nothing more to check. */
+            if (permitted) {
+                return 0;
+            }
+        }
+        else {
+            /* Literal label: both modes require exact case-insensitive
+             * equality with the base label. */
+            if (nLen != bLen) {
+                return 0;
+            }
+            for (k = 0; k < bLen; k++) {
+                if (XTOLOWER((unsigned char)name[nStart + k]) !=
+                    XTOLOWER((unsigned char)base[bStart + k])) {
+                    return 0;
+                }
+            }
+        }
+
+        /* Consume both labels and the '.' that precedes them (if any). */
+        ni = nStart - 1;
+        bi = bStart - 1;
+    }
+
+    /* All base labels matched. ni >= 0 means name[ni] == '.' and at least one
+     * extra label remains on the left; ni < 0 means the name had exactly the
+     * base's label count (an apex match). A leading-dot base is a proper
+     * subtree and requires at least one extra left label. */
+    if (baseLead && ni < 0) {
+        return 0;
+    }
+
+    return 1;
 }
 
 /* Check if IP address matches a name constraint.
@@ -18111,6 +18293,18 @@ static int MatchOtherNameConstraint(DNS_entry* name, Base_entry* current)
     return XMEMCMP(name->name, current->name, (size_t)current->nameSz) == 0;
 }
 
+/* Return 1 if the name contains a wildcard '*' character. */
+static int DnsNameHasWildcard(const char* name, int nameSz)
+{
+    int i;
+    for (i = 0; i < nameSz; i++) {
+        if (name[i] == '*') {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Search through the list to find if the name is permitted.
  * name     The DNS name to search for
  * dnsList  The list to search through
@@ -18138,7 +18332,7 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 }
             }
             else if (nameType == ASN_URI_TYPE) {
-                if (MatchUriNameConstraint(name->name, name->len,
+                if (wolfssl_local_MatchUriNameConstraint(name->name, name->len,
                         current->name, current->nameSz)) {
                     match = 1;
                     break;
@@ -18157,6 +18351,17 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 if (name->len == current->nameSz &&
                     XMEMCMP(name->name, current->name,
                             (size_t)name->len) == 0) {
+                    match = 1;
+                    break;
+                }
+            }
+            else if (nameType == ASN_DNS_TYPE &&
+                     DnsNameHasWildcard(name->name, name->len)) {
+                /* Wildcard DNS SAN: a '*' can expand to a longer label, so the
+                 * byte-length guard used for literal names below is invalid.
+                 * Permit only if every expansion stays inside the subtree. */
+                if (wolfssl_local_MatchDnsConstraintWildcard(name->name,
+                        name->len, current->name, current->nameSz, 1)) {
                     match = 1;
                     break;
                 }
@@ -18202,7 +18407,7 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 }
             }
             else if (nameType == ASN_URI_TYPE) {
-                if (MatchUriNameConstraint(name->name, name->len,
+                if (wolfssl_local_MatchUriNameConstraint(name->name, name->len,
                         current->name, current->nameSz)) {
                     ret = 1;
                     break;
@@ -18220,6 +18425,17 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 if (name->len == current->nameSz &&
                     XMEMCMP(name->name, current->name,
                             (size_t)name->len) == 0) {
+                    ret = 1;
+                    break;
+                }
+            }
+            else if (nameType == ASN_DNS_TYPE &&
+                     DnsNameHasWildcard(name->name, name->len)) {
+                /* Wildcard DNS SAN: a '*' can expand to a longer label, so the
+                 * byte-length guard used for literal names below is invalid.
+                 * Exclude if any expansion can fall inside the subtree. */
+                if (wolfssl_local_MatchDnsConstraintWildcard(name->name,
+                        name->len, current->name, current->nameSz, 0)) {
                     ret = 1;
                     break;
                 }
