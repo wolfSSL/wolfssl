@@ -1419,7 +1419,7 @@ enum {
 /* Limit is 2^24.5
  * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
  * Without the fraction is 23726566 (0x016A09E6) */
-#define AEAD_AES_LIMIT                           w64From32(0x016A, 0x09E6)
+#define AEAD_AES_LIMIT                           w64From32(0, 0x016A09E6)
 /* Limit is 2^23
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits */
 #define DTLS_AEAD_AES_CCM_LIMIT                  w64From32(0, 1 << 22)
@@ -1436,8 +1436,8 @@ enum {
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits
  * Without the fraction is 11863283 (0x00B504F3)
  * Half of this value is    5931641 (0x005A8279) */
-#define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0x00B5, 0x04F3)
-#define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0x005A, 0x8279)
+#define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0, 0x00B504F3)
+#define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0, 0x005A8279)
 
 /* Limit is (2^22 - 1) full messages [2^36 - 31 octets]
  * https://www.rfc-editor.org/rfc/rfc8998.html#name-aead_sm4_gcm
