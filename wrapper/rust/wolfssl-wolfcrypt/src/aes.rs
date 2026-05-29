@@ -3001,7 +3001,10 @@ impl XTSStream {
 #[cfg(aes_xts_stream)]
 impl XTSStream {
     fn zeroize(&mut self) {
-        unsafe { crate::zeroize_raw(&mut self.ws_xtsaes); }
+        unsafe {
+            crate::zeroize_raw(&mut self.ws_xtsaes);
+            crate::zeroize_raw(&mut self.ws_xtsaesstreamdata);
+        }
     }
 }
 #[cfg(aes_xts_stream)]
