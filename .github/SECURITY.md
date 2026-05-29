@@ -2,12 +2,23 @@
 
 ## Reporting a Vulnerability
 
-**Use of the wolfSSL Vulnerability Report Template is mandatory.** All security reports must use [`SECURITY-REPORT-TEMPLATE.md`](../SECURITY-REPORT-TEMPLATE.md), with every required field completed. Reports that do not use the template, or that leave required fields incomplete, will not receive CVE consideration.
+Report security vulnerabilities to **support@wolfssl.com** or call **+1-425-245-8247**.
 
-Submit the completed template to **support@wolfssl.com**.
+Reports may be encrypted with our PGP key:
 
-Non-template submissions may still be reviewed on the merits and, where appropriate, addressed as hardening fixes in a future release.
+    Fingerprint: A2A4 8E7B CB96 C5BE CB98 7314 EBC8 0E41 5CA2 9677
+    Key server: keys.openpgp.org
 
-**Please keep the vulnerability private** until a fix has been released.
+## Full Policy
 
-For the full policy — severity rubric, coordinated-disclosure practice, and reporter credit — see [`SECURITY-POLICY.md`](../SECURITY-POLICY.md).
+Our coordinated vulnerability disclosure policy — including scope, threat-model
+boundaries, response commitments, and EU Cyber Resilience Act obligations — is
+published at:
+
+  https://www.wolfssl.com/.well-known/vulnerability-disclosure-policy.txt
+
+## Report Template
+
+For CVE consideration, submit a completed
+[vulnerability report template](../SECURITY-REPORT-TEMPLATE.md) to
+**support@wolfssl.com**.
