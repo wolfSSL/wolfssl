@@ -1217,27 +1217,17 @@ WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
     WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, int idx)
 {
     WOLFSSL_CIPHER* ret = NULL;
-    WOLFSSL_STACK* node;
-    int num;
+    WOLFSSL_CIPHER* cipher;
 
     WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_delete");
 
     if (sk == NULL || idx < 0)
         return NULL;
 
-    num = wolfSSL_sk_SSL_CIPHER_num(sk);
-    if (idx >= num)
-        return NULL;
-
-    /* Walk to the node so we can capture its inline cipher value before the
-     * pop_node call frees the underlying memory. */
-    node = sk;
-    {
-        int i;
-        for (i = 0; i < idx && node != NULL; i++)
-            node = node->next;
-    }
-    if (node == NULL)
+    /* Capture the inline cipher value before the pop_node call frees the
+     * underlying memory. */
+    cipher = wolfSSL_sk_SSL_CIPHER_value(sk, idx);
+    if (cipher == NULL)
         return NULL;
 
     ret = (WOLFSSL_CIPHER*)XMALLOC(sizeof(WOLFSSL_CIPHER), NULL,
@@ -1245,7 +1235,7 @@ WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
     if (ret == NULL)
         return NULL;
 
-    *ret = node->data.cipher;
+    *ret = *cipher;
 
     /* pop_node returns NULL for STACK_TYPE_CIPHER (data is static/inline),
      * but it still performs the unlink and node free that we need. */
