@@ -5562,6 +5562,7 @@ int wolfSSL_clear_chain_certs(WOLFSSL* ssl)
         ssl->buffers.weOwnCertChain = 0;
     }
     ssl->buffers.certChain = NULL;
+    ssl->buffers.certChainCnt = 0;
 
     /* Free the X509 stack used to track ownership of added chain certs. */
     if (ssl->ourCertChain != NULL) {
