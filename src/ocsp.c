@@ -776,7 +776,8 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     single = bs->single;
     while (single != NULL) {
         if (single->status != NULL && id->status != NULL &&
-            (XMEMCMP(single->status->serial, id->status->serial,
+            (single->status->serialSz == id->status->serialSz)
+         && (XMEMCMP(single->status->serial, id->status->serial,
                      (size_t)single->status->serialSz) == 0)
          && (XMEMCMP(single->issuerHash, id->issuerHash, OCSP_DIGEST_SIZE) == 0)
          && (XMEMCMP(single->issuerKeyHash, id->issuerKeyHash, OCSP_DIGEST_SIZE) == 0)) {

@@ -765,6 +765,63 @@ int test_ocsp_certid_dup(void)
 }
 #endif
 
+int test_ocsp_resp_find_status_serial_prefix(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA) && !defined(NO_SHA)
+    OcspResponse response;
+    OcspEntry    single;
+    CertStatus   responseStatus;
+    OcspEntry    requestedId;
+    CertStatus   requestedStatus;
+    int          status;
+
+    XMEMSET(&response, 0, sizeof(response));
+    XMEMSET(&single, 0, sizeof(single));
+    XMEMSET(&responseStatus, 0, sizeof(responseStatus));
+    XMEMSET(&requestedId, 0, sizeof(requestedId));
+    XMEMSET(&requestedStatus, 0, sizeof(requestedStatus));
+
+    single.status   = &responseStatus;
+    requestedId.status = &requestedStatus;
+    response.single  = &single;
+
+    /* Matching issuer name and key hashes on both sides. */
+    XMEMSET(single.issuerHash, 0x41, OCSP_DIGEST_SIZE);
+    XMEMSET(single.issuerKeyHash, 0x42, OCSP_DIGEST_SIZE);
+    XMEMCPY(requestedId.issuerHash, single.issuerHash, OCSP_DIGEST_SIZE);
+    XMEMCPY(requestedId.issuerKeyHash, single.issuerKeyHash, OCSP_DIGEST_SIZE);
+
+    /* Response carries a CERT_GOOD status for serial 01:02 (2 bytes). */
+    responseStatus.serial[0] = 0x01;
+    responseStatus.serial[1] = 0x02;
+    responseStatus.serialSz  = 2;
+    responseStatus.status    = CERT_GOOD;
+
+    /* Sanity check: an exact serial match must be found and report CERT_GOOD. */
+    requestedStatus.serial[0] = 0x01;
+    requestedStatus.serial[1] = 0x02;
+    requestedStatus.serialSz  = 2;
+    status = -1;
+    ExpectIntEQ(wolfSSL_OCSP_resp_find_status(&response, &requestedId, &status,
+                    NULL, NULL, NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(status, CERT_GOOD);
+
+    /* Request serial 01:02:03 (3 bytes) shares the 01:02 prefix of the
+     * response serial.
+     * The lookup must not bind the good response to this longer and
+     * differing serial. */
+    requestedStatus.serial[0] = 0x01;
+    requestedStatus.serial[1] = 0x02;
+    requestedStatus.serial[2] = 0x03;
+    requestedStatus.serialSz  = 3;
+    status = -1;
+    ExpectIntEQ(wolfSSL_OCSP_resp_find_status(&response, &requestedId, &status,
+                    NULL, NULL, NULL, NULL), WOLFSSL_FAILURE);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_OCSP) && defined(WOLFSSL_CERT_SETUP_CB) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
