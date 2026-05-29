@@ -18734,6 +18734,10 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      *   - CheckForAltNames (TLS hostname matching): skips ASN_RID_TYPE
      *     unconditionally and excludes them from *checkCN, so a cert
      *     with only registeredID SANs still falls back to CN.
+     *   - CheckForAltNames (TLS hostname matching): skips ASN_URI_TYPE
+     *     for DNS hostname checks (RFC 9525 Sec. 6.3) but URI SAN presence
+     *     still suppresses CN fallback because URI-ID is a distinct presented
+     *     identifier.
      *   - DNS_to_GENERAL_NAME (used by wolfSSL_X509_get_ext) and the
      *     ALT_NAMES_OID arm of wolfSSL_X509_get_ext_d2i: build a proper
      *     ASN1_OBJECT in d.registeredID from raw OID bytes regardless
