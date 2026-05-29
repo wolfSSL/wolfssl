@@ -8760,11 +8760,6 @@ const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value)
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 /* Locate a cipher in the SSL's cipher list by 2-byte wire-format suite id.
  *
- * Mirrors OpenSSL's SSL_CIPHER_find(ssl, ptr). The two bytes pointed to by
- * ptr are the on-the-wire cipher suite identifier (ptr[0] is the high byte,
- * ptr[1] is the low byte). Lookup is restricted to ciphers in ssl's cipher
- * list, matching OpenSSL semantics.
- *
  * Returned pointer references storage owned by the SSL object's internal
  * cipher list; callers must not free it. It remains valid until SSL_free.
  *

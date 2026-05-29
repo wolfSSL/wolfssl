@@ -3993,7 +3993,8 @@ static int test_wolfSSL_clear_chain_certs(void)
     }
     chain = NULL;
     ExpectIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
-    ExpectIntEQ(sk_X509_num(chain), 0);
+    /* Like OpenSSL, the chain is emptied (NULL) after a clear. */
+    ExpectNull(chain);
 
     /* Idempotent: clearing again still succeeds. */
     ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
@@ -4009,6 +4010,54 @@ static int test_wolfSSL_clear_chain_certs(void)
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Server-side ssl_ready hook: add chain certs then clear them, so the
+ * handshake runs against a freshly-cleared chain state. */
+static int test_wolfSSL_clear_chain_certs_handshake_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509* x509 = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+    wolfSSL_X509_free(x509);
+
+    /* Drop the chain again; connection must still complete afterwards. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that a connection still completes after SSL_clear_chain_certs. */
+static int test_wolfSSL_clear_chain_certs_handshake(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLS_client_method;
+    server_cbs.method = wolfTLS_server_method;
+
+    server_cbs.ssl_ready = test_wolfSSL_clear_chain_certs_handshake_ssl_ready;
+
+    /* nofail_memio runs the full handshake and a read/write exchange, so a
+     * successful return proves the connection completed after the clear. */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -35503,6 +35552,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
     TEST_DECL(test_wolfSSL_clear_chain_certs),
+    TEST_DECL(test_wolfSSL_clear_chain_certs_handshake),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
