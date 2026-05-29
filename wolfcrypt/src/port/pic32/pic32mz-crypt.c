@@ -657,9 +657,9 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
     return ret;
 }
 
-static void wc_Pic32HashFree(hashUpdCache* cache, void* heap)
+static void wc_Pic32HashFree(hashUpdCache* cache, void* stdBuf, void* heap)
 {
-    if (cache && cache->buf && !cache->isCopy) {
+    if (cache && cache->buf && cache->buf != stdBuf && !cache->isCopy) {
         XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
         cache->buf = NULL;
     }
@@ -713,7 +713,7 @@ static void wc_Pic32HashFree(hashUpdCache* cache, void* heap)
     void wc_Md5Pic32Free(wc_Md5* md5)
     {
         if (md5) {
-            wc_Pic32HashFree(&md5->cache, md5->heap);
+            wc_Pic32HashFree(&md5->cache, (byte*)md5->buffer, md5->heap);
         }
     }
 #endif /* !NO_MD5 */
@@ -764,7 +764,7 @@ static void wc_Pic32HashFree(hashUpdCache* cache, void* heap)
     void wc_ShaPic32Free(wc_Sha* sha)
     {
         if (sha) {
-            wc_Pic32HashFree(&sha->cache, sha->heap);
+            wc_Pic32HashFree(&sha->cache, (byte*)sha->buffer, sha->heap);
         }
     }
 #endif /* !NO_SHA */
@@ -815,7 +815,7 @@ static void wc_Pic32HashFree(hashUpdCache* cache, void* heap)
     void wc_Sha256Pic32Free(wc_Sha256* sha256)
     {
         if (sha256) {
-            wc_Pic32HashFree(&sha256->cache, sha256->heap);
+            wc_Pic32HashFree(&sha256->cache, (byte*)sha256->buffer, sha256->heap);
         }
     }
 #endif /* !NO_SHA256 */
