@@ -327,7 +327,7 @@
         #define WC_16BIT_CPU
         #define WOLFSSL_OLD_OID_SUM
     #elif defined(__SAM3X8E__)
-        #define WOLFSSL_NO_ATOMIC
+        #define WOLFSSL_NO_STDATOMIC_FENCE
         #define WOLFSSL_NO_SOCK
         #define WOLFSSL_USER_IO
         #define NO_WRITEV
