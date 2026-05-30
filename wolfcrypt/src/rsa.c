@@ -3450,18 +3450,21 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return WC_KEY_SIZE_E;
     }
 
-    if (inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
+    {
+        int check_min_pad = 1;
 #ifdef WC_RSA_NO_PADDING
-        /* In the case that no padding is used the input length can and should
-         * be the same size as the RSA key. */
-        if (pad_type != WC_RSA_NO_PAD)
+        /* No-padding mode: input may be the full key size. */
+        if (pad_type == WC_RSA_NO_PAD)
+            check_min_pad = 0;
 #endif
 #ifdef WC_RSA_PSS
-        /* PSS performs its own input-length check inside RsaPad_PSS; the
-         * RSA_MIN_PAD_SZ guard applies only to PKCS#1 v1.5 padding. */
-        if (pad_type != WC_RSA_PSS_PAD)
+        /* PSS performs its own size check inside RsaPad_PSS. */
+        if (pad_type == WC_RSA_PSS_PAD)
+            check_min_pad = 0;
 #endif
-        return RSA_BUFFER_E;
+        if (check_min_pad && inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
+            return RSA_BUFFER_E;
+        }
     }
 
 #ifndef WOLFSSL_BIND
