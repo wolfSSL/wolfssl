@@ -91,6 +91,12 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef WOLFCRYPT_HAVE_ECCSI
+    #include <wolfssl/wolfcrypt/eccsi.h>
+#endif
+#ifdef WOLFCRYPT_HAVE_SAKKE
+    #include <wolfssl/wolfcrypt/sakke.h>
+#endif
 #ifdef HAVE_HPKE
     #include <wolfssl/wolfcrypt/hpke.h>
 #endif

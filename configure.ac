@@ -1513,6 +1513,7 @@ then
     test "$enable_hkdf" = "" && enable_hkdf=yes
     test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
@@ -1580,13 +1581,12 @@ then
         test "$enable_aessiv" = "" && enable_aessiv=yes
         # AFALG lacks AES-EAX
         test "$enable_aeseax" = "" && test "$enable_afalg" != "yes" && enable_aeseax=yes
+        test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
 
         if test "$KERNEL_MODE_DEFAULTS" != "yes"
         then
             test "$enable_cryptocb" = "" && enable_cryptocb=yes
             test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
-            test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
-            test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
         fi
     fi
 

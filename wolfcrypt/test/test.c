@@ -60460,38 +60460,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t eccsi_test(void)
     wc_test_ret_t ret = 0;
     WC_RNG rng;
     int rng_inited = 0;
-    EccsiKey* priv = NULL;
-    EccsiKey* pub  = NULL;
-    mp_int* ssk    = NULL;
+    WC_DECLARE_VAR(priv, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(pub, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
     ecc_point* pvt = NULL;
     WOLFSSL_ENTER("eccsi_test");
 
-    priv = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv == NULL)
-        ret = WC_TEST_RET_ENC_NC;
-    else
+    WC_ALLOC_VAR_EX(priv, EccsiKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    if (ret == 0) {
         XMEMSET(priv, 0, sizeof(*priv));
-
+        WC_ALLOC_VAR_EX(pub, EccsiKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    }
     if (ret == 0) {
-        pub = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (pub == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(pub, 0, sizeof(*pub));
+        XMEMSET(pub, 0, sizeof(*pub));
+        WC_ALLOC_VAR_EX(ssk, mp_int, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
     }
 
     if (ret == 0) {
-        ssk = (mp_int*)XMALLOC(sizeof(mp_int), HEAP_HINT,
-                DYNAMIC_TYPE_TMP_BUFFER);
-        if (ssk == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(ssk, 0, sizeof(*ssk));
-    }
+        XMEMSET(ssk, 0, sizeof(*ssk));
 
-    if (ret == 0) {
     #ifndef HAVE_FIPS
         ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     #else
@@ -60547,18 +60534,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t eccsi_test(void)
         wc_ecc_del_point(pvt);
     if (rng_inited)
         wc_FreeRng(&rng);
-    if (ssk != NULL) {
-        mp_free(ssk);
-        XFREE(ssk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (pub != NULL) {
-        wc_FreeEccsiKey(pub);
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (priv != NULL) {
-        wc_FreeEccsiKey(priv);
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    mp_free(ssk);
+    WC_FREE_VAR_EX(ssk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeEccsiKey(pub);
+    WC_FREE_VAR_EX(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeEccsiKey(priv);
+    WC_FREE_VAR_EX(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -61704,38 +61685,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sakke_test(void)
     wc_test_ret_t ret = 0;
     WC_RNG rng;
     int rng_inited = 0;
-    SakkeKey* priv = NULL;
-    SakkeKey* pub  = NULL;
-    SakkeKey* key  = NULL;
+    WC_DECLARE_VAR(priv, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(pub, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(key, SakkeKey, 1, HEAP_HINT);
     ecc_point* rsk = NULL;
     WOLFSSL_ENTER("sakke_test");
 
-    priv = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv == NULL)
-        ret = WC_TEST_RET_ENC_NC;
-    else
+    WC_ALLOC_VAR_EX(priv, SakkeKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    if (ret == 0) {
         XMEMSET(priv, 0, sizeof(*priv));
-
+        WC_ALLOC_VAR_EX(pub, SakkeKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    }
     if (ret == 0) {
-        pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (pub == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(pub, 0, sizeof(*pub));
+        XMEMSET(pub, 0, sizeof(*pub));
+        WC_ALLOC_VAR_EX(key, SakkeKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
     }
 
     if (ret == 0) {
-        key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (key == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(key, 0, sizeof(*key));
-    }
+        XMEMSET(key, 0, sizeof(*key));
 
-    if (ret == 0) {
     #ifndef HAVE_FIPS
         ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     #else
@@ -61791,15 +61759,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sakke_test(void)
     }
     if (rng_inited)
         wc_FreeRng(&rng);
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub != NULL) {
-        wc_FreeSakkeKey(pub);
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (priv != NULL) {
-        wc_FreeSakkeKey(priv);
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeSakkeKey(pub);
+    WC_FREE_VAR_EX(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeSakkeKey(priv);
+    WC_FREE_VAR_EX(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
