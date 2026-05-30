@@ -329,7 +329,7 @@ static struct SystemCryptoPolicy crypto_policy;
 static WolfGranularPolicy crypto_policy_gran;
 static int crypto_policy_gran_enabled = 0;
 /* Internal flag: while the granular applier is driving the CTX, the
- * per-setter guards (SetMinVersion, SetMinRsaKey_Sz, …) must let our
+ * per-setter guards (SetMinVersion, SetMinRsaKey_Sz, ...) must let our
  * calls through; otherwise the policy could never install itself. */
 static int crypto_policy_applying = 0;
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
@@ -5544,7 +5544,7 @@ int wolfSSL_crypto_policy_enable_buffer(const char * buf)
         crypto_policy.secLevel = crypto_policy_gran.security_level > 0
                                  ? crypto_policy_gran.security_level
                                  : 0;
-        /* Mirror the derived cipher list — see comment in
+        /* Mirror the derived cipher list -- see comment in
          * wolfSSL_crypto_policy_enable() above. */
         rc = wolfSSL_crypto_policy_derive_cipher_list(
                  &crypto_policy_gran,

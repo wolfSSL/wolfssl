@@ -33,7 +33,7 @@ crypto-policies; the wolfSSL-side mapping tables live in
 ## Allowlist file format
 
 ```ini
-# Header — mandatory.
+# Header -- mandatory.
 version = 1
 override-mode = allowlist
 
@@ -84,12 +84,12 @@ Rules:
   version is rejected outright (`WOLFSSL_BAD_FILE`) rather than parsed
   under wrong semantics.
 * `override-mode = allowlist` is mandatory.
-* Section headers (`[protocols]`, …) are cosmetic; only `key = value`
+* Section headers (`[protocols]`, ...) are cosmetic; only `key = value`
   lines drive parsing.
 * `#` introduces a line comment.
 * Unknown tokens (for instance, post-quantum primitives a given
   wolfSSL build does not implement) are tolerated silently. The
-  intersection of "policy-enabled" ∩ "build-supported" is what gets
+  intersection of "policy-enabled" and "build-supported" is what gets
   applied to every `WOLFSSL_CTX`.
 * Per-category limit: 64 tokens, 48 bytes each.
 * File size limit: 1 MiB.
@@ -101,7 +101,7 @@ applier calls (in order):
 
 1. `wolfSSL_CTX_SetMinVersion` from the lowest `enabled-version`.
 2. `wolfSSL_CTX_set_cipher_list` from the cross-product
-   `cipher × kx × mac × version` against the build's known TLS suites.
+   `cipher x kx x mac x version` against the build's known TLS suites.
 3. `wolfSSL_CTX_UseSupportedCurve` for each mapped `enabled-group`.
 4. `wolfSSL_CTX_set1_sigalgs_list` from the mapped `enabled-sig` set.
 5. `wolfSSL_CTX_SetMinRsaKey_Sz` / `SetMinDhKey_Sz` /
@@ -110,7 +110,7 @@ applier calls (in order):
 
 Steps 1, 3 and 4 are best-effort: if a build lacks the primitive (no
 TLS 1.0 support, no `rsa_pss_*`), the applier logs and continues
-rather than tearing down the CTX — the remaining steps still enforce
+rather than tearing down the CTX -- the remaining steps still enforce
 the policy.
 
 ## The five fixtures shipped here
@@ -129,11 +129,11 @@ cp out/DEFAULT-wolfssl.txt \
 
 ## Related upstream issues
 
-* wolfSSL [#9802](https://github.com/wolfSSL/wolfssl/issues/9802) — full
+* wolfSSL [#9802](https://github.com/wolfSSL/wolfssl/issues/9802) -- full
   Fedora crypto-policies support tracking issue.
 * fedora-crypto-policies
   [work item #60](https://gitlab.com/redhat-crypto/fedora-crypto-policies/-/issues/60)
-  — file format coordination.
+  -- file format coordination.
 * The OpenSSL [`opensslcnf.config`](https://gitlab.com/redhat-crypto/fedora-crypto-policies/-/blob/main/python/policygenerators/openssl.py)
   and GnuTLS
   [`gnutls.config`](https://gitlab.com/redhat-crypto/fedora-crypto-policies/-/blob/main/python/policygenerators/gnutls.py)
