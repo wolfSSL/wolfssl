@@ -125,8 +125,6 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_NO_ASM:              Disable all assembly implementations
  * WOLFSSL_KEIL:                Keil compiler in use, affects inline assembly
  *      syntax
- * WOLFSSL_USE_SAVE_VECTOR_REGISTERS: Save/restore vector registers around
- *      SP ASM calls
  * WOLFSSL_SP_INT_LARGE_COMBA:  Enable large Comba multiplication and
  *      squaring
  * WOLFSSL_SP_INT_SQR_VOLATILE: Declare squaring intermediate variables as
@@ -196,15 +194,6 @@ This library provides single precision (SP) integer math functions.
  */
     PRAGMA_GCC_DIAG_PUSH
     PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
-#endif
-
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
-    /* force off unneeded vector register save/restore. */
-    #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) \
-        SAVE_NO_VECTOR_REGISTERS(fail_clause)
-    #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
 /* DECL_SP_INT: Declare one variable of type 'sp_int'. */
@@ -5487,6 +5476,22 @@ static void _sp_copy_2_ct(const sp_int* a1, const sp_int* a2, sp_int* r1,
     sp_int* r2, int y, unsigned int used)
 {
     unsigned int i;
+#ifdef WC_NO_GLOBAL_OBJECT_POINTERS
+    static const wc_ptr_t wc_off_on_addr[2] =
+    {
+    #if defined(WC_64BIT_CPU)
+        W64LIT(0x0000000000000000),
+        W64LIT(0xffffffffffffffff)
+    #elif defined(WC_16BIT_CPU)
+        0x0000U,
+        0xffffU
+    #else
+        /* 32 bit */
+        0x00000000U,
+        0xffffffffU
+    #endif
+    };
+#endif
 
     /* Copy data - constant time. */
     for (i = 0; i < used; i++) {
@@ -14329,11 +14334,9 @@ int sp_exptmod(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
     if ((b == NULL) || (e == NULL) || (m == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
-    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
     if (err == MP_OKAY) {
         err = sp_exptmod_ex(b, e, (int)e->used, m, r);
     }
-    RESTORE_VECTOR_REGISTERS();
     return err;
 }
 #endif
@@ -19554,8 +19557,6 @@ int sp_prime_is_prime(const sp_int* a, int trials, int* result)
         haveRes = 1;
     }
 
-    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
-
     /* Check against known small primes when a has 1 digit. */
     if ((err == MP_OKAY) && (!haveRes) && (a->used == 1) &&
             (a->dp[0] <= sp_primes[SP_PRIME_SIZE - 1])) {
@@ -19571,8 +19572,6 @@ int sp_prime_is_prime(const sp_int* a, int trials, int* result)
     if ((err == MP_OKAY) && (!haveRes)) {
         err = _sp_prime_trials(a, trials, result);
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -19714,8 +19713,6 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
         haveRes = 1;
     }
 
-    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
-
     /* Check against known small primes when a has 1 digit. */
     if ((err == MP_OKAY) && (!haveRes) && (a->used == 1) &&
             (a->dp[0] <= (sp_int_digit)sp_primes[SP_PRIME_SIZE - 1])) {
@@ -19739,8 +19736,6 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
     if (result != NULL) {
         *result = ret;
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -19782,8 +19777,6 @@ static WC_INLINE int _sp_gcd(const sp_int* a, const sp_int* b, sp_int* r)
     /* Determine maximum digit length numbers will reach. */
     unsigned int used = (a->used >= b->used) ? a->used + 1U : b->used + 1U;
     DECL_SP_INT_ARRAY(d, used, 3);
-
-    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
 
     ALLOC_SP_INT_ARRAY(d, used, 3, err, NULL);
     if (err == MP_OKAY) {
@@ -19848,8 +19841,6 @@ static WC_INLINE int _sp_gcd(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
     FREE_SP_INT_ARRAY(d, NULL);
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -19955,8 +19946,6 @@ static int _sp_lcm(const sp_int* a, const sp_int* b, sp_int* r)
         _sp_init_size(t[0], used);
         _sp_init_size(t[1], used);
 
-        SAVE_VECTOR_REGISTERS(err = _svr_ret;);
-
         if (err == MP_OKAY) {
             /* 1. t0 = gcd(a, b) */
             err = sp_gcd(a, b, t[0]);
@@ -19985,8 +19974,6 @@ static int _sp_lcm(const sp_int* a, const sp_int* b, sp_int* r)
                 }
             }
         }
-
-        RESTORE_VECTOR_REGISTERS();
     }
 
     FREE_SP_INT_ARRAY(t, NULL);
