@@ -19069,7 +19069,10 @@ static int test_wolfSSL_verify_result(void)
     WOLFSSL_CTX* ctx = NULL;
     long         result = 0xDEADBEEF;
 
-    ExpectIntEQ(WC_NO_ERR_TRACE(WOLFSSL_FAILURE), wolfSSL_get_verify_result(ssl));
+    /* A NULL ssl returns a non-zero verify error (not X509_V_OK) so the
+     * OpenSSL-idiomatic "!= X509_V_OK" check is not fooled. See F-4594. */
+    ExpectIntEQ(WOLFSSL_X509_V_ERR_APPLICATION_VERIFICATION,
+        wolfSSL_get_verify_result(ssl));
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = SSL_new(ctx));

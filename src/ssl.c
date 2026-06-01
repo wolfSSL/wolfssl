@@ -13025,7 +13025,10 @@ size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
 long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 {
     if (ssl == NULL) {
-        return WOLFSSL_FAILURE;
+        /* Return a non-zero error so the OpenSSL-idiomatic
+         * "!= X509_V_OK" check does not mistake a NULL ssl for a
+         * successful verification (X509_V_OK is 0). */
+        return WOLFSSL_X509_V_ERR_APPLICATION_VERIFICATION;
     }
 
     return (long)ssl->peerVerifyRet;
