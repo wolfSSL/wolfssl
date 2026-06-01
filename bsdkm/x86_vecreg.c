@@ -139,6 +139,11 @@ int wolfkmod_vecreg_save(int flags_unused)
     wolfkmod_print_curthread("wolfkmod_vecreg_save");
     #endif
 
+    if (fpu_states == NULL) {
+        printf("info : wolfkmod_vecreg_save: fpu_states null\n");
+        return (EINVAL);
+    }
+
     if (is_fpu_kern_thread(0)) {
         /* kernel fpu threads are special, do nothing. They own a
          * persistent, dedicated fpu context. */
@@ -188,6 +193,11 @@ void wolfkmod_vecreg_restore(void)
     #if defined(WOLFSSL_BSDKM_FPU_DEBUG)
     wolfkmod_print_curthread("wolfkmod_vecreg_restore");
     #endif
+
+    if (fpu_states == NULL) {
+        printf("info: wolfkmod_vecreg_restore: fpu_states null\n");
+        return;
+    }
 
     if (is_fpu_kern_thread(0)) {
         /* kernel fpu threads are special, do nothing. They own a

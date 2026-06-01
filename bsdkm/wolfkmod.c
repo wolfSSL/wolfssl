@@ -491,8 +491,9 @@ static int wolfkdriv_attach(device_t dev)
 
 attach_out:
     if (error) {
-        wolfkdriv_unregister(softc);
+        device_printf(dev, "error: attach_out: %d\n", error);
         (void)wolfkmod_cleanup();
+        wolfkdriv_unregister(softc);
     }
 
     return (error);
@@ -503,16 +504,14 @@ static int wolfkdriv_detach(device_t dev)
     struct wolfkdriv_softc * softc = NULL;
     int ret = 0;
 
+    /* unregister wolfcrypt algs */
+    softc = device_get_softc(dev);
     ret = wolfkmod_cleanup();
-
-    if (ret == 0) {
-        /* unregister wolfcrypt algs */
-        softc = device_get_softc(dev);
-        wolfkdriv_unregister(softc);
-    }
-
+    wolfkdriv_unregister(softc);
     #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
-    device_printf(dev, "info: exiting detach\n");
+    device_printf(dev, "info: exiting detach: %d\n", ret);
+    #else
+    (void)ret;
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
 
     return (0);
@@ -802,6 +801,7 @@ static int wolfkdriv_cbc_work(device_t dev, wolfkdriv_session_t * session,
 
 cbc_work_out:
     /* cleanup. */
+    wc_ForceZero(&aes, sizeof(aes));
     wc_ForceZero(iv, sizeof(iv));
     wc_ForceZero(block, sizeof(block));
 
@@ -811,6 +811,11 @@ cbc_work_out:
                   csp->csp_mode, csp->csp_cipher_alg, crp->crp_payload_length,
                   error);
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
+
+    if (error < 0) {
+        /* convert wolfcrypt errors to EINVAL. */
+        error = EINVAL;
+    }
 
     return (error);
 }
@@ -979,6 +984,7 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
 
 gcm_work_out:
     /* cleanup. */
+    wc_ForceZero(&aes, sizeof(aes));
     wc_ForceZero(iv, sizeof(iv));
     wc_ForceZero(auth_tag, sizeof(auth_tag));
 
@@ -988,6 +994,11 @@ gcm_work_out:
                   csp->csp_mode, csp->csp_cipher_alg, crp->crp_payload_length,
                   error);
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
+
+    if (error < 0) {
+        /* convert wolfcrypt errors to EINVAL. */
+        error = EINVAL;
+    }
 
     return (error);
 }
