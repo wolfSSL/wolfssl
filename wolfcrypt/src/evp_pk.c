@@ -1893,7 +1893,7 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
                 rawDer.buffer = pkcs8Der->buffer + inOutIdx;
                 rawDer.length = (word32)ret;
             }
-            if (ret >= 0) {
+            if (ret > 0) {
                 ret = 0; /* good DER */
             }
         }
