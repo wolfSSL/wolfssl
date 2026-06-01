@@ -13,7 +13,9 @@ concurrency:
 
 jobs:
   load-targets:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # Only run from the wolfssl org to avoid burning forks' CI minutes
+    # and reporting fork builds to the membrowse backend.
+    if: github.repository_owner == 'wolfssl' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -27,7 +29,7 @@ jobs:
         run: echo "matrix=$(jq -c '.' .github/membrowse-targets.json)" >> $GITHUB_OUTPUT
 
   check-changes:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    if: github.repository_owner == 'wolfssl' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -64,13 +66,13 @@ jobs:
 
   analyze:
     needs: [load-targets, check-changes]
-    if: github.event_name != 'pull_request' || needs.check-changes.outputs.needs_build == 'true'
+    if: github.repository_owner == 'wolfssl' && (github.event_name != 'pull_request' || needs.check-changes.outputs.needs_build == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.load-targets.outputs.matrix) }}
+        include: ${{ fromJson(needs.load-targets.outputs.matrix || '[]') }}
 
     steps:
       - name: Checkout repository
