@@ -2720,16 +2720,26 @@ static int Dtls13RtxIsTrackedByRn(const Dtls13RtxRecord* r, w64wrapper epoch,
 static int Dtls13KeyUpdateAckReceived(WOLFSSL* ssl)
 {
     int ret;
+    /* Validate on a local copy so ssl->dtls13Epoch is left untouched when a
+     * check fails. */
+    w64wrapper newEpoch = ssl->dtls13Epoch;
 
     ret = DeriveTls13Keys(ssl, update_traffic_key, ENCRYPT_SIDE_ONLY, 1);
     if (ret != 0)
         return ret;
 
-    w64Increment(&ssl->dtls13Epoch);
+    w64Increment(&newEpoch);
 
     /* Epoch wrapped up */
-    if (w64IsZero(ssl->dtls13Epoch))
+    if (w64IsZero(newEpoch))
         return BAD_STATE_E;
+
+    /* RFC 9147 Section 4.2.1: the epoch must not exceed 2^48-1. */
+    if (w64GT(newEpoch,
+              w64From32(DTLS13_EPOCH_MAX_HI32, DTLS13_EPOCH_MAX_LO32)))
+        return BAD_STATE_E;
+
+    ssl->dtls13Epoch = newEpoch;
 
     return Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
 }

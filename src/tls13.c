@@ -12172,8 +12172,16 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendTls13KeyUpdate");
 
 #ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls)
+    if (ssl->options.dtls) {
+        /* RFC 9147 Section 4.2.1: do not send a KeyUpdate that would advance
+         * the sending epoch beyond 2^48-1. */
+        if (w64GTE(ssl->dtls13Epoch,
+                   w64From32(DTLS13_EPOCH_MAX_HI32, DTLS13_EPOCH_MAX_LO32))) {
+            WOLFSSL_MSG("DTLS 1.3 sending epoch at maximum; refusing KeyUpdate");
+            return BAD_STATE_E;
+        }
         i = Dtls13GetRlHeaderLength(ssl, 1) + DTLS_HANDSHAKE_HEADER_SZ;
+    }
 #endif /* WOLFSSL_DTLS13 */
 
     outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
@@ -12307,7 +12315,18 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        w64Increment(&ssl->dtls13PeerEpoch);
+        w64wrapper newEpoch = ssl->dtls13PeerEpoch;
+        w64Increment(&newEpoch);
+
+        /* RFC 9147 Section 4.2.1: the epoch must not exceed 2^48-1. Reject a
+         * peer KeyUpdate that would advance the receiving epoch past the
+         * limit. Validate on a local copy so ssl->dtls13PeerEpoch is left
+         * untouched when the check fails. */
+        if (w64GT(newEpoch,
+                  w64From32(DTLS13_EPOCH_MAX_HI32, DTLS13_EPOCH_MAX_LO32)))
+            return BAD_STATE_E;
+
+        ssl->dtls13PeerEpoch = newEpoch;
 
         ret = Dtls13SetEpochKeys(ssl, ssl->dtls13PeerEpoch, DECRYPT_SIDE_ONLY);
         if (ret != 0)
