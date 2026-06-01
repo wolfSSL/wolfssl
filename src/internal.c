@@ -38097,6 +38097,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                             TICKET_BINDING_HASH_SZ) != 0) {
                 WOLFSSL_MSG("Resumed session SNI mismatch, full handshake");
                 ssl->options.resuming = 0;
+                return ret;
             }
 #endif
 #ifdef HAVE_ALPN
@@ -38106,6 +38107,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                              TICKET_BINDING_HASH_SZ) != 0)) {
                 WOLFSSL_MSG("Resumed session ALPN mismatch, full handshake");
                 ssl->options.resuming = 0;
+                return ret;
             }
 #endif
         }
