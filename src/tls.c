@@ -2065,6 +2065,15 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         byte sel_len = 0;
         TLSX *extension = NULL;
 
+        /* RFC 7301 Section 3.1: a ServerHello ALPN extension MUST contain
+         * exactly one protocol name. The first name's length byte plus its
+         * payload must therefore span the whole list. */
+        if ((word16)(input[offset] + OPAQUE8_LEN) != size) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+            return BUFFER_ERROR;
+        }
+
         r = ALPN_find_match(ssl, &extension, &sel, &sel_len, input + offset, size);
         if (r != 0)
             return r;
