@@ -2369,7 +2369,6 @@ static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)
     w64wrapper oldestNumber;
     int i;
 
-    /* FIXME: add max function */
     oldestNumber = w64From32((word32)-1, (word32)-1);
     oldest = NULL;
 
@@ -2380,8 +2379,10 @@ static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)
 
         if (!w64Equal(e->epochNumber, ssl->dtls13Epoch) &&
             !w64Equal(e->epochNumber, ssl->dtls13PeerEpoch) &&
-            w64LT(e->epochNumber, oldestNumber))
+            w64LT(e->epochNumber, oldestNumber)) {
             oldest = e;
+            oldestNumber = e->epochNumber;
+        }
     }
 
     if (oldest == NULL)
