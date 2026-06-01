@@ -928,10 +928,13 @@ impl RSA {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let (label_ptr, label_size) = match label {
+            // wolfSSL C API takes label as `byte *` but only reads from it.
             Some(label) => (label.as_ptr() as *mut u8, crate::buffer_len_to_u32(label.len())?),
             None => (core::ptr::null_mut(), 0),
         };
         let rc = unsafe {
+            // SAFETY: label_ptr is declared as a mutable pointer but is only
+            // read from.
             sys::wc_RsaPublicEncrypt_ex(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey,
                 rng.wc_rng, sys::WC_RSA_OAEP_PAD as i32,
@@ -988,10 +991,13 @@ impl RSA {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let (label_ptr, label_size) = match label {
+            // wolfSSL C API takes label as `byte *` but only reads from it.
             Some(label) => (label.as_ptr() as *mut u8, crate::buffer_len_to_u32(label.len())?),
             None => (core::ptr::null_mut(), 0),
         };
         let rc = unsafe {
+            // SAFETY: label_ptr is declared as a mutable pointer but is only
+            // read from.
             sys::wc_RsaPrivateDecrypt_ex(din.as_ptr(), din_size,
                 dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey,
                 sys::WC_RSA_OAEP_PAD as i32,
