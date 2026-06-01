@@ -3282,6 +3282,7 @@ static void FreeCiphersSide(Ciphers *cipher, void* heap)
     cipher->aria = NULL;
 #endif
 #ifdef HAVE_CAMELLIA
+    wc_CamelliaFree(cipher->cam);
     XFREE(cipher->cam, heap, DYNAMIC_TYPE_CIPHER);
     cipher->cam = NULL;
 #endif
