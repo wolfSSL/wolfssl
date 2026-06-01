@@ -3251,9 +3251,27 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #ifdef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
     (void) isRequest;
 #else
-    if (!isRequest)
+    if (!isRequest) {
+        TLSX* extension;
+
         if (TLSX_CheckUnsupportedExtension(ssl, TLSX_MAX_FRAGMENT_LENGTH))
             return TLSX_HandleUnsupportedExtension(ssl);
+
+        /* RFC 6066 Section 4: the server's response value must match the
+         * value the client requested. The request may have been configured on
+         * the WOLFSSL object or inherited from the WOLFSSL_CTX. */
+        extension = TLSX_Find(ssl->extensions, TLSX_MAX_FRAGMENT_LENGTH);
+        if (extension == NULL) {
+            extension = TLSX_Find(ssl->ctx->extensions,
+                    TLSX_MAX_FRAGMENT_LENGTH);
+        }
+        if (extension == NULL || extension->data == NULL ||
+                ((byte*)extension->data)[0] != *input) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            WOLFSSL_ERROR_VERBOSE(UNKNOWN_MAX_FRAG_LEN_E);
+            return UNKNOWN_MAX_FRAG_LEN_E;
+        }
+    }
 #endif
 
     switch (*input) {
