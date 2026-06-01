@@ -6100,11 +6100,24 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
     /* INVALID_PARAMETER does not map to illegal_parameter in the central
      * alert path, so emit the alert explicitly before returning. */
-    if (ssl->options.connectState < FINISHED_DONE && len > 0) {
+    if (ssl->options.connectState < FINISHED_DONE) {
+        /* RFC 8446 Section 4.3.2: in the handshake the context is zero
+         * length. */
+        if (len > 0) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+    }
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    else if (len == 0) {
+        /* RFC 8446 Section 4.3.2: a post-handshake CertificateRequest context
+         * MUST be non-empty and unique for the connection. */
         SendAlert(ssl, alert_fatal, illegal_parameter);
         WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
         return INVALID_PARAMETER;
     }
+#endif
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     /* Remember the request context bytes; the CertReqCtx allocation and
@@ -6113,6 +6126,18 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
      */
     reqCtxLen = len;
     reqCtxData = input + *inOutIdx;
+    /* Reject a context that duplicates one still pending on the connection. */
+    if (ssl->options.connectState >= FINISHED_DONE) {
+        CertReqCtx* dup;
+        for (dup = ssl->certReqCtx; dup != NULL; dup = dup->next) {
+            if (dup->len == reqCtxLen &&
+                    XMEMCMP(&dup->ctx, reqCtxData, reqCtxLen) == 0) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+                return INVALID_PARAMETER;
+            }
+        }
+    }
 #endif
     *inOutIdx += len;
 
