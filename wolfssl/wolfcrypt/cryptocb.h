@@ -871,7 +871,11 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 #endif
 #ifdef WOLFSSL_SHA512
 WOLFSSL_LOCAL int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
-    word32 inSz, byte* digest, size_t digestSz);
+    word32 inSz, byte* digest
+#if !(defined(HAVE_FIPS) && FIPS_VERSION_LT(7,0))
+    , size_t digestSz
+#endif
+    );
 #endif
 
 #ifdef WOLFSSL_SHA3
