@@ -78,6 +78,9 @@ ASN Options:
  * WOLFSSL_ASN_TEMPLATE: Encoding and decoding using a template.
  * WOLFSSL_DEBUG_ASN_TEMPLATE: Enables debugging output when using ASN.1
     templates.
+ * WOLFSSL_ASN_TEMPLATE_STACK_ALLOC: When WOLFSSL_SMALL_STACK is defined,
+    forces ASN template setter variables to use stack instead of heap
+    allocation. Useful where stack pointers cannot be stored on heap (CHERIoT).
  * WOLFSSL_ASN_TEMPLATE_TYPE_CHECK: Use ASN functions to better test compiler
     type issues for testing
  * CRLDP_VALIDATE_DATA: For ASN template only, validates the reason data
@@ -520,7 +523,7 @@ static word32 SizeASNLength(word32 length)
 #endif
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_ASN_TEMPLATE_STACK_ALLOC)
     /* Declare the variable that is the dynamic data for decoding BER data.
      *
      * @param [in] name  Variable name to declare.
