@@ -3319,8 +3319,8 @@ int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
     int i;
     int _groups[WOLFSSL_MAX_GROUP_COUNT];
     WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
-    if (count == 0) {
-        WOLFSSL_MSG("Group count is zero");
+    if (count <= 0) {
+        WOLFSSL_MSG("Group count is not positive");
         return WOLFSSL_FAILURE;
     }
     if (count > WOLFSSL_MAX_GROUP_COUNT) {
@@ -3358,8 +3358,8 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
     int i;
     int _groups[WOLFSSL_MAX_GROUP_COUNT];
     WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
-    if (count == 0) {
-        WOLFSSL_MSG("Group count is zero");
+    if (count <= 0) {
+        WOLFSSL_MSG("Group count is not positive");
         return WOLFSSL_FAILURE;
     }
     if (count > WOLFSSL_MAX_GROUP_COUNT) {

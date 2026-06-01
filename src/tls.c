@@ -391,15 +391,17 @@ ProtocolVersion MakeTLSv1_3(void)
  * ctx     SSL/TLS context object.
  * groups  Array of groups.
  * count   Number of groups in array.
- * returns BAD_FUNC_ARG when ctx or groups is NULL, not using TLS v1.3 or
- * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
+ * returns BAD_FUNC_ARG when ctx or groups is NULL, not using TLS v1.3, count is
+ * not positive or count is greater than WOLFSSL_MAX_GROUP_COUNT and
+ * WOLFSSL_SUCCESS on success.
  */
 int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
 {
     int ret, i;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_groups");
-    if (ctx == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+    if (ctx == NULL || groups == NULL || count <= 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsTLS_ex(ctx->method->version))
         return BAD_FUNC_ARG;
@@ -436,15 +438,17 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
  * ssl     SSL/TLS object.
  * groups  Array of groups.
  * count   Number of groups in array.
- * returns BAD_FUNC_ARG when ssl or groups is NULL, not using TLS v1.3 or
- * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
+ * returns BAD_FUNC_ARG when ssl or groups is NULL, not using TLS v1.3, count is
+ * not positive or count is greater than WOLFSSL_MAX_GROUP_COUNT and
+ * WOLFSSL_SUCCESS on success.
  */
 int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
 {
     int ret, i;
 
     WOLFSSL_ENTER("wolfSSL_set_groups");
-    if (ssl == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+    if (ssl == NULL || groups == NULL || count <= 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsTLS_ex(ssl->version))
         return BAD_FUNC_ARG;
