@@ -8250,17 +8250,37 @@ static int test_wolfSSL_UseSNI_params(void)
     ExpectNotNull(ssl);
 
     /* invalid [ctx|ssl] */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSNI(NULL, 0, "ctx", 3));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_UseSNI(    NULL, 0, "ssl", 3));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSNI(NULL, WOLFSSL_SNI_HOST_NAME,
+        "ctx", 3));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_UseSNI(    NULL, WOLFSSL_SNI_HOST_NAME,
+        "ssl", 3));
     /* invalid type */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx, (byte)-1, "ctx", 3));
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_UseSNI(    ssl, (byte)-1, "ssl", 3));
     /* invalid data */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx,  0, NULL,  3));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_UseSNI(    ssl,  0, NULL,  3));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx,  WOLFSSL_SNI_HOST_NAME,
+        NULL,  3));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_UseSNI(    ssl,  WOLFSSL_SNI_HOST_NAME,
+        NULL,  3));
+    /* invalid length */
+    if (EXPECT_SUCCESS()) {
+        /* 300 chars > WOLFSSL_HOST_NAME_MAX (256) */
+        char longName[300];
+
+        XMEMSET(longName, 'a', sizeof(longName) - 1);
+        longName[sizeof(longName) - 1] = '\0';
+
+        /* host name >= WOLFSSL_HOST_NAME_MAX */
+        ExpectIntEQ(BAD_LENGTH_E, wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME,
+            longName, (word16)XSTRLEN(longName)));
+        ExpectIntEQ(BAD_LENGTH_E, wolfSSL_UseSNI(    ssl, WOLFSSL_SNI_HOST_NAME,
+            longName, (word16)XSTRLEN(longName)));
+    }
     /* success case */
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx,  0, "ctx", 3));
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSNI(    ssl,  0, "ssl", 3));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx,  WOLFSSL_SNI_HOST_NAME,
+        "ctx", 3));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSNI(    ssl,  WOLFSSL_SNI_HOST_NAME,
+        "ssl", 3));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -14805,7 +14825,10 @@ static int test_wolfSSL_Tls13_ECH_bad_configs_ex(int hrr, int sniCb)
     }
 
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
-    ExpectIntEQ(test_ctx.c_ssl->options.echAccepted, 0);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+        WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+        WOLFSSL_ECH_STATUS_ACCEPTED);
 
     test_ssl_memio_cleanup(&test_ctx);
 
@@ -15495,52 +15518,6 @@ static int test_wolfSSL_Tls13_ECH_disable_conn(void)
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_disable_conn_ex(0, 1), TEST_SUCCESS);
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_disable_conn_ex(1, 0), TEST_SUCCESS);
     ExpectIntEQ(test_wolfSSL_Tls13_ECH_disable_conn_ex(0, 0), TEST_SUCCESS);
-
-    return EXPECT_RESULT();
-}
-
-/* Regression test: an inner SNI hostname >= MAX_PUBLIC_NAME_SZ (256) bytes
- * must not cause a stack-buffer-overflow in TLSX_EchRestoreSNI.  Before the
- * fix, the truncated copy omitted the NUL terminator and XSTRLEN read past
- * the buffer. */
-static int test_wolfSSL_Tls13_ECH_long_SNI(void)
-{
-    EXPECT_DECLS;
-#if !defined(NO_WOLFSSL_CLIENT)
-    test_ssl_memio_ctx test_ctx;
-    /* 300 chars > MAX_PUBLIC_NAME_SZ (256) to exercise truncation */
-    char longName[300];
-
-    XMEMSET(longName, 'a', sizeof(longName) - 1);
-    longName[sizeof(longName) - 1] = '\0';
-
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-
-    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
-    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
-
-    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
-    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
-
-    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
-
-    /* Set ECH configs on the client */
-    ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
-        echCbTestConfigsLen), WOLFSSL_SUCCESS);
-
-    /* Try to set the over-long SNI as the inner hostname -- after the fix, this
-     * is expected to fail.
-     */
-    ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
-        longName, (word16)XSTRLEN(longName)), BAD_LENGTH_E);
-
-    /* Before the fix, the handshake would trigger TLSX_EchChangeSNI /
-     * TLSX_EchRestoreSNI, which would then stack-buffer-overflow in XSTRLEN.
-     */
-    (void)test_ssl_memio_do_handshake(&test_ctx, 10, NULL);
-
-    test_ssl_memio_cleanup(&test_ctx);
-#endif /* !NO_WOLFSSL_CLIENT */
 
     return EXPECT_RESULT();
 }
@@ -36579,7 +36556,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_wire_sni),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
-    TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
     TEST_DECL(test_wolfSSL_Tls13_ECH_HRR_rejection),
     TEST_DECL(test_wolfSSL_Tls13_ECH_ch2_no_ech),
     TEST_DECL(test_wolfSSL_Tls13_ECH_ch2_decrypt_error),
