@@ -6134,6 +6134,14 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     }
     *inOutIdx += len;
 
+    /* RFC 8446 Section 4.3.2: the signature_algorithms extension MUST be
+     * present in a CertificateRequest. */
+    if (peerSuites.hashSigAlgoSz == 0) {
+        SendAlert(ssl, alert_fatal, missing_extension);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+
 #ifdef WOLFSSL_CERT_SETUP_CB
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         return ret;
