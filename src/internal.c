@@ -18811,6 +18811,8 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
         ssl->options.handShakeState = NULL_STATE;
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+        /* Reset for the renegotiation_info presence check below. */
+        ssl->secure_renegotiation->renegInfoSeen = 0;
 
         ret = InitHandshakeHashes(ssl);
         if (ret != 0)
@@ -38745,6 +38747,17 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 0) {
             TLSX* extension;
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+            /* SCSV not allowed on a renegotiation ClientHello (RFC 5746 3.5). */
+            if (ssl->secure_renegotiation &&
+                    ssl->secure_renegotiation->enabled &&
+                    ssl->secure_renegotiation->verifySet) {
+                WOLFSSL_MSG("SCSV received on renegotiation ClientHello");
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                ret = SECURE_RENEGOTIATION_E;
+                goto out;
+            }
+#endif
             /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS) {
@@ -38988,6 +39001,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             else
                 *inOutIdx = begin + helloSz; /* skip extensions */
         }
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+        /* renegotiation_info MUST be present on a renegotiation (RFC 5746 3.7). */
+        if (ssl->secure_renegotiation &&
+                ssl->secure_renegotiation->enabled &&
+                ssl->secure_renegotiation->verifySet &&
+                !ssl->secure_renegotiation->renegInfoSeen) {
+            WOLFSSL_MSG("Renegotiation ClientHello missing renegotiation_info");
+            SendAlert(ssl, alert_fatal, handshake_failure);
+            ret = SECURE_RENEGOTIATION_E;
+            goto out;
+        }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 #ifdef WOLFSSL_DTLS_CID
         if (ssl->options.useDtlsCID)
