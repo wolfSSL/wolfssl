@@ -170,39 +170,31 @@ int client_loop(const char *peer_ip, const char *peer_name,
     char         randombytes[16] = {0};
 
     /* Construct HTTP POST */
-
-    /* Header */
-    strcat(buff, "POST /iot/device HTTP/1.1\r\n");
-    strcat(buff, "Content-Type: application/json\r\n");
-    strcat(buff, "Content-Length: 1000\r\n");
-    strcat(buff, "Accept: */*\r\n");
-    strcat(buff, "Host: ");
-    strcat(buff, peer_name);
-    strcat(buff, ":");
-    strcat(buff, peer_port);
-    strcat(buff, "\r\n");
-
-    /* Delimiter */
-    strcat(buff, "\r\n");
-
-    /* Body */
     srand(time(NULL));
-    int devid    = rand() % 100;
-    char snum[5] = {0};
-    snprintf(snum, sizeof(snum), "%d", devid);
+    int devid = rand() % 100;
 
-    strcat(buff, "{");
-    strcat(buff, "\"deviceId\": \"");
-    strcat(buff, snum);
-    strcat(buff, "\",");
-    strcat(buff, "\"sensorType\": \"Temperature\",");
-    strcat(buff, "\"sensorValue\": \"");
-    strcat(buff, temperature);
-    strcat(buff, "\",");
-    strcat(buff, "\"sensorUnit\": \"Celsius\",");
-    strcat(buff, "\"sensorTime\": 1582181510");
-    strcat(buff, "}");
-    strcat(buff, "\r\n");
+    int n = snprintf(buff, sizeof(buff),
+        "POST /iot/device HTTP/1.1\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: 1000\r\n"
+        "Accept: */*\r\n"
+        "Host: %s:%s\r\n"
+        "\r\n"
+        "{"
+        "\"deviceId\": \"%d\","
+        "\"sensorType\": \"Temperature\","
+        "\"sensorValue\": \"%s\","
+        "\"sensorUnit\": \"Celsius\","
+        "\"sensorTime\": 1582181510"
+        "}"
+        "\r\n",
+        peer_name, peer_port, devid, temperature);
+
+    if (n < 0 || n >= (int)sizeof(buff)) {
+        fprintf(stderr, "ERROR: HTTP request too large for buffer\n");
+        ret = -1;
+        goto exit;
+    }
 
     printf("\n\nPOST REQUEST\n\n%s\n\n", buff);
 
