@@ -99,6 +99,14 @@ This library defines the interface APIs for X509 certificates.
     typedef struct SlhDsaKey SlhDsaKey;
     #define WC_SLHDSAKEY_TYPE_DEFINED
 #endif
+#ifndef WC_LMSKEY_TYPE_DEFINED
+    typedef struct LmsKey LmsKey;
+    #define WC_LMSKEY_TYPE_DEFINED
+#endif
+#ifndef WC_XMSSKEY_TYPE_DEFINED
+    typedef struct XmssKey XmssKey;
+    #define WC_XMSSKEY_TYPE_DEFINED
+#endif
 
 enum EncPkcs8Types {
     ENC_PKCS8_VER_PKCS12 = 1,
@@ -172,7 +180,10 @@ enum CertType {
     ECC_PARAM_TYPE,
     CHAIN_CERT_TYPE,
     PKCS7_TYPE,
-    TRUSTED_CERT_TYPE
+    TRUSTED_CERT_TYPE,
+    LMS_TYPE,
+    XMSS_TYPE,
+    XMSSMT_TYPE
 };
 
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES

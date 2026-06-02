@@ -4418,9 +4418,9 @@ static int EncodeName(EncodedName* name, const char* nameStr, byte nameTag, byte
 #endif
 #ifdef WOLFSSL_CERT_GEN
 static int SetValidity(byte* output, int daysValid);
-static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng, DsaKey* dsaKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey);
+static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng, DsaKey* dsaKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey);
 #ifdef WOLFSSL_CERT_REQ
-static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey);
+static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey, ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey, wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey);
 #endif
 #endif
 #endif
@@ -13065,6 +13065,82 @@ int wc_Ed448PublicKeyToDer(const ed448_key* key, byte* output, word32 inLen,
     return ret;
 }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
+
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+/* Encode the public part of an LMS/HSS key in DER.
+ *
+ * Per RFC 9802, the SubjectPublicKeyInfo for HSS/LMS uses the
+ * id-alg-hss-lms-hashsig OID and carries the raw HSS public key in the
+ * BIT STRING with no additional wrapping.
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  key       LMS key object.
+ * @param [out] output    Buffer to put encoded data in.
+ * @param [in]  inLen     Size of buffer in bytes.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ */
+int wc_LmsKey_PublicKeyToDer(const LmsKey* key, byte* output, word32 inLen,
+                             int withAlg)
+{
+    int    ret;
+    byte   pubKey[HSS_MAX_PUBLIC_KEY_LEN];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_LmsKey_ExportPubRaw(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            HSS_LMSk, withAlg);
+    }
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
+
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+/* Encode the public part of an XMSS/XMSS^MT key in DER.
+ *
+ * Per RFC 9802, the SubjectPublicKeyInfo for XMSS/XMSS^MT uses the
+ * id-alg-xmss-hashsig / id-alg-xmssmt-hashsig OID and carries the raw
+ * public key in the BIT STRING with no additional wrapping.
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  key       XMSS key object.
+ * @param [out] output    Buffer to put encoded data in.
+ * @param [in]  inLen     Size of buffer in bytes.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ */
+int wc_XmssKey_PublicKeyToDer(const XmssKey* key, byte* output, word32 inLen,
+                              int withAlg)
+{
+    int    ret;
+    byte   pubKey[2 * WC_XMSS_MAX_N + XMSS_OID_LEN];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+    int    keyType;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyType = key->is_xmssmt ? XMSSMTk : XMSSk;
+
+    ret = wc_XmssKey_ExportPubRaw(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            keyType, withAlg);
+    }
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
+
 #if !defined(NO_RSA) && !defined(NO_CERTS)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for header before RSA key in certificate. */
@@ -27393,7 +27469,8 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
                            RsaKey* rsaKey, ecc_key* eccKey,
                            ed25519_key* ed25519Key, ed448_key* ed448Key,
                            DsaKey* dsaKey, falcon_key* falconKey,
-                           wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey)
+                           wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
+                           LmsKey* lmsKey, XmssKey* xmssKey)
 {
     int ret = 0;
 
@@ -27406,6 +27483,8 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     (void)falconKey;
     (void)mldsaKey;
     (void)slhDsaKey;
+    (void)lmsKey;
+    (void)xmssKey;
 
     switch (keyType) {
     #ifndef NO_RSA
@@ -27489,6 +27568,23 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
             }
             break;
     #endif /* WOLFSSL_HAVE_SLHDSA */
+    #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+        case LMS_KEY:
+            ret = wc_LmsKey_PublicKeyToDer(lmsKey, output, (word32)outLen, 1);
+            if (ret <= 0) {
+                ret = PUBLIC_KEY_E;
+            }
+            break;
+    #endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
+    #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+        case XMSS_KEY:
+        case XMSSMT_KEY:
+            ret = wc_XmssKey_PublicKeyToDer(xmssKey, output, (word32)outLen, 1);
+            if (ret <= 0) {
+                ret = PUBLIC_KEY_E;
+            }
+            break;
+    #endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
         default:
             ret = PUBLIC_KEY_E;
             break;
@@ -28291,8 +28387,8 @@ static int InternalSignCb(const byte* in, word32 inLen,
 static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     byte* sig, word32 sigSz, RsaKey* rsaKey, ecc_key* eccKey,
     ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey,
-    wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey, WC_RNG* rng,
-    word32 sigAlgoType, void* heap)
+    wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey, LmsKey* lmsKey,
+    XmssKey* xmssKey, WC_RNG* rng, word32 sigAlgoType, void* heap)
 {
     int ret = 0;
 
@@ -28305,6 +28401,8 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     (void)falconKey;
     (void)mldsaKey;
     (void)slhDsaKey;
+    (void)lmsKey;
+    (void)xmssKey;
     (void)rng;
     (void)heap;
 
@@ -28397,6 +28495,26 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
             ret = (int)outSz;
     }
 #endif /* WOLFSSL_HAVE_SLHDSA && !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    if (lmsKey) {
+        word32 outSz = sigSz;
+        /* RFC 9802: the TBS is signed directly with no pre-hash. */
+        ret = wc_LmsKey_Sign(lmsKey, sig, &outSz, buf, (int)sz);
+        if (ret == 0)
+            ret = (int)outSz;
+    }
+#endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
+
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    if (xmssKey) {
+        word32 outSz = sigSz;
+        /* RFC 9802: the TBS is signed directly with no pre-hash. */
+        ret = wc_XmssKey_Sign(xmssKey, sig, &outSz, buf, (int)sz);
+        if (ret == 0)
+            ret = (int)outSz;
+    }
+#endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
 
     if (ret == -1)
         ret = ALGO_ID_E;
@@ -28545,7 +28663,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
                        DsaKey* dsaKey, ed25519_key* ed25519Key,
                        ed448_key* ed448Key, falcon_key* falconKey,
-                       wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey)
+                       wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
+                       LmsKey* lmsKey, XmssKey* xmssKey)
 {
     /* TODO: issRaw and sbjRaw should be NUL terminated. */
     DECL_ASNSETDATA(dataASN, x509CertASN_Length);
@@ -28562,6 +28681,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     (void)falconKey;
     (void)mldsaKey;
     (void)slhDsaKey;
+    (void)lmsKey;
+    (void)xmssKey;
 
     CALLOC_ASNSETDATA(dataASN, x509CertASN_Length, ret, cert->heap);
 
@@ -28629,6 +28750,16 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             }
         }
 #endif /* WOLFSSL_HAVE_SLHDSA */
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+        else if (lmsKey != NULL) {
+            cert->keyType = LMS_KEY;
+        }
+#endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+        else if (xmssKey != NULL) {
+            cert->keyType = xmssKey->is_xmssmt ? XMSSMT_KEY : XMSS_KEY;
+        }
+#endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
         else {
             ret = BAD_FUNC_ARG;
         }
@@ -28677,7 +28808,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Calculate public key encoding size. */
         ret = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
                 eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
-                mldsaKey, slhDsaKey);
+                mldsaKey, slhDsaKey, lmsKey, xmssKey);
         publicKeySz = (word32)ret;
     }
     if (ret >= 0) {
@@ -28864,7 +28995,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             (int)dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ]
                            .data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey,
-            falconKey, mldsaKey, slhDsaKey);
+            falconKey, mldsaKey, slhDsaKey, lmsKey, xmssKey);
     }
     if ((ret >= 0) && (!dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].noOut)) {
         /* Encode extensions into buffer. */
@@ -28909,6 +29040,8 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     falcon_key*        falconKey = NULL;
     wc_MlDsaKey*       mldsaKey = NULL;
     SlhDsaKey*         slhDsaKey = NULL;
+    LmsKey*            lmsKey = NULL;
+    XmssKey*           xmssKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -28942,10 +29075,28 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     else if (IsSlhDsaKeyType(keyType))
         slhDsaKey = (SlhDsaKey*)key;
 #endif
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    else if (keyType == LMS_TYPE)
+        lmsKey = (LmsKey*)key;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    /* The selector must match the key's actual tree variant so XMSS_TYPE and
+     * XMSSMT_TYPE are not silently interchangeable. */
+    else if (keyType == XMSS_TYPE) {
+        xmssKey = (XmssKey*)key;
+        if (xmssKey != NULL && xmssKey->is_xmssmt)
+            return BAD_FUNC_ARG;
+    }
+    else if (keyType == XMSSMT_TYPE) {
+        xmssKey = (XmssKey*)key;
+        if (xmssKey != NULL && !xmssKey->is_xmssmt)
+            return BAD_FUNC_ARG;
+    }
+#endif
 
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, dsaKey,
                        ed25519Key, ed448Key, falconKey, mldsaKey,
-                       slhDsaKey);
+                       slhDsaKey, lmsKey, xmssKey);
 }
 
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
@@ -28954,7 +29105,7 @@ int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
              ecc_key* eccKey, WC_RNG* rng)
 {
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, NULL,
-                       NULL, NULL, NULL, NULL);
+                       NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 
@@ -29022,7 +29173,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
                    ed25519_key* ed25519Key, ed448_key* ed448Key,
                    falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
-                   SlhDsaKey* slhDsaKey)
+                   SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey)
 {
     DECL_ASNSETDATA(dataASN, certReqBodyASN_Length);
     word32 publicKeySz = 0;
@@ -29038,6 +29189,8 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     (void)falconKey;
     (void)mldsaKey;
     (void)slhDsaKey;
+    (void)lmsKey;
+    (void)xmssKey;
 
     CALLOC_ASNSETDATA(dataASN, certReqBodyASN_Length, ret, cert->heap);
 
@@ -29105,6 +29258,16 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             }
         }
 #endif /* WOLFSSL_HAVE_SLHDSA */
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+        else if (lmsKey != NULL) {
+            cert->keyType = LMS_KEY;
+        }
+#endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_VERIFY_ONLY */
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+        else if (xmssKey != NULL) {
+            cert->keyType = xmssKey->is_xmssmt ? XMSSMT_KEY : XMSS_KEY;
+        }
+#endif /* WOLFSSL_HAVE_XMSS && !WOLFSSL_XMSS_VERIFY_ONLY */
         else {
             ret = BAD_FUNC_ARG;
         }
@@ -29127,7 +29290,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         /* Determine encode public key size. */
          ret = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
              eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
-             mldsaKey, slhDsaKey);
+             mldsaKey, slhDsaKey, lmsKey, xmssKey);
          publicKeySz = (word32)ret;
     }
     if (ret >= 0) {
@@ -29247,7 +29410,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.data,
             (int)dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
-            mldsaKey, slhDsaKey);
+            mldsaKey, slhDsaKey, lmsKey, xmssKey);
     }
     if ((ret >= 0 && derBuffer != NULL) &&
             (!dataASN[CERTREQBODYASN_IDX_EXT_BODY].noOut)) {
@@ -29281,6 +29444,8 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     falcon_key*    falconKey = NULL;
     wc_MlDsaKey*   mldsaKey = NULL;
     SlhDsaKey*     slhDsaKey = NULL;
+    LmsKey*        lmsKey = NULL;
+    XmssKey*       xmssKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -29314,10 +29479,28 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     else if (IsSlhDsaKeyType(keyType))
         slhDsaKey = (SlhDsaKey*)key;
 #endif
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    else if (keyType == LMS_TYPE)
+        lmsKey = (LmsKey*)key;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    /* The selector must match the key's actual tree variant so XMSS_TYPE and
+     * XMSSMT_TYPE are not silently interchangeable. */
+    else if (keyType == XMSS_TYPE) {
+        xmssKey = (XmssKey*)key;
+        if (xmssKey != NULL && xmssKey->is_xmssmt)
+            return BAD_FUNC_ARG;
+    }
+    else if (keyType == XMSSMT_TYPE) {
+        xmssKey = (XmssKey*)key;
+        if (xmssKey != NULL && !xmssKey->is_xmssmt)
+            return BAD_FUNC_ARG;
+    }
+#endif
 
     return MakeCertReq(cert, derBuffer, derSz, rsaKey, dsaKey, eccKey,
                        ed25519Key, ed448Key, falconKey, mldsaKey,
-                       slhDsaKey);
+                       slhDsaKey, lmsKey, xmssKey);
 }
 
 WOLFSSL_ABI
@@ -29325,7 +29508,7 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, ecc_key* eccKey)
 {
     return MakeCertReq(cert, derBuffer, derSz, rsaKey, NULL, eccKey, NULL,
-                       NULL, NULL, NULL, NULL);
+                       NULL, NULL, NULL, NULL, NULL, NULL);
 }
 #endif /* WOLFSSL_CERT_REQ */
 
@@ -29472,12 +29655,19 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                     RsaKey* rsaKey, ecc_key* eccKey, ed25519_key* ed25519Key,
                     ed448_key* ed448Key, falcon_key* falconKey,
                     wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
-                    WC_RNG* rng)
+                    LmsKey* lmsKey, XmssKey* xmssKey, WC_RNG* rng)
 {
     int sigSz = 0;
     void* heap = NULL;
+    /* The signature buffer must hold the largest signature any supported key
+     * type can produce. LMS/XMSS signatures are parameter-dependent and can
+     * exceed MAX_ENCODED_SIG_SZ, so size them from the key at runtime. */
+    word32 maxSigSz = MAX_ENCODED_SIG_SZ;
     CertSignCtx  certSignCtx_lcl;
     CertSignCtx* certSignCtx = &certSignCtx_lcl;
+
+    (void)lmsKey;
+    (void)xmssKey;
 
     XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
 
@@ -29505,19 +29695,64 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
         return NOT_COMPILED_IN;
     #endif /* HAVE_ECC */
     }
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    else if (lmsKey) {
+        word32 lmsSigSz = 0;
+        /* The signature algorithm OID is written from sType. Reject a
+         * mismatch so we never emit a cert whose signatureAlgorithm
+         * contradicts its HSS/LMS public key. */
+        if (sType != CTC_HSS_LMS) {
+            WOLFSSL_MSG("LMS key requires CTC_HSS_LMS signature type");
+            return ALGO_ID_E;
+        }
+        heap = lmsKey->heap;
+        if (wc_LmsKey_GetSigLen(lmsKey, &lmsSigSz) != 0)
+            return BAD_FUNC_ARG;
+        if (lmsSigSz > maxSigSz)
+            maxSigSz = lmsSigSz;
+    }
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    else if (xmssKey) {
+        word32 xmssSigSz = 0;
+        /* sType must match the tree variant (XMSS vs XMSS^MT) so the
+         * signatureAlgorithm OID agrees with the XMSS public key OID that
+         * MakeAnyCert derived from key->is_xmssmt. */
+        if (xmssKey->is_xmssmt ? (sType != CTC_XMSSMT)
+                               : (sType != CTC_XMSS)) {
+            WOLFSSL_MSG("XMSS signature type does not match key variant");
+            return ALGO_ID_E;
+        }
+        heap = xmssKey->heap;
+        if (wc_XmssKey_GetSigLen(xmssKey, &xmssSigSz) != 0)
+            return BAD_FUNC_ARG;
+        if (xmssSigSz > maxSigSz)
+            maxSigSz = xmssSigSz;
+    }
+#endif
 
 #ifndef WOLFSSL_NO_MALLOC
     if (certSignCtx->sig == NULL) {
-        certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
+        certSignCtx->sig = (byte*)XMALLOC(maxSigSz, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (certSignCtx->sig == NULL)
             return MEMORY_E;
     }
+#else
+    /* Without dynamic memory the signature buffer is a fixed
+     * MAX_ENCODED_SIG_SZ array in CertSignCtx. LMS/XMSS signatures are
+     * parameter-dependent and can be larger, so reject rather than overflow
+     * the fixed buffer. */
+    if (maxSigSz > MAX_ENCODED_SIG_SZ) {
+        WOLFSSL_MSG("LMS/XMSS signature larger than fixed CertSignCtx buffer");
+        return BUFFER_E;
+    }
 #endif
 
     sigSz = MakeSignature(certSignCtx, buf, (word32)requestSz, certSignCtx->sig,
-        MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
-        falconKey, mldsaKey, slhDsaKey, rng, (word32)sType, heap);
+        maxSigSz, rsaKey, eccKey, ed25519Key, ed448Key,
+        falconKey, mldsaKey, slhDsaKey, lmsKey, xmssKey, rng, (word32)sType,
+        heap);
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (sigSz == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         /* Not free'ing certSignCtx->sig here because it could still be in use
@@ -29663,7 +29898,7 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 
     ret = MakeSignature(certSignCtx, buf, (word32)bufSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
-        falconKey, mldsaKey, slhDsaKey, rng, (word32)sType, heap);
+        falconKey, mldsaKey, slhDsaKey, NULL, NULL, rng, (word32)sType, heap);
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         /* Not free'ing certSignCtx->sig here because it could still be in use
@@ -29723,6 +29958,8 @@ int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
     falcon_key*        falconKey = NULL;
     wc_MlDsaKey*       mldsaKey = NULL;
     SlhDsaKey*         slhDsaKey = NULL;
+    LmsKey*            lmsKey = NULL;
+    XmssKey*           xmssKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -29754,16 +29991,35 @@ int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
     else if (IsSlhDsaKeyType(keyType))
         slhDsaKey = (SlhDsaKey*)key;
 #endif
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    else if (keyType == LMS_TYPE)
+        lmsKey = (LmsKey*)key;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
+    /* The selector must match the key's actual tree variant so XMSS_TYPE and
+     * XMSSMT_TYPE are not silently interchangeable. */
+    else if (keyType == XMSS_TYPE) {
+        xmssKey = (XmssKey*)key;
+        if (xmssKey != NULL && xmssKey->is_xmssmt)
+            return BAD_FUNC_ARG;
+    }
+    else if (keyType == XMSSMT_TYPE) {
+        xmssKey = (XmssKey*)key;
+        if (xmssKey != NULL && !xmssKey->is_xmssmt)
+            return BAD_FUNC_ARG;
+    }
+#endif
 
     return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey, ed25519Key,
-                    ed448Key, falconKey, mldsaKey, slhDsaKey, rng);
+                    ed448Key, falconKey, mldsaKey, slhDsaKey, lmsKey, xmssKey,
+                    rng);
 }
 
 int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                 RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
 {
     return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey, NULL, NULL,
-                    NULL, NULL, NULL, rng);
+                    NULL, NULL, NULL, NULL, NULL, rng);
 }
 
 /* Sign certificate/CSR using a callback function
@@ -34179,7 +34435,7 @@ WC_MAYBE_UNUSED static int EncodeBasicOcspResponse(OcspResponse* resp,
                 XMEMSET(&certSignCtx, 0, sizeof(CertSignCtx));
                 ret = MakeSignature(&certSignCtx, respData, respDataSz,
                         sigData, sigSz, rsaKey, eccKey, NULL, NULL, NULL, NULL,
-                        NULL, rng, resp->sigOID, resp->heap);
+                        NULL, NULL, NULL, rng, resp->sigOID, resp->heap);
                 if (ret > 0) {
                     sigSz = (word32)ret;
                     ret = 0;
@@ -36397,7 +36653,7 @@ int wc_SignCRL_ex(const byte* tbsBuf, int tbsSz, int sType,
     /* Create signature */
     sigSz = MakeSignature(certSignCtx, buf, (word32)tbsSz, certSignCtx->sig,
                           MAX_ENCODED_SIG_SZ, rsaKey, eccKey, NULL, NULL, NULL,
-                          NULL, NULL, rng, (word32)sType, heap);
+                          NULL, NULL, NULL, NULL, rng, (word32)sType, heap);
     if (sigSz < 0) {
 #ifndef WOLFSSL_NO_MALLOC
         XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);

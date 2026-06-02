@@ -2773,7 +2773,10 @@ enum cert_enums {
     SLH_DSA_SHAKE_192S_KEY   = 32,
     SLH_DSA_SHAKE_192F_KEY   = 33,
     SLH_DSA_SHAKE_256S_KEY   = 34,
-    SLH_DSA_SHAKE_256F_KEY   = 35
+    SLH_DSA_SHAKE_256F_KEY   = 35,
+    LMS_KEY                  = 36,
+    XMSS_KEY                 = 37,
+    XMSSMT_KEY               = 38
 };
 
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES

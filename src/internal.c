@@ -14249,8 +14249,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif
     }
 
-    if (dCert->signature != NULL && dCert->sigLength != 0 &&
-            dCert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Store a copy of the signature for later retrieval. The buffer is sized
+     * to the exact parsed length (itself bounded by the cert DER), so no fixed
+     * ceiling is applied -- a ceiling would drop large LMS/XMSS signatures. */
+    if (dCert->signature != NULL && dCert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dCert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -14594,9 +14596,9 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
     CopyDateToASN1_TIME(dAcert->afterDate, dAcert->afterDateLen,
         &x509->notAfter);
 
-    /* Copy the signature. */
-    if (dAcert->signature != NULL && dAcert->sigLength != 0 &&
-            dAcert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Copy the signature. Sized to the exact parsed length (bounded by the
+     * cert DER); no fixed ceiling, so large LMS/XMSS signatures are kept. */
+    if (dAcert->signature != NULL && dAcert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dAcert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
