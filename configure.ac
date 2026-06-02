@@ -11520,11 +11520,16 @@ fi
 
 if test "$ENABLED_ED25519" != "no"
 then
-    if test "$ENABLED_ED25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    if test "$ENABLED_ED25519" = "small" || test "$ENABLED_ED25519" = "nonblock" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"
         ENABLED_ED25519_SMALL=yes
         ENABLED_CURVE25519_SMALL=yes
+    fi
+
+    if test "$ENABLED_ED25519" = "nonblock"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_ED25519_NONBLOCK"
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
