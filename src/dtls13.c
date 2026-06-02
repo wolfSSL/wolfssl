@@ -2225,6 +2225,7 @@ static int Dtls13InitChaChaCipher(RecordNumberCiphers* c, byte* key,
 
     ret = wc_Chacha_SetKey(c->chacha, key, keySize);
     if (ret != 0) {
+        ForceZero(c->chacha, sizeof(ChaCha));
         XFREE(c->chacha, heap, DYNAMIC_TYPE_CIPHER);
         c->chacha = NULL;
     }

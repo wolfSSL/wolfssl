@@ -3343,6 +3343,10 @@ void FreeCiphers(WOLFSSL* ssl)
     ssl->dtlsRecordNumberDecrypt.aes = NULL;
 #endif /* BUILD_AES */
 #ifdef HAVE_CHACHA
+    if (ssl->dtlsRecordNumberEncrypt.chacha)
+        ForceZero(ssl->dtlsRecordNumberEncrypt.chacha, sizeof(ChaCha));
+    if (ssl->dtlsRecordNumberDecrypt.chacha)
+        ForceZero(ssl->dtlsRecordNumberDecrypt.chacha, sizeof(ChaCha));
     XFREE(ssl->dtlsRecordNumberEncrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->dtlsRecordNumberDecrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     ssl->dtlsRecordNumberEncrypt.chacha = NULL;
