@@ -2115,13 +2115,21 @@ int test_wolfSSL_X509_check_host_URI_SAN_not_DNS_match(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
     defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
-    !defined(NO_SHA256)
+    !defined(NO_SHA256) && \
+    (defined(WOLFSSL_FPKI) || defined(WOLFSSL_NO_ASN_STRICT))
     /* RFC 6125 Sec. 6.4 / RFC 9525 Sec. 6.3: DNS-ID reference identifiers
      * must be matched only against dNSName SANs, not uniformResourceIdentifier.
      * wolfSSL_X509_add_altname() is used to attach a bare-hostname URI SAN
      * (the misissue shape that can reach altNames when certificate parsing is
      * built without strict URI checks). URI SAN presence still suppresses CN
-     * fallback per RFC 6125 Sec. 6.4.4. */
+     * fallback per RFC 6125 Sec. 6.4.4.
+     *
+     * This test requires WOLFSSL_FPKI or WOLFSSL_NO_ASN_STRICT: the URI SAN
+     * value used here is a bare hostname, which is not a valid absolute URI
+     * (no scheme). Under strict parsing (RFC 5280 Sec. 4.2.1.6) such a URI is
+     * rejected with ASN_ALT_NAME_E, so the constructed certificate would fail
+     * to re-parse in wolfSSL_X509_check_host and never reach CheckForAltNames'
+     * URI-skipping logic that this test exercises. */
     WOLFSSL_EVP_PKEY *priv = NULL;
     WOLFSSL_X509_NAME* name = NULL;
     const char* server_cert = "./certs/test/server-goodcn.pem";
