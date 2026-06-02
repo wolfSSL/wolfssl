@@ -350,6 +350,145 @@ int test_scr_verify_data_mismatch(void)
     return EXPECT_RESULT();
 }
 
+/* F-4144: WOLFSSL_OP_NO_RENEGOTIATION on the server must refuse a
+ * client-initiated renegotiation with a no_renegotiation *warning* while
+ * keeping the established connection alive, rather than aborting it. */
+int test_scr_no_renegotiation_option(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_ALERT_HISTORY history;
+    byte readBuf[16];
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&history, 0, sizeof(history));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Server opts into rejecting peer-initiated renegotiation. */
+    wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_RENEGOTIATION);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Client initiates renegotiation: it sends a ClientHello and waits for a
+     * ServerHello that never comes. */
+    ExpectIntLT(wolfSSL_Rehandshake(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Server processes the renegotiation ClientHello. It must refuse without
+     * aborting: the read returns WANT_READ (connection still alive), not a
+     * SECURE_RENEGOTIATION_E fatal error. */
+    ExpectIntLT(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The refusal was a warning-level no_renegotiation alert. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_tx.level, alert_warning);
+    ExpectIntEQ(history.last_tx.code, no_renegotiation);
+
+    /* The connection is still active and passes data: the server sends
+     * application data which the client receives and decrypts correctly, even
+     * though the client's renegotiation attempt was refused. The client
+     * surfaces the data once it has processed the no_renegotiation warning. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "hello", 5), 5);
+    for (i = 0; i < 10 && ret != 5; i++)
+        ret = wolfSSL_read(ssl_c, readBuf, sizeof(readBuf));
+    ExpectIntEQ(ret, 5);
+    ExpectIntEQ(XMEMCMP(readBuf, "hello", 5), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* F-4144: WOLFSSL_OP_NO_RENEGOTIATION on the client must refuse a
+ * server-initiated renegotiation (HelloRequest) with a no_renegotiation
+ * *warning* while keeping the established connection alive, rather than
+ * starting a secure renegotiation. */
+int test_helloRequest_no_renegotiation_option(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_ALERT_HISTORY history;
+    byte readBuf[16];
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&history, 0, sizeof(history));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Client opts into rejecting peer-initiated renegotiation. */
+    wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_RENEGOTIATION);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Server asks the client to renegotiate by sending a HelloRequest, then
+     * waits for the ClientHello that never comes. */
+    ExpectIntLT(wolfSSL_Rehandshake(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Client processes the HelloRequest. It must refuse without starting a
+     * renegotiation: the read returns WANT_READ (connection still alive). */
+    ExpectIntLT(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The refusal was a warning-level no_renegotiation alert. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_tx.level, alert_warning);
+    ExpectIntEQ(history.last_tx.code, no_renegotiation);
+
+    /* The connection is still active and passes data: the client sends
+     * application data which the server receives and decrypts correctly, even
+     * though its renegotiation request was refused. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+    for (i = 0; i < 10 && ret != 5; i++)
+        ret = wolfSSL_read(ssl_s, readBuf, sizeof(readBuf));
+    ExpectIntEQ(ret, 5);
+    ExpectIntEQ(XMEMCMP(readBuf, "hello", 5), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* F-2126: DoTls13ClientHello must reject a second ClientHello whose
  * cipher suite does not match the server's HelloRetryRequest. The
  * client offers two suites in CH1 and only a different one in CH2. */

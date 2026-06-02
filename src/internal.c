@@ -18051,6 +18051,15 @@ static int DoHelloRequest(WOLFSSL* ssl, word32 size)
     }
 #ifdef HAVE_SECURE_RENEGOTIATION
     else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+        /* WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
+         * peer-initiated renegotiation. Respond with a no_renegotiation
+         * warning alert instead of starting a secure renegotiation. */
+        if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
+            WOLFSSL_MSG("Rejecting HelloRequest: WOLFSSL_OP_NO_RENEGOTIATION");
+            WOLFSSL_LEAVE("DoHelloRequest", 0);
+            WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
+            return SendAlert(ssl, alert_warning, no_renegotiation);
+        }
         ssl->secure_renegotiation->startScr = 1;
         WOLFSSL_LEAVE("DoHelloRequest", 0);
         WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
@@ -18783,6 +18792,17 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ssl->secure_renegotiation &&
             ssl->secure_renegotiation->enabled)
     {
+        /* WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
+         * peer-initiated renegotiation. RFC 5246 7.2.2: no_renegotiation is a
+         * warning-level alert, so refuse the renegotiation but keep the
+         * established connection rather than aborting it. Skip the ClientHello
+         * body and leave handshake state untouched, mirroring the client-side
+         * HelloRequest refusal in DoHelloRequest(). */
+        if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
+            WOLFSSL_MSG("Refusing renegotiation: WOLFSSL_OP_NO_RENEGOTIATION");
+            *inOutIdx = expectedIdx;
+            return SendAlert(ssl, alert_warning, no_renegotiation);
+        }
         WOLFSSL_MSG("Reset handshake state");
         XMEMSET(&ssl->msgsReceived, 0, sizeof(MsgsReceived));
         ssl->options.serverState = NULL_STATE;
@@ -23240,6 +23260,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             /* see if sending SSLv2 client hello */
             if ( ssl->options.side == WOLFSSL_SERVER_END &&
                  ssl->options.clientState == NULL_STATE &&
+                 !ssl->options.handShakeDone &&
                  ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx]
                          != handshake &&
                  /* change_cipher_spec here is an error but we want to handle
