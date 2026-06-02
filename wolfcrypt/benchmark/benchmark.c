@@ -1298,9 +1298,6 @@ static const bench_alg bench_other_opt[] = {
 #endif
     { NULL, 0}
 };
-#endif /* MAIN_NO_ARGS */
-
-#endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
 #if defined(BENCH_PQ_STATEFUL_HBS)
 typedef struct bench_pq_hash_sig_alg {
@@ -1352,6 +1349,10 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
     { NULL, 0}
 };
 #endif /* BENCH_PQ_STATEFUL_HBS */
+
+#endif /* MAIN_NO_ARGS */
+
+#endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
 #if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(MAIN_NO_ARGS)
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
