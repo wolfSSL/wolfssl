@@ -24662,6 +24662,19 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
+    /* RFC 5246 6.1: record sequence numbers MUST NOT wrap. Refuse to emit a
+     * record once the write sequence number has reached its maximum value
+     * (2^64-1); reusing sequence number 0 with the same keys would break the
+     * record protection. The caller must renegotiate or close the connection
+     * instead. DTLS sequence numbers are epoch-scoped and handled elsewhere. */
+    if (!sizeOnly && !ssl->options.dtls &&
+            ssl->keys.sequence_number_hi == 0xFFFFFFFFU &&
+            ssl->keys.sequence_number_lo == 0xFFFFFFFFU) {
+        WOLFSSL_MSG("TLS write sequence number would wrap");
+        WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+        return SEQUENCE_NUMBER_E;
+    }
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;
     if (asyncOkay) {
@@ -28108,6 +28121,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case ECH_REQUIRED_E:
         return "ECH offered but rejected by server";
+
+    case SEQUENCE_NUMBER_E:
+        return "Record sequence number would wrap";
     }
 
     return "unknown error number";

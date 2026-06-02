@@ -244,7 +244,9 @@ enum wolfSSL_ErrorCodes {
 
     ECH_REQUIRED_E               = -519,   /* ECH offered but rejected by server */
 
-    WOLFSSL_LAST_E               = -519
+    SEQUENCE_NUMBER_E            = -520,   /* Record sequence number would wrap */
+
+    WOLFSSL_LAST_E               = -520
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
