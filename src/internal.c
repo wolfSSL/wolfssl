@@ -32279,6 +32279,25 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                     WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
                     return EXT_MASTER_SECRET_NEEDED_E;
                 }
+#ifndef NO_RESUME_SUITE_CHECK
+                /* RFC 5246 Section 7.4.1.3: on resumption the ServerHello
+                 * reuses the previously negotiated cipher suite. Reject a
+                 * server that resumes the session but selects a different
+                 * suite. Skipped for ticket resumption (suite is bound in the
+                 * ticket), consistent with the EMS check above. */
+                if (
+            #ifdef HAVE_SESSION_TICKET
+                    ssl->session->ticketLen == 0 &&
+            #endif
+                    (ssl->options.cipherSuite0 != ssl->session->cipherSuite0 ||
+                        ssl->options.cipherSuite != ssl->session->cipherSuite)) {
+                    WOLFSSL_MSG("Resumed session cipher suite does not match "
+                                "ServerHello cipher suite");
+                    SendAlert(ssl, alert_fatal, illegal_parameter);
+                    WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
+                    return MATCH_SUITE_ERROR;
+                }
+#endif /* NO_RESUME_SUITE_CHECK */
                 if (SetCipherSpecs(ssl) == 0) {
                     if (!HaveUniqueSessionObj(ssl)) {
                         WOLFSSL_MSG("Unable to have unique session object");
