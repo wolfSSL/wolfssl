@@ -1189,6 +1189,19 @@
     /* settings in user_settings.h */
 #endif
 
+#if defined(WOLFSSL_RENESAS_RSIP) && !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* The Renesas FSPSM hash context has no software digest[] state field and
+     * the device computes each SHA-512 variant (SHA-384, SHA-512/224,
+     * SHA-512/256) natively. Disable the cryptocb fallback that reuses the
+     * generic SHA-512 callback for the variants: it relies on a digest[] IV in
+     * the context (absent here, so it would not compile) and assumes the
+     * backend exposes its hash state, which a device that keeps state
+     * internally does not. */
+    #ifndef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+        #define WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+    #endif
+#endif
+
 #if defined(WOLFSSL_LWIP_NATIVE) || \
     defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
     #undef WOLFSSL_USER_IO

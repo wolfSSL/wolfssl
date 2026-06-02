@@ -74443,6 +74443,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_SHA512
     if (ret == 0)
         ret = sha512_test();
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    /* exercises the SHA-512/224 fallback to the generic SHA-512 callback,
+     * including object reuse after Final */
+    if (ret == 0)
+        ret = sha512_224_test();
+#endif
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    if (ret == 0)
+        ret = sha512_256_test();
+#endif
 #ifdef WOLFSSL_SHA3
     if (ret == 0)
         ret = sha3_test();
