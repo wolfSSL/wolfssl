@@ -22489,6 +22489,24 @@ static void LogAlert(int type)
 }
 
 /* process alert, return level */
+#ifndef NO_SESSION_CACHE
+/* RFC 5246 Section 7.2.2: a TLS 1.2 session whose connection is terminated by a
+ * fatal alert MUST be invalidated so it cannot be resumed. (TLS 1.3 RFC 8446
+ * Section 6.2 only requires closing the connection, but evicting here too is
+ * sound defense-in-depth.) Evict the cached session (which also drops any
+ * associated ticket). Acts on an established connection or an in-progress
+ * resumption - both reference a cached session; a brand-new full handshake has
+ * no cached session to remove. */
+static void InvalidateSessionOnFatalAlert(WOLFSSL* ssl)
+{
+    if (ssl == NULL || ssl->ctx == NULL || ssl->session == NULL)
+        return;
+    if (!ssl->options.handShakeDone && !ssl->options.resuming)
+        return;
+    (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
+}
+#endif /* !NO_SESSION_CACHE */
+
 static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 {
     byte level;
@@ -22551,6 +22569,15 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
                 code != close_notify && code != user_canceled) {
             ssl->options.isClosed = 1;
         }
+#ifndef NO_SESSION_CACHE
+        /* A fatal alert immediately terminates the connection; invalidate the
+         * session so it cannot be used to establish new connections. In TLS 1.3
+         * all error alerts are implicitly fatal (RFC 8446 6.2). */
+        if (code != close_notify &&
+                (level == alert_fatal ||
+                 (IsAtLeastTLSv1_3(ssl->version) && code != user_canceled)))
+            InvalidateSessionOnFatalAlert(ssl);
+#endif
     }
 
     if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
@@ -27438,6 +27465,17 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    /* InvalidateSessionOnFatalAlert() is defined in the !NO_TLS section, so the
+     * guard here must match (with NO_TLS there are no TLS sessions to evict). */
+#if !defined(NO_SESSION_CACHE) && !defined(NO_TLS)
+    /* RFC 5246 Section 7.2.2: a fatal alert terminates the connection;
+     * invalidate the established session so it cannot be resumed. Do this as
+     * soon as the fatal alert is generated, before the pendingAlert/backpressure
+     * handling below which can return early without sending the alert now. */
+    if (severity == alert_fatal)
+        InvalidateSessionOnFatalAlert(ssl);
+#endif
 
     if (ssl->pendingAlert.level != alert_none) {
         ret = RetrySendAlert(ssl);
