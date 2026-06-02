@@ -6030,7 +6030,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     i += OPAQUE16_LEN;
 
     /* Extension data. */
-    if (i - begin + totalExtSz > totalSz)
+    if (i - begin + totalExtSz != totalSz)
         return BUFFER_ERROR;
     if ((ret = TLSX_Parse(ssl, input + i, totalExtSz, encrypted_extensions,
                                                                        NULL))) {
