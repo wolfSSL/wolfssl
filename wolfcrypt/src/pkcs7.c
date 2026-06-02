@@ -14968,11 +14968,11 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
             }
 
+        #ifdef NO_PKCS7_STREAM
             if (ret == 0 && encryptedContentSz > (int)(pkiMsgSz - idx)) {
-            #ifdef NO_PKCS7_STREAM
                 ret = BUFFER_E;
-            #endif
             }
+        #endif
 
             if (ret < 0)
                 break;

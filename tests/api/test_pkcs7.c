@@ -2895,8 +2895,9 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
         pkcs7->contentOID = DATA;
         pkcs7->encryptOID = AES128GCMb;
     }
+    /* >32 so the encSz-32 / encSz-1 truncations below can't underflow */
     ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
-        sizeof(enveloped)), 0);
+        sizeof(enveloped)), 32);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
