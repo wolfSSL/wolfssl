@@ -99,45 +99,46 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 
 #define WOLFKM_RSA_NAME      ("rsa")
-#define WOLFKM_RSA_DRIVER    ("rsa" WOLFKM_DRIVER_FIPS "-wolfcrypt")
+
+#if defined(WOLFSSL_SP_X86_64_ASM) && !defined(NO_AVX2_SUPPORT)
+    #define WOLFKM_RSA_DRIVER_ISA_EXT "-avx2"
+#else
+    #define WOLFKM_RSA_DRIVER_ISA_EXT ""
+#endif
+#define WOLFKM_RSA_DRIVER_SUFFIX WOLFKM_RSA_DRIVER_ISA_EXT \
+                           WOLFKM_DRIVER_SUFFIX_BASE
+
+#define WOLFKM_RSA_DRIVER    ("rsa" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #if defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
     /* the akcipher alg */
-    #define WOLFKM_PKCS1PAD_NAME   ("pkcs1pad(rsa)")
-    #define WOLFKM_PKCS1PAD_DRIVER ("pkcs1pad(rsa" WOLFKM_DRIVER_FIPS \
-                                        "-wolfcrypt)")
+    #define WOLFKM_PKCS1PAD_NAME   "pkcs1pad(rsa)"
+    #define WOLFKM_PKCS1PAD_DRIVER "pkcs1pad-rsa" WOLFKM_RSA_DRIVER_SUFFIX
 #endif /* LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
 /*
  * pkcs1 sign verify alg names
  * */
 #define WOLFKM_PKCS1_SHA224_NAME   (PKCS1_NAME "(rsa,sha224)")
-#define WOLFKM_PKCS1_SHA224_DRIVER (PKCS1_NAME "(rsa" WOLFKM_DRIVER_FIPS \
-                                    "-wolfcrypt,sha224)")
+#define WOLFKM_PKCS1_SHA224_DRIVER ("pkcs1pad-rsa-sha224" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #define WOLFKM_PKCS1_SHA256_NAME   (PKCS1_NAME "(rsa,sha256)")
-#define WOLFKM_PKCS1_SHA256_DRIVER (PKCS1_NAME "(rsa" WOLFKM_DRIVER_FIPS \
-                                    "-wolfcrypt,sha256)")
+#define WOLFKM_PKCS1_SHA256_DRIVER ("pkcs1pad-rsa-sha256" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #define WOLFKM_PKCS1_SHA384_NAME   (PKCS1_NAME "(rsa,sha384)")
-#define WOLFKM_PKCS1_SHA384_DRIVER (PKCS1_NAME "(rsa" WOLFKM_DRIVER_FIPS \
-                                    "-wolfcrypt,sha384)")
+#define WOLFKM_PKCS1_SHA384_DRIVER ("pkcs1pad-rsa-sha384" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #define WOLFKM_PKCS1_SHA512_NAME   (PKCS1_NAME "(rsa,sha512)")
-#define WOLFKM_PKCS1_SHA512_DRIVER (PKCS1_NAME "(rsa" WOLFKM_DRIVER_FIPS \
-                                    "-wolfcrypt,sha512)")
+#define WOLFKM_PKCS1_SHA512_DRIVER ("pkcs1pad-rsa-sha512" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #define WOLFKM_PKCS1_SHA3_256_NAME   (PKCS1_NAME "(rsa,sha3-256)")
-#define WOLFKM_PKCS1_SHA3_256_DRIVER (PKCS1_NAME "(rsa" WOLFKM_DRIVER_FIPS \
-                                      "-wolfcrypt,sha3-256)")
+#define WOLFKM_PKCS1_SHA3_256_DRIVER ("pkcs1pad-rsa-sha3-256" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #define WOLFKM_PKCS1_SHA3_384_NAME   (PKCS1_NAME "(rsa,sha3-384)")
-#define WOLFKM_PKCS1_SHA3_384_DRIVER (PKCS1_NAME "(rsa" WOLFKM_DRIVER_FIPS \
-                                      "-wolfcrypt,sha3-384)")
+#define WOLFKM_PKCS1_SHA3_384_DRIVER ("pkcs1pad-rsa-sha3-384" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #define WOLFKM_PKCS1_SHA3_512_NAME   (PKCS1_NAME "(rsa,sha3-512)")
-#define WOLFKM_PKCS1_SHA3_512_DRIVER (PKCS1_NAME "(rsa" WOLFKM_DRIVER_FIPS \
-                                      "-wolfcrypt,sha3-512)")
+#define WOLFKM_PKCS1_SHA3_512_DRIVER ("pkcs1pad-rsa-sha3-512" WOLFKM_RSA_DRIVER_SUFFIX)
 
 #if defined(WOLFSSL_KEY_GEN)
     #if defined(LINUXKM_DIRECT_RSA)

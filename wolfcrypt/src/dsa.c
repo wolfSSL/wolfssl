@@ -36,14 +36,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
-    /* force off unneeded vector register save/restore. */
-    #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
-    #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
-#endif
-
 #ifdef _MSC_VER
     /* disable for while(0) cases (MSVC bug) */
     #pragma warning(disable:4127)
@@ -269,8 +261,6 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     }
 #endif
 
-    SAVE_VECTOR_REGISTERS(;);
-
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), dsa->heap,
             DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
@@ -337,8 +327,6 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 #else
     mp_clear(tmpQ);
 #endif
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -454,6 +442,11 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
                     break;
                 loop_check_prime++;
             }
+
+            err = WC_CHECK_FOR_INTR_SIGNALS();
+            if (err != 0)
+                break;
+            WC_RELAX_LONG_LOOP();
         }
     }
 
@@ -794,8 +787,6 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
         return BAD_LENGTH_E;
     }
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     do {
 #ifdef WOLFSSL_SMALL_STACK
         k = (mp_int *)XMALLOC(sizeof *k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1039,8 +1030,6 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             }
         }
     } while (0);
-
-    RESTORE_VECTOR_REGISTERS();
 
 #ifdef WOLFSSL_SMALL_STACK
     if (k) {

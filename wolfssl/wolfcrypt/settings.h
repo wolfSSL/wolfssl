@@ -3963,6 +3963,9 @@ extern void uITRON4_free(void *p) ;
         #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
             #define WC_NO_INTERNAL_FUNCTION_POINTERS
         #endif
+        #ifndef WC_NO_GLOBAL_OBJECT_POINTERS
+            #define WC_NO_GLOBAL_OBJECT_POINTERS
+        #endif
         #ifndef WOLFSSL_ECC_CURVE_STATIC
             #define WOLFSSL_ECC_CURVE_STATIC
         #endif

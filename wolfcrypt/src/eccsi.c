@@ -36,14 +36,6 @@
     #include <wolfssl/wolfcrypt/sp.h>
 #endif
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
-    /* force off unneeded vector register save/restore. */
-    #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
-    #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
-#endif
-
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
     #define wc_ecc_key_get_priv(key) (&((key)->k))
@@ -1507,8 +1499,6 @@ int wc_ValidateEccsiPair(EccsiKey* key, enum wc_HashType hashType,
     if (err != 0)
         return err;
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     params = &key->params;
     hs = &key->tmp;
     res = &key->pubkey.pubkey;
@@ -1562,8 +1552,6 @@ int wc_ValidateEccsiPair(EccsiKey* key, enum wc_HashType hashType,
             *valid = (wc_ecc_cmp_point(res, kpak) == MP_EQ);
         }
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -2231,8 +2219,6 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,
     if (err != 0)
         return err;
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     /* Decode the signature into components. */
     r = wc_ecc_key_get_priv(&key->pubkey);
     pvt = &key->pubkey.pubkey;
@@ -2317,8 +2303,6 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,
     if (verified != NULL) {
         *verified = ((err == 0) && (mp_cmp(jx, r) == MP_EQ));
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
