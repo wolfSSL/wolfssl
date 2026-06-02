@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-Report security vulnerabilities to **support@wolfssl.com** or call **+1-425-245-8247**.
+Report security vulnerabilities to **secure@wolfssl.com** or call **+1-425-245-8247**.
 
 Reports may be encrypted with our PGP key:
 
@@ -21,4 +21,4 @@ published at:
 
 For CVE consideration, submit a completed
 [vulnerability report template](../SECURITY-REPORT-TEMPLATE.md) to
-**support@wolfssl.com**.
+**secure@wolfssl.com**.
