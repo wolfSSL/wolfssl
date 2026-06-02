@@ -5340,3 +5340,101 @@ int test_dtls12_missing_finished(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_SESSION_EXPORT) && defined(HAVE_ENCRYPT_THEN_MAC) && \
+    !defined(WOLFSSL_AEAD_ONLY) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    !defined(NO_SHA256) && defined(HAVE_ECC)
+/* Dummy peer callbacks so the DTLS exporter/importer has peer information to
+ * work with (the library requires these unless built with
+ * WOLFSSL_SESSION_EXPORT_NOPEER). */
+static int test_dtls_export_etm_get_peer(WOLFSSL* ssl, char* ip, int* ipSz,
+        unsigned short* port, int* fam)
+{
+    (void)ssl;
+    ip[0] = -1;
+    *ipSz = 1;
+    *port = 1;
+    *fam = 2;
+    return 1;
+}
+
+static int test_dtls_export_etm_set_peer(WOLFSSL* ssl, char* ip, int ipSz,
+        unsigned short port, int fam)
+{
+    (void)ssl;
+    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+        return 0;
+    return 1;
+}
+#endif
+
+/* Regression test for DTLS session export/import dropping the Encrypt-Then-MAC
+ * options. Historically the ETM option fields were only serialized for TLS, so
+ * a re-imported DTLS session lost the negotiated ETM state and broke the record
+ * layer. Establish a DTLS 1.2 connection with a CBC cipher suite (where ETM
+ * applies), export the session, re-import it into a fresh WOLFSSL, and confirm
+ * the ETM option fields survive the round trip. */
+int test_dtls12_export_import_etm(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_SESSION_EXPORT) && defined(HAVE_ENCRYPT_THEN_MAC) && \
+    !defined(WOLFSSL_AEAD_ONLY) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    !defined(NO_SHA256) && defined(HAVE_ECC)
+    /* TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 - a CBC suite, where ETM applies. */
+    const char* cbcSuite = "ECDHE-RSA-AES128-SHA256";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, cbcSuite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, cbcSuite), WOLFSSL_SUCCESS);
+
+    /* The exporter/importer needs peer info callbacks. */
+    wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_etm_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_etm_set_peer);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Sanity: the handshake itself negotiated ETM on both sides. */
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.encThenMac, 1);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->options.encThenMac, 1);
+
+    /* Export the server's DTLS session. */
+    ExpectIntGE(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+    ExpectIntGT(sessionSz, 0);
+    ExpectNotNull(session = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGE(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+
+    /* Import into a fresh WOLFSSL and confirm the ETM state survived. */
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+    ExpectIntGE(wolfSSL_dtls_import(ssl_imp, session, sessionSz), 0);
+    if (ssl_imp != NULL) {
+        /* Regression check: pre-fix these were all reset to 0 for DTLS. */
+        ExpectIntEQ(ssl_imp->options.encThenMac, 1);
+        ExpectIntEQ(ssl_imp->options.startedETMRead, 1);
+        ExpectIntEQ(ssl_imp->options.startedETMWrite, 1);
+        ExpectIntEQ(ssl_imp->options.disallowEncThenMac, 0);
+    }
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

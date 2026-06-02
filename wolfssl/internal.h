@@ -1632,25 +1632,28 @@ enum Misc {
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
-    DTLS_EXPORT_OPT_SZ       = 62, /* amount of bytes used from Options */
-    DTLS_EXPORT_OPT_SZ_4     = 61, /* amount of bytes used from Options */
-    TLS_EXPORT_OPT_SZ        = 66, /* amount of bytes used from Options */
-    TLS_EXPORT_OPT_SZ_4      = 65, /* amount of bytes used from Options */
-    DTLS_EXPORT_OPT_SZ_3     = 60, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 66, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_5     = 62, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_4     = 61, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ        = 66, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ_5      = 66, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ_4      = 65, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_3     = 60, /* number of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
-                                   /* max amount of bytes used from Keys */
+                                   /* max number of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 85 + (DTLS_SEQ_SZ * 2),
-                                   /* min amount of bytes used from Keys */
+                                   /* min number of bytes used from Keys */
     WOLFSSL_EXPORT_TLS       = 1,
     WOLFSSL_EXPORT_DTLS      = 0,
 #ifndef WOLFSSL_EXPORT_SPC_SZ
-    WOLFSSL_EXPORT_SPC_SZ    = 16, /* amount of bytes used from CipherSpecs */
+    WOLFSSL_EXPORT_SPC_SZ    = 16, /* number of bytes used from CipherSpecs */
 #endif
     WOLFSSL_EXPORT_LEN       = 2,  /* 2 bytes for length and protocol */
-    WOLFSSL_EXPORT_VERSION   = 5,  /* wolfSSL version for serialized session */
+    WOLFSSL_EXPORT_VERSION   = 6,  /* wolfSSL version for serialized session */
 
-    WOLFSSL_EXPORT_VERSION_4 = 4,  /* 5.6.4 release and before */
     /* older export versions supported */
+    WOLFSSL_EXPORT_VERSION_5 = 5,  /* version before DTLS Encrypt-Then-MAC */
+    WOLFSSL_EXPORT_VERSION_4 = 4,  /* 5.6.4 release and before */
     WOLFSSL_EXPORT_VERSION_3 = 3,  /* wolfSSL version before TLS 1.3 addition */
 
     MAX_EXPORT_IP            = 46, /* max ip size IPv4 mapped IPv6 */
