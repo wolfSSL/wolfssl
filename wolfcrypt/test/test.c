@@ -48538,23 +48538,23 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER512, key, HEAP_HINT, katDevId);
+    ret = wc_MlKemKey_Init(key, KYBER512, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
         key_inited = 1;
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
-    ret = wc_KyberKey_MakeKeyWithRandom(key, kyber512_rand,
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber512_rand,
         sizeof(kyber512_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePublicKey(key, pub, KYBER512_PUBLIC_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePublicKey(key, pub, KYBER512_PUBLIC_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePrivateKey(key, priv, KYBER512_PRIVATE_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER512_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -48566,14 +48566,14 @@ static wc_test_ret_t mlkem512_kat(void)
 #else
     (void)kyber512_rand;
     (void)kyber512_pk;
-    ret = wc_KyberKey_DecodePrivateKey(key, kyber512_sk,
+    ret = wc_MlKemKey_DecodePrivateKey(key, kyber512_sk,
         KYBER512_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
-    ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
+    ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
         sizeof(kyber512enc_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -48588,7 +48588,7 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber512_ct,
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber512_ct,
         sizeof(kyber512_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -50001,23 +50001,23 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER768, key, HEAP_HINT, katDevId);
+    ret = wc_MlKemKey_Init(key, KYBER768, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
         key_inited = 1;
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
-    ret = wc_KyberKey_MakeKeyWithRandom(key, kyber768_rand,
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber768_rand,
         sizeof(kyber768_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePublicKey(key, pub, KYBER768_PUBLIC_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePublicKey(key, pub, KYBER768_PUBLIC_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePrivateKey(key, priv, KYBER768_PRIVATE_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER768_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -50029,14 +50029,14 @@ static wc_test_ret_t mlkem768_kat(void)
 #else
     (void)kyber768_rand;
     (void)kyber768_pk;
-    ret = wc_KyberKey_DecodePrivateKey(key, kyber768_sk,
+    ret = wc_MlKemKey_DecodePrivateKey(key, kyber768_sk,
         KYBER768_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
-    ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
+    ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
         sizeof(kyber768enc_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -50051,7 +50051,7 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber768_ct,
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber768_ct,
         sizeof(kyber768_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -51848,23 +51848,23 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER1024, key, HEAP_HINT, katDevId);
+    ret = wc_MlKemKey_Init(key, KYBER1024, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
         key_inited = 1;
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
-    ret = wc_KyberKey_MakeKeyWithRandom(key, kyber1024_rand,
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber1024_rand,
         sizeof(kyber1024_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePublicKey(key, pub, KYBER_MAX_PUBLIC_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePublicKey(key, pub, KYBER_MAX_PUBLIC_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePrivateKey(key, priv, KYBER_MAX_PRIVATE_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER_MAX_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -51876,14 +51876,14 @@ static wc_test_ret_t mlkem1024_kat(void)
 #else
     (void)kyber1024_rand;
     (void)kyber1024_pk;
-    ret = wc_KyberKey_DecodePrivateKey(key, kyber1024_sk,
+    ret = wc_MlKemKey_DecodePrivateKey(key, kyber1024_sk,
         KYBER1024_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
-    ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
+    ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
         sizeof(kyber1024enc_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -51898,7 +51898,7 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber1024_ct,
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber1024_ct,
         sizeof(kyber1024_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
