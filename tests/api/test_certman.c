@@ -2126,7 +2126,7 @@ int test_wolfSSL_X509_check_host_URI_SAN_not_DNS_match(void)
     WOLFSSL_X509_NAME* name = NULL;
     const char* server_cert = "./certs/test/server-goodcn.pem";
     const char hostName[] = "cnhost.local";
-    const char uriSan[] = "cnhost.local";
+    const char uriSan[] = "http://cnhost.local";
     byte    *pt;
     WOLFSSL_X509 *leafUri = NULL;
     WOLFSSL_X509 *leafUriDns = NULL;

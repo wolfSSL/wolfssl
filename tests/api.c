@@ -10026,8 +10026,7 @@ static int test_wolfSSL_URI(void)
     wolfSSL_FreeX509(x509);
     x509 = NULL;
 
-#if !defined(IGNORE_NAME_CONSTRAINTS) && !defined(WOLFSSL_NO_ASN_STRICT) \
-    && !defined(WOLFSSL_FPKI)
+#if !defined(IGNORE_NAME_CONSTRAINTS) && !defined(WOLFSSL_NO_ASN_STRICT)
     ExpectNull(x509 = wolfSSL_X509_load_certificate_file(badUri,
         WOLFSSL_FILETYPE_PEM));
 #else
