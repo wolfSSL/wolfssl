@@ -18644,7 +18644,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         }
         WOLFSSL_MSG("\tPutting URI into list but not using");
 
-    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
+    #ifndef WOLFSSL_NO_ASN_STRICT
         /* Verify RFC 5280 Sec 4.2.1.6 rule:
             "The name MUST NOT be a relative URI"
             As per RFC 3986 Sec 4.3, an absolute URI is only required to contain
@@ -18660,9 +18660,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
                     break;
                 }
                 if (input[idx + (word32)i] == '/') {
-                    i = len; /* error, found relative path since '/' was
-                              * encountered before ':'. Returning error
-                              * value in next if statement. */
+                    /* path is relative since '/' was encountered before ':'. */
+                    return ASN_ALT_NAME_E;
                 }
             }
 
@@ -37726,7 +37725,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
         WOLFSSL_MSG("\tPutting URI into list but not using");
 
-    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
+    #ifndef WOLFSSL_NO_ASN_STRICT
         /* Verify RFC 5280 Sec 4.2.1.6 rule:
            "The name MUST NOT be a relative URI"
            As per RFC 3986 Sec 4.3, an absolute URI is only required to contain
@@ -37742,9 +37741,8 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
                     break;
                 }
                 if (input[idx + (word32)i] == '/') {
-                    i = len; /* error, found relative path since '/' was
-                              * encountered before ':'. Returning error
-                              * value in next if statement. */
+                    /* path is relative since '/' was encountered before ':'. */
+                    return ASN_ALT_NAME_E;
                 }
             }
 
