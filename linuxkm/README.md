@@ -57,6 +57,24 @@ $ sudo modprobe libwolfssl
 | `--enable-intelasm`                | x86/amd64 crypto acceleration            |
 | `--enable-cryptonly`               | Omit TLS/DTLS implementation (normally recommended) |
 
+### Enabling DTLS 1.3 in the kernel module
+
+`--enable-linuxkm` does not implicitly enable TLS 1.3 or DTLS, so the DTLS 1.3
+configure check (`configure.ac:5634-5636`) requires all three flags to be
+passed explicitly:
+
+```sh
+./configure --enable-linuxkm \
+            --enable-tls13 --enable-dtls --enable-dtls13 \
+            --with-linux-source=/lib/modules/$(uname -r)/build
+make -j$(nproc) module
+```
+
+The resulting `linuxkm/libwolfssl.ko` exports the DTLS 1.3 entry points
+(`wolfDTLSv1_3_client_method`, `wolfDTLSv1_3_server_method`, etc.) as GPL
+kernel symbols, available to other in-kernel consumers via
+`EXPORT_SYMBOL_GPL`.
+
 ### Additional configuration options for verification, performance evaluation, and troubleshooting
 
 | option                             | description                              |
