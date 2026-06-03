@@ -176,7 +176,7 @@ SEGGER_RTT_CB _SEGGER_RTT __attribute__((section(".txt.rtt_block")));
 ```
 static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 ```
-+ Client IP address can be changed by the following line in wolfssl_demo.h.
++ Server IP address can be changed by the following line in wolfssl_demo.h.
 ```
 #define SERVER_IP    "192.168.11.40"
 ```
