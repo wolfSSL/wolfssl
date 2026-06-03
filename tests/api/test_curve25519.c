@@ -399,6 +399,99 @@ int test_wc_curve25519_shared_secret_zero_check(void)
 } /* END test_wc_curve25519_shared_secret_zero_check */
 
 /*
+ * Known-answer tests for wc_curve25519_shared_secret_ex.
+ *
+ * Both vectors share one private scalar and produce a shared secret that is a
+ * small canonical value (9 and 16, little-endian). Because the result is close
+ * to a multiple of the field prime, these exercise the final modular reduction
+ * of the X25519 computation: a result that was only reduced mod 2^256 (or left
+ * in [p, 2^255)) instead of fully reduced mod 2^255-19 would not match.
+ * All values are 32-byte little-endian encodings per RFC 7748.
+ */
+int test_wc_curve25519_shared_secret_ex_kat(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)
+    /* Private scalar shared by both vectors. */
+    static const byte kPriv[CURVE25519_KEYSIZE] = {
+        0x60, 0xa3, 0xa4, 0xf1, 0x30, 0xb9, 0x8a, 0x5b,
+        0xe4, 0xb1, 0xce, 0xdb, 0x7c, 0xb8, 0x55, 0x84,
+        0xa3, 0x52, 0x0e, 0x14, 0x2d, 0x47, 0x4d, 0xc9,
+        0xcc, 0xb9, 0x09, 0xa0, 0x73, 0xa9, 0x76, 0x7f
+    };
+    /* Vector 1 public value, expected shared secret == 9. */
+    static const byte kPub1[CURVE25519_KEYSIZE] = {
+        0x3b, 0x18, 0xdf, 0x1e, 0x50, 0xb8, 0x99, 0xeb,
+        0xd5, 0x88, 0xc3, 0x16, 0x1c, 0xbd, 0x3b, 0xf9,
+        0x8e, 0xbc, 0xc2, 0xc1, 0xf7, 0xdf, 0x53, 0xb8,
+        0x11, 0xbd, 0x0e, 0x91, 0xb4, 0xd5, 0x15, 0x3d
+    };
+    static const byte kExpected1[CURVE25519_KEYSIZE] = {
+        0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    /* Vector 2 public value, expected shared secret == 16. */
+    static const byte kPub2[CURVE25519_KEYSIZE] = {
+        0xca, 0xb6, 0xf9, 0xe7, 0xd8, 0xce, 0x00, 0xdf,
+        0xce, 0xa9, 0xbb, 0xd8, 0xf0, 0x69, 0xef, 0x7f,
+        0xb2, 0xac, 0x50, 0x4a, 0xbf, 0x83, 0xb8, 0x7d,
+        0xb6, 0x01, 0xb5, 0xae, 0x0a, 0x7f, 0x76, 0x15
+    };
+    static const byte kExpected2[CURVE25519_KEYSIZE] = {
+        0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    /* Table-driven so both vectors run through the identical code path. */
+    struct {
+        const byte* pub;
+        const byte* expected;
+    } vec[2];
+    curve25519_key private_key;
+    curve25519_key public_key;
+    WC_RNG         rng;
+    byte           out[CURVE25519_KEYSIZE];
+    word32         outLen;
+    int i;
+
+    vec[0].pub = kPub1; vec[0].expected = kExpected1;
+    vec[1].pub = kPub2; vec[1].expected = kExpected2;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&private_key, 0, sizeof(private_key));
+        XMEMSET(&public_key, 0, sizeof(public_key));
+        ExpectIntEQ(wc_curve25519_init(&private_key), 0);
+        ExpectIntEQ(wc_curve25519_init(&public_key), 0);
+    #ifdef WOLFSSL_CURVE25519_BLINDING
+        ExpectIntEQ(wc_curve25519_set_rng(&private_key, &rng), 0);
+    #endif
+        ExpectIntEQ(wc_curve25519_import_private_ex(kPriv, sizeof(kPriv),
+            &private_key, EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(wc_curve25519_import_public_ex(vec[i].pub,
+            CURVE25519_KEYSIZE, &public_key, EC25519_LITTLE_ENDIAN), 0);
+
+        outLen = sizeof(out);
+        ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
+            out, &outLen, EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(outLen, CURVE25519_KEYSIZE);
+        ExpectIntEQ(XMEMCMP(out, vec[i].expected, CURVE25519_KEYSIZE), 0);
+
+        wc_curve25519_free(&private_key);
+        wc_curve25519_free(&public_key);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve25519_shared_secret_ex_kat */
+
+/*
  * Testing wc_curve25519_make_pub
  */
 int test_wc_curve25519_make_pub(void)

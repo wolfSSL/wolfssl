@@ -31,6 +31,7 @@ int test_wc_curve25519_export_key_raw_ex(void);
 int test_wc_curve25519_make_key(void);
 int test_wc_curve25519_shared_secret_ex(void);
 int test_wc_curve25519_shared_secret_zero_check(void);
+int test_wc_curve25519_shared_secret_ex_kat(void);
 int test_wc_curve25519_make_pub(void);
 int test_wc_curve25519_export_public_ex(void);
 int test_wc_curve25519_export_private_raw_ex(void);
@@ -47,6 +48,7 @@ int test_wc_Curve25519KeyToDer_oneasymkey_version(void);
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_make_key),                \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_shared_secret_ex),        \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_shared_secret_zero_check),\
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_shared_secret_ex_kat),    \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_make_pub),                \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_export_public_ex),        \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_export_private_raw_ex),   \
