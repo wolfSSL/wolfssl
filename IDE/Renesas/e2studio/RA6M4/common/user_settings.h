@@ -115,5 +115,4 @@
 #endif
 
 #define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock
-/* use original asn parsing */
-#define WOLFSSL_ASN_ORIGINAL
+
