@@ -469,10 +469,10 @@ extern "C" {
 /* Override Current Time */
 /* Allows custom "custom_time()" function to be used for benchmark */
 #define WOLFSSL_USER_CURRTIME
-#define WOLFSSL_GMTIME
+#define TIME_OVERRIDES
 #define USER_TICKS
-extern unsigned long my_time(unsigned long* timer);
 #define XTIME my_time
+#define XGMTIME my_gmtime
 
 
 /* ------------------------------------------------------------------------- */
@@ -656,4 +656,3 @@ extern unsigned int my_rng_seed_gen(void);
 #endif
 
 #endif /* WOLFSSL_USER_SETTINGS_H */
-
