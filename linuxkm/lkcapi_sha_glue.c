@@ -1009,7 +1009,7 @@ static volatile int wc_linuxkm_rng_initing_default_bank_flag = 0;
 
 static int linuxkm_affinity_lock(void *arg) {
     (void)arg;
-    if (preempt_count() != 0)
+    if (! wc_linuxkm_can_block())
         return ALREADY_E;
 #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
     migrate_disable(); /* this actually makes irq_count() nonzero, so that
@@ -1118,7 +1118,7 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
         WC_RNG_BANK_FLAG_CAN_WAIT |
         WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
 
-    if (preempt_count() == 0)
+    if (wc_linuxkm_can_block())
         flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
     else
         flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
@@ -1487,7 +1487,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
     struct wc_rng_bank *ctx;
     size_t i;
     int n;
-    int can_sleep = (preempt_count() == 0);
+    int can_sleep = wc_linuxkm_can_block();
 
     if (len == 0)
         return 0;
@@ -1545,7 +1545,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
 
 static int wc_crng_reseed(void) {
     struct wc_rng_bank *ctx;
-    int can_sleep = (preempt_count() == 0);
+    int can_sleep = wc_linuxkm_can_block();
     int ret = wc_rng_bank_default_checkout(&ctx);
 
     if (ret) {
