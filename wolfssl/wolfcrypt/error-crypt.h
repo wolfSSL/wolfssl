@@ -357,8 +357,17 @@ enum wolfCrypt_ErrorCodes {
     NEEDS_RECOVERY_E    = -1033, /* Object needs recovery before use */
     UNEXPECTED_STATE_E  = -1034, /* Object has unexpected state */
 
-    WC_SPAN2_LAST_E     = -1034, /* Update to indicate last used error code */
-    WC_LAST_E           = -1034, /* the last code used either here or in
+    HWPUF_INIT_E        = -1035, /* HWPUF initialization failed */
+    HWPUF_DEINIT_E      = -1036, /* HWPUF deinitialization failed */
+    HWPUF_ENROLL_E      = -1037, /* HWPUF enrollment failed */
+    HWPUF_START_E       = -1038, /* HWPUF start failed */
+    HWPUF_GENERATE_KEY_E= -1039, /* HWPUF generate key failed */
+    HWPUF_SET_KEY_E     = -1040, /* HWPUF set key failed */
+    HWPUF_GET_KEY_E     = -1041, /* HWPUF get key failed */
+    HWPUF_ZEROIZE_E     = -1042, /* HWPUF zeroize failed */
+
+    WC_SPAN2_LAST_E     = -1042, /* Update to indicate last used error code */
+    WC_LAST_E           = -1042, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

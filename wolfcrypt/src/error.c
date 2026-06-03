@@ -766,6 +766,30 @@ const char* wc_GetErrorString(int error)
     case UNEXPECTED_STATE_E:
         return "Object has unexpected state";
 
+    case HWPUF_INIT_E:
+        return "HWPUF initialization failed";
+
+    case HWPUF_DEINIT_E:
+        return "HWPUF deinitialization failed";
+
+    case HWPUF_ENROLL_E:
+        return "HWPUF enrollment failed";
+
+    case HWPUF_START_E:
+        return "HWPUF start failed";
+
+    case HWPUF_GENERATE_KEY_E:
+        return "HWPUF generate key failed";
+
+    case HWPUF_SET_KEY_E:
+        return "HWPUF set key failed";
+
+    case HWPUF_GET_KEY_E:
+        return "HWPUF get key failed";
+
+    case HWPUF_ZEROIZE_E:
+        return "HWPUF zeroize failed";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:
