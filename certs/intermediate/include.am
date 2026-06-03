@@ -50,4 +50,18 @@ EXTRA_DIST += \
          certs/intermediate/ca_false_intermediate/test_int_not_cacert.pem \
          certs/intermediate/ca_false_intermediate/test_sign_bynoca_srv.pem \
          certs/intermediate/ca_false_intermediate/wolfssl_base.conf \
-         certs/intermediate/ca_false_intermediate/wolfssl_srv.conf
+         certs/intermediate/ca_false_intermediate/wolfssl_srv.conf \
+         certs/intermediate/untrusted_anchor/gen_certs.sh \
+         certs/intermediate/untrusted_anchor/root-ca-cert.pem \
+         certs/intermediate/untrusted_anchor/root-ca-key.pem \
+         certs/intermediate/untrusted_anchor/alt-ca-cert.pem \
+         certs/intermediate/untrusted_anchor/alt-ca-key.pem \
+         certs/intermediate/untrusted_anchor/int-ca-cert.pem \
+         certs/intermediate/untrusted_anchor/int-ca-key.pem \
+         certs/intermediate/untrusted_anchor/int-ca-tampered-cert.pem \
+         certs/intermediate/untrusted_anchor/int-ca2-cert.pem \
+         certs/intermediate/untrusted_anchor/int-ca2-key.pem \
+         certs/intermediate/untrusted_anchor/leaf-cert.pem \
+         certs/intermediate/untrusted_anchor/leaf-key.pem \
+         certs/intermediate/untrusted_anchor/leaf-deep-cert.pem \
+         certs/intermediate/untrusted_anchor/leaf-deep-key.pem

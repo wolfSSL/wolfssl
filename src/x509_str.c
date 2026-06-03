@@ -751,7 +751,24 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         }
         else if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             /* Could not find in untrusted list, only place left is
-             * a trusted CA in the CM */
+             * a trusted CA in the CM. Drop any caller-supplied untrusted
+             * intermediates that were temporarily loaded into the CertManager
+             * to authenticate child certificates, so the current certificate
+             * must verify against a genuinely trusted CA. They must not be
+             * allowed to anchor the path: otherwise a chain that never reaches
+             * a configured trust anchor (or whose intermediate signature is
+             * invalid) would be accepted. */
+            if (wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm)
+                    != WOLFSSL_SUCCESS) {
+                /* Could not guarantee the temporary intermediates were
+                 * dropped; fail closed rather than risk verifying the current
+                 * certificate against one.  Leave `added` set: they are still
+                 * loaded, so the exit cleanup makes a final attempt to drop
+                 * them. */
+                ret = WOLFSSL_FATAL_ERROR;
+                goto exit;
+            }
+            added = 0;
             ret = X509StoreVerifyCert(ctx);
             if (ret != WOLFSSL_SUCCESS) {
                 /* WOLFSSL_PARTIAL_CHAIN may only terminate the chain at a
