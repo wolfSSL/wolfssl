@@ -23,6 +23,7 @@ EXTRA_DIST += wolfcrypt/src/poly1305_asm.asm
 EXTRA_DIST += wolfcrypt/src/wc_dsp.c
 EXTRA_DIST += wolfcrypt/src/sp_dsp32.c
 EXTRA_DIST += wolfcrypt/src/sp_x86_64_asm.asm
+EXTRA_DIST += wolfcrypt/src/hwpuf.c
 
 EXTRA_DIST += \
               wolfcrypt/src/ecc_fp.c \
@@ -73,6 +74,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/nxp/README.md \
               wolfcrypt/src/port/nxp/casper_port.c \
               wolfcrypt/src/port/nxp/hashcrypt_port.c \
+              wolfcrypt/src/port/nxp/hwpuf_port.c \
               wolfcrypt/src/port/atmel/README.md \
               wolfcrypt/src/port/xilinx/xil-sha3.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
