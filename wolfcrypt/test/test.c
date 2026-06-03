@@ -44767,13 +44767,24 @@ static wc_test_ret_t ed25519_test_check_key(void)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f,
     };
-    /* Y-ordinate value equal to prime - 1. */
+    /* Y-ordinate value equal to prime - 1. Older FIPS modules accept
+     * this as a valid key; the current source rejects it as an order-2
+     * point. */
     WOLFSSL_SMALL_STACK_STATIC const byte key_y_is_p_minus_1[] = {
         0x40,
         0xec,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f,
+    };
+    /* RFC 8032 section 7.1 test-vector public key: a genuinely valid
+     * Ed25519 point used as a positive control. */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_good[] = {
+        0x40,
+        0xd7,0x5a,0x98,0x01,0x82,0xb1,0x0a,0xb7,
+        0xd5,0x4b,0xfe,0xd3,0xc9,0x64,0x07,0x3a,
+        0x0e,0xe1,0x72,0xf3,0xda,0xa6,0x23,0x25,
+        0xaf,0x02,0x1a,0x68,0xf7,0x07,0x51,0x1a,
     };
     ed25519_key key;
     int ret;
@@ -44807,9 +44818,26 @@ static wc_test_ret_t ed25519_test_check_key(void)
         }
     }
     if (res == 0) {
-        /* Load good public key only and perform checks. */
         ret = wc_ed25519_import_public(key_y_is_p_minus_1,
             ED25519_PUB_KEY_SIZE + 1, &key);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        /* y = p - 1 is an order-2 point; check_key rejects it because
+         * h*A is the neutral element for small-order public keys and
+         * forged signatures would otherwise verify. */
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#else
+        /* Older FIPS modules accept this order-2 point. */
+        if (ret != 0) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#endif
+    }
+    if (res == 0) {
+        /* Positive control: a real Ed25519 public key must be accepted. */
+        ret = wc_ed25519_import_public(key_good, ED25519_PUB_KEY_SIZE + 1,
+            &key);
         if (ret != 0) {
             res = WC_TEST_RET_ENC_NC;
         }
@@ -46484,7 +46512,9 @@ static wc_test_ret_t ed448_test_check_key(void)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff
     };
-    /* Y-ordinate value equal to prime - 1. */
+    /* Y-ordinate value equal to prime - 1. Older FIPS modules accept
+     * this as a valid key; the current source rejects it as an order-2
+     * point. */
     WOLFSSL_SMALL_STACK_STATIC const byte key_y_is_p_minus_1[] = {
         0x40,
         0xfe,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
@@ -46495,6 +46525,19 @@ static wc_test_ret_t ed448_test_check_key(void)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff
+    };
+    /* RFC 8032 section 7.4 test-vector public key: a genuinely valid
+     * Ed448 point used as a positive control. */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_good[] = {
+        0x40,
+        0x5f,0xd7,0x44,0x9b,0x59,0xb4,0x61,0xfd,
+        0x2c,0xe7,0x87,0xec,0x61,0x6a,0xd4,0x6a,
+        0x1d,0xa1,0x34,0x24,0x85,0xa7,0x0e,0x1f,
+        0x8a,0x0e,0xa7,0x5d,0x80,0xe9,0x67,0x78,
+        0xed,0xf1,0x24,0x76,0x9b,0x46,0xc7,0x06,
+        0x1b,0xd6,0x78,0x3d,0xf1,0xe5,0x0f,0x6c,
+        0xd1,0xfa,0x1a,0xbe,0xaf,0xe8,0x25,0x61,
+        0x80
     };
     ed448_key key;
     int ret;
@@ -46528,9 +46571,25 @@ static wc_test_ret_t ed448_test_check_key(void)
         }
     }
     if (res == 0) {
-        /* Load good public key only and perform checks. */
         ret = wc_ed448_import_public(key_y_is_p_minus_1, ED448_PUB_KEY_SIZE + 1,
             &key);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        /* y = p - 1 is an order-2 point; check_key rejects it because
+         * h*A is the neutral element for small-order public keys and
+         * forged signatures would otherwise verify. */
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#else
+        /* Older FIPS modules accept this order-2 point. */
+        if (ret != 0) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#endif
+    }
+    if (res == 0) {
+        /* Positive control: a real Ed448 public key must be accepted. */
+        ret = wc_ed448_import_public(key_good, ED448_PUB_KEY_SIZE + 1, &key);
         if (ret != 0) {
             res = WC_TEST_RET_ENC_NC;
         }
