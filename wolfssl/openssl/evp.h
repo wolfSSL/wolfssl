@@ -958,6 +958,10 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *k
 WOLFSSL_API int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key);
+WOLFSSL_API int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY *pkey,
+    const unsigned char *pub, size_t publen);
+WOLFSSL_API size_t wolfSSL_EVP_PKEY_get1_encoded_public_key(WOLFSSL_EVP_PKEY *pkey,
+    unsigned char **ppub);
 WOLFSSL_API int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key);
 
 WOLFSSL_API const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
@@ -1392,6 +1396,12 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_get0_DH               wolfSSL_EVP_PKEY_get0_DH
 #define EVP_PKEY_get1_DH               wolfSSL_EVP_PKEY_get1_DH
 #define EVP_PKEY_get0_EC_KEY           wolfSSL_EVP_PKEY_get0_EC_KEY
+/* New (OpenSSL 3.0+) names and the deprecated tls_encodedpoint names map to the
+ * same implementations. */
+#define EVP_PKEY_set1_encoded_public_key wolfSSL_EVP_PKEY_set1_encoded_public_key
+#define EVP_PKEY_get1_encoded_public_key wolfSSL_EVP_PKEY_get1_encoded_public_key
+#define EVP_PKEY_set1_tls_encodedpoint   wolfSSL_EVP_PKEY_set1_encoded_public_key
+#define EVP_PKEY_get1_tls_encodedpoint   wolfSSL_EVP_PKEY_get1_encoded_public_key
 #define EVP_PKEY_get0_hmac             wolfSSL_EVP_PKEY_get0_hmac
 #define EVP_PKEY_new_mac_key           wolfSSL_EVP_PKEY_new_mac_key
 #define EVP_PKEY_new_CMAC_key          wolfSSL_EVP_PKEY_new_CMAC_key

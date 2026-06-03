@@ -2864,3 +2864,242 @@ int test_wolfSSL_EVP_PKEY_x448(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_EVP_PKEY_encoded_public_key(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_CURVE448))
+    /* Type-independent bad-argument handling. The deprecated tls_encodedpoint
+     * names are macro aliases of these, so exercising one covers both. */
+    {
+        unsigned char* p = NULL;
+        ExpectIntEQ((int)EVP_PKEY_get1_encoded_public_key(NULL, &p), 0);
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(NULL,
+            (const unsigned char*)"abc", 3), 0);
+    }
+
+#ifdef HAVE_ECC
+    {
+        EC_KEY* ec1 = NULL;
+        EC_KEY* ec2 = NULL;
+        EVP_PKEY* pkey1 = NULL;
+        EVP_PKEY* pkey2 = NULL;
+        unsigned char* enc = NULL;
+        unsigned char* enc2 = NULL;
+        unsigned char* encTls = NULL;
+        size_t encLen = 0;
+        size_t encLen2 = 0;
+        size_t encLenTls = 0;
+
+        /* EVP_PKEY holding a generated P-256 key. */
+        ExpectNotNull(ec1 = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+        ExpectIntEQ(EC_KEY_generate_key(ec1), 1);
+        ExpectNotNull(pkey1 = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkey1, ec1), 1);
+
+        /* Bad arguments with a valid key. */
+        ExpectIntEQ((int)EVP_PKEY_get1_encoded_public_key(pkey1, NULL), 0);
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(pkey1, NULL, 10), 0);
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(pkey1, enc, 0), 0);
+
+        /* get1 returns the uncompressed point: 0x04 || X || Y == 65 bytes. */
+        ExpectIntEQ((int)(encLen =
+            EVP_PKEY_get1_encoded_public_key(pkey1, &enc)), 65);
+        ExpectNotNull(enc);
+        if (enc != NULL) {
+            ExpectIntEQ(enc[0], 0x04);
+        }
+
+        /* Deprecated alias must produce identical output. */
+        ExpectIntEQ((int)(encLenTls =
+            EVP_PKEY_get1_tls_encodedpoint(pkey1, &encTls)), (int)encLen);
+        ExpectBufEQ(encTls, enc, encLen);
+
+        /* set1 into a second key with the same curve, then round-trip get1. */
+        ExpectNotNull(ec2 = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+        ExpectIntEQ(EC_KEY_generate_key(ec2), 1);
+        ExpectNotNull(pkey2 = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkey2, ec2), 1);
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(pkey2, enc, encLen), 1);
+        ExpectIntEQ((int)(encLen2 =
+            EVP_PKEY_get1_encoded_public_key(pkey2, &enc2)), (int)encLen);
+        ExpectBufEQ(enc2, enc, encLen);
+
+        OPENSSL_free(enc);
+        OPENSSL_free(enc2);
+        OPENSSL_free(encTls);
+        EC_KEY_free(ec1);
+        EC_KEY_free(ec2);
+        EVP_PKEY_free(pkey1);
+        EVP_PKEY_free(pkey2);
+    }
+
+    /* set1 must produce a peer key usable for ECDH, i.e. the internal wolfCrypt
+     * key (consumed by EVP_PKEY_derive) is synced, not just the wire bytes. */
+    {
+        EC_KEY* aKey = NULL;
+        EC_KEY* bKey = NULL;
+        EC_KEY* pKey = NULL;
+        EVP_PKEY* alice = NULL;
+        EVP_PKEY* bob = NULL;
+        EVP_PKEY* peer = NULL;
+        EVP_PKEY_CTX* ctx = NULL;
+        unsigned char* bobEnc = NULL;
+        size_t bobEncLen = 0;
+        unsigned char secretRef[80];
+        unsigned char secret[80];
+        size_t refLen = sizeof(secretRef);
+        size_t secLen = sizeof(secret);
+
+        ExpectNotNull(aKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+        ExpectIntEQ(EC_KEY_generate_key(aKey), 1);
+        ExpectNotNull(alice = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(alice, aKey), 1);
+
+        ExpectNotNull(bKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+        ExpectIntEQ(EC_KEY_generate_key(bKey), 1);
+        ExpectNotNull(bob = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(bob, bKey), 1);
+
+        /* Reference shared secret: alice + the real bob. */
+        ExpectNotNull(ctx = EVP_PKEY_CTX_new(alice, NULL));
+        ExpectIntEQ(EVP_PKEY_derive_init(ctx), 1);
+        ExpectIntEQ(EVP_PKEY_derive_set_peer(ctx, bob), 1);
+        ExpectIntEQ(EVP_PKEY_derive(ctx, secretRef, &refLen), 1);
+        EVP_PKEY_CTX_free(ctx);
+        ctx = NULL;
+
+        /* Load bob's public point into a fresh peer key (using the deprecated
+         * set name to also cover that alias). */
+        ExpectIntGT((int)(bobEncLen =
+            EVP_PKEY_get1_encoded_public_key(bob, &bobEnc)), 0);
+        ExpectNotNull(pKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+        ExpectIntEQ(EC_KEY_generate_key(pKey), 1);
+        ExpectNotNull(peer = EVP_PKEY_new());
+        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(peer, pKey), 1);
+        ExpectIntEQ(EVP_PKEY_set1_tls_encodedpoint(peer, bobEnc, bobEncLen), 1);
+
+        /* Secret with the set1-loaded peer must match the reference. */
+        ExpectNotNull(ctx = EVP_PKEY_CTX_new(alice, NULL));
+        ExpectIntEQ(EVP_PKEY_derive_init(ctx), 1);
+        ExpectIntEQ(EVP_PKEY_derive_set_peer(ctx, peer), 1);
+        ExpectIntEQ(EVP_PKEY_derive(ctx, secret, &secLen), 1);
+        EVP_PKEY_CTX_free(ctx);
+        ctx = NULL;
+
+        ExpectIntEQ((int)secLen, (int)refLen);
+        ExpectBufEQ(secret, secretRef, refLen);
+
+        OPENSSL_free(bobEnc);
+        EC_KEY_free(aKey);
+        EC_KEY_free(bKey);
+        EC_KEY_free(pKey);
+        EVP_PKEY_free(alice);
+        EVP_PKEY_free(bob);
+        EVP_PKEY_free(peer);
+    }
+#endif /* HAVE_ECC */
+
+#ifdef HAVE_CURVE25519
+    {
+        EVP_PKEY_CTX* genCtx = NULL;
+        EVP_PKEY* pkey = NULL;
+        EVP_PKEY* peer = NULL;
+        unsigned char* enc = NULL;
+        unsigned char* enc2 = NULL;
+        unsigned char* encTls = NULL;
+        size_t encLen = 0;
+        size_t encLen2 = 0;
+        size_t encLenTls = 0;
+
+        ExpectNotNull(genCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL));
+        ExpectIntEQ(EVP_PKEY_keygen_init(genCtx), 1);
+        ExpectIntEQ(EVP_PKEY_keygen(genCtx, &pkey), 1);
+        ExpectIntEQ(EVP_PKEY_keygen(genCtx, &peer), 1);
+        EVP_PKEY_CTX_free(genCtx);
+        genCtx = NULL;
+
+        /* Raw X25519 public key is 32 bytes. */
+        ExpectIntEQ((int)(encLen =
+            EVP_PKEY_get1_encoded_public_key(pkey, &enc)), 32);
+        ExpectNotNull(enc);
+
+        /* Deprecated alias parity. */
+        ExpectIntEQ((int)(encLenTls =
+            EVP_PKEY_get1_tls_encodedpoint(pkey, &encTls)), (int)encLen);
+        ExpectBufEQ(encTls, enc, encLen);
+
+        /* set1 into the peer key and round-trip. */
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(peer, enc, encLen), 1);
+        ExpectIntEQ((int)(encLen2 =
+            EVP_PKEY_get1_encoded_public_key(peer, &enc2)), (int)encLen);
+        ExpectBufEQ(enc2, enc, encLen);
+
+        /* A failed set1 (wrong length) must leave the existing key intact. */
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(peer, enc, encLen - 1), 0);
+        {
+            unsigned char* enc3 = NULL;
+            size_t encLen3 = 0;
+            ExpectIntEQ((int)(encLen3 =
+                EVP_PKEY_get1_encoded_public_key(peer, &enc3)), (int)encLen);
+            ExpectBufEQ(enc3, enc, encLen);
+            OPENSSL_free(enc3);
+        }
+
+        OPENSSL_free(enc);
+        OPENSSL_free(enc2);
+        OPENSSL_free(encTls);
+        EVP_PKEY_free(pkey);
+        EVP_PKEY_free(peer);
+    }
+#endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_CURVE448
+    {
+        EVP_PKEY_CTX* genCtx = NULL;
+        EVP_PKEY* pkey = NULL;
+        EVP_PKEY* peer = NULL;
+        unsigned char* enc = NULL;
+        unsigned char* enc2 = NULL;
+        size_t encLen = 0;
+        size_t encLen2 = 0;
+
+        ExpectNotNull(genCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_X448, NULL));
+        ExpectIntEQ(EVP_PKEY_keygen_init(genCtx), 1);
+        ExpectIntEQ(EVP_PKEY_keygen(genCtx, &pkey), 1);
+        ExpectIntEQ(EVP_PKEY_keygen(genCtx, &peer), 1);
+        EVP_PKEY_CTX_free(genCtx);
+        genCtx = NULL;
+
+        /* Raw X448 public key is 56 bytes. */
+        ExpectIntEQ((int)(encLen =
+            EVP_PKEY_get1_encoded_public_key(pkey, &enc)), 56);
+        ExpectNotNull(enc);
+
+        /* set1 into the peer key and round-trip. */
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(peer, enc, encLen), 1);
+        ExpectIntEQ((int)(encLen2 =
+            EVP_PKEY_get1_encoded_public_key(peer, &enc2)), (int)encLen);
+        ExpectBufEQ(enc2, enc, encLen);
+
+        /* A failed set1 (wrong length) must leave the existing key intact. */
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(peer, enc, encLen - 1), 0);
+        {
+            unsigned char* enc3 = NULL;
+            size_t encLen3 = 0;
+            ExpectIntEQ((int)(encLen3 =
+                EVP_PKEY_get1_encoded_public_key(peer, &enc3)), (int)encLen);
+            ExpectBufEQ(enc3, enc, encLen);
+            OPENSSL_free(enc3);
+        }
+
+        OPENSSL_free(enc);
+        OPENSSL_free(enc2);
+        EVP_PKEY_free(pkey);
+        EVP_PKEY_free(peer);
+    }
+#endif /* HAVE_CURVE448 */
+#endif /* OPENSSL_EXTRA && (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
+    return EXPECT_RESULT();
+}
+
