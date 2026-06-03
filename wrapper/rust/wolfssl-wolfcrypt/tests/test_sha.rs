@@ -73,6 +73,26 @@ fn test_sha256() {
 }
 
 #[test]
+#[cfg(sha256)]
+fn test_sha256_copy() {
+    let mut sha = SHA256::new().expect("Error with new()");
+    sha.update(b"abc").expect("Error with update()");
+
+    let mut copy = sha.copy().expect("Error with copy()");
+
+    // Finalize original: SHA-256("abc")
+    let mut hash_orig = [0u8; SHA256::DIGEST_SIZE];
+    sha.finalize(&mut hash_orig).expect("Error with finalize()");
+    assert_eq!(hash_orig, *b"\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00\x15\xAD");
+
+    // Continue copy with "def", finalize: SHA-256("abcdef")
+    copy.update(b"def").expect("Error with update()");
+    let mut hash_copy = [0u8; SHA256::DIGEST_SIZE];
+    copy.finalize(&mut hash_copy).expect("Error with finalize()");
+    assert_eq!(hash_copy, *b"\xBE\xF5\x7E\xC7\xF5\x3A\x6D\x40\xBE\xB6\x40\xA7\x80\xA6\x39\xC8\x3B\xC2\x9A\xC8\xA9\x81\x6F\x1F\xC6\xC5\xC6\xDC\xD9\x3C\x47\x21");
+}
+
+#[test]
 #[cfg(sha384)]
 fn test_sha384() {
     let mut sha = SHA384::new().expect("Error with new()");
@@ -93,6 +113,26 @@ fn test_sha384() {
     test1(&mut sha,
         b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
         b"\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b\x47\x53\x11\x1b\x17\x3b\x3b\x05\xd2\x2f\xa0\x80\x86\xe3\xb0\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91\x74\x60\x39");
+}
+
+#[test]
+#[cfg(sha384)]
+fn test_sha384_copy() {
+    let mut sha = SHA384::new().expect("Error with new()");
+    sha.update(b"abc").expect("Error with update()");
+
+    let mut copy = sha.copy().expect("Error with copy()");
+
+    // Finalize original: SHA-384("abc")
+    let mut hash_orig = [0u8; SHA384::DIGEST_SIZE];
+    sha.finalize(&mut hash_orig).expect("Error with finalize()");
+    assert_eq!(hash_orig, *b"\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34\xc8\x25\xa7");
+
+    // Continue copy with "def", finalize: SHA-384("abcdef")
+    copy.update(b"def").expect("Error with update()");
+    let mut hash_copy = [0u8; SHA384::DIGEST_SIZE];
+    copy.finalize(&mut hash_copy).expect("Error with finalize()");
+    assert_eq!(hash_copy, *b"\xc6\xa4\xc6\x5b\x22\x7e\x73\x87\xb9\xc3\xe8\x39\xd4\x48\x69\xc4\xcf\xca\x3e\xf5\x83\xde\xa6\x41\x17\x85\x9b\x80\x8c\x1e\x3d\x8a\xe6\x89\xe1\xe3\x14\xee\xef\x52\xa6\xff\xe2\x26\x81\xaa\x11\xf5");
 }
 
 #[test]
