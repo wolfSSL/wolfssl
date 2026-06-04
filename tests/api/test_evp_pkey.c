@@ -2871,9 +2871,9 @@ int test_wolfSSL_EVP_PKEY_x448(void)
  * Before the fix:
  *   - DigestSignUpdate declared unsigned int (not size_t), breaking FFI parity.
  *   - DigestVerifyUpdate declared size_t but immediately cast to unsigned int
- *     internally, silently truncating any count > UINT_MAX.
+ *     internally, silently truncating any count > (word32)-1.
  *
- * Test vector: RFC 4231 §4.2 HMAC-SHA256 (independent oracle).
+ * Test vector: RFC 4231 Section 4.2 HMAC-SHA256 (independent oracle).
  *   Key  : "Jefe"
  *   Data : "what do ya want for nothing?" (28 bytes)
  *   HMAC : 5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
@@ -2894,7 +2894,7 @@ int test_wolfSSL_EVP_DigestSign_size_t_cnt(void)
     WOLFSSL_EVP_MD_CTX mdCtx;
     unsigned char      sig[WC_MAX_DIGEST_SIZE];
     size_t             sigSz = sizeof(sig);
-    /* Deliberately size_t — not unsigned int — to verify both APIs accept it
+    /* Deliberately size_t -- not unsigned int -- to verify both APIs accept it
      * without a cast.  This was the type mismatch caught by ZD-21734. */
     size_t             msgSz = sizeof(kMsg) - 1;
 
@@ -2903,7 +2903,7 @@ int test_wolfSSL_EVP_DigestSign_size_t_cnt(void)
                                                      (int)sizeof(kKey) - 1));
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
-    /* Sign: passes size_t count directly — regression for unsigned int decl */
+    /* Sign: passes size_t count directly -- regression for unsigned int decl */
     ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, EVP_sha256(),
                                            NULL, key), 1);
     ExpectIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, kMsg, msgSz), 1);
@@ -2912,7 +2912,7 @@ int test_wolfSSL_EVP_DigestSign_size_t_cnt(void)
     ExpectIntEQ(XMEMCMP(sig, kExpected, sizeof(kExpected)), 0);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
-    /* Verify: passes size_t count directly — regression for silent truncation */
+    /* Verify: passes size_t count directly -- regression for silent truncation */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     ExpectIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, EVP_sha256(),
                                              NULL, key), 1);
@@ -2921,10 +2921,10 @@ int test_wolfSSL_EVP_DigestSign_size_t_cnt(void)
                                               sizeof(kExpected)), 1);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
-    /* Overflow guard: cnt > UINT_MAX must fail, not silently truncate.
+    /* Overflow guard: cnt > (word32)-1 must fail, not silently truncate.
      * Only reachable on 64-bit platforms where size_t exceeds word32. */
     if (sizeof(size_t) > sizeof(word32)) {
-        size_t oversized = (size_t)(word32)-1 + 1; /* UINT_MAX + 1 */
+        size_t oversized = (size_t)(word32)-1 + 1; /* (word32)-1 + 1 */
         wolfSSL_EVP_MD_CTX_init(&mdCtx);
         ExpectIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, EVP_sha256(),
                                                NULL, key), 1);
