@@ -22663,6 +22663,172 @@ static int test_NameConstraints_OtherName(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS)
+/* Build a SubjectAltName extension value with a single GeneralName of the
+ * given context tag (0x82 dnsName, 0x86 URI) carrying `val`. */
+static word32 build_simple_san(byte* out, word32 outSz, byte gnTag,
+    const char* val)
+{
+    word32 vlen = (word32)XSTRLEN(val);
+    if (vlen > 0x7F || outSz < vlen + 4)
+        return 0;
+    out[0] = 0x30;                              /* SEQUENCE */
+    out[1] = (byte)(vlen + 2);
+    out[2] = gnTag;                             /* [tag] GeneralName */
+    out[3] = (byte)vlen;
+    XMEMCPY(out + 4, val, vlen);
+    return vlen + 4;
+}
+
+/* Build a NameConstraints extension value with a single subtree ([0]
+ * permitted or [1] excluded) carrying a GeneralName of context tag `gnTag`
+ * with value `val`. */
+static word32 build_simple_nameConstraints(byte* out, word32 outSz,
+    int excluded, byte gnTag, const char* val)
+{
+    word32 vlen = (word32)XSTRLEN(val);
+    word32 n3 = vlen + 2;       /* GeneralSubtree content: the base GN */
+    word32 n2 = n3 + 2;         /* subtrees list content: one GeneralSubtree */
+    word32 n1 = n2 + 2;         /* SEQUENCE content: the subtrees list */
+    if (vlen > 0x7F || outSz < n1 + 2)
+        return 0;
+    out[0] = 0x30;                              /* SEQUENCE */
+    out[1] = (byte)n1;
+    out[2] = excluded ? 0xA1 : 0xA0;            /* [1] excluded / [0] permitted */
+    out[3] = (byte)n2;
+    out[4] = 0x30;                              /* GeneralSubtree */
+    out[5] = (byte)n3;
+    out[6] = gnTag;                             /* base GeneralName */
+    out[7] = (byte)vlen;
+    XMEMCPY(out + 8, val, vlen);
+    return n1 + 2;
+}
+#endif
+
+/* End-to-end enforcement of DNS and URI nameConstraints against wildcard and
+ * sub-host leaf SANs, exercised through the real chain-verification path.
+ *
+ * DNS subtree semantics (RFC 5280 4.2.1.10) plus wildcard reasoning:
+ *   - excluded DNS:foo.example.com must reject a leaf SAN *.example.com,
+ *     because the wildcard can expand to the excluded host (security gap).
+ *   - permitted DNS:example.com must accept *.example.com (contained), while
+ *     permitted DNS:foo.example.com must reject it (the wildcard can escape).
+ * URI semantics: a constraint without a leading dot is an EXACT host match,
+ * not a subtree, so permitted URI:host.com must reject https://www.host.com/.
+ */
+static int test_NameConstraints_DnsUriWildcard(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING) && !defined(IGNORE_NAME_CONSTRAINTS)
+    byte nc[64];
+    byte san[64];
+    word32 ncSz, sanSz;
+    const byte DNS = 0x82;  /* [2] dnsName */
+    const byte URI = 0x86;  /* [6] uniformResourceIdentifier */
+
+    /* --- DNS, excluded subtree --- */
+
+    /* (1) Excluded foo.example.com vs wildcard SAN that can reach it: the
+     *     pre-fix byte-length guard let this through. Must reject. */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 1, DNS,
+                "foo.example.com");
+    sanSz = build_simple_san(san, sizeof(san), DNS, "*.example.com");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (2) Positive control: same exclusion, wildcard in a different domain
+     *     cannot reach foo.example.com -> accept. */
+    sanSz = build_simple_san(san, sizeof(san), DNS, "*.other.com");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+
+    /* (3) Regression: literal SAN inside the excluded subtree still rejects. */
+    sanSz = build_simple_san(san, sizeof(san), DNS, "foo.example.com");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (4) Regression: literal SAN outside the excluded subtree accepts. */
+    sanSz = build_simple_san(san, sizeof(san), DNS, "bar.other.com");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+
+    /* --- DNS, permitted subtree --- */
+
+    /* (5) Permitted example.com accepts *.example.com (fully contained). */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 0, DNS, "example.com");
+    sanSz = build_simple_san(san, sizeof(san), DNS, "*.example.com");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+
+    /* (6) Permitted foo.example.com rejects *.example.com (the wildcard can
+     *     expand outside the permitted subtree). */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 0, DNS,
+                "foo.example.com");
+    sanSz = build_simple_san(san, sizeof(san), DNS, "*.example.com");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* --- URI, exact-host vs subtree semantics --- */
+
+    /* (7) Permitted URI host.com (no leading dot) is an EXACT host match:
+     *     a sub-host URI is NOT contained -> reject. Pre-fix this wrongly
+     *     subtree-matched and accepted. */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 0, URI, "host.com");
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://www.host.com/");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (8) Permitted URI host.com accepts the exact host. */
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://host.com/path");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+
+    /* (9) Permitted URI .host.com (leading dot) is a subtree: the sub-host is
+     *     accepted but the bare host is not. */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 0, URI, ".host.com");
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://www.host.com/");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://host.com/");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (10) Excluded URI host.com (exact): bare host excluded, sub-host not. */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 1, URI, "host.com");
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://host.com/");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://www.host.com/");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_MakeCertWithCaFalse(void)
 {
     EXPECT_DECLS;
@@ -34097,6 +34263,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_PathLenSelfIssuedAllowed),
     TEST_DECL(test_PathLenNoKeyUsage),
     TEST_DECL(test_NameConstraints_OtherName),
+    TEST_DECL(test_NameConstraints_DnsUriWildcard),
     TEST_DECL(test_ParseSerial0FixtureMatrix),
     TEST_DECL(test_MakeCertWithCaFalse),
 #ifdef WOLFSSL_CERT_SIGN_CB

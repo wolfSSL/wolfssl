@@ -3213,6 +3213,13 @@ WOLFSSL_TEST_VIS int  wolfssl_local_MatchBaseName(int type, const char* name,
 WOLFSSL_TEST_VIS int  wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
                                                   const byte* constraint,
                                                   int constraintSz);
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchUriNameConstraint(const char* uri,
+                                                  int uriSz, const char* base,
+                                                  int baseSz);
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchDnsConstraintWildcard(
+                                                  const char* name, int nameSz,
+                                                  const char* base, int baseSz,
+                                                  int permitted);
 #endif
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
