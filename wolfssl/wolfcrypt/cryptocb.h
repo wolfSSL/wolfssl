@@ -645,6 +645,23 @@ typedef struct wc_CryptoInfo {
                 byte*       out; /* Output key material */
                 word32      outSz;
             } hkdf;
+            struct {                  /* HKDF extract */
+                int         hashType; /* WC_SHA256, etc. */
+                const byte* salt; /* Optional salt */
+                word32      saltSz;
+                const byte* inKey;    /* Input keying material */
+                word32      inKeySz;
+                byte*       out; /* Output key material */
+            } hkdf_extract;
+            struct {                  /* HKDF expand */
+                int         hashType; /* WC_SHA256, etc. */
+                const byte* inKey;    /* Input keying material */
+                word32      inKeySz;
+                const byte* info; /* Optional info */
+                word32      infoSz;
+                byte*       out; /* Output key material */
+                word32      outSz;
+            } hkdf_expand;
         #endif
         #if defined(HAVE_CMAC_KDF)
             struct {                 /* NIST.SP.800-56Cr2 two-step cmac KDF */
@@ -894,6 +911,11 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hkdf(int hashType, const byte* inKey,
                                    word32 saltSz, const byte* info,
                                    word32 infoSz, byte* out, word32 outSz,
                                    int devId);
+WOLFSSL_LOCAL int wc_CryptoCb_Hkdf_Extract(int hashType, const byte* salt,
+    word32 saltSz, const byte* inKey, word32 inKeySz, byte* out, int devId);
+WOLFSSL_LOCAL int wc_CryptoCb_Hkdf_Expand(int hashType, const byte* inKey,
+                    word32 inKeySz, const byte* info, word32 infoSz,
+                    byte* out, word32 outSz, int devId);
 #endif
 
 #if defined(HAVE_CMAC_KDF)

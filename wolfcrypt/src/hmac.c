@@ -1758,6 +1758,16 @@ int wolfSSL_GetHmacMaxSize(void)
             return BAD_FUNC_ARG;
         }
 
+#ifdef WOLF_CRYPTO_CB
+        /* Try crypto callback first */
+        if (devId != INVALID_DEVID) {
+             ret = wc_CryptoCb_Hkdf_Extract(type, salt, saltSz, inKey, inKeySz,
+                                            out, devId);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+        }
+#endif
+
         ret = wc_HmacSizeByType(type);
         if (ret < 0) {
             return ret;
@@ -1821,6 +1831,16 @@ int wolfSSL_GetHmacMaxSize(void)
         word32 outIdx = 0;
         word32 hashSz;
         byte   n = 0x1;
+
+#ifdef WOLF_CRYPTO_CB
+        /* Try crypto callback first for complete operation */
+        if (devId != INVALID_DEVID) {
+             ret = wc_CryptoCb_Hkdf_Expand(type, inKey, inKeySz, info, infoSz,
+                                           out, outSz, devId);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+        }
+#endif
 
         ret = wc_HmacSizeByType(type);
         if (ret < 0) {

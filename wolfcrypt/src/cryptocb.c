@@ -230,6 +230,10 @@ static const char* GetKdfTypeStr(int type)
     switch (type) {
         case WC_KDF_TYPE_HKDF:
             return "HKDF";
+        case WC_KDF_TYPE_HKDF_EXTRACT:
+            return "HKDF Extract";
+        case WC_KDF_TYPE_HKDF_EXPAND:
+            return "HKDF Expand";
         case WC_KDF_TYPE_TWOSTEP_CMAC:
             return "TWOSTEP_CMAC";
     }
@@ -2521,6 +2525,64 @@ int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
         cryptoInfo.kdf.hkdf.infoSz   = infoSz;
         cryptoInfo.kdf.hkdf.out      = out;
         cryptoInfo.kdf.hkdf.outSz    = outSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Hkdf_Extract(int hashType, const byte* salt, word32 saltSz,
+                        const byte* inKey, word32 inKeySz, byte* out, int devId)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KDF);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type                 = WC_ALGO_TYPE_KDF;
+        cryptoInfo.kdf.type                  = WC_KDF_TYPE_HKDF_EXTRACT;
+        cryptoInfo.kdf.hkdf_extract.hashType = hashType;
+        cryptoInfo.kdf.hkdf_extract.salt     = salt;
+        cryptoInfo.kdf.hkdf_extract.saltSz   = saltSz;
+        cryptoInfo.kdf.hkdf_extract.inKey    = inKey;
+        cryptoInfo.kdf.hkdf_extract.inKeySz  = inKeySz;
+        cryptoInfo.kdf.hkdf_extract.out      = out;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Hkdf_Expand(int hashType, const byte* inKey, word32 inKeySz,
+                     const byte* info, word32 infoSz, byte* out, word32 outSz,
+                     int devId)
+{
+    int       ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KDF);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type                = WC_ALGO_TYPE_KDF;
+        cryptoInfo.kdf.type                 = WC_KDF_TYPE_HKDF_EXPAND;
+        cryptoInfo.kdf.hkdf_expand.hashType = hashType;
+        cryptoInfo.kdf.hkdf_expand.inKey    = inKey;
+        cryptoInfo.kdf.hkdf_expand.inKeySz  = inKeySz;
+        cryptoInfo.kdf.hkdf_expand.info     = info;
+        cryptoInfo.kdf.hkdf_expand.infoSz   = infoSz;
+        cryptoInfo.kdf.hkdf_expand.out      = out;
+        cryptoInfo.kdf.hkdf_expand.outSz    = outSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
