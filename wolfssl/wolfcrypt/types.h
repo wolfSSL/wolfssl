@@ -2186,8 +2186,8 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 #define WC_CPP_CAT4_(a, b, c, d) a ## b ## c ## d
 #define WC_CPP_CAT4(a, b, c, d) WC_CPP_CAT4_(a, b, c, d)
-#if !defined(BUILDING_WOLFSSL) && !defined(WC_USE_STATIC_ASSERT) && \
-    !defined(WC_NO_STATIC_ASSERT)
+#if !defined(BUILDING_WOLFSSL) && !defined(WOLFSSL_VIS_FOR_TESTS) && \
+    !defined(WC_USE_STATIC_ASSERT) && !defined(WC_NO_STATIC_ASSERT)
     #define WC_NO_STATIC_ASSERT
 #endif
 #if defined(WC_NO_STATIC_ASSERT)
