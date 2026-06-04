@@ -140,7 +140,7 @@ int wolfkmod_vecreg_save(int flags_unused)
     #endif
 
     if (fpu_states == NULL) {
-        printf("info : wolfkmod_vecreg_save: fpu_states null\n");
+        printf("error: wolfkmod_vecreg_save: fpu_states null\n");
         return (EINVAL);
     }
 
@@ -195,7 +195,7 @@ void wolfkmod_vecreg_restore(void)
     #endif
 
     if (fpu_states == NULL) {
-        printf("info: wolfkmod_vecreg_restore: fpu_states null\n");
+        printf("error: wolfkmod_vecreg_restore: fpu_states null\n");
         return;
     }
 

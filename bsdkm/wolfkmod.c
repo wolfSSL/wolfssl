@@ -492,8 +492,8 @@ static int wolfkdriv_attach(device_t dev)
 attach_out:
     if (error) {
         device_printf(dev, "error: attach_out: %d\n", error);
-        (void)wolfkmod_cleanup();
         wolfkdriv_unregister(softc);
+        (void)wolfkmod_cleanup();
     }
 
     return (error);
@@ -506,8 +506,8 @@ static int wolfkdriv_detach(device_t dev)
 
     /* unregister wolfcrypt algs */
     softc = device_get_softc(dev);
-    ret = wolfkmod_cleanup();
     wolfkdriv_unregister(softc);
+    ret = wolfkmod_cleanup();
     #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
     device_printf(dev, "info: exiting detach: %d\n", ret);
     #else
