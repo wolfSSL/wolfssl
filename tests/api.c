@@ -7199,6 +7199,162 @@ static int test_wolfSSL_get_finished(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_HAVE_TLS_UNIQUE) && defined(WOLFSSL_TLS13)
+static int test_wolfSSL_get_finished_overrun_on_handshake(WOLFSSL_CTX* ctx,
+    WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    /* Destination buffer immediately followed by a guard region. Both are
+     * byte arrays (alignment 1) so there is no padding between them and the
+     * guard bytes sit directly after buf. The caller promises only
+     * TLS_FINISHED_SZ writable bytes via the count argument, so wolfSSL must
+     * not write past buf[] into the guard region. */
+    struct {
+        byte buf[TLS_FINISHED_SZ];
+        byte guard[WC_MAX_DIGEST_SIZE];
+    } probe;
+    byte   full[WC_MAX_DIGEST_SIZE];
+    size_t msg_len;
+    word32 i;
+
+    (void)ctx;
+
+    XMEMSET(&probe, 0, sizeof(probe));
+    XMEMSET(probe.guard, 0x5A, sizeof(probe.guard));
+
+    /* For a TLS 1.3 connection the Finished message is the handshake hash
+     * size (32 bytes for SHA-256, 48 for SHA-384), which is larger than the
+     * count of TLS_FINISHED_SZ (12) we pass here. The buffer is too small to
+     * hold the Finished message, so the call must fail and write nothing
+     * rather than copying the full length and overrunning buf[]. */
+    msg_len = wolfSSL_get_finished(ssl, probe.buf, TLS_FINISHED_SZ);
+    ExpectIntEQ(msg_len, WOLFSSL_FAILURE);
+
+    /* Nothing must have been written: buf[] stays zero and the guard bytes
+     * that follow it stay 0x5A. */
+    for (i = 0; i < (word32)sizeof(probe.buf); i++) {
+        ExpectIntEQ(probe.buf[i], 0x00);
+    }
+    for (i = 0; i < (word32)sizeof(probe.guard); i++) {
+        ExpectIntEQ(probe.guard[i], 0x5A);
+    }
+
+    /* A sufficiently large buffer must still succeed and report the actual
+     * Finished length, which is between TLS_FINISHED_SZ and the max digest
+     * size. */
+    XMEMSET(full, 0, sizeof(full));
+    msg_len = wolfSSL_get_finished(ssl, full, sizeof(full));
+    ExpectIntGE(msg_len, TLS_FINISHED_SZ);
+    ExpectIntLE(msg_len, WC_MAX_DIGEST_SIZE);
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_HAVE_TLS_UNIQUE &&
+        * WOLFSSL_TLS13 */
+
+static int test_wolfSSL_get_finished_overrun(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_HAVE_TLS_UNIQUE) && defined(WOLFSSL_TLS13)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    /* Force TLS 1.3 so the stored Finished length exceeds TLS_FINISHED_SZ. */
+    client_cbf.method = wolfTLSv1_3_client_method;
+    server_cbf.method = wolfTLSv1_3_server_method;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, test_wolfSSL_get_finished_overrun_on_handshake),
+        TEST_SUCCESS);
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_HAVE_TLS_UNIQUE &&
+        * WOLFSSL_TLS13 */
+
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_HAVE_TLS_UNIQUE) && defined(WOLFSSL_TLS13)
+static int test_wolfSSL_get_peer_finished_overrun_on_handshake(WOLFSSL_CTX* ctx,
+    WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    /* Destination buffer immediately followed by a guard region. Both are
+     * byte arrays (alignment 1) so there is no padding between them and the
+     * guard bytes sit directly after buf. The caller promises only
+     * TLS_FINISHED_SZ writable bytes via the count argument, so wolfSSL must
+     * not write past buf[] into the guard region. */
+    struct {
+        byte buf[TLS_FINISHED_SZ];
+        byte guard[WC_MAX_DIGEST_SIZE];
+    } probe;
+    byte   full[WC_MAX_DIGEST_SIZE];
+    size_t msg_len;
+    word32 i;
+
+    (void)ctx;
+
+    XMEMSET(&probe, 0, sizeof(probe));
+    XMEMSET(probe.guard, 0x5A, sizeof(probe.guard));
+
+    /* For a TLS 1.3 connection the peer Finished message is the handshake
+     * hash size (32 bytes for SHA-256, 48 for SHA-384), which is larger than
+     * the count of TLS_FINISHED_SZ (12) we pass here. The buffer is too small
+     * to hold the Finished message, so the call must fail and write nothing
+     * rather than copying the full length and overrunning buf[]. */
+    msg_len = wolfSSL_get_peer_finished(ssl, probe.buf, TLS_FINISHED_SZ);
+    ExpectIntEQ(msg_len, WOLFSSL_FAILURE);
+
+    /* Nothing must have been written: buf[] stays zero and the guard bytes
+     * that follow it stay 0x5A. */
+    for (i = 0; i < (word32)sizeof(probe.buf); i++) {
+        ExpectIntEQ(probe.buf[i], 0x00);
+    }
+    for (i = 0; i < (word32)sizeof(probe.guard); i++) {
+        ExpectIntEQ(probe.guard[i], 0x5A);
+    }
+
+    /* A sufficiently large buffer must still succeed and report the actual
+     * Finished length, which is between TLS_FINISHED_SZ and the max digest
+     * size. */
+    XMEMSET(full, 0, sizeof(full));
+    msg_len = wolfSSL_get_peer_finished(ssl, full, sizeof(full));
+    ExpectIntGE(msg_len, TLS_FINISHED_SZ);
+    ExpectIntLE(msg_len, WC_MAX_DIGEST_SIZE);
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_HAVE_TLS_UNIQUE &&
+        * WOLFSSL_TLS13 */
+
+static int test_wolfSSL_get_peer_finished_overrun(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_HAVE_TLS_UNIQUE) && defined(WOLFSSL_TLS13)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    /* Force TLS 1.3 so the stored Finished length exceeds TLS_FINISHED_SZ. */
+    client_cbf.method = wolfTLSv1_3_client_method;
+    server_cbf.method = wolfTLSv1_3_server_method;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, test_wolfSSL_get_peer_finished_overrun_on_handshake),
+        TEST_SUCCESS);
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_HAVE_TLS_UNIQUE &&
+        * WOLFSSL_TLS13 */
+
+    return EXPECT_RESULT();
+}
+
 
 #if defined(WOLFSSL_SESSION_EXPORT) && !defined(WOLFSSL_NO_TLS12)
 #ifdef WOLFSSL_TLS13
@@ -34298,6 +34454,8 @@ TEST_CASE testCases[] = {
 
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
     TEST_DECL(test_wolfSSL_get_finished),
+    TEST_DECL(test_wolfSSL_get_finished_overrun),
+    TEST_DECL(test_wolfSSL_get_peer_finished_overrun),
 #endif
     TEST_DECL(test_SSL_CIPHER_get_xxx),
     TEST_DECL(test_wolfSSL_ERR_strings),
