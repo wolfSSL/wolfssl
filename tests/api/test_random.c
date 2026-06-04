@@ -30,6 +30,9 @@
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef HAVE_ENTROPY_MEMUSE
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_random.h>
 
@@ -739,3 +742,30 @@ int test_wc_RNG_HealthTest_SHA512(void)
     return EXPECT_RESULT();
 }
 
+int test_wc_Entropy_Get(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_ENTROPY_MEMUSE
+    byte entropy[WC_SHA3_256_DIGEST_SIZE]; /* 32 bytes */
+
+    /* bits <= 0: must reject */
+    ExpectIntEQ(wc_Entropy_Get(0, entropy, sizeof(entropy)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Entropy_Get(-1, entropy, sizeof(entropy)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* bits > MAX_ENTROPY_BITS: must reject (overflow guard) */
+    ExpectIntEQ(wc_Entropy_Get(MAX_ENTROPY_BITS + 1, entropy, sizeof(entropy)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Entropy_Get(2049, entropy, sizeof(entropy)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* entropy == NULL with len > 0: must reject */
+    ExpectIntEQ(wc_Entropy_Get(MAX_ENTROPY_BITS, NULL, sizeof(entropy)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* valid call: bits == MAX_ENTROPY_BITS */
+    ExpectIntEQ(wc_Entropy_Get(MAX_ENTROPY_BITS, entropy, sizeof(entropy)), 0);
+#endif /* HAVE_ENTROPY_MEMUSE */
+    return EXPECT_RESULT();
+}
