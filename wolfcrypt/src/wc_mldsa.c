@@ -11389,7 +11389,7 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
             /* Get t1 from public key. */
             mldsa_vec_decode_t1(t1p, params->k, t1);
 
-            /* Calcaluate t = NTT-1(A o NTT(s1)) + s2 */
+            /* Calculate t = NTT-1(A o NTT(s1)) + s2 */
             mldsa_vec_ntt_small_full(s1, params->l);
             mldsa_matrix_mul(t, a, s1, params->k, params->l);
         #ifdef WOLFSSL_MLDSA_SMALL
