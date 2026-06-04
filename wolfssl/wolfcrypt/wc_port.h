@@ -1786,7 +1786,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         /* use user-supplied XFENCE definition. */
     #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && \
           !defined(__STDC_NO_ATOMICS__) && !defined(NO_STDATOMIC_H)
-        #ifdef WOLFSSL_NO_ATOMIC
+        #ifdef WOLFSSL_NO_STDATOMIC_FENCE
             #define XFENCE() WC_DO_NOTHING
         #else
             #include <stdatomic.h>
