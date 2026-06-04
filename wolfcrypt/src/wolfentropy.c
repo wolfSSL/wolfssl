@@ -816,7 +816,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
     int noise_len;
     static byte noise[MAX_NOISE_CNT];
 
-    if (bits <= 0 || (entropy == NULL && len > 0)) {
+    if (bits <= 0 || bits > MAX_ENTROPY_BITS || (entropy == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
 
