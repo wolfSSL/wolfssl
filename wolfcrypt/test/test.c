@@ -55860,6 +55860,25 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
         ret = WC_TEST_RET_ENC_NC;
     }
 #endif /* !WOLFSSL_MLDSA_FIPS204_DRAFT */
+
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    /* Negative: a private key with an out-of-range s1 coefficient must be
+     * rejected. s1 follows rho || K || tr; force its first byte out of range. */
+    if ((ret == 0) && (!isPublicOnlyKey)) {
+        XMEMCPY(der, rawKey, rawKeySz);
+        der[MLDSA_PUB_SEED_SZ + MLDSA_K_SZ + MLDSA_TR_SZ] = 0xff;
+        wc_MlDsaKey_Free(key);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
+        if (ret == 0) {
+            ret = wc_MlDsaKey_SetParams(key, expectedLevel);
+        }
+        if (ret == 0) {
+            if (wc_MlDsaKey_ImportPrivRaw(key, der, rawKeySz) != PUBLIC_KEY_E) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+    }
+#endif
 #endif /* !WOLFSSL_MLDSA_NO_ASN1 && WOLFSSL_ASN_TEMPLATE */
 
     /* Cleanup */

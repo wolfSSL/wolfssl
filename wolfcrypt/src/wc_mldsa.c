@@ -11669,6 +11669,55 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
 
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
 
+/* Check the s1 and s2 vectors of a private key are in range [-eta, eta].
+ *
+ * FIPS 204, Algorithm 25 skDecode: s1 and s2 are BitPack encodings of
+ * (eta - coeff), so each packed value must be no greater than 2*eta. Reject
+ * a private key with any value outside this range rather than silently
+ * accepting a non-conforming key.
+ *
+ * @param [in] p    Encoded s1 followed by s2.
+ * @param [in] eta  Coefficient range specifier (2 or 4).
+ * @param [in] len  Number of encoded bytes covering s1 and s2.
+ * @return  0 when all values are in range.
+ * @return  PUBLIC_KEY_E when at least one value is out of range.
+ */
+static int mldsa_check_eta_range(const byte* p, byte eta, word32 len)
+{
+    int ret = 0;
+    word32 i;
+    word32 j;
+    word32 bits;
+    byte max = (byte)(2 * eta);
+
+    if (eta == MLDSA_ETA_4) {
+        /* 4 bits per coefficient, two coefficients per byte. */
+        for (i = 0; i < len; i++) {
+            if (((p[i] & 0xf) > max) || ((p[i] >> 4) > max)) {
+                ret = PUBLIC_KEY_E;
+                break;
+            }
+        }
+    }
+    else {
+        /* 3 bits per coefficient, eight coefficients per three bytes. len
+         * (s1EncSz + s2EncSz) is always a multiple of 3, so no trailing
+         * partial group is skipped. */
+        for (i = 0; (ret == 0) && (i + 3 <= len); i += 3) {
+            bits = (word32)p[i] | ((word32)p[i + 1] << 8) |
+                   ((word32)p[i + 2] << 16);
+            for (j = 0; j < 8; j++) {
+                if (((bits >> (3 * j)) & 0x7) > max) {
+                    ret = PUBLIC_KEY_E;
+                    break;
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
 /* Set the private key data into key.
  *
  * @param [in]     priv    Private key data.
@@ -11677,6 +11726,7 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when private key size is invalid.
  * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  PUBLIC_KEY_E when an s1 or s2 coefficient is out of range.
  * @return  Other negative on hash error.
  */
 static int mldsa_set_priv_key(const byte* priv, word32 privSz,
@@ -11705,6 +11755,15 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
         ret = mldsa_alloc_priv_buf(key);
     }
 #endif
+
+    if (ret == 0) {
+        /* Reject a private key whose s1 or s2 coefficients are out of range
+         * before copying it in, so a failed import never overwrites an
+         * existing key or leaves the object in an inconsistent state. */
+        const byte* s1p = priv + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ + MLDSA_TR_SZ;
+        ret = mldsa_check_eta_range(s1p, key->params->eta,
+            (word32)key->params->s1EncSz + key->params->s2EncSz);
+    }
 
     if (ret == 0) {
         /* Copy the private key data in or copy pointer. */
