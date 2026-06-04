@@ -34,6 +34,11 @@ int test_tls12_bad_cv_sig_alg(void);
 int test_tls12_no_null_compression(void);
 int test_tls12_ec_point_formats_no_uncompressed(void);
 int test_tls12_ec_point_formats_no_uncompressed_non_ecc(void);
+int test_tls_fallback_scsv(void);
+int test_dtls_fallback_scsv(void);
+int test_dtls_fallback_scsv_no_downgrade(void);
+int test_tls_fallback_scsv_no_downgrade(void);
+int test_tls_fallback_scsv_no_downgrade_runtime_max(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls_set_session_min_downgrade(void);
 int test_tls12_session_id_resumption_sni_mismatch(void);
@@ -66,6 +71,11 @@ int test_wolfSSL_get_shared_ciphers(void);
         TEST_DECL_GROUP("tls", test_tls12_ec_point_formats_no_uncompressed),   \
         TEST_DECL_GROUP("tls",                                                 \
             test_tls12_ec_point_formats_no_uncompressed_non_ecc),             \
+        TEST_DECL_GROUP("tls", test_tls_fallback_scsv),                        \
+        TEST_DECL_GROUP("tls", test_dtls_fallback_scsv),                       \
+        TEST_DECL_GROUP("tls", test_dtls_fallback_scsv_no_downgrade),          \
+        TEST_DECL_GROUP("tls", test_tls_fallback_scsv_no_downgrade),           \
+        TEST_DECL_GROUP("tls", test_tls_fallback_scsv_no_downgrade_runtime_max),\
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls_set_session_min_downgrade),            \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_sni_mismatch), \
