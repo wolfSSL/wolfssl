@@ -87,6 +87,15 @@ int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int ms
 int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz);
 #endif
 
+/* Shared TLS server/client thread bodies, defined in tests/api.c. The
+ * definitions are gated on ENABLE_TLS_CALLBACK_TEST (a composite condition
+ * locally #defined inside api.c) or (WOLFSSL_DTLS && WOLFSSL_SESSION_EXPORT).
+ * Declared unconditionally here so api.c itself sees the prototype regardless
+ * of which side of the local #define triggers; absent the definition the
+ * prototypes are harmless and any caller would get a link error. */
+THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args);
+void run_wolfssl_client(void* args);
+
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)
 void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName);

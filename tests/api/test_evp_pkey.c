@@ -2702,3 +2702,162 @@ int test_wolfSSL_EVP_PKEY_ed448(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_EVP_PKEY_x25519(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CURVE25519)
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY* peer = NULL;
+    EVP_PKEY_CTX* genCtx = NULL;
+    EVP_PKEY_CTX* ctx = NULL;
+    unsigned char rawPriv[32];
+    unsigned char rawPub[32];
+    unsigned char secretA[32];
+    unsigned char secretB[32];
+    size_t secretLen;
+    int i;
+
+    for (i = 0; i < 32; i++) {
+        rawPriv[i] = (unsigned char)i;
+        rawPub[i]  = (unsigned char)(0x40 + i);
+    }
+
+    /* Raw import with the correct length reports the X25519 type. */
+    ExpectNotNull(pkey = EVP_PKEY_new_raw_public_key(
+        EVP_PKEY_X25519, NULL, rawPub, sizeof(rawPub)));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_X25519);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    ExpectNotNull(pkey = EVP_PKEY_new_raw_private_key(
+        EVP_PKEY_X25519, NULL, rawPriv, sizeof(rawPriv)));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_X25519);
+
+    /* X25519 is key-agreement only: signing must be rejected. */
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntNE(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* Wrong raw lengths are rejected. */
+    ExpectNull(EVP_PKEY_new_raw_public_key(
+        EVP_PKEY_X25519, NULL, rawPub, 16));
+    ExpectNull(EVP_PKEY_new_raw_private_key(
+        EVP_PKEY_X25519, NULL, rawPriv, 16));
+
+    /* Generate two key pairs and confirm ECDH agreement is symmetric. This
+     * also exercises the little-endian convention used on import/derive. */
+    ExpectNotNull(genCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(genCtx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(genCtx, &pkey), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(genCtx, &peer), WOLFSSL_SUCCESS);
+    EVP_PKEY_CTX_free(genCtx);
+    genCtx = NULL;
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_derive_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_derive_set_peer(ctx, peer), WOLFSSL_SUCCESS);
+    secretLen = sizeof(secretA);
+    ExpectIntEQ(EVP_PKEY_derive(ctx, secretA, &secretLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)secretLen, 32);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(peer, NULL));
+    ExpectIntEQ(EVP_PKEY_derive_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_derive_set_peer(ctx, pkey), WOLFSSL_SUCCESS);
+    secretLen = sizeof(secretB);
+    ExpectIntEQ(EVP_PKEY_derive(ctx, secretB, &secretLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)secretLen, 32);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectIntEQ(XMEMCMP(secretA, secretB, 32), 0);
+
+    EVP_PKEY_free(peer);
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_EVP_PKEY_x448(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CURVE448)
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY* peer = NULL;
+    EVP_PKEY_CTX* genCtx = NULL;
+    EVP_PKEY_CTX* ctx = NULL;
+    unsigned char rawPriv[56];
+    unsigned char rawPub[56];
+    unsigned char secretA[56];
+    unsigned char secretB[56];
+    size_t secretLen;
+    int i;
+
+    for (i = 0; i < 56; i++) {
+        rawPriv[i] = (unsigned char)i;
+        rawPub[i]  = (unsigned char)(0x40 + i);
+    }
+
+    /* Raw import with the correct length reports the X448 type. */
+    ExpectNotNull(pkey = EVP_PKEY_new_raw_public_key(
+        EVP_PKEY_X448, NULL, rawPub, sizeof(rawPub)));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_X448);
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    ExpectNotNull(pkey = EVP_PKEY_new_raw_private_key(
+        EVP_PKEY_X448, NULL, rawPriv, sizeof(rawPriv)));
+    ExpectIntEQ(EVP_PKEY_id(pkey), EVP_PKEY_X448);
+
+    /* X448 is key-agreement only: signing must be rejected. */
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntNE(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* Wrong raw lengths are rejected. */
+    ExpectNull(EVP_PKEY_new_raw_public_key(
+        EVP_PKEY_X448, NULL, rawPub, 16));
+    ExpectNull(EVP_PKEY_new_raw_private_key(
+        EVP_PKEY_X448, NULL, rawPriv, 16));
+
+    /* Generate two key pairs and confirm ECDH agreement is symmetric. */
+    ExpectNotNull(genCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_X448, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(genCtx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(genCtx, &pkey), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(genCtx, &peer), WOLFSSL_SUCCESS);
+    EVP_PKEY_CTX_free(genCtx);
+    genCtx = NULL;
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_derive_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_derive_set_peer(ctx, peer), WOLFSSL_SUCCESS);
+    secretLen = sizeof(secretA);
+    ExpectIntEQ(EVP_PKEY_derive(ctx, secretA, &secretLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)secretLen, 56);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_PKEY_CTX_new(peer, NULL));
+    ExpectIntEQ(EVP_PKEY_derive_init(ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_derive_set_peer(ctx, pkey), WOLFSSL_SUCCESS);
+    secretLen = sizeof(secretB);
+    ExpectIntEQ(EVP_PKEY_derive(ctx, secretB, &secretLen), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)secretLen, 56);
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectIntEQ(XMEMCMP(secretA, secretB, 56), 0);
+
+    EVP_PKEY_free(peer);
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}
+

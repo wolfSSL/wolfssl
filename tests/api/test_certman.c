@@ -2109,6 +2109,70 @@ int test_wolfSSL_X509_check_host_IP_only_SAN_CN_fallback(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_check_host_URI_SAN_not_DNS_match(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256)
+    /* RFC 6125 Sec. 6.4 / RFC 9525 Sec. 6.3: DNS-ID reference identifiers
+     * must be matched only against dNSName SANs, not uniformResourceIdentifier.
+     * wolfSSL_X509_add_altname() is used to attach a bare-hostname URI SAN
+     * (the misissue shape that can reach altNames when certificate parsing is
+     * built without strict URI checks). URI SAN presence still suppresses CN
+     * fallback per RFC 6125 Sec. 6.4.4. */
+    WOLFSSL_EVP_PKEY *priv = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    const char hostName[] = "cnhost.local";
+    const char uriSan[] = "http://cnhost.local";
+    byte    *pt;
+    WOLFSSL_X509 *leafUri = NULL;
+    WOLFSSL_X509 *leafUriDns = NULL;
+
+    pt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    ExpectNotNull(leafUri = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                (byte*)hostName, (int)XSTRLEN(hostName), -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(leafUri, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname(leafUri, uriSan, ASN_URI_TYPE),
+            WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(leafUri, priv, EVP_sha256()), 0);
+    ExpectIntEQ(wolfSSL_X509_check_host(leafUri, hostName, XSTRLEN(hostName),
+                0, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    ExpectNotNull(leafUriDns = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                (byte*)hostName, (int)XSTRLEN(hostName), -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_set_subject_name(leafUriDns, name),
+            WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+    name = NULL;
+    ExpectIntEQ(wolfSSL_X509_add_altname(leafUriDns, uriSan, ASN_URI_TYPE),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_add_altname(leafUriDns, hostName, ASN_DNS_TYPE),
+            WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(leafUriDns, priv, EVP_sha256()), 0);
+    ExpectIntEQ(wolfSSL_X509_check_host(leafUriDns, hostName,
+                XSTRLEN(hostName), 0, NULL), WOLFSSL_SUCCESS);
+
+    wolfSSL_X509_free(leafUri);
+    wolfSSL_X509_free(leafUriDns);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CertManagerCRL(void)
 {
     EXPECT_DECLS;

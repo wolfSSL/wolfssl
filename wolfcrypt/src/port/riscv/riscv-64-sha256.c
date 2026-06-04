@@ -484,14 +484,7 @@ static WC_OMIT_FRAME_POINTER WC_INLINE void Sha256Transform(wc_Sha256* sha256,
         LOAD_DWORD_REV(s6, 48, %[data], a4, a5, a6, a7)
         LOAD_DWORD_REV(s7, 56, %[data], a4, a5, a6, a7)
 #else
-        "lwu    a4, 0(%[data])\n\t"
-        "lwu    s0, 4(%[data])\n\t"
-        "lwu    a5, 8(%[data])\n\t"
-        "lwu    s1, 12(%[data])\n\t"
-        "lwu    a6, 16(%[data])\n\t"
-        "lwu    s2, 20(%[data])\n\t"
-        "lwu    a7, 24(%[data])\n\t"
-        "lwu    s3, 28(%[data])\n\t"
+        UNALIGNED_LWU8(a4, s0, a5, s1, a6, s2, a7, s3, 0, %[data], t4)
         PACK_BB(s0, s0, a4, REG_S0, REG_S0, REG_A4)
         PACK_BB(s1, s1, a5, REG_S1, REG_S1, REG_A5)
         PACK_BB(s2, s2, a6, REG_S2, REG_S2, REG_A6)
@@ -500,14 +493,7 @@ static WC_OMIT_FRAME_POINTER WC_INLINE void Sha256Transform(wc_Sha256* sha256,
         REV8(REG_S1, REG_S1)
         REV8(REG_S2, REG_S2)
         REV8(REG_S3, REG_S3)
-        "lwu    a4, 32(%[data])\n\t"
-        "lwu    s4, 36(%[data])\n\t"
-        "lwu    a5, 40(%[data])\n\t"
-        "lwu    s5, 44(%[data])\n\t"
-        "lwu    a6, 48(%[data])\n\t"
-        "lwu    s6, 52(%[data])\n\t"
-        "lwu    a7, 56(%[data])\n\t"
-        "lwu    s7, 60(%[data])\n\t"
+        UNALIGNED_LWU8(a4, s4, a5, s5, a6, s6, a7, s7, 32, %[data], t4)
         PACK_BB(s4, s4, a4, REG_S4, REG_S4, REG_A4)
         PACK_BB(s5, s5, a5, REG_S5, REG_S5, REG_A5)
         PACK_BB(s6, s6, a6, REG_S6, REG_S6, REG_A6)
@@ -840,31 +826,18 @@ static WC_INLINE void Sha256Final(wc_Sha256* sha256, byte* hash)
         "srli   t2, t3, 32\n\t"
         "srli   a4, a5, 32\n\t"
         "srli   a6, a7, 32\n\t"
-        "sw     t0, 0(%[hash])\n\t"
-        "sw     t1, 4(%[hash])\n\t"
-        "sw     t2, 8(%[hash])\n\t"
-        "sw     t3, 12(%[hash])\n\t"
-        "sw     a4, 16(%[hash])\n\t"
-        "sw     a5, 20(%[hash])\n\t"
-        "sw     a6, 24(%[hash])\n\t"
-        "sw     a7, 28(%[hash])\n\t"
+        UNALIGNED_SW8(t0, t1, t2, t3, a4, a5, a6, a7, 0, %[hash], t4)
 #else
         LOAD_WORD_REV(t0, 0, %[digest], t2, t3, t4)
         LOAD_WORD_REV(t1, 4, %[digest], t2, t3, t4)
         LOAD_WORD_REV(a4, 8, %[digest], t2, t3, t4)
         LOAD_WORD_REV(a5, 12, %[digest], t2, t3, t4)
-        "sw     t0, 0(%[hash])\n\t"
-        "sw     t1, 4(%[hash])\n\t"
-        "sw     a4, 8(%[hash])\n\t"
-        "sw     a5, 12(%[hash])\n\t"
+        UNALIGNED_SW4(t0, t1, a4, a5, 0, %[hash], t2)
         LOAD_WORD_REV(t0, 16, %[digest], t2, t3, t4)
         LOAD_WORD_REV(t1, 20, %[digest], t2, t3, t4)
         LOAD_WORD_REV(a4, 24, %[digest], t2, t3, t4)
         LOAD_WORD_REV(a5, 28, %[digest], t2, t3, t4)
-        "sw     t0, 16(%[hash])\n\t"
-        "sw     t1, 20(%[hash])\n\t"
-        "sw     a4, 24(%[hash])\n\t"
-        "sw     a5, 28(%[hash])\n\t"
+        UNALIGNED_SW4(t0, t1, a4, a5, 16, %[hash], t2)
 #endif
         :
         : [digest] "r" (sha256->digest), [hash] "r" (hash)

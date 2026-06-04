@@ -356,10 +356,13 @@ WOLFSSL_API void wc_ErrorString(int err, char* buff);
 WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
 #endif
 
+#ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+    WOLFSSL_API extern int wc_backtrace_render(void);
+#endif
+
 #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
         (defined(BUILDING_WOLFSSL) || \
          defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
-    WOLFSSL_API extern int wc_backtrace_render(void);
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES

@@ -12978,43 +12978,61 @@ int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s, unsigned char mode)
 size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
     byte len = 0;
+    byte const * src;
 
     WOLFSSL_ENTER("wolfSSL_get_finished");
 
-    if (!ssl || !buf || count < TLS_FINISHED_SZ) {
+    if (!ssl || !buf) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
+        src = ssl->serverFinished;
         len = ssl->serverFinished_len;
-        XMEMCPY(buf, ssl->serverFinished, len);
     }
     else {
+        src = ssl->clientFinished;
         len = ssl->clientFinished_len;
-        XMEMCPY(buf, ssl->clientFinished, len);
     }
+
+    if (count < len) {
+        WOLFSSL_MSG("Buffer too small");
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(buf, src, len);
+
     return len;
 }
 
 size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
     byte len = 0;
+    byte const * src;
+
     WOLFSSL_ENTER("wolfSSL_get_peer_finished");
 
-    if (!ssl || !buf || count < TLS_FINISHED_SZ) {
+    if (!ssl || !buf) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
 
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        src = ssl->serverFinished;
         len = ssl->serverFinished_len;
-        XMEMCPY(buf, ssl->serverFinished, len);
     }
     else {
+        src = ssl->clientFinished;
         len = ssl->clientFinished_len;
-        XMEMCPY(buf, ssl->clientFinished, len);
     }
+
+    if (count < len) {
+        WOLFSSL_MSG("Buffer too small");
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(buf, src, len);
 
     return len;
 }

@@ -1,20 +1,21 @@
 name: Membrowse Memory Report
 
-# Runs nightly instead of per-PR - the report is for trend tracking, not
-# gating individual PRs, and the build matrix is too heavy to run on every
-# push.  Use workflow_dispatch to trigger an ad-hoc run.
-
 on:
-  schedule:
-    - cron: '0 4 * * *'   # daily at 04:00 UTC
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [master]
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   load-targets:
+    # Only run from the wolfssl org to avoid burning forks' CI minutes
+    # and reporting fork builds to the membrowse backend.
+    if: github.repository_owner == 'wolfssl' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -27,28 +28,68 @@ jobs:
         id: set-matrix
         run: echo "matrix=$(jq -c '.' .github/membrowse-targets.json)" >> $GITHUB_OUTPUT
 
-  analyze:
-    needs: load-targets
+  check-changes:
+    if: github.repository_owner == 'wolfssl' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
+    outputs:
+      needs_build: ${{ steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Detect binary-affecting changes
+        id: filter
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        uses: dorny/paths-filter@v4
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '!**.md'
+              - '!**/README*'
+              - '!doc/**'
+              - '!AUTHORS'
+              - '!COPYING*'
+              - '!LICENSE*'
+              - '!LICENSING'
+              - '!INSTALL'
+              - '!ChangeLog*'
+              - '!SCRIPTS-LIST'
+              - '!.gitignore'
+              - '!.editorconfig'
+              - '!.codespellexcludelines'
+              - '!.cyignore'
+              - '!.wolfssl_known_macro_extras'
+              - '!.github/ISSUE_TEMPLATE/**'
+              - '!.github/PULL_REQUEST_TEMPLATE.md'
+
+  analyze:
+    needs: [load-targets, check-changes]
+    if: github.repository_owner == 'wolfssl' && (github.event_name != 'pull_request' || needs.check-changes.outputs.needs_build == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.load-targets.outputs.matrix) }}
+        include: ${{ fromJson(needs.load-targets.outputs.matrix || '[]') }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
-          submodules: recursive
+          fetch-depth: 2
+          submodules: ${{ needs.check-changes.outputs.needs_build == 'true' && 'recursive' || 'false' }}
 
       - name: Install packages
+        if: needs.check-changes.outputs.needs_build == 'true'
         uses: ./.github/actions/install-apt-deps
         with:
           packages: ${{ matrix.apt_packages }}
+          cache: ${{ matrix.apt_cache || 'true' }}
 
       - name: Build firmware
+        if: needs.check-changes.outputs.needs_build == 'true'
         run: ${{ matrix.build_cmd }}
 
       - name: Run Membrowse PR Action
@@ -56,9 +97,11 @@ jobs:
         uses: membrowse/membrowse-action@v1
         with:
           target_name: ${{ matrix.target_name }}
-          elf: ${{ matrix.elf }}
-          ld: ${{ matrix.ld }}
+          elf: ${{ needs.check-changes.outputs.needs_build == 'true' && matrix.elf || '' }}
+          ld: ${{ needs.check-changes.outputs.needs_build == 'true' && matrix.ld || '' }}
+          map_file: ${{ needs.check-changes.outputs.needs_build == 'true' && matrix.map_file || '' }}
           linker_vars: ${{ matrix.linker_vars }}
           api_key: ${{ secrets.MEMBROWSE_API_KEY }}
           api_url: ${{ vars.MEMBROWSE_API_URL }}
+          identical: ${{ needs.check-changes.outputs.needs_build != 'true' }}
           verbose: INFO

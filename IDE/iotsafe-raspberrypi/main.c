@@ -203,27 +203,27 @@ int main(int argc, char** argv)
 
     if (argc == 11)
     {
-        if (strcmp(argv[1], "-ip") == 0)
-           strcpy((char*)&ip, argv[2]);
+        if (strcmp(argv[1], "-ip") == 0 && strlen(argv[2]) < sizeof(ip))
+            strcpy((char*)&ip, argv[2]);
         else
             show_usage(argv[0]);
 
-        if (strcmp(argv[3], "-h") == 0)
+        if (strcmp(argv[3], "-h") == 0 && strlen(argv[4]) < sizeof(name))
             strcpy((char*)&name, argv[4]);
         else
             show_usage(argv[0]);
 
-        if (strcmp(argv[5], "-p") == 0)
+        if (strcmp(argv[5], "-p") == 0 && strlen(argv[6]) < sizeof(port))
             strcpy((char*)&port, argv[6]);
         else
             show_usage(argv[0]);
 
-        if (strcmp(argv[7], "-t") == 0)
+        if (strcmp(argv[7], "-t") == 0 && strlen(argv[8]) < sizeof(temperature))
             strcpy((char*)&temperature, argv[8]);
         else
             show_usage(argv[0]);
 
-        if (strcmp(argv[9], "-d") == 0)
+        if (strcmp(argv[9], "-d") == 0 && strlen(argv[10]) < sizeof(device))
             strcpy((char*)&device, argv[10]);
         else
             show_usage(argv[0]);

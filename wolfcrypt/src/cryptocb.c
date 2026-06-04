@@ -2033,10 +2033,20 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 
 #ifdef WOLFSSL_SHA512
 int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
-    word32 inSz, byte* digest, size_t digestSz)
+    word32 inSz, byte* digest
+#if !(defined(HAVE_FIPS) && FIPS_VERSION_LT(7,0))
+    , size_t digestSz
+#endif
+    )
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
+#if defined(HAVE_FIPS) && FIPS_VERSION_LT(7,0)
+    /* Older FIPS sha512.c snapshots call the 4-arg API (no digestSz). Treat as
+     * full-size SHA-512 with no variant dispatch, matching pre-digestSz
+     * behavior. */
+    size_t digestSz = WC_SHA512_DIGEST_SIZE;
+#endif
 
     /* locate registered callback */
     #ifndef NO_SHA2_CRYPTO_CB

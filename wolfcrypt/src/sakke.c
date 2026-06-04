@@ -37,14 +37,6 @@
 #include <wolfssl/wolfcrypt/sakke.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
-    /* force off unneeded vector register save/restore. */
-    #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
-    #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
-#endif
-
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
     #define wc_ecc_key_get_priv(key) (&((key)->k))
@@ -1328,13 +1320,11 @@ int wc_GenerateSakkeRskTable(const SakkeKey* key, const ecc_point* rsk,
         err = BAD_FUNC_ARG;
     }
     if (err == 0) {
-        SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #ifdef WOLFSSL_SP_1024
         err = sp_Pairing_gen_precomp_1024(rsk, table, len);
 #else
         err = NOT_COMPILED_IN;
 #endif
-        RESTORE_VECTOR_REGISTERS();
     }
 
     return err;
@@ -2441,8 +2431,6 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
         err = BAD_FUNC_ARG;
     }
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     /* Load elliptic curve parameters */
     if (err == 0) {
         err = sakke_load_params(key);
@@ -2477,8 +2465,6 @@ int wc_ValidateSakkeRsk(SakkeKey* key, const byte* id, word16 idSz,
     if (valid != NULL) {
         *valid = ((err == 0) && (mp_cmp(a, &key->params.g) == MP_EQ));
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -2622,6 +2608,22 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
     mp_int* by = key->tmp.p1->z;
     mp_int* prime = &key->params.prime;
     int i;
+#ifdef WC_NO_GLOBAL_OBJECT_POINTERS
+    static const wc_ptr_t wc_off_on_addr[2] =
+    {
+    #if defined(WC_64BIT_CPU)
+        W64LIT(0x0000000000000000),
+        W64LIT(0xffffffffffffffff)
+    #elif defined(WC_16BIT_CPU)
+        0x0000U,
+        0xffffU
+    #else
+        /* 32 bit */
+        0x00000000U,
+        0xffffffffU
+    #endif
+    };
+#endif
 
 #ifdef WC_NO_CACHE_RESISTANT
     c[0] = r;
@@ -6387,8 +6389,6 @@ int wc_MakeSakkePointI(SakkeKey* key, const byte* id, word16 idSz)
         err = BAD_FUNC_ARG;
     }
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     if (err == 0) {
         err = sakke_load_params(key);
     }
@@ -6400,8 +6400,6 @@ int wc_MakeSakkePointI(SakkeKey* key, const byte* id, word16 idSz)
         XMEMCPY(key->i.id, id, idSz);
         key->i.idSz = idSz;
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -6532,9 +6530,7 @@ int wc_GenerateSakkePointITable(SakkeKey* key, byte* table, word32* len)
 
 #ifdef WOLFSSL_HAVE_SP_ECC
     if (err == 0) {
-        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         err = sp_ecc_gen_table_1024(key->i.i, table, len, key->heap);
-        RESTORE_VECTOR_REGISTERS();
     }
     if (err == 0) {
         key->i.table = table;
@@ -6722,8 +6718,6 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
         err = BAD_STATE_E;
     }
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     /* Load parameters */
     if (err == 0) {
         err = sakke_load_params(key);
@@ -6798,8 +6792,6 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
      */
 
     /* Step 6: Output SSV - already encoded in buffer */
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -6898,7 +6890,9 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
     mp_int* ri = NULL;
     byte* wb = NULL;
     byte* test = NULL;
-    byte a[WC_MAX_DIGEST_SIZE] = {0};
+    byte a[WC_MAX_DIGEST_SIZE];
+
+    XMEMSET(a, 0, sizeof(a));
 
     if ((key == NULL) || (ssv == NULL) || (auth == NULL) || (ssvSz == 0)) {
         err = BAD_FUNC_ARG;
@@ -6906,8 +6900,6 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
     if ((err == 0) && (!key->rsk.set || (key->idSz == 0))) {
         err = BAD_STATE_E;
     }
-
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
     /* Load parameters */
     if (err == 0) {
@@ -6978,8 +6970,6 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
     if ((err == 0) && (ConstantCompare(auth, test, (int)(2 * n + 1)) != 0)) {
         err = SAKKE_VERIFY_FAIL_E;
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }

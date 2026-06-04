@@ -776,7 +776,8 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     single = bs->single;
     while (single != NULL) {
         if (single->status != NULL && id->status != NULL &&
-            (XMEMCMP(single->status->serial, id->status->serial,
+            (single->status->serialSz == id->status->serialSz)
+         && (XMEMCMP(single->status->serial, id->status->serial,
                      (size_t)single->status->serialSz) == 0)
          && (XMEMCMP(single->issuerHash, id->issuerHash, OCSP_DIGEST_SIZE) == 0)
          && (XMEMCMP(single->issuerKeyHash, id->issuerKeyHash, OCSP_DIGEST_SIZE) == 0)) {
@@ -1270,7 +1271,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     int length = 0;
     int ret;
 
-    if (data == NULL)
+    if (data == NULL || *data == NULL || len <= 0)
         return NULL;
 
     if (response != NULL)
@@ -1283,30 +1284,27 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         XMEMSET(resp, 0, sizeof(OcspResponse));
     }
 
+    if (resp->source != NULL)
+        XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     resp->source = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (resp->source == NULL) {
-        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
-        return NULL;
+    if (resp->source == NULL)
+        goto error;
+
+    if (resp->single != NULL) {
+        FreeOcspEntry(resp->single, NULL);
+        XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
     }
     resp->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
                                       DYNAMIC_TYPE_OCSP_ENTRY);
-    if (resp->single == NULL) {
-        XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
-        return NULL;
-    }
+    if (resp->single == NULL)
+        goto error;
     XMEMSET(resp->single, 0, sizeof(OcspEntry));
     resp->single->status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
                                       DYNAMIC_TYPE_OCSP_STATUS);
+    if (resp->single->status == NULL)
+        goto error;
     resp->single->ownStatus = 1;
-    if (resp->single->status == NULL) {
-        XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
-        return NULL;
-    }
     XMEMSET(resp->single->status, 0, sizeof(CertStatus));
-
     XMEMCPY(resp->source, *data, (size_t)len);
     resp->maxIdx = (word32)len;
 
@@ -1314,8 +1312,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     if (ret != 0 && ret != WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E)) {
         /* for just converting from a DER to an internal structure the CA may
          * not yet be known to this function for signature verification */
-        wolfSSL_OCSP_RESPONSE_free(resp);
-        return NULL;
+        goto error;
     }
 
     if (GetSequence(*data, &idx, &length, (word32)len) >= 0)
@@ -1325,6 +1322,12 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         *response = resp;
 
     return resp;
+
+error:
+    wolfSSL_OCSP_RESPONSE_free(resp);
+    if (response != NULL && *response == resp)
+        *response = NULL;
+    return NULL;
 }
 
 int wolfSSL_i2d_OCSP_RESPONSE(OcspResponse* response,

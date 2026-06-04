@@ -82,23 +82,27 @@
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
-#define WOLFKM_ECDSA_DRIVER       ("ecdsa-wolfcrypt")
+#if defined(WOLFSSL_SP_X86_64_ASM) && !defined(NO_AVX2_SUPPORT)
+    #define WOLFKM_ECDSA_DRIVER_ISA_EXT "-avx2"
+#else
+    #define WOLFKM_ECDSA_DRIVER_ISA_EXT ""
+#endif
+#define WOLFKM_ECDSA_DRIVER_SUFFIX WOLFKM_ECDSA_DRIVER_ISA_EXT \
+                           WOLFKM_DRIVER_SUFFIX_BASE
+
+#define WOLFKM_ECDSA_DRIVER       ("ecdsa" WOLFKM_ECDSA_DRIVER_SUFFIX)
 
 #define WOLFKM_ECDSA_P192_NAME    ("ecdsa-nist-p192")
-#define WOLFKM_ECDSA_P192_DRIVER  ("ecdsa-nist-p192" WOLFKM_DRIVER_FIPS \
-                                   "-wolfcrypt")
+#define WOLFKM_ECDSA_P192_DRIVER  ("ecdsa-nist-p192" WOLFKM_ECDSA_DRIVER_SUFFIX)
 
 #define WOLFKM_ECDSA_P256_NAME    ("ecdsa-nist-p256")
-#define WOLFKM_ECDSA_P256_DRIVER  ("ecdsa-nist-p256" WOLFKM_DRIVER_FIPS \
-                                   "-wolfcrypt")
+#define WOLFKM_ECDSA_P256_DRIVER  ("ecdsa-nist-p256" WOLFKM_ECDSA_DRIVER_SUFFIX)
 
 #define WOLFKM_ECDSA_P384_NAME    ("ecdsa-nist-p384")
-#define WOLFKM_ECDSA_P384_DRIVER  ("ecdsa-nist-p384" WOLFKM_DRIVER_FIPS \
-                                   "-wolfcrypt")
+#define WOLFKM_ECDSA_P384_DRIVER  ("ecdsa-nist-p384" WOLFKM_ECDSA_DRIVER_SUFFIX)
 
 #define WOLFKM_ECDSA_P521_NAME    ("ecdsa-nist-p521")
-#define WOLFKM_ECDSA_P521_DRIVER  ("ecdsa-nist-p521" WOLFKM_DRIVER_FIPS \
-                                   "-wolfcrypt")
+#define WOLFKM_ECDSA_P521_DRIVER  ("ecdsa-nist-p521" WOLFKM_ECDSA_DRIVER_SUFFIX)
 
 
 static int  linuxkm_test_ecdsa_nist_driver(const char * driver,

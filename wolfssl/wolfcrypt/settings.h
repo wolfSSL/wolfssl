@@ -327,7 +327,7 @@
         #define WC_16BIT_CPU
         #define WOLFSSL_OLD_OID_SUM
     #elif defined(__SAM3X8E__)
-        #define WOLFSSL_NO_ATOMIC
+        #define WOLFSSL_NO_STDATOMIC_FENCE
         #define WOLFSSL_NO_SOCK
         #define WOLFSSL_USER_IO
         #define NO_WRITEV
@@ -3962,6 +3962,9 @@ extern void uITRON4_free(void *p) ;
     #ifdef WC_SYM_RELOC_TABLES
         #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
             #define WC_NO_INTERNAL_FUNCTION_POINTERS
+        #endif
+        #ifndef WC_NO_GLOBAL_OBJECT_POINTERS
+            #define WC_NO_GLOBAL_OBJECT_POINTERS
         #endif
         #ifndef WOLFSSL_ECC_CURVE_STATIC
             #define WOLFSSL_ECC_CURVE_STATIC

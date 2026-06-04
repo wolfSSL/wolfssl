@@ -167,13 +167,14 @@
     #ifndef WC_LINUXKM_INTR_SIGNALS
         #define WC_LINUXKM_INTR_SIGNALS { SIGKILL, SIGABRT, SIGHUP, SIGINT }
     #endif
-    extern int wc_linuxkm_sig_ignore_begin(void);
-    extern int wc_linuxkm_sig_ignore_end(void);
-    extern int wc_linuxkm_check_for_intr_signals(void);
+    WOLFSSL_API int wc_linuxkm_can_block(void);
+    WOLFSSL_API int wc_linuxkm_sig_ignore_begin(void);
+    WOLFSSL_API int wc_linuxkm_sig_ignore_end(void);
+    WOLFSSL_API int wc_linuxkm_check_for_intr_signals(void);
     #ifndef WC_LINUXKM_MAX_NS_WITHOUT_YIELD
         #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD 1000000000
     #endif
-    extern void wc_linuxkm_relax_long_loop(void);
+    WOLFSSL_API void wc_linuxkm_relax_long_loop(void);
 
     #ifndef WC_SIG_IGNORE_BEGIN
         #define WC_SIG_IGNORE_BEGIN() wc_linuxkm_sig_ignore_begin()
@@ -1221,6 +1222,7 @@
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
         #endif
 
+        typeof(wc_linuxkm_can_block) *wc_linuxkm_can_block;
         typeof(wc_linuxkm_sig_ignore_begin) *wc_linuxkm_sig_ignore_begin;
         typeof(wc_linuxkm_sig_ignore_end) *wc_linuxkm_sig_ignore_end;
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
@@ -1521,8 +1523,9 @@
         wolfssl_spin_unlock_irqrestore_rt((lock), (flags))
     #endif
 
-    #define wc_linuxkm_sig_ignore_begin WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_begin);
-    #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end);
+    #define wc_linuxkm_can_block WC_PIE_INDIRECT_SYM(wc_linuxkm_can_block)
+    #define wc_linuxkm_sig_ignore_begin WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_begin)
+    #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end)
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
     #define wc_linuxkm_relax_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
 
@@ -1905,21 +1908,21 @@
         #endif
     #else /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
     #ifdef USE_KVMALLOC
-        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
+        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
-            #define free(ptr) (preempt_count() == 0 ? kvfree(ptr) : kvfree_atomic(ptr))
+            #define free(ptr) (wc_linuxkm_can_block() ? kvfree(ptr) : kvfree_atomic(ptr))
         #else
             #define free(ptr) kvfree(ptr)
         #endif
         #ifdef USE_KVREALLOC
-            #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
+            #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
         #else
             #define realloc(ptr, newsize) ((void)(ptr), (void)(newsize), NULL)
         #endif
     #else
-        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
+        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
         #define free(ptr) kfree(ptr)
-        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
+        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
     #endif
     #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 

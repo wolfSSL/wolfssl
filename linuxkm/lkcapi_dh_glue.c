@@ -89,37 +89,40 @@
 #include <crypto/dh.h>
 
 #define WOLFKM_DH_NAME    ("dh")
-#define WOLFKM_DH_DRIVER  ("dh" WOLFKM_DRIVER_FIPS \
-                           "-wolfcrypt")
+
+#if defined(WOLFSSL_SP_X86_64_ASM) && !defined(NO_AVX2_SUPPORT)
+    #define WOLFKM_DH_DRIVER_ISA_EXT "-avx2"
+#else
+    #define WOLFKM_DH_DRIVER_ISA_EXT ""
+#endif
+#define WOLFKM_DH_DRIVER_SUFFIX WOLFKM_DH_DRIVER_ISA_EXT \
+                           WOLFKM_DRIVER_SUFFIX_BASE
+
+#define WOLFKM_DH_DRIVER  ("dh" WOLFKM_DH_DRIVER_SUFFIX)
 
 #ifdef HAVE_FFDHE_2048
     #define WOLFKM_FFDHE2048_NAME   ("ffdhe2048(dh)")
-    #define WOLFKM_FFDHE2048_DRIVER ("ffdhe2048" WOLFKM_DRIVER_FIPS \
-                                     "-wolfcrypt")
+    #define WOLFKM_FFDHE2048_DRIVER ("ffdhe2048" WOLFKM_DH_DRIVER_SUFFIX)
 #endif /* HAVE_FFDHE_2048 */
 
 #ifdef HAVE_FFDHE_3072
     #define WOLFKM_FFDHE3072_NAME   ("ffdhe3072(dh)")
-    #define WOLFKM_FFDHE3072_DRIVER ("ffdhe3072" WOLFKM_DRIVER_FIPS \
-                                     "-wolfcrypt")
+    #define WOLFKM_FFDHE3072_DRIVER ("ffdhe3072" WOLFKM_DH_DRIVER_SUFFIX)
 #endif /* HAVE_FFDHE_3072 */
 
 #ifdef HAVE_FFDHE_4096
     #define WOLFKM_FFDHE4096_NAME   ("ffdhe4096(dh)")
-    #define WOLFKM_FFDHE4096_DRIVER ("ffdhe4096" WOLFKM_DRIVER_FIPS \
-                                     "-wolfcrypt")
+    #define WOLFKM_FFDHE4096_DRIVER ("ffdhe4096" WOLFKM_DH_DRIVER_SUFFIX)
 #endif /* HAVE_FFDHE_4096 */
 
 #ifdef HAVE_FFDHE_6144
     #define WOLFKM_FFDHE6144_NAME   ("ffdhe6144(dh)")
-    #define WOLFKM_FFDHE6144_DRIVER ("ffdhe6144" WOLFKM_DRIVER_FIPS \
-                                     "-wolfcrypt")
+    #define WOLFKM_FFDHE6144_DRIVER ("ffdhe6144" WOLFKM_DH_DRIVER_SUFFIX)
 #endif /* HAVE_FFDHE_6144 */
 
 #ifdef HAVE_FFDHE_8192
     #define WOLFKM_FFDHE8192_NAME   ("ffdhe8192(dh)")
-    #define WOLFKM_FFDHE8192_DRIVER ("ffdhe8192" WOLFKM_DRIVER_FIPS \
-                                     "-wolfcrypt")
+    #define WOLFKM_FFDHE8192_DRIVER ("ffdhe8192" WOLFKM_DH_DRIVER_SUFFIX)
 #endif /* HAVE_FFDHE_8192 */
 
 static int linuxkm_test_kpp_driver(const char * driver,

@@ -41,6 +41,27 @@ fn test_hmac_sha256_mac_finalize() {
 }
 
 #[test]
+fn test_hmac_sha256_mac_clone() {
+    let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+    let prefix = b"Hi ";
+    let suffix = b"There";
+    let expected = b"\xb0\x34\x4c\x61\xd8\xdb\x38\x53\x5c\xa8\xaf\xce\xaf\x0b\xf1\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32\xcf\xf7";
+
+    let mut mac = HmacSha256::new_from_slice(key)
+        .expect("HMAC init failed");
+    mac.update(prefix);
+
+    let mut forked = mac.clone();
+    forked.update(suffix);
+    let forked_tag = forked.finalize();
+    assert_eq!(forked_tag.as_bytes().as_slice(), expected);
+
+    mac.update(suffix);
+    let original_tag = mac.finalize();
+    assert_eq!(original_tag.as_bytes().as_slice(), expected);
+}
+
+#[test]
 fn test_hmac_sha256_mac_verify_fail() {
     let key = b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
     let input = b"Hi There";

@@ -181,6 +181,633 @@
 /* 32-bit width when loading. */
 #define WIDTH_32  0b110
 
+/*
+ * Scalar load/store helpers.
+ *
+ * Each macro performs the same operation as the ld/lwu/lw/lh/sd/sw/sh
+ * instruction it is named after. By default it expands to that native
+ * instruction. When built with WOLFSSL_RISCV_ASM_NO_UNALIGNED - for cores that
+ * don't support misaligned access - it checks the effective address alignment
+ * at run time and dispatches to the widest supported sequence: word-wise
+ * (lwu/sw) when 4-byte aligned, half-wise (lhu/sh) when 2-byte aligned,
+ * otherwise byte-wise (lbu/sb). The narrower _BY_BYTE / _BY_HALF / _BY_WORD
+ * forms are also exposed for sites that already know the alignment. Values
+ * are little-endian, matching the native instructions either way.
+ *
+ * Bulk variants UNALIGNED_<LD|SD|LWU|LW|SW><N> (N = 2, 4, 8) issue N
+ * consecutive accesses starting at o(p) - stride 8 bytes for LD/SD, 4 bytes
+ * for LWU/LW/SW. Under WOLFSSL_RISCV_ASM_NO_UNALIGNED they share a single
+ * alignment check across all N elements; otherwise they are just N native
+ * instructions back-to-back.
+ *
+ *   r = data register: destination (loads) or source (stores)
+ *   o = constant byte offset
+ *   p = base address register
+ *   t = scratch register - must differ from r and p; clobbered. For stores the
+ *       data register r is preserved. Only used when
+ *       WOLFSSL_RISCV_ASM_NO_UNALIGNED is defined; ignored otherwise.
+ */
+
+/* Apply X to N doublewords at 8-byte stride starting at o(p). */
+#define UNALIGNED_DW_REP2(X, r0, r1, o, p, t)                           \
+    X(r0, o,    p, t)                                                   \
+    X(r1, o+8,  p, t)
+#define UNALIGNED_DW_REP4(X, r0, r1, r2, r3, o, p, t)                   \
+    X(r0, o,    p, t)                                                   \
+    X(r1, o+8,  p, t)                                                   \
+    X(r2, o+16, p, t)                                                   \
+    X(r3, o+24, p, t)
+#define UNALIGNED_DW_REP8(X, r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)   \
+    X(r0, o,    p, t)                                                   \
+    X(r1, o+8,  p, t)                                                   \
+    X(r2, o+16, p, t)                                                   \
+    X(r3, o+24, p, t)                                                   \
+    X(r4, o+32, p, t)                                                   \
+    X(r5, o+40, p, t)                                                   \
+    X(r6, o+48, p, t)                                                   \
+    X(r7, o+56, p, t)
+
+/* Apply X to N words at 4-byte stride starting at o(p). */
+#define UNALIGNED_W_REP2(X, r0, r1, o, p, t)                            \
+    X(r0, o,    p, t)                                                   \
+    X(r1, o+4,  p, t)
+#define UNALIGNED_W_REP4(X, r0, r1, r2, r3, o, p, t)                    \
+    X(r0, o,    p, t)                                                   \
+    X(r1, o+4,  p, t)                                                   \
+    X(r2, o+8,  p, t)                                                   \
+    X(r3, o+12, p, t)
+#define UNALIGNED_W_REP8(X, r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)    \
+    X(r0, o,    p, t)                                                   \
+    X(r1, o+4,  p, t)                                                   \
+    X(r2, o+8,  p, t)                                                   \
+    X(r3, o+12, p, t)                                                   \
+    X(r4, o+16, p, t)                                                   \
+    X(r5, o+20, p, t)                                                   \
+    X(r6, o+24, p, t)                                                   \
+    X(r7, o+28, p, t)
+
+#ifndef WOLFSSL_RISCV_ASM_NO_UNALIGNED
+
+/* Load 64-bits. */
+#define UNALIGNED_LD(r, o, p, t)                \
+    "ld     " #r ", " #o "(" #p ")\n\t"
+
+/* Load 32-bits, zero extended. */
+#define UNALIGNED_LWU(r, o, p, t)               \
+    "lwu    " #r ", " #o "(" #p ")\n\t"
+
+/* Load 32-bits, sign extended. */
+#define UNALIGNED_LW(r, o, p, t)                \
+    "lw     " #r ", " #o "(" #p ")\n\t"
+
+/* Load 16-bits, sign extended. */
+#define UNALIGNED_LH(r, o, p, t)                \
+    "lh     " #r ", " #o "(" #p ")\n\t"
+
+/* Store 64-bits. */
+#define UNALIGNED_SD(r, o, p, t)                \
+    "sd     " #r ", " #o "(" #p ")\n\t"
+
+/* Store 32-bits. */
+#define UNALIGNED_SW(r, o, p, t)                \
+    "sw     " #r ", " #o "(" #p ")\n\t"
+
+/* Store 16-bits. */
+#define UNALIGNED_SH(r, o, p, t)                \
+    "sh     " #r ", " #o "(" #p ")\n\t"
+
+/* Bulk variants - hardware handles unaligned access, so just emit N native
+ * instructions. */
+#define UNALIGNED_LD2(r0, r1, o, p, t)                              \
+    UNALIGNED_DW_REP2(UNALIGNED_LD, r0, r1, o, p, t)
+#define UNALIGNED_LD4(r0, r1, r2, r3, o, p, t)                      \
+    UNALIGNED_DW_REP4(UNALIGNED_LD, r0, r1, r2, r3, o, p, t)
+#define UNALIGNED_LD8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)      \
+    UNALIGNED_DW_REP8(UNALIGNED_LD,                                 \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)
+#define UNALIGNED_SD2(r0, r1, o, p, t)                              \
+    UNALIGNED_DW_REP2(UNALIGNED_SD, r0, r1, o, p, t)
+#define UNALIGNED_SD4(r0, r1, r2, r3, o, p, t)                      \
+    UNALIGNED_DW_REP4(UNALIGNED_SD, r0, r1, r2, r3, o, p, t)
+#define UNALIGNED_SD8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)      \
+    UNALIGNED_DW_REP8(UNALIGNED_SD,                                 \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)
+#define UNALIGNED_LWU2(r0, r1, o, p, t)                             \
+    UNALIGNED_W_REP2(UNALIGNED_LWU, r0, r1, o, p, t)
+#define UNALIGNED_LWU4(r0, r1, r2, r3, o, p, t)                     \
+    UNALIGNED_W_REP4(UNALIGNED_LWU, r0, r1, r2, r3, o, p, t)
+#define UNALIGNED_LWU8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)     \
+    UNALIGNED_W_REP8(UNALIGNED_LWU,                                 \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)
+#define UNALIGNED_LW2(r0, r1, o, p, t)                              \
+    UNALIGNED_W_REP2(UNALIGNED_LW, r0, r1, o, p, t)
+#define UNALIGNED_LW4(r0, r1, r2, r3, o, p, t)                      \
+    UNALIGNED_W_REP4(UNALIGNED_LW, r0, r1, r2, r3, o, p, t)
+#define UNALIGNED_LW8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)      \
+    UNALIGNED_W_REP8(UNALIGNED_LW,                                  \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)
+#define UNALIGNED_SW2(r0, r1, o, p, t)                              \
+    UNALIGNED_W_REP2(UNALIGNED_SW, r0, r1, o, p, t)
+#define UNALIGNED_SW4(r0, r1, r2, r3, o, p, t)                      \
+    UNALIGNED_W_REP4(UNALIGNED_SW, r0, r1, r2, r3, o, p, t)
+#define UNALIGNED_SW8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)      \
+    UNALIGNED_W_REP8(UNALIGNED_SW,                                  \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)
+
+#else
+
+/* Load 64-bits. */
+#define UNALIGNED_LD_BY_BYTE(r, o, p, t)        \
+    "lbu    " #r ", " #o "+0(" #p ")\n\t"       \
+    "lbu    " #t ", " #o "+1(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 8\n\t"              \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+2(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 16\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+3(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 24\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+4(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 32\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+5(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 40\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+6(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 48\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+7(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 56\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"
+#define UNALIGNED_LD_BY_HALF(r, o, p, t)        \
+    "lhu    " #r ", " #o "+0(" #p ")\n\t"       \
+    "lhu    " #t ", " #o "+2(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 16\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lhu    " #t ", " #o "+4(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 32\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lhu    " #t ", " #o "+6(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 48\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"
+#define UNALIGNED_LD_BY_WORD(r, o, p, t)        \
+    "lwu    " #r ", " #o "+0(" #p ")\n\t"       \
+    "lwu    " #t ", " #o "+4(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 32\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"
+#define UNALIGNED_LD_BY_DWORD(r, o, p, t)       \
+    "ld     " #r ", " #o "(" #p ")\n\t"
+/* Assumes o is a multiple of 8. */
+#define UNALIGNED_LD(r, o, p, t)                \
+    "andi   " #t ", " #p ", 7\n\t"              \
+    "bnez   " #t ", 1f\n\t"                     \
+    UNALIGNED_LD_BY_DWORD(r, o, p, t)           \
+    "j      4f\n\t"                             \
+    "1:\n\t"                                    \
+    "andi   " #t ", " #t ", 3\n\t"              \
+    "bnez   " #t ", 2f\n\t"                     \
+    UNALIGNED_LD_BY_WORD(r, o, p, t)            \
+    "j      4f\n\t"                             \
+    "2:\n\t"                                    \
+    "andi   " #t ", " #t ", 1\n\t"              \
+    "bnez   " #t ", 3f\n\t"                     \
+    UNALIGNED_LD_BY_HALF(r, o, p, t)            \
+    "j      4f\n\t"                             \
+    "3:\n\t"                                    \
+    UNALIGNED_LD_BY_BYTE(r, o, p, t)            \
+    "4:\n\t"
+
+/* Load 32-bits, zero extended. */
+#define UNALIGNED_LWU_BY_BYTE(r, o, p, t)       \
+    "lbu    " #r ", " #o "+0(" #p ")\n\t"       \
+    "lbu    " #t ", " #o "+1(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 8\n\t"              \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+2(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 16\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"         \
+    "lbu    " #t ", " #o "+3(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 24\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"
+#define UNALIGNED_LWU_BY_HALF(r, o, p, t)       \
+    "lhu    " #r ", " #o "+0(" #p ")\n\t"       \
+    "lhu    " #t ", " #o "+2(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 16\n\t"             \
+    "or     " #r ", " #r ", " #t "\n\t"
+#define UNALIGNED_LWU_BY_WORD(r, o, p, t)       \
+    "lwu    " #r ", " #o "(" #p ")\n\t"
+/* Assumes o is a multiple of 4. */
+#define UNALIGNED_LWU(r, o, p, t)               \
+    "andi   " #t ", " #p ", 3\n\t"              \
+    "bnez   " #t ", 1f\n\t"                     \
+    UNALIGNED_LWU_BY_WORD(r, o, p, t)           \
+    "j      3f\n\t"                             \
+    "1:\n\t"                                    \
+    "andi   " #t ", " #t ", 1\n\t"              \
+    "bnez   " #t ", 2f\n\t"                     \
+    UNALIGNED_LWU_BY_HALF(r, o, p, t)           \
+    "j      3f\n\t"                             \
+    "2:\n\t"                                    \
+    UNALIGNED_LWU_BY_BYTE(r, o, p, t)           \
+    "3:\n\t"
+
+/* Load 32-bits, sign extended. */
+#define UNALIGNED_LW_BY_BYTE(r, o, p, t)        \
+    UNALIGNED_LWU_BY_BYTE(r, o, p, t)           \
+    "sext.w " #r ", " #r "\n\t"
+#define UNALIGNED_LW_BY_HALF(r, o, p, t)        \
+    UNALIGNED_LWU_BY_HALF(r, o, p, t)           \
+    "sext.w " #r ", " #r "\n\t"
+#define UNALIGNED_LW_BY_WORD(r, o, p, t)        \
+    "lw     " #r ", " #o "(" #p ")\n\t"
+/* Assumes o is a multiple of 4. */
+#define UNALIGNED_LW(r, o, p, t)                \
+    "andi   " #t ", " #p ", 3\n\t"              \
+    "bnez   " #t ", 1f\n\t"                     \
+    UNALIGNED_LW_BY_WORD(r, o, p, t)            \
+    "j      3f\n\t"                             \
+    "1:\n\t"                                    \
+    "andi   " #t ", " #t ", 1\n\t"              \
+    "bnez   " #t ", 2f\n\t"                     \
+    UNALIGNED_LW_BY_HALF(r, o, p, t)            \
+    "j      3f\n\t"                             \
+    "2:\n\t"                                    \
+    UNALIGNED_LW_BY_BYTE(r, o, p, t)            \
+    "3:\n\t"
+
+/* Load 16-bits, sign extended. */
+#define UNALIGNED_LH_BY_BYTE(r, o, p, t)        \
+    "lbu    " #r ", " #o "+0(" #p ")\n\t"       \
+    "lb     " #t ", " #o "+1(" #p ")\n\t"       \
+    "slli   " #t ", " #t ", 8\n\t"              \
+    "or     " #r ", " #r ", " #t "\n\t"
+#define UNALIGNED_LH(r, o, p, t)                \
+    UNALIGNED_LH_BY_BYTE(r, o, p, t)
+
+/* Store 64-bits. */
+#define UNALIGNED_SD_BY_BYTE(r, o, p, t)        \
+    "sb     " #r ", " #o "+0(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 8\n\t"              \
+    "sb     " #t ", " #o "+1(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 16\n\t"             \
+    "sb     " #t ", " #o "+2(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 24\n\t"             \
+    "sb     " #t ", " #o "+3(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 32\n\t"             \
+    "sb     " #t ", " #o "+4(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 40\n\t"             \
+    "sb     " #t ", " #o "+5(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 48\n\t"             \
+    "sb     " #t ", " #o "+6(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 56\n\t"             \
+    "sb     " #t ", " #o "+7(" #p ")\n\t"
+#define UNALIGNED_SD_BY_HALF(r, o, p, t)        \
+    "sh     " #r ", " #o "+0(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 16\n\t"             \
+    "sh     " #t ", " #o "+2(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 32\n\t"             \
+    "sh     " #t ", " #o "+4(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 48\n\t"             \
+    "sh     " #t ", " #o "+6(" #p ")\n\t"
+#define UNALIGNED_SD_BY_WORD(r, o, p, t)        \
+    "sw     " #r ", " #o "+0(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 32\n\t"             \
+    "sw     " #t ", " #o "+4(" #p ")\n\t"
+#define UNALIGNED_SD_BY_DWORD(r, o, p, t)       \
+    "sd     " #r ", " #o "(" #p ")\n\t"
+/* Assumes o is a multiple of 8. */
+#define UNALIGNED_SD(r, o, p, t)                \
+    "andi   " #t ", " #p ", 7\n\t"              \
+    "bnez   " #t ", 1f\n\t"                     \
+    UNALIGNED_SD_BY_DWORD(r, o, p, t)           \
+    "j      4f\n\t"                             \
+    "1:\n\t"                                    \
+    "andi   " #t ", " #t ", 3\n\t"              \
+    "bnez   " #t ", 2f\n\t"                     \
+    UNALIGNED_SD_BY_WORD(r, o, p, t)            \
+    "j      4f\n\t"                             \
+    "2:\n\t"                                    \
+    "andi   " #t ", " #t ", 1\n\t"              \
+    "bnez   " #t ", 3f\n\t"                     \
+    UNALIGNED_SD_BY_HALF(r, o, p, t)            \
+    "j      4f\n\t"                             \
+    "3:\n\t"                                    \
+    UNALIGNED_SD_BY_BYTE(r, o, p, t)            \
+    "4:\n\t"
+
+/* Store 32-bits. */
+#define UNALIGNED_SW_BY_BYTE(r, o, p, t)        \
+    "sb     " #r ", " #o "+0(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 8\n\t"              \
+    "sb     " #t ", " #o "+1(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 16\n\t"             \
+    "sb     " #t ", " #o "+2(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 24\n\t"             \
+    "sb     " #t ", " #o "+3(" #p ")\n\t"
+#define UNALIGNED_SW_BY_HALF(r, o, p, t)        \
+    "sh     " #r ", " #o "+0(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 16\n\t"             \
+    "sh     " #t ", " #o "+2(" #p ")\n\t"
+#define UNALIGNED_SW_BY_WORD(r, o, p, t)        \
+    "sw     " #r ", " #o "(" #p ")\n\t"
+/* Assumes o is a multiple of 4. */
+#define UNALIGNED_SW(r, o, p, t)                \
+    "andi   " #t ", " #p ", 3\n\t"              \
+    "bnez   " #t ", 1f\n\t"                     \
+    UNALIGNED_SW_BY_WORD(r, o, p, t)            \
+    "j      3f\n\t"                             \
+    "1:\n\t"                                    \
+    "andi   " #t ", " #t ", 1\n\t"              \
+    "bnez   " #t ", 2f\n\t"                     \
+    UNALIGNED_SW_BY_HALF(r, o, p, t)            \
+    "j      3f\n\t"                             \
+    "2:\n\t"                                    \
+    UNALIGNED_SW_BY_BYTE(r, o, p, t)            \
+    "3:\n\t"
+
+/* Store 16-bits. */
+#define UNALIGNED_SH_BY_BYTE(r, o, p, t)        \
+    "sb     " #r ", " #o "+0(" #p ")\n\t"       \
+    "srli   " #t ", " #r ", 8\n\t"              \
+    "sb     " #t ", " #o "+1(" #p ")\n\t"
+#define UNALIGNED_SH(r, o, p, t)                \
+    UNALIGNED_SH_BY_BYTE(r, o, p, t)
+
+/* Load 2 64-bits. Assumes o is a multiple of 8. */
+#define UNALIGNED_LD2(r0, r1, o, p, t)                                  \
+    "andi   " #t ", " #p ", 7\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_DW_REP2(UNALIGNED_LD_BY_DWORD, r0, r1, o, p, t)           \
+    "j      4f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 3\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_DW_REP2(UNALIGNED_LD_BY_WORD, r0, r1, o, p, t)            \
+    "j      4f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 3f\n\t"                                             \
+    UNALIGNED_DW_REP2(UNALIGNED_LD_BY_HALF, r0, r1, o, p, t)            \
+    "j      4f\n\t"                                                     \
+    "3:\n\t"                                                            \
+    UNALIGNED_DW_REP2(UNALIGNED_LD_BY_BYTE, r0, r1, o, p, t)            \
+    "4:\n\t"
+
+/* Load 4 64-bits. Assumes o is a multiple of 8. */
+#define UNALIGNED_LD4(r0, r1, r2, r3, o, p, t)                          \
+    "andi   " #t ", " #p ", 7\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_DW_REP4(UNALIGNED_LD_BY_DWORD, r0, r1, r2, r3, o, p, t)   \
+    "j      4f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 3\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_DW_REP4(UNALIGNED_LD_BY_WORD, r0, r1, r2, r3, o, p, t)    \
+    "j      4f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 3f\n\t"                                             \
+    UNALIGNED_DW_REP4(UNALIGNED_LD_BY_HALF, r0, r1, r2, r3, o, p, t)    \
+    "j      4f\n\t"                                                     \
+    "3:\n\t"                                                            \
+    UNALIGNED_DW_REP4(UNALIGNED_LD_BY_BYTE, r0, r1, r2, r3, o, p, t)    \
+    "4:\n\t"
+
+/* Load 8 64-bits. Assumes o is a multiple of 8. */
+#define UNALIGNED_LD8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)          \
+    "andi   " #t ", " #p ", 7\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_DW_REP8(UNALIGNED_LD_BY_DWORD,                            \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      4f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 3\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_DW_REP8(UNALIGNED_LD_BY_WORD,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      4f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 3f\n\t"                                             \
+    UNALIGNED_DW_REP8(UNALIGNED_LD_BY_HALF,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      4f\n\t"                                                     \
+    "3:\n\t"                                                            \
+    UNALIGNED_DW_REP8(UNALIGNED_LD_BY_BYTE,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "4:\n\t"
+
+/* Store 2 64-bits. Assumes o is a multiple of 8. */
+#define UNALIGNED_SD2(r0, r1, o, p, t)                                  \
+    "andi   " #t ", " #p ", 7\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_DW_REP2(UNALIGNED_SD_BY_DWORD, r0, r1, o, p, t)           \
+    "j      4f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 3\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_DW_REP2(UNALIGNED_SD_BY_WORD, r0, r1, o, p, t)            \
+    "j      4f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 3f\n\t"                                             \
+    UNALIGNED_DW_REP2(UNALIGNED_SD_BY_HALF, r0, r1, o, p, t)            \
+    "j      4f\n\t"                                                     \
+    "3:\n\t"                                                            \
+    UNALIGNED_DW_REP2(UNALIGNED_SD_BY_BYTE, r0, r1, o, p, t)            \
+    "4:\n\t"
+
+/* Store 4 64-bits. Assumes o is a multiple of 8. */
+#define UNALIGNED_SD4(r0, r1, r2, r3, o, p, t)                          \
+    "andi   " #t ", " #p ", 7\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_DW_REP4(UNALIGNED_SD_BY_DWORD, r0, r1, r2, r3, o, p, t)   \
+    "j      4f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 3\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_DW_REP4(UNALIGNED_SD_BY_WORD, r0, r1, r2, r3, o, p, t)    \
+    "j      4f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 3f\n\t"                                             \
+    UNALIGNED_DW_REP4(UNALIGNED_SD_BY_HALF, r0, r1, r2, r3, o, p, t)    \
+    "j      4f\n\t"                                                     \
+    "3:\n\t"                                                            \
+    UNALIGNED_DW_REP4(UNALIGNED_SD_BY_BYTE, r0, r1, r2, r3, o, p, t)    \
+    "4:\n\t"
+
+/* Store 8 64-bits. Assumes o is a multiple of 8. */
+#define UNALIGNED_SD8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)          \
+    "andi   " #t ", " #p ", 7\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_DW_REP8(UNALIGNED_SD_BY_DWORD,                            \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      4f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 3\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_DW_REP8(UNALIGNED_SD_BY_WORD,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      4f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 3f\n\t"                                             \
+    UNALIGNED_DW_REP8(UNALIGNED_SD_BY_HALF,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      4f\n\t"                                                     \
+    "3:\n\t"                                                            \
+    UNALIGNED_DW_REP8(UNALIGNED_SD_BY_BYTE,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "4:\n\t"
+
+/* Load 2 32-bits, zero extended. Assumes o is a multiple of 4. */
+#define UNALIGNED_LWU2(r0, r1, o, p, t)                                 \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP2(UNALIGNED_LWU_BY_WORD, r0, r1, o, p, t)            \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP2(UNALIGNED_LWU_BY_HALF, r0, r1, o, p, t)            \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP2(UNALIGNED_LWU_BY_BYTE, r0, r1, o, p, t)            \
+    "3:\n\t"
+
+/* Load 4 32-bits, zero extended. Assumes o is a multiple of 4. */
+#define UNALIGNED_LWU4(r0, r1, r2, r3, o, p, t)                         \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP4(UNALIGNED_LWU_BY_WORD, r0, r1, r2, r3, o, p, t)    \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP4(UNALIGNED_LWU_BY_HALF, r0, r1, r2, r3, o, p, t)    \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP4(UNALIGNED_LWU_BY_BYTE, r0, r1, r2, r3, o, p, t)    \
+    "3:\n\t"
+
+/* Load 8 32-bits, zero extended. Assumes o is a multiple of 4. */
+#define UNALIGNED_LWU8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)         \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP8(UNALIGNED_LWU_BY_WORD,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP8(UNALIGNED_LWU_BY_HALF,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP8(UNALIGNED_LWU_BY_BYTE,                             \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "3:\n\t"
+
+/* Load 2 32-bits, sign extended. Assumes o is a multiple of 4. */
+#define UNALIGNED_LW2(r0, r1, o, p, t)                                  \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP2(UNALIGNED_LW_BY_WORD, r0, r1, o, p, t)             \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP2(UNALIGNED_LW_BY_HALF, r0, r1, o, p, t)             \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP2(UNALIGNED_LW_BY_BYTE, r0, r1, o, p, t)             \
+    "3:\n\t"
+
+/* Load 4 32-bits, sign extended. Assumes o is a multiple of 4. */
+#define UNALIGNED_LW4(r0, r1, r2, r3, o, p, t)                          \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP4(UNALIGNED_LW_BY_WORD, r0, r1, r2, r3, o, p, t)     \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP4(UNALIGNED_LW_BY_HALF, r0, r1, r2, r3, o, p, t)     \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP4(UNALIGNED_LW_BY_BYTE, r0, r1, r2, r3, o, p, t)     \
+    "3:\n\t"
+
+/* Load 8 32-bits, sign extended. Assumes o is a multiple of 4. */
+#define UNALIGNED_LW8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)          \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP8(UNALIGNED_LW_BY_WORD,                              \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP8(UNALIGNED_LW_BY_HALF,                              \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP8(UNALIGNED_LW_BY_BYTE,                              \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "3:\n\t"
+
+/* Store 2 32-bits. Assumes o is a multiple of 4. */
+#define UNALIGNED_SW2(r0, r1, o, p, t)                                  \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP2(UNALIGNED_SW_BY_WORD, r0, r1, o, p, t)             \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP2(UNALIGNED_SW_BY_HALF, r0, r1, o, p, t)             \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP2(UNALIGNED_SW_BY_BYTE, r0, r1, o, p, t)             \
+    "3:\n\t"
+
+/* Store 4 32-bits. Assumes o is a multiple of 4. */
+#define UNALIGNED_SW4(r0, r1, r2, r3, o, p, t)                          \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP4(UNALIGNED_SW_BY_WORD, r0, r1, r2, r3, o, p, t)     \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP4(UNALIGNED_SW_BY_HALF, r0, r1, r2, r3, o, p, t)     \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP4(UNALIGNED_SW_BY_BYTE, r0, r1, r2, r3, o, p, t)     \
+    "3:\n\t"
+
+/* Store 8 32-bits. Assumes o is a multiple of 4. */
+#define UNALIGNED_SW8(r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)          \
+    "andi   " #t ", " #p ", 3\n\t"                                      \
+    "bnez   " #t ", 1f\n\t"                                             \
+    UNALIGNED_W_REP8(UNALIGNED_SW_BY_WORD,                              \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      3f\n\t"                                                     \
+    "1:\n\t"                                                            \
+    "andi   " #t ", " #t ", 1\n\t"                                      \
+    "bnez   " #t ", 2f\n\t"                                             \
+    UNALIGNED_W_REP8(UNALIGNED_SW_BY_HALF,                              \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "j      3f\n\t"                                                     \
+    "2:\n\t"                                                            \
+    UNALIGNED_W_REP8(UNALIGNED_SW_BY_BYTE,                              \
+        r0, r1, r2, r3, r4, r5, r6, r7, o, p, t)                        \
+    "3:\n\t"
+
+#endif /* !WOLFSSL_RISCV_ASM_NO_UNALIGNED */
+
 
 #define VLSEG_V(vd, rs1, cnt, width) \
     ASM_WORD(0b0000111 | (width << 12) | (0b10101000 << 20) |   \

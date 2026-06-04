@@ -11,6 +11,9 @@ on:
 
 jobs:
   load-targets:
+    # Only run from the wolfssl org to avoid burning forks' CI minutes
+    # and reporting fork builds to the membrowse backend.
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -25,12 +28,13 @@ jobs:
 
   onboard:
     needs: load-targets
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.load-targets.outputs.matrix) }}
+        include: ${{ fromJson(needs.load-targets.outputs.matrix || '[]') }}
 
     steps:
       - name: Checkout repository
@@ -43,6 +47,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: ${{ matrix.apt_packages }}
+          cache: ${{ matrix.apt_cache || 'true' }}
 
       - name: Run Membrowse Onboard Action
         uses: membrowse/membrowse-action/onboard-action@v1

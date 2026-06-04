@@ -750,81 +750,6 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 #endif
 #endif
 #ifndef NO_RSA
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
-static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
-                                      word32 inSz, word32* key_n,
-                                      word32* key_n_len, word32* key_e,
-                                      word32* key_e_len)
-{
-    int ret = 0;
-    int length = 0;
-
-#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
-    byte b;
-#endif
-
-    if (input == NULL || inOutIdx == NULL)
-        return BAD_FUNC_ARG;
-
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
-    if ((*inOutIdx + 1) > inSz)
-        return BUFFER_E;
-
-    b = input[*inOutIdx];
-    if (b != ASN_INTEGER) {
-        /* not from decoded cert, will have algo id, skip past */
-        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-            return ASN_PARSE_E;
-
-        if (SkipObjectId(input, inOutIdx, inSz) < 0)
-            return ASN_PARSE_E;
-
-        /* Option NULL ASN.1 tag */
-        if (*inOutIdx  >= inSz) {
-            return BUFFER_E;
-        }
-        if (input[*inOutIdx] == ASN_TAG_NULL) {
-            ret = GetASNNull(input, inOutIdx, inSz);
-            if (ret != 0)
-                return ret;
-        }
-        /* TODO: support RSA PSS */
-
-        /* should have bit tag length and seq next */
-        ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
-        if (ret != 0)
-            return ret;
-
-        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-            return ASN_PARSE_E;
-    }
-#endif /* OPENSSL_EXTRA */
-
-    /* Get modulus */
-    ret = GetASNInt(input, inOutIdx, &length, inSz);
-    *key_n += *inOutIdx;
-    if (ret < 0) {
-        return ASN_RSA_KEY_E;
-    }
-    if (key_n_len)
-        *key_n_len = length;
-    *inOutIdx += length;
-
-    /* Get exponent */
-    ret = GetASNInt(input, inOutIdx, &length, inSz);
-    *key_e += *inOutIdx;
-    if (ret < 0) {
-        return ASN_RSA_KEY_E;
-    }
-    if (key_e_len)
-        *key_e_len = length;
-    return ret;
-}
-
-#endif
 int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     const byte** n, word32* nSz, const byte** e, word32* eSz)
 {
@@ -3420,7 +3345,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
-        #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
+        #ifndef WOLFSSL_NO_ASN_STRICT
             /* Verify RFC 5280 Sec 4.2.1.6 rule:
                 "The name MUST NOT be a relative URI"
                 As per RFC 3986 Sec 4.3, an absolute URI is only required to contain

@@ -57,14 +57,6 @@
     }
 #endif
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
-    /* force off unneeded vector register save/restore. */
-    #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
-    #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
-#endif
-
 /*
 Possible DH enable options:
  * NO_RSA:              Overall control of DH                 default: on (not defined)
@@ -1425,8 +1417,6 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
         return BAD_FUNC_ARG;
     }
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     ret = GeneratePublicDh(key, priv, privSz, pub, pubSz);
 
     #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
@@ -1435,8 +1425,6 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     if (ret == 0)
         ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, privSz);
     #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
-
-    RESTORE_VECTOR_REGISTERS();
 
     return ret;
 }
@@ -1451,8 +1439,6 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
         return BAD_FUNC_ARG;
     }
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     ret = GeneratePrivateDh(key, rng, priv, privSz);
 
     if (ret == 0)
@@ -1463,9 +1449,6 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     if (ret == 0)
         ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
 #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
-
-
-    RESTORE_VECTOR_REGISTERS();
 
     return ret;
 }
@@ -1589,8 +1572,6 @@ static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
         return MP_INIT_E;
     }
 
-    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
-
     if (mp_read_unsigned_bin(y, pub, pubSz) != MP_OKAY) {
         ret = MP_READ_E;
     }
@@ -1678,8 +1659,6 @@ static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
     mp_clear(y);
     mp_clear(p);
     mp_clear(q);
-
-    RESTORE_VECTOR_REGISTERS();
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(q, key->heap, DYNAMIC_TYPE_DH);
@@ -1919,8 +1898,6 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
         return MP_INIT_E;
     }
 
-    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
-
     /* Load the private and public keys into big integers. */
     if (mp_read_unsigned_bin(publicKey, pub, pubSz) != MP_OKAY ||
         mp_read_unsigned_bin(privateKey, priv, privSz) != MP_OKAY) {
@@ -1978,8 +1955,6 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
     mp_forcezero(privateKey);
     mp_clear(publicKey);
     mp_clear(checkKey);
-
-    RESTORE_VECTOR_REGISTERS();
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
@@ -2174,8 +2149,6 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
             ret = MP_INIT_E;
 
         if (ret == 0) {
-            SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
-
             if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
                 ret = MP_READ_E;
 
@@ -2201,8 +2174,6 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
             }
 
             mp_clear(y);
-
-            RESTORE_VECTOR_REGISTERS();
         }
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
@@ -2252,8 +2223,6 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         mp_forcezero(x);
     }
 #endif
-
-    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;
@@ -2312,8 +2281,6 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     mp_forcezero(z);
     mp_clear(y);
     mp_forcezero(x);
-
-    RESTORE_VECTOR_REGISTERS();
 
 #else
     (void)ct;
@@ -2601,8 +2568,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
         ret = BAD_FUNC_ARG;
     }
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
-
     if (ret == 0) {
         /* may have leading 0 */
         if (p[0] == 0) {
@@ -2713,8 +2678,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
         if (keyP)
             mp_clear(keyP);
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
     return ret;
 }
@@ -3204,8 +3167,6 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     }
 #endif
 
-    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
-
     if (ret == 0) {
         /* force magnitude */
         buf[0] |= 0xC0;
@@ -3264,9 +3225,10 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             if (ret != 0 || primeCheck == MP_YES)
                 break;
 
-            /* linuxkm: release the kernel for a moment before iterating. */
-            RESTORE_VECTOR_REGISTERS();
-            SAVE_VECTOR_REGISTERS(ret = _svr_ret; break;);
+            ret = WC_CHECK_FOR_INTR_SIGNALS();
+            if (ret != 0)
+                break;
+            WC_RELAX_LONG_LOOP();
         };
     }
 
@@ -3307,8 +3269,6 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         mp_clear(&dh->p);
         mp_clear(&dh->g);
     }
-
-    RESTORE_VECTOR_REGISTERS();
 
 #ifndef WOLFSSL_NO_MALLOC
     if (buf != NULL)

@@ -8743,9 +8743,8 @@ int wc_RsaPrivateKeyValidate(const byte* input, word32* inOutIdx, int* keySz,
 #endif /* NO_RSA */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN.1 template for a PKCS #8 key.
- * Ignoring optional attributes and public key.
- * PKCS #8: RFC 5958, 2 - PrivateKeyInfo
+/* ASN.1 template for a PKCS #8 PrivateKeyInfo / RFC 5958 OneAsymmetricKey.
+ * Includes the optional [0] attributes and [1] publicKey trailing fields.
  */
 static const ASNItem pkcs8KeyASN[] = {
 /*  SEQ                 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
@@ -8758,9 +8757,10 @@ static const ASNItem pkcs8KeyASN[] = {
 /*  PKEY_ALGO_PARAM_SEQ */            { 2, ASN_SEQUENCE, 1, 0, 1 },
 #endif
 /*  PKEY_DATA           */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-/*  OPTIONAL Attributes IMPLICIT [0] */
+/*  Attributes [0] OPTIONAL */
                                   { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
-/* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
+/*  publicKey [1] OPTIONAL */
+                                  { 1, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
 };
 enum {
     PKCS8KEYASN_IDX_SEQ = 0,
@@ -8774,6 +8774,7 @@ enum {
 #endif
     PKCS8KEYASN_IDX_PKEY_DATA,
     PKCS8KEYASN_IDX_PKEY_ATTRIBUTES,
+    PKCS8KEYASN_IDX_PKEY_PUBKEY,
     WOLF_ENUM_DUMMY_LAST_ELEMENT(PKCS8KEYASN_IDX)
 };
 
@@ -8833,11 +8834,13 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
         /* Key type OID. */
         oid = dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY].data.oid.sum;
 
-        /* Version 1 includes an optional public key.
-         * If public key is included then the parsing will fail as it did not
-         * use all the data.
-         */
+        /* Only v1(0) and v2(1) are supported (RFC 5958). The [1] publicKey
+         * trailer is permitted only when version == v1. */
         if (version > PKCS8v1) {
+            ret = ASN_PARSE_E;
+        }
+        else if ((version < PKCS8v1) &&
+                 (dataASN[PKCS8KEYASN_IDX_PKEY_PUBKEY].tag != 0)) {
             ret = ASN_PARSE_E;
         }
     }
@@ -8935,9 +8938,71 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
                 }
                 break;
         #endif
-            /* DSAk not supported. */
-            /* Falcon, Dilithium and SLH-DSA not supported. */
-            /* Ignore OID lookup failures. */
+        #ifdef HAVE_FALCON
+            case FALCON_LEVEL1k:
+            case FALCON_LEVEL5k:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef HAVE_DILITHIUM
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+            case DILITHIUM_LEVEL2k:
+            case DILITHIUM_LEVEL3k:
+            case DILITHIUM_LEVEL5k:
+            #endif
+            case ML_DSA_LEVEL2k:
+            case ML_DSA_LEVEL3k:
+            case ML_DSA_LEVEL5k:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef WOLFSSL_HAVE_SLHDSA
+            case SLH_DSA_SHA2_128Sk:
+            case SLH_DSA_SHA2_128Fk:
+            case SLH_DSA_SHA2_192Sk:
+            case SLH_DSA_SHA2_192Fk:
+            case SLH_DSA_SHA2_256Sk:
+            case SLH_DSA_SHA2_256Fk:
+            case SLH_DSA_SHAKE_128Sk:
+            case SLH_DSA_SHAKE_128Fk:
+            case SLH_DSA_SHAKE_192Sk:
+            case SLH_DSA_SHAKE_192Fk:
+            case SLH_DSA_SHAKE_256Sk:
+            case SLH_DSA_SHAKE_256Fk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef WOLFSSL_HAVE_LMS
+            case HSS_LMSk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef WOLFSSL_HAVE_XMSS
+            case XMSSk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+            /* Other OIDs (DSAk), no parameter validation. */
             default:
                 break;
         }
@@ -9037,9 +9102,9 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         int algoID, const byte* curveOID, word32 oidSz)
 {
-    /* pkcs8KeyASN_Length-1, the -1 is because we are not adding the optional
-     * set of attributes */
-    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1);
+    /* pkcs8KeyASN_Length-2, the -2 is because we are not adding the optional
+     * set of attributes or publicKey */
+    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length-2);
     word32 sz = 0;
     int ret = 0;
     word32 keyIdx = 0;
@@ -9066,7 +9131,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 #endif
 
     if (ret == 0)
-        CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
+        CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-2, ret, NULL);
 
     if (ret == 0) {
         /* Only support default PKCS #8 format - v0. */
@@ -9092,7 +9157,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_DATA], key, keySz);
 
         /* Get the size of the DER encoding. */
-        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, &sz);
+        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-2, &sz);
     }
     if ((ret == 0) || (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E))) {
         /* Always return the calculated size. */
@@ -9105,7 +9170,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     }
     if (ret == 0) {
         /*  Encode PKCS #8 key into buffer. */
-        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, out);
+        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-2, out);
         ret = (int)sz;
     }
 
@@ -17833,9 +17898,28 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     const char* base, int baseSz)
 {
     if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
-            name[0] == '.' || nameSz < baseSz ||
+            name[0] == '.' ||
             (type != ASN_RFC822_TYPE && type != ASN_DNS_TYPE &&
              type != ASN_DIR_TYPE)) {
+        return 0;
+    }
+
+    if (type == ASN_DNS_TYPE) {
+        /* MatchDomainName treats one trailing dot as the absolute-FQDN marker.
+         * Apply the same normalization before enforcing DNS name constraints.
+         */
+        if (name[nameSz - 1] == '.') {
+            nameSz--;
+        }
+        if (base[baseSz - 1] == '.') {
+            baseSz--;
+        }
+        if (nameSz <= 0 || baseSz <= 0) {
+            return 0;
+        }
+    }
+
+    if (nameSz < baseSz) {
         return 0;
     }
 
@@ -17927,8 +18011,8 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     return 1;
 }
 
-static int MatchUriNameConstraint(const char* uri, int uriSz, const char* base,
-    int baseSz)
+int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
+    const char* base, int baseSz)
 {
     const char* hostStart;
     const char* hostEnd;
@@ -17936,7 +18020,10 @@ static int MatchUriNameConstraint(const char* uri, int uriSz, const char* base,
     const char* uriEnd;
     int hostSz;
 
-    if (uri == NULL || uriSz <= 0 || base == NULL || baseSz <= 0) {
+    /* Need at least 3 bytes for the "://" scheme separator; rejecting short
+     * inputs early also keeps the loop bound (uriEnd - 2) from forming a
+     * pointer before `uri`. */
+    if (uri == NULL || uriSz < 3 || base == NULL || baseSz <= 0) {
         return 0;
     }
 
@@ -17992,8 +18079,168 @@ static int MatchUriNameConstraint(const char* uri, int uriSz, const char* base,
         return 0;
     }
 
-    return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, hostStart, hostSz, base,
-        baseSz);
+    /* RFC 5280 4.2.1.10: for URIs the constraint applies to the host part.
+     * A constraint that begins with a '.' matches any host with one or more
+     * additional leading labels (the bare host is excluded) - this is the
+     * DNS subtree behaviour. A constraint without a leading '.' specifies a
+     * single host and must match it exactly. */
+    if (base[0] == '.') {
+        return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, hostStart, hostSz,
+            base, baseSz);
+    }
+    else {
+        int i;
+        if (hostSz != baseSz) {
+            return 0;
+        }
+        for (i = 0; i < baseSz; i++) {
+            if (XTOLOWER((unsigned char)hostStart[i]) !=
+                XTOLOWER((unsigned char)base[i])) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+}
+
+/* Locate the right-most label of `s` that ends (exclusive) at index `end`.
+ * Sets *outStart to its starting index (the index of its first byte). If
+ * outHasWild is non-NULL, sets *outHasWild to 1 iff the label contains '*'.
+ * The '.' immediately before *outStart (if any) is the label separator and is
+ * not part of either the current or the preceding label. */
+static void PrevDnsLabel(const char* s, int end, int* outStart,
+    int* outHasWild)
+{
+    int start = end;
+    int hasWild = 0;
+    while (start > 0 && s[start - 1] != '.') {
+        if (s[start - 1] == '*') {
+            hasWild = 1;
+        }
+        start--;
+    }
+    *outStart = start;
+    if (outHasWild != NULL) {
+        *outHasWild = hasWild;
+    }
+}
+
+/* Match a wildcard DNS SAN against a DNS name-constraint subtree.
+ *
+ * A wildcard SAN denotes the set of names its '*'(s) can expand to. Because a
+ * '*' never crosses a label boundary (see MatchDomainName), every expansion
+ * has the same number of labels and only the content of '*'-bearing labels
+ * varies. Matching is therefore done label-by-label from the right against the
+ * constraint base.
+ *
+ * permitted != 0: containment. Accept only if EVERY expansion stays inside the
+ *   subtree, i.e. each of the right-most base-length labels of the name is
+ *   wildcard-free and equal to the corresponding base label. Extra labels to
+ *   the left may be anything (adding labels on the left stays in-subtree).
+ *
+ * permitted == 0: intersection (for excluded subtrees). Reject if SOME
+ *   expansion falls inside the subtree. A label containing a '*' is
+ *   conservatively treated as able to match any single base label; a literal
+ *   label must equal the base label.
+ *
+ * A leading '.' on the base denotes a proper subtree (the apex is excluded),
+ * which requires at least one extra label on the left of the name.
+ *
+ * Returns 1 on match (contained / intersecting), 0 otherwise.
+ */
+int wolfssl_local_MatchDnsConstraintWildcard(const char* name, int nameSz,
+    const char* base, int baseSz, int permitted)
+{
+    int baseLead;
+    int ni, bi;
+
+    if (name == NULL || base == NULL || nameSz <= 0 || baseSz <= 0) {
+        return 0;
+    }
+
+    /* MatchDomainName treats one trailing dot as the absolute-FQDN marker.
+     * Apply the same normalization before label-wise constraint matching.
+     */
+    if (name[nameSz - 1] == '.') {
+        nameSz--;
+    }
+    if (base[baseSz - 1] == '.') {
+        baseSz--;
+    }
+    if (nameSz <= 0 || baseSz <= 0 || name[0] == '.') {
+        return 0;
+    }
+
+    baseLead = (base[0] == '.');
+    if (baseLead) {
+        base++;
+        baseSz--;
+    }
+    /* A base of only dots (".", "..") has no labels to match. */
+    if (baseSz <= 0 || base[0] == '.') {
+        return 0;
+    }
+
+    ni = nameSz; /* exclusive end of the unconsumed name */
+    bi = baseSz; /* exclusive end of the unconsumed base */
+
+    /* Compare each base label (right to left) with the aligned name label. */
+    while (bi > 0) {
+        int nStart, bStart, nLen, bLen, k;
+        int hasWild = 0;
+
+        /* Base labels remain but the name has none left -> name is shorter in
+         * labels and cannot contain the base. */
+        if (ni <= 0) {
+            return 0;
+        }
+
+        PrevDnsLabel(name, ni, &nStart, &hasWild);
+        PrevDnsLabel(base, bi, &bStart, NULL);
+        nLen = ni - nStart;
+        bLen = bi - bStart;
+
+        /* Empty label (e.g. "a..b" or an extra trailing dot) is invalid. */
+        if (nLen == 0 || bLen == 0) {
+            return 0;
+        }
+
+        if (hasWild) {
+            /* permitted: a wildcard label cannot prove containment.
+             * excluded: a wildcard label is conservatively treated as
+             * compatible, so nothing more to check. */
+            if (permitted) {
+                return 0;
+            }
+        }
+        else {
+            /* Literal label: both modes require exact case-insensitive
+             * equality with the base label. */
+            if (nLen != bLen) {
+                return 0;
+            }
+            for (k = 0; k < bLen; k++) {
+                if (XTOLOWER((unsigned char)name[nStart + k]) !=
+                    XTOLOWER((unsigned char)base[bStart + k])) {
+                    return 0;
+                }
+            }
+        }
+
+        /* Consume both labels and the '.' that precedes them (if any). */
+        ni = nStart - 1;
+        bi = bStart - 1;
+    }
+
+    /* All base labels matched. ni >= 0 means name[ni] == '.' and at least one
+     * extra label remains on the left; ni < 0 means the name had exactly the
+     * base's label count (an apex match). A leading-dot base is a proper
+     * subtree and requires at least one extra left label. */
+    if (baseLead && ni < 0) {
+        return 0;
+    }
+
+    return 1;
 }
 
 /* Check if IP address matches a name constraint.
@@ -18046,6 +18293,18 @@ static int MatchOtherNameConstraint(DNS_entry* name, Base_entry* current)
     return XMEMCMP(name->name, current->name, (size_t)current->nameSz) == 0;
 }
 
+/* Return 1 if the name contains a wildcard '*' character. */
+static int DnsNameHasWildcard(const char* name, int nameSz)
+{
+    int i;
+    for (i = 0; i < nameSz; i++) {
+        if (name[i] == '*') {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Search through the list to find if the name is permitted.
  * name     The DNS name to search for
  * dnsList  The list to search through
@@ -18073,7 +18332,7 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 }
             }
             else if (nameType == ASN_URI_TYPE) {
-                if (MatchUriNameConstraint(name->name, name->len,
+                if (wolfssl_local_MatchUriNameConstraint(name->name, name->len,
                         current->name, current->nameSz)) {
                     match = 1;
                     break;
@@ -18092,6 +18351,17 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 if (name->len == current->nameSz &&
                     XMEMCMP(name->name, current->name,
                             (size_t)name->len) == 0) {
+                    match = 1;
+                    break;
+                }
+            }
+            else if (nameType == ASN_DNS_TYPE &&
+                     DnsNameHasWildcard(name->name, name->len)) {
+                /* Wildcard DNS SAN: a '*' can expand to a longer label, so the
+                 * byte-length guard used for literal names below is invalid.
+                 * Permit only if every expansion stays inside the subtree. */
+                if (wolfssl_local_MatchDnsConstraintWildcard(name->name,
+                        name->len, current->name, current->nameSz, 1)) {
                     match = 1;
                     break;
                 }
@@ -18137,7 +18407,7 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 }
             }
             else if (nameType == ASN_URI_TYPE) {
-                if (MatchUriNameConstraint(name->name, name->len,
+                if (wolfssl_local_MatchUriNameConstraint(name->name, name->len,
                         current->name, current->nameSz)) {
                     ret = 1;
                     break;
@@ -18155,6 +18425,17 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                 if (name->len == current->nameSz &&
                     XMEMCMP(name->name, current->name,
                             (size_t)name->len) == 0) {
+                    ret = 1;
+                    break;
+                }
+            }
+            else if (nameType == ASN_DNS_TYPE &&
+                     DnsNameHasWildcard(name->name, name->len)) {
+                /* Wildcard DNS SAN: a '*' can expand to a longer label, so the
+                 * byte-length guard used for literal names below is invalid.
+                 * Exclude if any expansion can fall inside the subtree. */
+                if (wolfssl_local_MatchDnsConstraintWildcard(name->name,
+                        name->len, current->name, current->nameSz, 0)) {
                     ret = 1;
                     break;
                 }
@@ -18579,7 +18860,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         }
         WOLFSSL_MSG("\tPutting URI into list but not using");
 
-    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
+    #ifndef WOLFSSL_NO_ASN_STRICT
         /* Verify RFC 5280 Sec 4.2.1.6 rule:
             "The name MUST NOT be a relative URI"
             As per RFC 3986 Sec 4.3, an absolute URI is only required to contain
@@ -18595,9 +18876,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
                     break;
                 }
                 if (input[idx + (word32)i] == '/') {
-                    i = len; /* error, found relative path since '/' was
-                              * encountered before ':'. Returning error
-                              * value in next if statement. */
+                    /* path is relative since '/' was encountered before ':'. */
+                    return ASN_ALT_NAME_E;
                 }
             }
 
@@ -18669,6 +18949,10 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      *   - CheckForAltNames (TLS hostname matching): skips ASN_RID_TYPE
      *     unconditionally and excludes them from *checkCN, so a cert
      *     with only registeredID SANs still falls back to CN.
+     *   - CheckForAltNames (TLS hostname matching): skips ASN_URI_TYPE
+     *     for DNS hostname checks (RFC 9525 Sec. 6.3) but URI SAN presence
+     *     still suppresses CN fallback because URI-ID is a distinct presented
+     *     identifier.
      *   - DNS_to_GENERAL_NAME (used by wolfSSL_X509_get_ext) and the
      *     ALT_NAMES_OID arm of wolfSSL_X509_get_ext_d2i: build a proper
      *     ASN1_OBJECT in d.registeredID from raw OID bytes regardless
@@ -37657,7 +37941,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
         WOLFSSL_MSG("\tPutting URI into list but not using");
 
-    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
+    #ifndef WOLFSSL_NO_ASN_STRICT
         /* Verify RFC 5280 Sec 4.2.1.6 rule:
            "The name MUST NOT be a relative URI"
            As per RFC 3986 Sec 4.3, an absolute URI is only required to contain
@@ -37673,9 +37957,8 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
                     break;
                 }
                 if (input[idx + (word32)i] == '/') {
-                    i = len; /* error, found relative path since '/' was
-                              * encountered before ':'. Returning error
-                              * value in next if statement. */
+                    /* path is relative since '/' was encountered before ':'. */
+                    return ASN_ALT_NAME_E;
                 }
             }
 

@@ -63,19 +63,24 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <crypto/ecdh.h>
 
-#define WOLFKM_ECDH_DRIVER       ("ecdh-wolfcrypt")
+#if defined(WOLFSSL_SP_X86_64_ASM) && !defined(NO_AVX2_SUPPORT)
+    #define WOLFKM_ECDH_DRIVER_ISA_EXT "-avx2"
+#else
+    #define WOLFKM_ECDH_DRIVER_ISA_EXT ""
+#endif
+#define WOLFKM_ECDH_DRIVER_SUFFIX WOLFKM_ECDH_DRIVER_ISA_EXT \
+                           WOLFKM_DRIVER_SUFFIX_BASE
+
+#define WOLFKM_ECDH_DRIVER       ("ecdh" WOLFKM_ECDH_DRIVER_SUFFIX)
 
 #define WOLFKM_ECDH_P192_NAME    ("ecdh-nist-p192")
-#define WOLFKM_ECDH_P192_DRIVER  ("ecdh-nist-p192" WOLFKM_DRIVER_FIPS \
-                                   "-wolfcrypt")
+#define WOLFKM_ECDH_P192_DRIVER  ("ecdh-nist-p192" WOLFKM_ECDH_DRIVER_SUFFIX)
 
 #define WOLFKM_ECDH_P256_NAME    ("ecdh-nist-p256")
-#define WOLFKM_ECDH_P256_DRIVER  ("ecdh-nist-p256" WOLFKM_DRIVER_FIPS \
-                                   "-wolfcrypt")
+#define WOLFKM_ECDH_P256_DRIVER  ("ecdh-nist-p256" WOLFKM_ECDH_DRIVER_SUFFIX)
 
 #define WOLFKM_ECDH_P384_NAME    ("ecdh-nist-p384")
-#define WOLFKM_ECDH_P384_DRIVER  ("ecdh-nist-p384" WOLFKM_DRIVER_FIPS \
-                                   "-wolfcrypt")
+#define WOLFKM_ECDH_P384_DRIVER  ("ecdh-nist-p384" WOLFKM_ECDH_DRIVER_SUFFIX)
 
 static int linuxkm_test_ecdh_nist_driver(const char * driver,
                                          const byte * b_pub,

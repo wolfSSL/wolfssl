@@ -2942,11 +2942,14 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_mldsa_legacy.c
         tests/api/test_slhdsa.c
         tests/api/test_signature.c
+        tests/api/test_lms_xmss.c
         tests/api/test_dtls.c
+        tests/api/test_dtls13.c
         tests/api/test_ocsp.c
         tests/api/test_evp.c
         tests/api/test_tls_ext.c
         tests/api/test_tls.c
+        tests/api/test_session.c
         tests/api/test_x509.c
         tests/api/test_asn.c
         tests/api/test_pkcs7.c

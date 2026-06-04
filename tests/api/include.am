@@ -51,13 +51,16 @@ tests_unit_test_SOURCES += tests/api/test_mldsa.c
 tests_unit_test_SOURCES += tests/api/test_mldsa_legacy.c
 tests_unit_test_SOURCES += tests/api/test_slhdsa.c
 tests_unit_test_SOURCES += tests/api/test_signature.c
+tests_unit_test_SOURCES += tests/api/test_lms_xmss.c
 # TLS Protocol
 tests_unit_test_SOURCES += tests/api/test_dtls.c
+tests_unit_test_SOURCES += tests/api/test_dtls13.c
 # TLS Feature
 tests_unit_test_SOURCES += tests/api/test_ocsp.c
 tests_unit_test_SOURCES += tests/api/test_evp.c
 tests_unit_test_SOURCES += tests/api/test_tls_ext.c
 tests_unit_test_SOURCES += tests/api/test_tls.c
+tests_unit_test_SOURCES += tests/api/test_session.c
 # Certs
 tests_unit_test_SOURCES += tests/api/test_x509.c
 # ASN
@@ -157,13 +160,16 @@ EXTRA_DIST += tests/api/test_mlkem.h
 EXTRA_DIST += tests/api/test_mldsa.h
 EXTRA_DIST += tests/api/test_slhdsa.h
 EXTRA_DIST += tests/api/test_signature.h
+EXTRA_DIST += tests/api/test_lms_xmss.h
 EXTRA_DIST += tests/api/test_dtls.h
+EXTRA_DIST += tests/api/test_dtls13.h
 EXTRA_DIST += tests/api/test_ocsp.h
 EXTRA_DIST += tests/api/test_ocsp_test_blobs.h
 EXTRA_DIST += tests/api/create_ocsp_test_blobs.py
 EXTRA_DIST += tests/api/test_evp.h
 EXTRA_DIST += tests/api/test_tls_ext.h
 EXTRA_DIST += tests/api/test_tls.h
+EXTRA_DIST += tests/api/test_session.h
 EXTRA_DIST += tests/api/test_x509.h
 EXTRA_DIST += tests/api/test_asn.h
 EXTRA_DIST += tests/api/test_pkcs7.h

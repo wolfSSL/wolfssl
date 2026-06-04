@@ -609,6 +609,12 @@ struct WOLFSSL_EVP_PKEY {
     #ifdef HAVE_ED448
     struct ed448_key* ed448;
     #endif
+    #ifdef HAVE_CURVE25519
+    struct curve25519_key* curve25519;
+    #endif
+    #ifdef HAVE_CURVE448
+    struct curve448_key* curve448;
+    #endif
     WC_RNG rng;
     #ifdef HAVE_HKDF
     const WOLFSSL_EVP_MD* hkdfMd;
@@ -639,6 +645,12 @@ struct WOLFSSL_EVP_PKEY {
 #endif
 #ifdef HAVE_ED448
     WC_BITFIELD ownEd448:1;   /* if struct owns Ed448 and should free it */
+#endif
+#ifdef HAVE_CURVE25519
+    WC_BITFIELD ownCurve25519:1; /* if struct owns X25519 and should free it */
+#endif
+#ifdef HAVE_CURVE448
+    WC_BITFIELD ownCurve448:1;   /* if struct owns X448 and should free it */
 #endif
 };
 

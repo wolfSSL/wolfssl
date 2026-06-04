@@ -1423,7 +1423,9 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
     exp[idx++] = options->acceptState;
     exp[idx++] = options->asyncState;
 
-    if (type == WOLFSSL_EXPORT_TLS) {
+    /* Encrypt-Then-MAC state. Historically only serialized for TLS; export
+     * version 6 and later also serialize it for DTLS. */
+    if (type == WOLFSSL_EXPORT_TLS || ver > WOLFSSL_EXPORT_VERSION_5) {
 #ifdef HAVE_ENCRYPT_THEN_MAC
         exp[idx++] = options->disallowEncThenMac;
         exp[idx++] = options->encThenMac;
@@ -1497,6 +1499,13 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
     switch (ver) {
         case WOLFSSL_EXPORT_VERSION:
             if (len < DTLS_EXPORT_OPT_SZ) {
+                WOLFSSL_MSG("Sanity check on buffer size failed");
+                return BAD_FUNC_ARG;
+            }
+            break;
+
+        case WOLFSSL_EXPORT_VERSION_5:
+            if (len < DTLS_EXPORT_OPT_SZ_5) {
                 WOLFSSL_MSG("Sanity check on buffer size failed");
                 return BAD_FUNC_ARG;
             }
@@ -1628,7 +1637,9 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
     options->acceptState    = exp[idx++];
     options->asyncState     = exp[idx++];
 
-    if (type == WOLFSSL_EXPORT_TLS) {
+    /* Encrypt-Then-MAC state. Historically only serialized for TLS; export
+     * version 6 and later also serialize it for DTLS. */
+    if (type == WOLFSSL_EXPORT_TLS || ver > WOLFSSL_EXPORT_VERSION_5) {
 #ifdef HAVE_ENCRYPT_THEN_MAC
         options->disallowEncThenMac = exp[idx++];
         options->encThenMac         = exp[idx++];
@@ -1723,8 +1734,8 @@ static int ImportPeerInfo(WOLFSSL* ssl, const byte* buf, word32 len, byte ver)
     word16 port;
     char   ip[MAX_EXPORT_IP];
 
-    if (ver != WOLFSSL_EXPORT_VERSION && ver != WOLFSSL_EXPORT_VERSION_4 &&
-            ver != WOLFSSL_EXPORT_VERSION_3) {
+    if (ver != WOLFSSL_EXPORT_VERSION && ver != WOLFSSL_EXPORT_VERSION_5 &&
+            ver != WOLFSSL_EXPORT_VERSION_4 && ver != WOLFSSL_EXPORT_VERSION_3) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
@@ -1979,6 +1990,15 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
                 }
                 else {
                     optSz = TLS_EXPORT_OPT_SZ;
+                }
+                break;
+
+            case WOLFSSL_EXPORT_VERSION_5:
+                if (type == WOLFSSL_EXPORT_DTLS) {
+                    optSz = DTLS_EXPORT_OPT_SZ_5;
+                }
+                else {
+                    optSz = TLS_EXPORT_OPT_SZ_5;
                 }
                 break;
 
@@ -13693,6 +13713,16 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
          * for hostname matching regardless of build flags. */
         if (altName->type == ASN_RID_TYPE) {
             WOLFSSL_MSG("\tAltName is registeredID, skipping for hostname");
+            continue;
+        }
+
+        /* RFC 9525 Sec. 6.3: a DNS-ID reference identifier is matched only
+         * against dNSName SAN entries, never uniformResourceIdentifier
+         * (even when the URI value resembles a ostname). URI-ID matching
+         * requires scheme and host parsing (RFC 9525 Sec. 6.5, Sec. 7.2). */
+        if (!isIP && altName->type == ASN_URI_TYPE) {
+            WOLFSSL_MSG("\tAltName is uniformResourceIdentifier, "
+                        "skipping for DNS hostname");
             continue;
         }
 
