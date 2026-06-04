@@ -1632,7 +1632,7 @@ int test_d2i_ECPrivateKey_no_pubkey(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    defined(HAVE_ECC_KEY_IMPORT)
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_MAKE_PUB)
     /* RFC 5915 ECPrivateKey DER with version + privateKey + parameters [0]
      * but NO publicKey [1] field. */
     static const byte kPrivOnlyDer[] = {
@@ -1669,7 +1669,7 @@ int test_d2i_ECPrivateKey_no_pubkey(void)
 
     XMEMSET(hash, 0xab, sizeof(hash));
 
-    /* Import private-only DER — must succeed and auto-derive the public key. */
+    /* Import private-only DER -- must succeed and auto-derive the public key. */
     ExpectNotNull(key = d2i_ECPrivateKey(NULL, &der, sizeof(kPrivOnlyDer)));
 
     /* Structural validity: public point on curve, priv/pub consistent. */
@@ -1691,7 +1691,8 @@ int test_d2i_ECPrivateKey_no_pubkey(void)
     ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, (int)sigSz, key), 1);
 
     EC_KEY_free(key);
-#endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP && HAVE_ECC_KEY_IMPORT */
+#endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP && HAVE_ECC_KEY_IMPORT
+        * && HAVE_ECC_MAKE_PUB */
     return EXPECT_RESULT();
 }
 

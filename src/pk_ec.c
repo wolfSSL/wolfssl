@@ -3435,13 +3435,18 @@ WOLFSSL_EC_KEY* wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY** key,
          * wc_EccPrivateKeyDecode leaves type == ECC_PRIVATEKEY_ONLY with the
          * public point uninitialised.  Derive the public point now so that
          * all downstream operations (sign, ECDH, export) have a valid key,
-         * matching the behaviour of OpenSSL's d2i_ECPrivateKey. */
+         * matching the behaviour of OpenSSL's d2i_ECPrivateKey.
+         * In builds without HAVE_ECC_MAKE_PUB (e.g. hardware/CB-only),
+         * keep the historical import behaviour and leave the key as
+         * private-only instead of failing import. */
+    #ifdef HAVE_ECC_MAKE_PUB
         if (((ecc_key*)ret->internal)->type == ECC_PRIVATEKEY_ONLY) {
             if (wc_ecc_make_pub((ecc_key*)ret->internal, NULL) != 0) {
                 WOLFSSL_MSG("wc_ecc_make_pub error deriving public key");
                 err = 1;
             }
         }
+    #endif
     }
 
     if (!err) {
