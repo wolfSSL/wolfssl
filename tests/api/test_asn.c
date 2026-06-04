@@ -1097,6 +1097,47 @@ int test_wc_DecodeRsaPssParams(void)
             &hash, &mgf, &saltLen), WC_NO_ERR_TRACE(ASN_PARSE_E));
     }
 
+    /* --- Test 9: trailerField = 1 (trailerFieldBC) => valid in all modes --- */
+    /* SEQUENCE { [3] CONSTRUCTED { INTEGER 1 } } = 30 05 a3 03 02 01 01 */
+    {
+        static const byte trailerValid[] = {
+            0x30, 0x05, 0xa3, 0x03, 0x02, 0x01, 0x01
+        };
+        hash    = WC_HASH_TYPE_NONE;
+        mgf     = 0;
+        saltLen = 0;
+        ExpectIntEQ(wc_DecodeRsaPssParams(trailerValid,
+            (word32)sizeof(trailerValid), &hash, &mgf, &saltLen), 0);
+        ExpectIntEQ((int)hash, (int)WC_HASH_TYPE_SHA);
+        ExpectIntEQ(mgf, WC_MGF1SHA1);
+        ExpectIntEQ(saltLen, 20);
+    }
+
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* --- Test 10: trailerField = 2 => ASN_PARSE_E (strict mode) --- */
+    /* RFC 8017 A.2.3: trailerField SHALL be trailerFieldBC(1). */
+    /* SEQUENCE { [3] CONSTRUCTED { INTEGER 2 } } = 30 05 a3 03 02 01 02 */
+    {
+        static const byte trailerTwo[] = {
+            0x30, 0x05, 0xa3, 0x03, 0x02, 0x01, 0x02
+        };
+        ExpectIntEQ(wc_DecodeRsaPssParams(trailerTwo,
+            (word32)sizeof(trailerTwo), &hash, &mgf, &saltLen),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+    /* --- Test 11: trailerField = 0 => ASN_PARSE_E (strict mode) --- */
+    /* SEQUENCE { [3] CONSTRUCTED { INTEGER 0 } } = 30 05 a3 03 02 01 00 */
+    {
+        static const byte trailerZero[] = {
+            0x30, 0x05, 0xa3, 0x03, 0x02, 0x01, 0x00
+        };
+        ExpectIntEQ(wc_DecodeRsaPssParams(trailerZero,
+            (word32)sizeof(trailerZero), &hash, &mgf, &saltLen),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
+
 #endif /* WC_RSA_PSS && !NO_RSA && !NO_ASN */
     return EXPECT_RESULT();
 }
