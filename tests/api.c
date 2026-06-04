@@ -30120,7 +30120,8 @@ static int test_extra_alerts_wrong_cs(void)
 #endif
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) &&   \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_AES_256)
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_AES_256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
 
 #define TEST_CS_DOWNGRADE_CLIENT "ECDHE-RSA-AES256-GCM-SHA384"
 
