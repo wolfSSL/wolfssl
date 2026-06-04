@@ -3443,10 +3443,9 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return BAD_FUNC_ARG;
     }
 
-    /* For OAEP padding (RFC 8017, Section 7.1.1), zero-length messages are
-     * permitted with respect to the message-length constraint in step 1b:
-     * mLen <= k - 2*hLen - 2. For other padding types, a zero-length input
-     * is invalid. */
+    /* RFC 8017 Section 7.1.1 step 1b permits mLen == 0 for OAEP because
+     * the message-length bound (mLen <= k - 2*hLen - 2) is satisfied.
+     * Other padding types require non-empty input. */
     if (in == NULL || (inLen == 0 && pad_type != WC_RSA_OAEP_PAD)) {
         return BAD_FUNC_ARG;
     }
@@ -3847,11 +3846,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             ret = ctMaskSelInt(ctMaskLTE(ret, (int)outLen), ret,
                                WC_NO_ERR_TRACE(RSA_BUFFER_E));
     #ifndef WOLFSSL_RSA_DECRYPT_TO_0_LEN
-            /* RFC 8017 Section 7.1.2: OAEP decryption may produce a valid
-             * zero-length message. Only reject ret==0 for non-OAEP types. */
+            /* RFC 8017 Section 7.1.2 step 3g: OAEP decryption may yield a
+             * valid zero-length message (mLen == 0). Only reject ret == 0
+             * for non-OAEP padding types. */
             {
-                int zeroOk = ctMaskEq(pad_type, WC_RSA_OAEP_PAD);
-                ret = ctMaskSelInt(ctMaskNotEq(ret, 0) | zeroOk, ret,
+                byte zeroOkMask = ctMaskEq(pad_type, WC_RSA_OAEP_PAD);
+                ret = ctMaskSelInt(ctMaskNotEq(ret, 0) | zeroOkMask, ret,
                                    WC_NO_ERR_TRACE(RSA_BUFFER_E));
             }
     #endif
