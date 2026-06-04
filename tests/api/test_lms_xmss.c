@@ -288,8 +288,8 @@ static int rfc9802_load_file(const char* path, byte** out, int* outLen)
     return EXPECT_RESULT();
 }
 
-static int rfc9802_verify_one_cert(const char* path, word32 expectedKeyOID,
-    word32 expectedSigOID)
+static WC_MAYBE_UNUSED int rfc9802_verify_one_cert(const char* path,
+    word32 expectedKeyOID, word32 expectedSigOID)
 {
     EXPECT_DECLS;
     byte*                 buf = NULL;
@@ -512,6 +512,7 @@ static int rfc9802_xmss_import_negative(void)
         wc_XmssKey_Free(&key);
     }
 
+#if !defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 10)
     /* Once params have been configured (state != INITED), the OID
      * prefix in the raw key MUST match key->oid and is_xmssmt MUST
      * match key->is_xmssmt. Set XMSS-SHA2_10_256 and feed a valid-
@@ -561,10 +562,12 @@ static int rfc9802_xmss_import_negative(void)
         ExpectIntEQ((int)key.is_xmssmt, 0);
         wc_XmssKey_Free(&key);
 
+    #if WOLFSSL_XMSS_MAX_HEIGHT >= 20
         ExpectIntEQ(wc_XmssKey_Init(&key, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_XmssKey_ImportPubRaw_ex(&key, buf, sizeof(buf), 1), 0);
         ExpectIntEQ((int)key.is_xmssmt, 1);
         wc_XmssKey_Free(&key);
+    #endif
     }
 
     /* Lenient state: re-importing the same pub key into a VERIFYONLY
@@ -635,6 +638,7 @@ static int rfc9802_xmss_import_negative(void)
             WC_NO_ERR_TRACE(BAD_STATE_E));
         wc_XmssKey_Free(&key);
     }
+#endif
 
     return EXPECT_RESULT();
 }
@@ -833,8 +837,10 @@ static int rfc9802_xmss_chain_verify(void)
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, caBuf, (long)caLen,
         WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+#if !defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 10)
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, leafBuf, (long)leafLen,
         WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+#endif
 
     if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
@@ -905,24 +911,50 @@ int test_rfc9802_xmss_x509_verify(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_XMSS)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 16))
     static const char* const xmssFiles[] = {
+#if (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || (WOLFSSL_XMSS_MAX_HEIGHT >= 10)) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 10))
         "./certs/xmss/bc_xmss_sha2_10_256_root.der",
+#endif
+#if (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || (WOLFSSL_XMSS_MAX_HEIGHT >= 16)) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 16))
         "./certs/xmss/bc_xmss_sha2_16_256_root.der",
+#endif
     };
+#endif
+#if (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || (WOLFSSL_XMSS_MAX_HEIGHT >= 20)) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40))
     static const char* const xmssmtFiles[] = {
+#if (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || (WOLFSSL_XMSS_MAX_HEIGHT >= 20)) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 20))
         "./certs/xmss/bc_xmssmt_sha2_20_2_256_root.der",
         "./certs/xmss/bc_xmssmt_sha2_20_4_256_root.der",
+#endif
+#if (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || (WOLFSSL_XMSS_MAX_HEIGHT >= 40)) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40))
         "./certs/xmss/bc_xmssmt_sha2_40_8_256_root.der",
+#endif
     };
+#endif
+#if (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 16)) || \
+    ((!defined(WOLFSSL_XMSS_MAX_HEIGHT) || (WOLFSSL_XMSS_MAX_HEIGHT >= 20)) && \
+     (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40)))
     size_t i;
+#endif
+#if (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 16))
     for (i = 0; i < sizeof(xmssFiles) / sizeof(xmssFiles[0]); i++) {
         ExpectIntEQ(rfc9802_verify_one_cert(xmssFiles[i],
             XMSSk, CTC_XMSS), TEST_SUCCESS);
     }
+#endif
+#if (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || (WOLFSSL_XMSS_MAX_HEIGHT >= 20)) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40))
     for (i = 0; i < sizeof(xmssmtFiles) / sizeof(xmssmtFiles[0]); i++) {
         ExpectIntEQ(rfc9802_verify_one_cert(xmssmtFiles[i],
             XMSSMTk, CTC_XMSSMT), TEST_SUCCESS);
     }
+#endif
     ExpectIntEQ(rfc9802_xmss_sig_oid_mismatch(), TEST_SUCCESS);
     ExpectIntEQ(rfc9802_xmss_chain_verify(), TEST_SUCCESS);
 #endif /* !NO_FILESYSTEM && !NO_CERTS */

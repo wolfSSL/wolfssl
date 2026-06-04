@@ -3508,7 +3508,7 @@ int test_wolfSSL_CertManagerRejectMD5Cert(void)
 #if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_MD5) && \
     !defined(WOLFSSL_ALLOW_MD5_CERT_SIGS) && defined(WOLFSSL_CERT_GEN) && \
     !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_ASN_CRYPT) && \
-    !defined(USE_CERT_BUFFERS_1024)
+    !defined(USE_CERT_BUFFERS_1024) && !defined(NO_ASN_TIME)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     RsaKey  caKey;
     WC_RNG  rng;

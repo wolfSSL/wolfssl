@@ -23505,7 +23505,7 @@ static int test_sk_X509_CRL_decode(void)
 }
 
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
-    defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN)
+    defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
 /* Ensure oversized caller-provided revocationDate is rejected. */
 static int test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date(void)
 {
@@ -33276,7 +33276,8 @@ static int test_DhAgree_rejects_p_minus_1(void)
 static int test_ed448_rejects_identity_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ED448) && !defined(HAVE_SELFTEST) && \
+#if defined(HAVE_ED448) && defined(HAVE_ED448_VERIFY) && \
+    defined(HAVE_ED448_KEY_IMPORT) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ed448_key key;
     byte identity[ED448_PUB_KEY_SIZE];
@@ -34534,7 +34535,7 @@ TEST_CASE testCases[] = {
     /* OpenSSL sk_X509_CRL API test */
     TEST_DECL(test_sk_X509_CRL_decode),
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
-    defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN)
+    defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
     TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date),
 #endif
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \

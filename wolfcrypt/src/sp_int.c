@@ -7423,7 +7423,8 @@ static void _sp_div_2(const sp_int* a, sp_int* r)
     /* Last word only needs to be shifted down. */
     r->dp[i] = a->dp[i] >> 1;
     /* Set used to be all words seen. */
-    r->used = (sp_size_t)(i + 1 - (int)((r->dp[i] - 1) >> (SP_WORD_SIZE - 1)));
+    r->used = (sp_size_t)(i + 1 - (int)((sp_int_digit)(r->dp[i] - 1) >>
+                                        (SP_WORD_SIZE - 1)));
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /* Same sign in result. */
     r->sign = a->sign;

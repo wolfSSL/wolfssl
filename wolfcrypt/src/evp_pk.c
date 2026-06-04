@@ -235,7 +235,7 @@ static int d2iTryEccKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 }
 #endif /* HAVE_ECC && OPENSSL_EXTRA */
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
 /**
  * Try to make an Ed25519 EVP PKEY from data.
  *
@@ -299,9 +299,9 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     return ret;
 }
-#endif /* HAVE_ED25519 */
+#endif /* HAVE_ED25519i && HAVE_ED25519_KEY_IMPORT */
 
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
 /**
  * Try to make an Ed448 EVP PKEY from data.
  *
@@ -398,7 +398,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
     }
 
     switch (type) {
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519: {
             ed25519_key* edKey;
             if (len != ED25519_PUB_KEY_SIZE) {
@@ -419,7 +419,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
             break;
         }
     #endif
-    #ifdef HAVE_ED448
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448: {
             ed448_key* edKey;
             if (len != ED448_PUB_KEY_SIZE) {
@@ -542,7 +542,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     }
 
     switch (type) {
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519: {
             ed25519_key* edKey;
             if (len != ED25519_KEY_SIZE) {
@@ -564,7 +564,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
             break;
         }
     #endif
-    #ifdef HAVE_ED448
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448: {
             ed448_key* edKey;
             if (len != ED448_KEY_SIZE) {
@@ -1133,18 +1133,18 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
     if (d2iTryEd25519Key(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
     }
     else
-#endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
     if (d2iTryEd448Key(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
     }
     else
-#endif /* HAVE_ED448 */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 #ifdef HAVE_FALCON
     if (d2iTryFalconKey(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
@@ -1494,7 +1494,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* HAVE_DH */
 #endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_OPENSSH */
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519:
             /* local->pkey.ptr already holds the input bytes, so
              * d2iTryEd25519Key will skip the d2i_make_pkey allocate/copy
@@ -1505,7 +1505,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             }
             break;
 #endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448:
             /* See WC_EVP_PKEY_ED25519 case above. */
             if (d2iTryEd448Key(&local, p, local->pkey_sz, priv) != 1) {

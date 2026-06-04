@@ -5248,6 +5248,13 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef WC_RNG_BANK_SUPPORT
 #endif
 
+/* The OCSP responder time-stamps every response it generates (producedAt,
+ * thisUpdate and, for revoked certs, revocationDate), so it needs ASN time
+ * support. */
+#if defined(HAVE_OCSP_RESPONDER) && defined(NO_ASN_TIME)
+    #undef HAVE_OCSP_RESPONDER
+#endif
+
 #ifdef HAVE_OCSP_RESPONDER
     #ifndef HAVE_OCSP
         #error "HAVE_OCSP_RESPONDER requires HAVE_OCSP"

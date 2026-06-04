@@ -80,6 +80,7 @@ int test_memio_copy_message(const struct test_memio_ctx *ctx, int client,
         char *out, int *out_sz, int msg_pos);
 int test_memio_get_message(const struct test_memio_ctx *ctx, int client,
         const char **out, int *out_sz, int msg_pos);
+int test_memio_msg_is_hello_retry_request(const struct test_memio_ctx *ctx);
 int test_memio_move_message(struct test_memio_ctx *ctx, int client,
         int msg_pos_in, int msg_pos_out);
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos);

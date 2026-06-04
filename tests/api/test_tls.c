@@ -54,6 +54,18 @@ int test_utils_memio_move_message(void)
     /* send server's flight */
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* If the server responded with a HelloRetryRequest it is waiting on a new
+     * ClientHello, so the buffered flight is just the HRR rather than the real
+     * ServerHello flight. Drive another connect/accept round so the message
+     * moving below operates on the real flight. */
+    if (EXPECT_SUCCESS() && test_memio_msg_is_hello_retry_request(&test_ctx)) {
+        /* client processes HRR and sends second ClientHello */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        /* server processes second ClientHello and sends its flight */
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    }
     /* Move messages around but they should be the same at the end */
     ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 1, 2), 0);
     ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 2, 1), 0);

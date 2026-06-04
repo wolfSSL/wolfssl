@@ -214,7 +214,8 @@ static int IsKyberLevelAvailable(const char* line)
         #endif
     #endif /* WOLFSSL_TLS_NO_MLKEM_STANDALONE */
     #ifdef WOLFSSL_PQC_HYBRIDS
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC)
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+            (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256))
             if (MATCH_PQC(begin, "SecP256r1MLKEM768", len)) {
                 available = 1;
             }
@@ -224,7 +225,8 @@ static int IsKyberLevelAvailable(const char* line)
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC)
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
+            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
             if (MATCH_PQC(begin, "SecP384r1MLKEM1024", len)) {
                 available = 1;
             }
@@ -246,7 +248,8 @@ static int IsKyberLevelAvailable(const char* line)
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC)
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
+            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
             if (MATCH_PQC(begin, "SecP384r1MLKEM768", len)) {
                 available = 1;
             }
@@ -261,7 +264,8 @@ static int IsKyberLevelAvailable(const char* line)
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC)
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
+            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521))
             if (MATCH_PQC(begin, "SecP521r1MLKEM1024", len)) {
                 available = 1;
             }
@@ -290,9 +294,11 @@ static int IsKyberLevelAvailable(const char* line)
                 available = 1;
             }
         #ifdef HAVE_ECC
+            #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384)
             if (MATCH_PQC(begin, "P384_KYBER_LEVEL3", len)) {
                 available = 1;
             }
+            #endif
             if (MATCH_PQC(begin, "P256_KYBER_LEVEL3", len)) {
                 available = 1;
             }
@@ -303,9 +309,11 @@ static int IsKyberLevelAvailable(const char* line)
                 available = 1;
             }
         #ifdef HAVE_ECC
+            #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521)
             if (MATCH_PQC(begin, "P521_KYBER_LEVEL5", len)) {
                 available = 1;
             }
+            #endif
         #endif
         #endif
         #if !defined(WOLFSSL_NO_KYBER512) && defined(HAVE_CURVE25519)
@@ -476,6 +484,28 @@ static int IsEcdsaCipherSuiteDefRsaCert(const char* line)
 }
 #endif
 
+#ifdef WOLFSSL_STATIC_PSK
+/* Check whether the command line forces ephemeral (EC)DHE PSK key exchange.
+ *
+ * @param [in] argc  Number of arguments.
+ * @param [in] argv  Argument list.
+ * @return  1 when "--onlyPskDheKe" is present.
+ * @return  0 otherwise.
+ */
+static int IsOnlyPskDheKe(int argc, char** argv)
+{
+    int i;
+
+    for (i = 0; i < argc; i++) {
+        if (argv[i] != NULL && XSTRCMP(argv[i], "--onlyPskDheKe") == 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_STATIC_PSK */
+
 static int execute_test_case(int svr_argc, char** svr_argv,
                              int cli_argc, char** cli_argv,
                              int addNoVerify, int addNonBlocking,
@@ -584,6 +614,18 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     if (IsUsingCert(commandLine)) {
         #ifdef DEBUG_SUITE_TESTS
             printf("certificate %s not supported in build\n", commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
+#ifdef WOLFSSL_STATIC_PSK
+    /* --onlyPskDheKe forces the psk_dhe_ke key exchange mode, which requires
+     * ephemeral (EC)DHE. A static PSK build provides only the psk_ke mode, so
+     * skip these tests. */
+    if (IsOnlyPskDheKe(svrArgs.argc, svr_argv) ||
+            IsOnlyPskDheKe(cliArgs.argc, cli_argv)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("--onlyPskDheKe not supported with WOLFSSL_STATIC_PSK\n");
         #endif
         return NOT_BUILT_IN;
     }

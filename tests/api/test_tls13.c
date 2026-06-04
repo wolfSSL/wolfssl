@@ -93,7 +93,10 @@ int test_tls13_apis(void)
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
-#ifdef WOLFSSL_HAVE_MLKEM
+#if defined(WOLFSSL_HAVE_MLKEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 #ifdef WOLFSSL_MLKEM_KYBER
     #ifndef WOLFSSL_NO_KYBER512
                                WOLFSSL_KYBER_LEVEL1
@@ -5348,6 +5351,7 @@ int test_tls13_corrupted_finished(void)
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -5365,7 +5369,29 @@ int test_tls13_corrupted_finished(void)
 
     /* Step 3: Client processes server flight, verifies server Finished,
      * sends client Finished */
-    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ret = wolfSSL_connect(ssl_c);
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
+        /* Actually: Server sent HelloRetryRequest */
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        /* Step 1: Client sends ClientHello */
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        /* Step 2: Server processes CH, sends SH + EE + Cert + CV + Finished */
+        ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        /* Step 3: Client processes server flight, verifies server Finished,
+         * sends client Finished */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
 
     /* Corrupt the server's client_write_MAC_secret so that when it computes
      * the expected Finished HMAC, the result won't match the client's actual
@@ -5448,7 +5474,20 @@ int test_tls13_peerauth_failsafe(void)
         ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
             WOLFSSL_ERROR_WANT_READ);
-        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ret = wolfSSL_connect(ssl_c);
+        if (ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
+            /* HelloRetryRequest sent by server. */
+            ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        }
 
         ssl_s->options.peerAuthGood = 0;
         ret = wolfSSL_accept(ssl_s);
@@ -6090,6 +6129,16 @@ static int test_tls13_cipher_fuzz_once(WC_RNG* rng,
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
     ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* The default groups can lead the server to respond with a
+     * HelloRetryRequest, in which case it is waiting on a new ClientHello and
+     * has not yet sent any encrypted record. Drive another connect/accept round
+     * so the buffers hold the real flight before fuzzing. */
+    if (EXPECT_SUCCESS() && test_memio_msg_is_hello_retry_request(&test_ctx)) {
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    }
     if (side == 1) {
         ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
         buf = test_ctx.s_buff;
