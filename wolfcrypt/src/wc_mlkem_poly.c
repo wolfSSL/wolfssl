@@ -6096,14 +6096,17 @@ void mlkem_to_bytes(byte* b, sword16* p, int k)
 }
 
 /**
- * Check the public key values are smaller than the modulus.
+ * Check the vector coefficients are reduced modulo q.
  *
- * @param [in] p  Public key - vector.
+ * FIPS 203, Sections 7.2 and 7.3: encapsulation and decapsulation keys must
+ * decode to coefficients in Z_q; reject any that are not reduced.
+ *
+ * @param [in] p  Key - vector of polynomials.
  * @param [in] k  Number of polynomials in vector.
  * @return  0 when all values are in range.
  * @return  PUBLIC_KEY_E when at least one value is out of range.
  */
-int mlkem_check_public(const sword16* p, int k)
+int mlkem_check_reduced(const sword16* p, int k)
 {
     int ret = 0;
     int i;

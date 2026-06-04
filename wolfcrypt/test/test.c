@@ -52299,8 +52299,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
-        if (XMEMCMP(priv, priv2, testData[i][2]) != 0)
+        if (XMEMCMP(priv, priv2, testData[i][1]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+
+        /* FIPS 203 modulus check: a private key whose first coefficient is
+         * not reduced (>= q) must be rejected on decode. Free first so the
+         * reinit does not leak the decoded dynamic priv/pub buffers. */
+        wc_MlKemKey_Free(key);
+        ret = wc_MlKemKey_Init(key, testData[i][0], HEAP_HINT, devId);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        priv[0] = 0xff;
+        priv[1] |= 0x0f;
+        ret = wc_MlKemKey_DecodePrivateKey(key, priv, testData[i][1]);
+        if (ret != PUBLIC_KEY_E)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        ret = 0;
 
 #if !defined(WOLFSSL_NO_MALLOC) && !defined(WC_NO_CONSTRUCTORS)
         tmpKey = wc_MlKemKey_New(testData[i][0], HEAP_HINT, devId);
