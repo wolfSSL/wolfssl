@@ -757,7 +757,7 @@ int test_wc_Entropy_Get(void)
     /* bits > MAX_ENTROPY_BITS: must reject (overflow guard) */
     ExpectIntEQ(wc_Entropy_Get(MAX_ENTROPY_BITS + 1, entropy, sizeof(entropy)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Entropy_Get(2049, entropy, sizeof(entropy)),
+    ExpectIntEQ(wc_Entropy_Get(MAX_ENTROPY_BITS * 8 + 1, entropy, sizeof(entropy)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* entropy == NULL with len > 0: must reject */
