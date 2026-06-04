@@ -316,6 +316,13 @@ MODULE_PARM_DESC(rodata_dump_path,
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+int wc_linuxkm_can_block(void) {
+    /* We can't use preemptible() for this, because we need an accurate test
+     * even in !CONFIG_PREEMPT_COUNT configs where preemptible() is always 0.
+     */
+    return (preempt_count() == 0) && (! irqs_disabled());
+}
+
 /* for simplicity, we use a global count to suspend signal processing while any
  * thread is running fipsEntry(), wolfCrypt_IntegrityTest_fips(),
  * linuxkm_lkcapi_register(), or linuxkm_lkcapi_unregister().  This only affects
@@ -336,7 +343,7 @@ int wc_linuxkm_sig_ignore_end(void) {
 
 int wc_linuxkm_check_for_intr_signals(void) {
     static const int intr_signals[] = WC_LINUXKM_INTR_SIGNALS;
-    if (preempt_count() != 0)
+    if (! wc_linuxkm_can_block())
         return 0;
     if (signal_pending(current)) {
         int i;
@@ -365,7 +372,7 @@ int wc_linuxkm_check_for_intr_signals(void) {
 
 void wc_linuxkm_relax_long_loop(void) {
     #if WC_LINUXKM_MAX_NS_WITHOUT_YIELD >= 0
-    if (preempt_count() == 0) {
+    if (wc_linuxkm_can_block()) {
         #if (WC_LINUXKM_MAX_NS_WITHOUT_YIELD == 0) || !defined(CONFIG_SCHED_INFO)
         cond_resched();
         #else
@@ -660,6 +667,11 @@ static int wolfssl_init(void)
         pr_err("ERROR: ELF segment fenceposts and FIPS fenceposts conflict.\n");
         return -ECANCELED;
     }
+#endif
+
+#if defined(WC_LINUXKM_USE_HEAP_WRAPPERS) && defined(CONFIG_HAVE_KPROBES)
+    /* cache the function pointer to find_vm_area(). */
+    (void)wc_linuxkm_malloc_usable_size(NULL);
 #endif
 
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
@@ -1283,13 +1295,13 @@ static const struct wc_reloc_table_segments seg_map = {
 
 void *wc_linuxkm_malloc(size_t size)
 {
-    return kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE);
+    return kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE);
 }
 
 void wc_linuxkm_free(void *ptr)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
-    if (preempt_count() == 0)
+    if (wc_linuxkm_can_block())
         kvfree(ptr);
     else
         kvfree_atomic(ptr);
@@ -1300,12 +1312,41 @@ void wc_linuxkm_free(void *ptr)
 
 void *wc_linuxkm_realloc(void *ptr, size_t newsize)
 {
-    return kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC));
+    return kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC));
 }
+
+#ifdef CONFIG_HAVE_KPROBES
+#include <linux/vmalloc.h>
+#endif
 
 size_t wc_linuxkm_malloc_usable_size(void *ptr)
 {
-    return ksize(ptr);
+    if ((ptr == NULL) || is_vmalloc_addr(ptr)) {
+#ifdef CONFIG_HAVE_KPROBES
+        static typeof(find_vm_area) *find_vm_area_ptr = NULL;
+        if (find_vm_area_ptr == NULL) {
+            if (! wc_linuxkm_can_block())
+                return 0;
+            find_vm_area_ptr = my_kallsyms_lookup_name("find_vm_area");
+        }
+        if (find_vm_area_ptr == NULL)
+            return 0;
+        else if (ptr == NULL)
+            return 0;
+        else {
+            struct vm_struct *vm = find_vm_area_ptr(ptr);
+            if (vm)
+                return get_vm_area_size(vm);
+            else
+                return 0;
+        }
+#else
+        return 0;
+#endif
+    }
+    else {
+        return ksize(ptr);
+    }
 }
 
 #endif /* WC_LINUXKM_USE_HEAP_WRAPPERS */
@@ -1678,6 +1719,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
 #endif
 
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_can_block = wc_linuxkm_can_block;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_begin = wc_linuxkm_sig_ignore_begin;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_end = wc_linuxkm_sig_ignore_end;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
