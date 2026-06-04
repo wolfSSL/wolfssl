@@ -1539,18 +1539,17 @@
 #endif
 
 #if defined(WOLFSSL_uITRON4)
+    #define XMALLOC_USER
+    #include <stddef.h>
+    #define ITRON_POOL_SIZE 1024*20
+    extern int uITRON4_minit(size_t poolsz) ;
+    extern void *uITRON4_malloc(size_t sz) ;
+    extern void *uITRON4_realloc(void *p, size_t sz) ;
+    extern void uITRON4_free(void *p) ;
 
-#define XMALLOC_USER
-#include <stddef.h>
-#define ITRON_POOL_SIZE 1024*20
-extern int uITRON4_minit(size_t poolsz) ;
-extern void *uITRON4_malloc(size_t sz) ;
-extern void *uITRON4_realloc(void *p, size_t sz) ;
-extern void uITRON4_free(void *p) ;
-
-#define XMALLOC(sz, heap, type)     ((void)(heap), (void)(type), uITRON4_malloc(sz))
-#define XREALLOC(p, sz, heap, type) ((void)(heap), (void)(type), uITRON4_realloc(p, sz))
-#define XFREE(p, heap, type)        ((void)(heap), (void)(type), uITRON4_free(p))
+    #define XMALLOC(sz, heap, type)     ((void)(heap), (void)(type), uITRON4_malloc(sz))
+    #define XREALLOC(p, sz, heap, type) ((void)(heap), (void)(type), uITRON4_realloc(p, sz))
+    #define XFREE(p, heap, type)        ((void)(heap), (void)(type), uITRON4_free(p))
 #endif
 
 #if defined(WOLFSSL_uTKERNEL2)
@@ -3924,6 +3923,12 @@ extern void uITRON4_free(void *p) ;
     #endif
     #ifndef NO_CTYPE_H
         #define NO_CTYPE_H
+    #endif
+    /* Linux kernel includes linux/stddef.h.  The gcc stddef.h conflicts with it
+     * (e.g. offsetof()) and needs to be inhibited.
+     */
+    #ifndef NO_STDDEF_H
+        #define NO_STDDEF_H
     #endif
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
