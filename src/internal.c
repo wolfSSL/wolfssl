@@ -31648,17 +31648,38 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         if (ssl->options.resuming && ssl->session->ticketLen > 0) {
             SessionTicket* ticket;
 
-            ticket = TLSX_SessionTicket_Create(0, ssl->session->ticket,
-                                             ssl->session->ticketLen, ssl->heap);
-            if (ticket == NULL) return MEMORY_E;
-
-            ret = TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap);
-            if (ret != WOLFSSL_SUCCESS) {
-                TLSX_SessionTicket_Free(ticket, ssl->heap);
-                return ret;
+#if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
+            /* RFC 5077 Section 3.3 / RFC 8446 Section 4.6.1: a client SHOULD
+             * NOT use a ticket whose lifetime has expired. If the stored
+             * session has aged past its timeout the server would just reject
+             * the resumption, so suppress the ticket here and fall back to a
+             * full handshake (avoids leaking a stale ticket and saves a
+             * round-trip). Expiry is measured against ssl->session->timeout
+             * (the session's own lifetime) so this stays consistent with
+             * wolfSSL_SetSession(), which gates resumption on the same field;
+             * keying off ssl->timeout instead could contradict a decision
+             * SetSession() already made when the two values differ. */
+            if (LowResTimer() >=
+                    (ssl->session->bornOn + ssl->session->timeout)) {
+                WOLFSSL_MSG("Stored session ticket expired; full handshake");
+                ssl->options.resuming = 0;
             }
+            else
+#endif
+            {
+                ticket = TLSX_SessionTicket_Create(0, ssl->session->ticket,
+                                             ssl->session->ticketLen, ssl->heap);
+                if (ticket == NULL) return MEMORY_E;
 
-            idSz = 0;
+                ret = TLSX_UseSessionTicket(&ssl->extensions, ticket,
+                                            ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) {
+                    TLSX_SessionTicket_Free(ticket, ssl->heap);
+                    return ret;
+                }
+
+                idSz = 0;
+            }
         }
 #endif /* HAVE_SESSION_TICKET */
         length = VERSION_SZ + RAN_LEN
