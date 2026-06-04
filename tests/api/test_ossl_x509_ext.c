@@ -593,6 +593,70 @@ int test_wolfSSL_X509_add_ext(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_add_ext_dirname_san_rejected(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    WOLFSSL_X509_NAME* dirName = NULL;
+    WOLFSSL_STACK* sk = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+    ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
+
+    /* Build a GEN_DIRNAME GENERAL_NAME with a real directoryName so that
+     * gn->d.directoryName aliases an X509_NAME object via the union. */
+    ExpectNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    ExpectNotNull(dirName = wolfSSL_X509_NAME_new());
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(dirName, NID_commonName,
+        MBSTRING_UTF8, (unsigned char*)"dirname-san-test", -1, -1, 0), 1);
+    if (gn != NULL) {
+        /* Drop the default IA5 string and install the X509_NAME. */
+        wolfSSL_ASN1_STRING_free(gn->d.ia5);
+        gn->type = GEN_DIRNAME;
+        gn->d.directoryName = dirName;
+        dirName = NULL; /* gn owns the X509_NAME now */
+    }
+
+    /* Build the ext: SAN OID + ext_sk containing the DirName GENERAL_NAME. */
+    ExpectNotNull(sk = wolfSSL_sk_new_null());
+    if (sk != NULL) {
+        sk->type = STACK_TYPE_GEN_NAME;
+    }
+    ExpectIntGT(wolfSSL_sk_GENERAL_NAME_push(sk, gn), 0);
+    gn = NULL; /* sk owns gn now */
+
+    ExpectNotNull(obj = wolfSSL_OBJ_nid2obj(NID_subject_alt_name));
+    if (obj != NULL) {
+        obj->type = NID_subject_alt_name;
+        obj->nid  = NID_subject_alt_name;
+    }
+    if ((ext != NULL) && (obj != NULL) && (sk != NULL)) {
+        ext->obj = obj;
+        obj = NULL;       /* ext owns obj now */
+        ext->ext_sk = sk;
+        sk = NULL;        /* ext owns sk now */
+    }
+
+    /* The unsupported GeneralName type must be rejected safely, NOT crash
+     * or read OOB via a type-confused d.ia5 dereference. */
+    ExpectIntEQ(wolfSSL_X509_add_ext(x509, ext, -1),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* Cleanup. The success-path owners (set to NULL above) are no-ops. */
+    wolfSSL_ASN1_OBJECT_free(obj);
+    wolfSSL_sk_GENERAL_NAME_pop_free(sk, wolfSSL_GENERAL_NAME_free);
+    wolfSSL_GENERAL_NAME_free(gn);
+    wolfSSL_X509_NAME_free(dirName);
+    wolfSSL_X509_EXTENSION_free(ext);
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_get_ext_count(void)
 {
     EXPECT_DECLS;
@@ -1098,10 +1162,6 @@ int test_wolfSSL_X509V3_EXT_bc(void)
 
     ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
     ExpectNotNull(obj = wolfSSL_ASN1_OBJECT_new());
-    ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
-    if (pathLen != NULL) {
-        pathLen->length = 2;
-    }
 
     if (obj != NULL) {
         obj->type = NID_basic_constraints;
@@ -1109,22 +1169,118 @@ int test_wolfSSL_X509V3_EXT_bc(void)
     }
     ExpectIntEQ(wolfSSL_X509_EXTENSION_set_object(ext, obj), WOLFSSL_SUCCESS);
     ExpectNotNull(wolfSSL_X509V3_EXT_get(ext));
-    /* No pathlen set. */
+
+    /* No pathLenConstraint present. Per RFC 5280 4.2.1.9 no limit is imposed,
+     * so pathlen must be NULL (and distinguishable from a value of 0). */
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
+    ExpectNull(bc->pathlen);
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     bc = NULL;
 
+    /* pathLenConstraint of 0 is valid and meaningful (the CA may only issue
+     * end-entity certificates). It must be preserved, not conflated with an
+     * absent constraint. */
+    ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
+    if (pathLen != NULL) {
+        pathLen->length = 0;
+    }
     if ((ext != NULL) && (ext->obj != NULL)) {
         ext->obj->pathlen = pathLen;
         pathLen = NULL;
     }
-    /* pathlen set. */
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
+    ExpectNotNull(bc->pathlen);
+    ExpectIntEQ(bc->pathlen->length, 0);
+    wolfSSL_BASIC_CONSTRAINTS_free(bc);
+    bc = NULL;
+
+    /* A non-zero pathLenConstraint is preserved as-is. */
+    if ((ext != NULL) && (ext->obj != NULL)) {
+        wolfSSL_ASN1_INTEGER_free(ext->obj->pathlen);
+        ext->obj->pathlen = NULL;
+    }
+    ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
+    if (pathLen != NULL) {
+        pathLen->length = 2;
+    }
+    if ((ext != NULL) && (ext->obj != NULL)) {
+        ext->obj->pathlen = pathLen;
+        pathLen = NULL;
+    }
+    ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
+    ExpectNotNull(bc->pathlen);
+    ExpectIntEQ(bc->pathlen->length, 2);
 
     wolfSSL_ASN1_INTEGER_free(pathLen);
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     wolfSSL_ASN1_OBJECT_free(obj);
     wolfSSL_X509_EXTENSION_free(ext);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
+    XFILE f = XBADFILE;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_BASIC_CONSTRAINTS* bc = NULL;
+    int crit = 0;
+
+    /* CA certificate with basicConstraints CA:TRUE and *no* pathLenConstraint.
+     * Per RFC 5280 4.2.1.9 no path length limit is imposed, so the returned
+     * pathlen must be NULL - it must not be reported as a value of 0. */
+    ExpectTrue((f = XFOPEN("./certs/ca-cert.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509_get_ext_d2i(
+        x509, NID_basic_constraints, &crit, NULL));
+    ExpectNull(bc->pathlen);
+    wolfSSL_BASIC_CONSTRAINTS_free(bc);
+    bc = NULL;
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* Intermediate CA with basicConstraints CA:TRUE, pathlen:1. */
+    ExpectTrue((f = XFOPEN("./certs/intermediate/ca-int-cert.pem", "rb")) !=
+        XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509_get_ext_d2i(
+        x509, NID_basic_constraints, &crit, NULL));
+    ExpectNotNull(bc->pathlen);
+    ExpectIntEQ(bc->pathlen->length, 1);
+    wolfSSL_BASIC_CONSTRAINTS_free(bc);
+    bc = NULL;
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    /* CA with basicConstraints CA:TRUE, pathlen:0. A pathLenConstraint of 0 is
+     * valid and meaningful (the CA may only issue end-entity certificates) and
+     * must be reported (non-NULL pathlen, value 0) - it must not be conflated
+     * with an absent constraint. */
+    ExpectTrue((f = XFOPEN("./certs/test-pathlen/chainG-ICA1-pathlen0.pem",
+        "rb")) != XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509_get_ext_d2i(
+        x509, NID_basic_constraints, &crit, NULL));
+    ExpectNotNull(bc->pathlen);
+    ExpectIntEQ(bc->pathlen->length, 0);
+    wolfSSL_BASIC_CONSTRAINTS_free(bc);
+    bc = NULL;
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
 #endif
     return EXPECT_RESULT();
 }
