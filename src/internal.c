@@ -31677,9 +31677,8 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                     TLSX_SessionTicket_Free(ticket, ssl->heap);
                     return ret;
                 }
-
-                idSz = 0;
             }
+            idSz = 0;
         }
 #endif /* HAVE_SESSION_TICKET */
         length = VERSION_SZ + RAN_LEN
