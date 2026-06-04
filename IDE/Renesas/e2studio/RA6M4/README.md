@@ -85,6 +85,8 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `Networking` -> `FreeRTOS+TCP` and set properties
 + Add Ethernet Driver by clicking `Add Ethernet Driver` element and select `New` -> `Ethernet(r_ether)`
 + Increase Heap size of `RA Common`. Go to `BSP` tab and inclease `RA Common` -> `Heap size (bytes)` to 0x2000
+
+
 |Property|Value|
 |:--|:--|
 |Network Events call vApplicationIPNetworkEventHook|Disable|
@@ -130,7 +132,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
     SEGGER_RTT_printf.c
 
 + To connect RTT block, you can configure RTT viewer configuration based on where RTT block is in a map file.
-+ To place RTT block specific area, you can add the following line to `fsp.ld`:
++ To place RTT block specific area, you can add the following line to `fsp_gen.ld`:
 
 ```
     __ram_from_flash$$ :
@@ -161,9 +163,9 @@ SEGGER_RTT_CB _SEGGER_RTT __attribute__((section(".txt.rtt_block")));
                0x20000000       0xa8 ./src/SEGGER_RTT/SEGGER_RTT.o
                0x20000000                _SEGGER_RTT
    ````
-    you can specify "RTT control block" to 0x20023648 by Address
+    you can specify "RTT control block" to 0x20000000 by Address
     OR
-    you can specify "RTT control block" to 0x20023000 0x1000 by Search Range
+    you can specify "RTT control block" to 0x20000000 0x1000 by Search Range
 
 ## Run Client
 1.) Enable TLS_CLIENT definition in wolfssl_demo.h of test_RA6M4 project
@@ -174,7 +176,7 @@ SEGGER_RTT_CB _SEGGER_RTT __attribute__((section(".txt.rtt_block")));
 ```
 static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 ```
-+ Client IP address can be changed by the following line in wolf_client.c.
++ Server IP address can be changed by the following line in wolfssl_demo.h.
 ```
 #define SERVER_IP    "192.168.11.40"
 ```
