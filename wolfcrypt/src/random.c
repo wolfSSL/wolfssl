@@ -1720,10 +1720,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     word32 seedSz = SEED_SZ;
 #else
     word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
+#endif
     WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     int drbg_scratch_instantiated = 0;
-#endif
 #endif
 #endif
 
