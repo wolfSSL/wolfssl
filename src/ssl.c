@@ -3294,7 +3294,8 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
 #if defined(NO_TLS)
     return WOLFSSL_FAILURE;
 #else
-    return TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
+    return TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap,
+                                  ssl->options.side);
 #endif /* NO_TLS */
 }
 
@@ -3308,7 +3309,8 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
 #if defined(NO_TLS)
     return WOLFSSL_FAILURE;
 #else
-    return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
+    return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap,
+                                  ctx->method->side);
 #endif /* NO_TLS */
 }
 
@@ -16068,6 +16070,9 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 #else
     if (ctx->privateKey != NULL) {
+        if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey) {
+            FreeDer(&ssl->buffers.key);
+        }
         ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,
             ctx->privateKey->heap);

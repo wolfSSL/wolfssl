@@ -207,22 +207,9 @@ wc_static_assert(WC_NO_ERR_TRACE(DILITHIUM_KEY_SIZE_E) ==
  * signature mismatches and defeat the purpose. */
 static void mldsa_legacy_shim_symbol_aliases_compile_check(void)
 {
-    typedef int  (*init_fn)(wc_MlDsaKey*, void*, int);
-    typedef void (*free_fn)(wc_MlDsaKey*);
-    typedef int  (*set_level_fn)(wc_MlDsaKey*, byte);
-    typedef int  (*get_level_fn)(wc_MlDsaKey*, byte*);
     typedef int  (*size_fn)(wc_MlDsaKey*);
     typedef int  (*check_fn)(wc_MlDsaKey*);
     typedef int  (*export_fn)(wc_MlDsaKey*, byte*, word32*);
-
-    init_fn      f_init_ex   = &wc_dilithium_init_ex;
-    free_fn      f_free      = &wc_dilithium_free;
-    set_level_fn f_set_level = &wc_dilithium_set_level;
-    get_level_fn f_get_level = &wc_dilithium_get_level;
-    size_fn      f_sig_size  = &wc_dilithium_sig_size;
-
-    (void)f_init_ex; (void)f_free; (void)f_set_level; (void)f_get_level;
-    (void)f_sig_size;
 
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
     {

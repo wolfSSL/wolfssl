@@ -2563,7 +2563,8 @@ int test_wolfSSL_EVP_PKEY_print_public(void)
 int test_wolfSSL_EVP_PKEY_ed25519(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT)
     WOLFSSL_EVP_PKEY* pkey = NULL;
     const unsigned char* p;
 
@@ -2623,7 +2624,8 @@ int test_wolfSSL_CTX_use_PrivateKey_ed25519(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ED25519) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+    defined(HAVE_ED25519_KEY_IMPORT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     const unsigned char* p;
@@ -2653,7 +2655,8 @@ int test_wolfSSL_CTX_use_PrivateKey_ed25519(void)
 int test_wolfSSL_EVP_PKEY_ed448(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ED448)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_KEY_IMPORT)
     WOLFSSL_EVP_PKEY* pkey = NULL;
     const unsigned char* p;
 

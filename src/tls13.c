@@ -14666,7 +14666,7 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
     (void)group;
 #else
     /* Check if the group is supported. */
-    if (!TLSX_IsGroupSupported(group)) {
+    if (!TLSX_IsGroupSupported(group, ssl->options.side)) {
         WOLFSSL_MSG("Group not supported.");
         return BAD_FUNC_ARG;
     }

@@ -8593,10 +8593,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->k;
     const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+#ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
     const byte* tr = k + MLDSA_K_SZ;
     const byte* s1p = tr + MLDSA_TR_SZ;
     const byte* s2p = s1p + params->s1EncSz;
     const byte* t0p = s2p + params->s2EncSz;
+#endif
     const byte* mu = seedMu + MLDSA_RND_SZ;
     sword32* a = NULL;
     sword32* s1 = NULL;
@@ -9027,8 +9029,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             }
             if ((ret == 0) && valid) {
-                const byte* t0pt = t0p;
             #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
+                const byte* t0pt = t0p;
                 const byte* s2pt = s2p;
             #endif
                 sword32* cs2 = ct0;
@@ -9112,7 +9114,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     #endif
                     }
 
+                #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
                     t0pt += MLDSA_D * MLDSA_N / 8;
+                #endif
                     w0t += MLDSA_N;
                     w1t += MLDSA_N;
                 }

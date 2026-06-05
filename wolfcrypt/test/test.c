@@ -8732,7 +8732,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif
                                         WC_HASH_TYPE_NONE
                                      };
-    int typesBad[]  = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_MAX + 1 };
+    enum wc_HashType typesBad[]  = { WC_HASH_TYPE_NONE };
 
     enum wc_HashType typesHashBad[] = {
 #ifndef WOLFSSL_MD2
@@ -13509,14 +13509,17 @@ out:
         Aes enc[1];
 #endif
         byte cipher[WC_AES_BLOCK_SIZE * 4];
-#ifdef HAVE_AES_DECRYPT
+/* dec and plain are used by the HAVE_AES_DECRYPT paths and are also passed to
+ * aescfb_192_stream_test_0() (which ignores them when HAVE_AES_DECRYPT is not
+ * defined). */
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_192)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *dec = NULL;
 #else
         Aes dec[1];
 #endif
-        byte plain [WC_AES_BLOCK_SIZE * 4];
-#endif
+        byte plain[WC_AES_BLOCK_SIZE * 4];
+#endif /* HAVE_AES_DECRYPT || WOLFSSL_AES_192 */
         wc_test_ret_t ret = 0;
 
         WOLFSSL_SMALL_STACK_STATIC const byte iv[] = {
@@ -15255,12 +15258,10 @@ out:
 #else
     wc_AesFree(enc);
 #endif
-#ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
-#endif
 #endif
     return ret;
 }
@@ -17562,10 +17563,12 @@ static wc_test_ret_t aes_xts_256_vector_test(XtsAes *aes)
 static wc_test_ret_t aes_xts_256_partial_test(XtsAes *aes)
 {
     wc_test_ret_t ret = 0;
-    byte buf[WC_AES_BLOCK_SIZE * 3];
     byte cipher[WC_AES_BLOCK_SIZE * 3];
+#ifdef HAVE_AES_DECRYPT
+    byte buf[WC_AES_BLOCK_SIZE * 3];
 #ifdef WOLFSSL_AESXTS_STREAM
     struct XtsAesStreamData stream;
+#endif
 #endif
     WOLFSSL_SMALL_STACK_STATIC const unsigned char k1[] = {
         0x1e, 0xa6, 0x61, 0xc5, 0x8d, 0x94, 0x3a, 0x0e,
@@ -17587,6 +17590,7 @@ static wc_test_ret_t aes_xts_256_partial_test(XtsAes *aes)
         0x6f, 0xb3, 0x50, 0x39, 0x07, 0x90, 0x31, 0x1c,
         0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
     };
+#ifdef HAVE_AES_DECRYPT
     WOLFSSL_SMALL_STACK_STATIC const unsigned char p1[] = {
         0x2e, 0xed, 0xea, 0x52, 0xcd, 0x82, 0x15, 0xe1,
         0xac, 0xc6, 0x47, 0xe8, 0x10, 0xbb, 0xc3, 0x64,
@@ -17629,6 +17633,7 @@ static wc_test_ret_t aes_xts_256_partial_test(XtsAes *aes)
         0xe6, 0x6c, 0xdb, 0xb7, 0x9a, 0xb4, 0x28, 0x9b,
         0xc3, 0xea, 0xd8, 0x10, 0xe9, 0xc0, 0xaf, 0x92
     };
+#endif
 
     /* partial block encryption test */
     XMEMSET(cipher, 0, sizeof(cipher));
@@ -19057,8 +19062,9 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
         wc_FreeRng(&rng);
 #else
     (void)enc;
-    (void)dec;
 #endif /* WOLFSSL_AES_256 && ... */
+
+    (void)dec;
     return ret;
 }
 
@@ -19306,13 +19312,17 @@ static wc_test_ret_t aesgcm_non12iv_test(Aes* enc, Aes* dec)
         0xb1, 0x6a, 0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57,
         0xba, 0x63, 0x7b, 0x39
     };
+#if defined(WOLFSSL_AES_192) || \
+    (defined(WOLFSSL_AES_128) && defined(BENCH_AESGCM_LARGE))
     WOLFSSL_SMALL_STACK_STATIC const byte a[] =
     {
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xab, 0xad, 0xda, 0xd2
     };
-#ifdef BENCH_AESGCM_LARGE
+#endif
+#if defined(BENCH_AESGCM_LARGE) && \
+    (defined(WOLFSSL_AES_192) || defined(WOLFSSL_AES_128))
     WOLFSSL_SMALL_STACK_STATIC const byte iv1[] =
     {
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
@@ -19402,7 +19412,8 @@ static wc_test_ret_t aesgcm_non12iv_test(Aes* enc, Aes* dec)
     byte resultT[sizeof(t1) + WC_AES_BLOCK_SIZE];
     byte resultP[sizeof(p) + WC_AES_BLOCK_SIZE];
     byte resultC[sizeof(p) + WC_AES_BLOCK_SIZE];
-#ifdef BENCH_AESGCM_LARGE
+#if defined(BENCH_AESGCM_LARGE) && \
+    (defined(WOLFSSL_AES_192) || defined(WOLFSSL_AES_128))
     int alen = 0;
 #endif
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
@@ -19781,6 +19792,7 @@ static wc_test_ret_t aesgcm_aes128_vector_test(Aes* enc, Aes* dec)
 #endif /* HAVE_AES_DECRYPT */
 
   out:
+    (void)dec;
     return ret;
 }
 #endif /* WOLFSSL_AES_128 && !WOLFSSL_AFALG_XILINX_AES */
@@ -19829,7 +19841,6 @@ static wc_test_ret_t aesgcm_aes256_vector_test(Aes* enc, Aes* dec)
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
         0xde, 0xca, 0xf8, 0x88
     };
-#ifdef HAVE_AES_DECRYPT
     WOLFSSL_SMALL_STACK_STATIC const byte c1[] =
     {
         0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
@@ -19841,7 +19852,6 @@ static wc_test_ret_t aesgcm_aes256_vector_test(Aes* enc, Aes* dec)
         0xc5, 0xf6, 0x1e, 0x63, 0x93, 0xba, 0x7a, 0x0a,
         0xbc, 0xc9, 0xf6, 0x62
     };
-#endif
     WOLFSSL_SMALL_STACK_STATIC const byte t1[] =
     {
         0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
@@ -19891,6 +19901,7 @@ static wc_test_ret_t aesgcm_aes256_vector_test(Aes* enc, Aes* dec)
 #endif /* HAVE_AES_DECRYPT */
 
   out:
+    (void)dec;
     return ret;
 }
 
@@ -19932,6 +19943,7 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
         0xde, 0xca, 0xf8, 0x88
     };
+#ifdef HAVE_AES_DECRYPT
     WOLFSSL_SMALL_STACK_STATIC const byte c1[] =
     {
         0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
@@ -19943,6 +19955,7 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
         0xc5, 0xf6, 0x1e, 0x63, 0x93, 0xba, 0x7a, 0x0a,
         0xbc, 0xc9, 0xf6, 0x62
     };
+#endif
     WOLFSSL_SMALL_STACK_STATIC const byte t1[] =
     {
         0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
@@ -20184,6 +20197,7 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     XFREE(large_aad, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+    (void)dec;
     return ret;
 }
 #endif /* WOLFSSL_AES_256 */
@@ -20962,7 +20976,9 @@ static wc_test_ret_t aesccm_128_large_test(Aes* enc)
     {
         0x89, 0xd8, 0xd2, 0x02, 0xc5, 0xcf, 0xae, 0xf4
     };
+#ifdef HAVE_AES_DECRYPT
     byte pl2[sizeof(pl)];
+#endif
     byte cl2[sizeof(cl)];
     byte tl2[sizeof(tl)];
 
@@ -52097,7 +52113,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 #endif
 #endif
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WC_NO_CONSTRUCTORS) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey *tmpKey = NULL;
 #endif
     int key_inited = 0;
@@ -52285,7 +52302,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (XMEMCMP(priv, priv2, testData[i][2]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
-#if !defined(WOLFSSL_NO_MALLOC)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WC_NO_CONSTRUCTORS)
         tmpKey = wc_MlKemKey_New(testData[i][0], HEAP_HINT, devId);
         if (tmpKey == NULL)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -55708,25 +55725,21 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
 {
     int           ret = 0;
 #if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
-    /* Size the buffer to accommodate the largest encoded key size */
-    const word32  maxDerSz = MLDSA_MAX_PRV_KEY_DER_SIZE;
     word32        derSz;
     word32        idx;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    byte*         der = NULL;
-    #else
-    byte          der[MLDSA_MAX_PRV_KEY_DER_SIZE];
-    #endif
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte*         der = NULL;
     wc_MlDsaKey *key = NULL;
 #else
+    byte          der[MLDSA_MAX_PRV_KEY_DER_SIZE];
     wc_MlDsaKey  key[1];
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate DER buffer */
-    der = (byte*)XMALLOC(maxDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(MLDSA_MAX_PRV_KEY_DER_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
     key = (wc_MlDsaKey *)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL || key == NULL) {
@@ -55762,12 +55775,14 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
     if (ret == 0) {
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_MlDsaKey_PublicKeyToDer(key, der, maxDerSz, 1);
+            ret = wc_MlDsaKey_PublicKeyToDer(key, der,
+                MLDSA_MAX_PRV_KEY_DER_SIZE, 1);
         }
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_MlDsaKey_PrivateKeyToDer(key, der, maxDerSz);
+            ret = wc_MlDsaKey_PrivateKeyToDer(key, der,
+                MLDSA_MAX_PRV_KEY_DER_SIZE);
         }
 #endif
         if (ret >= 0) {

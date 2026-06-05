@@ -978,10 +978,10 @@ int wc_CheckRsaKey(RsaKey* key)
         XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
 #endif
     }
-    FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     mp_memzero_check(tmp);
 #endif
+    FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
 
     return ret;
 }
