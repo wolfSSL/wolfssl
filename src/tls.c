@@ -13710,10 +13710,15 @@ void TLSX_Remove(TLSX** list, TLSX_Type type, void* heap)
 static int TLSX_GreaseECH_Use(TLSX** extensions, void* heap, WC_RNG* rng)
 {
     int ret = 0;
+    TLSX* echX;
     WOLFSSL_ECH* ech;
 
     if (extensions == NULL)
         return BAD_FUNC_ARG;
+    /* skip if we already have an ech extension, we will for hrr */
+    echX = TLSX_Find(*extensions, TLSX_ECH);
+    if (echX != NULL)
+        return 0;
 
     ech = (WOLFSSL_ECH*)XMALLOC(sizeof(WOLFSSL_ECH), heap,
         DYNAMIC_TYPE_TMP_BUFFER);
@@ -13905,7 +13910,7 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
         *writeBuf_p = ech->configId;
         writeBuf_p += sizeof(ech->configId);
         /* encLen */
-        if (ech->hpkeContext == NULL) {
+        if (ech->innerCount == 0) {
             c16toa(ech->encLen, writeBuf_p);
         }
         else {
@@ -13914,50 +13919,59 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
         }
         writeBuf_p += 2;
         if (ech->state == ECH_WRITE_GREASE) {
-            WC_ALLOC_VAR_EX(hpke, Hpke, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
-            WC_ALLOC_VAR_EX(rng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG, ret = MEMORY_E);
-            /* hpke init */
-            if (ret == 0) {
-                ret = wc_HpkeInit(hpke, ech->kemId, ech->cipherSuite.kdfId,
-                    ech->cipherSuite.aeadId, NULL);
-            }
+            word32 size;
+            WC_ALLOC_VAR_EX(rng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+                ret = MEMORY_E);
+
             if (ret == 0)
                 rngRet = ret = wc_InitRng(rng);
-            /* create the ephemeralKey */
-            if (ret == 0)
-                ret = wc_HpkeGenerateKeyPair(hpke, &ephemeralKey, rng);
-            /* enc */
-            if (ret == 0) {
-                ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, writeBuf_p,
-                    &ech->encLen);
-                writeBuf_p += ech->encLen;
-            }
-            if (ret == 0) {
-                /* innerClientHelloLen */
-                c16toa(GREASE_ECH_SIZE + ((writeBuf_p + 2 - writeBuf) % 32),
-                    writeBuf_p);
-                writeBuf_p += 2;
+            if (ret == 0 && ech->innerCount == 0) {
+                WC_ALLOC_VAR_EX(hpke, Hpke, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+                    ret = MEMORY_E);
 
-                /* innerClientHello */
-                ret = wc_RNG_GenerateBlock(rng, writeBuf_p, GREASE_ECH_SIZE +
-                    ((writeBuf_p - writeBuf) % 32));
-                writeBuf_p += GREASE_ECH_SIZE + ((writeBuf_p - writeBuf) % 32);
+                /* hpke init */
+                if (ret == 0)
+                    ret = wc_HpkeInit(hpke, ech->kemId, ech->cipherSuite.kdfId,
+                        ech->cipherSuite.aeadId, NULL);
+                /* create the ephemeralKey */
+                if (ret == 0)
+                    ret = wc_HpkeGenerateKeyPair(hpke, &ephemeralKey, rng);
+                /* enc */
+                if (ret == 0) {
+                    ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey,
+                        writeBuf_p, &ech->encLen);
+                    writeBuf_p += ech->encLen;
+                }
+
+                if (ephemeralKey != NULL)
+                    wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
+                WC_FREE_VAR_EX(hpke, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             }
+
+            if (ret == 0) {
+                size = GREASE_ECH_SIZE + (ech->configId / 4);
+                size += ECH_PADDING_TO_32(size) + WC_AES_BLOCK_SIZE;
+
+                /* innerClientHelloLen */
+                c16toa((word16)size, writeBuf_p);
+                writeBuf_p += 2;
+                /* innerClientHello */
+                ret = wc_RNG_GenerateBlock(rng, writeBuf_p, size);
+                writeBuf_p += size;
+            }
+
             if (rngRet == 0)
                 wc_FreeRng(rng);
-            if (ephemeralKey != NULL)
-                wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
-            WC_FREE_VAR_EX(hpke, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
         }
         else {
-            /* only write enc if this is our first ech, no hpke context */
-            if (ech->hpkeContext == NULL) {
+            if (ech->innerCount == 0) {
                 /* write enc to writeBuf_p */
                 ret = wc_HpkeSerializePublicKey(ech->hpke, ech->ephemeralKey,
                     writeBuf_p, &ech->encLen);
                 writeBuf_p += ech->encLen;
             }
+
             /* innerClientHelloLen */
             c16toa((word16)ech->innerClientHelloLen, writeBuf_p);
             writeBuf_p += 2;
@@ -13980,11 +13994,19 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
     word32 size = 0;
 
     if (ech->state == ECH_WRITE_GREASE) {
+        word32 payload;
         size = sizeof(ech->type) + sizeof(ech->cipherSuite) +
-            sizeof(ech->configId) + sizeof(word16) + ech->encLen +
-            sizeof(word16);
-
-        size += GREASE_ECH_SIZE + (size % 32);
+            sizeof(ech->configId) + sizeof(word16) + sizeof(word16);
+        /* enc only printed on CH1 */
+        if (ech->innerCount == 0)
+            size += ech->encLen;
+        /* GREASE payload mimics the regular sealed inner:
+         *   plaintext length divisible by 32 and the AEAD tag
+         *   configId is used to randomize the GREASE length
+         *     (divide by 4 to save space) */
+        payload = GREASE_ECH_SIZE + (ech->configId / 4);
+        payload += ECH_PADDING_TO_32(payload) + WC_AES_BLOCK_SIZE;
+        size += payload;
     }
     else if (msgType == hello_retry_request) {
         size = ECH_ACCEPT_CONFIRMATION_SZ;
@@ -14009,8 +14031,8 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
         size = sizeof(ech->type) + sizeof(ech->cipherSuite) +
             sizeof(ech->configId) + sizeof(word16) + sizeof(word16) +
             ech->innerClientHelloLen;
-        /* only set encLen if this is inner hello 1 */
-        if (ech->hpkeContext == NULL)
+        /* enc only printed on CH1 */
+        if (ech->innerCount == 0)
             size += ech->encLen;
     }
 
@@ -16620,11 +16642,9 @@ static int TLSX_EchChangeSNI(WOLFSSL* ssl, TLSX** pEchX,
         /* if not NULL the semaphore will stop it from being counted */
         echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
 
-    /* if type is outer change sni to public name */
-    if (echX != NULL &&
-        ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER &&
-        (ssl->options.echAccepted ||
-        ((WOLFSSL_ECH*)echX->data)->innerCount == 0)) {
+    /* if type is outer and this is a real ECH then change sni to public name */
+    if (echX != NULL && ssl->echConfigs != NULL &&
+        ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER) {
         if (ssl->extensions) {
             serverNameX = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
 
@@ -16819,12 +16839,6 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     if (echX != NULL)
         ech = (WOLFSSL_ECH*)echX->data;
 
-    /* If ECH won't be written exclude it from the size calculation */
-    if (r == 0 && !ssl->options.echAccepted && ech != NULL &&
-            ech->innerCount != 0) {
-        TURN_ON(semaphore, TLSX_ToSemaphore(echX->type));
-    }
-
     /* if encoding, then count encoded form of inner ClientHello.
      * `semaphore` is in/out so encodable extensions will later be ignored */
     if (r == 0 && ech != NULL && ech->type == ECH_TYPE_INNER &&
@@ -16922,8 +16936,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
     }
     #endif
 #if defined(HAVE_ECH)
-    if (ssl->echConfigs != NULL && !ssl->options.disableECH
-            && msgType == client_hello) {
+    if (!ssl->options.disableECH && msgType == client_hello) {
         ret = TLSX_GetSizeWithEch(ssl, semaphore, msgType, &length);
         if (ret != 0)
             return ret;
@@ -17031,14 +17044,10 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
                          msgType, pOffset);
     }
 
-    /* only write ECH if there is a shot at acceptance */
-    if (ret == 0 && echX != NULL &&
-        (ssl->options.echAccepted ||
-        ((WOLFSSL_ECH*)echX->data)->innerCount == 0)) {
-        if (echX != NULL) {
-            /* turn off and write it last */
-            TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
-        }
+    /* write ECH last */
+    if (ret == 0 && echX != NULL) {
+        /* turn off and write it last */
+        TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
 
         if (ret == 0 && ssl->extensions) {
             ret = TLSX_Write(ssl->extensions, output + *pOffset, semaphore,
@@ -17149,10 +17158,8 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
     #endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    if (ssl->echConfigs != NULL && !ssl->options.disableECH
-            && msgType == client_hello) {
-        ret = TLSX_WriteWithEch(ssl, output, semaphore,
-                         msgType, &offset);
+    if (!ssl->options.disableECH && msgType == client_hello) {
+        ret = TLSX_WriteWithEch(ssl, output, semaphore, msgType, &offset);
         if (ret != 0)
             return ret;
     }

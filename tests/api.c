@@ -15061,7 +15061,8 @@ static int ech_find_extension(byte* buf, word16* idx_p, word16 extType)
 
 /* Test the HRR ECH rejection fallback path:
  * client offers ECH, HRR is triggered, server sends HRR without ECH extension,
- * client falls back to the outer transcript, then aborts with ech_required. */
+ * client falls back to the outer transcript, then aborts with ech_required.
+ * encrypted_client_hello should still be present in CH2 */
 static int test_wolfSSL_Tls13_ECH_HRR_rejection(void)
 {
     EXPECT_DECLS;
@@ -15095,7 +15096,25 @@ static int test_wolfSSL_Tls13_ECH_HRR_rejection(void)
      * outer transcript */
     ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
 
-    /* Handshake must fail: client aborts with ech_required */
+    if (EXPECT_SUCCESS()) {
+        word16 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+
+        /* One round: client sends CH1, server consumes it and writes HRR */
+        (void)test_ssl_memio_do_handshake(&test_ctx, 1, NULL);
+
+        /* Client reads HRR and writes CH2 into s_buff.
+         * CH2 carries encrypted_client_hello so the connection doesn't
+         * 'stick out' on the wire. */
+        (void)wolfSSL_connect(test_ctx.c_ssl);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+            WOLFSSL_ECH_STATUS_REJECTED);
+        /* hsHashesEch must have been freed by the HRR rejection code path */
+        ExpectNull(test_ctx.c_ssl->hsHashesEch);
+
+        ExpectIntEQ(ech_find_extension(test_ctx.s_buff, &idx, TLSXT_ECH), 0);
+    }
+
+    /* Finish handshake: client aborts with ech_required */
     ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
         WOLFSSL_ECH_STATUS_REJECTED);
