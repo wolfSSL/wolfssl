@@ -2004,6 +2004,10 @@ static int _ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    mp_int  *x, *y, *z;
    int     err;
 
+   if (MP_BITS_OVER_MAX(mp_bitsused(modulus), MAX_ECC_BITS_USE)) {
+       return WC_KEY_SIZE_E;
+   }
+
    /* if Q == R then swap P and Q, so we don't require a local x,y,z */
    if (Q == R) {
       ecc_point* tPt  = P;
@@ -2404,6 +2408,10 @@ static int _ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    mp_int *x, *y, *z;
    int    err;
 
+   if (MP_BITS_OVER_MAX(mp_bitsused(modulus), MAX_ECC_BITS_USE)) {
+       return WC_KEY_SIZE_E;
+   }
+
 #ifdef WOLFSSL_SMALL_STACK
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    if (R->key != NULL) {
@@ -2753,6 +2761,10 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
         DECL_MP_INT_SIZE_DYN(rz, mp_bitsused(modulus), MAX_ECC_BITS_USE);
         #endif
         mp_int *x, *y, *z;
+
+        if (MP_BITS_OVER_MAX(mp_bitsused(modulus), MAX_ECC_BITS_USE)) {
+            return WC_KEY_SIZE_E;
+        }
 
         /* special case for point at infinity */
         if (mp_cmp_d(P->z, 0) == MP_EQ) {
@@ -3572,7 +3584,12 @@ static int ecc_point_to_mont(ecc_point* p, ecc_point* r, mp_int* modulus,
                              void* heap)
 {
    int err = MP_OKAY;
+
    DECL_MP_INT_SIZE_DYN(mu, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+
+   if (MP_BITS_OVER_MAX(mp_bitsused(modulus), MAX_ECC_BITS_USE)) {
+       return WC_KEY_SIZE_E;
+   }
 
    (void)heap;
 
@@ -3877,6 +3894,11 @@ static int ecc_check_order_minus_1(const mp_int* k, ecc_point* tG, ecc_point* R,
 {
     int err;
     DECL_MP_INT_SIZE_DYN(t, mp_bitsused(order), MAX_ECC_BITS_USE);
+
+    if (MP_BITS_OVER_MAX(mp_bitsused(order), MAX_ECC_BITS_USE) ||
+            MP_BITS_OVER_MAX(mp_bitsused(modulus), MAX_ECC_BITS_USE)) {
+        return WC_KEY_SIZE_E;
+    }
 
     NEW_MP_INT_SIZE(t, mp_bitsused(modulus), NULL, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
@@ -6812,6 +6834,10 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     word32 keySz;
 #endif
 
+    if (MP_BITS_OVER_MAX(ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE)) {
+        return WC_KEY_SIZE_E;
+    }
+
     if (in == NULL || out == NULL || outlen == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
@@ -7010,7 +7036,12 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 {
     int err = MP_OKAY;
     int loop_check = 0;
+
     DECL_MP_INT_SIZE_DYN(b, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
+
+    if (MP_BITS_OVER_MAX(ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE)) {
+        return WC_KEY_SIZE_E;
+    }
 
     NEW_MP_INT_SIZE(b, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
@@ -7336,6 +7367,9 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #else
    DECLARE_CURVE_SPECS(1);
 #endif
+   if (MP_BITS_OVER_MAX(ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE)) {
+       return WC_KEY_SIZE_E;
+   }
 #endif /* !WOLFSSL_SP_MATH */
 
    if (in == NULL || r == NULL || s == NULL || key == NULL || rng == NULL) {
@@ -8253,7 +8287,12 @@ static int ecc_mont_norm_points(ecc_point* A, ecc_point* Am, ecc_point* B,
     ecc_point* Bm, mp_int* modulus, void* heap)
 {
     int err = MP_OKAY;
+
     DECL_MP_INT_SIZE_DYN(mu, mp_bitsused(modulus), MAX_ECC_BITS_USE);
+
+    if (MP_BITS_OVER_MAX(mp_bitsused(modulus), MAX_ECC_BITS_USE)) {
+        return WC_KEY_SIZE_E;
+    }
 
     (void)heap;
 
@@ -8641,6 +8680,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     word32 keySz;
 #endif
 
+    if (MP_BITS_OVER_MAX(ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE)) {
+        return WC_KEY_SIZE_E;
+    }
+
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
@@ -9005,6 +9048,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    ecc_point  lcl_mG;
    ecc_point  lcl_mQ;
 #endif
+
    DECL_MP_INT_SIZE_DYN(w, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
 #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
    DECL_MP_INT_SIZE_DYN(e_lcl, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
@@ -9017,6 +9061,11 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 #endif
    mp_int*    u1 = NULL;     /* Will be e. */
    mp_int*    u2 = NULL;     /* Will be w. */
+
+   if (MP_BITS_OVER_MAX(ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE)) {
+       return WC_KEY_SIZE_E;
+   }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM_V)
    err = wc_ecc_alloc_mpint(key, &key->e);
    if (err != 0) {
