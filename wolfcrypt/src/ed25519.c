@@ -566,6 +566,89 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     return ret;
 }
 
+#if defined(WC_ED25519_NONBLOCK) && defined(ED25519_SMALL)
+/*
+ * Non-blocking key generation.  Called by wc_ed25519_make_key() when a
+ * non-blocking context is set.
+ *
+ * state 0: generate private key, hash+clamp → store scalar in sig_S, init smult
+ * state 1: one bit-step of scalar mult A = az*B per call; encode pubkey when done
+ */
+static int ed25519_make_key_nb(WC_RNG* rng, int keySz, ed25519_key* key)
+{
+    ed25519_nb_ctx_t* nb_ctx = key->nb_ctx;
+    int ret = 0;
+
+    (void)keySz;
+
+    switch (nb_ctx->state) {
+        case 0: {
+            ALIGN16 byte az[ED25519_PRV_KEY_SIZE];
+
+            ret = wc_RNG_GenerateBlock(rng, key->k, ED25519_KEY_SIZE);
+            if (ret != 0)
+                break;
+            key->privKeySet = 1;
+
+            ret = ed25519_hash(key, key->k, ED25519_KEY_SIZE, az);
+            if (ret != 0) {
+                key->privKeySet = 0;
+                ForceZero(key->k, ED25519_KEY_SIZE);
+                break;
+            }
+
+            az[0]  &= 248;
+            az[31] &= 63;
+            az[31] |= 64;
+
+            /* sig_S (32 bytes) is reused to carry the clamped scalar az[0..31]
+             * across calls during the scalar multiplication in state 1. */
+            XMEMCPY(nb_ctx->sig_S, az, ED25519_KEY_SIZE);
+            ForceZero(az, sizeof(az));
+
+            XMEMCPY(&nb_ctx->r,  &ed25519_neutral, sizeof(ge_p3));
+            XMEMCPY(&nb_ctx->pt, &ed25519_base,    sizeof(ge_p3));
+            nb_ctx->i     = 255;
+            nb_ctx->state = 1;
+            ret = MP_WOULDBLOCK;
+            break;
+        }
+
+        case 1: {
+            ret = ed25519_smult_nb_step(nb_ctx, nb_ctx->sig_S);
+            if (ret == MP_WOULDBLOCK)
+                break;
+
+            ge_p3_tobytes(key->p, &nb_ctx->r);
+            XMEMCPY(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
+            key->pubKeySet = 1;
+
+#if FIPS_VERSION3_GE(6,0,0)
+            if (ret == 0)
+                ret = wc_ed25519_check_key(key);
+            if (ret == 0)
+                ret = ed25519_pairwise_consistency_test(key, rng);
+#endif
+            if (ret != 0) {
+                key->privKeySet = 0;
+                key->pubKeySet  = 0;
+                ForceZero(key->k, sizeof(key->k));
+                ForceZero(key->p, sizeof(key->p));
+            }
+            break;
+        }
+
+        default:
+            ret = BAD_STATE_E;
+            break;
+    }
+
+    if (ret != MP_WOULDBLOCK)
+        ForceZero(nb_ctx, sizeof(ed25519_nb_ctx_t));
+    return ret;
+}
+#endif /* WC_ED25519_NONBLOCK && ED25519_SMALL */
+
 /* generate an ed25519 key pair.
  * returns 0 on success
  */
@@ -579,6 +662,11 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     /* ed25519 has 32 byte key sizes */
     if (keySz != ED25519_KEY_SIZE)
         return BAD_FUNC_ARG;
+
+#if defined(WC_ED25519_NONBLOCK) && defined(ED25519_SMALL)
+    if (key->nb_ctx != NULL)
+        return ed25519_make_key_nb(rng, keySz, key);
+#endif
 
     key->privKeySet = 0;
     key->pubKeySet = 0;
