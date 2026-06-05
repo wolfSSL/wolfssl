@@ -29227,13 +29227,14 @@ static int test_wc_CryptoCb(void)
     (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519))
     int tlsVer;
 #endif
-    /* TODO: Add crypto callback API tests */
-
-    /* Test wc_CryptoCb_GetDevice() lookup behavior. */
+    /* Exercise the exposed CryptoCb device-management API:
+     * wc_CryptoCb_RegisterDevice / UnRegisterDevice / GetDevice /
+     * DefaultDevID (and InfoString when DEBUG_CRYPTOCB is enabled). */
     {
         int    getDevId  = 1234;
         int    getDevCtx = 0;
         CryptoCb* dev     = NULL;
+        int    i, n, rc;
 
         /* Unregistered devId is not found. */
         ExpectNull(wc_CryptoCb_GetDevice(getDevId));
@@ -29250,9 +29251,50 @@ static int test_wc_CryptoCb(void)
         /* A different, unregistered devId is still not found. */
         ExpectNull(wc_CryptoCb_GetDevice(getDevId + 1));
 
+        /* Re-registering an already-registered devId is rejected. */
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(getDevId, NULL, &getDevCtx),
+            WC_NO_ERR_TRACE(ALREADY_E));
+
+        /* wc_CryptoCb_DefaultDevID behavior depends on the build config. */
+    #ifdef WC_NO_DEFAULT_DEVID
+        ExpectIntEQ(wc_CryptoCb_DefaultDevID(), INVALID_DEVID);
+    #elif !defined(WOLFSSL_CAAM_DEVID) && !defined(HAVE_ARIA) && \
+          !defined(WC_USE_DEVID)
+        /* "first available" mode: a device is registered, so one is returned. */
+        ExpectIntNE(wc_CryptoCb_DefaultDevID(), INVALID_DEVID);
+    #endif
+
         /* After unregistering, the device is no longer found. */
         wc_CryptoCb_UnRegisterDevice(getDevId);
         ExpectNull(wc_CryptoCb_GetDevice(getDevId));
+
+        /* Unregistering is a harmless no-op for unknown or invalid devIds. */
+        wc_CryptoCb_UnRegisterDevice(getDevId);       /* already removed */
+        wc_CryptoCb_UnRegisterDevice(INVALID_DEVID);  /* never a real devId */
+        ExpectNull(wc_CryptoCb_GetDevice(getDevId));
+
+        /* The device table is finite: once full, registration returns
+         * BUFFER_E. Register unique devIds until that happens, then clean up.
+         * The cap (256) just guards against an unexpectedly large table. */
+        rc = 0;
+        for (i = 0; rc == 0 && i < 256; i++) {
+            rc = wc_CryptoCb_RegisterDevice(0x5000 + i, NULL, NULL);
+        }
+        ExpectIntEQ(rc, WC_NO_ERR_TRACE(BUFFER_E));
+        /* Every id except the final failed attempt registered; unregister them. */
+        for (n = 0; n + 1 < i; n++) {
+            wc_CryptoCb_UnRegisterDevice(0x5000 + n);
+        }
+
+    #ifdef DEBUG_CRYPTOCB
+        /* wc_CryptoCb_InfoString smoke test: must not dereference bad memory. */
+        {
+            wc_CryptoInfo info;
+            XMEMSET(&info, 0, sizeof(info));
+            info.algo_type = WC_ALGO_TYPE_NONE;
+            wc_CryptoCb_InfoString(&info);
+        }
+    #endif
     }
 
 #ifdef HAVE_IO_TESTS_DEPENDENCIES

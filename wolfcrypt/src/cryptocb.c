@@ -446,12 +446,14 @@ void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb)
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     int rc = 0;
+    CryptoCb* dev;
 
-    /* find existing or new */
-    CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
-    if (dev == NULL)
-        dev = wc_CryptoCb_GetDevice(INVALID_DEVID);
+    /* Reject re-registration of an already-registered device ID. */
+    if (wc_CryptoCb_GetDevice(devId) != NULL)
+        return ALREADY_E;
 
+    /* find a free slot */
+    dev = wc_CryptoCb_GetDevice(INVALID_DEVID);
     if (dev == NULL)
         return BUFFER_E; /* out of devices */
 
