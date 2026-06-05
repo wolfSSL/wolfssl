@@ -15,6 +15,70 @@
     \defgroup ECC Algorithms - ECC
     \defgroup ED25519 Algorithms - ED25519
     \defgroup ED448 Algorithms - ED448
+    \defgroup ML_DSA Algorithms - ML-DSA (FIPS 204)
+    ML-DSA (Module-Lattice-based Digital Signature Algorithm) is a
+    quantum-resistant digital signature scheme standardized by NIST as
+    FIPS 204. The pre-standardization name was Dilithium; legacy
+    Dilithium type and macro names remain as aliases for unmigrated
+    consumer code (see <wolfssl/wolfcrypt/dilithium.h>).
+
+    ML-DSA defines three parameter sets identified by NIST security
+    category: ML-DSA-44 (level 2), ML-DSA-65 (level 3) and ML-DSA-87
+    (level 5). All three are supported by the same wc_MlDsaKey object;
+    the parameter set is selected with wc_MlDsaKey_SetParams().
+
+    \defgroup ML_KEM Algorithms - ML-KEM (FIPS 203)
+    ML-KEM (Module-Lattice-based Key Encapsulation Mechanism) is a
+    quantum-resistant key encapsulation mechanism standardized by NIST
+    as FIPS 203. The pre-standardization name was Kyber; legacy Kyber
+    type and macro names remain as aliases for unmigrated consumer
+    code.
+
+    ML-KEM defines three parameter sets: ML-KEM-512 (NIST level 1),
+    ML-KEM-768 (level 3) and ML-KEM-1024 (level 5). The variant is
+    selected when the key is initialized via wc_MlKemKey_Init() or
+    wc_MlKemKey_New().
+
+    \defgroup SLH_DSA Algorithms - SLH-DSA (FIPS 205)
+    SLH-DSA (Stateless Hash-based Digital Signature Algorithm) is a
+    quantum-resistant signature scheme standardized by NIST as
+    FIPS 205. It descends from the SPHINCS+ submission and is
+    stateless: signing does not mutate the private key, so there is no
+    key-state synchronization burden on the application.
+
+    Twelve parameter sets are supported, formed by combining a hash
+    family (SHAKE or SHA2), a security category (128/192/256) and a
+    speed/size tradeoff (s = small signatures, f = fast signing). The
+    parameter set is selected when the key is initialized via
+    wc_SlhDsaKey_Init().
+
+    \defgroup LMS Algorithms - LMS / HSS (RFC 8554)
+    LMS (Leighton-Micali Signatures) and its multi-tree composition
+    HSS (Hierarchical Signature System) are stateful hash-based
+    signature schemes specified in RFC 8554 and NIST SP 800-208. Each
+    signature consumes a one-time component of the private key, so the
+    application MUST persist the private key state (via the read/write
+    callbacks registered with wc_LmsKey_SetReadCb() and
+    wc_LmsKey_SetWriteCb()) between signing operations. Reusing a
+    one-time key destroys the security of the scheme.
+
+    The number of signatures available from a key is bounded by the
+    parameter set; query the remaining count with
+    wc_LmsKey_SigsLeft().
+
+    \defgroup XMSS Algorithms - XMSS / XMSS^MT (RFC 8391)
+    XMSS (eXtended Merkle Signature Scheme) and its multi-tree variant
+    XMSS^MT are stateful hash-based signature schemes specified in
+    RFC 8391 and NIST SP 800-208. As with LMS, each signature consumes
+    a one-time component of the private key, so the application MUST
+    persist the private key state via the callbacks registered with
+    wc_XmssKey_SetReadCb() and wc_XmssKey_SetWriteCb(). Reusing a
+    one-time key destroys the security of the scheme.
+
+    The number of signatures available from a key is bounded by the
+    parameter set; query the remaining count with
+    wc_XmssKey_SigsLeft().
+
     \defgroup ECCSI_Overview Overview of ECCSI
     ECCSI (Elliptic Curve-Based Certificateless Signatures for Identity-Based Encryption) is specified in RFC 6507 (https://tools.ietf.org/html/rfc6507).
 
