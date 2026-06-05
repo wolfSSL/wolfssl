@@ -5950,8 +5950,10 @@ enum  {
     DTLS13_EPOCH_TRAFFIC0 = 3
 };
 
-/* RFC 9147 Section 4.2.1: the DTLS 1.3 epoch is a 48-bit value and must not
- * exceed 2^48-1. Expressed as the high/low 32-bit halves of a w64wrapper. */
+/* Sender-side DTLS 1.3 epoch ceiling: we MUST NOT advance our own epoch past
+ * 2^48-1 (RFC 9147 Section 4.2.1). This gates only the sending epoch; receivers
+ * MUST NOT enforce it on the peer epoch (RFC 9147 Section 8). Expressed as the
+ * high/low 32-bit halves of a w64wrapper. */
 #define DTLS13_EPOCH_MAX_HI32 0x0000FFFFU
 #define DTLS13_EPOCH_MAX_LO32 0xFFFFFFFFU
 
