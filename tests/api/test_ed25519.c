@@ -1132,3 +1132,81 @@ int test_wc_ed25519_make_key_nonblock(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Test wc_ed25519_sign_msg() in non-blocking mode.
+ * Uses a blocking-generated key pair, then drives the sign loop until
+ * completion and verifies the resulting signature.
+ * Also checks bad-args and blocking fallback after disabling non-block mode.
+ */
+int test_wc_ed25519_sign_msg_nonblock(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN) && \
+    defined(HAVE_ED25519_VERIFY) && defined(WC_ED25519_NONBLOCK)
+    ed25519_key      key;
+    ed25519_nb_ctx_t nb_ctx;
+    WC_RNG           rng;
+    byte             sig[ED25519_SIG_SIZE];
+    word32           sigLen;
+    byte             msg[] = "nonblock sign test message";
+    int              verified;
+    int              ret;
+
+    XMEMSET(&key,    0, sizeof(key));
+    XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
+    XMEMSET(&rng,    0, sizeof(rng));
+
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* generate key pair in blocking mode */
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+
+    /* non-blocking sign */
+    ExpectIntEQ(wc_ed25519_set_nonblock(&key, &nb_ctx), 0);
+    sigLen = sizeof(sig);
+    do {
+        ret = wc_ed25519_sign_msg(msg, sizeof(msg), sig, &sigLen, &key);
+    } while (ret == MP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(sigLen, ED25519_SIG_SIZE);
+
+    /* verify the signature produced by non-blocking sign */
+    wc_ed25519_set_nonblock(&key, NULL);
+    verified = 0;
+    ExpectIntEQ(wc_ed25519_verify_msg(sig, sigLen, msg, sizeof(msg),
+        &verified, &key), 0);
+    ExpectIntEQ(verified, 1);
+
+    /* corrupted signature must fail */
+    sig[ED25519_SIG_SIZE - 1]++;
+    verified = 0;
+    ExpectIntNE(wc_ed25519_verify_msg(sig, sigLen, msg, sizeof(msg),
+        &verified, &key), 0);
+    ExpectIntEQ(verified, 0);
+    sig[ED25519_SIG_SIZE - 1]--;
+
+    /* bad args */
+    ExpectIntEQ(wc_ed25519_set_nonblock(&key, &nb_ctx), 0);
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed25519_sign_msg(NULL, sizeof(msg), sig, &sigLen, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, sizeof(msg), NULL, &sigLen, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, sizeof(msg), sig, NULL, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, sizeof(msg), sig, &sigLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* blocking fallback after disabling non-block mode */
+    wc_ed25519_set_nonblock(&key, NULL);
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, sizeof(msg), sig, &sigLen, &key), 0);
+    ExpectIntEQ(sigLen, ED25519_SIG_SIZE);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&key);
+#endif
+    return EXPECT_RESULT();
+}
+

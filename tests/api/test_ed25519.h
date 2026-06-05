@@ -40,6 +40,7 @@ int test_wc_Ed25519KeyToDer_oneasymkey_version(void);
 int test_wc_ed25519_reject_small_order_keys(void);
 int test_wc_ed25519_verify_msg_nonblock(void);
 int test_wc_ed25519_make_key_nonblock(void);
+int test_wc_ed25519_sign_msg_nonblock(void);
 
 #define TEST_ED25519_DECLS                                                    \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key),                     \
@@ -57,6 +58,7 @@ int test_wc_ed25519_make_key_nonblock(void);
     TEST_DECL_GROUP("ed25519", test_wc_Ed25519KeyToDer_oneasymkey_version),   \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_reject_small_order_keys),      \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_verify_msg_nonblock),          \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key_nonblock)
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key_nonblock),          \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg_nonblock)
 
 #endif /* WOLFCRYPT_TEST_ED25519_H */
