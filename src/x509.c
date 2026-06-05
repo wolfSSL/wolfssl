@@ -6114,8 +6114,9 @@ WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file)
 
 #endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
-    defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_WPAS_SMALL) || defined(KEEP_PEER_CERT) || \
+    defined(SESSION_CERTS)
 
 #ifndef NO_FILESYSTEM
 WOLFSSL_ABI
