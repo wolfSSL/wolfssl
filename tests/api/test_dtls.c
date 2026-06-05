@@ -562,6 +562,124 @@ int test_wolfSSL_dtls_set_pending_peer(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+/* Capture the single client->server record currently buffered, then reset the
+ * server's incoming buffer so the next record can be captured independently. */
+static int test_dtls_capture_record(struct test_memio_ctx* test_ctx,
+        byte* out, int* outLen)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(test_ctx->s_msg_count, 1);
+    if (EXPECT_SUCCESS()) {
+        *outLen = test_ctx->s_len;
+        XMEMCPY(out, test_ctx->s_buff, (size_t)test_ctx->s_len);
+        test_ctx->s_len = 0;
+        test_ctx->s_msg_count = 0;
+        test_ctx->s_msg_pos = 0;
+    }
+    return EXPECT_RESULT();
+}
+
+/* Deliver a previously captured record to the server's incoming buffer. */
+static void test_dtls_inject_record(struct test_memio_ctx* test_ctx,
+        const byte* rec, int recLen)
+{
+    XMEMCPY(test_ctx->s_buff, rec, (size_t)recLen);
+    test_ctx->s_len = recLen;
+    test_ctx->s_msg_sizes[0] = recLen;
+    test_ctx->s_msg_count = 1;
+    test_ctx->s_msg_pos = 0;
+}
+
+static int test_dtls_pending_peer_not_newest(method_provider method_c,
+        method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char peer[10];
+    unsigned int peerSz;
+    unsigned char readBuf[10];
+    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
+    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    byte recA[512], recB[512], recC[512];
+    int lenA = 0, lenB = 0, lenC = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            method_c, method_s), 0);
+
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)), 1);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Capture three consecutive client records with increasing seq numbers. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "msgA", 5), 5);
+    ExpectIntEQ(test_dtls_capture_record(&test_ctx, recA, &lenA), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_write(ssl_c, "msgB", 5), 5);
+    ExpectIntEQ(test_dtls_capture_record(&test_ctx, recB, &lenB), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_write(ssl_c, "msgC", 5), 5);
+    ExpectIntEQ(test_dtls_capture_record(&test_ctx, recC, &lenC), TEST_SUCCESS);
+
+    /* Deliver the newer record (B) first to advance the receive window. */
+    test_dtls_inject_record(&test_ctx, recB, lenB);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 5);
+    ExpectStrEQ(readBuf, "msgB");
+    peerSz = sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl_s, peer, &peerSz), 0);
+
+    /* Nominate a pending peer, then deliver the older record (A). It is a valid
+     * CID record but not newer than B, so the peer must NOT be updated. */
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl_s, (void*)"123", 4), 1);
+    test_dtls_inject_record(&test_ctx, recA, lenA);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 5);
+    ExpectStrEQ(readBuf, "msgA");
+    peerSz = sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl_s, peer, &peerSz), 0);
+
+    /* Nominate again, then deliver the newest record (C). Now the peer must be
+     * updated. */
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl_s, (void*)"456", 4), 1);
+    test_dtls_inject_record(&test_ctx, recC, lenC);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 5);
+    ExpectStrEQ(readBuf, "msgC");
+    peerSz = sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl_s, peer, &peerSz), 1);
+    ExpectIntEQ(peerSz, 4);
+    ExpectStrEQ(peer, "456");
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_dtls_set_pending_peer_not_newest(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_dtls_pending_peer_not_newest(wolfDTLSv1_2_client_method,
+            wolfDTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_dtls_pending_peer_not_newest(wolfDTLSv1_3_client_method,
+            wolfDTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 
 int test_dtls_version_checking(void)
 {

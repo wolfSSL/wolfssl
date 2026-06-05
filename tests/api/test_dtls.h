@@ -25,6 +25,7 @@
 int test_dtls12_basic_connection_id(void);
 int test_wolfSSL_dtls_cid_parse(void);
 int test_wolfSSL_dtls_set_pending_peer(void);
+int test_wolfSSL_dtls_set_pending_peer_not_newest(void);
 int test_dtls_version_checking(void);
 int test_dtls_short_ciphertext(void);
 int test_dtls12_record_length_mismatch(void);
@@ -105,6 +106,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls12_basic_connection_id),              \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_parse),                  \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer),           \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer_not_newest),\
         TEST_DECL_GROUP("dtls", test_dtls_version_checking),                   \
         TEST_DECL_GROUP("dtls", test_dtls_short_ciphertext),                   \
         TEST_DECL_GROUP("dtls", test_dtls12_record_length_mismatch),           \
