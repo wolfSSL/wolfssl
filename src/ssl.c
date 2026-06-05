@@ -3321,8 +3321,8 @@ int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
     int i;
     int _groups[WOLFSSL_MAX_GROUP_COUNT];
     WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
-    if (count == 0) {
-        WOLFSSL_MSG("Group count is zero");
+    if (count <= 0) {
+        WOLFSSL_MSG("Group count is not positive");
         return WOLFSSL_FAILURE;
     }
     if (count > WOLFSSL_MAX_GROUP_COUNT) {
@@ -3360,8 +3360,8 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
     int i;
     int _groups[WOLFSSL_MAX_GROUP_COUNT];
     WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
-    if (count == 0) {
-        WOLFSSL_MSG("Group count is zero");
+    if (count <= 0) {
+        WOLFSSL_MSG("Group count is not positive");
         return WOLFSSL_FAILURE;
     }
     if (count > WOLFSSL_MAX_GROUP_COUNT) {
@@ -13043,7 +13043,10 @@ size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
 long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 {
     if (ssl == NULL) {
-        return WOLFSSL_FAILURE;
+        /* Return a non-zero error so the OpenSSL-idiomatic
+         * "!= X509_V_OK" check does not mistake a NULL ssl for a
+         * successful verification (X509_V_OK is 0). */
+        return WOLFSSL_X509_V_ERR_APPLICATION_VERIFICATION;
     }
 
     return (long)ssl->peerVerifyRet;
@@ -16220,9 +16223,24 @@ int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
 
 int wolfSSL_CRYPTO_memcmp(const void *a, const void *b, size_t size)
 {
+    int ret = 0;
+    int chunk;
+    const byte* pa = (const byte*)a;
+    const byte* pb = (const byte*)b;
+
     if (!a || !b)
         return -1;
-    return ConstantCompare((const byte*)a, (const byte*)b, (int)size);
+    /* ConstantCompare takes an int length. Compare in chunks of at most
+     * INT_MAX so a size that does not fit in an int is not narrowed into a
+     * negative or truncated length, which could wrongly report equality. */
+    while (size > 0) {
+        chunk = (size > (size_t)INT_MAX) ? INT_MAX : (int)size;
+        ret |= ConstantCompare(pa, pb, chunk);
+        pa += chunk;
+        pb += chunk;
+        size -= (size_t)chunk;
+    }
+    return ret;
 }
 
 unsigned long wolfSSL_ERR_peek_last_error(void)

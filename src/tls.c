@@ -391,15 +391,17 @@ ProtocolVersion MakeTLSv1_3(void)
  * ctx     SSL/TLS context object.
  * groups  Array of groups.
  * count   Number of groups in array.
- * returns BAD_FUNC_ARG when ctx or groups is NULL, not using TLS v1.3 or
- * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
+ * returns BAD_FUNC_ARG when ctx or groups is NULL, not using TLS v1.3, count is
+ * not positive or count is greater than WOLFSSL_MAX_GROUP_COUNT and
+ * WOLFSSL_SUCCESS on success.
  */
 int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
 {
     int ret, i;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_groups");
-    if (ctx == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+    if (ctx == NULL || groups == NULL || count <= 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsTLS_ex(ctx->method->version))
         return BAD_FUNC_ARG;
@@ -436,15 +438,17 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
  * ssl     SSL/TLS object.
  * groups  Array of groups.
  * count   Number of groups in array.
- * returns BAD_FUNC_ARG when ssl or groups is NULL, not using TLS v1.3 or
- * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
+ * returns BAD_FUNC_ARG when ssl or groups is NULL, not using TLS v1.3, count is
+ * not positive or count is greater than WOLFSSL_MAX_GROUP_COUNT and
+ * WOLFSSL_SUCCESS on success.
  */
 int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
 {
     int ret, i;
 
     WOLFSSL_ENTER("wolfSSL_set_groups");
-    if (ssl == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+    if (ssl == NULL || groups == NULL || count <= 0 ||
+            count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsTLS_ex(ssl->version))
         return BAD_FUNC_ARG;
@@ -2065,6 +2069,15 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         byte sel_len = 0;
         TLSX *extension = NULL;
 
+        /* RFC 7301 Section 3.1: a ServerHello ALPN extension MUST contain
+         * exactly one protocol name. The first name's length byte plus its
+         * payload must therefore span the whole list. */
+        if ((word16)(input[offset] + OPAQUE8_LEN) != size) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+            return BUFFER_ERROR;
+        }
+
         r = ALPN_find_match(ssl, &extension, &sel, &sel_len, input + offset, size);
         if (r != 0)
             return r;
@@ -3251,9 +3264,27 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #ifdef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
     (void) isRequest;
 #else
-    if (!isRequest)
+    if (!isRequest) {
+        TLSX* extension;
+
         if (TLSX_CheckUnsupportedExtension(ssl, TLSX_MAX_FRAGMENT_LENGTH))
             return TLSX_HandleUnsupportedExtension(ssl);
+
+        /* RFC 6066 Section 4: the server's response value must match the
+         * value the client requested. The request may have been configured on
+         * the WOLFSSL object or inherited from the WOLFSSL_CTX. */
+        extension = TLSX_Find(ssl->extensions, TLSX_MAX_FRAGMENT_LENGTH);
+        if (extension == NULL) {
+            extension = TLSX_Find(ssl->ctx->extensions,
+                    TLSX_MAX_FRAGMENT_LENGTH);
+        }
+        if (extension == NULL || extension->data == NULL ||
+                ((byte*)extension->data)[0] != *input) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            WOLFSSL_ERROR_VERBOSE(UNKNOWN_MAX_FRAG_LEN_E);
+            return UNKNOWN_MAX_FRAG_LEN_E;
+        }
+    }
 #endif
 
     switch (*input) {

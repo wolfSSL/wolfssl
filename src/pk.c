@@ -4977,8 +4977,7 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
              * correctly.
              */
             if (keySz < padded_keySz) {
-                XMEMMOVE(key, key + (padded_keySz - keySz),
-                         padded_keySz - keySz);
+                XMEMMOVE(key + (padded_keySz - keySz), key, keySz);
                 XMEMSET(key, 0, padded_keySz - keySz);
                 keySz = padded_keySz;
             }
