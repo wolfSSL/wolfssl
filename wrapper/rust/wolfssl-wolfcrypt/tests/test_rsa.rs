@@ -128,6 +128,70 @@ fn test_rsa_direct() {
 }
 
 #[test]
+#[cfg(all(sha256, random, rsa_oaep))]
+fn test_rsa_oaep() {
+    common::setup();
+
+    let rng = Rc::new(RNG::new().expect("Error creating RNG"));
+
+    let key_path = "../../../certs/client-keyPub.der";
+    let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    let plain: &[u8] = b"OAEP plain text test message";
+    let mut enc: [u8; 512] = [0; 512];
+    let enc_len = rsa.public_encrypt_oaep(plain, &mut enc, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, &rng).expect("Error with public_encrypt_oaep()");
+    assert!(enc_len > 0 && enc_len <= 512);
+
+    let key_path = "../../../certs/client-key.der";
+    let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    let mut plain_out: [u8; 512] = [0; 512];
+    let dec_len = rsa.private_decrypt_oaep(&enc[0..enc_len], &mut plain_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with private_decrypt_oaep()");
+    assert_eq!(dec_len, plain.len());
+    assert_eq!(plain_out[0..dec_len], *plain);
+
+    // Tampered ciphertext should fail to decrypt.
+    let mut bad = enc;
+    bad[0] ^= 0xFF;
+    assert!(rsa.private_decrypt_oaep(&bad[0..enc_len], &mut plain_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).is_err());
+}
+
+#[test]
+#[cfg(all(sha256, random, rsa_oaep))]
+fn test_rsa_oaep_with_label() {
+    common::setup();
+
+    let rng = Rc::new(RNG::new().expect("Error creating RNG"));
+    let label: &[u8] = b"a non-empty OAEP label";
+
+    let key_path = "../../../certs/client-keyPub.der";
+    let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    let plain: &[u8] = b"OAEP with label";
+    let mut enc: [u8; 512] = [0; 512];
+    let enc_len = rsa.public_encrypt_oaep_ex(plain, &mut enc, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, Some(label), &rng).expect("Error with public_encrypt_oaep_ex()");
+    assert!(enc_len > 0 && enc_len <= 512);
+
+    let key_path = "../../../certs/client-key.der";
+    let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    rsa.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+
+    // Wrong label must fail.
+    let mut plain_out: [u8; 512] = [0; 512];
+    let wrong_label: &[u8] = b"wrong label";
+    assert!(rsa.private_decrypt_oaep_ex(&enc[0..enc_len], &mut plain_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, Some(wrong_label)).is_err());
+
+    // Correct label succeeds.
+    let dec_len = rsa.private_decrypt_oaep_ex(&enc[0..enc_len], &mut plain_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, Some(label)).expect("Error with private_decrypt_oaep_ex()");
+    assert_eq!(dec_len, plain.len());
+    assert_eq!(plain_out[0..dec_len], *plain);
+}
+
+#[test]
 #[cfg(random)]
 fn test_rsa_ssl() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));

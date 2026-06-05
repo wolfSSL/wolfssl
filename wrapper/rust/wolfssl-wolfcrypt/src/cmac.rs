@@ -201,6 +201,9 @@ impl CMAC {
                 data.as_ptr(), data_size,
                 key.as_ptr(), key_size)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_MAC_CMP_FAILED_E {
+            return Ok(false);
+        }
         if rc < 0 {
             return Err(rc);
         }
@@ -402,6 +405,9 @@ impl CMAC {
                 data.as_ptr(), data_size,
                 key.as_ptr(), key_size, heap, dev_id)
         };
+        if rc == sys::wolfCrypt_ErrorCodes_MAC_CMP_FAILED_E {
+            return Ok(false);
+        }
         if rc < 0 {
             return Err(rc);
         }

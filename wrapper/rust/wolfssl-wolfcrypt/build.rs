@@ -425,6 +425,7 @@ fn scan_cfg() -> Result<()> {
     /* kdf */
     check_cfg(&binding, "wc_PBKDF2", "kdf_pbkdf2");
     check_cfg(&binding, "wc_PKCS12_PBKDF_ex", "kdf_pkcs12");
+    check_cfg(&binding, "wc_scrypt", "kdf_scrypt");
     check_cfg(&binding, "wc_SRTP_KDF", "kdf_srtp");
     check_cfg(&binding, "wc_SSH_KDF", "kdf_ssh");
     check_cfg(&binding, "wc_Tls13_HKDF_Extract_ex", "kdf_tls13");
@@ -457,6 +458,7 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");
     check_cfg(&binding, "wc_MakeRsaKey", "rsa_keygen");
     check_cfg(&binding, "wc_RsaPSS_Sign", "rsa_pss");
+    check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
     check_cfg(&binding, "WC_MGF1SHA512_224", "rsa_mgf1sha512_224");
     check_cfg(&binding, "WC_MGF1SHA512_256", "rsa_mgf1sha512_256");

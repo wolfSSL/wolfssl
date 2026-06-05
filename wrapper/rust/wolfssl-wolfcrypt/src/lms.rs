@@ -774,6 +774,9 @@ impl Lms {
         if rc != 0 {
             return Err(rc);
         }
+        if kid_ptr.is_null() {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let src = unsafe { core::slice::from_raw_parts(kid_ptr, kid_sz as usize) };
         if kid.len() < src.len() {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
