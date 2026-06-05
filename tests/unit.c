@@ -43,6 +43,7 @@
 
 int allTesting = 1;
 int apiTesting = 1;
+int wolfCryptTesting = 1;
 int myoptind = 0;
 char* myoptarg = NULL;
 int unit_test(int argc, char** argv);
@@ -202,6 +203,9 @@ int unit_test(int argc, char** argv)
             ApiTest_PrintTestCases();
             goto exit;
         }
+        else if (XSTRCMP(argv[1], "--no-wc") == 0) {
+            wolfCryptTesting = 0;
+        }
         else if (XSTRCMP(argv[1], "--api") == 0) {
             allTesting = 0;
         }
@@ -257,7 +261,7 @@ int unit_test(int argc, char** argv)
 
 #ifndef NO_CRYPT_TEST
     /* wc_ test */
-    if (allTesting) {
+    if (allTesting && wolfCryptTesting) {
         func_args wc_args;
 
         printf("\nwolfCrypt unit test:\n");

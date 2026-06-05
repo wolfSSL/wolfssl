@@ -581,6 +581,8 @@
 #endif /* !WOLFSSL_NO_ATOMICS */
 
 #ifdef WOLFSSL_NO_ATOMICS
+    typedef volatile int wolfSSL_Atomic_Int;
+    typedef volatile unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_LOAD(x) (x)
     #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
@@ -639,31 +641,33 @@
      */
     #define wolfSSL_Atomic_Int_Init(c, i) (*(c) = (i))
     #define wolfSSL_Atomic_Uint_Init(c, i) (*(c) = (i))
-    static WC_INLINE int wolfSSL_Atomic_Int_FetchAdd(int *c, int i) {
+    static WC_INLINE int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int *c,
+        int i)
+    {
         int ret = *c;
         *c += i;
         return ret;
     }
-    static WC_INLINE int wolfSSL_Atomic_Int_FetchSub(int *c, int i) {
+    static WC_INLINE int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int *c, int i) {
         int ret = *c;
         *c -= i;
         return ret;
     }
-    static WC_INLINE int wolfSSL_Atomic_Int_AddFetch(int *c, int i) {
+    static WC_INLINE int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int *c, int i) {
         return (*c += i);
     }
-    static WC_INLINE int wolfSSL_Atomic_Int_SubFetch(int *c, int i) {
+    static WC_INLINE int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int *c, int i) {
         return (*c -= i);
     }
     static WC_INLINE int wolfSSL_Atomic_Int_Exchange(
-        int *c, int new_i)
+        wolfSSL_Atomic_Int *c, int new_i)
     {
         int ret = *c;
         *c = new_i;
         return ret;
     }
     static WC_INLINE int wolfSSL_Atomic_Int_CompareExchange(
-        int *c, int *expected_i, int new_i)
+        wolfSSL_Atomic_Int *c, int *expected_i, int new_i)
     {
         if (*c == *expected_i) {
             *c = new_i;
@@ -687,31 +691,31 @@
         }
     }
     static WC_INLINE unsigned int wolfSSL_Atomic_Uint_FetchAdd(
-        unsigned int *c, unsigned int i)
+        wolfSSL_Atomic_Uint *c, unsigned int i)
     {
         unsigned int ret = *c;
         *c += i;
         return ret;
     }
     static WC_INLINE unsigned int wolfSSL_Atomic_Uint_FetchSub(
-        unsigned int *c, unsigned int i)
+        wolfSSL_Atomic_Uint *c, unsigned int i)
     {
         unsigned int ret = *c;
         *c -= i;
         return ret;
     }
     static WC_INLINE unsigned int wolfSSL_Atomic_Uint_AddFetch(
-        unsigned int *c, unsigned int i)
+        wolfSSL_Atomic_Uint *c, unsigned int i)
     {
         return (*c += i);
     }
     static WC_INLINE unsigned int wolfSSL_Atomic_Uint_SubFetch(
-        unsigned int *c, unsigned int i)
+        wolfSSL_Atomic_Uint *c, unsigned int i)
     {
         return (*c -= i);
     }
     static WC_INLINE int wolfSSL_Atomic_Uint_CompareExchange(
-        unsigned int *c, unsigned int *expected_i, unsigned int new_i)
+        wolfSSL_Atomic_Uint *c, unsigned int *expected_i, unsigned int new_i)
     {
         if (*c == *expected_i) {
             *c = new_i;
