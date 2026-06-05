@@ -33933,7 +33933,7 @@ static int OcspRespIdMatch(OcspResponse *resp, const byte *NameHash,
 }
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-static int OcspRespCheck(OcspResponse *resp, Signer *responder, void* vp)
+static int OcspRespCheck(OcspResponse *resp, Signer *responder)
 {
     OcspEntry *s;
     int ret;
@@ -33948,7 +33948,7 @@ static int OcspRespCheck(OcspResponse *resp, Signer *responder, void* vp)
 
     ret = CheckOcspResponder(resp, responder->subjectNameHash,
             responder->subjectKeyHash, responder->extKeyUsage,
-            responder->issuerNameHash, responder->issuerKeyHash, vp);
+            responder->issuerNameHash, responder->issuerKeyHash);
     if (ret != 0)
         return -1;
 
@@ -34038,7 +34038,7 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
     if (ret == 0 && !noVerify) {
         ret = CheckOcspResponder(resp, cert->subjectHash, cert->subjectKeyHash,
                 cert->extExtKeyUsage, cert->issuerHash,
-                (cert->ca != NULL) ? cert->ca->subjectKeyHash : NULL, cm);
+                (cert->ca != NULL) ? cert->ca->subjectKeyHash : NULL);
         if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate issuer check failed");
             goto err;
@@ -34259,7 +34259,7 @@ static int DecodeBasicOcspResponse(const byte* source, word32* ioIndex,
     }
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
     if (ret == 0 && !noVerifySignature && !sigValid) {
-        if (OcspRespCheck(resp, ca, cm) != 0) {
+        if (OcspRespCheck(resp, ca) != 0) {
             ret = BAD_OCSP_RESPONDER;
         }
     }

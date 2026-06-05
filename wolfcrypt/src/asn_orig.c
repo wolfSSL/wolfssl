@@ -8830,7 +8830,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_NO_SIGNER_E;
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-        if (OcspRespCheck(resp, ca, cm) != 0)
+        if (OcspRespCheck(resp, ca) != 0)
            return BAD_OCSP_RESPONDER;
 #endif
         InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
