@@ -1775,6 +1775,162 @@ int test_tls13_bad_psk_binder(void)
 }
 
 
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(NO_PSK)
+static unsigned int test_tls13_psk_no_cert_client_cb(WOLFSSL* ssl,
+        const char* hint, char* identity, unsigned int id_max_len,
+        unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)hint;
+    (void)key_max_len;
+
+    /* Offer a PSK so the client sends a pre_shared_key extension. */
+    XSTRNCPY(identity, "Client_identity", id_max_len);
+    key[0] = 0x20;
+    return 1;
+}
+
+static unsigned int test_tls13_psk_no_cert_server_cb(WOLFSSL* ssl,
+        const char* id, unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)id;
+    (void)key;
+    (void)key_max_len;
+
+    /* Reject every identity so the server finds no matching PSK. */
+    return 0;
+}
+#endif
+
+/* When no offered PSK matches and the server has no certificate to fall back
+ * to, the server must abort the handshake with BAD_BINDER rather than silently
+ * continuing. This covers both configurations:
+ *   - NO_CERTS defined: the certificate fall-back branch is compiled out.
+ *   - certificates compiled in but none loaded: ssl->buffers.certificate is
+ *     NULL, so the runtime check takes the same abort path.
+ * The contexts are built by hand (no certificate loaded) so the test exercises
+ * whichever branch the build provides.
+ * When certificates are compiled in, a second connection sets a certificate
+ * and key against the server context and verifies the opposite branch: the
+ * non-matching PSK is ignored and the handshake falls back to a full
+ * certificate handshake instead of aborting. */
+int test_tls13_psk_no_cert_bad_binder(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(NO_PSK)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Don't use test_memio_setup(): it loads a default server certificate,
+     * which would let the server fall back to a certificate handshake. Build
+     * the contexts by hand so the server has no certificate loaded. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    if (ctx_c != NULL) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+    }
+    if (ctx_s != NULL) {
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+
+    /* Set the PSK callbacks on the contexts, not the SSL objects: with
+     * certificates compiled in, creating a server-side SSL object without a
+     * certificate and key fails (NO_PRIVATE_KEY) unless ctx->havePSK is
+     * already set when wolfSSL_new() is called. */
+    wolfSSL_CTX_set_psk_client_callback(ctx_c,
+        test_tls13_psk_no_cert_client_cb);
+    wolfSSL_CTX_set_psk_server_callback(ctx_s,
+        test_tls13_psk_no_cert_server_cb);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    if (ssl_c != NULL) {
+        wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    }
+    if (ssl_s != NULL) {
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    }
+
+    /* Confirm the precondition: the server really has no certificate. */
+#ifndef NO_CERTS
+    if (ssl_s != NULL) {
+        ExpectNull(ssl_s->buffers.certificate);
+    }
+#endif
+
+    /* Client sends ClientHello (with PSK) and waits for the response. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Server processes ClientHello: no PSK matches and no certificate is
+     * available, so it must abort with BAD_BINDER. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(BAD_BINDER));
+
+    /* Client reads the server's alert: BAD_BINDER maps to a fatal
+     * illegal_parameter alert (see TranslateErrorToAlert). */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_rx.code, illegal_parameter);
+    ExpectIntEQ(h.last_rx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+#ifndef NO_CERTS
+    /* Conversely, with a certificate and key set against the server context,
+     * a non-matching PSK must not leak the mismatch: the server ignores the
+     * PSK and falls back to a full certificate handshake. test_memio_setup()
+     * loads the default CA, server certificate and key. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls13_psk_no_cert_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls13_psk_no_cert_server_cb);
+
+    /* Confirm the precondition: the server has a certificate this time. */
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->buffers.certificate);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* !NO_CERTS */
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if defined(HAVE_RPK) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_WOLFSSL_SERVER)
 

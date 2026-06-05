@@ -23,7 +23,7 @@
 #include <tests/utils.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
+#ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 
 /* This set of memio functions allows for more fine tuned control of the TLS
  * connection operations. For new tests, try to use ssl_memio first. */
@@ -784,7 +784,7 @@ int test_memio_setup(struct test_memio_ctx *ctx,
                                method_s, NULL, 0, NULL, 0, NULL, 0);
 }
 
-#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD */
 
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)
