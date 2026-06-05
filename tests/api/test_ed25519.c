@@ -1063,3 +1063,72 @@ int test_wc_ed25519_verify_msg_nonblock(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * Test wc_ed25519_make_key() in non-blocking mode.
+ * Drives the keygen loop until completion, verifies the key pair by sign +
+ * verify, checks bad-args, and confirms blocking fallback after disabling
+ * non-block mode.
+ */
+int test_wc_ed25519_make_key_nonblock(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WC_ED25519_NONBLOCK) && defined(HAVE_ED25519_SIGN) && \
+    defined(HAVE_ED25519_VERIFY)
+    ed25519_key      key;
+    ed25519_nb_ctx_t nb_ctx;
+    WC_RNG           rng;
+    int              ret;
+
+    XMEMSET(&key,    0, sizeof(key));
+    XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
+    XMEMSET(&rng,    0, sizeof(rng));
+
+    ExpectIntEQ(wc_ed25519_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_set_nonblock(&key, &nb_ctx), 0);
+
+    /* non-blocking key generation */
+    do {
+        ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+    } while (ret == MP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(key.privKeySet, 1);
+    ExpectIntEQ(key.pubKeySet,  1);
+
+    /* verify generated key pair by sign + verify */
+    if (EXPECT_SUCCESS()) {
+        byte   sig[ED25519_SIG_SIZE];
+        word32 sigLen = sizeof(sig);
+        byte   msg[]  = "nonblock keygen test";
+        int    verified = 0;
+
+        wc_ed25519_set_nonblock(&key, NULL);
+        ExpectIntEQ(wc_ed25519_sign_msg(msg, sizeof(msg), sig, &sigLen, &key),
+            0);
+        ExpectIntEQ(wc_ed25519_verify_msg(sig, sigLen, msg, sizeof(msg),
+            &verified, &key), 0);
+        ExpectIntEQ(verified, 1);
+    }
+
+    /* bad args */
+    ExpectIntEQ(wc_ed25519_set_nonblock(&key, &nb_ctx), 0);
+    ExpectIntEQ(wc_ed25519_make_key(NULL, ED25519_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE - 1, &key),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* blocking fallback after disabling non-block mode */
+    wc_ed25519_set_nonblock(&key, NULL);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    ExpectIntEQ(key.privKeySet, 1);
+    ExpectIntEQ(key.pubKeySet,  1);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
