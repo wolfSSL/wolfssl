@@ -811,6 +811,7 @@ int test_wc_ed25519_reject_small_order_keys(void)
          0x2a,0x20,0x53,0xfa,0x2c,0x39,0xcc,0xc6,
          0x4e,0xc7,0xfd,0x77,0x92,0xac,0x03,0xfa},
     };
+#ifndef NO_ED25519_VERIFY
     /* Forged signature: R = B (base point), S = 1.
      * With public key A = identity, S*B - h*A = B = R for any message. */
     static const byte forged_sig[ED25519_SIG_SIZE] = {
@@ -823,6 +824,7 @@ int test_wc_ed25519_reject_small_order_keys(void)
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
     };
+#endif
     ed25519_key key;
     word32 i;
     word32 num_keys = (word32)(sizeof(small_order_keys) / ED25519_PUB_KEY_SIZE);
@@ -864,6 +866,7 @@ int test_wc_ed25519_reject_small_order_keys(void)
         wc_ed25519_free(&key);
     }
 
+#ifndef NO_ED25519_VERIFY
     /* (3) Even a "trusted" import (which bypasses wc_ed25519_check_key)
      * must not let wc_ed25519_verify_msg accept a forged signature against
      * an identity public key. Test both the canonical encoding (y = 1,
@@ -902,6 +905,7 @@ int test_wc_ed25519_reject_small_order_keys(void)
             wc_ed25519_free(&key);
         }
     }
+#endif
 #endif
     return EXPECT_RESULT();
 }

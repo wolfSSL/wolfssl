@@ -8732,7 +8732,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif
                                         WC_HASH_TYPE_NONE
                                      };
-    int typesBad[]  = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_MAX + 1 };
+    enum wc_HashType typesBad[]  = { WC_HASH_TYPE_NONE };
 
     enum wc_HashType typesHashBad[] = {
 #ifndef WOLFSSL_MD2
@@ -15258,12 +15258,10 @@ out:
 #else
     wc_AesFree(enc);
 #endif
-#ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
-#endif
 #endif
     return ret;
 }
@@ -55727,25 +55725,21 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
 {
     int           ret = 0;
 #if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
-    /* Size the buffer to accommodate the largest encoded key size */
-    const word32  maxDerSz = MLDSA_MAX_PRV_KEY_DER_SIZE;
     word32        derSz;
     word32        idx;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    byte*         der = NULL;
-    #else
-    byte          der[MLDSA_MAX_PRV_KEY_DER_SIZE];
-    #endif
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte*         der = NULL;
     wc_MlDsaKey *key = NULL;
 #else
+    byte          der[MLDSA_MAX_PRV_KEY_DER_SIZE];
     wc_MlDsaKey  key[1];
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate DER buffer */
-    der = (byte*)XMALLOC(maxDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(MLDSA_MAX_PRV_KEY_DER_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
     key = (wc_MlDsaKey *)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL || key == NULL) {
@@ -55781,12 +55775,14 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
     if (ret == 0) {
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_MlDsaKey_PublicKeyToDer(key, der, maxDerSz, 1);
+            ret = wc_MlDsaKey_PublicKeyToDer(key, der,
+                MLDSA_MAX_PRV_KEY_DER_SIZE, 1);
         }
 #endif
 #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_MlDsaKey_PrivateKeyToDer(key, der, maxDerSz);
+            ret = wc_MlDsaKey_PrivateKeyToDer(key, der,
+                MLDSA_MAX_PRV_KEY_DER_SIZE);
         }
 #endif
         if (ret >= 0) {
