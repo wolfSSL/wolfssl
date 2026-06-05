@@ -62,8 +62,10 @@ jobs:
 
       - name: Build wolfcrypt-check
         working-directory: wychcheck
+        env:
+          WOLFSSL_DIR: ${{ github.workspace }}
         run: |
-          cmake -B build -DWOLFSSL_DIR=${{ github.workspace }}
+          cmake -B build
           cmake --build build -j$(nproc)
 
       - name: Run wycheproof tests
