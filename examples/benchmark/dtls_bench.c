@@ -52,12 +52,23 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
+
+#include <stdio.h>
+
+/* Needs DTLS and POSIX BSD sockets; build a stub main() elsewhere
+ * (e.g. Windows/mingw, which lacks <sys/socket.h> et al.). */
+#if defined(WOLFSSL_DTLS) && !defined(USE_WINDOWS_API) && \
+    !defined(WOLFSSL_NO_SOCK)
+    #define DTLS_BENCH_ENABLED
+#endif
+
+#ifdef DTLS_BENCH_ENABLED
+
 #include <wolfssl/error-ssl.h>
 
 #define USE_CERT_BUFFERS_2048
 #include <wolfssl/certs_test.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -764,3 +775,14 @@ int main(int argc, char** argv)
     }
     return c.isServer ? dtls_server(&c) : dtls_client(&c);
 }
+
+#else /* DTLS_BENCH_ENABLED */
+
+int main(void)
+{
+    printf("dtls_bench not supported in this build "
+           "(requires DTLS and POSIX BSD sockets)\n");
+    return 0;
+}
+
+#endif /* DTLS_BENCH_ENABLED */
