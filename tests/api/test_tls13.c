@@ -4847,7 +4847,7 @@ int test_tls13_derive_keys_no_key(void)
  * heap use-after-free during cleanup. A malicious server sends
  * SECP256R1MLKEM768 with only 10 bytes of key exchange data (expected: 1120+).
  * This exercises the error path in TLSX_KeyShare_ProcessPqcHybridClient().
- * Under ASAN the UAF manifests as ForceZero writing to freed KyberKey memory
+ * Under ASAN the UAF manifests as ForceZero writing to freed MlKemKey memory
  * during wolfSSL_free -> TLSX_FreeAll -> TLSX_KeyShare_FreeAll. */
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
     defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_PQC_HYBRIDS) && \
@@ -4944,7 +4944,7 @@ int test_tls13_pqc_hybrid_truncated_keyshare(void)
         WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 
     /* The UAF, if present, triggers here: wolfSSL_free -> TLSX_FreeAll ->
-     * TLSX_KeyShare_FreeAll -> ForceZero on already-freed KyberKey. */
+     * TLSX_KeyShare_FreeAll -> ForceZero on already-freed MlKemKey. */
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif

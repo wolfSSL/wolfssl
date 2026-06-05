@@ -11089,7 +11089,7 @@ exit:
 
 #ifdef WOLFSSL_HAVE_MLKEM
 static void bench_mlkem_keygen(int type, const char* name, int keySize,
-    KyberKey* key)
+    MlKemKey* key)
 {
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
     int ret = 0, times, count, pending = 0;
@@ -11104,17 +11104,17 @@ static void bench_mlkem_keygen(int type, const char* name, int keySize,
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
-            wc_KyberKey_Free(key);
-            ret = wc_KyberKey_Init(type, key, HEAP_HINT, INVALID_DEVID);
+            wc_MlKemKey_Free(key);
+            ret = wc_MlKemKey_Init(key, type, HEAP_HINT, INVALID_DEVID);
             if (ret != 0)
                 goto exit;
 
 #ifdef MLKEM_NONDETERMINISTIC
-            ret = wc_KyberKey_MakeKey(key, &gRng);
+            ret = wc_MlKemKey_MakeKey(key, &gRng);
 #else
             {
                 unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ] = {0,};
-                ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+                ret = wc_MlKemKey_MakeKeyWithRandom(key, rand, sizeof(rand));
             }
 #endif
             if (ret != 0)
@@ -11144,7 +11144,7 @@ exit:
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 static void bench_mlkem_encap(int type, const char* name, int keySize,
-    KyberKey* key1, KyberKey* key2)
+    MlKemKey* key1, MlKemKey* key2)
 {
     int ret = 0, times, count, pending = 0;
     double start;
@@ -11162,24 +11162,24 @@ static void bench_mlkem_encap(int type, const char* name, int keySize,
     WC_ALLOC_VAR(ss, byte, WC_ML_KEM_SS_SZ, HEAP_HINT);
     WC_ALLOC_VAR(pub, byte, WC_ML_KEM_MAX_PUBLIC_KEY_SIZE, HEAP_HINT);
 
-    ret = wc_KyberKey_PublicKeySize(key1, &pubLen);
+    ret = wc_MlKemKey_PublicKeySize(key1, &pubLen);
     if (ret != 0) {
         goto exit;
     }
-    ret = wc_KyberKey_EncodePublicKey(key1, pub, pubLen);
+    ret = wc_MlKemKey_EncodePublicKey(key1, pub, pubLen);
     if (ret != 0) {
         goto exit;
     }
-    ret = wc_KyberKey_Init(type, key2, HEAP_HINT, INVALID_DEVID);
+    ret = wc_MlKemKey_Init(key2, type, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         goto exit;
     }
-    ret = wc_KyberKey_DecodePublicKey(key2, pub, pubLen);
+    ret = wc_MlKemKey_DecodePublicKey(key2, pub, pubLen);
     if (ret != 0) {
         goto exit;
     }
 
-    ret = wc_KyberKey_CipherTextSize(key2, &ctSz);
+    ret = wc_MlKemKey_CipherTextSize(key2, &ctSz);
     if (ret != 0) {
         goto exit;
     }
@@ -11191,10 +11191,10 @@ static void bench_mlkem_encap(int type, const char* name, int keySize,
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
 #ifdef MLKEM_NONDETERMINISTIC
-            ret = wc_KyberKey_Encapsulate(key2, ct, ss, &gRng);
+            ret = wc_MlKemKey_Encapsulate(key2, ct, ss, &gRng);
 #else
             unsigned char rand[WC_ML_KEM_ENC_RAND_SZ] = {0,};
-            ret = wc_KyberKey_EncapsulateWithRandom(key2, ct, ss, rand,
+            ret = wc_MlKemKey_EncapsulateWithRandom(key2, ct, ss, rand,
                 sizeof(rand));
 #endif
             if (ret != 0)
@@ -11224,7 +11224,7 @@ exit_encap:
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
-            ret = wc_KyberKey_Decapsulate(key1, ss, ct, ctSz);
+            ret = wc_MlKemKey_Decapsulate(key1, ss, ct, ctSz);
             if (ret != 0)
                 goto exit_decap;
             RECORD_MULTI_VALUE_STATS();
@@ -11261,11 +11261,11 @@ exit:
 void bench_mlkem(int type)
 {
 #ifdef WOLFSSL_SMALL_STACK
-    KyberKey *key1 = NULL;
-    KyberKey *key2 = NULL;
+    MlKemKey *key1 = NULL;
+    MlKemKey *key2 = NULL;
 #else
-    KyberKey key1[1];
-    KyberKey key2[1];
+    MlKemKey key1[1];
+    MlKemKey key2[1];
 #endif
     const char* name = NULL;
     int keySize = 0;
@@ -11316,10 +11316,10 @@ void bench_mlkem(int type)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    key1 = (KyberKey *)XMALLOC(sizeof(*key1), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key1 = (MlKemKey *)XMALLOC(sizeof(*key1), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (key1 == NULL)
         return;
-    key2 = (KyberKey *)XMALLOC(sizeof(*key2), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key2 = (MlKemKey *)XMALLOC(sizeof(*key2), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (key2 == NULL) {
         XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return;
@@ -11332,8 +11332,8 @@ void bench_mlkem(int type)
     bench_mlkem_encap(type, name, keySize, key1, key2);
 #endif
 
-    wc_KyberKey_Free(key2);
-    wc_KyberKey_Free(key1);
+    wc_MlKemKey_Free(key2);
+    wc_MlKemKey_Free(key1);
 
     WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

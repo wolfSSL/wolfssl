@@ -1177,7 +1177,7 @@ int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
 
     /* get devId */
     if (type == WC_PQC_KEM_TYPE_MLKEM) {
-        devId = ((KyberKey*) key)->devId;
+        devId = ((MlKemKey*) key)->devId;
     }
 
     return devId;
