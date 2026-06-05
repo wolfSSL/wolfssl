@@ -29223,13 +29223,39 @@ static int test_wc_CryptoCb(void)
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
      !defined(WOLF_CRYPTO_CB_ONLY_SHA512))
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519))
+    int tlsVer;
+#endif
     /* TODO: Add crypto callback API tests */
 
-#ifdef HAVE_IO_TESTS_DEPENDENCIES
-    #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
-    int tlsVer;
-    #endif
+    /* Test wc_CryptoCb_GetDevice() lookup behavior. */
+    {
+        int    getDevId  = 1234;
+        int    getDevCtx = 0;
+        CryptoCb* dev     = NULL;
 
+        /* Unregistered devId is not found. */
+        ExpectNull(wc_CryptoCb_GetDevice(getDevId));
+
+        /* After registering, the device is found with matching fields. */
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(getDevId, NULL, &getDevCtx), 0);
+        ExpectNotNull(dev = wc_CryptoCb_GetDevice(getDevId));
+        if (dev != NULL) {
+            ExpectIntEQ(dev->devId, getDevId);
+            ExpectNull(dev->cb);
+            ExpectPtrEq(dev->ctx, &getDevCtx);
+        }
+
+        /* A different, unregistered devId is still not found. */
+        ExpectNull(wc_CryptoCb_GetDevice(getDevId + 1));
+
+        /* After unregistering, the device is no longer found. */
+        wc_CryptoCb_UnRegisterDevice(getDevId);
+        ExpectNull(wc_CryptoCb_GetDevice(getDevId));
+    }
+
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
     #ifndef NO_RSA
     for (tlsVer = WOLFSSL_SSLV3; tlsVer <= WOLFSSL_DTLSV1; tlsVer++) {
         ExpectIntEQ(test_wc_CryptoCb_TLS(tlsVer,

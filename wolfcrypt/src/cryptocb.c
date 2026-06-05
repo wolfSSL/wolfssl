@@ -84,11 +84,6 @@ Crypto Callback Build Options:
 #define MAX_CRYPTO_DEVID_CALLBACKS 8
 #endif
 
-typedef struct CryptoCb {
-    int devId;
-    CryptoDevCallbackFunc cb;
-    void* ctx;
-} CryptoCb;
 static WC_THREADSHARED CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
 
 #ifdef WOLF_CRYPTO_CB_FIND
@@ -355,7 +350,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
 
 /* Search through listed devices and return the first matching device ID
  * found. */
-static CryptoCb* wc_CryptoCb_GetDevice(int devId)
+CryptoCb* wc_CryptoCb_GetDevice(int devId)
 {
     int i;
     for (i = 0; i < MAX_CRYPTO_DEVID_CALLBACKS; i++) {
