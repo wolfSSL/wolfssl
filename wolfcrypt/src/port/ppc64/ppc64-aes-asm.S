@@ -583,6 +583,11 @@ L_AES_PPC64_te:
 .type	AES_invert_key,@function
 .align	16
 AES_invert_key:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_invert_key, .-AES_invert_key
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_invert_key
@@ -595,20 +600,10 @@ _AES_invert_key:
 	std	14, 0(1)
 	std	15, 8(1)
 	std	16, 16(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	5, 2, L_AES_PPC64_te@toc@ha
 	addi	5, 5, L_AES_PPC64_te@toc@l
-#else
-	lis	5, L_AES_PPC64_te@ha
-	la	5, L_AES_PPC64_te@l(5)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	6, 2, L_AES_PPC64_td@toc@ha
 	addi	6, 6, L_AES_PPC64_td@toc@l
-#else
-	lis	6, L_AES_PPC64_td@ha
-	la	6, L_AES_PPC64_td@l(6)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	addi	5, 5, 3
 	sldi	16, 4, 4
 	add	16, 16, 3
@@ -787,6 +782,11 @@ L_AES_PPC64_rcon:
 .type	AES_set_encrypt_key,@function
 .align	16
 AES_set_encrypt_key:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_set_encrypt_key, .-AES_set_encrypt_key
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_set_encrypt_key
@@ -798,20 +798,10 @@ _AES_set_encrypt_key:
 	std	0, 16(1)
 	std	14, 0(1)
 	std	15, 8(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	6, 2, L_AES_PPC64_te@toc@ha
 	addi	6, 6, L_AES_PPC64_te@toc@l
-#else
-	lis	6, L_AES_PPC64_te@ha
-	la	6, L_AES_PPC64_te@l(6)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	7, 2, L_AES_PPC64_rcon@toc@ha
 	addi	7, 7, L_AES_PPC64_rcon@toc@l
-#else
-	lis	7, L_AES_PPC64_rcon@ha
-	la	7, L_AES_PPC64_rcon@l(7)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	addi	6, 6, 3
 	cmplwi	4, 0x80
 	beq	L_AES_set_encrypt_key_start_128
@@ -2115,6 +2105,11 @@ L_AES_PPC64_te4_0:
 .type	AES_ECB_encrypt,@function
 .align	16
 AES_ECB_encrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_ECB_encrypt, .-AES_ECB_encrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt
@@ -2136,13 +2131,8 @@ _AES_ECB_encrypt:
 	std	23, 72(1)
 	std	24, 80(1)
 	std	25, 88(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	8, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	8, 8, L_AES_PPC64_te4_0@toc@l
-#else
-	lis	8, L_AES_PPC64_te4_0@ha
-	la	8, L_AES_PPC64_te4_0@l(8)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	addi	9, 8, 0x400
 	addi	10, 8, 0x800
 	addi	11, 8, 0xc00
@@ -2479,6 +2469,11 @@ L_AES_ECB_encrypt_loop_nr:
 .type	AES_CBC_encrypt,@function
 .align	16
 AES_CBC_encrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_CBC_encrypt, .-AES_CBC_encrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt
@@ -2501,13 +2496,8 @@ _AES_CBC_encrypt:
 	std	24, 80(1)
 	std	25, 88(1)
 	std	26, 96(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	9, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	9, 9, L_AES_PPC64_te4_0@toc@l
-#else
-	lis	9, L_AES_PPC64_te4_0@ha
-	la	9, L_AES_PPC64_te4_0@l(9)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	ld	14, 0(8)
 	ld	15, 8(8)
 	addi	10, 9, 0x400
@@ -2850,6 +2840,11 @@ L_AES_CBC_encrypt_loop_nr:
 .type	AES_CTR_encrypt,@function
 .align	16
 AES_CTR_encrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_CTR_encrypt, .-AES_CTR_encrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt
@@ -2874,13 +2869,8 @@ _AES_CTR_encrypt:
 	std	26, 96(1)
 	std	27, 104(1)
 	std	28, 112(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	9, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	9, 9, L_AES_PPC64_te4_0@toc@l
-#else
-	lis	9, L_AES_PPC64_te4_0@ha
-	la	9, L_AES_PPC64_te4_0@l(9)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	ld	22, 0(8)
 	ld	23, 8(8)
 	addi	10, 9, 0x400
@@ -3227,6 +3217,11 @@ L_AES_CTR_encrypt_loop_nr:
 .type	AES_GCM_encrypt,@function
 .align	16
 AES_GCM_encrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_GCM_encrypt, .-AES_GCM_encrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt
@@ -3251,13 +3246,8 @@ _AES_GCM_encrypt:
 	std	26, 96(1)
 	std	27, 104(1)
 	std	28, 112(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	9, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	9, 9, L_AES_PPC64_te4_0@toc@l
-#else
-	lis	9, L_AES_PPC64_te4_0@ha
-	la	9, L_AES_PPC64_te4_0@l(9)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	ld	26, 0(8)
 	ld	27, 8(8)
 	addi	10, 9, 0x400
@@ -3604,6 +3594,11 @@ L_AES_GCM_encrypt_loop_nr:
 .type	AES_XTS_encrypt,@function
 .align	16
 AES_XTS_encrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_XTS_encrypt, .-AES_XTS_encrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt
@@ -3629,13 +3624,8 @@ _AES_XTS_encrypt:
 	std	27, 104(1)
 	std	28, 112(1)
 	std	29, 120(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	11, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	11, 11, L_AES_PPC64_te4_0@toc@l
-#else
-	lis	11, L_AES_PPC64_te4_0@ha
-	la	11, L_AES_PPC64_te4_0@l(11)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	addi	12, 11, 0x400
 	addi	14, 11, 0x800
 	addi	15, 11, 0xc00
@@ -4893,6 +4883,11 @@ L_AES_PPC64_td4:
 .type	AES_ECB_decrypt,@function
 .align	16
 AES_ECB_decrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_ECB_decrypt, .-AES_ECB_decrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt
@@ -4912,20 +4907,10 @@ _AES_ECB_decrypt:
 	std	21, 56(1)
 	std	22, 64(1)
 	std	23, 72(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	8, 2, L_AES_PPC64_td@toc@ha
 	addi	8, 8, L_AES_PPC64_td@toc@l
-#else
-	lis	8, L_AES_PPC64_td@ha
-	la	8, L_AES_PPC64_td@l(8)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	9, 2, L_AES_PPC64_td4@toc@ha
 	addi	9, 9, L_AES_PPC64_td4@toc@l
-#else
-	lis	9, L_AES_PPC64_td4@ha
-	la	9, L_AES_PPC64_td4@l(9)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 L_AES_ECB_decrypt_loop_block:
 	addi	23, 6, 0
 	ld	10, 0(3)
@@ -5258,6 +5243,11 @@ L_AES_ECB_decrypt_loop_nr:
 .type	AES_CBC_decrypt,@function
 .align	16
 AES_CBC_decrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_CBC_decrypt, .-AES_CBC_decrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt
@@ -5282,20 +5272,10 @@ _AES_CBC_decrypt:
 	std	26, 96(1)
 	std	27, 104(1)
 	std	28, 112(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	10, 2, L_AES_PPC64_td4@toc@ha
 	addi	10, 10, L_AES_PPC64_td4@toc@l
-#else
-	lis	10, L_AES_PPC64_td4@ha
-	la	10, L_AES_PPC64_td4@l(10)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	9, 2, L_AES_PPC64_td@toc@ha
 	addi	9, 9, L_AES_PPC64_td@toc@l
-#else
-	lis	9, L_AES_PPC64_td@ha
-	la	9, L_AES_PPC64_td@l(9)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	ld	24, 0(8)
 	ld	25, 8(8)
 L_AES_CBC_decrypt_loop_block:
@@ -5954,6 +5934,11 @@ L_AES_CBC_decrypt_end_dec:
 .type	AES_XTS_decrypt,@function
 .align	16
 AES_XTS_decrypt:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	AES_XTS_decrypt, .-AES_XTS_decrypt
+#endif
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt
@@ -5979,13 +5964,8 @@ _AES_XTS_decrypt:
 	std	27, 104(1)
 	std	28, 112(1)
 	std	29, 120(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	14, 2, L_AES_PPC64_te4_0@toc@ha
 	addi	14, 14, L_AES_PPC64_te4_0@toc@l
-#else
-	lis	14, L_AES_PPC64_te4_0@ha
-	la	14, L_AES_PPC64_te4_0@l(14)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	addi	15, 14, 0x400
 	addi	16, 14, 0x800
 	addi	17, 14, 0xc00
@@ -6292,20 +6272,10 @@ L_AES_XTS_decrypt_loop_nr_tweak:
 	xor	27, 27, 19
 	std	26, 0(9)
 	std	27, 8(9)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	11, 2, L_AES_PPC64_td@toc@ha
 	addi	11, 11, L_AES_PPC64_td@toc@l
-#else
-	lis	11, L_AES_PPC64_td@ha
-	la	11, L_AES_PPC64_td@l(11)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	12, 2, L_AES_PPC64_td4@toc@ha
 	addi	12, 12, L_AES_PPC64_td4@toc@l
-#else
-	lis	12, L_AES_PPC64_td4@ha
-	la	12, L_AES_PPC64_td4@l(12)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	cmpdi	5, 16
 	blt	L_AES_XTS_decrypt_start_partail
 L_AES_XTS_decrypt_loop_block:
@@ -7359,6 +7329,11 @@ L_GCM_gmult_len_r:
 .type	GCM_gmult_len,@function
 .align	16
 GCM_gmult_len:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	GCM_gmult_len, .-GCM_gmult_len
+#endif
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
@@ -7382,13 +7357,8 @@ _GCM_gmult_len:
 	std	25, 88(1)
 	li	21, 0x100
 	li	25, 8
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	7, 2, L_GCM_gmult_len_r@toc@ha
 	addi	7, 7, L_GCM_gmult_len_r@toc@l
-#else
-	lis	7, L_GCM_gmult_len_r@ha
-	la	7, L_GCM_gmult_len_r@l(7)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	add	21, 21, 4
 	addi	20, 4, 8
 	addi	22, 21, 8
@@ -8351,6 +8321,11 @@ L_GCM_gmult_len_r:
 .type	GCM_gmult_len,@function
 .align	16
 GCM_gmult_len:
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+0:	addis	2, 12, .TOC.-0b@ha
+	addi	2, 2, .TOC.-0b@l
+	.localentry	GCM_gmult_len, .-GCM_gmult_len
+#endif
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
@@ -8366,13 +8341,8 @@ _GCM_gmult_len:
 	std	17, 24(1)
 	std	18, 32(1)
 	std	19, 40(1)
-#if defined(__ARCH_PWR8) || (defined(_ARCH_PWR8))
 	addis	7, 2, L_GCM_gmult_len_r@toc@ha
 	addi	7, 7, L_GCM_gmult_len_r@toc@l
-#else
-	lis	7, L_GCM_gmult_len_r@ha
-	la	7, L_GCM_gmult_len_r@l(7)
-#endif /* defined(__ARCH_PWR8) || (defined(_ARCH_PWR8)) */
 	addi	0, 4, 8
 	li	17, 8
 L_GCM_gmult_len_start_block:

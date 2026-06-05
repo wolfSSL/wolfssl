@@ -1325,13 +1325,11 @@ size_t wc_linuxkm_malloc_usable_size(void *ptr)
 #ifdef CONFIG_HAVE_KPROBES
         static typeof(find_vm_area) *find_vm_area_ptr = NULL;
         if (find_vm_area_ptr == NULL) {
-            if (! wc_linuxkm_can_block())
-                return 0;
             find_vm_area_ptr = my_kallsyms_lookup_name("find_vm_area");
+            if (find_vm_area_ptr == NULL)
+                return 0;
         }
-        if (find_vm_area_ptr == NULL)
-            return 0;
-        else if (ptr == NULL)
+        if (ptr == NULL)
             return 0;
         else {
             struct vm_struct *vm = find_vm_area_ptr(ptr);
@@ -1950,6 +1948,10 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
 
     if (! kallsyms_lookup_name_ptr) {
         int ret;
+
+        if (! wc_linuxkm_can_block())
+            return NULL;
+
         kallsyms_lookup_name_kp.addr = NULL;
         if ((ret = register_kprobe(&kallsyms_lookup_name_kp)) != 0) {
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
