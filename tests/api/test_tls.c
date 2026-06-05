@@ -1180,46 +1180,6 @@ int test_tls12_peerauth_failsafe(void)
     return EXPECT_RESULT();
 }
 
-int test_wolfSSL_alert_desc_string(void)
-{
-    EXPECT_DECLS;
-#if !defined(NO_TLS) && defined(OPENSSL_EXTRA)
-    ExpectStrEQ(wolfSSL_alert_desc_string(close_notify), "CN");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unexpected_message), "UM");
-    ExpectStrEQ(wolfSSL_alert_desc_string(bad_record_mac), "BM");
-    ExpectStrEQ(wolfSSL_alert_desc_string(record_overflow), "RO");
-    ExpectStrEQ(wolfSSL_alert_desc_string(decompression_failure), "DF");
-    ExpectStrEQ(wolfSSL_alert_desc_string(handshake_failure), "HF");
-    ExpectStrEQ(wolfSSL_alert_desc_string(no_certificate), "NC");
-    ExpectStrEQ(wolfSSL_alert_desc_string(bad_certificate), "BC");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_certificate), "UC");
-    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_revoked), "CR");
-    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_expired), "CE");
-    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_unknown), "CU");
-    ExpectStrEQ(wolfSSL_alert_desc_string(illegal_parameter), "IP");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unknown_ca), "CA");
-    ExpectStrEQ(wolfSSL_alert_desc_string(access_denied), "AD");
-    ExpectStrEQ(wolfSSL_alert_desc_string(decode_error), "DE");
-    ExpectStrEQ(wolfSSL_alert_desc_string(decrypt_error), "DC");
-    ExpectStrEQ(wolfSSL_alert_desc_string(wolfssl_alert_protocol_version), "PV");
-    ExpectStrEQ(wolfSSL_alert_desc_string(insufficient_security), "IS");
-    ExpectStrEQ(wolfSSL_alert_desc_string(internal_error), "IE");
-    ExpectStrEQ(wolfSSL_alert_desc_string(inappropriate_fallback), "IF");
-    ExpectStrEQ(wolfSSL_alert_desc_string(user_canceled), "US");
-    ExpectStrEQ(wolfSSL_alert_desc_string(no_renegotiation), "NR");
-    ExpectStrEQ(wolfSSL_alert_desc_string(missing_extension), "ME");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "UE");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unrecognized_name), "UN");
-    ExpectStrEQ(wolfSSL_alert_desc_string(bad_certificate_status_response), "BR");
-    ExpectStrEQ(wolfSSL_alert_desc_string(unknown_psk_identity), "UP");
-    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_required), "CQ");
-    ExpectStrEQ(wolfSSL_alert_desc_string(no_application_protocol), "AP");
-    /* Unknown alert description returns "UK" */
-    ExpectStrEQ(wolfSSL_alert_desc_string(255), "UK");
-#endif
-    return EXPECT_RESULT();
-}
-
 /* TLS 1.2 mutual auth: an ECDHE-ECDSA server (ECDSA certificate) accepting an
  * RSA client certificate. */
 int test_tls12_ecdhe_ecdsa_rsa_client_cert(void)
@@ -1326,6 +1286,46 @@ int test_tls12_ecdhe_rsa_ecdsa_client_cert(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_alert_desc_string(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && defined(OPENSSL_EXTRA)
+    ExpectStrEQ(wolfSSL_alert_desc_string(close_notify), "CN");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unexpected_message), "UM");
+    ExpectStrEQ(wolfSSL_alert_desc_string(bad_record_mac), "BM");
+    ExpectStrEQ(wolfSSL_alert_desc_string(record_overflow), "RO");
+    ExpectStrEQ(wolfSSL_alert_desc_string(decompression_failure), "DF");
+    ExpectStrEQ(wolfSSL_alert_desc_string(handshake_failure), "HF");
+    ExpectStrEQ(wolfSSL_alert_desc_string(no_certificate), "NC");
+    ExpectStrEQ(wolfSSL_alert_desc_string(bad_certificate), "BC");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_certificate), "UC");
+    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_revoked), "CR");
+    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_expired), "CE");
+    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_unknown), "CU");
+    ExpectStrEQ(wolfSSL_alert_desc_string(illegal_parameter), "IP");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unknown_ca), "CA");
+    ExpectStrEQ(wolfSSL_alert_desc_string(access_denied), "AD");
+    ExpectStrEQ(wolfSSL_alert_desc_string(decode_error), "DE");
+    ExpectStrEQ(wolfSSL_alert_desc_string(decrypt_error), "DC");
+    ExpectStrEQ(wolfSSL_alert_desc_string(wolfssl_alert_protocol_version), "PV");
+    ExpectStrEQ(wolfSSL_alert_desc_string(insufficient_security), "IS");
+    ExpectStrEQ(wolfSSL_alert_desc_string(internal_error), "IE");
+    ExpectStrEQ(wolfSSL_alert_desc_string(inappropriate_fallback), "IF");
+    ExpectStrEQ(wolfSSL_alert_desc_string(user_canceled), "US");
+    ExpectStrEQ(wolfSSL_alert_desc_string(no_renegotiation), "NR");
+    ExpectStrEQ(wolfSSL_alert_desc_string(missing_extension), "ME");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unsupported_extension), "UE");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unrecognized_name), "UN");
+    ExpectStrEQ(wolfSSL_alert_desc_string(bad_certificate_status_response), "BR");
+    ExpectStrEQ(wolfSSL_alert_desc_string(unknown_psk_identity), "UP");
+    ExpectStrEQ(wolfSSL_alert_desc_string(certificate_required), "CQ");
+    ExpectStrEQ(wolfSSL_alert_desc_string(no_application_protocol), "AP");
+    /* Unknown alert description returns "UK" */
+    ExpectStrEQ(wolfSSL_alert_desc_string(255), "UK");
 #endif
     return EXPECT_RESULT();
 }
