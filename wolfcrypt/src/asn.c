@@ -8272,10 +8272,12 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
                 if (ret == 1) {
                     ret = 0;
                 }
-                else {
+                else if (ret >= 0) {
                     WOLFSSL_MSG("DecodeRsaPssParams: trailerField must be 1");
-                    if (ret >= 0)
-                        ret = ASN_PARSE_E;
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at trailer_value");
                 }
 #else
                 if (ret > 0) {
