@@ -6455,6 +6455,37 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             }
 #endif
             ret = DoClientTicketCheck(ssl, current, ssl->timeout, suite);
+        #if defined(HAVE_SNI) || defined(HAVE_ALPN)
+            if (ret == 0) {
+                /* Decline this PSK if the SNI/ALPN bound to the ticket
+                 * does not match the current connection. RFC 6066 Sect.
+                 * 3 mandates this for SNI; wolfSSL applies the same
+                 * policy to ALPN as defense in depth. Skipping the PSK
+                 * (rather than aborting) lets the server try the next
+                 * candidate or fall back to a full handshake naturally
+                 * without unwinding committed PSK state. ALPN_Select
+                 * has already run earlier in DoTls13ClientHello so the
+                 * negotiated ALPN is available to TicketAlpnHash. */
+                byte curHash[TICKET_BINDING_HASH_SZ];
+            #ifdef HAVE_SNI
+                if (TicketSniHash(ssl, curHash) != 0 ||
+                        XMEMCMP(curHash, current->it->sniHash,
+                                TICKET_BINDING_HASH_SZ) != 0) {
+                    WOLFSSL_MSG("Ticket SNI mismatch, skipping PSK");
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            #endif
+            #ifdef HAVE_ALPN
+                if (ret == 0 &&
+                        (TicketAlpnHash(ssl, curHash) != 0 ||
+                         XMEMCMP(curHash, current->it->alpnHash,
+                                 TICKET_BINDING_HASH_SZ) != 0)) {
+                    WOLFSSL_MSG("Ticket ALPN mismatch, skipping PSK");
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            #endif
+            }
+        #endif
             if (ret == 0)
                 DoClientTicketFinalize(ssl, current->it, current->sess);
             if (current->sess_free_cb != NULL) {
@@ -6606,11 +6637,11 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return ret;
     }
 
-    /* Extensions pushed on stack/list and PSK must be last. */
-    if (ssl->extensions != ext) {
-        WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
-        return PSK_KEY_ERROR;
-    }
+    /* Wire-order check that PSK was the last extension in ClientHello is
+     * performed in DoTls13ClientHello immediately after TLSX_Parse, since
+     * post-parse code (e.g. ALPN_Select via TLSX_SetALPN) may legitimately
+     * prepend new entries to ssl->extensions before this point and would
+     * otherwise trip a head-of-list check here. */
 
     /* Assume we are going to resume with a pre-shared key. */
     ssl->options.resuming = 1;
@@ -7593,6 +7624,25 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         goto exit_dch;
     }
 
+#if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
+    defined(HAVE_TLS_EXTENSIONS)
+    /* RFC 8446 Section 4.2.11: the pre_shared_key extension MUST be the
+     * last extension in the ClientHello. wolfSSL stores extensions in
+     * reverse wire order (TLSX_Push prepends), so a well-formed
+     * ClientHello with PSK leaves PSK at the head of ssl->extensions
+     * here, before any post-parse code (e.g. ALPN_Select) modifies the
+     * list. */
+    {
+        TLSX* pskExt = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
+        if (pskExt != NULL && ssl->extensions != pskExt) {
+            WOLFSSL_MSG("pre_shared_key extension was not last in "
+                        "ClientHello");
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+            ERROR_OUT(PSK_KEY_ERROR, exit_dch);
+        }
+    }
+#endif
+
 #if defined(HAVE_ECH)
     if (!ssl->options.echProcessingInner && echX != NULL &&
             ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
@@ -7702,6 +7752,15 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#ifdef HAVE_ALPN
+    /* Select the ALPN protocol before PSK selection so that the
+     * selected value is available to the per-PSK SNI/ALPN binding check
+     * inside CheckPreSharedKeys/DoPreSharedKeys. ALPN_Select itself
+     * only inspects ssl->extensions and the app callback; it does not
+     * depend on any state set during PSK validation. */
+    if ((ret = ALPN_Select(ssl)) != 0)
+        goto exit_dch;
+#endif
 #if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
                                                     defined(HAVE_TLS_EXTENSIONS)
     ret = CheckPreSharedKeys(ssl, input + args->begin, helloSz, ssl->clSuites,
@@ -7743,16 +7802,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
     }
 
-#ifdef HAVE_ALPN
-    /* With PSK and all other things validated, it's time to
-     * select the ALPN protocol, if so requested */
-    if ((ret = ALPN_Select(ssl)) != 0)
-        goto exit_dch;
-#endif
-#if defined(HAVE_SESSION_TICKET) && (defined(HAVE_SNI) || defined(HAVE_ALPN))
-    if ((ret = VerifyTicketBinding(ssl)) != 0)
-        goto exit_dch;
-#endif
     } /* case TLS_ASYNC_BEGIN */
     FALL_THROUGH;
 

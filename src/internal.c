@@ -38173,6 +38173,32 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             ssl->options.resuming = 0;
             return ret;
         }
+#if defined(HAVE_SESSION_TICKET) && \
+    (defined(HAVE_SNI) || defined(HAVE_ALPN))
+        /* Do not resume session if sniHash/alpnHash do not match. */
+        if (!ssl->options.useTicket) {
+            byte curHash[TICKET_BINDING_HASH_SZ];
+#ifdef HAVE_SNI
+            if (TicketSniHash(ssl, curHash) != 0 ||
+                    XMEMCMP(curHash, session->sniHash,
+                            TICKET_BINDING_HASH_SZ) != 0) {
+                WOLFSSL_MSG("Resumed session SNI mismatch, full handshake");
+                ssl->options.resuming = 0;
+                return ret;
+            }
+#endif
+#ifdef HAVE_ALPN
+            if (ssl->options.resuming &&
+                    (TicketAlpnHash(ssl, curHash) != 0 ||
+                     XMEMCMP(curHash, session->alpnHash,
+                             TICKET_BINDING_HASH_SZ) != 0)) {
+                WOLFSSL_MSG("Resumed session ALPN mismatch, full handshake");
+                ssl->options.resuming = 0;
+                return ret;
+            }
+#endif
+        }
+#endif /* HAVE_SESSION_TICKET && (HAVE_SNI || HAVE_ALPN) */
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
         if (LowResTimer() > session->bornOn + ssl->timeout) {
@@ -38754,8 +38780,22 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     #endif
     #if defined(HAVE_SESSION_TICKET) && \
         (defined(HAVE_SNI) || defined(HAVE_ALPN))
-                if((ret=VerifyTicketBinding(ssl)))
-                    goto out;
+                /* Only verify here for TLS 1.2 ticket-based resumption.
+                 * For stateful (session-ID) resumption ssl->session is
+                 * not loaded until HandleTlsResumption runs below, which
+                 * performs its own binding check against the cached
+                 * session. On mismatch decline the resumption (RFC 6066
+                 * Section 3) but proceed with a full handshake; leave
+                 * useTicket set so the server still issues a fresh
+                 * ticket to the client. */
+                if (ssl->options.useTicket &&
+                        VerifyTicketBinding(ssl) != 0) {
+                    WOLFSSL_MSG("Ticket binding mismatch, "
+                                "declining resumption and falling back "
+                                "to full handshake");
+                    ssl->options.resuming = 0;
+                    ssl->options.peerAuthGood = 0;
+                }
     #endif
 
                 i += totalExtSz;
@@ -39537,7 +39577,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #ifdef HAVE_SNI
     /* Hash server-selected SNI; zeros dst when none. */
-    static int TicketSniHash(WOLFSSL* ssl, byte* dst)
+    int TicketSniHash(WOLFSSL* ssl, byte* dst)
     {
         char* name = NULL;
         word16 nameLen;
@@ -39557,16 +39597,23 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #ifdef HAVE_ALPN
     /* Hash negotiated ALPN; zeros dst when none. */
-    static int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
+    int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
     {
-        char* proto = NULL;
-        word16 protoLen = 0;
+        TLSX* extension;
+        ALPN* alpn;
 
-        if (TLSX_ALPN_GetRequest(ssl->extensions, (void**)&proto,
-                                 &protoLen) == WOLFSSL_SUCCESS &&
-                proto != NULL && protoLen > 0) {
-            return wc_Hash(TICKET_BINDING_HASH_TYPE, (const byte*)proto,
-                           protoLen, dst, TICKET_BINDING_HASH_SZ);
+        extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
+        if (extension != NULL) {
+            alpn = (ALPN*)extension->data;
+            if (alpn != NULL && alpn->negotiated == 1 &&
+                    alpn->protocol_name != NULL) {
+                word32 protoLen = (word32)XSTRLEN(alpn->protocol_name);
+                if (protoLen > 0) {
+                    return wc_Hash(TICKET_BINDING_HASH_TYPE,
+                                   (const byte*)alpn->protocol_name,
+                                   protoLen, dst, TICKET_BINDING_HASH_SZ);
+                }
+            }
         }
 
         XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
@@ -39575,15 +39622,30 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
 
 #if defined(HAVE_SNI) || defined(HAVE_ALPN)
-    /* Server-side: verify the SNI/ALPN bindings carried on a resumed
-     * session match what was negotiated for the current connection.
-     * Must be called after extension parsing and ALPN_Select.
-     * Returns 0 on match, WOLFSSL_FATAL_ERROR on mismatch. */
+    /* Server-side TLS 1.2 ticket-resumption binding check. Confirms the
+     * SNI/ALPN bound to the resumed session matches what was negotiated
+     * for the current connection. Must be called after extension
+     * parsing and ALPN_Select so the negotiated values are available,
+     * and only once DoClientTicketFinalize has populated
+     * ssl->session->sniHash/alpnHash from the decrypted ticket.
+     *
+     * Other resumption paths handle the same check themselves and do
+     * not use this function:
+     *   - TLS 1.2 session-ID (stateful): HandleTlsResumption compares
+     *     against the cached session at lookup time.
+     *   - TLS 1.3 PSK: DoPreSharedKeys compares against each candidate
+     *     ticket's bound hashes before committing, allowing the server
+     *     to skip mismatching PSKs and pick the next one.
+     *
+     * Returns 0 on match, WOLFSSL_FATAL_ERROR on mismatch. The caller
+     * is responsible for the policy on mismatch -- RFC 6066 Section 3
+     * mandates declining the resumption and proceeding with a full
+     * handshake rather than aborting. */
     int VerifyTicketBinding(WOLFSSL* ssl)
     {
         byte curHash[TICKET_BINDING_HASH_SZ];
 
-        if (!ssl->options.resuming || !ssl->options.useTicket)
+        if (!ssl->options.resuming)
             return 0;
 
 #ifdef HAVE_SNI
@@ -40092,8 +40154,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         ssl->sessionCtxSz) != 0))
             return WOLFSSL_FATAL_ERROR;
 #endif
-        /* SNI/ALPN binding is verified after ALPN_Select via
-         * VerifyTicketBinding(). */
+        /* SNI/ALPN binding is checked by the per-PSK loop in
+         * DoPreSharedKeys, not here, so that mismatching PSKs can be
+         * skipped in favor of the next candidate. */
         return 0;
     }
 #endif /* WOLFSSL_SLT13 */
@@ -40189,8 +40252,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             }
         }
 #endif
-        /* Carry the ticket bindings on the session for the deferred
-         * VerifyTicketBinding() check. */
+        /* Carry the ticket bindings on the session. TLS 1.2 uses these
+         * for the deferred VerifyTicketBinding() check in DoClientHello
+         * (SNI/ALPN aren't known when DoClientTicket runs during
+         * extension parsing). TLS 1.3 checks bindings per-PSK before
+         * reaching this point, but still copies them so a subsequent
+         * SetupSession on a resumed session preserves them in the cache
+         * for future resumptions. */
 #ifdef HAVE_SNI
         XMEMCPY(ssl->session->sniHash, it->sniHash, TICKET_BINDING_HASH_SZ);
 #endif
@@ -40556,8 +40624,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             goto cleanup;
         }
 
-        /* SNI/ALPN binding is verified after ALPN_Select via
-         * VerifyTicketBinding(). */
+        /* SNI/ALPN binding is verified later in DoClientHello via
+         * VerifyTicketBinding(), once extension parsing and ALPN_Select
+         * have run and the negotiated values are available. */
         DoClientTicketFinalize(ssl, it, NULL);
 
 cleanup:
