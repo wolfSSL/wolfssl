@@ -1317,6 +1317,14 @@ int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         XMEMCPY(id->id, input + OPAQUE8_LEN, cidSz);
         id->length = cidSz;
         info->tx = id;
+        /* Invalidate the cached AEAD record overhead because the TX CID
+         * changes record framing. Today this only fires during the initial
+         * extension exchange (before the cache can be populated). When
+         * mid-connection CID change is added (DTLS 1.3), add a regression
+         * test that primes the cache, changes the CID, and re-asserts that
+         * wolfssl_local_GetRecordSize() agrees with BuildMessage(sizeOnly=1)
+         * after the change. */
+        ssl->recordSzOverhead = 0;
     }
 
     info->negotiated = 1;
