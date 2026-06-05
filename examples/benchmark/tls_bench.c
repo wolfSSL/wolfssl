@@ -2125,9 +2125,12 @@ int bench_tls(void* args)
         }
     }
 #endif
+#ifdef WOLFSSL_DTLS
     if (doDTLS) {
         fprintf(stderr, "Running DTLS Benchmarks...\n");
-    } else {
+    } else
+#endif
+    {
         fprintf(stderr, "Running TLS Benchmarks...\n");
     }
 
