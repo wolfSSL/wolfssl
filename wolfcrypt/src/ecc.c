@@ -9629,11 +9629,15 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
 #ifdef HAVE_COMP_KEY
         /* Compressed point must be exactly 1 + field_element_size bytes.
+         * When shortKeySize is set, callers may pass the uncompressed
+         * length (2*size + 1) even for compressed data.
          * Reject truncated inputs (e.g. a bare 0x02/0x03 byte). */
         if (inLen == (word32)ecc_sets[curve_idx].size + 1) {
             compressed = 1;
-        }
-        else {
+        } else if (shortKeySize &&
+                   inLen == (word32)ecc_sets[curve_idx].size * 2 + 1) {
+            compressed = 1;
+        } else {
             err = ECC_BAD_ARG_E;
         }
 #else
@@ -10909,7 +10913,20 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
 
     if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
     #ifdef HAVE_COMP_KEY
-        compressed = 1;
+        /* Compressed point must be at least 2 bytes (format + x coordinate).
+         * When curve_id is known, verify exact expected length. */
+        if (inLen < 2) {
+            err = ECC_BAD_ARG_E;
+        } else if (curve_id > ECC_CURVE_DEF) {
+            int expSz = wc_ecc_get_curve_size_from_id(curve_id);
+            if (expSz <= 0 || inLen != (word32)expSz + 1) {
+                err = ECC_BAD_ARG_E;
+            } else {
+                compressed = 1;
+            }
+        } else {
+            compressed = 1;
+        }
     #else
         err = NOT_COMPILED_IN;
     #endif
