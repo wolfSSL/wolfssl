@@ -5092,11 +5092,22 @@ typedef struct Buffers {
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     buffer          tls13CookieSecret;     /* HRR cookie secret */
+    /* Secondary HRR cookie secret, used only when verifying a cookie if the
+     * primary secret fails.  Lets a stateless DTLS 1.3 server keep accepting
+     * cookies issued under the secret it had before an application-driven
+     * rotation.  DTLS only - never used to issue cookies. */
+    buffer          tls13CookieSecretSecondary;
 #endif
 #ifdef WOLFSSL_DTLS
     WOLFSSL_DTLS_CTX dtlsCtx;              /* DTLS connection context */
     #ifndef NO_WOLFSSL_SERVER
         buffer       dtlsCookieSecret;     /* DTLS cookie secret */
+        /* Secondary DTLS 1.2 cookie secret, used only when verifying a
+         * received HelloVerifyRequest cookie if the primary secret fails.
+         * Lets a stateless server keep accepting cookies issued under the
+         * secret it had before an application-driven rotation.  Never used to
+         * issue cookies. */
+        buffer       dtlsCookieSecretSecondary;
     #endif /* NO_WOLFSSL_SERVER */
 #endif
 #ifdef HAVE_PK_CALLBACKS

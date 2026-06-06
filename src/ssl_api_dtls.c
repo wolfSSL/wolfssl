@@ -1542,6 +1542,76 @@ int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
     return WOLFSSL_SUCCESS;
 }
 
+/* Set a secondary DTLS 1.2 cookie secret used only when verifying a received
+ * HelloVerifyRequest cookie, and only if the primary secret (set by
+ * wolfSSL_DTLS_SetCookieSecret()) fails to verify it.
+ *
+ * This supports an application-driven cookie-secret rotation on a stateless
+ * server: after rotating the primary secret, install the previous secret here
+ * so that cookies already issued under it are still accepted for an overlap
+ * window.  It is never used to issue cookies.
+ *
+ * This is the DTLS 1.2 counterpart of wolfSSL_set_hrr_cookie_secret_secondary()
+ * (which covers the DTLS 1.3 HelloRetryRequest cookie); the two cookie
+ * mechanisms keep separate secrets, so a server that handles both versions sets
+ * both secondary secrets.
+ *
+ * @param [in] ssl       SSL/TLS object.
+ * @param [in] secret    Secondary secret to verify cookies against.  A value
+ *                       of NULL (or a secretSz of 0) clears any previously set
+ *                       secondary secret.
+ * @param [in] secretSz  Size of secret data in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ * @return  MEMORY_ERROR on allocation failure.
+ */
+int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
+                                          const byte* secret, word32 secretSz)
+{
+    WOLFSSL_ENTER("wolfSSL_DTLS_SetCookieSecretSecondary");
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("need a SSL object");
+        return BAD_FUNC_ARG;
+    }
+
+    /* Clear any existing secondary secret. */
+    if (ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL) {
+        ForceZero(ssl->buffers.dtlsCookieSecretSecondary.buffer,
+                  ssl->buffers.dtlsCookieSecretSecondary.length);
+        XFREE(ssl->buffers.dtlsCookieSecretSecondary.buffer,
+              ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+        ssl->buffers.dtlsCookieSecretSecondary.buffer = NULL;
+        ssl->buffers.dtlsCookieSecretSecondary.length = 0;
+    }
+
+    /* A NULL/empty secret just clears the secondary secret. */
+    if (secret == NULL || secretSz == 0) {
+        WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", 0);
+        return 0;
+    }
+
+    {
+        byte* newSecret = (byte*)XMALLOC(secretSz, ssl->heap,
+                                         DYNAMIC_TYPE_COOKIE_PWD);
+        if (newSecret == NULL) {
+            WOLFSSL_MSG("couldn't allocate secondary cookie secret");
+            return MEMORY_ERROR;
+        }
+        XMEMCPY(newSecret, secret, secretSz);
+        ssl->buffers.dtlsCookieSecretSecondary.buffer = newSecret;
+        ssl->buffers.dtlsCookieSecretSecondary.length = secretSz;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wolfSSL_DTLS_SetCookieSecretSecondary secret",
+            ssl->buffers.dtlsCookieSecretSecondary.buffer,
+            ssl->buffers.dtlsCookieSecretSecondary.length);
+    #endif
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", 0);
+    return 0;
+}
+
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
 #endif /* !WOLFCRYPT_ONLY */
