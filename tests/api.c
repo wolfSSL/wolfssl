@@ -3937,7 +3937,9 @@ static int test_wolfSSL_clear_chain_certs(void)
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
     defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
     WOLFSSL_X509* x509 = NULL;
@@ -4016,7 +4018,9 @@ static int test_wolfSSL_clear_chain_certs(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
     defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
 /* Server-side ssl_ready hook: add chain certs then clear them, so the
  * handshake runs against a freshly-cleared chain state. */
 static int test_wolfSSL_clear_chain_certs_handshake_ssl_ready(WOLFSSL* ssl)
@@ -4042,7 +4046,10 @@ static int test_wolfSSL_clear_chain_certs_handshake(void)
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
     defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
     test_ssl_cbf client_cbs;
     test_ssl_cbf server_cbs;
 
@@ -16534,9 +16541,8 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 static int test_wolfSSL_SSL_CIPHER_find(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-     defined(HAVE_LIGHTY)) && \
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && \
+    !defined(OPENSSL_COEXIST) && \
     !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_RSA) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
@@ -16574,11 +16580,32 @@ static int test_wolfSSL_SSL_CIPHER_find(void)
         }
     }
 
+    /* A suite known to the library but not enabled on ssl is still found via
+     * the library-wide fallback (matching OpenSSL). Restrict ssl to a single
+     * cipher, then look up a different suite that was in the default list. */
+    if (sk != NULL && sk_SSL_CIPHER_num(sk) > 1) {
+        const WOLFSSL_CIPHER* keep = sk_SSL_CIPHER_value(sk, 0);
+        const WOLFSSL_CIPHER* other = sk_SSL_CIPHER_value(sk,
+                                          sk_SSL_CIPHER_num(sk) - 1);
+        unsigned char otherId[2];
+        otherId[0] = other->cipherSuite0;
+        otherId[1] = other->cipherSuite;
+
+        ExpectIntEQ(SSL_set_cipher_list(ssl, SSL_CIPHER_get_name(keep)),
+                    WOLFSSL_SUCCESS);
+        found = SSL_CIPHER_find(ssl, otherId);
+        ExpectNotNull(found);
+        if (found != NULL) {
+            ExpectIntEQ(found->cipherSuite0, otherId[0]);
+            ExpectIntEQ(found->cipherSuite,  otherId[1]);
+        }
+    }
+
     /* NULL arg handling. */
     ExpectNull(SSL_CIPHER_find(NULL, id));
     ExpectNull(SSL_CIPHER_find(ssl, NULL));
 
-    /* Suite not in ssl's cipher list. */
+    /* Suite unknown to the library returns NULL. */
     ExpectNull(SSL_CIPHER_find(ssl, bogus));
 
     SSL_free(ssl);

@@ -8760,8 +8760,16 @@ const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value)
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 /* Locate a cipher in the SSL's cipher list by 2-byte wire-format suite id.
  *
- * Returned pointer references storage owned by the SSL object's internal
- * cipher list; callers must not free it. It remains valid until SSL_free.
+ * Mirrors OpenSSL's SSL_CIPHER_find(): the SSL's configured cipher list is
+ * searched first, then all cipher suites known to the library are searched as
+ * a fallback. This lets callers decode a suite id seen on the wire even when
+ * it is not enabled on the SSL object.
+ *
+ * A match found in the SSL's cipher list returns storage owned by that list.
+ * A match found only in the library fallback is stored in the SSL object's
+ * scratch cipher (ssl->cipher), as wolfSSL_get_current_cipher does. In either
+ * case callers must not free the returned pointer; it remains valid until the
+ * next call that updates ssl->cipher, or until SSL_free.
  *
  * @param [in] ssl  SSL/TLS object whose cipher list is searched.
  * @param [in] ptr  Pointer to a 2-byte cipher suite identifier.
@@ -8773,6 +8781,9 @@ const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* sk;
     WOLFSSL_STACK* node;
+    const CipherSuiteInfo* cipher_names;
+    int cipherSz;
+    int i;
 
     WOLFSSL_ENTER("wolfSSL_SSL_CIPHER_find");
 
@@ -8780,13 +8791,28 @@ const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
         return NULL;
 
     sk = wolfSSL_get_ciphers_compat(ssl);
-    if (sk == NULL)
-        return NULL;
-
     for (node = sk; node != NULL; node = node->next) {
         if (node->data.cipher.cipherSuite0 == ptr[0] &&
             node->data.cipher.cipherSuite  == ptr[1]) {
             return &node->data.cipher;
+        }
+    }
+
+    /* Not enabled on this SSL - fall back to a library-wide lookup so suite
+     * ids seen on the wire can still be decoded, matching OpenSSL. */
+    cipher_names = GetCipherNames();
+    cipherSz = GetCipherNamesSize();
+    for (i = 0; i < cipherSz; i++) {
+        if (cipher_names[i].cipherSuite0 == ptr[0] &&
+            cipher_names[i].cipherSuite  == ptr[1]) {
+            XMEMSET(&ssl->cipher, 0, sizeof(ssl->cipher));
+            ssl->cipher.cipherSuite0 = ptr[0];
+            ssl->cipher.cipherSuite  = ptr[1];
+            ssl->cipher.ssl          = ssl;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            ssl->cipher.offset       = (unsigned long)i;
+#endif
+            return &ssl->cipher;
         }
     }
 
