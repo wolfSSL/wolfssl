@@ -28017,7 +28017,7 @@ static int test_wolfSSL_OpenSSL_version(void)
 
     /* Test unknown type falls back to version string */
     ExpectNotNull(ver = OpenSSL_version(99));
-    ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
+    ExpectStrEQ(ver, "not available");
 #else
     ExpectNotNull(ver = OpenSSL_version());
     ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
