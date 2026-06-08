@@ -2267,10 +2267,10 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     }
 
     req = akcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        ret = -ENOMEM;
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
-        req = NULL;
         goto test_rsa_end;
     }
 
@@ -2694,14 +2694,10 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
 
     req = akcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        test_rc = -ENOMEM;
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
-        if (PTR_ERR(req) == -ENOMEM)
-            test_rc = MEMORY_E;
-        else
-            test_rc = BAD_FUNC_ARG;
-        req = NULL;
         goto test_pkcs1_end;
     }
 

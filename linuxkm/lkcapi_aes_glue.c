@@ -3118,10 +3118,10 @@ static int linuxkm_test_aescbc(void)
     }
 
     req = skcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        ret = -ENOMEM;
         pr_err("error: allocating AES skcipher request %s failed\n",
                WOLFKM_AESCBC_DRIVER);
-        req = NULL;
         goto test_cbc_end;
     }
 
@@ -3320,10 +3320,10 @@ static int linuxkm_test_aescfb(void)
     }
 
     req = skcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        ret = -ENOMEM;
         pr_err("error: allocating AES skcipher request %s failed\n",
                WOLFKM_AESCFB_DRIVER);
-        req = NULL;
         goto test_cfb_end;
     }
 
@@ -3586,10 +3586,10 @@ static int linuxkm_test_aesgcm(void)
     }
 
     req = aead_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        ret = -ENOMEM;
         pr_err("error: allocating AES aead request %s failed: %ld\n",
                WOLFKM_AESCBC_DRIVER, PTR_ERR(req));
-        req = NULL;
         goto test_gcm_end;
     }
 
@@ -4209,11 +4209,10 @@ static int aes_xts_128_test(void)
     }
 
     req = skcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
-        ret = PTR_ERR(req);
+    if (! req) {
+        ret = -ENOMEM;
         pr_err("error: allocating AES skcipher request %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
-        req = NULL;
         goto test_xts_end;
     }
 
@@ -4690,11 +4689,10 @@ static int aes_xts_256_test(void)
     }
 
     req = skcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
-        ret = PTR_ERR(req);
+    if (! req) {
+        ret = -ENOMEM;
         pr_err("error: allocating AES skcipher request %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
-        req = NULL;
         goto test_xts_end;
     }
 
