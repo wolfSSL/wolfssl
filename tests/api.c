@@ -35294,6 +35294,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_cert_unknown_crl_fallback_nonleaf),
     TEST_DECL(test_tls13_nonblock_ocsp_low_mfl),
     TEST_DECL(test_ocsp_responder),
+    TEST_DECL(test_wolfIO_DecodeUrl_crlf_reject),
     TEST_TLS_DECLS,
     TEST_SESSION_DECLS,
     TEST_DECL(test_wc_DhSetNamedKey),

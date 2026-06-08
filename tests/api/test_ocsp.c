@@ -1809,3 +1809,101 @@ int test_ocsp_responder(void)
     return TEST_SKIPPED;
 }
 #endif /* HAVE_OCSP_RESPONDER && !NO_SHA && !NO_RSA */
+
+#if defined(HAVE_HTTP_CLIENT)
+/* A peer-supplied AIA/CRL URL must not be able to smuggle CR/LF into the
+ * outbound OCSP/CRL HTTP request (header injection / request splitting). */
+int test_wolfIO_DecodeUrl_crlf_reject(void)
+{
+    EXPECT_DECLS;
+    char   domainName[80];
+    char   path[80];
+    word16 port;
+    byte   reqBuf[512];
+    char*  tightPath = NULL;
+    int    tightLen  = 16;
+    const char* crlfInPath = "http://ocsp.example.com/ocsp\r\nX-Injected: 1";
+    const char* crlfInHost = "http://evil\r\nHost: x/ocsp";
+    const char* crlfInV6Host = "http://[::1\r\n]/ocsp";
+    const char* cleanUrl   = "http://ocsp.example.com/ocsp";
+    const char* taintedPath = "/ocsp\r\nX-Injected: 1";
+    const char* crlfAfterCap =
+        "http://ocsp.example.com/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\r\nX: 1";
+
+    /* parser rejects CR/LF in the path */
+    ExpectIntLT(wolfIO_DecodeUrl(crlfInPath, (int)XSTRLEN(crlfInPath),
+        domainName, path, &port), 0);
+
+    /* parser rejects CR/LF in the host */
+    ExpectIntLT(wolfIO_DecodeUrl(crlfInHost, (int)XSTRLEN(crlfInHost),
+        domainName, path, &port), 0);
+
+    /* parser rejects CR/LF in an IPv6 bracket-literal host */
+    ExpectIntLT(wolfIO_DecodeUrl(crlfInV6Host, (int)XSTRLEN(crlfInV6Host),
+        domainName, path, &port), 0);
+
+    /* sink rejects a tainted path even when the parser is bypassed, which is
+     * the CRL raw-URL case */
+    ExpectIntEQ(wolfIO_HttpBuildRequest("POST", "ocsp.example.com",
+        taintedPath, (int)XSTRLEN(taintedPath), 0, "application/ocsp-request",
+        reqBuf, (int)sizeof(reqBuf)), 0);
+
+    /* sink rejects CR/LF even when it appears beyond the decoder cap */
+    ExpectIntEQ(wolfIO_HttpBuildRequest("GET", "ocsp.example.com",
+        crlfAfterCap, (int)XSTRLEN(crlfAfterCap), 0, "", reqBuf,
+        (int)sizeof(reqBuf)), 0);
+
+    /* sink rejects CR/LF in the host (domainName) with a clean path */
+    ExpectIntEQ(wolfIO_HttpBuildRequest("POST", "evil.example.com\r\nX: 1",
+        "/ocsp", (int)XSTRLEN("/ocsp"), 0, "application/ocsp-request", reqBuf,
+        (int)sizeof(reqBuf)), 0);
+
+    /* the CRL raw-URL path is not NUL terminated, so the request builder must
+     * copy only pathLen bytes. Allocate exactly pathLen bytes with no
+     * terminator so an over-read past the buffer is caught under ASAN. */
+    tightPath = (char*)XMALLOC((size_t)tightLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(tightPath);
+    if (tightPath != NULL) {
+        XMEMSET(tightPath, 'a', (size_t)tightLen);
+        tightPath[0] = '/';
+        ExpectIntGT(wolfIO_HttpBuildRequest("GET", "ocsp.example.com",
+            tightPath, tightLen, 0, "", reqBuf, (int)sizeof(reqBuf)), 0);
+    }
+
+    /* sink rejects a negative pathLen before any length math or copy: with the
+     * old XMEMCPY this wrapped (word32)pathLen and overran the output buffer */
+    ExpectIntEQ(wolfIO_HttpBuildRequest("GET", "ocsp.example.com", "/ocsp",
+        -1, 0, "", reqBuf, (int)sizeof(reqBuf)), 0);
+
+    /* sink rejects a non-positive bufSize before any copy */
+    ExpectIntEQ(wolfIO_HttpBuildRequest("GET", "ocsp.example.com", "/ocsp",
+        (int)XSTRLEN("/ocsp"), 0, "", reqBuf, 0), 0);
+
+    /* sink rejects NULL pointer parameters at the boundary, before any
+     * XSTRLEN deref */
+    ExpectIntEQ(wolfIO_HttpBuildRequest(NULL, "ocsp.example.com", "/ocsp",
+        (int)XSTRLEN("/ocsp"), 0, "", reqBuf, (int)sizeof(reqBuf)), 0);
+    ExpectIntEQ(wolfIO_HttpBuildRequest("GET", NULL, "/ocsp",
+        (int)XSTRLEN("/ocsp"), 0, "", reqBuf, (int)sizeof(reqBuf)), 0);
+    ExpectIntEQ(wolfIO_HttpBuildRequest("GET", "ocsp.example.com", NULL,
+        0, 0, "", reqBuf, (int)sizeof(reqBuf)), 0);
+    ExpectIntEQ(wolfIO_HttpBuildRequest("GET", "ocsp.example.com", "/ocsp",
+        (int)XSTRLEN("/ocsp"), 0, NULL, reqBuf, (int)sizeof(reqBuf)), 0);
+
+    /* positive control: a clean URL decodes and still builds a request */
+    ExpectIntEQ(wolfIO_DecodeUrl(cleanUrl, (int)XSTRLEN(cleanUrl), domainName,
+        path, &port), 0);
+    ExpectIntGT(wolfIO_HttpBuildRequest("POST", domainName, path,
+        (int)XSTRLEN(path), 0, "application/ocsp-request", reqBuf,
+        (int)sizeof(reqBuf)), 0);
+
+    XFREE(tightPath, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_wolfIO_DecodeUrl_crlf_reject(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_HTTP_CLIENT */
