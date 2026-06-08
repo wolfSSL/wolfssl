@@ -273,6 +273,10 @@ int  wc_Des3_SetIV(Des3* des, const byte* iv);
     with cipher block chaining (CBC) mode.
 
     \return 0 Returned upon successfully encrypting the given input message
+    \return BAD_FUNC_ARG If des, out, or in is NULL.
+    \return BAD_LENGTH_E If sz is not a multiple of DES_BLOCK_SIZE.
+    \return MISSING_KEY If no key has been set on the Des3 structure with
+    wc_Des3_SetKey.
 
     \param des pointer to the Des3 structure to use for encryption
     \param out pointer to the buffer in which to store the encrypted ciphertext
@@ -306,6 +310,10 @@ int  wc_Des3_CbcEncrypt(Des3* des, byte* out,
     encryption with cipher block chaining (CBC) mode.
 
     \return 0 Returned upon successfully decrypting the given ciphertext
+    \return BAD_FUNC_ARG If des, out, or in is NULL.
+    \return BAD_LENGTH_E If sz is not a multiple of DES_BLOCK_SIZE.
+    \return MISSING_KEY If no key has been set on the Des3 structure with
+    wc_Des3_SetKey.
 
     \param des pointer to the Des3 structure to use for decryption
     \param out pointer to the buffer in which to store the decrypted plaintext
