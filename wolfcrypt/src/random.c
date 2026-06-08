@@ -2175,6 +2175,10 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
 {
     int ret;
 
+    if (rng == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     *rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), heap, DYNAMIC_TYPE_RNG);
     if (*rng == NULL) {
         return MEMORY_E;

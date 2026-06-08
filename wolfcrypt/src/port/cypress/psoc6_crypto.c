@@ -644,6 +644,9 @@ int wc_Sha512_224Final(wc_Sha512* sha, byte* hash)
         wolfSSL_CryptHwMutexUnLock();
     }
 
+    if (ret != 0)
+        return ret;
+
     /* Reset state */
     return wc_InitSha512_224(sha);
 }

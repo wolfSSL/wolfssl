@@ -1575,7 +1575,7 @@ int wc_XmssKey_GetPubLen(const XmssKey* key, word32* len)
     int ret = 0;
 
     /* Validate parameters. */
-    if ((key == NULL) || (len == NULL)) {
+    if ((key == NULL) || (key->params == NULL) || (len == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     else {

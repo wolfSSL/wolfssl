@@ -55,6 +55,7 @@ This code assumes at least one is enabled
 int wc_tsip_MakeRsaKey(int size, void* ctx)
 {
     e_tsip_err_t     ret;
+    int              wcRet = WC_HW_E;
     TsipUserCtx     *info = (TsipUserCtx*)ctx;
 #if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
     tsip_rsa1024_key_pair_index_t *tsip_pair1024_key = NULL;
@@ -148,6 +149,7 @@ int wc_tsip_MakeRsaKey(int size, void* ctx)
                 info->keyflgs_crypt.bits.rsapri1024_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub1024_key_set = 1;
                 info->wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
+                wcRet = 0;
 #endif
             }
             else if (size == 2048) {
@@ -191,13 +193,31 @@ int wc_tsip_MakeRsaKey(int size, void* ctx)
                 info->keyflgs_crypt.bits.rsapri2048_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub2048_key_set = 1;
                 info->wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
+                wcRet = 0;
 #endif
             }
         }
+        else {
+            /* hardware key generation failed; free the key pair buffer that
+             * was allocated above so it does not leak, and report the error */
+            WOLFSSL_MSG_EX("TSIP RSA key generation failed: %d", ret);
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
+            XFREE(tsip_pair1024_key, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+            XFREE(tsip_pair2048_key, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+#endif
+            wcRet = WC_HW_E;
+        }
         tsip_hw_unlock();
     }
+    else {
+        /* could not obtain the TSIP hardware lock */
+        WOLFSSL_MSG_EX("TSIP hardware lock failed: %d", ret);
+        wcRet = WC_HW_E;
+    }
 
-    return 0;
+    return wcRet;
 }
 
 /* Generate TSIP key index if needed
@@ -260,7 +280,9 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
         return BAD_FUNC_ARG;
     }
 
-    if (tsip_RsakeyImport(tuc) == 0) {
+    ret = tsip_RsakeyImport(tuc);
+
+    if (ret == 0) {
         type = info->pk.rsa.type;
         keySize = (int)tuc->wrappedKeyType;
 
@@ -364,7 +386,10 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
            ret = CRYPTOCB_UNAVAILABLE;
     }
 
-    if (tsip_RsakeyImport(tuc) == 0) {
+    if (ret == 0)
+        ret = tsip_RsakeyImport(tuc);
+
+    if (ret == 0) {
         hashData.pdata = (uint8_t*)info->pk.rsa.out;
         hashData.data_length = *(info->pk.rsa.outLen);
         hashData.data_type =

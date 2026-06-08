@@ -17556,7 +17556,7 @@ int wc_AesEaxEncryptFinal(AesEax* eax, byte* authTag, word32 authTagSz)
     word32 i;
 
     if (eax == NULL || authTag == NULL || authTagSz == 0 ||
-            authTagSz > WC_AES_BLOCK_SIZE) {
+            authTagSz > WC_AES_BLOCK_SIZE || authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
         return BAD_FUNC_ARG;
     }
 
