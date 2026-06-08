@@ -401,6 +401,110 @@ int test_tls_certreq_order(void)
     return EXPECT_RESULT();
 }
 
+/* A TLS 1.2 CertificateRequest carrying a supported_signature_algorithms
+ * vector whose length is not a multiple of the 2-byte element size must be
+ * rejected. We run a real handshake, locate the server's CertificateRequest
+ * in the memio queue and make the sig-algs length odd before the client parses
+ * it. The vector is shrunk by one byte and the
+ * record, handshake and sig-algs length fields are all decremented so the
+ * message stays self-consistent (only the sig-algs length parity is wrong).
+ * Without the fix the client would silently ignore the odd trailing byte and
+ * accept the message; with the fix it is rejected with BUFFER_ERROR. */
+int test_tls12_certreq_odd_sigalgs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* msg = NULL;
+    int msgSz = 0;
+    int i = 0;
+    int certReqIdx = -1;
+    int certTypesCnt = 0;
+    int sigAlgsLenOff = 0;
+    int sigAlgsLen = 0;
+    int recAbs = 0;
+    int removeAbs = 0;
+    word32 val = 0;
+    byte* b = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    /* Make the server send a CertificateRequest. */
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    /* Send each handshake message in its own record so the CertificateRequest
+     * can be located and tampered with individually. */
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), 1);
+
+    /* Client sends ClientHello. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server sends ServerHello..CertificateRequest..ServerHelloDone. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Locate the CertificateRequest record in the server->client queue. */
+    for (i = 0; test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i) == 0;
+            i++) {
+        if (msgSz > 12 && (byte)msg[5] == certificate_request) {
+            certReqIdx = i;
+            break;
+        }
+    }
+    ExpectIntGE(certReqIdx, 0);
+
+    if (EXPECT_SUCCESS()) {
+        /* Layout: record hdr[5] | hs hdr[4] | certTypesCount[1] | certTypes |
+         * sigAlgsLen[2] | certTypes... The sig-algs length is even; shrink the
+         * vector by one byte to make it odd while keeping all length fields
+         * consistent. */
+        certTypesCnt = (byte)msg[9];
+        sigAlgsLenOff = 10 + certTypesCnt;
+        ExpectIntLT(sigAlgsLenOff + 2, msgSz);
+        if (EXPECT_SUCCESS()) {
+            sigAlgsLen = ((byte)msg[sigAlgsLenOff] << 8) |
+                          (byte)msg[sigAlgsLenOff + 1];
+            /* Need at least two pairs so a valid pair remains after shrinking. */
+            ExpectIntGE(sigAlgsLen, 2 * HELLO_EXT_SIGALGO_SZ);
+        }
+        if (EXPECT_SUCCESS()) {
+            b = (byte*)msg;
+            /* Decrement record length (bytes 3..4). */
+            val = ((word32)b[3] << 8) | b[4];
+            val--;
+            b[3] = (byte)(val >> 8); b[4] = (byte)val;
+            /* Decrement handshake length (bytes 6..8). */
+            val = ((word32)b[6] << 16) | ((word32)b[7] << 8) | b[8];
+            val--;
+            b[6] = (byte)(val >> 16); b[7] = (byte)(val >> 8); b[8] = (byte)val;
+            /* Decrement sig-algs length, making it odd. */
+            val = (word32)sigAlgsLen - 1;
+            b[sigAlgsLenOff] = (byte)(val >> 8);
+            b[sigAlgsLenOff + 1] = (byte)val;
+            /* Drop the last byte of the sig-algs vector from the buffer. */
+            recAbs = (int)((const byte*)msg - test_ctx.c_buff);
+            removeAbs = recAbs + 12 + certTypesCnt + sigAlgsLen - 1;
+            ExpectIntEQ(test_memio_remove_from_buffer(&test_ctx, 1, removeAbs,
+                1), 0);
+        }
+    }
+
+    /* Client must reject the malformed CertificateRequest. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && defined(HAVE_ECC) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_CLIENT_AUTH) && \
     !defined(NO_FILESYSTEM)
