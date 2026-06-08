@@ -415,6 +415,7 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     #ifdef ECC_TIMING_RESISTANT
     ret = wc_ecc_set_rng(ctx->key, &ctx->rng);
     if (ret < 0) {
+        wc_ecc_free(ctx->key);
         free(ctx->key);
         ctx->key = NULL;
         return -ENOMEM;

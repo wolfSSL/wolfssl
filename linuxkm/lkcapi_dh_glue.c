@@ -779,6 +779,7 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
             pr_err("%s: wc_DhSetNamedKey returned: %d\n", WOLFKM_DH_DRIVER,
                    err);
             #endif /* WOLFKM_DEBUG_DH */
+            wc_FreeDhKey(ctx->key);
             free(ctx->key);
             ctx->key = NULL;
             return -ENOMEM;
