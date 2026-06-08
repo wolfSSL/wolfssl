@@ -23380,6 +23380,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         if (cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
                                                          cert->pubKeySize > 0) {
             if (cert->signatureOID == CTC_SM3wSM2) {
+                if (cert->pubKeySize < 65) {
+                    WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+                    return BUFFER_E;
+                }
                 /* TODO: GmSSL creates IDs this way but whole public key info
                  * block should be hashed. */
                 ret = CalcHashId_ex(cert->publicKey + cert->pubKeySize - 65, 65,
