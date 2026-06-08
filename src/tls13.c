@@ -4847,7 +4847,11 @@ int SendTls13ClientHello(WOLFSSL* ssl)
             /* calculate padding (RFC 9849, section 6.1.3) */
             nameLen = TLSX_SNI_GetRequest(ssl->extensions,
                 WOLFSSL_SNI_HOST_NAME, &hostName, 1);
-            if (hostName != NULL) {
+            if (nameLen == 0 && ssl->ctx != NULL)
+                nameLen = TLSX_SNI_GetRequest(ssl->ctx->extensions,
+                    WOLFSSL_SNI_HOST_NAME, &hostName, 1);
+
+            if (nameLen != 0) {
                 if (nameLen > args->ech->echConfig->maxNameLen)
                     args->ech->paddingLen = 0;
                 else
@@ -4855,6 +4859,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                         (word16)args->ech->echConfig->maxNameLen - nameLen;
             }
             else {
+                /* maxNameLen + length of the SNI extension */
                 args->ech->paddingLen = args->ech->echConfig->maxNameLen + 9;
             }
 
@@ -5312,8 +5317,9 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     /* Skip only when the HRR signals ECH acceptance
      * -> CH2 still needs ech->extensions for inner/outer extension swap
      *    during write */
-    if (msgType != hello_retry_request || !ssl->options.echAccepted)
-        TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
+    if (ret == 0 &&
+            (msgType != hello_retry_request || !ssl->options.echAccepted))
+        ret = TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
 
     return ret;
 }
@@ -5899,7 +5905,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             Free_HS_Hashes(ssl->hsHashesEch, ssl->heap);
             ssl->hsHashesEch = NULL;
             /* EchCheckAcceptance is bypassed, so replace extensions now */
-            TLSX_EchReplaceExtensions(ssl, 0);
+            ret = TLSX_EchReplaceExtensions(ssl, 0);
+            if (ret != 0)
+                return ret;
         }
         else {
             /* account for hrr extension instead of server random */
@@ -7753,37 +7761,13 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #if defined(HAVE_ECH)
+    /* ECH accept/reject reconciliation is done at the end of TLSX_Parse. On
+     * acceptance the inner hello was decrypted, so jump to exit and let the
+     * caller re-invoke with the inner hello. */
     if (!ssl->options.echProcessingInner && echX != NULL &&
-            ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
-        if (((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE &&
-                ((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
-            /* ECH accepted: use private extensions */
-            TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
-            /* Client sent real ECH and inner hello was decrypted, jump to
-             * exit so the caller can re-invoke with the inner hello */
-            goto exit_dch;
-        }
-        else {
-            /* If ECH was accepted in CH1 then CH2 MUST contain
-             * an ECH extension */
-            if (ssl->options.serverState ==
-                    SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
-                    ssl->options.echAccepted) {
-                WOLFSSL_MSG("Client did not send an EncryptedClientHello "
-                            "extension");
-                ERROR_OUT(INCOMPLETE_DATA, exit_dch);
-            }
-
-            /* Otherwise ECH rejected: use public extensions */
-            if (((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
-                TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
-                echX->resp = 0;
-            }
-            else if (((WOLFSSL_ECH*)echX->data)->state ==
-                    ECH_WRITE_RETRY_CONFIGS) {
-                TLSX_EchReplaceExtensions(ssl, ssl->options.echAccepted);
-            }
-        }
+            ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE &&
+            ((WOLFSSL_ECH*)echX->data)->innerClientHello != NULL) {
+        goto exit_dch;
     }
 #endif
 

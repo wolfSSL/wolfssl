@@ -167,6 +167,12 @@ jobs:
           echo -e "\nTesting weird suite with OpenSSL client and wolfSSL server\n" &>> "$LOG_FILE"
           bash ./openssl-ech.sh client --suite "18,1,2" &>> "$LOG_FILE"
 
+          echo -e "\nTesting rejection with OpenSSL server and wolfSSL client\n" &>> "$LOG_FILE"
+          bash ./openssl-ech.sh server --reject &>> "$LOG_FILE"
+
+          echo -e "\nTesting rejection with OpenSSL client and wolfSSL server\n" &>> "$LOG_FILE"
+          bash ./openssl-ech.sh client --reject &>> "$LOG_FILE"
+
           # cleanup
           rm -f "$LOG_FILE"
 

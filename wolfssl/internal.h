@@ -3188,8 +3188,19 @@ WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
 WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL* ssl, WOLFSSL_ECH* ech, byte* aad,
     word32 aadLen);
 
-WOLFSSL_LOCAL void TLSX_EchReplaceExtensions(WOLFSSL* ssl, byte accepted);
+WOLFSSL_LOCAL int TLSX_EchReplaceExtensions(WOLFSSL* ssl, byte accepted);
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_EchSwapExtensions wolfSSL_TLSX_EchSwapExtensions
+#endif
+WOLFSSL_TEST_VIS int TLSX_EchSwapExtensions(TLSX** sslExts, TLSX** echExts,
+    word16* appended);
+
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_ServerECH_Use wolfSSL_TLSX_ServerECH_Use
+#endif
+WOLFSSL_TEST_VIS int TLSX_ServerECH_Use(TLSX** extensions, void* heap,
+    WOLFSSL_EchConfig* configs);
 
 WOLFSSL_LOCAL int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen);
@@ -3290,7 +3301,10 @@ typedef struct SNI {
 WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
                                                        word16 size, void* heap);
 WOLFSSL_LOCAL byte TLSX_SNI_Status(TLSX* extensions, byte type);
-WOLFSSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_SNI_GetRequest wolfSSL_TLSX_SNI_GetRequest
+#endif
+WOLFSSL_TEST_VIS word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
                                                 void** data, byte ignoreStatus);
 #ifdef WOLFSSL_API_PREFIX_MAP
     #define TLSX_SNI_GetSize wolfSSL_TLSX_SNI_GetSize
