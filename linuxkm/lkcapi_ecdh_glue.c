@@ -493,6 +493,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
         pr_err("error: dst_len too small: %d\n", req->dst_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         err = -EOVERFLOW;
+        req->dst_len = raw_pub_len;
         goto ecdh_gen_pub_end;
     }
 
@@ -650,6 +651,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
 
     if (req->dst_len < shared_secret_len) {
         err = -EOVERFLOW;
+        req->dst_len = shared_secret_len;
         goto ecdh_shared_secret_end;
     }
 

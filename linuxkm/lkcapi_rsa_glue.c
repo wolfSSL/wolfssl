@@ -832,6 +832,7 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
 
     if (out_len > req->dst_len) {
         err = -EOVERFLOW;
+        req->dst_len = out_len;
         goto rsa_dec_out;
     }
 
@@ -1121,6 +1122,7 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
 
     if (req->dst_len < ctx->key_len) {
         err = -EOVERFLOW;
+        req->dst_len = ctx->key_len;
         goto pkcs1pad_sign_out;
     }
 
@@ -1688,6 +1690,7 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
 
     if (req->dst_len < ctx->key_len) {
         err = -EOVERFLOW;
+        req->dst_len = ctx->key_len;
         goto pkcs1_enc_out;
     }
 
@@ -1806,6 +1809,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
 
     if (dec_len > req->dst_len) {
         err = -EOVERFLOW;
+        req->dst_len = dec_len;
         goto pkcs1_dec_out;
     }
 
