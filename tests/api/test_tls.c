@@ -885,6 +885,109 @@ int test_tls12_no_null_compression(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8422 Section 5.1.2: a client that sends an ec_point_formats extension
+ * omitting the uncompressed (0) format while negotiating an ECC suite must be
+ * rejected by the server with a fatal illegal_parameter alert. This drives a
+ * real handshake all the way through DoClientHello so the abort path (not just
+ * the parse-time detection) is exercised.
+ *
+ * Rather than hand-craft a ClientHello (which would pin the cipher suite, named
+ * group and exact byte offsets, making the test fragile as extension handling
+ * evolves), the client builds its own ClientHello and we only suppress the
+ * uncompressed point format: TLSX_PopulateExtensions() adds the default
+ * uncompressed format only when no ec_point_formats extension already exists,
+ * so pre-seeding the client with a compressed-only list makes it advertise
+ * exactly that. The curve is negotiated normally, so the test is independent of
+ * which named groups are enabled. */
+int test_tls12_ec_point_formats_no_uncompressed(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) \
+    && defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
+    /* Pin an ECDHE (ECC) suite so the server negotiates an ECC key exchange;
+     * gating on the BUILD_ macro skips the test in builds where the suite is
+     * unavailable (e.g. --disable-aescbc) instead of failing with
+     * MATCH_SUITE_ERROR. */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "ECDHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "ECDHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    /* Make the client advertise only the compressed point format (1 ==
+     * ansiX962_compressed_prime), i.e. omit the uncompressed (0) format. */
+    ExpectIntEQ(TLSX_UsePointFormat(&ssl_c->extensions, 1, ssl_c->heap),
+            WOLFSSL_SUCCESS);
+    /* The server must reject the handshake with a fatal illegal_parameter
+     * alert (surfaced as INVALID_PARAMETER), not complete it. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8422 Section 5.1.2 ties the missing-uncompressed-format abort to the
+ * server actually negotiating an ECC cipher suite. A client that omits the
+ * uncompressed point format but negotiates a NON-ECC suite (here DHE_RSA) must
+ * NOT be rejected - the handshake completes. This is the complement of
+ * test_tls12_ec_point_formats_no_uncompressed and guards against regressing
+ * back to an advertised-groups (parse-time) abort.
+ *
+ * As in that test the client builds a real ClientHello and we only suppress the
+ * uncompressed point format (see the comment there); the suite is pinned to a
+ * DHE (non-ECC) suite. */
+int test_tls12_ec_point_formats_no_uncompressed_non_ecc(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && defined(HAVE_SUPPORTED_CURVES) && !defined(NO_DH) && defined(HAVE_FFDHE) \
+    && !defined(NO_RSA) && defined(BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA)
+    /* The negotiated suite must be non-ECC for the missing format to be
+     * irrelevant. RFC 9325 / WOLFSSL_HARDEN_TLS disables all TLS_DHE_* suites
+     * (NO_TLS_DH); gating on the BUILD_ macro skips the test there rather than
+     * failing with MATCH_SUITE_ERROR. */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    /* Make the client advertise only the compressed point format (1 ==
+     * ansiX962_compressed_prime), i.e. omit the uncompressed (0) format. */
+    ExpectIntEQ(TLSX_UsePointFormat(&ssl_c->extensions, 1, ssl_c->heap),
+            WOLFSSL_SUCCESS);
+    /* The handshake must complete: the missing uncompressed format is
+     * irrelevant for a non-ECC (DHE) suite. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the server really did observe a point-format list without the
+     * uncompressed format, yet proceeded. */
+    ExpectIntEQ(ssl_s->options.peerNoUncompPF, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that set_curves_list correctly resolves ECC curve names that fall
  * through the kNistCurves table and reach the wc_ecc_get_curve_idx_from_name
  * fallback path.  The kNistCurves lookup uses a case-sensitive XSTRNCMP, so

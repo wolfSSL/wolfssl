@@ -1108,7 +1108,7 @@ int test_TLSX_SupportedCurve_empty_or_unsupported(void)
                                      0xee, 0xee };
 
     /* An empty named group list is malformed and must be rejected. */
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL)
         suites = (Suites*)WOLFSSL_SUITES(ssl);
@@ -1160,6 +1160,83 @@ int test_TLSX_SupportedCurve_empty_or_unsupported(void)
         wolfSSL_CTX_free(ctx13);
     }
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8422 Section 5.1.2: a client that sends the ec_point_formats extension
+ * MUST include the uncompressed (0) point format. When the uncompressed format
+ * is omitted the server records this (ssl->options.peerNoUncompPF) during
+ * parsing so the handshake can be aborted with an illegal_parameter alert if
+ * the client also advertised ECC named groups.
+ *
+ *  - A list that contains the uncompressed format must clear the flag.
+ *  - A list that omits the uncompressed format must set the flag.
+ */
+int test_TLSX_PointFormat_uncompressed_required(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS) && defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_NO_TLS12)
+    /* This exercises the server's parsing of a received ClientHello: the
+     * relevant code path (TLSX_PointFormat_Parse) is selected by the message
+     * type passed to TLSX_Parse (client_hello => isRequest), not by the side
+     * of the WOLFSSL object. A client-side WOLFSSL is used purely as the parse
+     * vehicle because creating a server-side WOLFSSL would require a
+     * certificate to be loaded first (NO_PRIVATE_KEY otherwise). The server
+     * build is required because TLSX_PointFormat_Parse (the PF_PARSE dispatch
+     * macro) is compiled to a no-op when NO_WOLFSSL_SERVER is defined. */
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    /* ec_point_formats (0x000b), ext len 0x0002, list len 0x01,
+     * format 0x00 (uncompressed) */
+    const byte withUncomp[]  = { 0x00, 0x0b, 0x00, 0x02, 0x01, 0x00 };
+    /* ec_point_formats (0x000b), ext len 0x0002, list len 0x01,
+     * format 0x01 (ansiX962_compressed_prime, uncompressed omitted) */
+    const byte noUncomp[]    = { 0x00, 0x0b, 0x00, 0x02, 0x01, 0x01 };
+    /* As above but with two compressed formats and no uncompressed. */
+    const byte noUncomp2[]   = { 0x00, 0x0b, 0x00, 0x03, 0x02, 0x01, 0x02 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+
+    /* A list containing the uncompressed format leaves the flag clear and
+     * still adds the uncompressed format to the response. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, withUncomp, (word16)sizeof(withUncomp),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.peerNoUncompPF, 0);
+    ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* A single-entry list that omits the uncompressed format sets the flag. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, noUncomp, (word16)sizeof(noUncomp),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.peerNoUncompPF, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* A multi-entry list that omits the uncompressed format sets the flag. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, noUncomp2, (word16)sizeof(noUncomp2),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.peerNoUncompPF, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

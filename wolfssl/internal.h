@@ -3466,7 +3466,12 @@ WOLFSSL_LOCAL int TLSX_SupportedCurve_Copy(TLSX* src, TLSX** dst, void* heap);
 WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
                                                           void* heap, int side);
 
-WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_UsePointFormat wolfSSL_TLSX_UsePointFormat
+#endif
+/* WOLFSSL_TEST_VIS so the API tests can seed a client's ec_point_formats
+ * extension (the point-format negotiation has no public API). */
+WOLFSSL_TEST_VIS int TLSX_UsePointFormat(TLSX** extensions, byte point,
                                                                     void* heap);
 WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup, int side);
 
@@ -5197,6 +5202,8 @@ struct Options {
 #endif /* WOLFSSL_DTLS */
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
     word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
+    word16            peerNoUncompPF:1;   /* peer sent ec_point_formats without
+                                           * the uncompressed (0) format */
 #endif
     word16            keepResources:1;    /* Keep resources after handshake */
     word16            useClientOrder:1;   /* Use client's cipher order */

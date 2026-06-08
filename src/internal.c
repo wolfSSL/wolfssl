@@ -38861,6 +38861,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         *inOutIdx = i;
 
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+        /* Reset per-ClientHello extension state before (re)parsing so a stale
+         * value from an earlier handshake on this object (e.g. secure
+         * renegotiation, where Options is not zeroed) cannot trigger a spurious
+         * RFC 8422 abort below. */
+        ssl->options.peerNoUncompPF = 0;
+#endif
+
         /* tls extensions */
         if ((i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
@@ -39072,6 +39080,25 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
         if (ret == 0)
             ret = MatchSuite(ssl, ssl->clSuites);
+
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+        /* RFC 8422 Section 5.1.2: abort only when an ECC suite was actually
+         * negotiated and the client's ec_point_formats omitted the uncompressed
+         * (0) format (peerNoUncompPF, set in TLSX_PointFormat_Parse). Checked
+         * after MatchSuite so it keys off the chosen suite, not advertised
+         * groups. */
+        if (ret == 0 && ssl->options.peerNoUncompPF &&
+                (ssl->specs.kea == ecc_diffie_hellman_kea ||
+                 ssl->specs.kea == ecc_static_diffie_hellman_kea ||
+                 ssl->specs.kea == ecdhe_psk_kea)) {
+            WOLFSSL_MSG("Client ec_point_formats extension missing "
+                        "uncompressed format for negotiated ECC suite");
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            ret = INVALID_PARAMETER;
+            WOLFSSL_ERROR_VERBOSE(ret);
+            goto out;
+        }
+#endif
 
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ENCRYPT_THEN_MAC) && \
     !defined(WOLFSSL_AEAD_ONLY)

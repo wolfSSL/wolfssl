@@ -5667,6 +5667,26 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 
     if (isRequest) {
+    #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+        /* RFC 8422 Section 5.1.2: a client that sends the ec_point_formats
+         * extension MUST include the uncompressed (0) format. Record whether
+         * it is missing so DoClientHello() can abort with an illegal_parameter
+         * alert if the client also advertised ECC named groups. The decision
+         * is deferred to after all extensions are parsed so it does not depend
+         * on the relative order of the supported_groups and ec_point_formats
+         * extensions in the ClientHello. */
+        word16 i;
+        int found = 0;
+
+        for (i = 0; i < input[0]; i++) {
+            if (input[ENUM_LEN + i] == WOLFSSL_EC_PF_UNCOMPRESSED) {
+                found = 1;
+                break;
+            }
+        }
+        ssl->options.peerNoUncompPF = (found == 0);
+    #endif
+
         /* adding uncompressed point format to response */
         ret = TLSX_UsePointFormat(&ssl->extensions, WOLFSSL_EC_PF_UNCOMPRESSED,
                                                                      ssl->heap);
