@@ -163,9 +163,11 @@
     #include "wolfssl/internal.h"
 #endif
 
-#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+#if defined(WOLFSSL_SNIFFER)
     #include <wolfssl/sniffer.h>
     #include <wolfssl/sniffer_error.h>
+#endif
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     #include <sys/uio.h>
 #endif
 
@@ -33404,6 +33406,118 @@ static int test_sniffer_chain_input_overflow(void)
 }
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_CHAIN_INPUT */
 
+#if defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+/* Build a minimal IPv4/TCP frame around a TLS payload. Checksums are left
+ * zero; the sniffer does not verify them. Returns total frame length. */
+static int test_sniffer_build_frame(byte* out, word32 srcA, word32 dstA,
+        word16 srcPort, word16 dstPort, word32 seq, word32 ack, byte tcpFlags,
+        const byte* payload, int payloadLen)
+{
+    int ipLen = 20 + 20 + payloadLen;
+    byte* ip  = out;
+    byte* tcp = out + 20;
+
+    XMEMSET(out, 0, 40);
+    /* IPv4 header */
+    ip[0]  = 0x45;                 /* version 4, ihl 5 */
+    ip[2]  = (byte)(ipLen >> 8);
+    ip[3]  = (byte)(ipLen & 0xff);
+    ip[8]  = 64;                   /* ttl */
+    ip[9]  = 6;                    /* protocol TCP */
+    ip[12] = (byte)(srcA >> 24); ip[13] = (byte)(srcA >> 16);
+    ip[14] = (byte)(srcA >> 8);  ip[15] = (byte)(srcA & 0xff);
+    ip[16] = (byte)(dstA >> 24); ip[17] = (byte)(dstA >> 16);
+    ip[18] = (byte)(dstA >> 8);  ip[19] = (byte)(dstA & 0xff);
+    /* TCP header */
+    tcp[0] = (byte)(srcPort >> 8); tcp[1] = (byte)(srcPort & 0xff);
+    tcp[2] = (byte)(dstPort >> 8); tcp[3] = (byte)(dstPort & 0xff);
+    tcp[4] = (byte)(seq >> 24); tcp[5] = (byte)(seq >> 16);
+    tcp[6] = (byte)(seq >> 8);  tcp[7] = (byte)(seq & 0xff);
+    tcp[8] = (byte)(ack >> 24); tcp[9] = (byte)(ack >> 16);
+    tcp[10]= (byte)(ack >> 8);  tcp[11]= (byte)(ack & 0xff);
+    tcp[12]= 0x50;                 /* data offset 5 words */
+    tcp[13]= tcpFlags;
+    tcp[14]= 0xff; tcp[15]= 0xff;  /* window */
+    if (payloadLen > 0)
+        XMEMCPY(out + 40, payload, payloadLen);
+    return 40 + payloadLen;
+}
+
+/* ProcessServerHello must accept a ServerHello that advertises a short
+ * non-zero session id with no trailing data. The fixed ID_LEN copy used to
+ * read past the frame for such a hello, and the first bounds check rejected
+ * it outright; the corrected guard copies the advertised length instead. */
+static int test_sniffer_serverhello_short_sessionid(void)
+{
+    EXPECT_DECLS;
+    word32 cliIp = 0x0A000001; /* 10.0.0.1 */
+    word32 srvIp = 0x0A000002; /* 10.0.0.2 */
+    word16 cliPort = 12345;
+    word16 srvPort = 443;
+    char  error[WOLFSSL_MAX_ERROR_SZ];
+    byte  frame[256];
+    byte* data = NULL;
+    int   len;
+    word32 cSeq = 1000, sSeq = 5000;
+
+    /* TLS 1.2 ClientHello: no session id, one cipher suite, null compression,
+     * no extensions. */
+    static const byte clientHello[] = {
+        0x16, 0x03, 0x03, 0x00, 0x2d,   /* record: handshake, len 45 */
+        0x01, 0x00, 0x00, 0x29,         /* hs: client_hello, len 41 */
+        0x03, 0x03,                     /* client version 3,3 */
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,/* random[32] */
+        0x00,                           /* session id len 0 */
+        0x00, 0x02, 0x00, 0x2f,         /* cipher suites len 2, one suite */
+        0x01, 0x00                      /* comp methods len 1, null */
+    };
+    /* TLS 1.2 ServerHello with a 1-byte session id and no trailing data. */
+    static const byte serverHello[] = {
+        0x16, 0x03, 0x03, 0x00, 0x2b,   /* record: handshake, len 43 */
+        0x02, 0x00, 0x00, 0x27,         /* hs: server_hello, len 39 */
+        0x03, 0x03,                     /* server version 3,3 */
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,/* random[32] */
+        0x01, 0xaa,                     /* session id len 1, id byte */
+        0x00, 0x2f,                     /* cipher suite */
+        0x00                            /* null compression */
+    };
+
+    XMEMSET(error, 0, sizeof(error));
+    ssl_InitSniffer();
+
+    ExpectIntEQ(ssl_SetPrivateKey("10.0.0.2", srvPort, svrKeyFile,
+        FILETYPE_PEM, NULL, error), 0);
+
+    /* client SYN */
+    len = test_sniffer_build_frame(frame, cliIp, srvIp, cliPort, srvPort,
+        cSeq, 0, 0x02, NULL, 0);
+    ExpectIntGE(ssl_DecodePacket(frame, len, &data, error), 0);
+
+    /* server SYN-ACK */
+    len = test_sniffer_build_frame(frame, srvIp, cliIp, srvPort, cliPort,
+        sSeq, cSeq + 1, 0x12, NULL, 0);
+    ExpectIntGE(ssl_DecodePacket(frame, len, &data, error), 0);
+
+    /* client hello */
+    len = test_sniffer_build_frame(frame, cliIp, srvIp, cliPort, srvPort,
+        cSeq + 1, sSeq + 1, 0x18, clientHello, (int)sizeof(clientHello));
+    ExpectIntGE(ssl_DecodePacket(frame, len, &data, error), 0);
+
+    /* server hello with the short session id: must be accepted, not rejected */
+    len = test_sniffer_build_frame(frame, srvIp, cliIp, srvPort, cliPort,
+        sSeq + 1, cSeq + 1 + (word32)sizeof(clientHello), 0x18,
+        serverHello, (int)sizeof(serverHello));
+    ExpectIntGE(ssl_DecodePacket(frame, len, &data, error), 0);
+
+    ssl_FreeSniffer();
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_SNIFFER && !WOLFSSL_NO_TLS12 && !NO_RSA && ... */
+
 /* Test: wc_DhAgree must reject p-1 as peer public key.
  * ffdhe2048 p ends with ...FFFFFFFFFFFFFFFF so p-1 ends ...FFFFFFFFFFFFFFFE */
 static int test_DhAgree_rejects_p_minus_1(void)
@@ -35258,6 +35372,10 @@ TEST_CASE testCases[] = {
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     TEST_DECL(test_sniffer_chain_input_overflow),
+#endif
+#if defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    TEST_DECL(test_sniffer_serverhello_short_sessionid),
 #endif
 
     /* This test needs to stay at the end to clean up any caches allocated. */
