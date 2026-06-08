@@ -28172,11 +28172,9 @@ static int test_SSL_CIPHER_get_xxx(void)
     return EXPECT_RESULT();
 }
 
-/* Regression test: the cipher property helpers (kx/auth/cipher/digest/aead)
- * must report the actual negotiated cipher when it is obtained through
- * SSL_get_current_cipher(). That path does not populate cipher->offset, so a
- * previous bug caused these helpers to parse cipher_names[0] (a TLS 1.3 suite)
- * instead, e.g. returning NID_kx_any for a plain PSK suite. */
+/* Cipher property helpers must report the negotiated cipher when it is
+ * obtained via SSL_get_current_cipher(), which does not populate
+ * cipher->offset. */
 static int test_SSL_CIPHER_get_current_kx(void)
 {
     EXPECT_DECLS;
@@ -28193,18 +28191,14 @@ static int test_SSL_CIPHER_get_current_kx(void)
 #endif
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    /* Simulate a negotiated plain-PSK cipher suite without doing a full
-     * handshake. SSL_get_current_cipher() reports the suite from these
-     * fields, and leaves cipher->offset at its default value of 0. */
+    /* Set a negotiated plain-PSK suite without a full handshake. */
     if (ssl != NULL) {
-        ssl->options.cipherSuite0 = CIPHER_BYTE; /* 0x00 */
+        ssl->options.cipherSuite0 = CIPHER_BYTE;
         ssl->options.cipherSuite  = TLS_PSK_WITH_AES_128_GCM_SHA256;
     }
 
     ExpectNotNull(cipher = SSL_get_current_cipher(ssl));
-    /* Name is resolved from the suite bytes and was already correct. */
     ExpectStrEQ(SSL_CIPHER_get_name(cipher), "TLS_PSK_WITH_AES_128_GCM_SHA256");
-    /* These were wrong before the fix (read cipher_names[0]). */
     ExpectIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), NID_kx_psk);
     ExpectIntEQ(wolfSSL_CIPHER_get_auth_nid(cipher), NID_auth_psk);
     ExpectIntEQ(wolfSSL_CIPHER_get_cipher_nid(cipher), NID_aes_128_gcm);
