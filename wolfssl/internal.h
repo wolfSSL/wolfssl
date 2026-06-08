@@ -3182,6 +3182,17 @@ WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL* ssl, WOLFSSL_ECH* ech, byte* aad,
 
 WOLFSSL_LOCAL void TLSX_EchReplaceExtensions(WOLFSSL* ssl, byte accepted);
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_EchSwapExtensions wolfSSL_TLSX_EchSwapExtensions
+#endif
+WOLFSSL_TEST_VIS word16 TLSX_EchSwapExtensions(TLSX** sslExts, TLSX** echExts,
+    word16 popCount);
+
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_ServerECH_Use wolfSSL_TLSX_ServerECH_Use
+#endif
+WOLFSSL_TEST_VIS int TLSX_ServerECH_Use(TLSX** extensions, void* heap,
+    WOLFSSL_EchConfig* configs);
 
 WOLFSSL_LOCAL int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
     const byte* echConfigs, word32 echConfigsLen);

@@ -11,7 +11,7 @@ cleanup() {
 trap cleanup EXIT
 
 usage() {
-    echo "Usage: $0 <client|server> [--suite <KEM,KDF,AEAD>] [--pqc <group>] [--hrr] [--workspace <path>]"
+    echo "Usage: $0 <client|server> [--suite <KEM,KDF,AEAD>] [--pqc <group>] [--hrr] [--reject] [--workspace <path>]"
     exit 1
 }
 
@@ -22,6 +22,7 @@ MODE=""
 SUITE=""
 PQC=""
 FORCE_HRR=0
+REJECT=0
 
 WORKSPACE=${GITHUB_WORKSPACE:-"."}
 
@@ -49,6 +50,10 @@ while [ $# -gt 0 ]; do
             ;;
         --hrr)
             FORCE_HRR=1
+            shift
+            ;;
+        --reject)
+            REJECT=1
             shift
             ;;
         --workspace)
@@ -84,9 +89,16 @@ WOLFSSL_CLIENT=${WOLFSSL_CLIENT:-"$WORKSPACE/examples/client/client"}
 WOLFSSL_SERVER=${WOLFSSL_SERVER:-"$WORKSPACE/examples/server/server"}
 CERT_DIR=${CERT_DIR:-"$WORKSPACE/certs"}
 
+# correct ECH config, but it's old, ECH will be rejected
+REJECT_ECH_CONFIG="AD7+DQA6rAAgACCATZdDlHed6GlDeiYsu3r7sdWUkLVHZuTa3lbOf+hIbAAEAAEAAQALZXhhbXBsZS5jb20AAA=="
+
 TMP_LOG="$WORKSPACE/tmp_file.log"
+# Will need to look into validating the name against the cert for the OSSL cli.
+# This is fine, but should be upgraded to use a second cert in the future.
 PRIV_NAME="ech-private-name.com"
-PUB_NAME="ech-public-name.com"
+# example.com is taken from the server certificate,
+# echConfigs needs to authenticate against the cert with this name to succeed
+PUB_NAME="example.com"
 MAX_WAIT=50
 
 # --------------------------------------------------------------------------
@@ -128,6 +140,8 @@ openssl_server(){
 
     # parse ECH config from file
     ech_config=$(sed -n '/BEGIN ECHCONFIG/,/END ECHCONFIG/{/BEGIN ECHCONFIG\|END ECHCONFIG/d;p}' "$ech_file" | tr -d '\n')
+    # reject overrides the config the client connects with
+    [ "$REJECT" -ne 0 ] && ech_config="$REJECT_ECH_CONFIG"
     echo "parsed ech config: $ech_config" &>> "$TMP_LOG"
 
     # start OpenSSL ECH server with ephemeral port; line-buffer so the
@@ -158,17 +172,24 @@ openssl_server(){
     done
     echo "parsed port: $port" &>> "$TMP_LOG"
 
+    rm -f "$ech_file"
+
     # test with wolfssl client
+    # in reject mode the client is expected to error out, so tolerate a
+    #   nonzero exit
     $WOLFSSL_CLIENT -v 4 \
         -p "$port" \
         -S "$PRIV_NAME" \
         --ech "$ech_config" \
         $wolfssl_extra \
-        &>> "$TMP_LOG"
+        &>> "$TMP_LOG" || [ "$REJECT" -ne 0 ]
 
-    rm -f "$ech_file"
-
-    grep -q "ech_success=1" "$TMP_LOG"
+    if [ "$REJECT" -ne 0 ]; then
+        grep -q "ECH offered but rejected by server" "$TMP_LOG" && \
+            grep -q "ech_success=0" "$TMP_LOG"
+    else
+        grep -q "ech_success=1" "$TMP_LOG"
+    fi
 }
 
 # --------------------------------------------------------------------------
@@ -246,9 +267,13 @@ openssl_client(){
             exit 1
         fi
     done
+    # reject overrides the config the client connects with
+    [ "$REJECT" -ne 0 ] && ech_config="$REJECT_ECH_CONFIG"
     echo "parsed ech config: $ech_config" &>> "$TMP_LOG"
 
     # test with OpenSSL s_client using ECH
+    # in reject mode the s_client is expected to error out, so tolerate a
+    #   nonzero exit
     echo "wolfssl" | $OPENSSL s_client \
         -tls1_3 \
         -connect "localhost:$port" \
@@ -258,9 +283,13 @@ openssl_client(){
         -servername "$PRIV_NAME" \
         -ech_config_list "$ech_config" \
         $openssl_groups \
-        &>> "$TMP_LOG"
+        &>> "$TMP_LOG" || [ "$REJECT" -ne 0 ]
 
-    grep -q "ECH: success: 1" "$TMP_LOG"
+    if [ "$REJECT" -ne 0 ]; then
+        grep -q "ECH: Got 1 retry-configs" "$TMP_LOG"
+    else
+        grep -q "ECH: success: 1" "$TMP_LOG"
+    fi
 }
 
 rm -f "$TMP_LOG"
