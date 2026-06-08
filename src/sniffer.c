@@ -3733,6 +3733,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         return WOLFSSL_FATAL_ERROR;
     }
     if (b) {
+        if (ID_LEN > *sslBytes) {
+            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return WOLFSSL_FATAL_ERROR;
+        }
     #ifdef WOLFSSL_TLS13
         XMEMCPY(session->sslServer->session->sessionID, input, ID_LEN);
         session->sslServer->session->sessionIDSz = ID_LEN;
