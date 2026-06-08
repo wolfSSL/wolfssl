@@ -76,6 +76,24 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* Gates the non-WOLFSSL_SHA3_SMALL software Keccak primitives
+ * (hash_keccak_r, BlockSha3, InitSha3, Sha3Update, Sha3Final and the
+ * Load64* helpers). Compiled when:
+ *  - No HW SHA-3 backend is selected (the original baseline), OR
+ *  - STM32 HW SHA-3 is selected and SHAKE is enabled - SHAKE on STM32MP13
+ *    runs in software because the HASH peripheral's SHAKE support is
+ *    fixed-length and does not match wolfSSL's variable-length / iterative
+ *    SqueezeBlocks API. SHA-3 still uses the HASH peripheral.
+ *
+ * Note: the WOLFSSL_SHA3_SMALL branch earlier in this file defines its
+ * own hash_keccak_r and BlockSha3 unconditionally inside its #ifdef
+ * block, so this macro only controls the non-SMALL implementation. */
+#if (!defined(STM32_HASH_SHA3) && !defined(PSOC6_HASH_SHA3)) || \
+    (defined(STM32_HASH_SHA3) && \
+     (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)))
+    #define WC_SHA3_SW_KECCAK
+#endif
+
 #if FIPS_VERSION3_GE(6,0,0)
     const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2] =
                                                      { 0x1a2b3c4d, 0x00000016 };
@@ -320,7 +338,7 @@ void BlockSha3(word64* s)
  */
 #define ROTL64(a, n)    (((a)<<(n))|((a)>>(64-(n))))
 
-#if !defined(STM32_HASH_SHA3) && !defined(PSOC6_HASH_SHA3)
+#ifdef WC_SHA3_SW_KECCAK
 /* An array of values to XOR for block operation. */
 static const word64 hash_keccak_r[24] =
 {
@@ -555,7 +573,7 @@ do {                                                      \
 while (0)
 #endif /* SHA3_BY_SPEC */
 
-#if !defined(STM32_HASH_SHA3) && !defined(PSOC6_HASH_SHA3)
+#ifdef WC_SHA3_SW_KECCAK
 /* The block operation performed on the state.
  *
  * s  The state.
@@ -581,11 +599,11 @@ void BlockSha3(word64* s)
         s[0] ^= hash_keccak_r[i+1];
     }
 }
-#endif /* WOLFSSL_SHA3_SMALL */
-#endif /* STM32_HASH_SHA3 */
+#endif /* WC_SHA3_SW_KECCAK */
+#endif /* !WOLFSSL_SHA3_SMALL */
 #endif /* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
 
-#if !defined(STM32_HASH_SHA3) && !defined(PSOC6_HASH_SHA3)
+#ifdef WC_SHA3_SW_KECCAK
 #if defined(BIG_ENDIAN_ORDER)
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
@@ -929,7 +947,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 
     return 0;
 }
-#endif
+#endif /* WC_SHA3_SW_KECCAK */
 #if defined(STM32_HASH_SHA3)
 
 /* Supports CubeMX HAL or Standard Peripheral Library */
