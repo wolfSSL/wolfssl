@@ -32362,14 +32362,26 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                 /* RFC 5246 Section 7.4.1.3: on resumption the ServerHello
                  * reuses the previously negotiated cipher suite. Reject a
                  * server that resumes the session but selects a different
-                 * suite. Skipped for ticket resumption (suite is bound in the
-                 * ticket), consistent with the EMS check above. */
-                if (
-            #ifdef HAVE_SESSION_TICKET
-                    ssl->session->ticketLen == 0 &&
-            #endif
-                    (ssl->options.cipherSuite0 != ssl->session->cipherSuite0 ||
-                        ssl->options.cipherSuite != ssl->session->cipherSuite)) {
+                 * suite. Unlike the EMS check above this also covers ticket
+                 * resumption: the ticket is opaque to the client, so it cannot
+                 * rely on the suite being bound inside the ticket and must
+                 * enforce the match against the suite retained in the cached
+                 * session (SetupSession stores it for ticket sessions too).
+                 * Otherwise a server could resume a ticket under a different,
+                 * weaker suite the client offered and the downgrade would go
+                 * undetected.
+                 *
+                 * Skip only when the client retained no suite for the session
+                 * (cipherSuite0/cipherSuite both zero): then there is nothing to
+                 * compare against. This is the case for EAP-FAST, whose PAC is a
+                 * TLS ticket whose keys are supplied through the session-secret
+                 * callback and which never populates the cached suite. (0,0) is
+                 * TLS_NULL_WITH_NULL_NULL, never a negotiated suite, so it
+                 * unambiguously means "no retained suite". */
+                if ((ssl->session->cipherSuite0 != 0 ||
+                            ssl->session->cipherSuite != 0) &&
+                        (ssl->options.cipherSuite0 != ssl->session->cipherSuite0 ||
+                         ssl->options.cipherSuite != ssl->session->cipherSuite)) {
                     WOLFSSL_MSG("Resumed session cipher suite does not match "
                                 "ServerHello cipher suite");
                     SendAlert(ssl, alert_fatal, illegal_parameter);
