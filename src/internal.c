@@ -18055,10 +18055,12 @@ static int DoHelloRequest(WOLFSSL* ssl, word32 size)
          * peer-initiated renegotiation. Respond with a no_renegotiation
          * warning alert instead of starting a secure renegotiation. */
         if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
+            int ret;
             WOLFSSL_MSG("Rejecting HelloRequest: WOLFSSL_OP_NO_RENEGOTIATION");
-            WOLFSSL_LEAVE("DoHelloRequest", 0);
+            ret = SendAlert(ssl, alert_warning, no_renegotiation);
+            WOLFSSL_LEAVE("DoHelloRequest", ret);
             WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
-            return SendAlert(ssl, alert_warning, no_renegotiation);
+            return ret;
         }
         ssl->secure_renegotiation->startScr = 1;
         WOLFSSL_LEAVE("DoHelloRequest", 0);
