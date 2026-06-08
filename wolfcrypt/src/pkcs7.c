@@ -1641,9 +1641,25 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
     for (i = 0; i < maxSz; i++)
     {
         word32 attribSz = 0;
+        word32 boundSz = 0;
 
         ea[i].value = attribs[i].value;
         ea[i].valueSz = attribs[i].valueSz;
+
+        /* The valueSz and oidSz fields are application supplied and unbounded.
+         * Reject any attribute whose encoded size would overflow a word32
+         * before performing the size arithmetic below. Otherwise a large
+         * valueSz wraps the running total, producing an undersized allocation
+         * and a heap buffer overflow in FlattenEncodedAttribs(). The encoded
+         * SET and SEQUENCE headers add at most MAX_SET_SZ and MAX_SEQ_SZ bytes,
+         * so checking against those upper bounds bounds the real total. */
+        if (!WC_SAFE_SUM_WORD32(ea[i].valueSz, attribs[i].oidSz, boundSz) ||
+            !WC_SAFE_SUM_WORD32(boundSz, (word32)MAX_SET_SZ, boundSz) ||
+            !WC_SAFE_SUM_WORD32(boundSz, (word32)MAX_SEQ_SZ, boundSz)) {
+            WOLFSSL_MSG("PKCS7 attribute size overflow");
+            return BUFFER_E;
+        }
+
         attribSz += ea[i].valueSz;
         ea[i].valueSetSz = SetSet(attribSz, ea[i].valueSet);
         attribSz += ea[i].valueSetSz;
@@ -1654,6 +1670,13 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
         attribSz += ea[i].valueSeqSz;
         ea[i].totalSz = attribSz;
 
+        /* Keep the running total within positive int range so callers can
+         * distinguish a valid size (>= 0) from a negative error return. */
+        if (attribSz > (WOLFSSL_MAX_32BIT >> 1) ||
+            (word32)allAttribsSz > (WOLFSSL_MAX_32BIT >> 1) - attribSz) {
+            WOLFSSL_MSG("PKCS7 attributes total size overflow");
+            return BUFFER_E;
+        }
         allAttribsSz += (int)attribSz;
     }
     return allAttribsSz;
@@ -1759,7 +1782,16 @@ static int FlattenEncodedAttribs(wc_PKCS7* pkcs7, FlatAttrib** derArr, int rows,
     }
 
     for (i = 0; i < eaSz; i++) {
-        sz = ea[i].valueSeqSz + ea[i].oidSz + ea[i].valueSetSz + ea[i].valueSz;
+        /* Defense in depth: guard the size sum against word32 overflow so the
+         * allocation below can never be smaller than the XMEMCPY lengths.
+         * EncodeAttributes() rejects oversized attributes up front, but this
+         * keeps the allocation safe if reached with unchecked input. */
+        if (!WC_SAFE_SUM_WORD32(ea[i].valueSeqSz, ea[i].oidSz, sz) ||
+            !WC_SAFE_SUM_WORD32(sz, ea[i].valueSetSz, sz) ||
+            !WC_SAFE_SUM_WORD32(sz, ea[i].valueSz, sz)) {
+            WOLFSSL_MSG("PKCS7 attribute size overflow");
+            return BUFFER_E;
+        }
 
         output = (byte*)XMALLOC(sz, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (output == NULL) {
@@ -2218,6 +2250,7 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
                     byte* signingTime, word32 signingTimeSz)
 {
     int hashSz;
+    int encAttribsSz;
 #ifdef NO_ASN_TIME
     PKCS7Attrib cannedAttribs[2];
 #else
@@ -2281,9 +2314,11 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
         }
 
         esd->signedAttribsCount += idx;
-        esd->signedAttribsSz += (word32)EncodeAttributes(
-            &esd->signedAttribs[atrIdx], (int)idx, cannedAttribs,
-            (int)idx);
+        encAttribsSz = EncodeAttributes(&esd->signedAttribs[atrIdx],
+            (int)idx, cannedAttribs, (int)idx);
+        if (encAttribsSz < 0)
+            return encAttribsSz;
+        esd->signedAttribsSz += (word32)encAttribsSz;
         atrIdx += idx;
     } else {
         esd->signedAttribsCount = 0;
@@ -2298,9 +2333,12 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
             return BUFFER_E;
 
         esd->signedAttribsCount += pkcs7->signedAttribsSz;
-        esd->signedAttribsSz += (word32)EncodeAttributes(
-            &esd->signedAttribs[atrIdx], (int)esd->signedAttribsCount,
-            pkcs7->signedAttribs, (int)pkcs7->signedAttribsSz);
+        encAttribsSz = EncodeAttributes(&esd->signedAttribs[atrIdx],
+            (int)esd->signedAttribsCount, pkcs7->signedAttribs,
+            (int)pkcs7->signedAttribsSz);
+        if (encAttribsSz < 0)
+            return encAttribsSz;
+        esd->signedAttribsSz += (word32)encAttribsSz;
     }
 
 #ifdef NO_ASN_TIME
@@ -14335,18 +14373,26 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
             contentTypeAttrib.valueSz = pkcs7->contentTypeSz;
         }
 
-        authAttribsSz += (word32)EncodeAttributes(authAttribs, 1,
-                                                         &contentTypeAttrib, 1);
+        ret = EncodeAttributes(authAttribs, 1, &contentTypeAttrib, 1);
+        if (ret < 0) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            return ret;
+        }
+        authAttribsSz += (word32)ret;
         authAttribsCount += 1;
     }
 
     /* authAttribs: add in user authenticated attributes */
     if (pkcs7->authAttribs != NULL && pkcs7->authAttribsSz > 0) {
-        authAttribsSz += (word32)EncodeAttributes(
-                                 authAttribs + authAttribsCount,
+        ret = EncodeAttributes(authAttribs + authAttribsCount,
                                  (int)(MAX_AUTH_ATTRIBS_SZ - authAttribsCount),
                                  pkcs7->authAttribs,
                                  (int)pkcs7->authAttribsSz);
+        if (ret < 0) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            return ret;
+        }
+        authAttribsSz += (word32)ret;
         authAttribsCount += pkcs7->authAttribsSz;
     }
 
@@ -14394,11 +14440,17 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
 
     /* build up unauthenticated attributes (unauthAttrs) */
     if (pkcs7->unauthAttribsSz > 0) {
-        unauthAttribsSz = (word32)EncodeAttributes(
-                              unauthAttribs + unauthAttribsCount,
+        ret = EncodeAttributes(unauthAttribs + unauthAttribsCount,
                               (int)(MAX_UNAUTH_ATTRIBS_SZ - unauthAttribsCount),
                               pkcs7->unauthAttribs,
                               (int)pkcs7->unauthAttribsSz);
+        if (ret < 0) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return ret;
+        }
+        unauthAttribsSz = (word32)ret;
         unauthAttribsCount = pkcs7->unauthAttribsSz;
 
         if (unauthAttribsSz > 0) {
@@ -15577,10 +15629,18 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
         }
 
         attribsCount = pkcs7->unprotectedAttribsSz;
-        attribsSz = (word32)EncodeAttributes(attribs,
+        ret = EncodeAttributes(attribs,
                                      (int)pkcs7->unprotectedAttribsSz,
                                      pkcs7->unprotectedAttribs,
                                      (int)pkcs7->unprotectedAttribsSz);
+        if (ret < 0) {
+            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            ForceZero(plain, (word32)encryptedOutSz);
+            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return ret;
+        }
+        attribsSz = (word32)ret;
 
         if (attribsSz > 0) {
             flatAttribs = (byte*)XMALLOC(attribsSz, pkcs7->heap,

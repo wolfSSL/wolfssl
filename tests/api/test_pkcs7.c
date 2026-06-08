@@ -3873,6 +3873,215 @@ int test_wc_PKCS7_EncodeEncryptedData(void)
 } /* END test_wc_PKCS7_EncodeEncryptedData() */
 
 
+/*
+ * Regression test for an integer overflow in the PKCS#7 attribute encode
+ * path. An application-supplied PKCS7Attrib.valueSz close to UINT32_MAX used
+ * to wrap the word32 size accumulation in EncodeAttributes() /
+ * FlattenEncodedAttribs(), yielding an undersized allocation followed by a
+ * multi-gigabyte XMEMCPY (heap buffer overflow). The encode call must now
+ * reject the oversized attribute with an error rather than overflow.
+ */
+int test_wc_PKCS7_EncodeEncryptedData_AttribOverflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_PKCS7_ENCRYPTED_DATA) && (            \
+        (!defined(NO_AES) && defined(HAVE_AES_CBC) &&                        \
+            (defined(WOLFSSL_AES_256) || defined(WOLFSSL_AES_128))) ||       \
+        !defined(NO_DES3))
+    PKCS7*      pkcs7 = NULL;
+    byte        output[TWOK_BUF];
+    PKCS7Attrib attrib;
+    /* Small, valid attribute buffers. The encode path must reject the
+     * oversized valueSz before ever dereferencing attrib.value. */
+    static const byte oid[]   = { 0x06, 0x03, 0x55, 0x04, 0x03 };
+    static const byte value[] = { 0x04, 0x01, 0x00 };
+    const byte data[] = { /* Hello World */
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,0x72,0x6c,0x64
+    };
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    byte key[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+    int encryptOID = AES256CBCb;
+#elif !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    byte key[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+    int encryptOID = AES128CBCb;
+#else
+    byte key[] = {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+    int encryptOID = DES3b;
+#endif
+
+    XMEMSET(&attrib, 0, sizeof(attrib));
+    attrib.oid     = oid;
+    attrib.oidSz   = (word32)sizeof(oid);
+    attrib.value   = value;
+    /* word32 wraparound trigger: valueSz + encoded header sizes overflows */
+    attrib.valueSz = 0xFFFFFFF4U;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content              = (byte*)data;
+        pkcs7->contentSz            = (word32)sizeof(data);
+        pkcs7->contentOID           = DATA;
+        pkcs7->encryptOID           = encryptOID;
+        pkcs7->encryptionKey        = key;
+        pkcs7->encryptionKeySz      = (word32)sizeof(key);
+        pkcs7->unprotectedAttribs   = &attrib;
+        pkcs7->unprotectedAttribsSz = 1;
+        pkcs7->heap                 = HEAP_HINT;
+    }
+
+    ExpectIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, output, sizeof(output)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_EncodeEncryptedData_AttribOverflow() */
+
+
+/*
+ * Same overflow guard, exercised through the SignedData attribute path
+ * (pkcs7->signedAttribs -> wc_PKCS7_BuildSignedAttributes -> EncodeAttributes).
+ * The encode must reject the oversized attribute instead of overflowing.
+ */
+int test_wc_PKCS7_EncodeSignedData_AttribOverflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    PKCS7*      pkcs7 = NULL;
+    WC_RNG      rng;
+    byte        output[FOURK_BUF];
+    byte        data[] = "Test data to encode.";
+    PKCS7Attrib attrib;
+    static const byte oid[]   = { 0x06, 0x03, 0x55, 0x04, 0x03 };
+    static const byte value[] = { 0x04, 0x01, 0x00 };
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&attrib, 0, sizeof(attrib));
+    attrib.oid     = oid;
+    attrib.oidSz   = (word32)sizeof(oid);
+    attrib.value   = value;
+    /* word32 wraparound trigger */
+    attrib.valueSz = 0xFFFFFFF4U;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        (word32)sizeof(client_cert_der_2048)), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content         = data;
+        pkcs7->contentSz       = (word32)sizeof(data);
+        pkcs7->privateKey      = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz    = (word32)sizeof(client_key_der_2048);
+        pkcs7->encryptOID      = RSAk;
+    #if defined(NO_SHA) || defined(WC_FIPS_186_5_PLUS)
+        pkcs7->hashOID         = SHA256h;
+    #else
+        pkcs7->hashOID         = SHAh;
+    #endif
+        pkcs7->rng             = &rng;
+        pkcs7->signedAttribs   = &attrib;
+        pkcs7->signedAttribsSz = 1;
+    }
+
+    ExpectIntEQ(wc_PKCS7_EncodeSignedData(pkcs7, output, sizeof(output)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    wc_PKCS7_Free(pkcs7);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_EncodeSignedData_AttribOverflow() */
+
+
+/*
+ * Same overflow guard, exercised through the AuthEnvelopedData attribute
+ * paths. Case 1 covers a malicious authenticated attribute; case 2 supplies a
+ * valid authenticated attribute (which forces allocation of the auth attrib
+ * and AAD buffers) together with a malicious unauthenticated attribute, so the
+ * more complex unauth cleanup path (FreeEncodedRecipientSet + XFREE(aadBuffer)
+ * + XFREE(flatAuthAttribs)) is exercised. Both must return an error.
+ */
+int test_wc_PKCS7_EncodeAuthEnvelopedData_AttribOverflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && \
+    defined(HAVE_AESGCM) && !defined(NO_AES) && defined(WOLFSSL_AES_256)
+    PKCS7*      pkcs7 = NULL;
+    byte        output[FOURK_BUF];
+    byte        data[] = "Test data to encode.";
+    PKCS7Attrib bad;
+    PKCS7Attrib good;
+    static const byte oid[]   = { 0x06, 0x03, 0x55, 0x04, 0x03 };
+    static const byte value[] = { 0x04, 0x01, 0x00 };
+
+    XMEMSET(&bad, 0, sizeof(bad));
+    bad.oid     = oid;
+    bad.oidSz   = (word32)sizeof(oid);
+    bad.value   = value;
+    /* word32 wraparound trigger */
+    bad.valueSz = 0xFFFFFFF4U;
+
+    XMEMSET(&good, 0, sizeof(good));
+    good.oid     = oid;
+    good.oidSz   = (word32)sizeof(oid);
+    good.value   = value;
+    good.valueSz = (word32)sizeof(value);
+
+    /* Case 1: malicious authenticated attribute. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        (word32)sizeof(client_cert_der_2048)), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content       = data;
+        pkcs7->contentSz     = (word32)sizeof(data);
+        pkcs7->contentOID    = DATA;
+        pkcs7->encryptOID    = AES256GCMb;
+        pkcs7->authAttribs   = &bad;
+        pkcs7->authAttribsSz = 1;
+    }
+    ExpectIntEQ(wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, output, sizeof(output)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Case 2: valid authenticated attribute + malicious unauthenticated one. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        (word32)sizeof(client_cert_der_2048)), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content         = data;
+        pkcs7->contentSz       = (word32)sizeof(data);
+        pkcs7->contentOID      = DATA;
+        pkcs7->encryptOID      = AES256GCMb;
+        pkcs7->authAttribs     = &good;
+        pkcs7->authAttribsSz   = 1;
+        pkcs7->unauthAttribs   = &bad;
+        pkcs7->unauthAttribsSz = 1;
+    }
+    ExpectIntEQ(wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, output, sizeof(output)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_EncodeAuthEnvelopedData_AttribOverflow() */
+
+
 #if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_DES3) && !defined(NO_RSA) && !defined(NO_SHA)
 static void build_test_EncryptedKeyPackage(byte * out, word32 * out_size, byte * in_data, word32 in_size, size_t in_content_type, size_t test_vector)
 {
