@@ -906,6 +906,107 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
     return WOLFSSL_SUCCESS;
 }
 
+/* allocate *out and copy the public fields from src into it
+ * returns 0 on success, error otherwise */
+static int EchConfigCopyPub(WOLFSSL_EchConfig** out,
+    const WOLFSSL_EchConfig* src, void* heap)
+{
+    WOLFSSL_EchConfig* copy;
+    word32 suitesSz;
+    word32 nameLen;
+
+    if (out == NULL || src == NULL || src->numCipherSuites == 0 ||
+            src->cipherSuites == NULL || src->publicName == NULL)
+        return BAD_FUNC_ARG;
+
+    copy = (WOLFSSL_EchConfig*)XMALLOC(sizeof(WOLFSSL_EchConfig), heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (copy == NULL)
+        return MEMORY_E;
+    XMEMSET(copy, 0, sizeof(WOLFSSL_EchConfig));
+
+    /* ciphersuites */
+    suitesSz = (word32)src->numCipherSuites * (word32)sizeof(EchCipherSuite);
+    copy->cipherSuites = (EchCipherSuite*)XMALLOC(suitesSz, heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (copy->cipherSuites == NULL) {
+        XFREE(copy, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+    XMEMCPY(copy->cipherSuites, src->cipherSuites, suitesSz);
+
+    /* publicName */
+    nameLen = (word32)XSTRLEN(src->publicName) + 1;
+    copy->publicName = (char*)XMALLOC(nameLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (copy->publicName == NULL) {
+        XFREE(copy->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(copy, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+    XMEMCPY(copy->publicName, src->publicName, nameLen);
+
+    copy->configId = src->configId;
+    copy->kemId = src->kemId;
+    copy->numCipherSuites = src->numCipherSuites;
+    copy->maxNameLen = src->maxNameLen;
+    XMEMCPY(copy->receiverPubkey, src->receiverPubkey, HPKE_Npk_MAX);
+
+    /* don't copy raw and rawLen, these are derived later */
+
+    *out = copy;
+    return 0;
+}
+
+/* copy the public parts of the ech configs into ssl owned memory
+ * returns 0 on success, error otherwise */
+int CopyEchConfigsPub(WOLFSSL* ssl)
+{
+    int ret = 0;
+    TLSX* echX;
+    WOLFSSL_ECH* ech;
+    WOLFSSL_EchConfig* workingConfig;
+    WOLFSSL_EchConfig* copy = NULL;
+    WOLFSSL_EchConfig* configList = NULL;
+    WOLFSSL_EchConfig* lastConfig = NULL;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+    if (echX == NULL || echX->data == NULL)
+        return 0;
+
+    ech = (WOLFSSL_ECH*)echX->data;
+
+    /* the configs will be copied onto the ssl, and only copied once */
+    if (ssl->options.side != WOLFSSL_SERVER_END || ech->copiedConfig)
+        return 0;
+
+    for (workingConfig = ech->echConfig; workingConfig != NULL;
+            workingConfig = workingConfig->next) {
+        ret = EchConfigCopyPub(&copy, workingConfig, ssl->heap);
+        if (ret != 0)
+            break;
+
+        if (configList == NULL)
+            configList = copy;
+        else
+            lastConfig->next = copy;
+
+        lastConfig = copy;
+    }
+
+    if (ret != 0) {
+        FreeEchConfigs(configList, ssl->heap);
+        return ret;
+    }
+
+    ech->echConfig = configList;
+    ech->copiedConfig = 1;
+
+    return 0;
+}
+
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 #endif /* !WOLFSSL_SSL_ECH_INCLUDED */

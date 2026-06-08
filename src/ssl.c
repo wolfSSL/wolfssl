@@ -8479,6 +8479,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         InitSSL_CTX_Suites(ctx);
     }
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    /* hpke should already be setup for ECH, the public material is all that
+     * is needed */
+    if (CopyEchConfigsPub(ssl) != 0)
+        return NULL;
+#endif
+
     wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0) {

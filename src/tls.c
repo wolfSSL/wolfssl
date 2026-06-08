@@ -1750,7 +1750,6 @@ static void TLSX_SetResponseInList(TLSX* list, TLSX_Type type)
         extension->resp = 1;
 }
 
-void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
 /** Mark an extension to be sent back to the client. */
 void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 {
@@ -2703,8 +2702,8 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
 /* client-side needs this function when ECH is enabled */
 #if !defined(NO_WOLFSSL_SERVER) || defined(HAVE_ECH)
 /** Tells the SNI requested by the client. */
-word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data,
-        byte ignoreStatus)
+WOLFSSL_TEST_VIS word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
+    void** data, byte ignoreStatus)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
     SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
@@ -14801,12 +14800,12 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 
         ech->confBuf = (byte*)readBuf;
     }
-    else if (msgType == client_hello && ssl->ctx->echConfigs != NULL) {
-        /* get extension */
-        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-        if (echX == NULL)
-            return BAD_FUNC_ARG;
+    else if (msgType == client_hello &&
+            (echX = TLSX_Find(ssl->extensions, TLSX_ECH)) != NULL &&
+            echX->data != NULL &&
+            ((WOLFSSL_ECH*)echX->data)->echConfig != NULL) {
         ech = (WOLFSSL_ECH*)echX->data;
+        TLSX_SetResponse(ssl, TLSX_ECH);
 
         /* if the first ECH was rejected or CH1 did not have ECH then there is
          * no need to decrypt this one */
@@ -14831,6 +14830,13 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             /* MUST process INNER in inner hello and OUTER in outer hello */
             return INVALID_PARAMETER;
         }
+
+        /* expect hpke and its context to be available on ClientHello2 */
+        if (ssl->options.serverState >= SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
+                (ech->hpke == NULL || ech->hpkeContext == NULL)) {
+            return BAD_STATE_E;
+        }
+
         /* Must have kdfId, aeadId, configId, enc len and payload len. */
         if (size < offset + 2 + 2 + 1 + 2 + 2) {
             return BUFFER_ERROR;
@@ -14932,7 +14938,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             return MEMORY_E;
         }
         /* try to decrypt with matching configId */
-        echConfig = ssl->ctx->echConfigs;
+        echConfig = ech->echConfig;
         while (echConfig != NULL) {
             if (echConfig->configId == ech->configId) {
                 ret = TLSX_ExtractEch(ssl, ech, echConfig, aadCopy,
@@ -14944,7 +14950,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         }
         /* otherwise, try to decrypt with all configs (trial decryption) */
         if (echConfig == NULL && ssl->options.enableEchTrialDecrypt) {
-            echConfig = ssl->ctx->echConfigs;
+            echConfig = ech->echConfig;
             while (echConfig != NULL) {
                 if (echConfig->configId != ech->configId) {
                     ret = TLSX_ExtractEch(ssl, ech, echConfig, aadCopy,
@@ -14984,7 +14990,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                 ret = TLSX_ECH_CheckInnerPadding(ssl, ech);
                 if (ret == 0) {
                     /* expand EchOuterExtensions if present.
-                    * Also, if it exists, copy sessionID from outer hello */
+                     * Also, if it exists, copy sessionID from outer hello */
                     ret = TLSX_ECH_ExpandOuterExtensions(ssl, ech, ssl->heap);
                 }
             }
@@ -15014,6 +15020,9 @@ static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
     if (ech->hpkeContext != NULL) {
         ForceZero(ech->hpkeContext, sizeof(HpkeBaseContext));
         XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (ech->copiedConfig && ech->echConfig != NULL) {
+        FreeEchConfigs(ech->echConfig, heap);
     }
 
     XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16754,14 +16763,10 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
         }
 #if defined(HAVE_ECH)
-        else if (IsAtLeastTLSv1_3(ssl->version)) {
-            if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
-                ret = SERVER_ECH_USE(&(ssl->extensions), ssl->heap,
-                    ssl->ctx->echConfigs);
-
-                if (ret == 0)
-                    TLSX_SetResponse(ssl, TLSX_ECH);
-            }
+        else if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.disableECH &&
+                ssl->ctx->echConfigs != NULL) {
+            ret = SERVER_ECH_USE(&(ssl->extensions), ssl->heap,
+                ssl->ctx->echConfigs);
         }
 #endif
 
@@ -18846,8 +18851,7 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     /* Reconcile ECH inner/outer extensions before verifying SNI so the verify
      * pass sees the authoritative list */
     if (ret == 0 && msgType == client_hello && isRequest &&
-            !ssl->options.echProcessingInner &&
-            ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
+            !ssl->options.disableECH && !ssl->options.echProcessingInner) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         WOLFSSL_ECH* ech = NULL;
         if (echX != NULL)

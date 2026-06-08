@@ -43913,6 +43913,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     WOLFSSL_MSG("Server quietly not acking servername.");
                     break;
                 default:
+                    TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
                     break;
             }
         }
