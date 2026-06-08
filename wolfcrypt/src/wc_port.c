@@ -795,7 +795,7 @@ int wolfCrypt_Cleanup(void)
     ret = wc_local_InitDown(&wolfcrypt_init_state);
     if (ret < 0) {
         if (ret == WC_NO_ERR_TRACE(ALREADY_E))
-            WOLFSSL_MSG("wolfCrypt_Cleanup() called with initRefCount <= 0.");
+            WOLFSSL_MSG("wolfCrypt_Cleanup() called during or after prior final cleanup.");
         else if (ret == WC_NO_ERR_TRACE(BAD_STATE_E))
             WOLFSSL_MSG("wolfCrypt_Cleanup() failed: bad internal state.");
 #ifdef WC_INIT_ERROR_WHEN_CONTENDED
@@ -1766,14 +1766,16 @@ WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c,
 WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c,
                                               WC_ATOMIC_INT_ARG i)
 {
-    int ret = atomic_fetch_add_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_INT_ARG ret =
+        atomic_fetch_add_explicit(c, i, memory_order_relaxed);
     return ret + i;
 }
 
 WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c,
                                               WC_ATOMIC_INT_ARG i)
 {
-    int ret = atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_INT_ARG ret =
+        atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
     return ret - i;
 }
 
@@ -1812,14 +1814,16 @@ WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
 WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
                                                 WC_ATOMIC_UINT_ARG i)
 {
-    unsigned int ret = atomic_fetch_add_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_UINT_ARG ret =
+        atomic_fetch_add_explicit(c, i, memory_order_relaxed);
     return ret + i;
 }
 
 WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
                                                 WC_ATOMIC_UINT_ARG i)
 {
-    unsigned int ret = atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_UINT_ARG ret =
+        atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
     return ret - i;
 }
 
@@ -1987,14 +1991,16 @@ WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c,
 WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c,
                                               WC_ATOMIC_INT_ARG i)
 {
-    int ret = (int)_InterlockedExchangeAdd(c, (long)i);
+    WC_ATOMIC_INT_ARG ret =
+        (WC_ATOMIC_INT_ARG)_InterlockedExchangeAdd(c, (long)i);
     return ret + i;
 }
 
 WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c,
                                               WC_ATOMIC_INT_ARG i)
 {
-    int ret = (int)_InterlockedExchangeAdd(c, (long)-i);
+    WC_ATOMIC_INT_ARG ret =
+        (WC_ATOMIC_INT_ARG)_InterlockedExchangeAdd(c, (long)-i);
     return ret - i;
 }
 
@@ -2002,7 +2008,7 @@ WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c,
                                               WC_ATOMIC_INT_ARG new_i)
 {
     long actual_i = InterlockedExchange(c, (long)new_i);
-    return (int)actual_i;
+    return (WC_ATOMIC_INT_ARG)actual_i;
 }
 
 int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c,
@@ -2015,7 +2021,7 @@ int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c,
         return 1;
     }
     else {
-        *expected_i = (int)actual_i;
+        *expected_i = (WC_ATOMIC_INT_ARG)actual_i;
         return 0;
     }
 }
@@ -2060,7 +2066,7 @@ int wolfSSL_Atomic_Uint_CompareExchange(
         return 1;
     }
     else {
-        *expected_i = (unsigned int)actual_i;
+        *expected_i = (WC_ATOMIC_UINT_ARG)actual_i;
         return 0;
     }
 }

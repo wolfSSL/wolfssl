@@ -539,7 +539,7 @@
         typedef WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
         #define WOLFSSL_ATOMIC_LOAD(x) (x)
-        #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
+        #define WOLFSSL_ATOMIC_STORE(x, val) (void)((x) = (val))
         #define WOLFSSL_ATOMIC_OPS
     #elif defined(WOLFSSL_BSDKM)
     /* Note: <stdatomic.h> can be safely included in both linux kernel and
@@ -567,7 +567,8 @@
         #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), \
                                                   val, __ATOMIC_RELEASE)
         #define WOLFSSL_ATOMIC_OPS
-    #elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
+    #elif defined(_MSC_VER) && defined(USE_WINDOWS_API) && \
+            !defined(WOLFSSL_NOT_WINDOWS_API)
         /* Use MSVC compiler intrinsics for atomic ops */
         #ifdef _WIN32_WCE
             #include <armintr.h>
@@ -577,8 +578,15 @@
         typedef volatile long wolfSSL_Atomic_Int;
         typedef volatile unsigned long wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-        #define WOLFSSL_ATOMIC_LOAD(x) (x)
-        #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
+        /* Acquire-ordered load via idempotent RMW: OR-with-0 leaves the value
+         * unchanged but provides atomicity + acquire ordering. On cl.exe this
+         * is a locked RMW; LLVM (clang-cl) may lower it to a plain acquire
+         * load.
+         */
+        #define WOLFSSL_ATOMIC_LOAD(x) \
+            InterlockedOrAcquire((volatile long *)&(x), 0)
+        #define WOLFSSL_ATOMIC_STORE(x, val) \
+            (void)InterlockedExchange((volatile long *)&(x), (long)(val))
         #define WOLFSSL_ATOMIC_OPS
     #endif
 
