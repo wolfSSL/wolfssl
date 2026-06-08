@@ -51,6 +51,7 @@ typedef struct Arc4 {
     WC_ASYNC_DEV asyncDev;
 #endif
     void* heap;
+    WC_BITFIELD keySet:1;    /* set to 1 once a key has been configured */
 } Arc4;
 
 WOLFSSL_API int wc_Arc4Process(Arc4* arc4, byte* out, const byte* in,

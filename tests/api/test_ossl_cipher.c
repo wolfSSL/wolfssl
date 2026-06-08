@@ -965,7 +965,9 @@ int test_wolfSSL_RC4(void)
     wolfSSL_RC4(NULL, 0, data, enc);
 
     ExpectIntEQ(1, 1);
-    for (i = 0; EXPECT_SUCCESS() && (i <= sizeof(key)); i++) {
+    /* Start at a key length of 1: a zero-length key is invalid and leaves the
+     * Arc4 object without a key set, so encrypt/decrypt is a no-op. */
+    for (i = 1; EXPECT_SUCCESS() && (i <= sizeof(key)); i++) {
         for (j = 0; EXPECT_SUCCESS() && (j <= sizeof(data)); j++) {
             XMEMSET(enc, 0, sizeof(enc));
             XMEMSET(dec, 0, sizeof(dec));
