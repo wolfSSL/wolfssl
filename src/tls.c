@@ -5232,8 +5232,13 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     if (length != OPAQUE16_LEN + offset)
         return BUFFER_ERROR;
     offset = OPAQUE16_LEN;
-    if (offset == length)
-        return 0;
+    if (offset == length) {
+        /* An empty named group list is malformed (named_group_list<2..2^16-1>,
+         * RFC 8422 / RFC 8446). BUFFER_ERROR yields a decode_error alert (see
+         * TranslateErrorToAlert()). Accepting it would also make an explicit
+         * empty extension look absent and impose no group restriction. */
+        return BUFFER_ERROR;
+    }
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
     if (extension == NULL) {
@@ -5249,6 +5254,14 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
                     ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 break;
             ret = 0;
+        }
+        /* All advertised groups are unsupported, so no node was added above.
+         * Record an empty node so suite selection still sees the restriction
+         * (e.g. ECC/ECDHE must not be chosen) instead of treating the
+         * extension as absent. */
+        if (ret == 0 && isRequest &&
+                TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
+            ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, NULL, ssl->heap);
         }
     }
     else {
