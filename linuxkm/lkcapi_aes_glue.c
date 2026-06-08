@@ -2079,9 +2079,6 @@ static int ccmAesAead_rfc4309_loaded = 0;
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AESCCM || LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309 */
 
-
-
-
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
 
 #ifndef WOLFSSL_AESXTS_STREAM
@@ -2193,7 +2190,8 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         err = skcipher_walk_done(&walk, 0);
@@ -2228,7 +2226,8 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         while ((nbytes = walk.nbytes) != 0) {
@@ -2250,7 +2249,8 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                return -EINVAL;
+                err = -EINVAL;
+                goto out;
             }
 
             err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
@@ -2284,7 +2284,8 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                return -EINVAL;
+                err = -EINVAL;
+                goto out;
             }
 
             err = skcipher_walk_done(&walk, 0);
@@ -2297,6 +2298,11 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
     pr_info("info: exiting km_AesXtsEncrypt: err %d, cryptlen %d\n", err,
             req->cryptlen);
     #endif /* WOLFKM_DEBUG_AES */
+
+out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     return err;
 }
@@ -2331,7 +2337,8 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         err = skcipher_walk_done(&walk, 0);
@@ -2365,7 +2372,8 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         while ((nbytes = walk.nbytes) != 0) {
@@ -2387,7 +2395,8 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                return -EINVAL;
+                err = -EINVAL;
+                goto out;
             }
 
             err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
@@ -2421,7 +2430,8 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                return -EINVAL;
+                err = -EINVAL;
+                goto out;
             }
 
             err = skcipher_walk_done(&walk, 0);
@@ -2434,6 +2444,11 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
     pr_info("info: exiting km_AesXtsDecrypt: err %d, cryptlen %d\n", err,
             req->cryptlen);
     #endif /* WOLFKM_DEBUG_AES */
+
+out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     return err;
 }
