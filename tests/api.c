@@ -3843,7 +3843,7 @@ static int test_wolfSSL_get_chain_idx_bounds(void)
     WOLFSSL* ssl_c = NULL;
     WOLFSSL* ssl_s = NULL;
     WOLFSSL_X509_CHAIN* chain = NULL;
-    int count;
+    int count = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
