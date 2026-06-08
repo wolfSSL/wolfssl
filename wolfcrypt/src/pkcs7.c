@@ -15319,8 +15319,12 @@ authenv_atrbend:
                     encryptedContent, encryptedContentSz, encryptedContent,
                     pkcs7->devId, pkcs7->heap);
             if (ret != 0) {
-                XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                return ret;
+                /* Fall through to the shared error handler below, which
+                 * ForceZeros and frees encryptedContent, nulls
+                 * stream->bufferPt/key, and resets the stream. Returning
+                 * here would leave a dangling stream->bufferPt and risk a
+                 * use-after-free / double-free on streaming re-entry. */
+                break;
             }
 
             if (encodedAttribs != NULL) {
