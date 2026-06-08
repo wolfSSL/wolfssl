@@ -28749,6 +28749,29 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
 
     offset = cipher->offset;
 
+    /* The offset field is only populated when the cipher is obtained through
+     * wolfSSL_get_ciphers_compat() (e.g. SSL_get_ciphers()). When the cipher
+     * comes from wolfSSL_get_current_cipher() the offset is left at its default
+     * value of 0, which would make the parsing below operate on
+     * cipher_names[0] (a TLS 1.3 suite) rather than on the actual cipher. The
+     * suite bytes are always populated, so resolve the offset from them. */
+    {
+        int idx;
+        int namesSz = GetCipherNamesSize();
+        for (idx = 0; idx < namesSz; idx++) {
+            if (cipher_names[idx].cipherSuite0 == cipher->cipherSuite0 &&
+                cipher_names[idx].cipherSuite  == cipher->cipherSuite
+            #ifndef NO_CIPHER_SUITE_ALIASES
+                && (!(cipher_names[idx].flags &
+                      WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+            #endif
+                ) {
+                offset = (unsigned long)idx;
+                break;
+            }
+        }
+    }
+
     if (offset >= (unsigned long)GetCipherNamesSize())
         return NULL;
 

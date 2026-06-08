@@ -28172,6 +28172,52 @@ static int test_SSL_CIPHER_get_xxx(void)
     return EXPECT_RESULT();
 }
 
+/* Regression test: the cipher property helpers (kx/auth/cipher/digest/aead)
+ * must report the actual negotiated cipher when it is obtained through
+ * SSL_get_current_cipher(). That path does not populate cipher->offset, so a
+ * previous bug caused these helpers to parse cipher_names[0] (a TLS 1.3 suite)
+ * instead, e.g. returning NID_kx_any for a plain PSK suite. */
+static int test_SSL_CIPHER_get_current_kx(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_TLS) && \
+    defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
+    SSL_CTX* ctx = NULL;
+    SSL*     ssl = NULL;
+    const SSL_CIPHER* cipher = NULL;
+
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+    ExpectNotNull(ssl = SSL_new(ctx));
+
+    /* Simulate a negotiated plain-PSK cipher suite without doing a full
+     * handshake. SSL_get_current_cipher() reports the suite from these
+     * fields, and leaves cipher->offset at its default value of 0. */
+    if (ssl != NULL) {
+        ssl->options.cipherSuite0 = CIPHER_BYTE; /* 0x00 */
+        ssl->options.cipherSuite  = TLS_PSK_WITH_AES_128_GCM_SHA256;
+    }
+
+    ExpectNotNull(cipher = SSL_get_current_cipher(ssl));
+    /* Name is resolved from the suite bytes and was already correct. */
+    ExpectStrEQ(SSL_CIPHER_get_name(cipher), "TLS_PSK_WITH_AES_128_GCM_SHA256");
+    /* These were wrong before the fix (read cipher_names[0]). */
+    ExpectIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), NID_kx_psk);
+    ExpectIntEQ(wolfSSL_CIPHER_get_auth_nid(cipher), NID_auth_psk);
+    ExpectIntEQ(wolfSSL_CIPHER_get_cipher_nid(cipher), NID_aes_128_gcm);
+    ExpectIntEQ(wolfSSL_CIPHER_get_digest_nid(cipher), NID_sha256);
+    ExpectIntEQ(wolfSSL_CIPHER_is_aead(cipher), 1);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA))
@@ -34955,6 +35001,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_get_peer_finished_overrun),
 #endif
     TEST_DECL(test_SSL_CIPHER_get_xxx),
+    TEST_DECL(test_SSL_CIPHER_get_current_kx),
     TEST_DECL(test_wolfSSL_ERR_strings),
     TEST_DECL(test_wolfSSL_CTX_set_cipher_list_bytes),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls12_keeps_tls13),
