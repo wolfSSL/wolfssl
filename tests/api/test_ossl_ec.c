@@ -1555,6 +1555,11 @@ int test_wolfSSL_ECDSA_SIG(void)
     sig = NULL;
 
     ExpectNull(wolfSSL_d2i_ECDSA_SIG(NULL, NULL, sizeof(sigData)));
+    /* Reject non-positive length and *pp == NULL (PR #10207). */
+    cp = sigData;
+    ExpectNull(wolfSSL_d2i_ECDSA_SIG(NULL, &cp, -1));
+    cp = NULL;
+    ExpectNull(wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigData)));
     cp = sigDataBad;
     ExpectNull(wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigDataBad)));
     cp = sigData;

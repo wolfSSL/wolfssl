@@ -1361,7 +1361,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
     (void)opt;
 
     /* Validate parameters. */
-    if (in == NULL || inSz < 0) {
+    if (in == NULL || *in == NULL || inSz <= 0) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
     }
@@ -1585,12 +1585,18 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 {
     int ret;
     WOLFSSL_EVP_PKEY* key = NULL;
-    const byte* der = *pp;
+    const byte* der;
     word32 idx = 0;
     int len = 0;
     int cnt = 0;
     word32 algId;
-    word32 keyLen = (word32)length;
+    word32 keyLen;
+
+    if (pp == NULL || *pp == NULL || length <= 0)
+        return NULL;
+
+    der = *pp;
+    keyLen = (word32)length;
 
     /* Take off PKCS#8 wrapper if found. */
     if ((len = ToTraditionalInline_ex(der, &idx, keyLen, &algId)) >= 0) {
