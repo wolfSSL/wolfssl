@@ -32374,6 +32374,14 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
             if ((len > size) || ((*inOutIdx - begin) + len > size))
                 return BUFFER_ERROR;
 
+            /* Signature algorithm list is a sequence of 2-byte pairs; an odd
+             * length is malformed and must be rejected (matches TLS 1.3
+             * signature_algorithms extension parsing). */
+            if ((len % HELLO_EXT_SIGALGO_SZ) != 0) {
+                WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+                return BUFFER_ERROR;
+            }
+
             if (PickHashSigAlgo(ssl, input + *inOutIdx, len, 0) != 0 &&
                                              ssl->buffers.certificate &&
                                              ssl->buffers.certificate->buffer) {
