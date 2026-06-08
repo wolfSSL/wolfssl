@@ -31973,10 +31973,7 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
 
     ret = wc_BuildEccKeyDer(key, tmpDer, &sz, includePublic, 0);
     if (ret < 0) {
-    #ifndef WOLFSSL_NO_MALLOC
-        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
+        goto exit;
     }
     tmpDerSz = (word32)ret;
 
@@ -31984,42 +31981,36 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
     ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, tmpDer, tmpDerSz, algoID,
                             curveOID, oidSz);
     if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
-    #ifndef WOLFSSL_NO_MALLOC
-        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
+        goto exit;
     }
 
     if (output == NULL) {
-    #ifndef WOLFSSL_NO_MALLOC
-        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
         *outLen = pkcs8Sz;
-        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
-
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+        goto exit;
     }
     else if (*outLen < pkcs8Sz) {
-    #ifndef WOLFSSL_NO_MALLOC
-        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
         WOLFSSL_MSG("Input buffer too small for ECC PKCS#8 key");
-        return BUFFER_E;
+        ret = BUFFER_E;
+        goto exit;
     }
 
     ret = wc_CreatePKCS8Key(output, &pkcs8Sz, tmpDer, tmpDerSz,
                             algoID, curveOID, oidSz);
     if (ret < 0) {
-    #ifndef WOLFSSL_NO_MALLOC
-        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
+        goto exit;
     }
 
+    *outLen = (word32)ret;
+
+exit:
+    /* tmpDer holds a plaintext copy of the ECC private key - always zeroize
+     * it before releasing (or before the stack buffer goes out of scope). */
+    ForceZero(tmpDer, ECC_BUFSIZE);
 #ifndef WOLFSSL_NO_MALLOC
     XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    *outLen = (word32)ret;
     return ret;
 }
 
