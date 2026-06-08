@@ -1671,9 +1671,11 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
         ea[i].totalSz = attribSz;
 
         /* Keep the running total within positive int range so callers can
-         * distinguish a valid size (>= 0) from a negative error return. */
-        if (attribSz > (WOLFSSL_MAX_32BIT >> 1) ||
-            (word32)allAttribsSz > (WOLFSSL_MAX_32BIT >> 1) - attribSz) {
+         * distinguish a valid size (>= 0) from a negative error return. Bound
+         * against the build's actual int maximum rather than assuming 32-bit
+         * int, so the (int) cast below cannot overflow on narrow-int targets. */
+        if (attribSz > (word32)WC_MAX_SINT_OF(int) ||
+            (word32)allAttribsSz > (word32)WC_MAX_SINT_OF(int) - attribSz) {
             WOLFSSL_MSG("PKCS7 attributes total size overflow");
             return BUFFER_E;
         }
