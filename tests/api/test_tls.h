@@ -65,7 +65,6 @@ int test_wolfSSL_get_shared_ciphers(void);
         TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_type_string),                \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_desc_string),                \
-        TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \
         TEST_DECL_GROUP("tls", test_record_size_matches_build_message),        \
         TEST_DECL_GROUP("tls",                                                 \
             test_record_size_cache_invalidated_on_renegotiation),              \

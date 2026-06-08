@@ -3361,7 +3361,7 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
 {
     int i;
     int _groups[WOLFSSL_MAX_GROUP_COUNT];
-    WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
+    WOLFSSL_ENTER("wolfSSL_set1_groups");
     if (groups == NULL || count <= 0) {
         WOLFSSL_MSG("Groups NULL or count not positive");
         return WOLFSSL_FAILURE;
