@@ -2375,29 +2375,39 @@ enum Max_ASN {
     DSA_INTS            =   5,     /* DSA ints in private key */
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
+    /* Max classic sig (RSA/DSA/ECC); separate from MAX_ENCODED_SIG_SZ so
+     * PKCS#1/verify buffers stay small when PQC is enabled for verify-only. */
+#if !defined(NO_RSA)
+#if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
+    MAX_ENCODED_CLASSIC_SIG_SZ = FP_MAX_BITS / 16,
+#elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
+    defined(SP_INT_BITS)
+    MAX_ENCODED_CLASSIC_SIG_SZ = WC_BITS_TO_BYTES(SP_INT_BITS),
+#elif defined(WOLFSSL_HAPROXY)
+    MAX_ENCODED_CLASSIC_SIG_SZ = 1024,    /* Supports 8192 bit keys */
+#else
+    MAX_ENCODED_CLASSIC_SIG_SZ = 512,     /* Supports 4096 bit keys */
+#endif
+#elif defined(HAVE_ECC)
+    MAX_ENCODED_CLASSIC_SIG_SZ = 140,
+#elif defined(HAVE_ED448)
+    MAX_ENCODED_CLASSIC_SIG_SZ = 114,    /* Ed448 signature is 114 bytes */
+#else
+    MAX_ENCODED_CLASSIC_SIG_SZ =  64,    /* Ed25519 signature is 64 bytes */
+#endif
+
+    /* Largest signature any enabled algorithm can produce. Used to size the
+     * actual signature-output buffers. PQC signatures are large, so prefer
+     * runtime sizing (see GetSignatureBufferSz in asn.c) where the key is
+     * available. */
 #ifdef WOLFSSL_HAVE_SLHDSA
     /* Largest raw SLH-DSA signature (SHAKE-256f) is 49856 bytes; round up
      * to leave headroom for ASN.1 wrapping (BIT STRING tag + length). */
     MAX_ENCODED_SIG_SZ  = 51200,
 #elif defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     MAX_ENCODED_SIG_SZ  = 5120,
-#elif !defined(NO_RSA)
-#if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
-    MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 16,
-#elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
-    defined(SP_INT_BITS)
-    MAX_ENCODED_SIG_SZ  = WC_BITS_TO_BYTES(SP_INT_BITS),
-#elif defined(WOLFSSL_HAPROXY)
-    MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
 #else
-    MAX_ENCODED_SIG_SZ  = 512,     /* Supports 4096 bit keys */
-#endif
-#elif defined(HAVE_ECC)
-    MAX_ENCODED_SIG_SZ  = 140,
-#elif defined(HAVE_CURVE448)
-    MAX_ENCODED_SIG_SZ  = 114,
-#else
-    MAX_ENCODED_SIG_SZ  =  64,
+    MAX_ENCODED_SIG_SZ  = MAX_ENCODED_CLASSIC_SIG_SZ,
 #endif
     MAX_ALGO_SZ         =  20,
     MAX_LENGTH_SZ       = WOLFSSL_ASN_MAX_LENGTH_SZ, /* Max length size for DER encoding */
@@ -2457,6 +2467,16 @@ enum Max_ASN {
 
 #define MAX_SIG_SZ MAX_ENCODED_SIG_SZ
 
+/* Size of the fixed signature buffer embedded in CertSignCtx under
+ * WOLFSSL_NO_MALLOC, and the reject threshold used by the cert/CSR signing
+ * paths when dynamic memory is unavailable. Defaults to the largest signature
+ * any enabled algorithm can produce. Override (e.g. via user_settings.h) to
+ * fit a specific LMS/XMSS parameter set, or to shrink builds that only sign
+ * with classic/compact algorithms. */
+#ifndef WOLFSSL_MAX_SIG_SZ
+#define WOLFSSL_MAX_SIG_SZ MAX_ENCODED_SIG_SZ
+#endif
+
 #if defined(WOLFSSL_CERT_GEN) || defined(HAVE_OCSP_RESPONDER)
     /* Used in asn.c MakeSignature for ECC and RSA non-blocking/async */
     enum CertSignState {
@@ -2468,7 +2488,7 @@ enum Max_ASN {
 
     typedef struct CertSignCtx {
     #ifdef WOLFSSL_NO_MALLOC
-        byte sig[MAX_ENCODED_SIG_SZ];
+        byte sig[WOLFSSL_MAX_SIG_SZ];
         byte digest[WC_MAX_DIGEST_SIZE];
         #ifndef NO_RSA
         byte encSig[MAX_DER_DIGEST_SZ];

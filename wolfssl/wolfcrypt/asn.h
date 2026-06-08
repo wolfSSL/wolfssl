@@ -1541,7 +1541,9 @@ struct SignatureCtx {
 #endif
 #if !defined(NO_RSA) || !defined(NO_DSA)
     #ifdef WOLFSSL_NO_MALLOC
-    byte  sigCpy[MAX_ENCODED_SIG_SZ];
+    /* Holds a copy of the RSA/DSA signature being verified, which is at most
+     * an RSA-modulus-sized value -- never a (much larger) PQC signature. */
+    byte  sigCpy[MAX_ENCODED_CLASSIC_SIG_SZ];
     #else
     byte* sigCpy;
     #endif

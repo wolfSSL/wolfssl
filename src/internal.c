@@ -33825,12 +33825,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                              }
                             #endif
                             if (IsAtLeastTLSv1_2(ssl)) {
+                                /* DigestInfo encoding for RSA, never a PQC
+                                 * signature -- size to the classic tier. */
                                 WC_DECLARE_VAR(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, 0);
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, 0);
                                 word32 encSigSz;
 
                                 WC_ALLOC_VAR_EX(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, ssl->heap,
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, ssl->heap,
                                     DYNAMIC_TYPE_SIGNATURE,
                                     ERROR_OUT(MEMORY_E,exit_dske));
 
@@ -33840,7 +33842,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                     TypeHash(ssl->options.peerHashAlgo));
                                 if (encSigSz != args->sigSz || !args->output ||
                                     XMEMCMP(args->output, encodedSig,
-                                            min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                            min(encSigSz,
+                                                MAX_ENCODED_CLASSIC_SIG_SZ))
+                                                                         != 0) {
                                     ret = VERIFY_SIGN_ERROR;
                                 }
                                 WC_FREE_VAR_EX(encodedSig, ssl->heap,
@@ -35141,9 +35145,14 @@ int SendCertificateVerify(WOLFSSL* ssl)
             args->verify = &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
             args->extraSz = 0;  /* tls 1.2 hash/sig */
 
-            /* build encoded signature buffer */
-            ssl->buffers.sig.length = MAX_ENCODED_SIG_SZ;
-            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+            /* Build encoded signature buffer. This is TLS 1.2 and earlier
+             * (TLS 1.3 uses SendTls13CertificateVerify), so the signature is
+             * always classic (RSA/ECC/EdDSA), never PQC -- size to the classic
+             * tier rather than the (potentially huge) PQC worst case. This
+             * comfortably holds an ECC/EdDSA signature written directly, or the
+             * PKCS#1 DigestInfo that is the input to RsaSign. */
+            ssl->buffers.sig.length = MAX_ENCODED_CLASSIC_SIG_SZ;
+            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                         ssl->heap, DYNAMIC_TYPE_SIGNATURE);
             if (ssl->buffers.sig.buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scv);
@@ -36354,8 +36363,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     static int ReEncodeSig(WOLFSSL* ssl)
     {    /* For TLS 1.2 re-encode signature */
         if (IsAtLeastTLSv1_2(ssl)) {
-            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
-                                              DYNAMIC_TYPE_DIGEST);
+            /* DigestInfo encoding for RSA, never a PQC signature. */
+            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
+                                              ssl->heap, DYNAMIC_TYPE_DIGEST);
             if (encodedSig == NULL)
                 return MEMORY_E;
             ssl->buffers.digest.length =
@@ -39489,10 +39499,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         else
                     #endif
                         {
+                        /* DigestInfo encoding for RSA */
                         #ifndef WOLFSSL_SMALL_STACK
-                            byte  encodedSig[MAX_ENCODED_SIG_SZ];
+                            byte  encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
                         #else
-                            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+                            byte* encodedSig =
+                                (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                              ssl->heap, DYNAMIC_TYPE_SIGNATURE);
                             if (encodedSig == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_dcv);
@@ -39507,7 +39519,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
                             if (args->sendSz != args->sigSz || !args->output ||
                                 XMEMCMP(args->output, encodedSig,
-                                   min(args->sigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                   min(args->sigSz, MAX_ENCODED_CLASSIC_SIG_SZ)) != 0) {
                                 ret = VERIFY_CERT_ERROR;
                             }
 

@@ -23304,6 +23304,11 @@ static int test_wc_SignCert_cb(void)
         /* Invalid keyType for ECC signature */
         ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
             FOURK_BUF, ED25519_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+        /* sigType/key family mismatch: an RSA signature OID against an ECC
+         * key must be rejected with ALGO_ID_E before any signing happens. */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, CTC_SHA256wRSA, der,
+            FOURK_BUF, ECC_TYPE, mockSignCb, &signCtx, &rng),
+            WC_NO_ERR_TRACE(ALGO_ID_E));
     #endif
 
         ret = wc_ecc_free(&key);
@@ -23390,6 +23395,11 @@ static int test_wc_SignCert_cb(void)
         /* Invalid keyType */
         ExpectIntEQ(wc_SignCert_cb(cert.bodySz, cert.sigType, der,
             FOURK_BUF, ED448_TYPE, mockSignCb, &signCtx, &rng), BAD_FUNC_ARG);
+        /* sigType/key family mismatch: an ECDSA signature OID against an RSA
+         * key must be rejected with ALGO_ID_E before any signing happens. */
+        ExpectIntEQ(wc_SignCert_cb(cert.bodySz, CTC_SHA256wECDSA, der,
+            FOURK_BUF, RSA_TYPE, mockSignCb, &signCtx, &rng),
+            WC_NO_ERR_TRACE(ALGO_ID_E));
     #endif
 
         ret = wc_FreeRsaKey(&key);
@@ -24327,6 +24337,15 @@ static int test_wc_MakeCRL_max_crlnum(void)
         crlSz = wc_SignCRL_ex(tbsBuf, tbsSz, CTC_SHA256wRSA,
             crlBuf, (word32)bufSz, &rsaKey, NULL, &rng);
         ExpectIntGT(crlSz, 0);
+    }
+
+    /* --- Negative: a sigType whose family does not match the signing key
+     * must be rejected before any signature is produced. The RSA key here
+     * paired with an ECDSA OID must return ALGO_ID_E. --- */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wc_SignCRL_ex(tbsBuf, tbsSz, CTC_SHA256wECDSA,
+            crlBuf, (word32)bufSz, &rsaKey, NULL, &rng),
+            WC_NO_ERR_TRACE(ALGO_ID_E));
     }
 
     /* --- Decode the CRL and verify CRL number --- */
