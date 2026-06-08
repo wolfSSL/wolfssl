@@ -4,12 +4,12 @@ runCMD() { # usage: runCMD "<command>" "<retVal>[ <retVal> ...]"
     TMP_FILE=$(mktemp)
     eval $1 > "$TMP_FILE" 2>&1
     RETVAL=$?
-    for EXPECTED_RETVAL in $2; do
-        if [ "$RETVAL" = "$EXPECTED_RETVAL" ]; then
+    case " $2 " in
+        *" $RETVAL "*) 
             rm -f "$TMP_FILE"
             return 0
-        fi
-    done
+            ;;
+    esac
     echo "Command ($1) returned ${RETVAL}, but expected one of: $2. Error output:"
     cat "$TMP_FILE"
     rm -f "$TMP_FILE"
