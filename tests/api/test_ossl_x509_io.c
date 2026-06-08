@@ -72,6 +72,67 @@ int test_wolfSSL_i2d_X509(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_get_der_length_guards(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    const unsigned char* cert_buf = server_cert_der_2048;
+    X509* cert = NULL;
+    int derSz = 0;
+    word32 origLen = 0;
+
+    ExpectNotNull(d2i_X509(&cert, &cert_buf, sizeof_server_cert_der_2048));
+    ExpectNotNull(cert);
+    ExpectNotNull(cert->derCert);
+
+    if (EXPECT_SUCCESS()) {
+        origLen = cert->derCert->length;
+        cert->derCert->length = ((word32)INT_MAX) + 1U;
+        ExpectNull(wolfSSL_X509_get_der(cert, &derSz));
+        cert->derCert->length = origLen;
+    }
+
+    X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_i2d_X509_der_length_guards(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    const unsigned char* cert_buf = server_cert_der_2048;
+    unsigned char buf[4] = { 0x11, 0x22, 0x33, 0x44 };
+    const unsigned char origBuf[4] = { 0x11, 0x22, 0x33, 0x44 };
+    unsigned char* callerOut = buf;
+    X509* cert = NULL;
+    word32 origLen = 0;
+
+    ExpectNotNull(d2i_X509(&cert, &cert_buf, sizeof_server_cert_der_2048));
+    ExpectNotNull(cert);
+    ExpectNotNull(cert->derCert);
+
+    if (EXPECT_SUCCESS()) {
+        origLen = cert->derCert->length;
+
+        cert->derCert->length = ((word32)INT_MAX) + 1U;
+        ExpectIntEQ(i2d_X509(cert, &callerOut), MEMORY_E);
+        ExpectPtrEq(callerOut, buf);
+        ExpectIntEQ(XMEMCMP(buf, origBuf, sizeof(buf)), 0);
+
+        cert->derCert->length = 0;
+        ExpectIntEQ(i2d_X509(cert, &callerOut), MEMORY_E);
+        ExpectPtrEq(callerOut, buf);
+        ExpectIntEQ(XMEMCMP(buf, origBuf, sizeof(buf)), 0);
+
+        cert->derCert->length = origLen;
+    }
+
+    X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_PEM_read_X509(void)
 {
     EXPECT_DECLS;
@@ -244,4 +305,3 @@ int test_wolfSSL_PEM_write_bio_X509(void)
 #endif
     return EXPECT_RESULT();
 }
-
