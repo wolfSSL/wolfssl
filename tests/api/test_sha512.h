@@ -66,6 +66,9 @@ int test_wc_Sha384_other(void);
 int test_wc_Sha384Copy(void);
 int test_wc_Sha384GetHash(void);
 int test_wc_Sha384_Flags(void);
+int test_wc_sha512_cryptocb_fallback(void);
+int test_wc_sha512_variants_default_devid(void);
+int test_wc_sha512_cryptocb_free(void);
 
 #define TEST_SHA512_DECLS                               \
     TEST_DECL_GROUP("sha512", test_wc_InitSha512),      \
@@ -77,7 +80,10 @@ int test_wc_Sha384_Flags(void);
     TEST_DECL_GROUP("sha512", test_wc_Sha512Copy),      \
     TEST_DECL_GROUP("sha512", test_wc_Sha512GetHash),   \
     TEST_DECL_GROUP("sha512", test_wc_Sha512Transform), \
-    TEST_DECL_GROUP("sha512", test_wc_Sha512_Flags)
+    TEST_DECL_GROUP("sha512", test_wc_Sha512_Flags),    \
+    TEST_DECL_GROUP("sha512", test_wc_sha512_cryptocb_fallback),       \
+    TEST_DECL_GROUP("sha512", test_wc_sha512_variants_default_devid),  \
+    TEST_DECL_GROUP("sha512", test_wc_sha512_cryptocb_free)
 
 #define TEST_SHA512_224_DECLS                                   \
     TEST_DECL_GROUP("sha512_224", test_wc_InitSha512_224),      \

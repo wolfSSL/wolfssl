@@ -73305,6 +73305,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* set devId to invalid, so software is used */
             info->hash.sha384->devId = INVALID_DEVID;
             #endif
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha384->devId = devIdArg;
+                return 0;
+            }
+            #endif
 
             if (info->hash.in != NULL) {
                 ret = wc_Sha384Update(
@@ -73333,6 +73342,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             #ifndef NO_SHA2_CRYPTO_CB
             /* set devId to invalid, so software is used */
             info->hash.sha512->devId = INVALID_DEVID;
+            #endif
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha512->devId = devIdArg;
+                return 0;
+            }
             #endif
 
             if (info->hash.in != NULL) {
@@ -74517,6 +74535,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_SHA512
     if (ret == 0)
         ret = sha512_test();
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    /* exercises the SHA-512/224 fallback to the generic SHA-512 callback,
+     * including object reuse after Final */
+    if (ret == 0)
+        ret = sha512_224_test();
+#endif
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    if (ret == 0)
+        ret = sha512_256_test();
+#endif
 #ifdef WOLFSSL_SHA3
     if (ret == 0)
         ret = sha3_test();

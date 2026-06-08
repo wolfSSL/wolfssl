@@ -1189,6 +1189,19 @@
     /* settings in user_settings.h */
 #endif
 
+#if defined(WOLFSSL_RENESAS_RSIP) && !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* The Renesas FSPSM hash context has no software digest[] state field and
+     * the device computes each SHA-512 variant (SHA-384, SHA-512/224,
+     * SHA-512/256) natively. Disable the cryptocb fallback that reuses the
+     * generic SHA-512 callback for the variants: it relies on a digest[] IV in
+     * the context (absent here, so it would not compile) and assumes the
+     * backend exposes its hash state, which a device that keeps state
+     * internally does not. */
+    #ifndef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+        #define WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+    #endif
+#endif
+
 #if defined(WOLFSSL_LWIP_NATIVE) || \
     defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
     #undef WOLFSSL_USER_IO
@@ -5215,6 +5228,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #endif
 #if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_SHA256 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA512) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA512 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA512) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA512 is incompatible with FIPS builds"
 #endif
 #if defined(WOLF_CRYPTO_CB_ONLY_AES) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_AES requires WOLF_CRYPTO_CB"

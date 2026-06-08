@@ -254,8 +254,10 @@ WOLFSSL_API int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha);
 WOLFSSL_API int wolfSSL_SHA512_Update(WOLFSSL_SHA512_CTX* sha,
                                       const void* input, unsigned long sz);
 WOLFSSL_API int wolfSSL_SHA512_Final(byte* output, WOLFSSL_SHA512_CTX* sha);
+#ifndef WOLF_CRYPTO_CB_ONLY_SHA512 /* no underlying wc_Sha512Transform */
 WOLFSSL_API int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha512,
                                          const unsigned char* data);
+#endif
 #if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 enum {
     SHA512_DIGEST_LENGTH = 64
@@ -266,7 +268,9 @@ typedef WOLFSSL_SHA512_CTX SHA512_CTX;
 #define SHA512_Init   wolfSSL_SHA512_Init
 #define SHA512_Update wolfSSL_SHA512_Update
 #define SHA512_Final  wolfSSL_SHA512_Final
+#ifndef WOLF_CRYPTO_CB_ONLY_SHA512 /* no underlying wc_Sha512Transform */
 #define SHA512_Transform wolfSSL_SHA512_Transform
+#endif
 #if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     /* SHA512 is only available in non-fips mode because of SHA512 enum in FIPS
      * build. */
@@ -283,14 +287,18 @@ WOLFSSL_API int wolfSSL_SHA512_224_Update(WOLFSSL_SHA512_224_CTX* sha,
                                         const void* input, unsigned long sz);
 WOLFSSL_API int wolfSSL_SHA512_224_Final(byte* output,
                                          WOLFSSL_SHA512_224_CTX* sha);
+#ifndef WOLF_CRYPTO_CB_ONLY_SHA512 /* no underlying wc_Sha512_224Transform */
 WOLFSSL_API int wolfSSL_SHA512_224_Transform(WOLFSSL_SHA512_CTX* sha512,
                                           const unsigned char* data);
+#endif
 
 #if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 #define SHA512_224_Init   wolfSSL_SHA512_224_Init
 #define SHA512_224_Update wolfSSL_SHA512_224_Update
 #define SHA512_224_Final  wolfSSL_SHA512_224_Final
+#ifndef WOLF_CRYPTO_CB_ONLY_SHA512 /* no underlying wc_Sha512_224Transform */
 #define SHA512_224_Transform wolfSSL_SHA512_224_Transform
+#endif
 
 #if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     #define SHA512_224 wolfSSL_SHA512_224
@@ -306,14 +314,18 @@ WOLFSSL_API int wolfSSL_SHA512_256_Init(WOLFSSL_SHA512_CTX* sha);
 WOLFSSL_API int wolfSSL_SHA512_256_Update(WOLFSSL_SHA512_256_CTX* sha,
                                         const void* input, unsigned long sz);
 WOLFSSL_API int wolfSSL_SHA512_256_Final(byte* output, WOLFSSL_SHA512_256_CTX* sha);
+#ifndef WOLF_CRYPTO_CB_ONLY_SHA512 /* no underlying wc_Sha512_256Transform */
 WOLFSSL_API int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX* sha512,
                                           const unsigned char* data);
+#endif
 
 #if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 #define SHA512_256_Init   wolfSSL_SHA512_256_Init
 #define SHA512_256_Update wolfSSL_SHA512_256_Update
 #define SHA512_256_Final  wolfSSL_SHA512_256_Final
+#ifndef WOLF_CRYPTO_CB_ONLY_SHA512 /* no underlying wc_Sha512_256Transform */
 #define SHA512_256_Transform wolfSSL_SHA512_256_Transform
+#endif
 
 #if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     #define SHA512_256 wolfSSL_SHA512_256

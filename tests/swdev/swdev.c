@@ -249,6 +249,177 @@ out:
 #endif /* WOLFSSL_SHA224 */
 #endif /* !NO_SHA256 */
 
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+/* Copy hash state between caller's wc_Sha512 and swdev's shadow, leaving
+ * admin fields (heap, devId, devCtx, W, async, HW ctx) per-side. The same
+ * helper works for SHA-384, SHA-512/224, SHA-512/256 since they all typedef
+ * to wc_Sha512. */
+static void swdev_sha512_copy_state(wc_Sha512* dst, const wc_Sha512* src)
+{
+    XMEMCPY(dst->digest, src->digest, sizeof(dst->digest));
+    XMEMCPY(dst->buffer, src->buffer, sizeof(dst->buffer));
+    dst->buffLen = src->buffLen;
+    dst->loLen   = src->loLen;
+    dst->hiLen   = src->hiLen;
+#ifdef WC_C_DYNAMIC_FALLBACK
+    dst->sha_method = src->sha_method;
+#endif
+#ifdef WOLFSSL_HASH_FLAGS
+    dst->flags = src->flags;
+#endif
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    dst->hashType = src->hashType;
+#endif
+}
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
+
+#ifdef WOLFSSL_SHA512
+static int swdev_sha512(wc_CryptoInfo* info)
+{
+    wc_Sha512* sha512 = info->hash.sha512;
+    wc_Sha512 shadow;
+    int ret;
+
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitSha512(&shadow);
+    if (ret != 0)
+        return ret;
+
+    swdev_sha512_copy_state(&shadow, sha512);
+
+    if (info->hash.in != NULL) {
+        ret = wc_Sha512Update(&shadow, info->hash.in, info->hash.inSz);
+        if (ret != 0)
+            goto out;
+    }
+
+    if (info->hash.digest != NULL) {
+        ret = wc_Sha512Final(&shadow, info->hash.digest);
+        if (ret != 0)
+            goto out;
+    }
+
+    swdev_sha512_copy_state(sha512, &shadow);
+
+out:
+    wc_Sha512Free(&shadow);
+    return ret;
+}
+
+#if !defined(WOLFSSL_NOSHA512_224) && \
+    !defined(WOLFSSL_SWDEV_SHA512_GENERAL_ONLY)
+static int swdev_sha512_224(wc_CryptoInfo* info)
+{
+    wc_Sha512 shadow;
+    wc_Sha512* sha = info->hash.sha512;
+    int ret;
+
+    if (sha == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitSha512_224(&shadow);
+    if (ret != 0)
+        return ret;
+
+    swdev_sha512_copy_state(&shadow, sha);
+
+    if (info->hash.in != NULL) {
+        ret = wc_Sha512_224Update(&shadow, info->hash.in, info->hash.inSz);
+        if (ret != 0)
+            goto out;
+    }
+    if (info->hash.digest != NULL) {
+        ret = wc_Sha512_224Final(&shadow, info->hash.digest);
+        if (ret != 0)
+            goto out;
+    }
+
+    swdev_sha512_copy_state(sha, &shadow);
+
+out:
+    wc_Sha512_224Free(&shadow);
+    return ret;
+}
+#endif
+
+#if !defined(WOLFSSL_NOSHA512_256) && \
+    !defined(WOLFSSL_SWDEV_SHA512_GENERAL_ONLY)
+static int swdev_sha512_256(wc_CryptoInfo* info)
+{
+    wc_Sha512 shadow;
+    wc_Sha512* sha = info->hash.sha512;
+    int ret;
+
+    if (sha == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitSha512_256(&shadow);
+    if (ret != 0)
+        return ret;
+
+    swdev_sha512_copy_state(&shadow, sha);
+
+    if (info->hash.in != NULL) {
+        ret = wc_Sha512_256Update(&shadow, info->hash.in, info->hash.inSz);
+        if (ret != 0)
+            goto out;
+    }
+    if (info->hash.digest != NULL) {
+        ret = wc_Sha512_256Final(&shadow, info->hash.digest);
+        if (ret != 0)
+            goto out;
+    }
+
+    swdev_sha512_copy_state(sha, &shadow);
+
+out:
+    wc_Sha512_256Free(&shadow);
+    return ret;
+}
+#endif
+#endif /* WOLFSSL_SHA512 */
+
+#if defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SWDEV_SHA512_GENERAL_ONLY)
+/* SHA-384 is SHA-512 with a different IV/truncation; wc_Sha384 is a typedef
+ * of wc_Sha512, so the shadow/copy-state dance is identical to swdev_sha512.
+ * When WOLFSSL_SWDEV_SHA512_GENERAL_ONLY is set this is omitted so swdev declines
+ * SHA-384 and the cryptocb dispatcher's SHA-512 fallback path is exercised. */
+static int swdev_sha384(wc_CryptoInfo* info)
+{
+    wc_Sha384* sha384 = info->hash.sha384;
+    wc_Sha384 shadow;
+    int ret;
+
+    if (sha384 == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitSha384(&shadow);
+    if (ret != 0)
+        return ret;
+
+    swdev_sha512_copy_state(&shadow, sha384);
+
+    if (info->hash.in != NULL) {
+        ret = wc_Sha384Update(&shadow, info->hash.in, info->hash.inSz);
+        if (ret != 0)
+            goto out;
+    }
+    if (info->hash.digest != NULL) {
+        ret = wc_Sha384Final(&shadow, info->hash.digest);
+        if (ret != 0)
+            goto out;
+    }
+
+    swdev_sha512_copy_state(sha384, &shadow);
+
+out:
+    wc_Sha384Free(&shadow);
+    return ret;
+}
+#endif /* WOLFSSL_SHA384 && !WOLFSSL_SWDEV_SHA512_GENERAL_ONLY */
+
 #ifndef NO_AES
 /* Rebuild a software AES shadow from the caller's raw devKey, since the
  * caller's Aes has no software round-key schedule under CB_ONLY_AES. */
@@ -546,14 +717,35 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return CRYPTOCB_UNAVAILABLE;
         }
 #endif
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     case WC_ALGO_TYPE_HASH:
         switch (info->hash.type) {
+    #ifndef NO_SHA256
         case WC_HASH_TYPE_SHA256:
             return swdev_sha256(info);
+    #endif
     #ifdef WOLFSSL_SHA224
         case WC_HASH_TYPE_SHA224:
             return swdev_sha224(info);
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case WC_HASH_TYPE_SHA512:
+            return swdev_sha512(info);
+        #if !defined(WOLFSSL_NOSHA512_224) && \
+            !defined(WOLFSSL_SWDEV_SHA512_GENERAL_ONLY)
+        case WC_HASH_TYPE_SHA512_224:
+            return swdev_sha512_224(info);
+        #endif
+        #if !defined(WOLFSSL_NOSHA512_256) && \
+            !defined(WOLFSSL_SWDEV_SHA512_GENERAL_ONLY)
+        case WC_HASH_TYPE_SHA512_256:
+            return swdev_sha512_256(info);
+        #endif
+    #endif
+    #if defined(WOLFSSL_SHA384) && \
+        !defined(WOLFSSL_SWDEV_SHA512_GENERAL_ONLY)
+        case WC_HASH_TYPE_SHA384:
+            return swdev_sha384(info);
     #endif
         default:
             return CRYPTOCB_UNAVAILABLE;
