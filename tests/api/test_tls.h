@@ -37,6 +37,8 @@ int test_tls_set_session_min_downgrade(void);
 int test_tls12_session_id_resumption_sni_mismatch(void);
 int test_tls13_session_resumption_sni_mismatch(void);
 int test_tls13_resumption_with_alpn(void);
+int test_tls12_session_id_resumption_alpn_mismatch(void);
+int test_tls13_session_resumption_alpn_mismatch(void);
 int test_tls_set_curves_list_ecc_fallback(void);
 int test_tls12_corrupted_finished(void);
 int test_tls12_peerauth_failsafe(void);
@@ -63,6 +65,8 @@ int test_record_size_cache_invalidated_on_renegotiation(void);
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_sni_mismatch), \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_sni_mismatch),    \
         TEST_DECL_GROUP("tls", test_tls13_resumption_with_alpn),              \
+        TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_alpn_mismatch),\
+        TEST_DECL_GROUP("tls", test_tls13_session_resumption_alpn_mismatch),   \
         TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback),         \
         TEST_DECL_GROUP("tls", test_tls12_corrupted_finished),                 \
         TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \
