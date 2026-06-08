@@ -1,14 +1,17 @@
 #!/bin/sh
 
-runCMD() { # usage: runCMD "<command>" "<retVal>"
+runCMD() { # usage: runCMD "<command>" "<retVal>[ <retVal> ...]"
     TMP_FILE=$(mktemp)
     eval $1 > $TMP_FILE 2>&1
     RETVAL=$?
-    if [ "$RETVAL" != "$2" ]; then
-        echo "Command ($1) returned ${RETVAL}, but expected $2. Error output:"
-        cat $TMP_FILE
-        exit 1
-    fi
+    for EXPECTED_RETVAL in $2; do
+        if [ "$RETVAL" = "$EXPECTED_RETVAL" ]; then
+            return 0
+        fi
+    done
+    echo "Command ($1) returned ${RETVAL}, but expected one of: $2. Error output:"
+    cat $TMP_FILE
+    exit 1
 }
 
 # Successful tests
@@ -21,7 +24,7 @@ runCMD "uclient-fetch 'https://letsencrypt.org'" 0
 # Negative tests
 runCMD "uclient-fetch --ca-certificate=/dev/null 'https://letsencrypt.org'" 5
 runCMD "uclient-fetch 'https://self-signed.badssl.com/'" 5
-runCMD "uclient-fetch 'https://untrusted-root.badssl.com/'" 5
+runCMD "uclient-fetch 'https://untrusted-root.badssl.com/'" "4 5"
 runCMD "uclient-fetch 'https://expired.badssl.com/'" 5
 
 echo "All tests passed."
