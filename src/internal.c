@@ -31658,8 +31658,15 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
              * (the session's own lifetime) so this stays consistent with
              * wolfSSL_SetSession(), which gates resumption on the same field;
              * keying off ssl->timeout instead could contradict a decision
-             * SetSession() already made when the two values differ. */
-            if (LowResTimer() >=
+             * SetSession() already made when the two values differ.
+             * If bornOn is 0 or the secret callback is set, it is assumed that
+             * the session is being externally managed and this check is
+             * skipped.  This is needed for hostap. */
+            if (ssl->session->bornOn != 0 &&
+            #ifdef HAVE_SECRET_CALLBACK
+                ssl->sessionSecretCb == NULL &&
+            #endif
+                LowResTimer() >=
                     (ssl->session->bornOn + ssl->session->timeout)) {
                 WOLFSSL_MSG("Stored session ticket expired; full handshake");
                 ssl->options.resuming = 0;
