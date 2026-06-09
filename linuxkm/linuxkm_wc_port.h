@@ -1449,8 +1449,8 @@
      */
     #undef tolower
     #undef toupper
-    #define tolower(c) (islower(c) ? (c) : ((c) + ('a'-'A')))
-    #define toupper(c) (isupper(c) ? (c) : ((c) - ('a'-'A')))
+    #define tolower(c) (isupper(c) ? ((c) + ('a'-'A')) : (c))
+    #define toupper(c) (islower(c) ? ((c) - ('a'-'A')) : (c))
 
     #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
         #define GetCA WC_PIE_INDIRECT_SYM(GetCA)
