@@ -470,18 +470,18 @@ fn scan_cfg() -> Result<()> {
     }
 
     /* dilithium / ML-DSA */
-    check_cfg(&binding, "wc_dilithium_init", "dilithium");
-    check_cfg(&binding, "wc_dilithium_make_key", "dilithium_make_key");
-    check_cfg(&binding, "wc_dilithium_make_key_from_seed", "dilithium_make_key_from_seed");
-    check_cfg(&binding, "wc_dilithium_sign_ctx_msg", "dilithium_sign");
-    check_cfg(&binding, "wc_dilithium_sign_ctx_msg_with_seed", "dilithium_sign_with_seed");
-    check_cfg(&binding, "wc_dilithium_verify_ctx_msg", "dilithium_verify");
-    check_cfg(&binding, "wc_dilithium_import_public", "dilithium_import");
-    check_cfg(&binding, "wc_dilithium_export_public", "dilithium_export");
-    check_cfg(&binding, "wc_dilithium_check_key", "dilithium_check_key");
-    check_cfg(&binding, "DILITHIUM_LEVEL2_KEY_SIZE", "dilithium_level2");
-    check_cfg(&binding, "DILITHIUM_LEVEL3_KEY_SIZE", "dilithium_level3");
-    check_cfg(&binding, "DILITHIUM_LEVEL5_KEY_SIZE", "dilithium_level5");
+    check_cfg(&binding, "wc_MlDsaKey_Init", "dilithium");
+    check_cfg(&binding, "wc_MlDsaKey_MakeKey", "dilithium_make_key");
+    check_cfg(&binding, "wc_MlDsaKey_MakeKeyFromSeed", "dilithium_make_key_from_seed");
+    check_cfg(&binding, "wc_MlDsaKey_SignCtx", "dilithium_sign");
+    check_cfg(&binding, "wc_MlDsaKey_SignCtxWithSeed", "dilithium_sign_with_seed");
+    check_cfg(&binding, "wc_MlDsaKey_VerifyCtx", "dilithium_verify");
+    check_cfg(&binding, "wc_MlDsaKey_ImportPubRaw", "dilithium_import");
+    check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "dilithium_export");
+    check_cfg(&binding, "wc_MlDsaKey_CheckKey", "dilithium_check_key");
+    check_cfg(&binding, "WC_MLDSA_44_KEY_SIZE", "dilithium_level2");
+    check_cfg(&binding, "WC_MLDSA_65_KEY_SIZE", "dilithium_level3");
+    check_cfg(&binding, "WC_MLDSA_87_KEY_SIZE", "dilithium_level5");
 
     /* mlkem / ML-KEM */
     check_cfg(&binding, "wc_MlKemKey_Init", "mlkem");

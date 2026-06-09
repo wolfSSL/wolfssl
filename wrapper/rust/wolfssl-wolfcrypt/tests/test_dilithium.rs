@@ -326,7 +326,7 @@ fn test_import_key_level44() {
 #[cfg(all(dilithium_make_key_from_seed, dilithium_export))]
 fn test_generate_from_seed_determinism() {
     common::setup();
-    // DILITHIUM_SEED_SZ = 32 bytes
+    // MLDSA_SEED_SZ = 32 bytes
     let seed = [0x42u8; 32];
 
     let mut key1 = Dilithium::generate_from_seed(Dilithium::LEVEL_44, &seed)
@@ -356,9 +356,9 @@ fn test_generate_from_seed_determinism() {
 #[cfg(all(dilithium_make_key_from_seed, dilithium_sign_with_seed, dilithium_verify))]
 fn test_sign_with_seed_determinism() {
     common::setup();
-    // DILITHIUM_SEED_SZ = 32 bytes
+    // MLDSA_SEED_SZ = 32 bytes
     let key_seed = [0x42u8; 32];
-    // DILITHIUM_RND_SZ = 32 bytes
+    // MLDSA_RND_SZ = 32 bytes
     let sign_seed = [0x55u8; 32];
     let message = b"Deterministic ML-DSA signing test";
 

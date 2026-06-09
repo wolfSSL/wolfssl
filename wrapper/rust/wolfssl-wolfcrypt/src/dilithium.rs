@@ -83,55 +83,55 @@ impl Dilithium {
     pub const LEVEL_87: u8 = sys::WC_ML_DSA_87 as u8;
 
     /// Required size in bytes of the seed passed to
-    /// [`Dilithium::generate_from_seed()`] (`DILITHIUM_SEED_SZ`).
-    pub const DILITHIUM_SEED_SZ: usize = sys::DILITHIUM_SEED_SZ as usize;
+    /// [`Dilithium::generate_from_seed()`] (`MLDSA_SEED_SZ`).
+    pub const MLDSA_SEED_SZ: usize = sys::MLDSA_SEED_SZ as usize;
 
     /// Required size in bytes of the seed passed to signing-with-seed
     /// functions such as [`Dilithium::sign_msg_with_seed()`]
-    /// (`DILITHIUM_RND_SZ`).
-    pub const SIGN_SEED_SIZE: usize = sys::DILITHIUM_RND_SZ as usize;
+    /// (`MLDSA_RND_SZ`).
+    pub const SIGN_SEED_SIZE: usize = sys::MLDSA_RND_SZ as usize;
 
     /// Private (secret) key size in bytes for ML-DSA-44.
     #[cfg(dilithium_level2)]
-    pub const LEVEL2_KEY_SIZE: usize = sys::DILITHIUM_LEVEL2_KEY_SIZE as usize;
+    pub const LEVEL2_KEY_SIZE: usize = sys::WC_MLDSA_44_KEY_SIZE as usize;
     /// Signature size in bytes for ML-DSA-44.
     #[cfg(dilithium_level2)]
-    pub const LEVEL2_SIG_SIZE: usize = sys::DILITHIUM_LEVEL2_SIG_SIZE as usize;
+    pub const LEVEL2_SIG_SIZE: usize = sys::WC_MLDSA_44_SIG_SIZE as usize;
     /// Public key size in bytes for ML-DSA-44.
     #[cfg(dilithium_level2)]
-    pub const LEVEL2_PUB_KEY_SIZE: usize = sys::DILITHIUM_LEVEL2_PUB_KEY_SIZE as usize;
+    pub const LEVEL2_PUB_KEY_SIZE: usize = sys::WC_MLDSA_44_PUB_KEY_SIZE as usize;
     /// Combined private-plus-public key size in bytes for ML-DSA-44.
     #[cfg(dilithium_level2)]
     pub const LEVEL2_PRV_KEY_SIZE: usize =
-        sys::DILITHIUM_LEVEL2_PUB_KEY_SIZE as usize + sys::DILITHIUM_LEVEL2_KEY_SIZE as usize;
+        sys::WC_MLDSA_44_PUB_KEY_SIZE as usize + sys::WC_MLDSA_44_KEY_SIZE as usize;
 
     /// Private (secret) key size in bytes for ML-DSA-65.
     #[cfg(dilithium_level3)]
-    pub const LEVEL3_KEY_SIZE: usize = sys::DILITHIUM_LEVEL3_KEY_SIZE as usize;
+    pub const LEVEL3_KEY_SIZE: usize = sys::WC_MLDSA_65_KEY_SIZE as usize;
     /// Signature size in bytes for ML-DSA-65.
     #[cfg(dilithium_level3)]
-    pub const LEVEL3_SIG_SIZE: usize = sys::DILITHIUM_LEVEL3_SIG_SIZE as usize;
+    pub const LEVEL3_SIG_SIZE: usize = sys::WC_MLDSA_65_SIG_SIZE as usize;
     /// Public key size in bytes for ML-DSA-65.
     #[cfg(dilithium_level3)]
-    pub const LEVEL3_PUB_KEY_SIZE: usize = sys::DILITHIUM_LEVEL3_PUB_KEY_SIZE as usize;
+    pub const LEVEL3_PUB_KEY_SIZE: usize = sys::WC_MLDSA_65_PUB_KEY_SIZE as usize;
     /// Combined private-plus-public key size in bytes for ML-DSA-65.
     #[cfg(dilithium_level3)]
     pub const LEVEL3_PRV_KEY_SIZE: usize =
-        sys::DILITHIUM_LEVEL3_PUB_KEY_SIZE as usize + sys::DILITHIUM_LEVEL3_KEY_SIZE as usize;
+        sys::WC_MLDSA_65_PUB_KEY_SIZE as usize + sys::WC_MLDSA_65_KEY_SIZE as usize;
 
     /// Private (secret) key size in bytes for ML-DSA-87.
     #[cfg(dilithium_level5)]
-    pub const LEVEL5_KEY_SIZE: usize = sys::DILITHIUM_LEVEL5_KEY_SIZE as usize;
+    pub const LEVEL5_KEY_SIZE: usize = sys::WC_MLDSA_87_KEY_SIZE as usize;
     /// Signature size in bytes for ML-DSA-87.
     #[cfg(dilithium_level5)]
-    pub const LEVEL5_SIG_SIZE: usize = sys::DILITHIUM_LEVEL5_SIG_SIZE as usize;
+    pub const LEVEL5_SIG_SIZE: usize = sys::WC_MLDSA_87_SIG_SIZE as usize;
     /// Public key size in bytes for ML-DSA-87.
     #[cfg(dilithium_level5)]
-    pub const LEVEL5_PUB_KEY_SIZE: usize = sys::DILITHIUM_LEVEL5_PUB_KEY_SIZE as usize;
+    pub const LEVEL5_PUB_KEY_SIZE: usize = sys::WC_MLDSA_87_PUB_KEY_SIZE as usize;
     /// Combined private-plus-public key size in bytes for ML-DSA-87.
     #[cfg(dilithium_level5)]
     pub const LEVEL5_PRV_KEY_SIZE: usize =
-        sys::DILITHIUM_LEVEL5_PUB_KEY_SIZE as usize + sys::DILITHIUM_LEVEL5_KEY_SIZE as usize;
+        sys::WC_MLDSA_87_PUB_KEY_SIZE as usize + sys::WC_MLDSA_87_KEY_SIZE as usize;
 
     /// Generate a new Dilithium key pair using a random number generator.
     ///
@@ -198,11 +198,11 @@ impl Dilithium {
         dev_id: Option<i32>,
     ) -> Result<Self, i32> {
         let mut key = Self::new_ex(heap, dev_id)?;
-        let rc = unsafe { sys::wc_dilithium_set_level(&mut key.ws_key, level) };
+        let rc = unsafe { sys::wc_MlDsaKey_SetParams(&mut key.ws_key, level) };
         if rc != 0 {
             return Err(rc);
         }
-        let rc = unsafe { sys::wc_dilithium_make_key(&mut key.ws_key, rng.wc_rng) };
+        let rc = unsafe { sys::wc_MlDsaKey_MakeKey(&mut key.ws_key, rng.wc_rng) };
         if rc != 0 {
             return Err(rc);
         }
@@ -218,7 +218,7 @@ impl Dilithium {
     ///
     /// * `level`: Security parameter set. One of [`Dilithium::LEVEL_44`],
     ///   [`Dilithium::LEVEL_65`], or [`Dilithium::LEVEL_87`].
-    /// * `seed`: Seed bytes. Must be `DILITHIUM_SEED_SZ` (32) bytes.
+    /// * `seed`: Seed bytes. Must be `MLDSA_SEED_SZ` (32) bytes.
     ///
     /// # Returns
     ///
@@ -248,7 +248,7 @@ impl Dilithium {
     ///
     /// * `level`: Security parameter set. One of [`Dilithium::LEVEL_44`],
     ///   [`Dilithium::LEVEL_65`], or [`Dilithium::LEVEL_87`].
-    /// * `seed`: Seed bytes. Must be `DILITHIUM_SEED_SZ` (32) bytes.
+    /// * `seed`: Seed bytes. Must be `MLDSA_SEED_SZ` (32) bytes.
     /// * `heap`: Optional heap hint.
     /// * `dev_id`: Optional device ID for crypto callbacks or async hardware.
     ///
@@ -275,16 +275,16 @@ impl Dilithium {
         heap: Option<*mut core::ffi::c_void>,
         dev_id: Option<i32>,
     ) -> Result<Self, i32> {
-        if seed.len() != Self::DILITHIUM_SEED_SZ {
+        if seed.len() != Self::MLDSA_SEED_SZ {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let mut key = Self::new_ex(heap, dev_id)?;
-        let rc = unsafe { sys::wc_dilithium_set_level(&mut key.ws_key, level) };
+        let rc = unsafe { sys::wc_MlDsaKey_SetParams(&mut key.ws_key, level) };
         if rc != 0 {
             return Err(rc);
         }
         let rc = unsafe {
-            sys::wc_dilithium_make_key_from_seed(&mut key.ws_key, seed.as_ptr())
+            sys::wc_MlDsaKey_MakeKeyFromSeed(&mut key.ws_key, seed.as_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -350,7 +350,7 @@ impl Dilithium {
             Some(id) => id,
             None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { sys::wc_dilithium_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_MlDsaKey_Init(ws_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -384,7 +384,7 @@ impl Dilithium {
     /// }
     /// ```
     pub fn set_level(&mut self, level: u8) -> Result<(), i32> {
-        let rc = unsafe { sys::wc_dilithium_set_level(&mut self.ws_key, level) };
+        let rc = unsafe { sys::wc_MlDsaKey_SetParams(&mut self.ws_key, level) };
         if rc != 0 {
             return Err(rc);
         }
@@ -412,7 +412,7 @@ impl Dilithium {
     /// ```
     pub fn get_level(&mut self) -> Result<u8, i32> {
         let mut level = 0u8;
-        let rc = unsafe { sys::wc_dilithium_get_level(&mut self.ws_key, &mut level) };
+        let rc = unsafe { sys::wc_MlDsaKey_GetParams(&mut self.ws_key, &mut level) };
         if rc != 0 {
             return Err(rc);
         }
@@ -441,7 +441,7 @@ impl Dilithium {
     /// }
     /// ```
     pub fn size(&mut self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_dilithium_size(&mut self.ws_key) };
+        let rc = unsafe { sys::wc_MlDsaKey_Size(&mut self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -471,7 +471,7 @@ impl Dilithium {
     /// }
     /// ```
     pub fn priv_size(&mut self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_dilithium_priv_size(&mut self.ws_key) };
+        let rc = unsafe { sys::wc_MlDsaKey_PrivSize(&mut self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -500,7 +500,7 @@ impl Dilithium {
     /// }
     /// ```
     pub fn pub_size(&mut self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_dilithium_pub_size(&mut self.ws_key) };
+        let rc = unsafe { sys::wc_MlDsaKey_PubSize(&mut self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -529,7 +529,7 @@ impl Dilithium {
     /// }
     /// ```
     pub fn sig_size(&mut self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_dilithium_sig_size(&mut self.ws_key) };
+        let rc = unsafe { sys::wc_MlDsaKey_SigSize(&mut self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -558,7 +558,7 @@ impl Dilithium {
     /// ```
     #[cfg(dilithium_check_key)]
     pub fn check_key(&mut self) -> Result<(), i32> {
-        let rc = unsafe { sys::wc_dilithium_check_key(&mut self.ws_key) };
+        let rc = unsafe { sys::wc_MlDsaKey_CheckKey(&mut self.ws_key) };
         if rc != 0 {
             return Err(rc);
         }
@@ -597,7 +597,7 @@ impl Dilithium {
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
         let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_import_public(public.as_ptr(), public_size, &mut self.ws_key)
+            sys::wc_MlDsaKey_ImportPubRaw(&mut self.ws_key, public.as_ptr(), public_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -640,7 +640,7 @@ impl Dilithium {
     pub fn import_private(&mut self, private: &[u8]) -> Result<(), i32> {
         let private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_import_private(private.as_ptr(), private_size, &mut self.ws_key)
+            sys::wc_MlDsaKey_ImportPrivRaw(&mut self.ws_key, private.as_ptr(), private_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -683,10 +683,10 @@ impl Dilithium {
         let private_size = crate::buffer_len_to_u32(private.len())?;
         let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_import_key(
+            sys::wc_MlDsaKey_ImportKey(
+                &mut self.ws_key,
                 private.as_ptr(), private_size,
                 public.as_ptr(), public_size,
-                &mut self.ws_key,
             )
         };
         if rc != 0 {
@@ -726,7 +726,7 @@ impl Dilithium {
     pub fn export_public(&mut self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_export_public(&mut self.ws_key, public.as_mut_ptr(), &mut public_size)
+            sys::wc_MlDsaKey_ExportPubRaw(&mut self.ws_key, public.as_mut_ptr(), &mut public_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -765,7 +765,7 @@ impl Dilithium {
     pub fn export_private(&mut self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_export_private(
+            sys::wc_MlDsaKey_ExportPrivRaw(
                 &mut self.ws_key, private.as_mut_ptr(), &mut private_size,
             )
         };
@@ -810,7 +810,7 @@ impl Dilithium {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_export_key(
+            sys::wc_MlDsaKey_ExportKey(
                 &mut self.ws_key,
                 private.as_mut_ptr(), &mut private_size,
                 public.as_mut_ptr(), &mut public_size,
@@ -864,11 +864,11 @@ impl Dilithium {
         let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_sign_ctx_msg(
-                core::ptr::null(), 0,
-                msg.as_ptr(), msg_len,
-                sig.as_mut_ptr(), &mut sig_len,
+            sys::wc_MlDsaKey_SignCtx(
                 &mut self.ws_key,
+                core::ptr::null(), 0,
+                sig.as_mut_ptr(), &mut sig_len,
+                msg.as_ptr(), msg_len,
                 rng.wc_rng,
             )
         };
@@ -926,11 +926,11 @@ impl Dilithium {
         let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_sign_ctx_msg(
-                ctx.as_ptr(), ctx_len,
-                msg.as_ptr(), msg_len,
-                sig.as_mut_ptr(), &mut sig_len,
+            sys::wc_MlDsaKey_SignCtx(
                 &mut self.ws_key,
+                ctx.as_ptr(), ctx_len,
+                sig.as_mut_ptr(), &mut sig_len,
+                msg.as_ptr(), msg_len,
                 rng.wc_rng,
             )
         };
@@ -975,12 +975,12 @@ impl Dilithium {
         let hash_len = crate::buffer_len_to_u32(hash.len())?;
         let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_sign_ctx_hash(
-                ctx.as_ptr(), ctx_len,
-                hash_alg,
-                hash.as_ptr(), hash_len,
-                sig.as_mut_ptr(), &mut sig_len,
+            sys::wc_MlDsaKey_SignCtxHash(
                 &mut self.ws_key,
+                ctx.as_ptr(), ctx_len,
+                sig.as_mut_ptr(), &mut sig_len,
+                hash.as_ptr(), hash_len,
+                hash_alg,
                 rng.wc_rng,
             )
         };
@@ -999,7 +999,7 @@ impl Dilithium {
     ///
     /// * `msg`: Message to sign.
     /// * `sig`: Output buffer to hold the signature.
-    /// * `seed`: Random seed bytes (`DILITHIUM_RND_SZ` = 32 bytes).
+    /// * `seed`: Random seed bytes (`MLDSA_RND_SZ` = 32 bytes).
     ///
     /// # Returns
     ///
@@ -1029,17 +1029,17 @@ impl Dilithium {
         sig: &mut [u8],
         seed: &[u8],
     ) -> Result<usize, i32> {
-        if seed.len() != sys::DILITHIUM_RND_SZ as usize {
+        if seed.len() != sys::MLDSA_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_sign_ctx_msg_with_seed(
-                core::ptr::null(), 0,
-                msg.as_ptr(), msg_len,
-                sig.as_mut_ptr(), &mut sig_len,
+            sys::wc_MlDsaKey_SignCtxWithSeed(
                 &mut self.ws_key,
+                core::ptr::null(), 0,
+                sig.as_mut_ptr(), &mut sig_len,
+                msg.as_ptr(), msg_len,
                 seed.as_ptr(),
             )
         };
@@ -1056,7 +1056,7 @@ impl Dilithium {
     /// * `ctx`: Context string (at most 255 bytes).
     /// * `msg`: Message to sign.
     /// * `sig`: Output buffer to hold the signature.
-    /// * `seed`: Random seed bytes (`DILITHIUM_RND_SZ` = 32 bytes).
+    /// * `seed`: Random seed bytes (`MLDSA_RND_SZ` = 32 bytes).
     ///
     /// # Returns
     ///
@@ -1073,18 +1073,18 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        if seed.len() != sys::DILITHIUM_RND_SZ as usize {
+        if seed.len() != sys::MLDSA_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let ctx_len = ctx.len() as u8;
         let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_sign_ctx_msg_with_seed(
-                ctx.as_ptr(), ctx_len,
-                msg.as_ptr(), msg_len,
-                sig.as_mut_ptr(), &mut sig_len,
+            sys::wc_MlDsaKey_SignCtxWithSeed(
                 &mut self.ws_key,
+                ctx.as_ptr(), ctx_len,
+                sig.as_mut_ptr(), &mut sig_len,
+                msg.as_ptr(), msg_len,
                 seed.as_ptr(),
             )
         };
@@ -1103,7 +1103,7 @@ impl Dilithium {
     /// * `hash_alg`: Hash algorithm identifier (e.g. `WC_HASH_TYPE_SHA256`).
     /// * `hash`: Hash digest of the message to sign.
     /// * `sig`: Output buffer to hold the signature.
-    /// * `seed`: Random seed bytes (`DILITHIUM_RND_SZ` = 32 bytes).
+    /// * `seed`: Random seed bytes (`MLDSA_RND_SZ` = 32 bytes).
     ///
     /// # Returns
     ///
@@ -1121,19 +1121,19 @@ impl Dilithium {
         if ctx.len() > 255 {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
-        if seed.len() != sys::DILITHIUM_RND_SZ as usize {
+        if seed.len() != sys::MLDSA_RND_SZ as usize {
             return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let ctx_len = ctx.len() as u8;
         let hash_len = crate::buffer_len_to_u32(hash.len())?;
         let mut sig_len = crate::buffer_len_to_u32(sig.len())?;
         let rc = unsafe {
-            sys::wc_dilithium_sign_ctx_hash_with_seed(
-                ctx.as_ptr(), ctx_len,
-                hash_alg,
-                hash.as_ptr(), hash_len,
-                sig.as_mut_ptr(), &mut sig_len,
+            sys::wc_MlDsaKey_SignCtxHashWithSeed(
                 &mut self.ws_key,
+                ctx.as_ptr(), ctx_len,
+                sig.as_mut_ptr(), &mut sig_len,
+                hash.as_ptr(), hash_len,
+                hash_alg,
                 seed.as_ptr(),
             )
         };
@@ -1180,12 +1180,12 @@ impl Dilithium {
         let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut res = 0i32;
         let rc = unsafe {
-            sys::wc_dilithium_verify_ctx_msg(
+            sys::wc_MlDsaKey_VerifyCtx(
+                &mut self.ws_key,
                 sig.as_ptr(), sig_len,
                 core::ptr::null(), 0,
                 msg.as_ptr(), msg_len,
                 &mut res,
-                &mut self.ws_key,
             )
         };
         if rc != 0 {
@@ -1237,12 +1237,12 @@ impl Dilithium {
         let msg_len = crate::buffer_len_to_u32(msg.len())?;
         let mut res = 0i32;
         let rc = unsafe {
-            sys::wc_dilithium_verify_ctx_msg(
+            sys::wc_MlDsaKey_VerifyCtx(
+                &mut self.ws_key,
                 sig.as_ptr(), sig_len,
                 ctx.as_ptr(), ctx_len,
                 msg.as_ptr(), msg_len,
                 &mut res,
-                &mut self.ws_key,
             )
         };
         if rc != 0 {
@@ -1283,13 +1283,13 @@ impl Dilithium {
         let hash_len = crate::buffer_len_to_u32(hash.len())?;
         let mut res = 0i32;
         let rc = unsafe {
-            sys::wc_dilithium_verify_ctx_hash(
+            sys::wc_MlDsaKey_VerifyCtxHash(
+                &mut self.ws_key,
                 sig.as_ptr(), sig_len,
                 ctx.as_ptr(), ctx_len,
-                hash_alg,
                 hash.as_ptr(), hash_len,
+                hash_alg,
                 &mut res,
-                &mut self.ws_key,
             )
         };
         if rc != 0 {
@@ -1308,10 +1308,10 @@ impl Dilithium {
 impl Drop for Dilithium {
     /// Safely free the underlying wolfSSL Dilithium key context.
     ///
-    /// This calls `wc_dilithium_free()`. The Rust Drop trait guarantees this
+    /// This calls `wc_MlDsaKey_Free()`. The Rust Drop trait guarantees this
     /// is called when the `Dilithium` struct goes out of scope.
     fn drop(&mut self) {
-        unsafe { sys::wc_dilithium_free(&mut self.ws_key); }
+        unsafe { sys::wc_MlDsaKey_Free(&mut self.ws_key); }
         self.zeroize();
     }
 }
