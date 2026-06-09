@@ -34800,7 +34800,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
     L = (int)sizeof(okm1);
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+#if !defined(HAVE_SELFTEST)
     ret = wc_HKDF_ex(WC_SHA, ikm1, 11, salt1, (word32)sizeof(salt1), info1,
                      (word32)sizeof(info1), okm1, (word32)L, HEAP_HINT, devId);
 #else
@@ -34812,7 +34812,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res2, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* HAVE_FIPS */
+#endif /* !HAVE_FIPS */
 #endif /* !NO_SHA */
 
 #ifndef NO_SHA256
@@ -34845,7 +34845,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res4, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* HAVE_FIPS */
+#endif /* !HAVE_FIPS */
 #endif /* !NO_SHA256 */
 
 #ifndef NO_SHA
@@ -34873,7 +34873,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+#if !defined(HAVE_SELFTEST)
     ret = wc_HKDF_Extract_ex(WC_SHA, salt1, (word32)sizeof(salt1), ikm1, 11,
                              prk, HEAP_HINT, devId);
 #else
@@ -34882,7 +34882,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+#if !defined(HAVE_SELFTEST)
     ret = wc_HKDF_Expand_ex(WC_SHA, prk, WC_SHA_DIGEST_SIZE, info1,
                      (word32)sizeof(info1), okm1, (word32)L, HEAP_HINT, devId);
 #else
@@ -34894,7 +34894,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res2, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* HAVE_FIPS */
+#endif /* !HAVE_FIPS */
 #endif /* !NO_SHA */
 
 #ifndef NO_SHA256
@@ -34944,7 +34944,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res4, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* HAVE_FIPS */
+#endif /* !HAVE_FIPS */
 #endif /* !NO_SHA256 */
 #endif /* !NO_SHA || !NO_SHA256 */
 
@@ -34956,6 +34956,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
         return WC_TEST_RET_ENC_EC(ret);
     /* wc_HKDF_Extract bad arg: NULL inKey with non-zero inKeySz */
     ret = wc_HKDF_Extract(WC_SHA256, NULL, 0, NULL, 5, okm1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    /* wc_HKDF_Expand bad arg: NULL out */
+    ret = wc_HKDF_Expand(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, info1,
+                         (word32)sizeof(info1), NULL, (word32)L);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    /* wc_HKDF_Expand bad arg: NULL inKey with non-zero inKeySz */
+    ret = wc_HKDF_Expand(WC_SHA256, NULL, WC_SHA256_DIGEST_SIZE, info1,
+                         (word32)sizeof(info1), okm1, (word32)L);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
 #endif /* !NO_SHA256 && !HAVE_SELFTEST &&         */
