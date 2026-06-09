@@ -3891,6 +3891,13 @@ int test_wc_PKCS7_EncodeEncryptedData_AttribOverflow(void)
     PKCS7*      pkcs7 = NULL;
     byte        output[TWOK_BUF];
     PKCS7Attrib attrib;
+    int         i;
+    /* Two values that each overflow the size arithmetic in EncodeAttributes()
+     * but trip a different guard:
+     *   0xFFFFFFF4 - wraps the word32 component sum (first guard), and
+     *   0x7FFFFFF0 - stays within word32 but pushes the per-attribute total
+     *                past the signed int maximum (second guard). */
+    static const word32 overflowSz[] = { 0xFFFFFFF4U, 0x7FFFFFF0U };
     /* Small, valid attribute buffers. The encode path must reject the
      * oversized valueSz before ever dereferencing attrib.value. */
     static const byte oid[]   = { 0x06, 0x03, 0x55, 0x04, 0x03 };
@@ -3922,30 +3929,32 @@ int test_wc_PKCS7_EncodeEncryptedData_AttribOverflow(void)
 #endif
 
     XMEMSET(&attrib, 0, sizeof(attrib));
-    attrib.oid     = oid;
-    attrib.oidSz   = (word32)sizeof(oid);
-    attrib.value   = value;
-    /* word32 wraparound trigger: valueSz + encoded header sizes overflows */
-    attrib.valueSz = 0xFFFFFFF4U;
+    attrib.oid   = oid;
+    attrib.oidSz = (word32)sizeof(oid);
+    attrib.value = value;
 
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
-    if (pkcs7 != NULL) {
-        pkcs7->content              = (byte*)data;
-        pkcs7->contentSz            = (word32)sizeof(data);
-        pkcs7->contentOID           = DATA;
-        pkcs7->encryptOID           = encryptOID;
-        pkcs7->encryptionKey        = key;
-        pkcs7->encryptionKeySz      = (word32)sizeof(key);
-        pkcs7->unprotectedAttribs   = &attrib;
-        pkcs7->unprotectedAttribsSz = 1;
-        pkcs7->heap                 = HEAP_HINT;
+    for (i = 0; i < (int)(sizeof(overflowSz) / sizeof(overflowSz[0])); i++) {
+        attrib.valueSz = overflowSz[i];
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content              = (byte*)data;
+            pkcs7->contentSz            = (word32)sizeof(data);
+            pkcs7->contentOID           = DATA;
+            pkcs7->encryptOID           = encryptOID;
+            pkcs7->encryptionKey        = key;
+            pkcs7->encryptionKeySz      = (word32)sizeof(key);
+            pkcs7->unprotectedAttribs   = &attrib;
+            pkcs7->unprotectedAttribsSz = 1;
+        }
+
+        ExpectIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, output, sizeof(output)),
+            WC_NO_ERR_TRACE(BUFFER_E));
+
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
     }
-
-    ExpectIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, output, sizeof(output)),
-        WC_NO_ERR_TRACE(BUFFER_E));
-
-    wc_PKCS7_Free(pkcs7);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_EncodeEncryptedData_AttribOverflow() */
