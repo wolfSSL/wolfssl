@@ -2,6 +2,17 @@
 
 ## Enhancements
 
+* **Behavioral change (RSA-PSS trailerField enforcement)**: `DecodeRsaPssParams`
+  (and its public wrapper `wc_DecodeRsaPssParams`) now enforces RFC 8017 A.2.3,
+  which mandates `trailerField == trailerFieldBC(1)`.  In the default build
+  (i.e., without `WOLFSSL_NO_ASN_STRICT`), any certificate or CMS/PKCS#7
+  structure whose RSA-PSS parameters contain a `trailerField` value other than 1
+  is now rejected with `ASN_PARSE_E`.  Previously, any positive integer value was
+  silently accepted.  This affects all call paths that decode RSA-PSS algorithm
+  parameters, including X.509 certificate parsing and PKCS#7 signature
+  verification.  Users who need to interoperate with non-conformant peers can
+  define `WOLFSSL_NO_ASN_STRICT` to restore the previous permissive behavior.
+
 * **BREAKING (FIPS 205 SLH-DSA)**: `wc_SlhDsaKey_SignHash`,
   `wc_SlhDsaKey_SignHashDeterministic`, `wc_SlhDsaKey_SignHashWithRandom`, and
   `wc_SlhDsaKey_VerifyHash` now take the **caller-pre-hashed message digest**

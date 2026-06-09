@@ -1136,6 +1136,20 @@ int test_wc_DecodeRsaPssParams(void)
             (word32)sizeof(trailerZero), &hash, &mgf, &saltLen),
             WC_NO_ERR_TRACE(ASN_PARSE_E));
     }
+
+    /* --- Test 12: trailerField = 256 (multi-byte INTEGER) => ASN_PARSE_E ---
+     * Exercises the 2-byte integer branch in GetInteger16Bit (non-template)
+     * and the len==2 case of ASN_DATA_TYPE_WORD16 (template path).
+     * SEQUENCE { [3] CONSTRUCTED { INTEGER 256 } } = 30 06 a3 04 02 02 01 00
+     */
+    {
+        static const byte trailerMultiByte[] = {
+            0x30, 0x06, 0xa3, 0x04, 0x02, 0x02, 0x01, 0x00
+        };
+        ExpectIntEQ(wc_DecodeRsaPssParams(trailerMultiByte,
+            (word32)sizeof(trailerMultiByte), &hash, &mgf, &saltLen),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
 #endif /* !WOLFSSL_NO_ASN_STRICT */
 
 #endif /* WC_RSA_PSS && !NO_RSA && !NO_ASN */
