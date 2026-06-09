@@ -15197,6 +15197,12 @@ authenv_atrbend:
 
             localIdx = idx;
 
+        #ifdef NO_PKCS7_STREAM
+            if (ret == 0 && localIdx >= pkiMsgSz) {
+                ret = BUFFER_E;
+            }
+        #endif
+
             /* Get authTag OCTET STRING */
             if (ret == 0 && pkiMsg[localIdx] != ASN_OCTET_STRING) {
                 ret = ASN_PARSE_E;

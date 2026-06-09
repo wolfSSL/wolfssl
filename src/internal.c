@@ -26238,7 +26238,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 }
 
                 if (chain && chain->buffer) {
-                    while (ret == 0 && i < MAX_CHAIN_DEPTH &&
+                    while (ret == 0 &&
                            idx + OPAQUE24_LEN < chain->length) {
                         c24to32(chain->buffer + idx, &der.length);
                         idx += OPAQUE24_LEN;

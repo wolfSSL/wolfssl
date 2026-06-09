@@ -3879,7 +3879,9 @@ static int test_wolfSSL_get_chain_idx_bounds(void)
     return EXPECT_RESULT();
 }
 
-/* Reject chain buffers containing more than MAX_CHAIN_DEPTH certificates. */
+/* Chain-depth boundary: exactly MAX_CHAIN_DEPTH chain certs (plus trailing data
+ * that forces one more parse pass) must load; one more cert must be rejected.
+ * cliCertFile is single-cert, so copy 0 is the leaf and N copies => N-1 chain. */
 static int test_wolfSSL_CTX_use_certificate_chain_buffer_max_depth(void)
 {
     EXPECT_DECLS;
@@ -3888,26 +3890,43 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_max_depth(void)
     defined(WOLFSSL_PEM_TO_DER)
     WOLFSSL_CTX* ctx = NULL;
     unsigned char* one = NULL;
-    unsigned char* big = NULL;
+    unsigned char* buf = NULL;
     size_t oneLen = 0;
-    size_t bigLen;
+    const char* tail = "# trailing comment\n";
+    size_t tailLen = XSTRLEN(tail);
+    /* +1 copy for the leaf yields exactly MAX_CHAIN_DEPTH chain certs. */
+    const int atMax = MAX_CHAIN_DEPTH + 1;
     int i;
-    const int nCerts = MAX_CHAIN_DEPTH + 1;
 
-    ExpectIntEQ(load_file(svrCertFile, &one, &oneLen), 0);
-    bigLen = oneLen * (size_t)nCerts;
-    ExpectNotNull(big = (unsigned char*)XMALLOC(bigLen, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER));
-    for (i = 0; EXPECT_SUCCESS() && i < nCerts; i++)
-        XMEMCPY(big + (size_t)i * oneLen, one, oneLen);
+    ExpectIntEQ(load_file(cliCertFile, &one, &oneLen), 0);
 
+    /* Exactly MAX_CHAIN_DEPTH chain certs + trailing data: loads. */
+    ExpectNotNull(buf = (unsigned char*)XMALLOC(
+        oneLen * (size_t)atMax + tailLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    for (i = 0; EXPECT_SUCCESS() && i < atMax; i++)
+        XMEMCPY(buf + (size_t)i * oneLen, one, oneLen);
+    if (buf != NULL)
+        XMEMCPY(buf + (size_t)atMax * oneLen, tail, tailLen);
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, big,
-        (long)bigLen), WC_NO_ERR_TRACE(MAX_CHAIN_ERROR));
-
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, buf,
+        (long)(oneLen * (size_t)atMax + tailLen)), WOLFSSL_SUCCESS);
     wolfSSL_CTX_free(ctx);
-    if (big != NULL)
-        XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ctx = NULL;
+    if (buf != NULL)
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+
+    /* One more chain cert: rejected. */
+    ExpectNotNull(buf = (unsigned char*)XMALLOC(oneLen * (size_t)(atMax + 1),
+        NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    for (i = 0; EXPECT_SUCCESS() && i < atMax + 1; i++)
+        XMEMCPY(buf + (size_t)i * oneLen, one, oneLen);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, buf,
+        (long)(oneLen * (size_t)(atMax + 1))), WC_NO_ERR_TRACE(MAX_CHAIN_ERROR));
+    wolfSSL_CTX_free(ctx);
+    if (buf != NULL)
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (one != NULL)
         XFREE(one, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
