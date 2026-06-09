@@ -27156,7 +27156,7 @@ static void SetRdnItems(ASNItem* namesASN, ASNSetData* dataASN, const byte* oid,
 static int FindMultiAttrib(CertName* name, int id, int* idx)
 {
     int i;
-    for (i = *idx + 1; i < CTC_MAX_ATTRIB; i++) {
+    for (i = *idx + 1; i >= 0 && i < CTC_MAX_ATTRIB; i++) {
         if (name->name[i].sz > 0 && name->name[i].id == id) {
             break;
         }
