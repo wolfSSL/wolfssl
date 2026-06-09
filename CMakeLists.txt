@@ -148,17 +148,6 @@ check_type_size("long" SIZEOF_LONG)
 check_type_size("time_t" SIZEOF_TIME_T)
 check_type_size("uintptr_t" HAVE_UINTPTR_T)
 
-# SIZEOF_LONG/SIZEOF_LONG_LONG are exposed to applications through options.h
-# (see cmake/options.h.in) so that application code computes the same
-# CTC_SETTINGS as the library. The in-tree build does not include options.h,
-# so define them here for the library and test programs.
-if(HAVE_SIZEOF_LONG)
-    add_definitions("-DSIZEOF_LONG=${SIZEOF_LONG}")
-endif()
-if(HAVE_SIZEOF_LONG_LONG)
-    add_definitions("-DSIZEOF_LONG_LONG=${SIZEOF_LONG_LONG}")
-endif()
-
 # By default, HAVE___UINT128_T gets defined as TRUE,
 # but we want it as 1.
 if(HAVE___UINT128_T)
