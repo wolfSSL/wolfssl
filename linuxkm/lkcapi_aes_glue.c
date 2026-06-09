@@ -2509,13 +2509,10 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL) {
-        err = -ENOMEM;
+    err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
         goto out;
     }
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
@@ -2583,16 +2580,11 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL) {
-        err = -ENOMEM;
+    /* CTR uses the same schedule for encrypt and decrypt. */
+    err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
         goto out;
     }
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* CTR uses the same
-                                                       * schedule for encrypt
-                                                       * and decrypt.
-                                                       */
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
@@ -2697,13 +2689,10 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL) {
-        err = -ENOMEM;
+    err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
         goto out;
     }
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
@@ -2771,16 +2760,11 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL) {
-        err = -ENOMEM;
+    /* OFB uses the same schedule for encrypt and decrypt. */
+    err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
         goto out;
     }
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* OFB uses the same
-                                                       * schedule for encrypt
-                                                       * and decrypt.
-                                                       */
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
