@@ -709,6 +709,11 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
     if (dsa == NULL || xSz == NULL || ySz == NULL)
         return BAD_FUNC_ARG;
 
+    /* check we have a key to export */
+    if (mp_iszero(&dsa->x) || mp_iszero(&dsa->y)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* get required output buffer sizes */
     xLen = (word32)mp_unsigned_bin_size(&dsa->x);
     yLen = (word32)mp_unsigned_bin_size(&dsa->y);

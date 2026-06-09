@@ -555,6 +555,9 @@ int test_wc_DsaExportKeyRaw(void)
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_MakeDsaParameters(&rng, 1024, &key), 0);
+    /* export before make key should return error. */
+    ExpectIntEQ(wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, &yOutSz),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);
 
     /* try successful export */
