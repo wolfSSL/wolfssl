@@ -52,6 +52,7 @@ on:
     paths:
       # Specific to this Arduino CI Build (1 of 4)
       - '.github/workflows/arduino.yml'
+      - 'examples/configs/user_settings_arduino.h'
       - 'IDE/ARDUINO/**'
       - 'src/**'
       - 'wolfcrypt/**'
@@ -61,6 +62,7 @@ on:
     branches: [ '**' ]
     paths:
       - '.github/workflows/arduino.yml'
+      - 'examples/configs/user_settings_arduino.h'
       - 'IDE/ARDUINO/**'
       - 'src/**'
       - 'wolfcrypt/**'
