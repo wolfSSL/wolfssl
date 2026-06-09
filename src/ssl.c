@@ -319,9 +319,19 @@ int wc_OBJ_sn2nid(const char *sn)
 
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+#include "crypto_policy_granular.h"
 /* The system wide crypto-policy. Configured by wolfSSL_crypto_policy_enable.
  * */
 static struct SystemCryptoPolicy crypto_policy;
+/* Optional granular (allowlist) policy. Activated when the file uses the
+ * sectioned crypto-policies vocabulary instead of the legacy
+ * `@SECLEVEL=N:...` cipher-string. */
+static WolfGranularPolicy crypto_policy_gran;
+static int crypto_policy_gran_enabled = 0;
+/* Internal flag: while the granular applier is driving the CTX, the
+ * per-setter guards (SetMinVersion, SetMinRsaKey_Sz, ...) must let our
+ * calls through; otherwise the policy could never install itself. */
+static int crypto_policy_applying = 0;
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 #if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || \
@@ -620,21 +630,39 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     /* Load the crypto-policy ciphers if configured. */
     if (ctx && wolfSSL_crypto_policy_is_enabled()) {
-        const char * list = wolfSSL_crypto_policy_get_ciphers();
-        int          ret = 0;
-
-        if (list != NULL && *list != '\0') {
-            if (AllocateCtxSuites(ctx) != 0) {
-                WOLFSSL_MSG("allocate ctx suites failed");
+        if (crypto_policy_gran_enabled) {
+            /* Granular allowlist: drive the wolfSSL public API directly.
+             * The per-setter policy guards are temporarily disarmed so
+             * our own apply step can install the policy values. */
+            int ret;
+            crypto_policy_applying = 1;
+            ret = wolfSSL_crypto_policy_apply_granular(
+                      ctx, &crypto_policy_gran);
+            crypto_policy_applying = 0;
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("granular crypto policy apply failed");
                 wolfSSL_CTX_free(ctx);
                 ctx = NULL;
             }
-            else {
-                ret = wolfSSL_parse_cipher_list(ctx, NULL, ctx->suites, list);
-                if (ret != WOLFSSL_SUCCESS) {
-                    WOLFSSL_MSG("parse cipher list failed");
+        }
+        else {
+            const char * list = wolfSSL_crypto_policy_get_ciphers();
+            int          ret = 0;
+
+            if (list != NULL && *list != '\0') {
+                if (AllocateCtxSuites(ctx) != 0) {
+                    WOLFSSL_MSG("allocate ctx suites failed");
                     wolfSSL_CTX_free(ctx);
                     ctx = NULL;
+                }
+                else {
+                    ret = wolfSSL_parse_cipher_list(ctx, NULL, ctx->suites,
+                                                   list);
+                    if (ret != WOLFSSL_SUCCESS) {
+                        WOLFSSL_MSG("parse cipher list failed");
+                        wolfSSL_CTX_free(ctx);
+                        ctx = NULL;
+                    }
                 }
             }
         }
@@ -4900,7 +4928,7 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
     }
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    if (crypto_policy.enabled) {
+    if (crypto_policy.enabled && !crypto_policy_applying) {
         return CRYPTO_POLICY_FORBIDDEN;
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
@@ -5347,6 +5375,7 @@ int wolfSSL_crypto_policy_enable(const char * policy_file)
     XFILE   file;
     long    sz = 0;
     size_t  n_read = 0;
+    char *  gran_buf = NULL;
 
     WOLFSSL_ENTER("wolfSSL_crypto_policy_enable");
 
@@ -5367,6 +5396,8 @@ int wolfSSL_crypto_policy_enable(const char * policy_file)
     }
 
     XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
+    XMEMSET(&crypto_policy_gran, 0, sizeof(crypto_policy_gran));
+    crypto_policy_gran_enabled = 0;
 
     file = XFOPEN(policy_file, "rb");
 
@@ -5392,23 +5423,84 @@ int wolfSSL_crypto_policy_enable(const char * policy_file)
         return WOLFSSL_BAD_FILE;
     }
 
-    if (sz <= 0 || sz > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
+    /* Granular allowlist files can exceed MAX_WOLFSSL_CRYPTO_POLICY_SIZE
+     * (the legacy single-line cap). Allocate a heap buffer for the sniff
+     * pass; we fall back to the legacy in-place buffer when the file
+     * fits and turns out to be legacy format. */
+    if (sz <= 0 || sz > (long)(1L << 20)) {
         WOLFSSL_MSG_EX("error: crypto policy file %s, invalid size: %ld",
                        policy_file, sz);
         XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
     }
 
-    n_read = XFREAD(crypto_policy.str, 1, sz, file);
+    gran_buf = (char *)XMALLOC((size_t)sz + 1, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (gran_buf == NULL) {
+        XFCLOSE(file);
+        WOLFSSL_MSG("error: crypto policy: out of memory");
+        return MEMORY_E;
+    }
+
+    n_read = XFREAD(gran_buf, 1, (size_t)sz, file);
     XFCLOSE(file);
 
     if (n_read != (size_t) sz) {
         WOLFSSL_MSG_EX("error: crypto policy file %s: read %zu, "
                        "expected %ld", policy_file, n_read, sz);
+        XFREE(gran_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_BAD_FILE;
     }
+    gran_buf[sz] = '\0';
 
-    crypto_policy.str[n_read] = '\0';
+    /* Route on header sniff. */
+    if (wolfSSL_crypto_policy_is_granular(gran_buf)) {
+        char err[128];
+        int  rc = wolfSSL_crypto_policy_parse_granular(
+                      gran_buf, &crypto_policy_gran, err, sizeof(err));
+        XFREE(gran_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (rc != WOLF_CP_OK) {
+            WOLFSSL_MSG_EX("granular crypto policy parse failed: %s", err);
+            XMEMSET(&crypto_policy_gran, 0, sizeof(crypto_policy_gran));
+            return WOLFSSL_BAD_FILE;
+        }
+        /* Mirror the coarse level into the legacy struct so that
+         * wolfSSL_crypto_policy_init_ctx() and security_level getters
+         * continue to behave. */
+        crypto_policy.secLevel = crypto_policy_gran.security_level > 0
+                                 ? crypto_policy_gran.security_level
+                                 : 0;
+        /* Mirror the derived cipher list into the legacy str buffer so
+         * wolfSSL_crypto_policy_get_ciphers() returns the actual list
+         * the policy enables (and not the empty string while
+         * `enabled == 1`). The cipher set is the same for the TLS and
+         * DTLS protocol families at a given minor version, so a single
+         * derivation feeds both CTX families. Truncation is safe: the
+         * string is informational, the authoritative apply happens per
+         * CTX in wolfSSL_crypto_policy_apply_granular(). */
+        rc = wolfSSL_crypto_policy_derive_cipher_list(
+                 &crypto_policy_gran,
+                 crypto_policy.str,
+                 sizeof(crypto_policy.str));
+        if (rc != WOLF_CP_OK) {
+            crypto_policy.str[0] = '\0';
+        }
+        crypto_policy.enabled = 1;
+        crypto_policy_gran_enabled = 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* Legacy single-line @SECLEVEL=... format. Honour the legacy size
+     * ceiling for those files only. */
+    if (sz > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
+        XFREE(gran_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        WOLFSSL_MSG_EX("error: legacy crypto policy file %s, too large: %ld",
+                       policy_file, sz);
+        return WOLFSSL_BAD_FILE;
+    }
+    XMEMCPY(crypto_policy.str, gran_buf, (size_t)sz);
+    crypto_policy.str[sz] = '\0';
+    XFREE(gran_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return crypto_policy_parse();
 }
@@ -5438,11 +5530,39 @@ int wolfSSL_crypto_policy_enable_buffer(const char * buf)
 
     sz = XSTRLEN(buf);
 
+    XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
+    XMEMSET(&crypto_policy_gran, 0, sizeof(crypto_policy_gran));
+    crypto_policy_gran_enabled = 0;
+
+    if (wolfSSL_crypto_policy_is_granular(buf)) {
+        char err[128];
+        int  rc = wolfSSL_crypto_policy_parse_granular(
+                      buf, &crypto_policy_gran, err, sizeof(err));
+        if (rc != WOLF_CP_OK) {
+            WOLFSSL_MSG_EX("granular crypto policy parse failed: %s", err);
+            XMEMSET(&crypto_policy_gran, 0, sizeof(crypto_policy_gran));
+            return BAD_FUNC_ARG;
+        }
+        crypto_policy.secLevel = crypto_policy_gran.security_level > 0
+                                 ? crypto_policy_gran.security_level
+                                 : 0;
+        /* Mirror the derived cipher list -- see comment in
+         * wolfSSL_crypto_policy_enable() above. */
+        rc = wolfSSL_crypto_policy_derive_cipher_list(
+                 &crypto_policy_gran,
+                 crypto_policy.str,
+                 sizeof(crypto_policy.str));
+        if (rc != WOLF_CP_OK) {
+            crypto_policy.str[0] = '\0';
+        }
+        crypto_policy.enabled = 1;
+        crypto_policy_gran_enabled = 1;
+        return WOLFSSL_SUCCESS;
+    }
+
     if (sz == 0 || sz > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
         return BAD_FUNC_ARG;
     }
-
-    XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
     XMEMCPY(crypto_policy.str, buf, sz);
 
     return crypto_policy_parse();
@@ -5470,6 +5590,8 @@ void wolfSSL_crypto_policy_disable(void)
     WOLFSSL_ENTER("wolfSSL_crypto_policy_disable");
     crypto_policy.enabled = 0;
     XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
+    crypto_policy_gran_enabled = 0;
+    XMEMSET(&crypto_policy_gran, 0, sizeof(crypto_policy_gran));
     return;
 }
 

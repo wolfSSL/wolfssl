@@ -1,0 +1,42 @@
+# wolfSSL system-wide cryptographic policy.
+# Test fixture: DTLS-only (drives the WOLFSSL_DTLSV* min-version path).
+# Generated to match the DTLS slice of the Fedora DEFAULT policy.
+
+version = 1
+override-mode = allowlist
+
+[protocols]
+enabled-version = DTLS1.2
+
+[ciphers]
+enabled-cipher = AES-256-GCM
+enabled-cipher = AES-128-GCM
+enabled-cipher = CHACHA20-POLY1305
+
+[key-exchange]
+enabled-kx = ECDHE
+enabled-kx = DHE-RSA
+
+[macs]
+enabled-mac = AEAD
+
+[hashes]
+enabled-hash = SHA2-256
+enabled-hash = SHA2-384
+
+[groups]
+enabled-group = X25519
+enabled-group = SECP256R1
+enabled-group = SECP384R1
+
+[signatures]
+enabled-sig = ECDSA-SHA2-256
+enabled-sig = ECDSA-SHA2-384
+enabled-sig = RSA-SHA2-256
+enabled-sig = RSA-SHA2-384
+
+[constraints]
+min-rsa-bits = 2048
+min-dh-bits = 2048
+min-dsa-bits = 2048
+security-level = 2
