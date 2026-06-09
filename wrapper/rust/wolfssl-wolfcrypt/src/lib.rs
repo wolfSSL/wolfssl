@@ -55,7 +55,6 @@ pub mod cmac;
 pub mod cmac_mac;
 pub mod curve25519;
 pub mod dh;
-pub mod dilithium;
 pub mod ecc;
 #[cfg(feature = "signature")]
 pub mod ecdsa;
@@ -68,6 +67,7 @@ pub mod hmac;
 pub mod hmac_mac;
 pub mod kdf;
 pub mod lms;
+pub mod mldsa;
 pub mod mlkem;
 #[cfg(all(feature = "kem", mlkem))]
 pub mod mlkem_kem;
