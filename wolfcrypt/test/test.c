@@ -25801,8 +25801,9 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
      * corrupted ciphertext still produces a negative error code. */
     #ifndef NO_SHA256
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    #ifndef WOLFSSL_SE050
     {
-        byte emptyIn = 0;
+        byte emptyBuf = 0;
         XMEMSET(out, 0, outSz);
         XMEMSET(plain, 0, plainSz);
         do {
@@ -25810,7 +25811,7 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
             ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
             if (ret >= 0) {
-                ret = wc_RsaPublicEncrypt_ex(&emptyIn, 0, out, outSz, key, rng,
+                ret = wc_RsaPublicEncrypt_ex(&emptyBuf, 0, out, outSz, key, rng,
                     WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
                     NULL, 0);
             }
@@ -25850,6 +25851,7 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
             ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
         ret = 0;
     }
+    #endif /* WOLFSSL_SE050 */
     #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     #endif /* NO_SHA256 */
 
