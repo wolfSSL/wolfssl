@@ -1135,6 +1135,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     #endif
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 

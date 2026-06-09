@@ -305,6 +305,9 @@ int test_wc_Md5HmacUpdate(void)
     b.inLen = XSTRLEN(b.input);
 
     ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    /* update before setkey results in err. */
+    ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_MD5, (byte*)keys,
         (word32)XSTRLEN(keys)), 0);
     ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen), 0);
@@ -346,6 +349,9 @@ int test_wc_ShaHmacUpdate(void)
     b.inLen = XSTRLEN(b.input);
 
     ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    /* update before setkey results in err. */
+    ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA, (byte*)keys,
         (word32)XSTRLEN(keys)), 0);
     ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen), 0);
@@ -387,6 +393,9 @@ int test_wc_Sha224HmacUpdate(void)
     b.inLen = XSTRLEN(b.input);
 
     ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    /* update before setkey results in err. */
+    ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA224, (byte*)keys,
         (word32)XSTRLEN(keys)), 0);
     ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen), 0);
@@ -428,6 +437,9 @@ int test_wc_Sha256HmacUpdate(void)
     b.inLen = XSTRLEN(b.input);
 
     ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    /* update before setkey results in err. */
+    ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, (byte*)keys,
         (word32)XSTRLEN(keys)), 0);
     ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen), 0);
@@ -469,6 +481,9 @@ int test_wc_Sha384HmacUpdate(void)
     b.inLen = XSTRLEN(b.input);
 
     ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    /* update before setkey results in err. */
+    ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA384, (byte*)keys,
         (word32)XSTRLEN(keys)), 0);
     ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen), 0);
