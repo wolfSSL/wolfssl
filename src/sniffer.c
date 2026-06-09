@@ -3812,8 +3812,11 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             input     += LENGTH_SZ;
             *sslBytes -= LENGTH_SZ;
 
-            /* make sure can read through individual extension */
-            if (extLen > *sslBytes) {
+            /* make sure can read through individual extension, and that it
+             * fits within the remaining declared extensions length so the
+             * len subtraction below cannot wrap */
+            if (extLen > *sslBytes ||
+                    extLen > len - (EXT_TYPE_SZ + LENGTH_SZ)) {
                 SetError(SERVER_HELLO_INPUT_STR, error, session,
                          FATAL_ERROR_STATE);
                 return WOLFSSL_FATAL_ERROR;
@@ -4183,8 +4186,11 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         input     += LENGTH_SZ;
         *sslBytes -= LENGTH_SZ;
 
-        /* make sure can read through individual extension */
-        if (extLen > *sslBytes) {
+        /* make sure can read through individual extension, and that it fits
+         * within the remaining declared extensions length so the len
+         * subtraction below cannot wrap */
+        if (extLen > *sslBytes ||
+                extLen > len - (EXT_TYPE_SZ + LENGTH_SZ)) {
             SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
         }
