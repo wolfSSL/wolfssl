@@ -34959,17 +34959,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
     /* wc_HKDF_Expand bad arg: NULL out */
-    ret = wc_HKDF_Expand(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, info1,
-                         (word32)sizeof(info1), NULL, (word32)L);
+    ret = wc_HKDF_Expand(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, NULL, 0,
+                         NULL, (word32)L);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
     /* wc_HKDF_Expand bad arg: NULL inKey with non-zero inKeySz */
-    ret = wc_HKDF_Expand(WC_SHA256, NULL, WC_SHA256_DIGEST_SIZE, info1,
-                         (word32)sizeof(info1), okm1, (word32)L);
+    ret = wc_HKDF_Expand(WC_SHA256, NULL, WC_SHA256_DIGEST_SIZE, NULL, 0,
+                         okm1, (word32)L);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
-#endif /* !NO_SHA256 && !HAVE_SELFTEST &&         */
-       /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+#endif /* !NO_SHA256 && !HAVE_SELFTEST               */
+       /* && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
     return 0;
 }
