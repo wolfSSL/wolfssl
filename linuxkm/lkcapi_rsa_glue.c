@@ -1278,7 +1278,7 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
         goto pkcs1pad_verify_out;
     }
 
-    n_diff = memcmp(sig, msg, dec_len);
+    n_diff = ConstantCompare(sig, msg, dec_len);
     if (unlikely(n_diff != 0)) {
         err = -EKEYREJECTED;
         goto pkcs1pad_verify_out;
@@ -1525,7 +1525,7 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
         goto pkcs1_verify_out;
     }
 
-    n_diff = memcmp(enc_digest, msg, enc_msg_len);
+    n_diff = ConstantCompare(enc_digest, msg, enc_msg_len);
     if (unlikely(n_diff != 0)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: recovered msg did not match digest: %d\n",
