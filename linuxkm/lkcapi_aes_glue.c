@@ -2539,7 +2539,7 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
+            goto out;
         }
     }
 
@@ -2719,7 +2719,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
+            goto out;
         }
     }
 
