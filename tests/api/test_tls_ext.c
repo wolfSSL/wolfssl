@@ -1033,3 +1033,41 @@ int test_TLSX_SRTP_msg_type_validation(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* RFC 7301 Section 3.1: the server's ProtocolNameList in its ALPN response
+ * MUST contain exactly one ProtocolName. A ServerHello carrying two entries
+ * must be rejected rather than silently accepted. */
+int test_TLSX_ALPN_server_response_count(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* ServerHello-style ALPN extension whose ProtocolNameList contains
+     * two entries ("h2" and "http/1.1"). */
+    static const byte extBytes[] = {
+        0x00, 0x10,                         /* extension type = ALPN (16) */
+        0x00, 0x0E,                         /* extension length = 14    */
+        0x00, 0x0C,                         /* ProtocolNameList length  */
+        0x02, 'h', '2',                     /* entry 1: "h2"            */
+        0x08, 'h', 't', 't', 'p', '/', '1', '.', '1' /* entry 2         */
+    };
+    static char alpn_h2[] = "h2";
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_UseALPN(ssl, alpn_h2, (unsigned int)XSTRLEN(alpn_h2),
+                                WOLFSSL_ALPN_FAILED_ON_MISMATCH),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL),
+                WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
