@@ -30236,11 +30236,16 @@ static int SetAuthKeyIdFromDcert(Cert* cert, DecodedCert* decoded)
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         cert->akidSz = wc_HashGetDigestSize(wc_HashTypeConvert(HashIdAlg(
             cert->sigType)));
+        if (cert->akidSz <= 0) {
+            ret = HASH_TYPE_E;
+        }
     #else
         cert->akidSz = KEYID_SIZE;
     #endif
-        /* Put the SKID of CA to AKID of certificate */
-        XMEMCPY(cert->akid, decoded->extSubjKeyId, (size_t)cert->akidSz);
+        if (ret == 0) {
+            /* Put the SKID of CA to AKID of certificate */
+            XMEMCPY(cert->akid, decoded->extSubjKeyId, (size_t)cert->akidSz);
+        }
     }
 
     return ret;
