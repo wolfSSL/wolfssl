@@ -9850,6 +9850,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         1)) < 0) {
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
+                    pkey->pkey.ptr = NULL;
                 }
             }
         }
