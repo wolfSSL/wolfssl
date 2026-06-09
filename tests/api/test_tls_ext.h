@@ -39,5 +39,16 @@ int test_TLSX_SRTP_msg_type_validation(void);
 int test_TLSX_ALPN_server_response_count(void);
 int test_TLSX_SupportedCurve_empty_or_unsupported(void);
 int test_TLSX_PointFormat_uncompressed_required(void);
+int test_wolfSSL_CTX_add_client_custom_ext(void);
+int test_wolfSSL_custom_ext_handshake(void);
+int test_wolfSSL_custom_ext_flexible_handshake(void);
+int test_wolfSSL_custom_ext_tls13_handshake(void);
+int test_wolfSSL_custom_ext_parse(void);
+int test_wolfSSL_custom_ext_unsolicited(void);
+int test_wolfSSL_custom_ext_duplicate(void);
+int test_wolfSSL_custom_ext_resumption_ignored(void);
+int test_wolfSSL_custom_ext_resumption_fallback(void);
+int test_wolfSSL_custom_ext_ticket_fallback(void);
+int test_wolfSSL_custom_ext_add_null(void);
 
-#endif /* TESTS_API_TEST_TLS_EMS_H */
+#endif /* TESTS_API_TEST_TLS_EXT_H */

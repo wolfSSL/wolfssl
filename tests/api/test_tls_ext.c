@@ -1009,6 +1009,502 @@ int test_TLSX_ECH_msg_type_validation(void)
     return EXPECT_RESULT();
 }
 
+/* ---- Application-defined ("custom") client extensions ------------------- */
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    (!defined(WOLFSSL_NO_TLS12) || \
+     (defined(WOLFSSL_TLS13) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)))
+
+#define TEST_CUSTOM_EXT_TYPE  0x4242
+static int test_custom_add_arg_obj;
+static int test_custom_parse_arg_obj;
+#define TEST_CUSTOM_ADD_ARG   ((void*)&test_custom_add_arg_obj)
+#define TEST_CUSTOM_PARSE_ARG ((void*)&test_custom_parse_arg_obj)
+
+static const unsigned char test_custom_ext_data[] = { 'w', 'o', 'l', 'f' };
+
+static int test_custom_ext_add_called;
+static int test_custom_ext_free_called;
+static int test_custom_ext_parse_called;
+static int test_custom_ext_add_bad;
+static int test_custom_ext_parse_bad;
+
+static int test_custom_ext_add_cb(WOLFSSL* ssl, unsigned int ext_type,
+        const unsigned char** out, size_t* outlen, int* al, void* add_arg)
+{
+    (void)ssl;
+    (void)al;
+    test_custom_ext_add_called++;
+    if (ext_type != TEST_CUSTOM_EXT_TYPE || add_arg != TEST_CUSTOM_ADD_ARG)
+        test_custom_ext_add_bad++;
+    *out = test_custom_ext_data;
+    *outlen = sizeof(test_custom_ext_data);
+    return 1;
+}
+
+static void test_custom_ext_free_cb(WOLFSSL* ssl, unsigned int ext_type,
+        const unsigned char* out, void* add_arg)
+{
+    (void)ssl;
+    (void)ext_type;
+    (void)out;
+    (void)add_arg;
+    test_custom_ext_free_called++;
+}
+
+static int test_custom_ext_parse_cb(WOLFSSL* ssl, unsigned int ext_type,
+        const unsigned char* in, size_t inlen, int* al, void* parse_arg)
+{
+    (void)ssl;
+    (void)al;
+    test_custom_ext_parse_called++;
+    if (ext_type != TEST_CUSTOM_EXT_TYPE || parse_arg != TEST_CUSTOM_PARSE_ARG)
+        test_custom_ext_parse_bad++;
+    if (inlen != sizeof(test_custom_ext_data) ||
+            XMEMCMP(in, test_custom_ext_data, inlen) != 0)
+        test_custom_ext_parse_bad++;
+    return 1;
+}
+
+#ifndef WOLFSSL_NO_TLS12
+static int test_custom_ext_add_null_cb(WOLFSSL* ssl, unsigned int ext_type,
+        const unsigned char** out, size_t* outlen, int* al, void* add_arg)
+{
+    (void)ssl;
+    (void)ext_type;
+    (void)al;
+    (void)add_arg;
+    *out = NULL;
+    *outlen = 4;
+    return 1;
+}
+#endif /* !WOLFSSL_NO_TLS12 */
+
+static void test_custom_ext_reset(void)
+{
+    test_custom_ext_add_called = 0;
+    test_custom_ext_free_called = 0;
+    test_custom_ext_parse_called = 0;
+    test_custom_ext_add_bad = 0;
+    test_custom_ext_parse_bad = 0;
+}
+
+#ifdef HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
+static int test_custom_ext_handshake_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+/* Validates the registration contract of wolfSSL_CTX_add_client_custom_ext. */
+int test_wolfSSL_CTX_add_client_custom_ext(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+
+    /* NULL ctx is rejected. */
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(NULL, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, NULL,
+        test_custom_ext_parse_cb, NULL), 0);
+
+    /* A type wolfSSL handles internally (server_name) is rejected. */
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, 0x0000,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, NULL,
+        test_custom_ext_parse_cb, NULL), 0);
+
+    /* free_cb without add_cb is rejected. */
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        NULL, test_custom_ext_free_cb, NULL,
+        test_custom_ext_parse_cb, NULL), 0);
+
+    /* ext_type larger than a 16-bit value is rejected. */
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, 0x10000,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, NULL,
+        test_custom_ext_parse_cb, NULL), 0);
+
+    /* A valid registration succeeds. */
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+
+    /* Registering the same type twice is rejected. */
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, NULL,
+        test_custom_ext_parse_cb, NULL), 0);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* TLSX_CustomExt_BuildRequest must reject NULL arguments, and an add_cb that
+ * returns a non-zero length with a NULL data pointer must fail cleanly
+ * (running free_cb) instead of crashing. */
+int test_wolfSSL_custom_ext_add_null(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    word16 builtSz = 0;
+
+    test_custom_ext_reset();
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_null_cb, test_custom_ext_free_cb, NULL,
+        NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_CustomExt_BuildRequest(NULL, &builtSz),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(TLSX_CustomExt_BuildRequest(ssl, NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntNE(TLSX_CustomExt_BuildRequest(ssl, &builtSz), 0);
+    ExpectIntEQ(test_custom_ext_free_called, 1);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Drives a TLS 1.2 handshake and checks the client's custom-extension add and
+ * free callbacks run while building the ClientHello. */
+int test_wolfSSL_custom_ext_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    test_custom_ext_reset();
+
+    client_cbf.method = wolfTLSv1_2_client_method;
+    client_cbf.ctx_ready = test_custom_ext_handshake_ctx_ready;
+    server_cbf.method = wolfTLSv1_2_server_method;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+
+    /* add_cb must have run at least once, free_cb must balance it, and no
+     * callback observed an unexpected type or argument. */
+    ExpectIntGE(test_custom_ext_add_called, 1);
+    ExpectIntEQ(test_custom_ext_free_called, test_custom_ext_add_called);
+    ExpectIntEQ(test_custom_ext_add_bad, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A flexible client method (whose pre-handshake version is the maximum, e.g.
+ * TLS 1.3) must still offer the legacy custom extension so it works when the
+ * connection negotiates TLS 1.2. */
+int test_wolfSSL_custom_ext_flexible_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    test_custom_ext_reset();
+
+    /* Flexible client (offers up to its max version), server pinned to TLS 1.2
+     * so the handshake negotiates down. */
+    client_cbf.method = wolfSSLv23_client_method;
+    client_cbf.ctx_ready = test_custom_ext_handshake_ctx_ready;
+    server_cbf.method = wolfTLSv1_2_server_method;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+
+    /* The extension was offered despite the client's pre-handshake max version
+     * being above TLS 1.2. */
+    ExpectIntGE(test_custom_ext_add_called, 1);
+    ExpectIntEQ(test_custom_ext_free_called, test_custom_ext_add_called);
+    ExpectIntEQ(test_custom_ext_add_bad, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Offering the legacy custom extension in a ClientHello that negotiates TLS 1.3
+ * must not break the handshake (the server ignores the unknown extension). */
+int test_wolfSSL_custom_ext_tls13_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    test_custom_ext_reset();
+
+    client_cbf.method = wolfTLSv1_3_client_method;
+    client_cbf.ctx_ready = test_custom_ext_handshake_ctx_ready;
+    server_cbf.method = wolfTLSv1_3_server_method;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+
+    /* Sent in the ClientHello; the TLS 1.3 server ignores it and never echoes
+     * it, so parse never runs. */
+    ExpectIntGE(test_custom_ext_add_called, 1);
+    ExpectIntEQ(test_custom_ext_free_called, test_custom_ext_add_called);
+    ExpectIntEQ(test_custom_ext_parse_called, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Feeds a ServerHello extension matching a registered custom type and checks
+ * the parse callback is invoked with the right data. */
+int test_wolfSSL_custom_ext_parse(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    word16 builtSz = 0;
+    /* type = 0x4242, len = 0x0004, data = "wolf" */
+    const byte extBytes[] = { 0x42, 0x42, 0x00, 0x04, 'w', 'o', 'l', 'f' };
+
+    test_custom_ext_reset();
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Emit the extension first (records it as sent) so the server's echo is
+     * accepted rather than rejected as unsolicited. */
+    ExpectIntEQ(TLSX_CustomExt_BuildRequest(ssl, &builtSz), 0);
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL), 0);
+    ExpectIntEQ(test_custom_ext_parse_called, 1);
+    ExpectIntEQ(test_custom_ext_parse_bad, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A ServerHello extension whose type was never emitted in the ClientHello
+ * (add_cb declined) must be rejected as unsolicited, without invoking parse. */
+int test_wolfSSL_custom_ext_unsolicited(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const byte extBytes[] = { 0x42, 0x42, 0x00, 0x04, 'w', 'o', 'l', 'f' };
+
+    test_custom_ext_reset();
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* No BuildRequest: nothing was sent, so the echo is unsolicited. */
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL),
+                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+    ExpectIntEQ(test_custom_ext_parse_called, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A ServerHello carrying the same registered custom extension twice must abort
+ * with DUPLICATE_TLS_EXT_E (matching the built-in duplicate handling). */
+int test_wolfSSL_custom_ext_duplicate(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    word16 builtSz = 0;
+    /* Two copies of type 0x4242. */
+    const byte extBytes[] = { 0x42, 0x42, 0x00, 0x04, 'w', 'o', 'l', 'f',
+                              0x42, 0x42, 0x00, 0x04, 'w', 'o', 'l', 'f' };
+
+    test_custom_ext_reset();
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_CustomExt_BuildRequest(ssl, &builtSz), 0);
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL),
+                WC_NO_ERR_TRACE(DUPLICATE_TLS_EXT_E));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* On a resumed handshake the legacy custom extension is ignored (OpenSSL's
+ * SSL_EXT_IGNORE_ON_RESUMPTION): a server echo neither invokes parse nor
+ * aborts. */
+int test_wolfSSL_custom_ext_resumption_ignored(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    word16 builtSz = 0;
+    const byte extBytes[] = { 0x42, 0x42, 0x00, 0x04, 'w', 'o', 'l', 'f' };
+
+    test_custom_ext_reset();
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_CustomExt_BuildRequest(ssl, &builtSz), 0);
+
+    /* Simulate a confirmed resumption: the server echoes our session ID, the
+     * signal the parse gate keys on. */
+    if (ssl != NULL && ssl->arrays != NULL && ssl->session != NULL) {
+        ssl->options.resuming = 1;
+        ssl->options.haveSessionId = 1;
+        ssl->arrays->sessionIDSz = ID_LEN;
+        ssl->session->sessionIDSz = ID_LEN;
+        XMEMSET(ssl->arrays->sessionID, 0xA5, ID_LEN);
+        XMEMSET(ssl->session->sessionID, 0xA5, ID_LEN);
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL), 0);
+    ExpectIntEQ(test_custom_ext_parse_called, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* When resumption was attempted but the server falls back to a full handshake
+ * (session ID not echoed), custom extensions must still be validated: an
+ * unsolicited type is rejected, not silently ignored. */
+int test_wolfSSL_custom_ext_resumption_fallback(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const byte extBytes[] = { 0x42, 0x42, 0x00, 0x04, 'w', 'o', 'l', 'f' };
+
+    test_custom_ext_reset();
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Resumption attempted, but no matching session ID => full handshake. The
+     * extension was never sent (no BuildRequest), so it is unsolicited and must
+     * be rejected rather than ignored on the optimistic resuming flag. */
+    if (ssl != NULL) {
+        ssl->options.resuming = 1;
+        ssl->options.haveSessionId = 0;
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL),
+                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+    ExpectIntEQ(test_custom_ext_parse_called, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A cached session ticket present during a resumption attempt must NOT by
+ * itself suppress custom-extension handling: if the server does not echo our
+ * session ID (it fell back to a full handshake or will issue a new ticket), the
+ * extension is still validated, so an unsolicited one is rejected. */
+int test_wolfSSL_custom_ext_ticket_fallback(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SESSION_TICKET)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const byte extBytes[] = { 0x42, 0x42, 0x00, 0x04, 'w', 'o', 'l', 'f' };
+
+    test_custom_ext_reset();
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, TEST_CUSTOM_ADD_ARG,
+        test_custom_ext_parse_cb, TEST_CUSTOM_PARSE_ARG), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* A ticket is cached and resumption is attempted, but the server did not
+     * echo our session ID. ticketLenAlloc stays 0 so no buffer is freed. */
+    if (ssl != NULL && ssl->session != NULL) {
+        ssl->options.resuming = 1;
+        ssl->options.haveSessionId = 0;
+        ssl->session->ticketLen = 16;
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL),
+                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+    ExpectIntEQ(test_custom_ext_parse_called, 0);
+
+    /* Avoid the test teardown treating the bogus length as a real ticket. */
+    if (ssl != NULL && ssl->session != NULL)
+        ssl->session->ticketLen = 0;
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* use_srtp is only valid in ClientHello/ServerHello (pre-TLS 1.3) or
  * ClientHello/EncryptedExtensions (TLS 1.3) per RFC 5764. Feeding it in a
  * Finished message must be rejected with EXT_NOT_ALLOWED. */

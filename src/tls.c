@@ -1555,6 +1555,13 @@ int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
 /** Supports up to 72 flags. Increase as needed. */
 #define SEMAPHORE_SIZE 9
 
+/** Highest extension type that TLSX_ToSemaphore() maps directly onto its own
+ * semaphore index. Higher types are either remapped into the remaining indices
+ * (renegotiation_info, QUIC, ECH, CKS) or fall outside the semaphore's range.
+ * This boundary also drives duplicate-extension detection in TLSX_Parse(); keep
+ * the two in sync. */
+#define SEMAPHORE_MAX_DIRECT_TYPE 62
+
 /**
  * Converts the extension type (id) to an index in the semaphore.
  *
@@ -1574,7 +1581,8 @@ int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
  *   available semaphores, check for a possible collision with with a
  *   'remapped' extension type.
  *
- * Update TLSX_Parse for duplicate detection if more added above 62.
+ * Update TLSX_Parse for duplicate detection if more added above
+ * SEMAPHORE_MAX_DIRECT_TYPE.
  */
 static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
 {
@@ -1595,7 +1603,7 @@ static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
             return 66;
 #endif
         default:
-            if (type > 62) {
+            if (type > SEMAPHORE_MAX_DIRECT_TYPE) {
                 /* This message SHOULD only happens during the adding of
                    new TLS extensions in which its IANA number overflows
                    the current semaphore's range, or if its number already
@@ -16934,6 +16942,347 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
 }
 #endif
 
+#if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
+/* OpenSSL-compatible application-defined ("custom") TLS extensions.
+ *
+ * Unlike the standard extensions above, custom extensions carry arbitrary
+ * IANA types chosen by the application, so they cannot live in the TLSX list
+ * (which keys every extension on a fixed semaphore index). They are kept in a
+ * separate list on the WOLFSSL_CTX and processed alongside the unknown
+ * extension handling. Only the client side, for TLS 1.2 and below, is wired up
+ * here, matching the legacy SSL_CTX_add_client_custom_ext() contract. */
+
+/* Returns 1 if ext_type is an extension wolfSSL handles internally, which the
+ * application is therefore not allowed to register a custom handler for. */
+static int TLSX_CustomExt_IsKnown(word16 ext_type)
+{
+    switch (ext_type) {
+        case TLSXT_SERVER_NAME:
+        case TLSXT_MAX_FRAGMENT_LENGTH:
+        case TLSXT_TRUSTED_CA_KEYS:
+        case TLSXT_TRUNCATED_HMAC:
+        case TLSXT_STATUS_REQUEST:
+        case TLSXT_SUPPORTED_GROUPS:
+        case TLSXT_EC_POINT_FORMATS:
+        case TLSXT_SIGNATURE_ALGORITHMS:
+        case TLSXT_USE_SRTP:
+        case TLSXT_APPLICATION_LAYER_PROTOCOL:
+        case TLSXT_STATUS_REQUEST_V2:
+        case TLSXT_CLIENT_CERTIFICATE:
+        case TLSXT_SERVER_CERTIFICATE:
+        case TLSXT_ENCRYPT_THEN_MAC:
+        case TLSXT_EXTENDED_MASTER_SECRET:
+        case TLSXT_CERT_WITH_EXTERN_PSK:
+        case TLSXT_SESSION_TICKET:
+        case TLSXT_PRE_SHARED_KEY:
+        case TLSXT_EARLY_DATA:
+        case TLSXT_SUPPORTED_VERSIONS:
+        case TLSXT_COOKIE:
+        case TLSXT_PSK_KEY_EXCHANGE_MODES:
+        case TLSXT_CERTIFICATE_AUTHORITIES:
+        case TLSXT_POST_HANDSHAKE_AUTH:
+        case TLSXT_SIGNATURE_ALGORITHMS_CERT:
+        case TLSXT_KEY_SHARE:
+        case TLSXT_CONNECTION_ID:
+        case TLSXT_KEY_QUIC_TP_PARAMS:
+        case TLSXT_ECH:
+        case TLSXT_ECH_OUTER_EXTENSIONS:
+        case TLSXT_CKS:
+        case TLSXT_RENEGOTIATION_INFO:
+        case TLSXT_KEY_QUIC_TP_PARAMS_DRAFT:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * Registers an application-defined client extension on the context. Mirrors
+ * OpenSSL's SSL_CTX_add_client_custom_ext(): returns WOLFSSL_SUCCESS (1) on
+ * success, WOLFSSL_FAILURE (0) on failure.
+ *
+ * In this legacy API, wolfSSL supports custom extensions on the client side
+ * for TLS 1.2 and below.
+ *
+ * @param ctx        Context on which to register the custom extension.
+ * @param ext_type   IANA extension type to register. Must fit in 16 bits,
+ *                   must not name an extension wolfSSL already handles
+ *                   internally, and must not already be registered on @p ctx.
+ * @param add_cb     Callback used to build the outgoing extension. If NULL, a
+ *                   zero-length extension is sent.
+ * @param free_cb    Optional callback used to release data produced by
+ *                   @p add_cb. Must be NULL when @p add_cb is NULL.
+ * @param add_arg    Opaque application pointer for @p add_cb and @p free_cb.
+ * @param parse_cb   Optional callback used to parse the echoed extension.
+ * @param parse_arg  Opaque application pointer for @p parse_cb.
+ * @return WOLFSSL_SUCCESS on successful registration, otherwise
+ *         WOLFSSL_FAILURE.
+ */
+int wolfSSL_CTX_add_client_custom_ext(WOLFSSL_CTX* ctx, unsigned int ext_type,
+        wolfSSL_custom_ext_add_cb add_cb, wolfSSL_custom_ext_free_cb free_cb,
+        void* add_arg, wolfSSL_custom_ext_parse_cb parse_cb, void* parse_arg)
+{
+    WOLFSSL_CustomExt* meth;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_add_client_custom_ext");
+
+    if (ctx == NULL || ext_type > 0xffff)
+        return WOLFSSL_FAILURE;
+
+    /* free_cb without add_cb is meaningless: there is nothing to free. */
+    if (add_cb == NULL && free_cb != NULL)
+        return WOLFSSL_FAILURE;
+
+    /* Don't allow shadowing of internally handled extensions. */
+    if (TLSX_CustomExt_IsKnown((word16)ext_type))
+        return WOLFSSL_FAILURE;
+
+    /* Reject duplicate registrations for the same type. */
+    for (meth = ctx->customExt; meth != NULL; meth = meth->next) {
+        if (meth->ext_type == (word16)ext_type)
+            return WOLFSSL_FAILURE;
+    }
+
+    meth = (WOLFSSL_CustomExt*)XMALLOC(sizeof(WOLFSSL_CustomExt), ctx->heap,
+                                       DYNAMIC_TYPE_TLSX);
+    if (meth == NULL)
+        return WOLFSSL_FAILURE;
+
+    meth->ext_type  = (word16)ext_type;
+    meth->add_cb    = add_cb;
+    meth->free_cb   = free_cb;
+    meth->parse_cb  = parse_cb;
+    meth->add_arg   = add_arg;
+    meth->parse_arg = parse_arg;
+    meth->next      = ctx->customExt;
+    ctx->customExt  = meth;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Frees a list of registered custom extension methods. */
+void TLSX_CustomExt_FreeAll(WOLFSSL_CustomExt* list, void* heap)
+{
+    WOLFSSL_CustomExt* meth;
+
+    while ((meth = list) != NULL) {
+        list = meth->next;
+        XFREE(meth, heap, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+/* Invokes the registered add callbacks and serializes the resulting custom
+ * extensions for the ClientHello into ssl->customExtData. The total wire size
+ * (type + length + data for each included extension) is returned in *pSz. The
+ * buffer is consumed and released by TLSX_WriteRequest. */
+WOLFSSL_TEST_VIS int TLSX_CustomExt_BuildRequest(WOLFSSL* ssl, word16* pSz)
+{
+    WOLFSSL_CustomExt* meth;
+    byte*  data = NULL;
+    word32 dataSz = 0;  /* word32 to detect a word16 wire-field overflow */
+    int    ret = 0;
+
+    if (ssl == NULL || pSz == NULL)
+        return BAD_FUNC_ARG;
+
+    *pSz = 0;
+
+    XFREE(ssl->customExtData, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ssl->customExtData = NULL;
+    ssl->customExtSz = 0;
+    XFREE(ssl->customExtSent, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->customExtSent = NULL;
+    ssl->customExtSentCnt = 0;
+
+    if (ssl->ctx == NULL || ssl->ctx->customExt == NULL)
+        return 0;
+
+    for (meth = ssl->ctx->customExt; meth != NULL && ret == 0;
+            meth = meth->next) {
+        const unsigned char* out = NULL;
+        size_t outlen = 0;
+        int al = unsupported_extension;
+        int addRet = 1; /* no add_cb => add a zero-length extension */
+        word32 need = 0;
+        byte* tmp = NULL;
+        word16* sent = NULL;
+
+        if (meth->add_cb != NULL) {
+            addRet = meth->add_cb(ssl, meth->ext_type, &out, &outlen, &al,
+                                  meth->add_arg);
+        }
+
+        if (addRet < 0) {
+            /* Fatal: callback requested the connection be aborted. add_cb
+             * returned < 0, so free_cb is not run (skips free_ext). */
+            SendAlert(ssl, alert_fatal, (byte)al);
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+        }
+        if (addRet == 0)
+            continue; /* extension omitted for this message */
+
+        if (out == NULL && outlen > 0) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (outlen > WOLFSSL_MAX_16BIT) {
+            ret = BUFFER_ERROR;
+        }
+        else {
+            need = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN + (word32)outlen;
+            if (dataSz + need > (word32)WOLFSSL_MAX_16BIT)
+                ret = BUFFER_ERROR;
+        }
+        if (ret != 0)
+            goto free_ext;
+
+        tmp = (byte*)XREALLOC(data, dataSz + need, ssl->heap,
+                              DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            ret = MEMORY_E;
+            goto free_ext;
+        }
+        data = tmp;
+
+        c16toa(meth->ext_type, data + dataSz);
+        dataSz += HELLO_EXT_TYPE_SZ;
+        c16toa((word16)outlen, data + dataSz);
+        dataSz += OPAQUE16_LEN;
+        if (outlen > 0) {
+            XMEMCPY(data + dataSz, out, outlen);
+            dataSz += (word32)outlen;
+        }
+
+        /* Record the type as sent so the server may legitimately echo it. */
+        sent = (word16*)XREALLOC(ssl->customExtSent,
+                (ssl->customExtSentCnt + 1) * (word32)sizeof(word16),
+                ssl->heap, DYNAMIC_TYPE_TLSX);
+        if (sent == NULL) {
+            ret = MEMORY_E;
+            goto free_ext;
+        }
+        ssl->customExtSent = sent;
+        ssl->customExtSent[ssl->customExtSentCnt++] = meth->ext_type;
+
+free_ext:
+        if (meth->free_cb != NULL)
+            meth->free_cb(ssl, meth->ext_type, out, meth->add_arg);
+    }
+
+    if (ret != 0) {
+        XFREE(data, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ssl->customExtSent != NULL) {
+            XFREE(ssl->customExtSent, ssl->heap, DYNAMIC_TYPE_TLSX);
+            ssl->customExtSent = NULL;
+            ssl->customExtSentCnt = 0;
+        }
+        return ret;
+    }
+
+    ssl->customExtData = data;
+    ssl->customExtSz = (word16)dataSz;
+    *pSz = (word16)dataSz;
+
+    return 0;
+}
+
+/* Returns 1 if a custom extension handler is registered for the given type. */
+static int TLSX_CustomExt_IsRegistered(const WOLFSSL* ssl, word16 type)
+{
+    WOLFSSL_CustomExt* meth;
+
+    if (ssl->ctx == NULL)
+        return 0;
+    for (meth = ssl->ctx->customExt; meth != NULL; meth = meth->next) {
+        if (meth->ext_type == type)
+            return 1;
+    }
+    return 0;
+}
+
+/* Returns 1 if the given custom extension type was emitted in our ClientHello. */
+static int TLSX_CustomExt_WasSent(const WOLFSSL* ssl, word16 type)
+{
+    word16 i;
+
+    for (i = 0; i < ssl->customExtSentCnt; i++) {
+        if (ssl->customExtSent[i] == type)
+            return 1;
+    }
+    return 0;
+}
+
+/* Looks up a registered custom extension matching the received type and, if
+ * found, invokes its parse callback. *found is set to 1 when a handler matched
+ * (whether it succeeded or failed). Returns 0 on success, or a negative error
+ * (after sending the appropriate alert) when the extension is unsolicited or
+ * the callback rejects the data. */
+int TLSX_CustomExt_Parse(WOLFSSL* ssl, byte msgType, word16 type,
+        const byte* input, word16 size, int* found)
+{
+    WOLFSSL_CustomExt* meth;
+
+    *found = 0;
+
+    if (ssl->ctx == NULL || ssl->ctx->customExt == NULL)
+        return 0;
+
+    /* Legacy client custom extensions only apply to the ServerHello of a
+     * TLS 1.2 (or below) handshake. For TLS 1.3, fall through so the unknown
+     * extension is handled per RFC 8446 (unsupported_extension alert). */
+    if (msgType != server_hello || IsAtLeastTLSv1_3(ssl->version))
+        return 0;
+
+    /* OpenSSL registers the legacy API with SSL_EXT_IGNORE_ON_RESUMPTION, so on
+     * a resumed handshake the extension is not processed (the server echo is
+     * silently ignored). Only ignore when the server has actually confirmed
+     * resumption by echoing our session ID -- the RFC 5246 / RFC 5077 (tickets,
+     * non-empty session ID) signal. A cached ticket alone is not enough: if the
+     * server falls back to a full handshake it will not echo our session ID, so
+     * the extension is still parsed/validated below (and an unsolicited one is
+     * rejected). These fields are set from the ServerHello before this point. */
+    if (ssl->options.resuming && ssl->options.haveSessionId &&
+            ssl->arrays != NULL && ssl->session != NULL &&
+            ssl->arrays->sessionIDSz > 0 &&
+            ssl->arrays->sessionIDSz == ssl->session->sessionIDSz &&
+            XMEMCMP(ssl->arrays->sessionID, ssl->session->sessionID,
+                    ssl->arrays->sessionIDSz) == 0) {
+        return 0;
+    }
+
+    for (meth = ssl->ctx->customExt; meth != NULL; meth = meth->next) {
+        if (meth->ext_type != type)
+            continue;
+
+        *found = 1;
+
+        /* RFC 5246 7.4.1.4: the server must not send an extension the client
+         * did not request. add_cb may decline to send for a given handshake,
+         * so reject a response for any type we did not actually emit. */
+        if (!TLSX_CustomExt_WasSent(ssl, type)) {
+            WOLFSSL_MSG("Unsolicited custom extension in ServerHello");
+            SendAlert(ssl, alert_fatal, unsupported_extension);
+            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+            return UNSUPPORTED_EXTENSION;
+        }
+
+        if (meth->parse_cb != NULL) {
+            int al = unsupported_extension;
+            int parseRet = meth->parse_cb(ssl, type, input, (size_t)size, &al,
+                                          meth->parse_arg);
+            if (parseRet <= 0) {
+                SendAlert(ssl, alert_fatal, (byte)al);
+                WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
+                return UNSUPPORTED_EXTENSION;
+            }
+        }
+        break;
+    }
+
+    return 0;
+}
+#endif /* HAVE_TLS_EXTENSIONS && OPENSSL_EXTRA */
+
 /** Tells the buffered size of extensions to be sent into the client hello. */
 int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
 {
@@ -17036,6 +17385,27 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
     if (msgType == client_hello && ssl->options.haveEMS &&
                   (!IsAtLeastTLSv1_3(ssl->version) || ssl->options.downgrade)) {
         length += HELLO_EXT_SZ;
+    }
+#endif
+
+#if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
+    /* Application-defined (custom) extensions. These are always offered in the
+     * ClientHello regardless of the client's maximum version (matching OpenSSL,
+     * whose is_tls13 check is false while constructing the ClientHello), so
+     * they work with flexible client methods that go on to negotiate TLS 1.2.
+     * The negotiated-version restriction is enforced on the parse side. The add
+     * callbacks run here and the resulting bytes are cached for
+     * TLSX_WriteRequest. */
+    if (msgType == client_hello) {
+        word16 customSz = 0;
+        ret = TLSX_CustomExt_BuildRequest(ssl, &customSz);
+        if (ret != 0)
+            return ret;
+        if ((word32)length + customSz > (WOLFSSL_MAX_16BIT - OPAQUE16_LEN)) {
+            WOLFSSL_MSG("TLSX_GetRequestSize extensions exceed word16");
+            return BUFFER_E;
+        }
+        length += customSz;
     }
 #endif
 
@@ -17262,6 +17632,19 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         offset += HELLO_EXT_TYPE_SZ;
         c16toa(0, output + offset);
         offset += HELLO_EXT_SZ_SZ;
+    }
+#endif
+
+#if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
+    /* Copy out the application-defined (custom) extension bytes built during
+     * TLSX_GetRequestSize, then release the cached buffer. */
+    if (msgType == client_hello && ssl->customExtData != NULL) {
+        WOLFSSL_MSG("Custom extensions to write");
+        XMEMCPY(output + offset, ssl->customExtData, ssl->customExtSz);
+        offset += ssl->customExtSz;
+        XFREE(ssl->customExtData, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        ssl->customExtData = NULL;
+        ssl->customExtSz = 0;
     }
 #endif
 
@@ -17874,7 +18257,8 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         offset += OPAQUE16_LEN;
 
         /* Check we have a bit for extension type. */
-        if ((type <= 62) || (type == TLSX_RENEGOTIATION_INFO)
+        if ((type <= SEMAPHORE_MAX_DIRECT_TYPE)
+            || (type == TLSX_RENEGOTIATION_INFO)
         #ifdef WOLFSSL_QUIC
             || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
         #endif
@@ -17894,6 +18278,28 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 return DUPLICATE_TLS_EXT_E;
             }
         }
+#if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
+        /* The semaphore-based duplicate detection above does not cover
+         * application-registered custom extensions whose arbitrary type is
+         * above the semaphore range. Match OpenSSL, which gives each registered
+         * custom extension its own slot and rejects repeats: scan the
+         * already-parsed portion of this message for an earlier extension of
+         * the same type. (Types <= SEMAPHORE_MAX_DIRECT_TYPE are handled by
+         * the block above.) */
+        else if (type > SEMAPHORE_MAX_DIRECT_TYPE &&
+                TLSX_CustomExt_IsRegistered(ssl, type)) {
+            word32 scan = 0;
+            word32 upto = (word32)offset - HELLO_EXT_TYPE_SZ - OPAQUE16_LEN;
+            while (scan + HELLO_EXT_TYPE_SZ + OPAQUE16_LEN <= upto) {
+                word16 sT, sS;
+                ato16(input + scan, &sT);
+                ato16(input + scan + HELLO_EXT_TYPE_SZ, &sS);
+                if (sT == type)
+                    return DUPLICATE_TLS_EXT_E;
+                scan += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN + sS;
+            }
+        }
+#endif
 
         if (length - offset < size)
             return BUFFER_ERROR;
@@ -18567,6 +18973,20 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 return INVALID_PARAMETER;
 #endif
             default:
+#if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
+                {
+                    /* Application-defined (custom) extension handler, if one
+                     * was registered for this type. */
+                    int customFound = 0;
+                    ret = TLSX_CustomExt_Parse(ssl, msgType, type,
+                                               input + offset, size,
+                                               &customFound);
+                    if (ret != 0)
+                        return ret;
+                    if (customFound)
+                        break;
+                }
+#endif
                 WOLFSSL_MSG("Unknown TLS extension type");
 #if defined(WOLFSSL_TLS13)
                 /* RFC 8446 Sec. 4.2: a TLS 1.3 client MUST abort with an
