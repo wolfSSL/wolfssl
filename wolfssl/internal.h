@@ -3215,6 +3215,31 @@ struct TLSX {
     struct TLSX* next; /* List Behavior   */
 };
 
+#if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
+/* OpenSSL-compatible custom (application-defined) TLS extension.
+ * Registered on a WOLFSSL_CTX via wolfSSL_CTX_add_client_custom_ext(). These
+ * extensions are not part of the TLSX framework but are processed in parallel
+ * for unknown extension types. Currently the client side for TLS 1.2 and below
+ * is supported, mirroring SSL_CTX_add_client_custom_ext(). */
+typedef struct WOLFSSL_CustomExt {
+    word16                      ext_type;  /* extension type on the wire     */
+    wolfSSL_custom_ext_add_cb   add_cb;    /* build outgoing extension data  */
+    wolfSSL_custom_ext_free_cb  free_cb;   /* free data produced by add_cb   */
+    wolfSSL_custom_ext_parse_cb parse_cb;  /* parse incoming extension data  */
+    void*                       add_arg;   /* opaque arg for add_cb/free_cb  */
+    void*                       parse_arg; /* opaque arg for parse_cb        */
+    struct WOLFSSL_CustomExt*   next;      /* list behaviour                 */
+} WOLFSSL_CustomExt;
+
+WOLFSSL_LOCAL void TLSX_CustomExt_FreeAll(WOLFSSL_CustomExt* list, void* heap);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_CustomExt_BuildRequest wolfSSL_TLSX_CustomExt_BuildRequest
+#endif
+WOLFSSL_TEST_VIS int TLSX_CustomExt_BuildRequest(WOLFSSL* ssl, word16* pSz);
+WOLFSSL_LOCAL int  TLSX_CustomExt_Parse(WOLFSSL* ssl, byte msgType, word16 type,
+        const byte* input, word16 size, int* found);
+#endif /* HAVE_TLS_EXTENSIONS && OPENSSL_EXTRA */
+
 #ifdef WOLFSSL_API_PREFIX_MAP
     #define TLSX_Find wolfSSL_TLSX_Find
 #endif
@@ -4220,6 +4245,9 @@ struct WOLFSSL_CTX {
     int             devId;              /* async device id to use */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
+    #ifdef OPENSSL_EXTRA
+        WOLFSSL_CustomExt* customExt;  /* App-defined custom TLS extensions */
+    #endif
     #ifndef NO_WOLFSSL_SERVER
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
@@ -6434,6 +6462,18 @@ struct WOLFSSL {
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
+    #ifdef OPENSSL_EXTRA
+        /* Pre-built wire bytes for app-defined custom extensions in the
+         * ClientHello. Produced in TLSX_GetRequestSize and consumed (then
+         * freed) in TLSX_WriteRequest. See WOLFSSL_CustomExt. */
+        byte*   customExtData;
+        word16  customExtSz;
+        /* Custom extension types actually emitted in the ClientHello, so an
+         * unsolicited type echoed by the server can be rejected. Rebuilt with
+         * customExtData; persists until the connection is freed. */
+        word16* customExtSent;
+        word16  customExtSentCnt;
+    #endif
     #ifdef HAVE_MAX_FRAGMENT
         word16 max_fragment;
     #endif
