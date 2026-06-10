@@ -1612,7 +1612,7 @@ static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
         }
 
         /* SP 800-56Ar3, section 5.6.2.3.1, process step 2 */
-        if (ret == 0 && prime != NULL) {
+        if (ret == 0 && mp_iszero(q) == MP_NO) {
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
             if (mp_count_bits(&key->p) == 2048) {
@@ -2053,7 +2053,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         }
 #endif
         /* Always validate peer public key (2 <= y <= p-2) per SP 800-56A */
-        if (wc_DhCheckPubKey(key, otherPub, pubSz) != 0) {
+        if (wc_DhCheckPubKey_ex(key, otherPub, pubSz, NULL, 0) != 0) {
             WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
             return DH_CHECK_PUB_E;
         }
