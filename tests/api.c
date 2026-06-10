@@ -235,6 +235,9 @@
 #include <tests/api/test_signature.h>
 #include <tests/api/test_dtls.h>
 #include <tests/api/test_dtls13.h>
+#include <tests/api/test_ssl_cert.h>
+#include <tests/api/test_ssl_pk.h>
+#include <tests/api/test_ssl_ext.h>
 #include <tests/api/test_ocsp.h>
 #include <tests/api/test_evp.h>
 #include <tests/api/test_tls_ext.h>
@@ -35268,6 +35271,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_revoked_loaded_int_cert),
     TEST_DTLS_DECLS,
     TEST_DTLS13_DECLS,
+    TEST_SSL_CERT_DECLS,
+    TEST_SSL_PK_DECLS,
+    TEST_SSL_EXT_DECLS,
     TEST_DECL(test_tls_multi_handshakes_one_record),
     TEST_DECL(test_write_dup),
     TEST_DECL(test_write_dup_want_write),
