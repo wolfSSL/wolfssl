@@ -2532,6 +2532,7 @@ int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
+/* NOTE: size of 'out' must be the digest size per hashType */
 int wc_CryptoCb_Hkdf_Extract(int hashType, const byte* salt, word32 saltSz,
                         const byte* inKey, word32 inKeySz, byte* out, int devId)
 {

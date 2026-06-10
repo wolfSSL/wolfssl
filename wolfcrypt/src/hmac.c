@@ -1754,8 +1754,9 @@ int wolfSSL_GetHmacMaxSize(void)
         const  byte* localSalt;  /* either points to user input or tmp */
         word32 hashSz;
 
-        if (out == NULL || (inKey == NULL && inKeySz > 0))
+        if (out == NULL || (inKey == NULL && inKeySz > 0)) {
             return BAD_FUNC_ARG;
+        }
 
 #ifdef WOLF_CRYPTO_CB
         /* Try crypto callback first */
@@ -1768,8 +1769,9 @@ int wolfSSL_GetHmacMaxSize(void)
 #endif
 
         ret = wc_HmacSizeByType(type);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
         hashSz = (word32)ret;
 
         WC_ALLOC_VAR_EX(myHmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
@@ -1830,12 +1832,14 @@ int wolfSSL_GetHmacMaxSize(void)
         word32 hashSz;
         byte   n = 0x1;
 
-        if (out == NULL || (inKey == NULL && inKeySz > 0))
+        if (out == NULL || (inKey == NULL && inKeySz > 0)) {
             return BAD_FUNC_ARG;
+        }
 
         ret = wc_HmacSizeByType(type);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
         hashSz = (word32)ret;
 
         /* RFC 5869 states that the length of output keying material in

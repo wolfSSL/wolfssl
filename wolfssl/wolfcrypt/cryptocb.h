@@ -638,20 +638,20 @@ typedef struct wc_CryptoInfo {
                 int         hashType; /* WC_SHA256, etc. */
                 const byte* inKey;    /* Input keying material */
                 word32      inKeySz;
-                const byte* salt; /* Optional salt */
+                const byte* salt;   /* Optional salt */
                 word32      saltSz;
-                const byte* info; /* Optional info */
+                const byte* info;   /* Optional info */
                 word32      infoSz;
-                byte*       out; /* Output key material */
+                byte*       out;    /* Output key material */
                 word32      outSz;
             } hkdf;
             struct {                  /* HKDF extract */
                 int         hashType; /* WC_SHA256, etc. */
-                const byte* salt; /* Optional salt */
-                word32      saltSz;
+                const byte* salt;     /* Optional salt */
+                word32      saltSz;   /* must be 0 if salt==NULL */
                 const byte* inKey;    /* Input keying material */
                 word32      inKeySz;
-                byte*       out; /* Output key material */
+                byte*       out; /* out must be size of the hashType digest */
             } hkdf_extract;
             struct {                  /* HKDF expand */
                 int         hashType; /* WC_SHA256, etc. */
@@ -905,7 +905,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
     word32 inSz, byte* digest);
 #endif /* !NO_HMAC */
 
-#ifdef HAVE_HKDF
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
 WOLFSSL_LOCAL int wc_CryptoCb_Hkdf(int hashType, const byte* inKey,
                                    word32 inKeySz, const byte* salt,
                                    word32 saltSz, const byte* info,
@@ -916,7 +916,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hkdf_Extract(int hashType, const byte* salt,
 WOLFSSL_LOCAL int wc_CryptoCb_Hkdf_Expand(int hashType, const byte* inKey,
                     word32 inKeySz, const byte* info, word32 infoSz,
                     byte* out, word32 outSz, int devId);
-#endif
+#endif /* HAVE_HKDF && !NO_HMAC */
 
 #if defined(HAVE_CMAC_KDF)
 WOLFSSL_LOCAL int wc_CryptoCb_Kdf_TwostepCmac(const byte * salt, word32 saltSz,
