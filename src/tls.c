@@ -5232,8 +5232,13 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     if (length != OPAQUE16_LEN + offset)
         return BUFFER_ERROR;
     offset = OPAQUE16_LEN;
-    if (offset == length)
-        return 0;
+    if (offset == length) {
+        /* An empty named group list is malformed (named_group_list<2..2^16-1>,
+         * RFC 8422 / RFC 8446). BUFFER_ERROR yields a decode_error alert (see
+         * TranslateErrorToAlert()). Accepting it would also make an explicit
+         * empty extension look absent and impose no group restriction. */
+        return BUFFER_ERROR;
+    }
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
     if (extension == NULL) {
@@ -5249,6 +5254,14 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
                     ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 break;
             ret = 0;
+        }
+        /* All advertised groups are unsupported, so no node was added above.
+         * Record an empty node so suite selection still sees the restriction
+         * (e.g. ECC/ECDHE must not be chosen) instead of treating the
+         * extension as absent. */
+        if (ret == 0 && isRequest &&
+                TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
+            ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, NULL, ssl->heap);
         }
     }
     else {
@@ -5654,6 +5667,26 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 
     if (isRequest) {
+    #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+        /* RFC 8422 Section 5.1.2: a client that sends the ec_point_formats
+         * extension MUST include the uncompressed (0) format. Record whether
+         * it is missing so DoClientHello() can abort with an illegal_parameter
+         * alert if the client also advertised ECC named groups. The decision
+         * is deferred to after all extensions are parsed so it does not depend
+         * on the relative order of the supported_groups and ec_point_formats
+         * extensions in the ClientHello. */
+        word16 i;
+        int found = 0;
+
+        for (i = 0; i < input[0]; i++) {
+            if (input[ENUM_LEN + i] == WOLFSSL_EC_PF_UNCOMPRESSED) {
+                found = 1;
+                break;
+            }
+        }
+        ssl->options.peerNoUncompPF = (found == 0);
+    #endif
+
         /* adding uncompressed point format to response */
         ret = TLSX_UsePointFormat(&ssl->extensions, WOLFSSL_EC_PF_UNCOMPRESSED,
                                                                      ssl->heap);
