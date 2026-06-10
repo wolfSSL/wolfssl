@@ -1620,32 +1620,34 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
  */
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
-    int ret = WOLFSSL_SUCCESS;
+    short keySzBytes;
 
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinEccKey_Sz");
-
-    if ((ctx == NULL) || (keySz < 0)) {
+    if (ctx == NULL || keySz < 0) {
         WOLFSSL_MSG("Key size must be positive value or ctx was null");
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
+    }
+
+    if (keySz % 8 == 0) {
+        keySzBytes = keySz / 8;
     }
     else {
-        short keySzBytes = (keySz + 7) / 8;
-
-    #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-        if (crypto_policy.enabled && (ctx->minEccKeySz > keySzBytes)) {
-            ret = CRYPTO_POLICY_FORBIDDEN;
-        }
-        else
-    #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-        {
-            ctx->minEccKeySz     = keySzBytes;
-        #ifndef NO_CERTS
-            ctx->cm->minEccKeySz = keySzBytes;
-        #endif
-        }
+        keySzBytes = (keySz / 8) + 1;
     }
 
-    return ret;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ctx->minEccKeySz > (keySzBytes)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
+    ctx->minEccKeySz     = keySzBytes;
+#ifndef NO_CERTS
+    ctx->cm->minEccKeySz = keySzBytes;
+#endif
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -1659,29 +1661,31 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
  */
 int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 {
-    int ret = WOLFSSL_SUCCESS;
+    short keySzBytes;
 
     WOLFSSL_ENTER("wolfSSL_SetMinEccKey_Sz");
-
-    if ((ssl == NULL) || (keySz < 0)) {
+    if (ssl == NULL || keySz < 0) {
         WOLFSSL_MSG("Key size must be positive value or ctx was null");
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
+    }
+
+    if (keySz % 8 == 0) {
+        keySzBytes = keySz / 8;
     }
     else {
-        short keySzBytes = (keySz + 7) / 8;
-
-    #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-        if (crypto_policy.enabled && (ssl->options.minEccKeySz > keySzBytes)) {
-            ret = CRYPTO_POLICY_FORBIDDEN;
-        }
-        else
-    #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-        {
-            ssl->options.minEccKeySz = keySzBytes;
-        }
+        keySzBytes = (keySz / 8) + 1;
     }
 
-    return ret;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ssl->options.minEccKeySz > (keySzBytes)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
+    ssl->options.minEccKeySz = keySzBytes;
+    return WOLFSSL_SUCCESS;
 }
 
 #endif /* HAVE_ECC */
@@ -1698,23 +1702,22 @@ int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
  */
 int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
-    int ret = WOLFSSL_SUCCESS;
-
-    if ((ctx == NULL) || (keySz < 0) || ((keySz % 8) != 0)) {
+    if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisible by 8 or ctx was null");
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
+
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    else if (crypto_policy.enabled && (ctx->minRsaKeySz > (keySz / 8))) {
-        ret = CRYPTO_POLICY_FORBIDDEN;
+    if (crypto_policy.enabled) {
+        if (ctx->minRsaKeySz > (keySz / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-    else {
-        ctx->minRsaKeySz     = keySz / 8;
-        ctx->cm->minRsaKeySz = keySz / 8;
-    }
 
-    return ret;
+    ctx->minRsaKeySz     = keySz / 8;
+    ctx->cm->minRsaKeySz = keySz / 8;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -1729,22 +1732,21 @@ int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
  */
 int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz)
 {
-    int ret = WOLFSSL_SUCCESS;
-
-    if ((ssl == NULL) || (keySz < 0) || ((keySz % 8) != 0)) {
+    if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
+
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    else if (crypto_policy.enabled && (ssl->options.minRsaKeySz > (keySz / 8))) {
-        ret = CRYPTO_POLICY_FORBIDDEN;
+    if (crypto_policy.enabled) {
+        if (ssl->options.minRsaKeySz > (keySz / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-    else {
-        ssl->options.minRsaKeySz = keySz / 8;
-    }
 
-    return ret;
+    ssl->options.minRsaKeySz = keySz / 8;
+    return WOLFSSL_SUCCESS;
 }
 #endif /* !NO_RSA */
 
@@ -1761,20 +1763,18 @@ int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz)
  */
 int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable)
 {
-    int ret = WOLFSSL_SUCCESS;
-
     WOLFSSL_ENTER("wolfSSL_SetEnableDhKeyTest");
 
-    if (ssl == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-    else {
-        /* Store the flag normalized to a boolean. */
-        ssl->options.dhDoKeyTest = (enable != 0);
-    }
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
 
-    WOLFSSL_LEAVE("wolfSSL_SetEnableDhKeyTest", ret);
-    return ret;
+    if (!enable)
+        ssl->options.dhDoKeyTest = 0;
+    else
+        ssl->options.dhDoKeyTest = 1;
+
+    WOLFSSL_LEAVE("wolfSSL_SetEnableDhKeyTest", WOLFSSL_SUCCESS);
+    return WOLFSSL_SUCCESS;
 }
 #endif
 
@@ -1789,21 +1789,19 @@ int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable)
  */
 int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
 {
-    int ret = WOLFSSL_SUCCESS;
+    if (ctx == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
+        return BAD_FUNC_ARG;
 
-    if ((ctx == NULL) || (keySz_bits > 16000) || ((keySz_bits % 8) != 0)) {
-        ret = BAD_FUNC_ARG;
-    }
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    else if (crypto_policy.enabled && (ctx->minDhKeySz > (keySz_bits / 8))) {
-        ret = CRYPTO_POLICY_FORBIDDEN;
+    if (crypto_policy.enabled) {
+        if (ctx->minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-    else {
-        ctx->minDhKeySz = keySz_bits / 8;
-    }
 
-    return ret;
+    ctx->minDhKeySz = keySz_bits / 8;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -1818,22 +1816,19 @@ int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
  */
 int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
 {
-    int ret = WOLFSSL_SUCCESS;
+    if (ssl == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
+        return BAD_FUNC_ARG;
 
-    if ((ssl == NULL) || (keySz_bits > 16000) || ((keySz_bits % 8) != 0)) {
-        ret = BAD_FUNC_ARG;
-    }
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    else if (crypto_policy.enabled &&
-             (ssl->options.minDhKeySz > (keySz_bits / 8))) {
-        ret = CRYPTO_POLICY_FORBIDDEN;
+    if (crypto_policy.enabled) {
+        if (ssl->options.minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-    else {
-        ssl->options.minDhKeySz = keySz_bits / 8;
-    }
 
-    return ret;
+    ssl->options.minDhKeySz = keySz_bits / 8;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -1847,21 +1842,19 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
  */
 int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
 {
-    int ret = WOLFSSL_SUCCESS;
+    if (ctx == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
+        return BAD_FUNC_ARG;
 
-    if ((ctx == NULL) || (keySz_bits > 16000) || (keySz_bits % 8 != 0)) {
-        ret = BAD_FUNC_ARG;
-    }
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    else if (crypto_policy.enabled && (ctx->minDhKeySz > (keySz_bits / 8))) {
-        ret = CRYPTO_POLICY_FORBIDDEN;
+    if (crypto_policy.enabled) {
+        if (ctx->minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-    else {
-        ctx->maxDhKeySz = keySz_bits / 8;
-    }
 
-    return ret;
+    ctx->maxDhKeySz = keySz_bits / 8;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -1875,22 +1868,19 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
  */
 int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
 {
-    int ret = WOLFSSL_SUCCESS;
+    if (ssl == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
+        return BAD_FUNC_ARG;
 
-    if ((ssl == NULL) || (keySz_bits > 16000) || ((keySz_bits % 8) != 0)) {
-        ret = BAD_FUNC_ARG;
-    }
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
-    else if (crypto_policy.enabled &&
-             (ssl->options.minDhKeySz > (keySz_bits / 8))) {
-        ret = CRYPTO_POLICY_FORBIDDEN;
+    if (crypto_policy.enabled) {
+        if (ssl->options.minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
-    else {
-        ssl->options.maxDhKeySz = keySz_bits / 8;
-    }
 
-    return ret;
+    ssl->options.maxDhKeySz = keySz_bits / 8;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -1902,17 +1892,10 @@ int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
  */
 int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl)
 {
-    int ret;
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
 
-    if (ssl == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-    else {
-        /* Key size is stored in bytes; report it in bits. */
-        ret = ssl->options.dhKeySz * 8;
-    }
-
-    return ret;
+    return (ssl->options.dhKeySz * 8);
 }
 
 #endif /* !NO_DH */
@@ -2072,20 +2055,14 @@ static int SaToNid(byte sa, int* nid)
  */
 int wolfSSL_get_signature_nid(WOLFSSL *ssl, int* nid)
 {
-    int ret;
-
     WOLFSSL_MSG("wolfSSL_get_signature_nid");
 
-    if ((ssl == NULL) || (nid == NULL)) {
+    if (ssl == NULL || nid == NULL) {
         WOLFSSL_MSG("Bad function arguments");
-        ret = WOLFSSL_FAILURE;
-    }
-    else {
-        /* Map this side's signing hash algorithm to its NID. */
-        ret = HashToNid(ssl->options.hashAlgo, nid);
+        return WOLFSSL_FAILURE;
     }
 
-    return ret;
+    return HashToNid(ssl->options.hashAlgo, nid);
 }
 
 /* Get the NID of the signature algorithm used for signing by this side.
@@ -2098,20 +2075,14 @@ int wolfSSL_get_signature_nid(WOLFSSL *ssl, int* nid)
  */
 int wolfSSL_get_signature_type_nid(const WOLFSSL* ssl, int* nid)
 {
-    int ret;
-
     WOLFSSL_MSG("wolfSSL_get_signature_type_nid");
 
-    if ((ssl == NULL) || (nid == NULL)) {
+    if (ssl == NULL || nid == NULL) {
         WOLFSSL_MSG("Bad function arguments");
-        ret = WOLFSSL_FAILURE;
-    }
-    else {
-        /* Map this side's signature algorithm to its NID. */
-        ret = SaToNid(ssl->options.sigAlgo, nid);
+        return WOLFSSL_FAILURE;
     }
 
-    return ret;
+    return SaToNid(ssl->options.sigAlgo, nid);
 }
 
 /* Get the NID of the hash algorithm used for signing by the peer.
@@ -2124,20 +2095,14 @@ int wolfSSL_get_signature_type_nid(const WOLFSSL* ssl, int* nid)
  */
 int wolfSSL_get_peer_signature_nid(WOLFSSL* ssl, int* nid)
 {
-    int ret;
-
     WOLFSSL_MSG("wolfSSL_get_peer_signature_nid");
 
-    if ((ssl == NULL) || (nid == NULL)) {
+    if (ssl == NULL || nid == NULL) {
         WOLFSSL_MSG("Bad function arguments");
-        ret = WOLFSSL_FAILURE;
-    }
-    else {
-        /* Map the peer's signing hash algorithm to its NID. */
-        ret = HashToNid(ssl->options.peerHashAlgo, nid);
+        return WOLFSSL_FAILURE;
     }
 
-    return ret;
+    return HashToNid(ssl->options.peerHashAlgo, nid);
 }
 
 /* Get the NID of the signature algorithm used for signing by the peer.
@@ -2150,20 +2115,14 @@ int wolfSSL_get_peer_signature_nid(WOLFSSL* ssl, int* nid)
  */
 int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid)
 {
-    int ret;
-
     WOLFSSL_MSG("wolfSSL_get_peer_signature_type_nid");
 
-    if ((ssl == NULL) || (nid == NULL)) {
+    if (ssl == NULL || nid == NULL) {
         WOLFSSL_MSG("Bad function arguments");
-        ret = WOLFSSL_FAILURE;
-    }
-    else {
-        /* Map the peer's signature algorithm to its NID. */
-        ret = SaToNid(ssl->options.peerSigAlgo, nid);
+        return WOLFSSL_FAILURE;
     }
 
-    return ret;
+    return SaToNid(ssl->options.peerSigAlgo, nid);
 }
 
 #endif /* OPENSSL_EXTRA */
@@ -2180,19 +2139,14 @@ int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid)
  */
 int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx, WOLFSSL_EC_KEY *ecdh)
 {
-    int ret = WOLFSSL_SUCCESS;
-
     WOLFSSL_ENTER("wolfSSL_SSL_CTX_set_tmp_ecdh");
 
-    if ((ctx == NULL) || (ecdh == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
-    else {
-        /* Only the curve of the EC key is used for ephemeral ECDH. */
-        ctx->ecdhCurveOID = (word32)ecdh->group->curve_oid;
-    }
+    if (ctx == NULL || ecdh == NULL)
+        return BAD_FUNC_ARG;
 
-    return ret;
+    ctx->ecdhCurveOID = (word32)ecdh->group->curve_oid;
+
+    return WOLFSSL_SUCCESS;
 }
 #endif
 
@@ -2213,97 +2167,95 @@ int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx, WOLFSSL_EC_KEY *ecdh)
  */
 int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
 {
-    int ret = 0;
+    int ret;
     word32 idx = 0;
     DerBuffer* der = NULL;
 
-    if ((ssl == NULL) || (ssl->ctx == NULL) || (keyPtr == NULL)) {
-        ret = BAD_FUNC_ARG;
+    if (ssl == NULL || ssl->ctx == NULL || keyPtr == NULL) {
+        return BAD_FUNC_ARG;
     }
+
 #ifndef SINGLE_THREADED
-    else if (!ssl->ctx->staticKELockInit) {
-        ret = BUFFER_E; /* no keys set */
+    if (!ssl->ctx->staticKELockInit) {
+        return BUFFER_E; /* no keys set */
     }
-    else {
-        ret = wc_LockMutex(&ssl->ctx->staticKELock);
+    ret = wc_LockMutex(&ssl->ctx->staticKELock);
+    if (ret != 0) {
+        return ret;
     }
 #endif
 
-    if (ret == 0) {
-        ret = BUFFER_E; /* set default error */
-        switch (keyAlgo) {
-        #ifndef NO_DH
-            case WC_PK_TYPE_DH:
-                if (ssl != NULL)
-                    der = ssl->staticKE.dhKey;
-                if (der == NULL)
-                    der = ssl->ctx->staticKE.dhKey;
-                if (der != NULL) {
-                    DhKey* key = (DhKey*)keyPtr;
-                    WOLFSSL_MSG("Using static DH key");
-                    ret = wc_DhKeyDecode(der->buffer, &idx, key, der->length);
-                }
-                break;
-        #endif
-        #ifdef HAVE_ECC
-            case WC_PK_TYPE_ECDH:
-                if (ssl != NULL)
-                    der = ssl->staticKE.ecKey;
-                if (der == NULL)
-                    der = ssl->ctx->staticKE.ecKey;
-                if (der != NULL) {
-                    ecc_key* key = (ecc_key*)keyPtr;
-                    WOLFSSL_MSG("Using static ECDH key");
-                    ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key,
-                        der->length);
-                }
-                break;
-        #endif
-        #ifdef HAVE_CURVE25519
-            case WC_PK_TYPE_CURVE25519:
-                if (ssl != NULL)
-                    der = ssl->staticKE.x25519Key;
-                if (der == NULL)
-                    der = ssl->ctx->staticKE.x25519Key;
-                if (der != NULL) {
-                    curve25519_key* key = (curve25519_key*)keyPtr;
-                    WOLFSSL_MSG("Using static X25519 key");
-                #ifdef WOLFSSL_CURVE25519_BLINDING
-                    ret = wc_curve25519_set_rng(key, ssl->rng);
-                    if (ret == 0)
-                #endif
-                    {
-                        ret = wc_Curve25519PrivateKeyDecode(der->buffer, &idx,
-                            key, der->length);
-                    }
-                }
-                break;
-        #endif
-        #ifdef HAVE_CURVE448
-            case WC_PK_TYPE_CURVE448:
-                if (ssl != NULL)
-                    der = ssl->staticKE.x448Key;
-                if (der == NULL)
-                    der = ssl->ctx->staticKE.x448Key;
-                if (der != NULL) {
-                    curve448_key* key = (curve448_key*)keyPtr;
-                    WOLFSSL_MSG("Using static X448 key");
-                    ret = wc_Curve448PrivateKeyDecode(der->buffer, &idx, key,
-                        der->length);
-                }
-                break;
-        #endif
-            default:
-                /* Not supported. */
-                ret = NOT_COMPILED_IN;
-                break;
-        }
-
-    #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&ssl->ctx->staticKELock);
+    ret = BUFFER_E; /* set default error */
+    switch (keyAlgo) {
+    #ifndef NO_DH
+        case WC_PK_TYPE_DH:
+            if (ssl != NULL)
+                der = ssl->staticKE.dhKey;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.dhKey;
+            if (der != NULL) {
+                DhKey* key = (DhKey*)keyPtr;
+                WOLFSSL_MSG("Using static DH key");
+                ret = wc_DhKeyDecode(der->buffer, &idx, key, der->length);
+            }
+            break;
     #endif
+    #ifdef HAVE_ECC
+        case WC_PK_TYPE_ECDH:
+            if (ssl != NULL)
+                der = ssl->staticKE.ecKey;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.ecKey;
+            if (der != NULL) {
+                ecc_key* key = (ecc_key*)keyPtr;
+                WOLFSSL_MSG("Using static ECDH key");
+                ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key,
+                    der->length);
+            }
+            break;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519:
+            if (ssl != NULL)
+                der = ssl->staticKE.x25519Key;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.x25519Key;
+            if (der != NULL) {
+                curve25519_key* key = (curve25519_key*)keyPtr;
+                WOLFSSL_MSG("Using static X25519 key");
+
+            #ifdef WOLFSSL_CURVE25519_BLINDING
+                ret = wc_curve25519_set_rng(key, ssl->rng);
+                if (ret == 0)
+            #endif
+                    ret = wc_Curve25519PrivateKeyDecode(der->buffer, &idx, key,
+                        der->length);
+            }
+            break;
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448:
+            if (ssl != NULL)
+                der = ssl->staticKE.x448Key;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.x448Key;
+            if (der != NULL) {
+                curve448_key* key = (curve448_key*)keyPtr;
+                WOLFSSL_MSG("Using static X448 key");
+                ret = wc_Curve448PrivateKeyDecode(der->buffer, &idx, key,
+                    der->length);
+            }
+            break;
+    #endif
+        default:
+            /* not supported */
+            ret = NOT_COMPILED_IN;
+            break;
     }
 
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&ssl->ctx->staticKELock);
+#endif
     return ret;
 }
 
@@ -2598,18 +2550,11 @@ static int SetStaticEphemeralKey(WOLFSSL_CTX* ctx,
 int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const char* key, unsigned int keySz, int format)
 {
-    int ret;
-
     if (ctx == NULL) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
-    else {
-        /* Store into the context's static ephemeral key store. */
-        ret = SetStaticEphemeralKey(ctx, &ctx->staticKE, keyAlgo, key, keySz,
-            format, ctx->heap);
-    }
-
-    return ret;
+    return SetStaticEphemeralKey(ctx, &ctx->staticKE, keyAlgo,
+        key, keySz, format, ctx->heap);
 }
 /* Set the static ephemeral key on the object.
  *
@@ -2622,21 +2567,14 @@ int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
  * @return  BAD_FUNC_ARG when ssl or its context is NULL.
  * @return  Other negative value on error.
  */
-int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key,
-    unsigned int keySz, int format)
+int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
+    const char* key, unsigned int keySz, int format)
 {
-    int ret;
-
-    if ((ssl == NULL) || (ssl->ctx == NULL)) {
-        ret = BAD_FUNC_ARG;
+    if (ssl == NULL || ssl->ctx == NULL) {
+        return BAD_FUNC_ARG;
     }
-    else {
-        /* Store into the object's own static ephemeral key store. */
-        ret = SetStaticEphemeralKey(ssl->ctx, &ssl->staticKE, keyAlgo, key,
-            keySz, format, ssl->heap);
-    }
-
-    return ret;
+    return SetStaticEphemeralKey(ssl->ctx, &ssl->staticKE, keyAlgo,
+        key, keySz, format, ssl->heap);
 }
 
 /* Get the loaded static ephemeral key as ASN.1 DER data.
@@ -2650,86 +2588,71 @@ int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key,
  * @return  NOT_COMPILED_IN when the key algorithm is not supported.
  * @return  Other negative value on error.
  */
-static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl, int keyAlgo,
-    const unsigned char** key, unsigned int* keySz)
+static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+    int keyAlgo, const unsigned char** key, unsigned int* keySz)
 {
     int ret = 0;
     DerBuffer* der = NULL;
 
-    if (key != NULL) {
-        *key = NULL;
-    }
-    if (keySz != NULL) {
-        *keySz = 0;
-    }
+    if (key)   *key = NULL;
+    if (keySz) *keySz = 0;
 
 #ifndef SINGLE_THREADED
-    if (ctx->staticKELockInit) {
-        ret = wc_LockMutex(&ctx->staticKELock);
+    if (ctx->staticKELockInit &&
+        (ret = wc_LockMutex(&ctx->staticKELock)) != 0) {
+        return ret;
     }
 #endif
 
-    if (ret == 0) {
-        switch (keyAlgo) {
-        #ifndef NO_DH
-            case WC_PK_TYPE_DH:
-                if (ssl != NULL) {
-                    der = ssl->staticKE.dhKey;
-                }
-                if (der == NULL) {
-                    der = ctx->staticKE.dhKey;
-                }
-                break;
-        #endif
-        #ifdef HAVE_ECC
-            case WC_PK_TYPE_ECDH:
-                if (ssl != NULL) {
-                    der = ssl->staticKE.ecKey;
-                }
-                if (der == NULL) {
-                    der = ctx->staticKE.ecKey;
-                }
-                break;
-        #endif
-        #ifdef HAVE_CURVE25519
-            case WC_PK_TYPE_CURVE25519:
-                if (ssl != NULL) {
-                    der = ssl->staticKE.x25519Key;
-                }
-                if (der == NULL) {
-                    der = ctx->staticKE.x25519Key;
-                }
-                break;
-        #endif
-        #ifdef HAVE_CURVE448
-            case WC_PK_TYPE_CURVE448:
-                if (ssl != NULL) {
-                    der = ssl->staticKE.x448Key;
-                }
-                if (der == NULL) {
-                    der = ctx->staticKE.x448Key;
-                }
-                break;
-        #endif
-            default:
-                /* Not supported. */
-                ret = NOT_COMPILED_IN;
-                break;
-        }
-
-        if (der != NULL) {
-            if (key != NULL) {
-                *key = der->buffer;
-            }
-            if (keySz != NULL) {
-                *keySz = der->length;
-            }
-        }
-
-    #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&ctx->staticKELock);
+    switch (keyAlgo) {
+    #ifndef NO_DH
+        case WC_PK_TYPE_DH:
+            if (ssl != NULL)
+                der = ssl->staticKE.dhKey;
+            if (der == NULL)
+                der = ctx->staticKE.dhKey;
+            break;
     #endif
+    #ifdef HAVE_ECC
+        case WC_PK_TYPE_ECDH:
+            if (ssl != NULL)
+                der = ssl->staticKE.ecKey;
+            if (der == NULL)
+                der = ctx->staticKE.ecKey;
+            break;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519:
+            if (ssl != NULL)
+                der = ssl->staticKE.x25519Key;
+            if (der == NULL)
+                der = ctx->staticKE.x25519Key;
+            break;
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448:
+            if (ssl != NULL)
+                der = ssl->staticKE.x448Key;
+            if (der == NULL)
+                der = ctx->staticKE.x448Key;
+            break;
+    #endif
+        default:
+            /* not supported */
+            ret = NOT_COMPILED_IN;
+            break;
     }
+
+    if (der) {
+        if (key)
+            *key = der->buffer;
+        if (keySz)
+            *keySz = der->length;
+    }
+
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&ctx->staticKELock);
+#endif
 
     return ret;
 }
@@ -2749,17 +2672,11 @@ static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl, int keyAlgo,
 int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const unsigned char** key, unsigned int* keySz)
 {
-    int ret;
-
     if (ctx == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-    else {
-        /* No object given, so look the key up on the context only. */
-        ret = GetStaticEphemeralKey(ctx, NULL, keyAlgo, key, keySz);
+        return BAD_FUNC_ARG;
     }
 
-    return ret;
+    return GetStaticEphemeralKey(ctx, NULL, keyAlgo, key, keySz);
 }
 /* Get the static ephemeral key in use by the object as ASN.1 DER data.
  *
@@ -2774,17 +2691,11 @@ int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
 int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const unsigned char** key, unsigned int* keySz)
 {
-    int ret;
-
-    if ((ssl == NULL) || (ssl->ctx == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
-    else {
-        /* Prefer the object's key, falling back to the context's. */
-        ret = GetStaticEphemeralKey(ssl->ctx, ssl, keyAlgo, key, keySz);
+    if (ssl == NULL || ssl->ctx == NULL) {
+        return BAD_FUNC_ARG;
     }
 
-    return ret;
+    return GetStaticEphemeralKey(ssl->ctx, ssl, keyAlgo, key, keySz);
 }
 
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
