@@ -356,6 +356,14 @@ static int km_dh_decode_secret(const u8 * buf, unsigned int len,
         return -EINVAL;
     }
 
+    if (len != expected_len) {
+        #ifdef WOLFKM_DEBUG_DH
+        pr_err("%s: km_dh_decode_secret: caller passed %u, expected %zu\n",
+               WOLFKM_DH_DRIVER, len, expected_len);
+        #endif /* WOLFKM_DEBUG_DH */
+        return -EINVAL;
+    }
+
     /* The rest of the fields are optional depending on how much data
      * was passed, and whether it's ffdhe or dh. */
     if (params->key_size) {
