@@ -8074,6 +8074,9 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
 {
     DECL_ASNGETDATA(dataASN, rsaPssParamsASN_Length);
     int ret = 0;
+#ifndef WOLFSSL_NO_ASN_STRICT
+    word16 trailerVal = 1;
+#endif
     word16 sLen = 20;
 
     /* Default values. */
@@ -8089,6 +8092,10 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
         GetASN_OID(&dataASN[RSAPSSPARAMSASN_IDX_MGFHOID], oidHashType);
         /* Place the salt length into 16-bit var sLen. */
         GetASN_Int16Bit(&dataASN[RSAPSSPARAMSASN_IDX_SALTLENINT], &sLen);
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* Capture trailerField value for RFC 8017 A.2.3 validation. */
+        GetASN_Int16Bit(&dataASN[RSAPSSPARAMSASN_IDX_TRAILERINT], &trailerVal);
+#endif
         /* Decode the algorithm identifier. */
         ret = GetASN_Items(rsaPssParamsASN, dataASN, rsaPssParamsASN_Length, 1,
             params, &inOutIdx, sz);
@@ -8105,6 +8112,15 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
         word32 oid = dataASN[RSAPSSPARAMSASN_IDX_MGFHOID].data.oid.sum;
         ret = RsaPssHashOidToMgf1(oid, mgf);
     }
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* RFC 8017 A.2.3: trailerField SHALL be trailerFieldBC(1). */
+    if ((ret == 0) && (dataASN[RSAPSSPARAMSASN_IDX_TRAILERINT].tag != 0)) {
+        if (trailerVal != 1) {
+            WOLFSSL_MSG("DecodeRsaPssParams: trailerField must be 1");
+            ret = ASN_PARSE_E;
+        }
+    }
+#endif
     if (ret == 0) {
         *saltLen = sLen;
     }
@@ -8251,12 +8267,26 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
             }
             if (ret == 0) {
                 ret = GetInteger16Bit(params, &idx, sz);
+#ifndef WOLFSSL_NO_ASN_STRICT
+                /* RFC 8017 A.2.3: trailerField SHALL be trailerFieldBC(1). */
+                if (ret == 1) {
+                    ret = 0;
+                }
+                else if (ret >= 0) {
+                    WOLFSSL_MSG("DecodeRsaPssParams: trailerField must be 1");
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    WOLFSSL_MSG("DecodeRsaPssParams: fail at trailer_value");
+                }
+#else
                 if (ret > 0) {
                     ret = 0;
                 }
                 else if (ret != 0) {
                     WOLFSSL_MSG("DecodeRsaPssParams: fail at trailer_value");
                 }
+#endif
             }
         }
     }
