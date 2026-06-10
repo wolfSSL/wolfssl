@@ -1131,6 +1131,13 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     if (decrypt_p) {
         /* Copy out original auth tag from req->src. */
+        if (req->cryptlen < tfm->authsize)
+            return -EINVAL;
+        if (((word32)req->assoclen + (word32)req->cryptlen) !=
+            ((word64)req->assoclen + (word64)req->cryptlen))
+        {
+            return -EOVERFLOW;
+        }
         scatterwalk_map_and_copy(authTag, req->src,
                                  req->assoclen + req->cryptlen - tfm->authsize,
                                  tfm->authsize, 0);
@@ -1350,6 +1357,13 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     if (decrypt_p) {
         /* Copy out original auth tag from req->src. */
+        if (req->cryptlen < tfm->authsize)
+            return -EINVAL;
+        if (((word32)req->assoclen + (word32)req->cryptlen) !=
+            ((word64)req->assoclen + (word64)req->cryptlen))
+        {
+            return -EOVERFLOW;
+        }
         scatterwalk_map_and_copy(authTag, req->src,
                                  req->assoclen + req->cryptlen - tfm->authsize,
                                  tfm->authsize, 0);
@@ -1823,6 +1837,13 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
 
     if (decrypt_p) {
         /* Copy out the original auth tag from req->src. */
+        if (req->cryptlen < tfm->authsize)
+            return -EINVAL;
+        if (((word32)req->assoclen + (word32)req->cryptlen) !=
+            ((word64)req->assoclen + (word64)req->cryptlen))
+        {
+            return -EOVERFLOW;
+        }
         scatterwalk_map_and_copy(authTag, req->src,
                                  req->assoclen + req->cryptlen - tfm->authsize,
                                  tfm->authsize, 0);
