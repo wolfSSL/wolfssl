@@ -4361,7 +4361,7 @@ static int GetAlgoIdImpl(const byte* input, word32* inOutIdx, word32* oid, word3
 static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key, int* keySz, word32 inSz);
 #endif
 #ifndef NO_DSA
-static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen, int ints, int includeVersion);
+static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* outLen, int ints, int includeVersion);
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 static int SetEccPublicKey(byte* output, ecc_key* key, int outLen, int with_header, int comp);
@@ -12249,14 +12249,14 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
  *          encoding size.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
+int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 outLen)
 {
-    return wc_SetDsaPublicKey(output, key, (int)inLen, 1);
+    return wc_SetDsaPublicKey(output, key, (int)outLen, 1);
 }
 #endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
+static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* outLen,
                            int ints, int includeVersion)
 {
     DECL_ASNSETDATA(dataASN, dsaKeyASN_Length);
@@ -12265,7 +12265,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
 
     (void)ints;
 
-    if ((key == NULL) || (inLen == NULL)) {
+    if ((key == NULL) || (outLen == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (ints > DSA_INTS)) {
@@ -12297,11 +12297,11 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
         ret = SizeASN_Items(dsaKeyASN, dataASN, dsaKeyASN_Length, &sz);
     }
     if ((ret == 0) && (output == NULL)) {
-        *inLen = sz;
+        *outLen = sz;
         ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* Check buffer is big enough for encoding. */
-    if ((ret == 0) && (sz > *inLen)) {
+    if ((ret == 0) && (sz > *outLen)) {
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
@@ -12319,13 +12319,13 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
  *
  * @param [in]  key          DSA key object.
  * @param [out] output       Buffer to hold encoded data.
- * @param [out] inLen        Length of buffer.
+ * @param [out] outLen       Length of buffer.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key or output is NULL, or key is not a private key
  *          or, buffer size is smaller than encoding size.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
+int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 outLen)
 {
     if (!key || !output)
         return BAD_FUNC_ARG;
@@ -12333,29 +12333,29 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     if (key->type != DSA_PRIVATE)
         return BAD_FUNC_ARG;
 
-    return DsaKeyIntsToDer(key, output, &inLen, DSA_INTS, 1);
+    return DsaKeyIntsToDer(key, output, &outLen, DSA_INTS, 1);
 }
 
-/* Convert DsaKey parameters to DER format, write to output (inLen),
+/* Convert DsaKey parameters to DER format, write to output (outLen),
    return bytes written. Version is excluded to be compatible with
    OpenSSL d2i_DSAparams */
-int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen)
+int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 outLen)
 {
     if (!key || !output)
         return BAD_FUNC_ARG;
 
-    return DsaKeyIntsToDer(key, output, &inLen, DSA_PARAM_INTS, 0);
+    return DsaKeyIntsToDer(key, output, &outLen, DSA_PARAM_INTS, 0);
 }
 
 /* This version of the function allows output to be NULL. In that case, the
    DsaKeyIntsToDer will return WC_NO_ERR_TRACE(LENGTH_ONLY_E) and the required
-   output buffer size will be pointed to by inLen. */
-int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* inLen)
+   output buffer size will be pointed to by outLen. */
+int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* outLen)
 {
-    if (!key || !inLen)
+    if (!key || !outLen)
         return BAD_FUNC_ARG;
 
-    return DsaKeyIntsToDer(key, output, inLen, DSA_PARAM_INTS, 0);
+    return DsaKeyIntsToDer(key, output, outLen, DSA_PARAM_INTS, 0);
 }
 
 #endif /* NO_DSA */
@@ -12887,23 +12887,23 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
  *
  * @param [in]  key            ECC key object.
  * @param [out] output         Buffer to hold DER encoding.
- * @param [in]  inLen          Size of buffer in bytes.
+ * @param [in]  outLen         Size of buffer in bytes.
  * @param [in]  with_AlgCurve  Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 WOLFSSL_ABI
-int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
+int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 outLen,
                                                               int with_AlgCurve)
 {
-    return SetEccPublicKey(output, key, (int)inLen, with_AlgCurve, 0);
+    return SetEccPublicKey(output, key, (int)outLen, with_AlgCurve, 0);
 }
 
-int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output, word32 inLen,
+int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output, word32 outLen,
                                                     int with_AlgCurve, int comp)
 {
-    return SetEccPublicKey(output, key, (int)inLen, with_AlgCurve, comp);
+    return SetEccPublicKey(output, key, (int)outLen, with_AlgCurve, comp);
 }
 
 int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
@@ -13035,7 +13035,7 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output, word32 inLen,
+int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output, word32 outLen,
                              int withAlg)
 {
     int    ret;
@@ -13052,7 +13052,7 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output, word32 inLen,
     ret = wc_ed25519_export_public(key, pubKey, &pubKeyLen);
     #endif
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, outLen,
             ED25519k, withAlg);
     }
     return ret;
@@ -13072,7 +13072,7 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output, word32 inLen,
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_Ed448PublicKeyToDer(const ed448_key* key, byte* output, word32 inLen,
+int wc_Ed448PublicKeyToDer(const ed448_key* key, byte* output, word32 outLen,
                            int withAlg)
 {
     int    ret;
@@ -13089,7 +13089,7 @@ int wc_Ed448PublicKeyToDer(const ed448_key* key, byte* output, word32 inLen,
     ret = wc_ed448_export_public(key, pubKey, &pubKeyLen);
     #endif
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, outLen,
             ED448k, withAlg);
     }
     return ret;
@@ -13107,12 +13107,12 @@ int wc_Ed448PublicKeyToDer(const ed448_key* key, byte* output, word32 inLen,
  *
  * @param [in]  key       LMS key object.
  * @param [out] output    Buffer to put encoded data in.
- * @param [in]  inLen     Size of buffer in bytes.
+ * @param [in]  outLen    Size of buffer in bytes.
  * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
  */
-int wc_LmsKey_PublicKeyToDer(const LmsKey* key, byte* output, word32 inLen,
+int wc_LmsKey_PublicKeyToDer(const LmsKey* key, byte* output, word32 outLen,
                              int withAlg)
 {
     int    ret;
@@ -13125,7 +13125,7 @@ int wc_LmsKey_PublicKeyToDer(const LmsKey* key, byte* output, word32 inLen,
 
     ret = wc_LmsKey_ExportPubRaw(key, pubKey, &pubKeyLen);
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, outLen,
             HSS_LMSk, withAlg);
     }
     return ret;
@@ -13143,12 +13143,12 @@ int wc_LmsKey_PublicKeyToDer(const LmsKey* key, byte* output, word32 inLen,
  *
  * @param [in]  key       XMSS key object.
  * @param [out] output    Buffer to put encoded data in.
- * @param [in]  inLen     Size of buffer in bytes.
+ * @param [in]  outLen    Size of buffer in bytes.
  * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
  */
-int wc_XmssKey_PublicKeyToDer(const XmssKey* key, byte* output, word32 inLen,
+int wc_XmssKey_PublicKeyToDer(const XmssKey* key, byte* output, word32 outLen,
                               int withAlg)
 {
     int    ret;
@@ -13164,7 +13164,7 @@ int wc_XmssKey_PublicKeyToDer(const XmssKey* key, byte* output, word32 inLen,
 
     ret = wc_XmssKey_ExportPubRaw(key, pubKey, &pubKeyLen);
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, outLen,
             keyType, withAlg);
     }
     return ret;
@@ -26149,22 +26149,22 @@ int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header)
  *
  * @param [in]  key     RSA key object.
  * @param [out] output  Buffer to put encoded data in.
- * @param [in]  inLen   Size of buffer in bytes.
+ * @param [in]  outLen  Size of buffer in bytes.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key or output is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
+int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 outLen)
 {
-    return SetRsaPublicKey(output, key, (int)inLen, 1);
+    return SetRsaPublicKey(output, key, (int)outLen, 1);
 }
 
 /* Returns public DER version of the RSA key. If with_header is 0 then only a
  * seq + n + e is returned in ASN.1 DER format */
-int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
+int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
     int with_header)
 {
-    return SetRsaPublicKey(output, key, (int)inLen, with_header);
+    return SetRsaPublicKey(output, key, (int)outLen, with_header);
 }
 
 #endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
@@ -26178,13 +26178,13 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
  *
  * @param [in]  key     RSA key object.
  * @param [out] output  Buffer to put encoded data in.
- * @param [in]  inLen   Size of buffer in bytes.
+ * @param [in]  outLen  Size of buffer in bytes.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL or not a private key.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 #ifdef WOLFSSL_ASN_TEMPLATE
-int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
+int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 outLen)
 {
     DECL_ASNSETDATA(dataASN, rsaKeyASN_Length);
     int i;
@@ -26210,7 +26210,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         ret = SizeASN_Items(rsaKeyASN, dataASN, rsaKeyASN_Length, &sz);
     }
     /* Check output buffer has enough space for encoding. */
-    if ((ret == 0) && (output != NULL) && (sz > inLen)) {
+    if ((ret == 0) && (output != NULL) && (sz > outLen)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (output != NULL)) {
@@ -32356,7 +32356,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
 #ifdef WOLFSSL_ASN_TEMPLATE
-int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
+int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *outLen,
                              int pubIn, int curveIn)
 {
     DECL_ASNSETDATA(dataASN, eccKeyASN_Length);
@@ -32367,7 +32367,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     int curveIdSz = 0;
 
     /* Check validity of parameters. */
-    if ((key == NULL) || ((output == NULL) && (inLen == NULL))) {
+    if ((key == NULL) || ((output == NULL) && (outLen == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -32427,11 +32427,11 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     }
     /* Return the size if no buffer. */
     if ((ret == 0) && (output == NULL)) {
-        *inLen = sz;
+        *outLen = sz;
         ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* Check the buffer is big enough. */
-    if ((ret == 0) && (inLen != NULL) && (sz > *inLen)) {
+    if ((ret == 0) && (outLen != NULL) && (sz > *outLen)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (output != NULL)) {
@@ -32484,9 +32484,9 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
  * length on success else < 0 */
 /* Note: use wc_EccKeyDerSize to get length only */
 WOLFSSL_ABI
-int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
+int wc_EccKeyToDer(ecc_key* key, byte* output, word32 outLen)
 {
-    return wc_BuildEccKeyDer(key, output, &inLen, 1, 1);
+    return wc_BuildEccKeyDer(key, output, &outLen, 1, 1);
 }
 
 /* Write only private ecc key to DER format,
@@ -32503,11 +32503,11 @@ int wc_EccKeyDerSize(ecc_key* key, int pub)
 
 /* Write only private ecc key to DER format,
  * length on success else < 0 */
-int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
+int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 outLen)
 {
-    int ret = wc_BuildEccKeyDer(key, output, &inLen, 0, 1);
+    int ret = wc_BuildEccKeyDer(key, output, &outLen, 0, 1);
     if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
-        return (int)inLen;
+        return (int)outLen;
     }
     return ret;
 }
@@ -33333,24 +33333,24 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
 /* Write a Private ED25519 key, including public to DER format,
  * length on success else < 0 */
-int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output, word32 inLen)
+int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output, word32 outLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
     return SetAsymKeyDer(key->k, ED25519_KEY_SIZE,
-        key->p, ED25519_PUB_KEY_SIZE, output, inLen, ED25519k);
+        key->p, ED25519_PUB_KEY_SIZE, output, outLen, ED25519k);
 }
 
 /* Write only private ED25519 key to DER format,
  * length on success else < 0 */
-int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output, word32 inLen)
+int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output, word32 outLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
     return SetAsymKeyDer(key->k, ED25519_KEY_SIZE,
-        NULL, 0, output, inLen, ED25519k);
+        NULL, 0, output, outLen, ED25519k);
 }
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
 
@@ -33358,7 +33358,7 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output, word32 inLen
 /* Write only private Curve25519 key to DER format,
  * length on success else < 0 */
 int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
-                                 word32 inLen)
+                                 word32 outLen)
 {
     int    ret;
     byte   privKey[CURVE25519_KEYSIZE];
@@ -33370,7 +33370,7 @@ int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
 
     ret = wc_curve25519_export_private_raw(key, privKey, &privKeyLen);
     if (ret == 0) {
-        ret = SetAsymKeyDer(privKey, privKeyLen, NULL, 0, output, inLen,
+        ret = SetAsymKeyDer(privKey, privKeyLen, NULL, 0, output, outLen,
             X25519k);
     }
     return ret;
@@ -33378,7 +33378,7 @@ int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
 
 /* Write a public Curve25519 key to DER format,
  * length on success else < 0 */
-int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
+int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 outLen,
                              int withAlg)
 {
     int    ret;
@@ -33391,7 +33391,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
 
     ret = wc_curve25519_export_public(key, pubKey, &pubKeyLen);
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, outLen,
             X25519k, withAlg);
     }
     return ret;
@@ -33400,7 +33400,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
 /* Export Curve25519 key to DER format - handles private only, public only,
  * or private+public key pairs based on what's set in the key structure.
  * Returns length written on success, negative on error */
-int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
+int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 outLen,
                           int withAlg)
 {
     int ret;
@@ -33430,13 +33430,13 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
             /* Export both private and public */
             ret = SetAsymKeyDer(privKey, privKeyLen,
                                 pubKey, pubKeyLen,
-                                output, inLen, X25519k);
+                                output, outLen, X25519k);
         }
         else {
             /* Export private only */
             ret = SetAsymKeyDer(privKey, privKeyLen,
                                 NULL, 0,
-                                output, inLen, X25519k);
+                                output, outLen, X25519k);
         }
     }
     else if (key->pubSet) {
@@ -33444,7 +33444,7 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
         ret = wc_curve25519_export_public(key, pubKey, &pubKeyLen);
         if (ret == 0) {
             ret = SetAsymKeyDerPublic(pubKey, pubKeyLen,
-                                      output, inLen, X25519k, withAlg);
+                                      output, outLen, X25519k, withAlg);
         }
     }
     else {
@@ -33549,24 +33549,24 @@ int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
 /* Write a Private ecc key, including public to DER format,
  * length on success else < 0 */
-int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 inLen)
+int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 outLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
     return SetAsymKeyDer(key->k, ED448_KEY_SIZE,
-        key->p, ED448_KEY_SIZE, output, inLen, ED448k);
+        key->p, ED448_KEY_SIZE, output, outLen, ED448k);
 }
 
 /* Write only private ecc key to DER format,
  * length on success else < 0 */
-int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output, word32 inLen)
+int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output, word32 outLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
     return SetAsymKeyDer(key->k, ED448_KEY_SIZE,
-        NULL, 0, output, inLen, ED448k);
+        NULL, 0, output, outLen, ED448k);
 }
 
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
@@ -33574,7 +33574,7 @@ int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output, word32 inLen)
 #if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
 /* Write private Curve448 key to DER format,
  * length on success else < 0 */
-int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output, word32 inLen)
+int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output, word32 outLen)
 {
     int    ret;
     byte   privKey[CURVE448_KEY_SIZE];
@@ -33586,14 +33586,14 @@ int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output, word32 inLen)
 
     ret = wc_curve448_export_private_raw(key, privKey, &privKeyLen);
     if (ret == 0) {
-        ret = SetAsymKeyDer(privKey, privKeyLen, NULL, 0, output, inLen,
+        ret = SetAsymKeyDer(privKey, privKeyLen, NULL, 0, output, outLen,
             X448k);
     }
     return ret;
 }
 /* Write a public Curve448 key to DER format,
  * length on success else < 0 */
-int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 inLen,
+int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 outLen,
                              int withAlg)
 {
     int    ret;
@@ -33606,7 +33606,7 @@ int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 inLen,
 
     ret = wc_curve448_export_public(key, pubKey, &pubKeyLen);
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, outLen,
             X448k, withAlg);
     }
     return ret;

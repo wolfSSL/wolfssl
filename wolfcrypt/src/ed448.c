@@ -1130,6 +1130,10 @@ int wc_ed448_export_public(const ed448_key* key, byte* out, word32* outLen)
         ret = BUFFER_E;
     }
 
+    if ((ret == 0) && (!key->pubKeySet)) {
+        ret = PUBLIC_KEY_E;
+    }
+
     if (ret == 0) {
         *outLen = ED448_PUB_KEY_SIZE;
         XMEMCPY(out, key->p, ED448_PUB_KEY_SIZE);

@@ -452,7 +452,7 @@ WOLFSSL_API int  wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigSz,
     const byte* msg, int msgSz);
 WOLFSSL_API int  wc_XmssKey_SigsLeft(XmssKey* key);
 WOLFSSL_API int  wc_XmssKey_PublicKeyToDer(const XmssKey* key, byte* output,
-    word32 inLen, int withAlg);
+    word32 outLen, int withAlg);
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
 WOLFSSL_API void wc_XmssKey_Free(XmssKey* key);
 WOLFSSL_API int  wc_XmssKey_GetSigLen(const XmssKey* key, word32* len);

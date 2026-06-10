@@ -828,7 +828,7 @@ WOLFSSL_API int  wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz,
     const byte* msg, int msgSz);
 WOLFSSL_API int  wc_LmsKey_SigsLeft(LmsKey* key);
 WOLFSSL_API int  wc_LmsKey_PublicKeyToDer(const LmsKey* key, byte* output,
-    word32 inLen, int withAlg);
+    word32 outLen, int withAlg);
 #endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */
 WOLFSSL_API void wc_LmsKey_Free(LmsKey* key);
 WOLFSSL_API int  wc_LmsKey_GetSigLen(const LmsKey* key, word32* len);
