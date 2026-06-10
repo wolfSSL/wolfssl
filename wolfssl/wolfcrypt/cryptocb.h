@@ -672,11 +672,10 @@ typedef struct wc_CryptoInfo {
 
 typedef int (*CryptoDevCallbackFunc)(int devId, struct wc_CryptoInfo* info, void* ctx);
 
-typedef struct CryptoCb {
-    int devId;
-    CryptoDevCallbackFunc cb;
-    void* ctx;
-} CryptoCb;
+/* Maximum number of crypto callback devices that can be registered. */
+#ifndef MAX_CRYPTO_DEVID_CALLBACKS
+#define MAX_CRYPTO_DEVID_CALLBACKS 8
+#endif
 
 WOLFSSL_LOCAL void wc_CryptoCb_Init(void);
 WOLFSSL_LOCAL void wc_CryptoCb_Cleanup(void);
@@ -684,7 +683,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_GetDevIdAtIndex(int startIdx);
 WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
 WOLFSSL_API int wc_CryptoCb_DefaultDevID(void);
-WOLFSSL_API CryptoCb* wc_CryptoCb_GetDevice(int devId);
+WOLFSSL_API int wc_CryptoCb_IsDeviceRegistered(int devId);
 
 #ifdef WOLF_CRYPTO_CB_FIND
 typedef int (*CryptoDevCallbackFind)(int devId, int algoType);

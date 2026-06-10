@@ -29228,28 +29228,27 @@ static int test_wc_CryptoCb(void)
     int tlsVer;
 #endif
     /* Exercise the exposed CryptoCb device-management API:
-     * wc_CryptoCb_RegisterDevice / UnRegisterDevice / GetDevice /
+     * wc_CryptoCb_RegisterDevice / UnRegisterDevice / IsDeviceRegistered /
      * DefaultDevID (and InfoString when DEBUG_CRYPTOCB is enabled). */
     {
         int    getDevId  = 1234;
         int    getDevCtx = 0;
-        CryptoCb* dev     = NULL;
         int    i, n, rc;
 
-        /* Unregistered devId is not found. */
-        ExpectNull(wc_CryptoCb_GetDevice(getDevId));
+        /* Unregistered devId is not reported as registered. */
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 0);
 
-        /* After registering, the device is found with matching fields. */
+        /* Registering with INVALID_DEVID is rejected. */
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(INVALID_DEVID, NULL, &getDevCtx),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(INVALID_DEVID), 0);
+
+        /* After registering, the device is reported registered. */
         ExpectIntEQ(wc_CryptoCb_RegisterDevice(getDevId, NULL, &getDevCtx), 0);
-        ExpectNotNull(dev = wc_CryptoCb_GetDevice(getDevId));
-        if (dev != NULL) {
-            ExpectIntEQ(dev->devId, getDevId);
-            ExpectNull(dev->cb);
-            ExpectPtrEq(dev->ctx, &getDevCtx);
-        }
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 1);
 
-        /* A different, unregistered devId is still not found. */
-        ExpectNull(wc_CryptoCb_GetDevice(getDevId + 1));
+        /* A different, unregistered devId is still not reported registered. */
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId + 1), 0);
 
         /* Re-registering an already-registered devId is rejected. */
         ExpectIntEQ(wc_CryptoCb_RegisterDevice(getDevId, NULL, &getDevCtx),
@@ -29264,25 +29263,26 @@ static int test_wc_CryptoCb(void)
         ExpectIntNE(wc_CryptoCb_DefaultDevID(), INVALID_DEVID);
     #endif
 
-        /* After unregistering, the device is no longer found. */
+        /* After unregistering, the device is no longer registered. */
         wc_CryptoCb_UnRegisterDevice(getDevId);
-        ExpectNull(wc_CryptoCb_GetDevice(getDevId));
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 0);
 
         /* Unregistering is a harmless no-op for unknown or invalid devIds. */
         wc_CryptoCb_UnRegisterDevice(getDevId);       /* already removed */
         wc_CryptoCb_UnRegisterDevice(INVALID_DEVID);  /* never a real devId */
-        ExpectNull(wc_CryptoCb_GetDevice(getDevId));
+        ExpectIntEQ(wc_CryptoCb_IsDeviceRegistered(getDevId), 0);
 
         /* The device table is finite: once full, registration returns
-         * BUFFER_E. Register unique devIds until that happens, then clean up.
-         * The cap (256) just guards against an unexpectedly large table. */
+         * BUFFER_E. Registering MAX_CRYPTO_DEVID_CALLBACKS + 1 unique devIds is
+         * guaranteed to fill the table and hit BUFFER_E regardless of how many
+         * slots were already in use. Then unregister every id we tried
+         * (UnRegister is a no-op for the final failed attempt). */
         rc = 0;
-        for (i = 0; rc == 0 && i < 256; i++) {
+        for (i = 0; rc == 0 && i <= MAX_CRYPTO_DEVID_CALLBACKS; i++) {
             rc = wc_CryptoCb_RegisterDevice(0x5000 + i, NULL, NULL);
         }
         ExpectIntEQ(rc, WC_NO_ERR_TRACE(BUFFER_E));
-        /* Every id except the final failed attempt registered; unregister them. */
-        for (n = 0; n + 1 < i; n++) {
+        for (n = 0; n < i; n++) {
             wc_CryptoCb_UnRegisterDevice(0x5000 + n);
         }
 
