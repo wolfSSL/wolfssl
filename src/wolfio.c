@@ -2628,6 +2628,16 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     return sz;
 }
 
+/* like set_fd, but for default NetX context */
+void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket, ULONG waitoption)
+{
+    if (ssl) {
+        ssl->nxCtx.nxTcpSocket  = nxsocket;
+        ssl->nxCtx.nxWait       = waitoption;
+    }
+}
+
+#ifdef WOLFSSL_DTLS 
 /* The NetX receive callback for DTLS
  *  return :  bytes read, or error
  */
@@ -2737,15 +2747,7 @@ int NetX_SendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     return sz;
 }
 
-/* like set_fd, but for default NetX context */
-void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket, ULONG waitoption)
-{
-    if (ssl) {
-        ssl->nxCtx.nxTcpSocket  = nxsocket;
-        ssl->nxCtx.nxWait       = waitoption;
-    }
-}
-
+/* like set_fd, but for default NetX UDP context */
 void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket, NXD_ADDRESS *nxdip, USHORT *nxport, ULONG waitoption)
 {
     if (ssl) {
@@ -2755,6 +2757,7 @@ void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket, NXD_ADDRESS 
         ssl->nxCtx.nxWait                   = waitoption;
     }
 }
+#endif /* WOLFSSL_DTLS */
 
 #endif /* HAVE_NETX */
 
