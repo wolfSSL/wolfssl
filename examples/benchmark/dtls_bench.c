@@ -116,7 +116,10 @@ typedef struct cfg {
 static double now_sec(void)
 {
     struct timespec ts;
-    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+        perror("clock_gettime");
+        exit(EXIT_FAILURE);
+    }
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
@@ -239,6 +242,11 @@ static int parse_args(int argc, char** argv, cfg_t* c)
     if (c->mtu < 64 || c->mtu > 16384) {
         fprintf(stderr, "MTU must be between 64 and 16384\n");
         return -1;
+    }
+    if (c->isServer && c->sinkSend) {
+        fprintf(stderr, "warning: -z only applies to the client (the send "
+                "side); ignoring it in server mode\n");
+        c->sinkSend = 0;
     }
     if (c->recordSz < 1) {
         fprintf(stderr, "record size must be > 0\n");
