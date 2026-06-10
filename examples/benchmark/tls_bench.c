@@ -126,15 +126,10 @@ Or
 #endif
 
 #ifdef WOLFSSL_DTLS
-    #ifdef BENCH_EMBEDDED
-        /* WOLFSSL_MAX_MTU in internal.h */
-        #define TEST_DTLS_PACKET_SIZE   (1500)
-    #else
-        /* Must fit in one DTLS record: WOLFSSL_MAX_MTU (1400) - MAX_MSG_EXTRA (~102).
-         * Define WOLFSSL_DTLS_MTU and call wolfSSL_dtls_set_mtu() to use larger
-         * packets; or build with WOLFSSL_NO_DTLS_SIZE_CHECK to auto-fragment. */
-        #define TEST_DTLS_PACKET_SIZE   (1200)
-    #endif
+    /* Must fit in one DTLS record: WOLFSSL_MAX_MTU (1400) - MAX_MSG_EXTRA (~102).
+     * Define WOLFSSL_DTLS_MTU and call wolfSSL_dtls_set_mtu() to use larger
+     * packets; or build with WOLFSSL_NO_DTLS_SIZE_CHECK to auto-fragment. */
+    #define TEST_DTLS_PACKET_SIZE   (1200)
 #endif
 
 /* In memory transfer buffer maximum size */
