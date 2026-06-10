@@ -14249,8 +14249,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif
     }
 
-    if (dCert->signature != NULL && dCert->sigLength != 0 &&
-            dCert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Store a copy of the signature for later retrieval. The buffer is sized
+     * to the exact parsed length (itself bounded by the cert DER), so no fixed
+     * ceiling is applied -- a ceiling would drop large LMS/XMSS signatures. */
+    if (dCert->signature != NULL && dCert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dCert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -14594,9 +14596,9 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
     CopyDateToASN1_TIME(dAcert->afterDate, dAcert->afterDateLen,
         &x509->notAfter);
 
-    /* Copy the signature. */
-    if (dAcert->signature != NULL && dAcert->sigLength != 0 &&
-            dAcert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Copy the signature. Sized to the exact parsed length (bounded by the
+     * cert DER); no fixed ceiling, so large LMS/XMSS signatures are kept. */
+    if (dAcert->signature != NULL && dAcert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dAcert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -33823,12 +33825,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                              }
                             #endif
                             if (IsAtLeastTLSv1_2(ssl)) {
+                                /* DigestInfo encoding for RSA, never a PQC
+                                 * signature -- size to the classic tier. */
                                 WC_DECLARE_VAR(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, 0);
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, 0);
                                 word32 encSigSz;
 
                                 WC_ALLOC_VAR_EX(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, ssl->heap,
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, ssl->heap,
                                     DYNAMIC_TYPE_SIGNATURE,
                                     ERROR_OUT(MEMORY_E,exit_dske));
 
@@ -33838,7 +33842,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                     TypeHash(ssl->options.peerHashAlgo));
                                 if (encSigSz != args->sigSz || !args->output ||
                                     XMEMCMP(args->output, encodedSig,
-                                            min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                            min(encSigSz,
+                                                MAX_ENCODED_CLASSIC_SIG_SZ))
+                                                                         != 0) {
                                     ret = VERIFY_SIGN_ERROR;
                                 }
                                 WC_FREE_VAR_EX(encodedSig, ssl->heap,
@@ -35139,9 +35145,14 @@ int SendCertificateVerify(WOLFSSL* ssl)
             args->verify = &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
             args->extraSz = 0;  /* tls 1.2 hash/sig */
 
-            /* build encoded signature buffer */
-            ssl->buffers.sig.length = MAX_ENCODED_SIG_SZ;
-            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+            /* Build encoded signature buffer. This is TLS 1.2 and earlier
+             * (TLS 1.3 uses SendTls13CertificateVerify), so the signature is
+             * always classic (RSA/ECC/EdDSA), never PQC -- size to the classic
+             * tier rather than the (potentially huge) PQC worst case. This
+             * comfortably holds an ECC/EdDSA signature written directly, or the
+             * PKCS#1 DigestInfo that is the input to RsaSign. */
+            ssl->buffers.sig.length = MAX_ENCODED_CLASSIC_SIG_SZ;
+            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                         ssl->heap, DYNAMIC_TYPE_SIGNATURE);
             if (ssl->buffers.sig.buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scv);
@@ -36352,8 +36363,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     static int ReEncodeSig(WOLFSSL* ssl)
     {    /* For TLS 1.2 re-encode signature */
         if (IsAtLeastTLSv1_2(ssl)) {
-            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
-                                              DYNAMIC_TYPE_DIGEST);
+            /* DigestInfo encoding for RSA, never a PQC signature. */
+            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
+                                              ssl->heap, DYNAMIC_TYPE_DIGEST);
             if (encodedSig == NULL)
                 return MEMORY_E;
             ssl->buffers.digest.length =
@@ -39514,10 +39526,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         else
                     #endif
                         {
+                        /* DigestInfo encoding for RSA */
                         #ifndef WOLFSSL_SMALL_STACK
-                            byte  encodedSig[MAX_ENCODED_SIG_SZ];
+                            byte  encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
                         #else
-                            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+                            byte* encodedSig =
+                                (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                              ssl->heap, DYNAMIC_TYPE_SIGNATURE);
                             if (encodedSig == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_dcv);
@@ -39532,7 +39546,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
                             if (args->sendSz != args->sigSz || !args->output ||
                                 XMEMCMP(args->output, encodedSig,
-                                   min(args->sigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                   min(args->sigSz, MAX_ENCODED_CLASSIC_SIG_SZ)) != 0) {
                                 ret = VERIFY_CERT_ERROR;
                             }
 

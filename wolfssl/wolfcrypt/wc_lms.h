@@ -749,7 +749,7 @@ typedef struct HssPrivKey {
 #define LMS_MAX_LABEL_LEN           32
 #endif
 
-typedef struct LmsKey {
+struct LmsKey {
     /* Public key. */
     ALIGN16 byte pub[HSS_PUBLIC_KEY_LEN(LMS_MAX_NODE_LEN)];
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
@@ -788,7 +788,12 @@ typedef struct LmsKey {
     char label[LMS_MAX_LABEL_LEN];
     int  labelLen;
 #endif
-} LmsKey;
+};
+
+#ifndef WC_LMSKEY_TYPE_DEFINED
+    typedef struct LmsKey LmsKey;
+    #define WC_LMSKEY_TYPE_DEFINED
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -822,6 +827,8 @@ WOLFSSL_API int  wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len);
 WOLFSSL_API int  wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz,
     const byte* msg, int msgSz);
 WOLFSSL_API int  wc_LmsKey_SigsLeft(LmsKey* key);
+WOLFSSL_API int  wc_LmsKey_PublicKeyToDer(const LmsKey* key, byte* output,
+    word32 inLen, int withAlg);
 #endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */
 WOLFSSL_API void wc_LmsKey_Free(LmsKey* key);
 WOLFSSL_API int  wc_LmsKey_GetSigLen(const LmsKey* key, word32* len);

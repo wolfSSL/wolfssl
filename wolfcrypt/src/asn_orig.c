@@ -6594,10 +6594,22 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
                        DsaKey* dsaKey, ed25519_key* ed25519Key,
                        ed448_key* ed448Key, falcon_key* falconKey,
-                       wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey)
+                       wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
+                       LmsKey* lmsKey, XmssKey* xmssKey)
 {
     int ret;
     WC_DECLARE_VAR(der, DerCert, 1, 0);
+
+    /* RFC 9802 LMS/XMSS support (both verification and generation) lives only
+     * in the ASN.1 template encoder; this original/non-template path has no
+     * LMS/XMSS code at all. Rather than duplicate the encoding here for a
+     * legacy path that could not verify such certs anyway, generation is
+     * template-only and rejected here with a clear diagnostic. */
+    if ((lmsKey != NULL) || (xmssKey != NULL)) {
+        WOLFSSL_MSG("LMS/XMSS certificate generation requires "
+                    "WOLFSSL_ASN_TEMPLATE");
+        return ALGO_ID_E;
+    }
 
     if (derBuffer == NULL)
         return BAD_FUNC_ARG;
@@ -7227,10 +7239,18 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
                    ed25519_key* ed25519Key, ed448_key* ed448Key,
                    falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
-                   SlhDsaKey* slhDsaKey)
+                   SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey)
 {
     int ret;
     WC_DECLARE_VAR(der, DerCert, 1, 0);
+
+    /* LMS/XMSS certificate request generation is only supported with
+     * WOLFSSL_ASN_TEMPLATE. */
+    if ((lmsKey != NULL) || (xmssKey != NULL)) {
+        WOLFSSL_MSG("LMS/XMSS certificate request generation requires "
+                    "WOLFSSL_ASN_TEMPLATE");
+        return ALGO_ID_E;
+    }
 
     if (eccKey)
         cert->keyType = ECC_KEY;

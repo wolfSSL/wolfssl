@@ -3117,7 +3117,7 @@ int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
 #else
     WC_RNG  _tmpRng[1];
     WC_RNG* tmpRng = _tmpRng;
-    byte    encodedSig[MAX_ENCODED_SIG_SZ];
+    byte    encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
 #endif
     unsigned int encSz = 0;
 
@@ -3158,7 +3158,7 @@ int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 1) {
         /* Allocate encoded signature buffer if doing PKCS#1 padding. */
-        encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+        encodedSig = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ, NULL,
             DYNAMIC_TYPE_SIGNATURE);
         if (encodedSig == NULL) {
             ret = 0;
@@ -3314,10 +3314,10 @@ int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char*   encodedSig = NULL;
 #else
-    unsigned char    encodedSig[MAX_ENCODED_SIG_SZ];
+    unsigned char    encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
 #endif
     unsigned char*   sigDec = NULL;
-    unsigned int     len    = MAX_ENCODED_SIG_SZ;
+    unsigned int     len    = MAX_ENCODED_CLASSIC_SIG_SZ;
     int              verLen = 0;
 #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 1)) && !defined(HAVE_SELFTEST)
     enum wc_HashType hType = WC_HASH_TYPE_NONE;
