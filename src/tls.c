@@ -17423,7 +17423,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
 #endif
 
 #if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
-    /* Application-defined (custom) extensions. These are always offered in the
+    /* Custom (application-defined) extensions. These are always offered in the
      * ClientHello regardless of the client's maximum version (matching OpenSSL,
      * whose is_tls13 check is false while constructing the ClientHello), so
      * they work with flexible client methods that go on to negotiate TLS 1.2.
@@ -17670,7 +17670,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
 #endif
 
 #if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
-    /* Copy out the application-defined (custom) extension bytes built during
+    /* Copy out the custom (application-defined) extension bytes built during
      * TLSX_GetRequestSize, then release the cached buffer. */
     if (msgType == client_hello && ssl->customExtData != NULL) {
         WOLFSSL_MSG("Custom extensions to write");
@@ -19009,7 +19009,7 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             default:
 #if defined(HAVE_TLS_EXTENSIONS) && defined(OPENSSL_EXTRA)
                 {
-                    /* Application-defined (custom) extension handler, if one
+                    /* Custom (application-defined) extension handler, if one
                      * was registered for this type. */
                     int customFound = 0;
                     ret = TLSX_CustomExt_Parse(ssl, msgType, type,
