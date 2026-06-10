@@ -1100,11 +1100,13 @@ int test_dtls13_ack_order(void)
     ExpectIntEQ(Dtls13WriteAckMessage(ssl_c, ssl_c->dtls13Rtx.seenRecords,
             ssl_c->dtls13Rtx.seenRecordsCount, &length), 0);
 
-    /* must zero the span reserved for the header to avoid read of uninited
-     * data.
-     */
-    XMEMSET(ssl_c->buffers.outputBuffer.buffer, 0,
-            5 /* DTLS13_UNIFIED_HEADER_SIZE */);
+    if (EXPECT_SUCCESS()) {
+        /* must zero the span reserved for the header to avoid read of uninited
+         * data.
+         */
+        XMEMSET(ssl_c->buffers.outputBuffer.buffer, 0,
+                5 /* DTLS13_UNIFIED_HEADER_SIZE */);
+    }
     /* N * RecordNumber + 2 extra bytes for length */
     ExpectIntEQ(length, sizeof(expected_output) + 2);
     ExpectNotNull(mymemmem(ssl_c->buffers.outputBuffer.buffer,
@@ -1162,14 +1164,18 @@ int test_dtls13_ack_overflow(void)
                     w64From32(0, (word32)DTLS13_ACK_MAX_RECORDS)), 0);
     ExpectIntEQ(ssl_c->dtls13Rtx.seenRecordsCount, DTLS13_ACK_MAX_RECORDS);
 
-    /* Bypass the insert guard to force the list one element over the limit,
-     * then verify Dtls13WriteAckMessage errors out instead of overflowing */
-    ssl_c->dtls13Rtx.seenRecordsCount = 0;
-    ExpectIntEQ(Dtls13RtxAddAck(ssl_c, w64From32(0, 1),
-                    w64From32(0, (word32)DTLS13_ACK_MAX_RECORDS)), 0);
-    ssl_c->dtls13Rtx.seenRecordsCount = (word16)(DTLS13_ACK_MAX_RECORDS + 1);
-    ExpectIntEQ(Dtls13WriteAckMessage(ssl_c, ssl_c->dtls13Rtx.seenRecords,
-                    ssl_c->dtls13Rtx.seenRecordsCount, &length), BUFFER_E);
+    if (EXPECT_SUCCESS()) {
+        /* Bypass the insert guard to force the list one element over the limit,
+         * then verify Dtls13WriteAckMessage errors out instead of
+         * overflowing. */
+        ssl_c->dtls13Rtx.seenRecordsCount = 0;
+        ExpectIntEQ(Dtls13RtxAddAck(ssl_c, w64From32(0, 1),
+                        w64From32(0, (word32)DTLS13_ACK_MAX_RECORDS)), 0);
+        ssl_c->dtls13Rtx.seenRecordsCount =
+                                           (word16)(DTLS13_ACK_MAX_RECORDS + 1);
+        ExpectIntEQ(Dtls13WriteAckMessage(ssl_c, ssl_c->dtls13Rtx.seenRecords,
+                        ssl_c->dtls13Rtx.seenRecordsCount, &length), BUFFER_E);
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);

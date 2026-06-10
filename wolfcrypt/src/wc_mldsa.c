@@ -10004,7 +10004,7 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
     byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
 
-    if (key == NULL) {
+    if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10048,7 +10048,7 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
     byte tr[MLDSA_TR_SZ];
     byte* mu = tr;
 
-    if (key == NULL) {
+    if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -10098,7 +10098,7 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     byte oidMsgHash[MLDSA_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
     word32 oidMsgHashLen = 0;
 
-    if (key == NULL) {
+    if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     /* Check that the input hash length is valid. */
@@ -10738,7 +10738,8 @@ int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((key == NULL) || (sig == NULL) || (mu == NULL) || (res == NULL)) {
+    if ((key == NULL) || (key->params == NULL) || (sig == NULL) ||
+            (mu == NULL) || (res == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (muLen != MLDSA_MU_SZ)) {

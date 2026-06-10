@@ -3740,12 +3740,14 @@ static int test_wolfSSL_add_to_chain_overflow(void)
     wolfSSL_X509_free(x509);
     x509 = NULL;
 
-    /* Now ctx->certificate is set, next add goes to certChain via
-     * wolfssl_add_to_chain.  Fake a chain whose length is near UINT32_MAX
-     * so the size calculation (len + CERT_HEADER_SZ + certSz) overflows. */
-    fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16, ctx->heap,
-        DYNAMIC_TYPE_CERT);
-    ExpectNotNull(fakeChain);
+    if (EXPECT_SUCCESS()) {
+        /* Now ctx->certificate is set, next add goes to certChain via
+         * wolfssl_add_to_chain.  Fake a chain whose length is near UINT32_MAX
+         * so the size calculation (len + CERT_HEADER_SZ + certSz) overflows. */
+        fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16, ctx->heap,
+            DYNAMIC_TYPE_CERT);
+        ExpectNotNull(fakeChain);
+    }
     if (EXPECT_SUCCESS()) {
         XMEMSET(fakeChain, 0, sizeof(DerBuffer) + 16);
         fakeChain->buffer = (byte*)(fakeChain + 1);
@@ -15185,6 +15187,7 @@ static int test_wolfSSL_Tls13_ECH_ch2_no_ech(void)
 
     /* one round: client sends CH1, server processes it and sends HRR */
     (void)test_ssl_memio_do_handshake(&test_ctx, 1, NULL);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, 0), WOLFSSL_ERROR_WANT_READ);
 
     /* server must have committed to ECH acceptance in the HRR */
     ExpectIntEQ(test_ctx.s_ssl->options.serverState,

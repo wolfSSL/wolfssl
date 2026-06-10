@@ -2020,10 +2020,14 @@ int test_wolfSSL_CTX_set_cert_store(void)
 
     /* This should push intermediates from store->certs into the CM */
     SSL_CTX_set_cert_store(ctx, store);
+    if (SSL_CTX_get_cert_store(ctx) != store) {
+        X509_STORE_free(store);
+        store = NULL;
+    }
 
     /* After set_cert_store, store->certs and store->trusted should be NULLed
      * to signal CTX ownership */
-    if (EXPECT_SUCCESS()) {
+    if ((store != NULL) && EXPECT_SUCCESS()) {
         ExpectNull(store->certs);
         ExpectNull(store->trusted);
     }
@@ -2067,6 +2071,9 @@ int test_wolfSSL_CTX_set_cert_store(void)
 
     /* Attach empty store first */
     SSL_CTX_set_cert_store(ctx, store);
+    if (!EXPECT_SUCCESS()) {
+        X509_STORE_free(store);
+    }
 
     /* Now add certs after ownership transfer */
     ExpectNotNull(rootCa = wolfSSL_X509_load_certificate_file(caCert,

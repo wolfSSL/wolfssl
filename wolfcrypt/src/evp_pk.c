@@ -1317,6 +1317,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_bio(WOLFSSL_BIO* bio,
             if (wolfSSL_BIO_get_len(bio) <= 0) {
                 WOLFSSL_MSG("Failed to write memory to bio");
                 XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                wolfSSL_EVP_PKEY_free(key);
                 return NULL;
             }
         }

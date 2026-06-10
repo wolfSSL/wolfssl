@@ -3724,7 +3724,7 @@ int test_wolfSSL_dtls_stateless_hrr_group(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
     size_t i;
-    word32 initHash;
+    word32 initHash = 0;
     struct {
         method_provider client_meth;
         method_provider server_meth;
@@ -3764,7 +3764,9 @@ int test_wolfSSL_dtls_stateless_hrr_group(void)
         wolfSSL_SetLoggingPrefix("server");
         wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
 
-        initHash = test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl_s);
+        if (EXPECT_SUCCESS()) {
+            initHash = test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl_s);
+        }
 
         /* Set groups and disable key shares. This ensures that only the given
          * groups are in the SupportedGroups extension and that an empty key

@@ -390,16 +390,18 @@ int test_tls13_hrr_cipher_suite_mismatch(void)
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"),
             WOLFSSL_SUCCESS);
 
-    /* CH2 */
-    (void)wolfSSL_connect(ssl_c);
-    (void)wolfSSL_accept(ssl_s);
-    (void)wolfSSL_connect(ssl_c);
-    /* The cipher-suite mismatch is caught server-side; the server's
-     * alert reaches the client, so either peer can surface it. */
-    ret = wolfSSL_get_error(ssl_s, 0);
-    if (ret != WC_NO_ERR_TRACE(INVALID_PARAMETER))
-        ret = wolfSSL_get_error(ssl_c, 0);
-    ExpectIntEQ(ret, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    if (EXPECT_SUCCESS()) {
+        /* CH2 */
+        (void)wolfSSL_connect(ssl_c);
+        (void)wolfSSL_accept(ssl_s);
+        (void)wolfSSL_connect(ssl_c);
+        /* The cipher-suite mismatch is caught server-side; the server's
+         * alert reaches the client, so either peer can surface it. */
+        ret = wolfSSL_get_error(ssl_s, 0);
+        if (ret != WC_NO_ERR_TRACE(INVALID_PARAMETER))
+            ret = wolfSSL_get_error(ssl_c, 0);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

@@ -5557,7 +5557,7 @@ int test_tls13_short_session_ticket(void)
      * session. The session object is accessible; replicate the exact
      * vulnerable arithmetic: ticket + length - ID_LEN with length=5.
      * With the fix, sessIdLen is capped to length so no underflow. */
-    {
+    if (EXPECT_SUCCESS()) {
         byte shortTicket[5] = { 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
         word32 length = sizeof(shortTicket);
         word32 sessIdLen = ID_LEN;

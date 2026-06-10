@@ -2519,6 +2519,9 @@ typedef struct CRL_Entry CRL_Entry;
 struct CRL_Entry {
     byte*   toBeSigned;
     byte*   signature;
+#ifdef WC_RSA_PSS
+    byte*   sigParams;   /* buffer with signature parameters */
+#endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
 #endif
@@ -2549,11 +2552,10 @@ struct CRL_Entry {
     int     verified;
     word32  tbsSz;
     word32  signatureSz;
-    word32  signatureOID;
 #ifdef WC_RSA_PSS
     word32  sigParamsSz; /* length of signature parameters   */
-    byte*   sigParams;   /* buffer with signature parameters */
 #endif
+    word32  signatureOID;
 #if !defined(NO_SKID) && !defined(NO_ASN)
     byte    extAuthKeyId[KEYID_SIZE];
     byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
