@@ -703,6 +703,7 @@ WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
         WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx);
         WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz,
                                             void *ctx);
+        WOLFSSL_LOCAL int wolfIO_SockIsDGram(int sfd);
         #ifdef WOLFSSL_MULTICAST
             WOLFSSL_API int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf,
                                                   int sz, void *ctx);

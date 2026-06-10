@@ -643,27 +643,22 @@ static int PeerIsIpv6(const SOCKADDR_S *peer, XSOCKLENT len)
 #endif /* !WOLFSSL_IPV6 */
 
 /* Return non-zero iff sfd is a SOCK_DGRAM socket. A descriptor's type is
- * fixed for its lifetime, so the getsockopt(SO_TYPE) probe runs once per
- * connection and is cached in dtlsCtx; the cache is invalidated wherever
- * rfd/wfd is reassigned. */
-static int isDGramSock(WOLFSSL_DTLS_CTX* dtlsCtx, int sfd)
+ * fixed for its lifetime, so the probe runs where dtlsCtx.rfd/wfd is
+ * assigned and the result is stored alongside the descriptor, keeping the
+ * getsockopt() syscall out of the I/O callbacks. */
+int wolfIO_SockIsDGram(int sfd)
 {
     int type = 0;
     /* optvalue 'type' is of size int */
     XSOCKLENT length = (XSOCKLENT)sizeof(type);
 
-    if (dtlsCtx->isDGramCached)
-        return dtlsCtx->isDGram;
-
     if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, (XSOCKOPT_TYPE_OPTVAL_TYPE)&type,
             &length) == 0 && type != SOCK_DGRAM) {
-        dtlsCtx->isDGram = 0;
+        return 0;
     }
     else {
-        dtlsCtx->isDGram = 1;
+        return 1;
     }
-    dtlsCtx->isDGramCached = 1;
-    return dtlsCtx->isDGram;
 }
 
 void wolfSSL_SetRecvFrom(WOLFSSL* ssl, WolfSSLRecvFrom recvFrom)
@@ -853,7 +848,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             return recvd;
         }
         else if (recvd == 0) {
-            if (!isDGramSock(dtlsCtx, sd)) {
+            if (!dtlsCtx->rfdIsDGram) {
                 /* Closed TCP connection */
                 recvd = WOLFSSL_CBIO_ERR_CONN_CLOSE;
             }
@@ -951,7 +946,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     if (sz < 0)
         return WOLFSSL_CBIO_ERR_GENERAL;
 
-    if (!isDGramSock(dtlsCtx, sd)) {
+    if (!dtlsCtx->wfdIsDGram) {
         /* Probably a TCP socket. peer and peerSz MUST be NULL and 0 */
     }
     else if (!dtlsCtx->connected) {

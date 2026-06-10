@@ -2791,10 +2791,11 @@ typedef struct WOLFSSL_DTLS_CTX {
                        * connected (connect() and bind() both called).
                        * This means that sendto and recvfrom do not need to
                        * specify and store the peer address. */
-    byte isDGramCached:1; /* whether isDGram below is valid; reset whenever
-                           * rfd/wfd is (re)assigned so the SO_TYPE probe
-                           * re-runs once for the new descriptor. */
-    byte isDGram:1;       /* cached isDGramSock() for the rfd/wfd socket */
+    byte rfdIsDGram:1; /* whether rfd is a SOCK_DGRAM socket; probed with
+                        * getsockopt(SO_TYPE) where rfd is assigned to keep
+                        * the syscall out of the I/O callbacks. */
+    byte wfdIsDGram:1; /* as rfdIsDGram, for wfd; rfd and wfd may be
+                        * different sockets of different types. */
 #ifdef WOLFSSL_DTLS_CID
     byte processingPendingRecord:1;
 #endif

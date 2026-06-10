@@ -3613,10 +3613,6 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
     sslCopy.dtls13FastTimeout = 0;
 #endif
     sslCopy.keys.dtls_peer_handshake_number = 0;
-    /* isDGram* is a local-socket-type memoization the IO callbacks may
-     * populate lazily; it is not peer state and not relevant here. */
-    sslCopy.buffers.dtlsCtx.isDGramCached = 0;
-    sslCopy.buffers.dtlsCtx.isDGram = 0;
     XMEMSET(&sslCopy.alert_history, 0, sizeof(sslCopy.alert_history));
     sslCopy.hsHashes = NULL;
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \

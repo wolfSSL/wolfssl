@@ -7945,7 +7945,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;
-    ssl->buffers.dtlsCtx.isDGramCached  = 0;
+    ssl->buffers.dtlsCtx.rfdIsDGram     = 0;
+    ssl->buffers.dtlsCtx.wfdIsDGram     = 0;
 
 #ifdef WOLFSSL_RW_THREADED
     if (wc_InitRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
