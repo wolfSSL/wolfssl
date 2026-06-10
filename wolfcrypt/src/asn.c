@@ -23490,6 +23490,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         if (cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
                                                          cert->pubKeySize > 0) {
             if (cert->signatureOID == CTC_SM3wSM2) {
+                if (cert->pubKeySize < 65) {
+                    WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+                    return BUFFER_E;
+                }
                 /* TODO: GmSSL creates IDs this way but whole public key info
                  * block should be hashed. */
                 ret = CalcHashId_ex(cert->publicKey + cert->pubKeySize - 65, 65,
@@ -27262,7 +27266,7 @@ static void SetRdnItems(ASNItem* namesASN, ASNSetData* dataASN, const byte* oid,
 static int FindMultiAttrib(CertName* name, int id, int* idx)
 {
     int i;
-    for (i = *idx + 1; i < CTC_MAX_ATTRIB; i++) {
+    for (i = *idx + 1; i >= 0 && i < CTC_MAX_ATTRIB; i++) {
         if (name->name[i].sz > 0 && name->name[i].id == id) {
             break;
         }
@@ -30806,11 +30810,16 @@ static int SetAuthKeyIdFromDcert(Cert* cert, DecodedCert* decoded)
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         cert->akidSz = wc_HashGetDigestSize(wc_HashTypeConvert(HashIdAlg(
             cert->sigType)));
+        if (cert->akidSz <= 0) {
+            ret = HASH_TYPE_E;
+        }
     #else
         cert->akidSz = KEYID_SIZE;
     #endif
-        /* Put the SKID of CA to AKID of certificate */
-        XMEMCPY(cert->akid, decoded->extSubjKeyId, (size_t)cert->akidSz);
+        if (ret == 0) {
+            /* Put the SKID of CA to AKID of certificate */
+            XMEMCPY(cert->akid, decoded->extSubjKeyId, (size_t)cert->akidSz);
+        }
     }
 
     return ret;
