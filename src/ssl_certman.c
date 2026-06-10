@@ -819,7 +819,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
         /* Parse DER into decoded certificate fields and verify signature
          * against a known CA. */
-        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, NULL);
+        ret = ParseCertRelative(cert, CHAIN_CERT_TYPE, VERIFY, cm, NULL);
      }
 
 #ifdef HAVE_CRL
