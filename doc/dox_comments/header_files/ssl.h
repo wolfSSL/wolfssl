@@ -8950,7 +8950,8 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param secret a constant byte pointer representing the secret buffer.
-    Passing NULL (or a secretSz of 0) clears any previously set secondary secret.
+    Passing NULL (or a secretSz of 0) clears any previously set secondary
+    secret.
     \param secretSz the size of the buffer.
 
     _Example_
@@ -14047,9 +14048,11 @@ int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     issue cookies.  This API is DTLS only; TLS 1.3 over a reliable transport
     does not verify cookies statelessly across the HelloRetryRequest exchange.
 
-    \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
     \param [in] secret a pointer to a buffer holding the secondary secret.
-    Passing NULL (or a secretSz of 0) clears any previously set secondary secret.
+    Passing NULL (or a secretSz of 0) clears any previously set secondary
+    secret.
     \param [in] secretSz Size of the secret in bytes.
 
     \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3, or not using DTLS.
