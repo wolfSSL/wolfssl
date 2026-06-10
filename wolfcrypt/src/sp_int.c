@@ -18739,6 +18739,27 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WC_MP_TO_RADIX)
+/* Determine whether the magnitude of a is zero by scanning the digits.
+ *
+ * A non-normalized value (used >= 1 with all-zero digits, e.g. negative zero)
+ * is recognized as zero so that sp_radix_size() and sp_tohex() size and write
+ * the same canonical zero.
+ */
+static int sp_hex_iszero(const sp_int* a)
+{
+    int zero = 1;
+    unsigned int i;
+
+    for (i = 0; i < a->used; i++) {
+        if (a->dp[i] != 0) {
+            zero = 0;
+            break;
+        }
+    }
+
+    return zero;
+}
+
 /* Put the big-endian, hex string encoding of a into str.
  *
  * Assumes str is large enough for result.
@@ -18761,7 +18782,7 @@ int sp_tohex(const sp_int* a, char* str)
 
     if (err == MP_OKAY) {
         /* Quick out if number is zero. */
-        if (sp_iszero(a) == MP_YES) {
+        if (sp_hex_iszero(a)) {
         #ifndef WC_DISABLE_RADIX_ZERO_PAD
             /* Make string represent complete bytes. */
             *str++ = '0';
@@ -18983,7 +19004,8 @@ int sp_radix_size(const sp_int* a, int radix, int* size)
     }
     /* Handle base 16 if requested. */
     else if (radix == MP_RADIX_HEX) {
-        if (a->used == 0) {
+        /* Match sp_tohex() so a non-normalized zero is sized the same way. */
+        if (sp_hex_iszero(a)) {
         #ifndef WC_DISABLE_RADIX_ZERO_PAD
             /* 00 and '\0' */
             *size = 2 + 1;
