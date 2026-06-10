@@ -24879,9 +24879,13 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                  * cipher_type == aead test excludes 3DES-CBC, whose explicit
                  * block IV is also 8 bytes.
                  *
-                 * The bytes written here are placeholders: the encrypt paths
-                 * below overwrite the explicit nonce before transmission, so
-                 * the win is skipping a per-record RNG draw. */
+                 * These bytes normally never reach the wire: the Encrypt()
+                 * paths overwrite the explicit nonce with the cipher's own,
+                 * and FIPS<2 builds overwrite args->iv with keys.aead_exp_IV
+                 * just below. The win is skipping a per-record RNG draw.
+                 * The exception is an ATOMIC_USER MacEncryptCb, which sends
+                 * the bytes as-is; the sequence number is a valid explicit
+                 * nonce per the above RFCs. */
                 if (ssl->specs.cipher_type == aead &&
                     args->ivSz == AESGCM_EXP_IV_SZ) {
                     PeekSEQ(ssl, epochOrder, args->iv);

@@ -72,6 +72,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <limits.h>
 #include <errno.h>
 #include <time.h>
 #include <unistd.h>
@@ -142,9 +143,9 @@ static void print_stats(const char* dir, long long bytes, double sec)
     printf("  throughput: %.1f MiB/s   (%.3f Gbps)\n", mbps, gbps);
 }
 
-static void usage(const char* prog)
+static void usage(FILE* out, const char* prog)
 {
-    fprintf(stderr,
+    fprintf(out,
         "Usage: %s [options]\n"
         "  -s              run as DTLS server (default: client)\n"
         "  -h <host>       server address (client only, default %s)\n"
@@ -168,18 +169,12 @@ static void usage(const char* prog)
 
 static void list_ciphers(void)
 {
-    char  buf[8192];
-    char* save = NULL;
-    char* tok;
-    if (wolfSSL_get_ciphers(buf, (int)sizeof(buf)) != WOLFSSL_SUCCESS) {
-        fprintf(stderr, "wolfSSL_get_ciphers failed\n");
-        return;
-    }
+    const char* name;
+    int idx = 0;
     printf("Compiled-in ciphers:\n");
-    tok = strtok_r(buf, ":", &save);
-    while (tok) {
-        printf("  %s\n", tok);
-        tok = strtok_r(NULL, ":", &save);
+    while ((name = wolfSSL_get_cipher_list(idx)) != NULL) {
+        printf("  %s\n", name);
+        idx++;
     }
 }
 
@@ -201,6 +196,9 @@ static int parse_args(int argc, char** argv, cfg_t* c)
     c->listCipher  = 0;
     c->sinkSend    = 0;
 
+    /* getopt sets optopt only on errors, not for an explicit -?; clear it
+     * so the two cases can be told apart. */
+    optopt = 0;
     while ((opt = getopt(argc, argv, "sh:p:i:d:r:m:v:c:b:nz?")) != -1) {
         switch (opt) {
             case 's': c->isServer    = 1; break;
@@ -224,7 +222,16 @@ static int parse_args(int argc, char** argv, cfg_t* c)
             case 'n': c->plainUdp    = 1; break;
             case 'z': c->sinkSend    = 1; break;
             case '?':
-            default:  usage(argv[0]); return -1;
+                if (optopt == 0) {
+                    /* explicit -? help request */
+                    usage(stdout, argv[0]);
+                    return -2;
+                }
+                usage(stderr, argv[0]);
+                return -1;
+            default:
+                usage(stderr, argv[0]);
+                return -1;
         }
     }
 
@@ -237,6 +244,16 @@ static int parse_args(int argc, char** argv, cfg_t* c)
 
     if (c->version != 12 && c->version != 13) {
         fprintf(stderr, "DTLS version must be 12 or 13\n");
+        return -1;
+    }
+    if (c->port < 1 || c->port > 65535) {
+        fprintf(stderr, "port must be between 1 and 65535\n");
+        return -1;
+    }
+    /* cap so set_sockbuf()'s 2 * requested can't overflow */
+    if (c->sockBuf < 1 || c->sockBuf > INT_MAX / 2) {
+        fprintf(stderr, "socket buffer size must be between 1 and %d\n",
+                INT_MAX / 2);
         return -1;
     }
     if (c->mtu < 64 || c->mtu > 16384) {
@@ -745,6 +762,15 @@ static int dtls_client(const cfg_t* c)
         int n = wolfSSL_write(ssl, buf, c->recordSz);
         if (n != c->recordSz) {
             int err = wolfSSL_get_error(ssl, n);
+            /* Retry the same errors udp_client retries on: EAGAIN and
+             * EWOULDBLOCK come back as WANT_WRITE, ENOBUFS as
+             * SOCKET_ERROR_E with errno set. The record stays buffered in
+             * wolfSSL and the next call flushes it. */
+            if (err == WOLFSSL_ERROR_WANT_WRITE ||
+                (err == WC_NO_ERR_TRACE(SOCKET_ERROR_E) &&
+                 errno == ENOBUFS)) {
+                continue; /* tx queue full, retry */
+            }
             fprintf(stderr, "wolfSSL_write n=%d err=%d %s\n",
                     n, err, wolfSSL_ERR_reason_error_string(err));
             goto cleanup;
@@ -775,7 +801,7 @@ int main(int argc, char** argv)
 {
     cfg_t c;
     int rc = parse_args(argc, argv, &c);
-    if (rc == -2) return 0;   /* -c help handled */
+    if (rc == -2) return 0;   /* -? usage or -c help printed */
     if (rc < 0)   return 1;
 
     if (c.plainUdp) {
