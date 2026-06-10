@@ -210,6 +210,14 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
         return -EINVAL;
     }
 
+    if (len != expected_len) {
+        #ifdef WOLFKM_DEBUG_ECDH
+        pr_err("%s: km_ecdh_decode_secret: caller passed %u, expected %zu\n",
+               WOLFKM_ECDH_DRIVER, len, expected_len);
+        #endif /* WOLFKM_DEBUG_ECDH */
+        return -EINVAL;
+    }
+
     /* Only set the key if it was provided.  */
     if (params->key_size) {
         params->key = (void *)ptr;
