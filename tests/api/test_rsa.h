@@ -43,6 +43,7 @@ int test_wc_RsaEncryptSize(void);
 int test_wc_RsaSSL_SignVerify(void);
 int test_wc_RsaFlattenPublicKey(void);
 int test_wc_RsaDecrypt_BoundsCheck(void);
+int test_wc_RsaFunctionCheckIn_OversizedModulus(void);
 int test_wc_RsaKeyToDer_SizeOverflow(void);
 
 #define TEST_RSA_DECLS                                          \
@@ -65,6 +66,7 @@ int test_wc_RsaKeyToDer_SizeOverflow(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaSSL_SignVerify),          \
     TEST_DECL_GROUP("rsa", test_wc_RsaFlattenPublicKey),        \
     TEST_DECL_GROUP("rsa", test_wc_RsaDecrypt_BoundsCheck),             \
+    TEST_DECL_GROUP("rsa", test_wc_RsaFunctionCheckIn_OversizedModulus), \
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToDer_SizeOverflow)
 
 #endif /* WOLFCRYPT_TEST_RSA_H */

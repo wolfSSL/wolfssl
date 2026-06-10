@@ -45,6 +45,27 @@ int test_dtls_mtu_fragment_headroom(void);
 int test_dtls_mtu_split_messages(void);
 int test_dtls_set_session_min_downgrade(void);
 int test_dtls12_export_import_etm(void);
+int test_wolfSSL_dtls_create_free_peer(void);
+int test_wolfSSL_dtls_get0_peer(void);
+int test_wolfSSL_dtls_set_timeout_init(void);
+int test_wolfSSL_dtls_retransmit(void);
+int test_wolfSSL_DTLSv1_compat_timeouts(void);
+int test_wolfSSL_dtls13_set_send_more_acks(void);
+int test_wolfSSL_dtls_srtp_keying_material(void);
+int test_wolfSSL_mcast_peers(void);
+int test_wolfSSL_set_dtls_fd_connected(void);
+int test_wolfSSL_dtls_get_peer(void);
+int test_wolfSSL_dtls_set_peer(void);
+int test_wolfSSL_GetDtlsMacSecret(void);
+int test_wolfSSL_dtls_get_using_nonblock(void);
+int test_wolfSSL_dtls_set_using_nonblock(void);
+int test_wolfSSL_set_mtu_compat(void);
+int test_wolfSSL_dtls_set_timeout_max(void);
+int test_wolfSSL_CTX_mcast_set_member_id(void);
+int test_wolfSSL_mcast_read(void);
+int test_wolfSSL_dtls_got_timeout(void);
+int test_wolfSSL_DTLS_SetCookieSecret(void);
+int test_wolfSSL_set_secret(void);
 
 /* DTLS tests moved out of tests/api.c. */
 int test_dtls_msg_from_other_peer(void);
@@ -105,7 +126,8 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export),                     \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export_peers),               \
-        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_import_state_extra_window_words), \
+        TEST_DECL_GROUP("dtls",                                                \
+                           test_wolfSSL_dtls_import_state_extra_window_words), \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_either_side),                \
         TEST_DECL_GROUP("dtls", test_generate_cookie),                         \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_mtu),                    \
@@ -135,5 +157,30 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_seq_num_downgrade),                  \
         TEST_DECL_GROUP("dtls", test_dtls_old_seq_number),                     \
         TEST_DECL_GROUP("dtls", test_dtls12_missing_finished),                 \
-        TEST_DECL_GROUP("dtls", test_dtls12_export_import_etm)
+        TEST_DECL_GROUP("dtls", test_dtls12_export_import_etm),                \
+        TEST_DECL_GROUP("dtls", test_dtls13_min_rtx_interval),                 \
+        TEST_DECL_GROUP("dtls", test_dtls13_no_session_id_echo),               \
+        TEST_DECL_GROUP("dtls", test_dtls13_oversized_cert_chain),             \
+        TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_create_free_peer),           \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get0_peer),                  \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_timeout_init),           \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_retransmit),                 \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLSv1_compat_timeouts),          \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls13_set_send_more_acks),       \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_srtp_keying_material),       \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_mcast_peers),                     \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_set_dtls_fd_connected),           \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get_peer),                   \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_peer),                   \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_GetDtlsMacSecret),                \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get_using_nonblock),         \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_using_nonblock),         \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_set_mtu_compat),                  \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_timeout_max),            \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_CTX_mcast_set_member_id),         \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_mcast_read),                      \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_got_timeout),                \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLS_SetCookieSecret),            \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_set_secret)
 #endif /* TESTS_API_DTLS_H */

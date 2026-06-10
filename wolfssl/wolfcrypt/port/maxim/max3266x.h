@@ -57,13 +57,16 @@
     #endif
 #endif
 
-/* Enable copy/free callbacks when using callback mode */
+/* Enable copy callback when using callback mode (SHA Copy needs it) */
 #if defined(MAX3266X_SHA_CB)
     #ifndef WOLF_CRYPTO_CB_COPY
         #define WOLF_CRYPTO_CB_COPY
     #endif
-    #ifndef WOLF_CRYPTO_CB_FREE
-        #define WOLF_CRYPTO_CB_FREE
+    /* One-shot mode buffers the whole message, so Free is needed too */
+    #ifdef WOLFSSL_MAX3266X_SHA_ONESHOT
+        #ifndef WOLF_CRYPTO_CB_FREE
+            #define WOLF_CRYPTO_CB_FREE
+        #endif
     #endif
 #endif
 
@@ -246,6 +249,20 @@
 
 #if defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB)
 
+    #if defined(WOLFSSL_SHA512)
+        /* Does not support these SHA512 Macros */
+        #ifndef WOLFSSL_NOSHA512_224
+            #warning "MAX3266X Port does not support SHA-512/224"
+            #define WOLFSSL_NOSHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            #warning "MAX3266X Port does not support SHA-512/256"
+            #define WOLFSSL_NOSHA512_256
+        #endif
+    #endif /* WOLFSSL_SHA512 */
+
+#ifdef WOLFSSL_MAX3266X_SHA_ONESHOT
+
     /* Use HASH_KEEP to accumulate message data for one-shot TPU hardware */
     #ifndef WOLFSSL_HASH_KEEP
         #define WOLFSSL_HASH_KEEP
@@ -293,16 +310,6 @@
     #endif /* WOLFSSL_SHA384 */
 
     #if defined(WOLFSSL_SHA512)
-        /* Does not support these SHA512 Macros */
-        #ifndef WOLFSSL_NOSHA512_224
-            #warning "MAX3266X Port does not support SHA-512/224"
-            #define WOLFSSL_NOSHA512_224
-        #endif
-        #ifndef WOLFSSL_NOSHA512_256
-            #warning "MAX3266X Port does not support SHA-512/256"
-            #define WOLFSSL_NOSHA512_256
-        #endif
-
         /* Define the SHA-512 digest for an empty string */
         /* as a constant byte array */
         static const unsigned char MXC_EMPTY_DIGEST_SHA512[64] = {
@@ -354,6 +361,54 @@
                                                 unsigned char* digest,
                                                 MXC_TPU_HASH_TYPE algo);
 
+#else /* WOLFSSL_MAX3266X_SHA_ONESHOT */
+
+    /* Number of HASH_DIGEST register words for each algorithm's state */
+    #define MXC_SHA1_STATE_WORDS    5   /* 160-bit state */
+    #define MXC_SHA224_STATE_WORDS  8   /* 256-bit internal state */
+    #define MXC_SHA256_STATE_WORDS  8   /* 256-bit state */
+    #define MXC_SHA384_STATE_WORDS  16  /* 512-bit internal state (word32) */
+    #define MXC_SHA512_STATE_WORDS  16  /* 512-bit state (word32) */
+
+    /* TPU hash helpers - bare-metal SHA acceleration */
+    WOLFSSL_LOCAL void wc_MXC_TPU_Hash_Setup(MXC_TPU_HASH_TYPE algo,
+                                    const unsigned int* state, int stateWords);
+    WOLFSSL_LOCAL void wc_MXC_TPU_Hash_Feed_Block(const unsigned char* data,
+                                    unsigned int blockSz);
+    WOLFSSL_LOCAL void wc_MXC_TPU_Hash_Feed_Last(const unsigned char* data,
+                                    unsigned int dataLen,
+                                    unsigned int totalLenLo,
+                                    unsigned int totalLenHi);
+    WOLFSSL_LOCAL void wc_MXC_TPU_Hash_Save_State(unsigned int* state,
+                                    int stateWords);
+    WOLFSSL_LOCAL void wc_MXC_TPU_Hash_Read_Digest(unsigned char* digest,
+                                    unsigned int digestSz);
+
+    /* Generic SHA Update/Final/GetHash */
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Update(unsigned int* digest,
+                                    unsigned int* buffer,
+                                    unsigned int* buffLen,
+                                    unsigned int* loLen, unsigned int* hiLen,
+                                    int stateWords, unsigned int blockSz,
+                                    MXC_TPU_HASH_TYPE algo,
+                                    const unsigned char* data,
+                                    unsigned int len);
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Final(unsigned int* digest,
+                                    unsigned int* buffer,
+                                    unsigned int* buffLen,
+                                    unsigned int loLen, unsigned int hiLen,
+                                    int stateWords, unsigned int digestSz,
+                                    MXC_TPU_HASH_TYPE algo,
+                                    unsigned char* hash);
+    WOLFSSL_LOCAL int wc_MXC_TPU_SHA_GetHash(unsigned int* digest,
+                                    unsigned int* buffer,
+                                    unsigned int buffLen,
+                                    unsigned int loLen, unsigned int hiLen,
+                                    int stateWords, unsigned int digestSz,
+                                    MXC_TPU_HASH_TYPE algo,
+                                    unsigned char* hash);
+
+#endif /* WOLFSSL_MAX3266X_SHA_ONESHOT */
 
 #endif /* defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB) */
 

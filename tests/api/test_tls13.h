@@ -63,6 +63,7 @@ int test_tls13_post_handshake_auth_no_ext(void);
 int test_tls13_post_handshake_auth_late_allow(void);
 int test_tls13_downgrade_sentinel(void);
 int test_tls13_serverhello_bad_cipher_suites(void);
+int test_tls13_psk_no_cert_bad_binder(void);
 int test_tls13_cert_with_extern_psk_apis(void);
 int test_tls13_cert_with_extern_psk_handshake(void);
 int test_tls13_cert_with_extern_psk_requires_key_share(void);
@@ -122,6 +123,7 @@ int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void);
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_late_allow), \
     TEST_DECL_GROUP("tls13", test_tls13_downgrade_sentinel), \
     TEST_DECL_GROUP("tls13", test_tls13_serverhello_bad_cipher_suites), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_no_cert_bad_binder), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_apis), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_handshake), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_with_extern_psk_requires_key_share), \

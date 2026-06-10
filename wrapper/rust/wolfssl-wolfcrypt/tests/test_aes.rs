@@ -257,6 +257,34 @@ fn test_cfb_big_msg() {
 }
 
 #[test]
+#[cfg(aes_cfb)]
+fn test_cfb_encrypt1() {
+    /* Test vector taken from wolfcrypt aescfb1_test() (AES-128). */
+    let key: [u8; 16] = [
+        0xcd,0xef,0x9d,0x06,0x61,0xba,0xe4,0x73,
+        0x8d,0x1a,0x58,0xa2,0xa6,0x22,0x8b,0x66
+    ];
+    let iv: [u8; 16] = [
+        0x4d,0xbb,0xdc,0xaa,0x59,0xf3,0x63,0xc9,
+        0x2a,0x3b,0x98,0x43,0xad,0x20,0xe2,0xb7
+    ];
+    let msg: [u8; 1] = [0xC0];
+    let mut enc = CFB::new().expect("Failed to create CFB");
+    let mut dec = CFB::new().expect("Failed to create CFB");
+    enc.init(&key, &iv).expect("Error with init()");
+    dec.init(&key, &iv).expect("Error with init()");
+    let mut cipher: [u8; 1] = [0];
+    enc.encrypt1(&msg, &mut cipher, 2).expect("Error with encrypt1()");
+    assert_eq!(cipher[0], 0x00);
+    let mut plain: [u8; 1] = [0];
+    dec.decrypt1(&cipher, &mut plain, 2).expect("Error with decrypt1()");
+    assert_eq!(plain[0], 0xC0);
+    cipher[0] = 0;
+    enc.encrypt1(&msg, &mut cipher, 7).expect("Error with encrypt1()");
+    assert_eq!(cipher[0], 0x1C);
+}
+
+#[test]
 #[cfg(aes_ctr)]
 fn test_ctr_encrypt_decrypt() {
     let iv: [u8; 16] = [

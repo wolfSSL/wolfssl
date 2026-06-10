@@ -3677,6 +3677,33 @@ L_curve25519_inv_8:
 	ldr	r1, [sp, #160]
 	ldr	r0, [sp, #160]
 	bl	fe_mul_op
+	# Ensure result is less than modulus
+	ldr	r0, [sp, #160]
+	ldm	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
+	adds	r2, r4, #19
+	adcs	r2, r5, #0
+	adcs	r2, r6, #0
+	adcs	r2, r7, #0
+	adcs	r2, r8, #0
+	adcs	r2, r9, #0
+	adcs	r2, r10, #0
+	adc	r2, r11, #0
+	asr	r2, r2, #31
+	and	r2, r2, #19
+	adds	r4, r4, r2
+	adcs	r5, r5, #0
+	adcs	r6, r6, #0
+	adcs	r7, r7, #0
+	adcs	r8, r8, #0
+	adcs	r9, r9, #0
+	adcs	r10, r10, #0
+	adc	r11, r11, #0
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	bic	r11, r11, #0x80000000
+#else
+	bfc	r11, #31, #1
+#endif
+	stm	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
 	mov	r0, #0
 	add	sp, sp, #0xbc
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
@@ -3959,21 +3986,29 @@ L_curve25519_inv_8:
 	# Ensure result is less than modulus
 	ldr	r0, [sp, #176]
 	ldm	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
-	mov	r2, #19
-	and	r2, r2, r11, asr #31
+	adds	r2, r4, #19
+	adcs	r2, r5, #0
+	adcs	r2, r6, #0
+	adcs	r2, r7, #0
+	adcs	r2, r8, #0
+	adcs	r2, r9, #0
+	adcs	r2, r10, #0
+	adc	r2, r11, #0
+	asr	r2, r2, #31
+	and	r2, r2, #19
 	adds	r4, r4, r2
 	adcs	r5, r5, #0
 	adcs	r6, r6, #0
 	adcs	r7, r7, #0
 	adcs	r8, r8, #0
 	adcs	r9, r9, #0
+	adcs	r10, r10, #0
+	adc	r11, r11, #0
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	bic	r11, r11, #0x80000000
 #else
 	bfc	r11, #31, #1
 #endif
-	adcs	r10, r10, #0
-	adc	r11, r11, #0
 	stm	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
 	mov	r0, #0
 	add	sp, sp, #0xc0

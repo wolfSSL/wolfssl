@@ -913,7 +913,7 @@ WOLFSSL_ASN1_BIT_STRING* wolfSSL_d2i_ASN1_BIT_STRING(
 
     WOLFSSL_ENTER("wolfSSL_d2i_ASN1_BIT_STRING");
 
-    if (src == NULL || *src == NULL || len == 0)
+    if (src == NULL || *src == NULL || len <= 0)
         return NULL;
 
     if (GetASNTag(*src, &idx, &tag, (word32)len) < 0)
@@ -2984,7 +2984,7 @@ static WOLFSSL_ASN1_STRING* d2i_ASN1_STRING(WOLFSSL_ASN1_STRING** out,
 
     WOLFSSL_ENTER("d2i_ASN1_STRING");
 
-    if (src == NULL || *src == NULL || len == 0)
+    if (src == NULL || *src == NULL || len <= 0)
         return NULL;
 
     if (GetASNTag(*src, &idx, &tag, (word32)len) < 0)
@@ -3159,6 +3159,11 @@ int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data, int sz)
     }
 
     if (ret == 1) {
+        /* Cast to size_t BEFORE adding 1 to prevent signed overflow
+         * when sz == INT_MAX. By this point sz >= 0 (negative sz is
+         * handled above as OpenSSL -1/strlen compat). */
+        size_t allocSz = (size_t)sz + 1;
+
         /* Dispose of any existing dynamic data. */
         if (asn1->isDynamic) {
             XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -3166,9 +3171,9 @@ int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data, int sz)
         }
 
         /* Check string will fit - including NUL. */
-        if (sz + 1 > CTC_NAME_SIZE) {
+        if (allocSz > CTC_NAME_SIZE) {
             /* Allocate new buffer. */
-            asn1->data = (char*)XMALLOC((size_t)(sz + 1), NULL,
+            asn1->data = (char*)XMALLOC(allocSz, NULL,
                 DYNAMIC_TYPE_OPENSSL);
             if (asn1->data == NULL) {
                 ret = 0;
@@ -3760,8 +3765,6 @@ int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
  * ASN1_TIME APIs
  ******************************************************************************/
 
-#ifndef NO_ASN_TIME
-
 #ifdef OPENSSL_EXTRA
 /* Allocate a new ASN.1 TIME object.
  *
@@ -3811,6 +3814,7 @@ WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *a, time_t t)
 }
 #endif /* !NO_WOLFSSL_STUB */
 
+#ifndef NO_ASN_TIME
 /* Convert time to Unix time (GMT).
  *
  * @param [in] sec     Second in minute. 0-59.
@@ -4005,6 +4009,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* a, time_t t,
     return ret;
 }
 #endif /* !USER_TIME && !TIME_OVERRIDES */
+#endif /* !NO_ASN_TIME */
 
 /* Get the length of the ASN.1 TIME data.
  *
@@ -4048,6 +4053,7 @@ unsigned char* wolfSSL_ASN1_TIME_get_data(const WOLFSSL_ASN1_TIME *t)
     return data;
 }
 
+#ifndef NO_ASN_TIME
 /* Check format of string in ASN.1 TIME object.
  *
  * @param [in] a  ASN.1 TIME object.
@@ -4069,6 +4075,7 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 
     return ret;
 }
+#endif /* !NO_ASN_TIME */
 
 /* Set the time as a string into ASN.1 TIME object.
  *
@@ -4112,6 +4119,7 @@ int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *t, const char *str)
     return ret;
 }
 
+#ifndef NO_ASN_TIME
 int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t, const char *str)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -4126,6 +4134,7 @@ int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t, const char *str)
         ret = wolfSSL_ASN1_TIME_check(t);
     return ret;
 }
+#endif /* !NO_ASN_TIME */
 
 /* Convert ASN.1 TIME object to ASN.1 GENERALIZED TIME object.
  *
@@ -4199,7 +4208,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
     return ret;
 }
 
-#if !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
 {
     WOLFSSL_ASN1_TIME* ret = s;
@@ -4228,7 +4237,8 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
 #endif /* !USER_TIME && !TIME_OVERRIDES */
 #endif /* OPENSSL_EXTRA */
 
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
+#if !defined(NO_ASN_TIME) && \
+    (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA))
 /* Get string from ASN.1 TIME object.
  *
  * Not an OpenSSL compatibility API.
@@ -4607,9 +4617,9 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 }
 #endif /* !NO_BIO */
 
-#endif /* WOLFSSL_MYSQL_COMPATIBLE || OPENSSL_EXTRA */
+#endif /* !NO_ASN_TIME && (WOLFSSL_MYSQL_COMPATIBLE || OPENSSL_EXTRA) */
 
-#ifdef OPENSSL_EXTRA
+#if !defined(NO_ASN_TIME) && defined(OPENSSL_EXTRA)
 
 #ifndef NO_BIO
 /* Print the ASN.1 UTC TIME object as a string to BIO.
@@ -4647,9 +4657,7 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
 }
 #endif /* !NO_BIO */
 
-#endif /* OPENSSL_EXTRA */
-
-#endif /* !NO_ASN_TIME */
+#endif /* !NO_ASN_TIME && OPENSSL_EXTRA */
 
 /*******************************************************************************
  * ASN1_TYPE APIs

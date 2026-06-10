@@ -17,6 +17,10 @@ fn test_cmac() {
         0x07u8, 0x0a, 0x16, 0xb4, 0x6b, 0x4d, 0x41, 0x44,
         0xf7, 0x9b, 0xdd, 0x9d, 0xd0, 0x4a, 0x28, 0x7c
     ];
+    let incorrect_cmac = [
+        0x06u8, 0x0a, 0x16, 0xb4, 0x6b, 0x4d, 0x41, 0x44,
+        0xf7, 0x9b, 0xdd, 0x9d, 0xd0, 0x4a, 0x28, 0x7c
+    ];
     let mut cmac = CMAC::new(&key).expect("Error with new()");
     cmac.update(&message).expect("Error with update()");
     let mut finalize_out = [0u8; 16];
@@ -28,6 +32,8 @@ fn test_cmac() {
     assert_eq!(generate_out, finalize_out);
     let valid = CMAC::verify(&key, &message, &generate_out).expect("Error with verify()");
     assert!(valid);
+    let valid = CMAC::verify(&key, &message, &incorrect_cmac).expect("Error with verify()");
+    assert!(!valid);
 
     let mut cmac = CMAC::new(&key).expect("Error with new()");
     let mut generate_out = [0u8; 16];
@@ -35,4 +41,6 @@ fn test_cmac() {
     assert_eq!(generate_out, finalize_out);
     let valid = cmac.verify_ex(&key, &message, &generate_out, None, None).expect("Error with verify_ex()");
     assert!(valid);
+    let valid = cmac.verify_ex(&key, &message, &incorrect_cmac, None, None).expect("Error with verify_ex()");
+    assert!(!valid);
 }

@@ -162,7 +162,6 @@ include certs/falcon/include.am
 include certs/rsapss/include.am
 include certs/slhdsa/include.am
 include certs/lms/include.am
-include certs/xmss/include.am
 include certs/rpk/include.am
 include certs/acert/include.am
 include certs/mldsa/include.am

@@ -7927,6 +7927,12 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     }
 
 #ifndef WC_MLDSA_CACHE_PRIV_VECTORS
+    /* Zeroize the private vectors s1, s2 and t before freeing. These occupy
+     * the front of the buffer; any matrix A that follows is public (expanded
+     * from the public seed) and need not be cleared. */
+    if (s1 != NULL) {
+        ForceZero(s1, (word32)params->s1Sz + 2U * (word32)params->s2Sz);
+    }
     XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
 #endif
     return ret;
@@ -7945,6 +7951,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
     unsigned int r;
     unsigned int s;
     byte kl[2];
+    unsigned int allocSz = 0;
 
 #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
     ret = mldsa_alloc_priv_buf(key);
@@ -7959,8 +7966,6 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
-        unsigned int allocSz;
-
         /* s1-l, s2-k, t-k, a-1 */
         allocSz  = (unsigned int)params->s1Sz + params->s2Sz + params->s2Sz +
                    (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
@@ -8158,6 +8163,15 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         key->pubKeySet = 1;
     }
 
+    /* Zeroize the whole buffer before freeing. It holds the private vectors
+     * s1, s2 and t at the front; the rejection-sampling / matrix A region in
+     * the middle is public, but the trailing t64 accumulator (POLY64 builds)
+     * holds A o NTT(s1) - from which s1 is recoverable - so it must be
+     * cleared too. As the secret material is not contiguous, zeroize the
+     * entire allocation rather than a sub-range. */
+    if (s1 != NULL) {
+        ForceZero(s1, allocSz);
+    }
     XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #endif
@@ -8584,7 +8598,14 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
     ForceZero(priv_rand_seed, sizeof(priv_rand_seed));
     if (y != NULL) {
-        ForceZero(y, allocSz);
+        word32 zeroSz = allocSz;
+#ifndef WC_MLDSA_CACHE_MATRIX_A
+        /* The public matrix A is appended at the end of the buffer and is
+         * expanded from the public seed - it need not be zeroized. The
+         * preceding vectors (y, w0, s1, s2, t0, ...) are secret dependent. */
+        zeroSz -= (word32)params->aSz;
+#endif
+        ForceZero(y, zeroSz);
     }
     XFREE(y, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
@@ -8593,10 +8614,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     const wc_MlDsaParams* params = key->params;
     const byte* pub_seed = key->k;
     const byte* k = pub_seed + MLDSA_PUB_SEED_SZ;
+#ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
     const byte* tr = k + MLDSA_K_SZ;
     const byte* s1p = tr + MLDSA_TR_SZ;
     const byte* s2p = s1p + params->s1EncSz;
     const byte* t0p = s2p + params->s2EncSz;
+#endif
     const byte* mu = seedMu + MLDSA_RND_SZ;
     sword32* a = NULL;
     sword32* s1 = NULL;
@@ -9027,8 +9050,8 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             }
             if ((ret == 0) && valid) {
-                const byte* t0pt = t0p;
             #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
+                const byte* t0pt = t0p;
                 const byte* s2pt = s2p;
             #endif
                 sword32* cs2 = ct0;
@@ -9112,7 +9135,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                     #endif
                     }
 
+                #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
                     t0pt += MLDSA_D * MLDSA_N / 8;
+                #endif
                     w0t += MLDSA_N;
                     w1t += MLDSA_N;
                 }

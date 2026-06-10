@@ -1033,3 +1033,210 @@ int test_TLSX_SRTP_msg_type_validation(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* RFC 7301 Section 3.1: the server's ProtocolNameList in its ALPN response
+ * MUST contain exactly one ProtocolName. A ServerHello carrying two entries
+ * must be rejected rather than silently accepted. */
+int test_TLSX_ALPN_server_response_count(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* ServerHello-style ALPN extension whose ProtocolNameList contains
+     * two entries ("h2" and "http/1.1"). */
+    static const byte extBytes[] = {
+        0x00, 0x10,                         /* extension type = ALPN (16) */
+        0x00, 0x0E,                         /* extension length = 14    */
+        0x00, 0x0C,                         /* ProtocolNameList length  */
+        0x02, 'h', '2',                     /* entry 1: "h2"            */
+        0x08, 'h', 't', 't', 'p', '/', '1', '.', '1' /* entry 2         */
+    };
+    static char alpn_h2[] = "h2";
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_UseALPN(ssl, alpn_h2, (unsigned int)XSTRLEN(alpn_h2),
+                                WOLFSSL_ALPN_FAILED_ON_MISMATCH),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(TLSX_Parse(ssl, extBytes, (word16)sizeof(extBytes),
+                           server_hello, NULL),
+                WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Regression test for the supported_groups (a.k.a. supported curves) parsing.
+ *
+ * A client that explicitly sends a supported_groups extension restricts the
+ * groups the server may use. An empty list, or a list that contains only
+ * groups the server does not support, must NOT be silently treated as if the
+ * extension was absent (which would impose no restriction and let the server
+ * pick an ECDHE suite/curve the client never advertised).
+ *
+ *  - An empty named group list is malformed and must be rejected.
+ *  - A list of only-unsupported groups must still leave a supported_groups
+ *    node behind so suite selection sees the restriction.
+ */
+int test_TLSX_SupportedCurve_empty_or_unsupported(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_NO_TLS12) && \
+    (!defined(NO_WOLFSSL_SERVER) || (defined(WOLFSSL_TLS13) && \
+                                     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)))
+    /* This exercises the server's parsing of a received ClientHello: the
+     * relevant code path (TLSX_SupportedCurve_Parse) is selected by the
+     * message type passed to TLSX_Parse (client_hello => isRequest), not by
+     * the side of the WOLFSSL object. A client-side WOLFSSL is used purely as
+     * the parse vehicle because creating a server-side WOLFSSL would require a
+     * certificate to be loaded first (NO_PRIVATE_KEY otherwise). */
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    /* supported_groups (0x000a), ext len 0x0002, named_group_list len 0x0000 */
+    const byte emptyList[] = { 0x00, 0x0a, 0x00, 0x02, 0x00, 0x00 };
+    /* supported_groups (0x000a), ext len 0x0004, list len 0x0002,
+     * group 0xeeee (private-use value we do not support) */
+    const byte unsupportedOnly[] = { 0x00, 0x0a, 0x00, 0x04, 0x00, 0x02,
+                                     0xee, 0xee };
+
+    /* An empty named group list is malformed and must be rejected. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, emptyList, (word16)sizeof(emptyList),
+                           client_hello, suites),
+                WC_NO_ERR_TRACE(BUFFER_ERROR));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* A list with only unsupported groups must still record a supported_groups
+     * node so that ECC/ECDHE suite selection sees the (now empty) restriction
+     * instead of treating the extension as absent. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    /* Precondition: server has not preconfigured supported groups. */
+    ExpectNull(TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS));
+    ExpectIntEQ(TLSX_Parse(ssl, unsupportedOnly, (word16)sizeof(unsupportedOnly),
+                           client_hello, suites), 0);
+    /* The fix records an (empty) supported_groups node. */
+    ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    wolfSSL_CTX_free(ctx);
+
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
+    /* An empty named group list is equally malformed in a TLS 1.3
+     * EncryptedExtensions message (named_group_list<2..2^16-1>) and must be
+     * rejected with the same decode_error (BUFFER_ERROR), not silently
+     * accepted as the server advertising no groups. */
+    {
+        WOLFSSL_CTX* ctx13 = NULL;
+        WOLFSSL* ssl13 = NULL;
+        const byte emptyListEE[] = { 0x00, 0x0a, 0x00, 0x02, 0x00, 0x00 };
+
+        ExpectNotNull(ctx13 = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+        ExpectNotNull(ssl13 = wolfSSL_new(ctx13));
+        /* Ensure the connection is treated as TLS 1.3 so EncryptedExtensions
+         * is a valid context for the extension. */
+        if (ssl13 != NULL) {
+            ssl13->version.major = SSLv3_MAJOR;
+            ssl13->version.minor = TLSv1_3_MINOR;
+        }
+        ExpectIntEQ(TLSX_Parse(ssl13, emptyListEE, (word16)sizeof(emptyListEE),
+                               encrypted_extensions, NULL),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+        wolfSSL_free(ssl13);
+        wolfSSL_CTX_free(ctx13);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8422 Section 5.1.2: a client that sends the ec_point_formats extension
+ * MUST include the uncompressed (0) point format. When the uncompressed format
+ * is omitted the server records this (ssl->options.peerNoUncompPF) during
+ * parsing so the handshake can be aborted with an illegal_parameter alert if
+ * the client also advertised ECC named groups.
+ *
+ *  - A list that contains the uncompressed format must clear the flag.
+ *  - A list that omits the uncompressed format must set the flag.
+ */
+int test_TLSX_PointFormat_uncompressed_required(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS) && defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_NO_TLS12)
+    /* This exercises the server's parsing of a received ClientHello: the
+     * relevant code path (TLSX_PointFormat_Parse) is selected by the message
+     * type passed to TLSX_Parse (client_hello => isRequest), not by the side
+     * of the WOLFSSL object. A client-side WOLFSSL is used purely as the parse
+     * vehicle because creating a server-side WOLFSSL would require a
+     * certificate to be loaded first (NO_PRIVATE_KEY otherwise). The server
+     * build is required because TLSX_PointFormat_Parse (the PF_PARSE dispatch
+     * macro) is compiled to a no-op when NO_WOLFSSL_SERVER is defined. */
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    /* ec_point_formats (0x000b), ext len 0x0002, list len 0x01,
+     * format 0x00 (uncompressed) */
+    const byte withUncomp[]  = { 0x00, 0x0b, 0x00, 0x02, 0x01, 0x00 };
+    /* ec_point_formats (0x000b), ext len 0x0002, list len 0x01,
+     * format 0x01 (ansiX962_compressed_prime, uncompressed omitted) */
+    const byte noUncomp[]    = { 0x00, 0x0b, 0x00, 0x02, 0x01, 0x01 };
+    /* As above but with two compressed formats and no uncompressed. */
+    const byte noUncomp2[]   = { 0x00, 0x0b, 0x00, 0x03, 0x02, 0x01, 0x02 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+
+    /* A list containing the uncompressed format leaves the flag clear and
+     * still adds the uncompressed format to the response. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, withUncomp, (word16)sizeof(withUncomp),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.peerNoUncompPF, 0);
+    ExpectNotNull(TLSX_Find(ssl->extensions, TLSX_EC_POINT_FORMATS));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* A single-entry list that omits the uncompressed format sets the flag. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, noUncomp, (word16)sizeof(noUncomp),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.peerNoUncompPF, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* A multi-entry list that omits the uncompressed format sets the flag. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    ExpectIntEQ(TLSX_Parse(ssl, noUncomp2, (word16)sizeof(noUncomp2),
+                           client_hello, suites), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.peerNoUncompPF, 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}

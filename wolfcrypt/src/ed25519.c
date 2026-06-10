@@ -1588,7 +1588,7 @@ int wc_ed25519_check_key(ed25519_key* key)
 #endif /* HAVE_ED25519_MAKE_KEY */
 
     /* No private key (or ability to make a public key), check Y is valid. */
-    if ((ret == 0)
+    if (ret == 0
 #ifdef HAVE_ED25519_MAKE_KEY
         && (!key->privKeySet)
 #endif

@@ -54,6 +54,18 @@ int test_utils_memio_move_message(void)
     /* send server's flight */
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* If the server responded with a HelloRetryRequest it is waiting on a new
+     * ClientHello, so the buffered flight is just the HRR rather than the real
+     * ServerHello flight. Drive another connect/accept round so the message
+     * moving below operates on the real flight. */
+    if (EXPECT_SUCCESS() && test_memio_msg_is_hello_retry_request(&test_ctx)) {
+        /* client processes HRR and sends second ClientHello */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        /* server processes second ClientHello and sends its flight */
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    }
     /* Move messages around but they should be the same at the end */
     ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 1, 2), 0);
     ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 2, 1), 0);
@@ -380,6 +392,110 @@ int test_tls_certreq_order(void)
     ExpectIntEQ(test_memio_move_message(&test_ctx, 1, certReqIdx, certIdx), 0);
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A TLS 1.2 CertificateRequest carrying a supported_signature_algorithms
+ * vector whose length is not a multiple of the 2-byte element size must be
+ * rejected. We run a real handshake, locate the server's CertificateRequest
+ * in the memio queue and make the sig-algs length odd before the client parses
+ * it. The vector is shrunk by one byte and the
+ * record, handshake and sig-algs length fields are all decremented so the
+ * message stays self-consistent (only the sig-algs length parity is wrong).
+ * Without the fix the client would silently ignore the odd trailing byte and
+ * accept the message; with the fix it is rejected with BUFFER_ERROR. */
+int test_tls12_certreq_odd_sigalgs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* msg = NULL;
+    int msgSz = 0;
+    int i = 0;
+    int certReqIdx = -1;
+    int certTypesCnt = 0;
+    int sigAlgsLenOff = 0;
+    int sigAlgsLen = 0;
+    int recAbs = 0;
+    int removeAbs = 0;
+    word32 val = 0;
+    byte* b = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    /* Make the server send a CertificateRequest. */
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    /* Send each handshake message in its own record so the CertificateRequest
+     * can be located and tampered with individually. */
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), 1);
+
+    /* Client sends ClientHello. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server sends ServerHello..CertificateRequest..ServerHelloDone. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Locate the CertificateRequest record in the server->client queue. */
+    for (i = 0; test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i) == 0;
+            i++) {
+        if (msgSz > 12 && (byte)msg[5] == certificate_request) {
+            certReqIdx = i;
+            break;
+        }
+    }
+    ExpectIntGE(certReqIdx, 0);
+
+    if (EXPECT_SUCCESS()) {
+        /* Layout: record hdr[5] | hs hdr[4] | certTypesCount[1] | certTypes |
+         * sigAlgsLen[2] | certTypes... The sig-algs length is even; shrink the
+         * vector by one byte to make it odd while keeping all length fields
+         * consistent. */
+        certTypesCnt = (byte)msg[9];
+        sigAlgsLenOff = 10 + certTypesCnt;
+        ExpectIntLT(sigAlgsLenOff + 2, msgSz);
+        if (EXPECT_SUCCESS()) {
+            sigAlgsLen = ((byte)msg[sigAlgsLenOff] << 8) |
+                          (byte)msg[sigAlgsLenOff + 1];
+            /* Need at least two pairs so a valid pair remains after shrinking. */
+            ExpectIntGE(sigAlgsLen, 2 * HELLO_EXT_SIGALGO_SZ);
+        }
+        if (EXPECT_SUCCESS()) {
+            b = (byte*)msg;
+            /* Decrement record length (bytes 3..4). */
+            val = ((word32)b[3] << 8) | b[4];
+            val--;
+            b[3] = (byte)(val >> 8); b[4] = (byte)val;
+            /* Decrement handshake length (bytes 6..8). */
+            val = ((word32)b[6] << 16) | ((word32)b[7] << 8) | b[8];
+            val--;
+            b[6] = (byte)(val >> 16); b[7] = (byte)(val >> 8); b[8] = (byte)val;
+            /* Decrement sig-algs length, making it odd. */
+            val = (word32)sigAlgsLen - 1;
+            b[sigAlgsLenOff] = (byte)(val >> 8);
+            b[sigAlgsLenOff + 1] = (byte)val;
+            /* Drop the last byte of the sig-algs vector from the buffer. */
+            recAbs = (int)((const byte*)msg - test_ctx.c_buff);
+            removeAbs = recAbs + 12 + certTypesCnt + sigAlgsLen - 1;
+            ExpectIntEQ(test_memio_remove_from_buffer(&test_ctx, 1, removeAbs,
+                1), 0);
+        }
+    }
+
+    /* Client must reject the malformed CertificateRequest. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WC_NO_ERR_TRACE(BUFFER_ERROR));
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -769,6 +885,109 @@ int test_tls12_no_null_compression(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8422 Section 5.1.2: a client that sends an ec_point_formats extension
+ * omitting the uncompressed (0) format while negotiating an ECC suite must be
+ * rejected by the server with a fatal illegal_parameter alert. This drives a
+ * real handshake all the way through DoClientHello so the abort path (not just
+ * the parse-time detection) is exercised.
+ *
+ * Rather than hand-craft a ClientHello (which would pin the cipher suite, named
+ * group and exact byte offsets, making the test fragile as extension handling
+ * evolves), the client builds its own ClientHello and we only suppress the
+ * uncompressed point format: TLSX_PopulateExtensions() adds the default
+ * uncompressed format only when no ec_point_formats extension already exists,
+ * so pre-seeding the client with a compressed-only list makes it advertise
+ * exactly that. The curve is negotiated normally, so the test is independent of
+ * which named groups are enabled. */
+int test_tls12_ec_point_formats_no_uncompressed(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) \
+    && defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
+    /* Pin an ECDHE (ECC) suite so the server negotiates an ECC key exchange;
+     * gating on the BUILD_ macro skips the test in builds where the suite is
+     * unavailable (e.g. --disable-aescbc) instead of failing with
+     * MATCH_SUITE_ERROR. */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "ECDHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "ECDHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    /* Make the client advertise only the compressed point format (1 ==
+     * ansiX962_compressed_prime), i.e. omit the uncompressed (0) format. */
+    ExpectIntEQ(TLSX_UsePointFormat(&ssl_c->extensions, 1, ssl_c->heap),
+            WOLFSSL_SUCCESS);
+    /* The server must reject the handshake with a fatal illegal_parameter
+     * alert (surfaced as INVALID_PARAMETER), not complete it. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8422 Section 5.1.2 ties the missing-uncompressed-format abort to the
+ * server actually negotiating an ECC cipher suite. A client that omits the
+ * uncompressed point format but negotiates a NON-ECC suite (here DHE_RSA) must
+ * NOT be rejected - the handshake completes. This is the complement of
+ * test_tls12_ec_point_formats_no_uncompressed and guards against regressing
+ * back to an advertised-groups (parse-time) abort.
+ *
+ * As in that test the client builds a real ClientHello and we only suppress the
+ * uncompressed point format (see the comment there); the suite is pinned to a
+ * DHE (non-ECC) suite. */
+int test_tls12_ec_point_formats_no_uncompressed_non_ecc(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && defined(HAVE_SUPPORTED_CURVES) && !defined(NO_DH) && defined(HAVE_FFDHE) \
+    && !defined(NO_RSA) && defined(BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA)
+    /* The negotiated suite must be non-ECC for the missing format to be
+     * irrelevant. RFC 9325 / WOLFSSL_HARDEN_TLS disables all TLS_DHE_* suites
+     * (NO_TLS_DH); gating on the BUILD_ macro skips the test there rather than
+     * failing with MATCH_SUITE_ERROR. */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-SHA"),
+            WOLFSSL_SUCCESS);
+    /* Make the client advertise only the compressed point format (1 ==
+     * ansiX962_compressed_prime), i.e. omit the uncompressed (0) format. */
+    ExpectIntEQ(TLSX_UsePointFormat(&ssl_c->extensions, 1, ssl_c->heap),
+            WOLFSSL_SUCCESS);
+    /* The handshake must complete: the missing uncompressed format is
+     * irrelevant for a non-ECC (DHE) suite. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the server really did observe a point-format list without the
+     * uncompressed format, yet proceeded. */
+    ExpectIntEQ(ssl_s->options.peerNoUncompPF, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that set_curves_list correctly resolves ECC curve names that fall
  * through the kNistCurves table and reach the wc_ecc_get_curve_idx_from_name
  * fallback path.  The kNistCurves lookup uses a case-sensitive XSTRNCMP, so
@@ -896,6 +1115,381 @@ int test_tls_set_session_min_downgrade(void)
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_FAILURE);
     if (ssl_c != NULL)
         ExpectIntEQ(ssl_c->options.resuming, 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)) && \
+    defined(HAVE_SNI) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE)
+/* Accept-all SNI callback. */
+static int accept_any_sni_cb(WOLFSSL* ssl, int* ret, void* arg)
+{
+    (void)ssl; (void)ret; (void)arg;
+    return 0; /* accept */
+}
+#endif
+
+/* TLS resumption must proceed with full handshake to establish new session if
+ * SNI/ALPN does not match previously established session. */
+int test_tls12_session_id_resumption_sni_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SNI) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* sniA = "public.example";
+    const char* sniB = "admin.example";
+
+    /* Step 1: full TLS 1.2 handshake under SNI=public.example, with the
+     * session ticket path disabled so resumption can only happen via the
+     * server's session-ID cache. The server-side SNI callback ensures
+     * ssl->extensions retains the client's SNI in builds that don't
+     * compile in WOLFSSL_ALWAYS_KEEP_SNI. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_CTX_set_servername_callback(ctx_s, accept_any_sni_cb);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sniA, (word16)XSTRLEN(sniA)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the first handshake was not a resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: new SSL objects on the SAME WOLFSSL_CTX (so the server's
+     * session cache still holds the entry from step 1). The client offers
+     * the saved session but advertises a *different* SNI. The server's
+     * cache lookup will match by session ID, but per RFC 6066 Section 3 the
+     * server MUST NOT resume because the SNI differs from the original. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sniB, (word16)XSTRLEN(sniB)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Post-fix expected behavior: server falls back to a full handshake
+     * because the SNI in the ClientHello does not match the SNI bound to
+     * the cached session. Pre-fix, the server silently resumes - which is
+     * the bug. Both sides should report no resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* TLS 1.3 PSK resumption must fall back to a full handshake if the SNI in
+ * the resumed ClientHello does not match the SNI bound to the original
+ * session (RFC 6066 Section 3 / RFC 8446 Section 4.6.1). */
+int test_tls13_session_resumption_sni_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* sniA = "public.example";
+    const char* sniB = "admin.example";
+    byte readBuf[16];
+
+    /* Step 1: full TLS 1.3 handshake under SNI=public.example to obtain a
+     * session ticket. The server-side SNI callback ensures ssl->extensions
+     * retains the client's SNI in builds that don't compile in
+     * WOLFSSL_ALWAYS_KEEP_SNI. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_CTX_set_servername_callback(ctx_s, accept_any_sni_cb);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sniA, (word16)XSTRLEN(sniA)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the first handshake was not a resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    /* Drive the post-handshake NewSessionTicket through to the client so
+     * the saved session is a real resumption ticket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: new SSL objects on the SAME WOLFSSL_CTX (so the server's
+     * ticket key still matches). The client offers the saved session but
+     * advertises a *different* SNI. The server MUST NOT resume because the
+     * SNI differs from the original. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sniB, (word16)XSTRLEN(sniB)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Desired behavior: server falls back to a full handshake because the
+     * SNI in the ClientHello does not match the SNI bound to the cached
+     * ticket. Both sides should report no resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Regression test for the post-ALPN_Select PSK-head check.
+ * When ALPN_Select runs before CheckPreSharedKeys (so the per-PSK
+ * binding check has the negotiated ALPN available), TLSX_SetALPN
+ * prepends a new ALPN entry to ssl->extensions, displacing the PSK
+ * extension from the head of the list. The "PSK was last in
+ * ClientHello" check therefore must run right after TLSX_Parse,
+ * not inside CheckPreSharedKeys. This test exercises that path
+ * (TLS 1.3 PSK resumption with ALPN, no SNI callback -- the grpc
+ * server scenario). */
+int test_tls13_resumption_with_alpn(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SNI) && defined(HAVE_ALPN) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* sni = "foo.test.google.fr";
+    const char alpn[] = "h2";
+    byte readBuf[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sni, (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpn, (word32)XSTRLEN(alpn),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpn, (word32)XSTRLEN(alpn),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME,
+                    sni, (word16)XSTRLEN(sni)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpn, (word32)XSTRLEN(alpn),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpn, (word32)XSTRLEN(alpn),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* TLS 1.2 stateful (session-ID) resumption must fall back to a full
+ * handshake if the ALPN protocol negotiated for the resumed connection
+ * does not match the ALPN bound to the original session. Mirrors
+ * test_tls12_session_id_resumption_sni_mismatch but varies ALPN instead
+ * of SNI. */
+int test_tls12_session_id_resumption_alpn_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_ALPN) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    const char alpnA[] = "h2";
+    const char alpnB[] = "http/1.1";
+
+    /* Step 1: full TLS 1.2 handshake negotiating ALPN=h2, with the
+     * session ticket path disabled so resumption can only happen via the
+     * server's session-ID cache. The negotiated ALPN is retained on
+     * ssl->extensions by ALPN_Select, so SetupSession binds its hash to
+     * the cached session. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpnA, (word32)XSTRLEN(alpnA),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpnA, (word32)XSTRLEN(alpnA),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the first handshake was not a resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: new SSL objects on the SAME WOLFSSL_CTX (so the server's
+     * session cache still holds the entry from step 1). The client offers
+     * the saved session but both sides now advertise a *different* ALPN
+     * (http/1.1), so the handshake negotiates http/1.1. The server's cache
+     * lookup matches by session ID, but the server MUST NOT resume because
+     * the negotiated ALPN differs from the one bound to the original
+     * session. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpnB, (word32)XSTRLEN(alpnB),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpnB, (word32)XSTRLEN(alpnB),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Expected behavior: server falls back to a full handshake because the
+     * negotiated ALPN does not match the ALPN bound to the cached session.
+     * Both sides should report no resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* TLS 1.3 PSK resumption must fall back to a full handshake if the ALPN
+ * protocol negotiated for the resumed connection does not match the ALPN
+ * bound to the original session. Mirrors
+ * test_tls13_session_resumption_sni_mismatch but varies ALPN instead of
+ * SNI. */
+int test_tls13_session_resumption_alpn_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_ALPN) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_SESSION_CACHE)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    const char alpnA[] = "h2";
+    const char alpnB[] = "http/1.1";
+    byte readBuf[16];
+
+    /* Step 1: full TLS 1.3 handshake negotiating ALPN=h2 to obtain a
+     * session ticket. The negotiated ALPN is retained on ssl->extensions
+     * by ALPN_Select and bound to the ticket. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpnA, (word32)XSTRLEN(alpnA),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpnA, (word32)XSTRLEN(alpnA),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Sanity: the first handshake was not a resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    /* Drive the post-handshake NewSessionTicket through to the client so
+     * the saved session is a real resumption ticket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: new SSL objects on the SAME WOLFSSL_CTX (so the server's
+     * ticket key still matches). The client offers the saved session but
+     * both sides now advertise a *different* ALPN (http/1.1). The server
+     * MUST NOT resume because the negotiated ALPN differs from the one
+     * bound to the original ticket. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_c, (char*)alpnB, (word32)XSTRLEN(alpnB),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseALPN(ssl_s, (char*)alpnB, (word32)XSTRLEN(alpnB),
+                    WOLFSSL_ALPN_FAILED_ON_MISMATCH), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Expected behavior: server falls back to a full handshake because the
+     * negotiated ALPN does not match the ALPN bound to the cached ticket.
+     * Both sides should report no resumption. */
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
@@ -1120,6 +1714,32 @@ int test_wolfSSL_alert_type_string(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_get_shared_ciphers(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    char         buf[32];
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectNull(wolfSSL_get_shared_ciphers(NULL, buf, sizeof(buf)));
+    ExpectNull(wolfSSL_get_shared_ciphers(ssl, NULL, sizeof(buf)));
+    ExpectNull(wolfSSL_get_shared_ciphers(ssl, buf, 0));
+#ifndef NO_ERROR_STRINGS
+    ExpectPtrEq(wolfSSL_get_shared_ciphers(ssl, buf, sizeof(buf)), buf);
+#else
+    ExpectNull(wolfSSL_get_shared_ciphers(ssl, buf, sizeof(buf)));
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test the TLS 1.2 peerAuthGood fail-safe checks directly on both sides.
  * The client branch sets NO_PEER_VERIFY; the server branch returns a generic
  * fatal error from TICKET_SENT before sending its Finished. */
@@ -1180,6 +1800,116 @@ int test_tls12_peerauth_failsafe(void)
     return EXPECT_RESULT();
 }
 
+/* TLS 1.2 mutual auth: an ECDHE-ECDSA server (ECDSA certificate) accepting an
+ * RSA client certificate. */
+int test_tls12_ecdhe_ecdsa_rsa_client_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && defined(HAVE_ECC) && !defined(NO_RSA) && !defined(NO_SHA256) \
+    && defined(HAVE_AESGCM) && defined(KEEP_PEER_CERT) \
+    && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(WOLFSSL_NO_CLIENT_AUTH) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509* peer = NULL;
+    const char* cipher = "ECDHE-ECDSA-AES128-GCM-SHA256";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Server: ECDSA certificate (=> ECDHE-ECDSA suite), require client
+     * authentication, and trust the (self-signed) RSA client certificate. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, eccCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, eccKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+                    WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+                    WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, cipher), WOLFSSL_SUCCESS);
+
+    /* Client: RSA certificate/key, and trust the ECC CA that signed the
+     * server's ECDSA certificate. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caEccCertFile, NULL),
+                    WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, cipher), WOLFSSL_SUCCESS);
+
+    /* Mutual authentication completes and the server obtains the client's
+     * RSA certificate even though the negotiated suite is ECDHE-ECDSA. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectStrEQ(wolfSSL_get_cipher_name(ssl_c), cipher);
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    wolfSSL_X509_free(peer);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* TLS 1.2 mutual auth: an ECDHE-RSA server (RSA certificate) accepting an
+ * ECDSA client certificate. */
+int test_tls12_ecdhe_rsa_ecdsa_client_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && defined(HAVE_ECC) && !defined(NO_RSA) && !defined(NO_SHA256) \
+    && defined(HAVE_AESGCM) && defined(KEEP_PEER_CERT) \
+    && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(WOLFSSL_NO_CLIENT_AUTH) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509* peer = NULL;
+    const char* cipher = "ECDHE-RSA-AES128-GCM-SHA256";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Server: default RSA certificate (=> ECDHE-RSA), require client
+     * authentication, and trust the (self-signed) ECDSA client certificate. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliEccCertFile, NULL),
+                    WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+                    WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, cipher), WOLFSSL_SUCCESS);
+
+    /* Client: ECDSA certificate/key. The default client CTX already trusts
+     * the RSA CA that signed the server's certificate. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliEccCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliEccKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, cipher), WOLFSSL_SUCCESS);
+
+    /* Mutual authentication completes and the server obtains the client's
+     * ECDSA certificate even though the negotiated suite is ECDHE-RSA. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectStrEQ(wolfSSL_get_cipher_name(ssl_c), cipher);
+    ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
+    wolfSSL_X509_free(peer);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_alert_desc_string(void)
 {
     EXPECT_DECLS;
@@ -1216,6 +1946,205 @@ int test_wolfSSL_alert_desc_string(void)
     ExpectStrEQ(wolfSSL_alert_desc_string(no_application_protocol), "AP");
     /* Unknown alert description returns "UK" */
     ExpectStrEQ(wolfSSL_alert_desc_string(255), "UK");
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+/* Cipher-name substrings that need extra setup (PSK callback, ECDSA cert,
+ * SRP, etc.) which the default test_memio_setup() doesn't provide. */
+static int record_size_skip_cipher(const char *name)
+{
+    /* "ECDH-" matches static-ECDH ciphers ("ECDH-RSA-*", "ECDH-ECDSA-*")
+     * and not ECDHE-* because of the trailing '-'. RENEGOTIATION-INFO is the
+     * TLS_EMPTY_RENEGOTIATION_INFO_SCSV signaling value, not a real cipher. */
+    static const char* const deny[] = {
+        "PSK", "SRP", "ANON", "NULL", "ECDSA", "ECDH-", "SM",
+        "RENEGOTIATION-INFO"
+    };
+    size_t i;
+    for (i = 0; i < XELEM_CNT(deny); i++) {
+        if (XSTRSTR(name, deny[i]) != NULL)
+            return 1;
+    }
+    return 0;
+}
+
+/* Cross-check wolfssl_local_GetRecordSize() against BuildMessage(sizeOnly=1)
+ * with the cache cold, then call it a second time and assert both calls
+ * return the same size - that exercises the cached path for AEAD ciphers
+ * without duplicating the BuildMessage arithmetic. */
+static int record_size_check_ssl(WOLFSSL *ssl)
+{
+    EXPECT_DECLS;
+    static const int payloads[] = { 1, 16, 256, 1300, 4096 };
+    size_t k;
+
+    for (k = 0; k < XELEM_CNT(payloads); k++) {
+        int payloadSz = payloads[k];
+        int expectedSz = BuildMessage(ssl, NULL, 0, NULL, payloadSz,
+            application_data, 0, 1, 0, CUR_ORDER);
+        int firstSz, secondSz;
+
+        ssl->recordSzOverhead = 0;
+        firstSz = wolfssl_local_GetRecordSize(ssl, payloadSz, 1);
+        secondSz = wolfssl_local_GetRecordSize(ssl, payloadSz, 1);
+        ExpectIntEQ(firstSz, expectedSz);
+        ExpectIntEQ(secondSz, expectedSz);
+    }
+    return EXPECT_RESULT();
+}
+
+/* Returns 1 if `suite` is selectable for the given client/server method
+ * pair, 0 otherwise. wolfSSL rejects some ciphers for DTLS at
+ * set_cipher_list time (e.g. RFC 7465 forbids RC4 in DTLS); skip those
+ * silently rather than failing the cross-check. */
+static int record_size_cipher_selectable(method_provider client_method,
+        method_provider server_method, const char *suite)
+{
+    WOLFSSL_CTX *ctx_c = wolfSSL_CTX_new(client_method());
+    WOLFSSL_CTX *ctx_s = wolfSSL_CTX_new(server_method());
+    int ok = (ctx_c != NULL && ctx_s != NULL &&
+              wolfSSL_CTX_set_cipher_list(ctx_c, suite) == WOLFSSL_SUCCESS &&
+              wolfSSL_CTX_set_cipher_list(ctx_s, suite) == WOLFSSL_SUCCESS);
+    if (ctx_c) wolfSSL_CTX_free(ctx_c);
+    if (ctx_s) wolfSSL_CTX_free(ctx_s);
+    return ok;
+}
+
+/* Run the cross-check on a memio pair using the given (de)multiplexing
+ * methods and cipher suite. Optionally enable DTLS-CID with peer CIDs of
+ * different sizes so the test covers CID-extended record framing. */
+static int record_size_run_pair(method_provider client_method,
+        method_provider server_method, const char *suite, int useCid)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    (void)useCid;
+    if (!record_size_cipher_selectable(client_method, server_method, suite))
+        return TEST_SUCCESS; /* not valid for this protocol -- skip */
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = suite;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            client_method, server_method), 0);
+#ifdef WOLFSSL_DTLS_CID
+    if (useCid) {
+        /* Different sizes on each side to exercise asymmetric framing. */
+        static unsigned char client_cid[] = { 1, 2, 3, 4, 5, 6 };
+        static unsigned char server_cid[] = { 7, 8, 9 };
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid,
+                sizeof(server_cid)), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid,
+                sizeof(client_cid)), 1);
+    }
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 30, NULL), 0);
+    ExpectIntEQ(record_size_check_ssl(ssl_c), TEST_SUCCESS);
+    ExpectIntEQ(record_size_check_ssl(ssl_s), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+
+int test_record_size_matches_build_message(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    const CipherSuiteInfo *suites = GetCipherNames();
+    int n = GetCipherNamesSize();
+    int i;
+
+    for (i = 0; i < n; i++) {
+        const char *name = suites[i].name;
+        /* Names prefixed "TLS13-" are TLS 1.3 suites regardless of
+         * cipherSuite0, which may be either TLS13_BYTE or ECC_BYTE (for
+         * the integrity-only TLS_SHA*_SHA* suites). */
+        int isTls13 = (XSTRNCMP(name, "TLS13-", 6) == 0);
+        if (record_size_skip_cipher(name))
+            continue;
+
+        if (isTls13) {
+#ifdef WOLFSSL_TLS13
+            ExpectIntEQ(record_size_run_pair(wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method, name, 0), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_DTLS13
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_3_client_method,
+                    wolfDTLSv1_3_server_method, name, 0), TEST_SUCCESS);
+#if defined(WOLFSSL_DTLS_CID)
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_3_client_method,
+                    wolfDTLSv1_3_server_method, name, 1), TEST_SUCCESS);
+#endif
+#endif
+        }
+        else {
+#ifndef WOLFSSL_NO_TLS12
+            ExpectIntEQ(record_size_run_pair(wolfTLSv1_2_client_method,
+                    wolfTLSv1_2_server_method, name, 0), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method, name, 0), TEST_SUCCESS);
+#if defined(WOLFSSL_DTLS_CID)
+            ExpectIntEQ(record_size_run_pair(wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method, name, 1), TEST_SUCCESS);
+#endif
+#endif
+        }
+    }
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+    return EXPECT_RESULT();
+}
+
+int test_record_size_cache_invalidated_on_renegotiation(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte readBuf[16];
+    int sz;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    sz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+    ExpectIntEQ(sz, BuildMessage(ssl_c, NULL, 0, NULL, 256,
+            application_data, 0, 1, 0, CUR_ORDER));
+    ExpectIntNE(ssl_c->recordSzOverhead, 0);
+
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* SetKeysSide() during renegotiation must have cleared the cache. */
+    sz = wolfssl_local_GetRecordSize(ssl_c, 256, 1);
+    ExpectIntEQ(sz, BuildMessage(ssl_c, NULL, 0, NULL, 256,
+            application_data, 0, 1, 0, CUR_ORDER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

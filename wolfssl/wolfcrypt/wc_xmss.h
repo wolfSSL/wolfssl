@@ -346,7 +346,7 @@ typedef struct XmssParams {
 #define XMSS_MAX_LABEL_LEN           32
 #endif
 
-typedef struct XmssKey {
+struct XmssKey {
     /* Public key. */
     unsigned char        pk[2 * WC_XMSS_MAX_N];
     /* OID that identifies parameters. */
@@ -385,7 +385,12 @@ typedef struct XmssKey {
     char                 label[XMSS_MAX_LABEL_LEN];
     int                  labelLen;
 #endif
-} XmssKey;
+};
+
+#ifndef WC_XMSSKEY_TYPE_DEFINED
+    typedef struct XmssKey XmssKey;
+    #define WC_XMSSKEY_TYPE_DEFINED
+#endif
 
 typedef struct XmssState {
     const XmssParams* params;
@@ -446,6 +451,8 @@ WOLFSSL_API int  wc_XmssKey_GetPrivLen(const XmssKey* key, word32* len);
 WOLFSSL_API int  wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigSz,
     const byte* msg, int msgSz);
 WOLFSSL_API int  wc_XmssKey_SigsLeft(XmssKey* key);
+WOLFSSL_API int  wc_XmssKey_PublicKeyToDer(const XmssKey* key, byte* output,
+    word32 inLen, int withAlg);
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
 WOLFSSL_API void wc_XmssKey_Free(XmssKey* key);
 WOLFSSL_API int  wc_XmssKey_GetSigLen(const XmssKey* key, word32* len);

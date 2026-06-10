@@ -25,8 +25,10 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_DhPublicKeyDecode(void);
+int test_wc_DhAgree_subgroup_check(void);
 
-#define TEST_DH_DECLS                                   \
-    TEST_DECL_GROUP("dh", test_wc_DhPublicKeyDecode)
+#define TEST_DH_DECLS                                     \
+    TEST_DECL_GROUP("dh", test_wc_DhPublicKeyDecode),     \
+    TEST_DECL_GROUP("dh", test_wc_DhAgree_subgroup_check)
 
 #endif /* WOLFCRYPT_TEST_DH_H */

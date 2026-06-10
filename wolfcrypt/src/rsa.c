@@ -831,6 +831,10 @@ int wc_CheckRsaKey(RsaKey* key)
     }
 #endif
 
+    if (MP_BITS_OVER_MAX(mp_bitsused(&key->n), RSA_MAX_SIZE)) {
+        return WC_KEY_SIZE_E;
+    }
+
     NEW_MP_INT_SIZE(tmp, mp_bitsused(&key->n), NULL, DYNAMIC_TYPE_RSA);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (tmp == NULL) {
@@ -978,10 +982,10 @@ int wc_CheckRsaKey(RsaKey* key)
         XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
 #endif
     }
-    FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     mp_memzero_check(tmp);
 #endif
+    FREE_MP_INT_SIZE(tmp, NULL, DYNAMIC_TYPE_RSA);
 
     return ret;
 }
@@ -2863,6 +2867,10 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
     DECL_MP_INT_SIZE_DYN(rndi, mp_bitsused(&key->n), RSA_MAX_SIZE);
 #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
 
+    if (MP_BITS_OVER_MAX(mp_bitsused(&key->n), RSA_MAX_SIZE)) {
+        return WC_KEY_SIZE_E;
+    }
+
     (void)rng;
 
 #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
@@ -3041,6 +3049,10 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 {
     DECL_MP_INT_SIZE_DYN(tmp, mp_bitsused(&key->n), RSA_MAX_SIZE);
     int    ret = 0;
+
+    if (MP_BITS_OVER_MAX(mp_bitsused(&key->n), RSA_MAX_SIZE)) {
+        return WC_KEY_SIZE_E;
+    }
 
     (void)rng;
 
@@ -3304,7 +3316,7 @@ int wc_RsaDirect(const byte* in, word32 inLen, byte* out, word32* outSz,
     }
 
     if ((ret = wc_RsaEncryptSize(key)) < 0) {
-        return BAD_FUNC_ARG;
+        return ret;
     }
 
     if (inLen != (word32)ret) {
@@ -3469,7 +3481,12 @@ int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
     int checkSmallCt)
 {
     int ret = 0;
+
     DECL_MP_INT_SIZE_DYN(c, mp_bitsused(&key->n), RSA_MAX_SIZE);
+
+    if (MP_BITS_OVER_MAX(mp_bitsused(&key->n), RSA_MAX_SIZE)) {
+        return WC_KEY_SIZE_E;
+    }
 
     NEW_MP_INT_SIZE(c, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
 #ifdef MP_INT_SIZE_CHECK_NULL

@@ -2,11 +2,10 @@
 # All paths should be given relative to the root
 #
 
+# bc_lms_native_bc_root.der is stock Bouncy Castle output (RFC 9802-aligned
+# HSS/LMS) kept as the cross-implementation interop anchor. wolfSSL's own
+# LMS certificate/CSR/chain generation is exercised in-process by the
+# test_rfc9802_lms_x509_gen unit test, so no other committed fixtures are
+# needed here.
 EXTRA_DIST += \
-         certs/lms/bc_lms_sha256_h5_w4_root.der \
-         certs/lms/bc_lms_sha256_h10_w8_root.der \
-         certs/lms/bc_hss_L2_H5_W8_root.der \
-         certs/lms/bc_hss_L3_H5_W4_root.der \
-         certs/lms/bc_lms_chain_ca.der \
-         certs/lms/bc_lms_chain_leaf.der \
          certs/lms/bc_lms_native_bc_root.der

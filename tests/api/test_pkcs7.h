@@ -29,6 +29,8 @@ int test_wc_PKCS7_Init(void);
 int test_wc_PKCS7_InitWithCert(void);
 int test_wc_PKCS7_EncodeData(void);
 int test_wc_PKCS7_EncodeSignedData(void);
+int test_wc_PKCS7_EncodeSignedData_AttribOverflow(void);
+int test_wc_PKCS7_EncodeAuthEnvelopedData_AttribOverflow(void);
 #if defined(HAVE_PKCS7) && defined(WC_RSA_PSS) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && !defined(NO_SHA256)
 int test_wc_PKCS7_EncodeSignedData_RSA_PSS(void);
@@ -56,6 +58,7 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void);
 int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void);
 int test_wc_PKCS7_GetEnvelopedDataKariRid(void);
 int test_wc_PKCS7_EncodeEncryptedData(void);
+int test_wc_PKCS7_EncodeEncryptedData_AttribOverflow(void);
 int test_wc_PKCS7_DecodeEncryptedKeyPackage(void);
 int test_wc_PKCS7_DecodeSymmetricKeyPackage(void);
 int test_wc_PKCS7_DecodeOneSymmetricKey(void);
@@ -112,6 +115,7 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_InitWithCert),            \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeData),              \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData),        \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_AttribOverflow), \
     TEST_PKCS7_RSA_PSS_SD_DECL                                           \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_EncodeSignedData_ex),     \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_RSA),    \
@@ -134,6 +138,8 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void);
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_SetAESKeyWrapUnwrapCb),       \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_GetEnvelopedDataKariRid),     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_EncodeEncryptedData),         \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_EncodeEncryptedData_AttribOverflow), \
+    TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_EncodeAuthEnvelopedData_AttribOverflow), \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEncryptedKeyPackage),   \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeSymmetricKeyPackage),   \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeOneSymmetricKey),       \

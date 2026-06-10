@@ -760,6 +760,7 @@ int test_wc_ed448_reject_small_order_keys(void)
          0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
          0x80},
     };
+#ifndef NO_ED448_VERIFY
     /* Arbitrary signature bytes: S = 1 (must be below the Ed448 group
      * order or wc_ed448_verify_msg() returns BAD_FUNC_ARG before the
      * small-order check has a chance to fire). The R bytes do not need
@@ -788,6 +789,7 @@ int test_wc_ed448_reject_small_order_keys(void)
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         0x00
     };
+#endif
     ed448_key key;
     word32 i;
     word32 num_keys = (word32)(sizeof(small_order_keys) / ED448_PUB_KEY_SIZE);
@@ -829,6 +831,7 @@ int test_wc_ed448_reject_small_order_keys(void)
         wc_ed448_free(&key);
     }
 
+#ifndef NO_ED448_VERIFY
     /* (3) Even a "trusted" import (which bypasses wc_ed448_check_key)
      * must not let wc_ed448_verify_msg accept a forged signature against
      * an identity public key. Test both the canonical encoding (y = 1,
@@ -866,6 +869,7 @@ int test_wc_ed448_reject_small_order_keys(void)
             wc_ed448_free(&key);
         }
     }
+#endif
 #endif
     return EXPECT_RESULT();
 }

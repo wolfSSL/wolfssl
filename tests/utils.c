@@ -23,7 +23,7 @@
 #include <tests/utils.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
+#ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 
 /* This set of memio functions allows for more fine tuned control of the TLS
  * connection operations. For new tests, try to use ssl_memio first. */
@@ -513,6 +513,40 @@ int test_memio_get_message(const struct test_memio_ctx *ctx, int client,
     return 0;
 }
 
+/* The random value placed in a ServerHello to mark it as a HelloRetryRequest.
+ * See RFC 8446 Section 4.1.3. */
+static const byte test_hello_retry_request_random[32] = {
+    0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
+    0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91,
+    0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
+    0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C
+};
+
+/* Returns 1 if the first server->client record buffered in ctx is a
+ * HelloRetryRequest, 0 otherwise. A HelloRetryRequest is sent as a ServerHello
+ * (handshake type server_hello) carrying the special random above. */
+int test_memio_msg_is_hello_retry_request(const struct test_memio_ctx *ctx)
+{
+    const char* msg = NULL;
+    int msg_sz = 0;
+    /* TLS record header (5) + handshake header (4) + legacy_version (2) is the
+     * offset of the 32-byte ServerHello random within the record. */
+    const int random_off = 5 + 4 + 2;
+
+    /* The server's flight is buffered for the client (client = 1). */
+    if (test_memio_get_message(ctx, 1, &msg, &msg_sz, 0) != 0)
+        return 0;
+    /* Need a handshake record (0x16) holding a server_hello (0x02) with a full
+     * random. */
+    if (msg_sz < random_off + (int)sizeof(test_hello_retry_request_random))
+        return 0;
+    if ((byte)msg[0] != 0x16 || (byte)msg[5] != 0x02)
+        return 0;
+
+    return XMEMCMP(msg + random_off, test_hello_retry_request_random,
+                   sizeof(test_hello_retry_request_random)) == 0;
+}
+
 int test_memio_move_message(struct test_memio_ctx *ctx, int client,
         int msg_pos_in, int msg_pos_out)
 {
@@ -784,7 +818,7 @@ int test_memio_setup(struct test_memio_ctx *ctx,
                                method_s, NULL, 0, NULL, 0, NULL, 0);
 }
 
-#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD */
 
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)

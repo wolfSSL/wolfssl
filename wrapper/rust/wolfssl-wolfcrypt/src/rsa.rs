@@ -847,6 +847,168 @@ impl RSA {
         Ok(rc as usize)
     }
 
+    /// Encrypt data using an RSA public key with RSAES-OAEP padding (PKCS#1
+    /// v2.2).
+    ///
+    /// # Parameters
+    ///
+    /// * `din`: Data to encrypt.
+    /// * `dout`: Buffer in which to store encrypted data.
+    /// * `hash_algo`: Hash algorithm type used by OAEP, one of
+    ///   `RSA::HASH_TYPE_*`.
+    /// * `mgf`: Mask generation function to use, one of `RSA::MGF*`.
+    /// * `rng`: Reference to a `RNG` struct to use for random number
+    ///   generation while encrypting.
+    ///
+    /// # Returns
+    ///
+    /// Returns Ok(size) on success or Err(e) containing the wolfSSL library
+    /// error code value.
+    /// The size returned specifies the number of bytes written to the `dout`
+    /// buffer.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # extern crate std;
+    /// #[cfg(all(random, sha256, rsa_oaep, feature = "alloc"))]
+    /// {
+    /// use std::fs;
+    /// use wolfssl_wolfcrypt::random::RNG;
+    /// use wolfssl_wolfcrypt::rsa::RSA;
+    ///
+    /// let rng = std::rc::Rc::new(RNG::new().expect("Error creating RNG"));
+    /// let key_path = "../../../certs/client-keyPub.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// let plain: &[u8] = b"Test message";
+    /// let mut enc: [u8; 512] = [0; 512];
+    /// let enc_len = rsa.public_encrypt_oaep(plain, &mut enc, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, &rng).expect("Error with public_encrypt_oaep()");
+    /// assert!(enc_len > 0 && enc_len <= 512);
+    ///
+    /// let key_path = "../../../certs/client-key.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    /// rsa.set_shared_rng(std::rc::Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// let mut plain_out: [u8; 512] = [0; 512];
+    /// let dec_len = rsa.private_decrypt_oaep(&enc[0..enc_len], &mut plain_out, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with private_decrypt_oaep()");
+    /// assert_eq!(dec_len, plain.len());
+    /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// }
+    /// ```
+    #[cfg(all(random, rsa_oaep))]
+    pub fn public_encrypt_oaep(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, rng: &RNG) -> Result<usize, i32> {
+        self.public_encrypt_oaep_ex(din, dout, hash_algo, mgf, None, rng)
+    }
+
+    /// Encrypt data using an RSA public key with RSAES-OAEP padding and an
+    /// optional label.
+    ///
+    /// # Parameters
+    ///
+    /// * `din`: Data to encrypt.
+    /// * `dout`: Buffer in which to store encrypted data.
+    /// * `hash_algo`: Hash algorithm type used by OAEP, one of
+    ///   `RSA::HASH_TYPE_*`.
+    /// * `mgf`: Mask generation function to use, one of `RSA::MGF*`.
+    /// * `label`: Optional OAEP label (must be supplied identically when
+    ///   decrypting).
+    /// * `rng`: Reference to a `RNG` struct to use for random number
+    ///   generation while encrypting.
+    ///
+    /// # Returns
+    ///
+    /// Returns Ok(size) on success or Err(e) containing the wolfSSL library
+    /// error code value.
+    /// The size returned specifies the number of bytes written to the `dout`
+    /// buffer.
+    #[cfg(all(random, rsa_oaep))]
+    pub fn public_encrypt_oaep_ex(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, label: Option<&[u8]>, rng: &RNG) -> Result<usize, i32> {
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
+        let (label_ptr, label_size) = match label {
+            // wolfSSL C API takes label as `byte *` but only reads from it.
+            Some(label) => (label.as_ptr() as *mut u8, crate::buffer_len_to_u32(label.len())?),
+            None => (core::ptr::null_mut(), 0),
+        };
+        let rc = unsafe {
+            // SAFETY: label_ptr is declared as a mutable pointer but is only
+            // read from.
+            sys::wc_RsaPublicEncrypt_ex(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey,
+                rng.wc_rng, sys::WC_RSA_OAEP_PAD as i32,
+                hash_algo, mgf, label_ptr, label_size)
+        };
+        if rc < 0 {
+            return Err(rc);
+        }
+        Ok(rc as usize)
+    }
+
+    /// Decrypt data using an RSA private key with RSAES-OAEP padding (PKCS#1
+    /// v2.2).
+    ///
+    /// # Parameters
+    ///
+    /// * `din`: Data to decrypt.
+    /// * `dout`: Buffer in which to store decrypted data.
+    /// * `hash_algo`: Hash algorithm type used by OAEP, one of
+    ///   `RSA::HASH_TYPE_*`.
+    /// * `mgf`: Mask generation function to use, one of `RSA::MGF*`.
+    ///
+    /// # Returns
+    ///
+    /// Returns Ok(size) on success or Err(e) containing the wolfSSL library
+    /// error code value.
+    /// The size returned specifies the number of bytes written to the `dout`
+    /// buffer.
+    #[cfg(rsa_oaep)]
+    pub fn private_decrypt_oaep(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
+        self.private_decrypt_oaep_ex(din, dout, hash_algo, mgf, None)
+    }
+
+    /// Decrypt data using an RSA private key with RSAES-OAEP padding and an
+    /// optional label.
+    ///
+    /// # Parameters
+    ///
+    /// * `din`: Data to decrypt.
+    /// * `dout`: Buffer in which to store decrypted data.
+    /// * `hash_algo`: Hash algorithm type used by OAEP, one of
+    ///   `RSA::HASH_TYPE_*`.
+    /// * `mgf`: Mask generation function to use, one of `RSA::MGF*`.
+    /// * `label`: Optional OAEP label that was supplied when encrypting.
+    ///
+    /// # Returns
+    ///
+    /// Returns Ok(size) on success or Err(e) containing the wolfSSL library
+    /// error code value.
+    /// The size returned specifies the number of bytes written to the `dout`
+    /// buffer.
+    #[cfg(rsa_oaep)]
+    pub fn private_decrypt_oaep_ex(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, label: Option<&[u8]>) -> Result<usize, i32> {
+        let din_size = crate::buffer_len_to_u32(din.len())?;
+        let dout_size = crate::buffer_len_to_u32(dout.len())?;
+        let (label_ptr, label_size) = match label {
+            // wolfSSL C API takes label as `byte *` but only reads from it.
+            Some(label) => (label.as_ptr() as *mut u8, crate::buffer_len_to_u32(label.len())?),
+            None => (core::ptr::null_mut(), 0),
+        };
+        let rc = unsafe {
+            // SAFETY: label_ptr is declared as a mutable pointer but is only
+            // read from.
+            sys::wc_RsaPrivateDecrypt_ex(din.as_ptr(), din_size,
+                dout.as_mut_ptr(), dout_size, &mut self.wc_rsakey,
+                sys::WC_RSA_OAEP_PAD as i32,
+                hash_algo, mgf, label_ptr, label_size)
+        };
+        if rc < 0 {
+            return Err(rc);
+        }
+        Ok(rc as usize)
+    }
+
     /// Sign the provided data with the private key using RSA-PSS signature
     /// scheme.
     ///

@@ -84,9 +84,11 @@ hardware.
 - SHA-384
 - SHA-512
 
-Please note that when using `MAX3266X_SHA` there will be a limitation when
-attempting to do a larger sized hash as the SDK for the hardware currently
-expects a the whole msg buffer to be given.
+By default `MAX3266X_SHA` drives the TPU directly, feeding the message to the
+hardware incrementally so hashes of any size are supported. Adding
+`#define WOLFSSL_MAX3266X_SHA_ONESHOT` to `user_settings.h` instead buffers
+the whole message in memory and hashes it in one shot using the SDK, which
+has slightly better performance.
 
 `#define MAX3266X_MATH` (Replaces math operation calls for algos
 like RSA and ECC key generation):

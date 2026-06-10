@@ -1715,7 +1715,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     void* heap, int devId)
 {
     int ret = 0;
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_RNG_USE_FULL_SEED)
     word32 seedSz = SEED_SZ;
 #else
@@ -2174,6 +2174,10 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
                   void* heap, int devId)
 {
     int ret;
+
+    if (rng == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     *rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), heap, DYNAMIC_TYPE_RNG);
     if (*rng == NULL) {

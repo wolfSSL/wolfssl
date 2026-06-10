@@ -74,11 +74,15 @@ pub mod mlkem_kem;
 pub mod prf;
 pub mod random;
 pub mod rsa;
+#[cfg(rsa_oaep)]
+pub mod rsa_oaep;
 #[cfg(feature = "signature")]
 pub mod rsa_pkcs1v15;
 pub mod sha;
 #[cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
 pub mod pbkdf2_password_hash;
+#[cfg(all(feature = "password-hash", kdf_scrypt))]
+pub mod scrypt_password_hash;
 #[cfg(feature = "digest")]
 pub mod sha_digest;
 

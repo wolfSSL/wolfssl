@@ -50,9 +50,19 @@ Crypto Callback Build Options:
  * Algorithm-specific callback options:
  * NO_SHA2_CRYPTO_CB:   Disable crypto callbacks for SHA-384    default: off
  *                      and SHA-512 operations.
+ * WOLF_CRYPTO_CB_NO_SHA512_FALLBACK:                           default: off
+ *                      Do not fall back to the generic SHA-512
+ *                      callback for SHA-384, SHA-512/224 and
+ *                      SHA-512/256 when no variant-specific
+ *                      callback is registered. Required for
+ *                      backends whose hash context has no
+ *                      digest[] state field or that keep the
+ *                      hash state on the device (auto-enabled
+ *                      for Renesas FSPSM).
  * WOLF_CRYPTO_CB_ONLY_ECC: Use only callbacks for ECC          default: off
  * WOLF_CRYPTO_CB_ONLY_RSA: Use only callbacks for RSA          default: off
  * WOLF_CRYPTO_CB_ONLY_SHA256: Use only callbacks for SHA-256   default: off
+ * WOLF_CRYPTO_CB_ONLY_SHA512: Use only callbacks for SHA-512   default: off
  * WOLF_CRYPTO_CB_ONLY_AES: Use only callbacks for AES          default: off
  */
 
@@ -1177,7 +1187,7 @@ int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
 
     /* get devId */
     if (type == WC_PQC_KEM_TYPE_MLKEM) {
-        devId = ((KyberKey*) key)->devId;
+        devId = ((MlKemKey*) key)->devId;
     }
 
     return devId;
@@ -2015,16 +2025,52 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
     }
 
     if (dev && dev->cb) {
+    #if defined(WOLFSSL_SHA512) && !defined(WOLF_CRYPTO_CB_NO_SHA512_FALLBACK)
+        byte localHash[WC_SHA512_DIGEST_SIZE];
+    #endif
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
-        cryptoInfo.hash.type = WC_HASH_TYPE_SHA384;
-        cryptoInfo.hash.sha384 = sha384;
         cryptoInfo.hash.in = in;
         cryptoInfo.hash.inSz = inSz;
-        cryptoInfo.hash.digest = digest;
 
+        /* try the SHA-384 callback first */
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA384;
+        cryptoInfo.hash.sha384 = sha384;
+        cryptoInfo.hash.digest = digest;
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+        ret = wc_CryptoCb_TranslateErrorCode(ret);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+
+    #if defined(WOLFSSL_SHA512) && !defined(WOLF_CRYPTO_CB_NO_SHA512_FALLBACK)
+        /* fall back to the SHA-512 core: SHA-384 is the SHA-512 core with a
+         * different IV (in the caller-supplied state) and a 48-byte
+         * truncation done here */
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA512;
+        cryptoInfo.hash.sha512 = (wc_Sha512*)sha384;
+        /* use local buffer for the final digest so we can truncate */
+        if (digest != NULL)
+            cryptoInfo.hash.digest = localHash;
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+        ret = wc_CryptoCb_TranslateErrorCode(ret);
+        if (ret == 0 && digest != NULL) {
+            XMEMCPY(digest, localHash, WC_SHA384_DIGEST_SIZE);
+            /* the SHA-512 callback left the SHA-512 IV in the state; write
+             * the SHA-384 IV back so the struct is ready for reuse */
+            if (sha384 != NULL) {
+                sha384->digest[0] = W64LIT(0xcbbb9d5dc1059ed8);
+                sha384->digest[1] = W64LIT(0x629a292a367cd507);
+                sha384->digest[2] = W64LIT(0x9159015a3070dd17);
+                sha384->digest[3] = W64LIT(0x152fecd8f70e5939);
+                sha384->digest[4] = W64LIT(0x67332667ffc00b31);
+                sha384->digest[5] = W64LIT(0x8eb44a8768581511);
+                sha384->digest[6] = W64LIT(0xdb0c2e0d64f98fa7);
+                sha384->digest[7] = W64LIT(0x47b5481dbefa4fa4);
+            }
+        }
+        return ret;
+    #endif /* WOLFSSL_SHA512 && !WOLF_CRYPTO_CB_NO_SHA512_FALLBACK */
     }
 
     return wc_CryptoCb_TranslateErrorCode(ret);
@@ -2061,7 +2107,9 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     }
 
     if (dev && dev->cb) {
+    #ifndef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
         byte localHash[WC_SHA512_DIGEST_SIZE];
+    #endif
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
@@ -2078,6 +2126,9 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
           ret = wc_CryptoCb_TranslateErrorCode(ret);
           if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
+        #ifdef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+          return ret;
+        #endif
         }
 #endif
 #if !defined(WOLFSSL_NOSHA512_256)
@@ -2087,16 +2138,48 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
           ret = wc_CryptoCb_TranslateErrorCode(ret);
           if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
+        #ifdef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+          return ret;
+        #endif
         }
 #endif
         cryptoInfo.hash.type = WC_HASH_TYPE_SHA512;
+    #ifndef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
         /* use local buffer if not full size */
         if (digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE)
             cryptoInfo.hash.digest = localHash;
+    #endif
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
         ret = wc_CryptoCb_TranslateErrorCode(ret);
-        if (ret == 0 && digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE)
+    #ifndef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+        if (ret == 0 && digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE) {
             XMEMCPY(digest, localHash, digestSz);
+#if !defined(WOLFSSL_NOSHA512_224)
+            if (sha512 != NULL && digestSz == WC_SHA512_224_DIGEST_SIZE) {
+              sha512->digest[0] = W64LIT(0x8c3d37c819544da2);
+              sha512->digest[1] = W64LIT(0x73e1996689dcd4d6);
+              sha512->digest[2] = W64LIT(0x1dfab7ae32ff9c82);
+              sha512->digest[3] = W64LIT(0x679dd514582f9fcf);
+              sha512->digest[4] = W64LIT(0x0f6d2b697bd44da8);
+              sha512->digest[5] = W64LIT(0x77e36f7304c48942);
+              sha512->digest[6] = W64LIT(0x3f9d85a86a1d36c8);
+              sha512->digest[7] = W64LIT(0x1112e6ad91d692a1);
+            }
+#endif
+#if !defined(WOLFSSL_NOSHA512_256)
+            if (sha512 != NULL && digestSz == WC_SHA512_256_DIGEST_SIZE) {
+              sha512->digest[0] = W64LIT(0x22312194fc2bf72c);
+              sha512->digest[1] = W64LIT(0x9f555fa3c84c64c2);
+              sha512->digest[2] = W64LIT(0x2393b86b6f53b151);
+              sha512->digest[3] = W64LIT(0x963877195940eabd);
+              sha512->digest[4] = W64LIT(0x96283ee2a88effe3);
+              sha512->digest[5] = W64LIT(0xbe5e1e2553863992);
+              sha512->digest[6] = W64LIT(0x2b0199fc2c85b8aa);
+              sha512->digest[7] = W64LIT(0x0eb72ddc81c52ca2);
+            }
+#endif
+        }
+    #endif /* !WOLF_CRYPTO_CB_NO_SHA512_FALLBACK */
         return ret;
     }
 

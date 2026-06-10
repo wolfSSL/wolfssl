@@ -269,6 +269,114 @@ pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, 
     Ok(())
 }
 
+/// Implement the scrypt password-based key derivation function as defined
+/// in RFC 7914.
+///
+/// # Parameters
+///
+/// * `password`: Password to use for key derivation.
+/// * `salt`: Salt value to use for key derivation.
+/// * `cost`: log base 2 of the iteration count (`N = 1 << cost`). Must
+///   satisfy `1 <= cost < 128 * block_size / 8`.
+/// * `block_size`: Number of 128-byte octets in a working block (the `r`
+///   parameter from RFC 7914). Must be in `1..=8`.
+/// * `parallel`: Number of parallel mix operations to perform (the `p`
+///   parameter from RFC 7914). This implementation does not use threads.
+/// * `out`: Output buffer in which to store the derived key.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// #[cfg(kdf_scrypt)]
+/// {
+/// use wolfssl_wolfcrypt::kdf::scrypt;
+/// let password = b"password";
+/// let salt = b"NaCl";
+/// let expected_key = [
+///     0xfdu8, 0xba, 0xbe, 0x1c, 0x9d, 0x34, 0x72, 0x00,
+///     0x78, 0x56, 0xe7, 0x19, 0x0d, 0x01, 0xe9, 0xfe,
+///     0x7c, 0x6a, 0xd7, 0xcb, 0xc8, 0x23, 0x78, 0x30,
+///     0xe7, 0x73, 0x76, 0x63, 0x4b, 0x37, 0x31, 0x62,
+///     0x2e, 0xaf, 0x30, 0xd9, 0x2e, 0x22, 0xa3, 0x88,
+///     0x6f, 0xf1, 0x09, 0x27, 0x9d, 0x98, 0x30, 0xda,
+///     0xc7, 0x27, 0xaf, 0xb9, 0x4a, 0x83, 0xee, 0x6d,
+///     0x83, 0x60, 0xcb, 0xdf, 0xa2, 0xcc, 0x06, 0x40
+/// ];
+/// let mut keyout = [0u8; 64];
+/// scrypt(password, salt, 10, 8, 16, &mut keyout).expect("Error with scrypt()");
+/// assert_eq!(keyout, expected_key);
+/// }
+/// ```
+#[cfg(kdf_scrypt)]
+pub fn scrypt(password: &[u8], salt: &[u8], cost: i32, block_size: i32,
+        parallel: i32, out: &mut [u8]) -> Result<(), i32> {
+    let password_size = crate::buffer_len_to_i32(password.len())?;
+    let salt_size = crate::buffer_len_to_i32(salt.len())?;
+    let out_size = crate::buffer_len_to_i32(out.len())?;
+    let rc = unsafe {
+        sys::wc_scrypt(out.as_mut_ptr(), password.as_ptr(), password_size,
+            salt.as_ptr(), salt_size, cost, block_size, parallel, out_size)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
+
+/// Implement the scrypt password-based key derivation function as defined
+/// in RFC 7914. This variant takes the iteration count `N` directly
+/// instead of `log2(N)`.
+///
+/// # Parameters
+///
+/// * `password`: Password to use for key derivation.
+/// * `salt`: Salt value to use for key derivation.
+/// * `iterations`: Iteration count (`N`). Must be a power of two greater
+///   than 1.
+/// * `block_size`: Number of 128-byte octets in a working block (the `r`
+///   parameter from RFC 7914). Must be in `1..=8`.
+/// * `parallel`: Number of parallel mix operations to perform (the `p`
+///   parameter from RFC 7914). This implementation does not use threads.
+/// * `out`: Output buffer in which to store the derived key.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// #[cfg(kdf_scrypt)]
+/// {
+/// use wolfssl_wolfcrypt::kdf::scrypt_ex;
+/// let password = b"password";
+/// let salt = b"NaCl";
+/// let mut keyout = [0u8; 64];
+/// scrypt_ex(password, salt, 1024, 8, 16, &mut keyout).expect("Error with scrypt_ex()");
+/// }
+/// ```
+#[cfg(kdf_scrypt)]
+pub fn scrypt_ex(password: &[u8], salt: &[u8], iterations: u32,
+        block_size: i32, parallel: i32, out: &mut [u8]) -> Result<(), i32> {
+    let password_size = crate::buffer_len_to_i32(password.len())?;
+    let salt_size = crate::buffer_len_to_i32(salt.len())?;
+    let out_size = crate::buffer_len_to_i32(out.len())?;
+    let rc = unsafe {
+        sys::wc_scrypt_ex(out.as_mut_ptr(), password.as_ptr(), password_size,
+            salt.as_ptr(), salt_size, iterations, block_size, parallel, out_size)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
+
 /// Perform RFC 5869 HKDF-Extract operation for TLS v1.3 key derivation.
 ///
 /// # Parameters

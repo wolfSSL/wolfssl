@@ -4213,7 +4213,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
 
     WOLFSSL_ENTER("wolfSSL_X509_d2i");
 
-    if (in != NULL && len != 0
+    if (in != NULL && len > 0
     #ifndef WOLFSSL_CERT_REQ
             && req == 0
     #else
@@ -4522,6 +4522,10 @@ const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
 
     if (x509 == NULL || x509->derCert == NULL || outSz == NULL)
         return NULL;
+
+    if (x509->derCert->length > (word32)INT_MAX) {
+        return NULL;
+    }
 
     *outSz = (int)x509->derCert->length;
     return x509->derCert->buffer;
@@ -6114,8 +6118,9 @@ WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file)
 
 #endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
-    defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_WPAS_SMALL) || defined(KEEP_PEER_CERT) || \
+    defined(SESSION_CERTS)
 
 #ifndef NO_FILESYSTEM
 WOLFSSL_ABI
@@ -8835,7 +8840,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
     }
 
     der = wolfSSL_X509_get_der(x509, &derSz);
-    if (der == NULL) {
+    if (der == NULL || derSz <= 0) {
         WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
         return MEMORY_E;
     }
@@ -11368,7 +11373,7 @@ WOLFSSL_X509_ALGOR* wolfSSL_d2i_X509_ALGOR(WOLFSSL_X509_ALGOR** out,
 
     WOLFSSL_ENTER("wolfSSL_d2i_X509_ALGOR");
 
-    if (src == NULL || *src == NULL || len == 0)
+    if (src == NULL || *src == NULL || len <= 0)
         return NULL;
 
     if (GetAlgoId(*src, &idx, &oid, oidIgnoreType, (word32)len) != 0)

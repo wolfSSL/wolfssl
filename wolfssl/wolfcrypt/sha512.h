@@ -80,6 +80,12 @@
     #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
+/* no raw hash access when software transform is stripped */
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+#undef  WOLFSSL_NO_HASH_RAW
+#define WOLFSSL_NO_HASH_RAW
+#endif
+
 #define SHA512_NOINLINE WC_NO_INLINE
 
 #ifdef WOLFSSL_SHA512
@@ -238,7 +244,9 @@ WOLFSSL_LOCAL void Transform_Sha512_Len_base(wc_Sha512* sha512,
 WOLFSSL_API int wc_InitSha512(wc_Sha512* sha);
 WOLFSSL_API int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId);
 WOLFSSL_API int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len);
+#if !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
 WOLFSSL_API int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash);
+#endif
 WOLFSSL_API int wc_Sha512Final(wc_Sha512* sha512, byte* hash);
 WOLFSSL_API void wc_Sha512Free(wc_Sha512* sha);
 
@@ -253,7 +261,8 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
 WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
 #endif
 
@@ -262,7 +271,9 @@ WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
 WOLFSSL_API int wc_InitSha512_224(wc_Sha512* sha);
 WOLFSSL_API int wc_InitSha512_224_ex(wc_Sha512* sha, void* heap, int devId);
 WOLFSSL_API int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len);
+#if !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
 WOLFSSL_API int wc_Sha512_224FinalRaw(wc_Sha512* sha512, byte* hash);
+#endif
 WOLFSSL_API int wc_Sha512_224Final(wc_Sha512* sha512, byte* hash);
 WOLFSSL_API void wc_Sha512_224Free(wc_Sha512* sha);
 WOLFSSL_API int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash);
@@ -272,7 +283,8 @@ WOLFSSL_API int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512_224GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
 WOLFSSL_API int wc_Sha512_224Transform(wc_Sha512* sha,
                                                 const unsigned char* data);
 #endif /* OPENSSL_EXTRA */
@@ -283,7 +295,9 @@ WOLFSSL_API int wc_Sha512_224Transform(wc_Sha512* sha,
 WOLFSSL_API int wc_InitSha512_256(wc_Sha512* sha);
 WOLFSSL_API int wc_InitSha512_256_ex(wc_Sha512* sha, void* heap, int devId);
 WOLFSSL_API int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len);
+#if !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
 WOLFSSL_API int wc_Sha512_256FinalRaw(wc_Sha512* sha512, byte* hash);
+#endif
 WOLFSSL_API int wc_Sha512_256Final(wc_Sha512* sha512, byte* hash);
 WOLFSSL_API void wc_Sha512_256Free(wc_Sha512* sha);
 WOLFSSL_API int wc_Sha512_256GetHash(wc_Sha512* sha512, byte* hash);
@@ -293,7 +307,8 @@ WOLFSSL_API int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512_256GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
 WOLFSSL_API int wc_Sha512_256Transform(wc_Sha512* sha,
                                                 const unsigned char* data);
 #endif /* OPENSSL_EXTRA */
@@ -334,7 +349,9 @@ WOLFSSL_API int wc_Sha512_256Transform(wc_Sha512* sha,
 WOLFSSL_API int wc_InitSha384(wc_Sha384* sha);
 WOLFSSL_API int wc_InitSha384_ex(wc_Sha384* sha, void* heap, int devId);
 WOLFSSL_API int wc_Sha384Update(wc_Sha384* sha, const byte* data, word32 len);
+#if !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
 WOLFSSL_API int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash);
+#endif
 WOLFSSL_API int wc_Sha384Final(wc_Sha384* sha384, byte* hash);
 WOLFSSL_API void wc_Sha384Free(wc_Sha384* sha);
 

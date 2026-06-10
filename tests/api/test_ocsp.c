@@ -170,6 +170,33 @@ int test_ocsp_response_parsing(void)
 }
 #endif /* HAVE_OCSP && !NO_SHA */
 
+#if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_OCSP_ISSUER_CHECK)
+int test_ocsp_ancestor_responder_rejected(void)
+{
+    EXPECT_DECLS;
+    struct test_conf conf;
+
+    conf.resp = (unsigned char*)resp_server1_cert_ancestor_responder;
+    conf.respSz = sizeof(resp_server1_cert_ancestor_responder);
+    conf.ca0 = root_ca_cert_pem;
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = intermediate1_ca_cert_pem;
+    conf.ca1Sz = sizeof(intermediate1_ca_cert_pem);
+    conf.targetCert = server1_cert_pem;
+    conf.targetCertSz = sizeof(server1_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_LOOKUP_FAIL),
+        TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_ancestor_responder_rejected(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
     !defined(NO_RSA)
 static int test_ocsp_create_x509store(WOLFSSL_X509_STORE** store,

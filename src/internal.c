@@ -535,6 +535,12 @@ void wolfssl_priv_der_unblind_free(DerBuffer* key)
      #define SSC_TLS13_EES      "EARLY_EXPORTER_SECRET"
      /* Label string for exporter secret. */
      #define SSC_TLS13_ES       "EXPORTER_SECRET"
+#ifdef HAVE_ECH
+     /* Label string for ECH KEM shared secret. */
+     #define SSC_TLS13_ECH_S    "ECH_SECRET"
+     /* Label string for ECHConfig used to construct ECH. */
+     #define SSC_TLS13_ECH_C    "ECH_CONFIG"
+#endif
 
     /*
      * This function builds up string for key-logging then call user's
@@ -593,6 +599,18 @@ void wolfssl_priv_der_unblind_free(DerBuffer* key)
                 labelSz = sizeof(SSC_TLS13_ES);
                 label = SSC_TLS13_ES;
                 break;
+
+#ifdef HAVE_ECH
+            case ECH_SECRET:
+                labelSz = sizeof(SSC_TLS13_ECH_S);
+                label = SSC_TLS13_ECH_S;
+                break;
+
+            case ECH_CONFIG:
+                labelSz = sizeof(SSC_TLS13_ECH_C);
+                label = SSC_TLS13_ECH_C;
+                break;
+#endif
 
             default:
                 return BAD_FUNC_ARG;
@@ -3282,6 +3300,7 @@ static void FreeCiphersSide(Ciphers *cipher, void* heap)
     cipher->aria = NULL;
 #endif
 #ifdef HAVE_CAMELLIA
+    wc_CamelliaFree(cipher->cam);
     XFREE(cipher->cam, heap, DYNAMIC_TYPE_CIPHER);
     cipher->cam = NULL;
 #endif
@@ -7329,6 +7348,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #else
     if (ctx->privateKey != NULL) {
+        if (ssl->buffers.key != NULL) {
+            FreeDer(&ssl->buffers.key);
+        }
         ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,
             ctx->privateKey->heap);
@@ -14227,8 +14249,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif
     }
 
-    if (dCert->signature != NULL && dCert->sigLength != 0 &&
-            dCert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Store a copy of the signature for later retrieval. The buffer is sized
+     * to the exact parsed length (itself bounded by the cert DER), so no fixed
+     * ceiling is applied -- a ceiling would drop large LMS/XMSS signatures. */
+    if (dCert->signature != NULL && dCert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dCert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -14572,9 +14596,9 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
     CopyDateToASN1_TIME(dAcert->afterDate, dAcert->afterDateLen,
         &x509->notAfter);
 
-    /* Copy the signature. */
-    if (dAcert->signature != NULL && dAcert->sigLength != 0 &&
-            dAcert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Copy the signature. Sized to the exact parsed length (bounded by the
+     * cert DER); no fixed ceiling, so large LMS/XMSS signatures are kept. */
+    if (dAcert->signature != NULL && dAcert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dAcert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -18797,7 +18821,7 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ssl->options.handShakeState == HANDSHAKE_DONE && type == client_hello &&
             ssl->options.side == WOLFSSL_SERVER_END) {
         WOLFSSL_MSG("Renegotiation request rejected");
-        SendAlert(ssl, alert_fatal, no_renegotiation);
+        SendAlert(ssl, alert_warning, no_renegotiation);
         WOLFSSL_ERROR_VERBOSE(SECURE_RENEGOTIATION_E);
         return SECURE_RENEGOTIATION_E;
     }
@@ -22468,6 +22492,9 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     byte level;
     byte code;
     word32 dataSz = (word32)ssl->curSize;
+#ifdef WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC
+    int ignorePtAlert;
+#endif
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     if (ssl->hsInfoOn)
@@ -22496,9 +22523,19 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     code  = input[(*inOutIdx)++];
     *type = code;
 #ifdef WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC
-    /* Don't process alert when TLS 1.3 and encrypting but plaintext alert. */
-    if (!IsAtLeastTLSv1_3(ssl->version) || !IsEncryptionOn(ssl, 0) ||
-                                                       ssl->keys.decryptedCur)
+    /* A plaintext alert received in TLS 1.3 once we are decrypting is only
+     * tolerated while still in the handshake and before the peer has sent an
+     * encrypted message. The peer sequence number is reset to zero each time
+     * decryption keys are installed and incremented for each record decrypted,
+     * so a non-zero value means the peer has sent an encrypted message and a
+     * plaintext alert is treated as an error. */
+    ignorePtAlert = IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
+        !ssl->keys.decryptedCur && !ssl->options.handShakeDone &&
+        ssl->keys.peer_sequence_number_hi == 0 &&
+        ssl->keys.peer_sequence_number_lo == 0;
+
+    /* Don't record an ignored plaintext alert in the alert history. */
+    if (!ignorePtAlert)
 #endif
     {
         ssl->alert_history.last_rx.code = code;
@@ -22529,16 +22566,21 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
                                                       !ssl->keys.decryptedCur)
     {
 #ifdef WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC
-        /* Ignore alert if TLS 1.3 and encrypting but was plaintext alert. */
-        *type = invalid_alert;
-        level = alert_none;
-
-#else
-        /* Unexpected message when encryption is on and alert not encrypted. */
-        SendAlert(ssl, alert_fatal, unexpected_message);
-        WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
-        return PARSE_ERROR;
+        if (ignorePtAlert) {
+            /* Ignore plaintext alert: TLS 1.3, decrypting, and the peer has
+             * not yet sent an encrypted handshake message. */
+            *type = invalid_alert;
+            level = alert_none;
+        }
+        else
 #endif
+        {
+            /* Unexpected message when encryption is on and alert not
+             * encrypted. */
+            SendAlert(ssl, alert_fatal, unexpected_message);
+            WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
+            return PARSE_ERROR;
+        }
     }
     else {
         if (*type == close_notify) {
@@ -25848,6 +25890,153 @@ int SendCertificate(WOLFSSL* ssl)
 
 
 #if !defined(NO_TLS)
+/* Returns the certificate_types this server advertises in its
+ * CertificateRequest. The list is broader than the negotiated cipher suite's
+ * own signature algorithm so a client may authenticate with a certificate of
+ * a different type (e.g. an RSA client on an ECDHE-ECDSA suite). */
+WC_MAYBE_UNUSED static int GetServerCertReqCertTypes(const WOLFSSL* ssl,
+                                                     byte* certTypes)
+{
+    int n = 0;
+    (void)ssl;
+    (void)certTypes;
+#ifdef HAVE_ECC
+    if ((ssl->options.cipherSuite0 == ECC_BYTE ||
+         ssl->options.cipherSuite0 == CHACHA_BYTE) &&
+                     ssl->specs.sig_algo == ecc_dsa_sa_algo) {
+        certTypes[n++] = ecdsa_sign;
+    #ifndef NO_RSA
+        certTypes[n++] = rsa_sign;
+    #endif
+    }
+    else
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
+    (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
+     defined(WOLFSSL_SM4_CCM))
+    if (ssl->options.cipherSuite0 == SM_BYTE && (0
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+    #endif
+        )) {
+        certTypes[n++] = ecdsa_sign;
+    }
+    else
+#endif
+#endif /* HAVE_ECC */
+    {
+#ifndef NO_RSA
+        certTypes[n++] = rsa_sign;
+#endif
+#ifdef HAVE_ECC
+        certTypes[n++] = ecdsa_sign;
+#endif
+    }
+    return n;
+}
+
+/* Returns the set of sig families covered by the given hash/sig algorithm
+ * list, as a bitmask of SIG_* values. Uses DecodeSigAlg so the NEW_SA_MAJOR
+ * encoding (ED25519/ED448/RSA-PSS-PSS/brainpool) is classified correctly. */
+WC_MAYBE_UNUSED static int HashSigAlgoCoverage(const byte* hashSigAlgo,
+                                               word16 hashSigAlgoSz)
+{
+    int coverage = 0;
+    word16 j;
+    byte hashAlgo;
+    byte sigAlgo;
+    for (j = 0; (j + 1) < hashSigAlgoSz; j += HELLO_EXT_SIGALGO_SZ) {
+        DecodeSigAlg(&hashSigAlgo[j], &hashAlgo, &sigAlgo);
+        (void)hashAlgo;
+        switch (sigAlgo) {
+            case rsa_sa_algo:
+        #ifdef WC_RSA_PSS
+            case rsa_pss_sa_algo:
+            case rsa_pss_pss_algo:
+        #endif
+                coverage |= SIG_RSA;
+                break;
+        #ifdef HAVE_ECC
+            case ecc_dsa_sa_algo:
+            #ifdef HAVE_ECC_BRAINPOOL
+            case ecc_brainpool_sa_algo:
+            #endif
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+            case sm2_sa_algo:
+            #endif
+                coverage |= SIG_ECDSA;
+                break;
+        #endif
+            default:
+                break;
+        }
+    }
+    return coverage;
+}
+
+/* Builds the signature_algorithms this server advertises in its
+ * CertificateRequest. Respects a user-configured suites->hashSigAlgo (e.g.
+ * via wolfSSL_set1_sigalgs_list) and only broadens the list when one of the
+ * advertised certificate_types has no matching signature algorithm in the
+ * configured list. The result is written to the caller's buffer; no SSL
+ * state is modified. */
+WC_MAYBE_UNUSED static void GetServerCertReqHashSigAlgo(const WOLFSSL* ssl,
+        byte* hashSigAlgo, word16* hashSigAlgoSz)
+{
+    const Suites* suites = WOLFSSL_SUITES(ssl);
+    byte    certTypes[MAX_CERT_REQ_CERT_TYPE_CNT];
+    int     typeTotal;
+    int     need = 0;
+    int     have;
+    int     j;
+    word16  localSz = 0;
+
+    typeTotal = GetServerCertReqCertTypes(ssl, certTypes);
+    for (j = 0; j < typeTotal; j++) {
+        if (certTypes[j] == rsa_sign)
+            need |= SIG_RSA;
+        else if (certTypes[j] == ecdsa_sign)
+            need |= SIG_ECDSA;
+    }
+    have = HashSigAlgoCoverage(suites->hashSigAlgo, suites->hashSigAlgoSz);
+
+    if ((need & ~have) != 0) {
+        /* The configured list is missing signature algorithms for at least
+         * one of the advertised certificate_types. Build a broader list
+         * locally that covers every advertised type. */
+        InitSuitesHashSigAlgo(hashSigAlgo, need | have, 1, 0,
+                ssl->buffers.keySz, &localSz);
+        *hashSigAlgoSz = localSz;
+        return;
+    }
+
+    XMEMCPY(hashSigAlgo, suites->hashSigAlgo, suites->hashSigAlgoSz);
+    *hashSigAlgoSz = suites->hashSigAlgoSz;
+}
+
+/* Returns 1 if algo (2 bytes) is in the server's CertificateRequest
+ * signature_algorithms list, 0 otherwise. Used to validate the client's
+ * CertificateVerify against what we actually advertised. */
+WC_MAYBE_UNUSED static int InServerCertReqHashSigAlgo(const WOLFSSL* ssl,
+                                                      const byte* algo)
+{
+    byte    list[WOLFSSL_MAX_SIGALGO];
+    word16  listSz = 0;
+    word16  j;
+
+    GetServerCertReqHashSigAlgo(ssl, list, &listSz);
+    for (j = 0; (j + 1) < listSz; j += HELLO_EXT_SIGALGO_SZ) {
+        if (XMEMCMP(&list[j], algo, HELLO_EXT_SIGALGO_SZ) == 0)
+            return 1;
+    }
+    return 0;
+}
+
 /* handle generation of certificate_request (13) */
 int SendCertificateRequest(WOLFSSL* ssl)
 {
@@ -25859,16 +26048,24 @@ int SendCertificateRequest(WOLFSSL* ssl)
 #ifndef WOLFSSL_NO_CA_NAMES
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
-    const Suites* suites = WOLFSSL_SUITES(ssl);
-
-    int  typeTotal = 1;  /* only 1 for now */
-    int  reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
+    byte   certTypes[MAX_CERT_REQ_CERT_TYPE_CNT];
+    int    typeTotal;
+    int    t;
+    byte   localHashSigAlgo[WOLFSSL_MAX_SIGALGO];
+    word16 localHashSigAlgoSz = 0;
+    int    reqSz;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
     WOLFSSL_ENTER("SendCertificateRequest");
 
+    typeTotal = GetServerCertReqCertTypes(ssl, certTypes);
     if (IsAtLeastTLSv1_2(ssl))
-        reqSz += LENGTH_SZ + suites->hashSigAlgoSz;
+        GetServerCertReqHashSigAlgo(ssl, localHashSigAlgo, &localHashSigAlgoSz);
+
+    reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
+
+    if (IsAtLeastTLSv1_2(ssl))
+        reqSz += LENGTH_SZ + localHashSigAlgoSz;
 
 #ifndef WOLFSSL_NO_CA_NAMES
     /* Certificate Authorities */
@@ -25921,43 +26118,16 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
     /* write to output */
     output[i++] = (byte)typeTotal;  /* # of types */
-#ifdef HAVE_ECC
-    if ((ssl->options.cipherSuite0 == ECC_BYTE ||
-         ssl->options.cipherSuite0 == CHACHA_BYTE) &&
-                     ssl->specs.sig_algo == ecc_dsa_sa_algo) {
-        output[i++] = ecdsa_sign;
-    }
-    else
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
-    (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
-     defined(WOLFSSL_SM4_CCM))
-    if (ssl->options.cipherSuite0 == SM_BYTE && (0
-    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
-        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
-    #endif
-    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
-        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
-    #endif
-    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
-        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
-    #endif
-        )) {
-        output[i++] = ecdsa_sign;
-    }
-    else
-#endif
-#endif /* HAVE_ECC */
-    {
-        output[i++] = rsa_sign;
-    }
+    for (t = 0; t < typeTotal; t++)
+        output[i++] = certTypes[t];
 
     /* supported hash/sig */
     if (IsAtLeastTLSv1_2(ssl)) {
-        c16toa(suites->hashSigAlgoSz, &output[i]);
+        c16toa(localHashSigAlgoSz, &output[i]);
         i += OPAQUE16_LEN;
 
-        XMEMCPY(&output[i], suites->hashSigAlgo, suites->hashSigAlgoSz);
-        i += suites->hashSigAlgoSz;
+        XMEMCPY(&output[i], localHashSigAlgo, localHashSigAlgoSz);
+        i += localHashSigAlgoSz;
     }
 
     /* Certificate Authorities */
@@ -32335,6 +32505,14 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
             if ((len > size) || ((*inOutIdx - begin) + len > size))
                 return BUFFER_ERROR;
 
+            /* Signature algorithm list is a sequence of 2-byte pairs; an odd
+             * length is malformed and must be rejected (matches TLS 1.3
+             * signature_algorithms extension parsing). */
+            if ((len % HELLO_EXT_SIGALGO_SZ) != 0) {
+                WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+                return BUFFER_ERROR;
+            }
+
             if (PickHashSigAlgo(ssl, input + *inOutIdx, len, 0) != 0 &&
                                              ssl->buffers.certificate &&
                                              ssl->buffers.certificate->buffer) {
@@ -33648,12 +33826,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                              }
                             #endif
                             if (IsAtLeastTLSv1_2(ssl)) {
+                                /* DigestInfo encoding for RSA, never a PQC
+                                 * signature -- size to the classic tier. */
                                 WC_DECLARE_VAR(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, 0);
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, 0);
                                 word32 encSigSz;
 
                                 WC_ALLOC_VAR_EX(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, ssl->heap,
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, ssl->heap,
                                     DYNAMIC_TYPE_SIGNATURE,
                                     ERROR_OUT(MEMORY_E,exit_dske));
 
@@ -33663,7 +33843,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                     TypeHash(ssl->options.peerHashAlgo));
                                 if (encSigSz != args->sigSz || !args->output ||
                                     XMEMCMP(args->output, encodedSig,
-                                            min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                            min(encSigSz,
+                                                MAX_ENCODED_CLASSIC_SIG_SZ))
+                                                                         != 0) {
                                     ret = VERIFY_SIGN_ERROR;
                                 }
                                 WC_FREE_VAR_EX(encodedSig, ssl->heap,
@@ -34964,9 +35146,14 @@ int SendCertificateVerify(WOLFSSL* ssl)
             args->verify = &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
             args->extraSz = 0;  /* tls 1.2 hash/sig */
 
-            /* build encoded signature buffer */
-            ssl->buffers.sig.length = MAX_ENCODED_SIG_SZ;
-            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+            /* Build encoded signature buffer. This is TLS 1.2 and earlier
+             * (TLS 1.3 uses SendTls13CertificateVerify), so the signature is
+             * always classic (RSA/ECC/EdDSA), never PQC -- size to the classic
+             * tier rather than the (potentially huge) PQC worst case. This
+             * comfortably holds an ECC/EdDSA signature written directly, or the
+             * PKCS#1 DigestInfo that is the input to RsaSign. */
+            ssl->buffers.sig.length = MAX_ENCODED_CLASSIC_SIG_SZ;
+            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                         ssl->heap, DYNAMIC_TYPE_SIGNATURE);
             if (ssl->buffers.sig.buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scv);
@@ -36177,8 +36364,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     static int ReEncodeSig(WOLFSSL* ssl)
     {    /* For TLS 1.2 re-encode signature */
         if (IsAtLeastTLSv1_2(ssl)) {
-            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
-                                              DYNAMIC_TYPE_DIGEST);
+            /* DigestInfo encoding for RSA, never a PQC signature. */
+            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
+                                              ssl->heap, DYNAMIC_TYPE_DIGEST);
             if (encodedSig == NULL)
                 return MEMORY_E;
             ssl->buffers.digest.length =
@@ -38135,6 +38323,32 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             ssl->options.resuming = 0;
             return ret;
         }
+#if defined(HAVE_SESSION_TICKET) && \
+    (defined(HAVE_SNI) || defined(HAVE_ALPN))
+        /* Do not resume session if sniHash/alpnHash do not match. */
+        if (!ssl->options.useTicket) {
+            byte curHash[TICKET_BINDING_HASH_SZ];
+#ifdef HAVE_SNI
+            if (TicketSniHash(ssl, curHash) != 0 ||
+                    XMEMCMP(curHash, session->sniHash,
+                            TICKET_BINDING_HASH_SZ) != 0) {
+                WOLFSSL_MSG("Resumed session SNI mismatch, full handshake");
+                ssl->options.resuming = 0;
+                return ret;
+            }
+#endif
+#ifdef HAVE_ALPN
+            if (ssl->options.resuming &&
+                    (TicketAlpnHash(ssl, curHash) != 0 ||
+                     XMEMCMP(curHash, session->alpnHash,
+                             TICKET_BINDING_HASH_SZ) != 0)) {
+                WOLFSSL_MSG("Resumed session ALPN mismatch, full handshake");
+                ssl->options.resuming = 0;
+                return ret;
+            }
+#endif
+        }
+#endif /* HAVE_SESSION_TICKET && (HAVE_SNI || HAVE_ALPN) */
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
         if (LowResTimer() > session->bornOn + ssl->timeout) {
@@ -38660,6 +38874,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
         *inOutIdx = i;
 
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+        /* Reset per-ClientHello extension state before (re)parsing so a stale
+         * value from an earlier handshake on this object (e.g. secure
+         * renegotiation, where Options is not zeroed) cannot trigger a spurious
+         * RFC 8422 abort below. */
+        ssl->options.peerNoUncompPF = 0;
+#endif
+
         /* tls extensions */
         if ((i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
@@ -38716,8 +38938,22 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     #endif
     #if defined(HAVE_SESSION_TICKET) && \
         (defined(HAVE_SNI) || defined(HAVE_ALPN))
-                if((ret=VerifyTicketBinding(ssl)))
-                    goto out;
+                /* Only verify here for TLS 1.2 ticket-based resumption.
+                 * For stateful (session-ID) resumption ssl->session is
+                 * not loaded until HandleTlsResumption runs below, which
+                 * performs its own binding check against the cached
+                 * session. On mismatch decline the resumption (RFC 6066
+                 * Section 3) but proceed with a full handshake; leave
+                 * useTicket set so the server still issues a fresh
+                 * ticket to the client. */
+                if (ssl->options.useTicket &&
+                        VerifyTicketBinding(ssl) != 0) {
+                    WOLFSSL_MSG("Ticket binding mismatch, "
+                                "declining resumption and falling back "
+                                "to full handshake");
+                    ssl->options.resuming = 0;
+                    ssl->options.peerAuthGood = 0;
+                }
     #endif
 
                 i += totalExtSz;
@@ -38858,6 +39094,25 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (ret == 0)
             ret = MatchSuite(ssl, ssl->clSuites);
 
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+        /* RFC 8422 Section 5.1.2: abort only when an ECC suite was actually
+         * negotiated and the client's ec_point_formats omitted the uncompressed
+         * (0) format (peerNoUncompPF, set in TLSX_PointFormat_Parse). Checked
+         * after MatchSuite so it keys off the chosen suite, not advertised
+         * groups. */
+        if (ret == 0 && ssl->options.peerNoUncompPF &&
+                (ssl->specs.kea == ecc_diffie_hellman_kea ||
+                 ssl->specs.kea == ecc_static_diffie_hellman_kea ||
+                 ssl->specs.kea == ecdhe_psk_kea)) {
+            WOLFSSL_MSG("Client ec_point_formats extension missing "
+                        "uncompressed format for negotiated ECC suite");
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            ret = INVALID_PARAMETER;
+            WOLFSSL_ERROR_VERBOSE(ret);
+            goto out;
+        }
+#endif
+
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ENCRYPT_THEN_MAC) && \
     !defined(WOLFSSL_AEAD_ONLY)
         if (ret == 0 && ssl->options.encThenMac &&
@@ -38980,9 +39235,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         ERROR_OUT(BUFFER_ERROR, exit_dcv);
                     }
 
-                    /* Check if hashSigAlgo in CertificateVerify is supported
-                     * in our ssl->suites or ssl->ctx->suites. */
-                    if (!SupportedHashSigAlgo(ssl, &input[args->idx])) {
+                    /* Check the algorithm in CertificateVerify against the
+                     * list we actually advertised in our CertificateRequest. */
+                    if (!InServerCertReqHashSigAlgo(ssl, &input[args->idx])) {
                         WOLFSSL_MSG("Signature algorithm was not in "
                                                           "CertificateRequest");
                         ERROR_OUT(INVALID_PARAMETER, exit_dcv);
@@ -39272,10 +39527,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         else
                     #endif
                         {
+                        /* DigestInfo encoding for RSA */
                         #ifndef WOLFSSL_SMALL_STACK
-                            byte  encodedSig[MAX_ENCODED_SIG_SZ];
+                            byte  encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
                         #else
-                            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+                            byte* encodedSig =
+                                (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                              ssl->heap, DYNAMIC_TYPE_SIGNATURE);
                             if (encodedSig == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_dcv);
@@ -39290,7 +39547,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
                             if (args->sendSz != args->sigSz || !args->output ||
                                 XMEMCMP(args->output, encodedSig,
-                                   min(args->sigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                   min(args->sigSz, MAX_ENCODED_CLASSIC_SIG_SZ)) != 0) {
                                 ret = VERIFY_CERT_ERROR;
                             }
 
@@ -39499,7 +39756,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #ifdef HAVE_SNI
     /* Hash server-selected SNI; zeros dst when none. */
-    static int TicketSniHash(WOLFSSL* ssl, byte* dst)
+    int TicketSniHash(WOLFSSL* ssl, byte* dst)
     {
         char* name = NULL;
         word16 nameLen;
@@ -39519,16 +39776,23 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #ifdef HAVE_ALPN
     /* Hash negotiated ALPN; zeros dst when none. */
-    static int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
+    int TicketAlpnHash(WOLFSSL* ssl, byte* dst)
     {
-        char* proto = NULL;
-        word16 protoLen = 0;
+        TLSX* extension;
+        ALPN* alpn;
 
-        if (TLSX_ALPN_GetRequest(ssl->extensions, (void**)&proto,
-                                 &protoLen) == WOLFSSL_SUCCESS &&
-                proto != NULL && protoLen > 0) {
-            return wc_Hash(TICKET_BINDING_HASH_TYPE, (const byte*)proto,
-                           protoLen, dst, TICKET_BINDING_HASH_SZ);
+        extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
+        if (extension != NULL) {
+            alpn = (ALPN*)extension->data;
+            if (alpn != NULL && alpn->negotiated == 1 &&
+                    alpn->protocol_name != NULL) {
+                word32 protoLen = (word32)XSTRLEN(alpn->protocol_name);
+                if (protoLen > 0) {
+                    return wc_Hash(TICKET_BINDING_HASH_TYPE,
+                                   (const byte*)alpn->protocol_name,
+                                   protoLen, dst, TICKET_BINDING_HASH_SZ);
+                }
+            }
         }
 
         XMEMSET(dst, 0, TICKET_BINDING_HASH_SZ);
@@ -39537,15 +39801,30 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
 
 #if defined(HAVE_SNI) || defined(HAVE_ALPN)
-    /* Server-side: verify the SNI/ALPN bindings carried on a resumed
-     * session match what was negotiated for the current connection.
-     * Must be called after extension parsing and ALPN_Select.
-     * Returns 0 on match, WOLFSSL_FATAL_ERROR on mismatch. */
+    /* Server-side TLS 1.2 ticket-resumption binding check. Confirms the
+     * SNI/ALPN bound to the resumed session matches what was negotiated
+     * for the current connection. Must be called after extension
+     * parsing and ALPN_Select so the negotiated values are available,
+     * and only once DoClientTicketFinalize has populated
+     * ssl->session->sniHash/alpnHash from the decrypted ticket.
+     *
+     * Other resumption paths handle the same check themselves and do
+     * not use this function:
+     *   - TLS 1.2 session-ID (stateful): HandleTlsResumption compares
+     *     against the cached session at lookup time.
+     *   - TLS 1.3 PSK: DoPreSharedKeys compares against each candidate
+     *     ticket's bound hashes before committing, allowing the server
+     *     to skip mismatching PSKs and pick the next one.
+     *
+     * Returns 0 on match, WOLFSSL_FATAL_ERROR on mismatch. The caller
+     * is responsible for the policy on mismatch -- RFC 6066 Section 3
+     * mandates declining the resumption and proceeding with a full
+     * handshake rather than aborting. */
     int VerifyTicketBinding(WOLFSSL* ssl)
     {
         byte curHash[TICKET_BINDING_HASH_SZ];
 
-        if (!ssl->options.resuming || !ssl->options.useTicket)
+        if (!ssl->options.resuming)
             return 0;
 
 #ifdef HAVE_SNI
@@ -40054,8 +40333,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         ssl->sessionCtxSz) != 0))
             return WOLFSSL_FATAL_ERROR;
 #endif
-        /* SNI/ALPN binding is verified after ALPN_Select via
-         * VerifyTicketBinding(). */
+        /* SNI/ALPN binding is checked by the per-PSK loop in
+         * DoPreSharedKeys, not here, so that mismatching PSKs can be
+         * skipped in favor of the next candidate. */
         return 0;
     }
 #endif /* WOLFSSL_SLT13 */
@@ -40151,8 +40431,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             }
         }
 #endif
-        /* Carry the ticket bindings on the session for the deferred
-         * VerifyTicketBinding() check. */
+        /* Carry the ticket bindings on the session. TLS 1.2 uses these
+         * for the deferred VerifyTicketBinding() check in DoClientHello
+         * (SNI/ALPN aren't known when DoClientTicket runs during
+         * extension parsing). TLS 1.3 checks bindings per-PSK before
+         * reaching this point, but still copies them so a subsequent
+         * SetupSession on a resumed session preserves them in the cache
+         * for future resumptions. */
 #ifdef HAVE_SNI
         XMEMCPY(ssl->session->sniHash, it->sniHash, TICKET_BINDING_HASH_SZ);
 #endif
@@ -40518,8 +40803,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             goto cleanup;
         }
 
-        /* SNI/ALPN binding is verified after ALPN_Select via
-         * VerifyTicketBinding(). */
+        /* SNI/ALPN binding is verified later in DoClientHello via
+         * VerifyTicketBinding(), once extension parsing and ALPN_Select
+         * have run and the negotiated values are available. */
         DoClientTicketFinalize(ssl, it, NULL);
 
 cleanup:
@@ -42643,6 +42929,27 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
         return BAD_FUNC_ARG;
 
     if (isEncrypted) {
+        /* AEAD overhead is constant per cache key (cipher, version, CID, DTLS
+         * 1.3 epoch); use the cached value when available. DTLS 1.3 pads
+         * records up to Dtls13MinimumRecordLength() (RFC 9147 5.5), so:
+         *   - on read: only return the cached overhead when the resulting
+         *     record would not be padded;
+         *   - on populate: only store the overhead when BuildMessage returned
+         *     a record strictly above the minimum, which guarantees no
+         *     padding was applied. */
+#ifdef WOLFSSL_DTLS13
+        int isDtls13 = ssl->options.dtls && ssl->options.tls1_3;
+#endif
+
+        if (ssl->specs.cipher_type == aead && ssl->recordSzOverhead != 0
+#ifdef WOLFSSL_DTLS13
+                && (!isDtls13 || payloadSz + (int)ssl->recordSzOverhead
+                                    >= Dtls13MinimumRecordLength(ssl))
+#endif
+                ) {
+            return payloadSz + (int)ssl->recordSzOverhead;
+        }
+
         recordSz = BuildMessage(ssl, NULL, 0, NULL, payloadSz, application_data,
              0, 1, 0, CUR_ORDER);
         /* use a safe upper bound in case of error */
@@ -42652,6 +42959,14 @@ int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz, int isEncrypted)
             if (ssl->options.dtls) {
                 recordSz += DTLS_RECORD_EXTRA;
             }
+        }
+        else if (ssl->specs.cipher_type == aead && recordSz > payloadSz
+#ifdef WOLFSSL_DTLS13
+                && (!isDtls13 || recordSz > Dtls13MinimumRecordLength(ssl))
+#endif
+                ) {
+            /* Populate cache only on success; never from the fallback. */
+            ssl->recordSzOverhead = (word32)(recordSz - payloadSz);
         }
     }
     else {

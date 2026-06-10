@@ -34,5 +34,6 @@ int test_ocsp_cert_unknown_crl_fallback(void);
 int test_ocsp_cert_unknown_crl_fallback_nonleaf(void);
 int test_tls13_nonblock_ocsp_low_mfl(void);
 int test_ocsp_responder(void);
+int test_ocsp_ancestor_responder_rejected(void);
 #endif /* WOLFSSL_TEST_OCSP_H */
 

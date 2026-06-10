@@ -4188,12 +4188,52 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 #endif /* !NO_RSA */
 #ifdef HAVE_ECC
     case WC_EVP_PKEY_EC:
-        if (a->ecc == NULL || a->ecc->internal == NULL ||
-            b->ecc == NULL || b->ecc->internal == NULL ||
-            wc_ecc_size((ecc_key*)a->ecc->internal) <= 0 ||
-            wc_ecc_size((ecc_key*)b->ecc->internal) <= 0 ||
+    {
+        ecc_key* ecc_key_a;
+        ecc_key* ecc_key_b;
+
+        if (a->ecc == NULL || b->ecc == NULL ||
             a->ecc->group == NULL || b->ecc->group == NULL) {
             return ret;
+        }
+
+        /* Ensure internal ecc_key is synced from external representation.
+         * After d2i_PrivateKey, the external BIGNUMs may be set but the
+         * internal ecc_key.pubkey may not be populated. */
+        if (a->ecc->inSet == 0) {
+            if (SetECKeyInternal((WOLFSSL_EC_KEY*)a->ecc) != 1) {
+                return ret;
+            }
+        }
+        if (b->ecc->inSet == 0) {
+            if (SetECKeyInternal((WOLFSSL_EC_KEY*)b->ecc) != 1) {
+                return ret;
+            }
+        }
+
+        if (a->ecc->internal == NULL || b->ecc->internal == NULL ||
+            wc_ecc_size((ecc_key*)a->ecc->internal) <= 0 ||
+            wc_ecc_size((ecc_key*)b->ecc->internal) <= 0) {
+            return ret;
+        }
+
+        ecc_key_a = (ecc_key*)a->ecc->internal;
+        ecc_key_b = (ecc_key*)b->ecc->internal;
+
+        /* If a key was imported as private-only (e.g. RFC 5915 without the
+         * optional public key), the pubkey point will not be populated.
+         * Derive it from the private key so the comparison can succeed. */
+        if (ecc_key_a->type == ECC_PRIVATEKEY_ONLY) {
+            if (wc_ecc_make_pub(ecc_key_a, NULL) != MP_OKAY) {
+                return ret;
+            }
+            ecc_key_a->type = ECC_PRIVATEKEY;
+        }
+        if (ecc_key_b->type == ECC_PRIVATEKEY_ONLY) {
+            if (wc_ecc_make_pub(ecc_key_b, NULL) != MP_OKAY) {
+                return ret;
+            }
+            ecc_key_b->type = ECC_PRIVATEKEY;
         }
 
         /* check curve */
@@ -4201,11 +4241,12 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
             return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
         }
 
-        if (wc_ecc_cmp_point(&((ecc_key*)a->ecc->internal)->pubkey,
-                             &((ecc_key*)b->ecc->internal)->pubkey) != 0) {
+        if (wc_ecc_cmp_point(&ecc_key_a->pubkey,
+                             &ecc_key_b->pubkey) != 0) {
             return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
         }
         break;
+    }
 #endif /* HAVE_ECC */
     default:
         return WS_RETURN_CODE(ret, -2);
@@ -5838,6 +5879,34 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
             return wolfSSL_EVP_aes_256_ccm();
         #endif
     #endif
+    #ifdef WOLFSSL_AES_OFB
+        #ifdef WOLFSSL_AES_128
+        case WC_NID_aes_128_ofb:
+            return wolfSSL_EVP_aes_128_ofb();
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_NID_aes_192_ofb:
+            return wolfSSL_EVP_aes_192_ofb();
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_NID_aes_256_ofb:
+            return wolfSSL_EVP_aes_256_ofb();
+        #endif
+    #endif /* WOLFSSL_AES_OFB */
+    #ifdef WOLFSSL_AES_CFB
+        #ifdef WOLFSSL_AES_128
+        case WC_NID_aes_128_cfb128:
+            return wolfSSL_EVP_aes_128_cfb128();
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_NID_aes_192_cfb128:
+            return wolfSSL_EVP_aes_192_cfb128();
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_NID_aes_256_cfb128:
+            return wolfSSL_EVP_aes_256_cfb128();
+        #endif
+    #endif /* WOLFSSL_AES_CFB */
 #endif
 
 #ifdef HAVE_ARIA
@@ -10129,6 +10198,61 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
         return WC_AES_BLOCK_SIZE;
     #endif /* WOLFSSL_AES_256 */
 #endif /* WOLFSSL_AES_XTS && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
+
+#ifdef WOLFSSL_AES_OFB
+    #ifdef WOLFSSL_AES_128
+    if (XSTRCMP(name, EVP_AES_128_OFB) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRCMP(name, EVP_AES_192_OFB) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRCMP(name, EVP_AES_256_OFB) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+#endif /* WOLFSSL_AES_OFB */
+#ifdef WOLFSSL_AES_CFB
+#ifndef WOLFSSL_NO_AES_CFB_1_8
+    #ifdef WOLFSSL_AES_128
+    if (XSTRCMP(name, EVP_AES_128_CFB1) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRCMP(name, EVP_AES_192_CFB1) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRCMP(name, EVP_AES_256_CFB1) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_128
+    if (XSTRCMP(name, EVP_AES_128_CFB8) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRCMP(name, EVP_AES_192_CFB8) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRCMP(name, EVP_AES_256_CFB8) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+#endif /* !WOLFSSL_NO_AES_CFB_1_8 */
+    #ifdef WOLFSSL_AES_128
+    if (XSTRCMP(name, EVP_AES_128_CFB128) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRCMP(name, EVP_AES_192_CFB128) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRCMP(name, EVP_AES_256_CFB128) == 0)
+        return WC_AES_BLOCK_SIZE;
+    #endif
+#endif /* WOLFSSL_AES_CFB */
 
 #endif
 #ifdef HAVE_ARIA

@@ -2,6 +2,17 @@
 
 ## Enhancements
 
+* **Behavioral change (RSA-PSS trailerField enforcement)**: `DecodeRsaPssParams`
+  (and its public wrapper `wc_DecodeRsaPssParams`) now enforces RFC 8017 A.2.3,
+  which mandates `trailerField == trailerFieldBC(1)`.  In the default build
+  (i.e., without `WOLFSSL_NO_ASN_STRICT`), any certificate or CMS/PKCS#7
+  structure whose RSA-PSS parameters contain a `trailerField` value other than 1
+  is now rejected with `ASN_PARSE_E`.  Previously, any positive integer value was
+  silently accepted.  This affects all call paths that decode RSA-PSS algorithm
+  parameters, including X.509 certificate parsing and PKCS#7 signature
+  verification.  Users who need to interoperate with non-conformant peers can
+  define `WOLFSSL_NO_ASN_STRICT` to restore the previous permissive behavior.
+
 * **BREAKING (FIPS 205 SLH-DSA)**: `wc_SlhDsaKey_SignHash`,
   `wc_SlhDsaKey_SignHashDeterministic`, `wc_SlhDsaKey_SignHashWithRandom`, and
   `wc_SlhDsaKey_VerifyHash` now take the **caller-pre-hashed message digest**
@@ -45,6 +56,14 @@
   `BuildTls13Nonce()` reads them on every AEAD record to construct the
   per-record nonce.  Scoped to TLS 1.3, non-DTLS, non-QUIC; requires
   `WOLF_CRYPTO_CB` and `WOLF_CRYPTO_CB_AES_SETKEY`.
+
+* **BREAKING (RFC 6960 4.2.2.2)**: OCSP responder authorization is now
+    strictly enforced. Removes the non-compliant `CheckOcspResponderChain()`
+    fallback, which authorized any OCSP responder cert issued by an ancestor
+    of the target's issuer; [RFC 6960 4.2.2.2](https://datatracker.ietf.org/doc/html/rfc6960#section-4.2.2.2)
+    requires direct issuance by the CA identified in the request. Also
+    removes the now-unused `WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK` macro and
+    the `vp` parameter from `CheckOcspResponder()`.
 
 # wolfSSL Release 5.9.1 (Apr. 8, 2026)
 

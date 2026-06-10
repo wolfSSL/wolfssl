@@ -135,6 +135,7 @@ macro_rules! impl_mlkem_kem {
                 let mut ss = [0u8; crate::mlkem::MlKem::SHARED_SECRET_SIZE];
                 wc_key.encapsulate_with_random(&mut ct, &mut ss, &rand)
                     .expect("encapsulate_with_random failed");
+                zeroize::Zeroize::zeroize(&mut rand[..]);
 
                 (ct.into(), ss.into())
             }
@@ -184,6 +185,7 @@ macro_rules! impl_mlkem_kem {
                 let wc_key = crate::mlkem::MlKem::generate_with_random(
                     $key_type, &rand,
                 ).expect("generate_with_random failed");
+                zeroize::Zeroize::zeroize(&mut rand[..]);
 
                 let mut pk = [0u8; $pk_len];
                 let mut sk = [0u8; $sk_len];

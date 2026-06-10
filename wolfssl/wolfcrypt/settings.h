@@ -1189,6 +1189,19 @@
     /* settings in user_settings.h */
 #endif
 
+#if defined(WOLFSSL_RENESAS_RSIP) && !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* The Renesas FSPSM hash context has no software digest[] state field and
+     * the device computes each SHA-512 variant (SHA-384, SHA-512/224,
+     * SHA-512/256) natively. Disable the cryptocb fallback that reuses the
+     * generic SHA-512 callback for the variants: it relies on a digest[] IV in
+     * the context (absent here, so it would not compile) and assumes the
+     * backend exposes its hash state, which a device that keeps state
+     * internally does not. */
+    #ifndef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+        #define WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+    #endif
+#endif
+
 #if defined(WOLFSSL_LWIP_NATIVE) || \
     defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
     #undef WOLFSSL_USER_IO
@@ -1539,18 +1552,17 @@
 #endif
 
 #if defined(WOLFSSL_uITRON4)
+    #define XMALLOC_USER
+    #include <stddef.h>
+    #define ITRON_POOL_SIZE 1024*20
+    extern int uITRON4_minit(size_t poolsz) ;
+    extern void *uITRON4_malloc(size_t sz) ;
+    extern void *uITRON4_realloc(void *p, size_t sz) ;
+    extern void uITRON4_free(void *p) ;
 
-#define XMALLOC_USER
-#include <stddef.h>
-#define ITRON_POOL_SIZE 1024*20
-extern int uITRON4_minit(size_t poolsz) ;
-extern void *uITRON4_malloc(size_t sz) ;
-extern void *uITRON4_realloc(void *p, size_t sz) ;
-extern void uITRON4_free(void *p) ;
-
-#define XMALLOC(sz, heap, type)     ((void)(heap), (void)(type), uITRON4_malloc(sz))
-#define XREALLOC(p, sz, heap, type) ((void)(heap), (void)(type), uITRON4_realloc(p, sz))
-#define XFREE(p, heap, type)        ((void)(heap), (void)(type), uITRON4_free(p))
+    #define XMALLOC(sz, heap, type)     ((void)(heap), (void)(type), uITRON4_malloc(sz))
+    #define XREALLOC(p, sz, heap, type) ((void)(heap), (void)(type), uITRON4_realloc(p, sz))
+    #define XFREE(p, heap, type)        ((void)(heap), (void)(type), uITRON4_free(p))
 #endif
 
 #if defined(WOLFSSL_uTKERNEL2)
@@ -3367,7 +3379,9 @@ extern void uITRON4_free(void *p) ;
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
-      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS))
+      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS) || \
+     (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+     (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -3377,7 +3391,9 @@ extern void uITRON4_free(void *p) ;
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
-      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS))
+      defined(WOLFSSL_HAVE_SLHDSA) || defined(HAVE_LIBOQS) || \
+     (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
+     (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
@@ -3924,6 +3940,12 @@ extern void uITRON4_free(void *p) ;
     #endif
     #ifndef NO_CTYPE_H
         #define NO_CTYPE_H
+    #endif
+    /* Linux kernel includes linux/stddef.h.  The gcc stddef.h conflicts with it
+     * (e.g. offsetof()) and needs to be inhibited.
+     */
+    #ifndef NO_STDDEF_H
+        #define NO_STDDEF_H
     #endif
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
@@ -5211,6 +5233,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_SHA256 requires WOLF_CRYPTO_CB"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA512) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA512 requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA512) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB_ONLY_SHA512 is incompatible with FIPS builds"
+#endif
 #if defined(WOLF_CRYPTO_CB_ONLY_AES) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_AES requires WOLF_CRYPTO_CB"
 #endif
@@ -5246,6 +5274,13 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 
 #if defined(WC_RNG_BANK_SUPPORT) && defined(NO_ASN_TIME)
     #undef WC_RNG_BANK_SUPPORT
+#endif
+
+/* The OCSP responder time-stamps every response it generates (producedAt,
+ * thisUpdate and, for revoked certs, revocationDate), so it needs ASN time
+ * support. */
+#if defined(HAVE_OCSP_RESPONDER) && defined(NO_ASN_TIME)
+    #undef HAVE_OCSP_RESPONDER
 #endif
 
 #ifdef HAVE_OCSP_RESPONDER

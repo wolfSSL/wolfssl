@@ -33,6 +33,19 @@ jobs:
           # the software path via cryptocb.
           - name: SHA256
             cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA256
+          # WOLF_CRYPTO_CB_ONLY_SHA512: strips software SHA-512 family (SHA-384,
+          # SHA-512/224, SHA-512/256, SHA-512); swdev handles every variant
+          # explicitly via cryptocb.
+          - name: SHA512
+            cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA512
+          # Same as SHA512 but tells swdev to refuse the SHA-384 / SHA-512/224 /
+          # SHA-512/256 variant callbacks (WOLFSSL_SWDEV_SHA512_GENERAL_ONLY). That
+          # forces the cryptocb dispatcher's fallback-to-plain-SHA-512-with-
+          # truncation path. The SHA512 entry above instead has swdev handle
+          # every variant end-to-end, so the dispatcher fallback is otherwise
+          # uncovered.
+          - name: SHA512_via_general
+            cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLFSSL_SWDEV_SHA512_GENERAL_ONLY
           # WOLF_CRYPTO_CB_ONLY_AES: strips software AES; swdev provides the
           # software path via cryptocb.
           - name: AES
@@ -51,7 +64,8 @@ jobs:
           - name: ALL
             cppflags: >-
               -DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA
-              -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_AES
+              -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512
+              -DWOLF_CRYPTO_CB_ONLY_AES
     name: make check (${{ matrix.name }})
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04

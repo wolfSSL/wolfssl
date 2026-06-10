@@ -212,7 +212,7 @@ static int wolfkdriv_test_aes_gcm(device_t dev, int crid)
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
 
-    XMEMSET(resultC2, 0, sizeof(resultC));
+    XMEMSET(resultC2, 0, sizeof(resultC2));
     XMEMCPY(resultC2, p, sizeof(p));
 
     /* wolfcrypt encrypt */

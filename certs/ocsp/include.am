@@ -29,6 +29,10 @@ EXTRA_DIST += \
         certs/ocsp/ocsp-responder-key.der \
         certs/ocsp/ocsp-responder-cert.pem \
         certs/ocsp/ocsp-responder-cert.der \
+        certs/ocsp/ocsp-responder-int1-key.pem \
+        certs/ocsp/ocsp-responder-int1-key.der \
+        certs/ocsp/ocsp-responder-int1-cert.pem \
+        certs/ocsp/ocsp-responder-int1-cert.der \
         certs/ocsp/server1-key.pem \
         certs/ocsp/server1-key.der \
         certs/ocsp/server1-cert.pem \

@@ -515,11 +515,52 @@ int test_wolfSSL_dtls_set_pending_peer(void)
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
 #endif
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
+    !defined(WOLFSSL_NO_SOCK) && defined(XINET_PTON) && \
+    defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    {
+        /* Exercise the "already the current peer" branch, which needs real
+         * AF_INET addresses (sockAddrEqual() validates the sockaddr). */
+        WOLFSSL_CTX* ctx = NULL;
+        WOLFSSL* ssl = NULL;
+        void* cur = NULL;
+        void* other = NULL;
+        unsigned int addrSz = (unsigned int)sizeof(SOCKADDR_IN);
+
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectNotNull(cur =
+            wolfSSL_dtls_create_peer(11111, (char*)"127.0.0.1"));
+        ExpectNotNull(other =
+            wolfSSL_dtls_create_peer(22222, (char*)"127.0.0.1"));
+
+        /* NULL object fails. */
+        ExpectIntEQ(wolfSSL_dtls_set_pending_peer(NULL, cur, addrSz),
+            WOLFSSL_FAILURE);
+
+        /* Make 'cur' the current peer. */
+        ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, cur, addrSz), WOLFSSL_SUCCESS);
+
+        /* A different address goes to the pending slot (SockAddrSet path). */
+        ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, other, addrSz),
+            WOLFSSL_SUCCESS);
+        /* The current address matches: the staged pending peer is cleared. */
+        ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, cur, addrSz),
+            WOLFSSL_SUCCESS);
+        /* Matches again with no pending peer left to clear. */
+        ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, cur, addrSz),
+            WOLFSSL_SUCCESS);
+
+        wolfSSL_dtls_free_peer(cur);
+        wolfSSL_dtls_free_peer(other);
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+    }
+#endif
     return EXPECT_RESULT();
 }
-
-
-
 
 
 int test_dtls_version_checking(void)
@@ -5438,3 +5479,798 @@ int test_dtls12_export_import_etm(void)
 #endif
     return EXPECT_RESULT();
 }
+
+
+/* ----------------------------------------------------------------------------
+ * Coverage tests for DTLS APIs in src/ssl_api_dtls.c
+ * ------------------------------------------------------------------------- */
+
+int test_wolfSSL_dtls_create_free_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(XINET_PTON) && \
+    !defined(WOLFSSL_NO_SOCK) && defined(HAVE_SOCKADDR)
+    void* peer = NULL;
+
+    /* Valid IPv4 address and port. */
+    ExpectNotNull(peer = wolfSSL_dtls_create_peer(11111, (char*)"127.0.0.1"));
+    ExpectIntEQ(wolfSSL_dtls_free_peer(peer), WOLFSSL_SUCCESS);
+
+    /* Invalid address string returns NULL. */
+    ExpectNull(wolfSSL_dtls_create_peer(11111, (char*)"not-an-ip-address"));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_get0_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const void* peer = NULL;
+    unsigned int peerSz = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"1234", 5), WOLFSSL_SUCCESS);
+#ifndef WOLFSSL_RW_THREADED
+    /* NULL arguments fail. */
+    ExpectIntEQ(wolfSSL_dtls_get0_peer(NULL, &peer, &peerSz), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_dtls_get0_peer(ssl, NULL, &peerSz), WOLFSSL_FAILURE);
+    /* Returns a pointer to the stored peer address and its size. */
+    ExpectIntEQ(wolfSSL_dtls_get0_peer(ssl, &peer, &peerSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(peerSz, 5);
+    ExpectNotNull(peer);
+#else
+    ExpectIntEQ(wolfSSL_dtls_get0_peer(ssl, &peer, &peerSz),
+        WOLFSSL_NOT_IMPLEMENTED);
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_set_timeout_init(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_LEANPSK) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_init(NULL, 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_init(ssl, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_max(ssl, 5), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_init(ssl, 3), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl), 3);
+    /* Initial timeout greater than maximum fails. */
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_init(ssl, 10),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_retransmit(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* NULL fails. */
+    ExpectIntEQ(wolfSSL_dtls_retransmit(NULL), WOLFSSL_FATAL_ERROR);
+    /* Send the ClientHello flight, then retransmit it (DTLS 1.2 path). */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_dtls_retransmit(ssl_c), WOLFSSL_SUCCESS);
+
+    /* Resending fails when the transport reports want-write, exercising the
+     * error path (sets ssl->error and returns WOLFSSL_FATAL_ERROR). */
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_dtls_retransmit(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+
+    /* After the handshake completes, retransmit is a no-op success. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_dtls_retransmit(ssl_c), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+    {
+        /* DTLS 1.3 exercises the Dtls13DoScheduledWork() branch. */
+        WOLFSSL_CTX *ctx_c13 = NULL, *ctx_s13 = NULL;
+        WOLFSSL *ssl_c13 = NULL, *ssl_s13 = NULL;
+        struct test_memio_ctx test_ctx13;
+
+        XMEMSET(&test_ctx13, 0, sizeof(test_ctx13));
+        ExpectIntEQ(test_memio_setup(&test_ctx13, &ctx_c13, &ctx_s13, &ssl_c13,
+            &ssl_s13, wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method),
+            0);
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c13), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c13, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_dtls_retransmit(ssl_c13), WOLFSSL_SUCCESS);
+
+        wolfSSL_free(ssl_s13);
+        wolfSSL_free(ssl_c13);
+        wolfSSL_CTX_free(ctx_s13);
+        wolfSSL_CTX_free(ctx_c13);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_DTLSv1_compat_timeouts(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_TIMEVAL tv;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    XMEMSET(&tv, 0, sizeof(tv));
+    ExpectIntEQ(wolfSSL_DTLSv1_get_timeout(ssl, &tv), 0);
+    /* NULL arguments are tolerated. */
+    ExpectIntEQ(wolfSSL_DTLSv1_get_timeout(NULL, NULL), 0);
+#ifndef NO_WOLFSSL_STUB
+    ExpectIntEQ(wolfSSL_DTLSv1_handle_timeout(ssl), 0);
+    wolfSSL_DTLSv1_set_initial_timeout_duration(ssl, 1000);
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls13_set_send_more_acks(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Toggle the send-more-acks option (void return). */
+    wolfSSL_dtls13_set_send_more_acks(ssl, 1);
+    wolfSSL_dtls13_set_send_more_acks(ssl, 0);
+    /* NULL is tolerated. */
+    wolfSSL_dtls13_set_send_more_acks(NULL, 1);
+    /* Quick-timeout flag defaults to off. */
+    ExpectIntEQ(wolfSSL_dtls13_use_quick_timeout(ssl), 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_srtp_keying_material(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_SRTP) && defined(HAVE_KEYING_MATERIAL) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = NULL;
+    unsigned char keyMaterial[64];
+    size_t olen = 0;
+    const char* profileStr = "SRTP_AES128_CM_SHA1_80";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* No profile selected before the handshake. */
+    ExpectNull(wolfSSL_get_selected_srtp_profile(NULL));
+
+    /* NULL arguments fail. */
+    olen = sizeof(keyMaterial);
+    ExpectIntEQ(wolfSSL_export_dtls_srtp_keying_material(NULL, keyMaterial,
+        &olen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Exporting before SRTP is negotiated reports a missing extension. */
+    ExpectIntEQ(wolfSSL_export_dtls_srtp_keying_material(ssl_c, keyMaterial,
+        &olen), WC_NO_ERR_TRACE(EXT_MISSING));
+
+    /* Request SRTP on both ends (0 == success, OpenSSL convention). */
+    ExpectIntEQ(wolfSSL_set_tlsext_use_srtp(ssl_c, profileStr), 0);
+    ExpectIntEQ(wolfSSL_set_tlsext_use_srtp(ssl_s, profileStr), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* A profile is now selected. */
+    ExpectNotNull(profile = wolfSSL_get_selected_srtp_profile(ssl_c));
+
+    /* Length-only query (out == NULL). */
+    olen = 0;
+    ExpectIntEQ(wolfSSL_export_dtls_srtp_keying_material(ssl_c, NULL, &olen),
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT((int)olen, 0);
+    ExpectIntLE((int)olen, (int)sizeof(keyMaterial));
+    /* A buffer smaller than the keying material reports BUFFER_E. */
+    olen = 1;
+    ExpectIntEQ(wolfSSL_export_dtls_srtp_keying_material(ssl_c, keyMaterial,
+        &olen), WC_NO_ERR_TRACE(BUFFER_E));
+    /* Export the keying material into a large enough buffer. */
+    olen = sizeof(keyMaterial);
+#ifdef WOLFSSL_OPENVPN
+    ExpectIntEQ(wolfSSL_export_dtls_srtp_keying_material(ssl_c, keyMaterial,
+        &olen), WOLFSSL_SUCCESS);
+#else
+    /* Arrays aren't saved without WOLFSSL_OPENVPN. */
+    ExpectIntEQ(wolfSSL_export_dtls_srtp_keying_material(ssl_c, keyMaterial,
+        &olen), WOLFSSL_FAILURE);
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+    /* Stub returns NULL. */
+    ExpectNull(wolfSSL_get_srtp_profiles(ssl_c));
+#endif
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+static int test_dtls_mcast_highwater_cb(unsigned short peerId,
+    unsigned int maxSeq, unsigned int curSeq, void* ctx)
+{
+    (void)peerId;
+    (void)maxSeq;
+    (void)curSeq;
+    (void)ctx;
+    return 0;
+}
+#endif
+
+int test_wolfSSL_mcast_peers(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int hwCtx = 0;
+
+    ExpectIntGT(wolfSSL_mcast_get_max_peers(), 0);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(ctx, 0), WOLFSSL_SUCCESS);
+
+    /* Highwater callback argument validation. */
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_highwater_cb(NULL, 320, 100, 200,
+        test_dtls_mcast_highwater_cb), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_highwater_cb(ctx, 320, 100, 200, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_highwater_cb(ctx, 320, 100, 200,
+        test_dtls_mcast_highwater_cb), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_mcast_set_highwater_ctx(NULL, &hwCtx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_mcast_set_highwater_ctx(ssl, &hwCtx), WOLFSSL_SUCCESS);
+
+    /* Add, query and remove a multicast peer. */
+    ExpectIntEQ(wolfSSL_mcast_peer_add(NULL, 1, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_mcast_peer_add(ssl, 1, 0), WOLFSSL_SUCCESS);
+    /* Known peer that has not sent data yet -> 0. */
+    ExpectIntEQ(wolfSSL_mcast_peer_known(ssl, 1), 0);
+    /* Unknown peer -> 0. */
+    ExpectIntEQ(wolfSSL_mcast_peer_known(ssl, 2), 0);
+    ExpectIntEQ(wolfSSL_mcast_peer_known(NULL, 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Once the peer has received data (non-zero sequence number) it is
+     * reported as known. */
+    if (ssl != NULL) {
+        int j;
+        for (j = 0; j < WOLFSSL_DTLS_PEERSEQ_SZ; j++) {
+            if (ssl->keys.peerSeq[j].peerId == 1) {
+                ssl->keys.peerSeq[j].nextSeq_lo = 1;
+                break;
+            }
+        }
+    }
+    ExpectIntEQ(wolfSSL_mcast_peer_known(ssl, 1), 1);
+    /* Remove the peer (sub = 1). */
+    ExpectIntEQ(wolfSSL_mcast_peer_add(ssl, 1, 1), WOLFSSL_SUCCESS);
+
+    /* Re-adding a peer that is already present reports an error. */
+    ExpectIntEQ(wolfSSL_mcast_peer_add(ssl, 5, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_mcast_peer_add(ssl, 5, 0), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_mcast_peer_add(ssl, 5, 1), WOLFSSL_SUCCESS);
+
+    /* Filling every peer slot then adding another peer overflows the list. */
+#if WOLFSSL_DTLS_PEERSEQ_SZ <= 255
+    {
+        int idx;
+        for (idx = 0; idx < WOLFSSL_DTLS_PEERSEQ_SZ && !EXPECT_FAIL(); idx++) {
+            ExpectIntEQ(wolfSSL_mcast_peer_add(ssl, (word16)idx, 0),
+                WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_mcast_peer_add(ssl,
+            (word16)WOLFSSL_DTLS_PEERSEQ_SZ, 0), WOLFSSL_FATAL_ERROR);
+    }
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_set_dtls_fd_connected(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectIntEQ(wolfSSL_set_dtls_fd_connected(NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_dtls_fd_connected(ssl, 1), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_get_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    unsigned char peer[16];
+    unsigned int peerSz = (unsigned int)sizeof(peer);
+
+    ExpectIntEQ(wolfSSL_dtls_get_peer(NULL, peer, &peerSz), WOLFSSL_FAILURE);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* No peer set yet. */
+    peerSz = (unsigned int)sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_FAILURE);
+
+    /* Set then retrieve the peer. */
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"1234", 5), WOLFSSL_SUCCESS);
+    peerSz = (unsigned int)sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(peerSz, 5);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_set_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    unsigned char peer[16];
+    unsigned int peerSz = (unsigned int)sizeof(peer);
+
+    ExpectIntEQ(wolfSSL_dtls_set_peer(NULL, (void*)"1234", 5), WOLFSSL_FAILURE);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Set a peer then read it back. */
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"1234", 5), WOLFSSL_SUCCESS);
+    peerSz = (unsigned int)sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(peerSz, 5);
+
+    /* A larger peer grows the buffer, freeing the previous one. */
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, (void*)"123456789012", 12),
+        WOLFSSL_SUCCESS);
+    peerSz = (unsigned int)sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(peerSz, 12);
+
+    /* Clearing the peer with NULL/0 frees the stored address. */
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, NULL, 0), WOLFSSL_SUCCESS);
+    peerSz = (unsigned int)sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, peer, &peerSz), WOLFSSL_FAILURE);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_GetDtlsMacSecret(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_AEAD_ONLY)
+    /* NULL ssl returns NULL. */
+    ExpectNull(wolfSSL_GetDtlsMacSecret(NULL, 0, 0));
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_get_using_nonblock(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectIntEQ(wolfSSL_dtls_get_using_nonblock(NULL), WOLFSSL_FAILURE);
+
+    /* DTLS object: default is off. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_dtls_get_using_nonblock(ssl), 0);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    ssl = NULL;
+    ctx = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* Non-DTLS object takes the deprecated-use branch and returns 0. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_dtls_get_using_nonblock(ssl), 0);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_set_using_nonblock(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_LEANPSK) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    /* NULL is a no-op (must not crash). */
+    wolfSSL_dtls_set_using_nonblock(NULL, 1);
+
+    /* DTLS object: value is stored and read back. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    wolfSSL_dtls_set_using_nonblock(ssl, 1);
+    ExpectIntEQ(wolfSSL_dtls_get_using_nonblock(ssl), 1);
+    wolfSSL_dtls_set_using_nonblock(ssl, 0);
+    ExpectIntEQ(wolfSSL_dtls_get_using_nonblock(ssl), 0);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    ssl = NULL;
+    ctx = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* Non-DTLS object takes the deprecated-use branch. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    wolfSSL_dtls_set_using_nonblock(ssl, 1);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_set_mtu_compat(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA) && \
+    (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* A reasonable MTU succeeds. */
+    ExpectIntEQ(wolfSSL_set_mtu_compat(ssl, 1500), WOLFSSL_SUCCESS);
+    /* An MTU larger than a record fails. */
+    ExpectIntEQ(wolfSSL_set_mtu_compat(ssl, 0xFFFF), WOLFSSL_FAILURE);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_set_timeout_max(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_LEANPSK) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_max(NULL, 5),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Negative timeout fails. */
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_max(ssl, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Valid maximum succeeds. */
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_max(ssl, 5), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_init(ssl, 3), WOLFSSL_SUCCESS);
+    /* Maximum less than the initial timeout fails. */
+    ExpectIntEQ(wolfSSL_dtls_set_timeout_max(ssl, 2),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CTX_mcast_set_member_id(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    /* Member id out of range (> 8-bit) fails. */
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(ctx, 256),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Valid member id succeeds. */
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(ctx, 0), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_mcast_read(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    word16 id = 0;
+    byte buf[16];
+
+    ExpectIntEQ(wolfSSL_mcast_read(NULL, &id, buf, (int)sizeof(buf)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(ctx, 0), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Negative size fails. */
+    ExpectIntEQ(wolfSSL_mcast_read(ssl, &id, buf, -1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_got_timeout(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_LEANPSK) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    /* NULL object fails. */
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(NULL), WOLFSSL_FATAL_ERROR);
+#ifndef WOLFSSL_NO_TLS12
+    {
+        /* A non-DTLS object also fails. */
+        WOLFSSL_CTX* ctx = NULL;
+        WOLFSSL* ssl = NULL;
+
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl), WOLFSSL_FATAL_ERROR);
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+    }
+#endif
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_LEANPSK) && !defined(WOLFSSL_NO_TLS12)
+    {
+        /* With a DTLS 1.2 flight buffered, a transport that reports want-write
+         * makes the timeout handler take the pool-send error path. */
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+        /* Buffer the ClientHello flight. */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* Resending the flight fails -> error path, returns FATAL_ERROR. */
+        test_memio_simulate_want_write(&test_ctx, 1, 1);
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+
+        /* With the transport unblocked the resend succeeds. */
+        test_memio_simulate_want_write(&test_ctx, 1, 0);
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_s);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+    {
+        /* DTLS 1.3: a want-write while retransmitting takes the
+         * Dtls13RtxTimeout() error branch. */
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+        /* Buffer the ClientHello flight. */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* Retransmit under want-write fails. */
+        test_memio_simulate_want_write(&test_ctx, 1, 1);
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+        test_memio_simulate_want_write(&test_ctx, 1, 0);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_s);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_DTLS_SetCookieSecret(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER) && \
+    (defined(NO_CERTS) || !defined(NO_RSA))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte secret1[32];
+    byte secret2[16];
+
+    XMEMSET(secret1, 0xA5, sizeof(secret1));
+    XMEMSET(secret2, 0x5A, sizeof(secret2));
+
+    /* NULL object fails. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(NULL, secret1, sizeof(secret1)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method()));
+#ifndef NO_CERTS
+    /* A server WOLFSSL needs a key and certificate set on the context. */
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+#endif
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* A non-NULL secret with zero size fails. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl, secret1, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Set an explicit secret (copy path). */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl, secret1, sizeof(secret1)), 0);
+    /* A different size frees the old buffer and reallocates. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl, secret2, sizeof(secret2)), 0);
+    /* The same size keeps the existing buffer (no reallocation). */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl, secret2, sizeof(secret2)), 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_set_secret(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte preMasterSecret[16];
+    byte clientRandom[32];
+    byte serverRandom[32];
+    byte suite[2] = { 0, 0xfe };  /* WDM_WITH_NULL_SHA256 */
+
+    XMEMSET(preMasterSecret, 0x23, sizeof(preMasterSecret));
+    XMEMSET(clientRandom, 0xA5, sizeof(clientRandom));
+    XMEMSET(serverRandom, 0x5A, sizeof(serverRandom));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(ctx, 0), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Invalid arguments take the error path and return WOLFSSL_FATAL_ERROR. */
+    ExpectIntEQ(wolfSSL_set_secret(ssl, 23, NULL, sizeof(preMasterSecret),
+        clientRandom, serverRandom, suite), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_set_secret(ssl, 23, preMasterSecret, 0,
+        clientRandom, serverRandom, suite), WOLFSSL_FATAL_ERROR);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+

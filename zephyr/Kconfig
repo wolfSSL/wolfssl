@@ -113,6 +113,13 @@ config WOLFSSL_ALWAYS_VERIFY_CB
   help
     Invoke verify callback on success as well as failure (WOLFSSL_ALWAYS_VERIFY_CB)
 
+config WOLFSSL_OPENSSL_EXTRA_X509_SMALL
+  bool "wolfSSL minimal X509 compat APIs"
+  help
+    Define OPENSSL_EXTRA_X509_SMALL. Exposes a small subset of X509
+    helpers (wolfSSL_X509_free, wolfSSL_get_verify_result, ...) without
+    the rest of OPENSSL_EXTRA.
+
 config WOLFCRYPT_ARMASM
 	bool "wolfCrypt ARM Assembly support"
 	depends on WOLFSSL_BUILTIN
