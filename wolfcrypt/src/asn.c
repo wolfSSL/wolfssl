@@ -18588,9 +18588,10 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             case ASN_DNS_TYPE:
                 name = cert->altNames;
 
-                /* When no SAN is present, apply DNS name constraints to the
-                 * Subject CN. */
-                if (cert->subjectCN != NULL && cert->altNames == NULL) {
+                /* Apply DNS constraints to leaf Subject CN when no SAN
+                 * (legacy hostname-in-CN). Skipped for CAs. */
+                if (cert->subjectCN != NULL && cert->altNames == NULL &&
+                        !cert->isCA) {
                     subjectDnsName.next = NULL;
                     subjectDnsName.type = ASN_DNS_TYPE;
                     subjectDnsName.len  = cert->subjectCNLen;
@@ -23149,6 +23150,71 @@ Signer* findSignerByName(Signer *list, byte *hash)
     return NULL;
 }
 
+#ifndef IGNORE_NAME_CONSTRAINTS
+/* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
+ * with name-hash validation. Fall back to name-only when AKID is
+ * absent. */
+static Signer* FindSignerByAkidOrName(void* cm, Signer* extraCAList,
+                                      Signer* cert)
+{
+    Signer* signer = NULL;
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    #ifndef NO_SKID
+    Signer* exCaSigner;
+    #endif
+#else
+    (void)extraCAList;
+#endif
+
+#ifndef NO_SKID
+    if (cert->authKeyIdSet) {
+        signer = GetCA(cm, cert->authKeyIdHash);
+        if (signer != NULL &&
+                XMEMCMP(signer->subjectNameHash, cert->issuerNameHash,
+                        SIGNER_DIGEST_SIZE) != 0) {
+            signer = NULL;
+        }
+        /* AKID is authoritative; do not fall back to name when AKID
+         * is set (could substitute a same-DN sibling). */
+    }
+    else {
+        signer = GetCAByName(cm, cert->issuerNameHash);
+    }
+#else
+    signer = GetCA(cm, cert->issuerNameHash);
+#endif
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    if (signer == NULL && extraCAList != NULL) {
+    #ifndef NO_SKID
+        if (cert->authKeyIdSet) {
+            for (exCaSigner = extraCAList; exCaSigner != NULL;
+                    exCaSigner = exCaSigner->next) {
+                if (XMEMCMP(exCaSigner->subjectKeyIdHash,
+                            cert->authKeyIdHash,
+                            SIGNER_DIGEST_SIZE) == 0 &&
+                        XMEMCMP(exCaSigner->subjectNameHash,
+                                cert->issuerNameHash,
+                                SIGNER_DIGEST_SIZE) == 0) {
+                    signer = exCaSigner;
+                    break;
+                }
+            }
+            /* AKID is authoritative; do not fall back to name. */
+        }
+        else {
+            signer = findSignerByName(extraCAList, cert->issuerNameHash);
+        }
+    #else
+        signer = findSignerByName(extraCAList, cert->issuerNameHash);
+    #endif
+    }
+#endif
+
+    return signer;
+}
+#endif /* !IGNORE_NAME_CONSTRAINTS */
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                       Signer *extraCAList)
 {
@@ -23163,6 +23229,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
     int    idx = 0;
 #endif
     byte*  sce_tsip_encRsaKeyIdx;
+#ifndef IGNORE_NAME_CONSTRAINTS
+    int ncDepth = 0;
+    Signer* ncSigner = NULL;
+    Signer* ncParent = NULL;
+    Signer* ncPrev = NULL;
+#endif
     (void)extraCAList;
 
     if (cert == NULL) {
@@ -23795,18 +23867,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 }
             #endif /* WOLFSSL_DUAL_ALG_CERTS */
             }
-        #ifndef IGNORE_NAME_CONSTRAINTS
-            if (verify == VERIFY || verify == VERIFY_OCSP ||
-                        verify == VERIFY_NAME || verify == VERIFY_SKIP_DATE) {
-                /* check that this cert's name is permitted by the signer's
-                 * name constraints */
-                if (!ConfirmNameConstraints(cert->ca, cert)) {
-                    WOLFSSL_MSG("Confirm name constraint failed");
-                    WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
-                    return ASN_NAME_INVALID_E;
-                }
-            }
-        #endif /* IGNORE_NAME_CONSTRAINTS */
         } /* cert->ca */
 #ifdef WOLFSSL_CERT_REQ
         else if (type == CERTREQ_TYPE) {
@@ -23888,6 +23948,38 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         }
     } /* verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE */
 
+#ifndef IGNORE_NAME_CONSTRAINTS
+    /* Apply each ancestor CA's name constraints to this cert.
+     * Signer pointers between lookups are not lock-protected
+     * (see wolfssl_cm_get_certs_der). */
+    if ((verify == VERIFY || verify == VERIFY_OCSP ||
+         verify == VERIFY_NAME || verify == VERIFY_SKIP_DATE) &&
+         type != TRUSTED_PEER_TYPE && cert->ca != NULL) {
+        ncSigner = cert->ca;
+        while (ncSigner != NULL) {
+            if (!ConfirmNameConstraints(ncSigner, cert)) {
+                WOLFSSL_MSG("Confirm name constraint failed");
+                WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
+                return ASN_NAME_INVALID_E;
+            }
+            /* Stop at trust anchor (self-issued). */
+            if (ncSigner->selfSigned)
+                break;
+            ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
+            /* Stop on missing parent, self-loop, or A->B->A cycle. */
+            if (ncParent == NULL || ncParent == ncSigner ||
+                    ncParent == ncPrev)
+                break;
+            if (++ncDepth >= WOLFSSL_MAX_CHAIN_DEPTH) {
+                WOLFSSL_MSG("NC ancestor walk exceeded WOLFSSL_MAX_CHAIN_DEPTH");
+                WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
+                return ASN_PATHLEN_SIZE_E;
+            }
+            ncPrev = ncSigner;
+            ncSigner = ncParent;
+        }
+    }
+#endif /* IGNORE_NAME_CONSTRAINTS */
 #if defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY) && !defined(NO_SKID)
 exit_pcr:
 #endif
@@ -23966,10 +24058,18 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
     #ifndef NO_SKID
         XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
                 SIGNER_DIGEST_SIZE);
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        if (cert->extAuthKeyIdSet) {
+            XMEMCPY(signer->authKeyIdHash, cert->extAuthKeyId,
+                    SIGNER_DIGEST_SIZE);
+            signer->authKeyIdSet = 1;
+        }
+    #endif
     #endif
         XMEMCPY(signer->subjectNameHash, cert->subjectHash,
                 SIGNER_DIGEST_SIZE);
-    #if defined(HAVE_OCSP) || defined(HAVE_CRL) || defined(WOLFSSL_AKID_NAME)
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL) || \
+        defined(WOLFSSL_AKID_NAME) || !defined(IGNORE_NAME_CONSTRAINTS)
         XMEMCPY(signer->issuerNameHash, cert->issuerHash,
                 SIGNER_DIGEST_SIZE);
     #endif
