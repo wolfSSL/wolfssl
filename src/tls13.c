@@ -12411,15 +12411,14 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
+        /* Increment on a local copy so ssl->dtls13PeerEpoch is left
+         * untouched when the check fails. */
         w64wrapper newEpoch = ssl->dtls13PeerEpoch;
         w64Increment(&newEpoch);
 
-        /* RFC 9147 Section 4.2.1: the epoch must not exceed 2^48-1. Reject a
-         * peer KeyUpdate that would advance the receiving epoch past the
-         * limit. Validate on a local copy so ssl->dtls13PeerEpoch is left
-         * untouched when the check fails. */
-        if (w64GT(newEpoch,
-                  w64From32(DTLS13_EPOCH_MAX_HI32, DTLS13_EPOCH_MAX_LO32)))
+        /* RFC 9147 Section 8: the 2^48-1 cap is sender-only; receivers MUST
+         * NOT enforce it. Guard only the wrap-to-zero (Section 4.2.1). */
+        if (w64IsZero(newEpoch))
             return BAD_STATE_E;
 
         ssl->dtls13PeerEpoch = newEpoch;
