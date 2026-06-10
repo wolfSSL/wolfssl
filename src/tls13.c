@@ -7165,22 +7165,22 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
      * (verify-only) secret is configured, try that too.  This lets a stateless
      * DTLS 1.3 server keep accepting cookies issued under the secret it held
      * before an application-driven secret rotation. */
-    ret = HRR_COOKIE_ERROR;
+    ret = WC_NO_ERR_TRACE(HRR_COOKIE_ERROR);
     if (ssl->buffers.tls13CookieSecret.buffer != NULL &&
             ssl->buffers.tls13CookieSecret.length > 0) {
         ret = TlsCheckCookieMac(ssl, cookie, cookieSz,
             ssl->buffers.tls13CookieSecret.buffer,
             ssl->buffers.tls13CookieSecret.length, cookieType, macSz);
-        if (ret != 0 && ret != HRR_COOKIE_ERROR)
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
             return ret;
     }
-    if (ret == HRR_COOKIE_ERROR &&
+    if (ret == WC_NO_ERR_TRACE(HRR_COOKIE_ERROR) &&
             ssl->buffers.tls13CookieSecretSecondary.buffer != NULL &&
             ssl->buffers.tls13CookieSecretSecondary.length > 0) {
         ret = TlsCheckCookieMac(ssl, cookie, cookieSz,
             ssl->buffers.tls13CookieSecretSecondary.buffer,
             ssl->buffers.tls13CookieSecretSecondary.length, cookieType, macSz);
-        if (ret != 0 && ret != HRR_COOKIE_ERROR)
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
             return ret;
     }
 
