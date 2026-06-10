@@ -38,6 +38,8 @@ permissions:
 
 jobs:
   smoke:
+    # Only run from the wolfssl org to avoid burning forks' CI minutes.
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
