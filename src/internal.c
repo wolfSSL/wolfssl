@@ -24877,7 +24877,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                  * selects exactly these suites: ChaCha20 has an implicit nonce
                  * (ivSz 0, so it never enters this ivSz > 0 block), while the
                  * cipher_type == aead test excludes 3DES-CBC, whose explicit
-                 * block IV is also 8 bytes. */
+                 * block IV is also 8 bytes.
+                 *
+                 * The bytes written here are placeholders: the encrypt paths
+                 * below overwrite the explicit nonce before transmission, so
+                 * the win is skipping a per-record RNG draw. */
                 if (ssl->specs.cipher_type == aead &&
                     args->ivSz == AESGCM_EXP_IV_SZ) {
                     PeekSEQ(ssl, epochOrder, args->iv);
