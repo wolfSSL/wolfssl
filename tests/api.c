@@ -28198,7 +28198,12 @@ static int test_SSL_CIPHER_get_current_kx(void)
     }
 
     ExpectNotNull(cipher = SSL_get_current_cipher(ssl));
+#if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS) && \
+    !defined(WOLFSSL_QT)
     ExpectStrEQ(SSL_CIPHER_get_name(cipher), "TLS_PSK_WITH_AES_128_GCM_SHA256");
+#else
+    ExpectStrEQ(SSL_CIPHER_get_name(cipher), "PSK-AES128-GCM-SHA256");
+#endif
     ExpectIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), NID_kx_psk);
     ExpectIntEQ(wolfSSL_CIPHER_get_auth_nid(cipher), NID_auth_psk);
     ExpectIntEQ(wolfSSL_CIPHER_get_cipher_nid(cipher), NID_aes_128_gcm);
