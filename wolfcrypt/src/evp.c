@@ -10051,7 +10051,7 @@ size_t wolfSSL_EVP_PKEY_get1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
 int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
     const unsigned char* pub, size_t publen)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_encoded_public_key");
 
