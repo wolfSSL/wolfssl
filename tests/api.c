@@ -35072,6 +35072,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_tls_ems_downgrade),
     TEST_DECL(test_tls_ems_resumption_downgrade),
+    TEST_DECL(test_tls_ems_resumption_server_downgrade),
     TEST_DECL(test_tls12_chacha20_poly1305_bad_tag),
     TEST_DECL(test_tls13_null_cipher_bad_hmac),
     TEST_DECL(test_scr_verify_data_mismatch),

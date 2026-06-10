@@ -32343,13 +32343,17 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         else {
             if (DSH_CheckSessionId(ssl)) {
                 /* RFC 7627 5.3: resumed session EMS state must match the
-                 * ServerHello; abort on mismatch. Stateless (session-ticket)
-                 * resumption - e.g. EAP-FAST, whose PAC is a TLS ticket - binds
-                 * the EMS state in the ticket and need not re-advertise the
-                 * extension, so this applies only to session-ID resumption. */
+                 * ServerHello; abort on mismatch. Covers ticket resumption
+                 * too. Skip only EAP-FAST (sessionSecretCb supplied the PAC
+                 * ticket's secret in DoServerHello), whose synthetic session
+                 * has no negotiated EMS state to compare. */
                 if (
+            #ifdef HAVE_SECRET_CALLBACK
+                    !(ssl->sessionSecretCb != NULL
             #ifdef HAVE_SESSION_TICKET
-                    ssl->session->ticketLen == 0 &&
+                            && ssl->session->ticketLen > 0
+            #endif
+                            ) &&
             #endif
                     ssl->session->haveEMS != ssl->options.haveEMS) {
                     WOLFSSL_MSG("Resumed session EMS state does not match "
