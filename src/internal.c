@@ -28879,6 +28879,20 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
 
     offset = cipher->offset;
 
+    /* offset is not set via wolfSSL_get_current_cipher(), so resolve it from
+     * the always-populated suite bytes. */
+    for (i = 0; i < GetCipherNamesSize(); i++) {
+        if (cipher_names[i].cipherSuite0 == cipher->cipherSuite0 &&
+            cipher_names[i].cipherSuite  == cipher->cipherSuite
+        #ifndef NO_CIPHER_SUITE_ALIASES
+            && (!(cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+        #endif
+            ) {
+            offset = (unsigned long)i;
+            break;
+        }
+    }
+
     if (offset >= (unsigned long)GetCipherNamesSize())
         return NULL;
 

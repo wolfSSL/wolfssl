@@ -28236,6 +28236,51 @@ static int test_SSL_CIPHER_get_xxx(void)
     return EXPECT_RESULT();
 }
 
+/* Cipher property helpers must report the negotiated cipher when it is
+ * obtained via SSL_get_current_cipher(), which does not populate
+ * cipher->offset. */
+static int test_SSL_CIPHER_get_current_kx(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_TLS) && \
+    defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
+    SSL_CTX* ctx = NULL;
+    SSL*     ssl = NULL;
+    const SSL_CIPHER* cipher = NULL;
+
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+    ExpectNotNull(ssl = SSL_new(ctx));
+
+    /* Set a negotiated plain-PSK suite without a full handshake. */
+    if (ssl != NULL) {
+        ssl->options.cipherSuite0 = CIPHER_BYTE;
+        ssl->options.cipherSuite  = TLS_PSK_WITH_AES_128_GCM_SHA256;
+    }
+
+    ExpectNotNull(cipher = SSL_get_current_cipher(ssl));
+#if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS) && \
+    !defined(WOLFSSL_QT)
+    ExpectStrEQ(SSL_CIPHER_get_name(cipher), "TLS_PSK_WITH_AES_128_GCM_SHA256");
+#else
+    ExpectStrEQ(SSL_CIPHER_get_name(cipher), "PSK-AES128-GCM-SHA256");
+#endif
+    ExpectIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), NID_kx_psk);
+    ExpectIntEQ(wolfSSL_CIPHER_get_auth_nid(cipher), NID_auth_psk);
+    ExpectIntEQ(wolfSSL_CIPHER_get_cipher_nid(cipher), NID_aes_128_gcm);
+    ExpectIntEQ(wolfSSL_CIPHER_get_digest_nid(cipher), NID_sha256);
+    ExpectIntEQ(wolfSSL_CIPHER_is_aead(cipher), 1);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
@@ -35029,6 +35074,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_get_peer_finished_overrun),
 #endif
     TEST_DECL(test_SSL_CIPHER_get_xxx),
+    TEST_DECL(test_SSL_CIPHER_get_current_kx),
     TEST_DECL(test_wolfSSL_ERR_strings),
     TEST_DECL(test_wolfSSL_CTX_set_cipher_list_bytes),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls12_keeps_tls13),
