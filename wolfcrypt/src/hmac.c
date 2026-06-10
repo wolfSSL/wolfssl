@@ -1019,8 +1019,6 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, msg, length, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
-        /* fall-through when unavailable */
-        ret = 0; /* reset error code */
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
