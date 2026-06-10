@@ -51,6 +51,23 @@ extern "C" {
 #define HAVE_WOLFSSL_SSL_H
 #define OPENSSL_COMPATIBLE_DEFAULTS
 
+/* No-socket embedded builds still compile IP SAN helpers through OPENSSL_ALL.
+ * Provide local address-conversion stubs when the platform has no socket API. */
+#ifdef WOLFSSL_NO_SOCK
+    #ifndef WOLFSSL_IP4
+        #define WOLFSSL_IP4 2
+    #endif
+    #ifndef WOLFSSL_IP6
+        #define WOLFSSL_IP6 10
+    #endif
+    #ifndef XINET_PTON
+        #define XINET_PTON(a,b,c) 0
+    #endif
+    #ifndef XINET_NTOP
+        #define XINET_NTOP(a,b,c,d) NULL
+    #endif
+#endif
+
 /* Avoid old name conflicts */
 #define NO_OLD_RNGNAME
 #define NO_OLD_WC_NAMES

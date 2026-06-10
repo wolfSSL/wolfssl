@@ -3,8 +3,9 @@ name: Dynamic C Fallback Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -21,7 +22,7 @@ jobs:
           '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_CIPHER_LIFECYCLE"'
         ]
     name: make check
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6

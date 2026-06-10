@@ -140,7 +140,7 @@ void bench_blake2s(void);
 void bench_ascon_hash(void);
 void bench_pbkdf2(void);
 void bench_falconKeySign(byte level);
-void bench_dilithiumKeySign(byte level);
+void bench_mldsaKeySign(byte level);
 
 void bench_stats_print(void);
 

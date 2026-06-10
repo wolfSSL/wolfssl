@@ -249,15 +249,14 @@ static int wolfkmod_load(void)
 
     error = wolfkmod_init();
     if (error != 0) {
-        return (ECANCELED);
+        goto wolfkmod_load_out;
     }
 
     #ifndef NO_CRYPT_TEST
     error = wolfcrypt_test(NULL);
     if (error != 0) {
         printf("error: wolfcrypt test failed: %d\n", error);
-        (void)wolfkmod_cleanup();
-        return (ECANCELED);
+        goto wolfkmod_load_out;
     }
     printf("info: wolfCrypt self-test passed.\n");
     #endif /* NO_CRYPT_TEST */
@@ -266,15 +265,19 @@ static int wolfkmod_load(void)
     error = benchmark_test(NULL);
     if (error != 0) {
         printf("error: wolfcrypt benchmark failed: %d\n", error);
-        (void)wolfkmod_cleanup();
-        return (ECANCELED);
+        goto wolfkmod_load_out;
     }
     printf("info: wolfCrypt benchmark passed.\n");
     #endif /* WOLFSSL_KERNEL_BENCHMARKS */
-
     printf("info: libwolfssl loaded\n");
 
-    return (0);
+wolfkmod_load_out:
+    if (error != 0) {
+        (void)wolfkmod_cleanup();
+        error = ECANCELED;
+    }
+
+    return (error);
 }
 
 static int wolfkmod_unload(void)
@@ -435,7 +438,8 @@ static int wolfkdriv_attach(device_t dev)
 
     ret = wolfkmod_init();
     if (ret != 0) {
-        return (ECANCELED);
+        error = ECANCELED;
+        goto attach_out;
     }
 
     /**
@@ -452,7 +456,8 @@ static int wolfkdriv_attach(device_t dev)
     if (softc->crid < 0) {
         device_printf(dev, "error: crypto_get_driverid failed: %d\n",
                softc->crid);
-        return (ENXIO);
+        error = ENXIO;
+        goto attach_out;
     }
 
     /*
@@ -486,8 +491,9 @@ static int wolfkdriv_attach(device_t dev)
 
 attach_out:
     if (error) {
+        device_printf(dev, "error: attach_out: %d\n", error);
         wolfkdriv_unregister(softc);
-        error = ENXIO;
+        (void)wolfkmod_cleanup();
     }
 
     return (error);
@@ -498,16 +504,14 @@ static int wolfkdriv_detach(device_t dev)
     struct wolfkdriv_softc * softc = NULL;
     int ret = 0;
 
+    /* unregister wolfcrypt algs */
+    softc = device_get_softc(dev);
+    wolfkdriv_unregister(softc);
     ret = wolfkmod_cleanup();
-
-    if (ret == 0) {
-        /* unregister wolfcrypt algs */
-        softc = device_get_softc(dev);
-        wolfkdriv_unregister(softc);
-    }
-
     #if defined(WOLFSSL_BSDKM_VERBOSE_DEBUG)
-    device_printf(dev, "info: exiting detach\n");
+    device_printf(dev, "info: exiting detach: %d\n", ret);
+    #else
+    (void)ret;
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
 
     return (0);
@@ -797,6 +801,7 @@ static int wolfkdriv_cbc_work(device_t dev, wolfkdriv_session_t * session,
 
 cbc_work_out:
     /* cleanup. */
+    wc_ForceZero(&aes, sizeof(aes));
     wc_ForceZero(iv, sizeof(iv));
     wc_ForceZero(block, sizeof(block));
 
@@ -806,6 +811,11 @@ cbc_work_out:
                   csp->csp_mode, csp->csp_cipher_alg, crp->crp_payload_length,
                   error);
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
+
+    if (error < 0) {
+        /* convert wolfcrypt errors to EINVAL. */
+        error = EINVAL;
+    }
 
     return (error);
 }
@@ -974,6 +984,7 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
 
 gcm_work_out:
     /* cleanup. */
+    wc_ForceZero(&aes, sizeof(aes));
     wc_ForceZero(iv, sizeof(iv));
     wc_ForceZero(auth_tag, sizeof(auth_tag));
 
@@ -983,6 +994,11 @@ gcm_work_out:
                   csp->csp_mode, csp->csp_cipher_alg, crp->crp_payload_length,
                   error);
     #endif /* WOLFSSL_BSDKM_VERBOSE_DEBUG */
+
+    if (error < 0) {
+        /* convert wolfcrypt errors to EINVAL. */
+        error = EINVAL;
+    }
 
     return (error);
 }

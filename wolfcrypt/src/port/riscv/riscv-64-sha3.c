@@ -139,7 +139,7 @@ static const word64 hash_keccak_r[24] =
 
 #endif
 
-void BlockSha3(word64* s)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* s)
 {
     const word64* r = hash_keccak_r;
 

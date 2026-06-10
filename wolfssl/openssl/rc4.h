@@ -40,9 +40,9 @@
 typedef struct WOLFSSL_RC4_KEY {
     /* big enough for Arc4 from wolfssl/wolfcrypt/arc4.h */
 #ifdef WC_NO_PTR_INT_CAST
-    void* holder[(288 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    void* holder[(296 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 #else
-    void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    void* holder[(280 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 #endif
 } WOLFSSL_RC4_KEY;
 

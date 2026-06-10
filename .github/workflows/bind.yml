@@ -3,8 +3,9 @@ name: bind9 Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -15,7 +16,7 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     # Just to keep it the same as the testing target
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
@@ -46,7 +47,7 @@ jobs:
         # List of releases to test
         ref: [ 9.18.0, 9.18.28, 9.18.33, 9.20.11 ]
     name: ${{ matrix.ref }}
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10

@@ -60,10 +60,6 @@ on the specific device platform.
 
 #if !defined(NO_SHA256) && !defined(WOLFSSL_RISCV_ASM)
 
-#if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && defined(WOLFSSL_SHA224)
-    #error "WOLF_CRYPTO_CB_ONLY_SHA256 is incompatible with WOLFSSL_SHA224"
-#endif
-
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
@@ -99,6 +95,42 @@ on the specific device platform.
     #define WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 #else
     #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
+#endif
+
+/* WOLF_CRYPTO_CB_ONLY_SHA256 strips the software SHA-256 implementation and
+ * routes every operation through the crypto callback. It is mutually exclusive
+ * with any in-tree SHA-256 hardware/asm backend below: keep this list in sync
+ * with the #elif chain at the start of the "Hardware Acceleration" section. */
+#if defined(WOLF_CRYPTO_CB_ONLY_SHA256) && ( \
+        defined(WOLFSSL_TI_HASH) || \
+        defined(WOLFSSL_CRYPTOCELL) || \
+        defined(MAX3266X_SHA) || \
+        defined(FREESCALE_LTC_SHA) || \
+        defined(FREESCALE_MMCAU_SHA) || \
+        defined(WOLFSSL_PIC32MZ_HASH) || \
+        defined(STM32_HASH_SHA2) || \
+        (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)) || \
+        (defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)) || \
+        defined(WOLFSSL_AFALG_HASH) || \
+        defined(WOLFSSL_DEVCRYPTO_HASH) || \
+        (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_HASH)) || \
+        defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) || \
+        defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+        defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+        defined(WOLFSSL_RENESAS_RSIP) || \
+        defined(PSOC6_HASH_SHA2) || \
+        defined(WOLFSSL_IMXRT_DCP) || \
+        defined(WOLFSSL_NXP_HASHCRYPT_SHA) || \
+        defined(WOLFSSL_SILABS_SE_ACCEL) || \
+        defined(WOLFSSL_KCAPI_HASH) || \
+        (defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)) || \
+        defined(WOLFSSL_RENESAS_RX64_HASH) || \
+        defined(WOLFSSL_PPC32_ASM) || \
+        defined(WOLFSSL_ARMASM) || \
+        (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+            (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))))
+    #error "WOLF_CRYPTO_CB_ONLY_SHA256 is incompatible with SHA-256 hardware" \
+           " acceleration backends"
 #endif
 
 #ifdef WOLFSSL_ESPIDF
@@ -2148,6 +2180,35 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #elif defined(PSOC6_HASH_SHA2)
     /* Implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
+#elif defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+    int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
+    {
+        int ret;
+        if (sha224 == NULL)
+            return BAD_FUNC_ARG;
+        ret = InitSha256((wc_Sha256*)sha224);
+        if (ret != 0)
+            return ret;
+        sha224->digest[0] = 0xc1059ed8;
+        sha224->digest[1] = 0x367cd507;
+        sha224->digest[2] = 0x3070dd17;
+        sha224->digest[3] = 0xf70e5939;
+        sha224->digest[4] = 0xffc00b31;
+        sha224->digest[5] = 0x68581511;
+        sha224->digest[6] = 0x64f98fa7;
+        sha224->digest[7] = 0xbefa4fa4;
+        sha224->heap   = heap;
+        sha224->devId  = devId;
+        sha224->devCtx = NULL;
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        sha224->W = NULL;
+    #endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        XMEMSET(&sha224->asyncDev, 0, sizeof(sha224->asyncDev));
+    #endif
+        return ret;
+    }
+
 #else
 
     #define NEED_SOFT_SHA224
@@ -2368,6 +2429,50 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         return InitSha224(sha224);  /* reset state */
     }
 #endif /* end of SHA224 software implementation */
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SHA256
+
+    int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len)
+    {
+        if (sha224 == NULL)
+            return BAD_FUNC_ARG;
+        if (data == NULL && len == 0)
+            return 0;
+        if (data == NULL)
+            return BAD_FUNC_ARG;
+
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha224->devId != INVALID_DEVID)
+        #endif
+        {
+            int ret = wc_CryptoCb_Sha224Hash(sha224, data, len, NULL);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+        }
+
+        return NO_VALID_DEVID;
+    }
+
+    int wc_Sha224Final(wc_Sha224* sha224, byte* hash)
+    {
+        int ret;
+
+        if (sha224 == NULL || hash == NULL)
+            return BAD_FUNC_ARG;
+
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha224->devId != INVALID_DEVID)
+        #endif
+        {
+            ret = wc_CryptoCb_Sha224Hash(sha224, NULL, 0, hash);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+        }
+
+        return NO_VALID_DEVID;
+    }
+
+#endif /* WOLF_CRYPTO_CB_ONLY_SHA256 */
 
     int wc_InitSha224(wc_Sha224* sha224)
     {

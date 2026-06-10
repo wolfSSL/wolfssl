@@ -1,0 +1,86 @@
+name: PIC32MZ simulator test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+# Build the PIC32MZ software simulator (https://github.com/wolfSSL/simulators,
+# PIC32MZSim/ subdirectory) and run the wolfCrypt test suite on emulated
+# PIC32MZ EC (no FPU, CE ignores OUT_SWAP) and EF (FPU + OUT_SWAP) parts,
+# through both the direct-register PIC32 port and the MPLAB Harmony 3 driver
+# port.
+#
+# Like stm32-sim.yml, the Dockerfiles read wolfSSL from /opt/wolfssl at
+# runtime via a bind mount, so no Dockerfile patching is required - the PR
+# checkout is mounted directly.
+
+jobs:
+  pic32mz_sim:
+    name: wolfCrypt on PIC32MZ ${{ matrix.chip_label }} (${{ matrix.port_label }})
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - port_label: direct
+            chip_label: EC
+            dockerfile: Dockerfile.wolfcrypt-direct
+            image_tag: pic32mz-wolfcrypt-direct:ci
+            script: run-wolfcrypt-direct-ec.sh
+            cache_scope: pic32mz-direct
+          - port_label: direct
+            chip_label: EF
+            dockerfile: Dockerfile.wolfcrypt-direct
+            image_tag: pic32mz-wolfcrypt-direct:ci
+            script: run-wolfcrypt-direct-ef.sh
+            cache_scope: pic32mz-direct
+          - port_label: harmony
+            chip_label: EC
+            dockerfile: Dockerfile.wolfcrypt-harmony
+            image_tag: pic32mz-wolfcrypt-harmony:ci
+            script: run-wolfcrypt-harmony-ec.sh
+            cache_scope: pic32mz-harmony
+          - port_label: harmony
+            chip_label: EF
+            dockerfile: Dockerfile.wolfcrypt-harmony
+            image_tag: pic32mz-wolfcrypt-harmony:ci
+            script: run-wolfcrypt-harmony-ef.sh
+            cache_scope: pic32mz-harmony
+    steps:
+      - name: Checkout wolfSSL (PR source)
+        uses: actions/checkout@v4
+        with:
+          path: wolfssl
+
+      - name: Clone PIC32MZ simulator
+        run: git clone --depth 1 https://github.com/wolfSSL/simulators simulators
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.image_tag }} image
+        uses: docker/build-push-action@v5
+        with:
+          context: simulators/PIC32MZSim
+          file: simulators/PIC32MZSim/${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ matrix.image_tag }}
+          cache-from: type=gha,scope=${{ matrix.cache_scope }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.cache_scope }}
+
+      - name: Run wolfCrypt tests on PIC32MZ ${{ matrix.chip_label }} (${{ matrix.port_label }})
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/wolfssl:/opt/wolfssl:ro" \
+            ${{ matrix.image_tag }} \
+            /app/scripts/${{ matrix.script }}

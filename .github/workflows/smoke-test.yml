@@ -1,0 +1,136 @@
+name: Smoke Test
+
+# Fast pre-flight build + make check across common-failure configs derived
+# from the Jenkins PRB top-10 (last 30 days). Intentionally runs on drafts
+# too: this is the gate that protects the rest of CI. Other PR workflows
+# wait for this via .github/actions/wait-for-smoke.
+#
+# CFLAGS=-Werror is applied at make time only (not ./configure) so autoconf
+# feature detection is not poisoned by benign warnings in conftest probes.
+#
+# For pull_request events the workflow tests the POST-MERGE tree:
+# the PR head is checked out, the base branch is merged in, and:
+#   * a merge conflict fails the job before any build runs.
+#   * if the PR tree is identical to base (no diff), the matrix is skipped.
+#   * otherwise the build runs against the merged tree.
+# This catches stale PRs whose head builds clean but whose merge with
+# current master would break.
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - '**/*.md'
+      - 'doc/**'
+      - 'AUTHORS'
+      - 'LICENSING'
+      - 'ChangeLog.md'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ master, main ]
+
+concurrency:
+  group: smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: default
+            args: ""
+          - name: enable-all
+            args: "--enable-all"
+          - name: opensslextra
+            args: "--enable-opensslextra"
+          - name: enable-all-smallstack
+            args: "--enable-all --enable-smallstack"
+          - name: cryptonly
+            args: "--enable-cryptonly"
+          # Below entries target the top Jenkins PRB failure modes
+          # (-Werror unused-function / implicit-decl / link errors).
+          - name: leantls-extra
+            args: "--enable-leantls --enable-session-ticket --enable-sni --enable-opensslextra"
+          - name: dtls-suite
+            args: "--enable-psk --enable-dtls --enable-dtls13 --enable-dtls-mtu --enable-aesccm --enable-opensslextra"
+          - name: integration
+            args: "--enable-openssh --enable-lighty --enable-stunnel --enable-opensslextra"
+          # AddressSanitizer (UBSAN excluded - current master has known
+          # left-shift UB in auto-generated SP math).
+          - name: sanitize-asan
+            args: "--enable-all"
+            cflags: "-fsanitize=address -fno-omit-frame-pointer -g -O1"
+            ldflags: "-fsanitize=address"
+    env:
+      MAKE_CFLAGS: "-Werror"
+    steps:
+      # For PRs we explicitly check out the PR head (not the auto-merge
+      # ref) and do the merge ourselves below so we can fail fast on
+      # conflicts. For push events we just check out the pushed SHA.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Merge base into PR head (fail fast on conflict)
+        id: merge_check
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -e
+          git config user.email "ci@wolfssl.invalid"
+          git config user.name "wolfSSL CI Merge"
+          git fetch --no-tags origin "$BASE_REF"
+          BASE_SHA=$(git rev-parse FETCH_HEAD)
+          if git diff --quiet "$BASE_SHA" HEAD; then
+            echo "::notice::PR tree is identical to $BASE_REF; skipping smoke matrix."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git merge --no-ff --no-commit "$BASE_SHA"; then
+            echo "::error::Merge conflicts with $BASE_REF - please rebase or merge $BASE_REF into the PR branch before testing."
+            git merge --abort || true
+            exit 1
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "Clean merge with $BASE_REF; testing post-merge tree."
+
+      - name: Install dependencies
+        if: steps.merge_check.outputs.skip != 'true'
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+
+      - name: autogen
+        if: steps.merge_check.outputs.skip != 'true'
+        run: ./autogen.sh
+
+      - name: configure ${{ matrix.config.name }}
+        if: steps.merge_check.outputs.skip != 'true'
+        run: ./configure ${{ matrix.config.args }}
+
+      - name: make
+        if: steps.merge_check.outputs.skip != 'true'
+        env:
+          ENTRY_CFLAGS: ${{ matrix.config.cflags }}
+          ENTRY_LDFLAGS: ${{ matrix.config.ldflags }}
+        run: |
+          FLAGS="${ENTRY_CFLAGS:-$MAKE_CFLAGS}"
+          make -j"$(nproc)" CFLAGS="$FLAGS" LDFLAGS="$ENTRY_LDFLAGS"
+
+      - name: make check
+        if: steps.merge_check.outputs.skip != 'true'
+        env:
+          ENTRY_CFLAGS: ${{ matrix.config.cflags }}
+          ENTRY_LDFLAGS: ${{ matrix.config.ldflags }}
+        run: |
+          FLAGS="${ENTRY_CFLAGS:-$MAKE_CFLAGS}"
+          make check CFLAGS="$FLAGS" LDFLAGS="$ENTRY_LDFLAGS"

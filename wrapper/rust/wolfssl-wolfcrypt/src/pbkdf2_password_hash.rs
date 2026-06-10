@@ -217,8 +217,12 @@ impl password_hash::CustomizedPasswordHasher<PasswordHash> for Pbkdf2 {
             None => self.algorithm,
         };
 
-        if params.rounds < MIN_ROUNDS || params.output_len > Output::MAX_LENGTH {
+        if params.rounds < MIN_ROUNDS {
             return Err(Error::ParamInvalid { name: "i" });
+        }
+
+        if params.output_len > Output::MAX_LENGTH {
+            return Err(Error::ParamInvalid { name: "l" });
         }
 
         let iterations = i32::try_from(params.rounds)

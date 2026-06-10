@@ -2939,17 +2939,25 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ed448.c
         tests/api/test_mlkem.c
         tests/api/test_mldsa.c
+        tests/api/test_mldsa_legacy.c
         tests/api/test_slhdsa.c
         tests/api/test_signature.c
+        tests/api/test_lms_xmss.c
         tests/api/test_dtls.c
+        tests/api/test_dtls13.c
+        tests/api/test_ssl_cert.c
+        tests/api/test_ssl_pk.c
+        tests/api/test_ssl_ext.c
         tests/api/test_ocsp.c
         tests/api/test_evp.c
         tests/api/test_tls_ext.c
         tests/api/test_tls.c
+        tests/api/test_session.c
         tests/api/test_x509.c
         tests/api/test_asn.c
         tests/api/test_pkcs7.c
         tests/api/test_pkcs12.c
+        tests/api/test_pwdbased.c
         tests/api/test_ossl_asn1.c
         tests/api/test_ossl_bio.c
         tests/api/test_ossl_bn.c

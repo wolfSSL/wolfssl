@@ -1715,15 +1715,15 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     void* heap, int devId)
 {
     int ret = 0;
-#ifdef HAVE_HASHDRBG
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_RNG_USE_FULL_SEED)
     word32 seedSz = SEED_SZ;
 #else
     word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
+#endif
     WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     int drbg_scratch_instantiated = 0;
-#endif
 #endif
 #endif
 
@@ -2174,6 +2174,10 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
                   void* heap, int devId)
 {
     int ret;
+
+    if (rng == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     *rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), heap, DYNAMIC_TYPE_RNG);
     if (*rng == NULL) {

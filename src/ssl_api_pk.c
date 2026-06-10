@@ -72,16 +72,16 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                 type = DYNAMIC_TYPE_ECC;
                 break;
         #endif
-    #if defined(HAVE_DILITHIUM)
-            case ML_DSA_LEVEL2k:
-            case ML_DSA_LEVEL3k:
-            case ML_DSA_LEVEL5k:
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+            case ML_DSA_44k:
+            case ML_DSA_65k:
+            case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
             case DILITHIUM_LEVEL2k:
             case DILITHIUM_LEVEL3k:
             case DILITHIUM_LEVEL5k:
         #endif
-                type = DYNAMIC_TYPE_DILITHIUM;
+                type = DYNAMIC_TYPE_MLDSA;
                 break;
     #endif
     #if defined(HAVE_FALCON)
@@ -112,17 +112,17 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                     pubSz);
                 break;
     #endif
-    #if defined(HAVE_DILITHIUM)
-            case ML_DSA_LEVEL2k:
-            case ML_DSA_LEVEL3k:
-            case ML_DSA_LEVEL5k:
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+            case ML_DSA_44k:
+            case ML_DSA_65k:
+            case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
             case DILITHIUM_LEVEL2k:
             case DILITHIUM_LEVEL3k:
             case DILITHIUM_LEVEL5k:
         #endif
                 ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
-                    WC_PQC_SIG_TYPE_DILITHIUM, pubKey, pubSz);
+                    WC_PQC_SIG_TYPE_MLDSA, pubKey, pubSz);
                 break;
     #endif
     #if defined(HAVE_FALCON)
@@ -137,7 +137,7 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
         }
     }
 #else
-    /* devId was set, don't check, for now */
+    /* devId was set, so don't check for now. */
     /* TODO: Add callback for private key check? */
     (void) pubKey;
     (void) pubSz;
@@ -157,16 +157,16 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
             wc_ecc_free((ecc_key*)pkey);
             break;
     #endif
-    #if defined(HAVE_DILITHIUM)
-        case ML_DSA_LEVEL2k:
-        case ML_DSA_LEVEL3k:
-        case ML_DSA_LEVEL5k:
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        case ML_DSA_44k:
+        case ML_DSA_65k:
+        case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
         case DILITHIUM_LEVEL2k:
         case DILITHIUM_LEVEL3k:
         case DILITHIUM_LEVEL5k:
         #endif
-            wc_dilithium_free((dilithium_key*)pkey);
+            wc_MlDsaKey_Free((wc_MlDsaKey*)pkey);
             break;
     #endif
     #if defined(HAVE_FALCON)
@@ -242,7 +242,7 @@ static int check_cert_key(const DerBuffer* cert, const DerBuffer* key,
             }
         }
         else {
-            /* fall through if unavailable */
+            /* Fall through if unavailable. */
             ret = CRYPTOCB_UNAVAILABLE;
         }
 
@@ -270,7 +270,7 @@ static int check_cert_key(const DerBuffer* cert, const DerBuffer* key,
             }
         #ifdef WOLF_PRIVATE_KEY_ID
             if (altDevId != INVALID_DEVID) {
-                /* We have to decode the public key first */
+                /* We have to decode the public key first. */
                 /* Default to max pub key size. */
                 word32 pubKeyLen = MAX_PUBLIC_KEY_SZ;
                 byte* decodedPubKey = (byte*)XMALLOC(pubKeyLen, heap,
@@ -280,7 +280,7 @@ static int check_cert_key(const DerBuffer* cert, const DerBuffer* key,
                 }
                 if (ret == WOLFSSL_SUCCESS) {
                     if ((der->sapkiOID == RSAk) || (der->sapkiOID == ECDSAk)) {
-                        /* Simply copy the data */
+                        /* Simply copy the data. */
                         XMEMCPY(decodedPubKey, der->sapkiDer, der->sapkiLen);
                         pubKeyLen = der->sapkiLen;
                         ret = 0;
@@ -307,7 +307,7 @@ static int check_cert_key(const DerBuffer* cert, const DerBuffer* key,
                 }
             }
             else {
-                /* fall through if unavailable */
+                /* Fall through if unavailable. */
                 ret = CRYPTOCB_UNAVAILABLE;
             }
 
@@ -1605,5 +1605,1241 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     return ret;
 }
 #endif /* HAVE_PK_CALLBACKS && !NO_DH */
+
+#ifndef WOLFCRYPT_ONLY
+
+#ifndef NO_TLS
+#ifdef HAVE_ECC
+/* Set the minimum ECC key size, in bits, allowed with the context.
+ *
+ * @param [in] ctx    SSL/TLS context object.
+ * @param [in] keySz  Minimum ECC key size in bits.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL or keySz is negative.
+ * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
+ */
+int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_SetMinEccKey_Sz");
+
+    if ((ctx == NULL) || (keySz < 0)) {
+        WOLFSSL_MSG("Key size must be positive value or ctx was null");
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        short keySzBytes = (keySz + 7) / 8;
+
+    #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+        if (crypto_policy.enabled && (ctx->minEccKeySz > keySzBytes)) {
+            ret = CRYPTO_POLICY_FORBIDDEN;
+        }
+        else
+    #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+        {
+            ctx->minEccKeySz     = keySzBytes;
+        #ifndef NO_CERTS
+            ctx->cm->minEccKeySz = keySzBytes;
+        #endif
+        }
+    }
+
+    return ret;
+}
+
+
+/* Set the minimum ECC key size, in bits, allowed with the object.
+ *
+ * @param [in] ssl    SSL/TLS object.
+ * @param [in] keySz  Minimum ECC key size in bits.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or keySz is negative.
+ * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
+ */
+int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_SetMinEccKey_Sz");
+
+    if ((ssl == NULL) || (keySz < 0)) {
+        WOLFSSL_MSG("Key size must be positive value or ctx was null");
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        short keySzBytes = (keySz + 7) / 8;
+
+    #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+        if (crypto_policy.enabled && (ssl->options.minEccKeySz > keySzBytes)) {
+            ret = CRYPTO_POLICY_FORBIDDEN;
+        }
+        else
+    #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+        {
+            ssl->options.minEccKeySz = keySzBytes;
+        }
+    }
+
+    return ret;
+}
+
+#endif /* HAVE_ECC */
+
+#ifndef NO_RSA
+/* Set the minimum RSA key size, in bits, allowed with the context.
+ *
+ * @param [in] ctx    SSL/TLS context object.
+ * @param [in] keySz  Minimum RSA key size in bits. Must be a multiple of 8.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL or keySz is negative or not a
+ *          multiple of 8.
+ * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
+ */
+int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if ((ctx == NULL) || (keySz < 0) || ((keySz % 8) != 0)) {
+        WOLFSSL_MSG("Key size must be divisible by 8 or ctx was null");
+        ret = BAD_FUNC_ARG;
+    }
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    else if (crypto_policy.enabled && (ctx->minRsaKeySz > (keySz / 8))) {
+        ret = CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+    else {
+        ctx->minRsaKeySz     = keySz / 8;
+        ctx->cm->minRsaKeySz = keySz / 8;
+    }
+
+    return ret;
+}
+
+
+/* Set the minimum RSA key size, in bits, allowed with the object.
+ *
+ * @param [in] ssl    SSL/TLS object.
+ * @param [in] keySz  Minimum RSA key size in bits. Must be a multiple of 8.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or keySz is negative or not a
+ *          multiple of 8.
+ * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
+ */
+int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if ((ssl == NULL) || (keySz < 0) || ((keySz % 8) != 0)) {
+        WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
+        ret = BAD_FUNC_ARG;
+    }
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    else if (crypto_policy.enabled && (ssl->options.minRsaKeySz > (keySz / 8))) {
+        ret = CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+    else {
+        ssl->options.minRsaKeySz = keySz / 8;
+    }
+
+    return ret;
+}
+#endif /* !NO_RSA */
+
+#ifndef NO_DH
+
+#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+/* Enable or disable the DH key prime test on the object.
+ *
+ * @param [in] ssl     SSL/TLS object.
+ * @param [in] enable  1 to enable the prime test and 0 to disable it.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_SetEnableDhKeyTest");
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* Store the flag normalized to a boolean. */
+        ssl->options.dhDoKeyTest = (enable != 0);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_SetEnableDhKeyTest", ret);
+    return ret;
+}
+#endif
+
+/* Set the minimum DH key size, in bits, allowed with the context.
+ *
+ * @param [in] ctx         SSL/TLS context object.
+ * @param [in] keySz_bits  Minimum DH key size in bits. No more than 16000 and
+ *                         a multiple of 8.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL or keySz_bits is invalid.
+ * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
+ */
+int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if ((ctx == NULL) || (keySz_bits > 16000) || ((keySz_bits % 8) != 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    else if (crypto_policy.enabled && (ctx->minDhKeySz > (keySz_bits / 8))) {
+        ret = CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+    else {
+        ctx->minDhKeySz = keySz_bits / 8;
+    }
+
+    return ret;
+}
+
+
+/* Set the minimum DH key size, in bits, allowed with the object.
+ *
+ * @param [in] ssl         SSL/TLS object.
+ * @param [in] keySz_bits  Minimum DH key size in bits. No more than 16000 and
+ *                         a multiple of 8.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or keySz_bits is invalid.
+ * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
+ */
+int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if ((ssl == NULL) || (keySz_bits > 16000) || ((keySz_bits % 8) != 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    else if (crypto_policy.enabled &&
+             (ssl->options.minDhKeySz > (keySz_bits / 8))) {
+        ret = CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+    else {
+        ssl->options.minDhKeySz = keySz_bits / 8;
+    }
+
+    return ret;
+}
+
+
+/* Set the maximum DH key size, in bits, allowed with the context.
+ *
+ * @param [in] ctx         SSL/TLS context object.
+ * @param [in] keySz_bits  Maximum DH key size in bits. No more than 16000 and
+ *                         a multiple of 8.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL or keySz_bits is invalid.
+ */
+int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if ((ctx == NULL) || (keySz_bits > 16000) || (keySz_bits % 8 != 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    else if (crypto_policy.enabled && (ctx->minDhKeySz > (keySz_bits / 8))) {
+        ret = CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+    else {
+        ctx->maxDhKeySz = keySz_bits / 8;
+    }
+
+    return ret;
+}
+
+
+/* Set the maximum DH key size, in bits, allowed with the object.
+ *
+ * @param [in] ssl         SSL/TLS object.
+ * @param [in] keySz_bits  Maximum DH key size in bits. No more than 16000 and
+ *                         a multiple of 8.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or keySz_bits is invalid.
+ */
+int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if ((ssl == NULL) || (keySz_bits > 16000) || ((keySz_bits % 8) != 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    else if (crypto_policy.enabled &&
+             (ssl->options.minDhKeySz > (keySz_bits / 8))) {
+        ret = CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+    else {
+        ssl->options.maxDhKeySz = keySz_bits / 8;
+    }
+
+    return ret;
+}
+
+
+/* Get the size, in bits, of the DH key being used by the object.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  DH key size in bits on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl)
+{
+    int ret;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* Key size is stored in bytes; report it in bits. */
+        ret = ssl->options.dhKeySz * 8;
+    }
+
+    return ret;
+}
+
+#endif /* !NO_DH */
+
+#endif /* !NO_TLS */
+
+#ifdef OPENSSL_EXTRA
+#ifndef NO_WOLFSSL_STUB
+/* Get the private key of the object.
+ *
+ * Not implemented - stub for OpenSSL compatibility.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  NULL always.
+ */
+WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
+{
+    (void)ssl;
+    WOLFSSL_STUB("SSL_get_privatekey");
+    return NULL;
+}
+#endif
+
+#endif /* OPENSSL_EXTRA */
+
+#ifdef OPENSSL_EXTRA
+/* Map a wolfSSL MAC/hash algorithm identifier to a NID.
+ *
+ * @param [in]  hashAlgo  MAC/hash algorithm identifier.
+ * @param [out] nid       NID corresponding to the hash algorithm.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when the algorithm is not recognized.
+ */
+static int HashToNid(byte hashAlgo, int* nid)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    /* Cast for compiler to check everything is implemented. */
+    switch ((enum wc_MACAlgorithm)hashAlgo) {
+        case no_mac:
+        case rmd_mac:
+            *nid = WC_NID_undef;
+            break;
+        case md5_mac:
+            *nid = WC_NID_md5;
+            break;
+        case sha_mac:
+            *nid = WC_NID_sha1;
+            break;
+        case sha224_mac:
+            *nid = WC_NID_sha224;
+            break;
+        case sha256_mac:
+            *nid = WC_NID_sha256;
+            break;
+        case sha384_mac:
+            *nid = WC_NID_sha384;
+            break;
+        case sha512_mac:
+            *nid = WC_NID_sha512;
+            break;
+        case blake2b_mac:
+            *nid = WC_NID_blake2b512;
+            break;
+        case sm3_mac:
+            *nid = WC_NID_sm3;
+            break;
+        default:
+            ret = WOLFSSL_FAILURE;
+            break;
+    }
+
+    return ret;
+}
+
+/* Map a wolfSSL signature algorithm identifier to a NID.
+ *
+ * @param [in]  sa   Signature algorithm identifier.
+ * @param [out] nid  NID corresponding to the signature algorithm.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when the algorithm is not recognized or not
+ *          compiled in.
+ */
+static int SaToNid(byte sa, int* nid)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    /* Cast for compiler to check everything is implemented. */
+    switch ((enum SignatureAlgorithm)sa) {
+        case anonymous_sa_algo:
+            *nid = WC_NID_undef;
+            break;
+        case rsa_sa_algo:
+            *nid = WC_NID_rsaEncryption;
+            break;
+        case dsa_sa_algo:
+            *nid = WC_NID_dsa;
+            break;
+        case ecc_dsa_sa_algo:
+        case ecc_brainpool_sa_algo:
+            *nid = WC_NID_X9_62_id_ecPublicKey;
+            break;
+        case rsa_pss_sa_algo:
+            *nid = WC_NID_rsassaPss;
+            break;
+        case ed25519_sa_algo:
+#ifdef HAVE_ED25519
+            *nid = WC_NID_ED25519;
+#else
+            ret = WOLFSSL_FAILURE;
+#endif
+            break;
+        case rsa_pss_pss_algo:
+            *nid = WC_NID_rsassaPss;
+            break;
+        case ed448_sa_algo:
+#ifdef HAVE_ED448
+            *nid = WC_NID_ED448;
+#else
+            ret = WOLFSSL_FAILURE;
+#endif
+            break;
+        case falcon_level1_sa_algo:
+            *nid = CTC_FALCON_LEVEL1;
+            break;
+        case falcon_level5_sa_algo:
+            *nid = CTC_FALCON_LEVEL5;
+            break;
+        case mldsa_44_sa_algo:
+            *nid = CTC_ML_DSA_44;
+            break;
+        case mldsa_65_sa_algo:
+            *nid = CTC_ML_DSA_65;
+            break;
+        case mldsa_87_sa_algo:
+            *nid = CTC_ML_DSA_87;
+            break;
+        case sm2_sa_algo:
+            *nid = WC_NID_sm2;
+            break;
+        case invalid_sa_algo:
+        case any_sa_algo:
+        default:
+            ret = WOLFSSL_FAILURE;
+            break;
+    }
+    return ret;
+}
+
+/* Get the NID of the hash algorithm used for signing by this side.
+ *
+ * @param [in]  ssl  SSL/TLS object.
+ * @param [out] nid  NID of the hash algorithm.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl or nid is NULL or the algorithm is not
+ *          recognized.
+ */
+int wolfSSL_get_signature_nid(WOLFSSL *ssl, int* nid)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_get_signature_nid");
+
+    if ((ssl == NULL) || (nid == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        /* Map this side's signing hash algorithm to its NID. */
+        ret = HashToNid(ssl->options.hashAlgo, nid);
+    }
+
+    return ret;
+}
+
+/* Get the NID of the signature algorithm used for signing by this side.
+ *
+ * @param [in]  ssl  SSL/TLS object.
+ * @param [out] nid  NID of the signature algorithm.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl or nid is NULL or the algorithm is not
+ *          recognized.
+ */
+int wolfSSL_get_signature_type_nid(const WOLFSSL* ssl, int* nid)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_get_signature_type_nid");
+
+    if ((ssl == NULL) || (nid == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        /* Map this side's signature algorithm to its NID. */
+        ret = SaToNid(ssl->options.sigAlgo, nid);
+    }
+
+    return ret;
+}
+
+/* Get the NID of the hash algorithm used for signing by the peer.
+ *
+ * @param [in]  ssl  SSL/TLS object.
+ * @param [out] nid  NID of the hash algorithm.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl or nid is NULL or the algorithm is not
+ *          recognized.
+ */
+int wolfSSL_get_peer_signature_nid(WOLFSSL* ssl, int* nid)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_get_peer_signature_nid");
+
+    if ((ssl == NULL) || (nid == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        /* Map the peer's signing hash algorithm to its NID. */
+        ret = HashToNid(ssl->options.peerHashAlgo, nid);
+    }
+
+    return ret;
+}
+
+/* Get the NID of the signature algorithm used for signing by the peer.
+ *
+ * @param [in]  ssl  SSL/TLS object.
+ * @param [out] nid  NID of the signature algorithm.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl or nid is NULL or the algorithm is not
+ *          recognized.
+ */
+int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_get_peer_signature_type_nid");
+
+    if ((ssl == NULL) || (nid == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        /* Map the peer's signature algorithm to its NID. */
+        ret = SaToNid(ssl->options.peerSigAlgo, nid);
+    }
+
+    return ret;
+}
+
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+#ifdef HAVE_ECC
+/* Set the temporary ECDH key's curve on the context.
+ *
+ * @param [in] ctx   SSL/TLS context object.
+ * @param [in] ecdh  EC key whose curve is to be used.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx or ecdh is NULL.
+ */
+int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx, WOLFSSL_EC_KEY *ecdh)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_SSL_CTX_set_tmp_ecdh");
+
+    if ((ctx == NULL) || (ecdh == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* Only the curve of the EC key is used for ephemeral ECDH. */
+        ctx->ecdhCurveOID = (word32)ecdh->group->curve_oid;
+    }
+
+    return ret;
+}
+#endif
+
+#endif
+
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+/* Decode the loaded static ephemeral key into the given key object.
+ *
+ * @param [in]  ssl      SSL/TLS object.
+ * @param [in]  keyAlgo  Key algorithm: WC_PK_TYPE_DH, WC_PK_TYPE_ECDH,
+ *                       WC_PK_TYPE_CURVE25519 or WC_PK_TYPE_CURVE448.
+ * @param [out] keyPtr   Key object to decode into.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ssl, its context or keyPtr is NULL.
+ * @return  BUFFER_E when no static key has been set.
+ * @return  NOT_COMPILED_IN when the key algorithm is not supported.
+ * @return  Other negative value on error.
+ */
+int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
+{
+    int ret = 0;
+    word32 idx = 0;
+    DerBuffer* der = NULL;
+
+    if ((ssl == NULL) || (ssl->ctx == NULL) || (keyPtr == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+#ifndef SINGLE_THREADED
+    else if (!ssl->ctx->staticKELockInit) {
+        ret = BUFFER_E; /* no keys set */
+    }
+    else {
+        ret = wc_LockMutex(&ssl->ctx->staticKELock);
+    }
+#endif
+
+    if (ret == 0) {
+        ret = BUFFER_E; /* set default error */
+        switch (keyAlgo) {
+        #ifndef NO_DH
+            case WC_PK_TYPE_DH:
+                if (ssl != NULL)
+                    der = ssl->staticKE.dhKey;
+                if (der == NULL)
+                    der = ssl->ctx->staticKE.dhKey;
+                if (der != NULL) {
+                    DhKey* key = (DhKey*)keyPtr;
+                    WOLFSSL_MSG("Using static DH key");
+                    ret = wc_DhKeyDecode(der->buffer, &idx, key, der->length);
+                }
+                break;
+        #endif
+        #ifdef HAVE_ECC
+            case WC_PK_TYPE_ECDH:
+                if (ssl != NULL)
+                    der = ssl->staticKE.ecKey;
+                if (der == NULL)
+                    der = ssl->ctx->staticKE.ecKey;
+                if (der != NULL) {
+                    ecc_key* key = (ecc_key*)keyPtr;
+                    WOLFSSL_MSG("Using static ECDH key");
+                    ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key,
+                        der->length);
+                }
+                break;
+        #endif
+        #ifdef HAVE_CURVE25519
+            case WC_PK_TYPE_CURVE25519:
+                if (ssl != NULL)
+                    der = ssl->staticKE.x25519Key;
+                if (der == NULL)
+                    der = ssl->ctx->staticKE.x25519Key;
+                if (der != NULL) {
+                    curve25519_key* key = (curve25519_key*)keyPtr;
+                    WOLFSSL_MSG("Using static X25519 key");
+                #ifdef WOLFSSL_CURVE25519_BLINDING
+                    ret = wc_curve25519_set_rng(key, ssl->rng);
+                    if (ret == 0)
+                #endif
+                    {
+                        ret = wc_Curve25519PrivateKeyDecode(der->buffer, &idx,
+                            key, der->length);
+                    }
+                }
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case WC_PK_TYPE_CURVE448:
+                if (ssl != NULL)
+                    der = ssl->staticKE.x448Key;
+                if (der == NULL)
+                    der = ssl->ctx->staticKE.x448Key;
+                if (der != NULL) {
+                    curve448_key* key = (curve448_key*)keyPtr;
+                    WOLFSSL_MSG("Using static X448 key");
+                    ret = wc_Curve448PrivateKeyDecode(der->buffer, &idx, key,
+                        der->length);
+                }
+                break;
+        #endif
+            default:
+                /* Not supported. */
+                ret = NOT_COMPILED_IN;
+                break;
+        }
+
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ssl->ctx->staticKELock);
+    #endif
+    }
+
+    return ret;
+}
+
+/* Detect the algorithm of an ASN.1 DER encoded private key.
+ *
+ * Attempts to decode the key as each supported algorithm in turn, setting
+ * keyAlgo to the first type that decodes successfully. Detection is only
+ * performed when keyAlgo is WC_PK_TYPE_NONE on entry.
+ *
+ * @param [in]      keyBuf   ASN.1 DER encoded private key data.
+ * @param [in]      keySz    Length of key data in bytes.
+ * @param [in]      heap     Heap hint for dynamic memory allocation.
+ * @param [in, out] keyAlgo  Key algorithm. Detected when WC_PK_TYPE_NONE on
+ *                           entry; left unchanged otherwise.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other negative value on key initialization error.
+ */
+static int DetectStaticEphemeralKeyType(const byte* keyBuf, unsigned int keySz,
+    void* heap, int* keyAlgo)
+{
+    int ret = 0;
+
+#ifdef HAVE_ECC
+    {
+        word32 idx = 0;
+        WC_DECLARE_VAR(eccKey, ecc_key, 1, heap);
+        WC_ALLOC_VAR_EX(eccKey, ecc_key, 1, heap, DYNAMIC_TYPE_ECC,
+                        ret = MEMORY_E);
+        if (ret == 0) {
+            ret = wc_ecc_init_ex(eccKey, heap, INVALID_DEVID);
+        }
+        if (ret == 0) {
+            ret = wc_EccPrivateKeyDecode(keyBuf, &idx, eccKey, keySz);
+            if (ret == 0) {
+                *keyAlgo = WC_PK_TYPE_ECDH;
+            }
+            wc_ecc_free(eccKey);
+            ret = 0; /* clear error to enable key-type detect cascade */
+        }
+        WC_FREE_VAR_EX(eccKey, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
+    if (*keyAlgo == WC_PK_TYPE_NONE) {
+        word32 idx = 0;
+        WC_DECLARE_VAR(dhKey, DhKey, 1, heap);
+        WC_ALLOC_VAR_EX(dhKey, DhKey, 1, heap, DYNAMIC_TYPE_DH,
+                        ret = MEMORY_E);
+        if (ret == 0) {
+            ret = wc_InitDhKey_ex(dhKey, heap, INVALID_DEVID);
+        }
+        if (ret == 0) {
+            ret = wc_DhKeyDecode(keyBuf, &idx, dhKey, keySz);
+            if (ret == 0) {
+                *keyAlgo = WC_PK_TYPE_DH;
+            }
+            wc_FreeDhKey(dhKey);
+            ret = 0; /* clear error to enable key-type detect cascade */
+        }
+        WC_FREE_VAR_EX(dhKey, heap, DYNAMIC_TYPE_DH);
+    }
+#endif
+#ifdef HAVE_CURVE25519
+    if (*keyAlgo == WC_PK_TYPE_NONE) {
+        word32 idx = 0;
+        WC_DECLARE_VAR(x25519Key, curve25519_key, 1, heap);
+        WC_ALLOC_VAR_EX(x25519Key, curve25519_key, 1, heap,
+                        DYNAMIC_TYPE_CURVE25519, ret = MEMORY_E);
+        if (ret == 0) {
+            ret = wc_curve25519_init_ex(x25519Key, heap, INVALID_DEVID);
+        }
+        if (ret == 0) {
+            ret = wc_Curve25519PrivateKeyDecode(keyBuf, &idx,
+                x25519Key, keySz);
+            if (ret == 0) {
+                *keyAlgo = WC_PK_TYPE_CURVE25519;
+            }
+            wc_curve25519_free(x25519Key);
+            ret = 0; /* clear error to enable key-type detect cascade */
+        }
+        WC_FREE_VAR_EX(x25519Key, heap, DYNAMIC_TYPE_CURVE25519);
+    }
+#endif
+#ifdef HAVE_CURVE448
+    if (*keyAlgo == WC_PK_TYPE_NONE) {
+        word32 idx = 0;
+        WC_DECLARE_VAR(x448Key, curve448_key, 1, heap);
+        WC_ALLOC_VAR_EX(x448Key, curve448_key, 1, heap,
+                        DYNAMIC_TYPE_CURVE448, ret = MEMORY_E);
+        if (ret == 0) {
+            ret = wc_curve448_init(x448Key);
+        }
+        if (ret == 0) {
+            ret = wc_Curve448PrivateKeyDecode(keyBuf, &idx, x448Key,
+                keySz);
+            if (ret == 0) {
+                *keyAlgo = WC_PK_TYPE_CURVE448;
+            }
+            wc_curve448_free(x448Key);
+            ret = 0; /* clear error to enable key-type detect cascade */
+        }
+        WC_FREE_VAR_EX(x448Key, heap, DYNAMIC_TYPE_CURVE448);
+    }
+#endif
+
+    (void)keyBuf;
+    (void)keySz;
+    (void)heap;
+    (void)keyAlgo;
+
+    return ret;
+}
+
+/* Load and store a static ephemeral key into the static key exchange info.
+ *
+ * An empty key (key NULL) frees the stored buffer. A file is loaded when key
+ * is a path and keySz is 0. The key algorithm is auto-detected when keyAlgo
+ * is WC_PK_TYPE_NONE.
+ *
+ * @param [in]      ctx       SSL/TLS context object (used for the mutex).
+ * @param [in, out] staticKE  Static key exchange info to store the key in.
+ * @param [in]      keyAlgo   Key algorithm or WC_PK_TYPE_NONE to detect.
+ * @param [in]      key       Key data or file path, may be NULL to free.
+ * @param [in]      keySz     Length of key data in bytes, 0 to load a file.
+ * @param [in]      format    WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
+ * @param [in]      heap      Heap hint for dynamic memory allocation.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when staticKE is NULL or key is NULL with keySz > 0.
+ * @return  NOT_COMPILED_IN when the key algorithm is not supported.
+ * @return  Other negative value on error.
+ */
+static int SetStaticEphemeralKey(WOLFSSL_CTX* ctx,
+    StaticKeyExchangeInfo_t* staticKE, int keyAlgo, const char* key,
+    unsigned int keySz, int format, void* heap)
+{
+    int ret = 0;
+    DerBuffer* der = NULL;
+    byte* keyBuf = NULL;
+#ifndef NO_FILESYSTEM
+    const char* keyFile = NULL;
+#endif
+
+    WOLFSSL_ENTER("SetStaticEphemeralKey");
+
+    /* Allow an empty key to free the buffer. */
+    if ((staticKE == NULL) || ((key == NULL) && (keySz > 0))) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* If just freeing the key then skip loading. */
+    if ((ret == 0) && (key != NULL)) {
+    #ifndef NO_FILESYSTEM
+        /* Load the file from the filesystem. */
+        if ((key != NULL) && (keySz == 0)) {
+            size_t keyBufSz = 0;
+            keyFile = (const char*)key;
+            ret = wc_FileLoad(keyFile, &keyBuf, &keyBufSz, heap);
+            if (ret == 0) {
+                keySz = (unsigned int)keyBufSz;
+            }
+        }
+        else
+    #endif
+        {
+            /* Use as the key buffer directly. */
+            keyBuf = (byte*)key;
+        }
+
+        if (ret != 0) {
+            /* File load failed - nothing more to process. */
+        }
+        else if (format == WOLFSSL_FILETYPE_PEM) {
+        #ifdef WOLFSSL_PEM_TO_DER
+            int keyFormat = 0;
+            ret = PemToDer(keyBuf, keySz, PRIVATEKEY_TYPE, &der,
+                heap, NULL, &keyFormat);
+            /* Auto-detect the key type. */
+            if ((ret == 0) && (keyAlgo == WC_PK_TYPE_NONE)) {
+                if (keyFormat == ECDSAk) {
+                    keyAlgo = WC_PK_TYPE_ECDH;
+                }
+                else if (keyFormat == X25519k) {
+                    keyAlgo = WC_PK_TYPE_CURVE25519;
+                }
+                else {
+                    keyAlgo = WC_PK_TYPE_DH;
+                }
+            }
+        #else
+            ret = NOT_COMPILED_IN;
+        #endif
+        }
+        else {
+            /* Detect the key type if not specified. */
+            if (keyAlgo == WC_PK_TYPE_NONE) {
+                ret = DetectStaticEphemeralKeyType(keyBuf, keySz, heap,
+                    &keyAlgo);
+            }
+            if ((ret == 0) && (keyAlgo != WC_PK_TYPE_NONE)) {
+                ret = AllocDer(&der, keySz, PRIVATEKEY_TYPE, heap);
+                if (ret == 0) {
+                    XMEMCPY(der->buffer, keyBuf, keySz);
+                }
+            }
+        }
+    }
+
+#ifndef NO_FILESYSTEM
+    /* Done with the keyFile buffer. */
+    if ((keyFile != NULL) && (keyBuf != NULL)) {
+        ForceZero(keyBuf, keySz);
+        XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+#ifndef SINGLE_THREADED
+    if ((ret == 0) && (!ctx->staticKELockInit)) {
+        ret = wc_InitMutex(&ctx->staticKELock);
+        if (ret == 0) {
+            ctx->staticKELockInit = 1;
+        }
+    }
+#endif
+    if ((ret == 0)
+    #ifndef SINGLE_THREADED
+        && ((ret = wc_LockMutex(&ctx->staticKELock)) == 0)
+    #endif
+    ) {
+        switch (keyAlgo) {
+        #ifndef NO_DH
+            case WC_PK_TYPE_DH:
+                FreeDer(&staticKE->dhKey);
+                staticKE->dhKey = der;
+                der = NULL;
+                break;
+        #endif
+        #ifdef HAVE_ECC
+            case WC_PK_TYPE_ECDH:
+                FreeDer(&staticKE->ecKey);
+                staticKE->ecKey = der;
+                der = NULL;
+                break;
+        #endif
+        #ifdef HAVE_CURVE25519
+            case WC_PK_TYPE_CURVE25519:
+                FreeDer(&staticKE->x25519Key);
+                staticKE->x25519Key = der;
+                der = NULL;
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case WC_PK_TYPE_CURVE448:
+                FreeDer(&staticKE->x448Key);
+                staticKE->x448Key = der;
+                der = NULL;
+                break;
+        #endif
+            default:
+                /* Not supported. */
+                ret = NOT_COMPILED_IN;
+                break;
+        }
+
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ctx->staticKELock);
+    #endif
+    }
+
+    if (ret != 0) {
+        FreeDer(&der);
+    }
+
+    (void)ctx; /* not used for single threaded */
+
+    WOLFSSL_LEAVE("SetStaticEphemeralKey", ret);
+
+    return ret;
+}
+
+/* Set the static ephemeral key on the context.
+ *
+ * @param [in] ctx      SSL/TLS context object.
+ * @param [in] keyAlgo  Key algorithm or WC_PK_TYPE_NONE to detect.
+ * @param [in] key      Key data or file path.
+ * @param [in] keySz    Length of key data in bytes, 0 to load a file.
+ * @param [in] format   WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ * @return  Other negative value on error.
+ */
+int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
+    const char* key, unsigned int keySz, int format)
+{
+    int ret;
+
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* Store into the context's static ephemeral key store. */
+        ret = SetStaticEphemeralKey(ctx, &ctx->staticKE, keyAlgo, key, keySz,
+            format, ctx->heap);
+    }
+
+    return ret;
+}
+/* Set the static ephemeral key on the object.
+ *
+ * @param [in] ssl      SSL/TLS object.
+ * @param [in] keyAlgo  Key algorithm or WC_PK_TYPE_NONE to detect.
+ * @param [in] key      Key data or file path.
+ * @param [in] keySz    Length of key data in bytes, 0 to load a file.
+ * @param [in] format   WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ssl or its context is NULL.
+ * @return  Other negative value on error.
+ */
+int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key,
+    unsigned int keySz, int format)
+{
+    int ret;
+
+    if ((ssl == NULL) || (ssl->ctx == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* Store into the object's own static ephemeral key store. */
+        ret = SetStaticEphemeralKey(ssl->ctx, &ssl->staticKE, keyAlgo, key,
+            keySz, format, ssl->heap);
+    }
+
+    return ret;
+}
+
+/* Get the loaded static ephemeral key as ASN.1 DER data.
+ *
+ * @param [in]  ctx      SSL/TLS context object.
+ * @param [in]  ssl      SSL/TLS object, may be NULL to use only the context.
+ * @param [in]  keyAlgo  Key algorithm to retrieve.
+ * @param [out] key      Pointer to the key's DER data. May be NULL.
+ * @param [out] keySz    Length of the key's DER data. May be NULL.
+ * @return  0 on success.
+ * @return  NOT_COMPILED_IN when the key algorithm is not supported.
+ * @return  Other negative value on error.
+ */
+static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl, int keyAlgo,
+    const unsigned char** key, unsigned int* keySz)
+{
+    int ret = 0;
+    DerBuffer* der = NULL;
+
+    if (key != NULL) {
+        *key = NULL;
+    }
+    if (keySz != NULL) {
+        *keySz = 0;
+    }
+
+#ifndef SINGLE_THREADED
+    if (ctx->staticKELockInit) {
+        ret = wc_LockMutex(&ctx->staticKELock);
+    }
+#endif
+
+    if (ret == 0) {
+        switch (keyAlgo) {
+        #ifndef NO_DH
+            case WC_PK_TYPE_DH:
+                if (ssl != NULL) {
+                    der = ssl->staticKE.dhKey;
+                }
+                if (der == NULL) {
+                    der = ctx->staticKE.dhKey;
+                }
+                break;
+        #endif
+        #ifdef HAVE_ECC
+            case WC_PK_TYPE_ECDH:
+                if (ssl != NULL) {
+                    der = ssl->staticKE.ecKey;
+                }
+                if (der == NULL) {
+                    der = ctx->staticKE.ecKey;
+                }
+                break;
+        #endif
+        #ifdef HAVE_CURVE25519
+            case WC_PK_TYPE_CURVE25519:
+                if (ssl != NULL) {
+                    der = ssl->staticKE.x25519Key;
+                }
+                if (der == NULL) {
+                    der = ctx->staticKE.x25519Key;
+                }
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case WC_PK_TYPE_CURVE448:
+                if (ssl != NULL) {
+                    der = ssl->staticKE.x448Key;
+                }
+                if (der == NULL) {
+                    der = ctx->staticKE.x448Key;
+                }
+                break;
+        #endif
+            default:
+                /* Not supported. */
+                ret = NOT_COMPILED_IN;
+                break;
+        }
+
+        if (der != NULL) {
+            if (key != NULL) {
+                *key = der->buffer;
+            }
+            if (keySz != NULL) {
+                *keySz = der->length;
+            }
+        }
+
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ctx->staticKELock);
+    #endif
+    }
+
+    return ret;
+}
+
+/* Get the static ephemeral key set on the context as ASN.1 DER data.
+ *
+ * The returned data can be converted to PEM using wc_DerToPem().
+ *
+ * @param [in]  ctx      SSL/TLS context object.
+ * @param [in]  keyAlgo  Key algorithm to retrieve.
+ * @param [out] key      Pointer to the key's DER data. May be NULL.
+ * @param [out] keySz    Length of the key's DER data. May be NULL.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ * @return  Other negative value on error.
+ */
+int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
+    const unsigned char** key, unsigned int* keySz)
+{
+    int ret;
+
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* No object given, so look the key up on the context only. */
+        ret = GetStaticEphemeralKey(ctx, NULL, keyAlgo, key, keySz);
+    }
+
+    return ret;
+}
+/* Get the static ephemeral key in use by the object as ASN.1 DER data.
+ *
+ * @param [in]  ssl      SSL/TLS object.
+ * @param [in]  keyAlgo  Key algorithm to retrieve.
+ * @param [out] key      Pointer to the key's DER data. May be NULL.
+ * @param [out] keySz    Length of the key's DER data. May be NULL.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ssl or its context is NULL.
+ * @return  Other negative value on error.
+ */
+int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
+    const unsigned char** key, unsigned int* keySz)
+{
+    int ret;
+
+    if ((ssl == NULL) || (ssl->ctx == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* Prefer the object's key, falling back to the context's. */
+        ret = GetStaticEphemeralKey(ssl->ctx, ssl, keyAlgo, key, keySz);
+    }
+
+    return ret;
+}
+
+#endif /* WOLFSSL_STATIC_EPHEMERAL */
+
+
+#ifdef OPENSSL_EXTRA
+/* Enable or disable automatic ECDH curve selection on the object.
+ *
+ * Provided for compatibility with SSL_set_ecdh_auto(). Automatic selection is
+ * always enabled in wolfSSL so this is a stub.
+ *
+ * @param [in] ssl    SSL/TLS object.
+ * @param [in] onoff  Ignored.
+ * @return  WOLFSSL_SUCCESS always.
+ */
+int wolfSSL_set_ecdh_auto(WOLFSSL* ssl, int onoff)
+{
+    (void)ssl;
+    (void)onoff;
+    return WOLFSSL_SUCCESS;
+}
+/* Enable or disable automatic ECDH curve selection on the context.
+ *
+ * Provided for compatibility with SSL_CTX_set_ecdh_auto(). Automatic selection
+ * is always enabled in wolfSSL so this is a stub.
+ *
+ * @param [in] ctx    SSL/TLS context object.
+ * @param [in] onoff  Ignored.
+ * @return  WOLFSSL_SUCCESS always.
+ */
+int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff)
+{
+    (void)ctx;
+    (void)onoff;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Enable or disable automatic DH parameter selection on the context.
+ *
+ * Provided for compatibility with SSL_CTX_set_dh_auto(). Automatic selection
+ * is always enabled in wolfSSL so this is a stub.
+ *
+ * @param [in] ctx    SSL/TLS context object.
+ * @param [in] onoff  Ignored.
+ * @return  WOLFSSL_SUCCESS always.
+ */
+int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff)
+{
+    (void)ctx;
+    (void)onoff;
+    return WOLFSSL_SUCCESS;
+}
+
+#endif /* OPENSSL_EXTRA */
+
+#endif /* !WOLFCRYPT_ONLY */
 
 #endif /* !WOLFSSL_SSL_API_PK_INCLUDED */

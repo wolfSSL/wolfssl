@@ -235,7 +235,7 @@ static int d2iTryEccKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 }
 #endif /* HAVE_ECC && OPENSSL_EXTRA */
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
 /**
  * Try to make an Ed25519 EVP PKEY from data.
  *
@@ -299,9 +299,9 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     return ret;
 }
-#endif /* HAVE_ED25519 */
+#endif /* HAVE_ED25519i && HAVE_ED25519_KEY_IMPORT */
 
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
 /**
  * Try to make an Ed448 EVP PKEY from data.
  *
@@ -398,7 +398,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
     }
 
     switch (type) {
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519: {
             ed25519_key* edKey;
             if (len != ED25519_PUB_KEY_SIZE) {
@@ -419,7 +419,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
             break;
         }
     #endif
-    #ifdef HAVE_ED448
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448: {
             ed448_key* edKey;
             if (len != ED448_PUB_KEY_SIZE) {
@@ -436,6 +436,64 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
             pkey->type     = WC_EVP_PKEY_ED448;
             pkey->ed448    = edKey;
             pkey->ownEd448 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_EVP_PKEY_X25519: {
+            curve25519_key* cKey;
+            if (len != CURVE25519_PUB_KEY_SIZE) {
+                break;
+            }
+            cKey = (curve25519_key*)XMALLOC(sizeof(curve25519_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE25519);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve25519_init_ex(cKey, pkey->heap, INVALID_DEVID) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            /* Raw X25519 keys are little-endian (RFC 7748). */
+            if (wc_curve25519_import_public_ex(pub, (word32)len, cKey,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                wc_curve25519_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            pkey->type          = WC_EVP_PKEY_X25519;
+            pkey->curve25519    = cKey;
+            pkey->ownCurve25519 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_EVP_PKEY_X448: {
+            curve448_key* cKey;
+            if (len != CURVE448_PUB_KEY_SIZE) {
+                break;
+            }
+            cKey = (curve448_key*)XMALLOC(sizeof(curve448_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE448);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve448_init(cKey) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            /* Raw X448 keys are little-endian (RFC 7748). */
+            if (wc_curve448_import_public_ex(pub, (word32)len, cKey,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                wc_curve448_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            pkey->type        = WC_EVP_PKEY_X448;
+            pkey->curve448    = cKey;
+            pkey->ownCurve448 = 1;
             ok = 1;
             break;
         }
@@ -484,7 +542,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     }
 
     switch (type) {
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519: {
             ed25519_key* edKey;
             if (len != ED25519_KEY_SIZE) {
@@ -506,7 +564,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
             break;
         }
     #endif
-    #ifdef HAVE_ED448
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448: {
             ed448_key* edKey;
             if (len != ED448_KEY_SIZE) {
@@ -523,6 +581,68 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
             pkey->type     = WC_EVP_PKEY_ED448;
             pkey->ed448    = edKey;
             pkey->ownEd448 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_EVP_PKEY_X25519: {
+            curve25519_key* cKey;
+            if (len != CURVE25519_KEYSIZE) {
+                break;
+            }
+            cKey = (curve25519_key*)XMALLOC(sizeof(curve25519_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE25519);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve25519_init_ex(cKey, pkey->heap, INVALID_DEVID) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+        #ifdef WOLFSSL_CURVE25519_BLINDING
+            /* Use the EVP_PKEY's RNG for scalar blinding on shared-secret. */
+            (void)wc_curve25519_set_rng(cKey, &pkey->rng);
+        #endif
+            /* Raw X25519 keys are little-endian (RFC 7748). */
+            if (wc_curve25519_import_private_ex(priv, (word32)len, cKey,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                wc_curve25519_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            pkey->type          = WC_EVP_PKEY_X25519;
+            pkey->curve25519    = cKey;
+            pkey->ownCurve25519 = 1;
+            ok = 1;
+            break;
+        }
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_EVP_PKEY_X448: {
+            curve448_key* cKey;
+            if (len != CURVE448_KEY_SIZE) {
+                break;
+            }
+            cKey = (curve448_key*)XMALLOC(sizeof(curve448_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE448);
+            if (cKey == NULL) {
+                break;
+            }
+            if (wc_curve448_init(cKey) != 0) {
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            /* Raw X448 keys are little-endian (RFC 7748). */
+            if (wc_curve448_import_private_ex(priv, (word32)len, cKey,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                wc_curve448_free(cKey);
+                XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            pkey->type        = WC_EVP_PKEY_X448;
+            pkey->curve448    = cKey;
+            pkey->ownCurve448 = 1;
             ok = 1;
             break;
         }
@@ -852,9 +972,9 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 }
 #endif /* HAVE_FALCON */
 
-#ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_HAVE_MLDSA
 /**
- * Try to make a Dilithium EVP PKEY from data.
+ * Try to make an ML-DSA EVP PKEY from data.
  *
  * Accepts either raw key bytes or DER (PKCS#8 / SPKI). Raw bytes are
  * size-keyed, so each level is tried in turn. DER input is decoded once,
@@ -870,81 +990,82 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  *            object creation/import failed.
  * @return  WOLFSSL_FATAL_ERROR when input is not this key type.
  */
-static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
+static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     long memSz, int priv)
 {
     static const byte levels[] = { WC_ML_DSA_44, WC_ML_DSA_65, WC_ML_DSA_87 };
     word32 inSz = (word32)memSz;
     word32 keyIdx = 0;
-    int isDilithium = 0;
+    int isMlDsa = 0;
     int i, numLevels, rc;
-    WC_DECLARE_VAR(dilithium, dilithium_key, 1, NULL);
+    WC_DECLARE_VAR(mldsa, wc_MlDsaKey, 1, NULL);
 
-#if !defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+#if !defined(WOLFSSL_MLDSA_PRIVATE_KEY)
     if (priv) {
         return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
-    WC_ALLOC_VAR_EX(dilithium, dilithium_key, 1, NULL, DYNAMIC_TYPE_DILITHIUM,
+    WC_ALLOC_VAR_EX(mldsa, wc_MlDsaKey, 1, NULL, DYNAMIC_TYPE_MLDSA,
         return 0);
 
-    if (wc_dilithium_init(dilithium) != 0) {
-        WC_FREE_VAR_EX(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+    if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+        WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
         return 0;
     }
 
     /* Raw key bytes are size-keyed, try each level */
     numLevels = (int)(sizeof(levels) / sizeof(levels[0]));
-    for (i = 0; i < numLevels && !isDilithium; i++) {
-        if (wc_dilithium_set_level(dilithium, levels[i]) != 0) {
+    for (i = 0; i < numLevels && !isMlDsa; i++) {
+        if (wc_MlDsaKey_SetParams(mldsa, levels[i]) != 0) {
             continue;
         }
-    #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+    #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
         if (priv) {
-            rc = wc_dilithium_import_private(mem, inSz, dilithium);
+            rc = wc_MlDsaKey_ImportPrivRaw(mldsa, mem, inSz);
         }
         else
     #endif
         {
-            rc = wc_dilithium_import_public(mem, inSz, dilithium);
+            rc = wc_MlDsaKey_ImportPubRaw(mldsa, mem, inSz);
         }
         if (rc == 0) {
-            isDilithium = 1;
+            isMlDsa = 1;
         }
     }
 
     /* DER input includes auto level detection */
-    if (!isDilithium) {
-        wc_dilithium_free(dilithium);
-        if (wc_dilithium_init(dilithium) != 0) {
-            WC_FREE_VAR_EX(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+    if (!isMlDsa) {
+        wc_MlDsaKey_Free(mldsa);
+        if (wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID) != 0) {
+            WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
             return 0;
         }
-    #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
+    #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
         if (priv) {
-            rc = wc_Dilithium_PrivateKeyDecode(mem, &keyIdx, dilithium, inSz);
+            rc = wc_MlDsaKey_PrivateKeyDecode(mldsa, mem, inSz, &keyIdx);
         }
         else
     #endif
         {
-            rc = wc_Dilithium_PublicKeyDecode(mem, &keyIdx, dilithium, inSz);
+            rc = wc_MlDsaKey_PublicKeyDecode(mldsa, mem, inSz, &keyIdx);
         }
         if (rc == 0) {
-            isDilithium = 1;
+            isMlDsa = 1;
         }
     }
 
-    wc_dilithium_free(dilithium);
-    WC_FREE_VAR_EX(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+    wc_MlDsaKey_Free(mldsa);
+    WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
 
-    if (!isDilithium) {
+    if (!isMlDsa) {
         return WOLFSSL_FATAL_ERROR;
     }
 
-    return d2i_make_pkey(out, NULL, 0, priv, WC_EVP_PKEY_DILITHIUM);
+    /* Copy the consumed DER into pkey->pkey.ptr when the input was DER */
+    return d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
 }
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 
 /**
  * Try to make a WOLFSSL_EVP_PKEY from data.
@@ -1012,30 +1133,30 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
     if (d2iTryEd25519Key(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
     }
     else
-#endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
     if (d2iTryEd448Key(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
     }
     else
-#endif /* HAVE_ED448 */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 #ifdef HAVE_FALCON
     if (d2iTryFalconKey(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
     }
     else
 #endif /* HAVE_FALCON */
-#ifdef HAVE_DILITHIUM
-    if (d2iTryDilithiumKey(&pkey, *in, inSz, priv) >= 0) {
+#ifdef WOLFSSL_HAVE_MLDSA
+    if (d2iTryMlDsaKey(&pkey, *in, inSz, priv) >= 0) {
         found = 1;
     }
     else
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
     {
         WOLFSSL_MSG("d2i_evp_pkey_try couldn't determine key type");
     }
@@ -1240,7 +1361,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
     (void)opt;
 
     /* Validate parameters. */
-    if (in == NULL || inSz < 0) {
+    if (in == NULL || *in == NULL || inSz <= 0) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
     }
@@ -1373,7 +1494,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* HAVE_DH */
 #endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_OPENSSH */
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519:
             /* local->pkey.ptr already holds the input bytes, so
              * d2iTryEd25519Key will skip the d2i_make_pkey allocate/copy
@@ -1384,7 +1505,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey(int type, WOLFSSL_EVP_PKEY** out,
             }
             break;
 #endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
         case WC_EVP_PKEY_ED448:
             /* See WC_EVP_PKEY_ED25519 case above. */
             if (d2iTryEd448Key(&local, p, local->pkey_sz, priv) != 1) {
@@ -1464,12 +1585,18 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 {
     int ret;
     WOLFSSL_EVP_PKEY* key = NULL;
-    const byte* der = *pp;
+    const byte* der;
     word32 idx = 0;
     int len = 0;
     int cnt = 0;
     word32 algId;
-    word32 keyLen = (word32)length;
+    word32 keyLen;
+
+    if (pp == NULL || *pp == NULL || length <= 0)
+        return NULL;
+
+    der = *pp;
+    keyLen = (word32)length;
 
     /* Take off PKCS#8 wrapper if found. */
     if ((len = ToTraditionalInline_ex(der, &idx, keyLen, &algId)) >= 0) {
@@ -1696,6 +1823,10 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
     DerBuffer rawDer;
     EncryptedInfo info;
     int advanceLen = 0;
+#ifdef HAVE_DILITHIUM
+    word32 outerIdx = 0;
+    int    outerLen = 0;
+#endif
 
     /* Clear the encryption information and DER buffer. */
     XMEMSET(&info, 0, sizeof(info));
@@ -1737,15 +1868,40 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
             }
             if (algId == DHk) {
                 /* Special case for DH as we expect the DER buffer to be always
-                 * be in PKCS8 format */
+                 * in PKCS8 format */
                 rawDer.buffer = pkcs8Der->buffer;
                 rawDer.length = inOutIdx + (word32)ret;
             }
+        #ifdef HAVE_DILITHIUM
+            else if (
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+                (algId == DILITHIUM_LEVEL2k) ||
+                (algId == DILITHIUM_LEVEL3k) ||
+                (algId == DILITHIUM_LEVEL5k) ||
+            #endif
+                (algId == ML_DSA_LEVEL2k) ||
+                (algId == ML_DSA_LEVEL3k) ||
+                (algId == ML_DSA_LEVEL5k)) {
+
+                /* Keep full PKCS#8 wrapper for level recovery from
+                 * AlgorithmIdentifier parameters */
+                rawDer.buffer = pkcs8Der->buffer;
+                if (GetSequence(pkcs8Der->buffer, &outerIdx, &outerLen,
+                    pkcs8Der->length) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    rawDer.length = outerIdx + (word32)outerLen;
+                }
+            }
+        #endif
             else {
                 rawDer.buffer = pkcs8Der->buffer + inOutIdx;
                 rawDer.length = (word32)ret;
             }
-            ret = 0; /* good DER */
+            if (ret > 0) {
+                ret = 0; /* good DER */
+            }
         }
     }
 

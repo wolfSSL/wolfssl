@@ -257,6 +257,34 @@ fn test_cfb_big_msg() {
 }
 
 #[test]
+#[cfg(aes_cfb)]
+fn test_cfb_encrypt1() {
+    /* Test vector taken from wolfcrypt aescfb1_test() (AES-128). */
+    let key: [u8; 16] = [
+        0xcd,0xef,0x9d,0x06,0x61,0xba,0xe4,0x73,
+        0x8d,0x1a,0x58,0xa2,0xa6,0x22,0x8b,0x66
+    ];
+    let iv: [u8; 16] = [
+        0x4d,0xbb,0xdc,0xaa,0x59,0xf3,0x63,0xc9,
+        0x2a,0x3b,0x98,0x43,0xad,0x20,0xe2,0xb7
+    ];
+    let msg: [u8; 1] = [0xC0];
+    let mut enc = CFB::new().expect("Failed to create CFB");
+    let mut dec = CFB::new().expect("Failed to create CFB");
+    enc.init(&key, &iv).expect("Error with init()");
+    dec.init(&key, &iv).expect("Error with init()");
+    let mut cipher: [u8; 1] = [0];
+    enc.encrypt1(&msg, &mut cipher, 2).expect("Error with encrypt1()");
+    assert_eq!(cipher[0], 0x00);
+    let mut plain: [u8; 1] = [0];
+    dec.decrypt1(&cipher, &mut plain, 2).expect("Error with decrypt1()");
+    assert_eq!(plain[0], 0xC0);
+    cipher[0] = 0;
+    enc.encrypt1(&msg, &mut cipher, 7).expect("Error with encrypt1()");
+    assert_eq!(cipher[0], 0x1C);
+}
+
+#[test]
 #[cfg(aes_ctr)]
 fn test_ctr_encrypt_decrypt() {
     let iv: [u8; 16] = [
@@ -1030,6 +1058,29 @@ fn test_aes256gcm_nist_tc14_encrypt() {
     assert_eq!(&tag[..], &expected_tag);
 }
 
+/// Roundtrip test for AES-192-GCM using `aead::Aead`.
+#[test]
+#[cfg(all(feature = "aead", aes_gcm))]
+fn test_aes192gcm_aead_roundtrip() {
+    let key = [0x77u8; 24];
+    let nonce_bytes = [0x88u8; 12];
+    let aad = b"aes-192-gcm test";
+    let plaintext = b"AES-192-GCM roundtrip test";
+
+    let cipher = Aes192Gcm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes192Gcm> = nonce_bytes.into();
+
+    let ciphertext = cipher
+        .encrypt(&nonce, Payload { msg: plaintext, aad })
+        .expect("AES-192-GCM encrypt failed");
+
+    let recovered = cipher
+        .decrypt(&nonce, Payload { msg: &ciphertext, aad })
+        .expect("AES-192-GCM decrypt failed");
+
+    assert_eq!(recovered, plaintext);
+}
+
 /// Roundtrip test for AES-256-GCM using `aead::Aead`.
 #[test]
 #[cfg(all(feature = "aead", aes_gcm))]
@@ -1090,6 +1141,29 @@ fn test_aes128ccm_reject_tampered() {
     let mut ct = cipher.encrypt(&nonce, plaintext.as_ref()).expect("encrypt failed");
     ct[0] ^= 0x01;
     assert!(cipher.decrypt(&nonce, ct.as_slice()).is_err());
+}
+
+/// Roundtrip test for AES-192-CCM using `aead::Aead`.
+#[test]
+#[cfg(all(feature = "aead", aes_ccm))]
+fn test_aes192ccm_aead_roundtrip() {
+    let key = [0x33u8; 24];
+    let nonce_bytes = [0x44u8; 12];
+    let aad = b"aes-192-ccm test";
+    let plaintext = b"AES-192-CCM plaintext data";
+
+    let cipher = Aes192Ccm::new_from_slice(&key).unwrap();
+    let nonce: aead::Nonce<Aes192Ccm> = nonce_bytes.into();
+
+    let ciphertext = cipher
+        .encrypt(&nonce, Payload { msg: plaintext, aad })
+        .expect("AES-192-CCM encrypt failed");
+
+    let recovered = cipher
+        .decrypt(&nonce, Payload { msg: &ciphertext, aad })
+        .expect("AES-192-CCM decrypt failed");
+
+    assert_eq!(recovered, plaintext);
 }
 
 /// Roundtrip test for AES-256-CCM using `aead::Aead`.

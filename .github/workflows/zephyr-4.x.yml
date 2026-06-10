@@ -3,8 +3,9 @@ name: Zephyr 4.x tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -15,7 +16,7 @@ concurrency:
 jobs:
   build:
     name: ${{ matrix.zephyr-ref }} | ${{ matrix.board }} | ${{ matrix.sample }}${{ matrix.extra-conf != '' && ' | extlibc' || '' }}
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     strategy:
@@ -78,3 +79,22 @@ jobs:
           path: .github/scripts/zephyr-4.x/logs/
           retention-days: 5
           if-no-files-found: ignore
+
+      # Stage Membrowse artifacts only for the cells we want to track on the
+      # Membrowse dashboard. Keep this tight to avoid duplicate target_name
+      # entries on the dashboard and unnecessary artifact uploads.
+      - name: Upload Membrowse artifacts (selected cells only)
+        if: >
+          success() &&
+          matrix.zephyr-ref == 'v4.3.0' &&
+          matrix.sample == 'wolfssl_test' &&
+          matrix.extra-conf == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: membrowse-zephyr-${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612' }}
+          path: |
+            .github/scripts/zephyr-4.x/artifacts/${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612-rw612' }}-wolfssl_test/zephyr.elf
+            .github/scripts/zephyr-4.x/artifacts/${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612-rw612' }}-wolfssl_test/linker.cmd
+            .github/scripts/zephyr-4.x/artifacts/${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612-rw612' }}-wolfssl_test/zephyr.map
+          if-no-files-found: warn
+          retention-days: 1

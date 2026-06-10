@@ -230,7 +230,7 @@ int NitroxCheckRequests(WC_ASYNC_DEV* dev,
     word32 buf_size = sizeof(req_stat_buf->req);
     ret = CspGetAllResults(req_stat_buf->req, buf_size, &res_count,
         dev->nitrox.devId);
-    multi_req->count = res_count;
+    req_stat_buf->count = res_count;
 #endif
 
     return NitroxTranslateResponseCode(ret);
@@ -324,6 +324,10 @@ int NitroxRsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                             word32* outLen, RsaKey* key)
 {
     int ret;
+    /* The Csp call writes a 16-bit length; use a dedicated Uint16 rather than
+     * casting the word32* outLen, which would place the bytes in the wrong half
+     * of the word on a big-endian host before the ntohs() below. */
+    Uint16 localOutLen = 0;
 
     if (key == NULL || in == NULL || out == NULL ||
                                             inLen != (word32)key->n.raw.len) {
@@ -337,17 +341,17 @@ int NitroxRsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
     ret = CspPkcs1v15CrtDec(key->asyncDev.nitrox.devId, CAVIUM_REQ_MODE,
         CAVIUM_SSL_GRP, CAVIUM_DPORT, BT2, key->n.raw.len, key->q.raw.buf,
         key->dQ.raw.buf, key->p.raw.buf, key->dP.raw.buf, key->u.raw.buf,
-        (byte*)in, (Uint16*)outLen, out, &key->asyncDev.nitrox.reqId);
+        (byte*)in, &localOutLen, out, &key->asyncDev.nitrox.reqId);
 #else
     ret = CspPkcs1v15CrtDec(CAVIUM_REQ_MODE, BT2, key->n.raw.len,
         key->q.raw.buf, key->dQ.raw.buf, key->p.raw.buf, key->dP.raw.buf,
-        key->u.raw.buf, (byte*)in, &outLen, out, &key->asyncDev.nitrox.reqId,
-        key->asyncDev.nitrox.devId);
+        key->u.raw.buf, (byte*)in, &localOutLen, out,
+        &key->asyncDev.nitrox.reqId, key->asyncDev.nitrox.devId);
 #endif
 
 #ifdef WOLFSSL_NITROX_DEBUG
     printf("NitroxRsaPrivateDecrypt: ret %x, req %lx in %p (%d), out %p (%d)\n",
-        ret, key->asyncDev.nitrox.reqId, in, inLen, out, *outLen);
+        ret, key->asyncDev.nitrox.reqId, in, inLen, out, localOutLen);
 #endif
 
     ret = NitroxTranslateResponseCode(ret);
@@ -355,7 +359,7 @@ int NitroxRsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
         return ret;
     }
 
-    *outLen = ntohs(*outLen);
+    *outLen = ntohs(localOutLen);
 
     return *outLen;
 }
@@ -404,6 +408,10 @@ int NitroxRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
                         word32* outLen, RsaKey* key)
 {
     int ret;
+    /* The Csp call writes a 16-bit length; use a dedicated Uint16 rather than
+     * casting the word32* outLen, which would place the bytes in the wrong half
+     * of the word on a big-endian host before the ntohs() below. */
+    Uint16 localOutLen = 0;
 
     if (key == NULL || in == NULL || out == NULL ||
                                             inLen != (word32)key->n.raw.len) {
@@ -416,17 +424,17 @@ int NitroxRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
 #ifdef HAVE_CAVIUM_V
     ret = CspPkcs1v15Dec(key->asyncDev.nitrox.devId, CAVIUM_REQ_MODE,
         CAVIUM_SSL_GRP, CAVIUM_DPORT, BT1, key->n.raw.len, key->e.raw.len,
-        key->n.raw.buf, key->e.raw.buf, (byte*)in, (Uint16*)outLen, out,
+        key->n.raw.buf, key->e.raw.buf, (byte*)in, &localOutLen, out,
         &key->asyncDev.nitrox.reqId);
 #else
     ret = CspPkcs1v15Dec(CAVIUM_REQ_MODE, BT1, key->n.raw.len, key->e.raw.len,
-        key->n.raw.buf, key->e.raw.buf, (byte*)in, &outLen, out,
+        key->n.raw.buf, key->e.raw.buf, (byte*)in, &localOutLen, out,
         &key->asyncDev.nitrox.reqId, key->asyncDev.nitrox.devId);
 #endif
 
 #ifdef WOLFSSL_NITROX_DEBUG
     printf("NitroxRsaSSL_Verify: ret %x, req %lx in %p (%d), out %p (%d)\n",
-        ret, key->asyncDev.nitrox.reqId, in, inLen, out, *outLen);
+        ret, key->asyncDev.nitrox.reqId, in, inLen, out, localOutLen);
 #endif
 
     ret = NitroxTranslateResponseCode(ret);
@@ -434,7 +442,7 @@ int NitroxRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
         return ret;
     }
 
-    *outLen = ntohs(*outLen);
+    *outLen = ntohs(localOutLen);
 
     return *outLen;
 }

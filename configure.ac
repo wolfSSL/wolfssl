@@ -184,6 +184,26 @@ AC_ARG_ENABLE([freebsdkm-crypto-register],
     [ENABLED_BSDKM_REGISTER=no]
     )
 
+# wolfzfs support
+AC_ARG_ENABLE([wolfzfs],
+    [AS_HELP_STRING([--enable-wolfzfs],[Enable wolfZFS support ((options: kernel, yes, no, disabled default: disabled)).])],
+    [ENABLED_WOLFZFS=$enableval],
+    [ENABLED_WOLFZFS=no]
+    )
+if test "x$ENABLED_WOLFZFS" = "xyes" || test "x$ENABLED_WOLFZFS" = "xkernel"
+then
+    if test "x$ENABLED_WOLFZFS" = "xyes"; then
+        # userspace libzfs requires openssl compat layer, which will
+        # be detected and enabled later.
+        AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES"
+    fi
+
+    if test "x$ENABLED_WOLFZFS" = "xkernel"; then
+        # kernelspace libzfs
+        AM_CFLAGS="$AM_CFLAGS -DNO_STDDEF_H -DNO_STDATOMIC_H"
+    fi
+fi
+
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
@@ -192,7 +212,8 @@ if test "x$ENABLED_BSDKM" = "xyes"; then
     # The <stdatomic.h> header should not be included in freebsd kernel build.
     # Look for <machine/atomic.h> instead.
     AC_CHECK_HEADER(machine/atomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
-else
+elif test "x$ENABLED_WOLFZFS" = "xno"; then
+    # Don't use stdatomic.h with wolfzfs kernel. It expects gcc builtins.
     AC_CHECK_HEADER(stdatomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
 fi
 AC_CHECK_HEADER(assert.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ASSERT_H"],[])
@@ -1411,6 +1432,11 @@ then
         AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-ppc32-asm])
     fi
 
+    if test "$enable_ppc64_asm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-ppc64-asm])
+    fi
+
     case "$host_cpu" in
         *x86_64*|*amd64*)
             if test "$enable_intelasm" = ""
@@ -1441,6 +1467,10 @@ then
             fi
             ;;
         *powerpc64*)
+            if test "$enable_ppc64_asm" = ""
+            then
+               enable_ppc64_asm=yes
+            fi
             ;;
         *powerpc*)
             if test "$enable_ppc32_asm" = ""
@@ -1492,6 +1522,7 @@ then
     test "$enable_hkdf" = "" && enable_hkdf=yes
     test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
@@ -1559,13 +1590,12 @@ then
         test "$enable_aessiv" = "" && enable_aessiv=yes
         # AFALG lacks AES-EAX
         test "$enable_aeseax" = "" && test "$enable_afalg" != "yes" && enable_aeseax=yes
+        test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
 
         if test "$KERNEL_MODE_DEFAULTS" != "yes"
         then
             test "$enable_cryptocb" = "" && enable_cryptocb=yes
             test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
-            test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
-            test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
         fi
     fi
 
@@ -2638,7 +2668,8 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes" || \
    test "$ENABLED_FFMPEG" = "yes" || test "$ENABLED_STRONGSWAN" = "yes" || \
    test "$ENABLED_OPENLDAP" = "yes" || test "x$ENABLED_MOSQUITTO" = "xyes" || \
-   test "$ENABLED_HITCH" = "yes" || test "$ENABLED_NGINX" = "yes"
+   test "$ENABLED_HITCH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
+   test "$ENABLED_WOLFZFS" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -3321,6 +3352,13 @@ then
     ENABLED_AESGCM="4bit"
 fi
 
+if test "x$ENABLED_WOLFZFS" = "xyes" || test "x$ENABLED_WOLFZFS" = "xkernel"
+then
+    # zfs uses ccm, and gcm streaming.
+    ENABLED_AESCCM="yes"
+    ENABLED_AESGCM="yes"
+    ENABLED_AESGCM_STREAM="yes"
+fi
 
 # AES-CCM
 AC_ARG_ENABLE([aesccm],
@@ -3329,7 +3367,8 @@ AC_ARG_ENABLE([aesccm],
     [ ENABLED_AESCCM=no ]
     )
 
-if test "$ENABLED_AESCCM" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
+if test "$ENABLED_AESCCM" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" ||
+   test "$ENABLED_WOLFZFS" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESCCM"
@@ -3829,7 +3868,7 @@ do
     # FSL, FSR, FSRI, CMOV, CMIX - QEMU doesn't know about these instructions
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BIT_MANIPULATION_TERNARY"
     ;;
-  zkn|zkned)
+  zkned)
     # AES encrypt/decrpyt, SHA-2
     ENABLED_RISCV_ASM=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_SCALAR_CRYPTO_ASM"
@@ -3904,20 +3943,69 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM"
     AC_MSG_NOTICE([32-bit PowerPC assembly for SHA-256])
     ENABLED_PPC32_ASM=yes
+
+    if test "$ENABLED_PPC32_ASM_INLINE" = "yes" || test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
+    else
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
+    fi
+    if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+    fi
+    if test "$ENABLED_PPC32_ASM_SPE" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SPE"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SPE"
+    fi
 fi
-if test "$ENABLED_PPC32_ASM_INLINE" = "yes" || test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
+
+# PPC64 Assembly
+AC_ARG_ENABLE([ppc64-asm],
+    [AS_HELP_STRING([--enable-ppc64-asm],[Enable wolfSSL PowerPC 64-bit ASM support (default: disabled).])],
+    [ ENABLED_PPC64_ASM=$enableval ],
+    [ ENABLED_PPC64_ASM=no ]
+    )
+
+
+if test "$ENABLED_PPC64_ASM" != "no" && test "$ENABLED_ASM" = "yes"
+then
+    ENABLED_PPC64_ASM_OPTS=$ENABLED_PPC64_ASM
+    for v in `echo $ENABLED_PPC64_ASM_OPTS | tr "," " "`
+    do
+      case $v in
+      yes)
+        ;;
+      inline)
+        ENABLED_PPC64_ASM_INLINE=yes
+        ;;
+      inline-reg)
+        ENABLED_PPC64_ASM_INLINE_REG=yes
+        ;;
+      small)
+        ENABLED_PPC64_ASM_SMALL=yes
+        ;;
+      *)
+        AC_MSG_ERROR([Invalid RISC-V option [yes,inline,small]: $ENABLED_PPC64_ASM.])
+        break
+        ;;
+      esac
+    done
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+    AC_MSG_NOTICE([64-bit PowerPC assembly for AES])
+    ENABLED_PPC64_ASM=yes
+fi
+if test "$ENABLED_PPC64_ASM_INLINE" = "yes" || test "$ENABLED_PPC64_ASM_INLINE_REG" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_INLINE"
 else
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM"
 fi
-if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+if test "$ENABLED_PPC64_ASM_SMALL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM_SMALL"
 fi
-if test "$ENABLED_PPC32_ASM_SPE" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SPE"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SPE"
-fi
+
 
 # Xilinx hardened crypto
 AC_ARG_ENABLE([xilinx],
@@ -11339,6 +11427,13 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING -DWOLFSSL_NO_ASN_STRICT"
 
+    # wolfCLU allows MD5 with wc_Signature*; lower the hash strength floor
+    # when MD5 is compiled in.
+    if test "$ENABLED_MD5" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_SIG_MIN_HASH_TYPE=WC_HASH_TYPE_MD5"
+    fi
+
     # OCSP responder
     if test "$ENABLED_OCSP" = "no"; then
         ENABLED_OCSP="yes"
@@ -12182,6 +12277,9 @@ AM_CONDITIONAL([BUILD_RISCV_ASM],[test "x$ENABLED_RISCV_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM],[test "x$ENABLED_PPC32_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE],[test "x$ENABLED_PPC32_ASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE_REG],[test "x$ENABLED_PPC32_ASM_INLINE_REG" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC64_ASM],[test "x$ENABLED_PPC64_ASM" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC64_ASM_INLINE],[test "x$ENABLED_PPC64_ASM_INLINE" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC64_ASM_INLINE_REG],[test "x$ENABLED_PPC64_ASM_INLINE_REG" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -12218,7 +12316,7 @@ AM_CONDITIONAL([BUILD_MLDSA],[test "x$ENABLED_MLDSA" != "xno" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_MEMUSE],[test "x$ENABLED_ENTROPY_MEMUSE" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RNG_BANK],[test "$ENABLED_RNG_BANK" = "yes" || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -12888,6 +12986,15 @@ then
     ENABLED_PPC32_ASM="inline C Reg"
 fi
 echo "   * PPC32 ASM                   $ENABLED_PPC32_ASM"
+if test "$ENABLED_PPC64_ASM_INLINE" = "yes"
+then
+    ENABLED_PPC64_ASM="inline C"
+fi
+if test "$ENABLED_PPC64_ASM_INLINE_REG" = "yes"
+then
+    ENABLED_PPC64_ASM="inline C Reg"
+fi
+echo "   * PPC64 ASM                   $ENABLED_PPC64_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * C89:                        $ENABLED_C89"

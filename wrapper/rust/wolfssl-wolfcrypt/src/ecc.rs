@@ -30,8 +30,7 @@ wolfSSL `ecc_key` object. It ensures proper initialization and deallocation.
 
 use crate::sys;
 #[cfg(random)]
-use crate::random::RNG;
-use core::mem::{MaybeUninit};
+use crate::random::{RNG, RngHandle};
 
 /// Rust wrapper for wolfSSL `ecc_point` object.
 pub struct ECCPoint {
@@ -60,11 +59,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
     /// ECCPoint::import_der(&der[0..size], curve_id, None).expect("Error with import_der()");
@@ -118,11 +117,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
     /// ECCPoint::import_der_ex(&der[0..size], curve_id, 0, None).expect("Error with import_der_ex()");
@@ -173,11 +172,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
     /// assert!(size > 0 && size <= der.len());
@@ -220,11 +219,11 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::{ECC,ECCPoint};
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
+    /// let ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// let mut der = [0u8; 128];
     /// let size = ecc_point.export_der_compressed(&mut der, curve_id).expect("Error with export_der_compressed()");
     /// }
@@ -256,9 +255,9 @@ impl ECCPoint {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
-    /// let mut ecc_point = ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
+    /// let mut ecc_point = ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// ecc_point.forcezero();
     /// }
     /// ```
@@ -290,13 +289,18 @@ impl Drop for ECCPoint {
 
 /// The `ECC` struct manages the lifecycle of a wolfSSL `ecc_key` object.
 ///
-/// It ensures proper initialization and deallocation.
+/// It ensures proper initialization and deallocation. The struct holds a
+/// pointer to a `sys::ecc_key` allocated on the C heap.
 ///
 /// An instance can be created with `generate()`, `import_x963()`,
 /// `import_x963_ex()`, `import_private_key()`, `import_private_key_ex()`,
 /// `import_raw()`, or `import_raw_ex()`.
 pub struct ECC {
-    pub(crate) wc_ecc_key: sys::ecc_key,
+    pub(crate) wc_ecc_key: *mut sys::ecc_key,
+    /// RNG bound to this key via `set_rng`, kept alive for as long as the C
+    /// struct holds its pointer.
+    #[cfg(random)]
+    rng: Option<RngHandle>,
 }
 
 #[cfg(ecc_curve_ids)]
@@ -392,6 +396,25 @@ impl ECC {
     pub const FLAG_COFACTOR: i32 = sys::WC_ECC_FLAG_COFACTOR as i32;
     pub const FLAG_DEC_SIGN: i32 = sys::WC_ECC_FLAG_DEC_SIGN as i32;
 
+    /// Allocate and initialize a new `sys::ecc_key` on the C heap.
+    fn new_ecc_key(heap: *mut core::ffi::c_void, dev_id: i32) -> Result<*mut sys::ecc_key, i32> {
+        let key = unsafe { sys::wc_ecc_key_new(heap) };
+        if key.is_null() {
+            return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
+        }
+        // wc_ecc_key_new() always initializes the key with INVALID_DEVID.
+        // Calling wc_ecc_init_ex() a second time to install the user's dev_id
+        // would re-run every initialization step (including allocations under
+        // some build configurations such as async crypto without WOLF_CRYPTO_CB)
+        // and orphan resources from the first init. Instead, just patch devId
+        // in place for WOLF_CRYPTO_CB builds.
+        #[cfg(wolf_crypto_cb)]
+        unsafe { (*key).devId = dev_id; }
+        #[cfg(not(wolf_crypto_cb))]
+        let _ = dev_id;
+        Ok(key)
+    }
+
     /// Generate a new ECC key with the given size.
     ///
     /// # Parameters
@@ -415,30 +438,23 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate(size: i32, rng: &mut RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+    pub fn generate(size: i32, rng: &RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_make_key(&mut rng.wc_rng, size, &mut ecc.wc_ecc_key)
+            sys::wc_ecc_make_key(rng.wc_rng, size, ecc.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -470,32 +486,25 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate_ex()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate_ex()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate_ex(size: i32, rng: &mut RNG, curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+    pub fn generate_ex(size: i32, rng: &RNG, curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_make_key_ex(&mut rng.wc_rng, size, &mut ecc.wc_ecc_key, curve_id)
+            sys::wc_ecc_make_key_ex(rng.wc_rng, size, ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -528,32 +537,25 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex2(curve_size, &mut rng, curve_id, ECC::FLAG_COFACTOR, None, None).expect("Error with generate_ex2()");
+    /// let mut ecc = ECC::generate_ex2(curve_size, &rng, curve_id, ECC::FLAG_COFACTOR, None, None).expect("Error with generate_ex2()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
     #[cfg(random)]
-    pub fn generate_ex2(size: i32, rng: &mut RNG, curve_id: i32, flags: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+    pub fn generate_ex2(size: i32, rng: &RNG, curve_id: i32, flags: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_make_key_ex2(&mut rng.wc_rng, size, &mut ecc.wc_ecc_key, curve_id, flags)
+            sys::wc_ecc_make_key_ex2(rng.wc_rng, size, ecc.wc_ecc_key, curve_id, flags)
         };
         if rc != 0 {
             return Err(rc);
@@ -580,10 +582,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
@@ -617,32 +619,25 @@ impl ECC {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
     /// use std::fs;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// }
     /// ```
     pub fn import_der(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let mut idx = 0u32;
         let der_size = crate::buffer_len_to_u32(der.len())?;
         let rc = unsafe {
-            sys::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, &mut ecc.wc_ecc_key, der_size)
+            sys::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, ecc.wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -672,13 +667,13 @@ impl ECC {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
     /// use std::fs;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// assert!(signature_length > 0 && signature_length <= signature.len());
     /// let signature = &mut signature[0..signature_length];
     /// let key_path = "../../../certs/ecc-client-keyPub.der";
@@ -687,25 +682,18 @@ impl ECC {
     /// }
     /// ```
     pub fn import_public_der(der: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let mut idx = 0u32;
         let der_size = crate::buffer_len_to_u32(der.len())?;
         let rc = unsafe {
-            sys::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, &mut ecc.wc_ecc_key, der_size)
+            sys::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, ecc.wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -738,11 +726,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &signature[0..signature_length];
     /// let mut d = [0u8; 32];
     /// let d_size = ecc.export_private(&mut d).expect("Error with export_private()");
@@ -756,27 +744,20 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_private_key(priv_buf: &[u8], pub_buf: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let priv_size = crate::buffer_len_to_u32(priv_buf.len())?;
         let pub_ptr = if pub_buf.is_empty() {core::ptr::null()} else {pub_buf.as_ptr()};
         let pub_size = crate::buffer_len_to_u32(pub_buf.len())?;
         let rc = unsafe {
             sys::wc_ecc_import_private_key(priv_buf.as_ptr(), priv_size,
-                pub_ptr, pub_size, &mut ecc.wc_ecc_key)
+                pub_ptr, pub_size, ecc.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -810,13 +791,13 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate_ex()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate_ex()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &signature[0..signature_length];
     /// let mut d = [0u8; 32];
     /// let d_size = ecc.export_private(&mut d).expect("Error with export_private()");
@@ -830,27 +811,20 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_private_key_ex(priv_buf: &[u8], pub_buf: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let priv_size = crate::buffer_len_to_u32(priv_buf.len())?;
         let pub_ptr = if pub_buf.is_empty() {core::ptr::null()} else {pub_buf.as_ptr()};
         let pub_size = crate::buffer_len_to_u32(pub_buf.len())?;
         let rc = unsafe {
             sys::wc_ecc_import_private_key_ex(priv_buf.as_ptr(), priv_size,
-                pub_ptr, pub_size, &mut ecc.wc_ecc_key, curve_id)
+                pub_ptr, pub_size, ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -889,27 +863,24 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_raw(qx: &[u8], qy: &[u8], d: &[u8], curve_name: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
+        if qx.is_empty() || qy.is_empty() || d.is_empty() || curve_name.is_empty() ||
+            qx[qx.len() - 1] != 0 || qy[qy.len() - 1] != 0 || d[d.len() - 1] != 0 || curve_name[curve_name.len() - 1] != 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
+        };
         let qx_ptr = qx.as_ptr() as *const core::ffi::c_char;
         let qy_ptr = qy.as_ptr() as *const core::ffi::c_char;
         let d_ptr = d.as_ptr() as *const core::ffi::c_char;
         let curve_name_ptr = curve_name.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
-            sys::wc_ecc_import_raw(&mut ecc.wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
+            sys::wc_ecc_import_raw(ecc.wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
                 curve_name_ptr)
         };
         if rc != 0 {
@@ -949,26 +920,23 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_raw_ex(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
+        if qx.is_empty() || qy.is_empty() || d.is_empty() ||
+            qx[qx.len() - 1] != 0 || qy[qy.len() - 1] != 0 || d[d.len() - 1] != 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
+        };
         let qx_ptr = qx.as_ptr() as *const core::ffi::c_char;
         let qy_ptr = qy.as_ptr() as *const core::ffi::c_char;
         let d_ptr = d.as_ptr() as *const core::ffi::c_char;
         let rc = unsafe {
-            sys::wc_ecc_import_raw_ex(&mut ecc.wc_ecc_key, qx_ptr, qy_ptr,
+            sys::wc_ecc_import_raw_ex(ecc.wc_ecc_key, qx_ptr, qy_ptr,
                 d_ptr, curve_id)
         };
         if rc != 0 {
@@ -1001,10 +969,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1017,23 +985,20 @@ impl ECC {
     /// ```
     #[cfg(ecc_import)]
     pub fn import_unsigned(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
-        };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
+        let curve_size = Self::get_curve_size_from_id(curve_id)? as usize;
+        if qx.len() < curve_size || qy.len() < curve_size || d.len() < curve_size {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
+        };
         let rc = unsafe {
-            sys::wc_ecc_import_unsigned(&mut ecc.wc_ecc_key, qx.as_ptr(),
+            sys::wc_ecc_import_unsigned(ecc.wc_ecc_key, qx.as_ptr(),
                 qy.as_ptr(), d.as_ptr(), curve_id)
         };
         if rc != 0 {
@@ -1065,8 +1030,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
     /// let x963_size = ecc.export_x963(&mut x963).expect("Error with export_x963()");
     /// let x963 = &x963[0..x963_size];
@@ -1076,23 +1041,16 @@ impl ECC {
     #[cfg(ecc_import)]
     pub fn import_x963(din: &[u8], heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_import_x963(din.as_ptr(), din_size, &mut ecc.wc_ecc_key)
+            sys::wc_ecc_import_x963(din.as_ptr(), din_size, ecc.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -1126,10 +1084,10 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
-    /// let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id, None, None).expect("Error with generate_ex()");
+    /// let mut ecc = ECC::generate_ex(curve_size, &rng, curve_id, None, None).expect("Error with generate_ex()");
     /// let mut x963 = [0u8; 128];
     /// let x963_size = ecc.export_x963(&mut x963).expect("Error with export_x963()");
     /// let x963 = &x963[0..x963_size];
@@ -1139,23 +1097,16 @@ impl ECC {
     #[cfg(ecc_import)]
     pub fn import_x963_ex(din: &[u8], curve_id: i32, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
-        let heap = match heap {
-            Some(heap) => heap,
-            None => core::ptr::null_mut(),
+        let heap = heap.unwrap_or(core::ptr::null_mut());
+        let dev_id = dev_id.unwrap_or(sys::INVALID_DEVID);
+        let wc_ecc_key = Self::new_ecc_key(heap, dev_id)?;
+        let ecc = ECC {
+            wc_ecc_key,
+            #[cfg(random)]
+            rng: None,
         };
-        let dev_id = match dev_id {
-            Some(dev_id) => dev_id,
-            None => sys::INVALID_DEVID,
-        };
-        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
-        if rc != 0 {
-            return Err(rc);
-        }
-        let wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
-        let mut ecc = ECC { wc_ecc_key };
         let rc = unsafe {
-            sys::wc_ecc_import_x963_ex(din.as_ptr(), din_size, &mut ecc.wc_ecc_key, curve_id)
+            sys::wc_ecc_import_x963_ex(din.as_ptr(), din_size, ecc.wc_ecc_key, curve_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -1196,13 +1147,13 @@ impl ECC {
     ///     hex_string.push('\0');
     ///     hex_string
     /// }
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let mut r = [0u8; 32];
     /// let mut r_size = 0u32;
@@ -1258,13 +1209,13 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let mut r = [0u8; 32];
     /// let mut r_size = 0u32;
@@ -1311,13 +1262,13 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let mut r = [0u8; 32];
     /// let mut r_size = 0u32;
@@ -1360,13 +1311,13 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// ecc.check().expect("Error with check()");
     /// }
     /// ```
     pub fn check(&mut self) -> Result<(), i32> {
-        let rc = unsafe { sys::wc_ecc_check_key(&mut self.wc_ecc_key) };
+        let rc = unsafe { sys::wc_ecc_check_key(self.wc_ecc_key) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1396,8 +1347,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1414,7 +1365,7 @@ impl ECC {
         *qy_len = crate::buffer_len_to_u32(qy.len())?;
         *d_len = crate::buffer_len_to_u32(d.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_private_raw(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_private_raw(self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len,
                 d.as_mut_ptr(), d_len)
@@ -1451,8 +1402,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1477,7 +1428,7 @@ impl ECC {
                 sys::WC_TYPE_UNSIGNED_BIN as i32
             };
         let rc = unsafe {
-            sys::wc_ecc_export_ex(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_ex(self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len,
                 d.as_mut_ptr(), d_len,
@@ -1507,8 +1458,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut d = [0u8; 32];
     /// let d_size = ecc.export_private(&mut d).expect("Error with export_private()");
     /// assert_eq!(d_size, 32);
@@ -1518,7 +1469,7 @@ impl ECC {
     pub fn export_private(&mut self, d: &mut [u8]) -> Result<usize, i32> {
         let mut d_size = crate::buffer_len_to_u32(d.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_private_only(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_private_only(self.wc_ecc_key,
                 d.as_mut_ptr(), &mut d_size)
         };
         if rc != 0 {
@@ -1548,8 +1499,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut qx = [0u8; 32];
     /// let mut qx_len = 0u32;
     /// let mut qy = [0u8; 32];
@@ -1563,7 +1514,7 @@ impl ECC {
         *qx_len = crate::buffer_len_to_u32(qx.len())?;
         *qy_len = crate::buffer_len_to_u32(qy.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_public_raw(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_public_raw(self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len)
         };
@@ -1591,8 +1542,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
     /// let _x963_size = ecc.export_x963(&mut x963).expect("Error with export_x963()");
     /// }
@@ -1601,7 +1552,7 @@ impl ECC {
     pub fn export_x963(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_x963(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
+            sys::wc_ecc_export_x963(self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
             return Err(rc);
@@ -1627,8 +1578,8 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
     /// let _x963_size = ecc.export_x963_compressed(&mut x963).expect("Error with export_x963_compressed()");
     /// }
@@ -1637,7 +1588,7 @@ impl ECC {
     pub fn export_x963_compressed(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_export_x963_ex(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len, 1)
+            sys::wc_ecc_export_x963_ex(self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len, 1)
         };
         if rc != 0 {
             return Err(rc);
@@ -1666,21 +1617,21 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
-    /// ecc.make_pub(Some(&mut rng)).expect("Error with make_pub()");
+    /// ecc.make_pub(Some(&rng)).expect("Error with make_pub()");
     /// }
     /// ```
     #[cfg(random)]
-    pub fn make_pub(&mut self, rng: Option<&mut RNG>) -> Result<(), i32> {
+    pub fn make_pub(&mut self, rng: Option<&RNG>) -> Result<(), i32> {
         let rng_ptr = match rng {
-            Some(rng) => &mut rng.wc_rng,
+            Some(rng) => rng.wc_rng,
             None => core::ptr::null_mut(),
         };
         let rc = unsafe {
-            sys::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, core::ptr::null_mut(), rng_ptr)
+            sys::wc_ecc_make_pub_ex(self.wc_ecc_key, core::ptr::null_mut(), rng_ptr)
         };
         if rc != 0 {
             return Err(rc);
@@ -1710,17 +1661,17 @@ impl ECC {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
+    /// let rng = RNG::new().expect("Failed to create RNG");
     /// let key_path = "../../../certs/ecc-client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
-    /// ecc.make_pub_to_point(Some(&mut rng), None).expect("Error with make_pub_to_point()");
+    /// ecc.make_pub_to_point(Some(&rng), None).expect("Error with make_pub_to_point()");
     /// }
     /// ```
     #[cfg(random)]
-    pub fn make_pub_to_point(&mut self, rng: Option<&mut RNG>, heap: Option<*mut core::ffi::c_void>) -> Result<ECCPoint, i32> {
+    pub fn make_pub_to_point(&mut self, rng: Option<&RNG>, heap: Option<*mut core::ffi::c_void>) -> Result<ECCPoint, i32> {
         let rng_ptr = match rng {
-            Some(rng) => &mut rng.wc_rng,
+            Some(rng) => rng.wc_rng,
             None => core::ptr::null_mut(),
         };
         let heap = match heap {
@@ -1733,7 +1684,7 @@ impl ECC {
         }
         let ecc_point = ECCPoint { wc_ecc_point, heap };
         let rc = unsafe {
-            sys::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, wc_ecc_point, rng_ptr)
+            sys::wc_ecc_make_pub_ex(self.wc_ecc_key, wc_ecc_point, rng_ptr)
         };
         if rc != 0 {
             return Err(rc);
@@ -1749,8 +1700,7 @@ impl ECC {
     /// # Parameters
     ///
     /// * `rng`: The `RNG` struct instance to associate with this `ECC`
-    ///   instance. The `RNG` struct should not be moved in memory after
-    ///   calling this method.
+    ///   instance.
     ///
     /// # Returns
     ///
@@ -1765,20 +1715,49 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
-    /// ecc.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let blinding_rng = RNG::new().expect("Failed to create RNG");
+    /// let key_gen_rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &key_gen_rng, None, None).expect("Error with generate()");
+    /// ecc.set_rng(blinding_rng).expect("Error with set_rng()");
     /// }
     /// ```
     #[cfg(random)]
-    pub fn set_rng(&mut self, rng: &mut RNG) -> Result<(), i32> {
+    pub fn set_rng(&mut self, rng: RNG) -> Result<(), i32> {
+        let wc_rng = rng.wc_rng;
         let rc = unsafe {
-            sys::wc_ecc_set_rng(&mut self.wc_ecc_key, &mut rng.wc_rng)
+            sys::wc_ecc_set_rng(self.wc_ecc_key, wc_rng)
         };
         if rc != 0 {
             return Err(rc);
         }
+        self.rng = Some(RngHandle::Owned(rng));
         Ok(())
+    }
+
+    /// Bind a shared `RNG` to this key. Available when the `alloc` feature
+    /// is enabled.
+    #[cfg(all(random, feature = "alloc"))]
+    pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
+        let wc_rng = rng.wc_rng;
+        let rc = unsafe {
+            sys::wc_ecc_set_rng(self.wc_ecc_key, wc_rng)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        self.rng = Some(RngHandle::Shared(rng));
+        Ok(())
+    }
+
+    /// Borrow the RNG previously bound via `set_rng` or `set_shared_rng`.
+    #[cfg(random)]
+    pub fn rng(&self) -> Option<&RNG> {
+        match &self.rng {
+            Some(RngHandle::Owned(rng)) => Some(rng),
+            #[cfg(feature = "alloc")]
+            Some(RngHandle::Shared(rng)) => Some(rng),
+            None => None,
+        }
     }
 
     /// Compute the ECDH shared secret using this key's private component
@@ -1797,17 +1776,18 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_dh, random))]
+    /// #[cfg(all(ecc_dh, random, feature = "alloc"))]
     /// {
+    /// use std::rc::Rc;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc0 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
-    /// let mut ecc1 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
+    /// let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
+    /// let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut ss0 = [0u8; 128];
     /// let mut ss1 = [0u8; 128];
-    /// ecc0.set_rng(&mut rng).expect("Error with set_rng()");
-    /// ecc1.set_rng(&mut rng).expect("Error with set_rng()");
+    /// ecc0.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// ecc1.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let ss0_size = ecc0.shared_secret(&mut ecc1, &mut ss0).expect("Error with shared_secret()");
     /// let ss1_size = ecc1.shared_secret(&mut ecc0, &mut ss1).expect("Error with shared_secret()");
     /// assert_eq!(ss0_size, ss1_size);
@@ -1820,8 +1800,8 @@ impl ECC {
     pub fn shared_secret(&mut self, peer_key: &mut ECC, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_shared_secret(&mut self.wc_ecc_key,
-                &mut peer_key.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
+            sys::wc_ecc_shared_secret(self.wc_ecc_key,
+                peer_key.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
             return Err(rc);
@@ -1846,18 +1826,19 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_dh, random))]
+    /// #[cfg(all(ecc_dh, random, feature = "alloc"))]
     /// {
+    /// use std::rc::Rc;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc0 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
-    /// let mut ecc1 = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
+    /// let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
+    /// let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let ecc1_point = ecc1.make_pub_to_point(None, None).expect("Error with make_pub_to_point()");
     /// let mut ss0 = [0u8; 128];
     /// let mut ss1 = [0u8; 128];
-    /// ecc0.set_rng(&mut rng).expect("Error with set_rng()");
-    /// ecc1.set_rng(&mut rng).expect("Error with set_rng()");
+    /// ecc0.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
+    /// ecc1.set_shared_rng(Rc::clone(&rng)).expect("Error with set_shared_rng()");
     /// let ss0_size = ecc0.shared_secret_ex(&ecc1_point, &mut ss0).expect("Error with shared_secret_ex()");
     /// let ss1_size = ecc1.shared_secret(&mut ecc0, &mut ss1).expect("Error with shared_secret()");
     /// assert_eq!(ss0_size, ss1_size);
@@ -1870,7 +1851,7 @@ impl ECC {
     pub fn shared_secret_ex(&mut self, peer: &ECCPoint, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
-            sys::wc_ecc_shared_secret_ex(&mut self.wc_ecc_key,
+            sys::wc_ecc_shared_secret_ex(self.wc_ecc_key,
                 peer.wc_ecc_point, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
@@ -1899,23 +1880,23 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let valid = ecc.verify_hash(&signature, &hash).expect("Error with verify_hash()");
     /// assert_eq!(valid, true);
     /// }
     /// ```
     #[cfg(all(ecc_sign, random))]
-    pub fn sign_hash(&mut self, din: &[u8], dout: &mut [u8], rng: &mut RNG) -> Result<usize, i32> {
+    pub fn sign_hash(&mut self, din: &[u8], dout: &mut [u8], rng: &RNG) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let mut dout_size = crate::buffer_len_to_u32(dout.len())?;
         let rc = unsafe {
             sys::wc_ecc_sign_hash(din.as_ptr(), din_size, dout.as_mut_ptr(),
-                &mut dout_size, &mut rng.wc_rng, &mut self.wc_ecc_key)
+                &mut dout_size, rng.wc_rng, self.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -1942,11 +1923,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
-    /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut ecc = ECC::generate(32, &mut rng, None, None).expect("Error with generate()");
+    /// let rng = RNG::new().expect("Failed to create RNG");
+    /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let hash = [0x42u8; 32];
     /// let mut signature = [0u8; 128];
-    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &mut rng).expect("Error with sign_hash()");
+    /// let signature_length = ecc.sign_hash(&hash, &mut signature, &rng).expect("Error with sign_hash()");
     /// let signature = &mut signature[0..signature_length];
     /// let valid = ecc.verify_hash(&signature, &hash).expect("Error with verify_hash()");
     /// assert_eq!(valid, true);
@@ -1959,7 +1940,7 @@ impl ECC {
         let hash_len = crate::buffer_len_to_u32(hash.len())?;
         let rc = unsafe {
             sys::wc_ecc_verify_hash(sig.as_ptr(), sig_len,
-                hash.as_ptr(), hash_len, &mut res, &mut self.wc_ecc_key)
+                hash.as_ptr(), hash_len, &mut res, self.wc_ecc_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -1968,22 +1949,16 @@ impl ECC {
     }
 }
 
-impl ECC {
-    fn zeroize(&mut self) {
-        unsafe { crate::zeroize_raw(&mut self.wc_ecc_key); }
-    }
-}
-
 impl Drop for ECC {
     /// Safely free the underlying wolfSSL ECC context.
     ///
-    /// This calls the `wc_ecc_key_free()` wolfssl library function.
+    /// This calls the `wc_ecc_key_free()` wolfssl library function, which
+    /// frees the C-heap-allocated `ecc_key` object.
     ///
     /// The Rust Drop trait guarantees that this method is called when the ECC
     /// struct goes out of scope, automatically cleaning up resources and
     /// preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { sys::wc_ecc_free(&mut self.wc_ecc_key); }
-        self.zeroize();
+        unsafe { sys::wc_ecc_key_free(self.wc_ecc_key); }
     }
 }

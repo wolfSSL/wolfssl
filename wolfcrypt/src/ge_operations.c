@@ -960,6 +960,8 @@ static WC_INLINE void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 
 
 #ifndef CURVED25519_ASM
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY) || \
+    defined(WOLFSSL_CURVE25519_USE_ED25519)
 /* ge_scalar mult base */
 static unsigned char equal(unsigned char b,unsigned char c)
 {
@@ -970,14 +972,10 @@ static unsigned char equal(unsigned char b,unsigned char c)
   return (unsigned char)y;
 }
 
-#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY) || \
-    defined(WOLFSSL_CURVE25519_USE_ED25519)
 static unsigned char negative(signed char b)
 {
   return ((unsigned char)b) >> 7;
 }
-#endif
-
 
 static WC_INLINE void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b,
                         unsigned char n)
@@ -987,6 +985,7 @@ static WC_INLINE void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b,
   fe_cmov(t->yminusx,u->yminusx,b);
   fe_cmov(t->xy2d,u->xy2d,b);
 }
+#endif
 #endif
 
 #if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY) || \

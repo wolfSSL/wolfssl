@@ -20,6 +20,9 @@
 
 #![no_std]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 /* bindgen-generated bindings to the C library */
 pub mod sys;
 
@@ -42,6 +45,10 @@ pub(crate) unsafe fn zeroize_raw<T>(val: &mut T) {
 
 pub mod aes;
 pub mod blake2;
+#[cfg(all(any(blake2b, blake2s), feature = "digest"))]
+pub mod blake2_digest;
+#[cfg(all(any(blake2b, blake2s), feature = "mac"))]
+pub mod blake2_mac;
 pub mod chacha20_poly1305;
 pub mod cmac;
 #[cfg(all(cmac, feature = "mac"))]
@@ -67,11 +74,15 @@ pub mod mlkem_kem;
 pub mod prf;
 pub mod random;
 pub mod rsa;
+#[cfg(rsa_oaep)]
+pub mod rsa_oaep;
 #[cfg(feature = "signature")]
 pub mod rsa_pkcs1v15;
 pub mod sha;
 #[cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
 pub mod pbkdf2_password_hash;
+#[cfg(all(feature = "password-hash", kdf_scrypt))]
+pub mod scrypt_password_hash;
 #[cfg(feature = "digest")]
 pub mod sha_digest;
 

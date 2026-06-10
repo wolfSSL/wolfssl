@@ -119,8 +119,7 @@ struct layouts, so flipping them between the two compiles is safe.
             CPPFLAGS="-DWOLF_CRYPTO_CB_ONLY_ECC \
                       -DWOLF_CRYPTO_CB_ONLY_RSA \
                       -DWOLF_CRYPTO_CB_ONLY_SHA256 \
-                      -DWOLF_CRYPTO_CB_ONLY_AES" \
-            --disable-sha224
+                      -DWOLF_CRYPTO_CB_ONLY_AES"
 make
 make check
 ```
@@ -135,8 +134,6 @@ Notes:
   Out-of-tree (VPATH) builds fail at configure time. swdev is built
   from `wolfcrypt/test/include.am` and inherits `PARENT_SRCS`,
   `PARENT_BUILD_CFLAGS`, etc., from the parent build.
-- `--disable-sha224` is required when `WOLF_CRYPTO_CB_ONLY_SHA256` is
-  set: SHA-224 is unsupported for now.
 
 For the full CI matrix that exercises each `_ONLY_*` macro, see
 `.github/workflows/cryptocb-only.yml`.

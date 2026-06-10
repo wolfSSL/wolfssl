@@ -7,7 +7,10 @@
     Before this method may be called, one must first initialize the ARC4
     structure using wc_Arc4SetKey.
 
-    \return none
+    \return 0 Returned upon successfully processing the message.
+    \return BAD_FUNC_ARG If arc4, out, or in is NULL.
+    \return MISSING_KEY If no key has been set on the ARC4 structure with
+    wc_Arc4SetKey.
 
     \param arc4 pointer to the ARC4 structure used to process the message
     \param out pointer to the output buffer in which to store the

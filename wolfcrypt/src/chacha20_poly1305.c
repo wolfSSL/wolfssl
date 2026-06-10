@@ -465,7 +465,9 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
         if ((ret = wc_Poly1305Final(&aead->poly, outAuthTag)) < 0)
             goto out;
 
-        if (ConstantCompare(outAuthTag, src + dst_len, POLY1305_DIGEST_SIZE) != 0) {
+        if (ConstantCompare(outAuthTag, src + dst_len, POLY1305_DIGEST_SIZE)
+            != 0) {
+            ForceZero(dst, dst_space);
             ret = MAC_CMP_FAILED_E;
             goto out;
         }

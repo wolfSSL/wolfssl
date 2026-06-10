@@ -647,7 +647,7 @@ int test_x509_CertFromX509_akid_overflow(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_CERT_GEN) && \
     defined(WOLFSSL_CERT_EXT) && !defined(NO_BIO) && \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC)
     /* DER builder helpers -- write into a flat buffer */
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* buf = NULL;

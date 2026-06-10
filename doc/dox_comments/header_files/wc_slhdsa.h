@@ -45,6 +45,103 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param,
 /*!
     \ingroup SLH_DSA
 
+    \brief Initializes an SLH-DSA key with a device-side key identifier (id).
+    Equivalent to wc_SlhDsaKey_Init() but also stashes a binary id that a
+    crypto callback can use to look up the underlying key material on the
+    device. Only available when wolfSSL is built with WOLF_PRIVATE_KEY_ID.
+
+    The id is copied into the key object; the caller may free its buffer
+    immediately after this call returns.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key is NULL, or if id is NULL while len > 0.
+    \return BUFFER_E if len is negative or greater than SLHDSA_MAX_ID_LEN.
+
+    \param [in,out] key Pointer to the SlhDsaKey to initialize.
+    \param [in] param Parameter set to use (see wc_SlhDsaKey_Init).
+    \param [in] id Pointer to the device-side key identifier bytes. May be
+    NULL if len is 0.
+    \param [in] len Number of bytes in id. Must be in [0, SLHDSA_MAX_ID_LEN].
+    \param [in] heap Pointer to heap hint for dynamic memory allocation.
+    May be NULL.
+    \param [in] devId Device identifier for the crypto callback. Should be
+    a registered cb devId, not INVALID_DEVID, for the id to be meaningful.
+
+    _Example_
+    \code
+    SlhDsaKey key;
+    unsigned char id[8] = { 0x01, 0x02, 0x03, 0x04,
+                            0x05, 0x06, 0x07, 0x08 };
+    int ret;
+
+    ret = wc_SlhDsaKey_Init_id(&key, SLHDSA_SHAKE128F, id, sizeof(id),
+        NULL, devId);
+    if (ret != 0) {
+        // error initializing key with id
+    }
+    // ... use key, the cb resolves id -> device key ...
+    wc_SlhDsaKey_Free(&key);
+    \endcode
+
+    \sa wc_SlhDsaKey_Init
+    \sa wc_SlhDsaKey_Init_label
+    \sa wc_SlhDsaKey_Free
+*/
+int wc_SlhDsaKey_Init_id(SlhDsaKey* key, enum SlhDsaParam param,
+    const unsigned char* id, int len, void* heap, int devId);
+
+/*!
+    \ingroup SLH_DSA
+
+    \brief Initializes an SLH-DSA key with a device-side key label.
+    Equivalent to wc_SlhDsaKey_Init() but also stashes a label string that
+    a crypto callback can use to look up the underlying key material on
+    the device. Only available when wolfSSL is built with
+    WOLF_PRIVATE_KEY_ID.
+
+    The label length is taken via XSTRLEN, so embedded NUL bytes terminate
+    the label. The copy stored in key->label is NOT guaranteed to be
+    NUL-terminated (when the input is exactly SLHDSA_MAX_LABEL_LEN bytes
+    the entire array is consumed). Consumers must read at most
+    key->labelLen bytes — do not pass key->label to C-string APIs.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key or label is NULL.
+    \return BUFFER_E if label is empty or longer than SLHDSA_MAX_LABEL_LEN.
+
+    \param [in,out] key Pointer to the SlhDsaKey to initialize.
+    \param [in] param Parameter set to use (see wc_SlhDsaKey_Init).
+    \param [in] label NUL-terminated device-side key label string.
+    \param [in] heap Pointer to heap hint for dynamic memory allocation.
+    May be NULL.
+    \param [in] devId Device identifier for the crypto callback. Should be
+    a registered cb devId, not INVALID_DEVID, for the label to be
+    meaningful.
+
+    _Example_
+    \code
+    SlhDsaKey key;
+    int ret;
+
+    ret = wc_SlhDsaKey_Init_label(&key, SLHDSA_SHAKE128F,
+        "device-key-1", NULL, devId);
+    if (ret != 0) {
+        // error initializing key with label
+    }
+    // ... use key, the cb resolves label -> device key ...
+    wc_SlhDsaKey_Free(&key);
+    \endcode
+
+    \sa wc_SlhDsaKey_Init
+    \sa wc_SlhDsaKey_Init_id
+    \sa wc_SlhDsaKey_Free
+*/
+int wc_SlhDsaKey_Init_label(SlhDsaKey* key, enum SlhDsaParam param,
+    const char* label, void* heap, int devId);
+
+/*!
+    \ingroup SLH_DSA
+
     \brief Frees resources associated with an SLH-DSA key object.
 
     \param [in,out] key Pointer to the SlhDsaKey to free. May be NULL.

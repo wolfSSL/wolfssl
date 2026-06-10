@@ -27,6 +27,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#ifdef NO_ASN_TIME
+    #include <time.h>
+#endif
 
 
 /* TIME CODE */
@@ -37,21 +40,103 @@ static int hw_get_time_sec(void)
 {
     #warning Must implement your own time source if validating certificates
 
-	return ++gTimeMs;
+    return ++gTimeMs;
+}
+
+static int IsLeapYear(int year)
+{
+    return ((year % 4) == 0 && ((year % 100) != 0 || (year % 400) == 0));
 }
 
 /* This is used by wolfCrypt asn.c for cert time checking */
-unsigned long my_time(unsigned long* timer)
+time_t my_time(time_t* timer)
 {
-    (void)timer;
-    return hw_get_time_sec();
+    time_t curTime = (time_t)hw_get_time_sec();
+
+    if (timer != NULL) {
+        *timer = curTime;
+    }
+
+    return curTime;
+}
+
+struct tm* my_gmtime(const time_t* timer, struct tm* tmp)
+{
+    static struct tm staticTime;
+    static const unsigned char daysPerMonth[] =
+        { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    time_t curTime;
+    long days;
+    long rem;
+    int year;
+    int yearDays;
+    int month;
+    int monthDays;
+
+    if (tmp == NULL) {
+        tmp = &staticTime;
+    }
+
+    curTime = (timer != NULL) ? *timer : my_time(NULL);
+    if (curTime < 0) {
+        curTime = 0;
+    }
+
+    days = (long)(curTime / 86400);
+    rem = (long)(curTime % 86400);
+
+    tmp->tm_hour = (int)(rem / 3600);
+    rem %= 3600;
+    tmp->tm_min = (int)(rem / 60);
+    tmp->tm_sec = (int)(rem % 60);
+    tmp->tm_wday = (int)((days + 4) % 7);
+
+    year = 1970;
+    while (1) {
+        yearDays = IsLeapYear(year) ? 366 : 365;
+        if (days < yearDays) {
+            break;
+        }
+        days -= yearDays;
+        year++;
+    }
+
+    tmp->tm_year = year - 1900;
+    tmp->tm_yday = (int)days;
+
+    for (month = 0; month < 12; month++) {
+        monthDays = daysPerMonth[month];
+        if (month == 1 && IsLeapYear(year)) {
+            monthDays++;
+        }
+        if (days < monthDays) {
+            break;
+        }
+        days -= monthDays;
+    }
+
+    tmp->tm_mon = month;
+    tmp->tm_mday = (int)days + 1;
+    tmp->tm_isdst = 0;
+
+    return tmp;
 }
 
 #ifndef WOLFCRYPT_ONLY
 /* This is used by TLS only */
-unsigned int LowResTimer(void)
+word32 LowResTimer(void)
 {
-    return hw_get_time_sec();
+    return (word32)hw_get_time_sec();
+}
+
+/* This is used by TLS 1.3 ticket and PSK timeouts. */
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+word32 TimeNowInMilliseconds(void)
+#else
+sword64 TimeNowInMilliseconds(void)
+#endif
+{
+    return (sword64)my_time(NULL) * 1000;
 }
 #endif
 

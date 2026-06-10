@@ -3,8 +3,9 @@ name: STM32 simulator test
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -14,17 +15,25 @@ concurrency:
 
 # Build the STM32 software simulator (https://github.com/wolfSSL/simulators,
 # STM32Sim/ subdirectory) and run the wolfCrypt test suite on emulated
-# STM32H753 (Cortex-M7) and STM32U585 (Cortex-M33) hardware. Replaces the
-# previous Renode-based STM32H753 workflow and adds U5/PKA coverage.
+# STM32H753 (Cortex-M7), STM32U585 (Cortex-M33), and STM32MP135 (Cortex-A7)
+# hardware. Replaces the previous Renode-based STM32H753 workflow and adds
+# U5/PKA + MP135 (SHA3/SHAKE on HASH1) coverage.
 #
 # Dockerfile.wolfcrypt reads wolfSSL from /opt/wolfssl at runtime via a
 # bind mount, so unlike se050-sim.yml / stsafe-a120-sim.yml no Dockerfile
 # patching is required - we just mount the PR checkout.
+#
+# The simulators repo is pinned via SIMULATORS_REF so the MP135 SHAKE-
+# enabling sed patch below has a known anchor in user_settings.h. Bump
+# the pin when simulators changes are needed.
+
+env:
+  SIMULATORS_REF: 840da2f4a28a9e3027c127da38d758ded902d926
 
 jobs:
   stm32_sim:
     name: wolfCrypt on STM32${{ matrix.chip_label }}
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -35,6 +44,8 @@ jobs:
             script: run-wolfcrypt-h7.sh
           - chip_label: U585
             script: run-wolfcrypt-u5.sh
+          - chip_label: MP135
+            script: run-wolfcrypt-mp135.sh
     steps:
       - name: Checkout wolfSSL (PR source)
         uses: actions/checkout@v4
@@ -42,7 +53,24 @@ jobs:
           path: wolfssl
 
       - name: Clone STM32 simulator
-        run: git clone --depth 1 https://github.com/wolfSSL/simulators simulators
+        run: |
+          git clone https://github.com/wolfSSL/simulators simulators
+          cd simulators && git checkout "$SIMULATORS_REF"
+
+      # The MP135 firmware in the simulators repo currently disables SHAKE
+      # in user_settings.h with a comment pointing at the wolfSSL build
+      # break that this PR resolves. Once the simulators repo refreshes
+      # that file, this patch step becomes a no-op (the grep below will
+      # still pass) - drop it then.
+      - name: Enable SHAKE in MP135 firmware user_settings.h
+        if: matrix.chip_label == 'MP135'
+        working-directory: simulators/STM32Sim/firmware/wolfcrypt-test-mp135
+        run: |
+          sed -i 's|^#define WOLFSSL_SHA3$|#define WOLFSSL_SHA3\n#define WOLFSSL_SHAKE128\n#define WOLFSSL_SHAKE256|' user_settings.h
+          # Fail fast if the anchor line drifted - better than silently
+          # building with SHAKE off and "passing" without exercising it.
+          grep -q '^#define WOLFSSL_SHAKE128$' user_settings.h
+          grep -q '^#define WOLFSSL_SHAKE256$' user_settings.h
 
       - uses: docker/setup-buildx-action@v3
 

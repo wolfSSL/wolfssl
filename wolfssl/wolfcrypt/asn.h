@@ -79,8 +79,8 @@ that can be serialized and deserialized in a cross-platform way.
 #ifdef HAVE_FALCON
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
-#ifdef HAVE_DILITHIUM
-    #include <wolfssl/wolfcrypt/dilithium.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
 #ifndef NO_SHA
     #include <wolfssl/wolfcrypt/sha.h>
@@ -883,8 +883,8 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
     #endif
 #endif
 
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    #define WC_MAX_CERT_VERIFY_SZ 6000            /* For Dilithium */
+#if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+    #define WC_MAX_CERT_VERIFY_SZ 6000            /* For ML-DSA */
 #elif defined(WOLFSSL_CERT_EXT)
     #define WC_MAX_CERT_VERIFY_SZ 2048            /* For larger extensions */
 #elif !defined(NO_RSA) && defined(WC_MAX_RSA_BITS)
@@ -1547,7 +1547,7 @@ struct SignatureCtx {
     #endif
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    !defined(NO_DSA) || defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+    !defined(NO_DSA) || defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
     defined(WOLFSSL_HAVE_XMSS)
     int verify;
@@ -1595,11 +1595,11 @@ struct SignatureCtx {
         struct falcon_key* falcon;
         #endif
     #endif
-    #ifdef HAVE_DILITHIUM
+    #ifdef WOLFSSL_HAVE_MLDSA
         #ifdef WOLFSSL_NO_MALLOC
-        dilithium_key  dilithium[1];
+        wc_MlDsaKey  mldsa[1];
         #else
-        dilithium_key* dilithium;
+        wc_MlDsaKey* mldsa;
         #endif
     #endif
     #ifdef WOLFSSL_HAVE_SLHDSA
@@ -1884,14 +1884,14 @@ struct DecodedCert {
 #endif /* WOLFSSL_SUBJ_INFO_ACC */
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
     defined(WOLFSSL_HAVE_XMSS)
     word32  pkCurveOID;           /* Public Key's curve OID */
     #ifdef WOLFSSL_CUSTOM_CURVES
         int  pkCurveSize;         /* Public Key's curve size */
     #endif
-#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || HAVE_DILITHIUM ||
+#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || WOLFSSL_HAVE_MLDSA ||
         * HAVE_FALCON || WOLFSSL_HAVE_SLHDSA || WOLFSSL_HAVE_LMS ||
         * WOLFSSL_HAVE_XMSS */
     const byte* beforeDate;
@@ -2759,9 +2759,9 @@ enum cert_enums {
     DILITHIUM_LEVEL2_KEY     = 18,
     DILITHIUM_LEVEL3_KEY     = 19,
     DILITHIUM_LEVEL5_KEY     = 20,
-    ML_DSA_LEVEL2_KEY        = 21,
-    ML_DSA_LEVEL3_KEY        = 22,
-    ML_DSA_LEVEL5_KEY        = 23,
+    ML_DSA_44_KEY            = 21,
+    ML_DSA_65_KEY            = 22,
+    ML_DSA_87_KEY            = 23,
     SLH_DSA_SHA2_128S_KEY    = 24,
     SLH_DSA_SHA2_128F_KEY    = 25,
     SLH_DSA_SHA2_192S_KEY    = 26,
@@ -2775,6 +2775,14 @@ enum cert_enums {
     SLH_DSA_SHAKE_256S_KEY   = 34,
     SLH_DSA_SHAKE_256F_KEY   = 35
 };
+
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+/* Legacy LEVEL2/3/5 spellings for the pre-standardization names. Will
+ * be removed alongside the dilithium.h shim. */
+#define ML_DSA_LEVEL2_KEY ML_DSA_44_KEY
+#define ML_DSA_LEVEL3_KEY ML_DSA_65_KEY
+#define ML_DSA_LEVEL5_KEY ML_DSA_87_KEY
+#endif
 
 #endif /* WOLFSSL_CERT_GEN */
 
@@ -3205,13 +3213,20 @@ WOLFSSL_TEST_VIS int  wolfssl_local_MatchBaseName(int type, const char* name,
 WOLFSSL_TEST_VIS int  wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
                                                   const byte* constraint,
                                                   int constraintSz);
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchUriNameConstraint(const char* uri,
+                                                  int uriSz, const char* base,
+                                                  int baseSz);
+WOLFSSL_TEST_VIS int  wolfssl_local_MatchDnsConstraintWildcard(
+                                                  const char* name, int nameSz,
+                                                  const char* base, int baseSz,
+                                                  int permitted);
 #endif
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
-    || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(WOLFSSL_HAVE_SLHDSA))
+    || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA))
 WOLFSSL_LOCAL int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx,
     word32 inSz, const byte** seed, word32* seedLen, const byte** privKey,
     word32* privKeyLen, const byte** pubKey, word32* pubKeyLen,

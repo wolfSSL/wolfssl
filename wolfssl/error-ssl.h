@@ -197,7 +197,7 @@ enum wolfSSL_ErrorCodes {
     UNSUPPORTED_PROTO_VERSION    = -450,   /* bad/unsupported protocol version*/
     FALCON_KEY_SIZE_E            = -451,   /* Wrong key size for Falcon. */
     QUIC_TP_MISSING_E            = -452,   /* QUIC transport parameter missing */
-    DILITHIUM_KEY_SIZE_E         = -453,   /* Wrong key size for Dilithium. */
+    MLDSA_KEY_SIZE_E             = -453,   /* Wrong key size for ML-DSA. */
     DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
     DTLS_TOO_MANY_FRAGMENTS_E    = -455,   /* Received too many fragments */
     QUIC_WRONG_ENC_LEVEL         = -456,   /* QUIC data received on wrong encryption level */
@@ -250,6 +250,12 @@ enum wolfSSL_ErrorCodes {
 };
 
 wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+
+#ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
+    /* Legacy alias for code written against the pre-standardization
+     * Dilithium name. Will be removed alongside the dilithium.h shim. */
+    #define DILITHIUM_KEY_SIZE_E MLDSA_KEY_SIZE_E
+#endif
 
 /* I/O Callback default errors */
 enum IOerrors {

@@ -7730,6 +7730,15 @@ int test_wc_AesEaxStream(void)
     ExpectIntEQ(wc_AesEaxEncryptFinal(NULL, tagBuf, WC_AES_BLOCK_SIZE),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* wc_AesEaxEncryptFinal authTagSz below WOLFSSL_MIN_AUTH_TAG_SZ must be
+     * rejected, even on an otherwise valid context */
+    ExpectIntEQ(wc_AesEaxInit(&eax, key1, sizeof(key1),
+                              nonce1, sizeof(nonce1), NULL, 0), 0);
+    ExpectIntEQ(wc_AesEaxEncryptFinal(&eax, tagBuf,
+                                      WOLFSSL_MIN_AUTH_TAG_SZ - 1),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesEaxFree(&eax), 0);
+
     /* wc_AesEaxDecryptFinal NULL eax */
     ExpectIntEQ(wc_AesEaxDecryptFinal(NULL, tag1, sizeof(tag1)),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));

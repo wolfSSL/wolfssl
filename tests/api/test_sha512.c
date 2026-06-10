@@ -874,3 +874,284 @@ int test_wc_Sha384_Flags(void)
     return EXPECT_RESULT();
 }
 
+/* The SHA-512/224 and SHA-512/256 variants are only available under these
+ * build conditions. */
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    #define TEST_WC_SHA512_224_FALLBACK
+#endif
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    #define TEST_WC_SHA512_256_FALLBACK
+#endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHA512) && \
+    !defined(NO_SHA2_CRYPTO_CB) && \
+    ((!defined(WOLF_CRYPTO_CB_NO_SHA512_FALLBACK) && \
+      (defined(WOLFSSL_SHA384) || defined(TEST_WC_SHA512_224_FALLBACK) || \
+       defined(TEST_WC_SHA512_256_FALLBACK))) || \
+     defined(WOLF_CRYPTO_CB_ONLY_SHA512))
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_CRYPTOCB_SHA512_DEVID 2
+
+typedef struct {
+    int variantSeen; /* SHA-384 / SHA-512-224 / SHA-512-256 callback declined */
+    int sha512Seen;  /* generic SHA-512 callback the fallback lands on */
+#ifdef WOLF_CRYPTO_CB_FREE
+    int freeSeen;    /* SHA-512-family free callbacks the CB-only free routes to */
+#endif
+} Sha512DevCbCtx;
+
+/* Shared SHA-512 crypto-callback test device. For HASH ops it declines every
+ * SHA-512 variant callback so the cryptocb dispatcher falls back to the generic
+ * SHA-512 callback; that callback fills a recognisable digest and deliberately
+ * leaves the SHA-512 IV in the caller's state, forcing the dispatcher to reset
+ * the state back to the variant IV. */
+static int sha512_dev_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    Sha512DevCbCtx* cbCtx = (Sha512DevCbCtx*)ctx;
+    int i;
+
+    (void)devIdArg;
+
+    if (info == NULL || cbCtx == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB_FREE
+    if (info->algo_type == WC_ALGO_TYPE_FREE) {
+        /* Count SHA-512-family frees so the test can confirm the
+         * CB-only free path reaches the callback instead of only zeroing the
+         * struct. Decline so the caller still performs its standard cleanup. */
+        if (info->free.algo == WC_ALGO_TYPE_HASH &&
+            (info->free.type == WC_HASH_TYPE_SHA512 ||
+             info->free.type == WC_HASH_TYPE_SHA384))
+            cbCtx->freeSeen++;
+        return CRYPTOCB_UNAVAILABLE;
+    }
+#endif
+
+    if (info->algo_type != WC_ALGO_TYPE_HASH)
+        return CRYPTOCB_UNAVAILABLE;
+
+    switch (info->hash.type) {
+        case WC_HASH_TYPE_SHA384:
+        case WC_HASH_TYPE_SHA512_224:
+        case WC_HASH_TYPE_SHA512_256:
+            cbCtx->variantSeen++;
+            return CRYPTOCB_UNAVAILABLE;
+
+        case WC_HASH_TYPE_SHA512:
+            cbCtx->sha512Seen++;
+            if (info->hash.digest != NULL) {
+                for (i = 0; i < WC_SHA512_DIGEST_SIZE; i++)
+                    info->hash.digest[i] = (byte)(0x80 + i);
+            }
+        #ifndef WOLF_CRYPTO_CB_NO_SHA512_FALLBACK
+            /* leave the SHA-512 IV in the caller's state to force the
+             * dispatcher's variant IV reset; backends that drop the digest[]
+             * field disable the fallback, so this only runs when it exists */
+            if (info->hash.sha512 != NULL) {
+                for (i = 0; i < (int)(sizeof(info->hash.sha512->digest) /
+                                sizeof(info->hash.sha512->digest[0])); i++) {
+                    info->hash.sha512->digest[i] = W64LIT(0xdeadbeefcafebabe);
+                }
+            }
+        #endif
+            return 0;
+
+        default:
+            return CRYPTOCB_UNAVAILABLE;
+    }
+}
+
+#endif
+
+int test_wc_sha512_cryptocb_fallback(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHA512) && \
+    !defined(NO_SHA2_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_NO_SHA512_FALLBACK) && \
+    (defined(WOLFSSL_SHA384) || defined(TEST_WC_SHA512_224_FALLBACK) || \
+     defined(TEST_WC_SHA512_256_FALLBACK))
+    typedef struct {
+        const char* name;
+        int (*initFn)(wc_Sha512* sha, void* heap, int devId);
+        int (*finalFn)(wc_Sha512* sha, byte* hash);
+        word32 digestSz;
+    } Sha512FallbackCase;
+    static const Sha512FallbackCase sha512FallbackCases[] = {
+#ifdef WOLFSSL_SHA384
+        { "SHA-384", wc_InitSha384_ex, wc_Sha384Final, WC_SHA384_DIGEST_SIZE },
+#endif
+#ifdef TEST_WC_SHA512_224_FALLBACK
+        { "SHA-512/224", wc_InitSha512_224_ex, wc_Sha512_224Final,
+          WC_SHA512_224_DIGEST_SIZE },
+#endif
+#ifdef TEST_WC_SHA512_256_FALLBACK
+        { "SHA-512/256", wc_InitSha512_256_ex, wc_Sha512_256Final,
+          WC_SHA512_256_DIGEST_SIZE },
+#endif
+    };
+    wc_Sha512 sha;
+    wc_Sha512 refSha;
+    Sha512DevCbCtx cbCtx;
+    byte hash[WC_SHA512_DIGEST_SIZE];
+    byte devCtxMarker;
+    const Sha512FallbackCase* tc;
+    size_t c;
+    word32 i;
+
+    for (c = 0;
+         c < sizeof(sha512FallbackCases) / sizeof(sha512FallbackCases[0]);
+         c++) {
+        tc = &sha512FallbackCases[c];
+        devCtxMarker = 0;
+
+        XMEMSET(&sha, 0, sizeof(sha));
+        sha.devId = INVALID_DEVID;
+        sha.devCtx = NULL;
+        XMEMSET(&refSha, 0, sizeof(refSha));
+        XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+        XMEMSET(hash, 0, sizeof(hash));
+
+        /* Reference struct capturing the freshly-initialised variant IV state,
+         * against which we verify the test struct after Final. */
+        ExpectIntEQ(tc->initFn(&refSha, HEAP_HINT, INVALID_DEVID), 0);
+
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(
+            TEST_CRYPTOCB_SHA512_DEVID, sha512_dev_cb,
+            &cbCtx), 0);
+
+        ExpectIntEQ(tc->initFn(&sha, HEAP_HINT,
+            TEST_CRYPTOCB_SHA512_DEVID), 0);
+        sha.devCtx = &devCtxMarker;
+
+        ExpectIntEQ(tc->finalFn(&sha, hash), 0);
+
+        /* the variant callback is declined, forcing the generic SHA-512
+         * fallback */
+        ExpectIntEQ(cbCtx.variantSeen, 1);
+        ExpectIntEQ(cbCtx.sha512Seen, 1);
+
+        /* devId and devCtx must be preserved across the SHA-512 fallback. */
+        ExpectIntEQ(sha.devId, TEST_CRYPTOCB_SHA512_DEVID);
+        ExpectPtrEq(sha.devCtx, &devCtxMarker);
+
+        /* the digest is the generic SHA-512 output truncated to the variant
+         * digest size */
+        for (i = 0; i < tc->digestSz; i++)
+            ExpectIntEQ(hash[i], (byte)(0x80 + i));
+
+        /* the SHA-512 fallback leaves the SHA-512 IV in the state buffer; the
+         * fallback must reset it back to the variant IV so the struct is ready
+         * to hash a new message */
+        ExpectIntEQ(XMEMCMP(sha.digest, refSha.digest, sizeof(sha.digest)), 0);
+
+        wc_Sha512Free(&sha);
+        wc_Sha512Free(&refSha);
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SHA512_DEVID);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Regression test for the no-_ex SHA-512/224 and SHA-512/256 initializers under
+ * WOLF_CRYPTO_CB_ONLY_SHA512. With the software path stripped, they must adopt
+ * the registered default CryptoCb device just like wc_InitSha512() and
+ * wc_InitSha384(); otherwise devId stays INVALID_DEVID and the public streaming
+ * API returns NO_VALID_DEVID even though a default device is registered. */
+int test_wc_sha512_variants_default_devid(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ONLY_SHA512) && \
+    defined(WOLFSSL_SHA512) && !defined(NO_SHA2_CRYPTO_CB) && \
+    !defined(WC_NO_DEFAULT_DEVID) && \
+    (!defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256))
+    typedef struct {
+        const char* name;
+        int (*initFn)(wc_Sha512* sha);
+    } Sha512VariantCase;
+    static const Sha512VariantCase cases[] = {
+#ifndef WOLFSSL_NOSHA512_224
+        { "SHA-512/224", wc_InitSha512_224 },
+#endif
+#ifndef WOLFSSL_NOSHA512_256
+        { "SHA-512/256", wc_InitSha512_256 },
+#endif
+    };
+    Sha512DevCbCtx cbCtx;
+    int defaultDevId;
+    wc_Sha512 sha;
+    const Sha512VariantCase* tc;
+    size_t c;
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SHA512_DEVID,
+        sha512_dev_cb, &cbCtx), 0);
+    defaultDevId = wc_CryptoCb_DefaultDevID();
+    ExpectIntNE(defaultDevId, INVALID_DEVID);
+
+    for (c = 0; c < sizeof(cases) / sizeof(cases[0]); c++) {
+        tc = &cases[c];
+
+        XMEMSET(&sha, 0, sizeof(sha));
+        sha.devId = INVALID_DEVID;
+
+        /* the no-_ex initializer must adopt the default device rather than
+         * leaving devId INVALID_DEVID (which the stripped software path would
+         * surface as NO_VALID_DEVID from the public streaming API) */
+        ExpectIntEQ(tc->initFn(&sha), 0);
+        ExpectIntEQ(sha.devId, defaultDevId);
+
+        wc_Sha512Free(&sha);
+    }
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SHA512_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* WOLF_CRYPTO_CB_FREE under WOLF_CRYPTO_CB_ONLY_SHA512: the
+ * stripped-software wc_Sha512Free()/wc_Sha384Free() must route through the
+ * crypto callback. */
+int test_wc_sha512_cryptocb_free(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
+    defined(WOLF_CRYPTO_CB_ONLY_SHA512) && defined(WOLFSSL_SHA512)
+    Sha512DevCbCtx cbCtx;
+    wc_Sha512 sha512;
+#ifdef WOLFSSL_SHA384
+    wc_Sha384 sha384;
+#endif
+
+    XMEMSET(&cbCtx, 0, sizeof(cbCtx));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SHA512_DEVID,
+        sha512_dev_cb, &cbCtx), 0);
+
+    XMEMSET(&sha512, 0, sizeof(sha512));
+    ExpectIntEQ(wc_InitSha512_ex(&sha512, HEAP_HINT,
+        TEST_CRYPTOCB_SHA512_DEVID), 0);
+    wc_Sha512Free(&sha512);
+    /* the free must reach the device callback */
+    ExpectIntEQ(cbCtx.freeSeen, 1);
+
+#ifdef WOLFSSL_SHA384
+    cbCtx.freeSeen = 0;
+    XMEMSET(&sha384, 0, sizeof(sha384));
+    ExpectIntEQ(wc_InitSha384_ex(&sha384, HEAP_HINT,
+        TEST_CRYPTOCB_SHA512_DEVID), 0);
+    wc_Sha384Free(&sha384);
+    ExpectIntEQ(cbCtx.freeSeen, 1);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SHA512_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+

@@ -3499,6 +3499,12 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
     (void)copy;
 
+    /* Cipher activation invalidates the cached AEAD record overhead. Covers
+     * TLS 1.2 / TLS 1.3 handshake completion, secure renegotiation, early
+     * data flips, and DTLS 1.3 epoch transitions (Dtls13SetEpochKeys() calls
+     * SetKeysSide() at the bottom). */
+    ssl->recordSzOverhead = 0;
+
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation &&
             ssl->secure_renegotiation->cache_status != SCR_CACHE_NULL) {
@@ -4138,6 +4144,8 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
                    ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
     wc_MemZero_Add("MakeSslMasterSecret shaInput", shaInput,
                    PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+    wc_MemZero_Add("MakeSslMasterSecret shaOutput", shaOutput,
+                   WC_SHA_DIGEST_SIZE);
 #endif
 
     XMEMSET(shaOutput, 0, WC_SHA_DIGEST_SIZE);
@@ -4200,9 +4208,11 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 
     ForceZero(md5Input, ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
     ForceZero(shaInput, PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+    ForceZero(shaOutput, WC_SHA_DIGEST_SIZE);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(md5Input, ENCRYPT_LEN + WC_SHA_DIGEST_SIZE);
     wc_MemZero_Check(shaInput, PREFIX + ENCRYPT_LEN + 2 * RAN_LEN);
+    wc_MemZero_Check(shaOutput, WC_SHA_DIGEST_SIZE);
 #endif
 
     WC_FREE_VAR_EX(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -3,8 +3,9 @@ name: Ubuntu-Macos-Windows Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -116,14 +117,14 @@ jobs:
           # variants of mod_exp_<words>_nb / RSA / DH wrappers.
           '--enable-curve25519=nonblock --enable-ecc=nonblock --enable-rsa=nonblock --enable-dh=nonblock --enable-sp=yes,nonblock CPPFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DEBUG_NONBLOCK -DRSA_LOW_MEM -DSP_WORD_SIZE=32"',
           '--enable-certreq --enable-certext --enable-certgen --disable-secure-renegotiation-info CPPFLAGS="-DNO_TLS"',
-          # Minimal DTLS 1.3 client-only build. The SHA-224/384/512/3
-          # disables are deliberately omitted: --disable-sha384 alone
-          # trips a pre-existing wolfSSL bug in
-          # test_tls13_duplicate_extension (reproducible on clean master).
+          # Minimal DTLS 1.3 client-only build with the SHA-224/384/512/3
+          # hash families disabled. SHA-256 (used by TLS_AES_128_GCM_SHA256)
+          # and SHA-1 remain enabled.
           '--enable-dtls13 --disable-tlsv12 --disable-oldtls --disable-rsa --disable-dh
             --disable-aescbc --disable-aesecb --disable-md5 --disable-chacha
             --disable-poly1305 --disable-errorstrings --disable-asn-print
             --disable-eccshamir --disable-base64encode --disable-coding --disable-sni
+            --disable-sha224 --disable-sha384 --disable-sha512 --disable-sha3
             --enable-aesgcm=small --enable-sp-math --enable-sp=smallec256 --disable-sp-asm
             CPPFLAGS=''-DNO_WOLFSSL_SERVER -DWOLFSSL_NO_TLS12 -DNO_SESSION_CACHE
             -DWOLFSSL_AES_NO_UNROLL -DUSE_SLOW_SHA256 -DWOLFSSL_NO_ASYNC_IO
@@ -133,11 +134,18 @@ jobs:
           'CPPFLAGS="-DNO_VERIFY_OID -DWOLFSSL_FPKI"',
         ]
     name: make check linux
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
+      # Local composite actions (./.github/actions/*) need the repo on
+      # disk before the runner can resolve them. The autotools-project
+      # step further down does its own checkout into the workspace, so
+      # this explicit checkout is only required for the ccache-setup
+      # composite below.
+      - uses: actions/checkout@v4
+
       # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
       # `make check`); without it that test is SKIPped.
       - uses: actions/setup-python@v5
@@ -145,11 +153,23 @@ jobs:
           python-version: '3.x'
       - run: pip install tlslite-ng
 
+      # ccache cuts ~50% off rebuild time. /usr/lib/ccache is prepended to
+      # PATH so gcc/cc invocations from the autotools action are
+      # transparently intercepted - no other step needs to change.
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: os-check-linux
+
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           configure: CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
           check: true
+
+      - name: ccache stats (post-build)
+        if: always()
+        run: command -v ccache >/dev/null && ccache -s || echo "ccache not installed - composite likely skipped"
 
   # Curated macOS subset. Each config exists for a Darwin-specific reason;
   # do not add entries that only re-test platform-agnostic crypto already
@@ -184,7 +204,7 @@ jobs:
           '--enable-cryptocb --enable-keygen --enable-cryptocbutils=setkey',
         ]
     name: make check macos
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -217,7 +237,7 @@ jobs:
           'examples/configs/user_settings_all.h',
         ]
     name: make user_setting.h
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -264,7 +284,7 @@ jobs:
           # - user_settings_baremetal.h: Requires static memory, custom platform
         ]
     name: make user_setting.h (testwolfcrypt only)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -285,7 +305,7 @@ jobs:
   # the equivalent code paths on Darwin.
   make_user_all:
     name: make user_setting.h (with sed)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -308,7 +328,7 @@ jobs:
 
   windows_build:
     name: Windows Build Test
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
     strategy:
       fail-fast: false

@@ -395,8 +395,8 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFSSL_HAVE_MLKEM
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
-#ifdef HAVE_DILITHIUM
-    #include <wolfssl/wolfcrypt/dilithium.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #include <wolfssl/wolfcrypt/wc_xmss.h>
@@ -965,8 +965,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef WOLFSSL_HAVE_MLKEM
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mlkem_test(void);
 #endif
-#ifdef HAVE_DILITHIUM
-    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dilithium_test(void);
+#ifdef WOLFSSL_HAVE_MLDSA
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mldsa_test(void);
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10
@@ -1447,14 +1447,14 @@ static WC_MAYBE_UNUSED Aes* test_AesGcmNew(void* heap, int declaredDevId,
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(WOLFSSL_STATIC_MEMORY_TEST_SZ)
         static byte gTestMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
-    #elif defined(HAVE_DILITHIUM)
-        #if defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) && \
-            defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) && \
-            defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM) && \
-            defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
-            static byte gTestMemory[192*1024];  /* Dilithium low mem */
+    #elif defined(WOLFSSL_HAVE_MLDSA)
+        #if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+            defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM) && \
+            defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM) && \
+            defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+            static byte gTestMemory[192*1024];  /* ML-DSA low mem */
         #else
-            static byte gTestMemory[576*1024];  /* Dilithium full mem */
+            static byte gTestMemory[576*1024];  /* ML-DSA full mem */
         #endif
     #elif defined(BENCH_EMBEDDED)
         static byte gTestMemory[14000];
@@ -3130,12 +3130,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif
 
-#ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_HAVE_MLDSA
     PRIVATE_KEY_UNLOCK();
-    if ( (ret = dilithium_test()) != 0)
-        TEST_FAIL("DILITHIUM test failed!\n", ret);
+    if ( (ret = mldsa_test()) != 0)
+        TEST_FAIL("ML-DSA   test failed!\n", ret);
     else
-        TEST_PASS("DILITHIUM test passed!\n");
+        TEST_PASS("ML-DSA   test passed!\n");
     PRIVATE_KEY_LOCK();
 #endif
 
@@ -8732,7 +8732,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif
                                         WC_HASH_TYPE_NONE
                                      };
-    int typesBad[]  = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_MAX + 1 };
+    enum wc_HashType typesBad[]  = { WC_HASH_TYPE_NONE };
 
     enum wc_HashType typesHashBad[] = {
 #ifndef WOLFSSL_MD2
@@ -13509,14 +13509,17 @@ out:
         Aes enc[1];
 #endif
         byte cipher[WC_AES_BLOCK_SIZE * 4];
-#ifdef HAVE_AES_DECRYPT
+/* dec and plain are used by the HAVE_AES_DECRYPT paths and are also passed to
+ * aescfb_192_stream_test_0() (which ignores them when HAVE_AES_DECRYPT is not
+ * defined). */
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_192)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *dec = NULL;
 #else
         Aes dec[1];
 #endif
-        byte plain [WC_AES_BLOCK_SIZE * 4];
-#endif
+        byte plain[WC_AES_BLOCK_SIZE * 4];
+#endif /* HAVE_AES_DECRYPT || WOLFSSL_AES_192 */
         wc_test_ret_t ret = 0;
 
         WOLFSSL_SMALL_STACK_STATIC const byte iv[] = {
@@ -15255,12 +15258,10 @@ out:
 #else
     wc_AesFree(enc);
 #endif
-#ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
-#endif
 #endif
     return ret;
 }
@@ -17562,10 +17563,12 @@ static wc_test_ret_t aes_xts_256_vector_test(XtsAes *aes)
 static wc_test_ret_t aes_xts_256_partial_test(XtsAes *aes)
 {
     wc_test_ret_t ret = 0;
-    byte buf[WC_AES_BLOCK_SIZE * 3];
     byte cipher[WC_AES_BLOCK_SIZE * 3];
+#ifdef HAVE_AES_DECRYPT
+    byte buf[WC_AES_BLOCK_SIZE * 3];
 #ifdef WOLFSSL_AESXTS_STREAM
     struct XtsAesStreamData stream;
+#endif
 #endif
     WOLFSSL_SMALL_STACK_STATIC const unsigned char k1[] = {
         0x1e, 0xa6, 0x61, 0xc5, 0x8d, 0x94, 0x3a, 0x0e,
@@ -17587,6 +17590,7 @@ static wc_test_ret_t aes_xts_256_partial_test(XtsAes *aes)
         0x6f, 0xb3, 0x50, 0x39, 0x07, 0x90, 0x31, 0x1c,
         0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
     };
+#ifdef HAVE_AES_DECRYPT
     WOLFSSL_SMALL_STACK_STATIC const unsigned char p1[] = {
         0x2e, 0xed, 0xea, 0x52, 0xcd, 0x82, 0x15, 0xe1,
         0xac, 0xc6, 0x47, 0xe8, 0x10, 0xbb, 0xc3, 0x64,
@@ -17629,6 +17633,7 @@ static wc_test_ret_t aes_xts_256_partial_test(XtsAes *aes)
         0xe6, 0x6c, 0xdb, 0xb7, 0x9a, 0xb4, 0x28, 0x9b,
         0xc3, 0xea, 0xd8, 0x10, 0xe9, 0xc0, 0xaf, 0x92
     };
+#endif
 
     /* partial block encryption test */
     XMEMSET(cipher, 0, sizeof(cipher));
@@ -19057,8 +19062,9 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
         wc_FreeRng(&rng);
 #else
     (void)enc;
-    (void)dec;
 #endif /* WOLFSSL_AES_256 && ... */
+
+    (void)dec;
     return ret;
 }
 
@@ -19306,13 +19312,17 @@ static wc_test_ret_t aesgcm_non12iv_test(Aes* enc, Aes* dec)
         0xb1, 0x6a, 0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57,
         0xba, 0x63, 0x7b, 0x39
     };
+#if defined(WOLFSSL_AES_192) || \
+    (defined(WOLFSSL_AES_128) && defined(BENCH_AESGCM_LARGE))
     WOLFSSL_SMALL_STACK_STATIC const byte a[] =
     {
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xab, 0xad, 0xda, 0xd2
     };
-#ifdef BENCH_AESGCM_LARGE
+#endif
+#if defined(BENCH_AESGCM_LARGE) && \
+    (defined(WOLFSSL_AES_192) || defined(WOLFSSL_AES_128))
     WOLFSSL_SMALL_STACK_STATIC const byte iv1[] =
     {
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
@@ -19402,7 +19412,8 @@ static wc_test_ret_t aesgcm_non12iv_test(Aes* enc, Aes* dec)
     byte resultT[sizeof(t1) + WC_AES_BLOCK_SIZE];
     byte resultP[sizeof(p) + WC_AES_BLOCK_SIZE];
     byte resultC[sizeof(p) + WC_AES_BLOCK_SIZE];
-#ifdef BENCH_AESGCM_LARGE
+#if defined(BENCH_AESGCM_LARGE) && \
+    (defined(WOLFSSL_AES_192) || defined(WOLFSSL_AES_128))
     int alen = 0;
 #endif
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
@@ -19781,6 +19792,7 @@ static wc_test_ret_t aesgcm_aes128_vector_test(Aes* enc, Aes* dec)
 #endif /* HAVE_AES_DECRYPT */
 
   out:
+    (void)dec;
     return ret;
 }
 #endif /* WOLFSSL_AES_128 && !WOLFSSL_AFALG_XILINX_AES */
@@ -19829,7 +19841,6 @@ static wc_test_ret_t aesgcm_aes256_vector_test(Aes* enc, Aes* dec)
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
         0xde, 0xca, 0xf8, 0x88
     };
-#ifdef HAVE_AES_DECRYPT
     WOLFSSL_SMALL_STACK_STATIC const byte c1[] =
     {
         0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
@@ -19841,7 +19852,6 @@ static wc_test_ret_t aesgcm_aes256_vector_test(Aes* enc, Aes* dec)
         0xc5, 0xf6, 0x1e, 0x63, 0x93, 0xba, 0x7a, 0x0a,
         0xbc, 0xc9, 0xf6, 0x62
     };
-#endif
     WOLFSSL_SMALL_STACK_STATIC const byte t1[] =
     {
         0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
@@ -19891,6 +19901,7 @@ static wc_test_ret_t aesgcm_aes256_vector_test(Aes* enc, Aes* dec)
 #endif /* HAVE_AES_DECRYPT */
 
   out:
+    (void)dec;
     return ret;
 }
 
@@ -19932,6 +19943,7 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
         0xde, 0xca, 0xf8, 0x88
     };
+#ifdef HAVE_AES_DECRYPT
     WOLFSSL_SMALL_STACK_STATIC const byte c1[] =
     {
         0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
@@ -19943,6 +19955,7 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
         0xc5, 0xf6, 0x1e, 0x63, 0x93, 0xba, 0x7a, 0x0a,
         0xbc, 0xc9, 0xf6, 0x62
     };
+#endif
     WOLFSSL_SMALL_STACK_STATIC const byte t1[] =
     {
         0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
@@ -20184,6 +20197,7 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     XFREE(large_aad, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+    (void)dec;
     return ret;
 }
 #endif /* WOLFSSL_AES_256 */
@@ -20962,7 +20976,9 @@ static wc_test_ret_t aesccm_128_large_test(Aes* enc)
     {
         0x89, 0xd8, 0xd2, 0x02, 0xc5, 0xcf, 0xae, 0xf4
     };
+#ifdef HAVE_AES_DECRYPT
     byte pl2[sizeof(pl)];
+#endif
     byte cl2[sizeof(cl)];
     byte tl2[sizeof(tl)];
 
@@ -29701,6 +29717,27 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
     ret = wc_DhCheckPubKey_ex(key, pub, pubSz, q0, sizeof(q0));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+
+#if !defined(WOLFSSL_NO_DH186) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+    /* Regression: an oversized *privSz must be rejected before
+     * GeneratePrivateDh186 writes (*privSz + 8) bytes of RNG output into the
+     * stack-allocated cBuf (sized DH_MAX_SIZE + 8 in non-WOLFSSL_SMALL_STACK
+     * builds). The key still has q set here, so the call dispatches through
+     * GeneratePrivateDh186. Only exercised when the local src/dh.c bound
+     * check is in play (not HAVE_SELFTEST / HAVE_FIPS builds, which use
+     * separate validated modules). */
+    {
+        word32 hugePrivSz = (word32)DH_MAX_SIZE + 1;
+        word32 outPubSz   = sizeof(pub);
+        ret = wc_DhGenerateKeyPair(key, rng, priv, &hugePrivSz, pub, &outPubSz);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+    }
+#endif /* !WOLFSSL_NO_DH186 && !HAVE_SELFTEST && !HAVE_FIPS */
 
     wc_FreeDhKey(key);
     ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
@@ -44746,13 +44783,24 @@ static wc_test_ret_t ed25519_test_check_key(void)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f,
     };
-    /* Y-ordinate value equal to prime - 1. */
+    /* Y-ordinate value equal to prime - 1. Older FIPS modules accept
+     * this as a valid key; the current source rejects it as an order-2
+     * point. */
     WOLFSSL_SMALL_STACK_STATIC const byte key_y_is_p_minus_1[] = {
         0x40,
         0xec,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f,
+    };
+    /* RFC 8032 section 7.1 test-vector public key: a genuinely valid
+     * Ed25519 point used as a positive control. */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_good[] = {
+        0x40,
+        0xd7,0x5a,0x98,0x01,0x82,0xb1,0x0a,0xb7,
+        0xd5,0x4b,0xfe,0xd3,0xc9,0x64,0x07,0x3a,
+        0x0e,0xe1,0x72,0xf3,0xda,0xa6,0x23,0x25,
+        0xaf,0x02,0x1a,0x68,0xf7,0x07,0x51,0x1a,
     };
     ed25519_key key;
     int ret;
@@ -44786,9 +44834,26 @@ static wc_test_ret_t ed25519_test_check_key(void)
         }
     }
     if (res == 0) {
-        /* Load good public key only and perform checks. */
         ret = wc_ed25519_import_public(key_y_is_p_minus_1,
             ED25519_PUB_KEY_SIZE + 1, &key);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        /* y = p - 1 is an order-2 point; check_key rejects it because
+         * h*A is the neutral element for small-order public keys and
+         * forged signatures would otherwise verify. */
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#else
+        /* Older FIPS modules accept this order-2 point. */
+        if (ret != 0) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#endif
+    }
+    if (res == 0) {
+        /* Positive control: a real Ed25519 public key must be accepted. */
+        ret = wc_ed25519_import_public(key_good, ED25519_PUB_KEY_SIZE + 1,
+            &key);
         if (ret != 0) {
             res = WC_TEST_RET_ENC_NC;
         }
@@ -46463,7 +46528,9 @@ static wc_test_ret_t ed448_test_check_key(void)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff
     };
-    /* Y-ordinate value equal to prime - 1. */
+    /* Y-ordinate value equal to prime - 1. Older FIPS modules accept
+     * this as a valid key; the current source rejects it as an order-2
+     * point. */
     WOLFSSL_SMALL_STACK_STATIC const byte key_y_is_p_minus_1[] = {
         0x40,
         0xfe,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
@@ -46474,6 +46541,19 @@ static wc_test_ret_t ed448_test_check_key(void)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff
+    };
+    /* RFC 8032 section 7.4 test-vector public key: a genuinely valid
+     * Ed448 point used as a positive control. */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_good[] = {
+        0x40,
+        0x5f,0xd7,0x44,0x9b,0x59,0xb4,0x61,0xfd,
+        0x2c,0xe7,0x87,0xec,0x61,0x6a,0xd4,0x6a,
+        0x1d,0xa1,0x34,0x24,0x85,0xa7,0x0e,0x1f,
+        0x8a,0x0e,0xa7,0x5d,0x80,0xe9,0x67,0x78,
+        0xed,0xf1,0x24,0x76,0x9b,0x46,0xc7,0x06,
+        0x1b,0xd6,0x78,0x3d,0xf1,0xe5,0x0f,0x6c,
+        0xd1,0xfa,0x1a,0xbe,0xaf,0xe8,0x25,0x61,
+        0x80
     };
     ed448_key key;
     int ret;
@@ -46507,9 +46587,25 @@ static wc_test_ret_t ed448_test_check_key(void)
         }
     }
     if (res == 0) {
-        /* Load good public key only and perform checks. */
         ret = wc_ed448_import_public(key_y_is_p_minus_1, ED448_PUB_KEY_SIZE + 1,
             &key);
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        /* y = p - 1 is an order-2 point; check_key rejects it because
+         * h*A is the neutral element for small-order public keys and
+         * forged signatures would otherwise verify. */
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#else
+        /* Older FIPS modules accept this order-2 point. */
+        if (ret != 0) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+#endif
+    }
+    if (res == 0) {
+        /* Positive control: a real Ed448 public key must be accepted. */
+        ret = wc_ed448_import_public(key_good, ED448_PUB_KEY_SIZE + 1, &key);
         if (ret != 0) {
             res = WC_TEST_RET_ENC_NC;
         }
@@ -48517,23 +48613,23 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER512, key, HEAP_HINT, katDevId);
+    ret = wc_MlKemKey_Init(key, KYBER512, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
         key_inited = 1;
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
-    ret = wc_KyberKey_MakeKeyWithRandom(key, kyber512_rand,
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber512_rand,
         sizeof(kyber512_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePublicKey(key, pub, KYBER512_PUBLIC_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePublicKey(key, pub, KYBER512_PUBLIC_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePrivateKey(key, priv, KYBER512_PRIVATE_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER512_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -48545,14 +48641,14 @@ static wc_test_ret_t mlkem512_kat(void)
 #else
     (void)kyber512_rand;
     (void)kyber512_pk;
-    ret = wc_KyberKey_DecodePrivateKey(key, kyber512_sk,
+    ret = wc_MlKemKey_DecodePrivateKey(key, kyber512_sk,
         KYBER512_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
-    ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
+    ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
         sizeof(kyber512enc_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -48567,7 +48663,7 @@ static wc_test_ret_t mlkem512_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber512_ct,
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber512_ct,
         sizeof(kyber512_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -49980,23 +50076,23 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER768, key, HEAP_HINT, katDevId);
+    ret = wc_MlKemKey_Init(key, KYBER768, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
         key_inited = 1;
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
-    ret = wc_KyberKey_MakeKeyWithRandom(key, kyber768_rand,
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber768_rand,
         sizeof(kyber768_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePublicKey(key, pub, KYBER768_PUBLIC_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePublicKey(key, pub, KYBER768_PUBLIC_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePrivateKey(key, priv, KYBER768_PRIVATE_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER768_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -50008,14 +50104,14 @@ static wc_test_ret_t mlkem768_kat(void)
 #else
     (void)kyber768_rand;
     (void)kyber768_pk;
-    ret = wc_KyberKey_DecodePrivateKey(key, kyber768_sk,
+    ret = wc_MlKemKey_DecodePrivateKey(key, kyber768_sk,
         KYBER768_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
-    ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
+    ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
         sizeof(kyber768enc_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -50030,7 +50126,7 @@ static wc_test_ret_t mlkem768_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber768_ct,
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber768_ct,
         sizeof(kyber768_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -51827,23 +51923,23 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 
 #ifdef WOLFSSL_MLKEM_KYBER
-    ret = wc_KyberKey_Init(KYBER1024, key, HEAP_HINT, katDevId);
+    ret = wc_MlKemKey_Init(key, KYBER1024, HEAP_HINT, katDevId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     else
         key_inited = 1;
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
-    ret = wc_KyberKey_MakeKeyWithRandom(key, kyber1024_rand,
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, kyber1024_rand,
         sizeof(kyber1024_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePublicKey(key, pub, KYBER_MAX_PUBLIC_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePublicKey(key, pub, KYBER_MAX_PUBLIC_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_KyberKey_EncodePrivateKey(key, priv, KYBER_MAX_PRIVATE_KEY_SIZE);
+    ret = wc_MlKemKey_EncodePrivateKey(key, priv, KYBER_MAX_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -51855,14 +51951,14 @@ static wc_test_ret_t mlkem1024_kat(void)
 #else
     (void)kyber1024_rand;
     (void)kyber1024_pk;
-    ret = wc_KyberKey_DecodePrivateKey(key, kyber1024_sk,
+    ret = wc_MlKemKey_DecodePrivateKey(key, kyber1024_sk,
         KYBER1024_PRIVATE_KEY_SIZE);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
-    ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
+    ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
         sizeof(kyber1024enc_rand));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -51877,7 +51973,7 @@ static wc_test_ret_t mlkem1024_kat(void)
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber1024_ct,
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, kyber1024_ct,
         sizeof(kyber1024_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -52017,7 +52113,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 #endif
 #endif
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WC_NO_CONSTRUCTORS) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey *tmpKey = NULL;
 #endif
     int key_inited = 0;
@@ -52205,7 +52302,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (XMEMCMP(priv, priv2, testData[i][2]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
-#if !defined(WOLFSSL_NO_MALLOC)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WC_NO_CONSTRUCTORS)
         tmpKey = wc_MlKemKey_New(testData[i][0], HEAP_HINT, devId);
         if (tmpKey == NULL)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -52263,22 +52360,22 @@ out:
 }
 #endif /* WOLFSSL_HAVE_MLKEM */
 
-#ifdef HAVE_DILITHIUM
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
+#ifdef WOLFSSL_HAVE_MLDSA
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+static wc_test_ret_t mldsa_param_vfy_test(int param, const byte* pubKey,
     word32 pubKeyLen, const byte* sig, word32 sigLen)
 {
-    #ifndef DILITHIUM_TEST_MSG_SZ
-    #define DILITHIUM_TEST_MSG_SZ 512
+    #ifndef WC_MLDSA_TEST_MSG_SZ
+    #define WC_MLDSA_TEST_MSG_SZ 512
     #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* msg = NULL;
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     byte* pubExported = NULL;
 #else
-    byte msg[DILITHIUM_TEST_MSG_SZ];
-    dilithium_key key[1];
-    byte pubExported[DILITHIUM_MAX_PUB_KEY_SIZE];
+    byte msg[WC_MLDSA_TEST_MSG_SZ];
+    wc_MlDsaKey key[1];
+    byte pubExported[MLDSA_MAX_PUB_KEY_SIZE];
 #endif
     wc_test_ret_t ret;
     int i;
@@ -52287,9 +52384,9 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
     int n_diff = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    msg = (byte*)XMALLOC(DILITHIUM_TEST_MSG_SZ, HEAP_HINT,
+    msg = (byte*)XMALLOC(WC_MLDSA_TEST_MSG_SZ, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     pubExported = (byte*)XMALLOC(pubKeyLen, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
@@ -52299,33 +52396,33 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
 #endif
 
     /* make dummy msg */
-    for (i = 0; i < DILITHIUM_TEST_MSG_SZ; i++) {
+    for (i = 0; i < WC_MLDSA_TEST_MSG_SZ; i++) {
         msg[i] = (byte)i;
     }
 
-    ret = wc_dilithium_init_ex(key, NULL, devId);
+    ret = wc_MlDsaKey_Init(key, NULL, devId);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         return ret;
     }
 
-    ret = wc_dilithium_set_level(key, param);
+    ret = wc_MlDsaKey_SetParams(key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_dilithium_import_public(pubKey, pubKeyLen, key);
+    ret = wc_MlDsaKey_ImportPubRaw(key, pubKey, pubKeyLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (param >= WC_ML_DSA_DRAFT) {
-        ret = wc_dilithium_verify_msg(sig, sigLen, msg, DILITHIUM_TEST_MSG_SZ,
-            &res, key);
+        ret = wc_MlDsaKey_Verify(key, sig, sigLen, msg, WC_MLDSA_TEST_MSG_SZ,
+            &res);
     }
     else
 #endif
     {
-        ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
-            DILITHIUM_TEST_MSG_SZ, &res, key);
+        ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+            WC_MLDSA_TEST_MSG_SZ, &res);
     }
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -52333,7 +52430,7 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
         ERROR_OUT(WC_TEST_RET_ENC_EC(res), out);
 
     /* Now test the export pub raw API, verify we recover the original pub. */
-    ret = wc_dilithium_export_public(key, pubExported, &lenExported);
+    ret = wc_MlDsaKey_ExportPubRaw(key, pubExported, &lenExported);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -52349,7 +52446,7 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
     }
 
 out:
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -52359,7 +52456,7 @@ out:
 }
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-static wc_test_ret_t dilithium_param_44_vfy_test(void)
+static wc_test_ret_t mldsa_param_44_vfy_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_44_pub_key[] = {
         0xd8, 0xac, 0xaf, 0xd8, 0x2e, 0x14, 0x23, 0x78, 0xf7, 0x0d, 0x9a, 0x04,
@@ -52473,7 +52570,7 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
         0x2f, 0x4b, 0x2e, 0x23, 0x4c, 0x0f, 0x0f, 0xe0, 0x14, 0xa5, 0xe7, 0xe5,
         0x70, 0x8d, 0x8b, 0x9c
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_44_draft_pub_key[] = {
     0xea, 0x05, 0x24, 0x0d, 0x80, 0x72, 0x25, 0x55, 0xf4, 0x5b,
     0xc2, 0x13, 0x8b, 0x87, 0x5d, 0x31, 0x99, 0x2f, 0x1d, 0xa9,
@@ -52813,7 +52910,7 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
         0x7c, 0x8c, 0x8d, 0x92, 0x99, 0x9c, 0xad, 0xb5, 0xb7, 0xce, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x16, 0x23, 0x36, 0x4a
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_44_draft_sig[] = {
     0x5e, 0xc1, 0xce, 0x0e, 0x31, 0xea, 0x10, 0x52, 0xa3, 0x7a,
     0xfe, 0x4d, 0xac, 0x07, 0x89, 0x5a, 0x45, 0xbd, 0x5a, 0xe5,
@@ -53061,12 +53158,12 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
 #endif
     wc_test_ret_t ret;
 
-    ret = dilithium_param_vfy_test(WC_ML_DSA_44, ml_dsa_44_pub_key,
+    ret = mldsa_param_vfy_test(WC_ML_DSA_44, ml_dsa_44_pub_key,
         (word32)sizeof(ml_dsa_44_pub_key), ml_dsa_44_sig,
         (word32)sizeof(ml_dsa_44_sig));
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
-        ret = dilithium_param_vfy_test(WC_ML_DSA_44_DRAFT,
+        ret = mldsa_param_vfy_test(WC_ML_DSA_44_DRAFT,
             ml_dsa_44_draft_pub_key, (word32)sizeof(ml_dsa_44_draft_pub_key),
             ml_dsa_44_draft_sig, (word32)sizeof(ml_dsa_44_draft_sig));
     }
@@ -53077,7 +53174,7 @@ static wc_test_ret_t dilithium_param_44_vfy_test(void)
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_65
-static wc_test_ret_t dilithium_param_65_vfy_test(void)
+static wc_test_ret_t mldsa_param_65_vfy_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_65_pub_key[] = {
         0x2c, 0x32, 0xfa, 0x59, 0x71, 0x16, 0x4a, 0x0e, 0x45, 0x0f, 0x21, 0xfd,
@@ -53244,7 +53341,7 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
         0xa1, 0xe9, 0xa4, 0xb7, 0x42, 0x62, 0xee, 0xea, 0x43, 0xf3, 0xd8, 0xd0,
         0x7a, 0x53, 0x91, 0x34, 0x7f, 0xe7, 0x9a, 0xc6
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_65_draft_pub_key[] = {
     0x15, 0xc9, 0xe5, 0x53, 0x2f, 0xd8, 0x1f, 0xb4, 0xa3, 0x9f,
     0xae, 0xad, 0xb3, 0x10, 0xd0, 0x72, 0x69, 0xd3, 0x02, 0xf3,
@@ -53722,7 +53819,7 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x03, 0x0b, 0x13, 0x1a, 0x1d, 0x25
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_65_draft_sig[] = {
     0x3e, 0xff, 0xf4, 0x48, 0x80, 0x2d, 0x88, 0x87, 0xf4, 0xcc,
     0xa4, 0x61, 0xe1, 0x27, 0x20, 0x55, 0x66, 0xc8, 0xfe, 0x3e,
@@ -54059,12 +54156,12 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
 #endif
     wc_test_ret_t ret;
 
-    ret = dilithium_param_vfy_test(WC_ML_DSA_65, ml_dsa_65_pub_key,
+    ret = mldsa_param_vfy_test(WC_ML_DSA_65, ml_dsa_65_pub_key,
         (word32)sizeof(ml_dsa_65_pub_key), ml_dsa_65_sig,
         (word32)sizeof(ml_dsa_65_sig));
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
-        ret = dilithium_param_vfy_test(WC_ML_DSA_65_DRAFT,
+        ret = mldsa_param_vfy_test(WC_ML_DSA_65_DRAFT,
             ml_dsa_65_draft_pub_key, (word32)sizeof(ml_dsa_65_draft_pub_key),
             ml_dsa_65_draft_sig, (word32)sizeof(ml_dsa_65_draft_sig));
     }
@@ -54075,7 +54172,7 @@ static wc_test_ret_t dilithium_param_65_vfy_test(void)
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_87
-static wc_test_ret_t dilithium_param_87_vfy_test(void)
+static wc_test_ret_t mldsa_param_87_vfy_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_87_pub_key[] = {
         0x8a, 0x66, 0xe3, 0x6e, 0x3c, 0x11, 0x70, 0x9f, 0x82, 0xdd, 0xeb, 0x9e,
@@ -54295,7 +54392,7 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
         0xe5, 0xef, 0x19, 0xbe, 0x04, 0xf6, 0x6b, 0xad, 0x41, 0x4c, 0x5a, 0x50,
         0xf6, 0xac, 0x1b, 0x25, 0x8a, 0xdd, 0xe3, 0x57, 0xab, 0x7c, 0x92, 0xe4
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_87_draft_pub_key[] = {
     0xef, 0x49, 0x79, 0x47, 0x15, 0xc4, 0x8a, 0xa9, 0x74, 0x2a,
     0xf0, 0x36, 0x94, 0x5c, 0x91, 0x1c, 0x5d, 0xff, 0x2c, 0x83,
@@ -54947,7 +55044,7 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06,
         0x0c, 0x18, 0x20, 0x24, 0x2f, 0x33, 0x3f
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     WOLFSSL_SMALL_STACK_STATIC const byte ml_dsa_87_draft_sig[] = {
     0x78, 0xed, 0x1a, 0x3f, 0x41, 0xab, 0xf8, 0x93, 0x80, 0xf0,
     0xc6, 0xbf, 0x4a, 0xde, 0xaf, 0x29, 0x93, 0xe5, 0x9a, 0xbf,
@@ -55416,12 +55513,12 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
 #endif
     wc_test_ret_t ret;
 
-    ret = dilithium_param_vfy_test(WC_ML_DSA_87, ml_dsa_87_pub_key,
+    ret = mldsa_param_vfy_test(WC_ML_DSA_87, ml_dsa_87_pub_key,
         (word32)sizeof(ml_dsa_87_pub_key), ml_dsa_87_sig,
         (word32)sizeof(ml_dsa_87_sig));
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (ret == 0) {
-        ret = dilithium_param_vfy_test(WC_ML_DSA_87_DRAFT,
+        ret = mldsa_param_vfy_test(WC_ML_DSA_87_DRAFT,
             ml_dsa_87_draft_pub_key, (word32)sizeof(ml_dsa_87_draft_pub_key),
             ml_dsa_87_draft_sig, (word32)sizeof(ml_dsa_87_draft_sig));
     }
@@ -55432,64 +55529,64 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
 #endif
 #endif
 
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     byte* sig = NULL;
 #else
-    dilithium_key  key[1];
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
-    byte sig[DILITHIUM_MAX_SIG_SIZE];
+    wc_MlDsaKey  key[1];
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    byte sig[MLDSA_MAX_SIG_SIZE];
 #endif
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_MLDSA_NO_SIGN
     word32 sigLen;
     byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
     int res = 0;
 #endif
 #endif
-    dilithium_key* tmpKey = NULL;
+    wc_MlDsaKey* tmpKey = NULL;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL || sig == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
 #endif
 
-    ret = wc_dilithium_init_ex(key, NULL, devId);
+    ret = wc_MlDsaKey_Init(key, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_dilithium_set_level(key, param);
+    ret = wc_MlDsaKey_SetParams(key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_make_key(key, rng);
+    ret = wc_MlDsaKey_MakeKey(key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
-    sigLen = wc_dilithium_sig_size(key);
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    sigLen = wc_MlDsaKey_SigSize(key);
     if (sigLen <= 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_sign_ctx_msg(NULL, 0, msg, (word32)sizeof(msg), sig,
-        &sigLen, key, rng);
+    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen,
+        msg, (word32)sizeof(msg), rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
-        (word32)sizeof(msg), &res, key);
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
@@ -55497,16 +55594,16 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
 #endif
 #endif
 
-    tmpKey = wc_dilithium_new(HEAP_HINT, devId);
+    tmpKey = wc_MlDsaKey_New(HEAP_HINT, devId);
     if (tmpKey == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_delete(tmpKey, &tmpKey);
+    ret = wc_MlDsaKey_Delete(tmpKey, &tmpKey);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 out:
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -55515,77 +55612,77 @@ out:
 }
 #endif
 
-#if defined(WC_DILITHIUM_CACHE_MATRIX_A) && \
-    !defined(WC_DILITHIUM_FIXED_ARRAY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if defined(WC_MLDSA_CACHE_MATRIX_A) && \
+    !defined(WC_MLDSA_FIXED_ARRAY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
 /* Regression test for sign path matrix A cache allocation.
  *
- * dilithium_sign_with_seed_mu() previously stored the result of XMALLOC for
+ * mldsa_sign_with_seed_mu() previously stored the result of XMALLOC for
  * the matrix A cache into a local variable instead of key->a. The local was
  * then immediately overwritten by `a = key->a` (still NULL), so the just-
  * allocated buffer was leaked and a NULL pointer was passed to
- * dilithium_expand_a().
+ * mldsa_expand_a().
  *
  * This test exercises that exact code path by clearing the cache state on a
  * key after make_key, then signing. The post-condition asserts that key->a
  * was populated (proving the allocation made it into the key, not the local)
  * and that signing produces a verifiable signature.
  */
-static wc_test_ret_t dilithium_sign_cache_alloc_test(int param, WC_RNG* rng)
+static wc_test_ret_t mldsa_sign_cache_alloc_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     byte* sig = NULL;
     word32 sigLen;
     byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
     int res = 0;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
-    /* Init before further allocations so wc_dilithium_free() in the cleanup
+    /* Init before further allocations so wc_MlDsaKey_Free() in the cleanup
      * path operates on a zeroed struct, not garbage cached-pointer fields. */
-    ret = wc_dilithium_init_ex(key, NULL, devId);
+    ret = wc_MlDsaKey_Init(key, NULL, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
 
-    ret = wc_dilithium_set_level(key, param);
+    ret = wc_MlDsaKey_SetParams(key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_make_key(key, rng);
+    ret = wc_MlDsaKey_MakeKey(key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* Drop the cached matrix A so the next sign exercises the allocation
-     * branch in dilithium_sign_with_seed_mu(). */
-    XFREE(key->a, key->heap, DYNAMIC_TYPE_DILITHIUM);
+     * branch in mldsa_sign_with_seed_mu(). */
+    XFREE(key->a, key->heap, DYNAMIC_TYPE_MLDSA);
     key->a = NULL;
     key->aSet = 0;
-#ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
-    XFREE(key->s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+#ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+    XFREE(key->s1, key->heap, DYNAMIC_TYPE_MLDSA);
     key->s1 = NULL;
     key->s2 = NULL;
     key->t0 = NULL;
     key->privVecsSet = 0;
 #endif
 
-    sigLen = wc_dilithium_sig_size(key);
+    sigLen = wc_MlDsaKey_SigSize(key);
     if (sigLen <= 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_dilithium_sign_ctx_msg(NULL, 0, msg, (word32)sizeof(msg), sig,
-        &sigLen, key, rng);
+    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen,
+        msg, (word32)sizeof(msg), rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -55597,8 +55694,8 @@ static wc_test_ret_t dilithium_sign_cache_alloc_test(int param, WC_RNG* rng)
     if (key->aSet != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
-        (word32)sizeof(msg), &res, key);
+    ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, msg,
+        (word32)sizeof(msg), &res);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
@@ -55606,48 +55703,44 @@ static wc_test_ret_t dilithium_sign_cache_alloc_test(int param, WC_RNG* rng)
 
 out:
     if (key != NULL)
-        wc_dilithium_free(key);
+        wc_MlDsaKey_Free(key);
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* WC_DILITHIUM_CACHE_MATRIX_A && !WC_DILITHIUM_FIXED_ARRAY &&
-        * !WOLFSSL_DILITHIUM_NO_MAKE_KEY && !WOLFSSL_DILITHIUM_NO_SIGN &&
-        * !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* WC_MLDSA_CACHE_MATRIX_A && !WC_MLDSA_FIXED_ARRAY &&
+        * !WOLFSSL_MLDSA_NO_MAKE_KEY && !WOLFSSL_MLDSA_NO_SIGN &&
+        * !WOLFSSL_MLDSA_NO_VERIFY */
 
 
-#if (defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_SIGN)) || \
-    (defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
+#if (defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_SIGN)) || \
+    (defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_VERIFY))
 /* Tests decoding a key from DER without the security level specified */
-static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
+static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
                                                  word32      rawKeySz,
                                                  int         expectedLevel,
                                                  int         isPublicOnlyKey)
 {
     int           ret = 0;
-#if !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
-    /* Size the buffer to accommodate the largest encoded key size */
-    const word32  maxDerSz = DILITHIUM_MAX_PRV_KEY_DER_SIZE;
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
     word32        derSz;
     word32        idx;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    byte*         der = NULL;
-    #else
-    byte          der[DILITHIUM_MAX_PRV_KEY_DER_SIZE];
-    #endif
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    dilithium_key *key = NULL;
+    byte*         der = NULL;
+    wc_MlDsaKey *key = NULL;
 #else
-    dilithium_key  key[1];
+    byte          der[MLDSA_MAX_PRV_KEY_DER_SIZE];
+    wc_MlDsaKey  key[1];
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate DER buffer */
-    der = (byte*)XMALLOC(maxDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT,
+    der = (byte*)XMALLOC(MLDSA_MAX_PRV_KEY_DER_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey *)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL || key == NULL) {
         ret = MEMORY_E;
@@ -55656,38 +55749,40 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 
     /* Initialize key */
     if (ret == 0) {
-        ret = wc_dilithium_init_ex(key, NULL, devId);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
     }
 
     /* Import raw key, setting the security level */
     if (ret == 0) {
-        ret = wc_dilithium_set_level(key, expectedLevel);
+        ret = wc_MlDsaKey_SetParams(key, expectedLevel);
     }
 
     if (ret == 0) {
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_dilithium_import_public(rawKey, rawKeySz, key);
+            ret = wc_MlDsaKey_ImportPubRaw(key, rawKey, rawKeySz);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_dilithium_import_private(rawKey, rawKeySz, key);
+            ret = wc_MlDsaKey_ImportPrivRaw(key, rawKey, rawKeySz);
         }
 #endif
     }
 
-#if !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
     /* Export raw key as DER */
     if (ret == 0) {
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyToDer(key, der, maxDerSz, 1);
+            ret = wc_MlDsaKey_PublicKeyToDer(key, der,
+                MLDSA_MAX_PRV_KEY_DER_SIZE, 1);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyToDer(key, der, maxDerSz);
+            ret = wc_MlDsaKey_PrivateKeyToDer(key, der,
+                MLDSA_MAX_PRV_KEY_DER_SIZE);
         }
 #endif
         if (ret >= 0) {
@@ -55698,63 +55793,63 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
-        wc_dilithium_free(key);
-        ret = wc_dilithium_init_ex(key, NULL, devId);
+        wc_MlDsaKey_Free(key);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
     }
 
     /* First test decoding when security level is set externally */
     if (ret == 0) {
-        ret = wc_dilithium_set_level(key, expectedLevel);
+        ret = wc_MlDsaKey_SetParams(key, expectedLevel);
     }
 
     if (ret == 0) {
         idx = 0;
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PublicKeyDecode(key, der, derSz, &idx);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PrivateKeyDecode(key, der, derSz, &idx);
         }
 #endif
     }
 
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
-        wc_dilithium_free(key);
-        ret = wc_dilithium_init_ex(key, NULL, devId);
+        wc_MlDsaKey_Free(key);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
     }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifndef WOLFSSL_MLDSA_FIPS204_DRAFT
     /* Test decoding without setting security level - should auto-detect */
     if (ret == 0) {
         idx = 0;
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PublicKeyDecode(key, der, derSz, &idx);
         }
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, key, derSz);
+            ret = wc_MlDsaKey_PrivateKeyDecode(key, der, derSz, &idx);
         }
 #endif
     }
 
     /* Verify auto-detected security level */
     if (ret == 0 && key->level != expectedLevel) {
-        printf("Dilithium key decode failed to detect level.\n"
+        printf("ML-DSA key decode failed to detect level.\n"
                "\tExpected level=%d\n\tGot level=%d\n",
                expectedLevel, key->level);
         ret = WC_TEST_RET_ENC_NC;
     }
-#endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
-#endif /* !WOLFSSL_DILITHIUM_NO_ASN1 && WOLFSSL_ASN_TEMPLATE */
+#endif /* !WOLFSSL_MLDSA_FIPS204_DRAFT */
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 && WOLFSSL_ASN_TEMPLATE */
 
     /* Cleanup */
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -55763,97 +55858,97 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 }
 
 /* Test Dilithium key decoding and security level detection */
-static wc_test_ret_t dilithium_decode_test(void)
+static wc_test_ret_t mldsa_decode_test(void)
 {
     wc_test_ret_t ret;
     const byte*   key;
     word32        keySz;
 
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     const int isPrvKey = 0;
 #endif
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
     const int isPubKey = 1;
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     /* Test ML-DSA-44 */
-    key   = bench_dilithium_level2_key;
-    keySz = sizeof_bench_dilithium_level2_key;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPrvKey);
+    key   = bench_mldsa_44_key;
+    keySz = sizeof_bench_mldsa_44_key;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_44, isPrvKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
+#endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    key   = bench_dilithium_level2_pubkey;
-    keySz = sizeof_bench_dilithium_level2_pubkey;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPubKey);
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    key   = bench_mldsa_44_pubkey;
+    keySz = sizeof_bench_mldsa_44_pubkey;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_44, isPubKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_44 */
 
 #ifndef WOLFSSL_NO_ML_DSA_65
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     /* Test ML-DSA-65 */
-    key   = bench_dilithium_level3_key;
-    keySz = sizeof_bench_dilithium_level3_key;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPrvKey);
+    key   = bench_mldsa_65_key;
+    keySz = sizeof_bench_mldsa_65_key;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_65, isPrvKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
+#endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    key   = bench_dilithium_level3_pubkey;
-    keySz = sizeof_bench_dilithium_level3_pubkey;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPubKey);
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    key   = bench_mldsa_65_pubkey;
+    keySz = sizeof_bench_mldsa_65_pubkey;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_65, isPubKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_65 */
 
 #ifndef WOLFSSL_NO_ML_DSA_87
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     /* Test ML-DSA-87 */
-    key   = bench_dilithium_level5_key;
-    keySz = sizeof_bench_dilithium_level5_key;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPrvKey);
+    key   = bench_mldsa_87_key;
+    keySz = sizeof_bench_mldsa_87_key;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_87, isPrvKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
+#endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    key   = bench_dilithium_level5_pubkey;
-    keySz = sizeof_bench_dilithium_level5_pubkey;
-    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPubKey);
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    key   = bench_mldsa_87_pubkey;
+    keySz = sizeof_bench_mldsa_87_pubkey;
+    ret   = test_mldsa_decode_level(key, keySz, WC_ML_DSA_87, isPubKey);
     if (ret != 0) {
         return ret;
     }
-#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_87 */
 
     return ret;
 }
-#endif /* (WOLFSSL_DILITHIUM_PUBLIC_KEY && !WOLFSSL_DILITHIUM_NO_VERIFY) ||
-        * (WOLFSSL_DILITHIUM_PRIVATE_KEY && !WOLFSSL_DILITHIUM_NO_SIGN) */
+#endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
+        * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
 
 
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
 {
     wc_test_ret_t ret;
     WC_RNG rng;
@@ -55869,85 +55964,85 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
     }
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = dilithium_param_44_vfy_test();
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = mldsa_param_44_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-    ret = dilithium_param_test(WC_ML_DSA_44, &rng);
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    ret = mldsa_param_test(WC_ML_DSA_44, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = dilithium_param_65_vfy_test();
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = mldsa_param_65_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-    ret = dilithium_param_test(WC_ML_DSA_65, &rng);
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    ret = mldsa_param_test(WC_ML_DSA_65, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ret = dilithium_param_87_vfy_test();
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ret = mldsa_param_87_vfy_test();
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
-    ret = dilithium_param_test(WC_ML_DSA_87, &rng);
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    ret = mldsa_param_test(WC_ML_DSA_87, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 
-#if defined(WC_DILITHIUM_CACHE_MATRIX_A) && \
-    !defined(WC_DILITHIUM_FIXED_ARRAY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if defined(WC_MLDSA_CACHE_MATRIX_A) && \
+    !defined(WC_MLDSA_FIXED_ARRAY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ret = dilithium_sign_cache_alloc_test(WC_ML_DSA_44, &rng);
+    ret = mldsa_sign_cache_alloc_test(WC_ML_DSA_44, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ret = dilithium_sign_cache_alloc_test(WC_ML_DSA_65, &rng);
+    ret = mldsa_sign_cache_alloc_test(WC_ML_DSA_65, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    ret = dilithium_sign_cache_alloc_test(WC_ML_DSA_87, &rng);
+    ret = mldsa_sign_cache_alloc_test(WC_ML_DSA_87, &rng);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
 #endif
 
-#if (defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_SIGN)) || \
-    (defined(WOLFSSL_DILITHIUM_PUBLIC_KEY) && \
-     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
-    ret = dilithium_decode_test();
+#if (defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_SIGN)) || \
+    (defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_VERIFY))
+    ret = mldsa_decode_test();
     if (ret != 0) {
         ERROR_OUT(ret, out);
     }
-#endif /* (WOLFSSL_DILITHIUM_PUBLIC_KEY && !WOLFSSL_DILITHIUM_NO_VERIFY) ||
-        * (WOLFSSL_DILITHIUM_PRIVATE_KEY && !WOLFSSL_DILITHIUM_NO_SIGN) */
+#endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
+        * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
 
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) || \
-    defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) || \
-    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) || \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY)
 out:
 #endif
     wc_FreeRng(&rng);
     return ret;
 }
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
 static enum wc_XmssRc xmss_write_key_mem(const byte * priv, word32 privSz,
@@ -55982,10 +56077,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     word32          bufSz = 0;
 #ifdef WOLFSSL_NO_MALLOC
     static byte     sk[2048];
-    static byte     old_sk[2048];
 #else
     byte *          sk = NULL;
-    byte *          old_sk = NULL;
 #endif
     const char *    msg = "XMSS post quantum signature test";
     word32          msgSz = (word32) XSTRLEN(msg);
@@ -56000,8 +56093,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
 #ifdef WOLFSSL_NO_MALLOC
     static byte     sig[4096];
+    static byte     old_sig[4096];
 #else
     byte *          sig = NULL;
+    byte *          old_sig = NULL;
 #endif
     int             ret2 = -1;
     int             ret = WC_TEST_RET_ENC_NC;
@@ -56038,13 +56133,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     ret = wc_XmssKey_GetSigLen(&signingKey, &sigSz);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
-    /* Allocate signature array. */
+    /* Allocate signature buffers (current and previous iteration). */
 #ifdef WOLFSSL_NO_MALLOC
+
     if (sigSz > sizeof(sig))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #else
     sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
+
+    old_sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (old_sig == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
 #endif
 
     bufSz = sigSz;
@@ -56056,20 +56155,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     fprintf(stderr, "sigSz: %d\n", sigSz);
 #endif
 
-    /* Allocate current and old secret keys.*/
+    /* Allocate the secret key buffer used by the software write/read
+     * callbacks. */
 #ifdef WOLFSSL_NO_MALLOC
     if (skSz > sizeof(sk))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #else
     sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
-
-    old_sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (old_sk == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
 #endif
 
     XMEMSET(sk, 0, skSz);
-    XMEMSET(old_sk, 0, skSz);
     XMEMSET(sig, 0, sigSz);
 
     ret = wc_XmssKey_SetWriteCb(&signingKey, xmss_write_key_mem);
@@ -56089,20 +56185,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
     /* Repeat a few times to check that:
-     *   1. The secret key is mutated on each sign.
+     *   1. Each Sign advances state (so signing the same message yields a
+     *      different signature than the previous iteration).
      *   2. We can verify each new signature.
      * Only do a few times, because the full signature space
      * for this parameter set is huge. */
     for (i = 0; i < 10; ++i) {
-        XMEMCPY(old_sk, sk, skSz);
-
         ret = wc_XmssKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
         if (sigSz != bufSz) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
-        /* Old secret key and current secret key should not match. */
-        ret = XMEMCMP(old_sk, sk, skSz);
-        if (ret == 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
+        /* XMSS is deterministic given (SK_state, msg); a stuck leaf would
+         * produce an identical signature. This check is agnostic to whether
+         * the private state lives in user memory (software path) or on a
+         * cryptocb device. */
+        if (i > 0) {
+            ret = XMEMCMP(old_sig, sig, sigSz);
+            if (ret == 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
+        }
+        XMEMCPY(old_sig, sig, sigSz);
 
         ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
@@ -56131,11 +56232,11 @@ out:
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     sig = NULL;
 
+    XFREE(old_sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    old_sig = NULL;
+
     XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     sk = NULL;
-
-    XFREE(old_sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    old_sk = NULL;
 #endif /* !WOLFSSL_NO_MALLOC */
 
     wc_XmssKey_Free(&signingKey);
@@ -56660,16 +56761,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     word32        msgSz = (word32) XSTRLEN(msg);
 #ifndef WOLFSSL_WC_LMS_SERIALIZE_STATE
     unsigned char priv[HSS_MAX_PRIVATE_KEY_LEN];
-    unsigned char old_priv[HSS_MAX_PRIVATE_KEY_LEN];
 #else
     static unsigned char priv[64 * 1024 + HSS_MAX_PRIVATE_KEY_LEN];
-    static unsigned char old_priv[64 * 1024 + HSS_MAX_PRIVATE_KEY_LEN];
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte *        sig = (byte*)XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
+    byte *        old_sig = (byte*)XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER);
 #else
     byte          sig[WC_TEST_LMS_SIG_LEN];
+    byte          old_sig[WC_TEST_LMS_SIG_LEN];
 #endif
     const byte *  kid;
     word32        kidSz;
@@ -56677,14 +56779,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     WOLFSSL_ENTER("lms_test");
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if (sig == NULL) {
+    if ((sig == NULL) || (old_sig == NULL)) {
+        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(old_sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return WC_TEST_RET_ENC_ERRNO;
     }
 #endif
 
     XMEMSET(priv, 0, sizeof(priv));
-    XMEMSET(old_priv, 0, sizeof(old_priv));
     XMEMSET(sig, 0, WC_TEST_LMS_SIG_LEN);
+    XMEMSET(old_sig, 0, WC_TEST_LMS_SIG_LEN);
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&signingKey, 0, sizeof(signingKey));
     XMEMSET(&verifyKey, 0, sizeof(verifyKey));
@@ -56729,8 +56833,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     ret = wc_LmsKey_MakeKey(&signingKey, &rng);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
-    XMEMCPY(old_priv, priv, sizeof(priv));
-
     ret = wc_LmsKey_GetKid(NULL, NULL, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -56772,21 +56874,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     /* Test wc_LmsKey_Sign input validation. */
     {
         word32 smallSz = 1;
-        wc_lms_write_private_key_cb saved_write_cb;
 
-        /* Undersized sig buffer should return BUFFER_E. */
+        /* Undersized sig buffer should return BUFFER_E. This check runs in
+         * wc_LmsKey_Sign before the cryptocb dispatch, so it applies in both
+         * software and HSM modes. */
         ret = wc_LmsKey_Sign(&signingKey, sig, &smallSz, (byte *) msg, msgSz);
         if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
 
-        /* NULL write callback should return BAD_FUNC_ARG. */
-        saved_write_cb = signingKey.write_private_key;
-        signingKey.write_private_key = NULL;
-        ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
-        signingKey.write_private_key = saved_write_cb;
-        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifdef WOLF_CRYPTO_CB
+        /* The NULL-WriteCb -> BAD_FUNC_ARG check in wc_LmsKey_Sign sits after
+         * the cryptocb dispatch; an HSM-backed Sign succeeds without ever
+         * reaching it. Only exercise this on the pure software path. */
+        if (devId == INVALID_DEVID)
+#endif
+        {
+            wc_lms_write_private_key_cb saved_write_cb;
+
+            /* NULL write callback should return BAD_FUNC_ARG. */
+            saved_write_cb = signingKey.write_private_key;
+            signingKey.write_private_key = NULL;
+            ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
+            signingKey.write_private_key = saved_write_cb;
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            }
         }
 
         ret = 0;
@@ -56800,17 +56913,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
 
-        /* Sign with key. The private key will be updated on every signature. */
+        /* Sign with key. State advances on every signature. */
         ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
-        /* The updated private key should not match the old one. */
-        if (XMEMCMP(old_priv, priv, sizeof(priv)) == 0) {
-            printf("error: current priv key should not match old: %d\n", i);
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        /* LMS/HSS is deterministic given (state, msg); a stuck leaf would
+         * produce an identical signature. This check is agnostic to whether
+         * the private state lives in user memory (software path) or on a
+         * cryptocb device. */
+        if (i > 0) {
+            if (XMEMCMP(old_sig, sig, sigSz) == 0) {
+                printf("error: current signature should not match old: %d\n", i);
+                ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+            }
         }
-
-        XMEMCPY(old_priv, priv, sizeof(priv));
+        XMEMCPY(old_sig, sig, sigSz);
 
         ret = wc_LmsKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
@@ -56850,6 +56967,7 @@ out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(old_sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -57319,7 +57437,11 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_Init(key, param, NULL, INVALID_DEVID);
+    /* Use the module-global devId so that when cryptocb_test() runs this
+     * test with a registered callback, MakeKey/Sign/Verify route through
+     * the cryptocb dispatcher. In standalone runs devId == INVALID_DEVID
+     * and the calls go straight to the SW implementation. */
+    ret = wc_SlhDsaKey_Init(key, param, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -57342,7 +57464,7 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    ret = wc_SlhDsaKey_Init(key_vfy, param, NULL, INVALID_DEVID);
+    ret = wc_SlhDsaKey_Init(key_vfy, param, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -57482,6 +57604,163 @@ out:
       defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)))
     #define SLHDSA_TEST_HAVE_ANY_PARAM
 #endif
+
+#if defined(WOLF_PRIVATE_KEY_ID) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || defined(WOLFSSL_SLHDSA_PARAM_128F) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F))
+/* Exercise wc_SlhDsaKey_Init_id / _Init_label argument validation and
+ * id/label storage round-trip. Independent of any cryptocb device. */
+static wc_test_ret_t slhdsa_id_label_test(void)
+{
+    wc_test_ret_t ret;
+    SlhDsaKey key;
+    static const unsigned char id[] = {
+        0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x07, 0x18,
+        0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0x90
+    };
+    static const char label[] = "slh-dsa-test-label";
+    enum SlhDsaParam param =
+#ifdef WOLFSSL_SLHDSA_PARAM_128S
+        SLHDSA_SHAKE128S;
+#elif defined(WOLFSSL_SLHDSA_PARAM_128F)
+        SLHDSA_SHAKE128F;
+#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S)
+        SLHDSA_SHA2_128S;
+#else
+        SLHDSA_SHA2_128F;
+#endif
+
+    /* Zero the stack key so rejection-path tests below don't read
+     * uninitialized fields if a future Init refactor inspects key state
+     * before zeroizing it. */
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* NULL key rejected. */
+    ret = wc_SlhDsaKey_Init_id(NULL, param, id, (int)sizeof(id), HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* (id == NULL, len > 0) is the silent-contradiction case the original
+     * review flagged; must be rejected. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, NULL, 8, HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Length over the cap rejected with BUFFER_E. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, SLHDSA_MAX_ID_LEN + 1,
+        HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Negative length rejected. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, -1, HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Successful init copies the id and stores its length. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, (int)sizeof(id), HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (key.idLen != (int)sizeof(id))
+        ret = WC_TEST_RET_ENC_NC;
+    if ((ret == 0) && (XMEMCMP(key.id, id, sizeof(id)) != 0))
+        ret = WC_TEST_RET_ENC_NC;
+    wc_SlhDsaKey_Free(&key);
+    if (ret != 0)
+        return ret;
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* (id != NULL, len == 0) is accepted as a no-op. */
+    ret = wc_SlhDsaKey_Init_id(&key, param, id, 0, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (key.idLen != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    wc_SlhDsaKey_Free(&key);
+    if (ret != 0)
+        return ret;
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* Boundary: exactly SLHDSA_MAX_ID_LEN bytes must be accepted and round
+     * trip byte-for-byte. */
+    {
+        unsigned char id_max[SLHDSA_MAX_ID_LEN];
+        int i;
+        for (i = 0; i < SLHDSA_MAX_ID_LEN; i++)
+            id_max[i] = (unsigned char)(0x40 + i);
+        ret = wc_SlhDsaKey_Init_id(&key, param, id_max, SLHDSA_MAX_ID_LEN,
+            HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (key.idLen != SLHDSA_MAX_ID_LEN)
+            ret = WC_TEST_RET_ENC_NC;
+        if ((ret == 0) &&
+                (XMEMCMP(key.id, id_max, SLHDSA_MAX_ID_LEN) != 0))
+            ret = WC_TEST_RET_ENC_NC;
+        wc_SlhDsaKey_Free(&key);
+        if (ret != 0)
+            return ret;
+        XMEMSET(&key, 0, sizeof(key));
+    }
+
+    /* Init_label: NULL label / NULL key rejected. */
+    ret = wc_SlhDsaKey_Init_label(NULL, param, label, HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SlhDsaKey_Init_label(&key, param, NULL, HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Empty label is rejected. */
+    ret = wc_SlhDsaKey_Init_label(&key, param, "", HEAP_HINT, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Successful init copies the label and stores its length. */
+    ret = wc_SlhDsaKey_Init_label(&key, param, label, HEAP_HINT,
+        INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (key.labelLen != (int)XSTRLEN(label))
+        ret = WC_TEST_RET_ENC_NC;
+    if ((ret == 0) &&
+            (XMEMCMP(key.label, label, (size_t)key.labelLen) != 0))
+        ret = WC_TEST_RET_ENC_NC;
+    wc_SlhDsaKey_Free(&key);
+    if (ret != 0)
+        return ret;
+    XMEMSET(&key, 0, sizeof(key));
+
+    /* Boundary: a SLHDSA_MAX_LABEL_LEN-char label (33-byte buffer with the
+     * trailing NUL) must be accepted. The stored copy fills the whole
+     * key->label array and is NOT NUL-terminated; callers must use
+     * key->labelLen. */
+    {
+        char label_max[SLHDSA_MAX_LABEL_LEN + 1];
+        int i;
+        for (i = 0; i < SLHDSA_MAX_LABEL_LEN; i++)
+            label_max[i] = 'L';
+        label_max[SLHDSA_MAX_LABEL_LEN] = '\0';
+        ret = wc_SlhDsaKey_Init_label(&key, param, label_max, HEAP_HINT,
+            INVALID_DEVID);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (key.labelLen != SLHDSA_MAX_LABEL_LEN)
+            ret = WC_TEST_RET_ENC_NC;
+        if ((ret == 0) &&
+                (XMEMCMP(key.label, label_max, SLHDSA_MAX_LABEL_LEN) != 0))
+            ret = WC_TEST_RET_ENC_NC;
+        wc_SlhDsaKey_Free(&key);
+    }
+
+    return ret;
+}
+#endif /* WOLF_PRIVATE_KEY_ID && (SHAKE128S|F || SHA2_128S|F) */
 
 wc_test_ret_t slhdsa_test(void)
 {
@@ -58575,7 +58854,10 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
-    ret = wc_SlhDsaKey_Init(key_vfy, SLHDSA_SHAKE128S, NULL, INVALID_DEVID);
+    /* Use module-global devId so this verify routes through the cryptocb
+     * when registered. In VERIFY_ONLY builds this is the only path through
+     * slhdsa_test() that exercises the cb. */
+    ret = wc_SlhDsaKey_Init(key_vfy, SLHDSA_SHAKE128S, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -59293,6 +59575,22 @@ wc_test_ret_t slhdsa_test(void)
 #endif
 
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+#if defined(WOLF_PRIVATE_KEY_ID) && \
+    (defined(WOLFSSL_SLHDSA_PARAM_128S) || defined(WOLFSSL_SLHDSA_PARAM_128F) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) || \
+     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128F))
+    /* Init_id/Init_label/Free are available in VERIFY_ONLY builds, so this
+     * runs regardless of VERIFY_ONLY. Fall through to cleanup on failure
+     * (no `goto out;` because `out:` is not defined in 128F-only +
+     * VERIFY_ONLY builds, and no allocations precede this point that
+     * would need an early bail-out). */
+    if (ret == 0) {
+        ret = slhdsa_id_label_test();
+        if (ret != 0)
+            wc_test_render_error_message("SLHDSA_ID_LABEL", ret);
+    }
+#endif
 
 #ifdef SLHDSA_TEST_HAVE_ANY_PARAM
 out:
@@ -60236,38 +60534,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t eccsi_test(void)
     wc_test_ret_t ret = 0;
     WC_RNG rng;
     int rng_inited = 0;
-    EccsiKey* priv = NULL;
-    EccsiKey* pub  = NULL;
-    mp_int* ssk    = NULL;
+    WC_DECLARE_VAR(priv, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(pub, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
     ecc_point* pvt = NULL;
     WOLFSSL_ENTER("eccsi_test");
 
-    priv = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv == NULL)
-        ret = WC_TEST_RET_ENC_NC;
-    else
+    WC_ALLOC_VAR_EX(priv, EccsiKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    if (ret == 0) {
         XMEMSET(priv, 0, sizeof(*priv));
-
+        WC_ALLOC_VAR_EX(pub, EccsiKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    }
     if (ret == 0) {
-        pub = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (pub == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(pub, 0, sizeof(*pub));
+        XMEMSET(pub, 0, sizeof(*pub));
+        WC_ALLOC_VAR_EX(ssk, mp_int, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
     }
 
     if (ret == 0) {
-        ssk = (mp_int*)XMALLOC(sizeof(mp_int), HEAP_HINT,
-                DYNAMIC_TYPE_TMP_BUFFER);
-        if (ssk == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(ssk, 0, sizeof(*ssk));
-    }
+        XMEMSET(ssk, 0, sizeof(*ssk));
 
-    if (ret == 0) {
     #ifndef HAVE_FIPS
         ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     #else
@@ -60323,18 +60608,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t eccsi_test(void)
         wc_ecc_del_point(pvt);
     if (rng_inited)
         wc_FreeRng(&rng);
-    if (ssk != NULL) {
-        mp_free(ssk);
-        XFREE(ssk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (pub != NULL) {
-        wc_FreeEccsiKey(pub);
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (priv != NULL) {
-        wc_FreeEccsiKey(priv);
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    mp_free(ssk);
+    WC_FREE_VAR_EX(ssk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeEccsiKey(pub);
+    WC_FREE_VAR_EX(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeEccsiKey(priv);
+    WC_FREE_VAR_EX(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -61480,38 +61759,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sakke_test(void)
     wc_test_ret_t ret = 0;
     WC_RNG rng;
     int rng_inited = 0;
-    SakkeKey* priv = NULL;
-    SakkeKey* pub  = NULL;
-    SakkeKey* key  = NULL;
+    WC_DECLARE_VAR(priv, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(pub, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(key, SakkeKey, 1, HEAP_HINT);
     ecc_point* rsk = NULL;
     WOLFSSL_ENTER("sakke_test");
 
-    priv = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv == NULL)
-        ret = WC_TEST_RET_ENC_NC;
-    else
+    WC_ALLOC_VAR_EX(priv, SakkeKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    if (ret == 0) {
         XMEMSET(priv, 0, sizeof(*priv));
-
+        WC_ALLOC_VAR_EX(pub, SakkeKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    }
     if (ret == 0) {
-        pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (pub == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(pub, 0, sizeof(*pub));
+        XMEMSET(pub, 0, sizeof(*pub));
+        WC_ALLOC_VAR_EX(key, SakkeKey, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
     }
 
     if (ret == 0) {
-        key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (key == NULL)
-            ret = WC_TEST_RET_ENC_NC;
-        else
-            XMEMSET(key, 0, sizeof(*key));
-    }
+        XMEMSET(key, 0, sizeof(*key));
 
-    if (ret == 0) {
     #ifndef HAVE_FIPS
         ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     #else
@@ -61567,15 +61833,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sakke_test(void)
     }
     if (rng_inited)
         wc_FreeRng(&rng);
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub != NULL) {
-        wc_FreeSakkeKey(pub);
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (priv != NULL) {
-        wc_FreeSakkeKey(priv);
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeSakkeKey(pub);
+    WC_FREE_VAR_EX(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeSakkeKey(priv);
+    WC_FREE_VAR_EX(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -67219,6 +67482,24 @@ static wc_test_ret_t mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
     if (!mp_iszero(r))
         return WC_TEST_RET_ENC_NC;
 
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Negative values are written with a leading '-' and read back. */
+    ret = mp_set(a, 12345);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_toradix(a, str, MP_RADIX_DEC);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (str[0] != '-')
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_read_radix(r, str, MP_RADIX_DEC);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, a) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
     return 0;
 }
 #endif
@@ -67303,6 +67584,24 @@ static wc_test_ret_t mp_test_radix_16(mp_int* a, mp_int* r, WC_RNG* rng)
     if (!mp_iszero(r))
         return WC_TEST_RET_ENC_NC;
 
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Negative values are written with a leading '-' and read back. */
+    ret = mp_set(a, 0xABCD);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_toradix(a, str, MP_RADIX_HEX);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (str[0] != '-')
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_read_radix(r, str, MP_RADIX_HEX);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, a) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
 #ifdef WOLFSSL_SP_MATH
     ret = mp_toradix(a, str, 8);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
@@ -67360,10 +67659,12 @@ static wc_test_ret_t mp_test_shift(mp_int* a, mp_int* r1, WC_RNG* rng)
 
 #if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
     (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D))
-static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* r1)
+static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* b, mp_int* r1)
 {
     int i, j;
     wc_test_ret_t ret;
+
+    (void)b;
 
     for (i = 0; i <= DIGIT_BIT * 2; i++) {
         mp_zero(a);
@@ -67396,6 +67697,62 @@ static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* r1)
         return WC_TEST_RET_ENC_EC(ret);
     if (r1->used != 0)
         return WC_TEST_RET_ENC_NC;
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Adding/subtracting a digit to/from a negative value, and producing a
+     * negative result, exercise the signed digit paths. */
+    /* -100 + 5 = -95 */
+    ret = mp_set(a, 100);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_add_d(a, 5, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 95);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(b);
+    if (mp_cmp(r1, b) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* -3 + 10 = 7 */
+    ret = mp_set(a, 3);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_add_d(a, 10, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp_d(r1, 7) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* -5 - 3 = -8 */
+    ret = mp_set(a, 5);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_sub_d(a, 3, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 8);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(b);
+    if (mp_cmp(r1, b) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* 3 - 10 = -7 */
+    ret = mp_set(a, 3);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_sub_d(a, 10, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 7);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(b);
+    if (mp_cmp(r1, b) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+#endif /* WOLFSSL_SP_INT_NEGATIVE */
 
     return 0;
 }
@@ -68559,7 +68916,7 @@ static wc_test_ret_t mp_test_set_is_bit(mp_int* a)
     }
 #endif
 
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     mp_zero(a);
     for (j = 1; j <= 3; j++) {
         i = SP_INT_MAX_BITS - j;
@@ -69061,19 +69418,28 @@ static wc_test_ret_t mp_test_prime(mp_int* a, WC_RNG* rng)
 }
 #endif
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
+/* mp_gcd has less restrictive protections than mp_lcm.
+ * Test mp_gcd with and without mp_lcm. */
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(WC_RSA_BLINDING) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    #define MP_TEST_HAVE_LCM
+#endif
 static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
                            WC_RNG* rng)
 {
     wc_test_ret_t ret;
+#ifdef MP_TEST_HAVE_LCM
     int i;
     WOLFSSL_SMALL_STACK_STATIC const int kat[][3] = {
       { 1, 1, 1 }, { 2, 1, 2 }, { 1, 2, 2 }, { 2, 4, 4 }, { 4, 2, 4 },
       { 12, 56, 168 }, { 56, 12, 168 }
     };
+#endif
 
     (void)exp;
+    (void)rng;
 
+#ifdef MP_TEST_HAVE_LCM
     mp_set(a, 0);
     mp_set(b, 1);
     ret = mp_lcm(a, a, r);
@@ -69098,7 +69464,6 @@ static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* ex
             return WC_TEST_RET_ENC_NC;
     }
 
-    (void)rng;
 #if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA)) && \
     !defined(WC_NO_RNG)
     ret = mp_rand_prime(a, 20, rng, NULL);
@@ -69123,7 +69488,9 @@ static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* ex
     if (ret != MP_EQ)
         return WC_TEST_RET_ENC_NC;
 #endif
+#endif /* MP_TEST_HAVE_LCM */
 
+    /* GCD with zero - returns the non-zero operand, zero/zero is invalid. */
     mp_set(a, 11);
     mp_zero(b);
     ret = mp_gcd(a, b, r);
@@ -69141,6 +69508,57 @@ static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* ex
     ret = mp_gcd(b, b, r);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
+
+    /* Multi-digit GCD exercising the Euclidean reduction loops.
+     * Uses the identity gcd(2^m - 1, 2^n - 1) = 2^gcd(m,n) - 1.
+     * gcd(2^192-1, 2^128-1) = 2^64-1: both operands multi-word so the
+     * smaller is reduced with the multi-word sp_mod() path. */
+    ret = mp_set(a, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(a, 192, a);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(a, 1, a);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(b, 128, b);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(b, 1, b);
+    if (ret == MP_OKAY)
+        ret = mp_set(exp, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(exp, 64, exp);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(exp, 1, exp);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* a > b: exercises the operand swap. */
+    ret = mp_gcd(a, b, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, exp) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* b < a: no swap. */
+    ret = mp_gcd(b, a, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, exp) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+
+    /* gcd(2^192-1, 2^64-1) = 2^64-1: smaller operand is a single word so
+     * the sp_mod_d() reduction path is exercised. */
+    ret = mp_set(b, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(b, 64, b);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(b, 1, b);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_gcd(a, b, r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r, exp) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
 
     return 0;
 }
@@ -69276,14 +69694,47 @@ static wc_test_ret_t mp_test_mod_d(mp_int* a, WC_RNG* rng)
         if (r != rem)
             return WC_TEST_RET_ENC_NC;
     }
+
+    /* Power-of-2 divisor uses the bitmask fast path. */
+    ret = mp_set(a, 0x1234);
+    if (ret == MP_OKAY)
+        ret = mp_mod_d(a, 8, &r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r != (0x1234 & 7))
+        return WC_TEST_RET_ENC_NC;
+
+    /* Divisor of 10 has a dedicated multi-word fast path. */
+    ret = randNum(a, MP_MAX_TEST_BYTE_LEN, rng, NULL);
+    if (ret == MP_OKAY)
+        ret = mp_mod_d(a, 10, &r);
+    if (ret == MP_OKAY)
+        ret = mp_div_d(a, 10, a, &rem);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r != rem)
+        return WC_TEST_RET_ENC_NC;
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Test a negative value. */
+    ret = mp_set(a, 17);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    mp_setneg(a);
+    ret = mp_mod_d(a, 5, &r);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (r != 3)
+        return WC_TEST_RET_ENC_NC;
+#endif
 #endif
 
     return 0;
 }
 #endif
 
-static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1, mp_int* r2,
-                           WC_RNG* rng)
+static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1,
+    mp_int* r2, WC_RNG* rng)
 {
     wc_test_ret_t ret;
     int i;
@@ -69364,10 +69815,269 @@ static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1, mp_int* r
         return WC_TEST_RET_ENC_EC(ret);
 #endif /* HAVE_ECC && (ECC_SHAMIR || FP_ECC) */
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
+
+    /* Check that the maximum value squared works. */
+    ret = mp_2expt(a, SP_INT_DIGITS / 2 * SP_WORD_SIZE);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_sub(a, b, a);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_mul(a, a, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_sqr(a, r2);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(r1, r2) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
 #endif /* WOLFSSL_SP_MATH_ALL */
 
     return 0;
 }
+
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+/* Functional tests for the constant-time modular arithmetic used by ECC:
+ * mp_addmod_ct, mp_submod_ct and mp_div_2_mod_ct.  These are not reached by
+ * the parameter-validation tests so their computation paths are exercised
+ * here against their variable-time equivalents. */
+static wc_test_ret_t mp_test_addsubmod_ct(mp_int* a, mp_int* b, mp_int* m,
+    mp_int* r, mp_int* t, WC_RNG* rng)
+{
+    wc_test_ret_t res = 0;
+    int ret;
+    int i;
+
+    for (i = 0; (i < 16) && (res == 0); i++) {
+        /* Odd, multi-word modulus (2 must be invertible for div_2_mod_ct). */
+        ret = randNum(m, 24, rng, NULL);
+        if (ret == MP_OKAY)
+            ret = mp_set_bit(m, 0);            /* force modulus odd */
+        /* Operands reduced to the range [0, m). */
+        if (ret == MP_OKAY)
+            ret = randNum(a, 24, rng, NULL);
+        if (ret == MP_OKAY)
+            ret = mp_mod(a, m, a);
+        if (ret == MP_OKAY)
+            ret = randNum(b, 24, rng, NULL);
+        if (ret == MP_OKAY)
+            ret = mp_mod(b, m, b);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+
+        /* addmod_ct must match the variable-time addmod. */
+        ret = mp_addmod_ct(a, b, m, r);
+        if (ret == MP_OKAY)
+            ret = mp_addmod(a, b, m, t);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+        if (mp_cmp(r, t) != MP_EQ) {
+            res = WC_TEST_RET_ENC_NC;
+            break;
+        }
+
+        /* submod_ct: (a - b) mod m, verified by adding b back gives a. */
+        ret = mp_submod_ct(a, b, m, r);
+        if (ret == MP_OKAY)
+            ret = mp_addmod_ct(r, b, m, t);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+        if (mp_cmp(t, a) != MP_EQ) {
+            res = WC_TEST_RET_ENC_NC;
+            break;
+        }
+
+        /* div_2_mod_ct: r = a/2 mod m, verified by doubling: 2*r mod m == a. */
+        ret = mp_div_2_mod_ct(a, m, r);
+        if (ret == MP_OKAY)
+            ret = mp_addmod_ct(r, r, m, t);
+        if (ret != MP_OKAY) {
+            res = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
+        if (mp_cmp(t, a) != MP_EQ) {
+            res = WC_TEST_RET_ENC_NC;
+            break;
+        }
+    }
+
+    return res;
+}
+#endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
+
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Exercises mp_cmp_mag - magnitude comparison (sign-independent) including
+ * NULL operands. */
+static wc_test_ret_t mp_test_cmp_mag(mp_int* a, mp_int* b)
+{
+    int ret;
+
+    ret = mp_set(a, 7);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 5);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* NULL operands: both NULL are equal, a non-NULL has greater magnitude. */
+    if (mp_cmp_mag(NULL, NULL) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(a, NULL) != MP_GT)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(NULL, a) != MP_LT)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Same value and differing magnitudes. */
+    if (mp_cmp_mag(a, a) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(a, b) != MP_GT)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(b, a) != MP_LT)
+        return WC_TEST_RET_ENC_NC;
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Magnitude comparison ignores sign: |-7| > |5|. */
+    a->sign = MP_NEG;
+    if (mp_cmp_mag(a, b) != MP_GT)
+        return WC_TEST_RET_ENC_NC;
+    if (mp_cmp_mag(b, a) != MP_LT)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+    return 0;
+}
+#endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_PUBLIC_ONLY */
+
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Exercises the result-aliases-modulus paths of mp_mulmod (_sp_mulmod_tmp) and
+ * mp_sqrmod (_sp_sqrmod), including their zero-operand short-circuits. */
+static wc_test_ret_t mp_test_mulmod_sqrmod(mp_int* a, mp_int* b, mp_int* m,
+    mp_int* r)
+{
+    int ret;
+
+    /* mp_mulmod with the result aliasing the modulus uses the temporary
+     * buffer path (_sp_mulmod_tmp). */
+    ret = mp_set(a, 0x3);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0x5);
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0x65);                 /* modulus 101 */
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, b, m, r);           /* reference */
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, b, m, m);           /* result aliases modulus */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(m, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* Zero operand short-circuit in _sp_mulmod_tmp. */
+    ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0);
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, b, m, m);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!mp_iszero(m))
+        return WC_TEST_RET_ENC_NC;
+
+    /* mp_sqrmod with the result aliasing the modulus uses _sp_sqrmod. */
+    ret = mp_set(a, 0x7);
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_sqrmod(a, m, r);              /* reference */
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_sqrmod(a, m, m);              /* result aliases modulus */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_cmp(m, r) != MP_EQ)
+        return WC_TEST_RET_ENC_NC;
+    /* Zero operand short-circuit in _sp_sqrmod. */
+    ret = mp_set(m, 0x65);
+    if (ret == MP_OKAY)
+        ret = mp_set(a, 0);
+    if (ret == MP_OKAY)
+        ret = mp_sqrmod(a, m, m);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!mp_iszero(m))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+/* Testing mp_exch. */
+static wc_test_ret_t mp_test_exch(mp_int* a, mp_int* b, mp_int* r1,
+    mp_int* r2)
+{
+    int ret;
+
+    /* mp_exch swaps the two values. */
+    ret = mp_set(a, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(a, 200, a);            /* multi-word value */
+    if (ret == MP_OKAY)
+        ret = mp_add_d(a, 0x55, a);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0x1234);               /* single-word value */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_copy(a, r1);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_copy(b, r2);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_exch(a, b);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if ((mp_cmp(a, r2) != MP_EQ) || (mp_cmp(b, r1) != MP_EQ))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+
+/* Testing mp_to_unsigned_bin_len_ct against the variable-time export. */
+static wc_test_ret_t mp_test_to_unsigned_bin_len_ct(mp_int* a)
+{
+    int ret;
+    byte buf[40];
+    byte buf2[40];
+
+    /* mp_to_unsigned_bin_len_ct must match the variable-time export. */
+    ret = mp_set(a, 1);
+    if (ret == MP_OKAY)
+        ret = mp_mul_2d(a, 100, a);
+    if (ret == MP_OKAY)
+        ret = mp_add_d(a, 0xAB, a);            /* multi-word value */
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    XMEMSET(buf, 0xff, sizeof(buf));
+    XMEMSET(buf2, 0xff, sizeof(buf2));
+    ret = mp_to_unsigned_bin_len_ct(a, buf, (int)sizeof(buf));
+    if (ret == MP_OKAY)
+        ret = mp_to_unsigned_bin_len(a, buf2, (int)sizeof(buf2));
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(buf, buf2, sizeof(buf)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif /* WOLFSSL_SP_MATH_ALL && !RSA_VERIFY_ONLY && !RSA_PUBLIC_ONLY */
 
 #if (!defined(NO_RSA) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
@@ -69487,9 +70197,15 @@ static wc_test_ret_t mp_test_invmod(mp_int* a, mp_int* m, mp_int* r)
 
 #if !defined(NO_RSA) || !defined(NO_DSA) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA)
-static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
+static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r,
+    mp_int* t)
 {
     wc_test_ret_t ret;
+#ifdef WOLFSSL_SP_MATH_ALL
+    int k;
+#endif
+
+    (void)t;
 
     mp_set(b, 0x2);
     mp_set(e, 0x3);
@@ -69612,6 +70328,110 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
 
+#ifdef WOLFSSL_SP_MATH_ALL
+    /* Larger, multi-word moduli to exercise the Montgomery, base-2 and
+     * windowed exponentiation paths that small single-word moduli do not
+     * reach. */
+
+    /* m = 2^521 - 1 (a Mersenne prime, multi-word and not an RSA/DH
+     * accelerated size); e = m - 1.  By Fermat's little theorem,
+     * b^(m-1) mod m == 1 when gcd(b, m) == 1. */
+    if ((ret = mp_set(m, 1)) != MP_OKAY ||
+            (ret = mp_mul_2d(m, 521, m)) != MP_OKAY ||
+            (ret = mp_sub_d(m, 1, m)) != MP_OKAY ||
+            (ret = mp_sub_d(m, 1, e)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Odd, multi-word modulus, base != 2:
+     *   mp_exptmod_ex  -> constant-time Montgomery exponentiation
+     *   mp_exptmod_nct -> windowed exponentiation (large exponent). */
+    if ((ret = mp_set(b, 3)) != MP_OKAY ||
+            (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_isone(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_isone(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Base 2 selects the dedicated base-2 exponentiation. */
+    if ((ret = mp_set(b, 2)) != MP_OKAY ||
+            (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_isone(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Smaller exponents reach the narrower window sizes of the windowed
+     * non-constant-time exponentiation (a 31-bit exponent uses a 3-bit
+     * window, a 101-bit exponent a 4-bit window).  Cross-check the
+     * windowed result against the constant-time Montgomery result. */
+    for (k = 0; k < 2; k++) {
+        int ebits = (k == 0) ? 30 : 100;
+        if ((ret = mp_set(e, 1)) != MP_OKAY ||
+                (ret = mp_mul_2d(e, ebits, e)) != MP_OKAY ||
+                (ret = mp_add_d(e, 0x9, e)) != MP_OKAY ||  /* odd exponent */
+                (ret = mp_set(b, 3)) != MP_OKAY ||
+                (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY ||
+                (ret = mp_exptmod_nct(b, e, m, t)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+        if (mp_cmp(r, t) != MP_EQ) {
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* Restore exponent to m - 1 for the remaining odd-modulus case. */
+    if ((ret = mp_sub_d(m, 1, e)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Base == modulus: base reduces to zero so the result is zero. */
+    if ((ret = mp_copy(m, b)) != MP_OKAY ||
+            (ret = mp_set(e, 5)) != MP_OKAY ||
+            (ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (!mp_iszero(r)) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Even, multi-word modulus uses the generic exponentiation path for
+     * both mp_exptmod_ex and mp_exptmod_nct.  Verify b^6 mod m against
+     * repeated modular multiplication. */
+    if ((ret = mp_set(m, 1)) != MP_OKAY ||
+            (ret = mp_mul_2d(m, 521, m)) != MP_OKAY ||   /* m = 2^521 (even) */
+            (ret = mp_set(b, 7)) != MP_OKAY ||
+            (ret = mp_set(e, 6)) != MP_OKAY ||
+            (ret = mp_set(t, 1)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    for (k = 0; k < 6; k++) {
+        if ((ret = mp_mulmod(t, b, m, t)) != MP_OKAY) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+    }
+    if ((ret = mp_exptmod_ex(b, e, (int)e->used, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (mp_cmp(r, t) != MP_EQ) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    if ((ret = mp_exptmod_nct(b, e, m, r)) != MP_OKAY) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (mp_cmp(r, t) != MP_EQ) {
+        return WC_TEST_RET_ENC_NC;
+    }
+#endif /* WOLFSSL_SP_MATH_ALL */
+
     return 0;
 }
 #endif /* !NO_RSA || !NO_DSA || !NO_DH || (HAVE_ECC && HAVE_COMP_KEY) ||
@@ -69732,6 +70552,41 @@ static wc_test_ret_t mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC
         if (mp_cmp(a, r) != MP_EQ && mp_iszero(a) != MP_YES)
             return WC_TEST_RET_ENC_NC;
     }
+
+#ifdef WOLFSSL_SP_INVMOD_MONT_CT
+    /* Constant-time modular inverse in Montgomery form over a multi-word
+     * prime exercises the table-based exponentiation in _sp_invmod_mont_ct
+     * that single-word moduli do not reach. */
+
+    /* m = 2^521 - 1 (a Mersenne prime, multi-word). */
+    ret = mp_2expt(m, 521);
+    if (ret == MP_OKAY)
+        ret = mp_sub_d(m, 1, m);
+    if (ret == MP_OKAY)
+        ret = mp_montgomery_setup(m, &mp);
+    if (ret == MP_OKAY)
+        ret = mp_montgomery_calc_normalization(n, m);
+    /* a = 5: non-zero and coprime to the prime modulus. */
+    if (ret == MP_OKAY)
+        ret = mp_set(a, 5);
+    /* n = a in Montgomery form (a * R mod m). */
+    if (ret == MP_OKAY)
+        ret = mp_mulmod(a, n, m, n);
+    /* r = a^-1 in Montgomery form. */
+    if (ret == MP_OKAY)
+        ret = mp_invmod_mont_ct(n, m, r, mp);
+    /* Take r out of Montgomery form: r = a^-1 mod m. */
+    if (ret == MP_OKAY)
+        ret = mp_montgomery_reduce(r, m, mp);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    /* Verify a * a^-1 mod m == 1. */
+    ret = mp_mulmod(a, r, m, n);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (!mp_isone(n))
+        return WC_TEST_RET_ENC_NC;
+#endif /* WOLFSSL_SP_INVMOD_MONT_CT */
 
     return 0;
 }
@@ -70034,7 +70889,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
         goto done;
 #if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
     (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D))
-    if ((ret = mp_test_add_sub_d(a, r1)) != 0)
+    if ((ret = mp_test_add_sub_d(a, b, r1)) != 0)
         goto done;
 #endif
     if ((ret = mp_test_read_to_bin(a)) != 0)
@@ -70064,7 +70919,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
     if ((ret = mp_test_prime(a, &rng)) != 0)
         goto done;
 #endif
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     if ((ret = mp_test_lcm_gcd(a, b, r1, r2, &rng)) != 0)
         goto done;
 #endif
@@ -70088,12 +70943,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
 #endif
 #if !defined(NO_RSA) || !defined(NO_DSA) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA)
-    if ((ret = mp_test_exptmod(a, b, r1, r2)) != 0)
+    if ((ret = mp_test_exptmod(a, b, r1, r2, p)) != 0)
         goto done;
 #endif
 #if defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
     if ((ret = mp_test_mont(a, b, r1, r2, &rng)) != 0)
+        goto done;
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+    if ((ret = mp_test_addsubmod_ct(a, b, r1, r2, p, &rng)) != 0)
+        goto done;
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if ((ret = mp_test_cmp_mag(a, b)) != 0)
+        goto done;
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if ((ret = mp_test_mulmod_sqrmod(a, b, p, r1)) != 0)
+        goto done;
+    if ((ret = mp_test_exch(a, b, r1, r2)) != 0)
+        goto done;
+    if ((ret = mp_test_to_unsigned_bin_len_ct(a)) != 0)
         goto done;
 #endif
 #ifdef MP_TEST_COND_SWAP_AVAILABLE
@@ -71972,9 +72844,98 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             ret = 0;
         }
     #endif /* WOLFSSL_HAVE_LMS || WOLFSSL_HAVE_XMSS */
+    #if defined(WOLFSSL_HAVE_SLHDSA)
+    #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) {
+            int pqcType = info->pk.pqc_sig_kg.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sig_kg.key;
+                sk->devId = INVALID_DEVID;
+                ret = wc_SlhDsaKey_MakeKey(sk, info->pk.pqc_sig_kg.rng);
+                sk->devId = devIdArg;
+                myCtx->exampleVar++;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN) {
+            int pqcType = info->pk.pqc_sign.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sign.key;
+                enum wc_HashType phType =
+                    (enum wc_HashType)info->pk.pqc_sign.preHashType;
+                sk->devId = INVALID_DEVID;
+                if (phType == WC_HASH_TYPE_NONE) {
+                    ret = wc_SlhDsaKey_Sign(sk,
+                        info->pk.pqc_sign.context,
+                        info->pk.pqc_sign.contextLen,
+                        info->pk.pqc_sign.in,
+                        info->pk.pqc_sign.inlen,
+                        info->pk.pqc_sign.out,
+                        info->pk.pqc_sign.outlen,
+                        info->pk.pqc_sign.rng);
+                }
+                else {
+                    ret = wc_SlhDsaKey_SignHash(sk,
+                        info->pk.pqc_sign.context,
+                        info->pk.pqc_sign.contextLen,
+                        info->pk.pqc_sign.in,
+                        info->pk.pqc_sign.inlen,
+                        phType,
+                        info->pk.pqc_sign.out,
+                        info->pk.pqc_sign.outlen,
+                        info->pk.pqc_sign.rng);
+                }
+                sk->devId = devIdArg;
+                myCtx->exampleVar++;
+            }
+        }
+        else
+    #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+        if (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY) {
+            int pqcType = info->pk.pqc_verify.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_verify.key;
+                enum wc_HashType phType =
+                    (enum wc_HashType)info->pk.pqc_verify.preHashType;
+                int verifyRet = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                sk->devId = INVALID_DEVID;
+                if (phType == WC_HASH_TYPE_NONE) {
+                    verifyRet = wc_SlhDsaKey_Verify(sk,
+                        info->pk.pqc_verify.context,
+                        info->pk.pqc_verify.contextLen,
+                        info->pk.pqc_verify.msg,
+                        info->pk.pqc_verify.msglen,
+                        info->pk.pqc_verify.sig,
+                        info->pk.pqc_verify.siglen);
+                }
+                else {
+                    verifyRet = wc_SlhDsaKey_VerifyHash(sk,
+                        info->pk.pqc_verify.context,
+                        info->pk.pqc_verify.contextLen,
+                        info->pk.pqc_verify.msg,
+                        info->pk.pqc_verify.msglen,
+                        phType,
+                        info->pk.pqc_verify.sig,
+                        info->pk.pqc_verify.siglen);
+                }
+                sk->devId = devIdArg;
+                if (info->pk.pqc_verify.res != NULL) {
+                    *info->pk.pqc_verify.res = (verifyRet == 0) ? 1 : 0;
+                }
+                /* SIG_VERIFY_E is a validity signal, not a crypto error, so
+                 * translate it back to success for the dispatcher. */
+                if (verifyRet == WC_NO_ERR_TRACE(SIG_VERIFY_E))
+                    verifyRet = 0;
+                ret = verifyRet;
+                myCtx->exampleVar++;
+            }
+        }
+    #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifdef WOLFSSL_HAVE_MLKEM
         if (info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) {
-            if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_KYBER) &&
+            if ((info->pk.pqc_kem_kg.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_kem_kg.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_kem_kg.key;
                 int hashDevId = key->hash.devId;
@@ -71994,7 +72955,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) {
-            if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_KYBER) &&
+            if ((info->pk.pqc_encaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_encaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_encaps.key;
                 int hashDevId = key->hash.devId;
@@ -72017,7 +72978,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
         else if (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS) {
-            if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_KYBER) &&
+            if ((info->pk.pqc_decaps.type == WC_PQC_KEM_TYPE_MLKEM) &&
                 (info->pk.pqc_decaps.key != NULL)) {
                 MlKemKey* key = (MlKemKey*)info->pk.pqc_decaps.key;
                 int hashDevId = key->hash.devId;
@@ -72301,6 +73262,40 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         else
     #endif
+    #ifdef WOLFSSL_SHA224
+        if (info->hash.type == WC_HASH_TYPE_SHA224) {
+            if (info->hash.sha224 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha224->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha224->devId = devIdArg;
+                return 0;
+            }
+            #endif
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha224Update(
+                    info->hash.sha224,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha224Final(
+                    info->hash.sha224,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha224->devId = devIdArg;
+        }
+        else
+    #endif
     #ifdef WOLFSSL_SHA384
         if (info->hash.type == WC_HASH_TYPE_SHA384) {
             if (info->hash.sha384 == NULL)
@@ -72309,6 +73304,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             #ifndef NO_SHA2_CRYPTO_CB
             /* set devId to invalid, so software is used */
             info->hash.sha384->devId = INVALID_DEVID;
+            #endif
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha384->devId = devIdArg;
+                return 0;
+            }
             #endif
 
             if (info->hash.in != NULL) {
@@ -72338,6 +73342,15 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             #ifndef NO_SHA2_CRYPTO_CB
             /* set devId to invalid, so software is used */
             info->hash.sha512->devId = INVALID_DEVID;
+            #endif
+            #if defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->hash.sha512->devId = devIdArg;
+                return 0;
+            }
             #endif
 
             if (info->hash.in != NULL) {
@@ -72755,22 +73768,32 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
-#ifdef HAVE_DILITHIUM
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
                 case WC_PK_TYPE_PQC_SIG_KEYGEN:
                 {
-                    if (info->free.subType == WC_PQC_SIG_TYPE_DILITHIUM) {
-                        dilithium_key* dil = (dilithium_key*)info->free.obj;
+            #ifdef WOLFSSL_HAVE_MLDSA
+                    if (info->free.subType == WC_PQC_SIG_TYPE_MLDSA) {
+                        wc_MlDsaKey* dil = (wc_MlDsaKey*)info->free.obj;
                         dil->devId = INVALID_DEVID;
-                        wc_dilithium_free(dil);
+                        wc_MlDsaKey_Free(dil);
                         ret = 0;
                     }
+            #endif
+            #ifdef WOLFSSL_HAVE_SLHDSA
+                    if (info->free.subType == WC_PQC_SIG_TYPE_SLHDSA) {
+                        SlhDsaKey* slh = (SlhDsaKey*)info->free.obj;
+                        slh->devId = INVALID_DEVID;
+                        wc_SlhDsaKey_Free(slh);
+                        ret = 0;
+                    }
+            #endif
                     break;
                 }
 #endif
 #ifdef WOLFSSL_HAVE_MLKEM
                 case WC_PK_TYPE_PQC_KEM_KEYGEN:
                 {
-                    if (info->free.subType == WC_PQC_KEM_TYPE_KYBER) {
+                    if (info->free.subType == WC_PQC_KEM_TYPE_MLKEM) {
                         MlKemKey* mlkem = (MlKemKey*)info->free.obj;
                         mlkem->devId = INVALID_DEVID;
                         mlkem->hash.devId = INVALID_DEVID;
@@ -73427,9 +74450,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = mlkem_test();
 #endif
-#ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_HAVE_MLDSA
     if (ret == 0)
-        ret = dilithium_test();
+        ret = mldsa_test();
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    if (ret == 0) {
+        /* Reuse exampleVar as a hit counter for the SLH-DSA cb branches.
+         * baseline holds the value seen by every other cb at this point;
+         * we restore it after, so subsequent tests are unaffected.
+         * Confirms the SLH-DSA cb path was actually exercised; a silent
+         * SW fallback would otherwise mask a regression in the dispatch.
+         *
+         * Only enforce when slhdsa_test() actually runs a cb-routed op:
+         * !VERIFY_ONLY runs slhdsa_test_param (uses devId), or
+         * PARAM_128S enables the in-tree KAT verify (also uses devId). */
+        int baseline = myCtx.exampleVar;
+        ret = slhdsa_test();
+    #if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) || \
+        defined(WOLFSSL_SLHDSA_PARAM_128S)
+        if ((ret == 0) && (myCtx.exampleVar == baseline))
+            ret = WC_TEST_RET_ENC_NC;
+    #endif
+        myCtx.exampleVar = baseline;
+    }
 #endif
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
     if (ret == 0)
@@ -73491,6 +74535,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_SHA512
     if (ret == 0)
         ret = sha512_test();
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    /* exercises the SHA-512/224 fallback to the generic SHA-512 callback,
+     * including object reuse after Final */
+    if (ret == 0)
+        ret = sha512_224_test();
+#endif
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    if (ret == 0)
+        ret = sha512_256_test();
+#endif
 #ifdef WOLFSSL_SHA3
     if (ret == 0)
         ret = sha3_test();

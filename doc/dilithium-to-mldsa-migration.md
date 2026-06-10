@@ -37,6 +37,30 @@ the legacy API.
 | `wc_dilithium_*` (lifecycle / sizing)     | `wc_MlDsaKey_*`                              |
 | `wc_Dilithium_*` (DER encode / decode)    | `wc_MlDsaKey_*`                              |
 | internal lower-case `dilithium_*` helpers | `mldsa_*`                                    |
+| `DILITHIUM_*` algorithm-parameter macros  | `MLDSA_*` (matches `MLKEM_*` in `wc_mlkem.h`) |
+| `DILITHIUM_LEVEL{2,3,5}_*_SIZE`, `ML_DSA_LEVEL{2,3,5}_*_SIZE`, `DILITHIUM_ML_DSA_{44,65,87}_*_SIZE` | `WC_MLDSA_{44,65,87}_*_SIZE` |
+| `DEBUG_DILITHIUM`                         | `DEBUG_MLDSA`                                |
+
+The three legacy size-constant families
+(`DILITHIUM_LEVEL{2,3,5}_*_SIZE`, `ML_DSA_LEVEL{2,3,5}_*_SIZE`,
+`DILITHIUM_ML_DSA_{44,65,87}_*_SIZE`) remain reachable through the
+dilithium.h shim as `#define`-style aliases for the canonical
+`WC_MLDSA_{44,65,87}_*_SIZE` family — eight spellings per parameter
+set (`KEY_SIZE`, `PRV_KEY_SIZE`, `PUB_KEY_SIZE`, `SIG_SIZE`,
+`PRV_KEY_DER_SIZE`, `PUB_KEY_DER_SIZE`, `BOTH_KEY_DER_SIZE`,
+`BOTH_KEY_PEM_SIZE`). All of them are gated on
+`!defined(WOLFSSL_NO_DILITHIUM_LEGACY_NAMES)`.
+
+The `WC_ML_DSA_{44,65,87}` / `WC_ML_DSA_{44,65,87}_DRAFT` / `WC_ML_DSA_DRAFT`
+public level identifiers and the `PARAMS_ML_DSA_{44,65,87}_*`
+per-parameter-set internal constants intentionally **keep** their
+underscored `ML_DSA_` spelling — the level identifiers are established
+public names and the `PARAMS_*` family is internal-only, so neither
+benefits from a rename.
+
+The `WOLFSSL_NO_ML_DSA_{44,65,87}` parameter-set disable gates are
+likewise kept in their underscored form (matching the
+`WOLFSSL_NO_ML_KEM_{512,768,1024}` spelling in `wc_mlkem.h`).
 
 The 16 sign / verify / import / DER-decode entry points were also
 re-ordered to put the `MlDsaKey*` first (matching the FIPS 204 / ML-KEM
@@ -71,6 +95,60 @@ projects.
 
 The configure summary echoes `ML-DSA: yes` rather than `DILITHIUM: yes`.
 
+### Public error-code rename
+
+The error-code enumerator in `wolfssl/error-ssl.h` was renamed:
+
+| Legacy                  | Canonical            | Numeric value |
+|-------------------------|----------------------|---------------|
+| `DILITHIUM_KEY_SIZE_E`  | `MLDSA_KEY_SIZE_E`   | `-453` (unchanged) |
+
+The numeric value is unchanged, so any code that compares against the
+literal `-453` (or stores the value) continues to work. Code that
+references the symbol by name is covered by a legacy `#define
+DILITHIUM_KEY_SIZE_E MLDSA_KEY_SIZE_E` alias, gated on
+`!defined(WOLFSSL_NO_DILITHIUM_LEGACY_NAMES)`. The error string returned
+by `wolfSSL_ERR_reason_error_string` is now `"Wrong key size for
+ML-DSA."`.
+
+### Public ASN.1 / OID identifier renames
+
+The pre-standardization `LEVEL2/3/5` spellings of the ML-DSA public ASN.1
+key-type, certificate-type, and OID enumerators were renamed to match
+the FIPS 204 parameter-set numbers (44 / 65 / 87), and to match the
+existing `WC_MLDSA_{44,65,87}_*_SIZE` / `BENCH_ML_DSA_{44,65,87}_SIGN`
+spellings:
+
+| Legacy                       | Canonical              | Defined in |
+|------------------------------|------------------------|------------|
+| `ML_DSA_LEVEL{2,3,5}_TYPE`   | `ML_DSA_{44,65,87}_TYPE` | `wolfssl/wolfcrypt/asn_public.h` (`enum CertType`) |
+| `ML_DSA_LEVEL{2,3,5}_KEY`    | `ML_DSA_{44,65,87}_KEY`  | `wolfssl/wolfcrypt/asn.h` (cert-gen key type) |
+| `ML_DSA_LEVEL{2,3,5}k`       | `ML_DSA_{44,65,87}k`     | `wolfssl/wolfcrypt/oid_sum.h` (`enum Key_Sum`) |
+| `CTC_ML_DSA_LEVEL{2,3,5}`    | `CTC_ML_DSA_{44,65,87}`  | `wolfssl/wolfcrypt/oid_sum.h` (`enum Ctc_SigType`) |
+
+All four families keep their numeric values (e.g. `ML_DSA_44k` is still
+`431`), so ABI is preserved. Source-level back-compat for unmigrated
+consumers is provided by `#define`-style legacy aliases next to each
+enum, gated on `!defined(WOLFSSL_NO_DILITHIUM_LEGACY_NAMES)` (the same
+gate as the rest of the dilithium.h shim — see header comment in
+`<wolfssl/wolfcrypt/dilithium.h>` for the gate's full coverage).
+
+The `DILITHIUM_LEVEL{2,3,5}k` / `CTC_DILITHIUM_LEVEL{2,3,5}` /
+`DILITHIUM_LEVEL{2,3,5}_TYPE` / `DILITHIUM_LEVEL{2,3,5}_KEY`
+pre-standardization (NIST PQC round 3) enumerators are intentionally
+**not** renamed: they identify a distinct draft-era OID surface and
+coexist with the FIPS 204 entries in the same enum. For the same reason
+the `"Dilithium Level {2,3,5}"` OID-name labels in
+`wolfssl_object_info[]` (`src/ssl.c`) are kept under the Dilithium name
+and coexist with parallel `"ML-DSA {44,65,87}"` rows.
+
+The PEM header / footer markers used by `wc_MlDsaKey_*` PEM
+import/export (`"-----BEGIN ML_DSA_LEVEL2 PRIVATE KEY-----"`, etc.) are
+**intentionally unchanged** — the string contents are a serialization
+format and renaming them would break PEM files written by older
+wolfSSL. The C identifier names (`BEGIN_ML_DSA_LEVEL{2,3,5}_PRIV`,
+`END_*`) are likewise unchanged.
+
 ### OpenSSL compatibility
 
 The OpenSSL-compat enum value `WC_EVP_PKEY_DILITHIUM` and macro
@@ -101,7 +179,10 @@ migration), define one or both of:
 
 - `WOLFSSL_NO_DILITHIUM_LEGACY_NAMES` — suppresses the legacy
   `dilithium_key` / `wc_dilithium_*` / `wc_Dilithium_*` macro / inline
-  aliases.
+  aliases, the `ML_DSA_LEVEL{2,3,5}*` / `CTC_ML_DSA_LEVEL{2,3,5}` /
+  `DILITHIUM_KEY_SIZE_E` enum aliases, and the legacy size-constant
+  family (`DILITHIUM_LEVEL{2,3,5}_*_SIZE`, `ML_DSA_LEVEL{2,3,5}_*_SIZE`,
+  `DILITHIUM_ML_DSA_{44,65,87}_*_SIZE`).
 - `WOLFSSL_NO_DILITHIUM_LEGACY_GATES` — suppresses the bidirectional
   sub-config gate translations (legacy `WOLFSSL_DILITHIUM_*` /
   `WC_DILITHIUM_*` ↔ canonical `WOLFSSL_MLDSA_*` / `WC_MLDSA_*`). The
@@ -110,75 +191,78 @@ migration), define one or both of:
   compile the canonical implementation file; the reverse arm honors
   this opt-out.
 
-> **Note on `WOLFSSL_NO_DILITHIUM_LEGACY_NAMES`:** in this release the
-> opt-out is only useful for builds whose consumer code (TLS, ASN.1,
-> EVP, tests, benchmark, examples, ...) has already been migrated to
-> the canonical names. The standard wolfSSL distribution still uses
-> `wc_dilithium_*` and `dilithium_key` in `wolfcrypt/src/asn.c`,
-> `src/ssl_load.c`, `src/internal.c`, `wolfcrypt/test/test.c`, and
-> elsewhere; suppressing the macro / inline aliases breaks those
-> translation units (e.g. `wc_dilithium_verify_ctx_msg` becomes an
-> implicit declaration). The flag is intended primarily for downstream
-> projects that have completed their own migration; in-tree consumers
-> will be migrated in a follow-up PR.
+In-tree consumers have been migrated to the canonical names in this
+release, so a build that defines `WOLFSSL_NO_DILITHIUM_LEGACY_NAMES`
+(with or without `WOLFSSL_NO_DILITHIUM_LEGACY_GATES`) compiles cleanly
+and `make check` passes.
 
-## Internal infrastructure files migrated to canonical sub-gates
+### Internal API note (no back-compat aliases)
 
-One wolfSSL-internal file outside the dilithium.h reach had its
-`WOLFSSL_DILITHIUM_NO_SIGN` / `WOLFSSL_DILITHIUM_NO_VERIFY` sub-gate
-references migrated to canonical `WOLFSSL_MLDSA_*` spellings:
+A handful of identifiers that were defined only in wolfSSL-internal
+headers (no presence in `dilithium.h`, no public-API surface) were
+renamed in place **without** a backwards-compatibility alias. They
+affect downstream code only if it reached into `wolfssl/internal.h` or
+similar internal headers:
 
-- `wolfssl/certs_test.h` — auto-generated cert-data buffers, has zero
-  `#include` directives. Reachable from external TUs (examples,
-  embedded apps) that pull in only `<wolfssl/ssl.h>` and do not
-  transitively include `dilithium.h`. Reads 11 sub-gate references
-  (`_NO_SIGN` / `_NO_VERIFY`).
+| Legacy                                                | Canonical                                         | Defined in |
+|-------------------------------------------------------|---------------------------------------------------|------------|
+| `DILITHIUM_SA_MAJOR`, `DILITHIUM_LEVEL{2,3,5}_SA_{MAJOR,MINOR}` | `MLDSA_SA_MAJOR`, `MLDSA_{44,65,87}_SA_{MAJOR,MINOR}` | `wolfssl/internal.h` |
+| `SIG_DILITHIUM`                                       | `SIG_MLDSA`                                       | `wolfssl/internal.h` |
+| `dilithium_level{2,3,5}_sa_algo` (`enum SignatureAlgorithm`) | `mldsa_{44,65,87}_sa_algo`                    | `wolfssl/internal.h` |
+| `dilithium_sign` (`enum ClientCertificateType`)       | `mldsa_sign`                                      | `wolfssl/internal.h` |
+| `MIN_DILITHIUMKEY_SZ`                                 | `MIN_MLDSAKEY_SZ`                                 | `wolfssl/internal.h` |
+| `minDilithiumKeySz` (struct field on `WOLFSSL_CTX`, `WOLFSSL_CERT_MANAGER`, `Options`) | `minMlDsaKeySz`           | `wolfssl/internal.h` |
+| `haveDilithiumSig` (bitfield on `WOLFSSL_CTX`, `Options`) | `haveMlDsaSig`                                | `wolfssl/internal.h` |
+| `peerDilithiumKey`, `peerDilithiumKeyPresent` (`WOLFSSL`) | `peerMlDsaKey`, `peerMlDsaKeyPresent`         | `wolfssl/internal.h` |
+| `HYBRID_*_DILITHIUM_LEVEL*_SA_MINOR`                  | `HYBRID_*_MLDSA_{44,65,87}_SA_MINOR`              | `src/tls13.c` (file-local) |
+| `dilithium` (union field on `SignatureCtx::key`)      | `mldsa`                                           | `wolfssl/wolfcrypt/asn.h` |
+| `dilithium_test` (test-driver entry point)            | `mldsa_test`                                      | `wolfcrypt/test/test.{c,h}` |
+| `bench_dilithium_level{2,3,5}_{key,pubkey,sig}`       | `bench_mldsa_{44,65,87}_{key,pubkey,sig}`         | `wolfssl/certs_test.h`, `wolfcrypt/benchmark/benchmark.c` |
+| `bench_dilithiumKeySign`                              | `bench_mldsaKeySign`                              | `wolfcrypt/benchmark/benchmark.{c,h}` |
+| `BENCH_DILITHIUM_LEVEL{2,3,5}_SIGN`                   | `BENCH_ML_DSA_{44,65,87}_SIGN` (legacy macros deleted as redundant duplicates) | `wolfcrypt/benchmark/benchmark.c` |
 
-`wolfssl/wolfcrypt/memory.h` previously branched its static-pool sizing
-(`LARGEST_MEM_BUCKET` / `WOLFMEM_BUCKETS` / `WOLFMEM_DIST`) on a
-combination of `WOLFSSL_MLDSA_VERIFY_SMALL_MEM` /
-`WOLFSSL_MLDSA_SIGN_SMALL_MEM` / `WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM` /
-`WOLFSSL_MLDSA_VERIFY_ONLY`. Those branches were removed: when
-`WOLFSSL_HAVE_MLDSA` is defined, the file now picks the larger sizing
-unconditionally. The static-pool macros are consumed only by
-`wolfcrypt/src/memory.c` and the test harnesses; production deployments
-that need different sizing already override `LARGEST_MEM_BUCKET` /
-`WOLFMEM_BUCKETS` / `WOLFMEM_DIST` directly. Removing the conditional
-gating drops memory.h's dependency on ML-DSA sub-gates entirely.
+The benchmark CLI options `-dilithium_level{2,3,5}` are retained as
+deprecated aliases for `-ml-dsa-{44,65,87}` and will be removed
+alongside the dilithium.h shim.
 
-To keep the legacy `user_settings.h` path working for `certs_test.h` —
-i.e. a build that defines only `WOLFSSL_DILITHIUM_NO_SIGN` /
-`WOLFSSL_DILITHIUM_NO_VERIFY` and never reaches `dilithium.h` before
-the cert-buffer header is processed — the forward translations for
-those two gates live in `<wolfssl/wolfcrypt/settings.h>`. settings.h is
-included transitively by any TU that pulls in `certs_test.h`, so the
-canonical sub-gates are always defined before they are read. The
-remaining ~30 sub-gates are read only from wc\_mldsa.h / wc\_mldsa.c,
-both of which transitively pull in dilithium.h first; their forward
-translations stay there to keep settings.h lean. The reverse arm
-(canonical → legacy) lives entirely in dilithium.h because it is only
-consumed by unmigrated code, which by definition includes dilithium.h.
-The generator script (`gencertbuf.pl`) was updated correspondingly.
+### Test coverage
 
-`certs_test.h` and the `memory.h` static-pool macros are both
-wolfSSL-internal infrastructure (an auto-generated cert-buffer data
-file and the static allocator's default sizing), not consumer-facing
-API; these changes do not require downstream code changes.
+The canonical ML-DSA API is exercised by `tests/api/test_mldsa.c`
+(~24 `test_mldsa_*` functions), `wolfcrypt/test/test.c::mldsa_test`,
+and the TLS / X.509 paths in `tests/api.c` that exercise ML-DSA
+end-to-end. These run under all build configurations including builds
+that suppress the legacy alias surface.
 
-### Retained internal symbols
+The legacy-name shim itself is covered by
+`tests/api/test_mldsa_legacy.c::test_mldsa_legacy_shim`, a single
+focused regression test combining three layers of check:
 
-A few internal-only spellings are intentionally **not** renamed in this
-PR:
+- **Compile-time `wc_static_assert`** over every alias spelling — all
+  three size-constant families (LEVEL, DILITHIUM_LEVEL,
+  DILITHIUM_ML_DSA) at all 8 spellings per parameter set, every public
+  enum alias, the error-code alias, and the FIPS 204
+  algorithm-parameter macros.
+- **Typed function-pointer assignments without casts** that bind each
+  symbol-form alias (`wc_dilithium_init_ex`, `wc_dilithium_free`, …) to
+  a pointer with the canonical signature, so a signature drift in the
+  shim trips a build error.
+- **Compile-time invocation of every arg-reordering macro** under
+  `if (0)` so the compiler type-checks the macro expansion in every
+  configuration (including verify-only builds where the runtime smoke
+  test below is skipped).
+- **Runtime make-key / sign / verify / export / import / DER round-trip**
+  driving the arg-reordering macros with valid inputs; a same-type arg
+  swap (which the compile-time invocation can't catch) shows up as a
+  verification or import failure.
 
-- `DYNAMIC_TYPE_DILITHIUM` — heap-allocation tag string used by
-  `WC_ALLOC_VAR` / `WC_FREE_VAR_EX` inside `wc_mldsa.c`. Pure
-  bookkeeping, never crosses the public API surface.
-- `ML_DSA_PCT_E` — internal error code returned only by the FIPS
-  Pairwise Consistency Test path inside `wc_MlDsaKey_MakeKey`. Not part
-  of the documented external error-code surface for this algorithm.
+The runtime portion requires both sign and verify; in a verify-only
+build it skips and the compile-time layers carry the coverage. A
+same-type arg swap on the verify side specifically is then caught only
+by the canonical KAT-driven verify tests in
+`test_mldsa.c::test_mldsa_verify_*_kats`, which always run.
 
-These are scheduled for renaming alongside the eventual removal of the
-`dilithium.h` shim.
+The whole file becomes a `TEST_SKIPPED` stub when
+`WOLFSSL_NO_DILITHIUM_LEGACY_NAMES` is defined.
 
 ## ABI note
 

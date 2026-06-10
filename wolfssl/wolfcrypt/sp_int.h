@@ -838,6 +838,17 @@ typedef struct sp_dh_ctx {
 #define MP_BITS_CNT(bits)                                       \
         ((unsigned int)(((((bits) + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)))
 
+/* True when 'bits' would require more digit storage than 'max'.
+ *
+ * Pairs with DECL_MP_INT_SIZE_DYN(name, bits, max) to guard against the
+ * static buffer (sized for 'max' digits) being undersized for 'bits' when
+ * the caller's 'bits' value can carry digit/byte alignment slack
+ * (e.g. mp_bitsused() returns used*SP_WORD_SIZE; dp->size*8 rounds up to a
+ * full byte).  Compare digit-rounded counts so curves like P-521 (521 bits,
+ * 17 32-bit digits) are not falsely rejected when max == 521. */
+#define MP_BITS_OVER_MAX(bits, max) \
+    (MP_BITS_CNT(bits) > MP_BITS_CNT(max))
+
 #if !defined(WOLFSSL_SP_NO_DYN_STACK) && defined(__STDC_VERSION__) && \
              (__STDC_VERSION__ >= 199901L) &&                         \
     (defined(WOLFSSL_SP_NO_MALLOC) ||                                 \
@@ -895,9 +906,13 @@ while (0)
 #define DECL_MP_INT_SIZE(name, bits)                               \
     sp_int_digit name##d[MP_INT_SIZEOF_DIGITS(MP_BITS_CNT(bits))]; \
     sp_int* (name) = (sp_int*)name##d
-/* Zero out mp_int of minimal size. */
+/* Bytes to zero for a static mp_int: min(requested bits size, declared buffer). */
+#define MP_INT_ZERO_SIZE(name, bits)                                          \
+    ((sizeof(name##d) < MP_INT_SIZEOF(MP_BITS_CNT(bits))) ?                  \
+        sizeof(name##d) : MP_INT_SIZEOF(MP_BITS_CNT(bits)))
+/* Zero out mp_int without clearing more than the declared digit buffer. */
 #define NEW_MP_INT_SIZE(name, bits, heap, type) \
-    XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)))
+    XMEMSET((name), 0, MP_INT_ZERO_SIZE(name, bits))
 /* Dispose of static mp_int. */
 #define FREE_MP_INT_SIZE(name, heap, type) WC_DO_NOTHING
 /* Type to force compiler to not complain about size. */

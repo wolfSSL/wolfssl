@@ -1,0 +1,43 @@
+name: Check Headers
+
+# Verifies every public-facing wolfSSL header compiles standalone with
+# only wolfssl/options.h included first. Catches the common breakage
+# where a header silently relies on a transitive include from an
+# earlier .c file and stops compiling from a fresh consumer.
+#
+# Runs on drafts (fast static check).
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ master, main ]
+
+concurrency:
+  group: check-headers-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+
+      - name: autogen
+        run: ./autogen.sh
+
+      - name: configure --enable-all
+        run: ./configure --enable-all
+
+      - name: Run check-headers
+        run: ./.github/scripts/check-headers.sh

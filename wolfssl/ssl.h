@@ -609,6 +609,12 @@ struct WOLFSSL_EVP_PKEY {
     #ifdef HAVE_ED448
     struct ed448_key* ed448;
     #endif
+    #ifdef HAVE_CURVE25519
+    struct curve25519_key* curve25519;
+    #endif
+    #ifdef HAVE_CURVE448
+    struct curve448_key* curve448;
+    #endif
     WC_RNG rng;
     #ifdef HAVE_HKDF
     const WOLFSSL_EVP_MD* hkdfMd;
@@ -639,6 +645,12 @@ struct WOLFSSL_EVP_PKEY {
 #endif
 #ifdef HAVE_ED448
     WC_BITFIELD ownEd448:1;   /* if struct owns Ed448 and should free it */
+#endif
+#ifdef HAVE_CURVE25519
+    WC_BITFIELD ownCurve25519:1; /* if struct owns X25519 and should free it */
+#endif
+#ifdef HAVE_CURVE448
+    WC_BITFIELD ownCurve448:1;   /* if struct owns X448 and should free it */
 #endif
 };
 
@@ -1064,7 +1076,11 @@ enum Tls13Secret {
     CLIENT_TRAFFIC_SECRET,
     SERVER_TRAFFIC_SECRET,
     EARLY_EXPORTER_SECRET,
-    EXPORTER_SECRET
+    EXPORTER_SECRET,
+#if defined(HAVE_ECH)
+    ECH_SECRET,
+    ECH_CONFIG,
+#endif
 };
 #endif
 
@@ -1246,6 +1262,9 @@ WOLFSSL_API int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
 
 WOLFSSL_API void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable);
 
+WOLFSSL_API void wolfSSL_CTX_SetEchEnableTrialDecrypt(WOLFSSL_CTX* ctx,
+    byte enable);
+
 WOLFSSL_API int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl,
     const char* echConfigs64, word32 echConfigs64Len);
 
@@ -1259,6 +1278,14 @@ WOLFSSL_API int wolfSSL_GetEchRetryConfigs(WOLFSSL* ssl, byte* echConfigs,
     word32* echConfigsLen);
 
 WOLFSSL_API void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable);
+
+WOLFSSL_API void wolfSSL_SetEchEnableTrialDecrypt(WOLFSSL* ssl, byte enable);
+
+#define WOLFSSL_ECH_STATUS_NOT_OFFERED  0
+#define WOLFSSL_ECH_STATUS_GREASE       1
+#define WOLFSSL_ECH_STATUS_REJECTED     2
+#define WOLFSSL_ECH_STATUS_ACCEPTED     3
+WOLFSSL_API int wolfSSL_GetEchStatus(const WOLFSSL* ssl);
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 #ifdef HAVE_POLY1305
@@ -2522,13 +2549,52 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(
 WOLFSSL_API int wolfSSL_i2d_ASN1_INTEGER(const WOLFSSL_ASN1_INTEGER* a,
                                          unsigned char** pp);
 
-WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime);
+/* ASN1_TIME APIs */
+/* These ASN1_TIME APIs operate only on the object's stored data and do not
+ * use system time, so they remain available when NO_ASN_TIME is defined. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+WOLFSSL_API int wolfSSL_ASN1_TIME_get_length(const WOLFSSL_ASN1_TIME *t);
+WOLFSSL_API unsigned char* wolfSSL_ASN1_TIME_get_data(const WOLFSSL_ASN1_TIME *t);
+WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
+                                                                WOLFSSL_ASN1_TIME **out);
+#endif
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void);
+WOLFSSL_API void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t);
+WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t);
+WOLFSSL_API int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *s, const char *str);
+#endif
+
+/* These ASN1_TIME APIs use system time or call APIs that are disabled when
+ * NO_ASN_TIME is defined. */
+#ifndef NO_ASN_TIME
+WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio,
+                                        const WOLFSSL_ASN1_TIME* asnTime);
 
 WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t,
                                                             char* buf, int len);
-#ifndef NO_ASN_TIME
-WOLFSSL_API int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm);
+WOLFSSL_API int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
+                                         struct tm* tm);
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s,
+        time_t t);
 #endif
+
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* s,
+                                                     time_t t, int offset_day,
+                                                     long offset_sec);
+WOLFSSL_API int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a);
+WOLFSSL_API int wolfSSL_ASN1_TIME_diff(int* days, int* secs, const WOLFSSL_ASN1_TIME* from,
+    const WOLFSSL_ASN1_TIME* to);
+WOLFSSL_API int wolfSSL_ASN1_TIME_compare(const WOLFSSL_ASN1_TIME *a,
+    const WOLFSSL_ASN1_TIME *b);
+WOLFSSL_API int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t,
+        const char *str);
+#endif
+#endif /* !NO_ASN_TIME */
+
 WOLFSSL_API int  wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
                                        const WOLFSSL_ASN1_INTEGER* b);
 WOLFSSL_API long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* a);
@@ -2536,10 +2602,6 @@ WOLFSSL_API long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* a);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
                                        WOLFSSL_BIGNUM *bn);
-WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* s, time_t t,
-                                                     int offset_day, long offset_sec);
-WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void);
-WOLFSSL_API void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t);
 #endif
 
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname);
@@ -2614,7 +2676,9 @@ WOLFSSL_API unsigned long wolfSSL_ERR_peek_error(void);
 WOLFSSL_API int           wolfSSL_GET_REASON(int);
 
 WOLFSSL_API const char* wolfSSL_alert_type_string_long(int alertID);
+WOLFSSL_API const char* wolfSSL_alert_type_string(int alertID);
 WOLFSSL_API const char* wolfSSL_alert_desc_string_long(int alertID);
+WOLFSSL_API const char* wolfSSL_alert_desc_string(int alertID);
 WOLFSSL_API const char* wolfSSL_state_string_long(const WOLFSSL* ssl);
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
@@ -2707,6 +2771,7 @@ enum {
     WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED              = 25,
     WOLFSSL_X509_V_ERR_CERT_REJECTED                     = 28,
     WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH           = 29,
+    WOLFSSL_X509_V_ERR_APPLICATION_VERIFICATION          = 50,
     WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH                 = 62,
     WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH               = 64,
     WOLFSSL_X509_V_ERR_INVALID_CA                        = 79,
@@ -3344,15 +3409,6 @@ WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio,
 WOLFSSL_API int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
                                          const WOLFSSL_ASN1_GENERALIZEDTIME* asnTime);
 WOLFSSL_API void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_GENERALIZEDTIME*);
-WOLFSSL_API int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a);
-WOLFSSL_API int wolfSSL_ASN1_TIME_diff(int* days, int* secs, const WOLFSSL_ASN1_TIME* from,
-    const WOLFSSL_ASN1_TIME* to);
-WOLFSSL_API int wolfSSL_ASN1_TIME_compare(const WOLFSSL_ASN1_TIME *a,
-    const WOLFSSL_ASN1_TIME *b);
-WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t);
-WOLFSSL_API int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *s, const char *str);
-WOLFSSL_API int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t,
-        const char *str);
 #endif /* OPENSSL_EXTRA */
 
 
@@ -6066,11 +6122,6 @@ WOLFSSL_API void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *
 WOLFSSL_API const char *wolfSSL_ASN1_tag2str(int tag);
 WOLFSSL_API int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, unsigned long flags);
 WOLFSSL_API int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str);
-WOLFSSL_API int wolfSSL_ASN1_TIME_get_length(const WOLFSSL_ASN1_TIME *t);
-WOLFSSL_API unsigned char* wolfSSL_ASN1_TIME_get_data(const WOLFSSL_ASN1_TIME *t);
-WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
-                                                                WOLFSSL_ASN1_TIME **out);
-WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t);
 WOLFSSL_API int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp);
 WOLFSSL_API int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         char *buf, int size);

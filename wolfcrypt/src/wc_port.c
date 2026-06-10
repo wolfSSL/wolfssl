@@ -241,12 +241,172 @@ Threading/Mutex options:
 #endif
 #endif
 
-/* prevent multiple mutex initializations */
-#ifdef WOLFSSL_ATOMIC_OPS
-    wolfSSL_Atomic_Int initRefCount = WOLFSSL_ATOMIC_INITIALIZER(0);
+/* Internal APIs for counting initialization depth, with initialization/cleanup
+ * races fully mitigated
+ */
+int wc_local_InitUp(wc_init_state_t *s)
+{
+    union wc_init_state_bitfields exp_wc_init_state, new_wc_init_state;
+    exp_wc_init_state.u = WOLFSSL_ATOMIC_LOAD(*s);
+
+    /* Mitigate races on init/shutdown by looping, unless
+     * WC_INIT_ERROR_WHEN_CONTENDED.
+     */
+    for (;;) {
+        wc_static_assert(WC_INIT_STATE_STATE_BITS + WC_INIT_STATE_COUNT_BITS ==
+                         sizeof(WC_ATOMIC_UINT_ARG) * 8);
+        if (exp_wc_init_state.c.count ==
+            (((WC_ATOMIC_UINT_ARG)1 << WC_INIT_STATE_COUNT_BITS)
+             - (WC_ATOMIC_UINT_ARG)1))
+        {
+            return SEQ_OVERFLOW_E;
+        }
+        new_wc_init_state = exp_wc_init_state;
+        if (exp_wc_init_state.c.state == WC_INIT_STATE_UNINITED) {
+            if (exp_wc_init_state.c.count != 0)
+                return BAD_STATE_E;
+            new_wc_init_state.c.state = WC_INIT_STATE_INITING;
+        }
+        else if (exp_wc_init_state.c.state >= WC_INIT_STATE_BAD_STATE) {
+            wc_static_assert(WC_INIT_STATE_BAD_STATE > WC_INIT_STATE_UNINITED &&
+                             WC_INIT_STATE_BAD_STATE > WC_INIT_STATE_INITING &&
+                             WC_INIT_STATE_BAD_STATE > WC_INIT_STATE_INITED &&
+                             WC_INIT_STATE_BAD_STATE > WC_INIT_STATE_CLEANING_UP);
+            return BAD_STATE_E;
+        }
+        else {
+            if (exp_wc_init_state.c.count == 0)
+                return BAD_STATE_E;
+            /* Force expected state to _INITED -- if actual value upon cmpxchg
+             * doesn't match (normally either _INITING or _CLEANING_UP), we'll
+             * spin until the transient state resolves to _INITED or _UNINITED
+             * (when the competing thread calls wc_local_InitUpDone() or
+             * wc_local_InitDownDone(), respectively).
+             */
+            exp_wc_init_state.c.state = WC_INIT_STATE_INITED;
+            new_wc_init_state.c.state = WC_INIT_STATE_INITED;
+        }
+        ++new_wc_init_state.c.count;
+        /* if another thread entered _STATE_INITING or _CLEANING_UP, this will
+         * fail and spin.
+         */
+        if (wolfSSL_Atomic_Uint_CompareExchange(s,
+                                                &exp_wc_init_state.u,
+                                                new_wc_init_state.u))
+            break;
+#ifdef WC_INIT_ERROR_WHEN_CONTENDED
+        return BUSY_E;
 #else
-    static int initRefCount = 0;
+        WC_RELAX_LONG_LOOP(); /* not really long. */
 #endif
+    }
+    return new_wc_init_state.c.state;
+}
+
+int wc_local_InitUpDone(wc_init_state_t *s)
+{
+    union wc_init_state_bitfields cur_wc_init_state;
+    cur_wc_init_state.u = WOLFSSL_ATOMIC_LOAD(*s);
+    if (cur_wc_init_state.c.state != WC_INIT_STATE_INITING)
+        return BAD_FUNC_ARG;
+    cur_wc_init_state.c.state = WC_INIT_STATE_INITED;
+    /* Note, because WC_INIT_STATE_INITING functions as a mutex on the module
+     * state, we can use a plain _STORE() to release the module into its _INITED
+     * state.
+     */
+    WOLFSSL_ATOMIC_STORE(*s, cur_wc_init_state.u);
+    return 0;
+}
+
+int wc_local_InitDown(wc_init_state_t *s)
+{
+    union wc_init_state_bitfields exp_wc_init_state, new_wc_init_state;
+
+    exp_wc_init_state.u = WOLFSSL_ATOMIC_LOAD(*s);
+
+    /* Mitigate races on init/shutdown by looping, unless
+     * WC_INIT_ERROR_WHEN_CONTENDED.
+     */
+    for (;;) {
+        if (exp_wc_init_state.c.state >= WC_INIT_STATE_BAD_STATE) {
+            /* wc_static_assert above in wc_local_InitUp() protects the logic of
+             * the inequality test.
+             */
+            return BAD_STATE_E;
+        }
+        else if (exp_wc_init_state.c.state == WC_INIT_STATE_UNINITED) {
+            if (exp_wc_init_state.c.count == 0) {
+                /* thread attempted to wc_local_InitDown() without a matching
+                 * previous wc_local_InitUp().
+                 */
+                return ALREADY_E; /* backward compat */
+            }
+            else {
+                /* nonzero .count with _STATE_UNINITED is impossible. */
+                return BAD_STATE_E;
+            }
+        }
+        else if (exp_wc_init_state.c.state == WC_INIT_STATE_INITING) {
+            /* _INITING is impossible here unless a thread calls
+             * wc_local_InitDown() before (or without) successfully calling
+             * wc_local_InitUpDone().
+             */
+            return BAD_FUNC_ARG;
+        }
+        else if (exp_wc_init_state.c.state == WC_INIT_STATE_CLEANING_UP) {
+            if (exp_wc_init_state.c.count == 1) {
+                /* thread attempted to wc_local_InitDown() without a matching
+                 * previous wc_local_InitUp().
+                 */
+                return ALREADY_E; /* backward compat */
+            }
+            else {
+                /* _CLEANING_UP is impossible with .count != 1. */
+                return BAD_STATE_E;
+            }
+        }
+        else if (exp_wc_init_state.c.count == 0) {
+            /* zero count with state != _UNINITED is impossible. */
+            return BAD_STATE_E;
+        }
+        new_wc_init_state = exp_wc_init_state;
+        if (exp_wc_init_state.c.count == 1) {
+            new_wc_init_state.c.state = WC_INIT_STATE_CLEANING_UP;
+            /* don't zero until end. */
+        }
+        else
+            --new_wc_init_state.c.count;
+        if (wolfSSL_Atomic_Uint_CompareExchange(s,
+                                                &exp_wc_init_state.u,
+                                                new_wc_init_state.u))
+            break;
+#ifdef WC_INIT_ERROR_WHEN_CONTENDED
+        return BUSY_E;
+#else
+        WC_RELAX_LONG_LOOP(); /* not really long. */
+#endif
+    }
+
+    return new_wc_init_state.c.state;
+}
+
+int wc_local_InitDownDone(wc_init_state_t *s)
+{
+    union wc_init_state_bitfields cur_wc_init_state;
+    cur_wc_init_state.u = WOLFSSL_ATOMIC_LOAD(*s);
+    if (cur_wc_init_state.c.state != WC_INIT_STATE_CLEANING_UP)
+        return BAD_FUNC_ARG;
+    cur_wc_init_state.c.state = WC_INIT_STATE_UNINITED;
+    cur_wc_init_state.c.count = 0;
+    /* Note, because WC_INIT_STATE_CLEANING_UP functions as a mutex on the
+     * module state, we can use a plain _STORE() to release the module into its
+     * _UNINITED state.
+     */
+    WOLFSSL_ATOMIC_STORE(*s, cur_wc_init_state.u);
+    return 0;
+}
+
+static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
 int aarch64_use_sb = 0;
@@ -258,10 +418,39 @@ int aarch64_use_sb = 0;
 WOLFSSL_ABI
 int wolfCrypt_Init(void)
 {
-    int ret = 0;
-    int my_initRefCount = wolfSSL_Atomic_Int_FetchAdd(&initRefCount, 1);
-    if (my_initRefCount == 0) {
+    int ret;
+#if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && defined(__GNUC__)
+    /* If thread-local storage is available, use it to prevent deadlock on
+     * recursion.  We only do this when __GNUC__ -- this code is known to cause
+     * internal compiler faults on Watcom, and is probably problematic on other
+     * non-_GNUC__ targets besides.
+     */
+    static THREAD_LS_T int in_init = 0;
+    if (in_init)
+        return DEADLOCK_AVERTED_E;
+    #define WOLFCRYPT_INIT_RAISE_BAD_STATE() do {                \
+            in_init = 0;                                         \
+            WC_INIT_STATE_RAISE_BAD_STATE(wolfcrypt_init_state); \
+            return ret;                                          \
+    } while (0)
+#else
+    #define WOLFCRYPT_INIT_RAISE_BAD_STATE() do {                \
+            WC_INIT_STATE_RAISE_BAD_STATE(wolfcrypt_init_state); \
+            return ret;                                          \
+    } while (0)
+#endif
+
+    ret = wc_local_InitUp(&wolfcrypt_init_state);
+    if (ret < 0)
+        return ret;
+    else if (ret == WC_INIT_STATE_INITED)
+        return 0;
+    else {
         WOLFSSL_ENTER("wolfCrypt_Init");
+
+#if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && defined(__GNUC__)
+        in_init = 1;
+#endif
 
     #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
         aarch64_use_sb = IS_AARCH64_SB(cpuid_get_flags());
@@ -304,8 +493,8 @@ int wolfCrypt_Init(void)
         if( ret != TSIP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS TSIP Open failed");
             /* not return 1 since WOLFSSL_SUCCESS=1*/
-            ret = -1;/* FATAL ERROR */
-            return ret;
+            ret = WC_FAILURE;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -314,8 +503,8 @@ int wolfCrypt_Init(void)
     if( ret != 0 ) {
         WOLFSSL_MSG("Renesas RX64 HW Open failed");
         /* not return 1 since WOLFSSL_SUCCESS=1*/
-        ret = -1;/* FATAL ERROR */
-        return ret;
+        ret = WC_FAILURE;
+        WOLFCRYPT_INIT_RAISE_BAD_STATE();
     }
     #endif
 
@@ -324,8 +513,8 @@ int wolfCrypt_Init(void)
         if( ret != FSP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS SCE Open failed");
             /* not return 1 since WOLFSSL_SUCCESS=1*/
-            ret = -1;/* FATAL ERROR */
-            return ret;
+            ret = WC_FAILURE;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -333,7 +522,7 @@ int wolfCrypt_Init(void)
         ret = InitMemoryTracker();
         if (ret != 0) {
             WOLFSSL_MSG("InitMemoryTracker failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -341,7 +530,7 @@ int wolfCrypt_Init(void)
         ret = allocate_wolfcrypt_linuxkm_fpu_states();
         if (ret != 0) {
             WOLFSSL_MSG("allocate_wolfcrypt_linuxkm_fpu_states failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -350,7 +539,7 @@ int wolfCrypt_Init(void)
         ret = wolfSSL_CryptHwMutexInit();
         if (ret != 0) {
             WOLFSSL_MSG("Hw crypt mutex init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -360,7 +549,7 @@ int wolfCrypt_Init(void)
         ret = wc_DrbgState_MutexInit();
         if (ret != 0) {
             WOLFSSL_MSG("DRBG state mutex init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -368,7 +557,7 @@ int wolfCrypt_Init(void)
         ret = ksdk_port_init();
         if (ret != 0) {
             WOLFSSL_MSG("KSDK port init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -376,15 +565,16 @@ int wolfCrypt_Init(void)
     #if defined(MAX3266X_AES) && defined(WOLF_CRYPTO_CB)
         ret = wc_CryptoCb_RegisterDevice(WOLFSSL_MAX3266X_DEVID, wc_MxcCryptoCb,
                                             NULL);
-        if(ret != 0) {
-            return ret;
+        if (ret != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
     #if defined(MAX3266X_RTC)
         ret = wc_MXC_RTC_Init();
         if (ret != 0) {
             WOLFSSL_MSG("MXC RTC Init Failed");
-            return WC_HW_E;
+            ret = WC_HW_E;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -393,7 +583,7 @@ int wolfCrypt_Init(void)
         ret = atmel_init();
         if (ret != 0) {
             WOLFSSL_MSG("CryptoAuthLib init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
     #if defined(WOLFSSL_CRYPTOCELL)
@@ -401,28 +591,28 @@ int wolfCrypt_Init(void)
         ret = cc310_Init();
         if (ret != 0) {
             WOLFSSL_MSG("CRYPTOCELL init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
     #ifdef WOLFSSL_STSAFE
         ret = stsafe_interface_init();
         if (ret != 0) {
             WOLFSSL_MSG("STSAFE init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
     #if defined(WOLFSSL_TROPIC01)
         ret = Tropic01_Init();
         if (ret != 0) {
             WOLFSSL_MSG("Tropic01 init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
     #if defined(WOLFSSL_PSOC6_CRYPTO)
         ret = psoc6_crypto_port_init();
         if (ret != 0) {
             WOLFSSL_MSG("PSoC6 crypto engine init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -430,20 +620,24 @@ int wolfCrypt_Init(void)
         ret = maxq10xx_port_init();
         if (ret != 0) {
             WOLFSSL_MSG("MAXQ10xx port init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
     #ifdef WOLFSSL_SILABS_SE_ACCEL
         /* init handles if it is already initialized */
         ret = sl_se_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("SILABS_SE_ACCEL init failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
     #endif
 
     #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
         ret = wc_se050_init(NULL);
         if (ret != 0) {
             WOLFSSL_MSG("SE050 init failed");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -462,13 +656,14 @@ int wolfCrypt_Init(void)
     #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
         if ((ret = wc_LoggingInit()) != 0) {
             WOLFSSL_MSG("Error creating logging mutex");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
     #if defined(WOLFSSL_HAVE_PSA)
-        if ((ret = wc_psa_init()) != 0)
-            return ret;
+        if ((ret = wc_psa_init()) != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
     #endif
 
     #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
@@ -482,7 +677,7 @@ int wolfCrypt_Init(void)
         ret = Entropy_Init();
         if (ret != 0) {
             WOLFSSL_MSG("Error initializing entropy");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 
@@ -493,14 +688,14 @@ int wolfCrypt_Init(void)
     #ifdef ECC_CACHE_CURVE
         if ((ret = wc_ecc_curve_cache_init()) != 0) {
             WOLFSSL_MSG("Error creating curve cache");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
     #if defined(HAVE_OID_ENCODING) && (!defined(HAVE_FIPS) || \
             (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0)))
         if ((ret = wc_ecc_oid_cache_init()) != 0) {
             WOLFSSL_MSG("Error creating ECC oid cache");
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
 #endif
@@ -514,69 +709,67 @@ int wolfCrypt_Init(void)
         }
         if (ret != SSP_SUCCESS) {
             WOLFSSL_MSG("Error opening SCE");
-            return -1; /* FATAL_ERROR */
+            ret = WC_FAILURE;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 
 #if defined(WOLFSSL_DEVCRYPTO)
         if ((ret = wc_DevCryptoInit()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 
 #if defined(WOLFSSL_CAAM)
         if ((ret = wc_caamInit()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 
 #if defined(HAVE_ARIA)
         if ((ret = wc_AriaInit()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 
 #ifdef WOLFSSL_IMXRT_DCP
         if ((ret = wc_dcp_init()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 
 #ifdef WOLFSSL_NXP_CASPER
         if ((ret = wc_casper_init()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 #ifdef WOLFSSL_NXP_HASHCRYPT
         if ((ret = wc_hashcrypt_init()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 
 #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
         if ((ret = wolfSSL_InitHandle()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
         rpcmem_init();
 #endif
 
 #if defined(HAVE_LIBOQS)
         if ((ret = wolfSSL_liboqsInit()) != 0) {
-            return ret;
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
 #endif
 
-        /* increment to 2, to signify successful initialization: */
-        (void)wolfSSL_Atomic_Int_FetchAdd(&initRefCount, 1);
-    }
-    else {
-        if (my_initRefCount < 2) {
-            (void)wolfSSL_Atomic_Int_FetchSub(&initRefCount, 1);
-            ret = BUSY_E;
-        }
-    }
+#undef WOLFCRYPT_INIT_RAISE_BAD_STATE
 
-    return ret;
+#if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && defined(__GNUC__)
+        in_init = 0;
+#endif
+        return wc_local_InitUpDone(&wolfcrypt_init_state);
+    }
+    /* not reached */
 }
 
 #if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
@@ -597,10 +790,27 @@ long wolfCrypt_heap_peakBytes_checkpoint(void) {
 WOLFSSL_ABI
 int wolfCrypt_Cleanup(void)
 {
-    int ret = 0;
-    int my_initRefCount = wolfSSL_Atomic_Int_SubFetch(&initRefCount, 1);
+    int ret;
 
-    if (my_initRefCount == 1) {
+    ret = wc_local_InitDown(&wolfcrypt_init_state);
+    if (ret < 0) {
+        if (ret == WC_NO_ERR_TRACE(ALREADY_E))
+            WOLFSSL_MSG("wolfCrypt_Cleanup() called during or after prior final cleanup.");
+        else if (ret == WC_NO_ERR_TRACE(BAD_STATE_E))
+            WOLFSSL_MSG("wolfCrypt_Cleanup() failed: bad internal state.");
+#ifdef WC_INIT_ERROR_WHEN_CONTENDED
+        else if (ret == WC_NO_ERR_TRACE(BUSY_E))
+            WOLFSSL_MSG("wolfCrypt_Cleanup() failed with BUSY_E -- retry.");
+#endif
+        else
+            WOLFSSL_MSG("wolfCrypt_Cleanup() failed with unexpected error.");
+        return ret;
+    }
+    else if (ret == WC_INIT_STATE_INITED)
+        return 0;
+    else {
+        ret = 0;
+
         WOLFSSL_ENTER("wolfCrypt_Cleanup");
 
 #ifdef HAVE_ECC
@@ -617,7 +827,11 @@ int wolfCrypt_Cleanup(void)
 #endif /* HAVE_ECC */
 
     #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-        ret = wc_LoggingCleanup();
+        {
+            int ret2 = wc_LoggingCleanup();
+            if (ret == 0)
+                ret = ret2;
+        }
     #endif
 
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
@@ -651,7 +865,11 @@ int wolfCrypt_Cleanup(void)
         cc310_Free();
     #endif
     #ifdef WOLFSSL_SILABS_SE_ACCEL
-        ret = sl_se_deinit();
+        {
+            int ret2 = sl_se_deinit();
+            if (ret == 0)
+                ret = ret2;
+        }
     #endif
     #if defined(WOLFSSL_TROPIC01)
         Tropic01_Deinit();
@@ -697,19 +915,20 @@ int wolfCrypt_Cleanup(void)
         wc_MemZero_Free();
     #endif
 
-        (void)wolfSSL_Atomic_Int_SubFetch(&initRefCount, 1);
-
 #if defined(HAVE_LIBOQS)
         wolfSSL_liboqsClose();
 #endif
-    }
-    else if (my_initRefCount < 0) {
-        (void)wolfSSL_Atomic_Int_AddFetch(&initRefCount, 1);
-        WOLFSSL_MSG("wolfCrypt_Cleanup() called with initRefCount <= 0.");
-        ret = ALREADY_E;
+
+        {
+            int ret2 = wc_local_InitDownDone(&wolfcrypt_init_state);
+            if (ret == 0)
+                ret = ret2;
+        }
+
+        return ret;
     }
 
-    return ret;
+    /* not reached */
 }
 
 #ifndef NO_FILESYSTEM
@@ -1421,71 +1640,77 @@ char* wc_strdup_ex(const char *src, int memType) {
  * build in FreeBSD kernel, but are not commonly used in FreeBSD kernel and
  * might not be safe or portable.
  * */
-void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, WC_ATOMIC_INT_ARG i)
 {
     *c = i;
 }
 
-void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, unsigned int i)
+void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG i)
 {
     *c = i;
 }
 
-int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return atomic_fetchadd_int(c, i);
 }
 
-int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return atomic_fetchadd_int(c, -i);
 }
 
-int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     int val = atomic_fetchadd_int(c, i);
     return val + i;
 }
 
-int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     int val = atomic_fetchadd_int(c, -i);
     return val - i;
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return atomic_fetchadd_int(c, i);
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return atomic_fetchadd_int(c, -i);
 }
 
-unsigned int wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
-    unsigned int val = atomic_fetchadd_int(c, i);
+    WC_ATOMIC_UINT_ARG val = atomic_fetchadd_int(c, i);
     return val + i;
 }
 
-unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     unsigned int val = atomic_fetchadd_int(c, -i);
     return val - i;
 }
 
-int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG new_i)
 {
     return atomic_swap_int(c, new_i);
 }
 
-int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
-                                       int new_i)
+int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c,
+                                       WC_ATOMIC_INT_ARG *expected_i,
+                                       WC_ATOMIC_INT_ARG new_i)
 {
     u_int exp = (u_int) *expected_i;
     int ret = atomic_fcmpset_int(c, &exp, new_i);
@@ -1494,7 +1719,8 @@ int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
 }
 
 int wolfSSL_Atomic_Uint_CompareExchange(
-    wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
+    wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG *expected_i,
+    WC_ATOMIC_UINT_ARG new_i)
 {
     u_int exp = (u_int)*expected_i;
     int ret = atomic_fcmpset_int(c, &exp, new_i);
@@ -1515,45 +1741,53 @@ int wolfSSL_Atomic_Ptr_CompareExchange(
         !defined(__cplusplus)
 
 /* Default C Implementation */
-void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, WC_ATOMIC_INT_ARG i)
 {
     atomic_init(c, i);
 }
 
-void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, unsigned int i)
+void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG i)
 {
     atomic_init(c, i);
 }
 
-int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return atomic_fetch_add_explicit(c, i, memory_order_relaxed);
 }
 
-int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
 }
 
-int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
-    int ret = atomic_fetch_add_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_INT_ARG ret =
+        atomic_fetch_add_explicit(c, i, memory_order_relaxed);
     return ret + i;
 }
 
-int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
-    int ret = atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_INT_ARG ret =
+        atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
     return ret - i;
 }
 
-int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG new_i)
 {
     return atomic_exchange_explicit(c, new_i, memory_order_seq_cst);
 }
 
 int wolfSSL_Atomic_Int_CompareExchange(
-    wolfSSL_Atomic_Int* c, int *expected_i, int new_i)
+    wolfSSL_Atomic_Int* c, WC_ATOMIC_INT_ARG *expected_i,
+    WC_ATOMIC_INT_ARG new_i)
 {
     /* For the success path, use full synchronization with barriers --
      * "Sequentially-consistent ordering" -- so that all threads see the same
@@ -1565,34 +1799,37 @@ int wolfSSL_Atomic_Int_CompareExchange(
         c, expected_i, new_i, memory_order_seq_cst, memory_order_acquire);
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return atomic_fetch_add_explicit(c, i, memory_order_relaxed);
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
 }
 
-unsigned int wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
-    unsigned int ret = atomic_fetch_add_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_UINT_ARG ret =
+        atomic_fetch_add_explicit(c, i, memory_order_relaxed);
     return ret + i;
 }
 
-unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
-    unsigned int ret = atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
+    WC_ATOMIC_UINT_ARG ret =
+        atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
     return ret - i;
 }
 
 int wolfSSL_Atomic_Uint_CompareExchange(
-    wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
+    wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG *expected_i,
+    WC_ATOMIC_UINT_ARG new_i)
 {
     /* For the success path, use full synchronization with barriers --
      * "Sequentially-consistent ordering" -- so that all threads see the same
@@ -1627,43 +1864,49 @@ int wolfSSL_Atomic_Ptr_CompareExchange(
 #elif defined(__GNUC__) && defined(__ATOMIC_RELAXED)
 /* direct calls using gcc-style compiler built-ins */
 
-void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, WC_ATOMIC_INT_ARG i)
 {
     *c = i;
 }
 
-void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, unsigned int i)
+void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG i)
 {
     *c = i;
 }
 
-int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return __atomic_fetch_add(c, i, __ATOMIC_RELAXED);
 }
 
-int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return __atomic_fetch_sub(c, i, __ATOMIC_RELAXED);
 }
 
-int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return __atomic_add_fetch(c, i, __ATOMIC_RELAXED);
 }
 
-int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return __atomic_sub_fetch(c, i, __ATOMIC_RELAXED);
 }
 
-int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG new_i)
 {
     return __atomic_exchange_n(c, new_i, __ATOMIC_SEQ_CST);
 }
 
-int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
-                                       int new_i)
+int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c,
+                                       WC_ATOMIC_INT_ARG *expected_i,
+                                       WC_ATOMIC_INT_ARG new_i)
 {
     /* For the success path, use full synchronization with barriers --
      * "Sequentially-consistent ordering" -- so that all threads see the same
@@ -1675,32 +1918,33 @@ int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
                                        __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return __atomic_fetch_add(c, i, __ATOMIC_RELAXED);
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return __atomic_fetch_sub(c, i, __ATOMIC_RELAXED);
 }
 
-unsigned int wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return __atomic_add_fetch(c, i, __ATOMIC_RELAXED);
 }
 
-unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
     return __atomic_sub_fetch(c, i, __ATOMIC_RELAXED);
 }
 
 int wolfSSL_Atomic_Uint_CompareExchange(
-    wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
+    wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG *expected_i,
+    WC_ATOMIC_UINT_ARG new_i)
 {
     /* For the success path, use full synchronization with barriers --
      * "Sequentially-consistent ordering" -- so that all threads see the same
@@ -1722,46 +1966,54 @@ int wolfSSL_Atomic_Ptr_CompareExchange(
 
 #elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
 
-void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, WC_ATOMIC_INT_ARG i)
 {
     *c = i;
 }
 
-void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, unsigned int i)
+void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG i)
 {
     *c = i;
 }
 
-int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return (int)_InterlockedExchangeAdd(c, (long)i);
 }
 
-int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
     return (int)_InterlockedExchangeAdd(c, (long)-i);
 }
 
-int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
-    int ret = (int)_InterlockedExchangeAdd(c, (long)i);
+    WC_ATOMIC_INT_ARG ret =
+        (WC_ATOMIC_INT_ARG)_InterlockedExchangeAdd(c, (long)i);
     return ret + i;
 }
 
-int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG i)
 {
-    int ret = (int)_InterlockedExchangeAdd(c, (long)-i);
+    WC_ATOMIC_INT_ARG ret =
+        (WC_ATOMIC_INT_ARG)_InterlockedExchangeAdd(c, (long)-i);
     return ret - i;
 }
 
-int wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c, int new_i)
+WC_ATOMIC_INT_ARG wolfSSL_Atomic_Int_Exchange(wolfSSL_Atomic_Int* c,
+                                              WC_ATOMIC_INT_ARG new_i)
 {
     long actual_i = InterlockedExchange(c, (long)new_i);
-    return (int)actual_i;
+    return (WC_ATOMIC_INT_ARG)actual_i;
 }
 
-int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
-                                       int new_i)
+int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c,
+                                       WC_ATOMIC_INT_ARG *expected_i,
+                                       WC_ATOMIC_INT_ARG new_i)
 {
     long actual_i = InterlockedCompareExchange(c, (long)new_i,
                                                (long)*expected_i);
@@ -1769,43 +2021,44 @@ int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
         return 1;
     }
     else {
-        *expected_i = (int)actual_i;
+        *expected_i = (WC_ATOMIC_INT_ARG)actual_i;
         return 0;
     }
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
-    return (unsigned int)_InterlockedExchangeAdd((wolfSSL_Atomic_Int *)c,
-                                                 (long)i);
+    return (WC_ATOMIC_UINT_ARG)_InterlockedExchangeAdd((wolfSSL_Atomic_Int *)c,
+                                                       (long)i);
 }
 
-unsigned int wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
-    return (unsigned int)_InterlockedExchangeAdd((wolfSSL_Atomic_Int *)c,
-                                                 -(long)i);
+    return (WC_ATOMIC_UINT_ARG)_InterlockedExchangeAdd((wolfSSL_Atomic_Int *)c,
+                                                       -(long)i);
 }
 
-unsigned int wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
-    unsigned int ret = (unsigned int)_InterlockedExchangeAdd
+    WC_ATOMIC_UINT_ARG ret = (WC_ATOMIC_UINT_ARG)_InterlockedExchangeAdd
         ((wolfSSL_Atomic_Int *)c, (long)i);
     return ret + i;
 }
 
-unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
-                                          unsigned int i)
+WC_ATOMIC_UINT_ARG wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
+                                                WC_ATOMIC_UINT_ARG i)
 {
-    unsigned int ret = (unsigned int)_InterlockedExchangeAdd
+    WC_ATOMIC_UINT_ARG ret = (WC_ATOMIC_UINT_ARG)_InterlockedExchangeAdd
         ((wolfSSL_Atomic_Int *)c, -(long)i);
     return ret - i;
 }
 
 int wolfSSL_Atomic_Uint_CompareExchange(
-    wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
+    wolfSSL_Atomic_Uint* c, WC_ATOMIC_UINT_ARG *expected_i,
+    WC_ATOMIC_UINT_ARG new_i)
 {
     long actual_i = InterlockedCompareExchange(
         (wolfSSL_Atomic_Int *)c, (long)new_i, (long)*expected_i);
@@ -1813,7 +2066,7 @@ int wolfSSL_Atomic_Uint_CompareExchange(
         return 1;
     }
     else {
-        *expected_i = (unsigned int)actual_i;
+        *expected_i = (WC_ATOMIC_UINT_ARG)actual_i;
         return 0;
     }
 }
@@ -5178,7 +5431,8 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 #endif /* not SINGLE_THREADED */
 
 #if (defined(__unix__) || defined(__APPLE__)) && \
-    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR)
+    !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_ZEPHYR) && \
+    !defined(WOLFSSL_SGX)
 
 #include <fcntl.h>
 #include <errno.h>
@@ -5247,7 +5501,8 @@ int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
     return fd;
 }
 
-#endif /* (__unix__ || __APPLE__) && !WOLFSSL_LINUXKM && !WOLFSSL_ZEPHYR */
+#endif /* (__unix__ || __APPLE__) && !WOLFSSL_KERNEL_MODE && !WOLFSSL_ZEPHYR &&
+        * !WOLFSSL_SGX */
 
 #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
     defined(WC_SYM_RELOC_TABLES)

@@ -318,6 +318,23 @@ static int RX64_HashGet(wolfssl_RX64_HW_Hash* hash, byte* out)
         return BAD_FUNC_ARG;
     }
 
+    /* RX64 HW SHA rejects empty input; return the documented empty-message
+     * digest instead. This matches the special case in RX64_HashFinal so
+     * callers like wc_Sha256GetHash on a freshly-initialised state succeed. */
+    if ((hash->msg == NULL) && (hash->len == 0) && (hash->used == 0))
+    {
+        if (hash->sha_type == RX64_SHA1) {
+            XMEMCPY(out, DefaultShaHashData, sizeof(DefaultShaHashData));
+        }
+        else if (hash->sha_type == RX64_SHA224) {
+            XMEMCPY(out, DefaultSha224HashData, sizeof(DefaultSha224HashData));
+        }
+        else if (hash->sha_type == RX64_SHA256) {
+            XMEMCPY(out, DefaultSha256HashData, sizeof(DefaultSha256HashData));
+        }
+        return 0;
+    }
+
     ret = RX64_ShaCalc(hash->msg, hash->len, out, hash->sha_type);
     if (ret != R_PROCESS_COMPLETE) {
         return ret;

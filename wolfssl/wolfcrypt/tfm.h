@@ -371,6 +371,10 @@ while (0)
 /* Type to cast to when using size macros. */
 #define MP_INT_SIZE     mp_int
 
+/* tfm.h allocates full-sized mp_int buffers, so DECL_MP_INT_SIZE_DYN cannot
+ * be undersized for any 'bits' value -- no check is needed. */
+#define MP_BITS_OVER_MAX(bits, max) 0
+
 
 #ifdef HAVE_WOLF_BIGINT
     /* raw big integer */

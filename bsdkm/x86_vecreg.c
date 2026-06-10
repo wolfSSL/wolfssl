@@ -29,13 +29,13 @@
 #include <machine/pcb.h>
 
 struct wolfkmod_fpu_state_t {
-    volatile lwpid_t td_tid;
-    volatile u_int   nest;
+    volatile lwpid_t td_tid; /* the thread currently using fpu. */
+    volatile u_int   nest;   /* the fpu nesting level. */
 };
 
 typedef struct wolfkmod_fpu_state_t wolfkmod_fpu_state_t;
 
-/* fpu_states array tracks thread id and nesting level of save/restore
+/* The fpu_states array tracks thread id and nesting level of save/restore
  * and push/pop vector registers macro calls. It is indexed by raw cpu id,
  * and only accessed after the thread calls fpu_kern_enter(), and before
  * calling fpu_kern_leave(), and only indexed by the thread's PCPU_GET(cpuid).
@@ -139,6 +139,11 @@ int wolfkmod_vecreg_save(int flags_unused)
     wolfkmod_print_curthread("wolfkmod_vecreg_save");
     #endif
 
+    if (fpu_states == NULL) {
+        printf("error: wolfkmod_vecreg_save: fpu_states null\n");
+        return (EINVAL);
+    }
+
     if (is_fpu_kern_thread(0)) {
         /* kernel fpu threads are special, do nothing. They own a
          * persistent, dedicated fpu context. */
@@ -188,6 +193,11 @@ void wolfkmod_vecreg_restore(void)
     #if defined(WOLFSSL_BSDKM_FPU_DEBUG)
     wolfkmod_print_curthread("wolfkmod_vecreg_restore");
     #endif
+
+    if (fpu_states == NULL) {
+        printf("error: wolfkmod_vecreg_restore: fpu_states null\n");
+        return;
+    }
 
     if (is_fpu_kern_thread(0)) {
         /* kernel fpu threads are special, do nothing. They own a

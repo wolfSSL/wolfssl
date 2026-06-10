@@ -32,6 +32,7 @@
 #define WOLF_CRYPT_RNG_BANK_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/random.h>
 
 #ifdef WC_RNG_BANK_SUPPORT
 

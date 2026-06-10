@@ -64,6 +64,7 @@ int wc_DevCryptoEccKeyGen(int curveId, int enc, byte* pri, word32 priSz,
     }
 
     if (ret == 0) {
+        XMEMSET(&kop, 0, sizeof(kop));
         kop.crk_op = CRK_ECC_KEYGEN;
         kop.ses    = ctx.sess.ses;
         kop.crk_flags = ecdsel;

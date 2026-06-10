@@ -945,10 +945,20 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
                     return NULL;
                 }
-                a->length = (int)x509->pathLength;
+                /* RFC 5280 4.2.1.9: only populate pathLen when the
+                 * pathLenConstraint field was actually present. When it is
+                 * absent no limit is imposed, and pathlen must remain NULL so
+                 * it is distinguishable from a pathLenConstraint of 0. */
+                if (x509->basicConstPlSet) {
+                    a->length = (int)x509->pathLength;
 
-                /* Save ASN1_INTEGER in x509 extension */
-                ext->obj->pathlen = a;
+                    /* Save ASN1_INTEGER in x509 extension */
+                    ext->obj->pathlen = a;
+                }
+                else {
+                    wolfSSL_ASN1_INTEGER_free(a);
+                    ext->obj->pathlen = NULL;
+                }
 
                 ext->obj->ca = x509->isCa;
                 break;
@@ -1234,6 +1244,136 @@ static int asn1_string_copy_to_buffer(WOLFSSL_ASN1_STRING* str, byte** buf,
     return WOLFSSL_SUCCESS;
 }
 
+/* Handle WC_NID_subject_alt_name for wolfSSL_X509_add_ext: iterate the
+ * GENERAL_NAME stack on the extension and add each entry to x509->altNames.
+ * Only types whose union member is WOLFSSL_ASN1_STRING* (DNS/RFC822/URI/IP/
+ * IA5) are read via gn->d.ia5; ASN_OTHER_TYPE is handled via SetOthername.
+ * Other types (DIRNAME/RID/X400/EDIPARTY) are rejected to avoid the
+ * type-confused union access that would XMEMCPY from a wild pointer in
+ * wolfSSL_X509_add_altname_ex. */
+static int wolfssl_x509_add_subj_alt_name_ext(WOLFSSL_X509 *x509,
+    WOLFSSL_X509_EXTENSION *ext)
+{
+    WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
+    while (gns) {
+        WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
+        if ((gn != NULL) && (gn->type == ASN_OTHER_TYPE)) {
+            char *buf = NULL;
+            int ret = 0;
+            word32 len = 0;
+
+            len = SetOthername(gn->d.otherName, NULL);
+            if (len == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+                return WOLFSSL_FAILURE;
+            }
+
+            buf = (char*)XMALLOC(len, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            if (buf == NULL) {
+                WOLFSSL_MSG("Couldn't allocate memory for othername");
+                return WOLFSSL_FAILURE;
+            }
+
+            /* SetOthername() cannot fail; already passed above. */
+            SetOthername(gn->d.otherName, (byte*)buf);
+
+            ret = wolfSSL_X509_add_altname_ex(x509, buf, len,
+                                              ASN_OTHER_TYPE);
+            XFREE(buf, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+                 WOLFSSL_MSG("wolfSSL_X509_add_altname_ex() failed");
+                 return WOLFSSL_FAILURE;
+            }
+        }
+        /* Only types whose union member are WOLFSSL_ASN1_STRING. */
+        else if (gn == NULL) {
+            WOLFSSL_MSG("Subject alternative name missing");
+            return WOLFSSL_FAILURE;
+        }
+        else {
+            if ((gn->type != ASN_RFC822_TYPE && gn->type != ASN_DNS_TYPE &&
+                 gn->type != ASN_URI_TYPE && gn->type != ASN_IP_TYPE &&
+                 gn->type != WOLFSSL_GEN_IA5) || (gn->d.ia5 == NULL)) {
+                WOLFSSL_MSG("Subject alternative name unsupported "
+                            "GeneralName type or missing name");
+                return WOLFSSL_FAILURE;
+            }
+            if (wolfSSL_X509_add_altname_ex(x509, gn->d.ia5->data,
+                         gn->d.ia5->length, gn->type) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Failed to add subject alternative name");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        gns = gns->next;
+    }
+    x509->subjAltNameSet = 1;
+    x509->subjAltNameCrit = (byte)ext->crit;
+    return WOLFSSL_SUCCESS;
+}
+
+#ifdef WOLFSSL_CUSTOM_OID
+/* Handle the default (unrecognized NID) case of wolfSSL_X509_add_ext when
+ * custom-OID extensions are enabled: copy the extension OID text and value
+ * into the next free slot in x509->custom_exts, taking ownership of the
+ * allocations on success. */
+static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
+    WOLFSSL_X509_EXTENSION *ext)
+{
+    char *oid = NULL;
+    byte *val = NULL;
+    int err = 0;
+
+    if ((ext->obj == NULL) || (ext->value.length == 0) ||
+        (ext->value.data == NULL)) {
+        WOLFSSL_MSG("Extension has insufficient information.");
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((x509->customExtCount < 0) ||
+        (x509->customExtCount >= NUM_CUSTOM_EXT)) {
+        WOLFSSL_MSG("Bad value for customExtCount.");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* This is a viable custom extension. */
+    oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
+        DYNAMIC_TYPE_X509_EXT);
+    val = (byte*)XMALLOC(ext->value.length, x509->heap,
+        DYNAMIC_TYPE_X509_EXT);
+    if ((oid == NULL) || (val == NULL)) {
+        WOLFSSL_MSG("Memory allocation failure.\n");
+        err = 1;
+    }
+
+    if (err == 0) {
+        XMEMCPY(val, ext->value.data, ext->value.length);
+        if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
+            err = 1;
+        }
+    }
+
+    if (err == 1) {
+        XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* ext->crit is WOLFSSL_ASN1_BOOLEAN */
+    if (ext->crit != 0 && ext->crit != -1) {
+        XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* x509->custom_exts now owns the buffers and they must be managed. */
+    x509->custom_exts[x509->customExtCount].oid = oid;
+    x509->custom_exts[x509->customExtCount].crit = (byte)ext->crit;
+    x509->custom_exts[x509->customExtCount].val = val;
+    x509->custom_exts[x509->customExtCount].valSz = ext->value.length;
+    x509->customExtCount++;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_CUSTOM_OID */
+
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
     int loc)
 {
@@ -1272,49 +1412,10 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
         x509->subjKeyIdCrit = (byte)ext->crit;
         break;
     case WC_NID_subject_alt_name:
-    {
-        WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
-        while (gns) {
-            WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
-            if ((gn != NULL) && (gn->type == ASN_OTHER_TYPE)) {
-                char *buf = NULL;
-                int ret = 0;
-                word32 len = 0;
-
-                len = SetOthername(gn->d.otherName, NULL);
-                if (len == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
-                    return WOLFSSL_FAILURE;
-                }
-
-                buf = (char*)XMALLOC(len, x509->heap, DYNAMIC_TYPE_X509_EXT);
-                if (buf == NULL) {
-                    WOLFSSL_MSG("Couldn't allocate memory for othername");
-                    return WOLFSSL_FAILURE;
-                }
-
-                /* SetOthername() cannot fail; already passed above. */
-                SetOthername(gn->d.otherName, (byte*)buf);
-
-                ret = wolfSSL_X509_add_altname_ex(x509, buf, len,
-                                                  ASN_OTHER_TYPE);
-                XFREE(buf, x509->heap, DYNAMIC_TYPE_X509_EXT);
-                if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
-                     WOLFSSL_MSG("wolfSSL_X509_add_altname_ex() failed");
-                     return WOLFSSL_FAILURE;
-                }
-            }
-            else if (!gn || !gn->d.ia5 ||
-                wolfSSL_X509_add_altname_ex(x509, gn->d.ia5->data,
-                    gn->d.ia5->length, gn->type) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("Subject alternative name missing extension");
-                return WOLFSSL_FAILURE;
-            }
-            gns = gns->next;
+        if (wolfssl_x509_add_subj_alt_name_ext(x509, ext) != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
         }
-        x509->subjAltNameSet = 1;
-        x509->subjAltNameCrit = (byte)ext->crit;
         break;
-    }
     case WC_NID_key_usage:
         if (ext && ext->value.data) {
             if (ext->value.length == sizeof(word16)) {
@@ -1376,60 +1477,10 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
         break;
     default:
 #ifdef WOLFSSL_CUSTOM_OID
-    {
-        char *oid = NULL;
-        byte *val = NULL;
-        int err = 0;
-
-        if ((ext->obj == NULL) || (ext->value.length == 0)) {
-            WOLFSSL_MSG("Extension has insufficient information.");
+        if (wolfssl_x509_add_custom_ext(x509, ext) != WOLFSSL_SUCCESS) {
             return WOLFSSL_FAILURE;
         }
-
-        if ((x509->customExtCount < 0) ||
-            (x509->customExtCount >= NUM_CUSTOM_EXT)) {
-            WOLFSSL_MSG("Bad value for customExtCount.");
-            return WOLFSSL_FAILURE;
-        }
-
-        /* This is a viable custom extension. */
-        oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
-            DYNAMIC_TYPE_X509_EXT);
-        val = (byte*)XMALLOC(ext->value.length, x509->heap,
-            DYNAMIC_TYPE_X509_EXT);
-        if ((oid == NULL) || (val == NULL)) {
-            WOLFSSL_MSG("Memory allocation failure.\n");
-            err = 1;
-        }
-
-        if (err == 0) {
-            XMEMCPY(val, ext->value.data, ext->value.length);
-            if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
-                err = 1;
-            }
-        }
-
-        if (err == 1) {
-            XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            return WOLFSSL_FAILURE;
-        }
-
-        /* ext->crit is WOLFSSL_ASN1_BOOLEAN */
-        if (ext->crit != 0 && ext->crit != -1) {
-            XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            return WOLFSSL_FAILURE;
-        }
-
-        /* x509->custom_exts now owns the buffers and they must be managed. */
-        x509->custom_exts[x509->customExtCount].oid = oid;
-        x509->custom_exts[x509->customExtCount].crit = (byte)ext->crit;
-        x509->custom_exts[x509->customExtCount].val = val;
-        x509->custom_exts[x509->customExtCount].valSz = ext->value.length;
-        x509->customExtCount++;
         break;
-    }
 #else
         WOLFSSL_MSG("Unsupported extension to add");
         return WOLFSSL_FAILURE;
@@ -1529,9 +1580,9 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                         WOLFSSL_MSG("Memory error");
                         return rc;
                     }
-                    valLen = XSNPRINTF(val, (size_t)len, "%*s%s", indent, "",
-                            str->strData);
-                    if ((valLen < 0) || (valLen >= len)
+                    valLen = XSNPRINTF(val, (size_t)len + indent,
+                            "%*s%.*s", indent, "", str->length, str->data);
+                    if ((valLen < 0) || (valLen >= len + indent)
                             || ((tmpLen + valLen) >= tmpSz)) {
                         XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return rc;
@@ -1549,6 +1600,10 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
         {
             char* asn1str;
             asn1str = wolfSSL_i2s_ASN1_STRING(NULL, str);
+            if (asn1str == NULL) {
+                WOLFSSL_MSG("wolfSSL_i2s_ASN1_STRING returned NULL");
+                return rc;
+            }
             tmpLen = XSNPRINTF(tmp, tmpSz, "%*s%s", indent, "", asn1str);
             XFREE(asn1str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (tmpLen >= tmpSz)
@@ -1961,7 +2016,13 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             }
             /* Copy pathlen and CA into BASIC_CONSTRAINTS from object */
             bc->ca = object->ca;
-            if (object->pathlen != NULL && object->pathlen->length > 0) {
+            /* RFC 5280 4.2.1.9:
+             *   "A pathLenConstraint of zero indicates that no non-self-issued
+             *    intermediate CA certificates may follow in a valid
+             *    certification path."
+             * Check for length of 0 or greater.
+             */
+            if ((object->pathlen != NULL) && (object->pathlen->length >= 0)) {
                 bc->pathlen = wolfSSL_ASN1_INTEGER_dup(object->pathlen);
                 if (bc->pathlen == NULL) {
                     WOLFSSL_MSG("Failed to duplicate ASN1_INTEGER");
@@ -2433,27 +2494,31 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
     switch (nid) {
         case BASIC_CA_OID:
             if (x509->basicConstSet) {
-                WOLFSSL_ASN1_INTEGER* a;
-
                 bc = wolfSSL_BASIC_CONSTRAINTS_new();
                 if (!bc) {
                     WOLFSSL_MSG("wolfSSL_BASIC_CONSTRAINTS_new error");
                     return NULL;
                 }
 
-                a = wolfSSL_ASN1_INTEGER_new();
-                if (!a) {
-                    WOLFSSL_MSG("wolfSSL_ASN1_INTEGER_new error");
-                    wolfSSL_BASIC_CONSTRAINTS_free(bc);
-                    return NULL;
-                }
-                a->length = (int)x509->pathLength;
-
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
         defined(WOLFSSL_APACHE_HTTPD)
                 bc->ca = x509->isCa;
 #endif
-                bc->pathlen = a;
+                /* RFC 5280 4.2.1.9: only populate pathLen when the
+                 * pathLenConstraint field was present. When absent, no limit
+                 * is imposed and pathlen must remain NULL so it is
+                 * distinguishable from a pathLenConstraint of 0. */
+                if (x509->basicConstPlSet) {
+                    WOLFSSL_ASN1_INTEGER* a = wolfSSL_ASN1_INTEGER_new();
+                    if (a == NULL) {
+                        WOLFSSL_MSG("wolfSSL_ASN1_INTEGER_new error");
+                        wolfSSL_BASIC_CONSTRAINTS_free(bc);
+                        return NULL;
+                    }
+                    a->length = (int)x509->pathLength;
+                    bc->pathlen = a;
+                }
+
                 if (c != NULL) {
                     *c = x509->basicConstCrit;
                 }
@@ -2648,14 +2713,15 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     WOLFSSL_MSG("wolfSSL_sk_GENERAL_NAME_push error");
                     goto err;
                 }
+                /* gn now owned by stack. */
+                gn = NULL;
 
                 /* push DIST_POINT onto stack */
                 if (wolfSSL_sk_DIST_POINT_push(sk, dp) <= 0) {
                     WOLFSSL_MSG("Error pushing DIST_POINT onto stack");
                     goto err;
                 }
-
-                gn = NULL;
+                /* dp now owned by stack. */
                 dp = NULL;
 
             }
@@ -4147,7 +4213,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
 
     WOLFSSL_ENTER("wolfSSL_X509_d2i");
 
-    if (in != NULL && len != 0
+    if (in != NULL && len > 0
     #ifndef WOLFSSL_CERT_REQ
             && req == 0
     #else
@@ -4456,6 +4522,10 @@ const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
 
     if (x509 == NULL || x509->derCert == NULL || outSz == NULL)
         return NULL;
+
+    if (x509->derCert->length > (word32)INT_MAX) {
+        return NULL;
+    }
 
     *outSz = (int)x509->derCert->length;
     return x509->derCert->buffer;
@@ -5871,8 +5941,7 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
     case GEN_EMAIL:
         ret = wolfSSL_BIO_printf(out, "email:");
         ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-        if (ret == WOLFSSL_SUCCESS)
-        {
+        if (ret == WOLFSSL_SUCCESS) {
             ret = wolfSSL_ASN1_STRING_print(out, gen->d.rfc822Name);
         }
         break;
@@ -5881,8 +5950,7 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
         ret = wolfSSL_BIO_printf(out, "DNS:");
         ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         if (ret == WOLFSSL_SUCCESS) {
-            ret = wolfSSL_BIO_printf(out, "%s", gen->d.dNSName->strData);
-            ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+            ret = wolfSSL_ASN1_STRING_print(out, gen->d.dNSName);
         }
         break;
 
@@ -5893,6 +5961,7 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
 
     case GEN_DIRNAME:
         ret = wolfSSL_BIO_printf(out, "DirName:");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         if (ret == WOLFSSL_SUCCESS) {
             ret = wolfSSL_X509_NAME_print_ex(out, gen->d.directoryName, 0,
                                                          XN_FLAG_ONELINE);
@@ -6049,8 +6118,9 @@ WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file)
 
 #endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
-    defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_WPAS_SMALL) || defined(KEEP_PEER_CERT) || \
+    defined(SESSION_CERTS)
 
 #ifndef NO_FILESYSTEM
 WOLFSSL_ABI
@@ -6405,10 +6475,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             else if (x509->pubKeyOID == DSAk) {
                 key->type = WC_EVP_PKEY_DSA;
             }
-        #ifdef HAVE_DILITHIUM
-            else if (x509->pubKeyOID == ML_DSA_LEVEL2k ||
-                     x509->pubKeyOID == ML_DSA_LEVEL3k ||
-                     x509->pubKeyOID == ML_DSA_LEVEL5k) {
+        #ifdef WOLFSSL_HAVE_MLDSA
+            else if (x509->pubKeyOID == ML_DSA_44k ||
+                     x509->pubKeyOID == ML_DSA_65k ||
+                     x509->pubKeyOID == ML_DSA_87k) {
                 key->type = WC_EVP_PKEY_DILITHIUM;
             }
         #endif
@@ -7094,7 +7164,8 @@ static int X509PrintExtendedKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         EXTKEYUSE_EMAILPROT,
         EXTKEYUSE_CODESIGN,
         EXTKEYUSE_CLIENT_AUTH,
-        EXTKEYUSE_SERVER_AUTH
+        EXTKEYUSE_SERVER_AUTH,
+        EXTKEYUSE_ANY
     };
     const char* usageStrs[] = {
         "OCSP Signing",
@@ -7102,7 +7173,8 @@ static int X509PrintExtendedKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         "E-mail Protection",
         "Code Signing",
         "TLS Web Client Authentication",
-        "TLS Web Server Authentication"
+        "TLS Web Server Authentication",
+        "Any Extended Key Usage"
     };
 
     if (bio == NULL || x509 == NULL) {
@@ -7483,12 +7555,22 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                     ret = WOLFSSL_FAILURE;
                     break;
                 }
-                if ((scratchLen = XSNPRINTF(
-                         scratch, scratchSz,
-                         "%*sCA:%s\n",
-                         indent + 8, "", (x509->isCa)? "TRUE": "FALSE"))
-                    >= scratchSz)
-                {
+                /* Match OpenSSL output: print "CA:TRUE"/"CA:FALSE" and append
+                 * ", pathlen:N" only when a pathLenConstraint is present
+                 * (RFC 5280 4.2.1.9). An absent constraint imposes no limit
+                 * and must not be shown as pathlen:0. */
+                if (x509->basicConstPlSet) {
+                    scratchLen = XSNPRINTF(scratch, scratchSz,
+                        "%*sCA:%s, pathlen:%u\n",
+                        indent + 8, "", (x509->isCa) ? "TRUE" : "FALSE",
+                        (unsigned int)x509->pathLength);
+                }
+                else {
+                    scratchLen = XSNPRINTF(scratch, scratchSz,
+                        "%*sCA:%s\n",
+                        indent + 8, "", (x509->isCa) ? "TRUE" : "FALSE");
+                }
+                if (scratchLen >= scratchSz) {
                     ret = WOLFSSL_FAILURE;
                     break;
                 }
@@ -8758,7 +8840,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
     }
 
     der = wolfSSL_X509_get_der(x509, &derSz);
-    if (der == NULL) {
+    if (der == NULL || derSz <= 0) {
         WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
         return MEMORY_E;
     }
@@ -11291,7 +11373,7 @@ WOLFSSL_X509_ALGOR* wolfSSL_d2i_X509_ALGOR(WOLFSSL_X509_ALGOR** out,
 
     WOLFSSL_ENTER("wolfSSL_d2i_X509_ALGOR");
 
-    if (src == NULL || *src == NULL || len == 0)
+    if (src == NULL || *src == NULL || len <= 0)
         return NULL;
 
     if (GetAlgoId(*src, &idx, &oid, oidIgnoreType, (word32)len) != 0)
@@ -12258,8 +12340,8 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     #if defined(HAVE_FALCON)
         falcon_key* falcon = NULL;
     #endif
-    #if defined(HAVE_DILITHIUM)
-        dilithium_key* dilithium = NULL;
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        wc_MlDsaKey* mldsa = NULL;
     #endif
     #if defined(WOLFSSL_HAVE_SLHDSA)
         SlhDsaKey* slhdsa = NULL;
@@ -12429,68 +12511,68 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             key = (void*)falcon;
         }
     #endif
-    #if defined(HAVE_DILITHIUM)
-        if ((x509->pubKeyOID == ML_DSA_LEVEL2k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL3k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL5k)
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        if ((x509->pubKeyOID == ML_DSA_44k) ||
+            (x509->pubKeyOID == ML_DSA_65k) ||
+            (x509->pubKeyOID == ML_DSA_87k)
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
          || (x509->pubKeyOID == DILITHIUM_LEVEL2k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL3k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL5k)
-            #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+            #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
             ) {
-            dilithium = (dilithium_key*)XMALLOC(sizeof(dilithium_key), NULL,
-                                          DYNAMIC_TYPE_DILITHIUM);
-            if (dilithium == NULL) {
-                WOLFSSL_MSG("Failed to allocate memory for dilithium_key");
+            mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), NULL,
+                                          DYNAMIC_TYPE_MLDSA);
+            if (mldsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for wc_MlDsaKey");
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return WOLFSSL_FAILURE;
             }
 
-            ret = wc_dilithium_init(dilithium);
+            ret = wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID);
             if (ret != 0) {
-                XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
 
-            if (x509->pubKeyOID == ML_DSA_LEVEL2k) {
-                type = ML_DSA_LEVEL2_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_44);
+            if (x509->pubKeyOID == ML_DSA_44k) {
+                type = ML_DSA_44_TYPE;
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_44);
             }
-            else if (x509->pubKeyOID == ML_DSA_LEVEL3k) {
-                type = ML_DSA_LEVEL3_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_65);
+            else if (x509->pubKeyOID == ML_DSA_65k) {
+                type = ML_DSA_65_TYPE;
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_65);
             }
-            else if (x509->pubKeyOID == ML_DSA_LEVEL5k) {
-                type = ML_DSA_LEVEL5_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_87);
+            else if (x509->pubKeyOID == ML_DSA_87k) {
+                type = ML_DSA_87_TYPE;
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_87);
             }
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+            #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
             else if (x509->pubKeyOID == DILITHIUM_LEVEL2k) {
                 type = DILITHIUM_LEVEL2_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_44_DRAFT);
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_44_DRAFT);
             }
             else if (x509->pubKeyOID == DILITHIUM_LEVEL3k) {
                 type = DILITHIUM_LEVEL3_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_65_DRAFT);
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_65_DRAFT);
             }
             else if (x509->pubKeyOID == DILITHIUM_LEVEL5k) {
                 type = DILITHIUM_LEVEL5_TYPE;
-                wc_dilithium_set_level(dilithium, WC_ML_DSA_87_DRAFT);
+                wc_MlDsaKey_SetParams(mldsa, WC_ML_DSA_87_DRAFT);
             }
-            #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+            #endif /* WOLFSSL_MLDSA_FIPS204_DRAFT */
 
-            ret = wc_Dilithium_PublicKeyDecode(x509->pubKey.buffer, &idx,
-                                    dilithium, x509->pubKey.length);
+            ret = wc_MlDsaKey_PublicKeyDecode(mldsa, x509->pubKey.buffer,
+                                    x509->pubKey.length, &idx);
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
-                wc_dilithium_free(dilithium);
-                XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
-            key = (void*)dilithium;
+            key = (void*)mldsa;
         }
     #endif
     #if defined(WOLFSSL_HAVE_SLHDSA)
@@ -12654,18 +12736,18 @@ cleanup:
             XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
         }
     #endif
-    #if defined(HAVE_DILITHIUM)
-        if ((x509->pubKeyOID == ML_DSA_LEVEL2k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL3k) ||
-            (x509->pubKeyOID == ML_DSA_LEVEL5k)
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        if ((x509->pubKeyOID == ML_DSA_44k) ||
+            (x509->pubKeyOID == ML_DSA_65k) ||
+            (x509->pubKeyOID == ML_DSA_87k)
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
          || (x509->pubKeyOID == DILITHIUM_LEVEL2k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL3k)
          || (x509->pubKeyOID == DILITHIUM_LEVEL5k)
         #endif
         ) {
-            wc_dilithium_free(dilithium);
-            XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+            wc_MlDsaKey_Free(mldsa);
+            XFREE(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
         }
     #endif
     #if defined(WOLFSSL_HAVE_SLHDSA)

@@ -582,7 +582,7 @@ int wc_MlKemKey_Free(MlKemKey* key)
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
         if (key->devId != INVALID_DEVID) {
             (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
-                WC_PK_TYPE_PQC_KEM_KEYGEN, WC_PQC_KEM_TYPE_KYBER, (void*)key);
+                WC_PK_TYPE_PQC_KEM_KEYGEN, WC_PQC_KEM_TYPE_MLKEM, (void*)key);
             /* always continue to software cleanup */
         }
 #endif
@@ -669,7 +669,7 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
 #else
     if (ret == 0) {
 #endif
-        ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_KYBER, key->type,
+        ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_MLKEM, key->type,
             key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -1409,7 +1409,7 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
     if (ret == 0) {
 #endif
         ret = wc_CryptoCb_PqcEncapsulate(ct, ctlen, ss, WC_ML_KEM_SS_SZ, rng,
-            WC_PQC_KEM_TYPE_KYBER, key);
+            WC_PQC_KEM_TYPE_MLKEM, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -1896,7 +1896,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     if (ret == 0) {
 #endif
         ret = wc_CryptoCb_PqcDecapsulate(ct, ctSz, ss, WC_ML_KEM_SS_SZ,
-            WC_PQC_KEM_TYPE_KYBER, key);
+            WC_PQC_KEM_TYPE_MLKEM, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */

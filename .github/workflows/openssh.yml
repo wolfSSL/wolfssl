@@ -3,8 +3,9 @@ name: openssh Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
 concurrency:
@@ -15,7 +16,7 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     # Just to keep it the same as the testing target
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
@@ -80,7 +81,7 @@ jobs:
               exit-status rekey multiplex forward-control channel-timeout
               connection-timeout
     name: ${{ matrix.osp_ver }}
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     needs: build_wolfssl
     steps:

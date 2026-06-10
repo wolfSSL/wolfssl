@@ -54,6 +54,8 @@ runs:
 
     - name: Install packages
       shell: bash
+      env:
+        APT_CACHE_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
       run: |
         export DEBIAN_FRONTEND=noninteractive
         RETRIES=${{ inputs.retries }}
@@ -62,6 +64,18 @@ runs:
         if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
           NO_REC="--no-install-recommends"
         fi
+
+        # Fast path: on cache hit the .debs are already pre-seeded into
+        # /var/cache/apt/archives. Try installing directly first; if that
+        # fails (e.g. the cached .debs were superseded in the index) fall
+        # through to the regular update + install path.
+        if [ "$APT_CACHE_HIT" = "true" ]; then
+          if sudo apt-get install -y $NO_REC ${{ inputs.packages }}; then
+            exit 0
+          fi
+          echo "::warning::install from cached .debs failed, falling back to apt-get update"
+        fi
+
         for i in $(seq 1 $RETRIES); do
           if sudo apt-get update -q && \
              sudo apt-get install -y $NO_REC ${{ inputs.packages }}; then

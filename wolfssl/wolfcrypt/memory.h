@@ -370,6 +370,8 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE abort();
     #elif defined(DEBUG_VECTOR_REGISTERS_EXIT_ON_FAIL)
         #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE exit(1);
+    #elif defined(DEBUG_VECTOR_REGISTERS_BACKTRACE_ON_FAIL)
+        #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE wc_backtrace_render();
     #elif !defined(DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE)
         #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE
     #endif
@@ -381,8 +383,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
           ++wc_svr_count;                                           \
           if (wc_svr_count > 5) {                                   \
               fprintf(stderr,                                       \
-                      ("%s @ L%d : incr : "                         \
-                       "wc_svr_count %d (last op %s L%d)\n"),       \
+                      ("%s() %s @ L %d : incr : "                   \
+                       "wc_svr_count %d (last op %s L %d)\n"),      \
+                        __FUNCTION__,                               \
                       __FILE__,                                     \
                       __LINE__,                                     \
                       wc_svr_count,                                 \
@@ -403,8 +406,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
 #define WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(x) do { \
             if (((x) != 0) && (wc_svr_count > 0)) {                 \
                 fprintf(stderr,                                     \
-                        ("%s @ L%d : incr : "                       \
-                         "wc_svr_count %d (last op %s L%d)\n"),     \
+                        ("%s() %s @ L %d : incr : "                 \
+                         "wc_svr_count %d (last op %s L %d)\n"),    \
+                        __FUNCTION__,                               \
                         __FILE__,                                   \
                         __LINE__,                                   \
                         wc_svr_count,                               \
@@ -422,8 +426,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
             ++wc_svr_count;                                         \
             if (wc_svr_count > 5) {                                 \
                 fprintf(stderr,                                     \
-                        ("%s @ L%d : incr : "                       \
-                         "wc_svr_count %d (last op %s L%d)\n"),     \
+                        ("%s() %s @ L %d : incr : "                 \
+                         "wc_svr_count %d (last op %s L %d)\n"),    \
+                        __FUNCTION__,                               \
                         __FILE__,                                   \
                         __LINE__,                                   \
                         wc_svr_count,                               \
@@ -445,8 +450,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         if (wc_debug_vector_registers_retval != 0) {                \
             if (wc_svr_count > 0) {                                 \
                 fprintf(stderr,                                     \
-                        ("%s @ L%d : incr : "                       \
-                        "wc_svr_count %d (last op %s L%d)\n"),      \
+                        ("%s() %s @ L %d : incr : "                 \
+                        "wc_svr_count %d (last op %s L %d)\n"),     \
+                        __FUNCTION__,                               \
                         __FILE__,                                   \
                         __LINE__,                                   \
                         wc_svr_count,                               \
@@ -459,8 +465,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
             ++wc_svr_count;                                         \
             if (wc_svr_count > 5) {                                 \
                 fprintf(stderr,                                     \
-                        ("%s @ L%d : incr : "                       \
-                         "wc_svr_count %d (last op %s L%d)\n"),     \
+                        ("%s() %s @ L %d : incr : "                 \
+                         "wc_svr_count %d (last op %s L %d)\n"),    \
+                        __FUNCTION__,                               \
                         __FILE__,                                   \
                         __LINE__,                                   \
                         wc_svr_count,                               \
@@ -480,8 +487,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
     #define ASSERT_SAVED_VECTOR_REGISTERS() do {                    \
         if (wc_svr_count <= 0) {                                    \
             fprintf(stderr,                                         \
-                    ("ASSERT_SAVED_VECTOR_REGISTERS : %s @ L%d : "  \
-                    "wc_svr_count %d (last op %s L%d)\n"),          \
+                    ("ASSERT_SAVED_VECTOR_REGISTERS : %s() %s @ L %d : "  \
+                    "wc_svr_count %d (last op %s L %d)\n"),         \
+                        __FUNCTION__,                               \
                     __FILE__,                                       \
                     __LINE__,                                       \
                     wc_svr_count,                                   \
@@ -493,8 +501,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
     #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) do {      \
         if (wc_svr_count != 0) {                                    \
             fprintf(stderr,                                         \
-                    ("ASSERT_RESTORED_VECTOR_REGISTERS : %s @ L%d"  \
-                     " : wc_svr_count %d (last op %s L%d)\n"),      \
+                    ("ASSERT_RESTORED_VECTOR_REGISTERS : %s() %s @ L %d"  \
+                     " : wc_svr_count %d (last op %s L %d)\n"),     \
+                        __FUNCTION__,                               \
                     __FILE__,                                       \
                     __LINE__,                                       \
                     wc_svr_count,                                   \
@@ -508,8 +517,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         --wc_svr_count;                                             \
         if ((wc_svr_count > 4) || (wc_svr_count < 0)) {             \
             fprintf(stderr,                                         \
-                    ("%s @ L%d : decr : "                           \
-                     "wc_svr_count %d (last op %s L%d)\n"),         \
+                    ("%s() %s @ L %d : decr : "                     \
+                     "wc_svr_count %d (last op %s L %d)\n"),        \
+                        __FUNCTION__,                               \
                     __FILE__,                                       \
                     __LINE__,                                       \
                     wc_svr_count,                                   \

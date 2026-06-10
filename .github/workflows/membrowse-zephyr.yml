@@ -1,0 +1,115 @@
+name: Membrowse Zephyr Report
+
+# Triggered after the heavy Zephyr 4.x test workflow completes. Pulls the
+# pre-built zephyr.elf, zephyr.map and linker.cmd artifacts staged by
+# zephyr-test.sh and feeds them to the Membrowse memory-tracking service.
+# This avoids duplicating the (slow) Zephyr build inside the Membrowse
+# matrix.
+
+on:
+  workflow_run:
+    workflows: [Zephyr 4.x tests]
+    types:
+      - completed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Only run from the wolfssl org to avoid burning forks' CI minutes
+    # and reporting fork builds to the membrowse backend.
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.repository_owner == 'wolfssl'
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target_name: zephyr-native_sim
+            artifact: membrowse-zephyr-native_sim
+          - target_name: zephyr-frdm_rw612
+            artifact: membrowse-zephyr-frdm_rw612
+    steps:
+      # Check out the commit the Zephyr workflow actually built so Membrowse
+      # attributes the report to the right commit. Only the last 2 commits
+      # are needed (current + parent) to resolve the base for comparison.
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+
+      - name: Download Zephyr build artifact
+        id: download
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: zephyr-artifacts/${{ matrix.target_name }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Verify artifact present
+        id: verify
+        run: |
+          ELF="zephyr-artifacts/${{ matrix.target_name }}/zephyr.elf"
+          LD="zephyr-artifacts/${{ matrix.target_name }}/linker.cmd"
+          MAP="zephyr-artifacts/${{ matrix.target_name }}/zephyr.map"
+          if [[ -f "$ELF" && -f "$LD" ]]; then
+            echo "have_artifacts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_artifacts=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Membrowse artifact for ${{ matrix.target_name }} not found; the matching cell of zephyr-4.x.yml may have been skipped or excluded."
+          fi
+          # The map file is optional; it enables library/object attribution.
+          if [[ -f "$MAP" ]]; then
+            echo "map_file=$MAP" >> "$GITHUB_OUTPUT"
+          else
+            echo "map_file=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Membrowse PR Action
+        if: steps.verify.outputs.have_artifacts == 'true'
+        uses: membrowse/membrowse-action@v1
+        with:
+          target_name: ${{ matrix.target_name }}
+          elf: zephyr-artifacts/${{ matrix.target_name }}/zephyr.elf
+          ld: zephyr-artifacts/${{ matrix.target_name }}/linker.cmd
+          map_file: ${{ steps.verify.outputs.map_file }}
+          linker_vars: ""
+          api_key: ${{ secrets.MEMBROWSE_API_KEY }}
+          api_url: ${{ vars.MEMBROWSE_API_URL }}
+          verbose: INFO
+
+  # Refresh the consolidated Membrowse PR comment after the Zephyr targets
+  # have been submitted, mirroring membrowse-comment.yml.
+  post-comment:
+    needs: analyze
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.repository_owner == 'wolfssl'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Post Membrowse PR comment
+        if: ${{ env.MEMBROWSE_API_KEY != '' }}
+        uses: membrowse/membrowse-action/comment-action@v1
+        with:
+          api_key: ${{ secrets.MEMBROWSE_API_KEY }}
+          commit: ${{ github.event.workflow_run.head_sha }}
+        env:
+          MEMBROWSE_API_KEY: ${{ secrets.MEMBROWSE_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

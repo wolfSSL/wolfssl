@@ -19,16 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* NOTE: this file is named test_mldsa.c (canonical FIPS 204 spelling) but
- * the test bodies still gate on legacy WOLFSSL_DILITHIUM_* names and call
- * legacy wc_dilithium_* / dilithium_key APIs. That is intentional: the
- * provider-side rename (Dilithium -> ML-DSA, see <wolfssl/wolfcrypt/dilithium.h>
- * and <wolfssl/wolfcrypt/wc_mldsa.h>) keeps in-tree consumers on the
- * pre-standardization spelling so the rename PR stays scoped to provider
- * code only. A separate follow-up commit will migrate this file's call
- * sites and #ifdef gates to canonical WOLFSSL_MLDSA_* / wc_MlDsaKey_*
- * spellings; until then both spellings are kept in sync by the temporary
- * compatibility shim in <wolfssl/wolfcrypt/dilithium.h>. */
+/* Canonical ML-DSA API tests.
+ *
+ * This file exercises the canonical FIPS 204 ML-DSA API
+ * (<wolfssl/wolfcrypt/wc_mldsa.h>) using the `wc_MlDsaKey` /
+ * `wc_MlDsaKey_*` / `WC_MLDSA_*` / `WOLFSSL_MLDSA_*` spellings
+ * exclusively, with no reliance on the legacy `wc_dilithium_*` /
+ * `dilithium_key` / `DILITHIUM_*` shim. It therefore runs under all
+ * build configurations, including builds that define
+ * `WOLFSSL_NO_DILITHIUM_LEGACY_NAMES` to remove the legacy alias surface.
+ *
+ * The companion file `tests/api/test_mldsa_legacy.c` carries the
+ * legacy-spelling regression tests (`test_mldsa_legacy_shim_*`) and is
+ * skipped automatically when the legacy alias surface is disabled. */
 
 #include <tests/unit.h>
 
@@ -40,17 +43,17 @@
 #endif
 
 #include <wolfssl/wolfcrypt/asn_public.h>
-#ifdef HAVE_DILITHIUM
-    #include <wolfssl/wolfcrypt/dilithium.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
 #include <tests/api/test_mldsa.h>
 
 
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
-    defined(WOLFSSL_DILITHIUM_NO_CTX)
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    defined(WOLFSSL_MLDSA_NO_CTX)
 static const byte ml_dsa_44_pub_key[] = {
     0x7c, 0x33, 0x31, 0x41, 0x15, 0xa7, 0x2d, 0x6b,
     0x17, 0x7c, 0x10, 0xab, 0x75, 0xf7, 0x83, 0xb3,
@@ -524,174 +527,173 @@ static const byte ml_dsa_44_good_sig[] = {
 };
 #endif
 
-int test_wc_dilithium(void)
+int test_mldsa(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA)
+    wc_MlDsaKey* key;
     byte level;
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     WC_RNG rng;
 #endif
     byte* privKey = NULL;
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
-    word32 privKeyLen = DILITHIUM_MAX_KEY_SIZE;
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    word32 privKeyLen = MLDSA_MAX_KEY_SIZE;
 #endif
     byte* pubKey = NULL;
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    word32 pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    word32 pubKeyLen = MLDSA_MAX_PUB_KEY_SIZE;
 #endif
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
-    privKey = (byte*)XMALLOC(DILITHIUM_MAX_KEY_SIZE, NULL,
+    privKey = (byte*)XMALLOC(MLDSA_MAX_KEY_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(privKey);
-    pubKey = (byte*)XMALLOC(DILITHIUM_MAX_PUB_KEY_SIZE, NULL,
+    pubKey = (byte*)XMALLOC(MLDSA_MAX_PUB_KEY_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(pubKey);
 
     if (key != NULL) {
         XMEMSET(key, 0, sizeof(*key));
     }
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 #endif
 
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 #endif
 
     PRIVATE_KEY_UNLOCK();
 
-    ExpectIntEQ(wc_dilithium_init(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_init_ex(NULL, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_dilithium_free(NULL);
+    ExpectIntEQ(wc_MlDsaKey_Init(NULL, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_MlDsaKey_Free(NULL);
 
-    ExpectIntEQ(wc_dilithium_init(key), 0);
-    wc_dilithium_free(key);
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    wc_MlDsaKey_Free(key);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ExpectIntEQ(wc_dilithium_export_public(key, pubKey, &pubKeyLen),
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pubKey, &pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
-    ExpectIntEQ(wc_dilithium_export_private(key, privKey, &privKeyLen),
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(key, privKey, &privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
-    ExpectIntEQ(wc_dilithium_size(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_priv_size(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    ExpectIntEQ(wc_MlDsaKey_Size(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PrivSize(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 #endif
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_pub_size(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PubSize(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    ExpectIntEQ(wc_dilithium_sig_size(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    ExpectIntEQ(wc_MlDsaKey_SigSize(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
-    ExpectIntEQ(wc_dilithium_size(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_priv_size(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    ExpectIntEQ(wc_MlDsaKey_Size(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PrivSize(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 #endif
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_pub_size(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PubSize(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    ExpectIntEQ(wc_dilithium_sig_size(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    ExpectIntEQ(wc_MlDsaKey_SigSize(key), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
-    ExpectIntEQ(wc_dilithium_set_level(NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_set_level(key, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_set_level(NULL, WC_ML_DSA_44), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_set_level(key, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_set_level(key, 4), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(NULL, WC_ML_DSA_44), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, 4), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    ExpectIntEQ(wc_dilithium_get_level(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_get_level(key, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_get_level(NULL, &level), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_get_level(key, &level), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_GetParams(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_GetParams(key, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_GetParams(NULL, &level), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_GetParams(key, &level), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
 #ifndef WOLFSSL_NO_ML_DSA_87
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_get_level(key, &level), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_GetParams(key, &level), 0);
     ExpectIntEQ(level, WC_ML_DSA_87);
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
-    ExpectIntEQ(wc_dilithium_size(key), DILITHIUM_LEVEL5_KEY_SIZE);
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_priv_size(key), DILITHIUM_LEVEL5_PRV_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    ExpectIntEQ(wc_MlDsaKey_Size(key), WC_MLDSA_87_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PrivSize(key), WC_MLDSA_87_PRV_KEY_SIZE);
 #endif
 #endif
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_pub_size(key), DILITHIUM_LEVEL5_PUB_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PubSize(key), WC_MLDSA_87_PUB_KEY_SIZE);
 #endif
-#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    ExpectIntEQ(wc_dilithium_sig_size(key), DILITHIUM_LEVEL5_SIG_SIZE);
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    ExpectIntEQ(wc_MlDsaKey_SigSize(key), WC_MLDSA_87_SIG_SIZE);
 #endif
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_get_level(key, &level), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_GetParams(key, &level), 0);
     ExpectIntEQ(level, WC_ML_DSA_65);
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
-    ExpectIntEQ(wc_dilithium_size(key), DILITHIUM_LEVEL3_KEY_SIZE);
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_priv_size(key), DILITHIUM_LEVEL3_PRV_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    ExpectIntEQ(wc_MlDsaKey_Size(key), WC_MLDSA_65_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PrivSize(key), WC_MLDSA_65_PRV_KEY_SIZE);
 #endif
 #endif
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_pub_size(key), DILITHIUM_LEVEL3_PUB_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PubSize(key), WC_MLDSA_65_PUB_KEY_SIZE);
 #endif
-#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    ExpectIntEQ(wc_dilithium_sig_size(key), DILITHIUM_LEVEL3_SIG_SIZE);
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    ExpectIntEQ(wc_MlDsaKey_SigSize(key), WC_MLDSA_65_SIG_SIZE);
 #endif
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_get_level(key, &level), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_GetParams(key, &level), 0);
     ExpectIntEQ(level, WC_ML_DSA_44);
-#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
-    ExpectIntEQ(wc_dilithium_size(key), DILITHIUM_LEVEL2_KEY_SIZE);
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_priv_size(key), DILITHIUM_LEVEL2_PRV_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    ExpectIntEQ(wc_MlDsaKey_Size(key), WC_MLDSA_44_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PrivSize(key), WC_MLDSA_44_PRV_KEY_SIZE);
 #endif
 #endif
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
-    ExpectIntEQ(wc_dilithium_pub_size(key), DILITHIUM_LEVEL2_PUB_KEY_SIZE);
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+    ExpectIntEQ(wc_MlDsaKey_PubSize(key), WC_MLDSA_44_PUB_KEY_SIZE);
 #endif
-#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    ExpectIntEQ(wc_dilithium_sig_size(key), DILITHIUM_LEVEL2_SIG_SIZE);
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    ExpectIntEQ(wc_MlDsaKey_SigSize(key), WC_MLDSA_44_SIG_SIZE);
 #endif
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
 #endif
 
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-    ExpectIntEQ(wc_dilithium_export_public(key, pubKey, &pubKeyLen),
+#ifndef WOLFSSL_MLDSA_NO_VERIFY
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pubKey, &pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
-    ExpectIntEQ(wc_dilithium_export_private(key, privKey, &privKeyLen),
+#ifndef WOLFSSL_MLDSA_NO_SIGN
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(key, privKey, &privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
     PRIVATE_KEY_LOCK();
 
-    wc_dilithium_free(key);
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+    wc_MlDsaKey_Free(key);
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
     wc_FreeRng(&rng);
 #endif
     XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -702,36 +704,36 @@ int test_wc_dilithium(void)
 }
 
 /*
- * Test that wc_dilithium_sign_msg() rejects a public-key-only key object.
+ * Test that wc_MlDsaKey_Sign() rejects a public-key-only key object.
  * A key with prvKeySet=0 must not silently sign with zeroed key data.
  */
-int test_wc_dilithium_sign_pubonly_fails(void)
+int test_mldsa_sign_pubonly_fails(void)
 {
     EXPECT_DECLS;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_CTX)
-    dilithium_key* key;
-    dilithium_key* pubOnlyKey;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_CTX)
+    wc_MlDsaKey* key;
+    wc_MlDsaKey* pubOnlyKey;
     WC_RNG rng;
     byte* pubBuf = NULL;
-    word32 pubLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+    word32 pubLen = MLDSA_MAX_PUB_KEY_SIZE;
     byte msg[] = "test message for pubonly check";
     byte* sig = NULL;
-    word32 sigLen = DILITHIUM_MAX_SIG_SIZE;
+    word32 sigLen = MLDSA_MAX_SIG_SIZE;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
-    pubOnlyKey = (dilithium_key*)XMALLOC(sizeof(*pubOnlyKey), NULL,
+    pubOnlyKey = (wc_MlDsaKey*)XMALLOC(sizeof(*pubOnlyKey), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(pubOnlyKey);
-    pubBuf = (byte*)XMALLOC(DILITHIUM_MAX_PUB_KEY_SIZE, NULL,
+    pubBuf = (byte*)XMALLOC(MLDSA_MAX_PUB_KEY_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(pubBuf);
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL,
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(sig);
 
@@ -742,34 +744,33 @@ int test_wc_dilithium_sign_pubonly_fails(void)
     XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(key), 0);
-    ExpectIntEQ(wc_dilithium_init(pubOnlyKey), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(pubOnlyKey, NULL, INVALID_DEVID), 0);
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_set_level(pubOnlyKey, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(pubOnlyKey, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_set_level(pubOnlyKey, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(pubOnlyKey, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_set_level(pubOnlyKey, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(pubOnlyKey, WC_ML_DSA_87), 0);
 #endif
 
     /* Generate a real key pair and export its public key. */
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
-    ExpectIntEQ(wc_dilithium_export_public(key, pubBuf, &pubLen), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pubBuf, &pubLen), 0);
 
     /* Import only the public key into a fresh key object. */
-    ExpectIntEQ(wc_dilithium_import_public(pubBuf, pubLen, pubOnlyKey), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(pubOnlyKey, pubBuf, pubLen), 0);
 
     /* Signing with a public-key-only object must fail. */
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg(NULL, 0, msg, sizeof(msg), sig,
-        &sigLen, pubOnlyKey, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(pubOnlyKey, NULL, 0, sig, &sigLen, msg, sizeof(msg), &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
-    wc_dilithium_free(pubOnlyKey);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(pubOnlyKey);
+    wc_MlDsaKey_Free(key);
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pubBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pubOnlyKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -777,17 +778,17 @@ int test_wc_dilithium_sign_pubonly_fails(void)
 #endif
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_dilithium_sign_pubonly_fails */
+} /* END test_mldsa_sign_pubonly_fails */
 
-int test_wc_dilithium_make_key(void)
+int test_mldsa_make_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    wc_MlDsaKey* key;
     WC_RNG rng;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
 
     if (key != NULL) {
@@ -796,54 +797,54 @@ int test_wc_dilithium_make_key(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), WC_NO_ERR_TRACE(BAD_STATE_E));
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
 #endif
 
-    ExpectIntEQ(wc_dilithium_make_key(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_make_key(key, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_make_key(NULL, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(NULL, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     wc_FreeRng(&rng);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
 
-int test_wc_dilithium_sign(void)
+int test_mldsa_sign(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && defined(WOLFSSL_DILITHIUM_NO_CTX)
-    dilithium_key* key;
-    dilithium_key* importKey = NULL;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && defined(WOLFSSL_MLDSA_NO_CTX)
+    wc_MlDsaKey* key;
+    wc_MlDsaKey* importKey = NULL;
     WC_RNG rng;
     byte* privKey = NULL;
-    word32 privKeyLen = DILITHIUM_MAX_KEY_SIZE;
+    word32 privKeyLen = MLDSA_MAX_KEY_SIZE;
     word32 badKeyLen;
     byte msg[32];
     byte* sig = NULL;
-    word32 sigLen = DILITHIUM_MAX_SIG_SIZE;
+    word32 sigLen = MLDSA_MAX_SIG_SIZE;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
-    importKey = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
+    importKey = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(importKey);
-    privKey = (byte*)XMALLOC(DILITHIUM_MAX_KEY_SIZE, NULL,
+    privKey = (byte*)XMALLOC(MLDSA_MAX_KEY_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(privKey);
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL,
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(sig);
 
@@ -857,126 +858,146 @@ int test_wc_dilithium_sign(void)
     XMEMSET(msg, 0x55, sizeof(msg));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 
     PRIVATE_KEY_UNLOCK();
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
 #endif
 
-#ifdef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+#ifdef WOLFSSL_MLDSA_NO_MAKE_KEY
+    {
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        word32 idx = 0;
+    #endif
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_import_private(bench_dilithium_level2_key,
-        sizeof_bench_dilithium_level2_key, key), 0);
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, mldsa44_priv_only,
+            sizeof_mldsa44_priv_only, &idx), 0);
+    #else
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_44_key,
+            sizeof_bench_mldsa_44_key), 0);
+    #endif
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_import_private(bench_dilithium_level3_key,
-        sizeof_bench_dilithium_level3_key, key), 0);
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, mldsa65_priv_only,
+            sizeof_mldsa65_priv_only, &idx), 0);
+    #else
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_65_key,
+            sizeof_bench_mldsa_65_key), 0);
+    #endif
 #else
-    ExpectIntEQ(wc_dilithium_import_private(bench_dilithium_level5_key,
-        sizeof_bench_dilithium_level5_key, key), 0);
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, mldsa87_priv_only,
+            sizeof_mldsa87_priv_only, &idx), 0);
+    #else
+        ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, bench_mldsa_87_key,
+            sizeof_bench_mldsa_87_key), 0);
+    #endif
 #endif
+    }
 #else
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
 #endif
 
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Sign(NULL, NULL, NULL, NULL, 32, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, NULL, NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Sign(NULL, NULL, NULL, msg, 32, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, sig, NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Sign(NULL, sig, NULL, NULL, 32, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, &sigLen, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Sign(NULL, NULL, &sigLen, NULL, 32, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, key, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, NULL, NULL, NULL, 32, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, NULL, &rng),
+    ExpectIntEQ(wc_MlDsaKey_Sign(NULL, NULL, NULL, NULL, 32, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, sig, &sigLen, key, &rng),
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, sig, &sigLen, NULL, 32, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, NULL, &sigLen, key, &rng),
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, NULL, &sigLen, msg, 32, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, NULL, key, &rng),
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, sig, NULL, msg, 32, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, NULL, &rng),
+    ExpectIntEQ(wc_MlDsaKey_Sign(NULL, sig, &sigLen, msg, 32, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, sig, &sigLen, msg, 32, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, sig, &sigLen, msg, 32, &rng), 0);
 
-    ExpectIntEQ(wc_dilithium_export_private(NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_private(key, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(key, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_private(NULL, privKey, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(NULL, privKey, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_private(NULL, NULL, &privKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(NULL, NULL, &privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_private(NULL, privKey, &privKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(NULL, privKey, &privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_private(key, NULL, &privKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(key, NULL, &privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_private(key, privKey, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(key, privKey, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     badKeyLen = 0;
-    ExpectIntEQ(wc_dilithium_export_private(key, privKey, &badKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(key, privKey, &badKeyLen),
         WC_NO_ERR_TRACE(BUFFER_E));
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL2_KEY_SIZE);
+    ExpectIntEQ(badKeyLen, WC_MLDSA_44_KEY_SIZE);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL3_KEY_SIZE);
+    ExpectIntEQ(badKeyLen, WC_MLDSA_65_KEY_SIZE);
 #else
-    ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL5_KEY_SIZE);
+    ExpectIntEQ(badKeyLen, WC_MLDSA_87_KEY_SIZE);
 #endif
-    ExpectIntEQ(wc_dilithium_export_private(key, privKey, &privKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(key, privKey, &privKeyLen),
         0);
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL2_KEY_SIZE);
+    ExpectIntEQ(privKeyLen, WC_MLDSA_44_KEY_SIZE);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL3_KEY_SIZE);
+    ExpectIntEQ(privKeyLen, WC_MLDSA_65_KEY_SIZE);
 #else
-    ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL5_KEY_SIZE);
+    ExpectIntEQ(privKeyLen, WC_MLDSA_87_KEY_SIZE);
 #endif
 
-    ExpectIntEQ(wc_dilithium_init(importKey), 0);
-    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey),
+    ExpectIntEQ(wc_MlDsaKey_Init(importKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(importKey, privKey, privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(importKey, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(importKey, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(importKey, WC_ML_DSA_87), 0);
 #endif
-    ExpectIntEQ(wc_dilithium_import_private(NULL, 0, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, 0, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(NULL, privKey, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(NULL, privKeyLen, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(NULL, NULL, privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(NULL, 0, importKey),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(importKey, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(NULL, privKeyLen, importKey),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(importKey, NULL, privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, 0, importKey),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(importKey, privKey, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(NULL, privKey, privKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey),
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(importKey, privKey, privKeyLen),
         0);
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
-#ifdef WOLFSSL_DILITHIUM_CHECK_KEY
-    ExpectIntEQ(wc_dilithium_check_key(importKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, sig, &sigLen, msg, 32, &rng), 0);
+#ifdef WOLFSSL_MLDSA_CHECK_KEY
+    ExpectIntEQ(wc_MlDsaKey_CheckKey(importKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 #endif
-    wc_dilithium_free(importKey);
+    wc_MlDsaKey_Free(importKey);
 
     PRIVATE_KEY_LOCK();
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     wc_FreeRng(&rng);
 
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -987,35 +1008,35 @@ int test_wc_dilithium_sign(void)
     return EXPECT_RESULT();
 }
 
-int test_wc_dilithium_verify(void)
+int test_mldsa_verify(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && defined(WOLFSSL_DILITHIUM_NO_CTX) && \
-    (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_DILITHIUM_NO_SIGN))
-    dilithium_key* key;
-    dilithium_key* importKey = NULL;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && defined(WOLFSSL_MLDSA_NO_CTX) && \
+    (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_MLDSA_NO_SIGN))
+    wc_MlDsaKey* key;
+    wc_MlDsaKey* importKey = NULL;
     WC_RNG rng;
     byte* pubKey = NULL;
-    word32 pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+    word32 pubKeyLen = MLDSA_MAX_PUB_KEY_SIZE;
     word32 badKeyLen;
     byte msg[32];
     byte* sig = NULL;
-    word32 sigLen = DILITHIUM_MAX_SIG_SIZE;
+    word32 sigLen = MLDSA_MAX_SIG_SIZE;
     int res;
 #ifndef WOLFSSL_NO_ML_DSA_44
     byte b;
 #endif
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
-    importKey = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
+    importKey = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(importKey);
-    pubKey = (byte*)XMALLOC(DILITHIUM_MAX_PUB_KEY_SIZE, NULL,
+    pubKey = (byte*)XMALLOC(MLDSA_MAX_PUB_KEY_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(pubKey);
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(sig);
 
     if (key != NULL) {
@@ -1028,129 +1049,131 @@ int test_wc_dilithium_verify(void)
     XMEMSET(msg, 0x55, sizeof(msg));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
 #endif
 
 #if !defined(WOLFSSL_NO_ML_DSA_44)
-    ExpectIntEQ(wc_dilithium_import_public(ml_dsa_44_pub_key,
-        (word32)sizeof(ml_dsa_44_pub_key), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, ml_dsa_44_pub_key, (word32)sizeof(ml_dsa_44_pub_key)), 0);
     if (sig != NULL) {
         XMEMCPY(sig, ml_dsa_44_good_sig, sizeof(ml_dsa_44_good_sig));
     }
     sigLen = (word32)sizeof(ml_dsa_44_good_sig);
 #else
-#ifdef WOLFSSL_DILITHIUM_NO_MAKE_KEY
+#ifdef WOLFSSL_MLDSA_NO_MAKE_KEY
+    {
+        word32 idx = 0;
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_import_public(bench_dilithium_level3_pub_key,
-        sizeof_bench_dilithium_level3_pub_key, key), 0);
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, mldsa65_pub_spki,
+            sizeof_mldsa65_pub_spki, &idx), 0);
 #else
-    ExpectIntEQ(wc_dilithium_import_public(bench_dilithium_level5_pub_key,
-        sizeof_bench_dilithium_level5_pub_key, key), 0);
+        ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, mldsa87_pub_spki,
+            sizeof_mldsa87_pub_spki, &idx), 0);
 #endif /* !WOLFSSL_NO_ML_DSA_65 */
+    }
 #else
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
-#endif /* WOLFSSL_DILITHIUM_NO_MAKE_KEY */
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
+#endif /* WOLFSSL_MLDSA_NO_MAKE_KEY */
 
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Sign(key, sig, &sigLen, msg, 32, &rng), 0);
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 
-    ExpectIntEQ(wc_dilithium_export_public(NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_public(key, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_public(NULL, pubKey, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(NULL, pubKey, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_public(NULL, NULL, &pubKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(NULL, NULL, &pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_public(NULL, pubKey, &pubKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(NULL, pubKey, &pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_public(key, NULL, &pubKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, NULL, &pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_public(key, pubKey, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pubKey, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     badKeyLen = 0;
-    ExpectIntEQ(wc_dilithium_export_public(key, pubKey, &badKeyLen),
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pubKey, &badKeyLen),
         WC_NO_ERR_TRACE(BUFFER_E));
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL2_PUB_KEY_SIZE);
+    ExpectIntEQ(badKeyLen, WC_MLDSA_44_PUB_KEY_SIZE);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL3_PUB_KEY_SIZE);
+    ExpectIntEQ(badKeyLen, WC_MLDSA_65_PUB_KEY_SIZE);
 #else
-    ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL5_PUB_KEY_SIZE);
+    ExpectIntEQ(badKeyLen, WC_MLDSA_87_PUB_KEY_SIZE);
 #endif
-    ExpectIntEQ(wc_dilithium_export_public(key, pubKey, &pubKeyLen), 0);
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(key, pubKey, &pubKeyLen), 0);
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(pubKeyLen, DILITHIUM_LEVEL2_PUB_KEY_SIZE);
+    ExpectIntEQ(pubKeyLen, WC_MLDSA_44_PUB_KEY_SIZE);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(pubKeyLen, DILITHIUM_LEVEL3_PUB_KEY_SIZE);
+    ExpectIntEQ(pubKeyLen, WC_MLDSA_65_PUB_KEY_SIZE);
 #else
-    ExpectIntEQ(pubKeyLen, DILITHIUM_LEVEL5_PUB_KEY_SIZE);
+    ExpectIntEQ(pubKeyLen, WC_MLDSA_87_PUB_KEY_SIZE);
 #endif
 
-    ExpectIntEQ(wc_dilithium_verify_msg(NULL, 0, NULL, 32, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Verify(NULL, NULL, 0, NULL, 32, NULL),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, 0, NULL, 32, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Verify(NULL, sig, 0, NULL, 32, NULL),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(NULL, 0, msg, 32, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Verify(NULL, NULL, 0, msg, 32, NULL),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(NULL, 0, NULL, 32, &res, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Verify(NULL, NULL, 0, NULL, 32, &res),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(NULL, 0, NULL, 32, NULL, key),
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, NULL, 0, NULL, 32, NULL),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(NULL, sigLen, msg, 32, &res, key),
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, NULL, sigLen, msg, 32, &res),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, 0, msg, 32, &res, key),
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, 0, msg, 32, &res),
        WC_NO_ERR_TRACE(BUFFER_E));
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, NULL, 32, &res, key),
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, NULL, 32, &res),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, NULL, key),
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, NULL),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, NULL),
+    ExpectIntEQ(wc_MlDsaKey_Verify(NULL, sig, sigLen, msg, 32, &res),
        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, &res), 0);
     ExpectIntEQ(res, 1);
 
-    ExpectIntEQ(wc_dilithium_init(importKey), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pubKey, pubKeyLen, importKey),
+    ExpectIntEQ(wc_MlDsaKey_Init(importKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(importKey, pubKey, pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(importKey, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(importKey, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(importKey, WC_ML_DSA_87), 0);
 #endif
-    ExpectIntEQ(wc_dilithium_import_public(NULL, 0, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_public(pubKey, 0, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(NULL, pubKey, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_public(NULL, pubKeyLen, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(NULL, NULL, pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_public(NULL, 0, importKey),
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(importKey, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_public(NULL, pubKeyLen, importKey),
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(importKey, NULL, pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_public(pubKey, 0, importKey),
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(importKey, pubKey, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_public(pubKey, pubKeyLen, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(NULL, pubKey, pubKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_public(pubKey, pubKeyLen, importKey), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(importKey, pubKey, pubKeyLen), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, importKey),
+    ExpectIntEQ(wc_MlDsaKey_Verify(importKey, sig, sigLen, msg, 32, &res),
         0);
     ExpectIntEQ(res, 1);
-#ifdef WOLFSSL_DILITHIUM_CHECK_KEY
-    ExpectIntEQ(wc_dilithium_check_key(importKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef WOLFSSL_MLDSA_CHECK_KEY
+    ExpectIntEQ(wc_MlDsaKey_CheckKey(importKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-    wc_dilithium_free(importKey);
+    wc_MlDsaKey_Free(importKey);
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (sig != NULL) {
@@ -1158,8 +1181,7 @@ int test_wc_dilithium_verify(void)
             /* Unused hints meant to be 0. */
             sig[sigLen - 5] = 0xff;
             res = 1;
-            ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res,
-                key), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+            ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, &res), WC_NO_ERR_TRACE(SIG_VERIFY_E));
             ExpectIntEQ(res, 0);
             sig[sigLen - 5] = 0x00;
         }
@@ -1168,7 +1190,7 @@ int test_wc_dilithium_verify(void)
         b = sig[sigLen - 1];
         sig[sigLen - 1] = 0xff;
         res = 1;
-        ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
+        ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, &res),
             WC_NO_ERR_TRACE(SIG_VERIFY_E));
         ExpectIntEQ(res, 0);
         sig[sigLen - 1] = b;
@@ -1178,8 +1200,7 @@ int test_wc_dilithium_verify(void)
             b = sig[sigLen - 84];
             sig[sigLen - 84] = 0xff;
             res = 1;
-            ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res,
-                key), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+            ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, &res), WC_NO_ERR_TRACE(SIG_VERIFY_E));
             ExpectIntEQ(res, 0);
             sig[sigLen - 84] = b;
         }
@@ -1187,7 +1208,7 @@ int test_wc_dilithium_verify(void)
         /* Mess up commit hash. */
         sig[0] ^= 0x80;
         res = 1;
-        ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
+        ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, &res),
             0);
         ExpectIntEQ(res, 0);
         sig[0] ^= 0x80;
@@ -1195,20 +1216,20 @@ int test_wc_dilithium_verify(void)
         /* Mess up z. */
         sig[100] ^= 0x80;
         res = 1;
-        ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
+        ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, &res),
             0);
         ExpectIntEQ(res, 0);
         sig[100] ^= 0x80;
 
         /* Set all indices to 0. */
         XMEMSET(sig + sigLen - 4, 0, 4);
-        ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
+        ExpectIntEQ(wc_MlDsaKey_Verify(key, sig, sigLen, msg, 32, &res),
             WC_NO_ERR_TRACE(SIG_VERIFY_E));
         ExpectIntEQ(res, 0);
     }
 #endif
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     wc_FreeRng(&rng);
 
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1219,13 +1240,13 @@ int test_wc_dilithium_verify(void)
     return EXPECT_RESULT();
 }
 
-int test_wc_dilithium_sign_vfy(void)
+int test_mldsa_sign_vfy(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey* key;
     WC_RNG rng;
     byte msg[64];
     byte* sig = NULL;
@@ -1233,9 +1254,9 @@ int test_wc_dilithium_sign_vfy(void)
     byte ctx[10];
     int res;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(sig);
 
     if (key != NULL) {
@@ -1248,67 +1269,55 @@ int test_wc_dilithium_sign_vfy(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_init(key), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
 
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg(ctx, sizeof(ctx), msg, sizeof(msg),
-        sig, &sigLen, key, &rng), 0);
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig, sigLen, ctx, sizeof(ctx), msg,
-        sizeof(msg), &res, key), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(key, ctx, sizeof(ctx), sig, &sigLen, msg, sizeof(msg), &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, ctx, sizeof(ctx), msg, sizeof(msg), &res), 0);
     ExpectIntEQ(res, 1);
 
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_hash(ctx, sizeof(ctx),
-        WC_HASH_TYPE_SHA3_512, msg, sizeof(msg), sig, &sigLen, key, &rng), 0);
-    ExpectIntEQ(wc_dilithium_verify_ctx_hash(sig, sigLen, ctx, sizeof(ctx),
-        WC_HASH_TYPE_SHA3_512, msg, sizeof(msg), &res, key), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, ctx, sizeof(ctx), sig, &sigLen, msg, sizeof(msg), WC_HASH_TYPE_SHA3_512, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, ctx, sizeof(ctx), msg, sizeof(msg), WC_HASH_TYPE_SHA3_512, &res), 0);
     ExpectIntEQ(res, 1);
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_init(key), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
 
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg(ctx, sizeof(ctx), msg, sizeof(msg),
-        sig, &sigLen, key, &rng), 0);
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig, sigLen, ctx, sizeof(ctx), msg,
-        sizeof(msg), &res, key), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(key, ctx, sizeof(ctx), sig, &sigLen, msg, sizeof(msg), &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, ctx, sizeof(ctx), msg, sizeof(msg), &res), 0);
     ExpectIntEQ(res, 1);
 
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_hash(ctx, sizeof(ctx),
-        WC_HASH_TYPE_SHA3_512, msg, sizeof(msg), sig, &sigLen, key, &rng), 0);
-    ExpectIntEQ(wc_dilithium_verify_ctx_hash(sig, sigLen, ctx, sizeof(ctx),
-        WC_HASH_TYPE_SHA3_512, msg, sizeof(msg), &res, key), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, ctx, sizeof(ctx), sig, &sigLen, msg, sizeof(msg), WC_HASH_TYPE_SHA3_512, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, ctx, sizeof(ctx), msg, sizeof(msg), WC_HASH_TYPE_SHA3_512, &res), 0);
     ExpectIntEQ(res, 1);
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    ExpectIntEQ(wc_dilithium_init(key), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
 
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg(ctx, sizeof(ctx), msg, sizeof(msg),
-        sig, &sigLen, key, &rng), 0);
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig, sigLen, ctx, sizeof(ctx), msg,
-        sizeof(msg), &res, key), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtx(key, ctx, sizeof(ctx), sig, &sigLen, msg, sizeof(msg), &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig, sigLen, ctx, sizeof(ctx), msg, sizeof(msg), &res), 0);
     ExpectIntEQ(res, 1);
 
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_hash(ctx, sizeof(ctx),
-        WC_HASH_TYPE_SHA3_512, msg, sizeof(msg), sig, &sigLen, key, &rng), 0);
-    ExpectIntEQ(wc_dilithium_verify_ctx_hash(sig, sigLen, ctx, sizeof(ctx),
-        WC_HASH_TYPE_SHA3_512, msg, sizeof(msg), &res, key), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxHash(key, ctx, sizeof(ctx), sig, &sigLen, msg, sizeof(msg), WC_HASH_TYPE_SHA3_512, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(key, sig, sigLen, ctx, sizeof(ctx), msg, sizeof(msg), WC_HASH_TYPE_SHA3_512, &res), 0);
     ExpectIntEQ(res, 1);
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif
 
     wc_FreeRng(&rng);
@@ -1319,26 +1328,26 @@ int test_wc_dilithium_sign_vfy(void)
     return EXPECT_RESULT();
 }
 
-int test_wc_dilithium_check_key(void)
+int test_mldsa_check_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    defined(WOLFSSL_DILITHIUM_CHECK_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
-    dilithium_key* checkKey;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_CHECK_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    wc_MlDsaKey* checkKey;
     WC_RNG rng;
     byte* privCheckKey = NULL;
-    word32 privCheckKeyLen = DILITHIUM_MAX_KEY_SIZE;
+    word32 privCheckKeyLen = MLDSA_MAX_KEY_SIZE;
     byte* pubCheckKey = NULL;
-    word32 pubCheckKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+    word32 pubCheckKeyLen = MLDSA_MAX_PUB_KEY_SIZE;
 
-    checkKey = (dilithium_key*)XMALLOC(sizeof(*checkKey), NULL,
+    checkKey = (wc_MlDsaKey*)XMALLOC(sizeof(*checkKey), NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(checkKey);
-    privCheckKey = (byte*)XMALLOC(DILITHIUM_MAX_KEY_SIZE, NULL,
+    privCheckKey = (byte*)XMALLOC(MLDSA_MAX_KEY_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(privCheckKey);
-    pubCheckKey = (byte*)XMALLOC(DILITHIUM_MAX_PUB_KEY_SIZE, NULL,
+    pubCheckKey = (byte*)XMALLOC(MLDSA_MAX_PUB_KEY_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(pubCheckKey);
 
@@ -1351,95 +1360,86 @@ int test_wc_dilithium_check_key(void)
 
     PRIVATE_KEY_UNLOCK();
 
-    ExpectIntEQ(wc_dilithium_check_key(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_CheckKey(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    ExpectIntEQ(wc_dilithium_init(checkKey), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(checkKey, NULL, INVALID_DEVID), 0);
 
-    ExpectIntEQ(wc_dilithium_export_key(NULL, privCheckKey,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL, privCheckKey,
         &privCheckKeyLen, pubCheckKey, &pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        privCheckKeyLen, pubCheckKey, pubCheckKeyLen, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(checkKey, privCheckKey,
+    ExpectIntEQ(wc_MlDsaKey_ImportKey(NULL, privCheckKey, privCheckKeyLen, pubCheckKey, pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(checkKey, privCheckKey,
         &privCheckKeyLen, pubCheckKey, &pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, privCheckKey, privCheckKeyLen, pubCheckKey, pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(checkKey, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(checkKey, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(checkKey, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(checkKey, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(checkKey, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(checkKey, WC_ML_DSA_87), 0);
 #endif
-    ExpectIntEQ(wc_dilithium_make_key(checkKey, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(checkKey, &rng), 0);
 
-    ExpectIntEQ(wc_dilithium_export_key(NULL, NULL, NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL, NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(checkKey, NULL, NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(checkKey, NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(NULL, privCheckKey, NULL, NULL, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL, privCheckKey, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(NULL, NULL, &privCheckKeyLen, NULL,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL, NULL, &privCheckKeyLen, NULL,
         NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(NULL, NULL, NULL, pubCheckKey, NULL),
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL, NULL, NULL, pubCheckKey, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(NULL, NULL, NULL, NULL,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL, NULL, NULL, NULL,
         &pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(NULL     , privCheckKey,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(NULL     , privCheckKey,
         &privCheckKeyLen, pubCheckKey, &pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(checkKey, NULL        ,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(checkKey, NULL        ,
         &privCheckKeyLen, pubCheckKey, &pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(checkKey, privCheckKey,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(checkKey, privCheckKey,
         NULL            , pubCheckKey, &pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(checkKey, privCheckKey,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(checkKey, privCheckKey,
         &privCheckKeyLen, NULL       , &pubCheckKeyLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(checkKey, privCheckKey,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(checkKey, privCheckKey,
         &privCheckKeyLen, pubCheckKey, NULL           ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_export_key(checkKey, privCheckKey,
+    ExpectIntEQ(wc_MlDsaKey_ExportKey(checkKey, privCheckKey,
         &privCheckKeyLen, pubCheckKey, &pubCheckKeyLen), 0);
 
     /* Modify hash. */
     if ((pubCheckKey != NULL) && EXPECT_SUCCESS()) {
         pubCheckKey[0] ^= 0x80;
-        ExpectIntEQ(wc_dilithium_import_key(NULL, 0, NULL, 0, NULL),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(NULL, NULL, 0, NULL, 0),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(privCheckKey, 0, NULL, 0, NULL),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(NULL, privCheckKey, 0, NULL, 0),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(NULL, 0, pubCheckKey, 0, NULL),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(NULL, NULL, 0, pubCheckKey, 0),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(NULL, 0, NULL, 0, checkKey),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, NULL, 0, NULL, 0),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(NULL        ,
-            privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, NULL, privCheckKeyLen, pubCheckKey, pubCheckKeyLen),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-            0              , pubCheckKey, pubCheckKeyLen, checkKey),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, privCheckKey, 0, pubCheckKey, pubCheckKeyLen),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-            privCheckKeyLen, NULL       , pubCheckKeyLen, checkKey),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, privCheckKey, privCheckKeyLen, NULL, pubCheckKeyLen),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-            privCheckKeyLen, pubCheckKey, 0             , checkKey),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, privCheckKey, privCheckKeyLen, pubCheckKey, 0),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-            privCheckKeyLen, pubCheckKey, pubCheckKeyLen, NULL     ),
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(NULL, privCheckKey, privCheckKeyLen, pubCheckKey, pubCheckKeyLen),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-            privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey), 0);
-        ExpectIntEQ(wc_dilithium_check_key(checkKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, privCheckKey, privCheckKeyLen, pubCheckKey, pubCheckKeyLen), 0);
+        ExpectIntEQ(wc_MlDsaKey_CheckKey(checkKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         pubCheckKey[0] ^= 0x80;
 
         /* Modify encoded t1. */
         pubCheckKey[48] ^= 0x80;
-        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-            privCheckKeyLen,pubCheckKey, pubCheckKeyLen, checkKey), 0);
-        ExpectIntEQ(wc_dilithium_check_key(checkKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        ExpectIntEQ(wc_MlDsaKey_ImportKey(checkKey, privCheckKey, privCheckKeyLen, pubCheckKey, pubCheckKeyLen), 0);
+        ExpectIntEQ(wc_MlDsaKey_CheckKey(checkKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         pubCheckKey[48] ^= 0x80;
     }
 
     PRIVATE_KEY_LOCK();
 
-    wc_dilithium_free(checkKey);
+    wc_MlDsaKey_Free(checkKey);
     wc_FreeRng(&rng);
 
     XFREE(pubCheckKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1449,8 +1449,8 @@ int test_wc_dilithium_check_key(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_DILITHIUM) && \
-    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY)
 static const unsigned char ml_dsa_public_der[] = {
 #ifndef WOLFSSL_NO_ML_DSA_44
         0x30, 0x82, 0x05, 0x32, 0x30, 0x0d, 0x06, 0x09,
@@ -2198,8 +2198,8 @@ static const unsigned char ml_dsa_public_der[] = {
         0xE9, 0xB0, 0x14, 0xB0, 0x37, 0xCD, 0xBF, 0xE9
 #endif
     };
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-static const unsigned char dilithium_public_der[] = {
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+static const unsigned char mldsa_public_der[] = {
 #ifndef WOLFSSL_NO_ML_DSA_44
     0x30, 0x82, 0x05, 0x34, 0x30, 0x0d, 0x06, 0x0b,
     0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
@@ -2949,63 +2949,61 @@ static const unsigned char dilithium_public_der[] = {
 #endif
 #endif
 
-int test_wc_dilithium_public_der_decode(void)
+int test_mldsa_public_der_decode(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+    wc_MlDsaKey* key;
     word32 idx = 0;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
 
     if (key != NULL) {
         XMEMSET(key, 0, sizeof(*key));
     }
 
-    ExpectIntEQ(wc_dilithium_init(key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
 #endif
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(ml_dsa_public_der, &idx, key,
-        (word32)sizeof(ml_dsa_public_der)), 0);
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, ml_dsa_public_der, (word32)sizeof(ml_dsa_public_der), &idx), 0);
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     idx = 0;
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44_DRAFT), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65_DRAFT), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87_DRAFT), 0);
 #endif
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(dilithium_public_der, &idx, key,
-        (word32)sizeof(dilithium_public_der)), 0);
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, mldsa_public_der, (word32)sizeof(mldsa_public_der), &idx), 0);
 #endif
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_ASN1) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
-#define DILITHIUM_MAX_DER_SIZE    8192
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+#define MLDSA_MAX_DER_SIZE    8192
 #endif
 
-int test_wc_dilithium_der(void)
+int test_mldsa_der(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_ASN1) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    wc_MlDsaKey* key;
     WC_RNG rng;
     byte* der = NULL;
     int len;
@@ -3016,25 +3014,25 @@ int test_wc_dilithium_der(void)
     word32 idx = 0;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    pubLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
-    pubDerLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE + 22;
-    privDerLen = DILITHIUM_LEVEL2_KEY_SIZE + 28;
-    keyDerLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE + DILITHIUM_LEVEL2_KEY_SIZE + 32;
+    pubLen = WC_MLDSA_44_PUB_KEY_SIZE;
+    pubDerLen = WC_MLDSA_44_PUB_KEY_SIZE + 22;
+    privDerLen = WC_MLDSA_44_KEY_SIZE + 28;
+    keyDerLen = WC_MLDSA_44_PUB_KEY_SIZE + WC_MLDSA_44_KEY_SIZE + 32;
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    pubLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
-    pubDerLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE + 22;
-    privDerLen = DILITHIUM_LEVEL3_KEY_SIZE + 28;
-    keyDerLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE + DILITHIUM_LEVEL3_KEY_SIZE + 32;
+    pubLen = WC_MLDSA_65_PUB_KEY_SIZE;
+    pubDerLen = WC_MLDSA_65_PUB_KEY_SIZE + 22;
+    privDerLen = WC_MLDSA_65_KEY_SIZE + 28;
+    keyDerLen = WC_MLDSA_65_PUB_KEY_SIZE + WC_MLDSA_65_KEY_SIZE + 32;
 #else
-    pubLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
-    pubDerLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE + 22;
-    privDerLen = DILITHIUM_LEVEL5_KEY_SIZE + 28;
-    keyDerLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE + DILITHIUM_LEVEL5_KEY_SIZE + 32;
+    pubLen = WC_MLDSA_87_PUB_KEY_SIZE;
+    pubDerLen = WC_MLDSA_87_PUB_KEY_SIZE + 22;
+    privDerLen = WC_MLDSA_87_KEY_SIZE + 28;
+    keyDerLen = WC_MLDSA_87_PUB_KEY_SIZE + WC_MLDSA_87_KEY_SIZE + 32;
 #endif
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
-    der = (byte*)XMALLOC(DILITHIUM_MAX_DER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(MLDSA_MAX_DER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(der);
 
     if (key != NULL) {
@@ -3045,164 +3043,164 @@ int test_wc_dilithium_der(void)
     }
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 
     PRIVATE_KEY_UNLOCK();
 
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key, der, MLDSA_MAX_DER_SIZE,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key, der, MLDSA_MAX_DER_SIZE,
         1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE),
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(key, der, MLDSA_MAX_DER_SIZE),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* When security level is not set, we attempt to parse it from DER. Since
      * the supplied DER is invalid, this should fail with ASN parsing error */
     idx = 0;
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, pubDerLen),
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, der, pubDerLen, &idx),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #else
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, pubDerLen),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, der, pubDerLen, &idx),
                 WC_NO_ERR_TRACE(ASN_PARSE_E));
 #endif
     idx = 0;
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, der, privDerLen, &idx),
                 WC_NO_ERR_TRACE(ASN_PARSE_E));
 #else
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, der, privDerLen, &idx),
                 WC_NO_ERR_TRACE(ASN_PARSE_E));
 #endif
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
 #else
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
 #endif
 
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key, der, MLDSA_MAX_DER_SIZE,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key, der, MLDSA_MAX_DER_SIZE,
         1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE),
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(key, der, MLDSA_MAX_DER_SIZE),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(key, &rng), 0);
 
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, NULL, 0                     ,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(NULL, NULL, 0                     ,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, der , 0                     ,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(NULL, der , 0                     ,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, NULL, DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(NULL, NULL, MLDSA_MAX_DER_SIZE,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, der , DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(NULL, der , MLDSA_MAX_DER_SIZE,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , der , 0                     ,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key , der , 0                     ,
         0), WC_NO_ERR_TRACE(BUFFER_E));
     /* Get length only. */
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , NULL, 0                     ,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key , NULL, 0                     ,
         0), pubLen);
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key , NULL, MLDSA_MAX_DER_SIZE,
         0), pubLen);
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , NULL, 0                     ,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key , NULL, 0                     ,
         1), pubDerLen);
-    ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE,
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyToDer(key , NULL, MLDSA_MAX_DER_SIZE,
         1), pubDerLen);
 
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, NULL,
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(NULL, NULL,
         0                     ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntGT(wc_Dilithium_PrivateKeyToDer(key , NULL,
+    ExpectIntGT(wc_MlDsaKey_PrivateKeyToDer(key , NULL,
         0                     ), 0);
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, der ,
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(NULL, der ,
         0                     ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, NULL,
-        DILITHIUM_MAX_DER_SIZE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, der ,
-        DILITHIUM_MAX_DER_SIZE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , der ,
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(NULL, NULL,
+        MLDSA_MAX_DER_SIZE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(NULL, der ,
+        MLDSA_MAX_DER_SIZE), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(key , der ,
         0                     ), WC_NO_ERR_TRACE(BUFFER_E));
     /* Get length only. */
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , NULL,
-        DILITHIUM_MAX_DER_SIZE), privDerLen);
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyToDer(key , NULL,
+        MLDSA_MAX_DER_SIZE), privDerLen);
 
-    ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, NULL, 0                     ),
+    ExpectIntEQ(wc_MlDsaKey_KeyToDer(NULL, NULL, 0                     ),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntGT(wc_Dilithium_KeyToDer(key , NULL, 0                     ),
+    ExpectIntGT(wc_MlDsaKey_KeyToDer(key , NULL, 0                     ),
         0           );
-    ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, der , 0                     ),
+    ExpectIntEQ(wc_MlDsaKey_KeyToDer(NULL, der , 0                     ),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, NULL, DILITHIUM_MAX_DER_SIZE),
+    ExpectIntEQ(wc_MlDsaKey_KeyToDer(NULL, NULL, MLDSA_MAX_DER_SIZE),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, der , DILITHIUM_MAX_DER_SIZE),
+    ExpectIntEQ(wc_MlDsaKey_KeyToDer(NULL, der , MLDSA_MAX_DER_SIZE),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_KeyToDer(key , der , 0                     ),
+    ExpectIntEQ(wc_MlDsaKey_KeyToDer(key , der , 0                     ),
         WC_NO_ERR_TRACE(BUFFER_E));
     /* Get length only. */
-    ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE),
+    ExpectIntEQ(wc_MlDsaKey_KeyToDer(key , NULL, MLDSA_MAX_DER_SIZE),
         keyDerLen);
 
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(NULL, NULL, NULL, 0        ),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(NULL, NULL, 0, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der , NULL, NULL, 0        ),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(NULL, der, 0, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(NULL, &idx, NULL, 0        ),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(NULL, NULL, 0, &idx),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(NULL, NULL, key , 0        ),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, NULL, 0, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(NULL, NULL, NULL, pubDerLen),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(NULL, NULL, pubDerLen, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(NULL, &idx, key , pubDerLen),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, NULL, pubDerLen, &idx),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der , NULL, key , pubDerLen),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, der, pubDerLen, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der , &idx, NULL, pubDerLen),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(NULL, der, pubDerLen, &idx),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der , &idx, key , 0        ),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(NULL, NULL, NULL, 0         ),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der , NULL, NULL, 0         ),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(NULL, &idx, NULL, 0         ),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(NULL, NULL, key , 0         ),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(NULL, NULL, NULL, privDerLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(NULL, &idx, key , privDerLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der , NULL, key , privDerLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der , &idx, NULL, privDerLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der , &idx, key , 0         ),
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, der, 0, &idx),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    ExpectIntEQ(len = wc_Dilithium_PublicKeyToDer(key, der,
-        DILITHIUM_MAX_DER_SIZE, 0), pubLen);
-    ExpectIntEQ(wc_dilithium_import_public(der, len, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(NULL, NULL, 0, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(NULL, der, 0, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(NULL, NULL, 0, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, NULL, 0, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(NULL, NULL, privDerLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, NULL, privDerLen, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, der, privDerLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(NULL, der, privDerLen, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, der, 0, &idx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    ExpectIntEQ(len = wc_Dilithium_PublicKeyToDer(key, der,
-        DILITHIUM_MAX_DER_SIZE, 1), pubDerLen);
+    ExpectIntEQ(len = wc_MlDsaKey_PublicKeyToDer(key, der,
+        MLDSA_MAX_DER_SIZE, 0), pubLen);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, der, len), 0);
+
+    ExpectIntEQ(len = wc_MlDsaKey_PublicKeyToDer(key, der,
+        MLDSA_MAX_DER_SIZE, 1), pubDerLen);
     idx = 0;
-    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, len), 0);
+    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, der, len, &idx), 0);
 
-    ExpectIntEQ(len = wc_Dilithium_PrivateKeyToDer(key, der,
-        DILITHIUM_MAX_DER_SIZE), privDerLen);
+    ExpectIntEQ(len = wc_MlDsaKey_PrivateKeyToDer(key, der,
+        MLDSA_MAX_DER_SIZE), privDerLen);
     idx = 0;
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, len), 0);
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, der, len, &idx), 0);
 
-    ExpectIntEQ(len = wc_Dilithium_KeyToDer(key, der, DILITHIUM_MAX_DER_SIZE),
+    ExpectIntEQ(len = wc_MlDsaKey_KeyToDer(key, der, MLDSA_MAX_DER_SIZE),
         keyDerLen);
     idx = 0;
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, len), 0);
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, der, len, &idx), 0);
 
     PRIVATE_KEY_LOCK();
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     wc_FreeRng(&rng);
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3211,16 +3209,16 @@ int test_wc_dilithium_der(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
 
 /* Decode, re-export, byte-compare. Asserts version=1 on the bundled form and
  * version=0 on the private only form. */
-static int dilithium_oneasymkey_version_check(int level)
+static int mldsa_oneasymkey_version_check(int level)
 {
     EXPECT_DECLS;
-    dilithium_key key;
-    dilithium_key key2;
+    wc_MlDsaKey key;
+    wc_MlDsaKey key2;
     WC_RNG rng;
     byte* ref = NULL;
     byte* rt = NULL;
@@ -3232,43 +3230,42 @@ static int dilithium_oneasymkey_version_check(int level)
     XMEMSET(&key2, 0, sizeof(key2));
     XMEMSET(&rng,  0, sizeof(rng));
 
-    ExpectNotNull(ref = (byte*)XMALLOC(DILITHIUM_MAX_DER_SIZE, NULL,
+    ExpectNotNull(ref = (byte*)XMALLOC(MLDSA_MAX_DER_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
-    ExpectNotNull(rt  = (byte*)XMALLOC(DILITHIUM_MAX_DER_SIZE, NULL,
+    ExpectNotNull(rt  = (byte*)XMALLOC(MLDSA_MAX_DER_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(&key), 0);
-    ExpectIntEQ(wc_dilithium_init(&key2), 0);
-    ExpectIntEQ(wc_dilithium_set_level(&key, level), 0);
-    ExpectIntEQ(wc_dilithium_set_level(&key2, level), 0);
-    ExpectIntEQ(wc_dilithium_make_key(&key, &rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key2, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key2, level), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
 
     /* Bundled (v=1) */
     PRIVATE_KEY_UNLOCK();
-    ExpectIntGT(refSz = wc_Dilithium_KeyToDer(&key, ref,
-        DILITHIUM_MAX_DER_SIZE), 0);
+    ExpectIntGT(refSz = wc_MlDsaKey_KeyToDer(&key, ref,
+        MLDSA_MAX_DER_SIZE), 0);
     PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
 
     idx = 0;
     PRIVATE_KEY_UNLOCK();
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(ref, &idx, &key2,
-        (word32)refSz), 0);
-    ExpectIntEQ(rtSz = wc_Dilithium_KeyToDer(&key2, rt,
-        DILITHIUM_MAX_DER_SIZE), refSz);
+    ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key2, ref, (word32)refSz, &idx), 0);
+    ExpectIntEQ(rtSz = wc_MlDsaKey_KeyToDer(&key2, rt,
+        MLDSA_MAX_DER_SIZE), refSz);
     PRIVATE_KEY_LOCK();
     ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
 
     /* Private only (v=0). Reuse ref. */
     PRIVATE_KEY_UNLOCK();
-    ExpectIntGT(refSz = wc_Dilithium_PrivateKeyToDer(&key, ref,
-        DILITHIUM_MAX_DER_SIZE), 0);
+    ExpectIntGT(refSz = wc_MlDsaKey_PrivateKeyToDer(&key, ref,
+        MLDSA_MAX_DER_SIZE), 0);
     PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
 
-    wc_dilithium_free(&key);
-    wc_dilithium_free(&key2);
+    wc_MlDsaKey_Free(&key);
+    wc_MlDsaKey_Free(&key2);
     wc_FreeRng(&rng);
     XFREE(rt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ref, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3277,33 +3274,33 @@ static int dilithium_oneasymkey_version_check(int level)
 }
 #endif
 
-int test_wc_dilithium_oneasymkey_version(void)
+int test_mldsa_oneasymkey_version(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     #ifndef WOLFSSL_NO_ML_DSA_44
-        ExpectIntEQ(dilithium_oneasymkey_version_check(WC_ML_DSA_44),
+        ExpectIntEQ(mldsa_oneasymkey_version_check(WC_ML_DSA_44),
             TEST_SUCCESS);
     #endif
     #ifndef WOLFSSL_NO_ML_DSA_65
-        ExpectIntEQ(dilithium_oneasymkey_version_check(WC_ML_DSA_65),
+        ExpectIntEQ(mldsa_oneasymkey_version_check(WC_ML_DSA_65),
             TEST_SUCCESS);
     #endif
     #ifndef WOLFSSL_NO_ML_DSA_87
-        ExpectIntEQ(dilithium_oneasymkey_version_check(WC_ML_DSA_87),
+        ExpectIntEQ(mldsa_oneasymkey_version_check(WC_ML_DSA_87),
             TEST_SUCCESS);
     #endif
 #endif
     return EXPECT_RESULT();
 }
 
-int test_wc_dilithium_make_key_from_seed(void)
+int test_mldsa_make_key_from_seed(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    wc_MlDsaKey* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
     static const byte seed_44[] = {
         0x93, 0xEF, 0x2E, 0x6E, 0xF1, 0xFB, 0x08, 0x99,
@@ -5508,7 +5505,7 @@ int test_wc_dilithium_make_key_from_seed(void)
         0xDA, 0xC1, 0x7F, 0x93, 0x6F, 0x54, 0xC4, 0xC7
     };
 #endif /* WOLFSSL_NO_ML_DSA_87 */
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
 #ifndef WOLFSSL_NO_ML_DSA_44
     static const byte seed_44_draft[] = {
         0xBA, 0xC0, 0x59, 0x52, 0x75, 0x5B, 0x26, 0x47,
@@ -7715,63 +7712,63 @@ int test_wc_dilithium_make_key_from_seed(void)
 #endif /* WOLFSSL_NO_ML_DSA_87 */
 #endif
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
 
     if (key != NULL) {
         XMEMSET(key, 0, sizeof(*key));
     }
 
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_make_key_from_seed(key, seed_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_44), 0);
     ExpectIntEQ(XMEMCMP(key->p, pk_44, sizeof(pk_44)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_44, sizeof(sk_44)), 0);
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44_DRAFT), 0);
-    ExpectIntEQ(wc_dilithium_make_key_from_seed(key, seed_44_draft), 0);
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_44_draft), 0);
     ExpectIntEQ(XMEMCMP(key->p, pk_44_draft, sizeof(pk_44_draft)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_44_draft, sizeof(sk_44_draft)), 0);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_make_key_from_seed(key, seed_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65), 0);
     ExpectIntEQ(XMEMCMP(key->p, pk_65, sizeof(pk_65)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_65, sizeof(sk_65)), 0);
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65_DRAFT), 0);
-    ExpectIntEQ(wc_dilithium_make_key_from_seed(key, seed_65_draft), 0);
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65_draft), 0);
     ExpectIntEQ(XMEMCMP(key->p, pk_65_draft, sizeof(pk_65_draft)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_65_draft, sizeof(sk_65_draft)), 0);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_make_key_from_seed(key, seed_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_87), 0);
     ExpectIntEQ(XMEMCMP(key->p, pk_87, sizeof(pk_87)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_87, sizeof(sk_87)), 0);
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87_DRAFT), 0);
-    ExpectIntEQ(wc_dilithium_make_key_from_seed(key, seed_87_draft), 0);
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_87_draft), 0);
     ExpectIntEQ(XMEMCMP(key->p, pk_87_draft, sizeof(pk_87_draft)), 0);
     ExpectIntEQ(XMEMCMP(key->k, sk_87_draft, sizeof(sk_87_draft)), 0);
 #endif
 #endif
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
 
-int test_wc_dilithium_sig_kats(void)
+int test_mldsa_sig_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && defined(WOLFSSL_DILITHIUM_NO_CTX)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && defined(WOLFSSL_MLDSA_NO_CTX)
+    wc_MlDsaKey* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
     static const byte sk_44[] = {
         0x5D, 0xFB, 0x07, 0xA2, 0x04, 0x4B, 0x93, 0x16,
@@ -12532,65 +12529,62 @@ int test_wc_dilithium_sig_kats(void)
         0x27, 0x2C, 0x32
     };
 #endif
-    byte sig[DILITHIUM_MAX_SIG_SIZE];
+    byte sig[MLDSA_MAX_SIG_SIZE];
     word32 sigLen;
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
 
     if (key != NULL) {
         XMEMSET(key, 0, sizeof(*key));
     }
 
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 
     PRIVATE_KEY_UNLOCK();
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_44, (word32)sizeof(sk_44), key),
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44, (word32)sizeof(sk_44)),
         0);
     sigLen = PARAMS_ML_DSA_44_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_msg_with_seed(msg_44, (word32)sizeof(msg_44),
-        sig, &sigLen, key, rnd_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44), 0);
     ExpectIntEQ(sigLen, PARAMS_ML_DSA_44_SIG_SIZE);
     ExpectIntEQ(XMEMCMP(sig, sig_44, sizeof(sig_44)), 0);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_65, (word32)sizeof(sk_65), key),
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65, (word32)sizeof(sk_65)),
         0);
     sigLen = PARAMS_ML_DSA_65_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_msg_with_seed(msg_65, (word32)sizeof(msg_65),
-        sig, &sigLen, key, rnd_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65), 0);
     ExpectIntEQ(sigLen, PARAMS_ML_DSA_65_SIG_SIZE);
     ExpectIntEQ(XMEMCMP(sig, sig_65, sizeof(sig_65)), 0);
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_87, (word32)sizeof(sk_87), key),
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87, (word32)sizeof(sk_87)),
         0);
     sigLen = PARAMS_ML_DSA_87_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_msg_with_seed(msg_87, (word32)sizeof(msg_87),
-        sig, &sigLen, key, rnd_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_SignWithSeed(key, sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87), 0);
     ExpectIntEQ(sigLen, PARAMS_ML_DSA_87_SIG_SIZE);
     ExpectIntEQ(XMEMCMP(sig, sig_87, sizeof(sig_87)), 0);
 #endif
 
     PRIVATE_KEY_LOCK();
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
 
-int test_wc_dilithium_sign_ctx_kats(void)
+int test_mldsa_sign_ctx_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN)
+    wc_MlDsaKey* key;
     word32 sigLen;
     byte* sig = NULL;
 
@@ -16733,9 +16727,9 @@ int test_wc_dilithium_sign_ctx_kats(void)
     };
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
-    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(sig);
 
     if (key != NULL) {
@@ -16745,93 +16739,84 @@ int test_wc_dilithium_sign_ctx_kats(void)
     PRIVATE_KEY_UNLOCK();
 #ifndef WOLFSSL_NO_ML_DSA_44
     /* ML-DSA-44: empty context (ctx=NULL, ctxLen=0) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_44, (word32)sizeof(sk_44), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg_with_seed(NULL, 0, msg_44,
-        (word32)sizeof(msg_44), sig, &sigLen, key, rnd_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44, (word32)sizeof(sk_44)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_44_ctx0));
     ExpectIntEQ(XMEMCMP(sig, sig_44_ctx0, sizeof(sig_44_ctx0)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-44: context from gist record 1 (ctxLen=33) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_44, (word32)sizeof(sk_44), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg_with_seed(ctx_44,
-        (byte)sizeof(ctx_44), msg_44, (word32)sizeof(msg_44),
-        sig, &sigLen, key, rnd_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44, (word32)sizeof(sk_44)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_44, (byte)sizeof(ctx_44), sig, &sigLen, msg_44, (word32)sizeof(msg_44), rnd_44), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_44_ctx33));
     ExpectIntEQ(XMEMCMP(sig, sig_44_ctx33, sizeof(sig_44_ctx33)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 
 #ifndef WOLFSSL_NO_ML_DSA_65
     /* ML-DSA-65: empty context (ctx=NULL, ctxLen=0) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_65, (word32)sizeof(sk_65), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg_with_seed(NULL, 0, msg_65,
-        (word32)sizeof(msg_65), sig, &sigLen, key, rnd_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65, (word32)sizeof(sk_65)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_65_ctx0));
     ExpectIntEQ(XMEMCMP(sig, sig_65_ctx0, sizeof(sig_65_ctx0)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-65: context from gist record 1 (ctxLen=33) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_65, (word32)sizeof(sk_65), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg_with_seed(ctx_65,
-        (byte)sizeof(ctx_65), msg_65, (word32)sizeof(msg_65),
-        sig, &sigLen, key, rnd_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65, (word32)sizeof(sk_65)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_65, (byte)sizeof(ctx_65), sig, &sigLen, msg_65, (word32)sizeof(msg_65), rnd_65), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_65_ctx33));
     ExpectIntEQ(XMEMCMP(sig, sig_65_ctx33, sizeof(sig_65_ctx33)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_65 */
 
 #ifndef WOLFSSL_NO_ML_DSA_87
     /* ML-DSA-87: empty context (ctx=NULL, ctxLen=0) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_87, (word32)sizeof(sk_87), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg_with_seed(NULL, 0, msg_87,
-        (word32)sizeof(msg_87), sig, &sigLen, key, rnd_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87, (word32)sizeof(sk_87)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_87_ctx0));
     ExpectIntEQ(XMEMCMP(sig, sig_87_ctx0, sizeof(sig_87_ctx0)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-87: context from gist record 1 (ctxLen=33) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_87, (word32)sizeof(sk_87), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_ctx_msg_with_seed(ctx_87,
-        (byte)sizeof(ctx_87), msg_87, (word32)sizeof(msg_87),
-        sig, &sigLen, key, rnd_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87, (word32)sizeof(sk_87)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(key, ctx_87, (byte)sizeof(ctx_87), sig, &sigLen, msg_87, (word32)sizeof(msg_87), rnd_87), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_87_ctx33));
     ExpectIntEQ(XMEMCMP(sig, sig_87_ctx33, sizeof(sig_87_ctx33)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
 
     PRIVATE_KEY_LOCK();
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
+#endif /* WOLFSSL_HAVE_MLDSA && !WOLFSSL_MLDSA_NO_SIGN */
     return EXPECT_RESULT();
 }
 
 
-int test_wc_dilithium_verify_ctx_kats(void)
+int test_mldsa_verify_ctx_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey* key;
     int res;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -20248,7 +20233,7 @@ int test_wc_dilithium_verify_ctx_kats(void)
     };
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
 
     if (key != NULL) {
@@ -20257,127 +20242,103 @@ int test_wc_dilithium_verify_ctx_kats(void)
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     /* ML-DSA-44: verify with empty context (ctx=NULL, ctxLen=0) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_44, (word32)sizeof(pk_44), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_44, (word32)sizeof(pk_44)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_44_ctx0,
-        (word32)sizeof(sig_44_ctx0), NULL, 0,
-        msg_44, (word32)sizeof(msg_44), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_44_ctx0, (word32)sizeof(sig_44_ctx0), NULL, 0, msg_44, (word32)sizeof(msg_44), &res), 0);
     ExpectIntEQ(res, 1);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-44: verify with context from gist record 1 (ctxLen=33) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_44, (word32)sizeof(pk_44), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_44, (word32)sizeof(pk_44)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_44_ctx33,
-        (word32)sizeof(sig_44_ctx33), ctx_44,
-        (byte)sizeof(ctx_44), msg_44, (word32)sizeof(msg_44),
-        &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_44_ctx33, (word32)sizeof(sig_44_ctx33), ctx_44, (byte)sizeof(ctx_44), msg_44, (word32)sizeof(msg_44), &res), 0);
     ExpectIntEQ(res, 1);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-44: cross-context rejection, empty-ctx sig must not verify with ctx */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_44, (word32)sizeof(pk_44), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_44, (word32)sizeof(pk_44)), 0);
     res = 1;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_44_ctx0,
-        (word32)sizeof(sig_44_ctx0), ctx_44,
-        (byte)sizeof(ctx_44), msg_44, (word32)sizeof(msg_44),
-        &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_44_ctx0, (word32)sizeof(sig_44_ctx0), ctx_44, (byte)sizeof(ctx_44), msg_44, (word32)sizeof(msg_44), &res), 0);
     ExpectIntEQ(res, 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 
 #ifndef WOLFSSL_NO_ML_DSA_65
     /* ML-DSA-65: verify with empty context (ctx=NULL, ctxLen=0) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_65, (word32)sizeof(pk_65), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_65, (word32)sizeof(pk_65)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_65_ctx0,
-        (word32)sizeof(sig_65_ctx0), NULL, 0,
-        msg_65, (word32)sizeof(msg_65), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_65_ctx0, (word32)sizeof(sig_65_ctx0), NULL, 0, msg_65, (word32)sizeof(msg_65), &res), 0);
     ExpectIntEQ(res, 1);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-65: verify with context from gist record 1 (ctxLen=33) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_65, (word32)sizeof(pk_65), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_65, (word32)sizeof(pk_65)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_65_ctx33,
-        (word32)sizeof(sig_65_ctx33), ctx_65,
-        (byte)sizeof(ctx_65), msg_65, (word32)sizeof(msg_65),
-        &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_65_ctx33, (word32)sizeof(sig_65_ctx33), ctx_65, (byte)sizeof(ctx_65), msg_65, (word32)sizeof(msg_65), &res), 0);
     ExpectIntEQ(res, 1);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-65: cross-context rejection, empty-ctx sig must not verify with ctx */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_65, (word32)sizeof(pk_65), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_65, (word32)sizeof(pk_65)), 0);
     res = 1;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_65_ctx0,
-        (word32)sizeof(sig_65_ctx0), ctx_65,
-        (byte)sizeof(ctx_65), msg_65, (word32)sizeof(msg_65),
-        &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_65_ctx0, (word32)sizeof(sig_65_ctx0), ctx_65, (byte)sizeof(ctx_65), msg_65, (word32)sizeof(msg_65), &res), 0);
     ExpectIntEQ(res, 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_65 */
 
 #ifndef WOLFSSL_NO_ML_DSA_87
     /* ML-DSA-87: verify with empty context (ctx=NULL, ctxLen=0) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_87, (word32)sizeof(pk_87), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_87, (word32)sizeof(pk_87)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_87_ctx0,
-        (word32)sizeof(sig_87_ctx0), NULL, 0,
-        msg_87, (word32)sizeof(msg_87), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_87_ctx0, (word32)sizeof(sig_87_ctx0), NULL, 0, msg_87, (word32)sizeof(msg_87), &res), 0);
     ExpectIntEQ(res, 1);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-87: verify with context from gist record 1 (ctxLen=33) */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_87, (word32)sizeof(pk_87), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_87, (word32)sizeof(pk_87)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_87_ctx33,
-        (word32)sizeof(sig_87_ctx33), ctx_87,
-        (byte)sizeof(ctx_87), msg_87, (word32)sizeof(msg_87),
-        &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_87_ctx33, (word32)sizeof(sig_87_ctx33), ctx_87, (byte)sizeof(ctx_87), msg_87, (word32)sizeof(msg_87), &res), 0);
     ExpectIntEQ(res, 1);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 
     /* ML-DSA-87: cross-context rejection, empty-ctx sig must not verify with ctx */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_87, (word32)sizeof(pk_87), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_87, (word32)sizeof(pk_87)), 0);
     res = 1;
-    ExpectIntEQ(wc_dilithium_verify_ctx_msg(sig_87_ctx0,
-        (word32)sizeof(sig_87_ctx0), ctx_87,
-        (byte)sizeof(ctx_87), msg_87, (word32)sizeof(msg_87),
-        &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(key, sig_87_ctx0, (word32)sizeof(sig_87_ctx0), ctx_87, (byte)sizeof(ctx_87), msg_87, (word32)sizeof(msg_87), &res), 0);
     ExpectIntEQ(res, 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_VERIFY */
+#endif /* WOLFSSL_HAVE_MLDSA && !WOLFSSL_MLDSA_NO_VERIFY */
     return EXPECT_RESULT();
 }
 
 
-int test_wc_dilithium_verify_kats(void)
+int test_mldsa_verify_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && defined(WOLFSSL_DILITHIUM_NO_CTX)
-    dilithium_key* key;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && defined(WOLFSSL_MLDSA_NO_CTX)
+    wc_MlDsaKey* key;
     int res;
 #ifndef WOLFSSL_NO_ML_DSA_44
     static const byte pk_44[] = {
@@ -22479,7 +22440,7 @@ int test_wc_dilithium_verify_kats(void)
         0x29, 0x2E, 0x36
     };
 #endif
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
 #ifndef WOLFSSL_NO_ML_DSA_44
     static const byte pk_44_draft[] = {
         0x35, 0x07, 0x31, 0x3A, 0xE3, 0x7A, 0xF6, 0x96,
@@ -24581,92 +24542,80 @@ int test_wc_dilithium_verify_kats(void)
 #endif
 #endif
 
-    key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
 
     if (key != NULL) {
         XMEMSET(key, 0, sizeof(*key));
     }
 
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
 #ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_44, (word32)sizeof(pk_44), key),
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_44, (word32)sizeof(pk_44)),
         0);
-    ExpectIntEQ(wc_dilithium_verify_msg(sig_44, (word32)sizeof(sig_44), msg_44,
-        (word32)sizeof(msg_44), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig_44, (word32)sizeof(sig_44), msg_44, (word32)sizeof(msg_44), &res), 0);
     ExpectIntEQ(res, 1);
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44_DRAFT), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_44_draft,
-        (word32)sizeof(pk_44_draft), key), 0);
-    ExpectIntEQ(wc_dilithium_verify_msg(sig_44_draft,
-        (word32)sizeof(sig_44_draft), msg_44_draft,
-        (word32)sizeof(msg_44_draft), &res, key), 0);
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_44_draft, (word32)sizeof(pk_44_draft)), 0);
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig_44_draft, (word32)sizeof(sig_44_draft), msg_44_draft, (word32)sizeof(msg_44_draft), &res), 0);
     ExpectIntEQ(res, 1);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_65, (word32)sizeof(pk_65), key),
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_65, (word32)sizeof(pk_65)),
         0);
-    ExpectIntEQ(wc_dilithium_verify_msg(sig_65, (word32)sizeof(sig_65), msg_65,
-        (word32)sizeof(msg_65), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig_65, (word32)sizeof(sig_65), msg_65, (word32)sizeof(msg_65), &res), 0);
     ExpectIntEQ(res, 1);
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65_DRAFT), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_65_draft,
-        (word32)sizeof(pk_65_draft), key), 0);
-    ExpectIntEQ(wc_dilithium_verify_msg(sig_65_draft,
-        (word32)sizeof(sig_65_draft), msg_65_draft,
-        (word32)sizeof(msg_65_draft), &res, key), 0);
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_65_draft, (word32)sizeof(pk_65_draft)), 0);
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig_65_draft, (word32)sizeof(sig_65_draft), msg_65_draft, (word32)sizeof(msg_65_draft), &res), 0);
     ExpectIntEQ(res, 1);
 #endif
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_87, (word32)sizeof(pk_87), key),
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_87, (word32)sizeof(pk_87)),
         0);
-    ExpectIntEQ(wc_dilithium_verify_msg(sig_87, (word32)sizeof(sig_87), msg_87,
-        (word32)sizeof(msg_87), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig_87, (word32)sizeof(sig_87), msg_87, (word32)sizeof(msg_87), &res), 0);
     ExpectIntEQ(res, 1);
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87_DRAFT), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_87_draft,
-        (word32)sizeof(pk_87_draft), key), 0);
-    ExpectIntEQ(wc_dilithium_verify_msg(sig_87_draft,
-        (word32)sizeof(sig_87_draft), msg_87_draft,
-        (word32)sizeof(msg_87_draft), &res, key), 0);
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87_DRAFT), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_87_draft, (word32)sizeof(pk_87_draft)), 0);
+    ExpectIntEQ(wc_MlDsaKey_Verify(key, sig_87_draft, (word32)sizeof(sig_87_draft), msg_87_draft, (word32)sizeof(msg_87_draft), &res), 0);
     ExpectIntEQ(res, 1);
 #endif
 #endif
 
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
 
 /* Known-answer tests for the ML-DSA externalMu sign API
- * (wc_dilithium_sign_mu_with_seed). Vectors are the deterministic
+ * (wc_MlDsaKey_SignMuWithSeed). Vectors are the deterministic
  * externalMu groups from the ACVP v7.0.0 known-vector set.
  *
  * Note: this file is userspace-only (tests/unit.test); it is not built into
  * libwolfssl.ko, so the large per-paramSet vectors do not need the chunking
  * treatment used in wolfcrypt/src/fips_test.c. The arrays are static const
  * and live in .rodata, not on the stack. */
-int test_wc_dilithium_sign_mu_kats(void)
+int test_mldsa_sign_mu_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     word32 sigLen;
     byte* sig = NULL;
     /* FIPS 204 Section 3.7: deterministic ML-DSA fixes rnd to 32 zero
      * bytes. Our ACVP "deterministic" vectors were generated with that
      * convention, so passing zeroSeed reproduces them byte-for-byte. */
-    static const byte zeroSeed[DILITHIUM_RND_SZ] = { 0 };
+    static const byte zeroSeed[MLDSA_RND_SZ] = { 0 };
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     /* ML-DSA-44 externalMu: deterministic, tcId 91
@@ -27464,50 +27413,44 @@ int test_wc_dilithium_sign_mu_kats(void)
 #endif
 
 
-    ExpectNotNull(key = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
+    ExpectNotNull(key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
-    ExpectNotNull(sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL,
+    ExpectNotNull(sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
     PRIVATE_KEY_UNLOCK();
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     /* ML-DSA-44: sign with externalMu, deterministic seed (zeros). */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_44_mu,
-        (word32)sizeof(sk_44_mu), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_mu_with_seed(mu_44,
-        (word32)sizeof(mu_44), sig, &sigLen, key, zeroSeed), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_44_mu, (word32)sizeof(sk_44_mu)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_44, (word32)sizeof(mu_44), zeroSeed), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_44_mu));
     ExpectIntEQ(XMEMCMP(sig, sig_44_mu, sizeof(sig_44_mu)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 #ifndef WOLFSSL_NO_ML_DSA_65
     /* ML-DSA-65: sign with externalMu, deterministic seed (zeros). */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_65_mu,
-        (word32)sizeof(sk_65_mu), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_mu_with_seed(mu_65,
-        (word32)sizeof(mu_65), sig, &sigLen, key, zeroSeed), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_65_mu, (word32)sizeof(sk_65_mu)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_65, (word32)sizeof(mu_65), zeroSeed), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_65_mu));
     ExpectIntEQ(XMEMCMP(sig, sig_65_mu, sizeof(sig_65_mu)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_65 */
 #ifndef WOLFSSL_NO_ML_DSA_87
     /* ML-DSA-87: sign with externalMu, deterministic seed (zeros). */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_private(sk_87_mu,
-        (word32)sizeof(sk_87_mu), key), 0);
-    sigLen = DILITHIUM_MAX_SIG_SIZE;
-    ExpectIntEQ(wc_dilithium_sign_mu_with_seed(mu_87,
-        (word32)sizeof(mu_87), sig, &sigLen, key, zeroSeed), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPrivRaw(key, sk_87_mu, (word32)sizeof(sk_87_mu)), 0);
+    sigLen = MLDSA_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(key, sig, &sigLen, mu_87, (word32)sizeof(mu_87), zeroSeed), 0);
     ExpectIntEQ(sigLen, (word32)sizeof(sig_87_mu));
     ExpectIntEQ(XMEMCMP(sig, sig_87_mu, sizeof(sig_87_mu)), 0);
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
     PRIVATE_KEY_LOCK();
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -27517,19 +27460,19 @@ int test_wc_dilithium_sign_mu_kats(void)
 }
 
 /* Known-answer tests for the ML-DSA externalMu verify API
- * (wc_dilithium_verify_mu). Reuses the vectors above and adds two
+ * (wc_MlDsaKey_VerifyMu). Reuses the vectors above and adds two
  * negative cases per parameter set: a bit flip in mu and in sig.
  *
- * Userspace-only (see note on test_wc_dilithium_sign_mu_kats above);
+ * Userspace-only (see note on test_mldsa_sign_mu_kats above);
  * kernel-module chunking does not apply. */
-int test_wc_dilithium_verify_mu_kats(void)
+int test_mldsa_verify_mu_kats(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    dilithium_key* key = NULL;
+    wc_MlDsaKey* key = NULL;
     byte* sigBuf = NULL;
-    byte muBuf[DILITHIUM_MU_SZ];
+    byte muBuf[MLDSA_MU_SZ];
     int res;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -29623,28 +29566,23 @@ int test_wc_dilithium_verify_mu_kats(void)
     };
 #endif
 
-    ExpectNotNull(key = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
+    ExpectNotNull(key = (wc_MlDsaKey*)XMALLOC(sizeof(*key), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     /* ML-DSA-44: verify the known-good (mu, sig) pair. */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_44_mu,
-        (word32)sizeof(pk_44_mu), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_44_mu, (word32)sizeof(pk_44_mu)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_mu(sig_44_mu,
-        (word32)sizeof(sig_44_mu), mu_44,
-        (word32)sizeof(mu_44), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyMu(key, sig_44_mu, (word32)sizeof(sig_44_mu), mu_44, (word32)sizeof(mu_44), &res), 0);
     ExpectIntEQ(res, 1);
 
     /* Tamper mu: verification must fail. */
     XMEMCPY(muBuf, mu_44, sizeof(mu_44));
     muBuf[0] ^= 0x01;
     res = 1;
-    (void)wc_dilithium_verify_mu(sig_44_mu,
-        (word32)sizeof(sig_44_mu), muBuf,
-        (word32)sizeof(mu_44), &res, key);
+    (void)wc_MlDsaKey_VerifyMu(key, sig_44_mu, (word32)sizeof(sig_44_mu), muBuf, (word32)sizeof(mu_44), &res);
     ExpectIntEQ(res, 0);
 
     /* Tamper signature: verification must fail. */
@@ -29654,34 +29592,27 @@ int test_wc_dilithium_verify_mu_kats(void)
         XMEMCPY(sigBuf, sig_44_mu, sizeof(sig_44_mu));
         sigBuf[0] ^= 0x01;
         res = 1;
-        (void)wc_dilithium_verify_mu(sigBuf,
-            (word32)sizeof(sig_44_mu), mu_44,
-            (word32)sizeof(mu_44), &res, key);
+        (void)wc_MlDsaKey_VerifyMu(key, sigBuf, (word32)sizeof(sig_44_mu), mu_44, (word32)sizeof(mu_44), &res);
         ExpectIntEQ(res, 0);
         XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         sigBuf = NULL;
     }
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 #ifndef WOLFSSL_NO_ML_DSA_65
     /* ML-DSA-65: verify the known-good (mu, sig) pair. */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_65), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_65_mu,
-        (word32)sizeof(pk_65_mu), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_65_mu, (word32)sizeof(pk_65_mu)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_mu(sig_65_mu,
-        (word32)sizeof(sig_65_mu), mu_65,
-        (word32)sizeof(mu_65), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyMu(key, sig_65_mu, (word32)sizeof(sig_65_mu), mu_65, (word32)sizeof(mu_65), &res), 0);
     ExpectIntEQ(res, 1);
 
     /* Tamper mu: verification must fail. */
     XMEMCPY(muBuf, mu_65, sizeof(mu_65));
     muBuf[0] ^= 0x01;
     res = 1;
-    (void)wc_dilithium_verify_mu(sig_65_mu,
-        (word32)sizeof(sig_65_mu), muBuf,
-        (word32)sizeof(mu_65), &res, key);
+    (void)wc_MlDsaKey_VerifyMu(key, sig_65_mu, (word32)sizeof(sig_65_mu), muBuf, (word32)sizeof(mu_65), &res);
     ExpectIntEQ(res, 0);
 
     /* Tamper signature: verification must fail. */
@@ -29691,34 +29622,27 @@ int test_wc_dilithium_verify_mu_kats(void)
         XMEMCPY(sigBuf, sig_65_mu, sizeof(sig_65_mu));
         sigBuf[0] ^= 0x01;
         res = 1;
-        (void)wc_dilithium_verify_mu(sigBuf,
-            (word32)sizeof(sig_65_mu), mu_65,
-            (word32)sizeof(mu_65), &res, key);
+        (void)wc_MlDsaKey_VerifyMu(key, sigBuf, (word32)sizeof(sig_65_mu), mu_65, (word32)sizeof(mu_65), &res);
         ExpectIntEQ(res, 0);
         XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         sigBuf = NULL;
     }
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_65 */
 #ifndef WOLFSSL_NO_ML_DSA_87
     /* ML-DSA-87: verify the known-good (mu, sig) pair. */
-    ExpectIntEQ(wc_dilithium_init_ex(key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
-    ExpectIntEQ(wc_dilithium_import_public(pk_87_mu,
-        (word32)sizeof(pk_87_mu), key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_87), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(key, pk_87_mu, (word32)sizeof(pk_87_mu)), 0);
     res = 0;
-    ExpectIntEQ(wc_dilithium_verify_mu(sig_87_mu,
-        (word32)sizeof(sig_87_mu), mu_87,
-        (word32)sizeof(mu_87), &res, key), 0);
+    ExpectIntEQ(wc_MlDsaKey_VerifyMu(key, sig_87_mu, (word32)sizeof(sig_87_mu), mu_87, (word32)sizeof(mu_87), &res), 0);
     ExpectIntEQ(res, 1);
 
     /* Tamper mu: verification must fail. */
     XMEMCPY(muBuf, mu_87, sizeof(mu_87));
     muBuf[0] ^= 0x01;
     res = 1;
-    (void)wc_dilithium_verify_mu(sig_87_mu,
-        (word32)sizeof(sig_87_mu), muBuf,
-        (word32)sizeof(mu_87), &res, key);
+    (void)wc_MlDsaKey_VerifyMu(key, sig_87_mu, (word32)sizeof(sig_87_mu), muBuf, (word32)sizeof(mu_87), &res);
     ExpectIntEQ(res, 0);
 
     /* Tamper signature: verification must fail. */
@@ -29728,14 +29652,12 @@ int test_wc_dilithium_verify_mu_kats(void)
         XMEMCPY(sigBuf, sig_87_mu, sizeof(sig_87_mu));
         sigBuf[0] ^= 0x01;
         res = 1;
-        (void)wc_dilithium_verify_mu(sigBuf,
-            (word32)sizeof(sig_87_mu), mu_87,
-            (word32)sizeof(mu_87), &res, key);
+        (void)wc_MlDsaKey_VerifyMu(key, sigBuf, (word32)sizeof(sig_87_mu), mu_87, (word32)sizeof(mu_87), &res);
         ExpectIntEQ(res, 0);
         XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         sigBuf = NULL;
     }
-    wc_dilithium_free(key);
+    wc_MlDsaKey_Free(key);
 #endif /* !WOLFSSL_NO_ML_DSA_87 */
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -29743,9 +29665,9 @@ int test_wc_dilithium_verify_mu_kats(void)
 }
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
+    defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 static struct {
     const char* fileName;
     byte level;
@@ -29806,22 +29728,22 @@ static struct {
 };
 #endif
 
-int test_wc_Dilithium_PrivateKeyDecode_OpenSSL_form(void)
+int test_mldsa_PrivateKeyDecode_OpenSSL_form(void)
 {
     EXPECT_DECLS;
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
+    defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 
     byte* der = NULL;
-    size_t derMaxSz = ML_DSA_LEVEL5_BOTH_KEY_DER_SIZE;
+    size_t derMaxSz = WC_MLDSA_87_BOTH_KEY_DER_SIZE;
     size_t derSz = 0;
     FILE* fp = NULL;
     word32 inOutIdx = 0;
     word32 inOutIdx2 = 0;
-    dilithium_key key;
+    wc_MlDsaKey key;
     int expect = 0;
     int pkeySz = 0;
     byte level = 0;
@@ -29838,63 +29760,59 @@ int test_wc_Dilithium_PrivateKeyDecode_OpenSSL_form(void)
 
         /* Specify a level with PKCS8 format */
         XMEMSET(&key, 0, sizeof(key));
-        ExpectIntEQ(wc_dilithium_init(&key), 0);
-        ExpectIntEQ(wc_dilithium_set_level(&key, ossl_form[i].level), 0);
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, ossl_form[i].level), 0);
         inOutIdx = 0;
         expect = ossl_form[i].p8_lv ? 0 : ASN_PARSE_E;
-        ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &inOutIdx, &key,
-            (word32)derSz), expect);
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key, der, (word32)derSz, &inOutIdx), expect);
         if (expect == 0) {
-            ExpectIntEQ(wc_dilithium_get_level(&key, &level), 0);
+            ExpectIntEQ(wc_MlDsaKey_GetParams(&key, &level), 0);
             ExpectIntEQ(level, ossl_form[i].level);
         }
-        wc_dilithium_free(&key);
+        wc_MlDsaKey_Free(&key);
 
         /* Not specify a level with PKCS8 format */
         XMEMSET(&key, 0, sizeof(key));
-        ExpectIntEQ(wc_dilithium_init(&key), 0);
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
         inOutIdx = 0;
         expect = ossl_form[i].p8_nolv ? 0 : ASN_PARSE_E;
-        ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &inOutIdx, &key,
-            (word32)derSz), expect);
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key, der, (word32)derSz, &inOutIdx), expect);
         if (expect == 0) {
-            ExpectIntEQ(wc_dilithium_get_level(&key, &level), 0);
+            ExpectIntEQ(wc_MlDsaKey_GetParams(&key, &level), 0);
             ExpectIntEQ(level, ossl_form[i].level);
         }
-        wc_dilithium_free(&key);
+        wc_MlDsaKey_Free(&key);
 
         /* Specify a level with traditional format */
         XMEMSET(&key, 0, sizeof(key));
-        ExpectIntEQ(wc_dilithium_init(&key), 0);
-        ExpectIntEQ(wc_dilithium_set_level(&key, ossl_form[i].level), 0);
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&key, ossl_form[i].level), 0);
         inOutIdx = 0;
         expect = ossl_form[i].trad_lv ? 0 : ASN_PARSE_E;
         ExpectIntGT(pkeySz = wc_GetPkcs8TraditionalOffset(der, &inOutIdx,
             (word32)derSz), 0);
         inOutIdx2 = 0;
-        ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der + inOutIdx, &inOutIdx2,
-            &key, (word32)pkeySz), expect);
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key, der + inOutIdx, (word32)pkeySz, &inOutIdx2), expect);
         if (expect == 0) {
-            ExpectIntEQ(wc_dilithium_get_level(&key, &level), 0);
+            ExpectIntEQ(wc_MlDsaKey_GetParams(&key, &level), 0);
             ExpectIntEQ(level, ossl_form[i].level);
         }
-        wc_dilithium_free(&key);
+        wc_MlDsaKey_Free(&key);
 
         /* Not specify a level with traditional format */
         XMEMSET(&key, 0, sizeof(key));
-        ExpectIntEQ(wc_dilithium_init(&key), 0);
+        ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
         inOutIdx = 0;
         expect = ossl_form[i].trad_nolv ? 0 : ASN_PARSE_E;
         ExpectIntGT(pkeySz = wc_GetPkcs8TraditionalOffset(der, &inOutIdx,
             (word32)derSz), 0);
         inOutIdx2 = 0;
-        ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der + inOutIdx, &inOutIdx2,
-            &key, (word32)pkeySz), expect);
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(&key, der + inOutIdx, (word32)pkeySz, &inOutIdx2), expect);
         if (expect == 0) {
-            ExpectIntEQ(wc_dilithium_get_level(&key, &level), 0);
+            ExpectIntEQ(wc_MlDsaKey_GetParams(&key, &level), 0);
             ExpectIntEQ(level, ossl_form[i].level);
         }
-        wc_dilithium_free(&key);
+        wc_MlDsaKey_Free(&key);
     }
 
     PRIVATE_KEY_LOCK();
@@ -29908,21 +29826,21 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE) && \
     !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 
     byte* der = NULL;
-    size_t derMaxSz = ML_DSA_LEVEL5_BOTH_KEY_DER_SIZE;
+    size_t derMaxSz = WC_MLDSA_87_BOTH_KEY_DER_SIZE;
     size_t derSz = 0;
     WOLFSSL_CTX* ctx = NULL;
     FILE* fp = NULL;
 #ifdef WOLFSSL_DER_TO_PEM
     byte* pem = NULL;
-    size_t pemMaxSz = ML_DSA_LEVEL5_BOTH_KEY_PEM_SIZE;
+    size_t pemMaxSz = WC_MLDSA_87_BOTH_KEY_PEM_SIZE;
     size_t pemSz = 0;
 #endif /* WOLFSSL_DER_TO_PEM */
 
@@ -29982,21 +29900,21 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    defined(WOLFSSL_HAVE_MLDSA) && !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 
     WOLFSSL_CTX* ctx = NULL;
     size_t i;
-    const int derMaxSz = DILITHIUM_MAX_BOTH_KEY_DER_SIZE;
-    const int tempMaxSz = DILITHIUM_MAX_BOTH_KEY_PEM_SIZE;
+    const int derMaxSz = MLDSA_MAX_BOTH_KEY_DER_SIZE;
+    const int tempMaxSz = MLDSA_MAX_BOTH_KEY_PEM_SIZE;
     byte* der = NULL;
     byte* temp = NULL;  /* Store PEM or intermediate key */
     word32 derSz = 0;
     word32 pemSz = 0;
-    dilithium_key mldsa_key;
+    wc_MlDsaKey mldsa_key;
     WC_RNG rng;
     int ret;
 
@@ -30006,13 +29924,13 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
         int keySz;
     } test_variant[] = {
 #ifndef WOLFSSL_NO_ML_DSA_44
-        {WC_ML_DSA_44, ML_DSA_LEVEL2k, ML_DSA_LEVEL2_PRV_KEY_SIZE},
+        {WC_ML_DSA_44, ML_DSA_44k, WC_MLDSA_44_PRV_KEY_SIZE},
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
-        {WC_ML_DSA_65, ML_DSA_LEVEL3k, ML_DSA_LEVEL3_PRV_KEY_SIZE},
+        {WC_ML_DSA_65, ML_DSA_65k, WC_MLDSA_65_PRV_KEY_SIZE},
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
-        {WC_ML_DSA_87, ML_DSA_LEVEL5k, ML_DSA_LEVEL5_PRV_KEY_SIZE}
+        {WC_ML_DSA_87, ML_DSA_87k, WC_MLDSA_87_PRV_KEY_SIZE}
 #endif
     };
 
@@ -30032,15 +29950,15 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 #endif /* NO_WOLFSSL_SERVER */
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(&mldsa_key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&mldsa_key, NULL, INVALID_DEVID), 0);
 
     /* Test private + public key (separated format) */
     for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
-        ExpectIntEQ(wc_dilithium_set_level(&mldsa_key,
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&mldsa_key,
             test_variant[i].wcId), 0);
-        ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakeKey(&mldsa_key, &rng), 0);
 
-        ExpectIntGT(derSz = wc_Dilithium_KeyToDer(&mldsa_key, der, derMaxSz),
+        ExpectIntGT(derSz = wc_MlDsaKey_KeyToDer(&mldsa_key, der, derMaxSz),
             0);
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
             WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -30055,11 +29973,11 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 
     /* Test private key only */
     for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
-        ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId),
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&mldsa_key, test_variant[i].wcId),
             0);
-        ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakeKey(&mldsa_key, &rng), 0);
 
-        ExpectIntGT(derSz = wc_Dilithium_PrivateKeyToDer(&mldsa_key, der,
+        ExpectIntGT(derSz = wc_MlDsaKey_PrivateKeyToDer(&mldsa_key, der,
             derMaxSz), 0);
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
             WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -30072,7 +29990,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 #endif /* WOLFSSL_DER_TO_PEM */
     }
 
-    wc_dilithium_free(&mldsa_key);
+    wc_MlDsaKey_Free(&mldsa_key);
     ret = wc_FreeRng(&rng);
     ExpectIntEQ(ret, 0);
     wolfSSL_CTX_free(ctx);
@@ -30085,22 +30003,22 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 
 /* Exercise w1 encoding with adversarial inputs to catch undefined behavior.
  *
- * The word32-optimized paths in dilithium_encode_w1_88_c and
- * dilithium_encode_w1_32_c left-shift sword32 values by up to 30 bits.
+ * The word32-optimized paths in mldsa_encode_w1_88_c and
+ * mldsa_encode_w1_32_c left-shift sword32 values by up to 30 bits.
  * Large or invalid w1 values trigger signed integer overflow (UB in C).
  * Under -fsanitize=undefined this test will trap on the offending shifts.
  *
  * We also test that encoding the same input twice yields identical output
  * (determinism check - UB can cause nondeterministic results).
  */
-int test_wc_dilithium_encode_w1_large_values(void)
+int test_mldsa_encode_w1_large_values(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && \
-    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
-     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
+     !defined(WOLFSSL_MLDSA_NO_VERIFY))
 
-    sword32 w1[DILITHIUM_N];
+    sword32 w1[MLDSA_N];
     unsigned int j, k;
 
     /* Adversarial w1 values:
@@ -30123,92 +30041,92 @@ int test_wc_dilithium_encode_w1_large_values(void)
     };
     const int n_patterns = (int)(sizeof(patterns) / sizeof(patterns[0]));
 
-    /* ---- 6-bit encoding (dilithium_encode_w1_88 path) ---- */
+    /* ---- 6-bit encoding (mldsa_encode_w1_88 path) ---- */
 #ifndef WOLFSSL_NO_ML_DSA_44
     {
-        ALIGN32 byte enc_a[DILITHIUM_N * DILITHIUM_Q_HI_88_ENC_BITS / 8];
-        ALIGN32 byte enc_b[DILITHIUM_N * DILITHIUM_Q_HI_88_ENC_BITS / 8];
+        ALIGN32 byte enc_a[MLDSA_N * MLDSA_Q_HI_88_ENC_BITS / 8];
+        ALIGN32 byte enc_b[MLDSA_N * MLDSA_Q_HI_88_ENC_BITS / 8];
 
         /* Uniform fill with each pattern */
         for (k = 0; k < (unsigned int)n_patterns; k++) {
-            for (j = 0; j < DILITHIUM_N; j++) {
+            for (j = 0; j < MLDSA_N; j++) {
                 w1[j] = patterns[k];
             }
 
             XMEMSET(enc_a, 0, sizeof(enc_a));
             XMEMSET(enc_b, 0, sizeof(enc_b));
-            wc_dilithium_encode_w1_88(w1, enc_a);
-            wc_dilithium_encode_w1_88(w1, enc_b);
+            wc_mldsa_encode_w1_88(w1, enc_a);
+            wc_mldsa_encode_w1_88(w1, enc_b);
 
             /* Determinism: same input must produce same output */
             ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
         }
 
         /* Alternating pattern: adjacent elements get different values */
-        for (j = 0; j < DILITHIUM_N; j++) {
+        for (j = 0; j < MLDSA_N; j++) {
             w1[j] = (j & 1) ? 43 : 0;
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_dilithium_encode_w1_88(w1, enc_a);
-        wc_dilithium_encode_w1_88(w1, enc_b);
+        wc_mldsa_encode_w1_88(w1, enc_a);
+        wc_mldsa_encode_w1_88(w1, enc_b);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
 
         /* Ascending pattern: each element differs */
-        for (j = 0; j < DILITHIUM_N; j++) {
+        for (j = 0; j < MLDSA_N; j++) {
             w1[j] = (sword32)(j % 44);  /* 0..43 cycling */
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_dilithium_encode_w1_88(w1, enc_a);
-        wc_dilithium_encode_w1_88(w1, enc_b);
+        wc_mldsa_encode_w1_88(w1, enc_a);
+        wc_mldsa_encode_w1_88(w1, enc_b);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
     }
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 
-    /* ---- 4-bit encoding (dilithium_encode_w1_32 path) ---- */
+    /* ---- 4-bit encoding (mldsa_encode_w1_32 path) ---- */
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
     {
-        ALIGN32 byte enc_a[DILITHIUM_N * DILITHIUM_Q_HI_32_ENC_BITS / 8];
-        ALIGN32 byte enc_b[DILITHIUM_N * DILITHIUM_Q_HI_32_ENC_BITS / 8];
+        ALIGN32 byte enc_a[MLDSA_N * MLDSA_Q_HI_32_ENC_BITS / 8];
+        ALIGN32 byte enc_b[MLDSA_N * MLDSA_Q_HI_32_ENC_BITS / 8];
 
         /* Uniform fill with each pattern */
         for (k = 0; k < (unsigned int)n_patterns; k++) {
-            for (j = 0; j < DILITHIUM_N; j++) {
+            for (j = 0; j < MLDSA_N; j++) {
                 w1[j] = patterns[k];
             }
 
             XMEMSET(enc_a, 0, sizeof(enc_a));
             XMEMSET(enc_b, 0, sizeof(enc_b));
-            wc_dilithium_encode_w1_32(w1, enc_a);
-            wc_dilithium_encode_w1_32(w1, enc_b);
+            wc_mldsa_encode_w1_32(w1, enc_a);
+            wc_mldsa_encode_w1_32(w1, enc_b);
 
             ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
         }
 
         /* Alternating pattern */
-        for (j = 0; j < DILITHIUM_N; j++) {
+        for (j = 0; j < MLDSA_N; j++) {
             w1[j] = (j & 1) ? 15 : 0;
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_dilithium_encode_w1_32(w1, enc_a);
-        wc_dilithium_encode_w1_32(w1, enc_b);
+        wc_mldsa_encode_w1_32(w1, enc_a);
+        wc_mldsa_encode_w1_32(w1, enc_b);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
 
         /* Ascending pattern */
-        for (j = 0; j < DILITHIUM_N; j++) {
+        for (j = 0; j < MLDSA_N; j++) {
             w1[j] = (sword32)(j % 16);  /* 0..15 cycling */
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_dilithium_encode_w1_32(w1, enc_a);
-        wc_dilithium_encode_w1_32(w1, enc_b);
+        wc_mldsa_encode_w1_32(w1, enc_a);
+        wc_mldsa_encode_w1_32(w1, enc_b);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
     }
 #endif /* !WOLFSSL_NO_ML_DSA_65 || !WOLFSSL_NO_ML_DSA_87 */
 
-#endif /* HAVE_DILITHIUM && sign/verify */
+#endif /* WOLFSSL_HAVE_MLDSA && sign/verify */
     return EXPECT_RESULT();
 }
 
@@ -30216,7 +30134,7 @@ int test_mldsa_pkcs12(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS12) && \
-    defined(HAVE_DILITHIUM) && defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
+    defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
     !defined(NO_TLS) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
     !defined(NO_CERTS) && !defined(NO_DES3) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
@@ -30227,16 +30145,16 @@ int test_mldsa_pkcs12(void)
     byte* inKey = NULL;
     byte* inCert = NULL;
     const word32 inKeyHeaderSz = 4;
-    const word32 inKeyMaxSz = inKeyHeaderSz + DILITHIUM_MAX_PRV_KEY_SIZE;
+    const word32 inKeyMaxSz = inKeyHeaderSz + MLDSA_MAX_PRV_KEY_SIZE;
     const word32 certConstSz = 412;
     const word32 inCertMaxSz =
-        certConstSz + DILITHIUM_MAX_PUB_KEY_SIZE +
-        WOLFSSL_ASN_MAX_LENGTH_SZ + DILITHIUM_MAX_SIG_SIZE;
+        certConstSz + MLDSA_MAX_PUB_KEY_SIZE +
+        WOLFSSL_ASN_MAX_LENGTH_SZ + MLDSA_MAX_SIG_SIZE;
         /* max signature size + ASN1 encoding */
 
     const word32 pkcs8HeaderSz = 24;
     WC_RNG rng;
-    dilithium_key mldsa_key;
+    wc_MlDsaKey mldsa_key;
     char pkcs12Passwd[] = "mldsa";
     int ret;
 
@@ -30248,18 +30166,18 @@ int test_mldsa_pkcs12(void)
         int sigType;
         int keyType;
     } test_variant[] = {
-        {PBE_SHA1_DES3, WC_ML_DSA_44, ML_DSA_LEVEL2k,
-            ML_DSA_LEVEL2_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL2, ML_DSA_LEVEL2_TYPE},
-        {PBE_SHA1_DES3, WC_ML_DSA_65, ML_DSA_LEVEL3k,
-            ML_DSA_LEVEL3_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL3, ML_DSA_LEVEL3_TYPE},
-        {PBE_SHA1_DES3, WC_ML_DSA_87, ML_DSA_LEVEL5k,
-            ML_DSA_LEVEL5_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL5, ML_DSA_LEVEL5_TYPE},
-        {-1, WC_ML_DSA_44, ML_DSA_LEVEL2k,
-            ML_DSA_LEVEL2_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL2, ML_DSA_LEVEL2_TYPE},
-        {-1, WC_ML_DSA_65, ML_DSA_LEVEL3k,
-            ML_DSA_LEVEL3_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL3, ML_DSA_LEVEL3_TYPE},
-        {-1, WC_ML_DSA_87, ML_DSA_LEVEL5k,
-            ML_DSA_LEVEL5_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL5, ML_DSA_LEVEL5_TYPE},
+        {PBE_SHA1_DES3, WC_ML_DSA_44, ML_DSA_44k,
+            WC_MLDSA_44_PRV_KEY_SIZE, CTC_ML_DSA_44, ML_DSA_44_TYPE},
+        {PBE_SHA1_DES3, WC_ML_DSA_65, ML_DSA_65k,
+            WC_MLDSA_65_PRV_KEY_SIZE, CTC_ML_DSA_65, ML_DSA_65_TYPE},
+        {PBE_SHA1_DES3, WC_ML_DSA_87, ML_DSA_87k,
+            WC_MLDSA_87_PRV_KEY_SIZE, CTC_ML_DSA_87, ML_DSA_87_TYPE},
+        {-1, WC_ML_DSA_44, ML_DSA_44k,
+            WC_MLDSA_44_PRV_KEY_SIZE, CTC_ML_DSA_44, ML_DSA_44_TYPE},
+        {-1, WC_ML_DSA_65, ML_DSA_65k,
+            WC_MLDSA_65_PRV_KEY_SIZE, CTC_ML_DSA_65, ML_DSA_65_TYPE},
+        {-1, WC_ML_DSA_87, ML_DSA_87k,
+            WC_MLDSA_87_PRV_KEY_SIZE, CTC_ML_DSA_87, ML_DSA_87_TYPE},
     };
 
     XMEMSET(&rng, 0, sizeof(rng));
@@ -30276,7 +30194,7 @@ int test_mldsa_pkcs12(void)
 #endif /* NO_WOLFSSL_SERVER */
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_dilithium_init(&mldsa_key), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&mldsa_key, NULL, INVALID_DEVID), 0);
 
     for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
         WC_PKCS12* pkcs12Export = NULL;
@@ -30302,15 +30220,15 @@ int test_mldsa_pkcs12(void)
         inKey[2] = (test_variant[i].keySz >> 8) & 0xff;  /* MSB of the length */
         inKey[3] = test_variant[i].keySz & 0xff;         /* LSB of the length */
         inKeySz += inKeyHeaderSz;
-        ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId),
+        ExpectIntEQ(wc_MlDsaKey_SetParams(&mldsa_key, test_variant[i].wcId),
             0);
-        ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakeKey(&mldsa_key, &rng), 0);
         size = inKeyMaxSz - inKeySz;
-        ExpectIntEQ(wc_dilithium_export_private(&mldsa_key, inKey + inKeySz,
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&mldsa_key, inKey + inKeySz,
             &size), 0);
         inKeySz += size;
         size = inKeyMaxSz - inKeySz;
-        ExpectIntEQ(wc_dilithium_export_public(&mldsa_key, inKey + inKeySz,
+        ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&mldsa_key, inKey + inKeySz,
             &size), 0);
         inKeySz += size;
 
@@ -30371,7 +30289,7 @@ int test_mldsa_pkcs12(void)
         wc_PKCS12_free(pkcs12Export);
     }
 
-    wc_dilithium_free(&mldsa_key);
+    wc_MlDsaKey_Free(&mldsa_key);
     ret = wc_FreeRng(&rng);
     ExpectIntEQ(ret, 0);
     wolfSSL_CTX_free(ctx);
@@ -30389,16 +30307,16 @@ int test_mldsa_pkcs12(void)
 int test_mldsa_x509_pubkey_sigtype(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_DILITHIUM) && defined(OPENSSL_EXTRA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(OPENSSL_EXTRA) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     static const struct {
         const char* pem_path;
-        int         expected_sig_oid;  /* CTC_ML_DSA_LEVEL* (stored as int,
+        int         expected_sig_oid;  /* CTC_ML_DSA_{44,65,87} (stored as int,
                                         * same bit pattern as word32 return) */
     } cases[] = {
-        { "./certs/mldsa/mldsa44-cert.pem", (int)CTC_ML_DSA_LEVEL2 },
-        { "./certs/mldsa/mldsa65-cert.pem", (int)CTC_ML_DSA_LEVEL3 },
-        { "./certs/mldsa/mldsa87-cert.pem", (int)CTC_ML_DSA_LEVEL5 },
+        { "./certs/mldsa/mldsa44-cert.pem", (int)CTC_ML_DSA_44 },
+        { "./certs/mldsa/mldsa65-cert.pem", (int)CTC_ML_DSA_65 },
+        { "./certs/mldsa/mldsa87-cert.pem", (int)CTC_ML_DSA_87 },
     };
     int i;
     int n = (int)(sizeof(cases) / sizeof(cases[0]));
@@ -30431,7 +30349,7 @@ int test_mldsa_x509_pubkey_sigtype(void)
 
         wolfSSL_X509_free(x509);
     }
-#endif /* HAVE_DILITHIUM && OPENSSL_EXTRA && !NO_CERTS && !NO_FILESYSTEM */
+#endif /* WOLFSSL_HAVE_MLDSA && OPENSSL_EXTRA && !NO_CERTS && !NO_FILESYSTEM */
     return EXPECT_RESULT();
 }
 
@@ -30453,7 +30371,7 @@ int test_mldsa_x509_pubkey_sigtype(void)
  * non-GNU compilers fall back to plain static WC_INLINE.
  * ===========================================================================
  */
-#if defined(HAVE_DILITHIUM)
+#if defined(WOLFSSL_HAVE_MLDSA)
 
 PRAGMA_CLANG_DIAG_PUSH
 PRAGMA_CLANG("clang diagnostic ignored \"-Wunreachable-code\"")
@@ -30586,137 +30504,89 @@ WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_canonical_api_check(void)
     }
 }
 
-/* Compile-time validation of the dilithium.h legacy alias shim. */
-#if !defined(WOLFSSL_NO_DILITHIUM_LEGACY_NAMES)
-
-WOLFSSL_MLDSA_API_CHECK_INLINE void wc_mldsa_legacy_alias_check(void)
-{
-    if (0) {
-        wc_MlDsaKey k;
-        dilithium_key *kp = (dilithium_key *)0;
-        const wc_dilithium_params *pp = (const wc_dilithium_params *)0;
-        const byte buf[1] = { 0 };
-        word32 sz = 0;
-        WC_RNG *rng = NULL;
-        int res = 0;
-        byte level = 0;
-
-        (void)kp;
-        (void)pp;
-
-        /* Type aliases. */
-        (void)sizeof(dilithium_key);
-        (void)sizeof(wc_dilithium_params);
-
-        /* No-arg-reorder lifecycle / parameters. */
-        (void)wc_dilithium_init(&k);
-        (void)wc_dilithium_init_ex(&k, NULL, INVALID_DEVID);
-    #ifdef WOLF_PRIVATE_KEY_ID
-        (void)wc_dilithium_init_id(&k, NULL, 0, NULL, INVALID_DEVID);
-        (void)wc_dilithium_init_label(&k, NULL, NULL, INVALID_DEVID);
-    #endif
-    #ifndef WC_NO_CONSTRUCTORS
-        (void)wc_dilithium_new(NULL, INVALID_DEVID);
-        (void)wc_dilithium_delete(&k, NULL);
-    #endif
-        wc_dilithium_free(&k);
-        (void)wc_dilithium_set_level(&k, level);
-        (void)wc_dilithium_get_level(&k, &level);
-    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
-        (void)wc_dilithium_size(&k);
-        #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-        (void)wc_dilithium_priv_size(&k);
-        #endif
-    #endif
-    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-        (void)wc_dilithium_pub_size(&k);
-    #endif
-    #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
-        (void)wc_dilithium_sig_size(&k);
-    #endif
-    #ifdef WOLFSSL_MLDSA_CHECK_KEY
-        (void)wc_dilithium_check_key(&k);
-    #endif
-
-        /* Make / import / export (arg-reorder). */
-    #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
-        (void)wc_dilithium_make_key(&k, rng);
-        (void)wc_dilithium_make_key_from_seed(&k, NULL);
-    #endif
-    #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-        (void)wc_dilithium_import_public(buf, sz, &k);
-        (void)wc_dilithium_export_public(&k, NULL, &sz);
-    #endif
-    #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
-        (void)wc_dilithium_import_private(buf, sz, &k);
-        (void)wc_dilithium_import_private_only(buf, sz, &k);
-        (void)wc_dilithium_import_key(buf, sz, buf, sz, &k);
-        (void)wc_dilithium_export_private(&k, NULL, &sz);
-        (void)wc_dilithium_export_private_only(&k, NULL, &sz);
-        (void)wc_dilithium_export_key(&k, NULL, &sz, NULL, &sz);
-    #endif
-
-        /* Sign / verify (arg-reorder). */
-    #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
-        #ifdef WOLFSSL_MLDSA_NO_CTX
-        (void)wc_dilithium_sign_msg(buf, sz, NULL, &sz, &k, rng);
-        (void)wc_dilithium_sign_msg_with_seed(buf, sz, NULL, &sz, &k, NULL);
-        #endif
-        (void)wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, NULL, &sz, &k, rng);
-        (void)wc_dilithium_sign_ctx_hash(NULL, 0, 0, buf, sz, NULL, &sz, &k,
-                                         rng);
-        (void)wc_dilithium_sign_ctx_msg_with_seed(NULL, 0, buf, sz, NULL, &sz,
-                                                  &k, NULL);
-        (void)wc_dilithium_sign_ctx_hash_with_seed(NULL, 0, 0, buf, sz, NULL,
-                                                   &sz, &k, NULL);
-        (void)wc_dilithium_sign_mu_with_seed(buf, sz, NULL, &sz, &k, NULL);
-    #endif
-    #ifdef WOLFSSL_MLDSA_NO_CTX
-        (void)wc_dilithium_verify_msg(buf, sz, buf, sz, &res, &k);
-    #endif
-        (void)wc_dilithium_verify_ctx_msg(buf, sz, NULL, 0, buf, sz, &res, &k);
-        (void)wc_dilithium_verify_ctx_hash(buf, sz, NULL, 0, 0, buf, sz, &res,
-                                           &k);
-        (void)wc_dilithium_verify_mu(buf, sz, buf, sz, &res, &k);
-
-        /* DER decode / encode (arg-reorder). */
-    #ifndef WOLFSSL_MLDSA_NO_ASN1
-        #ifdef WOLFSSL_MLDSA_PRIVATE_KEY
-        (void)wc_Dilithium_PrivateKeyDecode(buf, &sz, &k, sz);
-        (void)wc_Dilithium_PrivateKeyToDer(&k, NULL, sz);
-        (void)wc_Dilithium_KeyToDer(&k, NULL, sz);
-        #endif
-        #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
-        (void)wc_Dilithium_PublicKeyDecode(buf, &sz, &k, sz);
-        #endif
-        #if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
-            defined(WC_ENABLE_ASYM_KEY_EXPORT)
-        (void)wc_Dilithium_PublicKeyToDer(&k, NULL, sz, 0);
-        #endif
-    #endif
-
-        /* Internal-helper aliases (see dilithium.h). */
-    #ifndef WOLFSSL_MLDSA_NO_ASN1
-        (void)dilithium_get_oid_sum(&k, NULL);
-    #endif
-    #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
-        #ifndef WOLFSSL_NO_ML_DSA_44
-        wc_dilithium_encode_w1_88(NULL, NULL);
-        #endif
-        #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-        wc_dilithium_encode_w1_32(NULL, NULL);
-        #endif
-    #endif
-
-        (void)res;
-        (void)rng;
-        (void)sz;
-        (void)buf;
-        (void)level;
-    }
-}
-#endif /* !WOLFSSL_NO_DILITHIUM_LEGACY_NAMES */
 
 PRAGMA_CLANG_DIAG_POP
 
-#endif /* HAVE_DILITHIUM */
+#endif /* WOLFSSL_HAVE_MLDSA */
+
+/*----------------------------------------------------------------------------*/
+/* ML-DSA / Dilithium negative length-validation tests                        */
+/*----------------------------------------------------------------------------*/
+
+/* ML-DSA HashML-DSA verify must reject hashLen > WC_MAX_DIGEST_SIZE */
+int test_mldsa_verify_hash(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
+    WC_RNG rng;
+    int res = 0;
+    byte sig[4000];
+    byte hash[4096]; /* larger than WC_MAX_DIGEST_SIZE */
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0x41, sizeof(sig));
+    XMEMSET(hash, 'A', sizeof(hash));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+#else
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+
+    /* hashLen=4096 must be rejected, not overflow the stack */
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtxHash(&key, sig, sizeof(sig), NULL, 0,
+        hash, sizeof(hash), WC_HASH_TYPE_SHA256, &res),
+        WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+    wc_MlDsaKey_Free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Dilithium verify_ctx_msg must reject absurdly large msgLen */
+int test_dilithium_hash(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    wc_MlDsaKey key;
+    WC_RNG rng;
+    int res = 0;
+    byte sig[4000];
+    byte msg[64];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 'A', sizeof(msg));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_65), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_44)
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+#else
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_MlDsaKey_MakeKey(&key, &rng), 0);
+
+    ExpectIntEQ(wc_MlDsaKey_VerifyCtx(&key, sig, sizeof(sig), NULL, 0,
+        msg, 0xFFFFFFC0, &res), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_MlDsaKey_Free(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

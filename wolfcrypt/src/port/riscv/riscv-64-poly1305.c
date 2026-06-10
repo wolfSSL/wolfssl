@@ -145,8 +145,7 @@ static WC_INLINE void poly1305_blocks_riscv64_16(Poly1305* ctx,
 
     "L_poly1305_riscv64_16_64_loop_%=:\n\t"
         /* Load m */
-        "ld     t0, (%[m])\n\t"
-        "ld     t1, 8(%[m])\n\t"
+        UNALIGNED_LD2(t0, t1, 0, %[m], t5)
         /* Split m into 26, 52, 52 */
         SPLIT_130(t2, t3, t4, t0, t1, %[notLast], t5)
 
@@ -285,8 +284,7 @@ void poly1305_blocks_riscv64(Poly1305* ctx, const unsigned char *m,
 
     "L_poly1305_riscv64_vec_loop_%=:\n\t"
         /* m0 + nfin */
-        "ld     t0, 0(%[m])\n\t"
-        "ld     t1, 8(%[m])\n\t"
+        UNALIGNED_LD2(t0, t1, 0, %[m], t5)
         "li     t6, 1\n\t"
         /* Split m into 24, 52, 52 */
         SPLIT_130(t2, t3, t4, t0, t1, t6, t5)
@@ -294,8 +292,7 @@ void poly1305_blocks_riscv64(Poly1305* ctx, const unsigned char *m,
         VMV_S_X(REG_V12, REG_T3)
         VMV_S_X(REG_V13, REG_T4)
         /* m1+ nfin */
-        "ld     t0, 16(%[m])\n\t"
-        "ld     t1, 24(%[m])\n\t"
+        UNALIGNED_LD2(t0, t1, 16, %[m], t5)
         /* Split m into 24, 52, 52 */
         SPLIT_130(t2, t3, t4, t0, t1, t6, t5)
         VMV_S_X(REG_V14, REG_T2)
@@ -464,10 +461,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 
     __asm__ __volatile__ (
         /* Load key material */
-        "ld     t0, 0(%[key])\n\t"
-        "ld     t1, 8(%[key])\n\t"
-        "ld     t2, 16(%[key])\n\t"
-        "ld     t3, 24(%[key])\n\t"
+        UNALIGNED_LD4(t0, t1, t2, t3, 0, %[key], t4)
         /* Load clamp */
         "ld     t4, 0(%[clamp])\n\t"
         "ld     t5, 8(%[clamp])\n\t"
@@ -636,8 +630,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
         "sltu   t3, t1, t3\n\t"
         "add    t2, t2, t3\n\t"
         "andi   t2, t2, 3\n\t"
-        "sd     t0, 0(%[mac])\n\t"
-        "sd     t1, 8(%[mac])\n\t"
+        UNALIGNED_SD2(t0, t1, 0, %[mac], t2)
         /* Zero out h. */
         "sd     x0, %[ctx_h_0]\n\t"
         "sd     x0, %[ctx_h_1]\n\t"

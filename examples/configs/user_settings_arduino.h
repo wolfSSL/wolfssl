@@ -186,6 +186,11 @@
      * Use the smaller ECC-256 built-in cert set to keep the examples fitting.
      */
     #define USE_CERT_BUFFERS_256
+
+    /* ECC-256 certs alone no longer fit. Drop the error reason string
+     * tables to reclaim flash; only wolfSSL_ERR_*_string() text is lost,
+     * TLS/crypto and DEBUG_WOLFSSL traces are unchanged. */
+    #define NO_ERROR_STRINGS
 #elif defined (__AVR__) || defined(__AVR_ARCH__) || defined(__MEGAAVR__)
     /* Do not enable TLS on platforms without networking */
 

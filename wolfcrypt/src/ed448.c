@@ -238,6 +238,77 @@ static int ed448_pairwise_consistency_test(ed448_key* key, WC_RNG* rng)
 }
 #endif
 
+/* Reject small-order Ed448 public keys: h*A vanishes during verification
+ * so any (R = [S]B, S) verifies for an arbitrary message. Cofactor is 4. */
+static int ed448_is_small_order(const byte p[ED448_PUB_KEY_SIZE])
+{
+    /* y-coordinates of every order-1/2/4 point plus the non-canonical
+     * encodings y = p / y = p+1. Byte 56 is cleared in both table and
+     * input before compare, masking the x-sign bit and the
+     * spec-mandated-zero (but decoder-ignored) bits 0-6. The decoder
+     * (fe448_from_bytes) reads bytes 0-55 modulo p with no canonical-form
+     * check, so y = p decodes to 0 and y = p+1 decodes to 1; both must
+     * be rejected here. Only {y, y + p} fits in 56 bytes (2p overflows),
+     * so listing y and y + p exhausts the reachable encodings. */
+    static const byte small_order_y[][ED448_PUB_KEY_SIZE] = {
+        /* order 1: identity y = 1, x = 0 */
+        {0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00},
+        /* order 4: y = 0 (x = +/-1; sign bit covered by mask) */
+        {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00},
+        /* order 2: y = p - 1, x = 0; p = 2^448 - 2^224 - 1 */
+        {0xfe,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xfe,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0x00},
+        /* non-canonical y = p (decodes to y = 0) */
+        {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xfe,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0x00},
+        /* non-canonical y = p + 1 (decodes to y = 1) */
+        {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0x00},
+    };
+    byte y[ED448_PUB_KEY_SIZE];
+    word32 i;
+
+    XMEMCPY(y, p, ED448_PUB_KEY_SIZE);
+    y[ED448_PUB_KEY_SIZE - 1] = 0;
+    for (i = 0; i < sizeof(small_order_y) / ED448_PUB_KEY_SIZE; i++) {
+        if (XMEMCMP(y, small_order_y[i], ED448_PUB_KEY_SIZE) == 0)
+            return 1;
+    }
+    return 0;
+}
+
 /* Derive the public key for the private key.
  *
  * key       [in]  Ed448 key object.
@@ -731,16 +802,11 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     if (i == -1)
         return BAD_FUNC_ARG;
 
-    /* Reject identity public key (0,1): 0x01 followed by 56 zero bytes. */
-    {
-        int isIdentity = (key->p[0] == 0x01);
-        int j;
-        for (j = 1; j < ED448_PUB_KEY_SIZE && isIdentity; j++) {
-            if (key->p[j] != 0x00)
-                isIdentity = 0;
-        }
-        if (isIdentity)
-            return BAD_FUNC_ARG;
+    /* Defence in depth: also catch small-order keys imported with trusted=1. */
+    if (ed448_is_small_order(key->p)) {
+        WOLFSSL_MSG("Ed448 small-order public key rejected during "
+                    "signature verification");
+        return BAD_FUNC_ARG;
     }
 
     /* uncompress A (public key), test if valid, and negate it */
@@ -1412,6 +1478,13 @@ int wc_ed448_check_key(ed448_key* key)
         ret = PUBLIC_KEY_E;
     }
 
+    /* Reject small-order pub key before the priv-vs-pub compare so the
+     * diagnostic isn't masked by a "mismatch" error. */
+    if ((ret == 0) && ed448_is_small_order(key->p)) {
+        WOLFSSL_MSG("Ed448 small-order public key rejected during key check");
+        ret = PUBLIC_KEY_E;
+    }
+
     /* If we have a private key just make the public key and compare. */
     if ((ret == 0) && key->privKeySet) {
         ret = wc_ed448_make_public(key, pubKey, sizeof(pubKey));
@@ -1421,23 +1494,6 @@ int wc_ed448_check_key(ed448_key* key)
     }
     /* No private key, check Y is valid. */
     else if ((ret == 0) && (!key->privKeySet)) {
-        /* Reject the identity element (0, 1).
-         * Encoding: 0x01 followed by 56 zero bytes. */
-        {
-            int isIdentity = 1;
-            int i;
-            if (key->p[0] != 0x01)
-                isIdentity = 0;
-            for (i = 1; i < ED448_PUB_KEY_SIZE && isIdentity; i++) {
-                if (key->p[i] != 0x00)
-                    isIdentity = 0;
-            }
-            if (isIdentity) {
-                WOLFSSL_MSG("Ed448 public key is the identity element");
-                ret = PUBLIC_KEY_E;
-            }
-        }
-
         /* Verify that xQ and yQ are integers in the interval [0, p - 1].
          * Only have yQ so check that ordinate.
          * p = 2^448-2^224-1 = 0xff..fe..ff

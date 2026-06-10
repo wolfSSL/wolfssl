@@ -371,6 +371,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_Dh_ffdhe6144_Get", "dh_ffdhe_6144");
     check_cfg(&binding, "wc_Dh_ffdhe8192_Get", "dh_ffdhe_8192");
 
+    /* crypto callback */
+    check_cfg(&binding, "wc_CryptoCb_RegisterDevice", "wolf_crypto_cb");
+
     /* ecc */
     check_cfg(&binding, "wc_ecc_init", "ecc");
     check_cfg(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key");
@@ -422,6 +425,7 @@ fn scan_cfg() -> Result<()> {
     /* kdf */
     check_cfg(&binding, "wc_PBKDF2", "kdf_pbkdf2");
     check_cfg(&binding, "wc_PKCS12_PBKDF_ex", "kdf_pkcs12");
+    check_cfg(&binding, "wc_scrypt", "kdf_scrypt");
     check_cfg(&binding, "wc_SRTP_KDF", "kdf_srtp");
     check_cfg(&binding, "wc_SSH_KDF", "kdf_ssh");
     check_cfg(&binding, "wc_Tls13_HKDF_Extract_ex", "kdf_tls13");
@@ -454,6 +458,7 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");
     check_cfg(&binding, "wc_MakeRsaKey", "rsa_keygen");
     check_cfg(&binding, "wc_RsaPSS_Sign", "rsa_pss");
+    check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
     check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
     check_cfg(&binding, "WC_MGF1SHA512_224", "rsa_mgf1sha512_224");
     check_cfg(&binding, "WC_MGF1SHA512_256", "rsa_mgf1sha512_256");

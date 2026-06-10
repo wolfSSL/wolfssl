@@ -126,8 +126,8 @@
 #ifdef HAVE_FALCON
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
-#ifdef HAVE_DILITHIUM
-    #include <wolfssl/wolfcrypt/dilithium.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
 #ifdef HAVE_HKDF
     #include <wolfssl/wolfcrypt/kdf.h>
@@ -1419,7 +1419,7 @@ enum {
 /* Limit is 2^24.5
  * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
  * Without the fraction is 23726566 (0x016A09E6) */
-#define AEAD_AES_LIMIT                           w64From32(0x016A, 0x09E6)
+#define AEAD_AES_LIMIT                           w64From32(0, 0x016A09E6)
 /* Limit is 2^23
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits */
 #define DTLS_AEAD_AES_CCM_LIMIT                  w64From32(0, 1 << 22)
@@ -1436,8 +1436,8 @@ enum {
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits
  * Without the fraction is 11863283 (0x00B504F3)
  * Half of this value is    5931641 (0x005A8279) */
-#define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0x00B5, 0x04F3)
-#define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0x005A, 0x8279)
+#define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0, 0x00B504F3)
+#define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0, 0x005A8279)
 
 /* Limit is (2^22 - 1) full messages [2^36 - 31 octets]
  * https://www.rfc-editor.org/rfc/rfc8998.html#name-aead_sm4_gcm
@@ -1632,25 +1632,28 @@ enum Misc {
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
-    DTLS_EXPORT_OPT_SZ       = 62, /* amount of bytes used from Options */
-    DTLS_EXPORT_OPT_SZ_4     = 61, /* amount of bytes used from Options */
-    TLS_EXPORT_OPT_SZ        = 66, /* amount of bytes used from Options */
-    TLS_EXPORT_OPT_SZ_4      = 65, /* amount of bytes used from Options */
-    DTLS_EXPORT_OPT_SZ_3     = 60, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 66, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_5     = 62, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_4     = 61, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ        = 66, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ_5      = 66, /* number of bytes used from Options */
+    TLS_EXPORT_OPT_SZ_4      = 65, /* number of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_3     = 60, /* number of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
-                                   /* max amount of bytes used from Keys */
+                                   /* max number of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 85 + (DTLS_SEQ_SZ * 2),
-                                   /* min amount of bytes used from Keys */
+                                   /* min number of bytes used from Keys */
     WOLFSSL_EXPORT_TLS       = 1,
     WOLFSSL_EXPORT_DTLS      = 0,
 #ifndef WOLFSSL_EXPORT_SPC_SZ
-    WOLFSSL_EXPORT_SPC_SZ    = 16, /* amount of bytes used from CipherSpecs */
+    WOLFSSL_EXPORT_SPC_SZ    = 16, /* number of bytes used from CipherSpecs */
 #endif
     WOLFSSL_EXPORT_LEN       = 2,  /* 2 bytes for length and protocol */
-    WOLFSSL_EXPORT_VERSION   = 5,  /* wolfSSL version for serialized session */
+    WOLFSSL_EXPORT_VERSION   = 6,  /* wolfSSL version for serialized session */
 
-    WOLFSSL_EXPORT_VERSION_4 = 4,  /* 5.6.4 release and before */
     /* older export versions supported */
+    WOLFSSL_EXPORT_VERSION_5 = 5,  /* version before DTLS Encrypt-Then-MAC */
+    WOLFSSL_EXPORT_VERSION_4 = 4,  /* 5.6.4 release and before */
     WOLFSSL_EXPORT_VERSION_3 = 3,  /* wolfSSL version before TLS 1.3 addition */
 
     MAX_EXPORT_IP            = 46, /* max ip size IPv4 mapped IPv6 */
@@ -1778,7 +1781,7 @@ enum Misc {
     SM2_SA_MINOR        = 8,   /* Least significant byte for SM2 with SM3 */
 
     FALCON_SA_MAJOR     = 0xFE,/* Most significant byte used with falcon sig algs */
-    DILITHIUM_SA_MAJOR  = 0x09,/* Most significant byte used with dilithium sig algs */
+    MLDSA_SA_MAJOR      = 0x09,/* Most significant byte used with ML-DSA sig algs */
 
     /* These values for falcon match what OQS has defined. */
     FALCON_LEVEL1_SA_MAJOR = 0xFE,
@@ -1786,14 +1789,13 @@ enum Misc {
     FALCON_LEVEL5_SA_MAJOR = 0xFE,
     FALCON_LEVEL5_SA_MINOR = 0xDA,
 
-    /* these values for MLDSA (Dilithium) correspond to what is proposed in the
-     * IETF. */
-    DILITHIUM_LEVEL2_SA_MAJOR = 0x09,
-    DILITHIUM_LEVEL2_SA_MINOR = 0x04,
-    DILITHIUM_LEVEL3_SA_MAJOR = 0x09,
-    DILITHIUM_LEVEL3_SA_MINOR = 0x05,
-    DILITHIUM_LEVEL5_SA_MAJOR = 0x09,
-    DILITHIUM_LEVEL5_SA_MINOR = 0x06,
+    /* These values for ML-DSA correspond to what is proposed in the IETF. */
+    MLDSA_44_SA_MAJOR = 0x09,
+    MLDSA_44_SA_MINOR = 0x04,
+    MLDSA_65_SA_MAJOR = 0x09,
+    MLDSA_65_SA_MINOR = 0x05,
+    MLDSA_87_SA_MAJOR = 0x09,
+    MLDSA_87_SA_MINOR = 0x06,
 
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
@@ -1894,13 +1896,15 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    /* If we are building with post-quantum algorithms, we likely want to
-     * inter-op with OQS's OpenSSL and they send a lot more sigalgs.
+#if (defined(WOLFSSL_LEANPSK) || defined(WOLFSSL_LEANTLS)) && \
+    !defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA)
+    /* Lean builds keep the list small to minimize the memory footprint, unless
+     * they are post-quantum builds: those want to inter-op with OQS's OpenSSL
+     * that sends a lot more sigalgs, so they fall through to the larger default.
      */
-    #define WOLFSSL_MAX_SIGALGO 128
-#else
     #define WOLFSSL_MAX_SIGALGO 44
+#else
+    #define WOLFSSL_MAX_SIGALGO 128
 #endif
 #endif
 
@@ -1928,9 +1932,9 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #define MIN_FALCONKEY_SZ    1281
 #endif
 #endif
-#ifdef HAVE_DILITHIUM
-#ifndef MIN_DILITHIUMKEY_SZ
-    #define MIN_DILITHIUMKEY_SZ    2528
+#ifdef WOLFSSL_HAVE_MLDSA
+#ifndef MIN_MLDSAKEY_SZ
+    #define MIN_MLDSAKEY_SZ    2528
 #endif
 #endif
 
@@ -1973,8 +1977,8 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #endif
 
 #ifndef MAX_X509_SIZE
-    #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-        #define MAX_X509_SIZE   (8*1024) /* max static x509 buffer size; dilithium is big */
+    #if defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+        #define MAX_X509_SIZE   (8*1024) /* max static x509 buffer size; ML-DSA is big */
     #elif defined(WOLFSSL_HAPROXY)
         #define MAX_X509_SIZE   3072 /* max static x509 buffer size */
     #else
@@ -2689,8 +2693,8 @@ struct WOLFSSL_CERT_MANAGER {
 #ifdef HAVE_FALCON
     short           minFalconKeySz;     /* minimum allowed Falcon key size */
 #endif
-#ifdef HAVE_DILITHIUM
-    short           minDilithiumKeySz;  /* minimum allowed Dilithium key size */
+#ifdef WOLFSSL_HAVE_MLDSA
+    short           minMlDsaKeySz;      /* minimum allowed ML-DSA key size */
 #endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
@@ -3110,6 +3114,7 @@ typedef struct RpkState {
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 #define ECH_ACCEPT_CONFIRMATION_SZ 8
+#define ECH_PADDING_TO_32(length) (31 - (((length) - 1) % 32))
 
 typedef enum {
     ECH_TYPE_OUTER = 0,
@@ -3177,7 +3182,8 @@ typedef struct WOLFSSL_ECH {
 
 WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
 
-WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen);
+WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL* ssl, WOLFSSL_ECH* ech, byte* aad,
+    word32 aadLen);
 
 
 WOLFSSL_LOCAL int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
@@ -3458,11 +3464,16 @@ typedef struct PointFormat {
 
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Copy(TLSX* src, TLSX** dst, void* heap);
 WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
-                                                                    void* heap);
+                                                          void* heap, int side);
 
-WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_UsePointFormat wolfSSL_TLSX_UsePointFormat
+#endif
+/* WOLFSSL_TEST_VIS so the API tests can seed a client's ec_point_formats
+ * extension (the point-format negotiation has no public API). */
+WOLFSSL_TEST_VIS int TLSX_UsePointFormat(TLSX** extensions, byte point,
                                                                     void* heap);
-WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup);
+WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup, int side);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
@@ -3989,7 +4000,7 @@ struct WOLFSSL_CTX {
     byte        haveDH:1;         /* server DH params set by user */
     byte        haveECDSAsig:1;   /* server cert signed w/ ECDSA */
     byte        haveFalconSig:1;  /* server cert signed w/ Falcon */
-    byte        haveDilithiumSig:1;/* server cert signed w/ Dilithium */
+    byte        haveMlDsaSig:1;   /* server cert signed w/ ML-DSA */
     byte        haveStaticECC:1;  /* static server ECC private key */
     byte        partialWrite:1;   /* only one msg per write call */
     byte        autoRetry:1;      /* retry read/write on a WANT_{READ|WRITE} */
@@ -4045,6 +4056,8 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     byte        disableECH:1;
+    byte        enableEchTrialDecrypt:1;  /* Trial decryption of the
+                                             inner hello */
 #endif
     word16      minProto:1; /* sets min to min available */
     word16      maxProto:1; /* sets max to max available */
@@ -4080,8 +4093,8 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_FALCON
     short       minFalconKeySz;   /* minimum Falcon key size */
 #endif
-#ifdef HAVE_DILITHIUM
-    short       minDilithiumKeySz;/* minimum Dilithium key size */
+#ifdef WOLFSSL_HAVE_MLDSA
+    short       minMlDsaKeySz;    /* minimum ML-DSA key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
@@ -4448,11 +4461,11 @@ enum KeyExchangeAlgorithm {
 #define SIG_RSA         0x02
 #define SIG_SM2         0x04
 #define SIG_FALCON      0x08
-#define SIG_DILITHIUM   0x10
+#define SIG_MLDSA       0x10
 #define SIG_ANON        0x20
 /* SIG_ANON is omitted by default */
 #define SIG_ALL         (SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | \
-                         SIG_DILITHIUM)
+                         SIG_MLDSA)
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
@@ -4466,9 +4479,9 @@ enum SignatureAlgorithm {
     ed448_sa_algo                = 11,
     falcon_level1_sa_algo        = 12,
     falcon_level5_sa_algo        = 13,
-    dilithium_level2_sa_algo     = 14,
-    dilithium_level3_sa_algo     = 15,
-    dilithium_level5_sa_algo     = 16,
+    mldsa_44_sa_algo             = 14,
+    mldsa_65_sa_algo             = 15,
+    mldsa_87_sa_algo             = 16,
     sm2_sa_algo                  = 17,
     any_sa_algo                  = 18,
     ecc_brainpool_sa_algo        = 19,
@@ -4519,8 +4532,12 @@ enum ClientCertificateType {
     rsa_fixed_ecdh      = 65,
     ecdsa_fixed_ecdh    = 66,
     falcon_sign         = 67,
-    dilithium_sign      = 68,
+    mldsa_sign          = 68,
 };
+
+/* Maximum number of ClientCertificateType bytes the server emits in a
+ * CertificateRequest. Currently rsa_sign and ecdsa_sign. */
+#define MAX_CERT_REQ_CERT_TYPE_CNT 2
 
 
 #ifndef WOLFSSL_AEAD_ONLY
@@ -5136,7 +5153,7 @@ struct Options {
     word16            haveECDSAsig:1;     /* server ECDSA signed cert */
     word16            haveStaticECC:1;    /* static server ECC private key */
     word16            haveFalconSig:1;    /* server Falcon signed cert */
-    word16            haveDilithiumSig:1; /* server Dilithium signed cert */
+    word16            haveMlDsaSig:1;     /* server ML-DSA signed cert */
     word16            havePeerCert:1;     /* do we have peer's cert */
     word16            havePeerVerify:1;   /* and peer's cert verify */
     word16            usingPSK_cipher:1;  /* are using psk as cipher */
@@ -5185,6 +5202,8 @@ struct Options {
 #endif /* WOLFSSL_DTLS */
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
     word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
+    word16            peerNoUncompPF:1;   /* peer sent ec_point_formats without
+                                           * the uncompressed (0) format */
 #endif
     word16            keepResources:1;    /* Keep resources after handshake */
     word16            useClientOrder:1;   /* Use client's cipher order */
@@ -5252,6 +5271,8 @@ struct Options {
     word16            disableECH:1;             /* Did the user disable ech */
     word16            echProcessingInner:1;     /* Processing the inner hello */
     word16            echRetryConfigsAccepted:1;
+    word16            enableEchTrialDecrypt:1;  /* Trial decryption of the
+                                                   inner hello */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;
@@ -5325,8 +5346,8 @@ struct Options {
 #if defined(HAVE_FALCON)
     short           minFalconKeySz;   /* minimum Falcon key size */
 #endif
-#if defined(HAVE_DILITHIUM)
-    short           minDilithiumKeySz;/* minimum Dilithium key size */
+#if defined(WOLFSSL_HAVE_MLDSA)
+    short           minMlDsaKeySz;    /* minimum ML-DSA key size */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte            verifyDepth;      /* maximum verification depth */
@@ -5540,7 +5561,7 @@ struct WOLFSSL_X509 {
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     word32       pkCurveOID;
 #endif
 #ifndef NO_CERTS
@@ -5943,6 +5964,11 @@ enum  {
     DTLS13_EPOCH_TRAFFIC0 = 3
 };
 
+/* RFC 9147 Section 4.2.1: the DTLS 1.3 epoch is a 48-bit value and must not
+ * exceed 2^48-1. Expressed as the high/low 32-bit halves of a w64wrapper. */
+#define DTLS13_EPOCH_MAX_HI32 0x0000FFFFU
+#define DTLS13_EPOCH_MAX_LO32 0xFFFFFFFFU
+
 /* 64-bit epoch + 64-bit sequence number */
 #define DTLS13_RN_SIZE (OPAQUE64_LEN + OPAQUE64_LEN)
 /* Maximum number of ACK records allowed in an ACK message */
@@ -6138,7 +6164,7 @@ struct WOLFSSL {
     word32          hsType;             /* Type of Handshake key (hsKey) */
     WOLFSSL_CIPHER  cipher;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    void*           hsAltKey;           /* Handshake key (dilithium, falcon)
+    void*           hsAltKey;           /* Handshake key (ML-DSA, falcon)
                                          * allocated from heap */
     word32          hsAltType;          /* Type of Handshake key (hsAltKey) */
 #endif
@@ -6260,9 +6286,9 @@ struct WOLFSSL {
     falcon_key*     peerFalconKey;
     byte            peerFalconKeyPresent;
 #endif
-#ifdef HAVE_DILITHIUM
-    dilithium_key*  peerDilithiumKey;
-    byte            peerDilithiumKeyPresent;
+#ifdef WOLFSSL_HAVE_MLDSA
+    wc_MlDsaKey*    peerMlDsaKey;
+    byte            peerMlDsaKeyPresent;
 #endif
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */
@@ -6610,6 +6636,10 @@ struct WOLFSSL {
 #endif
 #endif
 #endif
+    /* Cached BuildMessage(sizeOnly) overhead (recordSz - payloadSz) for AEAD
+     * ciphers; 0 means uncached and is never a valid AEAD overhead. EtM does
+     * not apply to AEAD. */
+    word32 recordSzOverhead;
 };
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
@@ -6824,9 +6854,21 @@ WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
 #endif
 
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
+/* TicketSniHash, TicketAlpnHash, and VerifyTicketBinding are defined in
+ * internal.c only when !NO_WOLFSSL_SERVER && !NO_TLS - gate the
+ * declarations to match so client-only or no-TLS builds don't compile in
+ * call sites that would fail to link. */
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+#ifdef HAVE_SNI
+WOLFSSL_LOCAL int TicketSniHash(WOLFSSL* ssl, byte* dst);
+#endif
+#ifdef HAVE_ALPN
+WOLFSSL_LOCAL int TicketAlpnHash(WOLFSSL* ssl, byte* dst);
+#endif
 #if defined(HAVE_SNI) || defined(HAVE_ALPN)
 WOLFSSL_LOCAL int VerifyTicketBinding(WOLFSSL* ssl);
 #endif
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 #endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, size_t sz);
 #ifdef WOLFSSL_THREADED_CRYPT
@@ -6884,7 +6926,7 @@ WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
                                     byte cipherSuite);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length);
-WOLFSSL_LOCAL int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz,
+WOLFSSL_TEST_VIS int wolfssl_local_GetRecordSize(WOLFSSL *ssl, int payloadSz,
         int isEncrypted);
 WOLFSSL_LOCAL int wolfssl_local_GetMaxPlaintextSize(WOLFSSL *ssl);
 WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl);
@@ -7175,8 +7217,12 @@ typedef struct CipherSuiteInfo {
     byte flags;
 } CipherSuiteInfo;
 
-WOLFSSL_LOCAL const CipherSuiteInfo* GetCipherNames(void);
-WOLFSSL_LOCAL int GetCipherNamesSize(void);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define GetCipherNames wolfSSL_GetCipherNames
+    #define GetCipherNamesSize wolfSSL_GetCipherNamesSize
+#endif
+WOLFSSL_TEST_VIS const CipherSuiteInfo* GetCipherNames(void);
+WOLFSSL_TEST_VIS int GetCipherNamesSize(void);
 WOLFSSL_LOCAL const char* GetCipherNameInternal(byte cipherSuite0, byte cipherSuite);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* used in wolfSSL_sk_CIPHER_description */
@@ -7256,7 +7302,10 @@ WOLFSSL_LOCAL int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
 #ifndef WOLFSSL_NO_TLS12
 WOLFSSL_LOCAL void FreeBuildMsgArgs(WOLFSSL* ssl, BuildMsgArgs* args);
 #endif
-WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define BuildMessage wolfSSL_BuildMessage
+#endif
+WOLFSSL_TEST_VIS int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         const byte* input, int inSz, int type, int hashOutput,
                         int sizeOnly, int asyncOkay, int epochOrder);
 

@@ -442,8 +442,8 @@ impl Lms {
     /// }
     /// ```
     #[cfg(all(lms_make_key, random))]
-    pub fn make_key(&mut self, rng: &mut RNG) -> Result<(), i32> {
-        let rc = unsafe { sys::wc_LmsKey_MakeKey(&mut self.ws_key, &mut rng.wc_rng) };
+    pub fn make_key(&mut self, rng: &RNG) -> Result<(), i32> {
+        let rc = unsafe { sys::wc_LmsKey_MakeKey(&mut self.ws_key, rng.wc_rng) };
         if rc != 0 {
             return Err(rc);
         }
@@ -773,6 +773,9 @@ impl Lms {
         };
         if rc != 0 {
             return Err(rc);
+        }
+        if kid_ptr.is_null() {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let src = unsafe { core::slice::from_raw_parts(kid_ptr, kid_sz as usize) };
         if kid.len() < src.len() {
