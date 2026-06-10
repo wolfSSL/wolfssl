@@ -3524,3 +3524,93 @@ int test_wolfSSL_X509_V_ERR_strings(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Leaf must satisfy a grandparent CA's NCs even when its direct issuer
+ * carries no constraints. */
+int test_wolfSSL_CertManagerNameConstraint_valid_chain(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* uri_permit_ca_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* benign_sub_ca_cert =
+        "./certs/test/nc-ancestor/02-benign-sub-ca-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-valid-leaf-cert.pem";
+    const char* attacker_leaf_chain =
+        "./certs/test/nc-ancestor/03-leaf-chain.pem";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, uri_permit_ca_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, benign_sub_ca_cert, NULL),
+                WOLFSSL_SUCCESS);
+
+    /* Positive: leaf satisfies the grandparent permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    /* Negative: leaf violates the grandparent permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_chain,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Same-DN sibling without NCs is loaded alongside the strict CA. The
+ * walk must use AKID->SKID, not a name-only lookup, to find the real
+ * signer. */
+int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* permissive_cert =
+        "./certs/test/nc-ancestor/00-uri-permit-ca-permissive-cert.pem";
+    const char* strict_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* benign_sub_ca_cert =
+        "./certs/test/nc-ancestor/02-benign-sub-ca-cert.pem";
+    const char* attacker_leaf_chain =
+        "./certs/test/nc-ancestor/03-leaf-chain.pem";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    /* Load permissive sibling first to favor a name-only lookup. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, permissive_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, strict_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, benign_sub_ca_cert, NULL),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_chain,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}

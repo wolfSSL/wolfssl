@@ -52,6 +52,8 @@ int test_wolfSSL_CertManagerCheckOCSPResponse(void);
 int test_various_pathlen_chains(void);
 int test_wolfSSL_CertManagerRejectMD5Cert(void);
 int test_wolfSSL_X509_V_ERR_strings(void);
+int test_wolfSSL_CertManagerNameConstraint_valid_chain(void);
+int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
 
 #define TEST_CERTMAN_DECLS                                                  \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerAPI),                \
@@ -83,7 +85,11 @@ int test_wolfSSL_X509_V_ERR_strings(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCheckOCSPResponse),  \
     TEST_DECL_GROUP("certman", test_various_pathlen_chains),                \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerRejectMD5Cert),      \
-    TEST_DECL_GROUP("certman", test_wolfSSL_X509_V_ERR_strings)
+    TEST_DECL_GROUP("certman", test_wolfSSL_X509_V_ERR_strings),            \
+    TEST_DECL_GROUP("certman",                                             \
+        test_wolfSSL_CertManagerNameConstraint_valid_chain),                \
+    TEST_DECL_GROUP("certman",                                             \
+        test_wolfSSL_CertManagerNameConstraint_skid_disambiguates)
 
 #endif /* WOLFCRYPT_TEST_CERTMAN_H */
 
