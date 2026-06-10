@@ -84,7 +84,7 @@ int test_wc_DhAgree_subgroup_check(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_DH) && !defined(WOLFSSL_SP_MATH) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0)
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(7,0,0))
     DhKey key;
     WC_RNG rng;
     byte agree[64];
