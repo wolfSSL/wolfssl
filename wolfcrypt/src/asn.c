@@ -19239,8 +19239,8 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
 
     /* Process all subtrees. */
     while ((ret == 0) && (idx < (word32)sz)) {
-        byte minVal = 0;
-        byte maxVal = 0;
+        word16 minVal = 0;
+        word16 maxVal = 0;
         if (limit > 0) {
             cnt++;
             if (cnt > limit) {
@@ -19255,8 +19255,8 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
          */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * subTreeASN_Length);
         GetASN_Choice(&dataASN[SUBTREEASN_IDX_BASE], generalNameChoice);
-        GetASN_Int8Bit(&dataASN[SUBTREEASN_IDX_MIN], &minVal);
-        GetASN_Int8Bit(&dataASN[SUBTREEASN_IDX_MAX], &maxVal);
+        GetASN_Int16Bit(&dataASN[SUBTREEASN_IDX_MIN], &minVal);
+        GetASN_Int16Bit(&dataASN[SUBTREEASN_IDX_MAX], &maxVal);
         /* Parse GeneralSubtree. */
         ret = GetASN_Items(subTreeASN, dataASN, subTreeASN_Length, 0, input,
                            &idx, sz);
