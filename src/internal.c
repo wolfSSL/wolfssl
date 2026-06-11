@@ -23150,6 +23150,52 @@ static void DropAndRestartProcessReply(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 }
 #endif /* WOLFSSL_DTLS */
+
+#ifndef WOLFSSL_NO_TLS12
+/* On a confirmed TLS 1.2 / DTLS 1.2 client resumption, check the abbreviated
+ * ServerHello's EMS state (RFC 7627 5.3) and cipher suite (RFC 5246 7.4.1.3)
+ * match the resumed session. Called once resumption is confirmed - at a renewed
+ * NewSessionTicket (before SetupSession refreshes the cached values) or the
+ * server ChangeCipherSpec. Deferred from ServerHello because a declined ticket
+ * (RFC 5077 3.4) falls back to a full handshake that must not be rejected.
+ * Returns 0 if consistent, else sends a fatal alert and returns an error. */
+static int CheckResumptionConsistency(WOLFSSL* ssl)
+{
+    if (ssl->session == NULL) /* nothing to compare against */
+        return 0;
+    /* EMS must match (RFC 7627 5.3); skip EAP-FAST (session-secret callback). */
+    if (
+#ifdef HAVE_SECRET_CALLBACK
+        !(ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                && ssl->session->ticketLen > 0
+#endif
+                ) &&
+#endif
+        ssl->session->haveEMS != ssl->options.haveEMS) {
+        WOLFSSL_MSG("Resumed session EMS state does not match "
+                    "ServerHello EMS state");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+        return EXT_MASTER_SECRET_NEEDED_E;
+    }
+#ifndef NO_RESUME_SUITE_CHECK
+    /* Suite must match (RFC 5246 7.4.1.3), tickets included. Skip when no suite
+     * was retained (both zero = TLS_NULL_WITH_NULL_NULL, e.g. EAP-FAST PAC). */
+    if ((ssl->session->cipherSuite0 != 0 || ssl->session->cipherSuite != 0) &&
+            (ssl->options.cipherSuite0 != ssl->session->cipherSuite0 ||
+             ssl->options.cipherSuite != ssl->session->cipherSuite)) {
+        WOLFSSL_MSG("Resumed session cipher suite does not match "
+                    "ServerHello cipher suite");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
+        return MATCH_SUITE_ERROR;
+    }
+#endif /* NO_RESUME_SUITE_CHECK */
+    return 0;
+}
+#endif /* !WOLFSSL_NO_TLS12 */
+
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
    ssl->error will be whitelisted. This is useful when the connection has been
@@ -23978,6 +24024,15 @@ default:
                             break;
                         #endif /* WOLFSSL_DTLS */
                         }
+                    }
+
+                    /* Server CCS confirms the abbreviated handshake: validate
+                     * the resumed session before installing keys. */
+                    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->options.resuming) {
+                        ret = CheckResumptionConsistency(ssl);
+                        if (ret != 0)
+                            return ret;
                     }
 
                     ssl->keys.encryptionOn = 1;
@@ -32342,57 +32397,9 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         }
         else {
             if (DSH_CheckSessionId(ssl)) {
-                /* RFC 7627 5.3: resumed session EMS state must match the
-                 * ServerHello; abort on mismatch. Covers ticket resumption
-                 * too. Skip only EAP-FAST (sessionSecretCb supplied the PAC
-                 * ticket's secret in DoServerHello), whose synthetic session
-                 * has no negotiated EMS state to compare. */
-                if (
-            #ifdef HAVE_SECRET_CALLBACK
-                    !(ssl->sessionSecretCb != NULL
-            #ifdef HAVE_SESSION_TICKET
-                            && ssl->session->ticketLen > 0
-            #endif
-                            ) &&
-            #endif
-                    ssl->session->haveEMS != ssl->options.haveEMS) {
-                    WOLFSSL_MSG("Resumed session EMS state does not match "
-                                "ServerHello EMS state");
-                    SendAlert(ssl, alert_fatal, handshake_failure);
-                    WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
-                    return EXT_MASTER_SECRET_NEEDED_E;
-                }
-#ifndef NO_RESUME_SUITE_CHECK
-                /* RFC 5246 Section 7.4.1.3: on resumption the ServerHello
-                 * reuses the previously negotiated cipher suite. Reject a
-                 * server that resumes the session but selects a different
-                 * suite. Unlike the EMS check above this also covers ticket
-                 * resumption: the ticket is opaque to the client, so it cannot
-                 * rely on the suite being bound inside the ticket and must
-                 * enforce the match against the suite retained in the cached
-                 * session (SetupSession stores it for ticket sessions too).
-                 * Otherwise a server could resume a ticket under a different,
-                 * weaker suite the client offered and the downgrade would go
-                 * undetected.
-                 *
-                 * Skip only when the client retained no suite for the session
-                 * (cipherSuite0/cipherSuite both zero): then there is nothing to
-                 * compare against. This is the case for EAP-FAST, whose PAC is a
-                 * TLS ticket whose keys are supplied through the session-secret
-                 * callback and which never populates the cached suite. (0,0) is
-                 * TLS_NULL_WITH_NULL_NULL, never a negotiated suite, so it
-                 * unambiguously means "no retained suite". */
-                if ((ssl->session->cipherSuite0 != 0 ||
-                            ssl->session->cipherSuite != 0) &&
-                        (ssl->options.cipherSuite0 != ssl->session->cipherSuite0 ||
-                         ssl->options.cipherSuite != ssl->session->cipherSuite)) {
-                    WOLFSSL_MSG("Resumed session cipher suite does not match "
-                                "ServerHello cipher suite");
-                    SendAlert(ssl, alert_fatal, illegal_parameter);
-                    WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
-                    return MATCH_SUITE_ERROR;
-                }
-#endif /* NO_RESUME_SUITE_CHECK */
+                /* EMS/suite consistency is checked once resumption is confirmed
+                 * (CheckResumptionConsistency), not here: a ticket the server
+                 * declines (RFC 5077 3.4) must fall back to a full handshake. */
                 if (SetCipherSpecs(ssl) == 0) {
                     if (!HaveUniqueSessionObj(ssl)) {
                         WOLFSSL_MSG("Unable to have unique session object");
@@ -35639,6 +35646,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_MSG("Unexpected session ticket");
         WOLFSSL_ERROR_VERBOSE(SESSION_TICKET_EXPECT_E);
         return SESSION_TICKET_EXPECT_E;
+    }
+
+    /* A renewed ticket while resuming confirms resumption; check before the
+     * SetupSession() below refreshes the cached suite/EMS and masks a downgrade.
+     * (The ChangeCipherSpec check covers the no-renewal case.) */
+    if (ssl->options.resuming) {
+        ret = CheckResumptionConsistency(ssl);
+        if (ret != 0)
+            return ret;
     }
 
     if (OPAQUE32_LEN > size)
