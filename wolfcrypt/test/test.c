@@ -52312,7 +52312,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         priv[0] = 0xff;
         priv[1] |= 0x0f;
         ret = wc_MlKemKey_DecodePrivateKey(key, priv, testData[i][1]);
-        if (ret != PUBLIC_KEY_E)
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E))
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         ret = 0;
 
@@ -55873,7 +55873,8 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
             ret = wc_MlDsaKey_SetParams(key, expectedLevel);
         }
         if (ret == 0) {
-            if (wc_MlDsaKey_ImportPrivRaw(key, der, rawKeySz) != PUBLIC_KEY_E) {
+            if (wc_MlDsaKey_ImportPrivRaw(key, der, rawKeySz) !=
+                    WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
                 ret = WC_TEST_RET_ENC_NC;
             }
         }
