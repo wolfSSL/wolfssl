@@ -19,9 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 #ifdef WOLFSSL_HWPUF
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hwpuf.h>
@@ -57,7 +58,7 @@ WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 #else
     #error No hwpuf device defined
 #endif
- 
+
     return ret;
 }
 
@@ -75,7 +76,7 @@ WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf)
 #else
     #error No hwpuf device defined
 #endif
- 
+
     ForceZero(hwpuf, sizeof(wc_HWPUF));
 
     return ret;

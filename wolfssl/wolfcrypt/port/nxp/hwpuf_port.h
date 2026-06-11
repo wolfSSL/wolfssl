@@ -22,18 +22,22 @@
 #define _NXP_HWPUF_PORT_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(WOLFSSL_HWPUF) && defined(WOLFSSL_NXP_HWPUF)
+
 #include <wolfssl/wolfcrypt/hwpuf.h>
-#include "fsl_puf.h"
 
 #define WOLFSSL_NXP_HWPUF_DEVID 5569
 
 #define HWPUF_KEY_SIZE_IS_VALID(keysz) \
     (keysz == 16 || keysz == 24 || keysz == 32)
 
-#define HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(keysz) \
-    PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(keysz)
+/* keycode size is 52 for key sizes of 16, 24, or 32 */
+#define HWPUF_KEY_SIZE_TO_KEYCODE_SIZE(keysz)   52
 
 WOLFSSL_API int nxp_hwpuf_RegisterDevice(wc_HWPUF* hwpuf);
 WOLFSSL_API int nxp_hwpuf_UnregisterDevice(wc_HWPUF* hwpuf);
+
+#endif /* WOLFSSL_HWPUF && WOLFSSL_NXP_HWPUF */
 
 #endif /* _NXP_HWPUF_PORT_H_ */
