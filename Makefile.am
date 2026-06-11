@@ -299,12 +299,15 @@ TESTS += $(check_SCRIPTS)
 #
 # The setup and the distclean cleanup use rm -rf: a --private-dir run of
 # .github/scripts/parallel-make-check.py replaces the certs symlink with a
-# private directory copy, which rm -f would not remove.
+# private directory copy, which rm -f would not remove.  The recipe body
+# runs under set -e so a failed symlink aborts the build instead of being
+# stamped complete.
 ##############################################################################
 BUILT_SOURCES += wolfssl-test-data.stamp
 
 wolfssl-test-data.stamp:
-	$(AM_V_at)if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
+	$(AM_V_at)set -e; \
+	if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
 		$(MKDIR_P) tests scripts examples; \
 		for f in certs input quit; do \
 			rm -rf "$$f"; \

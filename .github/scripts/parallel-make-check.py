@@ -50,8 +50,9 @@
 # directory; see --private-dir for the exception.
 #
 # The first failing config aborts the others (pending configs are skipped,
-# in-flight ones are killed) so CI fails fast; pass --no-fail-fast to run
-# everything and report every failure.
+# in-flight ones get SIGTERM, then SIGKILL after a 10 s grace period) so CI
+# fails fast; pass --no-fail-fast to run everything and report every
+# failure.
 
 import argparse
 import json
@@ -96,16 +97,33 @@ live_procs = set()
 procs_lock = threading.Lock()
 
 
-def abort_others():
-    # Every subprocess starts its own session, so killing the process
+def kill_group(p, sig):
+    # Every subprocess starts its own session, so signalling the process
     # group takes down the whole make/test tree under it.
+    try:
+        os.killpg(p.pid, sig)
+    except (ProcessLookupError, PermissionError):
+        try:
+            p.send_signal(sig)
+        except ProcessLookupError:
+            pass
+
+
+def abort_others():
     with procs_lock:
         procs = list(live_procs)
     for p in procs:
-        try:
-            os.killpg(p.pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            pass
+        kill_group(p, signal.SIGTERM)
+    # Bounded escalation: SIGKILL whatever ignored the SIGTERM, so
+    # fail-fast cannot hang behind a test that traps/ignores SIGTERM.
+    deadline = time.monotonic() + 10
+    while any(p.poll() is None for p in procs):
+        if time.monotonic() > deadline:
+            for p in procs:
+                if p.poll() is None:
+                    kill_group(p, signal.SIGKILL)
+            break
+        time.sleep(0.2)
 
 
 def nproc():
@@ -282,11 +300,13 @@ def run_config(cfg, opts):
                 # Close the race with abort_others(): if its sweep ran
                 # between our stop_event check above and the registration
                 # just now, this process escaped the sweep - kill it
-                # ourselves (the wait() below then reaps it quickly).
+                # ourselves (the wait() below then reaps it), escalating
+                # like the sweep does if SIGTERM is ignored.
+                kill_group(proc, signal.SIGTERM)
                 try:
-                    os.killpg(proc.pid, signal.SIGTERM)
-                except (ProcessLookupError, PermissionError):
-                    proc.terminate()
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    kill_group(proc, signal.SIGKILL)
             try:
                 rc = proc.wait()
             finally:
