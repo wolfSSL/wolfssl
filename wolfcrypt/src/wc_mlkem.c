@@ -2043,7 +2043,9 @@ static void mlkemkey_decode_public(sword16* pub, byte* pubSeed, const byte* p,
  * @return  BAD_FUNC_ARG when key or in is NULL.
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
- * @return  PUBLIC_KEY_E when public key data doesn't match parameters.
+ * @return  PUBLIC_KEY_E when the private or public vector has a coefficient
+ *          that is not reduced modulo q, or public key data doesn't match
+ *          parameters.
  * @return  MLKEM_PUB_HASH_E when public key hash doesn't match stored hash.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
@@ -2130,15 +2132,24 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
     }
 #endif
     if (ret == 0) {
+        /* Clear the key-set flags first so any failure below (size, reduction
+         * check, or hash) leaves a reused key object consistently unusable
+         * rather than flagged-set with zeroed material. */
+        key->flags &= ~(MLKEM_FLAG_BOTH_SET | MLKEM_FLAG_H_SET);
+
         /* Decode private key that is vector of polynomials.
          * Alg 18 Step 1: dk_PKE <- dk[0 : 384k]
          * Alg 15 Step 5: s_hat <- ByteDecode_12(dk_PKE) */
         mlkem_from_bytes(key->priv, p, (int)k);
         p += k * WC_ML_KEM_POLY_SIZE;
 
-        /* Decode the public key that is after the private key. */
-        mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
-        ret = mlkem_check_public(key->pub, (int)k);
+        /* Both vectors must decode to coefficients reduced modulo q. */
+        ret = mlkem_check_reduced(key->priv, (int)k);
+        if (ret == 0) {
+            /* Decode the public key that is after the private key. */
+            mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
+            ret = mlkem_check_reduced(key->pub, (int)k);
+        }
         if (ret != 0) {
             ForceZero(key->priv, k * MLKEM_N * sizeof(sword16));
         }
@@ -2263,7 +2274,7 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     if (ret == 0) {
         /* Decode public key and check public key matches parameters. */
         mlkemkey_decode_public(key->pub, key->pubSeed, p, k);
-        ret = mlkem_check_public(key->pub, (int)k);
+        ret = mlkem_check_reduced(key->pub, (int)k);
     }
     if (ret == 0) {
         /* Calculate public hash. */
