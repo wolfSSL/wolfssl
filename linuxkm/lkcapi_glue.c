@@ -292,8 +292,10 @@ static int linuxkm_lkcapi_sysfs_install(void) {
         if (ret)
             return ret;
         ret = linuxkm_lkcapi_sysfs_install_node(&deinstall_algs_attr, NULL);
-        if (ret)
+        if (ret) {
+            (void)linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
             return ret;
+        }
         installed_sysfs_LKCAPI_files = 1;
     }
     return 0;
