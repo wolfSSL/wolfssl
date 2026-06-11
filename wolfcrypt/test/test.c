@@ -74789,27 +74789,37 @@ static wc_test_ret_t aes_siv_negative_test(const AesSivTestVector* testVectors)
     byte computedCiphertext[82];
     byte computedPlaintext[82];
     byte siv[WC_AES_BLOCK_SIZE];
+    word32 j;
     wc_test_ret_t ret;
 
     /* Negative test: corrupted SIV must be rejected with AES_SIV_AUTH_E. */
-    ret = wc_AesSivEncrypt(testVectors[0].key, testVectors[0].keySz,
-                          testVectors[0].assoc1, testVectors[0].assoc1Sz,
-                          testVectors[0].nonce, testVectors[0].nonceSz,
-                          testVectors[0].plaintext,
-                          testVectors[0].plaintextSz, siv,
+    ret = wc_AesSivEncrypt(testVectors[5].key, testVectors[5].keySz,
+                          testVectors[5].assoc1, testVectors[5].assoc1Sz,
+                          testVectors[5].nonce, testVectors[5].nonceSz,
+                          testVectors[5].plaintext,
+                          testVectors[5].plaintextSz, siv,
                           computedCiphertext);
     if (ret != 0) {
         return WC_TEST_RET_ENC_EC(ret);
     }
+    XMEMSET(computedPlaintext, 0xFF, sizeof(computedPlaintext));
     /* Corrupt one byte of the SIV tag. */
     siv[0] ^= 0x01;
-    ret = wc_AesSivDecrypt(testVectors[0].key, testVectors[0].keySz,
-                          testVectors[0].assoc1, testVectors[0].assoc1Sz,
-                          testVectors[0].nonce, testVectors[0].nonceSz,
-                          computedCiphertext, testVectors[0].plaintextSz,
+    ret = wc_AesSivDecrypt(testVectors[5].key, testVectors[5].keySz,
+                          testVectors[5].assoc1, testVectors[5].assoc1Sz,
+                          testVectors[5].nonce, testVectors[5].nonceSz,
+                          computedCiphertext, testVectors[5].plaintextSz,
                           siv, computedPlaintext);
     if (ret != WC_NO_ERR_TRACE(AES_SIV_AUTH_E)) {
         return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (testVectors[5].plaintextSz == 0U) {
+        return WC_TEST_RET_ENC_NC;
+    }
+    for (j = 0; j < testVectors[5].plaintextSz; ++j) {
+        if (computedPlaintext[j] != 0) {
+            return WC_TEST_RET_ENC_NC;
+        }
     }
     return 0;
 }
