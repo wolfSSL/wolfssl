@@ -447,8 +447,8 @@ add_option("WOLFSSL_DTLS_CID"
     "no" "yes;no")
 
 if(WOLFSSL_DTLS_CID)
-    if(NOT WOLFSSL_DTLS13)
-        message(FATAL_ERROR "CID are supported only for DTLSv1.3")
+    if(NOT WOLFSSL_DTLS)
+        message(FATAL_ERROR "CID requires DTLS")
     endif()
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS_CID")
 endif()
