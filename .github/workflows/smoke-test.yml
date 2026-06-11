@@ -98,6 +98,13 @@ jobs:
         if: steps.merge_check.outputs.skip != 'true'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
+      # ccache's default cache dir (XDG ~/.cache/ccache) is what the
+      # actions/cache step below saves; pin it explicitly so the two
+      # cannot drift apart (e.g. if a later change sets CCACHE_DIR).
+      - name: Pin ccache directory
+        if: steps.merge_check.outputs.skip != 'true'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
+
       - name: Restore ccache
         if: steps.merge_check.outputs.skip != 'true'
         uses: actions/cache@v4

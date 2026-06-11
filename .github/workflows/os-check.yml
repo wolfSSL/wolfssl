@@ -75,6 +75,12 @@ jobs:
       - name: Allow unprivileged user namespaces (for bwrap)
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
+      # ccache's default cache dir (XDG ~/.cache/ccache) is what the
+      # actions/cache step below saves; pin it explicitly so the two
+      # cannot drift apart (e.g. if a later change sets CCACHE_DIR).
+      - name: Pin ccache directory
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
+
       - name: Restore ccache
         uses: actions/cache@v4
         with:
