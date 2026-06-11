@@ -242,13 +242,32 @@ def run_config(cfg, opts):
     failed = None
     start = time.monotonic()
     log = bdir / "make-check.log"
+
+    def record_failure(step):
+        # Classify a failed step, doing the fail-fast bookkeeping: the
+        # first failure wins and aborts everyone else; any failure after
+        # the abort began is reported as aborted instead.
+        if not opts.fail_fast:
+            return step
+        with fail_lock:
+            label = "aborted" if stop_event.is_set() else step
+            stop_event.set()
+        if label != "aborted":
+            abort_others()
+        return label
+
     with open(log, "w") as logf:
         for step, cmd in steps:
             if opts.fail_fast and stop_event.is_set():
                 failed = "aborted"
                 break
             if callable(cmd):
-                cmd()
+                try:
+                    cmd()
+                except Exception as e:  # one config's bug, not the run's
+                    print(f"+ {step}: {e!r}", file=logf, flush=True)
+                    failed = record_failure(step)
+                    break
                 continue
             print(f"+ {' '.join(cmd)}", file=logf, flush=True)
             # stdin=DEVNULL so a test that reads stdin sees EOF (as in CI)
@@ -259,22 +278,22 @@ def run_config(cfg, opts):
                                     start_new_session=True)
             with procs_lock:
                 live_procs.add(proc)
+            if opts.fail_fast and stop_event.is_set():
+                # Close the race with abort_others(): if its sweep ran
+                # between our stop_event check above and the registration
+                # just now, this process escaped the sweep - kill it
+                # ourselves (the wait() below then reaps it quickly).
+                try:
+                    os.killpg(proc.pid, signal.SIGTERM)
+                except (ProcessLookupError, PermissionError):
+                    proc.terminate()
             try:
                 rc = proc.wait()
             finally:
                 with procs_lock:
                     live_procs.discard(proc)
             if rc != 0:
-                if opts.fail_fast:
-                    # The first failure wins; any nonzero exit after the
-                    # abort began was most likely our SIGTERM.
-                    with fail_lock:
-                        failed = "aborted" if stop_event.is_set() else step
-                        stop_event.set()
-                    if failed != "aborted":
-                        abort_others()
-                else:
-                    failed = step
+                failed = record_failure(step)
                 break
     minutes = (time.monotonic() - start) / 60
     with print_lock:
