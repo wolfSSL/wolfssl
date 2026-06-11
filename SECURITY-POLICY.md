@@ -63,7 +63,7 @@ Credit text is coordinated with the reporter before publication.
 ## Contact
 
 - **support@wolfssl.com** — security vulnerability reports and general support
-- **info@wolfssl.com** — general inquiries
+- **facts@wolfssl.com** — general inquiries
 
 Published CVE advisories: https://www.wolfssl.com/docs/security-vulnerabilities/
 

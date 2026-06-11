@@ -33,7 +33,7 @@ fi
 echo "Updating root-sm2.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SM2\\nRoot-SM2\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | \
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_SM2\\nRoot-SM2\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | \
 openssl req -new -key root-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out root-sm2.csr
 check_result $? "Generate request"
 
@@ -56,7 +56,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating ca-sm2.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_sm2\\nCA-sm2\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key ca-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out ca-sm2.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_sm2\\nCA-sm2\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key ca-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out ca-sm2.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in ca-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions ca_ecc_cert -CA root-sm2.pem -CAkey root-sm2-priv.pem -set_serial 01 -out ca-sm2.pem
@@ -98,7 +98,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating server-sm2.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_sm2\\nServer-sm2\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key server-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out server-sm2.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_sm2\\nServer-sm2\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key server-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out server-sm2.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in server-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions server_ecc -CA ca-sm2.pem -CAkey ca-sm2-priv.pem -set_serial 01 -out server-sm2-cert.pem
@@ -122,7 +122,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating client-sm2.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_sm2\\nClient-sm2\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key client-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out client-sm2.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_sm2\\nClient-sm2\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key client-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out client-sm2.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in client-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions wolfssl_opts -signkey client-sm2-priv.pem -out client-sm2.pem

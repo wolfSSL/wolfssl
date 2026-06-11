@@ -71,7 +71,7 @@ localityName                    = Seattle
 0.organizationName              = wolfSSL
 organizationalUnitName          = Development
 commonName                      = www.wolfssl.com
-emailAddress                    = info@wolfssl.com
+emailAddress                    = facts@wolfssl.com
 
 [ v3_ca ]
 # Extensions for a typical CA (`man x509v3_config`).

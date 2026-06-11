@@ -101,7 +101,7 @@ commonName_default              = www.wolfssl.com
 commonName_max                  = 64
 
 emailAddress                    = Email Address
-emailAddress_default            = info@wolfssl.com
+emailAddress_default            = facts@wolfssl.com
 emailAddress_max                = 64
 
 userId                          = User ID

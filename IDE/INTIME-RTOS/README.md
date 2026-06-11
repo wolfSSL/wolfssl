@@ -155,4 +155,4 @@ The client has closed the connection.
 
 ## References
 
-For more information please contact info@wolfssl.com.
+For more information please contact facts@wolfssl.com.

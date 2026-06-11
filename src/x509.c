@@ -4063,7 +4063,7 @@ unsigned long wolfSSL_X509_issuer_name_hash(const WOLFSSL_X509* x509)
  * Example Output for Issuer:
  *
  * C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting,
- *  CN=www.wolfssl.com, emailAddress=info@wolfssl.com
+ *  CN=www.wolfssl.com, emailAddress=facts@wolfssl.com
  */
 char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 {
@@ -5907,7 +5907,7 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
  *  - GEN_URI
  *  - GEN_RID
  * The each name string to be output has "typename:namestring" format.
- * For instance, email name string will be output as "email:info@wolfssl.com".
+ * For instance, email name string will be output as "email:facts@wolfssl.com".
  * However,some types above marked with "#" will be output with
  * "typename:<unsupported>".
  *

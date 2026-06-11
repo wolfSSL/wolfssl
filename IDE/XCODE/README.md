@@ -38,7 +38,7 @@ This project should build wolfSSL and wolfCrypt using the default settings.
 ## wolfSSL-FIPS
 
 To use the FIPS version, one must have the FIPS sources. The project won't
-build without them. Please contact info@wolfssl.com for more information about
+build without them. Please contact facts@wolfssl.com for more information about
 wolfCrypt with FIPS.
 
 By default, this builds the wolfSSL and wolfCrypt with FIPS library. The default

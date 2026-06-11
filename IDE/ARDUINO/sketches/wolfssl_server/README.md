@@ -66,8 +66,8 @@ Output expected from the `client` command:
 ```
 $ ./examples/client/client -h 192.168.1.38 -p 11111 -v 3
 Alternate cert chain used
- issuer : /C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting/CN=www.wolfssl.com/emailAddress=info@wolfssl.com
- subject: /C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=Support/CN=www.wolfssl.com/emailAddress=info@wolfssl.com
+ issuer : /C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting/CN=www.wolfssl.com/emailAddress=facts@wolfssl.com
+ subject: /C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=Support/CN=www.wolfssl.com/emailAddress=facts@wolfssl.com
  altname = example.com
  altname = 127.0.0.1
  serial number:01

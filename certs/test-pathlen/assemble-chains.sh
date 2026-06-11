@@ -31,7 +31,7 @@ create_an_intermediate(){
     if [ "$pathLen" = "no_pathlen" ]; then
         echo "Updating $chainID-$icaNum-$pathLen.pem"
 
-        echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\n$chainID-$icaNum-$pathLen\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key "$chainID-$icaNum-key.pem" -config ../renewcerts/wolfssl.cnf -nodes -sha256 > temp-req.pem
+        echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\n$chainID-$icaNum-$pathLen\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key "$chainID-$icaNum-key.pem" -config ../renewcerts/wolfssl.cnf -nodes -sha256 > temp-req.pem
         check_result $? "Step 1"
 
         openssl x509 -req -in temp-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions wolfssl_opts_ICA -days 1000 -CA $signer -CAkey $signerKey -set_serial 100 -sha256 > "$chainID-$icaNum-$pathLen.pem"
@@ -44,7 +44,7 @@ create_an_intermediate(){
     else
         echo "Updating $chainID-$icaNum-pathlen$pathLen.pem"
 
-        echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\n$chainID-$icaNum-pathlen$pathLen\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key "$chainID-$icaNum-key.pem" -config ../renewcerts/wolfssl.cnf -nodes -sha256 > temp-req.pem
+        echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\n$chainID-$icaNum-pathlen$pathLen\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key "$chainID-$icaNum-key.pem" -config ../renewcerts/wolfssl.cnf -nodes -sha256 > temp-req.pem
         check_result $? "Step 1"
 
         openssl x509 -req -in temp-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions "pathlen_$pathLen" -days 1000 -CA $signer -CAkey $signerKey -set_serial 100 -sha256 > "$chainID-$icaNum-pathlen$pathLen.pem"
@@ -75,7 +75,7 @@ create_an_entity(){
     echo "Updating $chainID-entity.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\n$chainID-entity\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key "$chainID-entity-key.pem" -config ../renewcerts/wolfssl.cnf -nodes -sha256 > temp-req.pem
+    echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\n$chainID-entity\\nfacts@wolfssl.com\\n.\\n.\\n" | openssl req -new -key "$chainID-entity-key.pem" -config ../renewcerts/wolfssl.cnf -nodes -sha256 > temp-req.pem
     check_result $? "Step 1"
 
     openssl x509 -req -in temp-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA "$signer" -CAkey "$signerKey" -set_serial 101 -sha256 > "$chainID"-entity.pem

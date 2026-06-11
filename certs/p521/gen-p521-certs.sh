@@ -22,7 +22,7 @@ fi
 echo "Updating root-p521.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_P521\\nRoot-P521\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | \
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_P521\\nRoot-P521\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n.\\n.\\n" | \
 openssl req -new -key root-p521-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out root-p521.csr
 check_result $? "Generate request"
 
@@ -44,7 +44,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating ca-p521.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_p521\\nCA-p521\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key ca-p521-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out ca-p521.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_p521\\nCA-p521\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key ca-p521-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out ca-p521.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in ca-p521.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions ca_ecc_cert -CA root-p521.pem -CAkey root-p521-priv.pem -set_serial 01 -out ca-p521.pem
@@ -65,7 +65,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating server-p521.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_p521\\nServer-p521\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key server-p521-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out server-p521.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_p521\\nServer-p521\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key server-p521-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out server-p521.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in server-p521.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions server_ecc -CA ca-p521.pem -CAkey ca-p521-priv.pem -set_serial 01 -out server-p521-cert.pem
@@ -88,7 +88,7 @@ echo "---------------------------------------------------------------------"
 echo "Updating client-p521.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\\nMontana\\nBozeman\\nwolfSSL_p521\\nClient-p521\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key client-p521-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out client-p521.csr
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_p521\\nClient-p521\\nwww.wolfssl.com\\nfacts@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key client-p521-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out client-p521.csr
 check_result $? "Generate request"
 
 openssl x509 -req -in client-p521.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions wolfssl_opts -signkey client-p521-priv.pem -out client-p521.pem
