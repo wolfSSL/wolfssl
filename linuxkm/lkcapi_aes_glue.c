@@ -3616,16 +3616,14 @@ static int linuxkm_test_aesgcm(void)
     src = malloc(sizeof(struct scatterlist) * 2);
 
     if (! src) {
-        pr_err("error: malloc src failed: %ld\n",
-               PTR_ERR(src));
+        pr_err("error: malloc src failed,\n");
         goto test_gcm_end;
     }
 
     dst = malloc(sizeof(struct scatterlist) * 2);
 
     if (! dst) {
-        pr_err("error: malloc dst failed: %ld\n",
-               PTR_ERR(dst));
+        pr_err("error: malloc dst failed.\n");
         goto test_gcm_end;
     }
 
