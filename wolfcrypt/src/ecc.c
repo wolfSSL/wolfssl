@@ -5433,64 +5433,28 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
 }
 
 
-/* create the public ECC key from a private key
+#ifdef HAVE_ECC_MAKE_PUB
+/* compute the public key Q = d*G in software
  *
- * key     an initialized private key to generate public part from
- * curve   [in]curve for key, cannot be NULL
- * pubOut  [out]ecc_point holding the public key, if NULL then public key part
- *         is cached in key instead.
- *
- * Note this function is local to the file because of the argument type
- *      ecc_curve_spec. Having this argument allows for not having to load the
- *      curve type multiple times when generating a key with wc_ecc_make_key().
- * For async the results are placed directly into pubOut, so this function
- *      does not need to be called again
+ * key    private key holding the scalar d, must be present and in range
+ * curve  [in]curve for key, cannot be NULL
+ * pub    [out]initialized ecc_point receiving the public key
+ * rng    optional RNG for a timing-resistant point multiply, may be NULL
  *
  * returns MP_OKAY on success
  */
-static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
-        ecc_point* pubOut, WC_RNG* rng)
+static int ecc_make_pub_sw(ecc_key* key, ecc_curve_spec* curve,
+        ecc_point* pub, WC_RNG* rng)
 {
     int err = MP_OKAY;
-#ifdef HAVE_ECC_MAKE_PUB
-    ecc_point* pub;
-#endif /* HAVE_ECC_MAKE_PUB */
 
     (void)rng;
 
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifdef HAVE_ECC_MAKE_PUB
-    /* if ecc_point passed in then use it as output for public key point */
-    if (pubOut != NULL) {
-        pub = pubOut;
-    }
-    else {
-        /* caching public key making it a ECC_PRIVATEKEY instead of
-           ECC_PRIVATEKEY_ONLY */
-        pub = &key->pubkey;
-        key->type = ECC_PRIVATEKEY_ONLY;
-    }
-
-    if ((err == MP_OKAY) && (mp_iszero(ecc_get_k(key)) ||
-            mp_isneg(ecc_get_k(key)) ||
-            (mp_cmp(ecc_get_k(key), curve->order) != MP_LT))) {
+    /* The private scalar must be in range for the base-point multiply
+     * below. */
+    if (mp_iszero(ecc_get_k(key)) || mp_isneg(ecc_get_k(key)) ||
+            (mp_cmp(ecc_get_k(key), curve->order) != MP_LT)) {
         err = ECC_PRIV_KEY_E;
-    }
-
-    if (err == MP_OKAY) {
-    #ifndef ALT_ECC_SIZE
-        err = mp_init_multi(pub->x, pub->y, pub->z, NULL, NULL, NULL);
-    #else
-        pub->x = (mp_int*)&pub->xyz[0];
-        pub->y = (mp_int*)&pub->xyz[1];
-        pub->z = (mp_int*)&pub->xyz[2];
-        alt_fp_init(pub->x);
-        alt_fp_init(pub->y);
-        alt_fp_init(pub->z);
-    #endif
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC_KEYGEN) && \
@@ -5582,6 +5546,68 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
     }
 #endif /* WOLFSSL_SP_MATH */
     } /* END: Software Crypto */
+
+    return err;
+}
+#endif /* HAVE_ECC_MAKE_PUB */
+
+/* create the public ECC key from a private key
+ *
+ * key     an initialized private key to generate public part from
+ * curve   [in]curve for key, cannot be NULL
+ * pubOut  [out]ecc_point holding the public key, if NULL then public key part
+ *         is cached in key instead.
+ *
+ * Note this function is local to the file because of the argument type
+ *      ecc_curve_spec. Having this argument allows for not having to load the
+ *      curve type multiple times when generating a key with wc_ecc_make_key().
+ * For async the results are placed directly into pubOut, so this function
+ *      does not need to be called again
+ *
+ * returns MP_OKAY on success
+ */
+static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
+        ecc_point* pubOut, WC_RNG* rng)
+{
+    int err = MP_OKAY;
+#ifdef HAVE_ECC_MAKE_PUB
+    ecc_point* pub;
+#endif /* HAVE_ECC_MAKE_PUB */
+
+    (void)rng;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef HAVE_ECC_MAKE_PUB
+    /* if ecc_point passed in then use it as output for public key point */
+    if (pubOut != NULL) {
+        pub = pubOut;
+    }
+    else {
+        /* caching public key making it a ECC_PRIVATEKEY instead of
+           ECC_PRIVATEKEY_ONLY */
+        pub = &key->pubkey;
+        key->type = ECC_PRIVATEKEY_ONLY;
+    }
+
+    if (err == MP_OKAY) {
+    #ifndef ALT_ECC_SIZE
+        err = mp_init_multi(pub->x, pub->y, pub->z, NULL, NULL, NULL);
+    #else
+        pub->x = (mp_int*)&pub->xyz[0];
+        pub->y = (mp_int*)&pub->xyz[1];
+        pub->z = (mp_int*)&pub->xyz[2];
+        alt_fp_init(pub->x);
+        alt_fp_init(pub->y);
+        alt_fp_init(pub->z);
+    #endif
+    }
+
+    if (err == MP_OKAY) {
+        err = ecc_make_pub_sw(key, curve, pub, rng);
+    }
 
     if (err != MP_OKAY
     #ifdef WOLFSSL_ASYNC_CRYPT
