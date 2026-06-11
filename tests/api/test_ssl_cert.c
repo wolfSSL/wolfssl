@@ -41,7 +41,7 @@ int test_wolfSSL_get_verify_mode(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || \
      defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int mode;
@@ -79,7 +79,7 @@ int test_wolfSSL_CTX_get_verify_mode(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || \
      defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)) && \
-    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     int mode;
 
@@ -114,7 +114,8 @@ int test_wolfSSL_CTX_get_verify_mode(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) \
+    && !defined(NO_TLS)
 static int test_cert_verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     (void)store;
@@ -125,7 +126,8 @@ static int test_cert_verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 int test_wolfSSL_get_verify_callback(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) \
+    && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -154,7 +156,7 @@ int test_wolfSSL_CTX_get_extra_chain_certs(void)
 #if (defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
      defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* sk = NULL;
 
@@ -298,7 +300,7 @@ int test_wolfSSL_get_chain_cert_pem(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(SESSION_CERTS) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && !defined(NO_TLS)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
@@ -369,7 +371,8 @@ int test_wolfSSL_cmp_peer_cert_to_file(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
     defined(KEEP_PEER_CERT) && defined(HAVE_EX_DATA) && \
-    !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA)
+    !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) \
+    && !defined(NO_TLS)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;

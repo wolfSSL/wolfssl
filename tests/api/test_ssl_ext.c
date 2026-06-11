@@ -41,7 +41,7 @@ int test_wolfSSL_NoTicketTLSv12_ext(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
-    (defined(NO_CERTS) || !defined(NO_RSA))
+    (defined(NO_CERTS) || !defined(NO_RSA)) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -71,7 +71,7 @@ int test_wolfSSL_NoTicketTLSv12_ext(void)
 int test_wolfSSL_CTX_UseMaxFragment_ext(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
 
     /* NULL context is rejected. */
@@ -113,7 +113,7 @@ int test_wolfSSL_set1_groups_ext(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_SUPPORTED_CURVES) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int dummy[1];
@@ -175,7 +175,7 @@ int test_wolfSSL_set1_groups_list_ext(void)
 int test_wolfSSL_CTX_set_TicketHint_ext(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
 
     ExpectIntEQ(wolfSSL_CTX_set_TicketHint(NULL, 100),
@@ -199,7 +199,7 @@ int test_wolfSSL_tlsext_max_fragment_length_ext(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_MAX_FRAGMENT) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -321,7 +321,7 @@ int test_wolfSSL_set_tlsext_debug_arg_ext(void)
 int test_wolfSSL_set_SessionTicket_cb_ext(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -344,7 +344,7 @@ int test_wolfSSL_set1_curves_list_ext(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
     (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) \
-    && !defined(NO_WOLFSSL_CLIENT)
+    && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -434,7 +434,7 @@ int test_wolfSSL_tlsext_status_exts_ids_ext(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_STUB) &&                     \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 

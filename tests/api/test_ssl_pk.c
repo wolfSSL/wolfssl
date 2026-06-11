@@ -343,7 +343,7 @@ int test_wolfSSL_get_signature_nid(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_SERVER) && \
-    (defined(NO_CERTS) || !defined(NO_RSA))
+    (defined(NO_CERTS) || !defined(NO_RSA)) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int nid = 0;
@@ -392,7 +392,7 @@ int test_wolfSSL_get_signature_type_nid(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_SERVER) && \
-    (defined(NO_CERTS) || !defined(NO_RSA))
+    (defined(NO_CERTS) || !defined(NO_RSA)) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int nid = 0;
@@ -461,7 +461,7 @@ int test_wolfSSL_get_peer_signature_nid(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_SERVER) && \
-    (defined(NO_CERTS) || !defined(NO_RSA))
+    (defined(NO_CERTS) || !defined(NO_RSA)) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int nid = 0;
@@ -493,7 +493,7 @@ int test_wolfSSL_get_peer_signature_type_nid(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_SERVER) && \
-    (defined(NO_CERTS) || !defined(NO_RSA))
+    (defined(NO_CERTS) || !defined(NO_RSA)) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int nid = 0;
@@ -527,7 +527,8 @@ int test_wolfSSL_get_peer_signature_type_nid(void)
 int test_wolfSSL_SSL_CTX_set_tmp_ecdh(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_WOLFSSL_SERVER)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_EC_KEY* ecdh = NULL;
 
@@ -552,7 +553,7 @@ int test_wolfSSL_SSL_CTX_set_tmp_ecdh(void)
 int test_wolfSSL_CTX_set_dh_auto(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_SERVER)
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
