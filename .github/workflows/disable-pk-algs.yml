@@ -94,7 +94,7 @@ jobs:
             "--disable-curve25519", "--disable-ed25519", "--disable-curve448",
             "--disable-ed448", "--enable-curve448", "--enable-ed448"]},
           {"name": "cryptonly-rsa", "minutes": 0.8,
-           "configure": ["-enable-cryptonly", "--disable-rsa", "--disable-dh",
+           "configure": ["--enable-cryptonly", "--disable-rsa", "--disable-dh",
             "--disable-ecc", "--disable-curve25519", "--disable-ed25519",
             "--disable-curve448", "--disable-ed448", "--enable-rsa"]},
           {"name": "cryptonly-dh", "minutes": 0.8,

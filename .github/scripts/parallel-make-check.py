@@ -142,6 +142,14 @@ def load_configs(opts, error):
                   f"directory suffix: {entry!r}")
         if any(cfg.name == name for cfg in configs):
             error(f"{opts.json}: duplicate config name {name!r}")
+        configure = entry.get("configure", [])
+        if not (isinstance(configure, list)
+                and all(isinstance(a, str) for a in configure)):
+            error(f"{opts.json}: \"configure\" must be a list of argument "
+                  f"strings in {name!r}")
+        for key in ("cflags", "ldflags"):
+            if not isinstance(entry.get(key, ""), str):
+                error(f"{opts.json}: \"{key}\" must be a string in {name!r}")
         minutes = entry.get("minutes", 1.0)
         if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) \
                 or minutes < 0:
@@ -165,7 +173,7 @@ def load_configs(opts, error):
                             for cmd in cmds)):
                 error(f"{opts.json}: \"{key}\" must be a list of argv lists "
                       f"in {name!r}")
-        configs.append(Config(name, list(entry.get("configure", [])), cc,
+        configs.append(Config(name, list(configure), cc,
                               entry.get("cflags", opts.cflags),
                               entry.get("ldflags", opts.ldflags),
                               float(minutes), user_settings, check,
@@ -273,9 +281,13 @@ def run_config(cfg, opts):
         if failed == "aborted":
             print(f"{cfg.name}: aborted (fail-fast) [{minutes:.1f} min]")
             sys.stdout.flush()
+        elif not failed:
+            # One line per passing config; the full logs would bloat the CI
+            # log (they stay in build-<name>/make-check.log).
+            print(f"{cfg.name}: pass [{minutes:.1f} min]")
+            sys.stdout.flush()
         else:
-            verdict = f"FAIL ({failed})" if failed else "pass"
-            dump(f"{cfg.name}: {verdict} [{minutes:.1f} min]", log)
+            dump(f"{cfg.name}: FAIL ({failed}) [{minutes:.1f} min]", log)
             if failed == "configure":
                 dump(f"{cfg.name}: config.log", bdir / "config.log")
             elif failed == "make check":

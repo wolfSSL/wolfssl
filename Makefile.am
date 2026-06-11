@@ -296,6 +296,10 @@ TESTS += $(check_SCRIPTS)
 # the build tree so the tests can find it.  This is driven by a stamp file in
 # BUILT_SOURCES so it runs once, before anything else, for "make", "make all"
 # and "make check".  It is a no-op for in-tree builds.
+#
+# The setup and the distclean cleanup use rm -rf: a --private-dir run of
+# .github/scripts/parallel-make-check.py replaces the certs symlink with a
+# private directory copy, which rm -f would not remove.
 ##############################################################################
 BUILT_SOURCES += wolfssl-test-data.stamp
 
@@ -303,7 +307,7 @@ wolfssl-test-data.stamp:
 	$(AM_V_at)if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
 		$(MKDIR_P) tests scripts examples; \
 		for f in certs input quit; do \
-			rm -f "$$f"; \
+			rm -rf "$$f"; \
 			$(LN_S) "$(abs_top_srcdir)/$$f" "$$f"; \
 		done; \
 		rm -f examples/crypto_policies; \
@@ -335,7 +339,7 @@ DISTCLEANFILES += wolfssl-test-data.stamp
 # srcdir != builddir so an in-tree build never touches the real source files.
 distclean-local:
 	$(AM_V_at)if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
-		rm -f certs input quit; \
+		rm -rf certs input quit; \
 		rm -f tests/*.conf tests/*.cnf tests/TXT_DB.txt; \
 		rm -f scripts/*.pcap scripts/*.out scripts/*.sslkeylog \
 		      scripts/multi-msg-record.py; \
