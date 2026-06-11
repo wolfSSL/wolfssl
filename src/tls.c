@@ -3487,7 +3487,7 @@ word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr, byte isRequest,
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    if (!isRequest && IsAtLeastTLSv1_3(csr->ssl->version)) {
+    if (!isRequest && csr->ssl != NULL && IsAtLeastTLSv1_3(csr->ssl->version)) {
         if (csr->ssl != NULL && SSL_CM(csr->ssl) != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling->statusCb != NULL) {
@@ -3627,7 +3627,7 @@ int TLSX_CSR_Write_ex(CertificateStatusRequest* csr, byte* output,
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    if (!isRequest && IsAtLeastTLSv1_3(csr->ssl->version)) {
+    if (!isRequest && csr->ssl != NULL && IsAtLeastTLSv1_3(csr->ssl->version)) {
         word16 offset = 0;
         if (csr->ssl != NULL && SSL_CM(csr->ssl) != NULL &&
                 SSL_CM(csr->ssl)->ocsp_stapling != NULL &&

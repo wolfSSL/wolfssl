@@ -9605,6 +9605,24 @@ static int SetupOcspResp(WOLFSSL* ssl)
     OcspRequest* request = NULL;
 
     extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    /* During post-handshake client authentication the client must staple
+     * its own OCSP response, but the status_request extension it offered in
+     * the initial ClientHello is no longer present on ssl->extensions.
+     * Recreate it here (the request extension still lives on
+     * ctx->extensions). Pass ssl so csr->ssl is set, which the response
+     * size/write path requires. */
+    if (extension == NULL &&
+            ssl->options.side == WOLFSSL_CLIENT_END &&
+            ssl->options.handShakeDone &&
+            TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST) != NULL) {
+        ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
+                WOLFSSL_CSR_OCSP, 0, ssl, ssl->heap, ssl->devId);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+        extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    }
+#endif
     if (extension == NULL)
         return 0; /* peer didn't signal ocsp support */
     csr = (CertificateStatusRequest*)extension->data;
@@ -9765,7 +9783,12 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         /* We only send CSR on the server side. On client side, the CSR data
          * is populated with the server response. We would be sending the server
          * its own stapling data. */
-        if (ssl->options.side == WOLFSSL_SERVER_END) {
+        if (ssl->options.side == WOLFSSL_SERVER_END
+        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            || (ssl->options.side == WOLFSSL_CLIENT_END
+                && ssl->options.handShakeDone)
+        #endif
+        ) {
             ret = SetupOcspResp(ssl);
             if (ret != 0)
                 return ret;
