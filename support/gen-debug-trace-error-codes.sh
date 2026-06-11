@@ -1,5 +1,14 @@
 #!/bin/sh
 
+# The input error-code headers are read-only sources.  For out-of-tree (VPATH)
+# builds they live in the source tree, which may differ from the build tree, so
+# read them from $srcdir (first argument, defaulting to the current directory).
+# The generated headers are written relative to the current directory, i.e.
+# into the build tree.
+srcdir="${1:-.}"
+
+mkdir -p wolfssl
+
 awk '
 BEGIN {
     print("/* automatically generated, do not edit */") > "wolfssl/debug-trace-error-codes.h";
@@ -39,4 +48,4 @@ END {
 
     print("") >> "wolfssl/debug-untrace-error-codes.h";
     print("#endif /* WOLFSSL_DEBUG_TRACE_ERROR_CODES_H */") >> "wolfssl/debug-untrace-error-codes.h";
-}' wolfssl/wolfcrypt/error-crypt.h wolfssl/error-ssl.h
+}' "$srcdir/wolfssl/wolfcrypt/error-crypt.h" "$srcdir/wolfssl/error-ssl.h"

@@ -1,9 +1,10 @@
 name: 'Set up ccache'
 description: >
-  Install ccache (on Ubuntu), restore the ccache directory from a previous
-  run, and prepend the ccache compiler-symlink dir to PATH. Subsequent
-  gcc/cc/g++/c++ invocations are transparently intercepted by ccache, so
-  no other workflow step needs to change. macOS is not supported yet.
+  Install ccache (Ubuntu via apt, macOS via brew), restore the ccache
+  directory from a previous run, and prepend the ccache compiler-symlink
+  dir to PATH. Subsequent gcc/cc/g++/c++/clang invocations are
+  transparently intercepted by ccache, so no other workflow step needs to
+  change.
 
 inputs:
   workflow-id:
@@ -24,15 +25,20 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install ccache (Ubuntu)
+    - name: Install ccache
       shell: bash
       run: |
         if command -v ccache >/dev/null 2>&1; then
           echo "ccache already installed: $(ccache --version | head -1)"
-        else
+        elif [ "${{ runner.os }}" = "Linux" ]; then
           sudo apt-get update -q
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             --no-install-recommends ccache
+        elif [ "${{ runner.os }}" = "macOS" ]; then
+          brew install ccache
+        else
+          echo "::error::ccache install not supported on ${{ runner.os }}"
+          exit 1
         fi
 
     - name: Restore + save ccache
@@ -56,10 +62,18 @@ runs:
         ccache --set-config=base_dir="$GITHUB_WORKSPACE"
         ccache --set-config=hash_dir=false
         ccache -z   # zero stats so the post-build summary is per-job
-        # /usr/lib/ccache contains gcc, g++, cc, c++ symlinks that resolve
-        # to ccache. Prepending to PATH makes the build transparently use
-        # ccache without changing any configure/make invocation.
-        echo "/usr/lib/ccache" >> "$GITHUB_PATH"
+        # The ccache compiler-symlink dir (gcc, g++, cc, c++, clang, ...
+        # all resolving to ccache) differs by platform. Prepending it to
+        # PATH makes the build transparently use ccache without changing
+        # any configure/make invocation. On macOS the symlinks live under
+        # the Homebrew libexec dir, whose prefix is /opt/homebrew on arm64
+        # and /usr/local on Intel - resolve it via `brew --prefix`.
+        if [ "${{ runner.os }}" = "macOS" ]; then
+          CCACHE_LIBEXEC="$(brew --prefix)/opt/ccache/libexec"
+        else
+          CCACHE_LIBEXEC="/usr/lib/ccache"
+        fi
+        echo "$CCACHE_LIBEXEC" >> "$GITHUB_PATH"
         echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
 
     - name: Show ccache stats (initial)

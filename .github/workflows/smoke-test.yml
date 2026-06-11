@@ -5,13 +5,21 @@ name: Smoke Test
 # too: this is the gate that protects the rest of CI. Other PR workflows
 # wait for this via .github/actions/wait-for-smoke.
 #
-# CFLAGS=-Werror is applied at make time only (not ./configure) so autoconf
-# feature detection is not poisoned by benign warnings in conftest probes.
+# The smoke config list lives in the "Build and make check" step below;
+# the generic runner .github/scripts/parallel-make-check.py builds each
+# config in its own out-of-tree ("VPATH") build directory off this single
+# checkout and runs make check across them on a pool of one-per-CPU worker
+# threads, reporting thread/CPU efficiency in the step summary. bubblewrap
+# is installed so the script tests re-exec themselves under bwrap
+# --unshare-net and concurrent checks cannot collide on TCP/UDP ports (do
+# not set AM_BWRAPPED here - that would disable it). Builds go through
+# ccache (cached across runs) to keep the single-runner job fast on warm
+# caches.
 #
 # For pull_request events the workflow tests the POST-MERGE tree:
 # the PR head is checked out, the base branch is merged in, and:
 #   * a merge conflict fails the job before any build runs.
-#   * if the PR tree is identical to base (no diff), the matrix is skipped.
+#   * if the PR tree is identical to base (no diff), the build is skipped.
 #   * otherwise the build runs against the merged tree.
 # This catches stale PRs whose head builds clean but whose merge with
 # current master would break.
@@ -38,38 +46,12 @@ permissions:
 
 jobs:
   smoke:
+    # Only run from the wolfssl org to avoid burning forks' CI minutes.
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - name: default
-            args: ""
-          - name: enable-all
-            args: "--enable-all"
-          - name: opensslextra
-            args: "--enable-opensslextra"
-          - name: enable-all-smallstack
-            args: "--enable-all --enable-smallstack"
-          - name: cryptonly
-            args: "--enable-cryptonly"
-          # Below entries target the top Jenkins PRB failure modes
-          # (-Werror unused-function / implicit-decl / link errors).
-          - name: leantls-extra
-            args: "--enable-leantls --enable-session-ticket --enable-sni --enable-opensslextra"
-          - name: dtls-suite
-            args: "--enable-psk --enable-dtls --enable-dtls13 --enable-dtls-mtu --enable-aesccm --enable-opensslextra"
-          - name: integration
-            args: "--enable-openssh --enable-lighty --enable-stunnel --enable-opensslextra"
-          # AddressSanitizer (UBSAN excluded - current master has known
-          # left-shift UB in auto-generated SP math).
-          - name: sanitize-asan
-            args: "--enable-all"
-            cflags: "-fsanitize=address -fno-omit-frame-pointer -g -O1"
-            ldflags: "-fsanitize=address"
+    timeout-minutes: 60
     env:
-      MAKE_CFLAGS: "-Werror"
+      CCACHE_MAXSIZE: 2G
     steps:
       # For PRs we explicitly check out the PR head (not the auto-merge
       # ref) and do the merge ourselves below so we can fail fast on
@@ -107,30 +89,77 @@ jobs:
         if: steps.merge_check.outputs.skip != 'true'
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential
+          packages: autoconf automake libtool build-essential bubblewrap ccache
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        if: steps.merge_check.outputs.skip != 'true'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      - name: Restore ccache
+        if: steps.merge_check.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: smoke-ccache-${{ github.base_ref || github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            smoke-ccache-${{ github.base_ref || github.ref_name }}-
+            smoke-ccache-
 
       - name: autogen
         if: steps.merge_check.outputs.skip != 'true'
-        run: ./autogen.sh
-
-      - name: configure ${{ matrix.config.name }}
-        if: steps.merge_check.outputs.skip != 'true'
-        run: ./configure ${{ matrix.config.args }}
-
-      - name: make
-        if: steps.merge_check.outputs.skip != 'true'
-        env:
-          ENTRY_CFLAGS: ${{ matrix.config.cflags }}
-          ENTRY_LDFLAGS: ${{ matrix.config.ldflags }}
         run: |
-          FLAGS="${ENTRY_CFLAGS:-$MAKE_CFLAGS}"
-          make -j"$(nproc)" CFLAGS="$FLAGS" LDFLAGS="$ENTRY_LDFLAGS"
+          ccache -z
+          ./autogen.sh
 
-      - name: make check
+      # Common-failure configs derived from the Jenkins PRB top-10 (last 30
+      # days); leantls-extra, dtls-suite and integration target the top
+      # failure modes (-Werror unused-function / implicit-decl / link
+      # errors). Every config builds with -Werror unless it sets its own
+      # cflags: sanitize-asan replaces it with AddressSanitizer flags (UBSAN
+      # excluded - current master has known left-shift UB in auto-generated
+      # SP math). --private-dir=certs gives every build dir its own certs/
+      # copy: crl-gen-openssl.test writes generated CRLs under certs/crl/,
+      # which would race through the shared VPATH certs symlink.
+      #
+      # List order is schedule order: the worker threads take configs from
+      # the top, so keep the slowest first or they straggle at the end on an
+      # otherwise idle runner. Order by the Minutes column of the step
+      # summary from a recent (warm-cache) run.
+      - name: Build and make check all configs (parallel, out-of-tree)
         if: steps.merge_check.outputs.skip != 'true'
-        env:
-          ENTRY_CFLAGS: ${{ matrix.config.cflags }}
-          ENTRY_LDFLAGS: ${{ matrix.config.ldflags }}
         run: |
-          FLAGS="${ENTRY_CFLAGS:-$MAKE_CFLAGS}"
-          make check CFLAGS="$FLAGS" LDFLAGS="$ENTRY_LDFLAGS"
+          cat > "$RUNNER_TEMP/smoke-configs.json" <<'EOF'
+          [
+            {"name": "sanitize-asan", "configure": ["--enable-all"],
+             "cflags": "-fsanitize=address -fno-omit-frame-pointer -g -O1",
+             "ldflags": "-fsanitize=address"},
+            {"name": "enable-all-smallstack", "configure": ["--enable-all", "--enable-smallstack"]},
+            {"name": "enable-all", "configure": ["--enable-all"]},
+            {"name": "integration", "configure": ["--enable-openssh", "--enable-lighty", "--enable-stunnel", "--enable-opensslextra"]},
+            {"name": "dtls-suite", "configure": ["--enable-psk", "--enable-dtls", "--enable-dtls13", "--enable-dtls-mtu", "--enable-aesccm", "--enable-opensslextra"]},
+            {"name": "opensslextra", "configure": ["--enable-opensslextra"]},
+            {"name": "default"},
+            {"name": "cryptonly", "configure": ["--enable-cryptonly"]},
+            {"name": "leantls-extra", "configure": ["--enable-leantls", "--enable-session-ticket", "--enable-sni", "--enable-opensslextra"]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py --cflags=-Werror \
+            --private-dir=certs "$RUNNER_TEMP/smoke-configs.json"
+
+      - name: ccache stats
+        if: always() && steps.merge_check.outputs.skip != 'true'
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure() && steps.merge_check.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

@@ -17,7 +17,7 @@ inputs:
   timeout-seconds:
     description: 'Maximum time to wait for smoke to complete'
     required: false
-    default: '1800'
+    default: '3600'
   poll-seconds:
     description: 'Polling interval'
     required: false

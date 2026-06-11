@@ -130,10 +130,11 @@ Notes:
   with `WOLF_CRYPTO_CB` defined in the user's `user_settings.h`.
 - `--enable-swdev` defines `WOLFSSL_SWDEV` and `WOLF_CRYPTO_CB_FIND`
   automatically; see `configure.ac`.
-- `--enable-swdev` currently supports **in-tree builds only**.
-  Out-of-tree (VPATH) builds fail at configure time. swdev is built
-  from `wolfcrypt/test/include.am` and inherits `PARENT_SRCS`,
-  `PARENT_BUILD_CFLAGS`, etc., from the parent build.
+- swdev is built from `wolfcrypt/test/include.am` and inherits
+  `PARENT_SRCS`, `PARENT_BUILD_CFLAGS`, etc., from the parent build.
+  Out-of-tree (VPATH) builds work: `WOLFBUILD` points the sub-make at
+  the build tree for the configure-generated headers
+  (`wolfssl/options.h`, `wolfssl/version.h`).
 
 For the full CI matrix that exercises each `_ONLY_*` macro, see
 `.github/workflows/cryptocb-only.yml`.

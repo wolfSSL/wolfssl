@@ -14,48 +14,97 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # All former runner-per-config matrix entries build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config in its own out-of-tree ("VPATH") build directory
+  # off one checkout/autogen, checks on a pool of one-per-CPU worker
+  # threads, longest first. bubblewrap gives every test script its own
+  # network namespace so concurrent checks cannot collide on TCP/UDP ports
+  # (do not set AM_BWRAPPED here - that would disable it).
   make_check:
-    strategy:
-      matrix:
-        config: [
-          # Add new configs here
-          '--enable-all --enable-debug-trace-errcodes CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
-          '--enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
-          '--enable-smallstackcache --enable-smallstack --enable-all --enable-debug-trace-errcodes CFLAGS="-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"',
-# Note the below smallstackcache tests are crucial coverage for the Linux kernel
-# module, when targeting a kernel with the randomness patch (linuxkm/patches/)
-# applied.
-#
-# Note, don't combine wolfEntropy with the full TLS cipher suite test -- the implicit wc_InitRng()s in each suite have an enormous CPU footprint.
-          '--enable-wolfEntropy --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"',
-          '--enable-intelrdseed --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"',
-          '--enable-amdrand --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"',
-          '--disable-asm --enable-wolfEntropy --enable-smallstackcache --enable-smallstack --enable-all CFLAGS="-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"'
-        ]
     name: make check
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 6
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         name: Checkout wolfSSL
 
-      - name: Test wolfSSL
-        run: |
-          ./autogen.sh
-          ./configure ${{ matrix.config }}
-          make -j 4
-          make check
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential bubblewrap
 
-      - name: Print errors
-        if: ${{ failure() }}
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: trackmemory
+          max-size: 250M
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # The JSON list below is the former runner-per-config matrix; add new
+      # configs as new entries (a "comment" key is allowed for notes).
+      # "minutes" is the expected duration driving longest-first scheduling:
+      # take it from the Minutes column of a previous run's step summary, or
+      # omit it for a new config (defaults to 1) and refresh later. The list
+      # is kept sorted by minutes for readability, but the schedule sorts by
+      # the values, not list order.
+      - name: Build and make check all configs (parallel, out-of-tree)
         run: |
-          for file in scripts/*.log
-          do
-              if [ -f "$file" ]; then
-                  echo "${file}:"
-                  cat "$file"
-                  echo "========================================================================"
-              fi
-          done
+          cat > "$RUNNER_TEMP/trackmemory-configs.json" <<'EOF'
+          [
+          {"name": "all-noasm-wolfentropy", "minutes": 3,
+           "configure": ["--disable-asm", "--enable-wolfEntropy",
+            "--enable-smallstackcache", "--enable-smallstack", "--enable-all",
+            "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
+          {"name": "all-trace-errcodes", "minutes": 2.5,
+           "configure": ["--enable-all", "--enable-debug-trace-errcodes",
+            "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
+          {"name": "all-smallstack", "minutes": 2.5,
+           "configure": ["--enable-smallstack", "--enable-all",
+            "CFLAGS=-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
+          {"name": "all-smallstack-cache-trace", "minutes": 2.5,
+           "configure": ["--enable-smallstackcache", "--enable-smallstack",
+            "--enable-all", "--enable-debug-trace-errcodes",
+            "CFLAGS=-DWC_RNG_SEED_CB  -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"]},
+          {"name": "all-wolfentropy", "minutes": 2.5,
+           "comment": "smallstackcache coverage here is crucial for the Linux kernel module when targeting a kernel with the randomness patch (linuxkm/patches/) applied. Don't combine wolfEntropy with the full TLS cipher suite test - the implicit wc_InitRng()s in each suite have an enormous CPU footprint.",
+           "configure": ["--enable-wolfEntropy", "--enable-smallstackcache",
+            "--enable-smallstack", "--enable-all",
+            "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
+          {"name": "all-intelrdseed", "minutes": 2.5,
+           "configure": ["--enable-intelrdseed", "--enable-smallstackcache",
+            "--enable-smallstack", "--enable-all",
+            "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
+          {"name": "all-amdrand", "minutes": 2.5,
+           "configure": ["--enable-amdrand", "--enable-smallstackcache",
+            "--enable-smallstack", "--enable-all",
+            "CFLAGS=-DWC_RNG_SEED_CB -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DNO_WOLFSSL_CIPHER_SUITE_TEST"]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            --private-dir=certs \
+            "$RUNNER_TEMP/trackmemory-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trackmemory-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

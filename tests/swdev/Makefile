@@ -5,6 +5,10 @@
 
 SRCDIR    ?= $(CURDIR)
 WOLFROOT  ?= $(abspath $(SRCDIR)/../..)
+# Parent build tree; differs from WOLFROOT in out-of-tree (VPATH) builds,
+# where configure-generated headers (wolfssl/options.h, wolfssl/version.h)
+# live in the build tree.
+WOLFBUILD ?= $(WOLFROOT)
 BUILDDIR  ?= $(SRCDIR)/build
 
 CC        ?= cc
@@ -37,6 +41,7 @@ CPPFLAGS_SWDEV = \
     -DWOLFSSL_USER_SETTINGS \
     -I$(SRCDIR) \
     $(PARENT_CPPFLAGS) \
+    -I$(WOLFBUILD) \
     -I$(WOLFROOT) \
     -I$(WOLFROOT)/wolfssl
 
@@ -62,7 +67,7 @@ endif
 
 # Choose between options.h and parent user_settings.h
 ifeq ($(PARENT_USER_SETTINGS_H),)
-SWDEV_CFG_PREREQ = $(WOLFROOT)/wolfssl/options.h
+SWDEV_CFG_PREREQ = $(WOLFBUILD)/wolfssl/options.h
 else
 SWDEV_CFG_PREREQ = $(PARENT_USER_SETTINGS_H)
 endif
