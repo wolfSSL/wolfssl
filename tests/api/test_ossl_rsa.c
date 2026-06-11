@@ -520,6 +520,24 @@ int test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
     ExpectIntEQ(RSA_verify_PKCS1_PSS(rsa, mHash, EVP_sha256(), em,
         RSA_PSS_SALTLEN_DIGEST), 1);
 
+    /* Negative test: a tampered PSS encoding must be rejected. Flip a byte in
+     * the encoded message, confirm failure, then restore and re-verify. */
+    em[0] ^= 0xFFU;
+    ExpectIntEQ(RSA_verify_PKCS1_PSS(rsa, mHash, EVP_sha256(), em,
+        RSA_PSS_SALTLEN_DIGEST), 0);
+    em[0] ^= 0xFFU;
+    ExpectIntEQ(RSA_verify_PKCS1_PSS(rsa, mHash, EVP_sha256(), em,
+        RSA_PSS_SALTLEN_DIGEST), 1);
+
+    /* Negative test: a tampered hash must be rejected by PSS verification. */
+    {
+        unsigned char badHash[WC_SHA256_DIGEST_SIZE];
+        XMEMCPY(badHash, mHash, sizeof(badHash));
+        badHash[0] ^= 0xFFU;
+        ExpectIntEQ(RSA_verify_PKCS1_PSS(rsa, badHash, EVP_sha256(), em,
+            RSA_PSS_SALTLEN_DIGEST), 0);
+    }
+
     ExpectIntEQ(RSA_padding_add_PKCS1_PSS(rsa, em, mHash, EVP_sha256(),
         RSA_PSS_SALTLEN_MAX_SIGN), 1);
     ExpectIntEQ(RSA_verify_PKCS1_PSS(rsa, mHash, EVP_sha256(), em,
@@ -696,8 +714,8 @@ int test_wolfSSL_RSA_verify(void)
     RSA *pubKey = NULL;
     X509 *cert = NULL;
     const char *text = "Hello wolfSSL !";
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    unsigned char signature[2048/8];
+    unsigned char hash[SHA256_DIGEST_LENGTH] = {0};
+    unsigned char signature[2048/8] = {0};
     unsigned int signatureLength;
     byte *buf = NULL;
     BIO *bio = NULL;
@@ -746,6 +764,24 @@ int test_wolfSSL_RSA_verify(void)
     ExpectNotNull(pubKey = EVP_PKEY_get1_RSA(evpPubkey));
     ExpectIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature,
         signatureLength, pubKey), SSL_SUCCESS);
+
+    /* Negative test: a tampered signature must be rejected. Flip a byte in the
+     * signature, confirm verification fails, then restore it. */
+    signature[0] ^= 0xFFU;
+    ExpectIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature,
+        signatureLength, pubKey), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    signature[0] ^= 0xFFU;
+    /* Sanity: the restored signature verifies again. */
+    ExpectIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature,
+        signatureLength, pubKey), SSL_SUCCESS);
+
+    /* Negative test: a tampered hash must be rejected (the encoded comparison
+     * string differs). Flip a byte in the hash, confirm failure, then
+     * restore it. */
+    hash[0] ^= 0xFFU;
+    ExpectIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature,
+        signatureLength, pubKey), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    hash[0] ^= 0xFFU;
 
     ExpectIntEQ(RSA_verify(NID_sha256, NULL, SHA256_DIGEST_LENGTH, NULL,
         signatureLength, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));

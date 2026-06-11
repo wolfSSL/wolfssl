@@ -3503,13 +3503,16 @@ enum key_cache_state {
 
 /* Additional Connection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
-   byte                 enabled;  /* secure_renegotiation flag in rfc */
-   byte                 verifySet;
-   byte                 startScr; /* server requested client to start scr */
+   /* Single-bit flags grouped together so they pack into one storage unit. */
+   WC_BITFIELD          enabled:1;  /* secure_renegotiation flag in rfc */
+   WC_BITFIELD          verifySet:1;
+   WC_BITFIELD          startScr:1; /* server requested client to start scr */
+   WC_BITFIELD          renegInfoSeen:1; /* renegotiation_info ext seen this
+                                          * handshake (RFC 5746 3.7) */
+   WC_BITFIELD          subject_hash_set:1; /* if peer cert hash is set */
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
-   byte                 subject_hash_set; /* if peer cert hash is set */
    byte                 subject_hash[KEYID_SIZE];  /* peer cert hash */
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;

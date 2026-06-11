@@ -6277,6 +6277,9 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                 if (ret == WOLFSSL_SUCCESS)
                     ret = 0;
             }
+            /* renegotiation_info seen (checked by DoClientHello, RFC 5746 3.7) */
+            if (ssl->secure_renegotiation != NULL)
+                ssl->secure_renegotiation->renegInfoSeen = 1;
             if (ret != 0 && ret != WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E)) {
             }
             else if (ssl->secure_renegotiation == NULL) {

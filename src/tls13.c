@@ -6030,7 +6030,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     i += OPAQUE16_LEN;
 
     /* Extension data. */
-    if (i - begin + totalExtSz > totalSz)
+    if (i - begin + totalExtSz != totalSz)
         return BUFFER_ERROR;
     if ((ret = TLSX_Parse(ssl, input + i, totalExtSz, encrypted_extensions,
                                                                        NULL))) {
@@ -6168,6 +6168,10 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     }
     *inOutIdx += len;
 
+    /* No trailing bytes allowed (RFC 8446 4.3.2). */
+    if ((*inOutIdx - begin) != size)
+        return BUFFER_ERROR;
+
     /* RFC 8446 Section 4.3.2: the signature_algorithms extension MUST be
      * present in a CertificateRequest. */
     if (peerSuites.hashSigAlgoSz == 0) {
@@ -6175,7 +6179,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
         return INVALID_PARAMETER;
     }
-
 #ifdef WOLFSSL_CERT_SETUP_CB
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         return ret;

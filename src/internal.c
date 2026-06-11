@@ -3343,6 +3343,10 @@ void FreeCiphers(WOLFSSL* ssl)
     ssl->dtlsRecordNumberDecrypt.aes = NULL;
 #endif /* BUILD_AES */
 #ifdef HAVE_CHACHA
+    if (ssl->dtlsRecordNumberEncrypt.chacha != NULL)
+        ForceZero(ssl->dtlsRecordNumberEncrypt.chacha, sizeof(ChaCha));
+    if (ssl->dtlsRecordNumberDecrypt.chacha != NULL)
+        ForceZero(ssl->dtlsRecordNumberDecrypt.chacha, sizeof(ChaCha));
     XFREE(ssl->dtlsRecordNumberEncrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->dtlsRecordNumberDecrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     ssl->dtlsRecordNumberEncrypt.chacha = NULL;
@@ -18049,6 +18053,17 @@ static int DoHelloRequest(WOLFSSL* ssl, word32 size)
     }
 #ifdef HAVE_SECURE_RENEGOTIATION
     else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+        /* WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
+         * peer-initiated renegotiation. Respond with a no_renegotiation
+         * warning alert instead of starting a secure renegotiation. */
+        if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
+            int ret;
+            WOLFSSL_MSG("Rejecting HelloRequest: WOLFSSL_OP_NO_RENEGOTIATION");
+            ret = SendAlert(ssl, alert_warning, no_renegotiation);
+            WOLFSSL_LEAVE("DoHelloRequest", ret);
+            WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
+            return ret;
+        }
         ssl->secure_renegotiation->startScr = 1;
         WOLFSSL_LEAVE("DoHelloRequest", 0);
         WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
@@ -18781,6 +18796,17 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ssl->secure_renegotiation &&
             ssl->secure_renegotiation->enabled)
     {
+        /* WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
+         * peer-initiated renegotiation. RFC 5246 7.2.2: no_renegotiation is a
+         * warning-level alert, so refuse the renegotiation but keep the
+         * established connection rather than aborting it. Skip the ClientHello
+         * body and leave handshake state untouched, mirroring the client-side
+         * HelloRequest refusal in DoHelloRequest(). */
+        if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
+            WOLFSSL_MSG("Refusing renegotiation: WOLFSSL_OP_NO_RENEGOTIATION");
+            *inOutIdx = expectedIdx;
+            return SendAlert(ssl, alert_warning, no_renegotiation);
+        }
         WOLFSSL_MSG("Reset handshake state");
         XMEMSET(&ssl->msgsReceived, 0, sizeof(MsgsReceived));
         ssl->options.serverState = NULL_STATE;
@@ -18789,6 +18815,8 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
         ssl->options.handShakeState = NULL_STATE;
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+        /* Reset for the renegotiation_info presence check below. */
+        ssl->secure_renegotiation->renegInfoSeen = 0;
 
         ret = InitHandshakeHashes(ssl);
         if (ret != 0)
@@ -22487,6 +22515,32 @@ static void LogAlert(int type)
 }
 
 /* process alert, return level */
+#ifndef NO_SESSION_CACHE
+/* RFC 5246 Section 7.2.2: a TLS 1.2 session whose connection is terminated by a
+ * fatal alert MUST be invalidated so it cannot be resumed. (TLS 1.3 RFC 8446
+ * Section 6.2 only requires closing the connection, but evicting here too is
+ * sound defense-in-depth.) Evict the cached session (which also drops any
+ * associated ticket). Acts on an established connection or an in-progress
+ * resumption - both reference a cached session; a brand-new full handshake has
+ * no cached session to remove. */
+static void InvalidateSessionOnFatalAlert(WOLFSSL* ssl)
+{
+    if (ssl == NULL || ssl->ctx == NULL || ssl->session == NULL)
+        return;
+    if (!ssl->options.handShakeDone && !ssl->options.resuming)
+        return;
+    /* Don't evict on an unauthenticated record: a TLS 1.3 plaintext alert
+     * received under encryption (current record not decrypted) is rejected (or
+     * ignored) by DoAlert, and the teardown alert routes back here. RFC 8446
+     * 6.2 doesn't require TLS 1.3 eviction; TLS 1.2 alerts are plaintext so are
+     * unaffected. */
+    if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
+            !ssl->keys.decryptedCur)
+        return;
+    (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
+}
+#endif /* !NO_SESSION_CACHE */
+
 static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 {
     byte level;
@@ -22593,6 +22647,15 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
              */
             WOLFSSL_ERROR(*type);
         }
+#ifndef NO_SESSION_CACHE
+        /* Validated fatal alert: invalidate the session so it can't be resumed
+         * (RFC 5246 7.2.2; in TLS 1.3 all error alerts are fatal, RFC 8446
+         * 6.2). */
+        if (*type != close_notify &&
+                (level == alert_fatal ||
+                 (IsAtLeastTLSv1_3(ssl->version) && *type != user_canceled)))
+            InvalidateSessionOnFatalAlert(ssl);
+#endif
     }
     return level;
 }
@@ -23097,6 +23160,52 @@ static void DropAndRestartProcessReply(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 }
 #endif /* WOLFSSL_DTLS */
+
+#ifndef WOLFSSL_NO_TLS12
+/* On a confirmed TLS 1.2 / DTLS 1.2 client resumption, check the abbreviated
+ * ServerHello's EMS state (RFC 7627 5.3) and cipher suite (RFC 5246 7.4.1.3)
+ * match the resumed session. Called once resumption is confirmed - at a renewed
+ * NewSessionTicket (before SetupSession refreshes the cached values) or the
+ * server ChangeCipherSpec. Deferred from ServerHello because a declined ticket
+ * (RFC 5077 3.4) falls back to a full handshake that must not be rejected.
+ * Returns 0 if consistent, else sends a fatal alert and returns an error. */
+static int CheckResumptionConsistency(WOLFSSL* ssl)
+{
+    if (ssl->session == NULL) /* nothing to compare against */
+        return 0;
+    /* EMS must match (RFC 7627 5.3); skip EAP-FAST (session-secret callback). */
+    if (
+#ifdef HAVE_SECRET_CALLBACK
+        !(ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                && ssl->session->ticketLen > 0
+#endif
+                ) &&
+#endif
+        ssl->session->haveEMS != ssl->options.haveEMS) {
+        WOLFSSL_MSG("Resumed session EMS state does not match "
+                    "ServerHello EMS state");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+        return EXT_MASTER_SECRET_NEEDED_E;
+    }
+#ifndef NO_RESUME_SUITE_CHECK
+    /* Suite must match (RFC 5246 7.4.1.3), tickets included. Skip when no suite
+     * was retained (both zero = TLS_NULL_WITH_NULL_NULL, e.g. EAP-FAST PAC). */
+    if ((ssl->session->cipherSuite0 != 0 || ssl->session->cipherSuite != 0) &&
+            (ssl->options.cipherSuite0 != ssl->session->cipherSuite0 ||
+             ssl->options.cipherSuite != ssl->session->cipherSuite)) {
+        WOLFSSL_MSG("Resumed session cipher suite does not match "
+                    "ServerHello cipher suite");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
+        return MATCH_SUITE_ERROR;
+    }
+#endif /* NO_RESUME_SUITE_CHECK */
+    return 0;
+}
+#endif /* !WOLFSSL_NO_TLS12 */
+
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
    ssl->error will be whitelisted. This is useful when the connection has been
@@ -23211,6 +23320,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             /* see if sending SSLv2 client hello */
             if ( ssl->options.side == WOLFSSL_SERVER_END &&
                  ssl->options.clientState == NULL_STATE &&
+                 !ssl->options.handShakeDone &&
                  ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx]
                          != handshake &&
                  /* change_cipher_spec here is an error but we want to handle
@@ -23924,6 +24034,15 @@ default:
                             break;
                         #endif /* WOLFSSL_DTLS */
                         }
+                    }
+
+                    /* Server CCS confirms the abbreviated handshake: validate
+                     * the resumed session before installing keys. */
+                    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->options.resuming) {
+                        ret = CheckResumptionConsistency(ssl);
+                        if (ret != 0)
+                            return ret;
                     }
 
                     ssl->keys.encryptionOn = 1;
@@ -24660,6 +24779,19 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
+    /* RFC 5246 6.1: sequence numbers MUST NOT wrap. GetSEQIncrement post-
+     * increments, so refuse at hi == lo == 0xFFFFFFFF (2^64-1): that last legal
+     * value is deliberately sacrificed to avoid wrapping to 0 and reusing
+     * sequence number 0. The caller must renegotiate or close. DTLS sequence
+     * numbers are epoch-scoped and handled elsewhere. */
+    if (!sizeOnly && !ssl->options.dtls &&
+            ssl->keys.sequence_number_hi == 0xFFFFFFFFU &&
+            ssl->keys.sequence_number_lo == 0xFFFFFFFFU) {
+        WOLFSSL_MSG("TLS write sequence number would wrap");
+        WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+        return SEQUENCE_NUMBER_E;
+    }
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;
     if (asyncOkay) {
@@ -27552,6 +27684,17 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
         return BAD_FUNC_ARG;
     }
 
+    /* InvalidateSessionOnFatalAlert() is defined in the !NO_TLS section, so the
+     * guard here must match (with NO_TLS there are no TLS sessions to evict). */
+#if !defined(NO_SESSION_CACHE) && !defined(NO_TLS)
+    /* RFC 5246 Section 7.2.2: a fatal alert terminates the connection;
+     * invalidate the established session so it cannot be resumed. Do this as
+     * soon as the fatal alert is generated, before the pendingAlert/backpressure
+     * handling below which can return early without sending the alert now. */
+    if (severity == alert_fatal)
+        InvalidateSessionOnFatalAlert(ssl);
+#endif
+
     if (ssl->pendingAlert.level != alert_none) {
         ret = RetrySendAlert(ssl);
         if (ret != 0) {
@@ -28234,6 +28377,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case ECH_REQUIRED_E:
         return "ECH offered but rejected by server";
+
+    case SEQUENCE_NUMBER_E:
+        return "Record sequence number would wrap";
     }
 
     return "unknown error number";
@@ -32403,6 +32549,9 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         }
         else {
             if (DSH_CheckSessionId(ssl)) {
+                /* EMS/suite consistency is checked once resumption is confirmed
+                 * (CheckResumptionConsistency), not here: a ticket the server
+                 * declines (RFC 5077 3.4) must fall back to a full handshake. */
                 if (SetCipherSpecs(ssl) == 0) {
                     if (!HaveUniqueSessionObj(ssl)) {
                         WOLFSSL_MSG("Unable to have unique session object");
@@ -35668,6 +35817,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return SESSION_TICKET_EXPECT_E;
     }
 
+    /* A renewed ticket while resuming confirms resumption; check before the
+     * SetupSession() below refreshes the cached suite/EMS and masks a downgrade.
+     * (The ChangeCipherSpec check covers the no-renewal case.) */
+    if (ssl->options.resuming) {
+        ret = CheckResumptionConsistency(ssl);
+        if (ret != 0)
+            return ret;
+    }
+
     if (OPAQUE32_LEN > size)
         return BUFFER_ERROR;
 
@@ -38793,6 +38951,17 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 0) {
             TLSX* extension;
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+            /* SCSV not allowed on a renegotiation ClientHello (RFC 5746 3.5). */
+            if (ssl->secure_renegotiation &&
+                    ssl->secure_renegotiation->enabled &&
+                    ssl->secure_renegotiation->verifySet) {
+                WOLFSSL_MSG("SCSV received on renegotiation ClientHello");
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                ret = SECURE_RENEGOTIATION_E;
+                goto out;
+            }
+#endif
             /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS) {
@@ -39044,6 +39213,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             else
                 *inOutIdx = begin + helloSz; /* skip extensions */
         }
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+        /* renegotiation_info MUST be present on a renegotiation (RFC 5746 3.7). */
+        if (ssl->secure_renegotiation &&
+                ssl->secure_renegotiation->enabled &&
+                ssl->secure_renegotiation->verifySet &&
+                !ssl->secure_renegotiation->renegInfoSeen) {
+            WOLFSSL_MSG("Renegotiation ClientHello missing renegotiation_info");
+            SendAlert(ssl, alert_fatal, handshake_failure);
+            ret = SECURE_RENEGOTIATION_E;
+            goto out;
+        }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 #ifdef WOLFSSL_DTLS_CID
         if (ssl->options.useDtlsCID)
