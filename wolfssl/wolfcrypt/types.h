@@ -231,6 +231,15 @@ typedef const char wcchar[];
                 (ULONG_MAX == 0xffffffffUL)
             #define SIZEOF_LONG 4
         #endif
+        /* On LP64 (e.g. 64-bit Linux/macOS) long is 8 bytes. Detect it from the
+         * target's own limits.h so CTC_SETTINGS matches the library, which gets
+         * SIZEOF_LONG=8 from config.h. This must be derived per-target (not
+         * baked into options.h), so LLP64 targets such as Windows correctly get
+         * SIZEOF_LONG=4 from the branch above. */
+        #if !defined(SIZEOF_LONG) && defined(ULONG_MAX) && \
+                (ULONG_MAX == 0xffffffffffffffffULL)
+            #define SIZEOF_LONG 8
+        #endif
         #if !defined(SIZEOF_LONG_LONG) && defined(ULLONG_MAX) && \
                 (ULLONG_MAX == 0xffffffffffffffffULL)
             #define SIZEOF_LONG_LONG 8
