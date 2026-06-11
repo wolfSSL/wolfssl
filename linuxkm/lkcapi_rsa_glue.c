@@ -792,8 +792,12 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
         goto rsa_dec_out;
     }
 
-    if (req->dst_len <= 0 || req->dst_len > (unsigned int) ctx->key_len) {
-        err = -EINVAL;
+    if (req->dst_len != (unsigned int)ctx->key_len) {
+        if ((req->dst_len > 0) && (req->dst_len < (unsigned int)ctx->key_len))
+            err = -EOVERFLOW;
+        else
+            err = -EINVAL;
+        req->dst_len = ctx->key_len;
         goto rsa_dec_out;
     }
 
@@ -832,6 +836,7 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
 
     if (out_len > req->dst_len) {
         err = -EOVERFLOW;
+        req->dst_len = out_len;
         goto rsa_dec_out;
     }
 
@@ -1121,6 +1126,7 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
 
     if (req->dst_len < ctx->key_len) {
         err = -EOVERFLOW;
+        req->dst_len = ctx->key_len;
         goto pkcs1pad_sign_out;
     }
 
@@ -1276,7 +1282,7 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
         goto pkcs1pad_verify_out;
     }
 
-    n_diff = memcmp(sig, msg, dec_len);
+    n_diff = ConstantCompare(sig, msg, dec_len);
     if (unlikely(n_diff != 0)) {
         err = -EKEYREJECTED;
         goto pkcs1pad_verify_out;
@@ -1523,7 +1529,7 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
         goto pkcs1_verify_out;
     }
 
-    n_diff = memcmp(enc_digest, msg, enc_msg_len);
+    n_diff = ConstantCompare(enc_digest, msg, enc_msg_len);
     if (unlikely(n_diff != 0)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: recovered msg did not match digest: %d\n",
@@ -1688,6 +1694,7 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
 
     if (req->dst_len < ctx->key_len) {
         err = -EOVERFLOW;
+        req->dst_len = ctx->key_len;
         goto pkcs1_enc_out;
     }
 
@@ -1806,6 +1813,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
 
     if (dec_len > req->dst_len) {
         err = -EOVERFLOW;
+        req->dst_len = dec_len;
         goto pkcs1_dec_out;
     }
 
@@ -2267,10 +2275,10 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     }
 
     req = akcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        ret = -ENOMEM;
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
-        req = NULL;
         goto test_rsa_end;
     }
 
@@ -2694,14 +2702,10 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
 
     req = akcipher_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        test_rc = -ENOMEM;
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
-        if (PTR_ERR(req) == -ENOMEM)
-            test_rc = MEMORY_E;
-        else
-            test_rc = BAD_FUNC_ARG;
-        req = NULL;
         goto test_pkcs1_end;
     }
 

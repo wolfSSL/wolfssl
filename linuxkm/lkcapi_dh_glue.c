@@ -356,6 +356,14 @@ static int km_dh_decode_secret(const u8 * buf, unsigned int len,
         return -EINVAL;
     }
 
+    if (len != expected_len) {
+        #ifdef WOLFKM_DEBUG_DH
+        pr_err("%s: km_dh_decode_secret: caller passed %u, expected %zu\n",
+               WOLFKM_DH_DRIVER, len, expected_len);
+        #endif /* WOLFKM_DEBUG_DH */
+        return -EINVAL;
+    }
+
     /* The rest of the fields are optional depending on how much data
      * was passed, and whether it's ffdhe or dh. */
     if (params->key_size) {
@@ -779,6 +787,7 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
             pr_err("%s: wc_DhSetNamedKey returned: %d\n", WOLFKM_DH_DRIVER,
                    err);
             #endif /* WOLFKM_DEBUG_DH */
+            wc_FreeDhKey(ctx->key);
             free(ctx->key);
             ctx->key = NULL;
             return -ENOMEM;
@@ -2878,14 +2887,10 @@ static int linuxkm_test_kpp_driver(const char * driver,
     }
 
     req = kpp_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        test_rc = -ENOMEM;
         pr_err("error: allocating kpp request %s failed\n",
                driver);
-        if (PTR_ERR(req) == -ENOMEM)
-            test_rc = MEMORY_E;
-        else
-            test_rc = BAD_FUNC_ARG;
-        req = NULL;
         goto test_kpp_end;
     }
 

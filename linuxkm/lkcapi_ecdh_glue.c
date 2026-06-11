@@ -210,6 +210,14 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
         return -EINVAL;
     }
 
+    if (len != expected_len) {
+        #ifdef WOLFKM_DEBUG_ECDH
+        pr_err("%s: km_ecdh_decode_secret: caller passed %u, expected %zu\n",
+               WOLFKM_ECDH_DRIVER, len, expected_len);
+        #endif /* WOLFKM_DEBUG_ECDH */
+        return -EINVAL;
+    }
+
     /* Only set the key if it was provided.  */
     if (params->key_size) {
         params->key = (void *)ptr;
@@ -415,6 +423,7 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     #ifdef ECC_TIMING_RESISTANT
     ret = wc_ecc_set_rng(ctx->key, &ctx->rng);
     if (ret < 0) {
+        wc_ecc_free(ctx->key);
         free(ctx->key);
         ctx->key = NULL;
         return -ENOMEM;
@@ -492,6 +501,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
         pr_err("error: dst_len too small: %d\n", req->dst_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         err = -EOVERFLOW;
+        req->dst_len = raw_pub_len;
         goto ecdh_gen_pub_end;
     }
 
@@ -649,6 +659,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
 
     if (req->dst_len < shared_secret_len) {
         err = -EOVERFLOW;
+        req->dst_len = shared_secret_len;
         goto ecdh_shared_secret_end;
     }
 
@@ -905,14 +916,10 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
     }
 
     req = kpp_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        test_rc = -ENOMEM;
         pr_err("error: allocating kpp request %s failed\n",
                driver);
-        if (PTR_ERR(req) == -ENOMEM)
-            test_rc = MEMORY_E;
-        else
-            test_rc = BAD_FUNC_ARG;
-        req = NULL;
         goto test_ecdh_nist_end;
     }
 
