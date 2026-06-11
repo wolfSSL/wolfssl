@@ -203,6 +203,7 @@
             #include <zephyr/posix/netdb.h>
             #include <zephyr/posix/sys/socket.h>
             #include <zephyr/posix/sys/select.h>
+            #include <zephyr/posix/arpa/inet.h>
         #endif
     #else
         #include <net/socket.h>

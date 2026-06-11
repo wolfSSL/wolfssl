@@ -70,9 +70,12 @@ select_docker_image() {
     local minor="${ver#*.}"
     minor="${minor%%.*}"
 
-    if [[ "$major" -ge 4 && "$minor" -ge 2 ]]; then
-        # Zephyr 4.2+ needs SDK 0.17.x (v0.28.7 image)
-        echo "${GHCR}:v0.28.7"
+    if [[ "$major" -ge 4 && "$minor" -ge 4 ]]; then
+        # Zephyr 4.4+ needs SDK 1.x (v0.29.2 image)
+        echo "${GHCR}:v0.29.2"
+    elif [[ "$major" -ge 4 && "$minor" -ge 2 ]]; then
+        # Zephyr 4.2+ needs SDK 0.17.x (v0.28.8 image)
+        echo "${GHCR}:v0.28.8"
     elif [[ "$major" -ge 4 ]]; then
         # Zephyr 4.0-4.1 needs SDK 0.17.0 (v0.27.4 image; v0.26.18/v0.28.7 picolibc is incompatible)
         echo "${GHCR}:v0.27.4"

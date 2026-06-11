@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        zephyr-ref: [ v4.1.0, v4.3.0 ]
+        zephyr-ref: [ v4.1.0, v4.3.0, v4.4.0 ]
         board: [ native_sim, frdm_rw612/rw612 ]
         sample: [ wolfssl_tls_sock, wolfssl_test, wolfssl_benchmark ]
         extra-conf: [ '', external_libc.conf ]
