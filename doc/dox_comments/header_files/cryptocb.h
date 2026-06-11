@@ -280,3 +280,34 @@ int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
     \sa wc_ecc_make_pub
 */
 int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
+
+/*!
+    \ingroup CryptoCb
+
+    \brief Offload validating an ECC key to a CryptoCB device.
+
+    Used by wc_ecc_check_key and the key generation / import validation paths.
+    The public point crosses the (math-free) callback boundary as X9.63
+    uncompressed bytes in wc_CryptoInfo.pk.ecc_check_pub (\c pubKey /
+    \c pubKeySz); this wrapper serializes key->pubkey so a device handler only
+    deals with byte arrays. When the key state is \c ECC_PRIVATEKEY_ONLY,
+    \c pubKey is NULL and \c pubKeySz is 0 so the handler can distinguish "no
+    public point" from an invalid zero-coordinate public point that must be
+    validated and rejected. The caller's intent crosses in \c checkOrder and
+    \c checkPriv.
+
+    \param key        ECC key to validate (curve identity from key->dp)
+    \param checkOrder when 1 the caller requested validation that the point
+                      has the curve order (point * order == infinity)
+    \param checkPriv  when 1 the caller also requested validation of the
+                      private part (scalar range, consistency with the public
+                      point)
+
+    \return 0 if the key is valid
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation (wolfCrypt
+            falls back to software)
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ecc_check_key
+*/
+int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv);

@@ -10792,13 +10792,38 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC_CHECK_KEY) && \
+    !defined(WOLFSSL_CAAM)
+    /* Device-first: when a device is configured, let it validate the public
+     * key. Fall through to the software/HW path below only when the
+     * device reports the operation unavailable.
+     * CAAM is excluded: it relies on the software order-check below to detect
+     * whether an imported private key is an encrypted black key. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        err = wc_CryptoCb_EccCheckPubKey(key, !partial, priv);
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return err;
+        /* device declined; fall through. Every software/HW path below
+         * re-initializes err before reading it, so no reset is needed here. */
+    }
+#endif
+
 #ifndef HAVE_ECC_CHECK_PUBKEY_ORDER
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+    /* Software validation is stripped; the device-first check above either
+     * handled the key or reported the op unavailable, so fail closed rather
+     * than accept an unvalidated key. */
+    err = NO_VALID_DEVID;
+#else
     /* consider key check success on HW crypto
-     * ex: ATECC508/608A, CryptoCell and Silabs
-     *
-     * consider key check success on most Crypt Cb only builds
+     * ex: ATECC508/608A, CryptoCell and Silabs which validate the key
+     * internally
      */
     err = MP_OKAY;
+#endif
 
 #else
 
@@ -10940,6 +10965,10 @@ WOLFSSL_ABI
 int wc_ecc_check_key(ecc_key* key)
 {
     int ret;
+    /* _ecc_validate_public_key is the single validation entry point: it is
+     * device-first (offloads to the crypto callback when a device is
+     * configured) and otherwise runs the software/HW checks, or fails closed
+     * under WOLF_CRYPTO_CB_ONLY_ECC. */
     ret = _ecc_validate_public_key(key, 0, 1);
     return ret;
 }

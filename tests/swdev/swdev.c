@@ -194,6 +194,48 @@ static int swdev_ecc_make_pub(wc_CryptoInfo* info)
     return ret;
 }
 
+#ifdef HAVE_ECC_CHECK_KEY
+static int swdev_ecc_check_pub(wc_CryptoInfo* info)
+{
+    ecc_key* key = info->pk.ecc_check_pub.key;
+    int      ret = 0;
+    int      validatedFromWire = 0;
+
+    if (info->pk.ecc_check_pub.pubKeySz == 0) {
+        return ECC_INF_E;
+    }
+#ifdef HAVE_ECC_KEY_IMPORT
+    if (key->idx >= 0) {
+        WC_DECLARE_VAR(pubOnly, ecc_key, 1, key->heap);
+        WC_ALLOC_VAR(pubOnly, ecc_key, 1, key->heap);
+        if (!WC_VAR_OK(pubOnly))
+            ret = MEMORY_E;
+        else
+            ret = wc_ecc_init_ex(pubOnly, key->heap, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_ecc_import_x963_ex(info->pk.ecc_check_pub.pubKey,
+                info->pk.ecc_check_pub.pubKeySz, pubOnly, key->dp->id);
+            if (ret == 0 &&
+                    wc_ecc_cmp_point(&pubOnly->pubkey, &key->pubkey) != MP_EQ) {
+                /* wire bytes disagree with key->pubkey */
+                ret = BAD_STATE_E;
+            }
+            if (ret == 0)
+                ret = wc_ecc_check_key(pubOnly);
+            wc_ecc_free(pubOnly);
+        }
+        WC_FREE_VAR(pubOnly, key->heap);
+        validatedFromWire = 1;
+    }
+#endif
+    if (ret == 0 && (!validatedFromWire ||
+            (info->pk.ecc_check_pub.checkPriv &&
+             key->type == ECC_PRIVATEKEY))) {
+        ret = wc_ecc_check_key(key);
+    }
+    return ret;
+}
+#endif /* HAVE_ECC_CHECK_KEY */
 #endif /* HAVE_ECC */
 
 #ifndef NO_SHA256
@@ -755,6 +797,10 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_ecc_get_sig_size(info);
         case WC_PK_TYPE_EC_MAKE_PUB:
             return swdev_ecc_make_pub(info);
+    #ifdef HAVE_ECC_CHECK_KEY
+        case WC_PK_TYPE_EC_CHECK_PUB_KEY:
+            return swdev_ecc_check_pub(info);
+    #endif
     #endif /* HAVE_ECC */
         default:
             return CRYPTOCB_UNAVAILABLE;

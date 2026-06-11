@@ -158,6 +158,7 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_EC_GET_SIZE: return "ECC GetSize";
         case WC_PK_TYPE_EC_GET_SIG_SIZE: return "ECC GetSigSize";
         case WC_PK_TYPE_EC_MAKE_PUB: return "ECC MakePub";
+        case WC_PK_TYPE_EC_CHECK_PUB_KEY: return "ECC CheckPubKey";
     }
     return NULL;
 }
@@ -938,6 +939,66 @@ int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
+#ifdef HAVE_ECC_CHECK_KEY
+int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL || key->dp == NULL)
+        return ret;
+
+    if (key->dp->size > MAX_ECC_BYTES)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        word32 curveSz = (word32)key->dp->size;
+        word32 ptSz    = 1 + 2 * curveSz;
+        word32 xSz     = curveSz;
+        word32 ySz     = curveSz;
+        /* a key with no host-side public point is represented by
+         * ECC_PRIVATEKEY_ONLY and crosses as pubKey = NULL / pubKeySz = 0.
+         * If the key state says a public point exists, serialize it even when
+         * the coordinates are invalid (e.g. 0,0) so the device can reject the
+         * actual input instead of seeing "no public point". */
+        int havePub    = (key->type != ECC_PRIVATEKEY_ONLY);
+        WC_DECLARE_VAR(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap);
+        WC_ALLOC_VAR_EX(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap,
+            DYNAMIC_TYPE_ECC_BUFFER, return MEMORY_E);
+
+        ret = MP_OKAY;
+        if (havePub) {
+            /* serialize key->pubkey to X9.63 uncompressed (0x04 || X || Y) */
+            buf[0] = ECC_POINT_UNCOMP;
+            ret = wc_export_int(key->pubkey.x, buf + 1, &xSz, curveSz,
+                WC_TYPE_UNSIGNED_BIN);
+            if (ret == MP_OKAY)
+                ret = wc_export_int(key->pubkey.y, buf + 1 + curveSz, &ySz,
+                    curveSz, WC_TYPE_UNSIGNED_BIN);
+        }
+
+        if (ret == MP_OKAY) {
+            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+            cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+            cryptoInfo.pk.type = WC_PK_TYPE_EC_CHECK_PUB_KEY;
+            cryptoInfo.pk.ecc_check_pub.key = key;
+            cryptoInfo.pk.ecc_check_pub.pubKey = havePub ? buf : NULL;
+            cryptoInfo.pk.ecc_check_pub.pubKeySz = havePub ? ptSz : 0;
+            cryptoInfo.pk.ecc_check_pub.checkOrder = checkOrder;
+            cryptoInfo.pk.ecc_check_pub.checkPriv = checkPriv;
+
+            ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+        }
+
+        WC_FREE_VAR_EX(buf, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_ECC_CHECK_KEY */
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519
