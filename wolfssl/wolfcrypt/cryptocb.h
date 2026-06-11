@@ -245,6 +245,12 @@ typedef struct wc_CryptoInfo {
                 const ecc_key* key;
                 int*           sigSize;
             } ecc_get_sig_size;
+            struct {
+                ecc_key* key;       /* routing (devId), curve (key->dp), heap,
+                                     * resident/sw private scalar d            */
+                byte*    pubOut;    /* [out] X9.63 0x04||X||Y, uncompressed     */
+                word32*  pubOutSz;  /* in: buf size; out: bytes written         */
+            } ecc_make_pub;
         #endif /* HAVE_ECC */
         #ifdef HAVE_CURVE25519
             struct {
@@ -730,6 +736,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
 
 WOLFSSL_LOCAL int wc_CryptoCb_EccGetSize(const ecc_key* key, int* keySize);
 WOLFSSL_LOCAL int wc_CryptoCb_EccGetSigSize(const ecc_key* key, int* sigSize);
+
+WOLFSSL_LOCAL int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519

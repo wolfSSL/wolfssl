@@ -157,6 +157,7 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_EC_KEYGEN: return "ECC KeyGen";
         case WC_PK_TYPE_EC_GET_SIZE: return "ECC GetSize";
         case WC_PK_TYPE_EC_GET_SIG_SIZE: return "ECC GetSigSize";
+        case WC_PK_TYPE_EC_MAKE_PUB: return "ECC MakePub";
     }
     return NULL;
 }
@@ -878,6 +879,65 @@ int wc_CryptoCb_EccGetSigSize(const ecc_key* key, int* sigSize)
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+
+int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL || pubOut == NULL || key->dp == NULL)
+        return ret;
+
+    if (key->dp->size > MAX_ECC_BYTES)
+        return ret;
+
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        word32 curveSz = (word32)key->dp->size;
+        word32 ptSz    = 1 + 2 * curveSz;     /* X9.63 uncompressed length */
+        word32 outSz   = ptSz;
+        WC_DECLARE_VAR(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap);
+        WC_ALLOC_VAR_EX(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap,
+            DYNAMIC_TYPE_ECC_BUFFER, return MEMORY_E);
+
+        /* zero the result buffer so a handler that returns success without
+         * writing output is rejected deterministically by the tag check */
+        XMEMSET(buf, 0, ptSz);
+
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_EC_MAKE_PUB;
+        cryptoInfo.pk.ecc_make_pub.key = key;
+        cryptoInfo.pk.ecc_make_pub.pubOut = buf;
+        cryptoInfo.pk.ecc_make_pub.pubOutSz = &outSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+
+        /* deserialize X9.63 uncompressed result into pubOut; reject a result
+         * whose size is not exactly the curve's X9.63 length */
+        if (ret == 0) {
+            if (outSz != ptSz || buf[0] != ECC_POINT_UNCOMP) {
+                ret = BUFFER_E;
+            }
+            else {
+                int err = mp_read_unsigned_bin(pubOut->x, buf + 1, curveSz);
+                if (err == MP_OKAY)
+                    err = mp_read_unsigned_bin(pubOut->y, buf + 1 + curveSz,
+                        curveSz);
+                if (err == MP_OKAY)
+                    err = mp_set(pubOut->z, 1);
+                if (err != MP_OKAY)
+                    ret = err;
+            }
+        }
+
+        WC_FREE_VAR_EX(buf, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519

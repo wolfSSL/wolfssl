@@ -291,8 +291,7 @@ ECC Curve Sizes:
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
         !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB)
     #undef  HAVE_ECC_MAKE_PUB
     #define HAVE_ECC_MAKE_PUB
 #endif
@@ -5433,8 +5432,8 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
 }
 
 
-#ifdef HAVE_ECC_MAKE_PUB
-/* compute the public key Q = d*G in software
+#if defined(HAVE_ECC_MAKE_PUB) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+/* compute the public key Q = d*G in software.
  *
  * key    private key holding the scalar d, must be present and in range
  * curve  [in]curve for key, cannot be NULL
@@ -5549,7 +5548,7 @@ static int ecc_make_pub_sw(ecc_key* key, ecc_curve_spec* curve,
 
     return err;
 }
-#endif /* HAVE_ECC_MAKE_PUB */
+#endif /* HAVE_ECC_MAKE_PUB && !WOLF_CRYPTO_CB_ONLY_ECC */
 
 /* create the public ECC key from a private key
  *
@@ -5572,6 +5571,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
     int err = MP_OKAY;
 #ifdef HAVE_ECC_MAKE_PUB
     ecc_point* pub;
+    int doneInCb = 0;
 #endif /* HAVE_ECC_MAKE_PUB */
 
     (void)rng;
@@ -5605,8 +5605,45 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
     #endif
     }
 
-    if (err == MP_OKAY) {
+#ifdef WOLF_CRYPTO_CB
+    /* offload Q = d*G to the device; fall through to software only when the
+     * device reports the operation unavailable.
+     *
+     * Under WOLF_CRYPTO_CB_FIND the devId gate is dropped so a find callback
+     * can route a key initialized with INVALID_DEVID. This helper is also
+     * shared by internal callers that compute a point from a transient scalar
+     * in key->k - the ECDSA software-sign nonce R = k*G (ecc_sign_hash_sw),
+     * keygen public-part derivation, and verify-time public-key recovery.
+     * Reaching the software signer means the device already declined to sign
+     * (the whole-sign offload wc_CryptoCb_EccSign ran first), so a find
+     * callback that hands this make-pub to a device notwithstanding the
+     * INVALID_DEVID is expected to likewise decline it. If it does not decline
+     * *and* the device ignores key->k (e.g. relying on an internal key
+     * representation), it returns d*G instead of the requested k*G and the
+     * resulting signature is wrong - but such a scenario is very unlikely. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((err == MP_OKAY) && (key->devId != INVALID_DEVID))
+    #else
+    if (err == MP_OKAY)
+    #endif
+    {
+        err = wc_CryptoCb_EccMakePub(key, pub);
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            doneInCb = 1;
+        else
+            err = MP_OKAY; /* device declined the offload; fall back */
+    }
+#endif
+
+    if ((err == MP_OKAY) && !doneInCb) {
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        /* software derivation is stripped and no device handled the op;
+         * fail closed */
+        (void)curve;
+        err = NO_VALID_DEVID;
+#else
         err = ecc_make_pub_sw(key, curve, pub, rng);
+#endif
     }
 
     if (err != MP_OKAY

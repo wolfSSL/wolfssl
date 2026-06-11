@@ -251,3 +251,32 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
     \sa wc_AesInit
 */
 int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
+
+/*!
+    \ingroup CryptoCb
+
+    \brief Offload deriving an ECC public key Q = d*G from its private key to a
+    CryptoCB device.
+
+    Used by wc_ecc_make_pub / wc_ecc_make_pub_ex. The callback boundary is
+    math-free: the resulting public point crosses as X9.63 uncompressed bytes
+    (0x04 || X || Y, each ordinate zero-padded to the curve size) in
+    wc_CryptoInfo.pk.ecc_make_pub (\c pubOut / \c pubOutSz). This wrapper performs
+    all bignum (de)serialization, so a device handler only deals with byte arrays
+    and never with wolfCrypt's internal mp_int representation. The private scalar
+    is taken from the ecc_key (resident in a secure element, or key->k); curve
+    identity comes from key->dp.
+
+    \param key    ECC key providing the device id, curve identity, heap hint and
+                  the private scalar
+    \param pubOut [out] resulting affine public point Q = d*G
+
+    \return 0 on success
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation, or key or
+            pubOut is NULL (wolfCrypt falls back to software, which reports
+            the argument error)
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ecc_make_pub
+*/
+int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);

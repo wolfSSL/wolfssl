@@ -153,6 +153,47 @@ static int swdev_ecc_get_sig_size(wc_CryptoInfo* info)
     *info->pk.ecc_get_sig_size.sigSize = sz;
     return 0;
 }
+
+static int swdev_ecc_make_pub(wc_CryptoInfo* info)
+{
+    int        ret;
+    ecc_key*   key = info->pk.ecc_make_pub.key;
+    ecc_point* pub = wc_ecc_new_point_h(key->heap);
+
+    if (pub == NULL)
+        return MEMORY_E;
+
+    /* derive Q = d*G in software, then emit X9.63 uncompressed bytes. The
+     * point is serialized with the curve size from key->dp so custom-curve
+     * keys (idx == ECC_CUSTOM_IDX) work too; wc_ecc_export_point_der rejects
+     * negative curve indices. */
+    ret = wc_ecc_make_pub(key, pub);
+    if (ret == 0) {
+        byte*  out     = info->pk.ecc_make_pub.pubOut;
+        word32 curveSz = (word32)key->dp->size;
+        word32 ptSz    = 1 + 2 * curveSz;
+        word32 xSz     = curveSz;
+        word32 ySz     = curveSz;
+
+        if (*info->pk.ecc_make_pub.pubOutSz < ptSz) {
+            ret = BUFFER_E;
+        }
+        else {
+            out[0] = ECC_POINT_UNCOMP;
+            ret = wc_export_int(pub->x, out + 1, &xSz, curveSz,
+                WC_TYPE_UNSIGNED_BIN);
+            if (ret == MP_OKAY)
+                ret = wc_export_int(pub->y, out + 1 + curveSz, &ySz, curveSz,
+                    WC_TYPE_UNSIGNED_BIN);
+            if (ret == MP_OKAY)
+                *info->pk.ecc_make_pub.pubOutSz = ptSz;
+        }
+    }
+
+    wc_ecc_del_point_h(pub, key->heap);
+    return ret;
+}
+
 #endif /* HAVE_ECC */
 
 #ifndef NO_SHA256
@@ -712,6 +753,8 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_ecc_get_size(info);
         case WC_PK_TYPE_EC_GET_SIG_SIZE:
             return swdev_ecc_get_sig_size(info);
+        case WC_PK_TYPE_EC_MAKE_PUB:
+            return swdev_ecc_make_pub(info);
     #endif /* HAVE_ECC */
         default:
             return CRYPTOCB_UNAVAILABLE;
