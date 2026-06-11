@@ -45,8 +45,8 @@
 
 typedef struct nxp_hwpuf_ctx {
     byte activationCode[PUF_ACTIVATION_CODE_SIZE];
-    byte ac_set; 
-    word32 keyMask; /* unique per reset */ 
+    byte ac_set;
+    word32 keyMask; /* unique per reset */
 } nxp_hwpuf_ctx;
 
 static nxp_hwpuf_ctx ctx;
@@ -57,7 +57,7 @@ static int getACFromPFR(byte *ac)
 {
     int ret;
     flash_config_t flashInstance;
-    
+
     memset(&flashInstance, 0, sizeof(flash_config_t));
     FLASH_Init(&flashInstance);
     FFR_Init(&flashInstance);

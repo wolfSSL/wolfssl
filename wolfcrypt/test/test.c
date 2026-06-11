@@ -23345,13 +23345,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
 {
     wc_test_ret_t ret = 0;
     wc_HWPUF hwpuf;
-    byte keycode16[HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(16)];
+    byte keycode16[HWPUF_KEY_SIZE_TO_KEYCODE_SIZE(16)];
     byte key16_1[16];
     byte key16_2[16];
-    byte keycode24[HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(24)];
+    byte keycode24[HWPUF_KEY_SIZE_TO_KEYCODE_SIZE(24)];
     byte key24_1[24];
     byte key24_2[24];
-    byte keycode32[HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(32)];
+    byte keycode32[HWPUF_KEY_SIZE_TO_KEYCODE_SIZE(32)];
     byte key32_1[32];
     byte key32_2[32];
 
