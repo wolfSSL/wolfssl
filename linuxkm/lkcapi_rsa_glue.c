@@ -1621,6 +1621,12 @@ static int km_pkcs1_set_pub(struct crypto_sig *tfm, const void *key,
         if (unlikely(err)) {
             return -ENOMEM;
         }
+
+        /* Note the initialization of ctx->rng is deferred unless/until needed. */
+        err = wc_RsaSetRNG(ctx->key, &ctx->rng);
+        if (unlikely(err)) {
+            return -ENOMEM;
+        }
     }
 
     err = wc_RsaPublicKeyDecode(key, &idx, ctx->key, keylen);
