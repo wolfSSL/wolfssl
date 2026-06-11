@@ -657,11 +657,11 @@ const char* usage[] = {
     "  -o --offset      offset into file where data to convert starts",
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
     "  -p --pass        password to use with encrypted keys",
+    "  --padding        Remove padding on decrypted data",
 #endif
 #ifdef WOLFSSL_DER_TO_PEM
     "  -d --der         input is DER and output is PEM",
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
-    "  --padding        Remove padding on decrypted data",
     "  -e --encrypt     DER key is to be encrypted",
     "  -v --pbe-ver     PBE version to use when encrypting key (see below)",
     "  -p --pbe         PBE to use when encrypting key (see below)",
@@ -839,7 +839,11 @@ int main(int argc, char* argv[])
             info.passwd_cb = password_from_userdata;
             info.passwd_userdata = argv[0];
         }
-#endif
+        /* Remove padding leftover from decryption. */
+        else if (strcmp(argv[0], "--padding") == 0) {
+            padding = 1;
+        }
+#endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 #ifdef WOLFSSL_DER_TO_PEM
         /* Input is DER and we are converting to PEM. */
         else if ((strcmp(argv[0], "-d") == 0) ||
@@ -847,10 +851,6 @@ int main(int argc, char* argv[])
             pem = 0;
         }
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
-        /* Remove padding leftover from decryption. */
-        else if (strcmp(argv[0], "--padding") == 0) {
-            padding = 1;
-        }
         /* Encrypting the DER data. */
         else if ((strcmp(argv[0], "-e") == 0) ||
                  (strcmp(argv[0], "--encrypt") == 0)) {
