@@ -24777,11 +24777,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
-    /* RFC 5246 6.1: record sequence numbers MUST NOT wrap. Refuse to emit a
-     * record once the write sequence number has reached its maximum value
-     * (2^64-1); reusing sequence number 0 with the same keys would break the
-     * record protection. The caller must renegotiate or close the connection
-     * instead. DTLS sequence numbers are epoch-scoped and handled elsewhere. */
+    /* RFC 5246 6.1: sequence numbers MUST NOT wrap. GetSEQIncrement post-
+     * increments, so refuse at hi == lo == 0xFFFFFFFF (2^64-1): that last legal
+     * value is deliberately sacrificed to avoid wrapping to 0 and reusing
+     * sequence number 0. The caller must renegotiate or close. DTLS sequence
+     * numbers are epoch-scoped and handled elsewhere. */
     if (!sizeOnly && !ssl->options.dtls &&
             ssl->keys.sequence_number_hi == 0xFFFFFFFFU &&
             ssl->keys.sequence_number_lo == 0xFFFFFFFFU) {
