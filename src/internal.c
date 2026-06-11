@@ -22527,6 +22527,14 @@ static void InvalidateSessionOnFatalAlert(WOLFSSL* ssl)
         return;
     if (!ssl->options.handShakeDone && !ssl->options.resuming)
         return;
+    /* Don't evict on an unauthenticated record: a TLS 1.3 plaintext alert
+     * received under encryption (current record not decrypted) is rejected (or
+     * ignored) by DoAlert, and the teardown alert routes back here. RFC 8446
+     * 6.2 doesn't require TLS 1.3 eviction; TLS 1.2 alerts are plaintext so are
+     * unaffected. */
+    if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
+            !ssl->keys.decryptedCur)
+        return;
     (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
 }
 #endif /* !NO_SESSION_CACHE */
@@ -22593,15 +22601,6 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
                 code != close_notify && code != user_canceled) {
             ssl->options.isClosed = 1;
         }
-#ifndef NO_SESSION_CACHE
-        /* A fatal alert immediately terminates the connection; invalidate the
-         * session so it cannot be used to establish new connections. In TLS 1.3
-         * all error alerts are implicitly fatal (RFC 8446 6.2). */
-        if (code != close_notify &&
-                (level == alert_fatal ||
-                 (IsAtLeastTLSv1_3(ssl->version) && code != user_canceled)))
-            InvalidateSessionOnFatalAlert(ssl);
-#endif
     }
 
     if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
@@ -22646,6 +22645,15 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
              */
             WOLFSSL_ERROR(*type);
         }
+#ifndef NO_SESSION_CACHE
+        /* Validated fatal alert: invalidate the session so it can't be resumed
+         * (RFC 5246 7.2.2; in TLS 1.3 all error alerts are fatal, RFC 8446
+         * 6.2). */
+        if (*type != close_notify &&
+                (level == alert_fatal ||
+                 (IsAtLeastTLSv1_3(ssl->version) && *type != user_canceled)))
+            InvalidateSessionOnFatalAlert(ssl);
+#endif
     }
     return level;
 }
