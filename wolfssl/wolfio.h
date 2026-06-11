@@ -191,7 +191,7 @@
         #endif
         #if KERNEL_VERSION_NUMBER >= 0x30100
             #include <zephyr/net/socket.h>
-            #ifdef CONFIG_POSIX_API
+            #if defined(CONFIG_POSIX_API) && KERNEL_VERSION_NUMBER < 0x40400
                 #include <zephyr/posix/sys/socket.h>
             #endif
         #else
