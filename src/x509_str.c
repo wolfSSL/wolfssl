@@ -826,6 +826,18 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         depth--;
     }
 
+    /* Success requires the path to have reached a configured trust anchor
+     * (done == 1) or to have terminated at a caller-trusted self-signed
+     * certificate via the break above (done == 0 with depth still > 0).  A
+     * loop that instead ran out of its depth budget (depth <= 0) without
+     * completing must fail closed: ret may still be WOLFSSL_SUCCESS from the
+     * last link, but no trust anchor was reached. */
+    if (ret == WOLFSSL_SUCCESS && done == 0 && depth <= 0) {
+        SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG,
+            wolfSSL_sk_X509_num(ctx->chain));
+        ret = WOLFSSL_FAILURE;
+    }
+
 exit:
     /* Copy back failed certs. */
     numFailedCerts = wolfSSL_sk_X509_num(failedCerts);
@@ -1044,7 +1056,7 @@ int wolfSSL_X509_STORE_CTX_set_ex_data_with_cleanup(
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
 void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx, int depth)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_depth");

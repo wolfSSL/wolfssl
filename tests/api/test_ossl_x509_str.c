@@ -1265,6 +1265,42 @@ static int test_untrusted_inter_no_stale_anchor(X509* leaf, X509* inter,
     sk_X509_free(chain);
     return EXPECT_RESULT();
 }
+
+/* Depth exhaustion: a chain that cannot be walked to the trusted anchor within
+ * the configured path-building depth budget must be rejected,.
+ *
+ *     leaf-deep <- int-ca2 <- int-ca <- root  (root trusted)
+ *
+ * The chain is genuine and verifies at the default depth (covered by
+ * test_untrusted_inter_two_level); here the depth is capped below the chain
+ * length so the budget is consumed before the trusted root is reached.  The
+ * fix must report it as "certificate chain too long". */
+static int test_untrusted_inter_depth_exhaustion(X509* leafDeep, X509* inter,
+    X509* inter2, X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectIntGT(sk_X509_push(untrusted, inter2), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leafDeep, untrusted), 1);
+    /* Cap the path-building budget below the chain length so the walk runs
+     * out of depth before it can reach the trusted root. */
+    X509_STORE_CTX_set_depth(ctx, 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    return EXPECT_RESULT();
+}
 #endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_FILESYSTEM */
 
 int test_X509_verify_cert_untrusted_inter(void)
@@ -1287,6 +1323,7 @@ int test_X509_verify_cert_untrusted_inter(void)
     int tamperedRes = 0;
     int reusedStoreRes = 0;
     int noStaleRes = 0;
+    int depthExhaustRes = 0;
 
     ExpectNotNull(leaf = untrusted_inter_load(UA_CERT_DIR "leaf-cert.pem"));
     ExpectNotNull(leafDeep =
@@ -1316,6 +1353,8 @@ int test_X509_verify_cert_untrusted_inter(void)
                             tamperedInter, root);
         noStaleRes     = test_untrusted_inter_no_stale_anchor(leaf, inter,
                             root);
+        depthExhaustRes = test_untrusted_inter_depth_exhaustion(leafDeep,
+                            inter, inter2, root);
         ExpectIntEQ(sanityRes, 1);
         ExpectIntEQ(twoLevelRes, 1);
         ExpectIntEQ(emptyStoreRes, 1);
@@ -1323,6 +1362,7 @@ int test_X509_verify_cert_untrusted_inter(void)
         ExpectIntEQ(tamperedRes, 1);
         ExpectIntEQ(reusedStoreRes, 1);
         ExpectIntEQ(noStaleRes, 1);
+        ExpectIntEQ(depthExhaustRes, 1);
     }
 
     X509_free(leaf);
