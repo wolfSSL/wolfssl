@@ -37654,6 +37654,10 @@ static int EncodedDottedForm(const byte* in, word32 inSz, word32* out,
         return BAD_FUNC_ARG;
     }
 
+    if (*outSz < 2) {
+        return BUFFER_E;
+    }
+
     /* decode bytes */
     while (inSz--) {
         t = (t << 7) | (in[x] & 0x7F);
@@ -37662,8 +37666,15 @@ static int EncodedDottedForm(const byte* in, word32 inSz, word32* out,
                 return BUFFER_E;
             }
             if (y == 0) {
-                out[0] = (word16)(t / 40);
-                out[1] = (word16)(t % 40);
+                /* Special case for when first arc is 2 */
+                if (t < 80) {
+                    out[0] = t / 40;
+                    out[1] = t % 40;
+                }
+                else {
+                    out[0] = 2;
+                    out[1] = t - 80;
+                }
                 y = 2;
             }
             else {
