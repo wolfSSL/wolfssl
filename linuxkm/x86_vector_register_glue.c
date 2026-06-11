@@ -72,7 +72,7 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
     if (! wc_linuxkm_fpu_states) {
         pr_err("ERROR: allocation of %lu bytes for "
                "wc_linuxkm_fpu_states failed.\n",
-               nr_cpu_ids * sizeof(struct fpu_state *));
+               nr_cpu_ids * sizeof(wc_linuxkm_fpu_states[0]));
         return MEMORY_E;
     }
 
