@@ -478,7 +478,7 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
-            --threads 1 --jobs 3 --cc= \
+            --threads 1 --cc= \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs "$RUNNER_TEMP/os-check-macos-configs.json"
 

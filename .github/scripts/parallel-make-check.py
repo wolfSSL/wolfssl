@@ -238,7 +238,14 @@ def run_config(cfg, opts):
         configure.append(f"CC={cfg.cc}")
     flags = [f"CFLAGS={cfg.cflags}"] if cfg.cflags else []
     flags += [f"LDFLAGS={cfg.ldflags}"] if cfg.ldflags else []
-    make = ["make", f"-j{opts.jobs}"] + flags
+    # No -j here: wolfSSL's configure enables make's jobserver by default
+    # (AX_AM_JOBSERVER adds AM_MAKEFLAGS += -j<nproc+1>), and that explicit
+    # -j on every automake sub-make overrides whatever the top-level make
+    # was given, so a -j here would only schedule the outermost recursion
+    # hop. Measured across this pool, the jobserver default also utilizes
+    # the CPUs better than a capped -j (configs' serial phases - configure,
+    # link - get backfilled by other configs' compile jobs).
+    make = ["make"] + flags
     steps = []
     if cfg.user_settings:
         # Staged before configure; --enable-usersettings builds pick it up
@@ -349,7 +356,7 @@ def summarize(results, wall_min, cpu_min, nthreads):
     # thread-minutes available (a long config left for last idles the other
     # workers and drags it down); CPU utilization is the CPU time the build
     # and test children actually consumed out of the CPU-minutes available
-    # (too-shallow make -j and serial test phases show up here).
+    # (serial configure/link/test phases show up here).
     busy_min = sum(minutes for _, _, minutes in results)
     ncpu = nproc()
     lines += [
@@ -380,8 +387,6 @@ def main():
     p.add_argument("configs", nargs="*", metavar="NAME",
                    help="configs to run (default: all)")
     p.add_argument("--list", action="store_true", help="list configs")
-    p.add_argument("--jobs", type=int, default=2,
-                   help="make -j per config (default: 2)")
     p.add_argument("--threads", type=int, default=nproc(),
                    help="worker threads; each takes the next pending config "
                         "when it is free (default: nproc)")
