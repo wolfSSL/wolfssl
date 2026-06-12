@@ -75,6 +75,7 @@ int wc_ChaCha20Poly1305_Encrypt(
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_Final(aead, outAuthTag);
 
+    ForceZero(aead, sizeof(ChaChaPoly_Aead));
     WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -123,6 +124,7 @@ int wc_ChaCha20Poly1305_Decrypt(
         /* zero plaintext on error */
         ForceZero(outPlaintext, inCiphertextLen);
     }
+    ForceZero(aead, sizeof(ChaChaPoly_Aead));
     WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
