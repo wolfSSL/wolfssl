@@ -25,6 +25,7 @@ build-aux/
 rpm/spec
 *.rpm
 stamp-h
+wolfssl-test-data.stamp
 cyassl/options.h
 wolfssl/options.h
 .build_params
@@ -207,6 +208,8 @@ NTRU_algorithm/
 NTRU/
 build-test/
 build/
+# Out-of-tree build dirs created by .github/scripts/parallel-make-check.py
+/build-*/
 cyassl.xcodeproj/
 cyassl*rc*
 autoscan.log

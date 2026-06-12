@@ -24,13 +24,10 @@ endif
 if BUILD_SWDEV
 # delegates to tests/swdev/Makefile
 $(top_builddir)/tests/swdev/build/swdev.o: $(top_builddir)/wolfssl/options.h FORCE
-	@test "$(abs_top_srcdir)" = "$(abs_top_builddir)" || { \
-	    echo "error: --enable-swdev currently supports in-tree builds only"; \
-	    exit 1; \
-	}
 	$(MAKE) -C $(top_srcdir)/tests/swdev \
 	    SRCDIR=$(abs_top_srcdir)/tests/swdev \
 	    WOLFROOT=$(abs_top_srcdir) \
+	    WOLFBUILD=$(abs_top_builddir) \
 	    $(if $(CC),CC='$(CC)') \
 	    $(if $(CCAS),CCAS='$(CCAS)') \
 	    $(if $(LD),LD='$(LD)') \

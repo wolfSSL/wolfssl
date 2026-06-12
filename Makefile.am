@@ -134,6 +134,12 @@ CLEANFILES+= ecc-key.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der \
              tests/test-log-dump-to-file.txt \
+             tests/bio_write_test.txt \
+             tests/cert_cache.tmp \
+             certeccrsa.der \
+             certeccrsa.pem \
+             ecc-key.pem \
+             test-write-dhparams.pem \
              MyKeyLog.txt
 
 exampledir = $(docdir)/example
@@ -273,6 +279,75 @@ TESTS += $(check_PROGRAMS)
 
 check_SCRIPTS+= $(dist_noinst_SCRIPTS)
 TESTS += $(check_SCRIPTS)
+
+##############################################################################
+# Out-of-tree ("VPATH") build support for "make check".
+#
+# The test programs (testsuite, tests/unit.test) and the example client and
+# server binaries, as well as the shell-script tests under scripts/, locate
+# their read-only inputs using paths relative to the working directory:
+# certificates under certs/, TLS test-configuration files under tests/, sniffer
+# captures and helpers under scripts/, and the top-level "input"/"quit" files.
+# ChangeToWolfRoot() (wolfssl/test.h) walks up from the working directory
+# looking for certs/dh2048.pem to anchor these relative paths.
+#
+# For an in-tree build that data is already present in the build directory, but
+# for an out-of-tree build it exists only in the source tree.  Symlink it into
+# the build tree so the tests can find it.  This is driven by a stamp file in
+# BUILT_SOURCES so it runs once, before anything else, for "make", "make all"
+# and "make check".  It is a no-op for in-tree builds.
+#
+# The setup and the distclean cleanup use rm -rf: a --private-dir run of
+# .github/scripts/parallel-make-check.py replaces the certs symlink with a
+# private directory copy, which rm -f would not remove.  The recipe body
+# runs under set -e so a failed symlink aborts the build instead of being
+# stamped complete.
+##############################################################################
+BUILT_SOURCES += wolfssl-test-data.stamp
+
+wolfssl-test-data.stamp:
+	$(AM_V_at)set -e; \
+	if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
+		$(MKDIR_P) tests scripts examples; \
+		for f in certs input quit; do \
+			rm -rf "$$f"; \
+			$(LN_S) "$(abs_top_srcdir)/$$f" "$$f"; \
+		done; \
+		rm -f examples/crypto_policies; \
+		$(LN_S) "$(abs_top_srcdir)/examples/crypto_policies" \
+			examples/crypto_policies; \
+		for f in "$(abs_top_srcdir)"/tests/*.conf \
+		         "$(abs_top_srcdir)"/tests/*.cnf \
+		         "$(abs_top_srcdir)"/tests/TXT_DB.txt; do \
+			test -e "$$f" || continue; \
+			b=`basename "$$f"`; \
+			rm -f "tests/$$b"; \
+			$(LN_S) "$$f" "tests/$$b"; \
+		done; \
+		for f in "$(abs_top_srcdir)"/scripts/*.pcap \
+		         "$(abs_top_srcdir)"/scripts/*.out \
+		         "$(abs_top_srcdir)"/scripts/*.sslkeylog \
+		         "$(abs_top_srcdir)"/scripts/multi-msg-record.py; do \
+			test -e "$$f" || continue; \
+			b=`basename "$$f"`; \
+			rm -f "scripts/$$b"; \
+			$(LN_S) "$$f" "scripts/$$b"; \
+		done; \
+	fi
+	$(AM_V_at)touch $@
+
+DISTCLEANFILES += wolfssl-test-data.stamp
+
+# Remove the symlinks created for out-of-tree builds.  Gated on
+# srcdir != builddir so an in-tree build never touches the real source files.
+distclean-local:
+	$(AM_V_at)if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
+		rm -rf certs input quit; \
+		rm -f tests/*.conf tests/*.cnf tests/TXT_DB.txt; \
+		rm -f scripts/*.pcap scripts/*.out scripts/*.sslkeylog \
+		      scripts/multi-msg-record.py; \
+		rm -f examples/crypto_policies; \
+	fi
 
 test: check
 @BUILD_EXAMPLE_SERVERS_TRUE@tests/unit.log: testsuite/testsuite.log

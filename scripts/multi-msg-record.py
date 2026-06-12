@@ -40,7 +40,20 @@ import time
 import types
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-WOLFSSL_DIR = os.path.dirname(SCRIPT_DIR)
+
+
+def _find_wolfssl_dir():
+    # Under `make check` the working directory is the build tree, which is
+    # where the client binary lives and which differs from the tree
+    # containing this script in an out-of-tree (VPATH) build.  Fall back to
+    # the script's parent for direct invocation from the source tree.
+    for root in (os.getcwd(), os.path.dirname(SCRIPT_DIR)):
+        if os.path.isfile(os.path.join(root, "examples", "client", "client")):
+            return root
+    return os.path.dirname(SCRIPT_DIR)
+
+
+WOLFSSL_DIR = _find_wolfssl_dir()
 WOLF_CLIENT = os.path.join(WOLFSSL_DIR, "examples", "client", "client")
 CERT_DIR = os.path.join(WOLFSSL_DIR, "certs")
 

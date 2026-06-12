@@ -14,46 +14,94 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # All former runner-per-config matrix entries build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config builds in its own out-of-tree ("VPATH") build
+  # directory off one checkout/autogen, on a pool of one-per-CPU worker
+  # threads, longest first.
   my_matrix:
     name: Compiler test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - CC: gcc-9
-            CXX: g++-9
-            OS: ubuntu-24.04
-          - CC: gcc-10
-            CXX: g++-10
-            OS: ubuntu-24.04
-          - CC: gcc-11
-            CXX: g++-11
-            OS: ubuntu-24.04
-          - CC: gcc-12
-            CXX: g++-12
-            OS: ubuntu-24.04
-          - CC: clang-14
-            CXX: clang++-14
-            OS: ubuntu-24.04
-          - CC: clang-19
-            CXX: clang++-19
-            OS: ubuntu-24.04
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
-    runs-on: ${{ matrix.OS }}
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 4
+    runs-on: ubuntu-24.04
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: ${{ matrix.CC }}
-      - name: Build
-        env:
-            CC: ${{ matrix.CC }}
-            CXX: ${{ matrix.CXX }}
-        run: ./autogen.sh && ./configure CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference" && make && make dist
-      - name: Show log on errors
-        if: ${{ failure() }}
+          packages: autoconf automake libtool build-essential gcc-9 g++-9 gcc-10 g++-10 gcc-11 g++-11 gcc-12 g++-12 clang-14 clang-19
+
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: multi-compiler
+          max-size: 500M
+
+      # One entry per compiler (the former one-runner-per-compiler matrix):
+      # default-config build plus "make dist", with the compiler routed
+      # through ccache via the per-config "cc" key. CXX rides along as a
+      # configure argument.
+      - name: Build all configs (parallel, out-of-tree)
         run: |
-            cat config.log
+          cat > "$RUNNER_TEMP/multi-compiler-configs.json" <<'EOF'
+          [
+          {"name": "gcc-9", "minutes": 1.5,
+           "cc": "ccache gcc-9",
+           "configure": ["CXX=g++-9",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false,
+           "run": [["make", "dist"]]},
+          {"name": "gcc-10", "minutes": 1.5,
+           "cc": "ccache gcc-10",
+           "configure": ["CXX=g++-10",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false,
+           "run": [["make", "dist"]]},
+          {"name": "gcc-11", "minutes": 1.5,
+           "cc": "ccache gcc-11",
+           "configure": ["CXX=g++-11",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false,
+           "run": [["make", "dist"]]},
+          {"name": "gcc-12", "minutes": 1.5,
+           "cc": "ccache gcc-12",
+           "configure": ["CXX=g++-12",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false,
+           "run": [["make", "dist"]]},
+          {"name": "clang-14", "minutes": 1.5,
+           "cc": "ccache clang-14",
+           "configure": ["CXX=clang++-14",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false,
+           "run": [["make", "dist"]]},
+          {"name": "clang-19", "minutes": 1.5,
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false,
+           "run": [["make", "dist"]]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            "$RUNNER_TEMP/multi-compiler-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-compiler-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore
