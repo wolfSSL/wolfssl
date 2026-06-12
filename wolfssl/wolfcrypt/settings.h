@@ -1728,8 +1728,6 @@
         #endif
     #endif
 
-    #define WOLFSSL_GENSEED_FORTEST
-
     #define NO_WOLFSSL_DIR
     #define NO_WRITEV
     #define TFM_TIMING_RESISTANT
