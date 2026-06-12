@@ -44867,6 +44867,9 @@ static wc_test_ret_t ed25519_test_check_key(void)
  * succeeding (matches wc_ed448_export_key()). */
 static wc_test_ret_t ed25519_export_key_no_pub_test(void)
 {
+    int res = 0;
+
+#if !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0))
     /* RFC 8032 section 7.1 test-vector secret key. */
     WOLFSSL_SMALL_STACK_STATIC const byte privKey[] = {
         0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
@@ -44880,7 +44883,6 @@ static wc_test_ret_t ed25519_export_key_no_pub_test(void)
     word32  privSz = (word32)sizeof(priv);
     word32  pubSz = (word32)sizeof(pub);
     int     ret;
-    int     res = 0;
 
     ret = wc_ed25519_init_ex(&key, HEAP_HINT, devId);
     if (ret != 0) {
@@ -44911,6 +44913,7 @@ static wc_test_ret_t ed25519_export_key_no_pub_test(void)
     }
 
     wc_ed25519_free(&key);
+#endif
 
     return res;
 }
@@ -46680,6 +46683,9 @@ static wc_test_ret_t ed448_test_check_key(void)
  * succeeding. */
 static wc_test_ret_t ed448_export_key_no_pub_test(void)
 {
+    int res = 0;
+
+#if !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0))
     /* RFC 8032 section 7.4 test-vector secret key. */
     WOLFSSL_SMALL_STACK_STATIC const byte privKey[] = {
         0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d, 0x10,
@@ -46697,7 +46703,6 @@ static wc_test_ret_t ed448_export_key_no_pub_test(void)
     word32  privSz = (word32)sizeof(priv);
     word32  pubSz = (word32)sizeof(pub);
     int     ret;
-    int     res = 0;
 
     ret = wc_ed448_init_ex(&key, HEAP_HINT, devId);
     if (ret != 0) {
@@ -46727,6 +46732,7 @@ static wc_test_ret_t ed448_export_key_no_pub_test(void)
     }
 
     wc_ed448_free(&key);
+#endif
 
     return res;
 }
