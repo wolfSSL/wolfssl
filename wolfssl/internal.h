@@ -5715,11 +5715,12 @@ typedef struct DtlsMsg {
         NX_PACKET*     nxPacket;    /* incoming packet handle for short reads */
         ULONG          nxOffset;    /* offset already read from nxPacket */
         ULONG          nxWait;      /* wait option flag */
-#ifdef WOLFSSL_DTLS 
+/* WOLFSSL_NETX_DUO: requires ThreadX NetX Duo (NXD_ADDRESS, nxd_udp_socket_send) */
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_NETX_DUO)
         NX_UDP_SOCKET* nxUdpSocket; /* send/recv udp socket handle */
-        NXD_ADDRESS*   nxdIp;       /* IP address for udp send*/
-        USHORT*        nxPort;      /* Port number for udp recv*/
-#endif
+        NXD_ADDRESS    nxdIp;       /* destination IP address for udp send */
+        USHORT         nxPort;      /* destination port for udp send */
+#endif /* WOLFSSL_DTLS && WOLFSSL_NETX_DUO */
     } NetX_Ctx;
 
 #endif
