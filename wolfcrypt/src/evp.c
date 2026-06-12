@@ -9848,8 +9848,10 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 pkey->pkey.ptr = (char*)derBuf;
                 if ((derSz = wc_EccPublicKeyToDer(ecc, derBuf, (word32)derSz,
                         1)) < 0) {
-                    XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
+                    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
+                    pkey->pkey.ptr = NULL;
+                    pkey->pkey_sz = 0;
                 }
             }
         }
