@@ -1112,7 +1112,8 @@ int wc_ed448_delete(ed448_key* key, ed448_key** key_p) {
  * out     [in]      Array to hold public key.
  * outLen  [in/out]  On in, the number of bytes in array.
  *                   On out, the number bytes put into array.
- * returns BAD_FUNC_ARG when a parameter is NULL,
+ * returns PUBLIC_KEY_E the given key only has a private key present,
+ *         BAD_FUNC_ARG when a parameter is NULL,
  *         ECC_BAD_ARG_E when outLen is less than ED448_PUB_KEY_SIZE,
  *         0 otherwise.
  */
