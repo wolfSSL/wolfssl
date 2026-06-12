@@ -1710,6 +1710,12 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
                     outName[i] = url[cur];
                 i++; cur++;
             }
+            /* A bracketed IPv6 literal must be terminated by ']'. The loop
+             * above can also stop on end-of-buffer, NUL, or the length cap,
+             * none of which represent a well-formed host. Reject those cases
+             * rather than accepting the unterminated tail as the hostname. */
+            if (cur >= urlSz || url[cur] != ']')
+                return WOLFSSL_FATAL_ERROR;
             cur++; /* skip ']' */
         }
         else {
