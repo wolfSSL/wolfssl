@@ -18257,6 +18257,16 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
             hostEnd++;
         }
         *hostSz = (int)(hostEnd - hostStart);
+        /* One trailing dot is the absolute-FQDN marker and not part of the
+         * host: strip it before classifying so that "12.31.2.3." is
+         * recognized as an IPv4 address and "host.com." denotes the same
+         * reg-name as "host.com". */
+        if (*hostSz > 0 && hostStart[*hostSz - 1] == '.') {
+            (*hostSz)--;
+            if (*hostSz <= 0 || hostStart[*hostSz - 1] == '.') {
+                return 0;
+            }
+        }
         *hostType = UriHostIsIpv4Address(hostStart, *hostSz) ?
             URI_HOST_IPV4 : URI_HOST_REG_NAME;
         if (*hostType == URI_HOST_REG_NAME &&
@@ -18317,6 +18327,15 @@ int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
     }
     else {
         int i;
+        /* GetUriHost already stripped the host's absolute-FQDN trailing dot;
+         * treat one trailing dot on the base the same way so that "host.com."
+         * and "host.com" compare equal. */
+        if (base[baseSz - 1] == '.') {
+            baseSz--;
+        }
+        if (baseSz <= 0) {
+            return 0;
+        }
         if (hostSz != baseSz) {
             return 0;
         }

@@ -23107,6 +23107,13 @@ static int test_NameConstraints_DnsUriWildcard(void)
     ExpectIntGT((int)sanSz, 0);
     ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
         WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* An IPv4address host with the absolute-FQDN trailing dot is still not
+     * a DNS host. */
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://12.31.2.3./");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 #endif
     return EXPECT_RESULT();
 }
