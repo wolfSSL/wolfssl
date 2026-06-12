@@ -604,8 +604,11 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
     ret = init_f(ctx-> name ## _state, NULL, INVALID_DEVID);               \
     if (ret == 0)                                                          \
         return 0;                                                          \
-    else                                                                   \
+    else {                                                                 \
+        free(ctx-> name ## _state);                                        \
+        ctx-> name ## _state = NULL;                                       \
         return -EINVAL;                                                    \
+    }                                                                      \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
