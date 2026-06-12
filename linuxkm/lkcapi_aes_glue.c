@@ -1380,7 +1380,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                decrypt_p ? "skcipher_walk_aead_decrypt" : "skcipher_walk_aead_encrypt",
                err);
-        return -EINVAL;
+        return err;
     }
 
     err = km_AesGet(ctx, decrypt_p, 1 /* copy_p */, &aes_copy);
