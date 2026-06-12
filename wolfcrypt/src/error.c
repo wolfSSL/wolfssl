@@ -766,6 +766,9 @@ const char* wc_GetErrorString(int error)
     case UNEXPECTED_STATE_E:
         return "Object has unexpected state";
 
+    case HWPUF_REGISTER_E:
+        return "HWPUF registration failed";
+
     case HWPUF_INIT_E:
         return "HWPUF initialization failed";
 

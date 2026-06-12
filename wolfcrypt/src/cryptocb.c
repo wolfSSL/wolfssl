@@ -3655,7 +3655,7 @@ int wc_CryptoCb_HwpufDeinit(wc_HWPUF* hwpuf)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf)
+int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -3670,6 +3670,8 @@ int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf)
         cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
         cryptoInfo.hwpuf.hwpuf = hwpuf;
         cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_ENROLL;
+        cryptoInfo.hwpuf.op.enroll.actCode   = actCode;
+        cryptoInfo.hwpuf.op.enroll.actCodeSz = actCodeSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -3677,7 +3679,7 @@ int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf)
+int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -3692,6 +3694,8 @@ int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf)
         cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
         cryptoInfo.hwpuf.hwpuf = hwpuf;
         cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_START;
+        cryptoInfo.hwpuf.op.start.actCode   = actCode;
+        cryptoInfo.hwpuf.op.start.actCodeSz = actCodeSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -3700,7 +3704,7 @@ int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf)
 }
 
 int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
-                                 byte* keycode, word32 keycodeSz)
+                                 byte* keyCode, word32 keyCodeSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -3717,8 +3721,8 @@ int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
         cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_GENERATE_KEY;
         cryptoInfo.hwpuf.op.generateKey.keyIdx    = keyIdx;
         cryptoInfo.hwpuf.op.generateKey.keySz     = keySz;
-        cryptoInfo.hwpuf.op.generateKey.keycode   = keycode;
-        cryptoInfo.hwpuf.op.generateKey.keycodeSz = keycodeSz;
+        cryptoInfo.hwpuf.op.generateKey.keyCode   = keyCode;
+        cryptoInfo.hwpuf.op.generateKey.keyCodeSz = keyCodeSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -3728,7 +3732,7 @@ int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
 
 int wc_CryptoCb_HwpufSetKey(wc_HWPUF* hwpuf, byte keyIdx,
                             byte* key, word32 keySz,
-                            byte* keycode, word32 keycodeSz)
+                            byte* keyCode, word32 keyCodeSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -3746,8 +3750,8 @@ int wc_CryptoCb_HwpufSetKey(wc_HWPUF* hwpuf, byte keyIdx,
         cryptoInfo.hwpuf.op.setKey.keyIdx    = keyIdx;
         cryptoInfo.hwpuf.op.setKey.key       = key;
         cryptoInfo.hwpuf.op.setKey.keySz     = keySz;
-        cryptoInfo.hwpuf.op.setKey.keycode   = keycode;
-        cryptoInfo.hwpuf.op.setKey.keycodeSz = keycodeSz;
+        cryptoInfo.hwpuf.op.setKey.keyCode   = keyCode;
+        cryptoInfo.hwpuf.op.setKey.keyCodeSz = keyCodeSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -3756,7 +3760,7 @@ int wc_CryptoCb_HwpufSetKey(wc_HWPUF* hwpuf, byte keyIdx,
 }
 
 int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
-                            byte* keycode, word32 keycodeSz,
+                            byte* keyCode, word32 keyCodeSz,
                             byte* key, word32 keySz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -3772,8 +3776,8 @@ int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
         cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
         cryptoInfo.hwpuf.hwpuf = hwpuf;
         cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_GET_KEY;
-        cryptoInfo.hwpuf.op.getKey.keycode   = keycode;
-        cryptoInfo.hwpuf.op.getKey.keycodeSz = keycodeSz;
+        cryptoInfo.hwpuf.op.getKey.keyCode   = keyCode;
+        cryptoInfo.hwpuf.op.getKey.keyCodeSz = keyCodeSz;
         cryptoInfo.hwpuf.op.getKey.key       = key;
         cryptoInfo.hwpuf.op.getKey.keySz     = keySz;
 
