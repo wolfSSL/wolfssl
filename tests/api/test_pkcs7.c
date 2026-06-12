@@ -4215,7 +4215,9 @@ int test_wc_PKCS7_DecodeEncryptedKeyPackage(void)
                 /* Verify that the build_test_EncryptedKeyPackage can format as expected. */
                 ExpectIntLT(inner_cms_der_size, 124);
             }
-            build_test_EncryptedKeyPackage(ekp_cms_der, &ekp_cms_der_size, inner_cms_der, inner_cms_der_size, test_messages[test_msg].msg_content_type, test_vector);
+            if (EXPECT_SUCCESS()) {
+                build_test_EncryptedKeyPackage(ekp_cms_der, &ekp_cms_der_size, inner_cms_der, inner_cms_der_size, test_messages[test_msg].msg_content_type, test_vector);
+            }
             XFREE(inner_cms_der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
             ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));

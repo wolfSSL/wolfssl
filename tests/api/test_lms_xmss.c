@@ -118,6 +118,8 @@ int test_wc_LmsKey_sign_verify(void)
     int     i;
     int     numSigs = 5;
 
+    XMEMSET(&key, 0, sizeof(key));
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     remove(LMS_TEST_PRIV_KEY_FILE);
@@ -171,6 +173,9 @@ int test_wc_LmsKey_reload_cache(void)
     int     i;
     /* Sign 33 times to advance q past the 32-entry cache window. */
     int     preSigs = 33;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&vkey, 0, sizeof(vkey));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 

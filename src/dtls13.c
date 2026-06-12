@@ -996,6 +996,7 @@ void Dtls13FreeFsmResources(WOLFSSL* ssl)
     /* Use 1.2 API to clear 1.2 buffers too */
     DtlsMsgPoolReset(ssl);
     Dtls13RtxFlushBuffered(ssl, 0);
+    Dtls13FreeFragmentsBuffer(ssl);
 }
 
 static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,

@@ -3974,9 +3974,9 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
          * don't add a cookie */
         if (ret == 0) {
             ret = InitHandshakeHashes(ssl);
+            ssl->hsHashesEch = ssl->hsHashes;
         }
         if (ret == 0) {
-            ssl->hsHashesEch = ssl->hsHashes;
             AddTls13HandShakeHeader(messageHashHeader, (word32)hashSz, 0, 0,
                 message_hash, ssl);
             ret = HashRaw(ssl, messageHashHeader, headerSz);

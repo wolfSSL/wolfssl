@@ -3014,6 +3014,12 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
                 XFREE(entry->signature, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                 entry->signature = NULL;
             }
+        #ifdef WC_RSA_PSS
+            if (entry->sigParams != NULL) {
+                XFREE(entry->sigParams, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                entry->sigParams = NULL;
+            }
+        #endif
 
             entry->toBeSigned = newToBeSigned;
             entry->tbsSz = newTbsSz;
