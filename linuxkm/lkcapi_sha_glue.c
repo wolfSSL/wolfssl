@@ -649,6 +649,7 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                                                            \
     if (ret != 0) {                                                        \
         free_f(ctx-> name ## _state);                                      \
+        km_sha3_free_tstate(ctx);                                          \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
