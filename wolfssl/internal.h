@@ -5300,9 +5300,6 @@ struct Options {
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;
 #endif
-#if defined(HAVE_DANE)
-    word16            useDANE:1;
-#endif /* HAVE_DANE */
 #ifdef WOLFSSL_TLS13
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            hrrSentCookie:1;    /* HRR sent with cookie */
