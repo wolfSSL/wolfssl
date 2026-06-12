@@ -18121,19 +18121,18 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     return 1;
 }
 
-int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
-    const char* base, int baseSz)
+static int GetUriHost(const char* uri, int uriSz, const char** host,
+    int* hostSz)
 {
     const char* hostStart;
     const char* hostEnd;
     const char* p;
     const char* uriEnd;
-    int hostSz;
 
     /* Need at least 3 bytes for the "://" scheme separator; rejecting short
      * inputs early also keeps the loop bound (uriEnd - 2) from forming a
      * pointer before `uri`. */
-    if (uri == NULL || uriSz < 3 || base == NULL || baseSz <= 0) {
+    if (uri == NULL || uriSz < 3 || host == NULL || hostSz == NULL) {
         return 0;
     }
 
@@ -18174,7 +18173,7 @@ int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
         if (hostEnd >= uriEnd) {
             return 0;
         }
-        hostSz = (int)(hostEnd - hostStart);
+        *hostSz = (int)(hostEnd - hostStart);
     }
     else {
         hostEnd = hostStart;
@@ -18182,10 +18181,25 @@ int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
                *hostEnd != '?' && *hostEnd != '#') {
             hostEnd++;
         }
-        hostSz = (int)(hostEnd - hostStart);
+        *hostSz = (int)(hostEnd - hostStart);
     }
 
-    if (hostSz <= 0) {
+    if (*hostSz <= 0) {
+        return 0;
+    }
+    *host = hostStart;
+
+    return 1;
+}
+
+int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
+    const char* base, int baseSz)
+{
+    const char* hostStart = NULL;
+    int hostSz = 0;
+
+    if (base == NULL || baseSz <= 0 ||
+            !GetUriHost(uri, uriSz, &hostStart, &hostSz)) {
         return 0;
     }
 
