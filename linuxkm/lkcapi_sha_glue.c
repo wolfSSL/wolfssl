@@ -822,6 +822,7 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
 
     ret = wc_HmacCopy(&p_ctx->wc_hmac, t_ctx->wc_hmac);
     if (ret != 0) {
+        ForceZero(t_ctx->wc_hmac, sizeof *t_ctx->wc_hmac);
         free(t_ctx->wc_hmac);
         t_ctx->wc_hmac = NULL;
         return -EINVAL;
