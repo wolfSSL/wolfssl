@@ -2312,6 +2312,11 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             err = skcipher_walk_done(&walk, 0);
         } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))) {
             err = wc_AesXtsEncryptFinal(ctx->aesXts, NULL, NULL, 0, &stream);
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                err = -EINVAL;
+            }
         }
     }
 
@@ -2458,6 +2463,11 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             err = skcipher_walk_done(&walk, 0);
         } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))) {
             err = wc_AesXtsDecryptFinal(ctx->aesXts, NULL, NULL, 0, &stream);
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                err = -EINVAL;
+            }
         }
     }
 
