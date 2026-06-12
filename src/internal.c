@@ -2707,12 +2707,12 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #ifdef HAVE_NETX
     ctx->CBIORecv = NetX_Receive;
     ctx->CBIOSend = NetX_Send;
-    #ifdef WOLFSSL_DTLS
+    #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_NETX_DUO)
         if (method->version.major == DTLS_MAJOR) {
             ctx->CBIORecv   = NetX_ReceiveFrom;
             ctx->CBIOSend   = NetX_SendTo;
         }
-    #endif
+    #endif /* WOLFSSL_DTLS && WOLFSSL_NETX_DUO */
 #elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
     ctx->CBIORecv = Mynewt_Receive;
     ctx->CBIOSend = Mynewt_Send;

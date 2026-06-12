@@ -450,14 +450,14 @@ void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 /*!
     \ingroup IO
 
-    \brief This function sets the nxSocket and nxWait members of the nxCtx
+    \brief This function sets the nxTcpSocket and nxWait members of the nxCtx
     struct within the WOLFSSL structure.
 
     \return none No returns.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param nxSocket a pointer to type NX_TCP_SOCKET that is set to the
-    nxSocket member of the nxCTX structure.
+    nxTcpSocket member of the nxCtx structure.
     \param waitOption a ULONG type that is set to the nxWait member of
     the nxCtx structure.
 
@@ -480,6 +480,42 @@ void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 */
 void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
+
+/*!
+    \ingroup IO
+
+    \brief This function configures the NetX Duo UDP context for a DTLS
+    session. It stores the UDP socket, destination IP address (by value),
+    destination port, and wait option into the WOLFSSL nxCtx structure.
+    Requires WOLFSSL_NETX_DUO to be defined (ThreadX NetX Duo SDK).
+
+    \return none No returns.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param nxsocket a pointer to an NX_UDP_SOCKET already created and bound.
+    \param nxdip the destination NXD_ADDRESS (passed by value; IPv4 or IPv6).
+    \param nxport the destination UDP port number.
+    \param waitoption a ULONG NetX wait option (e.g. NX_WAIT_FOREVER or ticks).
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    NX_UDP_SOCKET udpSocket;
+    NXD_ADDRESS   peerAddr;
+    USHORT        peerPort = 4433;
+    ULONG         wait     = NX_WAIT_FOREVER;
+    // … initialise udpSocket and peerAddr …
+    wolfSSL_SetIO_NetX_Dtls(ssl, &udpSocket, peerAddr, peerPort, wait);
+    \endcode
+
+    \sa wolfSSL_SetIO_NetX
+    \sa NetX_SendTo
+    \sa NetX_ReceiveFrom
+*/
+void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket,
+                              NXD_ADDRESS nxdip, USHORT nxport,
+                              ULONG waitoption);
+
 
 /*!
     \brief This function sets the callback for the CBIOCookie member of the
