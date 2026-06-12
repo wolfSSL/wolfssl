@@ -74784,44 +74784,48 @@ static wc_test_ret_t aes_siv_oneassoc_test(const AesSivTestVector* testVectors,
     return 0;
 }
 
-static wc_test_ret_t aes_siv_negative_test(const AesSivTestVector* testVectors, size_t n_vectors)
+static wc_test_ret_t aes_siv_negative_test(const AesSivTestVector* testVectors,
+        int n_vectors)
 {
     byte computedCiphertext[82];
     byte computedPlaintext[82];
     byte siv[WC_AES_BLOCK_SIZE];
     word32 j;
     wc_test_ret_t ret;
-    size_t vector_idx;
+    int vector_idx;
 
     /* Find a test vector that has a non-empty plaintext size */
-    for (vector_idx = 0U; vector_idx < n_vectors; vector_idx++)
-    {
+    for (vector_idx = 0; vector_idx < n_vectors; vector_idx++) {
         if (testVectors[vector_idx].plaintextSz > 0U)
             break;
     }
-    if (vector_idx == n_vectors)
-    {
+    if (vector_idx == n_vectors) {
         return WC_TEST_RET_ENC_NC;
     }
 
     /* Negative test: corrupted SIV must be rejected with AES_SIV_AUTH_E. */
-    ret = wc_AesSivEncrypt(testVectors[vector_idx].key, testVectors[vector_idx].keySz,
-                          testVectors[vector_idx].assoc1, testVectors[vector_idx].assoc1Sz,
-                          testVectors[vector_idx].nonce, testVectors[vector_idx].nonceSz,
-                          testVectors[vector_idx].plaintext,
-                          testVectors[vector_idx].plaintextSz, siv,
-                          computedCiphertext);
+    ret = wc_AesSivEncrypt(
+            testVectors[vector_idx].key,
+            testVectors[vector_idx].keySz,
+            testVectors[vector_idx].assoc1,
+            testVectors[vector_idx].assoc1Sz,
+            testVectors[vector_idx].nonce,
+            testVectors[vector_idx].nonceSz,
+            testVectors[vector_idx].plaintext,
+            testVectors[vector_idx].plaintextSz,
+            siv, computedCiphertext);
     if (ret != 0) {
         return WC_TEST_RET_ENC_EC(ret);
     }
     XMEMSET(computedPlaintext, 0xFF, sizeof(computedPlaintext));
     /* Corrupt one byte of the SIV tag. */
     siv[0] ^= 0x01;
-    ret = wc_AesSivDecrypt(testVectors[vector_idx].key, testVectors[vector_idx].keySz,
-                          testVectors[vector_idx].assoc1, testVectors[vector_idx].assoc1Sz,
-                          testVectors[vector_idx].nonce, testVectors[vector_idx].nonceSz,
-                          computedCiphertext, testVectors[vector_idx].plaintextSz,
-                          siv, computedPlaintext);
+    ret = wc_AesSivDecrypt(
+            testVectors[vector_idx].key, testVectors[vector_idx].keySz,
+            testVectors[vector_idx].assoc1, testVectors[vector_idx].assoc1Sz,
+            testVectors[vector_idx].nonce, testVectors[vector_idx].nonceSz,
+            computedCiphertext, testVectors[vector_idx].plaintextSz,
+            siv, computedPlaintext);
     if (ret != WC_NO_ERR_TRACE(AES_SIV_AUTH_E)) {
         return WC_TEST_RET_ENC_EC(ret);
     }
