@@ -15517,9 +15517,9 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
 
     keySz = len/2;
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) || !defined(WC_AES_XTS_ALLOW_DUPLICATE_KEYS)
     if (XMEMCMP(key, key + keySz, keySz) == 0) {
-        WOLFSSL_MSG("FIPS AES-XTS main and tweak keys must differ");
+        WOLFSSL_MSG("AES-XTS main and tweak keys must differ");
         return BAD_FUNC_ARG;
     }
 #endif

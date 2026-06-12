@@ -371,6 +371,29 @@
     #include <linux/kernel.h>
     #include <linux/ctype.h>
 
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
+        #if defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+            #define WC_LINUXKM_HAVE_SELFTEST
+        #endif
+        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
+            #define WC_LINUXKM_HAVE_SELFTEST_FULL
+        #endif
+    #else
+        /* see Linux 698de822780f */
+        #if defined(CONFIG_CRYPTO_MANAGER) && defined(CONFIG_CRYPTO_SELFTESTS)
+            #define WC_LINUXKM_HAVE_SELFTEST
+        #endif
+        /* see Linux ac90aad0e9 */
+        #if defined(WC_LINUXKM_HAVE_SELFTEST) && defined(CONFIG_CRYPTO_SELFTESTS_FULL)
+            #define WC_LINUXKM_HAVE_SELFTEST_FULL
+        #endif
+    #endif
+
+    /* Kernel non-FIPS self-test ("testmgr") has a KAT with all-zeros keys. */
+    #if defined(WC_LINUXKM_HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        #define WC_AES_XTS_ALLOW_DUPLICATE_KEYS
+    #endif
+
     #if defined(CONFIG_FORTIFY_SOURCE) || defined(DEBUG_LINUXKM_FORTIFY_OVERLAY)
         #ifdef WC_CONTAINERIZE_THIS
             /* the inline definitions in fortify-string.h use non-inline
