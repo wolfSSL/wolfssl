@@ -562,6 +562,9 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
     ctx->has_pub_key = 0;
 dh_secret_end:
 
+    if (err != 0)
+        km_dh_reset_ctx(ctx);
+
     #ifdef WOLFKM_DEBUG_DH
     pr_info("info: exiting km_dh_set_secret\n");
     #endif /* WOLFKM_DEBUG_DH */
