@@ -3221,6 +3221,8 @@ WOLFSSL_TEST_VIS int  wolfssl_local_MatchIpSubnet(const byte* ip, int ipSz,
 WOLFSSL_TEST_VIS int  wolfssl_local_MatchUriNameConstraint(const char* uri,
                                                   int uriSz, const char* base,
                                                   int baseSz);
+WOLFSSL_LOCAL int  wolfssl_local_UriNameHasDnsHost(const char* uri,
+                                                  int uriSz);
 WOLFSSL_TEST_VIS int  wolfssl_local_MatchDnsConstraintWildcard(
                                                   const char* name, int nameSz,
                                                   const char* base, int baseSz,

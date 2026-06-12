@@ -18121,8 +18121,81 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     return 1;
 }
 
+/* RFC 3986 host classification for URI name-constraint checks. */
+typedef enum UriHostType {
+    URI_HOST_REG_NAME = 0,
+    URI_HOST_IP_LITERAL,
+    URI_HOST_IPV4
+} UriHostType;
+
+static int UriHostIsDecOctet(const char* s, int sSz)
+{
+    int i;
+    int val = 0;
+
+    if (s == NULL || sSz <= 0 || sSz > 3) {
+        return 0;
+    }
+    if (sSz > 1 && s[0] == '0') {
+        return 0;
+    }
+
+    for (i = 0; i < sSz; i++) {
+        if (s[i] < '0' || s[i] > '9') {
+            return 0;
+        }
+        val = (val * 10) + (s[i] - '0');
+    }
+
+    return val <= 255;
+}
+
+static int UriHostIsIpv4Address(const char* host, int hostSz)
+{
+    int i;
+    int partStart = 0;
+    int partCount = 0;
+
+    if (host == NULL || hostSz <= 0) {
+        return 0;
+    }
+
+    for (i = 0; i <= hostSz; i++) {
+        if (i == hostSz || host[i] == '.') {
+            if (!UriHostIsDecOctet(host + partStart, i - partStart)) {
+                return 0;
+            }
+            partCount++;
+            partStart = i + 1;
+        }
+        else if (host[i] < '0' || host[i] > '9') {
+            return 0;
+        }
+    }
+
+    return partCount == 4;
+}
+
+static int UriRegNameHasNonEmptyLabels(const char* host, int hostSz)
+{
+    int i;
+
+    if (host == NULL || hostSz <= 0 || host[0] == '.' ||
+            host[hostSz - 1] == '.') {
+        return 0;
+    }
+
+    for (i = 1; i < hostSz; i++) {
+        if (host[i] == '.' && host[i - 1] == '.') {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 static int GetUriHost(const char* uri, int uriSz, const char** host,
-    int* hostSz)
+    int* hostSz, UriHostType* hostType)
 {
     const char* hostStart;
     const char* hostEnd;
@@ -18132,7 +18205,8 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
     /* Need at least 3 bytes for the "://" scheme separator; rejecting short
      * inputs early also keeps the loop bound (uriEnd - 2) from forming a
      * pointer before `uri`. */
-    if (uri == NULL || uriSz < 3 || host == NULL || hostSz == NULL) {
+    if (uri == NULL || uriSz < 3 || host == NULL || hostSz == NULL ||
+            hostType == NULL) {
         return 0;
     }
 
@@ -18174,6 +18248,7 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
             return 0;
         }
         *hostSz = (int)(hostEnd - hostStart);
+        *hostType = URI_HOST_IP_LITERAL;
     }
     else {
         hostEnd = hostStart;
@@ -18182,6 +18257,12 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
             hostEnd++;
         }
         *hostSz = (int)(hostEnd - hostStart);
+        *hostType = UriHostIsIpv4Address(hostStart, *hostSz) ?
+            URI_HOST_IPV4 : URI_HOST_REG_NAME;
+        if (*hostType == URI_HOST_REG_NAME &&
+                !UriRegNameHasNonEmptyLabels(hostStart, *hostSz)) {
+            return 0;
+        }
     }
 
     if (*hostSz <= 0) {
@@ -18192,14 +18273,36 @@ static int GetUriHost(const char* uri, int uriSz, const char** host,
     return 1;
 }
 
+int wolfssl_local_UriNameHasDnsHost(const char* uri, int uriSz)
+{
+    const char* host = NULL;
+    int hostSz = 0;
+    UriHostType hostType = URI_HOST_REG_NAME;
+
+    if (!GetUriHost(uri, uriSz, &host, &hostSz, &hostType)) {
+        return 0;
+    }
+
+    (void)host;
+    (void)hostSz;
+    return hostType == URI_HOST_REG_NAME;
+}
+
 int wolfssl_local_MatchUriNameConstraint(const char* uri, int uriSz,
     const char* base, int baseSz)
 {
     const char* hostStart = NULL;
     int hostSz = 0;
+    UriHostType hostType = URI_HOST_REG_NAME;
 
     if (base == NULL || baseSz <= 0 ||
-            !GetUriHost(uri, uriSz, &hostStart, &hostSz)) {
+            !GetUriHost(uri, uriSz, &hostStart, &hostSz, &hostType)) {
+        return 0;
+    }
+    /* RFC 5280 URI constraints apply only to host names specified as fully
+     * qualified domain names. RFC 3986 IP-literals and IPv4address hosts are
+     * not DNS reg-names. */
+    if (hostType != URI_HOST_REG_NAME) {
         return 0;
     }
 
@@ -18578,12 +18681,25 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
 }
 
 
+static int NameConstraintListHasType(Base_entry* list, byte nameType)
+{
+    while (list != NULL) {
+        if (list->type == nameType) {
+            return 1;
+        }
+        list = list->next;
+    }
+
+    return 0;
+}
+
 static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 {
     const byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE,
                               ASN_IP_TYPE, ASN_URI_TYPE, ASN_OTHER_TYPE,
                               ASN_RID_TYPE};
     int i;
+    int uriConstraintsApply;
 
     if (signer == NULL || cert == NULL)
         return 0;
@@ -18591,6 +18707,10 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
     if (signer->excludedNames == NULL && signer->permittedNames == NULL &&
             !signer->extNameConstraintHasUnsupported)
         return 1;
+
+    uriConstraintsApply =
+        NameConstraintListHasType(signer->excludedNames, ASN_URI_TYPE) ||
+        NameConstraintListHasType(signer->permittedNames, ASN_URI_TYPE);
 
     for (i=0; i < (int)sizeof(nameTypes); i++) {
         byte nameType = nameTypes[i];
@@ -18674,6 +18794,14 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         while (name != NULL) {
             /* Only check entries that match the current nameType. */
             if (name->type == nameType) {
+                if (nameType == ASN_URI_TYPE && uriConstraintsApply &&
+                        !wolfssl_local_UriNameHasDnsHost(name->name,
+                            name->len)) {
+                    WOLFSSL_MSG("URI name constraint applied to URI without "
+                                "DNS host");
+                    return 0;
+                }
+
                 if (IsInExcludedList(name, signer->excludedNames,
                         nameType) == 1) {
                     WOLFSSL_MSG("Excluded name was found!");

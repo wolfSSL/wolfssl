@@ -1153,6 +1153,9 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://host.com.evil.com",    "host.com"), 0);
     ExpectIntEQ(uriNC("https://other.com",            "host.com"), 0);
 
+    /* Empty interior labels are not valid DNS host labels. */
+    ExpectIntEQ(uriNC("https://a..host.com/",         ".host.com"), 0);
+
     /*
      * Leading-dot constraint: proper subtree of hosts (apex excluded).
      */
@@ -1164,10 +1167,14 @@ int test_wolfssl_local_MatchUriNameConstraint(void)
     ExpectIntEQ(uriNC("https://evilhost.com",         ".host.com"), 0);
 
     /*
-     * IPv6 literal host extraction ([..]) then exact match.
+     * RFC 5280 URI constraints require a DNS host. IP-literals / IPvFuture
+     * hosts in brackets and IPv4address hosts are not DNS reg-names.
      */
-    ExpectIntEQ(uriNC("https://[2001:db8::1]:443/x",  "2001:db8::1"), 1);
+    ExpectIntEQ(uriNC("https://[2001:db8::1]:443/x",  "2001:db8::1"), 0);
     ExpectIntEQ(uriNC("https://[2001:db8::1]",        "2001:db8::2"), 0);
+    ExpectIntEQ(uriNC("https://[v1.addr.]/",          "v1.addr"), 0);
+    ExpectIntEQ(uriNC("https://[v1.addr.]/",          "v1.addr."), 0);
+    ExpectIntEQ(uriNC("https://12.31.2.3/",           "12.31.2.3"), 0);
 
     /*
      * Malformed / degenerate URIs and inputs (reject).

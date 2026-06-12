@@ -23091,6 +23091,22 @@ static int test_NameConstraints_DnsUriWildcard(void)
     sanSz = build_simple_san(san, sizeof(san), URI, "https://www.host.com/");
     ExpectIntGT((int)sanSz, 0);
     ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+
+    /* (11) RFC 5280 requires a DNS host when URI constraints are applied.
+     *      Fail closed even for excluded-only constraints where a boolean
+     *      non-match would otherwise pass. */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 1, URI,
+                "blocked.com");
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://12.31.2.3/");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    sanSz = build_simple_san(san, sizeof(san), URI, "https://[v1.addr.]/");
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 #endif
     return EXPECT_RESULT();
 }
