@@ -60,7 +60,7 @@ WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
         hwpuf->registered = 1;
     else
         ForceZero(hwpuf, sizeof(wc_HWPUF));
-        
+
     return ret;
 }
 
