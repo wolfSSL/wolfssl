@@ -1128,7 +1128,7 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
         goto pkcs1pad_sign_out;
     }
 
-    if (req->src_len + hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
+    if ((word64)req->src_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
         err = -EOVERFLOW;
         goto pkcs1pad_sign_out;
     }
@@ -1378,7 +1378,7 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
         goto pkcs1_sign_out;
     }
 
-    if (slen + hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
+    if ((word64)slen + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
         err = -EOVERFLOW;
         goto pkcs1_sign_out;
     }
@@ -1708,7 +1708,7 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
         goto pkcs1_enc_out;
     }
 
-    if (req->src_len + RSA_MIN_PAD_SZ > ctx->key_len) {
+    if ((word64)req->src_len + RSA_MIN_PAD_SZ > ctx->key_len) {
         err = -EOVERFLOW;
         goto pkcs1_enc_out;
     }
