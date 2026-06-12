@@ -17094,10 +17094,14 @@ static WARN_UNUSED_RESULT int AesSivCipher(
                 WOLFSSL_MSG("S2V failed.");
             }
 
-            if (ConstantCompare(siv, sivTmp, WC_AES_BLOCK_SIZE) != 0) {
+            if (ret == 0 && ConstantCompare(siv, sivTmp, WC_AES_BLOCK_SIZE) != 0) {
                 WOLFSSL_MSG("Computed SIV doesn't match received SIV.");
                 ret = AES_SIV_AUTH_E;
             }
+        }
+
+        if (ret != 0) {
+            ForceZero(out, dataSz);
         }
 
     #ifdef WOLFSSL_SMALL_STACK

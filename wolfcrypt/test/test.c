@@ -74943,32 +74943,55 @@ static wc_test_ret_t aes_siv_oneassoc_test(const AesSivTestVector* testVectors,
     return 0;
 }
 
-static wc_test_ret_t aes_siv_negative_test(const AesSivTestVector* testVectors)
+static wc_test_ret_t aes_siv_negative_test(const AesSivTestVector* testVectors,
+        int n_vectors)
 {
     byte computedCiphertext[82];
     byte computedPlaintext[82];
     byte siv[WC_AES_BLOCK_SIZE];
+    word32 j;
     wc_test_ret_t ret;
+    int vector_idx;
+
+    /* Find a test vector that has a non-empty plaintext size */
+    for (vector_idx = 0; vector_idx < n_vectors; vector_idx++) {
+        if (testVectors[vector_idx].plaintextSz > 0U)
+            break;
+    }
+    if (vector_idx == n_vectors) {
+        return WC_TEST_RET_ENC_NC;
+    }
 
     /* Negative test: corrupted SIV must be rejected with AES_SIV_AUTH_E. */
-    ret = wc_AesSivEncrypt(testVectors[0].key, testVectors[0].keySz,
-                          testVectors[0].assoc1, testVectors[0].assoc1Sz,
-                          testVectors[0].nonce, testVectors[0].nonceSz,
-                          testVectors[0].plaintext,
-                          testVectors[0].plaintextSz, siv,
-                          computedCiphertext);
+    ret = wc_AesSivEncrypt(
+            testVectors[vector_idx].key,
+            testVectors[vector_idx].keySz,
+            testVectors[vector_idx].assoc1,
+            testVectors[vector_idx].assoc1Sz,
+            testVectors[vector_idx].nonce,
+            testVectors[vector_idx].nonceSz,
+            testVectors[vector_idx].plaintext,
+            testVectors[vector_idx].plaintextSz,
+            siv, computedCiphertext);
     if (ret != 0) {
         return WC_TEST_RET_ENC_EC(ret);
     }
+    XMEMSET(computedPlaintext, 0xFF, sizeof(computedPlaintext));
     /* Corrupt one byte of the SIV tag. */
     siv[0] ^= 0x01;
-    ret = wc_AesSivDecrypt(testVectors[0].key, testVectors[0].keySz,
-                          testVectors[0].assoc1, testVectors[0].assoc1Sz,
-                          testVectors[0].nonce, testVectors[0].nonceSz,
-                          computedCiphertext, testVectors[0].plaintextSz,
-                          siv, computedPlaintext);
+    ret = wc_AesSivDecrypt(
+            testVectors[vector_idx].key, testVectors[vector_idx].keySz,
+            testVectors[vector_idx].assoc1, testVectors[vector_idx].assoc1Sz,
+            testVectors[vector_idx].nonce, testVectors[vector_idx].nonceSz,
+            computedCiphertext, testVectors[vector_idx].plaintextSz,
+            siv, computedPlaintext);
     if (ret != WC_NO_ERR_TRACE(AES_SIV_AUTH_E)) {
         return WC_TEST_RET_ENC_EC(ret);
+    }
+    for (j = 0; j < testVectors[vector_idx].plaintextSz; ++j) {
+        if (computedPlaintext[j] != 0) {
+            return WC_TEST_RET_ENC_NC;
+        }
     }
     return 0;
 }
@@ -75161,7 +75184,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
     ret = aes_siv_multiassoc_test(testVectors, AES_SIV_TEST_VECTORS);
     if (ret != 0)
         return ret;
-    ret = aes_siv_negative_test(testVectors);
+    ret = aes_siv_negative_test(testVectors, AES_SIV_TEST_VECTORS);
     if (ret != 0)
         return ret;
     return 0;
