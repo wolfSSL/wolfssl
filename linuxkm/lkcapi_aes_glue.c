@@ -3114,12 +3114,14 @@ static int linuxkm_test_aescbc(void)
     enc2 = malloc(sizeof(p_vector));
     if (!enc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cbc_end;
     }
 
     dec2 = malloc(sizeof(p_vector));
     if (!dec2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cbc_end;
     }
 
@@ -3325,12 +3327,14 @@ static int linuxkm_test_aescfb(void)
     enc2 = malloc(sizeof(p_vector));
     if (!enc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cfb_end;
     }
 
     dec2 = malloc(sizeof(p_vector));
     if (!dec2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cfb_end;
     }
 
@@ -3567,6 +3571,7 @@ static int linuxkm_test_aesgcm(void)
     assoc2 = malloc(sizeof(assoc));
     if (! assoc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
     memset(assoc2, 0, sizeof(assoc));
@@ -3575,6 +3580,7 @@ static int linuxkm_test_aesgcm(void)
     iv = malloc(WC_AES_BLOCK_SIZE);
     if (! iv) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
     memset(iv, 0, WC_AES_BLOCK_SIZE);
@@ -3583,12 +3589,14 @@ static int linuxkm_test_aesgcm(void)
     enc2 = malloc(decryptLen);
     if (! enc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
     dec2 = malloc(decryptLen);
     if (! dec2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
@@ -3632,6 +3640,7 @@ static int linuxkm_test_aesgcm(void)
 
     if (! src) {
         pr_err("error: malloc src failed,\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
@@ -3639,6 +3648,7 @@ static int linuxkm_test_aesgcm(void)
 
     if (! dst) {
         pr_err("error: malloc dst failed.\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
