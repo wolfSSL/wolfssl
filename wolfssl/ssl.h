@@ -2780,8 +2780,9 @@ enum {
     WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH               = 64,
     WOLFSSL_X509_V_ERR_INVALID_CA                        = 79,
     WC_OSSL_V509_V_ERR_MAX = 80,
-    /* Codes at or above WC_OSSL_V509_V_ERR_MAX are intentionally outside the
-     * contiguous range swept by the error-string test in tests/api.c. */
+    /* wolfSSL-specific verify-result codes are assigned at or above
+     * WC_OSSL_V509_V_ERR_MAX, intentionally outside the contiguous
+     * OpenSSL-compatible range below it. */
     WOLFSSL_X509_V_ERR_RPK_UNTRUSTED                     = 95,
 
 #ifdef HAVE_OCSP

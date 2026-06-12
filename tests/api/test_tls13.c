@@ -3145,6 +3145,14 @@ int test_tls13_rpk_trust(void)
 
     ExpectIntEQ(load_file(svrRpkCertFile, &svrSpki, &svrSpkiSz), 0);
     ExpectIntEQ(load_file(clntRpkCertFile, &cliSpki, &cliSpkiSz), 0);
+    /* If either pin failed to load, stop before feeding NULL/zero-length
+     * buffers into the pinning calls below (which would only produce
+     * misleading downstream failures). */
+    if (EXPECT_FAIL()) {
+        XFREE(svrSpki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cliSpki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return EXPECT_RESULT();
+    }
 
     /* --- WOLFSSL_VERIFY_NONE: completes, but reported as untrusted --- */
     ctx_c = ctx_s = NULL;

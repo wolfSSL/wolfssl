@@ -16013,6 +16013,78 @@ int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
 int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp);
 
 /*!
+ \ingroup Setup
+ \brief  Pin a DER-encoded SubjectPublicKeyInfo that the peer is expected to
+ present as a Raw Public Key (RFC 7250), establishing out-of-band trust on the
+ WOLFSSL_CTX object. An unauthenticated RPK peer is otherwise rejected: when the
+ peer is being authenticated (any verify mode other than WOLFSSL_VERIFY_NONE)
+ the handshake fails closed unless the presented key matches a pin (or a verify
+ callback accepts it). May be called more than once to pin several keys, up to
+ WOLFSSL_MAX_RPK_PINS. The key is stored as its SHA-256 digest, so this API
+ requires SHA-256. Pins are append-only for the lifetime of the CTX.
+
+ \return WOLFSSL_SUCCESS on success
+ \return BAD_FUNC_ARG if ctx or spki is NULL, or spkiSz is 0
+ \return BUFFER_E if the pin table is already full (WOLFSSL_MAX_RPK_PINS)
+ \return other negative error code on a hashing failure
+
+ \param ctx     WOLFSSL_CTX object pointer
+ \param spki    DER-encoded SubjectPublicKeyInfo the peer is expected to present
+ \param spkiSz  length of spki in bytes
+    _Example_
+ \code
+  int ret;
+  WOLFSSL_CTX* ctx;
+  const unsigned char* spki; /* DER SubjectPublicKeyInfo */
+  unsigned int spkiSz;
+  ...
+
+  ret = wolfSSL_CTX_set_expected_rpk(ctx, spki, spkiSz);
+ \endcode
+ \sa wolfSSL_set_expected_rpk
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ */
+int wolfSSL_CTX_set_expected_rpk(WOLFSSL_CTX* ctx, const unsigned char* spki,
+    unsigned int spkiSz);
+
+/*!
+ \ingroup Setup
+ \brief  Pin a DER-encoded SubjectPublicKeyInfo that the peer is expected to
+ present as a Raw Public Key (RFC 7250), establishing out-of-band trust on the
+ WOLFSSL object. An unauthenticated RPK peer is otherwise rejected: when the
+ peer is being authenticated (any verify mode other than WOLFSSL_VERIFY_NONE)
+ the handshake fails closed unless the presented key matches a pin (or a verify
+ callback accepts it). May be called more than once to pin several keys, up to
+ WOLFSSL_MAX_RPK_PINS. The key is stored as its SHA-256 digest, so this API
+ requires SHA-256. Pins are append-only for the lifetime of the object.
+
+ \return WOLFSSL_SUCCESS on success
+ \return BAD_FUNC_ARG if ssl or spki is NULL, or spkiSz is 0
+ \return BUFFER_E if the pin table is already full (WOLFSSL_MAX_RPK_PINS)
+ \return other negative error code on a hashing failure
+
+ \param ssl     WOLFSSL object pointer
+ \param spki    DER-encoded SubjectPublicKeyInfo the peer is expected to present
+ \param spkiSz  length of spki in bytes
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  const unsigned char* spki; /* DER SubjectPublicKeyInfo */
+  unsigned int spkiSz;
+  ...
+
+  ret = wolfSSL_set_expected_rpk(ssl, spki, spkiSz);
+ \endcode
+ \sa wolfSSL_CTX_set_expected_rpk
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ */
+int wolfSSL_set_expected_rpk(WOLFSSL* ssl, const unsigned char* spki,
+    unsigned int spkiSz);
+
+/*!
 
 \brief Enable use of ConnectionID extensions for the SSL object. See RFC 9146
 and RFC 9147
