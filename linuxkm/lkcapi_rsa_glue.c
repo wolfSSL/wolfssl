@@ -1092,8 +1092,8 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
     int                      err = 0;
-    word32                   sig_len = 0;
-    word32                   enc_len = 0;
+    int                      sig_len = 0;
+    int                      enc_len = 0;
     int                      hash_enc_len = 0;
     byte *                   msg = NULL;
     byte *                   sig = NULL;
@@ -1161,7 +1161,7 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
     /* sign encoded message. */
     sig_len = wc_RsaSSL_Sign(msg, enc_len, sig,
                              ctx->key_len, ctx->key, &ctx->rng);
-    if (unlikely(sig_len != ctx->key_len)) {
+    if (unlikely(sig_len != (int)ctx->key_len)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: wc_RsaSSL_Sign returned: %d\n",
                WOLFKM_RSA_DRIVER, sig_len);
@@ -1201,9 +1201,9 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     struct km_rsa_ctx *      ctx = NULL;
     int                      err = 0;
     word32                   sig_len = 0;
-    word32                   dec_len = 0;
+    int                      dec_len = 0;
     word32                   msg_len = 0;
-    word32                   enc_msg_len = 0;
+    int                      enc_msg_len = 0;
     int                      hash_enc_len = 0;
     int                      n_diff = 0;
     byte *                   sig = NULL;
@@ -1340,8 +1340,8 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
 {
     struct km_rsa_ctx * ctx = NULL;
     int                 err = 0;
-    word32              sig_len = 0;
-    word32              enc_msg_len = 0;
+    int                 sig_len = 0;
+    int                 enc_msg_len = 0;
     int                 hash_enc_len = 0;
     byte *              msg = NULL;
     byte *              sig = dst; /* reuse dst buffer. we will check if
@@ -1406,7 +1406,7 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
     /* sign encoded message. */
     sig_len = wc_RsaSSL_Sign(msg, enc_msg_len, sig,
                              ctx->key_len, ctx->key, &ctx->rng);
-    if (unlikely(sig_len != ctx->key_len)) {
+    if (unlikely(sig_len != (int)ctx->key_len)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: wc_RsaSSL_Sign returned: %d\n",
                WOLFKM_RSA_DRIVER, sig_len);
@@ -1453,9 +1453,9 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
     struct km_rsa_ctx * ctx = NULL;
     int                 err = 0;
     word32              sig_len = 0;
-    word32              dec_len = 0;
+    int                 dec_len = 0;
     word32              msg_len = 0;
-    word32              enc_msg_len = 0;
+    int                 enc_msg_len = 0;
     int                 hash_enc_len = 0;
     int                 n_diff = 0;
     byte *              enc_digest = NULL;
@@ -1755,7 +1755,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
     int                      err = 0;
-    word32                   dec_len = 0;
+    int                      dec_len = 0;
     byte *                   enc = NULL;
     byte *                   dec = NULL;
 
@@ -1808,7 +1808,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
     dec_len = wc_RsaPrivateDecrypt(enc, ctx->key_len, dec, req->dst_len,
                                    ctx->key);
 
-    if (unlikely(dec_len <= 0 || dec_len > ctx->key_len)) {
+    if (unlikely(dec_len <= 0 || dec_len > (int)ctx->key_len)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: rsa private decrypt returned: %d, %d\n",
                WOLFKM_RSA_DRIVER, dec_len, ctx->key_len);
@@ -1817,7 +1817,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
         goto pkcs1_dec_out;
     }
 
-    if (dec_len > req->dst_len) {
+    if (dec_len > (int)req->dst_len) {
         err = -EOVERFLOW;
         req->dst_len = dec_len;
         goto pkcs1_dec_out;
@@ -2086,9 +2086,9 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     RsaKey *                  key = NULL;
     WC_RNG                    rng;
     byte *                    priv = NULL; /* priv der */
-    word32                    priv_len = 0;
+    int                       priv_len = 0;
     byte *                    pub = NULL; /* pub der */
-    word32                    pub_len = 0;
+    int                       pub_len = 0;
     byte                      init_rng = 0;
     byte                      init_key = 0;
     static const byte         p_vector[] =
@@ -2102,7 +2102,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     byte *                    enc = NULL;
     byte *                    dec = NULL; /* wc decrypt */
     byte *                    plaintext = NULL; /* km decrypt */
-    word32                    key_len = 0;
+    int                       key_len = 0;
     word32                    out_len = 0;
     int                       enc_ret = 0;
     int                       dec_ret = 0;
@@ -2203,7 +2203,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     out_len = key_len;
     enc_ret = wc_RsaDirect(dec, key_len, enc, &out_len, key,
                            RSA_PUBLIC_ENCRYPT, &rng);
-    if (enc_ret != (int) key_len || key_len != out_len) {
+    if (enc_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa pub enc returned: %d, %d\n", enc_ret, out_len);
         ret = -1;
         goto test_rsa_end;
@@ -2212,7 +2212,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     memset(dec, 0, key_len);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
                            RSA_PRIVATE_DECRYPT, &rng);
-    if (dec_ret != (int) key_len || key_len != out_len) {
+    if (dec_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa priv dec returned: %d, %d\n", dec_ret, out_len);
         goto test_rsa_end;
     }
@@ -2297,7 +2297,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     {
         unsigned int maxsize = crypto_akcipher_maxsize(tfm);
-        if (maxsize != key_len) {
+        if (key_len != (int)maxsize) {
             pr_err("error: crypto_akcipher_maxsize "
                    "returned %d, expected %d\n", maxsize, key_len);
             goto test_rsa_end;
@@ -2321,7 +2321,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
                            RSA_PRIVATE_DECRYPT, &rng);
 
-    if (dec_ret != (int) key_len || key_len != out_len) {
+    if (dec_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa priv dec returned: %d, %d\n", dec_ret, out_len);
         goto test_rsa_end;
     }
@@ -2336,7 +2336,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     enc_ret = wc_RsaDirect(dec, key_len, enc, &out_len, key,
                            RSA_PUBLIC_ENCRYPT, &rng);
 
-    if (enc_ret != (int) key_len || key_len != out_len) {
+    if (enc_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa pub enc returned: %d, %d\n", enc_ret, out_len);
         ret = -1;
         goto test_rsa_end;
@@ -2350,7 +2350,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     {
         unsigned int maxsize = crypto_akcipher_maxsize(tfm);
-        if (maxsize != key_len) {
+        if (key_len != (int)maxsize) {
             pr_err("error: crypto_akcipher_maxsize "
                    "returned %d, expected %d\n", maxsize, key_len);
             goto test_rsa_end;
@@ -2428,9 +2428,9 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     RsaKey *                  key = NULL;
     WC_RNG                    rng;
     byte *                    priv = NULL; /* priv der */
-    word32                    priv_len = 0;
+    int                       priv_len = 0;
     byte *                    pub = NULL; /* pub der */
-    word32                    pub_len = 0;
+    int                       pub_len = 0;
     byte                      init_rng = 0;
     byte                      init_key = 0;
     static const byte         p_vector[] =
@@ -2450,10 +2450,10 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     byte *                    enc = NULL;
     byte *                    dec2 = NULL;
     byte *                    enc2 = NULL;
-    word32                    key_len = 0;
+    int                       key_len = 0;
     #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
-    word32                    sig_len = 0;
-    word32                    enc_len = 0;
+    int                       sig_len = 0;
+    int                       enc_len = 0;
     #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
     struct scatterlist        src, dst;
     #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
@@ -2728,7 +2728,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
 
     {
         unsigned int maxsize = crypto_akcipher_maxsize(tfm);
-        if (maxsize != key_len) {
+        if (key_len != (int)maxsize) {
             pr_err("error: crypto_akcipher_maxsize "
                    "returned %d, expected %d\n", maxsize, key_len);
             test_rc = BAD_FUNC_ARG;
@@ -2767,7 +2767,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
 
     {
         unsigned int maxsize = crypto_akcipher_maxsize(tfm);
-        if (maxsize != key_len) {
+        if (key_len != (int)maxsize) {
             pr_err("error: crypto_akcipher_maxsize "
                    "returned %d, expected %d\n", maxsize, key_len);
             test_rc = BAD_FUNC_ARG;
@@ -2967,9 +2967,9 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     RsaKey *             key = NULL;
     WC_RNG               rng;
     byte *               priv = NULL; /* priv der */
-    word32               priv_len = 0;
+    int                  priv_len = 0;
     byte *               pub = NULL; /* pub der */
-    word32               pub_len = 0;
+    int                  pub_len = 0;
     byte                 init_rng = 0;
     byte                 init_key = 0;
     static const byte    p_vector[] =
@@ -2985,9 +2985,9 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     byte *               km_sig = NULL;
     byte *               dec = NULL;
     byte *               enc = NULL;
-    word32               key_len = 0;
-    word32               sig_len = 0;
-    word32               enc_len = 0;
+    int                  key_len = 0;
+    int                  sig_len = 0;
+    int                  enc_len = 0;
     int                  n_diff = 0;
     uint8_t              skipped = 0;
 
@@ -3234,9 +3234,9 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
                  maxsize, keysize, digestsize);
         #endif /* WOLFKM_DEBUG_RSA */
 
-        if (maxsize != key_len ||
-            keysize != key_len ||
-            digestsize != key_len) {
+        if ((int)maxsize != key_len ||
+            (int)keysize != key_len ||
+            (int)digestsize != key_len) {
             pr_err("error: crypto_sig_{max, key, digest}size "
                    "returned {%d, %d, %d}, expected %d\n",
                     maxsize, keysize, digestsize, key_len);
@@ -3255,7 +3255,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     /* in 6.15 crypto_sig_sign switched from returning 0 on success to
      * returning sig_len. */
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
-    if ((word32) ret != sig_len) {
+    if (ret != sig_len) {
         pr_err("error: crypto_sig_sign returned %d, expected %d\n", ret,
                sig_len);
         test_rc = BAD_FUNC_ARG;
