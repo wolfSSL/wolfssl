@@ -1934,7 +1934,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     \code
     int ret = 0;
     // 不明な拡張コールバックのプロトタイプ
-    int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
+    int myUnknownExtCallback(const word32* oid, word32 oidSz, int crit,
                              const unsigned char* der, word32 derSz);
 
     // 登録する
@@ -1948,7 +1948,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     // crit: 拡張が重要としてマークされたかどうか。
     // der: 拡張のコンテンツのderエンコーディング。
     // derSz: derエンコーディングのサイズ（バイト単位）。
-    int myCustomExtCallback(const word16* oid, word32 oidSz, int crit,
+    int myCustomExtCallback(const word32* oid, word32 oidSz, int crit,
                             const unsigned char* der, word32 derSz) {
 
         // 拡張を解析するロジックがここに入ります。
