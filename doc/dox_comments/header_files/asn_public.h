@@ -1999,7 +1999,7 @@ int wc_DsaParamsDecode(const byte* input, word32* inOutIdx,
 
     \param key DSA key structure with parameters
     \param output Buffer for DER encoded parameters
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2010,7 +2010,7 @@ int wc_DsaParamsDecode(const byte* input, word32* inOutIdx,
 
     \sa wc_DsaParamsDecode
 */
-int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen);
+int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 outLen);
 
 /*!
     \ingroup DSA
@@ -2021,7 +2021,7 @@ int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen);
 
     \param key DSA key structure with parameters
     \param output Buffer for DER encoded parameters
-    \param inLen Pointer to buffer size (in/out)
+    \param outLen Pointer to buffer size (in/out)
 
     _Example_
     \code
@@ -2034,7 +2034,7 @@ int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen);
     \sa wc_DsaKeyToParamsDer
 */
 int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
-                             word32* inLen);
+                             word32* outLen);
 
 /*!
     \ingroup DH
@@ -2174,7 +2174,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     \param key ECC key structure with private key
     \param output Buffer for DER encoded private key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2186,7 +2186,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
     \sa wc_EccPrivateKeyDecode
 */
 int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
-                          word32 inLen);
+                          word32 outLen);
 
 /*!
     \ingroup ECC
@@ -2217,7 +2217,7 @@ int wc_EccKeyDerSize(ecc_key* key, int pub);
 
     \param key ECC key structure with private key
     \param output Buffer for PKCS#8 encoded key
-    \param inLen Pointer to buffer size (in/out)
+    \param outLen Pointer to buffer size (in/out)
 
     _Example_
     \code
@@ -2230,7 +2230,7 @@ int wc_EccKeyDerSize(ecc_key* key, int pub);
     \sa wc_EccPrivateKeyToDer
 */
 int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
-                             word32* inLen);
+                             word32* outLen);
 
 /*!
     \ingroup ECC
@@ -2241,7 +2241,7 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
 
     \param key ECC key structure with key pair
     \param output Buffer for PKCS#8 encoded key
-    \param inLen Pointer to buffer size (in/out)
+    \param outLen Pointer to buffer size (in/out)
 
     _Example_
     \code
@@ -2254,7 +2254,7 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
     \sa wc_EccPrivateKeyToPKCS8
 */
 int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
-                     word32* inLen);
+                     word32* outLen);
 
 /*!
     \ingroup ECC
@@ -2283,7 +2283,7 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve);
 
     \return Success On successfully writing the ECC key to der format,
     returns the length written to the buffer
-    \return BAD_FUNC_ARG Returned if key or output is null, or inLen equals zero
+    \return BAD_FUNC_ARG Returned if key or output is null, or outLen equals zero
     \return MEMORY_E Returned if there is an error allocating memory
     with XMALLOC
     \return BUFFER_E Returned if the converted certificate is too large
@@ -2299,7 +2299,7 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve);
 
     \param key pointer to the buffer containing the input ecc key
     \param output pointer to a buffer in which to store the der formatted key
-    \param inLen the length of the buffer in which to store the
+    \param outLen the length of the buffer in which to store the
     der formatted key
 
     _Example_
@@ -2318,7 +2318,7 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve);
 
     \sa wc_RsaKeyToDer
 */
-int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen);
+int wc_EccKeyToDer(ecc_key* key, byte* output, word32 outLen);
 
 /*!
     \ingroup ASN
@@ -2370,7 +2370,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \param key Pointer to ECC key
     \param output Pointer to output buffer to write to.
-    \param inLen Size of buffer.
+    \param outLen Size of buffer.
     \param with_AlgCurve a flag for when to include a header that has the
     Algorithm and Curve information.
 
@@ -2394,7 +2394,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     \sa wc_EccPrivateKeyDecode
 */
 int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
-                                         word32 inLen, int with_AlgCurve);
+                                         word32 outLen, int with_AlgCurve);
 
 /*!
     \ingroup ASN
@@ -2412,7 +2412,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
 
     \param key Pointer to ECC key
     \param output Pointer to output buffer to write to.
-    \param inLen Size of buffer.
+    \param outLen Size of buffer.
     \param with_AlgCurve a flag for when to include a header that has the
     Algorithm and Curve information.
     \param comp If 1 (non-zero) the ECC public key will be written in
@@ -2439,7 +2439,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
     \sa wc_EccPublicKeyDecode
 */
 int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
-                                     word32 inLen, int with_AlgCurve, int comp);
+                                     word32 outLen, int with_AlgCurve, int comp);
 
 
 /*!
@@ -2571,7 +2571,7 @@ int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
     \param key Pointer to curve25519_key structure containing private key to
     encode
     \param output Buffer to hold DER encoding
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     \sa wc_Curve25519KeyToDer
     \sa wc_Curve25519PublicKeyToDer
@@ -2587,7 +2587,7 @@ int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
     \endcode
 */
 int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
-                                 word32 inLen);
+                                 word32 outLen);
 
 /*!
     \ingroup ASN
@@ -2603,7 +2603,7 @@ int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
     \param key Pointer to curve25519_key structure containing public key to
     encode
     \param output Buffer to hold DER encoding
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
     \param withAlg Whether to include algorithm identifier in the DER encoding
 
     \sa wc_Curve25519KeyToDer
@@ -2619,7 +2619,7 @@ int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
     wc_Curve25519PublicKeyToDer(&key, der, derSz, 1);
     \endcode
 */
-int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
+int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 outLen,
                                 int withAlg);
 
 /*!
@@ -2635,7 +2635,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
 
     \param key Pointer to curve25519_key structure containing key to encode
     \param output Buffer to hold DER encoding
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
     \param withAlg Whether to include algorithm identifier in the DER encoding
 
     \sa wc_Curve25519PrivateKeyToDer
@@ -2651,7 +2651,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
     wc_Curve25519KeyToDer(&key, der, derSz, 1);
     \endcode
 */
-int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
+int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 outLen,
                           int withAlg);
 
 /*!
@@ -2713,7 +2713,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \param key Ed25519 key structure
     \param output Buffer for DER encoded key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2725,7 +2725,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
     \sa wc_Ed25519PrivateKeyToDer
 */
 int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
-                       word32 inLen);
+                       word32 outLen);
 
 /*!
     \ingroup Ed25519
@@ -2736,7 +2736,7 @@ int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
 
     \param key Ed25519 key structure with private key
     \param output Buffer for DER encoded private key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2749,7 +2749,7 @@ int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
     \sa wc_Ed25519PrivateKeyDecode
 */
 int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
-                               word32 inLen);
+                               word32 outLen);
 
 /*!
     \ingroup Ed25519
@@ -2760,7 +2760,8 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
 
     \param key Ed25519 key structure with public key
     \param output Buffer for DER encoded public key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
+    \param withAlg Whether to use SubjectPublicKeyInfo format.
 
     _Example_
     \code
@@ -2773,7 +2774,7 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
     \sa wc_Ed25519PublicKeyDecode
 */
 int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
-                              int inLen);
+        word32 outLen, int withAlg);
 
 /*!
     \ingroup Ed448
@@ -2834,7 +2835,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \param key Ed448 key structure
     \param output Buffer for DER encoded key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2845,7 +2846,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \sa wc_Ed448PrivateKeyToDer
 */
-int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 inLen);
+int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 outLen);
 
 /*!
     \ingroup Ed448
@@ -2856,7 +2857,7 @@ int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 inLen);
 
     \param key Ed448 key structure with private key
     \param output Buffer for DER encoded private key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2869,7 +2870,7 @@ int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 inLen);
     \sa wc_Ed448PrivateKeyDecode
 */
 int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output,
-                             word32 inLen);
+                             word32 outLen);
 
 /*!
     \ingroup Ed448
@@ -2880,7 +2881,7 @@ int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output,
 
     \param key Ed448 key structure with public key
     \param output Buffer for DER encoded public key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
     \param withAlg 1 to include algorithm identifier, 0 for key data only
 
     _Example_
@@ -2894,7 +2895,7 @@ int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output,
     \sa wc_Ed448PublicKeyDecode
 */
 int wc_Ed448PublicKeyToDer(const ed448_key* key, byte* output,
-                            word32 inLen, int withAlg);
+                            word32 outLen, int withAlg);
 
 /*!
     \ingroup Curve448
@@ -2955,7 +2956,7 @@ int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \param key Curve448 key structure with private key
     \param output Buffer for DER encoded private key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2968,7 +2969,7 @@ int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
     \sa wc_Curve448PrivateKeyDecode
 */
 int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output,
-                                word32 inLen);
+                                word32 outLen);
 
 /*!
     \ingroup Curve448
@@ -2979,7 +2980,7 @@ int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output,
 
     \param key Curve448 key structure with public key
     \param output Buffer for DER encoded public key
-    \param inLen Size of output buffer
+    \param outLen Size of output buffer
 
     _Example_
     \code
@@ -2992,7 +2993,7 @@ int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output,
     \sa wc_Curve448PublicKeyDecode
 */
 int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output,
-                               word32 inLen);
+                               word32 outLen);
 
 /*!
     \ingroup ASN

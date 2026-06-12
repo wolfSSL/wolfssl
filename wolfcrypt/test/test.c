@@ -44860,6 +44860,65 @@ static wc_test_ret_t ed25519_test_check_key(void)
 }
 #endif
 
+#if defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_KEY_IMPORT)
+/* When only the private key is set, the public part is unavailable.
+ * wc_ed25519_export_public() must report PUBLIC_KEY_E, and
+ * wc_ed25519_export_key() must propagate that error rather than silently
+ * succeeding (matches wc_ed448_export_key()). */
+static wc_test_ret_t ed25519_export_key_no_pub_test(void)
+{
+    int res = 0;
+
+#if !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0))
+    /* RFC 8032 section 7.1 test-vector secret key. */
+    WOLFSSL_SMALL_STACK_STATIC const byte privKey[] = {
+        0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
+        0xba,0x84,0x4a,0xf4,0x92,0xec,0x2c,0xc4,
+        0x44,0x49,0xc5,0x69,0x7b,0x32,0x69,0x19,
+        0x70,0x3b,0xac,0x03,0x1c,0xae,0x7f,0x60
+    };
+    ed25519_key key;
+    byte    priv[ED25519_PRV_KEY_SIZE];
+    byte    pub[ED25519_PUB_KEY_SIZE];
+    word32  privSz = (word32)sizeof(priv);
+    word32  pubSz = (word32)sizeof(pub);
+    int     ret;
+
+    ret = wc_ed25519_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Import the private key only; no public key is set. */
+    ret = wc_ed25519_import_private_only(privKey, (word32)sizeof(privKey),
+        &key);
+    if (ret != 0) {
+        res = WC_TEST_RET_ENC_NC;
+    }
+
+    /* With no public key, exporting the public part must fail. */
+    if (res == 0) {
+        ret = wc_ed25519_export_public(&key, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* wc_ed25519_export_key() must propagate the missing-public-key error. */
+    if (res == 0) {
+        ret = wc_ed25519_export_key(&key, priv, &privSz, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    wc_ed25519_free(&key);
+#endif
+
+    return res;
+}
+#endif
+
 #if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) && \
     defined(HAVE_ED25519_KEY_IMPORT)
 static wc_test_ret_t ed25519ctx_test(void)
@@ -45902,6 +45961,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     if (ret < 0)
         goto cleanup;
 #endif
+#if defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_KEY_IMPORT)
+    ret = ed25519_export_key_no_pub_test();
+    if (ret < 0)
+        goto cleanup;
+#endif
 #ifdef WOLFSSL_TEST_CERT
     ret = ed25519_test_cert();
     if (ret < 0)
@@ -46607,6 +46671,68 @@ static wc_test_ret_t ed448_test_check_key(void)
 
     /* Dispose of key. */
     wc_ed448_free(&key);
+
+    return res;
+}
+#endif
+
+#if defined(HAVE_ED448_KEY_EXPORT) && defined(HAVE_ED448_KEY_IMPORT)
+/* When only the private key is set, the public part is unavailable.
+ * wc_ed448_export_public() must report PUBLIC_KEY_E, and
+ * wc_ed448_export_key() must propagate that error rather than silently
+ * succeeding. */
+static wc_test_ret_t ed448_export_key_no_pub_test(void)
+{
+    int res = 0;
+
+#if !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0))
+    /* RFC 8032 section 7.4 test-vector secret key. */
+    WOLFSSL_SMALL_STACK_STATIC const byte privKey[] = {
+        0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d, 0x10,
+        0xd6, 0x32, 0xbe, 0x89, 0xc8, 0x51, 0x3e, 0xbf,
+        0x6c, 0x92, 0x9f, 0x34, 0xdd, 0xfa, 0x8c, 0x9f,
+        0x63, 0xc9, 0x96, 0x0e, 0xf6, 0xe3, 0x48, 0xa3,
+        0x52, 0x8c, 0x8a, 0x3f, 0xcc, 0x2f, 0x04, 0x4e,
+        0x39, 0xa3, 0xfc, 0x5b, 0x94, 0x49, 0x2f, 0x8f,
+        0x03, 0x2e, 0x75, 0x49, 0xa2, 0x00, 0x98, 0xf9,
+        0x5b
+    };
+    ed448_key key;
+    byte    priv[ED448_PRV_KEY_SIZE];
+    byte    pub[ED448_PUB_KEY_SIZE];
+    word32  privSz = (word32)sizeof(priv);
+    word32  pubSz = (word32)sizeof(pub);
+    int     ret;
+
+    ret = wc_ed448_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Import the private key only; no public key is set. */
+    ret = wc_ed448_import_private_only(privKey, (word32)sizeof(privKey), &key);
+    if (ret != 0) {
+        res = WC_TEST_RET_ENC_NC;
+    }
+
+    /* With no public key, exporting the public part must fail. */
+    if (res == 0) {
+        ret = wc_ed448_export_public(&key, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* wc_ed448_export_key() must propagate the missing-public-key error. */
+    if (res == 0) {
+        ret = wc_ed448_export_key(&key, priv, &privSz, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    wc_ed448_free(&key);
+#endif
 
     return res;
 }
@@ -47668,6 +47794,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 
 #if defined(HAVE_ED448_KEY_IMPORT)
     ret = ed448_test_check_key();
+    if (ret < 0)
+        return ret;
+#endif
+#if defined(HAVE_ED448_KEY_EXPORT) && defined(HAVE_ED448_KEY_IMPORT)
+    ret = ed448_export_key_no_pub_test();
     if (ret < 0)
         return ret;
 #endif

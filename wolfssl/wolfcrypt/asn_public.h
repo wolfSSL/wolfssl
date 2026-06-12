@@ -786,10 +786,10 @@ WOLFSSL_API word32 wc_PkcsPad(byte* buf, word32 sz, word32 blockSz);
          !defined(HAVE_FIPS_VERSION) || \
          ((HAVE_FIPS_VERSION > 2) && \
          (! ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR == 0)))))
-    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
+    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 outLen);
     #endif
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
-    WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
+    WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
         int with_header);
 
     /* For FIPS v1/v2 and selftest rsa.h is replaced. */
@@ -805,9 +805,9 @@ WOLFSSL_API word32 wc_PkcsPad(byte* buf, word32 sz, word32 blockSz);
     WOLFSSL_API int wc_DsaParamsDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz);
     WOLFSSL_API int wc_DsaKeyToParamsDer(DsaKey* key, byte* output,
-        word32 inLen);
+        word32 outLen);
     WOLFSSL_API int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
-        word32* inLen);
+        word32* outLen);
 #endif
 
 #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
@@ -822,12 +822,12 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
     WOLFSSL_ABI
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                            ecc_key* key, word32 inSz);
-    WOLFSSL_LOCAL int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
+    WOLFSSL_LOCAL int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *outLen,
                                         int pubIn, int curveIn);
     WOLFSSL_ABI
-    WOLFSSL_API int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen);
+    WOLFSSL_API int wc_EccKeyToDer(ecc_key* key, byte* output, word32 outLen);
     WOLFSSL_API int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
-                                          word32 inLen);
+                                          word32 outLen);
     WOLFSSL_API int wc_EccKeyDerSize(ecc_key* key, int pub);
     WOLFSSL_API int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
                                             word32* outLen);
@@ -839,9 +839,9 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
     WOLFSSL_API int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz);
     WOLFSSL_ABI WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
-                                         word32 inLen, int with_AlgCurve);
+                                         word32 outLen, int with_AlgCurve);
     WOLFSSL_API int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
-                                         word32 inLen, int with_AlgCurve,
+                                         word32 outLen, int with_AlgCurve,
                                          int comp);
     WOLFSSL_API int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve);
 #endif
@@ -855,11 +855,11 @@ WOLFSSL_API int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
 #endif
 #ifdef HAVE_ED25519_KEY_EXPORT
 WOLFSSL_API int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
-                                   word32 inLen);
+                                   word32 outLen);
 WOLFSSL_API int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
-                                          word32 inLen);
+                                          word32 outLen);
 WOLFSSL_API int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
-                                         word32 inLen, int withAlg);
+                                         word32 outLen, int withAlg);
 #endif
 #endif /* HAVE_ED25519 */
 
@@ -874,11 +874,11 @@ WOLFSSL_API int wc_Curve25519KeyDecode(const byte *input, word32 *inOutIdx,
 #endif
 #ifdef HAVE_CURVE25519_KEY_EXPORT
 WOLFSSL_API int wc_Curve25519PrivateKeyToDer(
-    curve25519_key* key, byte* output, word32 inLen);
+    curve25519_key* key, byte* output, word32 outLen);
 WOLFSSL_API int wc_Curve25519PublicKeyToDer(
-    curve25519_key* key, byte* output, word32 inLen, int withAlg);
+    curve25519_key* key, byte* output, word32 outLen, int withAlg);
 WOLFSSL_API int wc_Curve25519KeyToDer(curve25519_key* key, byte* output,
-                                      word32 inLen, int withAlg);
+                                      word32 outLen, int withAlg);
 #endif
 #endif /* HAVE_CURVE25519 */
 
@@ -890,11 +890,11 @@ WOLFSSL_API int wc_Ed448PublicKeyDecode(
     const byte* input, word32* inOutIdx, ed448_key* key, word32 inSz);
 #endif
 #ifdef HAVE_ED448_KEY_EXPORT
-WOLFSSL_API int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 inLen);
+WOLFSSL_API int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 outLen);
 WOLFSSL_API int wc_Ed448PrivateKeyToDer(
-    const ed448_key* key, byte* output, word32 inLen);
+    const ed448_key* key, byte* output, word32 outLen);
 WOLFSSL_API int wc_Ed448PublicKeyToDer(
-    const ed448_key* key, byte* output, word32 inLen, int withAlg);
+    const ed448_key* key, byte* output, word32 outLen, int withAlg);
 #endif
 #endif /* HAVE_ED448 */
 
@@ -907,9 +907,9 @@ WOLFSSL_API int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
 #endif
 #ifdef HAVE_CURVE448_KEY_EXPORT
 WOLFSSL_API int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output,
-                                           word32 inLen);
+                                           word32 outLen);
 WOLFSSL_API int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output,
-                                          word32 inLen, int withAlg);
+                                          word32 outLen, int withAlg);
 #endif
 #endif /* HAVE_CURVE448 */
 

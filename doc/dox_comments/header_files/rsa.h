@@ -1163,12 +1163,12 @@ int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 
     \return >0 Success, number of bytes written.
     \return BAD_FUNC_ARG Returned if key or output is null, or if key->type
-    is not RSA_PRIVATE, or if inLen isn't large enough for output buffer.
+    is not RSA_PRIVATE, or if outLen isn't large enough for output buffer.
     \return MEMORY_E Returned if there is an error allocating memory.
 
     \param key Initialized RsaKey structure.
     \param output Pointer to output buffer.
-    \param inLen Size of output buffer.
+    \param outLen Size of output buffer.
 
     _Example_
     \code
@@ -1193,7 +1193,7 @@ int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     \sa wc_MakeRsaKey
     \sa wc_InitRng
 */
-int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen);
+int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 outLen);
 
 /*!
     \ingroup RSA
@@ -1408,7 +1408,7 @@ int  wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
 
     \param key The RSA key structure to convert.
     \param output Output buffer to hold DER. (if NULL will return length only)
-    \param inLen Length of buffer.
+    \param outLen Length of buffer.
 
     _Example_
     \code
@@ -1428,7 +1428,7 @@ int  wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
     \sa wc_RsaKeyToPublicDer_ex
     \sa wc_InitRsaKey
 */
-int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
+int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 outLen);
 
 /*!
     \ingroup RSA
@@ -1444,7 +1444,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
 
     \param key The RSA key structure to convert.
     \param output Output buffer to hold DER. (if NULL will return length only)
-    \param inLen Length of buffer.
+    \param outLen Length of buffer.
 
     _Example_
     \code
@@ -1464,7 +1464,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
     \sa wc_RsaKeyToPublicDer
     \sa wc_InitRsaKey
 */
-int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
+int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
     int with_header);
 
 /*!

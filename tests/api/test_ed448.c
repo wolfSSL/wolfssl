@@ -491,7 +491,9 @@ int test_wc_Ed448PublicKeyToDer(void)
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     ed448_key key;
     byte      derBuf[1024];
+    WC_RNG rng;
 
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(&key, 0, sizeof(ed448_key));
 
     /* Test bad args */
@@ -499,16 +501,28 @@ int test_wc_Ed448PublicKeyToDer(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_ed448_init(&key), 0);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    if (EXPECT_SUCCESS()) {
+        int ret = wc_Ed448PublicKeyToDer(&key, derBuf, 0, 0);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(BUFFER_E)) ||
+                   (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)));
+    }
+#else
+    ExpectIntEQ(wc_Ed448PublicKeyToDer(&key, derBuf, 0, 0),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+#endif
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
     ExpectIntEQ(wc_Ed448PublicKeyToDer(&key, derBuf, 0, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&key);
 
     /*  Test good args */
     if (EXPECT_SUCCESS()) {
-        WC_RNG rng;
-
-        XMEMSET(&rng, 0, sizeof(WC_RNG));
-
         ExpectIntEQ(wc_ed448_init(&key), 0);
         ExpectIntEQ(wc_InitRng(&rng), 0);
         ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);

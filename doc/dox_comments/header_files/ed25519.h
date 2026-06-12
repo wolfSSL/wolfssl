@@ -904,6 +904,7 @@ int wc_ed25519_export_private(const ed25519_key* key, byte* out, word32* outLen)
     \return BAD_FUNC_ARG Returned if any of the input values evaluate to NULL.
     \return BUFFER_E Returned if the buffer provided is not large enough
     to store the key pair.
+    \return PUBLIC_KEY_E the given key only has a private key present.
 
     \param [in] key Pointer to an ed25519_key structure from which to export
     the key pair.
