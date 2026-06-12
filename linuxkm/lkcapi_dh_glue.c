@@ -754,6 +754,7 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
 {
     struct km_dh_ctx * ctx = NULL;
     int                err = 0;
+    int key_inited = 0;
 
     ctx = kpp_tfm_ctx(tfm);
     memset(ctx, 0, sizeof(struct km_dh_ctx));
@@ -770,15 +771,17 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
 
     ctx->key = (DhKey *)malloc(sizeof(DhKey));
     if (!ctx->key) {
-        return -ENOMEM;
+        err = -ENOMEM;
+        goto out;
     }
 
     err = wc_InitDhKey(ctx->key);
     if (err < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
+        err = -ENOMEM;
+        goto out;
     }
+
+    key_inited = 1;
 
     if (ctx->name) {
         err = wc_DhSetNamedKey(ctx->key, ctx->name);
@@ -787,10 +790,8 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
             pr_err("%s: wc_DhSetNamedKey returned: %d\n", WOLFKM_DH_DRIVER,
                    err);
             #endif /* WOLFKM_DEBUG_DH */
-            wc_FreeDhKey(ctx->key);
-            free(ctx->key);
-            ctx->key = NULL;
-            return -ENOMEM;
+            err = -ENOMEM;
+            goto out;
         }
     }
 
@@ -798,7 +799,20 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
     pr_info("info: exiting km_dh_init: name %d, nbits %d\n",
             ctx->name, ctx->nbits);
     #endif /* WOLFKM_DEBUG_DH */
-    return 0;
+
+out:
+
+    if (err != 0) {
+        if (ctx->key) {
+            if (key_inited)
+                wc_FreeDhKey(ctx->key);
+            free(ctx->key);
+            ctx->key = NULL;
+        }
+        wc_FreeRng(&ctx->rng);
+    }
+
+    return err;
 }
 
 #ifdef LINUXKM_DH
