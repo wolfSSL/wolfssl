@@ -417,6 +417,11 @@ static int km_ecdsa_verify(struct akcipher_request *req)
         goto ecdsa_verify_end;
     }
 
+    if ((sig_len + hash_len) != ((word64)sig_len + (word64)hash_len)) {
+        err = -EINVAL;
+        goto ecdsa_verify_end;
+    }
+
     sig = malloc(sig_len + hash_len);
     if (unlikely(sig == NULL)) {
         err = -ENOMEM;
