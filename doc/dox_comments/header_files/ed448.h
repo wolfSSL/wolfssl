@@ -665,6 +665,7 @@ int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
     \return BUFFER_E Returned if the buffer provided is not large enough to
     store the private key. Upon returning this error, the function sets the
     size required in outLen.
+    \return PUBLIC_KEY_E the given key only has a private key present.
 
     \param [in] key Pointer to an ed448_key structure from which to export the
     public key.
