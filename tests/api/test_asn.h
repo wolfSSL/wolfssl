@@ -36,7 +36,9 @@ int test_wc_DecodeRsaPssParams(void);
 int test_SerialNumber0_RootCA(void);
 int test_DecodeAltNames_length_underflow(void);
 int test_ParseCert_SM3wSM2_short_pubkey(void);
-int test_wc_DecodeObjectId(void);
+int test_wc_DecodeObjectId_ex(void);
+int test_wc_DecodeObjectId_FIPS16(void);
+int test_wc_EncodeObjectId(void);
 int test_ToTraditional_ex_handcrafted(void);
 int test_ToTraditional_ex_roundtrip(void);
 int test_ToTraditional_ex_negative(void);
@@ -55,7 +57,9 @@ int test_ToTraditional_ex_mldsa_bad_params(void);
     TEST_DECL_GROUP("asn", test_SerialNumber0_RootCA),              \
     TEST_DECL_GROUP("asn", test_DecodeAltNames_length_underflow),   \
     TEST_DECL_GROUP("asn", test_ParseCert_SM3wSM2_short_pubkey),    \
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId_ex),              \
+    TEST_DECL_GROUP("asn", test_wc_EncodeObjectId),                 \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId_FIPS16),          \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_handcrafted),      \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_roundtrip),        \
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_negative),         \

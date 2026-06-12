@@ -1624,36 +1624,49 @@ int test_SerialNumber0_RootCA(void)
     return EXPECT_RESULT();
 }
 
-int test_wc_DecodeObjectId(void)
+
+int test_wc_DecodeObjectId_FIPS16(void)
 {
     EXPECT_DECLS;
 
 #if !defined(NO_ASN) && \
     (defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT))
     {
-        /* OID 1.2.840.113549.1.1.11 (sha256WithRSAEncryption)
-         * DER encoding: 2a 86 48 86 f7 0d 01 01 0b
-         * First byte 0x2a = 42 => arc0 = 42/40 = 1, arc1 = 42%40 = 2
-         * Remaining arcs: 840, 113549, 1, 1, 11
+        word32 i;
+        static const word16 oid_dot_2[] = {
+            2, 100, 4, 6
+        };
+
+        static const byte oid_start_with_2[] = {
+            0x81, 0x34, 0x04, 0x06
+        };
+
+
+        /* OID 1.3.132.0.6 (secp112r1)
+         * DER encoding: 2b 81 04 00 06
+         * First byte 0x2b = 43 => arc0 = 43/40 = 1, arc1 = 43%40 = 3
+         * Remaining arcs: 132 0 6
          */
         static const byte oid_sha256rsa[] = {
-            0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b
+            0x2B, 0x81, 0x04, 0x00, 0x06
         };
+
+        static const word16 oid_dot_form[] = {
+            1U, 3U, 132U, 0U, 6U
+        };
+
         word16 out[MAX_OID_SZ];
         word32 outSz;
 
+        word32 trueOutSz = sizeof(oid_dot_form) / sizeof(*oid_dot_form);
         /* Test 1: Normal decode */
         outSz = MAX_OID_SZ;
         ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
                                    out, &outSz), 0);
-        ExpectIntEQ((int)outSz, 7);
-        ExpectIntEQ(out[0], 1);
-        ExpectIntEQ(out[1], 2);
-        ExpectIntEQ(out[2], 840);
-        ExpectIntEQ(out[3], (word16)113549); /* truncated to word16 */
-        ExpectIntEQ(out[4], 1);
-        ExpectIntEQ(out[5], 1);
-        ExpectIntEQ(out[6], 11);
+        ExpectIntEQ((int)outSz, trueOutSz);
+        for (i = 0; i < ((outSz <= trueOutSz) ? outSz : trueOutSz); i++) {
+            ExpectIntEQ(out[i], oid_dot_form[i]);
+        }
 
         /* Test 2: NULL args */
         outSz = MAX_OID_SZ;
@@ -1692,8 +1705,247 @@ int test_wc_DecodeObjectId(void)
         ExpectIntEQ(DecodeObjectId(oid_sha256rsa, sizeof(oid_sha256rsa),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Test 7: first Arc is 2 */
+        {
+            word32 trueOutSz2 = sizeof(oid_dot_2) / sizeof(*oid_dot_2);
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId(oid_start_with_2,
+                        sizeof(oid_start_with_2),
+                        out, &outSz), 0);
+            ExpectIntEQ((int)outSz, trueOutSz2);
+            for (i = 0; i < ((outSz <= trueOutSz2) ?
+                        outSz : trueOutSz2); i++) {
+                ExpectIntEQ(out[i], oid_dot_2[i]);
+            }
+        }
+
+        /* Test 8: an OID with an arc that exceeds word16. Tests that wrong
+         * but unchangeable behavior is working correctly,
+         *
+         * word16 version is used in FIPS build
+         */
+        {
+            static const byte oid_large_arc[] = {
+                0x2a, 0x86, 0x48, 0x82, 0xf7, 0x0d, 0x01, 0x01, 0x0b
+            };
+            static const word16 oid_dot_large_arc[] = {
+                1U, 2U, 840U, (word16)113549U, 1U, 1U, 11U
+            };
+            word32 trueOutSz3 = sizeof(oid_dot_large_arc) / sizeof(word16);
+
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId(oid_large_arc, sizeof(oid_large_arc),
+                                       out, &outSz), 0);
+            ExpectIntEQ((int)outSz, (int)trueOutSz3);
+            for (i = 0; i < ((outSz <= trueOutSz3) ? outSz : trueOutSz3); i++) {
+                ExpectIntEQ(out[i], oid_dot_large_arc[i]);
+            }
+            #undef LARGE_ARC_EXPECTED
+        }
     }
 #endif /* !NO_ASN && (HAVE_OID_DECODING || WOLFSSL_ASN_PRINT) */
+
+    return EXPECT_RESULT();
+}
+
+/* Test for word16 FIPS version of function */
+int test_wc_DecodeObjectId_ex(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_ASN) && \
+    (defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT))
+    {
+        word32 i;
+        static const word32 oid_dot_2[] = {
+            2, 100, 4, 6
+        };
+
+        static const byte oid_start_with_2[] = {
+            0x81, 0x34, 0x04, 0x06
+        };
+
+
+        /* OID 1.3.132.0.6 (secp112r1)
+         * DER encoding: 2b 81 04 00 06
+         * First byte 0x2b = 43 => arc0 = 43/40 = 1, arc1 = 43%40 = 3
+         * Remaining arcs: 132 0 6
+         */
+        static const byte oid_sha256rsa[] = {
+            0x2B, 0x81, 0x04, 0x00, 0x06
+        };
+
+        static const word32 oid_dot_form[] = {
+            1U, 3U, 132U, 0U, 6U
+        };
+
+        word32 out[MAX_OID_SZ];
+        word32 outSz;
+
+        word32 trueOutSz = sizeof(oid_dot_form) / sizeof(word32);
+        /* Test 1: Normal decode */
+        outSz = MAX_OID_SZ;
+        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz), 0);
+        ExpectIntEQ((int)outSz, trueOutSz);
+        for (i = 0; i < ((outSz <= trueOutSz) ? outSz : trueOutSz); i++) {
+            ExpectIntEQ(out[i], oid_dot_form[i]);
+        }
+
+        /* Test 2: NULL args */
+        outSz = MAX_OID_SZ;
+        ExpectIntEQ(DecodeObjectId_ex(NULL, sizeof(oid_sha256rsa), out, &outSz),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Test 3 (Bug 1): outSz=1 must return BUFFER_E, not OOB write.
+         * The first OID byte decodes into two arcs, so outSz must be >= 2. */
+        outSz = 1;
+        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Test 4: outSz=0 must also return BUFFER_E */
+        outSz = 0;
+        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Test 5: outSz=2 is enough for a single-byte OID (two arcs) */
+        {
+            static const byte oid_one_byte[] = { 0x2a }; /* 1.2 */
+            outSz = 2;
+            ExpectIntEQ(DecodeObjectId_ex(oid_one_byte, sizeof(oid_one_byte),
+                                       out, &outSz), 0);
+            ExpectIntEQ((int)outSz, 2);
+            ExpectIntEQ(out[0], 1);
+            ExpectIntEQ(out[1], 2);
+        }
+
+        /* Test 6: Buffer too small for later arcs */
+        outSz = 3; /* only room for 3 arcs, but OID has 7 */
+        ExpectIntEQ(DecodeObjectId_ex(oid_sha256rsa, sizeof(oid_sha256rsa),
+                                   out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Test 7: first Arc is 2 */
+        {
+            word32 trueOutSz2 = sizeof(oid_dot_2) / sizeof(word32);
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId_ex(oid_start_with_2,
+                        sizeof(oid_start_with_2),
+                        out, &outSz), 0);
+            ExpectIntEQ((int)outSz, trueOutSz2);
+            for (i = 0; i < ((outSz <= trueOutSz2) ?
+                        outSz : trueOutSz2); i++) {
+                ExpectIntEQ(out[i], oid_dot_2[i]);
+            }
+        }
+
+        /* Test 8: an OID with an arc that exceeds word16.
+         */
+        {
+            static const byte oid_large_arc[] = {
+                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b
+            };
+            static const word32 oid_dot_large_arc[] = {
+                1U, 2U, 840U, 113549U, 1U, 1U, 11U
+            };
+            word32 trueOutSz3 = sizeof(oid_dot_large_arc) / sizeof(word32);
+
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId_ex(oid_large_arc, sizeof(oid_large_arc),
+                                       out, &outSz), 0);
+            ExpectIntEQ((int)outSz, (int)trueOutSz3);
+            for (i = 0; i < ((outSz <= trueOutSz3) ? outSz : trueOutSz3); i++) {
+                ExpectIntEQ(out[i], oid_dot_large_arc[i]);
+            }
+            #undef LARGE_ARC_EXPECTED
+        }
+    }
+#endif /* !NO_ASN && (HAVE_OID_DECODING || WOLFSSL_ASN_PRINT) */
+
+    return EXPECT_RESULT();
+}
+
+int test_wc_EncodeObjectId(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_OID_ENCODING) && !defined(NO_ASN)
+    {
+        /* 1.3.132.0.6 (secp112r1) -- every arc fits in word16, so this
+         * encodes identically in both build configs. */
+        static const word32 oid_small[] = { 1U, 3U, 132U, 0U, 6U };
+        static const byte oid_small_der[] = {
+            0x2b, 0x81, 0x04, 0x00, 0x06
+        };
+        const word32 oid_small_cnt = sizeof(oid_small) / sizeof(word32);
+        byte   out[MAX_OID_SZ];
+        word32 outSz;
+        word32 i;
+
+        /* Test 1: length-only query (out == NULL) */
+        outSz = 0;
+        ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, NULL, &outSz),
+                    0);
+        ExpectIntEQ((int)outSz, (int)sizeof(oid_small_der));
+
+        /* Test 2: normal encode matches expected DER */
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, out, &outSz), 0);
+        ExpectIntEQ((int)outSz, (int)sizeof(oid_small_der));
+        for (i = 0; i < outSz && i < sizeof(oid_small_der); i++) {
+            ExpectIntEQ(out[i], oid_small_der[i]);
+        }
+
+        /* Test 3: NULL args */
+        outSz = sizeof(out);
+        ExpectIntEQ(wc_EncodeObjectId(NULL, oid_small_cnt, out, &outSz),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, out, NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Test 4: output buffer too small */
+        outSz = 1;
+        ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, out, &outSz),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+
+        /* Test 5 ): an arc > word16 can only be represented in the
+         */
+        {
+            static const word32 oid_large[] = {
+                1U, 2U, 840U, 113549U, 1U, 1U, 11U
+            };
+            static const byte oid_large_der[] = {
+                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b
+            };
+            const word32 oid_large_cnt = sizeof(oid_large) / sizeof(word32);
+
+            outSz = sizeof(out);
+            ExpectIntEQ(wc_EncodeObjectId(oid_large, oid_large_cnt, out, &outSz),
+                        0);
+            ExpectIntEQ((int)outSz, (int)sizeof(oid_large_der));
+            for (i = 0; i < outSz && i < sizeof(oid_large_der); i++) {
+                ExpectIntEQ(out[i], oid_large_der[i]);
+            }
+
+#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
+            {
+                word32 dec[MAX_OID_SZ];
+                word32 decSz = MAX_OID_SZ;
+                ExpectIntEQ(DecodeObjectId_ex(out, outSz, dec, &decSz), 0);
+                ExpectIntEQ((int)decSz, (int)oid_large_cnt);
+                for (i = 0; i < decSz && i < oid_large_cnt; i++) {
+                    ExpectIntEQ(dec[i], oid_large[i]);
+                }
+            }
+#endif /* HAVE_OID_DECODING || WOLFSSL_ASN_PRINT */
+        }
+    }
+#endif /* HAVE_OID_ENCODING && !NO_ASN */
 
     return EXPECT_RESULT();
 }

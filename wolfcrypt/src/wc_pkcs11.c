@@ -1383,7 +1383,7 @@ static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* tmpl, int idx)
         unsigned char* derParams = tmpl[idx].pValue;
     #if defined(HAVE_OID_ENCODING)
         word32 oidSz = ECC_MAX_OID_LEN - 2;
-        ret = wc_EncodeObjectId(key->dp->oid, key->dp->oidSz, derParams+2, &oidSz);
+        ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, derParams+2, &oidSz);
         if (ret != 0) {
             return ret;
         }
