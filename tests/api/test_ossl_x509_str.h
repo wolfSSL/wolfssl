@@ -29,6 +29,7 @@ int test_wolfSSL_X509_STORE_check_time(void);
 int test_wolfSSL_X509_STORE_CTX_get0_store(void);
 int test_wolfSSL_X509_STORE_CTX(void);
 int test_wolfSSL_X509_STORE_CTX_ex(void);
+int test_X509_verify_cert_untrusted_inter(void);
 int test_X509_STORE_untrusted(void);
 int test_X509_STORE_InvalidCa(void);
 int test_X509_STORE_InvalidCa_NoCallback(void);
@@ -51,6 +52,7 @@ int test_wolfSSL_CTX_set_cert_store(void);
                                       test_wolfSSL_X509_STORE_CTX_get0_store), \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX),           \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX_ex),        \
+    TEST_DECL_GROUP("ossl_x509_store", test_X509_verify_cert_untrusted_inter), \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_untrusted),             \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_InvalidCa),             \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_STORE_InvalidCa_NoCallback),  \

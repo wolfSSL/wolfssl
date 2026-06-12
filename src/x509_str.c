@@ -531,6 +531,36 @@ static int X509StoreMoveCert(WOLFSSL_STACK *certs_stack,
     return WOLFSSL_FAILURE;
 }
 
+/* Remove the first node referencing `cert` (by pointer identity) from `stack`.
+ * The certificate object itself is not freed - the stack only holds a borrowed
+ * reference. Returns WOLFSSL_SUCCESS if a node was removed, WOLFSSL_FAILURE if
+ * `cert` was not present, or WOLFSSL_FATAL_ERROR if `stack`/`cert` is NULL.
+ * The only caller performs best-effort cleanup and intentionally ignores the
+ * return value.
+ *
+ * Walks the linked list once (O(n)) rather than indexing with
+ * wolfSSL_sk_X509_value() per position (which would re-walk from the head each
+ * time, O(n^2)). */
+static int X509StoreRemoveCert(WOLFSSL_STACK *stack, WOLFSSL_X509 *cert) {
+    WOLFSSL_STACK* node;
+    int idx;
+    int num;
+
+    if (stack == NULL || cert == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    num = wolfSSL_sk_X509_num(stack);
+    for (node = stack, idx = 0; idx < num && node != NULL;
+            node = node->next, idx++) {
+        if (node->data.x509 == cert) {
+            (void)wolfSSL_sk_pop_node(stack, idx);
+            return WOLFSSL_SUCCESS;
+        }
+    }
+
+    return WOLFSSL_FAILURE;
+}
+
 
 /* Current certificate failed, but it is possible there is an
  * alternative cert with the same subject key which will work.
@@ -608,7 +638,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int done = 0;
     int added = 0;
     int i = 0;
-    int numInterAdd = 0;
     int numFailedCerts = 0;
     int depth = 0;
     int origDepth = 0;
@@ -666,8 +695,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             }
         }
         /* Add the intermediates provided on init to the list of untrusted
-         * intermediates to be used */
-        ret = addAllButSelfSigned(certs, ctx->ctxIntermediates, &numInterAdd);
+         * intermediates to be used.  They are removed again from `certs` in the
+         * exit cleanup (by identity, recomputed from ctxIntermediates). */
+        ret = addAllButSelfSigned(certs, ctx->ctxIntermediates, NULL);
     }
     if (ret != WOLFSSL_SUCCESS) {
         goto exit;
@@ -677,10 +707,19 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         wolfSSL_sk_X509_free(ctx->chain);
     }
     ctx->chain = wolfSSL_sk_X509_new_null();
+    if (ctx->chain == NULL) {
+        ret = WOLFSSL_FAILURE;
+        goto exit;
+    }
 
     failedCerts = wolfSSL_sk_X509_new_null();
-    if (!failedCerts)
+    if (!failedCerts) {
+        /* Fail closed: ret is still WOLFSSL_SUCCESS from the checks above, so
+         * an unset error here would make the function report a verified chain
+         * after an allocation failure. */
+        ret = WOLFSSL_FAILURE;
         goto exit;
+    }
 
     if (ctx->depth > 0) {
         depth = ctx->depth + 1;
@@ -751,7 +790,24 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         }
         else if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             /* Could not find in untrusted list, only place left is
-             * a trusted CA in the CM */
+             * a trusted CA in the CM. Drop any caller-supplied untrusted
+             * intermediates that were temporarily loaded into the CertManager
+             * to authenticate child certificates, so the current certificate
+             * must verify against a genuinely trusted CA. They must not be
+             * allowed to anchor the path: otherwise a chain that never reaches
+             * a configured trust anchor (or whose intermediate signature is
+             * invalid) would be accepted. */
+            if (wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm)
+                    != WOLFSSL_SUCCESS) {
+                /* Could not guarantee the temporary intermediates were
+                 * dropped; fail closed rather than risk verifying the current
+                 * certificate against one.  Leave `added` set: they are still
+                 * loaded, so the exit cleanup makes a final attempt to drop
+                 * them. */
+                ret = WOLFSSL_FATAL_ERROR;
+                goto exit;
+            }
+            added = 0;
             ret = X509StoreVerifyCert(ctx);
             if (ret != WOLFSSL_SUCCESS) {
                 /* WOLFSSL_PARTIAL_CHAIN may only terminate the chain at a
@@ -762,7 +818,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                  * chains that never reach a trust anchor.  Verify that
                  * ctx->current_cert is itself in the original trust set. */
                 if (((ctx->flags & WOLFSSL_PARTIAL_CHAIN) ||
-                     (ctx->store->param->flags & WOLFSSL_PARTIAL_CHAIN)) &&
+                     (ctx->store->param != NULL &&
+                      (ctx->store->param->flags & WOLFSSL_PARTIAL_CHAIN))) &&
                     X509StoreCertIsTrusted(ctx->store, ctx->current_cert,
                         origTrustedSk)) {
                     wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
@@ -809,6 +866,18 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         depth--;
     }
 
+    /* Success requires the path to have reached a configured trust anchor
+     * (done == 1) or to have terminated at a caller-trusted self-signed
+     * certificate via the break above (done == 0 with depth still > 0).  A
+     * loop that instead ran out of its depth budget (depth <= 0) without
+     * completing must fail closed: ret may still be WOLFSSL_SUCCESS from the
+     * last link, but no trust anchor was reached. */
+    if (ret == WOLFSSL_SUCCESS && done == 0 && depth <= 0) {
+        SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG,
+            wolfSSL_sk_X509_num(ctx->chain));
+        ret = WOLFSSL_FAILURE;
+    }
+
 exit:
     /* Copy back failed certs. */
     numFailedCerts = wolfSSL_sk_X509_num(failedCerts);
@@ -818,10 +887,30 @@ exit:
     }
     wolfSSL_sk_X509_pop_free(failedCerts, NULL);
 
-    /* Remove additional intermediates from init from the store */
-    if (ctx != NULL && numInterAdd > 0) {
-        for (i = 0; i < numInterAdd; i++) {
-            wolfSSL_sk_X509_pop(ctx->store->certs);
+    /* Remove the caller-supplied intermediates that addAllButSelfSigned
+     * appended to `certs` during chain building, restoring it to its original
+     * contents.  Remove them by pointer identity from the same stack they were
+     * added to (store->certs in the common case, or the caller's setTrustedSk
+     * via X509_STORE_CTX_set0_trusted_stack), recomputed from ctxIntermediates
+     * with the same self-signed filter as the add.
+     *
+     * Identity removal - not a saved count + positional pop - is required:
+     * X509VerifyCertSetupRetry reorders `certs` during chain building, so
+     * popping N entries off the top could drop a legitimate trusted entry and
+     * leave an injected intermediate behind, which a later verification reusing
+     * this store/ctx would then snapshot as a trust anchor.  certsToUse is the
+     * throwaway certs==NULL path and is freed wholesale below, so skip it. */
+    if (ctx != NULL && certsToUse == NULL && certs != NULL &&
+            ctx->ctxIntermediates != NULL) {
+        int n = wolfSSL_sk_X509_num(ctx->ctxIntermediates);
+        for (i = 0; i < n; i++) {
+            WOLFSSL_X509* inter =
+                wolfSSL_sk_X509_value(ctx->ctxIntermediates, i);
+            if (inter != NULL &&
+                    wolfSSL_X509_NAME_cmp(&inter->issuer, &inter->subject)
+                        != 0) {
+                X509StoreRemoveCert(certs, inter);
+            }
         }
     }
     /* Remove intermediates that were added to CM */
@@ -1027,7 +1116,7 @@ int wolfSSL_X509_STORE_CTX_set_ex_data_with_cleanup(
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
 void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx, int depth)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_depth");
