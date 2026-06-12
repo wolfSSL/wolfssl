@@ -3765,7 +3765,7 @@ int test_wolfSSL_dtls_stateless_hrr_group(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
     size_t i;
-    word32 initHash;
+    word32 initHash = 0;
     struct {
         method_provider client_meth;
         method_provider server_meth;
