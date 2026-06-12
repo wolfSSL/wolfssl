@@ -491,7 +491,9 @@ int test_wc_Ed448PublicKeyToDer(void)
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     ed448_key key;
     byte      derBuf[1024];
+    WC_RNG rng;
 
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(&key, 0, sizeof(ed448_key));
 
     /* Test bad args */
@@ -503,12 +505,15 @@ int test_wc_Ed448PublicKeyToDer(void)
         WC_NO_ERR_TRACE(PUBLIC_KEY_E));
     wc_ed448_free(&key);
 
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    ExpectIntEQ(wc_Ed448PublicKeyToDer(&key, derBuf, 0, 0),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    wc_ed448_free(&key);
+
     /*  Test good args */
     if (EXPECT_SUCCESS()) {
-        WC_RNG rng;
-
-        XMEMSET(&rng, 0, sizeof(WC_RNG));
-
         ExpectIntEQ(wc_ed448_init(&key), 0);
         ExpectIntEQ(wc_InitRng(&rng), 0);
         ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
