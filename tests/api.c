@@ -14061,6 +14061,63 @@ static word16 echCbTestKemID = 0;
 static word16 echCbTestKdfID = 0;
 static word16 echCbTestAeadID = 0;
 
+/* return the index of the first extension
+ * extLen will be updated with the length of the extensions field */
+static int ech_seek_extensions(byte* buf, word16* extLen)
+{
+    word16 idx;
+    byte sessionIdLen;
+    word16 cipherSuitesLen;
+    byte compressionLen;
+
+    idx = OPAQUE16_LEN + RAN_LEN;
+
+    sessionIdLen = buf[idx++];
+    idx += sessionIdLen;
+
+    ato16(buf + idx, &cipherSuitesLen);
+    idx += OPAQUE16_LEN + cipherSuitesLen;
+
+    compressionLen = buf[idx++];
+    idx += compressionLen;
+
+    ato16(buf + idx, extLen);
+    idx += OPAQUE16_LEN;
+
+    return idx;
+}
+
+/* locate a particular extension:
+ *   idx_p is updated with the location of that extension
+ *     -> idx_p should start just after the handshake header
+ *   0 returned on success, error otherwise */
+static int ech_find_extension(byte* buf, word16* idx_p, word16 extType)
+{
+    word16 idx;
+    word16 extIdx;
+    word16 extLen;
+
+    extIdx = ech_seek_extensions(buf + *idx_p, &extLen) + *idx_p;
+    idx = extIdx;
+
+    while (idx - extIdx < extLen) {
+        word16 type;
+        word16 len;
+
+        ato16(buf + idx, &type);
+        if (type == extType) {
+            *idx_p = idx;
+            return 0;
+        }
+
+        idx += OPAQUE16_LEN;
+        ato16(buf + idx, &len);
+        idx += OPAQUE16_LEN + len;
+    }
+
+    return BAD_FUNC_ARG;
+}
+
 /* the arg is whether the client has ech enabled or not */
 static int test_ech_server_sni_callback(WOLFSSL* ssl, int* ad, void* arg)
 {
@@ -14999,6 +15056,141 @@ static int test_wolfSSL_Tls13_ECH_disable_conn(void)
     return EXPECT_RESULT();
 }
 
+/* The public name must be visible and the private name must not be visible.
+ * useCtx installs the inner SNI on the shared ctx instead of the per-connection
+ * ssl, to exercise both branches of TLSX_EchChangeSNI. */
+static int test_wolfSSL_Tls13_ECH_wire_sni_ex(int accept, int useCtx)
+{
+    EXPECT_DECLS;
+    test_ssl_memio_ctx test_ctx;
+    word16 idx;
+    word16 nameLen;
+    word16 publicLen = (word16)XSTRLEN(echCbTestPublicName);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    test_ctx.s_cb.method = wolfTLSv1_3_server_method;
+    test_ctx.c_cb.method = wolfTLSv1_3_client_method;
+
+    test_ctx.s_cb.ctx_ready = test_ech_server_ctx_ready;
+    test_ctx.s_cb.ssl_ready = test_ech_server_ssl_ready;
+
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    /* Accept path uses the correct configs; reject path installs bad configs
+     * (with the correct public name) so the client still offers ECH. */
+    if (accept) {
+        ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, echCbTestConfigs,
+            echCbTestConfigsLen), WOLFSSL_SUCCESS);
+    }
+    else {
+        WOLFSSL_CTX* tempCtx = NULL;
+        byte badConfig[128];
+        word32 badConfigLen = sizeof(badConfig);
+
+        ExpectNotNull(tempCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+        ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(tempCtx, echCbTestPublicName,
+            0, 0, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(tempCtx, badConfig,
+            &badConfigLen), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_free(tempCtx);
+        ExpectIntEQ(wolfSSL_SetEchConfigs(test_ctx.c_ssl, badConfig,
+            badConfigLen), WOLFSSL_SUCCESS);
+    }
+
+    /* install the private (inner) SNI on the shared ctx or the per-connection
+     * ssl */
+    if (useCtx) {
+        ExpectIntEQ(wolfSSL_CTX_UseSNI(test_ctx.c_ctx, WOLFSSL_SNI_HOST_NAME,
+            echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+            WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_UseSNI(test_ctx.c_ssl, WOLFSSL_SNI_HOST_NAME,
+            echCbTestPrivateName, (word16)XSTRLEN(echCbTestPrivateName)),
+            WOLFSSL_SUCCESS);
+    }
+
+    /* force HelloRetryRequest */
+    ExpectIntEQ(wolfSSL_NoKeyShares(test_ctx.c_ssl), WOLFSSL_SUCCESS);
+
+    /* On reject, client aborts with ech_required and won't send a cert. */
+    if (!accept) {
+        wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+    }
+
+    /* client writes CH1 into s_buff */
+    ExpectIntEQ(wolfSSL_connect(test_ctx.c_ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* check sent SNI is correct */
+    idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    ExpectIntEQ(ech_find_extension(test_ctx.s_buff, &idx, TLSXT_SERVER_NAME),
+        0);
+    ExpectIntEQ(test_ctx.s_buff[idx + 6], WOLFSSL_SNI_HOST_NAME);
+    ato16(test_ctx.s_buff + idx + 7, &nameLen);
+    ExpectIntEQ(nameLen, publicLen);
+    ExpectIntEQ(XMEMCMP(test_ctx.s_buff + idx + 9, echCbTestPublicName,
+        publicLen), 0);
+
+    /* server consumes CH1 and writes HRR into c_buff */
+    ExpectIntEQ(wolfSSL_accept(test_ctx.s_ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.s_ssl, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.s_ssl->options.serverState,
+        SERVER_HELLO_RETRY_REQUEST_COMPLETE);
+
+    /* client reads HRR from c_buff and writes CH2 into s_buff */
+    ExpectIntEQ(wolfSSL_connect(test_ctx.c_ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* check sent SNI is correct */
+    idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    ExpectIntEQ(ech_find_extension(test_ctx.s_buff, &idx, TLSXT_SERVER_NAME),
+        0);
+    ExpectIntEQ(test_ctx.s_buff[idx + 6], WOLFSSL_SNI_HOST_NAME);
+    ato16(test_ctx.s_buff + idx + 7, &nameLen);
+    ExpectIntEQ(nameLen, publicLen);
+    ExpectIntEQ(XMEMCMP(test_ctx.s_buff + idx + 9, echCbTestPublicName,
+        publicLen), 0);
+
+    /* sanity check: finish the handshake and verify ECH acceptance */
+    if (accept) {
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+            WOLFSSL_ECH_STATUS_ACCEPTED);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+            WOLFSSL_ECH_STATUS_ACCEPTED);
+    }
+    else {
+        ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+            TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.c_ssl),
+            WOLFSSL_ECH_STATUS_REJECTED);
+        ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
+            WOLFSSL_ECH_STATUS_REJECTED);
+    }
+
+    test_ssl_memio_cleanup(&test_ctx);
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH_wire_sni(void)
+{
+    EXPECT_DECLS;
+    /* {reject, accept} x inner SNI on {ssl, ctx} */
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_Tls13_ECH_wire_sni_ex(1, 1), TEST_SUCCESS);
+    return EXPECT_RESULT();
+}
+
 /* Regression test: an inner SNI hostname >= MAX_PUBLIC_NAME_SZ (256) bytes
  * must not cause a stack-buffer-overflow in TLSX_EchRestoreSNI.  Before the
  * fix, the truncated copy omitted the NUL terminator and XSTRLEN read past
@@ -15043,57 +15235,6 @@ static int test_wolfSSL_Tls13_ECH_long_SNI(void)
 #endif /* !NO_WOLFSSL_CLIENT */
 
     return EXPECT_RESULT();
-}
-
-static int ech_seek_extensions(byte* buf, word16* innerExtLen)
-{
-    word16 idx;
-    byte sessionIdLen;
-    word16 cipherSuitesLen;
-    byte compressionLen;
-
-    idx = OPAQUE16_LEN + RAN_LEN;
-
-    sessionIdLen = buf[idx++];
-    idx += sessionIdLen;
-
-    ato16(buf + idx, &cipherSuitesLen);
-    idx += OPAQUE16_LEN + cipherSuitesLen;
-
-    compressionLen = buf[idx++];
-    idx += compressionLen;
-
-    ato16(buf + idx, innerExtLen);
-    idx += OPAQUE16_LEN;
-
-    return idx;
-}
-
-static int ech_find_extension(byte* buf, word16* idx_p, word16 extType)
-{
-    word16 idx;
-    word16 innerExtIdx;
-    word16 innerExtLen;
-
-    innerExtIdx = ech_seek_extensions(buf + *idx_p, &innerExtLen) + *idx_p;
-    idx = innerExtIdx;
-
-    while (idx - innerExtIdx < innerExtLen) {
-        word16 type;
-        word16 len;
-
-        ato16(buf + idx, &type);
-        if (type == extType) {
-            *idx_p = idx;
-            return 0;
-        }
-
-        idx += OPAQUE16_LEN;
-        ato16(buf + idx, &len);
-        idx += OPAQUE16_LEN + len;
-    }
-
-    return BAD_FUNC_ARG;
 }
 
 /* Test the HRR ECH rejection fallback path:
@@ -35242,6 +35383,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_trial_decrypt),
     TEST_DECL(test_wolfSSL_Tls13_ECH_GREASE),
     TEST_DECL(test_wolfSSL_Tls13_ECH_disable_conn),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_wire_sni),
     TEST_DECL(test_wolfSSL_Tls13_ECH_long_SNI),
     TEST_DECL(test_wolfSSL_Tls13_ECH_HRR_rejection),
     TEST_DECL(test_wolfSSL_Tls13_ECH_ch2_no_ech),
