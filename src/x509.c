@@ -5670,91 +5670,6 @@ static int MatchIpName(const char* name, int nameSz, WOLFSSL_GENERAL_NAME* gn)
         constraintData, constraintLen);
 }
 
-/* Extract host from URI for name constraint matching.
- * URI format: scheme://[userinfo@]host[:port][/path][?query][#fragment]
- * IPv6 literals are enclosed in brackets: scheme://[ipv6addr]:port/path
- * Returns pointer to host start and sets hostLen, or NULL on failure. */
-static const char* ExtractHostFromUri(const char* uri, int uriLen, int* hostLen)
-{
-    const char* hostStart;
-    const char* hostEnd;
-    const char* p;
-    const char* uriEnd;
-
-    if (uri == NULL || uriLen <= 0 || hostLen == NULL) {
-        return NULL;
-    }
-
-    uriEnd = uri + uriLen;
-
-    /* Find "://" to skip scheme */
-    hostStart = NULL;
-    for (p = uri; p < uriEnd - 2; p++) {
-        if (p[0] == ':' && p[1] == '/' && p[2] == '/') {
-            hostStart = p + 3;
-            break;
-        }
-    }
-    if (hostStart == NULL || hostStart >= uriEnd) {
-        return NULL;
-    }
-
-    /* Skip userinfo if present (look for @ before any /, ?, #)
-     * userinfo can contain ':' (ex: user:pass@host), don't stop at ':'
-     * For IPv6, also don't stop at '[' in userinfo */
-    for (p = hostStart; p < uriEnd; p++) {
-        if (*p == '@') {
-            hostStart = p + 1;
-            break;
-        }
-        if (*p == '/' || *p == '?' || *p == '#') {
-            /* No userinfo found */
-            break;
-        }
-        /* If '[' before '@', found IPv6 literal, not userinfo */
-        if (*p == '[') {
-            break;
-        }
-    }
-    if (hostStart >= uriEnd) {
-        return NULL;
-    }
-
-    /* Check for IPv6 literal */
-    if (*hostStart == '[') {
-        /* Find closing bracket, skip opening one */
-        hostStart++;
-        hostEnd = hostStart;
-        while (hostEnd < uriEnd && *hostEnd != ']') {
-            hostEnd++;
-        }
-        if (hostEnd >= uriEnd) {
-            /* No closing bracket found, malformed */
-            return NULL;
-        }
-        /* hostEnd points to closing bracket, extract content between */
-        *hostLen = (int)(hostEnd - hostStart);
-        if (*hostLen <= 0) {
-            return NULL;
-        }
-        return hostStart;
-    }
-
-    /* Regular hostname, find end */
-    hostEnd = hostStart;
-    while (hostEnd < uriEnd && *hostEnd != ':' && *hostEnd != '/' &&
-           *hostEnd != '?' && *hostEnd != '#') {
-        hostEnd++;
-    }
-
-    *hostLen = (int)(hostEnd - hostStart);
-    if (*hostLen <= 0) {
-        return NULL;
-    }
-
-    return hostStart;
-}
-
 /* Helper to check if name string matches a single GENERAL_NAME constraint.
  * Returns 1 if matches, 0 if not. */
 static int MatchNameConstraint(int type, const char* name, int nameSz,
@@ -5788,15 +5703,7 @@ static int MatchNameConstraint(int type, const char* name, int nameSz,
                     nameSz, baseStr, baseLen);
             }
             else if (type == WOLFSSL_GEN_URI) {
-                const char* host;
-                int hostLen;
-
-                /* For URI, extract host and match against DNS-style */
-                host = ExtractHostFromUri(name, nameSz, &hostLen);
-                if (host == NULL) {
-                    return 0;
-                }
-                return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, host, hostLen,
+                return wolfssl_local_MatchUriNameConstraint(name, nameSz,
                     baseStr, baseLen);
             }
             else {
@@ -5809,6 +5716,29 @@ static int MatchNameConstraint(int type, const char* name, int nameSz,
             /* Unsupported type */
             return 0;
     }
+}
+
+static int NameConstraintsHasType(const WOLFSSL_STACK* sk, int type)
+{
+    int i;
+    int num;
+
+    if (sk == NULL) {
+        return 0;
+    }
+
+    num = wolfSSL_sk_GENERAL_SUBTREE_num(sk);
+    for (i = 0; i < num; i++) {
+        WOLFSSL_GENERAL_SUBTREE* subtree;
+
+        subtree = wolfSSL_sk_GENERAL_SUBTREE_value(sk, i);
+        if (subtree != NULL && subtree->base != NULL &&
+                subtree->base->type == type) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 /*
@@ -5838,6 +5768,14 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
 
     if (nc == NULL || name == NULL || nameSz <= 0) {
         WOLFSSL_MSG("Bad argument to NAME_CONSTRAINTS_check_name");
+        return 0;
+    }
+
+    if (type == WOLFSSL_GEN_URI &&
+            (NameConstraintsHasType(nc->permittedSubtrees, type) ||
+             NameConstraintsHasType(nc->excludedSubtrees, type)) &&
+            !wolfssl_local_UriNameHasDnsHost(name, nameSz)) {
+        WOLFSSL_MSG("URI name constraint applied to URI without DNS host");
         return 0;
     }
 

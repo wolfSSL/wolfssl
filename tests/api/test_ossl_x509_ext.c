@@ -2039,8 +2039,8 @@ int test_wolfSSL_NAME_CONSTRAINTS_uri(void)
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
             "https://user:pass@www.wolfssl.com/path", 38), 1);
 
-        /* IPv6 literal URIs, host extracted without brackets.
-         * These don't match .wolfssl.com constraint (different host type) */
+        /* URI constraints require a DNS reg-name host, so IP-literals do not
+         * match the .wolfssl.com constraint. */
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
             "https://[::1]:8080/path", 23), 0);
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_URI,
