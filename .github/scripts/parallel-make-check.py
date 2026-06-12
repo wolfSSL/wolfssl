@@ -10,6 +10,7 @@
 # "name" (unknown keys are an error, so typos do not pass silently):
 #
 #   name       unique identifier; the config builds in build-<name>/
+#              ("aux" and "test" are reserved: build-aux/, build-test/)
 #   configure  list of extra ./configure arguments
 #   cc         compiler passed to configure as CC=, overriding --cc
 #              ("" leaves CC entirely to configure / the environment)
@@ -54,6 +55,8 @@
 # fails fast; pass --no-fail-fast to run everything and report every
 # failure.
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -63,9 +66,11 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NoReturn
 
 # cflags/ldflags are applied at make time only (never to ./configure) so
 # autoconf feature detection is not poisoned by benign warnings in
@@ -74,15 +79,15 @@ from pathlib import Path
 @dataclass
 class Config:
     name: str
-    configure: list = field(default_factory=list)
+    configure: list[str] = field(default_factory=list)
     cc: str = ""
     cflags: str = ""
     ldflags: str = ""
     minutes: float = 1.0
     user_settings: str = ""
     check: bool = True
-    prepare: list = field(default_factory=list)
-    run: list = field(default_factory=list)
+    prepare: list[list[str]] = field(default_factory=list)
+    run: list[list[str]] = field(default_factory=list)
 
 SRCDIR = Path(__file__).resolve().parents[2]
 ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
@@ -93,11 +98,11 @@ print_lock = threading.Lock()
 # workers' in-flight process groups.
 stop_event = threading.Event()
 fail_lock = threading.Lock()
-live_procs = set()
+live_procs: set[subprocess.Popen] = set()
 procs_lock = threading.Lock()
 
 
-def kill_group(p, sig):
+def kill_group(p: subprocess.Popen, sig: signal.Signals) -> None:
     # Every subprocess starts its own session, so signalling the process
     # group takes down the whole make/test tree under it.
     try:
@@ -109,7 +114,7 @@ def kill_group(p, sig):
             pass
 
 
-def abort_others():
+def abort_others() -> None:
     with procs_lock:
         procs = list(live_procs)
     for p in procs:
@@ -126,7 +131,7 @@ def abort_others():
         time.sleep(0.2)
 
 
-def nproc():
+def nproc() -> int:
     # Like nproc(1): CPUs usable by this process, falling back to all online.
     try:
         return len(os.sched_getaffinity(0))
@@ -134,7 +139,8 @@ def nproc():
         return os.cpu_count() or 1
 
 
-def load_configs(opts, error):
+def load_configs(opts: argparse.Namespace,
+                 error: Callable[[str], NoReturn]) -> list[Config]:
     try:
         if opts.json == "-":
             entries = json.load(sys.stdin)
@@ -158,6 +164,12 @@ def load_configs(opts, error):
         if not isinstance(name, str) or not name or "/" in name:
             error(f"{opts.json}: every config needs a \"name\" usable as a "
                   f"directory suffix: {entry!r}")
+        # build-<name> dirs that are not ours to wipe: build-aux/ is
+        # autotools' aux-script dir (autogen.sh), build-test/ a legacy
+        # build dir (.gitignore).
+        if name in ("aux", "test"):
+            error(f"{opts.json}: reserved config name {name!r}: build-{name}/ "
+                  f"belongs to other tooling")
         if any(cfg.name == name for cfg in configs):
             error(f"{opts.json}: duplicate config name {name!r}")
         configure = entry.get("configure", [])
@@ -202,7 +214,7 @@ def load_configs(opts, error):
     return configs
 
 
-def privatize_dirs(bdir, dirs):
+def privatize_dirs(bdir: Path, dirs: list[str]) -> None:
     # Replace build-tree symlinks into the source tree with private
     # per-build-dir copies: tests that write into these directories would
     # otherwise write through the symlink into the shared source tree and
@@ -215,7 +227,7 @@ def privatize_dirs(bdir, dirs):
             shutil.copytree(SRCDIR / name, d, symlinks=True)
 
 
-def dump(title, path):
+def dump(title: str, path: Path) -> None:
     print(f"::group::{title}" if ON_GITHUB else f"==== {title} ====")
     try:
         sys.stdout.write(path.read_text(errors="replace"))
@@ -226,7 +238,8 @@ def dump(title, path):
     sys.stdout.flush()
 
 
-def run_config(cfg, opts):
+def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
+                                                               float]:
     if opts.fail_fast and stop_event.is_set():
         return "aborted", 0.0
     bdir = SRCDIR / f"build-{cfg.name}"
@@ -246,7 +259,7 @@ def run_config(cfg, opts):
     # the CPUs better than a capped -j (configs' serial phases - configure,
     # link - get backfilled by other configs' compile jobs).
     make = ["make"] + flags
-    steps = []
+    steps: list[tuple[str, list[str] | Callable[[], object]]] = []
     if cfg.user_settings:
         # Staged before configure; --enable-usersettings builds pick it up
         # from the build dir via the default include path.
@@ -264,11 +277,11 @@ def run_config(cfg, opts):
             ("make check", ["make"] + flags + ["check"]),
         ]
     steps += [(" ".join(cmd), cmd) for cmd in cfg.run]
-    failed = None
+    failed: str | None = None
     start = time.monotonic()
     log = bdir / "make-check.log"
 
-    def record_failure(step):
+    def record_failure(step: str) -> str:
         # Classify a failed step, doing the fail-fast bookkeeping: the
         # first failure wins and aborts everyone else; any failure after
         # the abort began is reported as aborted instead.
@@ -341,7 +354,8 @@ def run_config(cfg, opts):
     return failed, minutes
 
 
-def summarize(results, wall_min, cpu_min, nthreads):
+def summarize(results: list[tuple[Config, str | None, float]],
+              wall_min: float, cpu_min: float, nthreads: int) -> None:
     lines = ["| Config | Result | Minutes |", "|---|---|---|"]
     for cfg, failed, minutes in results:
         if failed == "aborted":
@@ -376,7 +390,7 @@ def summarize(results, wall_min, cpu_min, nthreads):
             print(f"### make check\n\n{table}", file=f)
 
 
-def main():
+def main() -> int:
     p = argparse.ArgumentParser(
         description="Build and make check every configuration from a JSON "
                     "file in its own out-of-tree build directory, in "
@@ -436,8 +450,8 @@ def main():
             p.error(f"--shard: expected K/N with 1 <= K <= N, "
                     f"got {opts.shard!r}")
         # Greedy multiway partition: longest first into the least-loaded
-        # shard. Deterministic, and with honest "minutes" within ~the
-        # longest config of optimal.
+        # shard. Deterministic; if the "minutes" are accurate, the worst
+        # shard ends up within about one config's minutes of optimal.
         shards, loads = [[] for _ in range(n)], [0.0] * n
         for cfg in selected:
             i = loads.index(min(loads))
@@ -460,10 +474,12 @@ def main():
     nthreads = max(1, min(opts.threads, len(selected)))
     wall_start = time.monotonic()
     cpu_start = os.times()
+    def run_one(cfg: Config) -> tuple[Config, str | None, float]:
+        failed, minutes = run_config(cfg, opts)
+        return cfg, failed, minutes
+
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
-        results = [(cfg, failed, minutes) for cfg, (failed, minutes)
-                   in zip(selected, pool.map(
-                       lambda cfg: run_config(cfg, opts), selected))]
+        results = list(pool.map(run_one, selected))
     wall_min = (time.monotonic() - wall_start) / 60
     cpu_end = os.times()
     # os.times() child counters cover the waited-for configure/make
