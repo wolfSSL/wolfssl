@@ -547,7 +547,8 @@ int test_wc_DsaExportKeyRaw(void)
     WC_RNG rng;
     byte xOut[MAX_DSA_PARAM_SIZE];
     byte yOut[MAX_DSA_PARAM_SIZE];
-    word32 xOutSz, yOutSz;
+    word32 xOutSz = sizeof(xOut);
+    word32 yOutSz = sizeof(yOut);
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(rng));
@@ -563,8 +564,6 @@ int test_wc_DsaExportKeyRaw(void)
     ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);
 
     /* try successful export */
-    xOutSz = sizeof(xOut);
-    yOutSz = sizeof(yOut);
     ExpectIntEQ(wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, &yOutSz), 0);
 
     /* test bad args */

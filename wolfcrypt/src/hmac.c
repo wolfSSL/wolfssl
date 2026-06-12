@@ -368,6 +368,7 @@ static int HmacKeyCopyHash(byte macType, wc_HmacHash* src, wc_HmacHash* dst)
     #endif
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -475,6 +476,7 @@ static int HmacKeyHashUpdate(byte macType, wc_HmacHash* hash, byte* pad)
     #endif
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 
