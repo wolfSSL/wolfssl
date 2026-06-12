@@ -510,6 +510,7 @@ int test_wc_Ed448PublicKeyToDer(void)
     ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
     ExpectIntEQ(wc_Ed448PublicKeyToDer(&key, derBuf, 0, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&key);
 
     /*  Test good args */
