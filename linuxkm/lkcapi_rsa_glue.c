@@ -797,11 +797,12 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
     }
 
     if (req->dst_len != (unsigned int)ctx->key_len) {
-        if ((req->dst_len > 0) && (req->dst_len < (unsigned int)ctx->key_len))
+        if ((req->dst_len > 0) && (req->dst_len < (unsigned int)ctx->key_len)) {
             err = -EOVERFLOW;
+            req->dst_len = ctx->key_len;
+        }
         else
             err = -EINVAL;
-        req->dst_len = ctx->key_len;
         goto rsa_dec_out;
     }
 

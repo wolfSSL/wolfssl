@@ -2905,7 +2905,7 @@ static int linuxkm_test_kpp_driver(const char * driver,
 
     req = kpp_request_alloc(tfm, GFP_KERNEL);
     if (! req) {
-        test_rc = -ENOMEM;
+        test_rc = MEMORY_E;
         pr_err("error: allocating kpp request %s failed\n",
                driver);
         goto test_kpp_end;
