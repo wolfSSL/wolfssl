@@ -1515,6 +1515,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 out:
 
     if (sg_buf) {
+        ForceZero(sg_buf, req->assoclen + req->cryptlen);
         free(sg_buf);
     }
     else {
@@ -2009,6 +2010,7 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
 out:
 
     if (sg_buf) {
+        ForceZero(sg_buf, req->assoclen + req->cryptlen);
         free(sg_buf);
     }
     else {
