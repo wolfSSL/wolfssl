@@ -230,6 +230,8 @@ static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
     case finished:
     case certificate_status:
     case key_update:
+    case request_connection_id:
+    case new_connection_id:
     case change_cipher_hs:
     case message_hash:
     case no_shake:
@@ -329,6 +331,11 @@ static byte Dtls13RtxMsgNeedsAck(WOLFSSL* ssl, enum HandShakeType hs)
 
     if (hs == session_ticket || hs == key_update)
         return 1;
+
+#ifdef WOLFSSL_DTLS_CID
+    if (hs == request_connection_id || hs == new_connection_id)
+        return 1;
+#endif
 
     return 0;
 }
@@ -1807,6 +1814,8 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
             case change_cipher_hs:
             case key_update:
             case session_ticket:
+            case request_connection_id:
+            case new_connection_id:
                 if (!w64GTE(ssl->keys.curEpoch64, t0Epoch)) {
                     WOLFSSL_MSG("Msg should be epoch 3+");
                     WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
@@ -2915,6 +2924,100 @@ int DoDtls13KeyUpdateAck(WOLFSSL* ssl)
 
     return ret;
 }
+
+#ifdef WOLFSSL_DTLS_CID
+/* RequestConnectionId: struct { uint8 num_cids; } (RFC 9147 Section 9).
+ * Responding with NewConnectionId is a SHOULD; we never send records with a
+ * CID of our choosing, so we ignore the request. */
+int DoDtls13RequestConnectionId(WOLFSSL* ssl, const byte* input,
+    word32* inOutIdx, word32 size)
+{
+    (void)ssl;
+    (void)input;
+
+    if (size != OPAQUE8_LEN) {
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        return BUFFER_ERROR;
+    }
+
+    *inOutIdx += size;
+    return 0;
+}
+
+/* NewConnectionId:
+ * struct {
+ *     ConnectionId cids<0..2^16-1>;
+ *     ConnectionIdUsage usage;
+ * } (RFC 9147 Section 9), where ConnectionId is opaque<0..2^8-1>. */
+int DoDtls13NewConnectionId(WOLFSSL* ssl, const byte* input,
+    word32* inOutIdx, word32 size)
+{
+    word32 idx = *inOutIdx;
+    const byte* newCid = NULL;
+    byte newCidLen = 0;
+    word16 cidsLen;
+    word32 i;
+    byte usage;
+    int ret;
+
+    if (size < OPAQUE16_LEN + OPAQUE8_LEN) {
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        return BUFFER_ERROR;
+    }
+
+    ato16(input + idx, &cidsLen);
+    idx += OPAQUE16_LEN;
+
+    if ((word32)cidsLen + OPAQUE16_LEN + OPAQUE8_LEN != size) {
+        WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+        return BUFFER_ERROR;
+    }
+
+    /* walk the cids list, remembering the first non-empty CID */
+    for (i = 0; i < cidsLen;) {
+        byte cidLen = input[idx + i];
+
+        i += OPAQUE8_LEN;
+        if (i + cidLen > cidsLen) {
+            WOLFSSL_ERROR_VERBOSE(BUFFER_ERROR);
+            return BUFFER_ERROR;
+        }
+        if (newCid == NULL && cidLen > 0) {
+            newCid = input + idx + i;
+            newCidLen = cidLen;
+        }
+        i += cidLen;
+    }
+    idx += cidsLen;
+
+    usage = input[idx];
+    idx += OPAQUE8_LEN;
+
+    if (usage != cid_immediate && usage != cid_spare) {
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+
+    if (usage == cid_immediate) {
+        /* one of the new CIDs MUST be used immediately for all future
+         * records */
+        if (newCid == NULL) {
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+        /* replace before the ACK for this record is sent so that the ACK
+         * already uses the new CID */
+        ret = DtlsCidReplaceTx(ssl, newCid, newCidLen);
+        if (ret != 0)
+            return ret;
+    }
+    /* cid_spare: we MAY simply discard the CIDs and keep using the
+     * current one */
+
+    *inOutIdx = idx;
+    return 0;
+}
+#endif /* WOLFSSL_DTLS_CID */
 
 int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
     word32* processedSize)

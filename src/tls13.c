@@ -13620,6 +13620,54 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             break;
 #endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_TLS12*/
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+        case request_connection_id:
+        case new_connection_id:
+        {
+            CIDInfo* cidInfo = ssl->dtlsCidInfo;
+
+            /* DTLS 1.3 only (RFC 9147) */
+            if (!ssl->options.dtls) {
+                WOLFSSL_MSG("CID message received but not DTLS");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+            }
+            /* RFC 9147 Section 9: if CIDs were not negotiated, MUST abort
+             * with an unexpected_message alert */
+            if (cidInfo == NULL || !cidInfo->negotiated) {
+                WOLFSSL_MSG("CID message received but CID not negotiated");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+            }
+            if (ssl->options.handShakeState != HANDSHAKE_DONE) {
+                WOLFSSL_MSG("CID message received out of order");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
+            if (type == request_connection_id) {
+                /* the peer MUST NOT request CIDs while sending an empty
+                 * CID itself */
+                if (cidInfo->rx == NULL || cidInfo->rx->length == 0) {
+                    WOLFSSL_MSG("RequestConnectionId from peer sending an "
+                                "empty CID");
+                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                    return SANITY_MSG_E;
+                }
+            }
+            else {
+                /* the peer MUST NOT issue CIDs after negotiating receiving
+                 * an empty CID */
+                if (cidInfo->tx == NULL || cidInfo->tx->length == 0) {
+                    WOLFSSL_MSG("NewConnectionId from peer that negotiated "
+                                "an empty CID");
+                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                    return SANITY_MSG_E;
+                }
+            }
+            break;
+        }
+#endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CID */
+
         default:
             WOLFSSL_MSG("Unknown message type");
             WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
@@ -13682,7 +13730,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.handShakeState == HANDSHAKE_DONE &&
             type != session_ticket && type != certificate_request &&
-            type != certificate && type != key_update && type != finished) {
+            type != certificate && type != key_update && type != finished
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+            && type != request_connection_id && type != new_connection_id
+#endif
+            ) {
         WOLFSSL_MSG("HandShake message after handshake complete");
         SendAlert(ssl, alert_fatal, unexpected_message);
         WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
@@ -13865,6 +13917,18 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoTls13KeyUpdate(ssl, input, inOutIdx, size);
         break;
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+    case request_connection_id:
+        WOLFSSL_MSG("processing request connection id");
+        ret = DoDtls13RequestConnectionId(ssl, input, inOutIdx, size);
+        break;
+
+    case new_connection_id:
+        WOLFSSL_MSG("processing new connection id");
+        ret = DoDtls13NewConnectionId(ssl, input, inOutIdx, size);
+        break;
+#endif /* WOLFSSL_DTLS13 && WOLFSSL_DTLS_CID */
+
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT)
     case hello_verify_request:
@@ -13897,7 +13961,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 #endif
     if (ret == 0 && type != client_hello && type != session_ticket &&
-                                                           type != key_update) {
+                                                           type != key_update
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CID)
+            && type != request_connection_id && type != new_connection_id
+#endif
+            ) {
         ret = HashInput(ssl, input + inIdx, (int)size);
     }
 

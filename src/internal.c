@@ -11886,6 +11886,8 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case finished:
             case certificate_status:
             case key_update:
+            case request_connection_id:
+            case new_connection_id:
                 if (!encrypted) {
                     WOLFSSL_MSG("Message always has to be encrypted");
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
@@ -11946,6 +11948,8 @@ int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
             case key_update:
             case encrypted_extensions:
             case end_of_early_data:
+            case request_connection_id:
+            case new_connection_id:
             case message_hash:
             case no_shake:
             default:
@@ -11994,6 +11998,8 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case certificate_status:
                 case key_update:
                 case change_cipher_hs:
+                case request_connection_id:
+                case new_connection_id:
                     break;
                 case server_hello_done:
                 case message_hash:
@@ -12031,6 +12037,8 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
                 case hello_retry_request:
                 case encrypted_extensions:
                 case key_update:
+                case request_connection_id:
+                case new_connection_id:
                 case message_hash:
                 case no_shake:
                 default:
@@ -12067,6 +12075,8 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
             case key_update:
             case change_cipher_hs:
                 break;
+            case request_connection_id:
+            case new_connection_id:
             case message_hash:
             case no_shake:
             default:
