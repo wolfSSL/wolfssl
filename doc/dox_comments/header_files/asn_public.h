@@ -2761,6 +2761,7 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
     \param key Ed25519 key structure with public key
     \param output Buffer for DER encoded public key
     \param outLen Size of output buffer
+    \param withAlg Whether to use SubjectPublicKeyInfo format.
 
     _Example_
     \code
@@ -2773,7 +2774,7 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
     \sa wc_Ed25519PublicKeyDecode
 */
 int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
-                              word32 outLen);
+        word32 outLen, int withAlg);
 
 /*!
     \ingroup Ed448
