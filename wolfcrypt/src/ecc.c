@@ -9664,9 +9664,10 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     alt_fp_init(point->z);
 #else
     err = mp_init_multi(point->x, point->y, point->z, NULL, NULL, NULL);
-#endif
+
     if (err != MP_OKAY)
         return MEMORY_E;
+#endif
 
     /* check for point type (4, 2, or 3) */
     pointType = in[0];
@@ -10935,9 +10936,10 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
                                                                 key->kb, key->ku
     #endif
                             );
+
+        if (err != MP_OKAY)
+            return MEMORY_E;
     #endif
-    if (err != MP_OKAY)
-        return MEMORY_E;
 #ifdef WOLFSSL_ECC_BLIND_K
     mp_forcezero(key->kb);
 #endif
@@ -11999,9 +12001,10 @@ static int _ecc_import_raw_private(ecc_key* key, const char* qx,
                                                                 key->kb, key->ku
 #endif
                         );
-#endif
+
     if (err != MP_OKAY)
         return MEMORY_E;
+#endif
 #ifdef WOLFSSL_ECC_BLIND_K
     mp_forcezero(key->kb);
 #endif
