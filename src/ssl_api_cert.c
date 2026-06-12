@@ -505,6 +505,38 @@ int wolfSSL_set_expected_rpk(WOLFSSL* ssl, const unsigned char* spki,
     ret = rpk_add_expected(&ssl->options.rpkConfig, spki, spkiSz);
     return (ret == 0) ? WOLFSSL_SUCCESS : ret;
 }
+
+/* Remove all pinned expected peer Raw Public Keys from the SSL/TLS CTX object,
+ * so the table can be repopulated (e.g. across a peer key rotation).
+ *
+ * @param [in] ctx  SSL/TLS CTX object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_clear_expected_rpk(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ctx->rpkConfig.expectedRpkCnt = 0;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Remove all pinned expected peer Raw Public Keys from the SSL/TLS object, so
+ * the table can be repopulated (e.g. across a peer key rotation).
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_clear_expected_rpk(WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ssl->options.rpkConfig.expectedRpkCnt = 0;
+    return WOLFSSL_SUCCESS;
+}
 #endif /* !NO_SHA256 */
 #endif /* HAVE_RPK */
 

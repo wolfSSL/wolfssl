@@ -122,6 +122,20 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request num
 
 * **BREAKING (FIPS 205 SLH-DSA)**: `wc_SlhDsaKey_SignHash`, `wc_SlhDsaKey_SignHashDeterministic`, `wc_SlhDsaKey_SignHashWithRandom`, and `wc_SlhDsaKey_VerifyHash` now take the **caller-pre-hashed message digest** via `hash`/`hashSz` parameters (renamed from `msg`/`msgSz`), aligned with ML-DSA's `wc_dilithium_sign_ctx_hash` / `wc_dilithium_verify_ctx_hash` semantics, and NIST ACVP `signatureInterface=external` / `preHash=preHash` test vectors. `hashSz` must equal `wc_HashGetDigestSize(hashType)` (32 bytes for SHAKE128, 64 bytes for SHAKE256 per FIPS 205 Section 10.2.2); otherwise `BAD_LENGTH_E` is returned. Migration: hash the message yourself before the call (callers using positional arguments are source-compatible; only the parameter names changed). Caveat: callers who today pass a raw message whose length happens to equal the digest size for the chosen `hashType` (e.g., signing a 32-byte handle/IV/seed with `WC_HASH_TYPE_SHA256`) will not trip `BAD_LENGTH_E`; the resulting signature is syntactically valid but is over the wrong bytes. The pre-existing `wc_SlhDsaKey_SignMsgDeterministic` and `wc_SlhDsaKey_SignMsgWithRandom` retain their M'-supplied-directly contract (FIPS 205 internal interface, Algorithm 19); their input validation is hardened with the same NULL/length/`MISSING_KEY` checks as the `*Hash*` family. `wc_SlhDsaKey_VerifyMsg` is unchanged. All three gain doxygen coverage. (PR 10450, PR 10465)
 
+* **Behavioral change (Raw Public Key fail-closed)**: With `HAVE_RPK`, a peer
+  that presents a Raw Public Key (RFC 7250) is no longer silently accepted while
+  it is being authenticated. Previously an RPK handshake always completed and
+  the application validated the key out of band afterward (e.g. via
+  `wolfSSL_get_verify_result()`); it now fails closed (with `RPK_UNTRUSTED_E`,
+  reported as `WOLFSSL_X509_V_ERR_RPK_UNTRUSTED`) whenever the peer is being
+  authenticated, i.e. any verify mode other than `WOLFSSL_VERIFY_NONE`. This
+  applies to all `HAVE_RPK` builds, including those without `OPENSSL_EXTRA` (no
+  prior untrusted-RPK handling) and `NO_SHA256` builds (no in-library pinning).
+  To establish trust, pin the expected key with the new
+  `wolfSSL_set_expected_rpk()` / `wolfSSL_CTX_set_expected_rpk()` APIs
+  (requires SHA-256), install a verify callback that accepts the key, or set
+  `WOLFSSL_VERIFY_NONE` to accept without authentication.
+
 * **Behavioral change (RSA-PSS trailerField enforcement)**: `DecodeRsaPssParams`
   (and its public wrapper `wc_DecodeRsaPssParams`) now enforces RFC 8017 A.2.3,
   which mandates `trailerField == trailerFieldBC(1)`.  In the default build

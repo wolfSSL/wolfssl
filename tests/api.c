@@ -28296,7 +28296,12 @@ static int error_test(void)
         }
     }
 
-#if defined(OPENSSL_EXTRA)
+    /* Guard matches the compilation condition of the OpenSSL-style reason
+     * strings (wolfSSL_ERR_reason_error_string_OpenSSL), so the RPK string is
+     * exercised in OPENSSL_EXTRA_X509_SMALL / webserver / memcached builds too,
+     * not only OPENSSL_EXTRA. */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
     /* WOLFSSL_X509_V_ERR_RPK_UNTRUSTED is >= WC_OSSL_V509_V_ERR_MAX, so it is
      * intentionally outside the contiguous sweep above. Check its reason string
      * explicitly so it cannot regress silently. error_test() is invoked as

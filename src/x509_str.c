@@ -282,6 +282,12 @@ int GetX509Error(int e)
         case WC_NO_ERR_TRACE(ASN_NO_SIGNER_E):
             /* get issuer error if no CA found locally */
             return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
+        case WC_NO_ERR_TRACE(RPK_UNTRUSTED_E):
+            /* RFC 7250 Raw Public Key not trusted out of band. Distinct from
+             * the X.509 issuer-lookup error above so verify callbacks that
+             * accept ASN_NO_SIGNER_E / UNABLE_TO_GET_ISSUER_CERT_LOCALLY do not
+             * accidentally accept an unauthenticated RPK. */
+            return WOLFSSL_X509_V_ERR_RPK_UNTRUSTED;
         case WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E):
             return WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
         case WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E):

@@ -2965,6 +2965,27 @@ static int test_rpk_accept_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
     (void)store;
     return 1;
 }
+
+/* Mimics a real-world X.509 verify callback that accepts ONLY the "issuer not
+ * found locally" errors (the pattern used elsewhere to allow an unchained or
+ * self-signed leaf). It must NOT rescue an untrusted RPK: because the RPK
+ * failure now reports WOLFSSL_X509_V_ERR_RPK_UNTRUSTED (not the X.509
+ * issuer-lookup codes), these checks no longer match and the RPK stays rejected.
+ * Returns 1 (accept) only for the X.509 issuer codes, otherwise rejects. */
+static int test_rpk_x509_issuer_accept_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    if ((store->error == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E))
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        || (store->error ==
+                WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+#endif
+        ) {
+        return 1; /* would wrongly accept an RPK that reused these codes */
+    }
+    return 0; /* reject everything else, including WOLFSSL_X509_V_ERR_RPK_* */
+}
 #endif /* HAVE_RPK && WOLFSSL_TLS13 && client && server && !NO_SHA256 */
 
 #if defined(HAVE_RPK) && \
@@ -3188,6 +3209,31 @@ int test_tls13_rpk_trust(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 
+    /* --- a callback that accepts only X.509 issuer-lookup errors must NOT
+     * rescue an untrusted RPK: the RPK failure reports its own error code, so
+     * the callback's X.509 checks do not match and the handshake fails closed.
+     * (Would complete if the RPK reused ASN_NO_SIGNER_E / the issuer-lookup
+     * verify-result code.) --- */
+    ctx_c = ctx_s = NULL;
+    ssl_c = ssl_s = NULL;
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_rpk_nopin_setup(&test_ctx, &ctx_c, &ctx_s,
+                &ssl_c, &ssl_s, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER,
+                       test_rpk_x509_issuer_accept_cb);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER,
+                       test_rpk_x509_issuer_accept_cb);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    ExpectIntEQ(wolfSSL_get_verify_result(ssl_c),
+                WOLFSSL_X509_V_ERR_RPK_UNTRUSTED);
+#endif
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
     /* --- SSL-level pin via wolfSSL_set_expected_rpk() -> V_OK --- */
     ctx_c = ctx_s = NULL;
     ssl_c = ssl_s = NULL;
@@ -3257,7 +3303,35 @@ int test_tls13_rpk_trust(void)
     }
     ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, svrSpki,
                 (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BUFFER_E));
+    /* clear empties the (full) table so an add succeeds again */
+    ExpectIntEQ(wolfSSL_clear_expected_rpk(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_clear_expected_rpk(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_expected_rpk(ssl_c, svrSpki,
+                (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
     wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+
+    /* same argument/capacity errors for the CTX-level wrapper */
+    ctx_c = NULL;
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(NULL, svrSpki,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, NULL,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    for (i = 0; i < WOLFSSL_MAX_RPK_PINS; i++) {
+        ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki,
+                    (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki,
+                (unsigned int)svrSpkiSz), WC_NO_ERR_TRACE(BUFFER_E));
+    /* clear empties the (full) table so an add succeeds again */
+    ExpectIntEQ(wolfSSL_CTX_clear_expected_rpk(NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_clear_expected_rpk(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_expected_rpk(ctx_c, svrSpki,
+                (unsigned int)svrSpkiSz), WOLFSSL_SUCCESS);
     wolfSSL_CTX_free(ctx_c);
 
     XFREE(svrSpki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
