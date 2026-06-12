@@ -965,11 +965,24 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
     }
 
+    /* Zeroize the secret seed material in rho||sigma (sigma) before return. */
+    ForceZero(buf, sizeof(buf));
+#ifdef WC_MLKEM_FAULT_HARDEN
+    ForceZero(sigma, sizeof(sigma));
+#endif
+
 #ifndef WOLFSSL_NO_MALLOC
     /* Free dynamic memory allocated in function. */
-    if (key != NULL) {
+    if (e != NULL) {
+        /* e holds the secret noise vector; zeroize before release. The
+         * (public) matrix A may follow it in the same allocation but does
+         * not need clearing. */
+        ForceZero(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
         XFREE(e, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
+#else
+    /* e is a stack buffer holding the secret noise vector; zeroize it. */
+    ForceZero(e, (size_t)(k * MLKEM_N) * sizeof(sword16));
 #endif
 
     /* Note: PCT is performed in wc_MlKemKey_MakeKey() which calls this
