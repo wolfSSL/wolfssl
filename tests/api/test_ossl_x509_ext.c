@@ -2243,6 +2243,71 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
     x509 = NULL;
     nc = NULL;
 
+    /* Wildcard names against an excluded DNS subtree. Build the constraints
+     * programmatically: excluded;DNS:foo.example.com */
+    ExpectNotNull(nc = wolfSSL_NAME_CONSTRAINTS_new());
+    if (EXPECT_SUCCESS()) {
+        GENERAL_SUBTREE* subtree = NULL;
+
+        ExpectNotNull(nc->excludedSubtrees = wolfSSL_sk_new_null());
+        if (EXPECT_SUCCESS()) {
+            nc->excludedSubtrees->type = STACK_TYPE_GENERAL_SUBTREE;
+        }
+        ExpectNotNull(subtree = wolfSSL_GENERAL_SUBTREE_new());
+        if (EXPECT_SUCCESS()) {
+            ExpectNotNull(subtree->base = wolfSSL_GENERAL_NAME_new());
+        }
+        if (EXPECT_SUCCESS()) {
+            subtree->base->type = GEN_DNS;
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "foo.example.com", 15), WOLFSSL_SUCCESS);
+        }
+        if (EXPECT_SUCCESS()) {
+            ExpectIntGT(wolfSSL_sk_push(nc->excludedSubtrees, subtree), 0);
+        }
+        if (EXPECT_FAIL()) {
+            wolfSSL_GENERAL_SUBTREE_free(subtree);
+        }
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* Literal names inside the excluded subtree are rejected. */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "foo.example.com", 15), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "a.foo.example.com", 17), 0);
+        /* Names outside the subtree pass; there are no permitted subtrees. */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "bar.example.com", 15), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "*.other.com", 11), 1);
+        /* A wildcard's '*' can expand to "foo", so "*.example.com" covers
+         * the excluded "foo.example.com" and must be rejected. */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "*.example.com", 13), 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* One trailing dot on the base is the absolute-FQDN marker:
+         * excluded;DNS:foo.example.com. covers the same subtree, so the
+         * bare name is still rejected. */
+        GENERAL_SUBTREE* subtree = NULL;
+
+        ExpectNotNull(subtree =
+            wolfSSL_sk_GENERAL_SUBTREE_value(nc->excludedSubtrees, 0));
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "foo.example.com.", 16), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "foo.example.com", 15), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "bar.example.com", 15), 1);
+    }
+
+    NAME_CONSTRAINTS_free(nc);
+    nc = NULL;
+
     /* Test IP address constraint checking with cert-ext-ncip.pem
      * This cert has permitted IP 192.168.1.0/255.255.255.0 */
     if ((f = XFOPEN("./certs/test/cert-ext-ncip.pem", "rb")) == XBADFILE) {

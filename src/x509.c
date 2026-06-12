@@ -5671,9 +5671,11 @@ static int MatchIpName(const char* name, int nameSz, WOLFSSL_GENERAL_NAME* gn)
 }
 
 /* Helper to check if name string matches a single GENERAL_NAME constraint.
+ * permitted selects subtree semantics for wildcard DNS names: containment
+ * for permitted subtrees, intersection for excluded subtrees.
  * Returns 1 if matches, 0 if not. */
 static int MatchNameConstraint(int type, const char* name, int nameSz,
-    WOLFSSL_GENERAL_NAME* gn)
+    WOLFSSL_GENERAL_NAME* gn, int permitted)
 {
     const char* baseStr;
     int baseLen;
@@ -5708,8 +5710,8 @@ static int MatchNameConstraint(int type, const char* name, int nameSz,
             }
             else {
                 /* WOLFSSL_GEN_DNS uses DNS-style matching */
-                return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, name, nameSz,
-                    baseStr, baseLen);
+                return wolfssl_local_MatchDnsNameConstraint(name, nameSz,
+                    baseStr, baseLen, permitted);
             }
 
         default:
@@ -5795,7 +5797,7 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
             }
             hasPermittedType = 1;
 
-            if (MatchNameConstraint(type, name, nameSz, gn)) {
+            if (MatchNameConstraint(type, name, nameSz, gn, 1)) {
                 matchedPermitted = 1;
                 break;
             }
@@ -5822,7 +5824,7 @@ int wolfSSL_NAME_CONSTRAINTS_check_name(WOLFSSL_NAME_CONSTRAINTS* nc,
                 continue;
             }
 
-            if (MatchNameConstraint(type, name, nameSz, gn)) {
+            if (MatchNameConstraint(type, name, nameSz, gn, 0)) {
                 WOLFSSL_MSG("Name in excluded subtrees");
                 return 0;
             }
