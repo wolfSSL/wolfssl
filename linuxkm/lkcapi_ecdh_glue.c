@@ -382,6 +382,7 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
 {
     struct km_ecdh_ctx * ctx = NULL;
     int                   ret = 0;
+    int key_inited = 0;
 
     ctx = kpp_tfm_ctx(tfm);
     memset(ctx, 0, sizeof(struct km_ecdh_ctx));
@@ -410,23 +411,23 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
 
     ctx->key = (ecc_key *)malloc(sizeof(ecc_key));
     if (!ctx->key) {
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
 
     ret = wc_ecc_init(ctx->key);
     if (ret < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
+
+    key_inited = 1;
 
     #ifdef ECC_TIMING_RESISTANT
     ret = wc_ecc_set_rng(ctx->key, &ctx->rng);
     if (ret < 0) {
-        wc_ecc_free(ctx->key);
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
     #endif /* ECC_TIMING_RESISTANT */
 
@@ -434,7 +435,20 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     pr_info("info: exiting km_ecdh_init: curve_id %d,  curve_len %d\n",
             ctx->curve_id, ctx->curve_len);
     #endif /* WOLFKM_DEBUG_ECDH */
-    return 0;
+
+out:
+
+    if (ret != 0) {
+        if (ctx->key) {
+            if (key_inited)
+                wc_ecc_free(ctx->key);
+            free(ctx->key);
+            ctx->key = NULL;
+        }
+        wc_FreeRng(&ctx->rng);
+    }
+
+    return ret;
 }
 
 #if defined(LINUXKM_ECC192)
