@@ -44,8 +44,6 @@
 #endif
 
 typedef struct nxp_hwpuf_ctx {
-    byte activationCode[PUF_ACTIVATION_CODE_SIZE];
-    byte ac_set;
     word32 keyMask; /* unique per reset */
 } nxp_hwpuf_ctx;
 
@@ -66,12 +64,12 @@ static int getACFromPFR(byte *ac)
     return ret != kStatus_Success;
 }
 
-static int keyCodeCheck(byte* keycode, word32* keytype,
+static int keyCodeCheck(byte* keyCode, word32* keytype,
                         word32* keyidx, word32* keysize)
 {
-    *keytype = keycode[0];
-    *keyidx = keycode[1];
-    *keysize = keycode[3] == 0 ? 512 : 8 * keycode[3] ;
+    *keytype = keyCode[0];
+    *keyidx = keyCode[1];
+    *keysize = keyCode[3] == 0 ? 512 : 8 * keyCode[3] ;
 
     if (*keytype >= 2)
         return 1;
@@ -111,37 +109,32 @@ static int nxp_hwpuf_Deinit(wc_HWPUF* hwpuf)
     return 0;
 }
 
-static int nxp_hwpuf_Enroll(wc_HWPUF* hwpuf)
+static int nxp_hwpuf_Enroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
 {
     int ret;
-    byte activationCode[PUF_ACTIVATION_CODE_SIZE];
 
     WOLFSSL_ENTER("nxp_hwpuf_Enroll");
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
 
-    ret = PUF_Enroll(PUF, activationCode, sizeof(activationCode));
+    ret = PUF_Enroll(PUF, actCode, actCodeSz);
     if (ret == kStatus_EnrollNotAllowed) {
         /* power cycle and try again */
         (void)PUF_PowerCycle(PUF, &conf);
-        ret = PUF_Enroll(PUF, activationCode, sizeof(activationCode));
+        ret = PUF_Enroll(PUF, actCode, actCodeSz);
     }
     if (ret != kStatus_Success) {
-        PUF_Deinit(PUF, &conf);
         return HWPUF_ENROLL_E;
     }
 
     /* wipe ctx if enroll succeeded (re-enroll will render ctx moot) */
     XMEMSET(&ctx, 0, sizeof(ctx));
-    /* store activation code */
-    XMEMCPY(ctx.activationCode, activationCode, PUF_ACTIVATION_CODE_SIZE);
-    ctx.ac_set = 1;
 
     return 0;
 }
 
-static int nxp_hwpuf_Start(wc_HWPUF* hwpuf)
+static int nxp_hwpuf_Start(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz)
 {
     int ret;
 
@@ -150,25 +143,13 @@ static int nxp_hwpuf_Start(wc_HWPUF* hwpuf)
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
 
-    if (ctx.ac_set == 0) {
-        byte activationCode[PUF_ACTIVATION_CODE_SIZE];
-        /* try pulling from mfg flash area (what rom code uses) */
-        if (getACFromPFR(activationCode) != 0)
-            return HWPUF_START_E;
-
-        XMEMCPY(ctx.activationCode, activationCode,
-                PUF_ACTIVATION_CODE_SIZE);
-        ctx.ac_set = 1;
-    }
-
-    ret = PUF_Start(PUF, ctx.activationCode, PUF_ACTIVATION_CODE_SIZE);
+    ret = PUF_Start(PUF, actCode, actCodeSz);
     if (ret == kStatus_StartNotAllowed) {
         /* power cycle and try again */
         (void)PUF_PowerCycle(PUF, &conf);
-        ret = PUF_Start(PUF, ctx.activationCode, PUF_ACTIVATION_CODE_SIZE);
+        ret = PUF_Start(PUF, actCode, actCodeSz);
     }
     if (ret != kStatus_Success) {
-        PUF_Deinit(PUF, &conf);
         return HWPUF_START_E;
     }
 
@@ -176,7 +157,7 @@ static int nxp_hwpuf_Start(wc_HWPUF* hwpuf)
 }
 
 static int nxp_hwpuf_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
-                                 byte* keycode, word32 keycodeSz)
+                                 byte* keyCode, word32 keyCodeSz)
 {
     int ret;
     word32 kcSz;
@@ -190,11 +171,11 @@ static int nxp_hwpuf_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
     if ( !HWPUF_KEY_SIZE_IS_VALID(keySz) )
         return BAD_FUNC_ARG;
     kcSz = PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(keySz);
-    if (keycode == NULL || kcSz != keycodeSz)
+    if (keyCode == NULL || kcSz != keyCodeSz)
         return BAD_FUNC_ARG;
 
     ret = PUF_SetIntrinsicKey(PUF, (puf_key_index_register_t)keyIdx, keySz,
-                              keycode, keycodeSz);
+                              keyCode, keyCodeSz);
     if (ret != kStatus_Success)
         return HWPUF_GENERATE_KEY_E;
 
@@ -203,17 +184,17 @@ static int nxp_hwpuf_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
 
 static int nxp_hwpuf_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
                             byte* key, word32 keySz,
-                            byte* keycode, word32 keycodeSz)
+                            byte* keyCode, word32 keyCodeSz)
 {
     WOLFSSL_ENTER("nxp_hwpuf_SetKey");
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
 
-    return 0;
+    return CRYPTOCB_UNAVAILABLE;
 }
 
-static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keycode, word32 keycodeSz,
+static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,
                             byte* key, word32 keySz)
 {
     int ret;
@@ -224,15 +205,15 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keycode, word32 keycodeSz,
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
-    if (keycode == NULL || keycodeSz < PUF_MIN_KEY_CODE_SIZE)
+    if (keyCode == NULL || keyCodeSz < PUF_MIN_KEY_CODE_SIZE)
         return BAD_FUNC_ARG;
 
-    ret = keyCodeCheck(keycode, &keytype, &keyidx, &keysize);
+    ret = keyCodeCheck(keyCode, &keytype, &keyidx, &keysize);
     if (ret != kStatus_Success)
         return BAD_FUNC_ARG;
 
     kcSz = PUF_GET_KEY_CODE_SIZE_FOR_KEY_SIZE(keysize);
-    if (kcSz != keycodeSz)
+    if (kcSz != keyCodeSz)
         return BAD_FUNC_ARG;
     if (keyidx != kPUF_KeyIndex_00 && (key == NULL || keysize != keySz))
         return BAD_FUNC_ARG;
@@ -240,7 +221,7 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keycode, word32 keycodeSz,
     /* keyidx 0 means key is sent directly on hw bus, never exposed */
     if (keyidx == kPUF_KeyIndex_00) {
         /* keyslot 0 means send to aes engine */
-        ret = PUF_GetHwKey(PUF, keycode, keycodeSz, kPUF_KeySlot0,
+        ret = PUF_GetHwKey(PUF, keyCode, keyCodeSz, kPUF_KeySlot0,
                            ctx.keyMask);
         if (ret != kStatus_Success)
             return HWPUF_GET_KEY_E;
@@ -248,7 +229,7 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keycode, word32 keycodeSz,
             XMEMSET(key, 0, keySz); /* no key to return, zero out */
     }
     else {
-        ret = PUF_GetKey(PUF, keycode, keycodeSz, key, keySz);
+        ret = PUF_GetKey(PUF, keyCode, keyCodeSz, key, keySz);
         if (ret != kStatus_Success)
             return HWPUF_GET_KEY_E;
     }
@@ -257,6 +238,8 @@ static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keycode, word32 keycodeSz,
 
 static int nxp_hwpuf_Zeroize(wc_HWPUF* hwpuf)
 {
+    int ret;
+
     WOLFSSL_ENTER("nxp_hwpuf_Zeroize");
 
     if (hwpuf == NULL)
@@ -264,8 +247,9 @@ static int nxp_hwpuf_Zeroize(wc_HWPUF* hwpuf)
 
     ForceZero(&ctx, sizeof(ctx));
 
-    if (PUF_Zeroize(PUF) != kStatus_Success) {
-        PUF_Deinit(PUF, &conf);
+    ret = PUF_Zeroize(PUF);
+    PUF_Deinit(PUF, &conf);
+    if (ret != kStatus_Success) {
         return HWPUF_ZEROIZE_E;
     }
     return 0;
@@ -295,30 +279,34 @@ static int nxp_hwpuf_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
         ret = nxp_hwpuf_Deinit(info->hwpuf.hwpuf);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_ENROLL) {
-        ret = nxp_hwpuf_Enroll(info->hwpuf.hwpuf);
+        ret = nxp_hwpuf_Enroll(info->hwpuf.hwpuf,
+                               info->hwpuf.op.enroll.actCode,
+                               info->hwpuf.op.enroll.actCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_START) {
-        ret = nxp_hwpuf_Start(info->hwpuf.hwpuf);
+        ret = nxp_hwpuf_Start(info->hwpuf.hwpuf,
+                              info->hwpuf.op.start.actCode,
+                              info->hwpuf.op.start.actCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_GENERATE_KEY) {
         ret = nxp_hwpuf_GenerateKey(info->hwpuf.hwpuf,
-                                    info->hwpuf.op.generateKey.keyIdx,
-                                    info->hwpuf.op.generateKey.keySz,
-                                    info->hwpuf.op.generateKey.keycode,
-                                    info->hwpuf.op.generateKey.keycodeSz);
+                                info->hwpuf.op.generateKey.keyIdx,
+                                info->hwpuf.op.generateKey.keySz,
+                                info->hwpuf.op.generateKey.keyCode,
+                                info->hwpuf.op.generateKey.keyCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_SET_KEY) {
         ret = nxp_hwpuf_SetKey(info->hwpuf.hwpuf,
                                info->hwpuf.op.setKey.keyIdx,
                                info->hwpuf.op.setKey.key,
                                info->hwpuf.op.setKey.keySz,
-                               info->hwpuf.op.setKey.keycode,
-                               info->hwpuf.op.setKey.keycodeSz);
+                               info->hwpuf.op.setKey.keyCode,
+                               info->hwpuf.op.setKey.keyCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_GET_KEY) {
         ret = nxp_hwpuf_GetKey(info->hwpuf.hwpuf,
-                               info->hwpuf.op.getKey.keycode,
-                               info->hwpuf.op.getKey.keycodeSz,
+                               info->hwpuf.op.getKey.keyCode,
+                               info->hwpuf.op.getKey.keyCodeSz,
                                info->hwpuf.op.getKey.key,
                                info->hwpuf.op.getKey.keySz);
     }
@@ -336,6 +324,9 @@ WOLFSSL_API int nxp_hwpuf_RegisterDevice(wc_HWPUF* hwpuf)
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
+
+    if (hwpuf->devId == INVALID_DEVID)
+        hwpuf->devId = WOLFSSL_NXP_HWPUF_DEVID;
 
     ret = wc_CryptoCb_RegisterDevice(hwpuf->devId, nxp_hwpuf_CryptoDevCb, NULL);
     if (ret != 0) {

@@ -24,14 +24,22 @@
 #define WOLF_CRYPT_HWPUF_H
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef WOLFSSL_HWPUF
-
-#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#ifdef WOLFSSL_NXP_HWPUF
+    #define HWPUF_ACTIVATION_CODE_SIZE 1192
+    /* keyCode size is 52 for key sizes of 16, 24, or 32 */
+    #define HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(keysz) 52
+#else
+    #error HWPUF: No valid port defined
+#endif
+
 
 /* flags stored in wc_HWPUF.flags */
 enum wc_HwpufFlags {
@@ -57,6 +65,7 @@ enum wc_HwpufType {
 };
 
 typedef struct wc_HWPUF {
+    int registered;
     word32 flags;
     int devId;
     void* heap;
@@ -67,16 +76,18 @@ WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf);
 
 WOLFSSL_API int wc_HWPUF_Init(wc_HWPUF* hwpuf);
 WOLFSSL_API int wc_HWPUF_Deinit(wc_HWPUF* hwpuf);
-WOLFSSL_API int wc_HWPUF_Enroll(wc_HWPUF* hwpuf);
-WOLFSSL_API int wc_HWPUF_Start(wc_HWPUF* hwpuf);
+WOLFSSL_API int wc_HWPUF_Enroll(wc_HWPUF* hwpuf,
+                                byte* actCode, word32 actCodeSz);
+WOLFSSL_API int wc_HWPUF_Start(wc_HWPUF* hwpuf,
+                                byte* actCode, word32 actCodeSz);
 WOLFSSL_API int wc_HWPUF_GenerateKey(wc_HWPUF* hwpuf,
                                 byte keyIdx, word32 keySz,
-                                byte* keycode, word32 keycodeSz);
+                                byte* keyCode, word32 keyCodeSz);
 WOLFSSL_API int wc_HWPUF_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
                                 byte* key, word32 keySz,
-                                byte* keycode, word32 keycodeSz);
+                                byte* keyCode, word32 keyCodeSz);
 WOLFSSL_API int wc_HWPUF_GetKey(wc_HWPUF* hwpuf,
-                                byte* keycode, word32 keycodeSz,
+                                byte* keyCode, word32 keyCodeSz,
                                 byte* key, word32 keySz);
 WOLFSSL_API int wc_HWPUF_Zeroize(wc_HWPUF* hwpuf);
 

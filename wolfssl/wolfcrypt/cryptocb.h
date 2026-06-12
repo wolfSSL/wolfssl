@@ -585,21 +585,29 @@ typedef struct wc_CryptoInfo {
         const void* ctx;        /* read-only caller context */
         union {
             struct {
+                byte*   actCode;
+                word32  actCodeSz;
+            } enroll;
+            struct {
+                byte*   actCode;
+                word32  actCodeSz;
+            } start;
+            struct {
                 byte    keyIdx;
                 word32  keySz;
-                byte*   keycode;
-                word32  keycodeSz;
+                byte*   keyCode;
+                word32  keyCodeSz;
             } generateKey;
             struct {
                 byte    keyIdx;
                 byte*   key;
                 word32  keySz;
-                byte*   keycode;
-                word32  keycodeSz;
+                byte*   keyCode;
+                word32  keyCodeSz;
             } setKey;
             struct {
-                byte*   keycode;
-                word32  keycodeSz;
+                byte*   keyCode;
+                word32  keyCodeSz;
                 byte*   key;
                 word32  keySz;
             } getKey;
@@ -979,15 +987,17 @@ WOLFSSL_LOCAL int wc_CryptoCb_SheExportKey(wc_SHE* she,
 #ifdef WOLFSSL_HWPUF
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufInit(wc_HWPUF* hwpuf);
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufDeinit(wc_HWPUF* hwpuf);
-WOLFSSL_LOCAL int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf);
-WOLFSSL_LOCAL int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufEnroll(wc_HWPUF* hwpuf,
+                                byte* actCode, word32 actCodeSz);
+WOLFSSL_LOCAL int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf,
+                                byte* actCode, word32 actCodeSz);
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx,
-                                word32 keySz, byte* keycode, word32 keycodeSz);
+                                word32 keySz, byte* keyCode, word32 keyCodeSz);
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufSetKey(wc_HWPUF* hwpuf, byte keyIdx,
                                 byte* key, word32 keySz,
-                                byte* keycode, word32 keycodeSz);
+                                byte* keyCode, word32 keyCodeSz);
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
-                                byte* keycode, word32 keycodeSz,
+                                byte* keyCode, word32 keyCodeSz,
                                 byte* key, word32 keySz);
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufZeroize(wc_HWPUF* hwpuf);
 #endif /* WOLFSSL_HWPUF */

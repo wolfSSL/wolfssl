@@ -713,6 +713,9 @@ const char* wc_GetErrorString(int error)
     case PUF_IDENTITY_E:
         return "PUF identity retrieval failed";
 
+    case HWPUF_REGISTER_E:
+        return "HWPUF registration failed";
+
     case HWPUF_INIT_E:
         return "HWPUF initialization failed";
 

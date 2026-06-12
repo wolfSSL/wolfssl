@@ -33,6 +33,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* The various supported device ports...  One must be defined. */
 #ifdef WOLFSSL_NXP_HWPUF
     #include <wolfssl/wolfcrypt/port/nxp/hwpuf_port.h>
 #endif
@@ -40,41 +41,40 @@
 
 WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 {
-    int ret = 0;
+    int ret = CRYPTOCB_UNAVAILABLE;
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
-    if (devId == INVALID_DEVID)
-        return BAD_FUNC_ARG;
+    if (hwpuf->registered)
+        return HWPUF_REGISTER_E;
 
     ForceZero(hwpuf, sizeof(wc_HWPUF));
     hwpuf->heap = heap;
     hwpuf->devId = devId;
 
 #ifdef WOLFSSL_NXP_HWPUF
-    if (devId == WOLFSSL_NXP_HWPUF_DEVID) {
-        ret = nxp_hwpuf_RegisterDevice(hwpuf);
-    }
-#else
-    #error No hwpuf device defined
+    ret = nxp_hwpuf_RegisterDevice(hwpuf);
 #endif
 
+    if (ret == 0)
+        hwpuf->registered = 1;
+    else
+        ForceZero(hwpuf, sizeof(wc_HWPUF));
+        
     return ret;
 }
 
 WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf)
 {
-    int ret = 0;
+    int ret = CRYPTOCB_UNAVAILABLE;
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
+    if (!hwpuf->registered)
+        return 0;
 
 #ifdef WOLFSSL_NXP_HWPUF
-    if (hwpuf->devId == WOLFSSL_NXP_HWPUF_DEVID) {
-        ret = nxp_hwpuf_UnregisterDevice(hwpuf);
-    }
-#else
-    #error No hwpuf device defined
+    ret = nxp_hwpuf_UnregisterDevice(hwpuf);
 #endif
 
     ForceZero(hwpuf, sizeof(wc_HWPUF));
@@ -88,8 +88,10 @@ WOLFSSL_API int wc_HWPUF_Init(wc_HWPUF* hwpuf)
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
+    if (!hwpuf->registered)
+        return HWPUF_REGISTER_E;
     if ((hwpuf->flags & WC_HWPUF_FLAG_INITED) != 0)
-        return HWPUF_INIT_E;
+        return 0;
 
     ret = wc_CryptoCb_HwpufInit(hwpuf);
     if (ret == 0)
@@ -104,6 +106,8 @@ WOLFSSL_API int wc_HWPUF_Deinit(wc_HWPUF* hwpuf)
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
+    if (!hwpuf->registered)
+        return HWPUF_REGISTER_E;
 
     ret = wc_CryptoCb_HwpufDeinit(hwpuf);
     hwpuf->flags = 0;
@@ -111,36 +115,46 @@ WOLFSSL_API int wc_HWPUF_Deinit(wc_HWPUF* hwpuf)
     return ret;
 }
 
-WOLFSSL_API int wc_HWPUF_Enroll(wc_HWPUF* hwpuf)
+WOLFSSL_API int wc_HWPUF_Enroll(wc_HWPUF* hwpuf,
+                                byte* actCode, word32 actCodeSz)
 {
     int ret;
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
+    if (actCode == NULL || actCodeSz != HWPUF_ACTIVATION_CODE_SIZE)
+        return BAD_FUNC_ARG;
+    if ((hwpuf->flags & WC_HWPUF_FLAG_INITED) == 0)
+        return HWPUF_INIT_E;
     if ((hwpuf->flags & WC_HWPUF_FLAG_ENROLLED) != 0)
         return HWPUF_ENROLL_E;
     if ((hwpuf->flags & WC_HWPUF_FLAG_READY) != 0)
         return HWPUF_ENROLL_E;
 
-    ret = wc_CryptoCb_HwpufEnroll(hwpuf);
+    ret = wc_CryptoCb_HwpufEnroll(hwpuf, actCode, actCodeSz);
     if (ret == 0)
         hwpuf->flags |= WC_HWPUF_FLAG_ENROLLED;
 
     return ret;
 }
 
-WOLFSSL_API int wc_HWPUF_Start(wc_HWPUF* hwpuf)
+WOLFSSL_API int wc_HWPUF_Start(wc_HWPUF* hwpuf,
+                               byte* actCode, word32 actCodeSz)
 {
     int ret;
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
+    if (actCode == NULL || actCodeSz != HWPUF_ACTIVATION_CODE_SIZE)
+        return BAD_FUNC_ARG;
+    if ((hwpuf->flags & WC_HWPUF_FLAG_INITED) == 0)
+        return HWPUF_INIT_E;
     if ((hwpuf->flags & WC_HWPUF_FLAG_ENROLLED) != 0)
         return HWPUF_START_E;
     if ((hwpuf->flags & WC_HWPUF_FLAG_READY) != 0)
         return HWPUF_START_E;
 
-    ret = wc_CryptoCb_HwpufStart(hwpuf);
+    ret = wc_CryptoCb_HwpufStart(hwpuf, actCode, actCodeSz);
     if (ret == 0)
         hwpuf->flags |= WC_HWPUF_FLAG_READY;
 
@@ -149,38 +163,38 @@ WOLFSSL_API int wc_HWPUF_Start(wc_HWPUF* hwpuf)
 
 WOLFSSL_API int wc_HWPUF_GenerateKey(wc_HWPUF* hwpuf,
                                      byte keyIdx, word32 keySz,
-                                     byte* keycode, word32 keycodeSz)
+                                     byte* keyCode, word32 keyCodeSz)
 {
     int ret;
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
     if ((hwpuf->flags & WC_HWPUF_FLAG_READY) == 0)
-        return HWPUF_GENERATE_KEY_E;
+        return HWPUF_START_E;
 
     ret = wc_CryptoCb_HwpufGenerateKey(hwpuf, keyIdx, keySz,
-                                       keycode, keycodeSz);
+                                       keyCode, keyCodeSz);
     return ret;
 }
 
 WOLFSSL_API int wc_HWPUF_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
                                 byte* key, word32 keySz,
-                                byte* keycode, word32 keycodeSz)
+                                byte* keyCode, word32 keyCodeSz)
 {
     int ret;
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
     if ((hwpuf->flags & WC_HWPUF_FLAG_READY) == 0)
-        return HWPUF_SET_KEY_E;
+        return HWPUF_START_E;
 
     ret = wc_CryptoCb_HwpufSetKey(hwpuf, keyIdx, key, keySz,
-                                  keycode, keycodeSz);
+                                  keyCode, keyCodeSz);
     return ret;
 }
 
 WOLFSSL_API int wc_HWPUF_GetKey(wc_HWPUF* hwpuf,
-                                byte* keycode, word32 keycodeSz,
+                                byte* keyCode, word32 keyCodeSz,
                                 byte* key, word32 keySz)
 {
     int ret;
@@ -188,9 +202,9 @@ WOLFSSL_API int wc_HWPUF_GetKey(wc_HWPUF* hwpuf,
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
     if ((hwpuf->flags & WC_HWPUF_FLAG_READY) == 0)
-        return HWPUF_GET_KEY_E;
+        return HWPUF_START_E;
 
-    ret = wc_CryptoCb_HwpufGetKey(hwpuf, keycode, keycodeSz, key, keySz);
+    ret = wc_CryptoCb_HwpufGetKey(hwpuf, keyCode, keyCodeSz, key, keySz);
     return ret;
 }
 

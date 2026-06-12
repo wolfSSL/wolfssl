@@ -189,9 +189,6 @@ Threading/Mutex options:
 #ifdef WOLFSSL_NXP_HASHCRYPT
     #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
-#ifdef WOLFSSL_NXP_HWPUF
-    #include <wolfssl/wolfcrypt/port/nxp/hwpuf_port.h>
-#endif
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
