@@ -5556,8 +5556,9 @@ int test_tls13_short_session_ticket(void)
     /* Now directly test SetTicket with a short ticket by poking the
      * session. The session object is accessible; replicate the exact
      * vulnerable arithmetic: ticket + length - ID_LEN with length=5.
-     * With the fix, sessIdLen is capped to length so no underflow. */
-    {
+     * With the fix, sessIdLen is capped to length so no underflow.
+     * (guard: ssl_c NULL on setup alloc failure) */
+    if (ssl_c != NULL) {
         byte shortTicket[5] = { 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
         word32 length = sizeof(shortTicket);
         word32 sessIdLen = ID_LEN;

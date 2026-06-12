@@ -3803,9 +3803,11 @@ int test_wolfSSL_dtls_stateless_hrr_group(void)
 
 
         wolfSSL_SetLoggingPrefix("server");
-        wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
-
-        initHash = test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl_s);
+        /* guard: ssl_s NULL on setup alloc failure */
+        if (ssl_s != NULL) {
+            wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
+            initHash = test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl_s);
+        }
 
         /* Set groups and disable key shares. This ensures that only the given
          * groups are in the SupportedGroups extension and that an empty key

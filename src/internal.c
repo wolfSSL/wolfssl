@@ -7482,19 +7482,22 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 int InitHandshakeHashes(WOLFSSL* ssl)
 {
     int ret;
+    HS_Hashes* newHsHashes;
 
-    /* make sure existing handshake hashes are free'd */
-    if (ssl->hsHashes != NULL) {
-        FreeHandshakeHashes(ssl);
-    }
-
-    /* allocate handshake hashes */
-    ssl->hsHashes = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
+    /* Allocate before freeing the old hashes so an allocation failure leaves
+     * the existing hashes intact instead of a NULL dangling pointer that a
+     * handshake retry would dereference. */
+    newHsHashes = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
                                                            DYNAMIC_TYPE_HASHES);
-    if (ssl->hsHashes == NULL) {
+    if (newHsHashes == NULL) {
         WOLFSSL_MSG("HS_Hashes Memory error");
         return MEMORY_E;
     }
+
+    if (ssl->hsHashes != NULL) {
+        FreeHandshakeHashes(ssl);
+    }
+    ssl->hsHashes = newHsHashes;
     XMEMSET(ssl->hsHashes, 0, sizeof(HS_Hashes));
 
 #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
@@ -7598,21 +7601,24 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
   HS_Hashes** destination)
 {
     int ret;
+    HS_Hashes* newHashes;
 
     if ((ssl == NULL) || (source == NULL) || (destination == NULL))
         return BAD_FUNC_ARG;
 
-    /* If *destination is already allocated, its constituent hashes need to be
-     * freed, else they would leak. */
-    Free_HS_Hashes(*destination, ssl->heap);
-
-    /* allocate handshake hashes */
-    *destination = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
+    /* Allocate before freeing the old hashes so an allocation failure leaves
+     * *destination intact instead of a NULL dangling pointer. */
+    newHashes = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
                                        DYNAMIC_TYPE_HASHES);
-    if (*destination == NULL) {
+    if (newHashes == NULL) {
         WOLFSSL_MSG("HS_Hashes Memory error");
         return MEMORY_E;
     }
+
+    /* If *destination is already allocated, its constituent hashes need to be
+     * freed, else they would leak. */
+    Free_HS_Hashes(*destination, ssl->heap);
+    *destination = newHashes;
 
     /* Note we can't call InitHandshakeHashes() here, because the copy methods
      * overwrite the entire dest low level hash struct.  With some hashes and

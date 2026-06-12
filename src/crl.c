@@ -1337,6 +1337,22 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
     XMEMCPY((byte*)dupl + copyOffset, (byte*)ent + copyOffset,
             sizeof(CRL_Entry) - copyOffset);
 
+    /* The struct copy above aliased ent's owned pointers into dupl. Clear them
+     * (each is deep-copied below) so a partial-failure CRL_Entry_free(dupl)
+     * frees only dupl's own allocations, not ent's. */
+    dupl->next = NULL;
+#ifndef CRL_STATIC_REVOKED_LIST
+    dupl->certs = NULL;
+#endif
+#ifdef OPENSSL_EXTRA
+    dupl->issuer = NULL;
+#endif
+    dupl->toBeSigned = NULL;
+    dupl->signature = NULL;
+#ifdef WC_RSA_PSS
+    dupl->sigParams = NULL;
+#endif
+
 #ifndef CRL_STATIC_REVOKED_LIST
     dupl->certs = DupRevokedCertList(ent->certs, heap);
     if (ent->certs != NULL && dupl->certs == NULL) {

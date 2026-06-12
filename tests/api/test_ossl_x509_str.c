@@ -2048,8 +2048,11 @@ int test_wolfSSL_CTX_set_cert_store(void)
     X509_free(svrCert);
     svrCert = NULL;
     SSL_CTX_free(ctx);
+    /* set_cert_store transfers store ownership only when ctx != NULL; free it
+     * here when CTX creation failed under an allocation failure. */
+    if (ctx == NULL)
+        X509_STORE_free(store);
     ctx = NULL;
-    /* store is freed by SSL_CTX_free */
     store = NULL;
 
     X509_free(rootCa);
@@ -2085,7 +2088,9 @@ int test_wolfSSL_CTX_set_cert_store(void)
                 svrIntCert, SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     SSL_CTX_free(ctx);
-    /* store freed by SSL_CTX_free */
+    /* store transferred to ctx only when ctx != NULL; free here otherwise */
+    if (ctx == NULL)
+        X509_STORE_free(store);
     X509_free(rootCa);
     X509_free(intCa);
     X509_free(int2Ca);

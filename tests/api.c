@@ -3746,8 +3746,8 @@ static int test_wolfSSL_add_to_chain_overflow(void)
     /* Now ctx->certificate is set, next add goes to certChain via
      * wolfssl_add_to_chain.  Fake a chain whose length is near UINT32_MAX
      * so the size calculation (len + CERT_HEADER_SZ + certSz) overflows. */
-    fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16, ctx->heap,
-        DYNAMIC_TYPE_CERT);
+    fakeChain = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + 16,
+        (ctx != NULL) ? ctx->heap : NULL, DYNAMIC_TYPE_CERT);
     ExpectNotNull(fakeChain);
     if (EXPECT_SUCCESS()) {
         XMEMSET(fakeChain, 0, sizeof(DerBuffer) + 16);
@@ -14167,7 +14167,8 @@ static int test_wolfSSL_Tls13_ECH_all_algos_ex(void)
     ExpectIntEQ(wolfSSL_GetEchStatus(test_ctx.s_ssl),
         WOLFSSL_ECH_STATUS_ACCEPTED);
 
-    if (echCbTestKemID != 0 && echCbTestKdfID != 0 && echCbTestAeadID != 0) {
+    if (EXPECT_SUCCESS() && echCbTestKemID != 0 && echCbTestKdfID != 0 &&
+            echCbTestAeadID != 0) {
         TLSX* echX = TLSX_Find(test_ctx.c_ssl->extensions, TLSX_ECH);
         ExpectNotNull(echX);
         if (echX != NULL) {

@@ -29578,12 +29578,14 @@ int test_mldsa_verify_mu_kats(void)
     ExpectIntEQ(wc_MlDsaKey_VerifyMu(key, sig_44_mu, (word32)sizeof(sig_44_mu), mu_44, (word32)sizeof(mu_44), &res), 0);
     ExpectIntEQ(res, 1);
 
-    /* Tamper mu: verification must fail. */
-    XMEMCPY(muBuf, mu_44, sizeof(mu_44));
-    muBuf[0] ^= 0x01;
-    res = 1;
-    (void)wc_MlDsaKey_VerifyMu(key, sig_44_mu, (word32)sizeof(sig_44_mu), muBuf, (word32)sizeof(mu_44), &res);
-    ExpectIntEQ(res, 0);
+    /* Tamper mu: verification must fail. (guard: key freed/uninit on failure) */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(muBuf, mu_44, sizeof(mu_44));
+        muBuf[0] ^= 0x01;
+        res = 1;
+        (void)wc_MlDsaKey_VerifyMu(key, sig_44_mu, (word32)sizeof(sig_44_mu), muBuf, (word32)sizeof(mu_44), &res);
+        ExpectIntEQ(res, 0);
+    }
 
     /* Tamper signature: verification must fail. */
     ExpectNotNull(sigBuf = (byte*)XMALLOC(sizeof(sig_44_mu),
@@ -29609,11 +29611,13 @@ int test_mldsa_verify_mu_kats(void)
     ExpectIntEQ(res, 1);
 
     /* Tamper mu: verification must fail. */
-    XMEMCPY(muBuf, mu_65, sizeof(mu_65));
-    muBuf[0] ^= 0x01;
-    res = 1;
-    (void)wc_MlDsaKey_VerifyMu(key, sig_65_mu, (word32)sizeof(sig_65_mu), muBuf, (word32)sizeof(mu_65), &res);
-    ExpectIntEQ(res, 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(muBuf, mu_65, sizeof(mu_65));
+        muBuf[0] ^= 0x01;
+        res = 1;
+        (void)wc_MlDsaKey_VerifyMu(key, sig_65_mu, (word32)sizeof(sig_65_mu), muBuf, (word32)sizeof(mu_65), &res);
+        ExpectIntEQ(res, 0);
+    }
 
     /* Tamper signature: verification must fail. */
     ExpectNotNull(sigBuf = (byte*)XMALLOC(sizeof(sig_65_mu),
@@ -29639,11 +29643,13 @@ int test_mldsa_verify_mu_kats(void)
     ExpectIntEQ(res, 1);
 
     /* Tamper mu: verification must fail. */
-    XMEMCPY(muBuf, mu_87, sizeof(mu_87));
-    muBuf[0] ^= 0x01;
-    res = 1;
-    (void)wc_MlDsaKey_VerifyMu(key, sig_87_mu, (word32)sizeof(sig_87_mu), muBuf, (word32)sizeof(mu_87), &res);
-    ExpectIntEQ(res, 0);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(muBuf, mu_87, sizeof(mu_87));
+        muBuf[0] ^= 0x01;
+        res = 1;
+        (void)wc_MlDsaKey_VerifyMu(key, sig_87_mu, (word32)sizeof(sig_87_mu), muBuf, (word32)sizeof(mu_87), &res);
+        ExpectIntEQ(res, 0);
+    }
 
     /* Tamper signature: verification must fail. */
     ExpectNotNull(sigBuf = (byte*)XMALLOC(sizeof(sig_87_mu),

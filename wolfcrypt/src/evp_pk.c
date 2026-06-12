@@ -1083,6 +1083,7 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
     int found = 0;
+    int ownPkey;
 
     WOLFSSL_ENTER("d2i_evp_pkey_try");
 
@@ -1094,6 +1095,9 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
     if ((out != NULL) && (*out != NULL)) {
         pkey = *out;
     }
+    /* If pkey is NULL here, any object the d2iTry* helpers allocate is owned by
+     * this function and must be freed on the no-key-found path below. */
+    ownPkey = (pkey == NULL);
 
 #if !defined(NO_RSA)
     if (d2iTryRsaKey(&pkey, *in, inSz, priv) >= 0) {
@@ -1162,6 +1166,9 @@ static WOLFSSL_EVP_PKEY* d2i_evp_pkey_try(WOLFSSL_EVP_PKEY** out,
     }
 
     if (!found) {
+        /* free only a key we allocated; leave a caller-supplied *out intact */
+        if (ownPkey)
+            wolfSSL_EVP_PKEY_free(pkey);
         return NULL;
     }
 
@@ -1316,6 +1323,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_bio(WOLFSSL_BIO* bio,
             wolfSSL_BIO_write(bio, mem + key->pkey_sz, memSz - key->pkey_sz);
             if (wolfSSL_BIO_get_len(bio) <= 0) {
                 WOLFSSL_MSG("Failed to write memory to bio");
+                wolfSSL_EVP_PKEY_free(key);
                 XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
             }

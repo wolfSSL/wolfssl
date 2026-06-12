@@ -142,7 +142,8 @@ int test_wolfSSL_PKCS7_certs(void)
             ExpectNotNull(info = sk_X509_INFO_shift(info_sk));
             if (EXPECT_SUCCESS() && info != NULL) {
                 ExpectIntGT(sk_X509_push(sk, info->x509), 0);
-                info->x509 = NULL;
+                if (EXPECT_SUCCESS()) /* transfer to sk only if push succeeded */
+                    info->x509 = NULL;
             }
             X509_INFO_free(info);
         }

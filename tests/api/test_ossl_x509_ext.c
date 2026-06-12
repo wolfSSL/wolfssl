@@ -627,7 +627,8 @@ int test_wolfSSL_X509_add_ext_dirname_san_rejected(void)
         sk->type = STACK_TYPE_GEN_NAME;
     }
     ExpectIntGT(wolfSSL_sk_GENERAL_NAME_push(sk, gn), 0);
-    gn = NULL; /* sk owns gn now */
+    if (EXPECT_SUCCESS()) /* only transfer ownership if the push succeeded */
+        gn = NULL; /* sk owns gn now */
 
     ExpectNotNull(obj = wolfSSL_OBJ_nid2obj(NID_subject_alt_name));
     if (obj != NULL) {
