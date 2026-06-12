@@ -4509,11 +4509,27 @@ static int aes_xts_256_test(void)
         goto out;
     }
 
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
+    ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    if (ret != 0)
+        goto out;
+    if (XMEMCMP(c1, buf, WC_AES_BLOCK_SIZE)) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
+#endif
+
     /* partial block encryption test */
     XMEMSET(cipher, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
     if (ret != 0)
         goto out;
+    if (XMEMCMP(cp, cipher, sizeof(cp))) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
 
     /* partial block decrypt test */
     XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
