@@ -865,8 +865,10 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 
     int ret = wc_HmacUpdate(ctx->wc_hmac, data, len);
 
-    if (ret != 0)
+    if (ret != 0) {
+        km_hmac_free_tstate(ctx);
         return -EINVAL;
+    }
 
     return km_hmac_final(desc, out);
 }
