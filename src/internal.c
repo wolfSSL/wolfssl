@@ -15216,6 +15216,7 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
         alertWhy = certificate_expired;
     }
     else if (ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
+             ret == WC_NO_ERR_TRACE(RPK_UNTRUSTED_E) ||
              ret == WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E) ||
              ret == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E)) {
         alertWhy = unknown_ca;
@@ -17815,16 +17816,18 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (!rpkTrusted && !ssl->options.verifyNone) {
                             WOLFSSL_MSG("Untrusted RPK and peer verification "
                                         "is on; failing handshake");
-                            /* ASN_NO_SIGNER_E ("no trusted signer/anchor") is
-                             * the closest existing error for an unpinned RPK.
-                             * It is set here in the parse-SUCCESS branch, so the
-                             * X.509 recovery that keys on this code (alternate
-                             * chains, CA hash-dir lookup, Apple native
-                             * validation) - all of which live in the
-                             * parse-FAILURE branch above - is not reachable for
-                             * RPK. The leaf verify callback is still invoked at
-                             * TLS_ASYNC_FINALIZE and may override. */
-                            ret = ASN_NO_SIGNER_E;
+                            /* Use a dedicated RPK error rather than an
+                             * X.509 one (e.g. ASN_NO_SIGNER_E) so the failure is
+                             * distinguishable: GetX509Error() maps it to
+                             * WOLFSSL_X509_V_ERR_RPK_UNTRUSTED, so a verify
+                             * callback that accepts X.509 issuer-lookup errors
+                             * (ASN_NO_SIGNER_E /
+                             * WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
+                             * cannot accidentally accept an unauthenticated RPK.
+                             * The leaf verify callback is still invoked at
+                             * TLS_ASYNC_FINALIZE and may deliberately override
+                             * this RPK-specific code. */
+                            ret = RPK_UNTRUSTED_E;
                             WOLFSSL_ERROR_VERBOSE(ret);
                         }
                     }
@@ -29023,6 +29026,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SEQUENCE_NUMBER_E:
         return "Record sequence number would wrap";
+
+    case RPK_UNTRUSTED_E:
+        return "RFC 7250 Raw Public Key not trusted";
     }
 
     return "unknown error number";

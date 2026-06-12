@@ -2782,9 +2782,9 @@ enum {
     WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH               = 64,
     WOLFSSL_X509_V_ERR_INVALID_CA                        = 79,
     WC_OSSL_V509_V_ERR_MAX = 80,
-    /* wolfSSL-specific verify-result codes are assigned at or above
-     * WC_OSSL_V509_V_ERR_MAX, intentionally outside the contiguous
-     * OpenSSL-compatible range below it. */
+    /* 95 matches OpenSSL's X509_V_ERR_RPK_UNTRUSTED (OpenSSL 3.2+). It is
+     * deliberately at or above WC_OSSL_V509_V_ERR_MAX, i.e. outside the
+     * contiguous block of verify-result codes below it. */
     WOLFSSL_X509_V_ERR_RPK_UNTRUSTED                     = 95,
 
 #ifdef HAVE_OCSP
@@ -6258,15 +6258,23 @@ WOLFSSL_API int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp);
  * stored as its SHA-256 digest, so these APIs require SHA-256; without it,
  * express RPK trust through a verify callback. Returns WOLFSSL_SUCCESS, or a
  * negative error code (BAD_FUNC_ARG for a NULL argument or zero length, BUFFER_E
- * when the pin table is full). Pins are append-only for the lifetime of the
- * object/CTX; there is no clear/replace call, so a long-lived CTX that re-pins
- * across key rotations can exhaust the WOLFSSL_MAX_RPK_PINS-entry table. */
+ * when the pin table is full). Pins are append-only: there is no per-entry
+ * remove, but wolfSSL_clear_expected_rpk()/wolfSSL_CTX_clear_expected_rpk()
+ * empties the WOLFSSL_MAX_RPK_PINS-entry table so it can be repopulated (e.g.
+ * across a peer key rotation). */
 WOLFSSL_API int wolfSSL_CTX_set_expected_rpk(WOLFSSL_CTX* ctx,
                                           const unsigned char* spki,
                                           unsigned int spkiSz);
 WOLFSSL_API int wolfSSL_set_expected_rpk(WOLFSSL* ssl,
                                           const unsigned char* spki,
                                           unsigned int spkiSz);
+/* Remove all pinned expected peer Raw Public Keys, emptying the table so it can
+ * be repopulated. Returns WOLFSSL_SUCCESS, or BAD_FUNC_ARG when the handle is
+ * NULL. Like the set calls and other CTX setters these are unlocked, so
+ * reconfigure pins on a shared CTX while no handshakes are in flight (each
+ * WOLFSSL copies the pin table by value at wolfSSL_new()). */
+WOLFSSL_API int wolfSSL_CTX_clear_expected_rpk(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_clear_expected_rpk(WOLFSSL* ssl);
 #endif /* !NO_SHA256 */
 #endif /* HAVE_RPK */
 
