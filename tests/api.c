@@ -23114,6 +23114,23 @@ static int test_NameConstraints_DnsUriWildcard(void)
     ExpectIntGT((int)sanSz, 0);
     ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
         WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* (12) One trailing dot on the constraint base is the absolute-FQDN
+     *      marker: DNS:example.com. denotes the same subtree as
+     *      DNS:example.com, so the permitted form accepts the bare SAN and
+     *      the excluded form rejects it. */
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 0, DNS,
+                "example.com.");
+    sanSz = build_simple_san(san, sizeof(san), DNS, "example.com");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntGT((int)sanSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz), 0);
+
+    ncSz  = build_simple_nameConstraints(nc, sizeof(nc), 1, DNS,
+                "example.com.");
+    ExpectIntGT((int)ncSz, 0);
+    ExpectIntEQ(verify_with_otherName_chain(nc, ncSz, 1, san, sanSz),
+        WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 #endif
     return EXPECT_RESULT();
 }

@@ -3227,6 +3227,9 @@ WOLFSSL_TEST_VIS int  wolfssl_local_MatchDnsConstraintWildcard(
                                                   const char* name, int nameSz,
                                                   const char* base, int baseSz,
                                                   int permitted);
+WOLFSSL_LOCAL int  wolfssl_local_MatchDnsNameConstraint(const char* name,
+                                                  int nameSz, const char* base,
+                                                  int baseSz, int permitted);
 #endif
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \

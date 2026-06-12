@@ -18551,6 +18551,23 @@ static int DnsNameHasWildcard(const char* name, int nameSz)
     return 0;
 }
 
+/* Match a DNS name against a DNS name-constraint base. A wildcard name
+ * denotes a set of names: permitted subtrees require containment, excluded
+ * subtrees intersection (selected by `permitted`). Literal names use plain
+ * base-name matching, which normalizes the absolute-FQDN trailing dot
+ * before its own length check.
+ * Returns 1 on match, 0 otherwise. */
+int wolfssl_local_MatchDnsNameConstraint(const char* name, int nameSz,
+    const char* base, int baseSz, int permitted)
+{
+    if (DnsNameHasWildcard(name, nameSz)) {
+        return wolfssl_local_MatchDnsConstraintWildcard(name, nameSz,
+            base, baseSz, permitted);
+    }
+    return wolfssl_local_MatchBaseName(ASN_DNS_TYPE, name, nameSz, base,
+        baseSz);
+}
+
 /* Search through the list to find if the name is permitted.
  * name     The DNS name to search for
  * dnsList  The list to search through
@@ -18601,12 +18618,10 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
-            else if (nameType == ASN_DNS_TYPE &&
-                     DnsNameHasWildcard(name->name, name->len)) {
-                /* Wildcard DNS SAN: a '*' can expand to a longer label, so the
-                 * byte-length guard used for literal names below is invalid.
-                 * Permit only if every expansion stays inside the subtree. */
-                if (wolfssl_local_MatchDnsConstraintWildcard(name->name,
+            else if (nameType == ASN_DNS_TYPE) {
+                /* Permit only if every expansion of a wildcard stays inside
+                 * the subtree. */
+                if (wolfssl_local_MatchDnsNameConstraint(name->name,
                         name->len, current->name, current->nameSz, 1)) {
                     match = 1;
                     break;
@@ -18675,12 +18690,10 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
-            else if (nameType == ASN_DNS_TYPE &&
-                     DnsNameHasWildcard(name->name, name->len)) {
-                /* Wildcard DNS SAN: a '*' can expand to a longer label, so the
-                 * byte-length guard used for literal names below is invalid.
-                 * Exclude if any expansion can fall inside the subtree. */
-                if (wolfssl_local_MatchDnsConstraintWildcard(name->name,
+            else if (nameType == ASN_DNS_TYPE) {
+                /* Exclude if any expansion of a wildcard can fall inside the
+                 * subtree. */
+                if (wolfssl_local_MatchDnsNameConstraint(name->name,
                         name->len, current->name, current->nameSz, 0)) {
                     ret = 1;
                     break;
