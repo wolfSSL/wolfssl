@@ -3639,7 +3639,7 @@ static int linuxkm_test_aesgcm(void)
     src = malloc(sizeof(struct scatterlist) * 2);
 
     if (! src) {
-        pr_err("error: malloc src failed,\n");
+        pr_err("error: malloc src failed.\n");
         ret = MEMORY_E;
         goto test_gcm_end;
     }

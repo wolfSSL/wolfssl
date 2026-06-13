@@ -472,7 +472,7 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
         WC_SANITIZE_ENABLE();
         buf = 0;
     }
-    wc_ForceZero(&buf, 0, sizeof buf);
+    wc_ForceZero(&buf, sizeof buf);
     return 0;
 }
 
