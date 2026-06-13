@@ -1129,15 +1129,16 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
 
+    if (((word32)req->assoclen + (word32)req->cryptlen) !=
+        ((word64)req->assoclen + (word64)req->cryptlen))
+    {
+        return -EOVERFLOW;
+    }
+
     if (decrypt_p) {
         /* Copy out original auth tag from req->src. */
         if (req->cryptlen < tfm->authsize)
             return -EINVAL;
-        if (((word32)req->assoclen + (word32)req->cryptlen) !=
-            ((word64)req->assoclen + (word64)req->cryptlen))
-        {
-            return -EOVERFLOW;
-        }
         scatterwalk_map_and_copy(authTag, req->src,
                                  req->assoclen + req->cryptlen - tfm->authsize,
                                  tfm->authsize, 0);
@@ -1355,15 +1356,16 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
 
+    if (((word32)req->assoclen + (word32)req->cryptlen) !=
+        ((word64)req->assoclen + (word64)req->cryptlen))
+    {
+        return -EOVERFLOW;
+    }
+
     if (decrypt_p) {
         /* Copy out original auth tag from req->src. */
         if (req->cryptlen < tfm->authsize)
             return -EINVAL;
-        if (((word32)req->assoclen + (word32)req->cryptlen) !=
-            ((word64)req->assoclen + (word64)req->cryptlen))
-        {
-            return -EOVERFLOW;
-        }
         scatterwalk_map_and_copy(authTag, req->src,
                                  req->assoclen + req->cryptlen - tfm->authsize,
                                  tfm->authsize, 0);
@@ -1378,7 +1380,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                decrypt_p ? "skcipher_walk_aead_decrypt" : "skcipher_walk_aead_encrypt",
                err);
-        return -EINVAL;
+        return err;
     }
 
     err = km_AesGet(ctx, decrypt_p, 1 /* copy_p */, &aes_copy);
@@ -1513,6 +1515,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 out:
 
     if (sg_buf) {
+        ForceZero(sg_buf, req->assoclen + req->cryptlen);
         free(sg_buf);
     }
     else {
@@ -1835,15 +1838,16 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
 
+    if (((word32)req->assoclen + (word32)req->cryptlen) !=
+        ((word64)req->assoclen + (word64)req->cryptlen))
+    {
+        return -EOVERFLOW;
+    }
+
     if (decrypt_p) {
         /* Copy out the original auth tag from req->src. */
         if (req->cryptlen < tfm->authsize)
             return -EINVAL;
-        if (((word32)req->assoclen + (word32)req->cryptlen) !=
-            ((word64)req->assoclen + (word64)req->cryptlen))
-        {
-            return -EOVERFLOW;
-        }
         scatterwalk_map_and_copy(authTag, req->src,
                                  req->assoclen + req->cryptlen - tfm->authsize,
                                  tfm->authsize, 0);
@@ -2006,6 +2010,7 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
 out:
 
     if (sg_buf) {
+        ForceZero(sg_buf, req->assoclen + req->cryptlen);
         free(sg_buf);
     }
     else {
@@ -2312,6 +2317,11 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             err = skcipher_walk_done(&walk, 0);
         } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))) {
             err = wc_AesXtsEncryptFinal(ctx->aesXts, NULL, NULL, 0, &stream);
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                err = -EINVAL;
+            }
         }
     }
 
@@ -2458,6 +2468,11 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             err = skcipher_walk_done(&walk, 0);
         } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))) {
             err = wc_AesXtsDecryptFinal(ctx->aesXts, NULL, NULL, 0, &stream);
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                err = -EINVAL;
+            }
         }
     }
 
@@ -3099,12 +3114,14 @@ static int linuxkm_test_aescbc(void)
     enc2 = malloc(sizeof(p_vector));
     if (!enc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cbc_end;
     }
 
     dec2 = malloc(sizeof(p_vector));
     if (!dec2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cbc_end;
     }
 
@@ -3140,7 +3157,7 @@ static int linuxkm_test_aescbc(void)
     req = skcipher_request_alloc(tfm, GFP_KERNEL);
     if (! req) {
         ret = -ENOMEM;
-        pr_err("error: allocating AES skcipher request %s failed\n",
+        pr_err("error: allocating AES skcipher request %s failed.\n",
                WOLFKM_AESCBC_DRIVER);
         goto test_cbc_end;
     }
@@ -3310,12 +3327,14 @@ static int linuxkm_test_aescfb(void)
     enc2 = malloc(sizeof(p_vector));
     if (!enc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cfb_end;
     }
 
     dec2 = malloc(sizeof(p_vector));
     if (!dec2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_cfb_end;
     }
 
@@ -3342,7 +3361,7 @@ static int linuxkm_test_aescfb(void)
     req = skcipher_request_alloc(tfm, GFP_KERNEL);
     if (! req) {
         ret = -ENOMEM;
-        pr_err("error: allocating AES skcipher request %s failed\n",
+        pr_err("error: allocating AES skcipher request %s failed.\n",
                WOLFKM_AESCFB_DRIVER);
         goto test_cfb_end;
     }
@@ -3552,6 +3571,7 @@ static int linuxkm_test_aesgcm(void)
     assoc2 = malloc(sizeof(assoc));
     if (! assoc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
     memset(assoc2, 0, sizeof(assoc));
@@ -3560,6 +3580,7 @@ static int linuxkm_test_aesgcm(void)
     iv = malloc(WC_AES_BLOCK_SIZE);
     if (! iv) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
     memset(iv, 0, WC_AES_BLOCK_SIZE);
@@ -3568,12 +3589,14 @@ static int linuxkm_test_aesgcm(void)
     enc2 = malloc(decryptLen);
     if (! enc2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
     dec2 = malloc(decryptLen);
     if (! dec2) {
         pr_err("error: malloc failed\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
@@ -3608,24 +3631,24 @@ static int linuxkm_test_aesgcm(void)
     req = aead_request_alloc(tfm, GFP_KERNEL);
     if (! req) {
         ret = -ENOMEM;
-        pr_err("error: allocating AES aead request %s failed: %ld\n",
-               WOLFKM_AESCBC_DRIVER, PTR_ERR(req));
+        pr_err("error: allocating AES aead request %s failed.\n",
+               WOLFKM_AESCBC_DRIVER);
         goto test_gcm_end;
     }
 
     src = malloc(sizeof(struct scatterlist) * 2);
 
     if (! src) {
-        pr_err("error: malloc src failed: %ld\n",
-               PTR_ERR(src));
+        pr_err("error: malloc src failed.\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
     dst = malloc(sizeof(struct scatterlist) * 2);
 
     if (! dst) {
-        pr_err("error: malloc dst failed: %ld\n",
-               PTR_ERR(dst));
+        pr_err("error: malloc dst failed.\n");
+        ret = MEMORY_E;
         goto test_gcm_end;
     }
 
@@ -4511,11 +4534,27 @@ static int aes_xts_256_test(void)
         goto out;
     }
 
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
+    ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    if (ret != 0)
+        goto out;
+    if (XMEMCMP(c1, buf, WC_AES_BLOCK_SIZE)) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
+#endif
+
     /* partial block encryption test */
     XMEMSET(cipher, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
     if (ret != 0)
         goto out;
+    if (XMEMCMP(cp, cipher, sizeof(cp))) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
 
     /* partial block decrypt test */
     XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
@@ -4705,8 +4744,8 @@ static int aes_xts_256_test(void)
     req = skcipher_request_alloc(tfm, GFP_KERNEL);
     if (! req) {
         ret = -ENOMEM;
-        pr_err("error: allocating AES skcipher request %s failed: %d\n",
-               WOLFKM_AESXTS_DRIVER, ret);
+        pr_err("error: allocating AES skcipher request %s failed.\n",
+               WOLFKM_AESXTS_DRIVER);
         goto test_xts_end;
     }
 

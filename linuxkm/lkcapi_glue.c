@@ -292,8 +292,10 @@ static int linuxkm_lkcapi_sysfs_install(void) {
         if (ret)
             return ret;
         ret = linuxkm_lkcapi_sysfs_install_node(&deinstall_algs_attr, NULL);
-        if (ret)
+        if (ret) {
+            (void)linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
             return ret;
+        }
         installed_sysfs_LKCAPI_files = 1;
     }
     return 0;
@@ -949,9 +951,6 @@ static int linuxkm_lkcapi_unregister(void)
         #ifdef WOLFSSL_SHA384
             UNREGISTER_ALG(pkcs1_sha384, akcipher);
         #endif /* WOLFSSL_SHA384 */
-        #ifdef WOLFSSL_SHA384
-            UNREGISTER_ALG(pkcs1_sha384, akcipher);
-        #endif /* WOLFSSL_SHA384 */
         #ifdef WOLFSSL_SHA512
             UNREGISTER_ALG(pkcs1_sha512, akcipher);
         #endif /* WOLFSSL_SHA512 */
@@ -967,9 +966,6 @@ static int linuxkm_lkcapi_unregister(void)
         #ifndef NO_SHA256
             UNREGISTER_ALG(pkcs1_sha256, sig);
         #endif /* !NO_SHA256 */
-        #ifdef WOLFSSL_SHA384
-            UNREGISTER_ALG(pkcs1_sha384, sig);
-        #endif /* WOLFSSL_SHA384 */
         #ifdef WOLFSSL_SHA384
             UNREGISTER_ALG(pkcs1_sha384, sig);
         #endif /* WOLFSSL_SHA384 */

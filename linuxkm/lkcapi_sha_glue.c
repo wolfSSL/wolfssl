@@ -604,8 +604,11 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
     ret = init_f(ctx-> name ## _state, NULL, INVALID_DEVID);               \
     if (ret == 0)                                                          \
         return 0;                                                          \
-    else                                                                   \
+    else {                                                                 \
+        free(ctx-> name ## _state);                                        \
+        ctx-> name ## _state = NULL;                                       \
         return -EINVAL;                                                    \
+    }                                                                      \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
@@ -646,6 +649,7 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                                                            \
     if (ret != 0) {                                                        \
         free_f(ctx-> name ## _state);                                      \
+        km_sha3_free_tstate(ctx);                                          \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
@@ -818,6 +822,7 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
 
     ret = wc_HmacCopy(&p_ctx->wc_hmac, t_ctx->wc_hmac);
     if (ret != 0) {
+        ForceZero(t_ctx->wc_hmac, sizeof *t_ctx->wc_hmac);
         free(t_ctx->wc_hmac);
         t_ctx->wc_hmac = NULL;
         return -EINVAL;
@@ -861,8 +866,10 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 
     int ret = wc_HmacUpdate(ctx->wc_hmac, data, len);
 
-    if (ret != 0)
+    if (ret != 0) {
+        km_hmac_free_tstate(ctx);
         return -EINVAL;
+    }
 
     return km_hmac_final(desc, out);
 }
