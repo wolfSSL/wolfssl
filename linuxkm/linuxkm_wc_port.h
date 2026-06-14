@@ -217,15 +217,17 @@
         #endif
     #endif
 
-    #if defined(HAVE_HASHDRBG) && defined(HAVE_FIPS) && \
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(5, 2, 4)
+        #if defined(HAVE_HASHDRBG) && \
             defined(HAVE_ENTROPY_MEMUSE) && \
             !defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
-        #define WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
-    #elif defined(HAVE_HASHDRBG) && defined(HAVE_FIPS) && \
-            (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
-            !defined(HAVE_ENTROPY_MEMUSE) && \
-            !defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
-        #define WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+            #define WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER
+        #elif defined(HAVE_HASHDRBG) && \
+              (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
+              !defined(HAVE_ENTROPY_MEMUSE) && \
+              !defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
+            #define WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+        #endif
     #endif
     #if defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
         struct OS_Seed;
