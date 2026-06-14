@@ -455,6 +455,7 @@ typedef struct wc_CryptoInfo {
         const byte* in;
         word32 inSz;
         byte* digest;
+        word32 outSz; /* SHAKE extendable output length (0 for fixed hashes) */
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
@@ -881,6 +882,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
 #ifdef WOLFSSL_SHA3
 WOLFSSL_LOCAL int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
     word32 inSz, byte* digest);
+#if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+/* SHAKE is an extendable output function: out/outSz carry the requested output
+ * on the final call (in/inSz carry message data on update calls). */
+WOLFSSL_LOCAL int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
+    word32 inSz, byte* out, word32 outSz);
+#endif
 #endif
 
 #ifndef NO_HMAC

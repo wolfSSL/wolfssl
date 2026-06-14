@@ -58,6 +58,9 @@ int test_wc_Shake256_Absorb(void);
 int test_wc_Shake256_SqueezeBlocks(void);
 int test_wc_Shake256_XOF(void);
 
+int test_wc_CryptoCb_Shake128_HashOffload(void);
+int test_wc_CryptoCb_Shake256_HashOffload(void);
+
 #define TEST_SHA3_DECLS                             \
     TEST_DECL_GROUP("sha3", test_wc_InitSha3),      \
     TEST_DECL_GROUP("sha3", test_wc_Sha3_Update),   \
@@ -81,7 +84,8 @@ int test_wc_Shake256_XOF(void);
     TEST_DECL_GROUP("shake128", test_wc_Shake128Hash),              \
     TEST_DECL_GROUP("shake128", test_wc_Shake128_Absorb),           \
     TEST_DECL_GROUP("shake128", test_wc_Shake128_SqueezeBlocks),    \
-    TEST_DECL_GROUP("shake128", test_wc_Shake128_XOF)
+    TEST_DECL_GROUP("shake128", test_wc_Shake128_XOF),              \
+    TEST_DECL_GROUP("shake128", test_wc_CryptoCb_Shake128_HashOffload)
 
 #define TEST_SHAKE256_DECLS                                         \
     TEST_DECL_GROUP("shake256", test_wc_InitShake256),              \
@@ -93,6 +97,7 @@ int test_wc_Shake256_XOF(void);
     TEST_DECL_GROUP("shake256", test_wc_Shake256Hash),              \
     TEST_DECL_GROUP("shake256", test_wc_Shake256_Absorb),           \
     TEST_DECL_GROUP("shake256", test_wc_Shake256_SqueezeBlocks),    \
-    TEST_DECL_GROUP("shake256", test_wc_Shake256_XOF)
+    TEST_DECL_GROUP("shake256", test_wc_Shake256_XOF),              \
+    TEST_DECL_GROUP("shake256", test_wc_CryptoCb_Shake256_HashOffload)
 
 #endif /* WOLFCRYPT_TEST_SHA3_H */

@@ -73755,6 +73755,56 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->hash.sha3->devId = devIdArg;
         }
+    #ifdef WOLFSSL_SHAKE128
+        else if (info->hash.type == WC_HASH_TYPE_SHAKE128) {
+            if (info->hash.sha3 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha3->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Shake128_Update(
+                    info->hash.sha3,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Shake128_Final(
+                    info->hash.sha3,
+                    info->hash.digest,
+                    info->hash.outSz);
+            }
+
+            /* reset devId */
+            info->hash.sha3->devId = devIdArg;
+        }
+    #endif /* WOLFSSL_SHAKE128 */
+    #ifdef WOLFSSL_SHAKE256
+        else if (info->hash.type == WC_HASH_TYPE_SHAKE256) {
+            if (info->hash.sha3 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha3->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Shake256_Update(
+                    info->hash.sha3,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Shake256_Final(
+                    info->hash.sha3,
+                    info->hash.digest,
+                    info->hash.outSz);
+            }
+
+            /* reset devId */
+            info->hash.sha3->devId = devIdArg;
+        }
+    #endif /* WOLFSSL_SHAKE256 */
         else
     #endif
         {
@@ -74844,6 +74894,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_SHA3
     if (ret == 0)
         ret = sha3_test();
+#ifdef WOLFSSL_SHAKE128
+    if (ret == 0)
+        ret = shake128_test();
+#endif
+#ifdef WOLFSSL_SHAKE256
+    if (ret == 0)
+        ret = shake256_test();
+#endif
 #endif
 #endif
 #ifndef NO_HMAC

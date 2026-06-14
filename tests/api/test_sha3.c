@@ -1456,3 +1456,190 @@ int test_wc_Shake256_XOF(void)
     return EXPECT_RESULT();
 }
 
+/*----------------------------------------------------------------------------*
+ | CryptoCB SHAKE128/SHAKE256 End-to-End Offload Tests
+ *----------------------------------------------------------------------------*/
+
+#if defined(WOLF_CRYPTO_CB) && \
+    (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256))
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+#define TEST_CRYPTOCB_SHAKE_DEVID  12
+
+static int cryptoCbShakeUpdateCalled = 0;
+static int cryptoCbShakeFinalCalled = 0;
+
+/* Mock CryptoCB callback that "offloads" SHAKE.  It routes the request back to
+ * the software implementation, temporarily setting devId to INVALID_DEVID so
+ * the nested wc_Shake*_Update/Final() call runs in software (a SHAKE lookup by
+ * INVALID_DEVID finds no device) instead of recursing into the callback. */
+static int test_CryptoCb_Shake_Cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    wc_Shake* shake;
+
+    (void)ctx;
+
+    if (devId != TEST_CRYPTOCB_SHAKE_DEVID)
+        return CRYPTOCB_UNAVAILABLE;
+    if (info->algo_type != WC_ALGO_TYPE_HASH)
+        return CRYPTOCB_UNAVAILABLE;
+    if (info->hash.type != WC_HASH_TYPE_SHAKE128 &&
+        info->hash.type != WC_HASH_TYPE_SHAKE256)
+        return CRYPTOCB_UNAVAILABLE;
+
+    shake = info->hash.sha3; /* wc_Shake is a wc_Sha3 */
+    if (shake == NULL)
+        return BAD_FUNC_ARG;
+
+    /* run software, no recursion */
+    shake->devId = INVALID_DEVID;
+#ifdef WOLFSSL_SHAKE128
+    if (info->hash.type == WC_HASH_TYPE_SHAKE128) {
+        if (info->hash.in != NULL) {
+            cryptoCbShakeUpdateCalled++;
+            ret = wc_Shake128_Update(shake, info->hash.in, info->hash.inSz);
+        }
+        if (info->hash.digest != NULL) {
+            cryptoCbShakeFinalCalled++;
+            ret = wc_Shake128_Final(shake, info->hash.digest, info->hash.outSz);
+        }
+    }
+#endif
+#ifdef WOLFSSL_SHAKE256
+    if (info->hash.type == WC_HASH_TYPE_SHAKE256) {
+        if (info->hash.in != NULL) {
+            cryptoCbShakeUpdateCalled++;
+            ret = wc_Shake256_Update(shake, info->hash.in, info->hash.inSz);
+        }
+        if (info->hash.digest != NULL) {
+            cryptoCbShakeFinalCalled++;
+            ret = wc_Shake256_Final(shake, info->hash.digest, info->hash.outSz);
+        }
+    }
+#endif
+    shake->devId = TEST_CRYPTOCB_SHAKE_DEVID;
+
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB && (WOLFSSL_SHAKE128 || WOLFSSL_SHAKE256) */
+
+/*
+ * Test: End-to-End SHAKE128 Offload via CryptoCB
+ * Verifies that wc_Shake128_Update/Final route through a registered CryptoCB
+ * device, that the callback is invoked for both the update and final calls, and
+ * that the offloaded digest matches a software-only reference.
+ */
+int test_wc_CryptoCb_Shake128_HashOffload(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHAKE128)
+    wc_Shake shake;
+    wc_Shake ref;
+    static const byte msg[] = {
+        0x6b,0xc1,0xbe,0xe2, 0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11, 0x73,0x93,0x17,0x2a,
+        0xae,0x2d,0x8a,0x57, 0x1e,0x03,0xac,0x9c
+    };
+    byte refDigest[32];
+    byte digest[32];
+    int devRegistered = 0;
+
+    XMEMSET(&shake, 0, sizeof(shake));
+    XMEMSET(&ref, 0, sizeof(ref));
+    XMEMSET(refDigest, 0, sizeof(refDigest));
+    XMEMSET(digest, 0, sizeof(digest));
+
+    cryptoCbShakeUpdateCalled = 0;
+    cryptoCbShakeFinalCalled = 0;
+
+    /* Software-only reference digest (no devId, no callback). */
+    ExpectIntEQ(wc_InitShake128(&ref, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Shake128_Update(&ref, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_Shake128_Final(&ref, refDigest, (word32)sizeof(refDigest)), 0);
+    wc_Shake128_Free(&ref);
+
+    /* Register the offload callback. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SHAKE_DEVID,
+        test_CryptoCb_Shake_Cb, NULL), 0);
+    if (EXPECT_SUCCESS())
+        devRegistered = 1;
+
+    /* Drive the public streaming API with the offload devId. */
+    ExpectIntEQ(wc_InitShake128(&shake, HEAP_HINT, TEST_CRYPTOCB_SHAKE_DEVID), 0);
+    ExpectIntEQ(wc_Shake128_Update(&shake, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(cryptoCbShakeUpdateCalled, 1);
+    ExpectIntEQ(wc_Shake128_Final(&shake, digest, (word32)sizeof(digest)), 0);
+    ExpectIntEQ(cryptoCbShakeFinalCalled, 1);
+
+    /* Offloaded digest must match the software reference. */
+    ExpectBufEQ(digest, refDigest, sizeof(refDigest));
+
+    wc_Shake128_Free(&shake);
+
+    if (devRegistered)
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SHAKE_DEVID);
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_SHAKE128 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test: End-to-End SHAKE256 Offload via CryptoCB
+ * Verifies that wc_Shake256_Update/Final route through a registered CryptoCB
+ * device, that the callback is invoked for both the update and final calls, and
+ * that the offloaded digest matches a software-only reference.
+ */
+int test_wc_CryptoCb_Shake256_HashOffload(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_SHAKE256)
+    wc_Shake shake;
+    wc_Shake ref;
+    static const byte msg[] = {
+        0x6b,0xc1,0xbe,0xe2, 0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11, 0x73,0x93,0x17,0x2a,
+        0xae,0x2d,0x8a,0x57, 0x1e,0x03,0xac,0x9c
+    };
+    byte refDigest[64];
+    byte digest[64];
+    int devRegistered = 0;
+
+    XMEMSET(&shake, 0, sizeof(shake));
+    XMEMSET(&ref, 0, sizeof(ref));
+    XMEMSET(refDigest, 0, sizeof(refDigest));
+    XMEMSET(digest, 0, sizeof(digest));
+
+    cryptoCbShakeUpdateCalled = 0;
+    cryptoCbShakeFinalCalled = 0;
+
+    /* Software-only reference digest (no devId, no callback). */
+    ExpectIntEQ(wc_InitShake256(&ref, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Shake256_Update(&ref, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_Shake256_Final(&ref, refDigest, (word32)sizeof(refDigest)), 0);
+    wc_Shake256_Free(&ref);
+
+    /* Register the offload callback. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_SHAKE_DEVID,
+        test_CryptoCb_Shake_Cb, NULL), 0);
+    if (EXPECT_SUCCESS())
+        devRegistered = 1;
+
+    /* Drive the public streaming API with the offload devId. */
+    ExpectIntEQ(wc_InitShake256(&shake, HEAP_HINT, TEST_CRYPTOCB_SHAKE_DEVID), 0);
+    ExpectIntEQ(wc_Shake256_Update(&shake, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(cryptoCbShakeUpdateCalled, 1);
+    ExpectIntEQ(wc_Shake256_Final(&shake, digest, (word32)sizeof(digest)), 0);
+    ExpectIntEQ(cryptoCbShakeFinalCalled, 1);
+
+    /* Offloaded digest must match the software reference. */
+    ExpectBufEQ(digest, refDigest, sizeof(refDigest));
+
+    wc_Shake256_Free(&shake);
+
+    if (devRegistered)
+        wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_SHAKE_DEVID);
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_SHAKE256 */
+    return EXPECT_RESULT();
+}
+

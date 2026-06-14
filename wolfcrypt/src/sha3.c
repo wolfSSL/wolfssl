@@ -1122,6 +1122,7 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 #endif
 #if defined(WOLF_CRYPTO_CB)
     sha3->devId = devId;
+    sha3->devCtx = NULL;
     /* Set to none to determine the hash type later */
     /* in the update/final functions based on the p value */
     sha3->hashType = WC_HASH_TYPE_NONE;
@@ -1832,6 +1833,19 @@ int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
         return 0;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        int ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128, data, len,
+            NULL, 0);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
+
     return Sha3Update(shake, data, len, WC_SHA3_128_COUNT);
 }
 
@@ -1849,6 +1863,19 @@ int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     if (shake == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128, NULL, 0, hash,
+            hashLen);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_128_COUNT, hashLen);
     if (ret != 0)
@@ -2079,6 +2106,19 @@ int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
         return 0;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        int ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256, data, len,
+            NULL, 0);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
+
     return Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
 }
 
@@ -2097,6 +2137,19 @@ int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     if (shake == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256, NULL, 0, hash,
+            hashLen);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, hashLen);
     if (ret != 0)
