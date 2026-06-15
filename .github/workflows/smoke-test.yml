@@ -42,7 +42,7 @@ on:
     - cron: '56 10 * * 1-5'
 
 concurrency:
-  group: smoke-${{ github.workflow }}-${{ github.ref }}
+  group: smoke-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
