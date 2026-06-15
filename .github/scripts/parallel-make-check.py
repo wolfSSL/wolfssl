@@ -247,7 +247,14 @@ def dump(title: str, path: Path) -> None:
 def warn(msg: str) -> None:
     # GitHub surfaces ::warning:: as an annotation at the top of the run;
     # locally it is just a line. Informational only - never fails the run.
-    print(f"::warning::{msg}" if ON_GITHUB else f"WARNING: {msg}")
+    if ON_GITHUB:
+        # Percent-encode the command data (GitHub's documented escaping) so
+        # a stray %, CR or LF - e.g. from a config name out of the JSON -
+        # can't truncate the annotation or be read as a second command.
+        msg = msg.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::warning::{msg}")
+    else:
+        print(f"WARNING: {msg}")
 
 
 def stale_estimate(cfg: Config, minutes: float) -> bool:
