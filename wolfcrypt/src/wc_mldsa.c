@@ -4128,6 +4128,10 @@ static int mldsa_expand_s_c(wc_Shake* shake256, byte* priv_seed, byte eta,
         s2 += MLDSA_N;
     }
 
+    /* seed holds a copy of the secret private seed (rho_prime) from which the
+     * s1/s2 vectors are derived; zeroize it before return. */
+    ForceZero(seed, sizeof(seed));
+
     return ret;
 }
 
