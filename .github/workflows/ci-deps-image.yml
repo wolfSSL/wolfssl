@@ -3,8 +3,11 @@ name: CI deps image
 # Builds the prebuilt apt .deb bundles that the make-check family (the
 # -minimal tags) and the interop workflows (the -full tags, a superset)
 # install offline (see .github/actions/install-apt-deps, input
-# ghcr-debs-tag). Each bundle is the .deb closure of a package list in
-# .github/ci-deps/, published to ghcr.io/<owner>/wolfssl-ci-debs:<tag>.
+# ghcr-debs-tag). Each bundle holds the .debs for a package list in
+# .github/ci-deps/ - every package plus the dependencies not already on the
+# matching runner image, so it is tied to that runner rather than being a
+# portable, self-contained closure - published to
+# ghcr.io/<owner>/wolfssl-ci-debs:<tag>.
 #
 # Why: the apt mirror times out often enough to break PR CI. Resolving the
 # closure ONCE here (on master, where a slow mirror only delays this job and
@@ -21,8 +24,10 @@ on:
   schedule:
     # Weekend only - refresh the bundles weekly so they track base-image
     # security updates. A mid-week package-list change waits for Saturday
-    # (or run this manually via workflow_dispatch); until then install-apt-deps
-    # falls back to apt for any package not yet in the bundle.
+    # (or run this manually via workflow_dispatch); until then the offline
+    # install (a single --no-download install of the whole set) fails if any
+    # requested package is missing from the bundle, and install-apt-deps
+    # falls back to the full apt path.
     - cron: '0 2 * * 6'
   workflow_dispatch:
 

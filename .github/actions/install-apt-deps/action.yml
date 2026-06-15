@@ -24,11 +24,13 @@ inputs:
     description: >
       Tag of a prebuilt .deb bundle published to
       ghcr.io/<owner>/wolfssl-ci-debs by the ci-deps-image workflow
-      (e.g. "ubuntu-24.04-minimal"). When set, the packages are installed offline
-      from that bundle - the apt mirror is never contacted - and the apt
-      cache path below is skipped entirely. Any failure (bundle missing,
-      not public, or missing a package) falls through to the apt path, so
-      this is always safe to set. Leave empty to use apt only.
+      (e.g. "ubuntu-24.04-minimal"). When set, the packages are installed
+      offline from that bundle and the apt cache path below is skipped; on
+      that happy path the apt mirror is not contacted. The offline install
+      is all-or-nothing (a single --no-download install of the whole set),
+      so any failure - bundle missing, not public, or not covering every
+      requested package - falls back to the apt path. Always safe to set;
+      leave empty to use apt only.
     required: false
     default: ''
 runs:
