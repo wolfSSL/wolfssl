@@ -105,6 +105,13 @@ jobs:
             os-check-linux-ccache-${{ matrix.shard }}-
             os-check-linux-ccache-
 
+      # On the weekday seed, force clean recompiles (CCACHE_RECACHE) so the
+      # saved master ccache is reseeded from scratch rather than only
+      # accumulating deltas. PR/push runs leave it unset and keep their warm hits.
+      - name: Force fresh compiles on scheduled reseed
+        if: github.event_name == 'schedule'
+        run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
+
       - name: autogen
         run: |
           ccache -z

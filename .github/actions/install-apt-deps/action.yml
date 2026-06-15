@@ -49,8 +49,11 @@ runs:
       run: |
         set -u
         command -v docker >/dev/null 2>&1 || { echo "::notice::docker unavailable; using apt"; exit 0; }
-        OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-        IMG="ghcr.io/$OWNER/wolfssl-ci-debs:${{ inputs.ghcr-debs-tag }}"
+        # Hardcode the upstream owner: the bundle is only ever published under
+        # ghcr.io/wolfssl by ci-deps-image (gated to the wolfssl org), so fork
+        # PRs read the public upstream image too rather than a nonexistent
+        # ghcr.io/<fork>/wolfssl-ci-debs.
+        IMG="ghcr.io/wolfssl/wolfssl-ci-debs:${{ inputs.ghcr-debs-tag }}"
         if ! docker pull -q "$IMG" >/dev/null 2>&1; then
           echo "::notice::ghcr bundle $IMG unavailable; using apt"
           exit 0

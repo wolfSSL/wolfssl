@@ -72,6 +72,9 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: ~/.ccache
+        # Same key shape as the save branch, for symmetry. This branch never
+        # saves, so the run_id/run_attempt primary key is never an exact hit -
+        # the restore-keys below always supply the most recent seeded cache.
         key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
         restore-keys: |
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
