@@ -2678,7 +2678,7 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                                        waitOption);
         if (status != NX_SUCCESS) {
             if (status == NX_NO_PACKET) {
-                /* Normal receive timeout — allow DTLS to retransmit */
+                /* Normal receive timeout - allow DTLS to retransmit */
                 WOLFSSL_MSG("NetX Recv timeout");
                 return wolfSSL_dtls_get_using_nonblock(ssl)
                        ? WOLFSSL_CBIO_ERR_WANT_READ
