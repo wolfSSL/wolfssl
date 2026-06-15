@@ -17,10 +17,10 @@ on:
       - '**/*.md'
       - 'doc/**'
   # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs restore: the
-  # linux job re-runs --build-only (compile only, no tests) on the default
-  # branch, where its ccache writes are visible to every PR. macOS and
-  # Windows are skipped on schedule (see their job `if`s) - seeding the
-  # linux shards is where the cold-cache cost lives.
+  # linux and macOS jobs re-run --build-only (compile only, no tests) on the
+  # default branch, where their ccache writes are visible to every PR. Only
+  # Windows is skipped on schedule (see its job `if`) - seeding the linux and
+  # macOS shards is where the cold-cache cost lives.
   schedule:
     - cron: '0 10 * * 1-5'
 

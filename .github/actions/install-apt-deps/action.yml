@@ -24,7 +24,7 @@ inputs:
     description: >
       Tag of a prebuilt .deb bundle published to
       ghcr.io/<owner>/wolfssl-ci-debs by the ci-deps-image workflow
-      (e.g. "ubuntu-24.04"). When set, the packages are installed offline
+      (e.g. "ubuntu-24.04-minimal"). When set, the packages are installed offline
       from that bundle - the apt mirror is never contacted - and the apt
       cache path below is skipped entirely. Any failure (bundle missing,
       not public, or missing a package) falls through to the apt path, so
@@ -59,9 +59,13 @@ runs:
         docker rm "$cid" >/dev/null 2>&1 || true
         ls "$RUNNER_TEMP"/ghcr-debs/*.deb >/dev/null 2>&1 || { echo "::notice::bundle had no .debs; using apt"; exit 0; }
         sudo cp "$RUNNER_TEMP"/ghcr-debs/*.deb /var/cache/apt/archives/
+        NO_REC=""
+        if [ "${{ inputs.no-install-recommends }}" = "true" ]; then
+          NO_REC="--no-install-recommends"
+        fi
         # --no-download forbids any network fetch: if the bundle is missing
         # a package this fails cleanly (nothing installed) and we fall back.
-        if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-download ${{ inputs.packages }}; then
+        if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $NO_REC --no-download ${{ inputs.packages }}; then
           echo "satisfied=true" >> "$GITHUB_OUTPUT"
           echo "Installed offline from $IMG: ${{ inputs.packages }}"
         else
