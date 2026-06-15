@@ -76,6 +76,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool pkg-config gettext libidn2-dev libsecret-1-dev autopoint
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Checkout msmtp
         uses: actions/checkout@v5

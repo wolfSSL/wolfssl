@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs restore, by
+  # re-running --build-only (compile only, no tests) on the default branch.
+  # PR runs are read-only.
+  schedule:
+    - cron: '4 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,6 +44,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
       # compiler to configure as CC="ccache gcc" (or a per-config "cc").
@@ -48,6 +54,9 @@ jobs:
           workflow-id: pq-all
           config-hash: shard-${{ matrix.shard }}
           max-size: 350M
+          # PRs read the cache the weekday seed writes; they never
+          # save, so PR runs add nothing to the Actions cache.
+          read-only: ${{ github.event_name == 'pull_request' }}
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
       # which would stop the test scripts from re-execing under
@@ -220,6 +229,7 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --private-dir=certs \
             "$RUNNER_TEMP/pq-all-configs.json"
@@ -232,6 +242,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: pq-all-logs-${{ matrix.shard }}
           path: |
             build-*/make-check.log

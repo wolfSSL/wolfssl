@@ -71,6 +71,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: libuv1-dev libnghttp2-dev libcap-dev libcmocka-dev liburcu-dev
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Checkout OSP
         uses: actions/checkout@v5

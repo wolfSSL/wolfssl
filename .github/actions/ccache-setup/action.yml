@@ -21,6 +21,14 @@ inputs:
     description: 'Per-job ccache max size (passed to ccache -M).'
     required: false
     default: '500M'
+  read-only:
+    description: >
+      When 'true', restore the cache but do NOT save it (no post-job
+      upload). Pass `${{ github.event_name == 'pull_request' }}` so PR runs
+      consume the shared cache read-only - no per-PR entries, no churn -
+      while scheduled/push runs (read-only false) refresh it.
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -41,13 +49,26 @@ runs:
           exit 1
         fi
 
+    # read-only=false (default): restore + post-job save (the run_id in the
+    # key never hits, so it always saves its contribution).
     - name: Restore + save ccache
+      if: inputs.read-only != 'true'
       uses: actions/cache@v5
       with:
         path: ~/.ccache
         # Unique per run+attempt+config so each job persists its own
         # contribution; restore-keys falls back to the most recent
         # cache for this workflow/os/config.
+        key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
+    # read-only=true: restore the shared cache but never upload (PR runs).
+    - name: Restore ccache (read-only)
+      if: inputs.read-only == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.ccache
         key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
         restore-keys: |
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-

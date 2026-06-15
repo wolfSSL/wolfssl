@@ -64,6 +64,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: krb5-kdc krb5-otp libkrb5-dev libsocket-wrapper libnss-wrapper krb5-admin-server libdb5.3-dev
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Download lib
         uses: actions/download-artifact@v7

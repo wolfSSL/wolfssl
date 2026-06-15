@@ -20,6 +20,7 @@ jobs:
       uses: ./.github/actions/install-apt-deps
       with:
         packages: cmake
+        ghcr-debs-tag: ubuntu-24.04-full
 
 # build wolfssl
     - name: Build wolfssl

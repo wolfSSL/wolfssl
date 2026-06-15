@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '44 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,6 +42,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
       # compiler to configure as CC="ccache gcc" (or a per-config "cc").
@@ -44,6 +50,7 @@ jobs:
         uses: ./.github/actions/ccache-setup
         with:
           workflow-id: trackmemory
+          read-only: ${{ github.event_name == 'pull_request' }}
           max-size: 250M
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
@@ -93,6 +100,7 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
             "$RUNNER_TEMP/trackmemory-configs.json"
 
@@ -104,6 +112,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: trackmemory-logs
           path: |
             build-*/make-check.log

@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '24 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,6 +38,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential gcc-9 g++-9 gcc-10 g++-10 gcc-11 g++-11 gcc-12 g++-12 clang-14 clang-19
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
       # compiler to configure as CC="ccache gcc" (or a per-config "cc").
@@ -40,6 +46,7 @@ jobs:
         uses: ./.github/actions/ccache-setup
         with:
           workflow-id: multi-compiler
+          read-only: ${{ github.event_name == 'pull_request' }}
           max-size: 500M
 
       # One entry per compiler (the former one-runner-per-compiler matrix):
@@ -89,6 +96,7 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/multi-compiler-configs.json"
 
       - name: ccache stats
@@ -99,6 +107,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: multi-compiler-logs
           path: |
             build-*/make-check.log

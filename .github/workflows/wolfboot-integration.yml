@@ -314,6 +314,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: renode-multimem-smallstack-results
           path: wolfboot/test_results/
 
@@ -422,6 +423,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: renode-multimem-smallstack-fastmath-results
           path: wolfboot/test_results/
 
@@ -530,5 +532,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: renode-multimem-smallstack-noasm-results
           path: wolfboot/test_results/

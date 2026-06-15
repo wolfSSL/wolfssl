@@ -77,6 +77,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: libevent-dev libevent-2.1-7 automake pkg-config make libio-socket-ssl-perl
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Checkout memcached
         uses: actions/checkout@v5
