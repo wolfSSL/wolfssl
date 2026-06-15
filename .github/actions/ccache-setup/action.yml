@@ -42,7 +42,7 @@ runs:
         fi
 
     - name: Restore + save ccache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.ccache
         # Unique per run+attempt+config so each job persists its own

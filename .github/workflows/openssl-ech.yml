@@ -48,7 +48,7 @@ jobs:
           tar -zcf build-dir.tgz build-dir
 
       - name: Upload built wolfSSL
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wolf-install-openssl-ech
           path: build-dir.tgz
@@ -61,7 +61,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout OpenSSL feature/ech branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: openssl/openssl
           ref: feature/ech
@@ -80,7 +80,7 @@ jobs:
         run: tar -zcf openssl-install.tgz openssl-install
 
       - name: Upload built OpenSSL
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: openssl-ech-install
           path: openssl-install.tgz
@@ -94,12 +94,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Download wolfSSL build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: wolf-install-openssl-ech
 
       - name: Download OpenSSL build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openssl-ech-install
 

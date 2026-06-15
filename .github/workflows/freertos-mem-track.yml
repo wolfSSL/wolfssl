@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run mem_track.h FreeRTOS reproducer
         run: sh tests/freertos-mem-track-repro/run.sh

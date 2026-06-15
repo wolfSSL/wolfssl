@@ -35,7 +35,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wolf-install-jwt-cpp
           path: build-dir.tgz
@@ -56,7 +56,7 @@ jobs:
     needs: build_wolfssl
     steps:
       - name: Checkout wolfSSL CI actions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .github/actions
           fetch-depth: 1
@@ -67,7 +67,7 @@ jobs:
           packages: libgtest-dev
 
       - name: Download lib
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: wolf-install-jwt-cpp
 
@@ -80,14 +80,14 @@ jobs:
         run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: wolfssl/osp
           path: osp
           fetch-depth: 1
 
       - name: Checkout jwt-cpp
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Thalhammer/jwt-cpp
           path: jwt-cpp

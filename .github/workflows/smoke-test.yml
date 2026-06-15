@@ -56,7 +56,7 @@ jobs:
       # For PRs we explicitly check out the PR head (not the auto-merge
       # ref) and do the merge ourselves below so we can fail fast on
       # conflicts. For push events we just check out the pushed SHA.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -107,7 +107,7 @@ jobs:
 
       - name: Restore ccache
         if: steps.merge_check.outputs.skip != 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ccache
           key: smoke-ccache-${{ github.base_ref || github.ref_name }}-${{ github.sha }}
@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload logs on failure
         if: failure() && steps.merge_check.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: smoke-logs
           path: |

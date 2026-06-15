@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout wolfSSL CI actions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .github/actions
           fetch-depth: 1
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload failure logs
         if: ${{ failure() && (steps.wolfssl-test.outcome == 'failure' || steps.wolfssl-tls-sock.outcome == 'failure' || steps.wolfssl-tls-thread.outcome == 'failure') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zephyr-client-test-logs
           path: logs.zip

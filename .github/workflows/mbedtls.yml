@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checking if we have mbed in cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache
         with:
           path: mbedtls
@@ -34,7 +34,7 @@ jobs:
 
       - name: Checkout mbedtls
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Mbed-TLS/mbedtls
           ref: ${{ env.MBED_REF }}
@@ -65,7 +65,7 @@ jobs:
         run: echo 1 | sudo tee /proc/sys/net/ipv6/conf/lo/disable_ipv6
 
       - name: Checking if we have mbed in cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache
         with:
           path: mbedtls
@@ -73,7 +73,7 @@ jobs:
 
       - name: Checkout mbedtls (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Mbed-TLS/mbedtls
           ref: ${{ env.MBED_REF }}

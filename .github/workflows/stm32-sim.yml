@@ -48,7 +48,7 @@ jobs:
             script: run-wolfcrypt-mp135.sh
     steps:
       - name: Checkout wolfSSL (PR source)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: wolfssl
 
@@ -72,10 +72,10 @@ jobs:
           grep -q '^#define WOLFSSL_SHAKE128$' user_settings.h
           grep -q '^#define WOLFSSL_SHAKE256$' user_settings.h
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build stm32sim-wolfcrypt image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: simulators/STM32Sim
           file: simulators/STM32Sim/Dockerfile.wolfcrypt

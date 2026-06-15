@@ -55,11 +55,11 @@ jobs:
     env:
       CCACHE_MAXSIZE: 500M
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
       # `make check`); without it that test is SKIPped.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - run: pip install tlslite-ng
@@ -82,7 +82,7 @@ jobs:
         run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
 
       - name: Restore ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ccache
           # Per-shard cache lineage: each shard compiles a distinct config
@@ -390,7 +390,7 @@ jobs:
 
       - name: Upload logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: os-check-linux-logs-${{ matrix.shard }}
           path: |
@@ -419,11 +419,11 @@ jobs:
     # one-time setup, with headroom for a cold ccache.
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
       # `make check`); without it that test is SKIPped.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - run: pip install tlslite-ng
@@ -488,7 +488,7 @@ jobs:
 
       - name: Upload logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: os-check-macos-logs
           path: |
@@ -516,10 +516,10 @@ jobs:
       # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
       BUILD_CONFIGURATION: Release
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
+      uses: microsoft/setup-msbuild@v3
 
     - name: Restore NuGet packages
       working-directory: ${{env.GITHUB_WORKSPACE}}

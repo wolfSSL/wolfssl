@@ -60,7 +60,7 @@ jobs:
     name: ${{ matrix.platform.title }} (${{ matrix.thread.id }} ${{ matrix.library.id }})
     steps:
       - name: Setup Open Watcom ${{ matrix.platform.owimage }}
-        uses: open-watcom/setup-watcom@v0
+        uses: open-watcom/setup-watcom@v1
         with:
           version: ${{ matrix.platform.owimage }}
           # Currently fixed to a monthly build because of historical instability with daily releases.
@@ -69,7 +69,7 @@ jobs:
           tag: 2025-11-03-Build
 
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: wolfssl
 
@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload build errors
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.platform.id }}-${{ matrix.thread.id }}-${{ matrix.library.id }}
           path: |

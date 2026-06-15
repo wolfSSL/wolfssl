@@ -32,7 +32,7 @@ jobs:
             extra-conf: external_libc.conf
     steps:
       - name: Checkout test driver
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .github/scripts/zephyr-4.x
           fetch-depth: 1
@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zephyr-4.x-${{ matrix.zephyr-ref }}-${{ matrix.sample }}-${{ strategy.job-index }}
           path: .github/scripts/zephyr-4.x/logs/
@@ -91,7 +91,7 @@ jobs:
           matrix.zephyr-ref == 'v4.3.0' &&
           matrix.sample == 'wolfssl_test' &&
           matrix.extra-conf == ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: membrowse-zephyr-${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612' }}
           path: |
