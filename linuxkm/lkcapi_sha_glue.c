@@ -1230,10 +1230,16 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
         if (ret == 0)
             continue;
 
-        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) && (! retried)) {
-            if (slen > 0)
+        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E))) {
+            if (slen > 0) {
+                ret = -EINVAL;
                 break;
+            }
 
+            if (retried) {
+                ret = -EINVAL;
+                break;
+            }
             retried = 1;
 
             ret = wc_rng_bank_inst_reinit(ctx,
@@ -1829,8 +1835,8 @@ static int wc_linuxkm_drbg_startup(void)
             u8 buf1[16], buf2[17];
             int i, j;
 
-            memset(buf1, 0, sizeof buf1);
-            memset(buf2, 0, sizeof buf2);
+            XMEMSET(buf1, 0, sizeof buf1);
+            XMEMSET(buf2, 0, sizeof buf2);
 
             ret = crypto_rng_generate(tfm, NULL, 0, buf1, (unsigned int)sizeof buf1);
             if (! ret)
@@ -1852,7 +1858,7 @@ static int wc_linuxkm_drbg_startup(void)
                  */
                 for (i = 1; i <= (int)sizeof buf2; ++i) {
                     for (j = 0; j < 20; ++j) {
-                        memset(buf2, 0, (size_t)i);
+                        XMEMSET(buf2, 0, (size_t)i);
                         ret = crypto_rng_generate(tfm, NULL, 0, buf2, (unsigned int)i);
                         if (ret)
                             break;

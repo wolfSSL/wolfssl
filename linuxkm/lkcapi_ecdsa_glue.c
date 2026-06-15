@@ -315,7 +315,7 @@ static int km_ecdsa_init(struct crypto_akcipher *tfm, int curve_id)
     int                   ret = 0;
 
     ctx = akcipher_tfm_ctx(tfm);
-    memset(ctx, 0, sizeof(struct km_ecdsa_ctx));
+    XMEMSET(ctx, 0, sizeof(struct km_ecdsa_ctx));
     ctx->curve_id = curve_id;
     ctx->curve_len = 0;
 
@@ -430,7 +430,7 @@ static int km_ecdsa_verify(struct akcipher_request *req)
 
     hash = sig + sig_len;
 
-    memset(sig, 0, sig_len + hash_len);
+    XMEMSET(sig, 0, sig_len + hash_len);
 
     /* copy sig and hash from req->src to sig and contiguous hash buffer. */
     scatterwalk_map_and_copy(sig, req->src, 0, sig_len + hash_len, 0);
@@ -731,9 +731,9 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         test_rc = MEMORY_E;
         goto test_ecdsa_nist_end;
     }
-    memcpy(param_copy, sig, sig_len);
+    XMEMCPY(param_copy, sig, sig_len);
     sig = param_copy;
-    memcpy(param_copy + sig_len, hash, hash_len);
+    XMEMCPY(param_copy + sig_len, hash, hash_len);
     hash = param_copy + sig_len;
 
     /*
@@ -823,7 +823,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         goto test_ecdsa_nist_end;
     }
 
-    memcpy(bad_sig, sig, sig_len);
+    XMEMCPY(bad_sig, sig, sig_len);
     bad_sig[sig_len/2] ^= 1;
 
     sg_init_table(src_tab, 2);

@@ -945,7 +945,7 @@ static struct skcipher_alg cfbAesAlg = {
 };
 static int cfbAesAlg_loaded = 0;
 
-#endif /* LINUXKM_LKCAPI_REGISTER_AESCBC */
+#endif /* LINUXKM_LKCAPI_REGISTER_AESCFB */
 
 #if defined(LINUXKM_LKCAPI_REGISTER_AESGCM) || \
     defined(LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106)
@@ -1016,7 +1016,7 @@ static int km_AesGcmSetKey_Rfc4106(struct crypto_aead *tfm, const u8 *in_key,
     if (key_len < 4)
         return -EINVAL;
     key_len -= 4;
-    memcpy(ctx->rfc4106_nonce, in_key + key_len, 4);
+    XMEMCPY(ctx->rfc4106_nonce, in_key + key_len, 4);
 
     err = wc_AesGcmSetKey(ctx->aes_encrypt, in_key, key_len);
 
@@ -1171,8 +1171,8 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         }
         assoclen -= 8;
 
-        memcpy(rfc4106_iv, ctx->rfc4106_nonce, 4);
-        memcpy(rfc4106_iv + 4, walk.iv, 8);
+        XMEMCPY(rfc4106_iv, ctx->rfc4106_nonce, 4);
+        XMEMCPY(rfc4106_iv + 4, walk.iv, 8);
         err = wc_AesGcmInit(aes_copy, NULL /*key*/, 0 /*keylen*/, rfc4106_iv,
                             GCM_NONCE_MID_SZ);
     }
@@ -1396,8 +1396,8 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         }
         assoclen -= 8;
 
-        memcpy(rfc4106_iv, ctx->rfc4106_nonce, 4);
-        memcpy(rfc4106_iv + 4, sk_walk.iv, 8);
+        XMEMCPY(rfc4106_iv, ctx->rfc4106_nonce, 4);
+        XMEMCPY(rfc4106_iv + 4, sk_walk.iv, 8);
     }
 #else
     (void)rfc4106_p;
@@ -1681,7 +1681,7 @@ static int km_AesCcmSetKey_Rfc4309(struct crypto_aead *tfm, const u8 *in_key,
     if (key_len < 3)
         return -EINVAL;
     key_len -= 3;
-    memcpy(ctx->rfc4309_nonce, in_key + key_len, 3);
+    XMEMCPY(ctx->rfc4309_nonce, in_key + key_len, 3);
 
     err = wc_AesCcmSetKey(ctx->aes_encrypt, in_key, key_len);
 
@@ -1878,8 +1878,8 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
         }
         assoclen -= 8;
 
-        memcpy(rfc4309_iv, ctx->rfc4309_nonce, 3);
-        memcpy(rfc4309_iv + 3, sk_walk.iv, 8);
+        XMEMCPY(rfc4309_iv, ctx->rfc4309_nonce, 3);
+        XMEMCPY(rfc4309_iv + 3, sk_walk.iv, 8);
         nonce   = rfc4309_iv;
         nonceSz = 11;
     }
@@ -3125,7 +3125,7 @@ static int linuxkm_test_aescbc(void)
         goto test_cbc_end;
     }
 
-    memcpy(dec2, p_vector, sizeof(p_vector));
+    XMEMCPY(dec2, p_vector, sizeof(p_vector));
 
     tfm = crypto_alloc_skcipher(WOLFKM_AESCBC_NAME, 0, 0);
     if (IS_ERR(tfm)) {
@@ -3181,7 +3181,7 @@ static int linuxkm_test_aescbc(void)
         goto test_cbc_end;
     }
 
-    memset(dec2, 0, sizeof(p_vector));
+    XMEMSET(dec2, 0, sizeof(p_vector));
     sg_init_one(&src, enc2, sizeof(p_vector));
     sg_init_one(&dst, dec2, sizeof(p_vector));
 
@@ -3338,7 +3338,7 @@ static int linuxkm_test_aescfb(void)
         goto test_cfb_end;
     }
 
-    memcpy(dec2, p_vector, sizeof(p_vector));
+    XMEMCPY(dec2, p_vector, sizeof(p_vector));
 
     tfm = crypto_alloc_skcipher(WOLFKM_AESCFB_NAME, 0, 0);
     if (IS_ERR(tfm)) {
@@ -3385,7 +3385,7 @@ static int linuxkm_test_aescfb(void)
         goto test_cfb_end;
     }
 
-    memset(dec2, 0, sizeof(p_vector));
+    XMEMSET(dec2, 0, sizeof(p_vector));
     sg_init_one(&src, enc2, sizeof(p_vector));
     sg_init_one(&dst, dec2, sizeof(p_vector));
 
@@ -3574,8 +3574,8 @@ static int linuxkm_test_aesgcm(void)
         ret = MEMORY_E;
         goto test_gcm_end;
     }
-    memset(assoc2, 0, sizeof(assoc));
-    memcpy(assoc2, assoc, sizeof(assoc));
+    XMEMSET(assoc2, 0, sizeof(assoc));
+    XMEMCPY(assoc2, assoc, sizeof(assoc));
 
     iv = malloc(WC_AES_BLOCK_SIZE);
     if (! iv) {
@@ -3583,8 +3583,8 @@ static int linuxkm_test_aesgcm(void)
         ret = MEMORY_E;
         goto test_gcm_end;
     }
-    memset(iv, 0, WC_AES_BLOCK_SIZE);
-    memcpy(iv, ivstr, GCM_NONCE_MID_SZ);
+    XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
+    XMEMCPY(iv, ivstr, GCM_NONCE_MID_SZ);
 
     enc2 = malloc(decryptLen);
     if (! enc2) {
@@ -3600,13 +3600,13 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    memset(enc2, 0, decryptLen);
-    memset(dec2, 0, decryptLen);
-    memcpy(dec2, p_vector, sizeof(p_vector));
+    XMEMSET(enc2, 0, decryptLen);
+    XMEMSET(dec2, 0, decryptLen);
+    XMEMCPY(dec2, p_vector, sizeof(p_vector));
 
     tfm = crypto_alloc_aead(WOLFKM_AESGCM_NAME, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating AES skcipher algorithm %s failed: %ld\n",
+        pr_err("error: allocating AES aead algorithm %s failed: %ld\n",
                WOLFKM_AESGCM_DRIVER, PTR_ERR(tfm));
         tfm = NULL;
         goto test_gcm_end;
@@ -3632,7 +3632,7 @@ static int linuxkm_test_aesgcm(void)
     if (! req) {
         ret = -ENOMEM;
         pr_err("error: allocating AES aead request %s failed.\n",
-               WOLFKM_AESCBC_DRIVER);
+               WOLFKM_AESGCM_DRIVER);
         goto test_gcm_end;
     }
 
@@ -3684,7 +3684,7 @@ static int linuxkm_test_aesgcm(void)
     }
 
     /* Now decrypt crypto request. Reverse src and dst. */
-    memset(dec2, 0, decryptLen);
+    XMEMSET(dec2, 0, decryptLen);
     aead_request_set_ad(req, sizeof(assoc));
     aead_request_set_crypt(req, dst, src, decryptLen, iv);
 
@@ -4253,13 +4253,13 @@ static int aes_xts_128_test(void)
         goto test_xts_end;
     }
 
-    memcpy(dec2, p1, sizeof(p1));
-    memset(enc2, 0, sizeof(p1));
+    XMEMCPY(dec2, p1, sizeof(p1));
+    XMEMSET(enc2, 0, sizeof(p1));
 
     sg_init_one(src, dec2, sizeof(p1));
     sg_init_one(dst, enc2, sizeof(p1));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), stream.tweak_block);
 
     ret = crypto_skcipher_encrypt(req);
@@ -4276,11 +4276,11 @@ static int aes_xts_128_test(void)
         goto test_xts_end;
     }
 
-    memset(dec2, 0, sizeof(p1));
+    XMEMSET(dec2, 0, sizeof(p1));
     sg_init_one(src, enc2, sizeof(p1));
     sg_init_one(dst, dec2, sizeof(p1));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), stream.tweak_block);
 
     ret = crypto_skcipher_decrypt(req);
@@ -4297,13 +4297,13 @@ static int aes_xts_128_test(void)
         goto test_xts_end;
     }
 
-    memcpy(dec2, pp, sizeof(pp));
-    memset(enc2, 0, sizeof(pp));
+    XMEMCPY(dec2, pp, sizeof(pp));
+    XMEMSET(enc2, 0, sizeof(pp));
 
     sg_init_one(src, dec2, sizeof(pp));
     sg_init_one(dst, enc2, sizeof(pp));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), stream.tweak_block);
 
     ret = crypto_skcipher_encrypt(req);
@@ -4320,11 +4320,11 @@ static int aes_xts_128_test(void)
         goto test_xts_end;
     }
 
-    memset(dec2, 0, sizeof(pp));
+    XMEMSET(dec2, 0, sizeof(pp));
     sg_init_one(src, enc2, sizeof(pp));
     sg_init_one(dst, dec2, sizeof(pp));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), stream.tweak_block);
 
     ret = crypto_skcipher_decrypt(req);
@@ -4749,13 +4749,13 @@ static int aes_xts_256_test(void)
         goto test_xts_end;
     }
 
-    memcpy(dec2, p1, sizeof(p1));
-    memset(enc2, 0, sizeof(p1));
+    XMEMCPY(dec2, p1, sizeof(p1));
+    XMEMSET(enc2, 0, sizeof(p1));
 
     sg_init_one(src, dec2, sizeof(p1));
     sg_init_one(dst, enc2, sizeof(p1));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), stream.tweak_block);
 
     ret = crypto_skcipher_encrypt(req);
@@ -4772,11 +4772,11 @@ static int aes_xts_256_test(void)
         goto test_xts_end;
     }
 
-    memset(dec2, 0, sizeof(p1));
+    XMEMSET(dec2, 0, sizeof(p1));
     sg_init_one(src, enc2, sizeof(p1));
     sg_init_one(dst, dec2, sizeof(p1));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), stream.tweak_block);
 
     ret = crypto_skcipher_decrypt(req);
@@ -4793,13 +4793,13 @@ static int aes_xts_256_test(void)
         goto test_xts_end;
     }
 
-    memcpy(dec2, pp, sizeof(pp));
-    memset(enc2, 0, sizeof(pp));
+    XMEMCPY(dec2, pp, sizeof(pp));
+    XMEMSET(enc2, 0, sizeof(pp));
 
     sg_init_one(src, dec2, sizeof(pp));
     sg_init_one(dst, enc2, sizeof(pp));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), stream.tweak_block);
 
     ret = crypto_skcipher_encrypt(req);
@@ -4816,11 +4816,11 @@ static int aes_xts_256_test(void)
         goto test_xts_end;
     }
 
-    memset(dec2, 0, sizeof(pp));
+    XMEMSET(dec2, 0, sizeof(pp));
     sg_init_one(src, enc2, sizeof(pp));
     sg_init_one(dst, dec2, sizeof(pp));
 
-    memcpy(stream.tweak_block, i1, sizeof(stream.tweak_block));
+    XMEMCPY(stream.tweak_block, i1, sizeof(stream.tweak_block));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), stream.tweak_block);
 
     ret = crypto_skcipher_decrypt(req);

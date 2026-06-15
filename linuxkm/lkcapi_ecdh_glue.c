@@ -189,14 +189,14 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
 
     /* the type of secret should be the first byte. */
     ptr = buf;
-    memcpy(&secret, ptr, sizeof(secret));
+    XMEMCPY(&secret, ptr, sizeof(secret));
     ptr += sizeof(secret);
     if (secret.type != CRYPTO_KPP_SECRET_TYPE_ECDH) {
         return -EINVAL;
     }
 
     /* the key_size field will be present */
-    memcpy(&params->key_size, ptr, sizeof(params->key_size));
+    XMEMCPY(&params->key_size, ptr, sizeof(params->key_size));
     ptr += sizeof(params->key_size);
 
     /* Calculate expected len. Verify we got expected data. */
@@ -243,7 +243,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
     struct ecdh          params;
 
     ctx = kpp_tfm_ctx(tfm);
-    memset(&params, 0, sizeof(params));
+    XMEMSET(&params, 0, sizeof(params));
 
     switch (ctx->curve_len) {
     #if defined(LINUXKM_ECC192)
@@ -385,7 +385,7 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     int key_inited = 0;
 
     ctx = kpp_tfm_ctx(tfm);
-    memset(ctx, 0, sizeof(struct km_ecdh_ctx));
+    XMEMSET(ctx, 0, sizeof(struct km_ecdh_ctx));
     ctx->curve_id = curve_id;
     ctx->curve_len = 0;
 
@@ -525,7 +525,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
         goto ecdh_gen_pub_end;
     }
 
-    memset(pub, 0, raw_pub_len);
+    XMEMSET(pub, 0, raw_pub_len);
 
     if (ctx->key->type == ECC_PRIVATEKEY_ONLY) {
         /* ecc key was imported as priv only.
@@ -959,7 +959,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
         goto test_ecdh_nist_end;
     }
 
-    memset(dst_buf, 0, dst_len);
+    XMEMSET(dst_buf, 0, dst_len);
 
     /* generate pub key from input, and verify matches expected. */
     kpp_request_set_input(req, NULL, 0);
@@ -986,7 +986,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
         goto test_ecdh_nist_end;
     }
 
-    memcpy(src_buf, b_pub, pub_len);
+    XMEMCPY(src_buf, b_pub, pub_len);
 
     /* generate shared secret, verify matches expected value. */
     sg_init_one(&src, src_buf, src_len);
