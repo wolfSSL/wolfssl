@@ -970,7 +970,15 @@ static int km_dh_compute_shared_secret(struct kpp_request *req)
     /* copy req->src to pub */
     scatterwalk_map_and_copy(pub, req->src, 0, req->src_len, 0);
 
-    shared_secret_len = pub_len;
+    /* Note, shared_secret_len must use the canonical length of ctx->key, not
+     * the untrustworthy req->src_len, to prevent underallocation of
+     * shared_secret.
+     */
+    shared_secret_len = mp_unsigned_bin_size(&ctx->key->p);
+    if (shared_secret_len < req->src_len) {
+        err = -EINVAL;
+        goto dh_shared_secret_end;
+    }
     shared_secret = malloc(shared_secret_len);
     if (!shared_secret) {
         err = -ENOMEM;
