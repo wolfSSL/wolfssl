@@ -146,6 +146,7 @@
 #define CPUID_AARCH64_FEAT_SHA3        ((word64)1 << 32)
 #define CPUID_AARCH64_FEAT_SM3         ((word64)1 << 36)
 #define CPUID_AARCH64_FEAT_SM4         ((word64)1 << 40)
+#define CPUID_AARCH64_FEAT_ASIMD       ((word64)0xf << 20)
 
 #ifdef WOLFSSL_AARCH64_PRIVILEGE_MODE
     /* https://developer.arm.com/documentation/ddi0601/2024-09/AArch64-Registers
@@ -158,6 +159,19 @@
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features;
 
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            __asm__ __volatile (
+                "mrs    %[feat], ID_AA64PFR0_EL1\n"
+                : [feat] "=r" (features)
+                :
+                :
+            );
+
+            if ((features & CPUID_AARCH64_FEAT_ASIMD) !=
+                    CPUID_AARCH64_FEAT_ASIMD)
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+
             __asm__ __volatile (
                 "mrs    %[feat], ID_AA64ISAR0_EL1\n"
                 : [feat] "=r" (features)
@@ -165,6 +179,7 @@
                 :
             );
 
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             if (features & CPUID_AARCH64_FEAT_AES)
                 new_cpuid_flags |= CPUID_AES;
             if (features & CPUID_AARCH64_FEAT_AES_PMULL) {
@@ -173,16 +188,27 @@
             }
             if (features & CPUID_AARCH64_FEAT_SHA256)
                 new_cpuid_flags |= CPUID_SHA256;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
             if (features & CPUID_AARCH64_FEAT_SHA256_512)
                 new_cpuid_flags |= CPUID_SHA256 | CPUID_SHA512;
+        #endif
+        #if !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
             if (features & CPUID_AARCH64_FEAT_RDM)
                 new_cpuid_flags |= CPUID_RDM;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (features & CPUID_AARCH64_FEAT_SHA3)
                 new_cpuid_flags |= CPUID_SHA3;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SM3
             if (features & CPUID_AARCH64_FEAT_SM3)
                 new_cpuid_flags |= CPUID_SM3;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
             if (features & CPUID_AARCH64_FEAT_SM4)
                 new_cpuid_flags |= CPUID_SM4;
+        #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
@@ -201,6 +227,11 @@
             cpuid_flags_t new_cpuid_flags = 0,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 hwcaps = getauxval(AT_HWCAP);
+
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            if (hwcaps & HWCAP_ASIMD)
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
 
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             if (hwcaps & HWCAP_AES)
@@ -249,12 +280,18 @@
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features = android_getCpuFeatures();
 
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            /* All Android AArch64 chips support NEON. */
+            new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             if (features & ANDROID_CPU_ARM_FEATURE_AES)
                 new_cpuid_flags |= CPUID_AES;
             if (features & ANDROID_CPU_ARM_FEATURE_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
             if (features & ANDROID_CPU_ARM_FEATURE_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
+        #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
@@ -281,18 +318,31 @@
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
             cpuid_flags_t new_cpuid_flags = 0,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
+
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            /* All Mac AArch64 chips support NEON. */
+            new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_AES") != 0)
                 new_cpuid_flags |= CPUID_AES;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_PMULL") != 0)
                 new_cpuid_flags |= CPUID_PMULL;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA256") != 0)
                 new_cpuid_flags |= CPUID_SHA256;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA512") != 0)
                 new_cpuid_flags |= CPUID_SHA512;
+        #endif
+        #if !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_RDM") != 0)
                 new_cpuid_flags |= CPUID_RDM;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA3") != 0)
                 new_cpuid_flags |= CPUID_SHA3;
+        #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM3
             new_cpuid_flags |= CPUID_SM3;
         #endif
@@ -318,24 +368,40 @@
 
             elf_aux_info(AT_HWCAP, &features, sizeof(features));
 
-            if (features & CPUID_AARCH64_FEAT_AES)
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            if (features & HWCAP_ASIMD)
+                new_cpuid_flags |= CPUID_ASIMD;
+        #endif
+
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+            if (features & HWCAP_AES)
                 new_cpuid_flags |= CPUID_AES;
-            if (features & CPUID_AARCH64_FEAT_AES_PMULL) {
-                new_cpuid_flags |= CPUID_AES;
+            if (features & HWCAP_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
-            }
-            if (features & CPUID_AARCH64_FEAT_SHA256)
+            if (features & HWCAP_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
-            if (features & CPUID_AARCH64_FEAT_SHA256_512)
-                new_cpuid_flags |= CPUID_SHA256 | CPUID_SHA512;
-            if (features & CPUID_AARCH64_FEAT_RDM)
+        #endif
+
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
+            if (features & HWCAP_SHA512)
+                new_cpuid_flags |= CPUID_SHA512;
+        #endif
+        #if defined(HWCAP_ASIMDRDM) && !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
+            if (features & HWCAP_ASIMDRDM)
                 new_cpuid_flags |= CPUID_RDM;
-            if (features & CPUID_AARCH64_FEAT_SHA3)
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+            if (features & HWCAP_SHA3)
                 new_cpuid_flags |= CPUID_SHA3;
-            if (features & CPUID_AARCH64_FEAT_SM3)
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SM3
+            if (features & HWCAP_SM3)
                 new_cpuid_flags |= CPUID_SM3;
-            if (features & CPUID_AARCH64_FEAT_SM4)
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
+            if (features & HWCAP_SM4)
                 new_cpuid_flags |= CPUID_SM4;
+        #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
@@ -347,6 +413,9 @@
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
             cpuid_flags_t new_cpuid_flags = 0,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
+        #ifndef WOLFSSL_ARMASM_NO_NEON
+            new_cpuid_flags |= CPUID_ASIMD;
+        #endif
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             new_cpuid_flags |= CPUID_AES;
             new_cpuid_flags |= CPUID_PMULL;

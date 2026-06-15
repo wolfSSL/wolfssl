@@ -1424,22 +1424,127 @@ static int InitSha512_256(wc_Sha512* sha512)
 
 #elif defined(WOLFSSL_ARMASM)
 
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_NO_NEON)
-#error "No SHA-512 implementation."
-#endif
+#ifdef __aarch64__
+
+/* AArch64: choose the SHA-512 crypto extension, NEON or the software
+ * implementation at runtime based on CPU features, so a core that lacks the
+ * crypto extension and/or NEON still has a working SHA-512. */
+#define NEED_SOFT_SHA512
 
 static int transform_check = 0;
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_CRYPTO_SHA512)
-static word32 cpuid_flags = 0;
-static int cpuid_flags_set = 0;
-#endif
+static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_CRYPTO_SHA512)
-static void Transform_Sha512_crypto(wc_Sha512* sha512, const byte* data)
+static int _Transform_Sha512(wc_Sha512* sha512);
+static int Transform_Sha512_C(wc_Sha512* sha512, const byte* data);
+static int Transform_Sha512_Len_C(wc_Sha512* sha512, const byte* data,
+    word32 len);
+
+/* Initialize to the software fallback so the pointers are never NULL if they
+ * are read before Sha512_SetTransform() has published the selected variant. */
+static int (*Transform_Sha512_p)(wc_Sha512* sha512, const byte* data)
+    = Transform_Sha512_C;
+static int (*Transform_Sha512_Len_p)(wc_Sha512* sha512, const byte* data,
+    word32 len) = Transform_Sha512_Len_C;
+
+/* Software fallback adapters in the asm (sha512, data[, len]) form. The asm
+ * transforms consume raw big-endian input and byte-reverse internally, so the
+ * software path mirrors that by reversing the block before _Transform_Sha512()
+ * (which reads host-endian words from sha512->buffer). */
+static int Transform_Sha512_C(wc_Sha512* sha512, const byte* data)
+{
+    if (data != (const byte*)sha512->buffer)
+        XMEMCPY(sha512->buffer, data, WC_SHA512_BLOCK_SIZE);
+#ifdef LITTLE_ENDIAN_ORDER
+    ByteReverseWords64(sha512->buffer, sha512->buffer, WC_SHA512_BLOCK_SIZE);
+#endif
+    return _Transform_Sha512(sha512);
+}
+static int Transform_Sha512_Len_C(wc_Sha512* sha512, const byte* data,
+    word32 len)
+{
+    int ret = 0;
+
+    while (len >= WC_SHA512_BLOCK_SIZE) {
+        ret = Transform_Sha512_C(sha512, data);
+        if (ret != 0)
+            break;
+        data += WC_SHA512_BLOCK_SIZE;
+        len  -= WC_SHA512_BLOCK_SIZE;
+    }
+
+    return ret;
+}
+
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
+static int Transform_Sha512_crypto_aarch64(wc_Sha512* sha512, const byte* data)
 {
     Transform_Sha512_Len_crypto(sha512, data, WC_SHA512_BLOCK_SIZE);
+    return 0;
+}
+static int Transform_Sha512_Len_crypto_aarch64(wc_Sha512* sha512,
+    const byte* data, word32 len)
+{
+    Transform_Sha512_Len_crypto(sha512, data, len);
+    return 0;
 }
 #endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+static int Transform_Sha512_neon_aarch64(wc_Sha512* sha512, const byte* data)
+{
+    Transform_Sha512_Len_neon(sha512, data, WC_SHA512_BLOCK_SIZE);
+    return 0;
+}
+static int Transform_Sha512_Len_neon_aarch64(wc_Sha512* sha512,
+    const byte* data, word32 len)
+{
+    Transform_Sha512_Len_neon(sha512, data, len);
+    return 0;
+}
+#endif
+
+static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512, const byte* data)
+{
+    return (*Transform_Sha512_p)(sha512, data);
+}
+static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, const byte* data,
+    word32 len)
+{
+    return (*Transform_Sha512_Len_p)(sha512, data, len);
+}
+
+static void Sha512_SetTransform(void)
+{
+    if (transform_check)
+        return;
+
+    cpuid_get_flags_ex(&cpuid_flags);
+
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
+    if (IS_AARCH64_SHA512(cpuid_flags)) {
+        Transform_Sha512_p     = Transform_Sha512_crypto_aarch64;
+        Transform_Sha512_Len_p = Transform_Sha512_Len_crypto_aarch64;
+    }
+    else
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+    if (IS_AARCH64_ASIMD(cpuid_flags)) {
+        Transform_Sha512_p     = Transform_Sha512_neon_aarch64;
+        Transform_Sha512_Len_p = Transform_Sha512_Len_neon_aarch64;
+    }
+    else
+#endif
+    {
+        Transform_Sha512_p     = Transform_Sha512_C;
+        Transform_Sha512_Len_p = Transform_Sha512_Len_C;
+    }
+
+    transform_check = 1;
+}
+
+#else /* !__aarch64__ : 32-bit Arm (Thumb2 / ARMv7) */
+
+static int transform_check = 0;
+
 #if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
 static void Transform_Sha512_neon(wc_Sha512* sha512, const byte* data)
 {
@@ -1474,20 +1579,6 @@ static void Sha512_SetTransform(void)
     if (transform_check)
         return;
 
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_CRYPTO_SHA512)
-    if (!cpuid_flags_set) {
-        cpuid_flags = cpuid_get_flags();
-        cpuid_flags_set = 1;
-    }
-#endif
-
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_CRYPTO_SHA512)
-    if (IS_AARCH64_SHA512(cpuid_flags)) {
-        Transform_Sha512_p = Transform_Sha512_crypto;
-        Transform_Sha512_Len_p = Transform_Sha512_Len_crypto;
-    }
-    else
-#endif
 #if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
     {
         Transform_Sha512_p = Transform_Sha512_neon;
@@ -1502,6 +1593,8 @@ static void Sha512_SetTransform(void)
 
     transform_check = 1;
 }
+
+#endif /* __aarch64__ */
 
 #elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
 
@@ -1673,7 +1766,8 @@ int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
 
 #endif /* WOLFSSL_SHA512 */
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
+#if (!defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
+     !defined(WOLFSSL_PPC32_ASM)) || defined(NEED_SOFT_SHA512)
 
 static const word64 K512[80] = {
     W64LIT(0x428a2f98d728ae22), W64LIT(0x7137449123ef65cd),
@@ -1865,8 +1959,9 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
         #endif
             }
     #endif
-    #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
-            Transform_Sha512(sha512, (const byte*)sha512->buffer);
+    #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
+        defined(WOLFSSL_PPC32_ASM)
+            ret = Transform_Sha512(sha512, (const byte*)sha512->buffer);
     #elif !defined(WOLFSSL_ESP32_CRYPT) || \
            defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
            defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
@@ -1895,7 +1990,13 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     if (len >= WC_SHA512_BLOCK_SIZE) {
         word32 blocksLen = len & ~((word32)WC_SHA512_BLOCK_SIZE-1);
 
+#if defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
         SHA512_TRANSFORM_LEN(sha512, data, blocksLen);
+#else
+        ret = Transform_Sha512_Len(sha512, data, blocksLen);
+        if (ret != 0)
+            return ret;
+#endif
         data += blocksLen;
         len  -= blocksLen;
     }
@@ -2055,9 +2156,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 {
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
-    int ret;
-#endif
+    int ret = 0;
     byte* local;
 
     if (sha512 == NULL) {
@@ -2103,8 +2202,11 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         }
 
 #endif /* LITTLE_ENDIAN_ORDER */
-#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
-        Transform_Sha512(sha512, (const byte*)sha512->buffer);
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
+    defined(WOLFSSL_PPC32_ASM)
+        ret = Transform_Sha512(sha512, (const byte*)sha512->buffer);
+        if (ret != 0)
+            return ret;
 #else
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
        !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
@@ -2184,8 +2286,11 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     }
 #endif
 
-#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
-    Transform_Sha512(sha512, (const byte*)sha512->buffer);
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
+    defined(WOLFSSL_PPC32_ASM)
+    ret = Transform_Sha512(sha512, (const byte*)sha512->buffer);
+    if (ret != 0)
+        return ret;
 #else
 #if !defined(WOLFSSL_ESP32_CRYPT) || \
       defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
