@@ -3331,8 +3331,7 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
      * complete. Refuse the export until the handshake has completed so that
      * a premature call cannot derive material from an uninitialised
      * exporterSecret buffer. */
-    if (ssl->options.handShakeDone == 0 ||
-            ssl->options.handShakeState != HANDSHAKE_DONE) {
+    if (ssl->options.handShakeDone == 0) {
         WOLFSSL_MSG("Handshake not complete; refusing keying-material export");
         return WOLFSSL_FAILURE;
     }

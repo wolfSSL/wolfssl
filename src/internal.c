@@ -32684,18 +32684,10 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
             /* RFC 5077 Section 3.3 / RFC 8446 Section 4.6.1: a client SHOULD
-             * NOT use a ticket whose lifetime has expired. If the stored
-             * session has aged past its timeout the server would just reject
-             * the resumption, so suppress the ticket here and fall back to a
-             * full handshake (avoids leaking a stale ticket and saves a
-             * round-trip). Expiry is measured against ssl->session->timeout
-             * (the session's own lifetime) so this stays consistent with
-             * wolfSSL_SetSession(), which gates resumption on the same field;
-             * keying off ssl->timeout instead could contradict a decision
-             * SetSession() already made when the two values differ.
-             * If bornOn is 0 or the secret callback is set, it is assumed that
-             * the session is being externally managed and this check is
-             * skipped.  This is needed for hostap. */
+             * NOT use a ticket whose lifetime has expired. Drop the expired
+             * ticket and fall back to a full handshake. Skip the check when
+             * bornOn is 0 or a secret callback is set (session is managed
+             * externally, e.g. hostap). */
             if (ssl->session->bornOn != 0 &&
             #ifdef HAVE_SECRET_CALLBACK
                 ssl->sessionSecretCb == NULL &&
@@ -32704,6 +32696,12 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                     (ssl->session->bornOn + ssl->session->timeout)) {
                 WOLFSSL_MSG("Stored session ticket expired; full handshake");
                 ssl->options.resuming = 0;
+                /* Send an empty SessionTicket extension (NULL ticket) so the
+                 * client still requests a new ticket from the server without
+                 * sending the stale one. */
+                ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
             }
             else
 #endif
