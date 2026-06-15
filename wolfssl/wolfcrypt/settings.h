@@ -2204,8 +2204,11 @@
     #define WOLFSSL_NXP_CASPER_RSA_PUB_EXPTMOD
     #define NO_WOLFSSL_SHA256_INTERLEAVE
 #endif
-#if defined(WOLFSSL_NXP_HWPUF) && !defined(WOLF_CRYPTO_CB)
+
+#if defined(WOLFSSL_HWPUF) && defined(WOLFSSL_NXP_HWPUF)
+#ifndef WOLF_CRYPTO_CB
     #define WOLF_CRYPTO_CB
+#endif
 #endif
 
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE

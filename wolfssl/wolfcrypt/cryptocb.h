@@ -580,7 +580,7 @@ typedef struct wc_CryptoInfo {
 #endif
 #ifdef WOLFSSL_HWPUF
     struct {
-        void*       hwpuf;      /* wc_HWPUF* context */
+        wc_HWPUF*   hwpuf;      /* wc_HWPUF* context */
         int         type;       /* enum wc_HwpufType - discriminator */
         const void* ctx;        /* read-only caller context */
         union {

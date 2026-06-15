@@ -23431,7 +23431,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
     if (XMEMCMP(key32_1, key32_2, 32) != 0)
         return WC_TEST_RET_ENC_NC;
 
-    /* ---- Test 7: generate a key and send directly to hw bus ---- */
+    /* ---- Test 6: generate a key and send directly to hw bus ---- */
     ret = wc_HWPUF_GenerateKey(&hwpuf, 0, 32, keyCode32, sizeof(keyCode32));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
@@ -23440,12 +23440,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     { /* key1 should be zeroed */
-        int idx;
+        word32 idx;
         for (idx = 0; idx < sizeof(key32_2); ++idx) {
             if (key32_2[idx])
                 return WC_TEST_RET_ENC_NC;
         }
     }
+
+    /* ---- Test 7: set key fails for now ---- */
+    if (wc_HWPUF_SetKey(&hwpuf, 7, key32_2, sizeof(key32_2),
+                        keyCode32, sizeof(keyCode32))
+            != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return WC_TEST_RET_ENC_NC;
 
     /* ---- Test 8: Bad argument checks ---- */
     /* null hwpuf */
@@ -23490,6 +23496,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
         return WC_TEST_RET_ENC_EC(ret);
     if (wc_HWPUF_GetKey(&hwpuf, keyCode24, sizeof(keyCode24), key24_2, sizeof(key24_2))
             != WC_NO_ERR_TRACE(HWPUF_START_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* ---- Test 10: double register fails ---- */
+    if (wc_HWPUF_Register(&hwpuf, NULL, INVALID_DEVID)
+            != WC_NO_ERR_TRACE(HWPUF_REGISTER_E))
         return WC_TEST_RET_ENC_NC;
 
     /* ---- clean up ---- */
