@@ -4,7 +4,9 @@ description: >
   directory from a previous run, and prepend the ccache compiler-symlink
   dir to PATH. Subsequent gcc/cc/g++/c++/clang invocations are
   transparently intercepted by ccache, so no other workflow step needs to
-  change.
+  change. On scheduled (cron) runs the cache is reseeded from clean
+  compiles (CCACHE_RECACHE) instead of only being updated incrementally,
+  so it can't drift indefinitely.
 
 inputs:
   workflow-id:
@@ -96,6 +98,18 @@ runs:
         fi
         echo "$CCACHE_LIBEXEC" >> "$GITHUB_PATH"
         echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+    # On the scheduled (cron) refresh, force every compile to miss the
+    # cache and re-store a fresh result (CCACHE_RECACHE still writes, it
+    # just skips lookups). This reseeds the shared cache from clean
+    # compiles instead of only layering deltas onto whatever accumulated,
+    # so a bad/stale entry can't live forever. The cache is still saved
+    # (read-only is false on schedule), and PR/push runs are unaffected -
+    # they keep their warm hits. Cost: the scheduled jobs recompile fully.
+    - name: Force fresh compiles on scheduled reseed
+      if: github.event_name == 'schedule'
+      shell: bash
+      run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
     - name: Show ccache stats (initial)
       shell: bash
