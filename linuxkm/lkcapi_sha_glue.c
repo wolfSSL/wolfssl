@@ -1230,10 +1230,16 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
         if (ret == 0)
             continue;
 
-        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E)) && (! retried)) {
-            if (slen > 0)
+        if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E))) {
+            if (slen > 0) {
+                ret = -EINVAL;
                 break;
+            }
 
+            if (retried) {
+                ret = -EINVAL;
+                break;
+            }
             retried = 1;
 
             ret = wc_rng_bank_inst_reinit(ctx,
