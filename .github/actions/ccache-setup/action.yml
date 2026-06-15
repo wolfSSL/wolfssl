@@ -26,9 +26,10 @@ inputs:
   read-only:
     description: >
       When 'true', restore the cache but do NOT save it (no post-job
-      upload). Pass `${{ github.event_name == 'pull_request' }}` so PR runs
-      consume the shared cache read-only - no per-PR entries, no churn -
-      while scheduled/push runs (read-only false) refresh it.
+      upload). Callers should set this to the result of the expression
+      github.event_name == 'pull_request' so PR runs consume the shared
+      cache read-only - no per-PR entries, no churn - while scheduled/push
+      runs (read-only false) refresh it.
     required: false
     default: 'false'
 
