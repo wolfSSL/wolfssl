@@ -69,7 +69,7 @@ runs:
     # read-only=true: restore the shared cache but never upload (PR runs).
     - name: Restore ccache (read-only)
       if: inputs.read-only == 'true'
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: ~/.ccache
         # Same key shape as the save branch, for symmetry. This branch never

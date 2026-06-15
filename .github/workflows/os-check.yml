@@ -407,7 +407,7 @@ jobs:
       # restore above; PR/push runs never save, so PRs add nothing.
       - name: Save ccache (seed only)
         if: github.event_name == 'schedule'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
           key: os-check-linux-ccache-${{ matrix.shard }}-${{ github.ref_name }}-${{ github.sha }}

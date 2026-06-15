@@ -167,7 +167,7 @@ jobs:
       # ccache that PR runs restore; PRs never save.
       - name: Save ccache
         if: github.event_name != 'pull_request' && steps.merge_check.outputs.skip != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
           key: smoke-ccache-${{ github.ref_name }}-${{ github.sha }}
