@@ -65,7 +65,6 @@ enum wc_HwpufType {
 };
 
 typedef struct wc_HWPUF {
-    int registered;
     word32 flags;
     int devId;
     void* heap;

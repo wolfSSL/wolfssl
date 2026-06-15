@@ -43,6 +43,12 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+typedef enum nxp_hwpuf_keytype {
+    nxp_hwpuf_keytype_user = 0,
+    nxp_hwpuf_keytype_intrinsic = 1,
+    nxp_hwpuf_keytype_max = nxp_hwpuf_keytype_intrinsic
+} nxp_hwpuf_keytype;
+
 typedef struct nxp_hwpuf_ctx {
     word32 keyMask; /* unique per reset */
 } nxp_hwpuf_ctx;
@@ -51,18 +57,8 @@ static nxp_hwpuf_ctx ctx;
 static puf_config_t conf;
 
 
-static int getACFromPFR(byte *ac)
-{
-    int ret;
-    flash_config_t flashInstance;
-
-    memset(&flashInstance, 0, sizeof(flash_config_t));
-    FLASH_Init(&flashInstance);
-    FFR_Init(&flashInstance);
-
-    ret = FFR_KeystoreGetAC(&flashInstance, ac);
-    return ret != kStatus_Success;
-}
+#define NXP_HWPUF_USER_KEY 0
+#define NXP_HWPUF_INTRINSIC_KEY 0
 
 static int keyCodeCheck(byte* keyCode, word32* keytype,
                         word32* keyidx, word32* keysize)
@@ -71,15 +67,17 @@ static int keyCodeCheck(byte* keyCode, word32* keytype,
     *keyidx = keyCode[1];
     *keysize = keyCode[3] == 0 ? 512 : 8 * keyCode[3] ;
 
-    if (*keytype >= 2)
+    if (*keytype > nxp_hwpuf_keytype_max)
         return 1;
-    if (*keyidx >= 16)
+    if (*keyidx > kPUF_KeyIndexMax)
         return 2;
     if ( !HWPUF_KEY_SIZE_IS_VALID(*keysize) )
         return 3;
 
     return 0;
 }
+
+static int nxp_rng_initialized = 0;
 
 static int nxp_hwpuf_Init(wc_HWPUF* hwpuf)
 {
@@ -92,6 +90,10 @@ static int nxp_hwpuf_Init(wc_HWPUF* hwpuf)
     if (PUF_Init(PUF, &conf) != kStatus_Success) {
         PUF_Deinit(PUF, &conf);
         return HWPUF_INIT_E;
+    }
+    if (!nxp_rng_initialized) {
+        RNG_Init(RNG);
+        nxp_rng_initialized = 1;
     }
     ctx.keyMask = RNG->RANDOM_NUMBER;
     return 0;
@@ -191,6 +193,12 @@ static int nxp_hwpuf_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
 
+    (void)keyIdx;
+    (void)key;
+    (void)keySz;
+    (void)keyCode;
+    (void)keyCodeSz;
+
     return CRYPTOCB_UNAVAILABLE;
 }
 
@@ -255,11 +263,13 @@ static int nxp_hwpuf_Zeroize(wc_HWPUF* hwpuf)
     return 0;
 }
 
-static int nxp_hwpuf_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
+static int nxp_hwpuf_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 {
     int ret = CRYPTOCB_UNAVAILABLE;
 
     WOLFSSL_ENTER("nxp_hwpuf_CryptoDevCb");
+
+    (void)devCtx;
 
     if (info == NULL)
         return BAD_FUNC_ARG;

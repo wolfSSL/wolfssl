@@ -38,6 +38,7 @@
     #include <wolfssl/wolfcrypt/port/nxp/hwpuf_port.h>
 #endif
 
+static int hwpuf_registered = 0;
 
 WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 {
@@ -45,7 +46,7 @@ WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
-    if (hwpuf->registered)
+    if (hwpuf_registered)
         return HWPUF_REGISTER_E;
 
     ForceZero(hwpuf, sizeof(wc_HWPUF));
@@ -55,12 +56,14 @@ WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 #ifdef WOLFSSL_NXP_HWPUF
     ret = nxp_hwpuf_RegisterDevice(hwpuf);
 #endif
-
-    if (ret == 0)
-        hwpuf->registered = 1;
-    else
+    if (ret != 0) {
+        if (ret != CRYPTOCB_UNAVAILABLE) {
+            ret = HWPUF_REGISTER_E;
+        }
         ForceZero(hwpuf, sizeof(wc_HWPUF));
-
+        return ret;
+    }
+    hwpuf_registered = 1;
     return ret;
 }
 
@@ -70,7 +73,7 @@ WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf)
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
-    if (!hwpuf->registered)
+    if (!hwpuf_registered)
         return 0;
 
 #ifdef WOLFSSL_NXP_HWPUF
@@ -78,7 +81,7 @@ WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf)
 #endif
 
     ForceZero(hwpuf, sizeof(wc_HWPUF));
-
+    hwpuf_registered = 0;
     return ret;
 }
 
@@ -88,7 +91,7 @@ WOLFSSL_API int wc_HWPUF_Init(wc_HWPUF* hwpuf)
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
-    if (!hwpuf->registered)
+    if (!hwpuf_registered)
         return HWPUF_REGISTER_E;
     if ((hwpuf->flags & WC_HWPUF_FLAG_INITED) != 0)
         return 0;
@@ -106,7 +109,7 @@ WOLFSSL_API int wc_HWPUF_Deinit(wc_HWPUF* hwpuf)
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
-    if (!hwpuf->registered)
+    if (!hwpuf_registered)
         return HWPUF_REGISTER_E;
 
     ret = wc_CryptoCb_HwpufDeinit(hwpuf);
