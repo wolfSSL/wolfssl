@@ -1126,6 +1126,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     unsigned int compVecSz = 0;
 #ifndef WOLFSSL_NO_MALLOC
     sword16* y = NULL;
+    size_t yAllocSz = 0;
 #else
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16 y[((WC_ML_KEM_MAX_K + 3) * WC_ML_KEM_MAX_K + 3) * MLKEM_N];
@@ -1188,12 +1189,11 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     if (ret == 0) {
         /* Allocate dynamic memory for all matrices, vectors and polynomials. */
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-        y = (sword16*)XMALLOC(((k + 3) * k + 3) * MLKEM_N * sizeof(sword16),
-            key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        yAllocSz = ((k + 3) * k + 3) * MLKEM_N * sizeof(sword16);
 #else
-        y = (sword16*)XMALLOC(3 * k * MLKEM_N * sizeof(sword16), key->heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
+        yAllocSz = 3 * k * MLKEM_N * sizeof(sword16);
 #endif
+        y = (sword16*)XMALLOC(yAllocSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (y == NULL) {
             ret = MEMORY_E;
         }
@@ -1311,8 +1311,17 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     }
 
 #ifndef WOLFSSL_NO_MALLOC
-    /* Dispose of dynamic memory allocated in function. */
-    XFREE(y, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Dispose of dynamic memory allocated in function. The buffer holds secret
+     * material: y (ephemeral noise) and, in the default layout, mu (message
+     * polynomial) and e1/e2 (noise vectors). Zeroize the whole allocation
+     * before release - FIPS 203 section 3.3. */
+    if (y != NULL) {
+        ForceZero(y, yAllocSz);
+        XFREE(y, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    /* y is a stack buffer holding secret noise/message material; zeroize it. */
+    ForceZero(y, sizeof(y));
 #endif
 
     return ret;
@@ -1443,6 +1452,10 @@ int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct, unsigned char* ss,
          */
         ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, m, sizeof(m));
     }
+
+    /* Zeroize the random message seed before return - it is the encapsulation
+     * randomness from which the shared secret is derived (FIPS 203 Alg 17). */
+    ForceZero(m, sizeof(m));
 
     /* Step 3: return ret != 0 on falsum or internal key generation failure. */
     return ret;
@@ -1628,6 +1641,11 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
     }
 #endif
 
+#ifdef WOLFSSL_MLKEM_KYBER
+    /* msg holds the secret message H(rand) used for Kyber encapsulation;
+     * zeroize it before return (the ML-KEM path uses the caller's rand). */
+    ForceZero(msg, sizeof(msg));
+#endif
     ForceZero(kr, sizeof(kr));
 
     return ret;
@@ -1664,10 +1682,11 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
     sword16* v;
     sword16* w;
     unsigned int k = 0;
-    unsigned int compVecSz;
+    unsigned int compVecSz = 0;
 #if defined(WOLFSSL_SMALL_STACK) || \
     (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     sword16* u = NULL;
+    size_t uAllocSz = 0;
 #else
     sword16 u[(WC_ML_KEM_MAX_K + 1) * MLKEM_N];
 #endif
@@ -1724,8 +1743,8 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
     (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     if (ret == 0) {
         /* Allocate dynamic memory for a vector and a polynomial. */
-        u = (sword16*)XMALLOC((k + 1) * MLKEM_N * sizeof(sword16), key->heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
+        uAllocSz = (k + 1) * MLKEM_N * sizeof(sword16);
+        u = (sword16*)XMALLOC(uAllocSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (u == NULL) {
             ret = MEMORY_E;
         }
@@ -1779,8 +1798,17 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
 
 #if defined(WOLFSSL_SMALL_STACK) || \
     (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
-    /* Dispose of dynamically memory allocated in function. */
-    XFREE(u, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Dispose of dynamic memory allocated in function. u (aliased as w) holds
+     * the secret decrypted polynomial w = v' - InvNTT(s_hat^T o NTT(u')) from
+     * K-PKE.Decrypt; zeroize the whole buffer before release - FIPS 203
+     * section 3.3. */
+    if (u != NULL) {
+        ForceZero(u, uAllocSz);
+        XFREE(u, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    /* u is a stack buffer holding the secret decrypted polynomial; zeroize. */
+    ForceZero(u, sizeof(u));
 #endif
 
     return ret;
@@ -1983,10 +2011,17 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     }
 
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
-    /* Dispose of dynamic memory allocated in function. */
-    if (key != NULL) {
+    /* Dispose of dynamic memory allocated in function. cmp holds the
+     * re-encrypted ciphertext computed from the secret decrypted message;
+     * zeroize before release - FIPS 203 section 3.3 (consistent with the PCT
+     * ciphertext handling in wc_MlKemKey_MakeKey). */
+    if (cmp != NULL) {
+        ForceZero(cmp, ctSz);
         XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
+#else
+    /* cmp is a stack buffer holding the re-encrypted ciphertext; zeroize it. */
+    ForceZero(cmp, sizeof(cmp));
 #endif
 
     ForceZero(msg, sizeof(msg));
