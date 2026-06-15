@@ -106,10 +106,15 @@ runs:
     # so a bad/stale entry can't live forever. The cache is still saved
     # (read-only is false on schedule), and PR/push runs are unaffected -
     # they keep their warm hits. Cost: the scheduled jobs recompile fully.
+    # Gate in the shell via the built-in $GITHUB_EVENT_NAME, not a step-level
+    # `if:` - the `github` context is not available in a composite action's
+    # step `if:` (it loads as "Unrecognized named-value: 'github'").
     - name: Force fresh compiles on scheduled reseed
-      if: github.event_name == 'schedule'
       shell: bash
-      run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
+      run: |
+        if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+          echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
+        fi
 
     - name: Show ccache stats (initial)
       shell: bash
