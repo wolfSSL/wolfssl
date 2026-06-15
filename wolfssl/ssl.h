@@ -4021,6 +4021,9 @@ typedef struct CrlInfo {
     word32 nextDateMaxLen;
     byte nextDateFormat;
     byte crlNumberSet:1;
+    byte issuerHashData[SIGNER_DIGEST_SIZE];
+    byte lastDateData[MAX_DATE_SIZE];
+    byte nextDateData[MAX_DATE_SIZE];
 } CrlInfo;
 
 typedef void (*CbUpdateCRL)(CrlInfo* old, CrlInfo* cnew);
