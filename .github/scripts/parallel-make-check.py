@@ -19,9 +19,10 @@
 #   minutes    expected duration, from the Minutes column of a previous
 #              run's summary (default 1.0). Schedule weight only - configs
 #              run longest-first and --shard balances shards by it; a stale
-#              value just packs the schedule a little worse, but one that
-#              drifts past +/-50% of the measured time draws a warning
-#              (never a failure) so it is easy to spot and update.
+#              value just packs the schedule a little worse, but a run
+#              whose measured time lands more than +/-50% away from it
+#              draws a warning (never a failure) so it is easy to spot
+#              and update.
 #   user_settings  header staged as <builddir>/user_settings.h before
 #              configure (path relative to the source root); pair it with
 #              --enable-usersettings in "configure"
@@ -233,8 +234,16 @@ def privatize_dirs(bdir: Path, dirs: list[str]) -> None:
             shutil.copytree(SRCDIR / name, d, symlinks=True)
 
 
+def gh_escape(data: str) -> str:
+    # Percent-encode workflow-command data (GitHub's documented encoding)
+    # so a stray %, CR or LF - e.g. from a config name or step out of the
+    # JSON - can't truncate the command or be parsed as a second one.
+    return data.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
 def dump(title: str, path: Path) -> None:
-    print(f"::group::{title}" if ON_GITHUB else f"==== {title} ====")
+    # ::group:: is a workflow command; escape its title like warn() does.
+    print(f"::group::{gh_escape(title)}" if ON_GITHUB else f"==== {title} ====")
     try:
         sys.stdout.write(path.read_text(errors="replace"))
     except OSError as e:
@@ -247,14 +256,7 @@ def dump(title: str, path: Path) -> None:
 def warn(msg: str) -> None:
     # GitHub surfaces ::warning:: as an annotation at the top of the run;
     # locally it is just a line. Informational only - never fails the run.
-    if ON_GITHUB:
-        # Percent-encode the command data (GitHub's documented escaping) so
-        # a stray %, CR or LF - e.g. from a config name out of the JSON -
-        # can't truncate the annotation or be read as a second command.
-        msg = msg.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-        print(f"::warning::{msg}")
-    else:
-        print(f"WARNING: {msg}")
+    print(f"::warning::{gh_escape(msg)}" if ON_GITHUB else f"WARNING: {msg}")
 
 
 def stale_estimate(cfg: Config, minutes: float) -> bool:
@@ -534,7 +536,7 @@ def main() -> int:
             else "aborted without a recorded failure"
         if aborted:
             msg += f" ({aborted} config(s) aborted by fail-fast)"
-        print(f"::error::{msg}" if ON_GITHUB else msg)
+        print(f"::error::{gh_escape(msg)}" if ON_GITHUB else msg)
         return 1
     return 0
 
