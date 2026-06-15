@@ -19,7 +19,9 @@
 #   minutes    expected duration, from the Minutes column of a previous
 #              run's summary (default 1.0). Schedule weight only - configs
 #              run longest-first and --shard balances shards by it; a stale
-#              value just packs the schedule a little worse.
+#              value just packs the schedule a little worse, but one that
+#              drifts past +/-50% of the measured time draws a warning
+#              (never a failure) so it is easy to spot and update.
 #   user_settings  header staged as <builddir>/user_settings.h before
 #              configure (path relative to the source root); pair it with
 #              --enable-usersettings in "configure"
@@ -88,6 +90,9 @@ class Config:
     check: bool = True
     prepare: list[list[str]] = field(default_factory=list)
     run: list[list[str]] = field(default_factory=list)
+    # Whether "minutes" was given in the JSON (vs the 1.0 default); only an
+    # explicit estimate is checked for >50% drift against the real time.
+    minutes_provided: bool = False
 
 SRCDIR = Path(__file__).resolve().parents[2]
 ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
@@ -208,7 +213,8 @@ def load_configs(opts: argparse.Namespace,
                               entry.get("ldflags", opts.ldflags),
                               float(minutes), user_settings, check,
                               list(entry.get("prepare", [])),
-                              list(entry.get("run", []))))
+                              list(entry.get("run", [])),
+                              minutes_provided="minutes" in entry))
     if not configs:
         error(f"{opts.json}: no configs")
     return configs
@@ -236,6 +242,23 @@ def dump(title: str, path: Path) -> None:
     if ON_GITHUB:
         print("::endgroup::")
     sys.stdout.flush()
+
+
+def warn(msg: str) -> None:
+    # GitHub surfaces ::warning:: as an annotation at the top of the run;
+    # locally it is just a line. Informational only - never fails the run.
+    print(f"::warning::{msg}" if ON_GITHUB else f"WARNING: {msg}")
+
+
+def stale_estimate(cfg: Config, minutes: float) -> bool:
+    # "minutes" is only a scheduling estimate (configs run longest-first;
+    # --shard balances by it), never a pass/fail bound. Flag a finished
+    # config whose real time drifted past +/-50% of an explicitly given
+    # estimate so stale values - which pack the schedule worse - are easy
+    # to find and update. Configs that omit "minutes" ride the 1.0 default
+    # placeholder and are left alone.
+    return (cfg.minutes_provided
+            and not 0.5 * cfg.minutes <= minutes <= 1.5 * cfg.minutes)
 
 
 def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
@@ -344,6 +367,10 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
             # One line per passing config; the full logs would bloat the CI
             # log (they stay in build-<name>/make-check.log).
             print(f"{cfg.name}: pass [{minutes:.1f} min]")
+            if stale_estimate(cfg, minutes):
+                warn(f"{cfg.name}: ran {minutes:.1f} min but \"minutes\" "
+                     f"says {cfg.minutes:g} (>50% off) - update it in the "
+                     f"config JSON")
             sys.stdout.flush()
         else:
             dump(f"{cfg.name}: FAIL ({failed}) [{minutes:.1f} min]", log)
@@ -364,6 +391,11 @@ def summarize(results: list[tuple[Config, str | None, float]],
             ok = f":x: FAIL ({failed})"
         else:
             ok = ":white_check_mark: pass"
+            if stale_estimate(cfg, minutes):
+                # Non-fatal nudge mirroring the per-config warning, kept in
+                # the summary next to the Minutes value to copy over.
+                ok += (f' :warning: "minutes" {cfg.minutes:g} is >50% off, '
+                       f"update to ~{minutes:.1f}")
         lines.append(f"| {cfg.name} | {ok} | {minutes:.1f} |")
     # Two views of how efficiently the pool used the machine: thread
     # occupancy is the time the workers spent running configs out of the
