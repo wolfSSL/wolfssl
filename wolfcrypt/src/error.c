@@ -719,9 +719,6 @@ const char* wc_GetErrorString(int error)
     case HWPUF_INIT_E:
         return "HWPUF initialization failed";
 
-    case HWPUF_DEINIT_E:
-        return "HWPUF deinitialization failed";
-
     case HWPUF_ENROLL_E:
         return "HWPUF enrollment failed";
 
