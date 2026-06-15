@@ -34,7 +34,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wolf-install-libssh2
           path: build-dir.tgz
@@ -54,7 +54,7 @@ jobs:
     needs: build_wolfssl
     steps:
       - name: Download lib
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: wolf-install-libssh2
 
@@ -62,7 +62,7 @@ jobs:
         run: tar -xf build-dir.tgz
 
       - name: Clone libssh2
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: libssh2/libssh2
           ref: libssh2-${{ matrix.ref }}

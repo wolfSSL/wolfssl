@@ -27,13 +27,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout wolfSSL CI actions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .github/actions
           fetch-depth: 1
 
       - name: Checking if we have nss in cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache
         with:
           path: dist
@@ -48,7 +48,7 @@ jobs:
 
       - name: Checkout nss
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: nss-dev/nss
           ref: ${{ env.NSS_REF }}
@@ -70,7 +70,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checking if we have nss in cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache
         with:
           path: dist
@@ -78,7 +78,7 @@ jobs:
 
       - name: Checkout wolfSSL CI actions (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .github/actions
           fetch-depth: 1
@@ -91,7 +91,7 @@ jobs:
 
       - name: Checkout nss (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: nss-dev/nss
           ref: ${{ env.NSS_REF }}

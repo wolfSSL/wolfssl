@@ -58,7 +58,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.build_id }}
           path: build-dir.tgz
@@ -72,7 +72,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checking if we have hostap in cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache
         with:
           path: hostap
@@ -86,7 +86,7 @@ jobs:
         run: tar -zcf hostap.tgz hostap
 
       - name: Upload hostap repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hostap-repo
           path: hostap.tgz
@@ -101,7 +101,7 @@ jobs:
     needs: checkout_hostap
     steps:
       - name: Checking if we have kernel in cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache
         with:
           path: linux/linux
@@ -109,7 +109,7 @@ jobs:
 
       - name: Download hostap repo
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: hostap-repo
 
@@ -119,7 +119,7 @@ jobs:
 
       - name: Checkout linux
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: torvalds/linux
           path: linux
@@ -134,7 +134,7 @@ jobs:
           yes "" | ARCH=um make -j $(nproc)
 
       - name: Upload kernel binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: uml-linux-kernel
           path: linux/linux
@@ -189,7 +189,7 @@ jobs:
     needs: [build_wolfssl, build_uml_linux, checkout_hostap]
     steps:
       - name: Download kernel binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: uml-linux-kernel
           path: linux
@@ -214,12 +214,12 @@ jobs:
           echo Our job run ID is $SHA_SUM
 
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: wolfssl
 
       - name: Download lib
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ${{ matrix.config.build_id }}
 
@@ -235,7 +235,7 @@ jobs:
         run: sudo pip install pycryptodome
 
       - name: Download hostap repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: hostap-repo
 
@@ -248,7 +248,7 @@ jobs:
 
       - if: ${{ matrix.config.osp_ref }}
         name: Checkout OSP
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: wolfssl/osp
           path: osp
@@ -401,7 +401,7 @@ jobs:
       #
       #- name: Upload failure logs
       #  if: ${{ failure() && steps.testing.outcome == 'failure' }}
-      #  uses: actions/upload-artifact@v4
+      #  uses: actions/upload-artifact@v6
       #  with:
       #    name: hostap-logs-${{ env.our_job_run_id }}
       #    path: hostap/tests/hwsim/logs.zip

@@ -26,7 +26,7 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout wolfSSL
 
       - name: Test --enable-opensslcoexist and TEST_OPENSSL_COEXIST

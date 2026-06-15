@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Clone wolfBoot and stage tested wolfSSL
         run: |
@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Clone wolfBoot and stage tested wolfSSL
         run: |
@@ -202,7 +202,7 @@ jobs:
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Clone wolfBoot and stage tested wolfSSL
         run: |
@@ -225,7 +225,7 @@ jobs:
           test -f wolfboot/lib/wolfssl/wolfcrypt/src/asn.c
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -312,7 +312,7 @@ jobs:
 
       - name: Upload Output Dir
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: renode-multimem-smallstack-results
           path: wolfboot/test_results/
@@ -328,7 +328,7 @@ jobs:
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Clone wolfBoot and stage tested wolfSSL
         run: |
@@ -351,7 +351,7 @@ jobs:
           test -f wolfboot/lib/wolfssl/wolfcrypt/src/asn.c
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -420,7 +420,7 @@ jobs:
 
       - name: Upload Output Dir
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: renode-multimem-smallstack-fastmath-results
           path: wolfboot/test_results/
@@ -436,7 +436,7 @@ jobs:
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Clone wolfBoot and stage tested wolfSSL
         run: |
@@ -459,7 +459,7 @@ jobs:
           test -f wolfboot/lib/wolfssl/wolfcrypt/src/asn.c
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -528,7 +528,7 @@ jobs:
 
       - name: Upload Output Dir
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: renode-multimem-smallstack-noasm-results
           path: wolfboot/test_results/

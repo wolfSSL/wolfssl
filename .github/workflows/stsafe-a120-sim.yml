@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout wolfSSL (PR source)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: wolfssl-src
 
@@ -80,10 +80,10 @@ jobs:
           grep -q -- '--enable-stsafe=a120' Dockerfile.wolfcrypt
           ! grep -q -- '-DWOLFSSL_STSAFEA120' Dockerfile.wolfcrypt
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build wolfCrypt-STSAFE-A120 test image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: simulators/STSAFEA120Sim
           file: simulators/STSAFEA120Sim/Dockerfile.wolfcrypt
