@@ -660,7 +660,7 @@
                 static inline int wc_lkm_refcount_to_int(atomic_t *refcount) {
                     _Pragma("GCC diagnostic push");
                     _Pragma("GCC diagnostic ignored \"-Wnested-externs\"");
-                    return atomic_read(&refcount);
+                    return atomic_read(refcount);
                     _Pragma("GCC diagnostic pop");
                 }
             #endif
