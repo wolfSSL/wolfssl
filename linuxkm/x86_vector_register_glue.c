@@ -76,7 +76,7 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
         return MEMORY_E;
     }
 
-    memset(wc_linuxkm_fpu_states, 0, wc_linuxkm_fpu_states_n_tracked
+    XMEMSET(wc_linuxkm_fpu_states, 0, wc_linuxkm_fpu_states_n_tracked
            * sizeof(wc_linuxkm_fpu_states[0]));
 
     return 0;

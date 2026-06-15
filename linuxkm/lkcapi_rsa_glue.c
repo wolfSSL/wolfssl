@@ -554,7 +554,7 @@ static int km_rsa_ctx_init(struct km_rsa_ctx * ctx, int hash_oid)
 {
     int ret = 0;
 
-    memset(ctx, 0, sizeof(struct km_rsa_ctx));
+    XMEMSET(ctx, 0, sizeof(struct km_rsa_ctx));
 
     ctx->key = (RsaKey *)malloc(sizeof(RsaKey));
     if (!ctx->key) {
@@ -717,8 +717,8 @@ static int km_direct_rsa_enc(struct akcipher_request *req)
     }
 
     /* copy req->src to dec */
-    memset(dec, 0, req->src_len);
-    memset(enc, 0, req->dst_len);
+    XMEMSET(dec, 0, req->src_len);
+    XMEMSET(enc, 0, req->dst_len);
     scatterwalk_map_and_copy(dec, req->src, 0, req->src_len, 0);
 
     /* note: matching behavior of kernel rsa-generic. */
@@ -820,8 +820,8 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
     }
 
     /* copy req->src to enc */
-    memset(enc, 0, req->src_len);
-    memset(dec, 0, req->dst_len);
+    XMEMSET(enc, 0, req->src_len);
+    XMEMSET(dec, 0, req->dst_len);
     scatterwalk_map_and_copy(enc, req->src, 0, req->src_len, 0);
 
     err = km_rsa_ctx_init_rng(ctx);
@@ -1145,7 +1145,7 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
         goto pkcs1pad_sign_out;
     }
 
-    memset(work_buffer, 0, 2 * ctx->key_len);
+    XMEMSET(work_buffer, 0, 2 * ctx->key_len);
     msg = work_buffer;
     sig = work_buffer + ctx->key_len;
 
@@ -1265,7 +1265,7 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
         goto pkcs1pad_verify_out;
     }
 
-    memset(work_buffer, 0, 2 * ctx->key_len);
+    XMEMSET(work_buffer, 0, 2 * ctx->key_len);
     msg = work_buffer;
     sig = work_buffer + ctx->key_len;
 
@@ -1284,7 +1284,7 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     }
 
     /* reuse sig array for digest comparison */
-    memset(sig, 0, ctx->key_len);
+    XMEMSET(sig, 0, ctx->key_len);
     scatterwalk_map_and_copy(sig, req->src, sig_len, msg_len, 0);
 
     /* encode digest with hash oid. */
@@ -1396,9 +1396,9 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
     }
 
     /* copy src to msg, and clear buffers. */
-    memset(msg, 0, ctx->key_len);
-    memset(sig, 0, ctx->key_len);
-    memcpy(msg, src, slen);
+    XMEMSET(msg, 0, ctx->key_len);
+    XMEMSET(sig, 0, ctx->key_len);
+    XMEMCPY(msg, src, slen);
 
     /* encode message with hash oid. */
     enc_msg_len = wc_EncodeSignature(msg, msg, slen, ctx->hash_oid);
@@ -1519,7 +1519,7 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
         goto pkcs1_verify_out;
     }
 
-    memset(work_buffer, 0, 2 * ctx->key_len);
+    XMEMSET(work_buffer, 0, 2 * ctx->key_len);
     msg = work_buffer;
     enc_digest = work_buffer + ctx->key_len;
 
@@ -1534,7 +1534,7 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
         goto pkcs1_verify_out;
     }
 
-    memcpy(enc_digest, digest, msg_len);
+    XMEMCPY(enc_digest, digest, msg_len);
 
     /* encode digest with hash oid. */
     enc_msg_len = wc_EncodeSignature(enc_digest, enc_digest, msg_len,
@@ -1732,8 +1732,8 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
     }
 
     /* copy req->src to dec */
-    memset(dec, 0, req->src_len);
-    memset(enc, 0, req->dst_len);
+    XMEMSET(dec, 0, req->src_len);
+    XMEMSET(enc, 0, req->dst_len);
     scatterwalk_map_and_copy(dec, req->src, 0, req->src_len, 0);
 
     err = km_rsa_ctx_init_rng(ctx);
@@ -1816,8 +1816,8 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
     }
 
     /* copy req->src to enc */
-    memset(enc, 0, req->src_len);
-    memset(dec, 0, req->dst_len);
+    XMEMSET(enc, 0, req->src_len);
+    XMEMSET(dec, 0, req->dst_len);
     scatterwalk_map_and_copy(enc, req->src, 0, req->src_len, 0);
 
 #ifdef WC_RSA_BLINDING
@@ -2140,8 +2140,8 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
         goto test_rsa_end;
     }
 
-    memset(&rng, 0, sizeof(rng));
-    memset(key, 0, sizeof(RsaKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(key, 0, sizeof(RsaKey));
 
     ret = LKCAPI_INITRNG(&rng);
 
@@ -2211,14 +2211,14 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
         goto test_rsa_end;
     }
 
-    memset(enc,  0, key_len);
-    memset(dec,  0, key_len + 1);
-    memset(plaintext, 0, key_len + 1);
+    XMEMSET(enc,  0, key_len);
+    XMEMSET(dec,  0, key_len + 1);
+    XMEMSET(plaintext, 0, key_len + 1);
 
     /* Fill up dec and plaintext with plaintext reference. */
     for (i = 0; i < key_len / sizeof(p_vector); ++i) {
-        memcpy(dec  + i * sizeof(p_vector), p_vector, sizeof(p_vector));
-        memcpy(plaintext + i * sizeof(p_vector), p_vector, sizeof(p_vector));
+        XMEMCPY(dec  + i * sizeof(p_vector), p_vector, sizeof(p_vector));
+        XMEMCPY(plaintext + i * sizeof(p_vector), p_vector, sizeof(p_vector));
     }
 
     /**
@@ -2233,7 +2233,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
         goto test_rsa_end;
     }
 
-    memset(dec, 0, key_len);
+    XMEMSET(dec, 0, key_len);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
                            RSA_PRIVATE_DECRYPT, &rng);
     if (dec_ret != key_len || key_len != (int)out_len) {
@@ -2263,7 +2263,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
         goto test_rsa_end;
     }
 
-    memset(priv, 0, priv_len);
+    XMEMSET(priv, 0, priv_len);
 
     priv_len = wc_RsaKeyToDer(key, priv, priv_len);
     if (priv_len <= 0) {
@@ -2284,7 +2284,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
         goto test_rsa_end;
     }
 
-    memset(pub, 0, pub_len);
+    XMEMSET(pub, 0, pub_len);
 
     pub_len = wc_RsaKeyToPublicDer(key, pub, pub_len);
     if (pub_len <= 0) {
@@ -2341,7 +2341,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     }
 
     /* wolfcrypt private decrypt */
-    memset(dec, 0, key_len + 1);
+    XMEMSET(dec, 0, key_len + 1);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
                            RSA_PRIVATE_DECRYPT, &rng);
 
@@ -2387,7 +2387,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     akcipher_request_set_crypt(req, &src, &dst, key_len, key_len);
 
-    memset(dec, 0, key_len);
+    XMEMSET(dec, 0, key_len);
     ret = crypto_akcipher_decrypt(req);
    #if defined(RHEL_RELEASE_CODE) && \
               (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
@@ -2503,7 +2503,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(hash, 0, hash_len);
+    XMEMSET(hash, 0, hash_len);
 
     /* hash the test msg with hash algo. */
     ret = wc_Hash(wc_OidGetHash(hash_oid), p_vector, sizeof(p_vector),
@@ -2522,8 +2522,8 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(&rng, 0, sizeof(rng));
-    memset(key, 0, sizeof(RsaKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(key, 0, sizeof(RsaKey));
 
     ret = LKCAPI_INITRNG(&rng);
     if (ret) {
@@ -2580,7 +2580,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(sig, 0, key_len);
+    XMEMSET(sig, 0, key_len);
 
     km_sig = (byte*)malloc(key_len);
     if (km_sig == NULL) {
@@ -2588,7 +2588,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(km_sig, 0, key_len);
+    XMEMSET(km_sig, 0, key_len);
     #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
     enc = (byte*)malloc(key_len);
@@ -2597,7 +2597,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(enc, 0, key_len);
+    XMEMSET(enc, 0, key_len);
 
     dec = (byte*)malloc(key_len + 1);
     if (dec == NULL) {
@@ -2605,7 +2605,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(dec, 0, key_len + 1);
+    XMEMSET(dec, 0, key_len + 1);
 
     enc2 = (byte*)malloc(key_len);
     if (enc2 == NULL) {
@@ -2613,7 +2613,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(enc2, 0, key_len);
+    XMEMSET(enc2, 0, key_len);
 
     dec2 = (byte*)malloc(key_len + 1);
     if (dec2 == NULL) {
@@ -2621,7 +2621,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(dec2, 0, key_len + 1);
+    XMEMSET(dec2, 0, key_len + 1);
 
     /**
      * Now export Rsa Der to pub and priv.
@@ -2640,7 +2640,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(priv, 0, priv_len);
+    XMEMSET(priv, 0, priv_len);
 
     priv_len = wc_RsaKeyToDer(key, priv, priv_len);
     if (priv_len <= 0) {
@@ -2664,7 +2664,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(pub, 0, pub_len);
+    XMEMSET(pub, 0, pub_len);
 
     pub_len = wc_RsaKeyToPublicDer(key, pub, pub_len);
     if (pub_len <= 0) {
@@ -2693,7 +2693,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(dec, 0, key_len + 1);
+    XMEMSET(dec, 0, key_len + 1);
     ret = wc_RsaSSL_Verify(sig, key_len, dec, enc_len, key);
     if (ret <= 0 || ret != (int) enc_len) {
         pr_err("error: wc_RsaSSL_Verify returned %d, expected %d\n" , ret,
@@ -2766,7 +2766,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
 
     sg_init_one(&src, hash, hash_len);
     sg_init_one(&dst, km_sig, key_len);
-    memset(km_sig, 0, key_len);
+    XMEMSET(km_sig, 0, key_len);
 
     akcipher_request_set_crypt(req, &src, &dst, hash_len, key_len);
 
@@ -2825,7 +2825,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(dec, 0, key_len + 1);
+    XMEMSET(dec, 0, key_len + 1);
     ret = wc_RsaSSL_Verify(km_sig, key_len, dec, key_len, key);
     if (ret <= 0) {
         pr_err("error: wc_RsaSSL_Verify returned: %d\n", ret);
@@ -2852,13 +2852,13 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     /*
      * pkcs1 encrypt and ecrypt test
      */
-    memset(enc, 0, key_len);
-    memset(enc2, 0, key_len);
-    memset(dec, 0, key_len);
-    memset(dec2, 0, key_len);
+    XMEMSET(enc, 0, key_len);
+    XMEMSET(enc2, 0, key_len);
+    XMEMSET(dec, 0, key_len);
+    XMEMSET(dec2, 0, key_len);
 
-    memcpy(dec, p_vector, sizeof(p_vector));
-    memcpy(dec2, p_vector, sizeof(p_vector));
+    XMEMCPY(dec, p_vector, sizeof(p_vector));
+    XMEMCPY(dec2, p_vector, sizeof(p_vector));
 
     sg_init_one(&src, dec, sizeof(p_vector));
     sg_init_one(&dst, enc, key_len);
@@ -2889,8 +2889,8 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(dec, 0, key_len);
-    memset(dec2, 0, key_len);
+    XMEMSET(dec, 0, key_len);
+    XMEMSET(dec2, 0, key_len);
 
     sg_init_one(&src, enc, key_len);
     sg_init_one(&dst, dec, sizeof(p_vector));
@@ -3032,7 +3032,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(hash, 0, hash_len);
+    XMEMSET(hash, 0, hash_len);
 
     /* hash the test msg with hash algo. */
     ret = wc_Hash(wc_OidGetHash(hash_oid), p_vector, sizeof(p_vector),
@@ -3050,8 +3050,8 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(&rng, 0, sizeof(rng));
-    memset(key, 0, sizeof(RsaKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(key, 0, sizeof(RsaKey));
 
     ret = LKCAPI_INITRNG(&rng);
     if (ret) {
@@ -3107,7 +3107,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(sig, 0, key_len);
+    XMEMSET(sig, 0, key_len);
 
     km_sig = (byte*)malloc(key_len);
     if (km_sig == NULL) {
@@ -3115,7 +3115,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(km_sig, 0, key_len);
+    XMEMSET(km_sig, 0, key_len);
 
     /**
      * Now export Rsa Der to pub and priv.
@@ -3134,7 +3134,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(priv, 0, priv_len);
+    XMEMSET(priv, 0, priv_len);
 
     priv_len = wc_RsaKeyToDer(key, priv, priv_len);
     if (priv_len <= 0) {
@@ -3158,7 +3158,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(pub, 0, pub_len);
+    XMEMSET(pub, 0, pub_len);
 
     pub_len = wc_RsaKeyToPublicDer(key, pub, pub_len);
     if (pub_len <= 0) {
@@ -3173,7 +3173,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(enc, 0, key_len);
+    XMEMSET(enc, 0, key_len);
 
     dec = (byte*)malloc(key_len + 1);
     if (dec == NULL) {
@@ -3181,7 +3181,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
-    memset(dec, 0, key_len + 1);
+    XMEMSET(dec, 0, key_len + 1);
 
     /**
      * Sanity test: first sign and verify with direct wolfcrypt API.
@@ -3202,7 +3202,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    memset(dec, 0, key_len + 1);
+    XMEMSET(dec, 0, key_len + 1);
     ret = wc_RsaSSL_Verify(sig, key_len, dec, enc_len, key);
     if (ret <= 0 || ret != (int) enc_len) {
         pr_err("error: wc_RsaSSL_Verify returned %d, expected %d\n" , ret,
