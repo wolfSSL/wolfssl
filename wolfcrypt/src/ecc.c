@@ -281,8 +281,9 @@ ECC Curve Sizes:
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_PSOC6_CRYPTO) && \
-    !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && \
+    !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_PSOC6_CRYPTO)
     #undef  HAVE_ECC_VERIFY_HELPER
     #define HAVE_ECC_VERIFY_HELPER
 #endif
@@ -2732,7 +2733,8 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
     return _ecc_projective_dbl_point(P, R, a, modulus, mp);
 }
 
-#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+#if !defined(FREESCALE_LTC_ECC) && \
+    (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_VERIFY_ONLY)) && \
     !defined(WOLFSSL_CRYPTOCELL)
 
 
@@ -2992,7 +2994,8 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 }
 #endif /* !WOLFSSL_SP_MATH || WOLFSSL_PUBLIC_ECC_ADD_DBL */
 
-#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+#if !defined(FREESCALE_LTC_ECC) && \
+    (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_VERIFY_ONLY)) && \
     !defined(WOLFSSL_CRYPTOCELL)
 #if !defined(WOLFSSL_SP_MATH)
 
@@ -7085,12 +7088,49 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
 #endif /* WOLFSSL_ECDSA_DETERMINISTIC_K ||
           WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT */
 
-#if defined(WOLFSSL_STM32_PKA)
+/* WOLFSSL_STM32_PKA routes HW ECDSA sign/verify through the STM32 PKA
+ * (HAL_PKA_ECDSASign / Verify). Works under both the CubeMX-HAL path
+ * and the bare-metal direct-register path (WOLFSSL_STM32_BARE) -- the
+ * bare-metal driver implements the same HAL_PKA_ECDSA* surface.
+ *
+ * The non-FIPS input-validation checks (length range, all-zero digest
+ * rejection) live inside the SW body of wc_ecc_sign_hash_ex below.
+ * Since the STM32_PKA branch returns early without reaching them,
+ * mirror those checks here so HW + SW paths share the same input
+ * contract. Without this, an all-zero digest reaches the PKA IP and
+ * succeeds at the HW layer -- the wolfcrypt_test ECC sweep then fails
+ * at the post-call assertion that expected ECC_BAD_ARG_E for a zero
+ * digest. */
+/* The STM32H563 "light" PKA can verify but not sign (per ST: H563
+ * verify-only, H573 full). WC_STM32_PKA_VERIFY_ONLY routes sign to the
+ * software path (the #elif branch below) while verify stays on the HW PKA. */
+#if defined(WOLFSSL_STM32_PKA) && !defined(WC_STM32_PKA_VERIFY_ONLY)
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                      ecc_key* key, mp_int *r, mp_int *s)
 {
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+    byte hashIsZero = 0;
+    word32 zIdx;
+#endif
+
+    if (in == NULL || r == NULL || s == NULL || key == NULL || rng == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+    if ((inlen > WC_MAX_DIGEST_SIZE) || (inlen < WC_MIN_DIGEST_SIZE)) {
+        return BAD_LENGTH_E;
+    }
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+    /* reject all 0's hash */
+    for (zIdx = 0; zIdx < inlen; zIdx++)
+        hashIsZero |= in[zIdx];
+    if (hashIsZero == 0)
+        return ECC_BAD_ARG_E;
+#endif
+
     return stm32_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 }
+
+
 #elif !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
       !defined(WOLFSSL_MICROCHIP_TA100) && \
       !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC)
@@ -8917,7 +8957,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
 
-#if !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_PSOC6_CRYPTO) && \
+#if !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_PSOC6_CRYPTO) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 {
@@ -9437,6 +9478,29 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
 {
 #if defined(WOLFSSL_STM32_PKA)
+    /* HW ECDSA verify via STM32 PKA. Works under both the CubeMX-HAL
+     * and the bare-metal direct-register paths. Mirror the non-FIPS
+     * input-validation from the SW body below (length range, all-zero
+     * digest rejection) so HW + SW share the same input contract. */
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+    byte hashIsZero = 0;
+    word32 zIdx;
+#endif
+
+    if (r == NULL || s == NULL || hash == NULL || res == NULL || key == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+    if ((hashlen > WC_MAX_DIGEST_SIZE) || (hashlen < WC_MIN_DIGEST_SIZE)) {
+        return BAD_LENGTH_E;
+    }
+#ifndef WC_ALLOW_ECC_ZERO_HASH
+    /* reject all 0's hash */
+    for (zIdx = 0; zIdx < hashlen; zIdx++)
+        hashIsZero |= hash[zIdx];
+    if (hashIsZero == 0)
+        return ECC_BAD_ARG_E;
+#endif
+
     return stm32_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
     return psoc6_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
