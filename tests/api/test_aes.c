@@ -7782,6 +7782,288 @@ int test_wc_AesEaxStream(void)
         */
 
 /*----------------------------------------------------------------------------*
+ | AES Key Wrap with Padding (RFC 5649) Test
+ *----------------------------------------------------------------------------*/
+
+#if defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_KEYWRAP_PADDING)
+
+/*
+ * Testing wc_AesKeyWrap_Pad and wc_AesKeyUnWrap_Pad (RFC 5649).
+ *
+ * KATs: the 192-bit cases are the two published RFC 5649 section 6 examples;
+ * the 128-bit and 256-bit cases are known-answer vectors generated with
+ * OpenSSL's aes-{128,256}-wrap-pad over the same two plaintexts (cross-checked
+ * against the RFC vectors).  The 20-octet input exercises the RFC 3394 loop
+ * path; the 7-octet input exercises the single-block ECB path.
+ */
+int test_wc_AesKeyWrap_Pad(void)
+{
+    EXPECT_DECLS;
+
+    /* shared plaintexts */
+    const byte data20[] = { /* 20 octets -> 32-byte wrap (3394 loop path) */
+        0xc3, 0x7b, 0x7e, 0x64, 0x92, 0x58, 0x43, 0x40,
+        0xbe, 0xd1, 0x22, 0x07, 0x80, 0x89, 0x41, 0x15,
+        0x50, 0x68, 0xf7, 0x38
+    };
+    const byte data7[] = {  /* 7 octets -> 16-byte wrap (single-block ECB) */
+        0x46, 0x6f, 0x72, 0x50, 0x61, 0x73, 0x69
+    };
+
+#ifdef WOLFSSL_AES_128
+    const byte kek128[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    const byte verify128_20[] = {
+        0xe1, 0xf7, 0x17, 0x6e, 0xcb, 0xd7, 0x5d, 0x42,
+        0xe8, 0x2b, 0x24, 0xf9, 0x89, 0xa2, 0x81, 0x6c,
+        0x20, 0x9c, 0x6e, 0xf2, 0xd1, 0xaa, 0x94, 0xd2,
+        0xa3, 0xe6, 0x02, 0x84, 0x90, 0x0d, 0x03, 0xa2
+    };
+    const byte verify128_7[] = {
+        0xbe, 0x80, 0x53, 0x5e, 0x12, 0xe9, 0x39, 0x4c,
+        0x8f, 0x8d, 0xf2, 0x6b, 0xd9, 0x52, 0x8a, 0x35
+    };
+#endif
+#ifdef WOLFSSL_AES_192
+    const byte kek192[] = {
+        0x58, 0x40, 0xdf, 0x6e, 0x29, 0xb0, 0x2a, 0xf1,
+        0xab, 0x49, 0x3b, 0x70, 0x5b, 0xf1, 0x6e, 0xa1,
+        0xae, 0x83, 0x38, 0xf4, 0xdc, 0xc1, 0x76, 0xa8
+    };
+    const byte verify192_20[] = {
+        0x13, 0x8b, 0xde, 0xaa, 0x9b, 0x8f, 0xa7, 0xfc,
+        0x61, 0xf9, 0x77, 0x42, 0xe7, 0x22, 0x48, 0xee,
+        0x5a, 0xe6, 0xae, 0x53, 0x60, 0xd1, 0xae, 0x6a,
+        0x5f, 0x54, 0xf3, 0x73, 0xfa, 0x54, 0x3b, 0x6a
+    };
+    const byte verify192_7[] = {
+        0xaf, 0xbe, 0xb0, 0xf0, 0x7d, 0xfb, 0xf5, 0x41,
+        0x92, 0x00, 0xf2, 0xcc, 0xb5, 0x0b, 0xb2, 0x4f
+    };
+#endif
+#ifdef WOLFSSL_AES_256
+    const byte kek256[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    const byte verify256_20[] = {
+        0x29, 0xb7, 0xfa, 0x19, 0x1c, 0x21, 0x65, 0x68,
+        0x43, 0x74, 0xee, 0xe9, 0xf7, 0x45, 0x95, 0xe2,
+        0xa4, 0x2b, 0xac, 0xe7, 0x5c, 0x42, 0x5b, 0x30,
+        0x53, 0xef, 0xa2, 0x6f, 0xfe, 0x1b, 0xb3, 0x2f
+    };
+    const byte verify256_7[] = {
+        0x44, 0x3b, 0x17, 0x83, 0x7b, 0xb3, 0x93, 0x48,
+        0x61, 0x0d, 0x19, 0x20, 0x2d, 0xf8, 0xa1, 0xf9
+    };
+#endif
+
+    struct kwpKat {
+        const byte* kek;
+        word32      kekSz;
+        const byte* in;
+        word32      inSz;
+        const byte* exp;
+        word32      expSz;
+    };
+    const struct kwpKat kats[] = {
+    #ifdef WOLFSSL_AES_128
+        {kek128, (word32)sizeof(kek128), data20, (word32)sizeof(data20),
+         verify128_20, (word32)sizeof(verify128_20)},
+        {kek128, (word32)sizeof(kek128), data7,  (word32)sizeof(data7),
+         verify128_7,  (word32)sizeof(verify128_7)},
+    #endif
+    #ifdef WOLFSSL_AES_192
+        {kek192, (word32)sizeof(kek192), data20, (word32)sizeof(data20),
+         verify192_20, (word32)sizeof(verify192_20)},
+        {kek192, (word32)sizeof(kek192), data7,  (word32)sizeof(data7),
+         verify192_7,  (word32)sizeof(verify192_7)},
+    #endif
+    #ifdef WOLFSSL_AES_256
+        {kek256, (word32)sizeof(kek256), data20, (word32)sizeof(data20),
+         verify256_20, (word32)sizeof(verify256_20)},
+        {kek256, (word32)sizeof(kek256), data7,  (word32)sizeof(data7),
+         verify256_7,  (word32)sizeof(verify256_7)},
+    #endif
+    };
+    word32 katCnt = (word32)(sizeof(kats) / sizeof(kats[0]));
+    word32 i;
+    byte   out[40];
+    byte   plain[32];
+
+    /* --- Known-answer + roundtrip for every KEK size and both paths --- */
+    for (i = 0; i < katCnt; i++) {
+        XMEMSET(out,   0, sizeof(out));
+        XMEMSET(plain, 0, sizeof(plain));
+
+        /* wrap matches the published / cross-checked vector */
+        ExpectIntEQ(wc_AesKeyWrap_Pad(kats[i].kek, kats[i].kekSz,
+                                      kats[i].in, kats[i].inSz,
+                                      out, sizeof(out), NULL),
+                    (int)kats[i].expSz);
+        ExpectBufEQ(out, kats[i].exp, kats[i].expSz);
+
+        /* unwrap recovers the original plaintext and length */
+        ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[i].kek, kats[i].kekSz,
+                                        out, kats[i].expSz,
+                                        plain, sizeof(plain), NULL),
+                    (int)kats[i].inSz);
+        ExpectBufEQ(plain, kats[i].in, kats[i].inSz);
+    }
+
+    /* --- Negative: a corrupted wrap must fail the integrity check --- */
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntGE(wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz,
+                                  kats[0].in, kats[0].inSz,
+                                  out, sizeof(out), NULL), 0);
+    out[0] ^= 0x01;
+    ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz,
+                                    out, kats[0].expSz,
+                                    plain, sizeof(plain), NULL),
+                WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E));
+
+    /* --- Bad args: wrap --- */
+    ExpectIntEQ(wc_AesKeyWrap_Pad(NULL, kats[0].kekSz, data7, sizeof(data7),
+                                  out, sizeof(out), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz, NULL,
+                                  sizeof(data7), out, sizeof(out), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz, data7, 0,
+                                  out, sizeof(out), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz, data7,
+                                  sizeof(data7), NULL, sizeof(out), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* 7 octets need 16 output bytes; an 8-byte buffer is too small */
+    ExpectIntEQ(wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz, data7,
+                                  sizeof(data7), out, 8, NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* an inSz that would overflow ceil(inSz/8)+1 blocks is rejected up front
+     * (returns before reading 'in', so the short buffer is never accessed) */
+    ExpectIntEQ(wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz, data7,
+                                  0xFFFFFFF1U, out, sizeof(out), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- Bad args: unwrap --- */
+    ExpectIntEQ(wc_AesKeyUnWrap_Pad(NULL, kats[0].kekSz, out, 16,
+                                    plain, sizeof(plain), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, NULL, 16,
+                                    plain, sizeof(plain), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, out, 16,
+                                    NULL, sizeof(plain), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* input must be at least two 64-bit blocks and a multiple of 8 */
+    ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, out, 8,
+                                    plain, sizeof(plain), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, out, 17,
+                                    plain, sizeof(plain), NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* output buffer smaller than the recovered padded plaintext */
+    ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, out, 16,
+                                    plain, 4, NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- IV override: a custom 4-byte AIV high-half constant --- */
+    {
+        const byte altIv[4] = { 0x12, 0x34, 0x56, 0x78 };
+        int sz;
+
+        /* single-block (ECB) path */
+        XMEMSET(out,   0, sizeof(out));
+        XMEMSET(plain, 0, sizeof(plain));
+        sz = wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz, data7, sizeof(data7),
+                               out, sizeof(out), altIv);
+        ExpectIntGE(sz, 0);
+        ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz,
+                        out, (word32)sz, plain, sizeof(plain), altIv),
+                    (int)sizeof(data7));
+        ExpectBufEQ(plain, data7, sizeof(data7));
+        /* same blob must be rejected when unwrapped under the default AIV */
+        ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, out,
+                                        (word32)sz, plain, sizeof(plain), NULL),
+                    WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E));
+
+        /* multi-block (RFC 3394 loop) path */
+        XMEMSET(out,   0, sizeof(out));
+        XMEMSET(plain, 0, sizeof(plain));
+        sz = wc_AesKeyWrap_Pad(kats[0].kek, kats[0].kekSz, data20,
+                               sizeof(data20), out, sizeof(out), altIv);
+        ExpectIntGE(sz, 0);
+        ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz,
+                        out, (word32)sz, plain, sizeof(plain), altIv),
+                    (int)sizeof(data20));
+        ExpectBufEQ(plain, data20, sizeof(data20));
+    }
+
+    /* --- Invalid KEK size exercises the SetKey-failure path in wrappers --- */
+    {
+        byte badKey[32];
+        XMEMSET(badKey, 0x0c, sizeof(badKey));
+        /* 20 octets is not a valid AES key size */
+        ExpectIntEQ(wc_AesKeyWrap_Pad(badKey, 20, data7, sizeof(data7),
+                                      out, sizeof(out), NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyUnWrap_Pad(badKey, 20, out, 16,
+                                        plain, sizeof(plain), NULL),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* --- Forge ciphertexts to drive unwrap integrity checks 2 and 3 --- *
+     * A single decrypted block is AIV(8)|P(8); by ECB-encrypting a chosen   *
+     * block under the KEK we control exactly what unwrap will recover.      */
+    {
+        Aes  faes;
+        byte forgeBlk[WC_AES_BLOCK_SIZE];
+        byte forged[WC_AES_BLOCK_SIZE];
+
+        XMEMSET(&faes, 0, sizeof(faes));
+
+        /* check 2: correct AIV constant but MLI = 0 (fails 8*(n-1) < MLI) */
+        XMEMSET(forgeBlk, 0, sizeof(forgeBlk));
+        forgeBlk[0] = 0xa6; forgeBlk[1] = 0x59; forgeBlk[2] = 0x59;
+        forgeBlk[3] = 0xa6;
+        /* MLI bytes [4..7] remain 0 */
+        forgeBlk[8] = 0x11; /* arbitrary recovered plaintext octet */
+        ExpectIntEQ(wc_AesInit(&faes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&faes, kats[0].kek, kats[0].kekSz, NULL,
+                                 AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesEncryptDirect(&faes, forged, forgeBlk), 0);
+        wc_AesFree(&faes);
+        ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, forged, 16,
+                                        plain, sizeof(plain), NULL),
+                    WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E));
+
+        /* check 3: correct AIV constant, MLI = 1, but a nonzero pad octet */
+        XMEMSET(forgeBlk, 0, sizeof(forgeBlk));
+        forgeBlk[0] = 0xa6; forgeBlk[1] = 0x59; forgeBlk[2] = 0x59;
+        forgeBlk[3] = 0xa6;
+        forgeBlk[7] = 0x01; /* MLI = 1 */
+        forgeBlk[8] = 0x41; /* the one real octet... */
+        forgeBlk[9] = 0xff; /* ...followed by a nonzero pad octet -> rejected */
+        ExpectIntEQ(wc_AesInit(&faes, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&faes, kats[0].kek, kats[0].kekSz, NULL,
+                                 AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesEncryptDirect(&faes, forged, forgeBlk), 0);
+        wc_AesFree(&faes);
+        ExpectIntEQ(wc_AesKeyUnWrap_Pad(kats[0].kek, kats[0].kekSz, forged, 16,
+                                        plain, sizeof(plain), NULL),
+                    WC_NO_ERR_TRACE(BAD_KEYWRAP_IV_E));
+    }
+
+    return EXPECT_RESULT();
+} /* END test_wc_AesKeyWrap_Pad */
+
+#endif /* HAVE_AES_KEYWRAP && WOLFSSL_AES_KEYWRAP_PADDING */
+
+/*----------------------------------------------------------------------------*
  | AES-SIV Test
  *----------------------------------------------------------------------------*/
 
@@ -7957,6 +8239,184 @@ int test_wc_AesSivEncryptDecrypt(void)
 } /* END test_wc_AesSivEncryptDecrypt */
 
 #endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
+
+/*----------------------------------------------------------------------------*
+ | CryptoCB AES Key Wrap Test
+ *----------------------------------------------------------------------------*/
+
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_AES_KEYWRAP) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+/* Test CryptoCB device IDs (must be unique across test_aes.c); 7/8/9 are used
+ * by the SetKey/AES-GCM/TLS13 tests above. */
+#define TEST_CRYPTOCB_KEYWRAP_DEVID  10
+
+static int cbKwWrapCalled = 0;
+static int cbKwUnwrapCalled = 0;
+
+/* Mock device: runs the key (un)wrap in software using the op's own Aes (which
+ * already holds the KEK) by temporarily clearing its devId so the _ex call does
+ * not re-enter the callback, then reports the produced length back through
+ * aeskeywrap.outResSz. This is the canonical wolfCrypt crypto-callback pattern
+ * (mirrors myCryptoDevCb in wolfcrypt/test/test.c). */
+static int test_CryptoCb_KeyWrap_Cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    Aes*        aes;
+    int         r;
+    int         devIdSave;
+    const byte* in;
+    word32      inSz;
+    byte*       out;
+    word32      outSz;
+    const byte* iv;
+    int         pad;
+    (void)ctx;
+
+    if (devId != TEST_CRYPTOCB_KEYWRAP_DEVID)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    if (info->algo_type != WC_ALGO_TYPE_CIPHER ||
+        info->cipher.type != WC_CIPHER_AES_KEYWRAP)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    aes   = info->cipher.aeskeywrap.aes;
+    in    = info->cipher.aeskeywrap.in;
+    inSz  = info->cipher.aeskeywrap.inSz;
+    out   = info->cipher.aeskeywrap.out;
+    outSz = info->cipher.aeskeywrap.outSz;
+    iv    = info->cipher.aeskeywrap.iv;
+    pad   = info->cipher.aeskeywrap.pad;
+
+    devIdSave = aes->devId;
+    aes->devId = INVALID_DEVID; /* force software, no callback re-entry */
+
+    if (info->cipher.enc) {
+        cbKwWrapCalled++;
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (pad)
+            r = wc_AesKeyWrap_Pad_ex(aes, in, inSz, out, outSz, iv);
+        else
+    #endif
+            r = wc_AesKeyWrap_ex(aes, in, inSz, out, outSz, iv);
+    }
+    else {
+        cbKwUnwrapCalled++;
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (pad)
+            r = wc_AesKeyUnWrap_Pad_ex(aes, in, inSz, out, outSz, iv);
+        else
+    #endif
+            r = wc_AesKeyUnWrap_ex(aes, in, inSz, out, outSz, iv);
+    }
+    (void)pad;
+
+    aes->devId = devIdSave;
+
+    if (r < 0)
+        return r;
+    info->cipher.aeskeywrap.outResSz = (word32)r;
+    return 0;
+}
+
+int test_wc_CryptoCb_AesKeyWrap(void)
+{
+    EXPECT_DECLS;
+    Aes aes;
+    int sz;
+    /* RFC 3394 section 4.1: wrap 128 bits with a 128-bit KEK */
+    WOLFSSL_SMALL_STACK_STATIC const byte kek[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte data[] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte verify[] = {
+        0x1F, 0xA6, 0x8B, 0x0A, 0x81, 0x12, 0xB4, 0x47,
+        0xAE, 0xF3, 0x4B, 0xD8, 0xFB, 0x5A, 0x7B, 0x82,
+        0x9D, 0x3E, 0x86, 0x23, 0x71, 0xD2, 0xCF, 0xE5
+    };
+    byte out[40];
+    byte plain[32];
+
+    cbKwWrapCalled = 0;
+    cbKwUnwrapCalled = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_KEYWRAP_DEVID,
+                    test_CryptoCb_KeyWrap_Cb, NULL), 0);
+
+    /* RFC 3394 wrap: encryption-keyed Aes carrying the devId dispatches to the
+     * device, which wraps in software and matches the KAT. */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_KEYWRAP_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, kek, (word32)sizeof(kek), NULL,
+                             AES_ENCRYPTION), 0);
+    XMEMSET(out, 0, sizeof(out));
+    sz = wc_AesKeyWrap_ex(&aes, data, (word32)sizeof(data), out,
+                          (word32)sizeof(out), NULL);
+    ExpectIntEQ(sz, (int)sizeof(verify));
+    ExpectBufEQ(out, verify, sizeof(verify));
+    ExpectIntGE(cbKwWrapCalled, 1);
+    wc_AesFree(&aes);
+
+    /* RFC 3394 unwrap: decryption-keyed Aes carrying the devId. */
+    XMEMSET(&aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_KEYWRAP_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, kek, (word32)sizeof(kek), NULL,
+                             AES_DECRYPTION), 0);
+    XMEMSET(plain, 0, sizeof(plain));
+    sz = wc_AesKeyUnWrap_ex(&aes, verify, (word32)sizeof(verify), plain,
+                            (word32)sizeof(plain), NULL);
+    ExpectIntEQ(sz, (int)sizeof(data));
+    ExpectBufEQ(plain, data, sizeof(data));
+    ExpectIntGE(cbKwUnwrapCalled, 1);
+    wc_AesFree(&aes);
+
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+    /* RFC 5649 padded wrap/unwrap (7 octets -> single-block path) also
+     * dispatches to the device and round-trips. */
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte pdata[] = {
+            0x46, 0x6f, 0x72, 0x50, 0x61, 0x73, 0x69
+        };
+        cbKwWrapCalled = 0;
+        cbKwUnwrapCalled = 0;
+
+        /* padded wrap (encryption key) */
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_KEYWRAP_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, kek, (word32)sizeof(kek), NULL,
+                                 AES_ENCRYPTION), 0);
+        XMEMSET(out, 0, sizeof(out));
+        sz = wc_AesKeyWrap_Pad_ex(&aes, pdata, (word32)sizeof(pdata), out,
+                                  (word32)sizeof(out), NULL);
+        ExpectIntGE(sz, 0);
+        ExpectIntGE(cbKwWrapCalled, 1);
+        wc_AesFree(&aes);
+
+        /* padded unwrap (decryption key) */
+        XMEMSET(&aes, 0, sizeof(aes));
+        ExpectIntEQ(wc_AesInit(&aes, NULL, TEST_CRYPTOCB_KEYWRAP_DEVID), 0);
+        ExpectIntEQ(wc_AesSetKey(&aes, kek, (word32)sizeof(kek), NULL,
+                                 AES_DECRYPTION), 0);
+        XMEMSET(plain, 0, sizeof(plain));
+        sz = wc_AesKeyUnWrap_Pad_ex(&aes, out, (word32)sz, plain,
+                                    (word32)sizeof(plain), NULL);
+        ExpectIntEQ(sz, (int)sizeof(pdata));
+        ExpectBufEQ(plain, pdata, sizeof(pdata));
+        ExpectIntGE(cbKwUnwrapCalled, 1);
+        wc_AesFree(&aes);
+    }
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_KEYWRAP_DEVID);
+
+    return EXPECT_RESULT();
+}
+
+#endif /* WOLF_CRYPTO_CB && HAVE_AES_KEYWRAP && !NO_AES && WOLFSSL_AES_128 */
 
 /*----------------------------------------------------------------------------*
  | CryptoCB AES SetKey Test
