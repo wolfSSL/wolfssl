@@ -5118,6 +5118,11 @@ then
     ENABLED_CURVE25519="yes"
 fi
 
+if test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_LIGHTY" = "yes" && test "x$ENABLED_FIPS" = "xno"
+then
+    ENABLED_CURVE25519="yes"
+fi
+
 
 # ED25519
 AC_ARG_ENABLE([ed25519],
