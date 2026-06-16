@@ -665,7 +665,8 @@ static int wolfkdriv_newsession_aes(device_t dev,
 
         break;
     default:
-        return (EOPNOTSUPP);
+        error = (EINVAL);
+        break;
     }
 
 newsession_cipher_out:
