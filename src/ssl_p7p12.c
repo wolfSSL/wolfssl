@@ -816,6 +816,19 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     if (ret != 0)
         return WOLFSSL_FAILURE;
 
+    /* Reject a degenerate (certs-only) PKCS#7 with no verified signer. Such an
+     * object has empty signerInfos, so wc_PKCS7_VerifySignedData() succeeds
+     * without authenticating the content. pkcs7.verifyCert is only set once a
+     * signer's signature has actually been verified, so a NULL value here means
+     * the content carries no valid signature and must not be reported as
+     * verified - regardless of PKCS7_NOVERIFY, which only suppresses signer
+     * certificate chain validation, not the requirement that a signature exist.
+     */
+    if (p7->pkcs7.verifyCert == NULL) {
+        WOLFSSL_MSG("PKCS7 has no verified signer (degenerate/certs-only)");
+        return WOLFSSL_FAILURE;
+    }
+
     if ((flags & PKCS7_NOVERIFY) != PKCS7_NOVERIFY) {
         /* Verify signer certificates */
         if (store == NULL || store->cm == NULL) {
