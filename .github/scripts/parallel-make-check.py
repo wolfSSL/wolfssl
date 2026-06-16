@@ -241,6 +241,29 @@ def gh_escape(data: str) -> str:
     return data.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
 
+def gh_prop(value: str) -> str:
+    # A workflow-command property value (file=) escapes ":" and "," on top
+    # of the data set above.
+    return gh_escape(value).replace(":", "%3A").replace(",", "%2C")
+
+
+# A ::warning::/::error:: with no file= is pinned by GitHub to the .github
+# directory (a dead link). Point annotations at the workflow file that
+# carries this config list; GITHUB_WORKFLOW_REF is "owner/repo/path@ref".
+def gh_file_prop() -> str:
+    ref = os.environ.get("GITHUB_WORKFLOW_REF", "")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    prefix = f"{repo}/"
+    if repo and ref.startswith(prefix):
+        path = ref[len(prefix):].rsplit("@", 1)[0]
+        if path:
+            return f" file={gh_prop(path)}"
+    return ""
+
+
+GH_FILE_PROP = gh_file_prop()
+
+
 def dump(title: str, path: Path) -> None:
     # ::group:: is a workflow command; escape its title like warn() does.
     print(f"::group::{gh_escape(title)}" if ON_GITHUB else f"==== {title} ====")
@@ -256,7 +279,8 @@ def dump(title: str, path: Path) -> None:
 def warn(msg: str) -> None:
     # GitHub surfaces ::warning:: as an annotation at the top of the run;
     # locally it is just a line. Informational only - never fails the run.
-    print(f"::warning::{gh_escape(msg)}" if ON_GITHUB else f"WARNING: {msg}")
+    print(f"::warning{GH_FILE_PROP}::{gh_escape(msg)}" if ON_GITHUB
+          else f"WARNING: {msg}")
 
 
 def stale_estimate(cfg: Config, minutes: float) -> bool:
@@ -549,7 +573,7 @@ def main() -> int:
             else "aborted without a recorded failure"
         if aborted:
             msg += f" ({aborted} config(s) aborted by fail-fast)"
-        print(f"::error::{gh_escape(msg)}" if ON_GITHUB else msg)
+        print(f"::error{GH_FILE_PROP}::{gh_escape(msg)}" if ON_GITHUB else msg)
         return 1
     return 0
 
