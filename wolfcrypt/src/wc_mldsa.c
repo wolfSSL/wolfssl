@@ -1401,10 +1401,12 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
         #endif
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
             tp = (word32*)t0;
-            tp[0] =  (n0_0      ) | ((word32)n0_1 << 13) | ((word32)n0_2 << 26);
-            tp[1] =  (n0_2 >>  6) | ((word32)n0_3 <<  7) | ((word32)n0_4 << 20);
-            tp[2] =  (n0_4 >> 12) | ((word32)n0_5 <<  1) |
-                                    ((word32)n0_6 << 14) | ((word32)n0_7 << 27);
+            writeUnalignedWord32(tp+0, (n0_0      ) | ((word32)n0_1 << 13) |
+                ((word32)n0_2 << 26));
+            writeUnalignedWord32(tp+1, (n0_2 >>  6) | ((word32)n0_3 <<  7) |
+                ((word32)n0_4 << 20));
+            writeUnalignedWord32(tp+2, (n0_4 >> 12) | ((word32)n0_5 <<  1) |
+                ((word32)n0_6 << 14) | ((word32)n0_7 << 27));
         #else
             t0[ 0] = (byte)(               (n0_0 <<  0));
             t0[ 1] = (byte)((n0_0 >>  8) | (n0_1 <<  5));
@@ -1425,10 +1427,10 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
              * 8 bytes become 10 bytes. (8 * 10 bits = 10 * 8 bits) */
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT <= 2)
             tp = (word32*)t1;
-            tp[0] =  (n1_0      ) | ((word32)n1_1 << 10) |
-                     ((word32)n1_2 << 20) | ((word32)n1_3 << 30);
-            tp[1] =  (n1_3 >>  2) | ((word32)n1_4 <<  8) |
-                     ((word32)n1_5 << 18) | ((word32)n1_6 << 28);
+            writeUnalignedWord32(tp+0, (n1_0      ) | ((word32)n1_1 << 10) |
+                ((word32)n1_2 << 20) | ((word32)n1_3 << 30));
+            writeUnalignedWord32(tp+1, (n1_3 >>  2) | ((word32)n1_4 <<  8) |
+                ((word32)n1_5 << 18) | ((word32)n1_6 << 28));
         #else
             t1[0] = (byte)(               (n1_0 << 0));
             t1[1] = (byte)((n1_0 >> 8) |  (n1_1 << 2));
@@ -1496,9 +1498,9 @@ static void mldsa_decode_t0_c(const byte* t0, sword32* t)
         /* 13 bits used per number.
          * 8 numbers from 13 bytes. (8 * 13 bits = 13 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
-        word32 t32_2 = ((const word32*)t0)[2];
+        word32 t32_2 = readUnalignedWord32(t0+8);
     #ifdef WC_64BIT_CPU
-        word64 t64 = *(const word64*)t0;
+        word64 t64 = readUnalignedWord64(t0);
         t[j + 0] = MLDSA_D_MAX_HALF - (sword32)( t64        & 0x1fff);
         t[j + 1] = MLDSA_D_MAX_HALF - (sword32)((t64 >> 13) & 0x1fff);
         t[j + 2] = MLDSA_D_MAX_HALF - (sword32)((t64 >> 26) & 0x1fff);
@@ -1506,8 +1508,8 @@ static void mldsa_decode_t0_c(const byte* t0, sword32* t)
         t[j + 4] = MLDSA_D_MAX_HALF - (sword32)
                    ((t64 >> 52) | ((t32_2 & 0x0001) << 12));
     #else
-        word32 t32_0 = ((const word32*)t0)[0];
-        word32 t32_1 = ((const word32*)t0)[1];
+        word32 t32_0 = readUnalignedWord32(t0+0);
+        word32 t32_1 = readUnalignedWord32(t0+4);
         t[j + 0] = MLDSA_D_MAX_HALF - (sword32)
                     ( t32_0        & 0x1fff);
         t[j + 1] = MLDSA_D_MAX_HALF - (sword32)
@@ -1625,7 +1627,7 @@ static void mldsa_decode_t1_c(const byte* t1, sword32* t)
          * 8 numbers from 10 bytes. (8 * 10 bits = 10 * 8 bits) */
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
     #ifdef WC_64BIT_CPU
-        word64 t64 = *(const word64*) t1;
+        word64 t64 = readUnalignedWord64(t1);
         word16 t16 = *(const word16*)(t1 + 8);
         t[j+0] = (sword32)( ( t64                     & 0x03ff) << MLDSA_D);
         t[j+1] = (sword32)( ((t64 >> 10)              & 0x03ff) << MLDSA_D);
@@ -1637,7 +1639,7 @@ static void mldsa_decode_t1_c(const byte* t1, sword32* t)
                              (word64)(t16 << 4))      & 0x03ff) << MLDSA_D);
         t[j+7] = (sword32)( ((t16 >>  6)              & 0x03ff) << MLDSA_D);
     #else
-        word32 t32 = *((const word32*)t1);
+        word32 t32 = readUnalignedWord32(t1);
         t[j + 0] = (sword32)(( t32        & 0x03ff                       ) <<
                    MLDSA_D);
         t[j + 1] = (sword32)(((t32 >> 10) & 0x03ff                       ) <<
@@ -1646,7 +1648,7 @@ static void mldsa_decode_t1_c(const byte* t1, sword32* t)
                    MLDSA_D);
         t[j + 3] = (sword32)(((t32 >> 30)          | ((word32)t1[4] << 2)) <<
                    MLDSA_D);
-        t32 = *((const word32*)(t1 + 5));
+        t32 = readUnalignedWord32(t1 + 5);
         t[j + 4] = (sword32)(( t32        & 0x03ff                       ) <<
                    MLDSA_D);
         t[j + 5] = (sword32)(((t32 >> 10) & 0x03ff                       ) <<
@@ -1763,12 +1765,12 @@ static void mldsa_encode_gamma1_17_bits_c(const sword32* z, byte* s)
 #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
     #ifdef WC_64BIT_CPU
         word64* s64p = (word64*)s;
-        s64p[0] =           z0        | ((word64)z1 << 18) |
-                   ((word64)z2 << 36) | ((word64)z3 << 54);
+        writeUnalignedWord64(s64p,         z0        | ((word64)z1 << 18) |
+                                  ((word64)z2 << 36) | ((word64)z3 << 54));
     #else
         word32* s32p = (word32*)s;
-        s32p[0] =  z0        | (z1 << 18)             ;
-        s32p[1] = (z1 >> 14) | (z2 <<  4) | (z3 << 22);
+        writeUnalignedWord32(s32p+0, z0        | (z1 << 18)             );
+        writeUnalignedWord32(s32p+1, (z1 >> 14) | (z2 <<  4) | (z3 << 22));
     #endif
 #else
         s[0] = (byte)( z0                   );
@@ -1833,8 +1835,8 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
         word16* s16p = (word16*)s;
     #ifdef WC_64BIT_CPU
         word64* s64p = (word64*)s;
-        s64p[0] =   (word64)z0        | ((word64)z1 << 20) |
-                   ((word64)z2 << 40) | ((word64)z3 << 60);
+        writeUnalignedWord64(s64p,  (word64)z0        | ((word64)z1 << 20) |
+                                   ((word64)z2 << 40) | ((word64)z3 << 60));
     #else
         word32* s32p = (word32*)s;
         s32p[0] = (word32)( z0        | (z1 << 20)             );
@@ -1954,7 +1956,7 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
              * 4 numbers from 9 bytes. (4 * 18 bits = 9 * 8 bits) */
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
         #ifdef WC_64BIT_CPU
-            word64 s64_0 = *(const word64*)(s+0);
+            word64 s64_0 = readUnalignedWord64(s+0);
             z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s64_0        & 0x3ffff                   ));
             z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
@@ -1964,8 +1966,8 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
             z[i+3] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_0 >> 54) | (((word32)s[8])     << 10)));
         #else
-            word32 s32_0 = ((const word32*)(s+0))[0];
-            word32 s32_1 = ((const word32*)(s+0))[1];
+            word32 s32_0 = readUnalignedWord32(s+0);
+            word32 s32_1 = readUnalignedWord32(s+4);
             z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s32_0        & 0x3ffff                    ));
             z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
@@ -1999,8 +2001,8 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
              * 8 numbers from 9 bytes. (8 * 18 bits = 18 * 8 bits) */
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
         #ifdef WC_64BIT_CPU
-            word64 s64_0 = *(const word64*)(s+0);
-            word64 s64_1 = *(const word64*)(s+9);
+            word64 s64_0 = readUnalignedWord64(s+0);
+            word64 s64_1 = readUnalignedWord64(s+9);
             z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s64_0        & 0x3ffff                   ));
             z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
@@ -2018,10 +2020,10 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
             z[i+7] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ((s64_1 >> 54) | (((word32)s[17])    << 10)));
         #else
-            word32 s32_0 = ((const word32*)(s+0))[0];
-            word32 s32_1 = ((const word32*)(s+0))[1];
-            word32 s32_2 = ((const word32*)(s+9))[0];
-            word32 s32_3 = ((const word32*)(s+9))[1];
+            word32 s32_0 = readUnalignedWord32(s+ 0);
+            word32 s32_1 = readUnalignedWord32(s+ 4);
+            word32 s32_2 = readUnalignedWord32(s+ 9);
+            word32 s32_3 = readUnalignedWord32(s+13);
             z[i+0] = (sword32)((word32)MLDSA_GAMMA1_17 -
                                ( s32_0        & 0x3ffff                    ));
             z[i+1] = (sword32)((word32)MLDSA_GAMMA1_17 -
@@ -2081,15 +2083,15 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT <= 2)
             word16 s16_0 = ((const word16*)s)[4];
         #ifdef WC_64BIT_CPU
-            word64 s64_0 = *(const word64*)s;
+            word64 s64_0 = readUnalignedWord64(s);
             z[i+0] = MLDSA_GAMMA1_19 - ((sword32)( s64_0        & 0xfffff));
             z[i+1] = MLDSA_GAMMA1_19 - ((sword32)((s64_0 >> 20) & 0xfffff));
             z[i+2] = MLDSA_GAMMA1_19 - ((sword32)((s64_0 >> 40) & 0xfffff));
             z[i+3] = MLDSA_GAMMA1_19 - ((sword32)((s64_0 >> 60) & 0xfffff) |
                                             ((sword32) s16_0 <<  4));
         #else
-            word32 s32_0 = ((const word32*)s)[0];
-            word32 s32_1 = ((const word32*)s)[1];
+            word32 s32_0 = readUnalignedWord32(s+0);
+            word32 s32_1 = readUnalignedWord32(s+4);
             z[i+0] = MLDSA_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
             z[i+1] = MLDSA_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
                                                      ((s32_1 & 0x000ff) << 12));
@@ -2123,8 +2125,8 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
             word16 s16_0 = ((const word16*)s)[4];
             word16 s16_1 = ((const word16*)s)[9];
         #ifdef WC_64BIT_CPU
-            word64 s64_0 = *(const word64*)(s+0);
-            word64 s64_1 = *(const word64*)(s+10);
+            word64 s64_0 = readUnalignedWord64(s+0);
+            word64 s64_1 = readUnalignedWord64(s+10);
             z[i+0] = MLDSA_GAMMA1_19 -
                      ((sword32)(  s64_0        & 0xfffff))   ;
             z[i+1] = MLDSA_GAMMA1_19 -
@@ -2144,10 +2146,10 @@ static void mldsa_decode_gamma1_c(const byte* s, int bits, sword32* z)
                      ((sword32)(((s64_1 >> 60) & 0xfffff))   |
                       ((sword32)s16_1      <<  4));
         #else
-            word32 s32_0 = ((const word32*)(s+ 0))[0];
-            word32 s32_1 = ((const word32*)(s+ 0))[1];
-            word32 s32_2 = ((const word32*)(s+10))[0];
-            word32 s32_3 = ((const word32*)(s+10))[1];
+            word32 s32_0 = readUnalignedWord32(s+ 0);
+            word32 s32_1 = readUnalignedWord32(s+ 4);
+            word32 s32_2 = readUnalignedWord32(s+10);
+            word32 s32_3 = readUnalignedWord32(s+14);
             z[i+0] = MLDSA_GAMMA1_19 - (sword32)(  s32_0       & 0xfffff);
             z[i+1] = MLDSA_GAMMA1_19 - (sword32)(( s32_0            >> 20) |
                                                      ((s32_1 & 0x000ff) << 12));
@@ -2622,14 +2624,14 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
         for (c = 0; c < MLDSA_N * 3; c += 24) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_MLDSA_ALIGNMENT == 0)
             /* Load 32-bit value and mask out 23 bits. */
-            sword32 t0 = *((sword32*)(h + c +  0)) & 0x7fffff;
-            sword32 t1 = *((sword32*)(h + c +  3)) & 0x7fffff;
-            sword32 t2 = *((sword32*)(h + c +  6)) & 0x7fffff;
-            sword32 t3 = *((sword32*)(h + c +  9)) & 0x7fffff;
-            sword32 t4 = *((sword32*)(h + c + 12)) & 0x7fffff;
-            sword32 t5 = *((sword32*)(h + c + 15)) & 0x7fffff;
-            sword32 t6 = *((sword32*)(h + c + 18)) & 0x7fffff;
-            sword32 t7 = *((sword32*)(h + c + 21)) & 0x7fffff;
+            sword32 t0 = readUnalignedWord32(h + c +  0) & 0x7fffff;
+            sword32 t1 = readUnalignedWord32(h + c +  3) & 0x7fffff;
+            sword32 t2 = readUnalignedWord32(h + c +  6) & 0x7fffff;
+            sword32 t3 = readUnalignedWord32(h + c +  9) & 0x7fffff;
+            sword32 t4 = readUnalignedWord32(h + c + 12) & 0x7fffff;
+            sword32 t5 = readUnalignedWord32(h + c + 15) & 0x7fffff;
+            sword32 t6 = readUnalignedWord32(h + c + 18) & 0x7fffff;
+            sword32 t7 = readUnalignedWord32(h + c + 21) & 0x7fffff;
         #else
             /* Load 24-bit value and mask out 23 bits. */
             sword32 t0 = (h[c +  0] + ((sword32)h[c +  1] << 8) +
@@ -2672,7 +2674,7 @@ static int mldsa_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
             #if defined(LITTLE_ENDIAN_ORDER) && \
                 (WOLFSSL_MLDSA_ALIGNMENT == 0)
                 /* Load 32-bit value and mask out 23 bits. */
-                sword32 t = *((sword32*)(h + c)) & 0x7fffff;
+                sword32 t = readUnalignedWord32(h + c) & 0x7fffff;
             #else
                 /* Load 24-bit value and mask out 23 bits. */
                 sword32 t = (h[c] + ((sword32)h[c+1] << 8) +
@@ -3519,7 +3521,7 @@ static void mldsa_extract_coeffs(const byte* z, unsigned int zLen,
     min &= ~(unsigned int)7;
     /* Extract values from the squeezed data. */
     for (c = 0; c < min; c += 8) {
-        word64 z64 = *(const word64*)(z + c);
+        word64 z64 = readUnalignedWord64(z + c);
         sword8 t;
 
         /* Do each nibble from lowest to highest 16 at a time. */
@@ -3544,7 +3546,7 @@ static void mldsa_extract_coeffs(const byte* z, unsigned int zLen,
     min &= ~(unsigned int)3;
     /* Extract values from the squeezed data. */
     for (c = 0; c < min; c += 4) {
-        word32 z32 = *(const word32*)(z + c);
+        word32 z32 = readUnalignedWord32(z + c);
         sword8 t;
 
         /* Do each nibble from lowest to highest 8 at a time. */
@@ -4661,7 +4663,7 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
     if (ret == 0) {
         /* Step 1: Initialize sign bit index. */
         /* Copy first 8 bytes of first hash block as random sign bits. */
-        signs = *(word64*)block;
+        signs = readUnalignedWord64(block);
 
         /* Step 3: Put in TAU +/- 1s. */
         for (i = (unsigned int)MLDSA_N - tau; i < MLDSA_N; i++) {

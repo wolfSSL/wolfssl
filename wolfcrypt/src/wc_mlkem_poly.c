@@ -3759,9 +3759,9 @@ static void mlkem_cbd_eta2(sword16* p, const byte* r)
     #endif
         /* Take the next 4 bytes, little endian, as a 32 bit value. */
     #ifdef BIG_ENDIAN_ORDER
-        word32 t = ByteReverseWord32(*(word32*)r);
+        word32 t = ByteReverseWord32(readUnalignedWord32(r));
     #else
-        word32 t = *(word32*)r;
+        word32 t = readUnalignedWord32(r);
     #endif
         word32 d;
         /* Add second bits to first. */
