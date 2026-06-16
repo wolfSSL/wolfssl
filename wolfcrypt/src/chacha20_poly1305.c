@@ -411,6 +411,14 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
         goto out;
     }
 
+    /* Sanity check lengths to prevent truncation when cast to word32. */
+    if ((ad_len > WOLFSSL_MAX_32BIT) ||
+        (nonce_len > WOLFSSL_MAX_32BIT) ||
+        (key_len > WOLFSSL_MAX_32BIT)) {
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
+
     if ((ret = wc_XChaCha20Poly1305_Init(aead, ad, (word32)ad_len,
                                          nonce, (word32)nonce_len,
                                          key, (word32)key_len, 1)) < 0)
