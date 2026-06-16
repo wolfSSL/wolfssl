@@ -4320,6 +4320,41 @@ int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
     WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + cipsz + 1u] = 0u;
     if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_DATAOKF)) != 0) { goto done; }
 
+#if defined(WOLFSSL_STM32C5)
+    /* STM32C5: blob-create is a combined create+SIGN -- the OPSTEP machine only
+     * advances through the GCM-final tag phase if the random k is drawn and the
+     * PKA sign is started. Draw k, run the GCM final phase, read the tag, then
+     * START the PKA; the resulting r,s are a creation by-product and discarded
+     * (the blob is still {iv, tag, wrapped}). Mirrors the C5 HAL
+     * CCB_ECDSA_SignBlobCreation. The U3 OPSTEP machine does not require this. */
+    if ((ret = Stm32Ccb_WaitOpStep(0x09u)) != 0) { goto done; }
+    for (off = 0u; off < (opsz - 2u); off++) {
+        if ((ret = Stm32Ccb_RngWaitDrdy()) != 0) { goto done; }
+        WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + off] = WC_CCB_MAGIC;
+    }
+    if ((PKA->SR & PKA_SR_RNGERRF) != 0u) { ret = WC_HW_E; goto done; }
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + (opsz - 2u)]      = 0u;
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + (opsz - 2u) + 1u] = 0u;
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_RNGOKF)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SaesWaitBusy()) != 0) { goto done; }
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | WC_STM32_AES_CR_PHASE_1;
+    PKA->CLRFR = PKA_CLRFR_CMFC;
+    SAES->DINR = 0u;
+    SAES->DINR = WC_CCB_GCM_HDR_LEN(opsz);
+    SAES->DINR = 0u;
+    SAES->DINR = cipsz * 32u;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+    for (i = 0u; i < 4u; i++) {
+        tagw[i] = SAES->DOUTR;
+    }
+    PKA->CR |= PKA_CR_START;
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_PROCENDF)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_WaitOpStep(0x1Au)) != 0) { goto done; }
+    if (WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_OUT_ERROR] != WC_CCB_PKA_OK) {
+        ret = WC_HW_E;
+        goto done;
+    }
+#else
     /* GCM final phase: feed the length block and read the authentication tag. */
     SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | WC_STM32_AES_CR_PHASE_1;
     if ((ret = Stm32Ccb_WaitOpStep(0x0Au)) != 0) { goto done; }
@@ -4332,6 +4367,7 @@ int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
     for (i = 0u; i < 4u; i++) {
         tagw[i] = SAES->DOUTR;
     }
+#endif
 
     XMEMCPY(iv,      ivw,   sizeof(ivw));
     XMEMCPY(tag,     tagw,  sizeof(tagw));

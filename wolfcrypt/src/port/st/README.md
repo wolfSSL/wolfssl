@@ -222,8 +222,9 @@ Worked example: [`STM32_Bare_Test/src/main_ccb.c`](https://github.com/wolfSSL/wo
 ### Current state
 
 - Validated on STM32U385 (NUCLEO-U385RG-Q, TZEN=0), P-256, on both the bare-metal and CubeMX/HAL build paths: `wc_ecc_make_key` -> `wc_ecc_sign_hash` -> `wc_ecc_verify_hash` round-trips, with the private scalar never present in software.
+- Also validated on STM32C5 (NUCLEO-C5A3ZG, TZEN=0), P-256, bare-metal: the same `wc_ecc_make_key` -> `wc_ecc_sign_hash` -> `wc_ecc_verify_hash` flow plus a persisted-blob re-import (`wc_ecc_import_wrapped_private_ex`) round-trip, all on the CCB hardware. On STM32C5 the blob-create step is a combined create-and-sign: the C5 OPSTEP machine only advances through the GCM-final phase when the random k is drawn and the PKA sign is started during creation (the r,s are a by-product and discarded). That extra sequence is gated by `WOLFSSL_STM32C5` in the bare driver; the U3 OPSTEP machine does not require it.
 - `Stm32Ccb_Init()` pulse-resets the PKA / SAES / RNG before each operation, so the first CCB op is robust even when prior standalone crypto (RNG seeding, ECC keygen) left an engine in a state that would otherwise stall the CCB's chained SAES GCM step. The family-specific reset register name is abstracted (`WC_STM32_CCB_RSTR`).
-- CCB requires the U3 at its full clock; the reference clock-tree bring-up (96 MHz) is in the bare example's `boards/u3/hw_init.c`.
+- CCB requires the U3 / C5 at its full clock; the reference clock-tree bring-up is in the bare example's `boards/u3/hw_init.c` (96 MHz) and `boards/c5a3/hw_init.c`.
 
 
 ## STM32 BARE-metal port
