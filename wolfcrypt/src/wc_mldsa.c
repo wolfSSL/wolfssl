@@ -3628,6 +3628,8 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
         while (j < MLDSA_N);
     }
 
+    /* z holds the secret s1/s2 bytes. */
+    ForceZero(z, sizeof(z));
     return ret;
 #else
     int ret;
@@ -3656,6 +3658,8 @@ static int mldsa_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
         }
     }
 
+    /* z holds the secret s1/s2 bytes. */
+    ForceZero(z, MLDSA_GEN_S_BYTES);
     WC_FREE_VAR_EX(z, NULL, DYNAMIC_TYPE_MLDSA);
     return ret;
 #endif
@@ -3760,6 +3764,9 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
                (ctr3 < MLDSA_N));
     }
 
+    /* rand/state hold secret s-vector material. */
+    ForceZero(rand, 4 * MLDSA_GEN_S_BLOCK_BYTES);
+    ForceZero(state, sizeof(word64) * 25 * 4);
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -3913,6 +3920,9 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
     /* Create more blocks if too many rejected. */
     while ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N));
 
+    /* rand/state hold secret s-vector material. */
+    ForceZero(rand, 4 * MLDSA_GEN_S_BLOCK_BYTES);
+    ForceZero(state, sizeof(word64) * 25 * 4);
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -4068,6 +4078,9 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
     /* Create more blocks if too many rejected. */
     while ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N));
 
+    /* rand/state hold secret s-vector material. */
+    ForceZero(rand, 4 * MLDSA_GEN_S_BLOCK_BYTES);
+    ForceZero(state, sizeof(word64) * 25 * 4);
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -4257,6 +4270,9 @@ static int wc_mldsa_gen_y_4_avx2(sword32* y, byte* seed, word16 kappa)
     wc_mldsa_decode_gamma1_17_avx2(rand + 3 * MLDSA_MAX_V,
         y + 3 * MLDSA_N);
 
+    /* rand/state hold the secret mask y. */
+    ForceZero(rand, 4 * MLDSA_MAX_V);
+    ForceZero(state, sizeof(word64) * 25 * 4);
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -4337,6 +4353,9 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
         wc_mldsa_decode_gamma1_19_avx2(rand, y + 4 * MLDSA_N);
     }
 
+    /* rand/state hold the secret mask y. */
+    ForceZero(rand, 4 * MLDSA_MAX_V);
+    ForceZero(state, sizeof(word64) * 25 * 4);
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -4432,6 +4451,9 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     wc_mldsa_decode_gamma1_19_avx2(rand + 2 * MLDSA_MAX_V,
         y + 6 * MLDSA_N);
 
+    /* rand/state hold the secret mask y. */
+    ForceZero(rand, 4 * MLDSA_MAX_V);
+    ForceZero(state, sizeof(word64) * 25 * 4);
     WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -4490,6 +4512,8 @@ static int mldsa_vec_expand_mask_c(wc_Shake* shake256, byte* seed,
         }
     }
 
+    /* v holds the secret mask y. */
+    ForceZero(v, MLDSA_MAX_V);
     WC_FREE_VAR_EX(v, NULL, DYNAMIC_TYPE_MLDSA);
     return ret;
 }
@@ -10934,6 +10958,9 @@ int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
 int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
 {
     int ret = 0;
+#if !defined(WC_MLDSA_FIXED_ARRAY) && defined(WC_MLDSA_CACHE_PRIV_VECTORS)
+    const wc_MlDsaParams* oldParams = NULL;
+#endif
 
     /* Validate parameters. */
     if (key == NULL) {
@@ -10954,6 +10981,11 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
     }
 
     if (ret == 0) {
+#if !defined(WC_MLDSA_FIXED_ARRAY) && defined(WC_MLDSA_CACHE_PRIV_VECTORS)
+        /* Save old params to size the cached-vector wipe below (key->params
+         * is about to change to the new level). */
+        oldParams = key->params;
+#endif
         /* Get the parameters for level into key. */
         ret = mldsa_get_params(level, &key->params);
     }
@@ -10966,6 +10998,11 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
         key->aSet = 0;
     #endif
     #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+        /* Cached buffer holds secret s1/s2/t0; zeroize before free. */
+        if ((key->s1 != NULL) && (oldParams != NULL)) {
+            ForceZero(key->s1, (word32)oldParams->s1Sz +
+                2U * (word32)oldParams->s2Sz);
+        }
         XFREE(key->s1, key->heap, DYNAMIC_TYPE_MLDSA);
         key->s1 = NULL;
         key->s2 = NULL;
@@ -11050,6 +11087,12 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
         XFREE(key->t1, key->heap, DYNAMIC_TYPE_MLDSA);
     #endif
     #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
+        /* Cached buffer holds secret s1/s2/t0; zeroize before free (the
+         * ForceZero(key) below only clears the pointer). */
+        if ((key->s1 != NULL) && (key->params != NULL)) {
+            ForceZero(key->s1, (word32)key->params->s1Sz +
+                2U * (word32)key->params->s2Sz);
+        }
         XFREE(key->s1, key->heap, DYNAMIC_TYPE_MLDSA);
     #endif
     #ifdef WC_MLDSA_CACHE_MATRIX_A
@@ -11433,6 +11476,10 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
     }
 
     if (key != NULL) {
+        /* Zeroize secret s1/s2/t0 at the front (trailing t/t1/A are public). */
+        if ((s1 != NULL) && (params != NULL)) {
+            ForceZero(s1, (word32)params->s1Sz + 2U * (word32)params->s2Sz);
+        }
         /* Dispose of allocated memory. */
         XFREE(s1, key->heap, DYNAMIC_TYPE_MLDSA);
     }
