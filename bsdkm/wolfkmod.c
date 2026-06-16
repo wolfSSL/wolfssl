@@ -773,7 +773,7 @@ static int wolfkdriv_cbc_work(device_t dev, wolfkdriv_session_t * session,
     crypto_read_iv(crp, iv);
     error = wc_AesSetIV(&aes, iv);
     if (error) {
-        device_printf(dev, "error: wc_AesSetKey: %d\n", error);
+        device_printf(dev, "error: wc_AesSetIV: %d\n", error);
         goto cbc_work_out;
     }
 
@@ -863,7 +863,6 @@ static int wolfkdriv_cbc_work(device_t dev, wolfkdriv_session_t * session,
 cbc_work_out:
     /* cleanup. */
     km_AesFree(&aes);
-    wc_ForceZero(&aes, sizeof(aes));
     wc_ForceZero(iv, sizeof(iv));
     wc_ForceZero(block, sizeof(block));
 
