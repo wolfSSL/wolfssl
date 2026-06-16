@@ -1507,6 +1507,189 @@ int test_X509_verify_cert_untrusted_inter(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME)
+/* Build a CA:TRUE intermediate signed by the 2048-bit test root
+ * (ca_cert_der_2048 / ca_key_der_2048).  keyUsage == NULL omits the KeyUsage
+ * extension entirely.  Returns the DER length, or <= 0 on failure. */
+static int gen_ca_int_keyusage(byte* out, int outMax, RsaKey* subjKey,
+    RsaKey* caKey, WC_RNG* rng, const char* cn, const char* keyUsage)
+{
+    Cert cert;
+    int  sz;
+
+    if (wc_InitCert(&cert) != 0)
+        return -1;
+    cert.isCA    = 1;
+    cert.sigType = CTC_SHA256wRSA;
+    XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    if (wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL) != 0)
+        return -1;
+    if (wc_SetAuthKeyIdFromCert(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048) != 0)
+        return -1;
+    if (keyUsage != NULL && wc_SetKeyUsage(&cert, keyUsage) != 0)
+        return -1;
+    if (wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
+            (int)sizeof_ca_cert_der_2048) != 0)
+        return -1;
+    if ((sz = wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng)) < 0)
+        return -1;
+    return wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax, caKey,
+        NULL, rng);
+}
+
+/* Build a leaf signed by the given intermediate (its DER + private key). */
+static int gen_leaf_under_int(byte* out, int outMax, RsaKey* leafKey,
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
+    const char* cn)
+{
+    Cert cert;
+    int  sz;
+
+    if (wc_InitCert(&cert) != 0)
+        return -1;
+    cert.isCA    = 0;
+    cert.sigType = CTC_SHA256wRSA;
+    XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    if (wc_SetSubjectKeyIdFromPublicKey(&cert, leafKey, NULL) != 0)
+        return -1;
+    if (wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz) != 0)
+        return -1;
+    if (wc_SetKeyUsage(&cert, "digitalSignature") != 0)
+        return -1;
+    if (wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz) != 0)
+        return -1;
+    if ((sz = wc_MakeCert(&cert, out, (word32)outMax, leafKey, NULL, rng)) < 0)
+        return -1;
+    return wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+        issuerKey, NULL, rng);
+}
+
+/* Verify "leaf <- intermediate <- root(ca-cert)" where the intermediate is
+ * supplied only as an untrusted candidate.  Returns the X509_verify_cert()
+ * result (1 verified, 0 rejected) via *verifyRet. */
+static int run_int_keyusage_case(const byte* intDer, int intSz,
+    const byte* leafDer, int leafSz, X509* root, int* verifyRet)
+{
+    EXPECT_DECLS;
+    X509* inter = NULL;
+    X509* leaf  = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+    const byte* p;
+
+    p = intDer;
+    ExpectNotNull(inter = d2i_X509(NULL, &p, intSz));
+    p = leafDer;
+    ExpectNotNull(leaf = d2i_X509(NULL, &p, leafSz));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    if (verifyRet != NULL)
+        *verifyRet = X509_verify_cert(ctx);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    X509_free(leaf);
+    X509_free(inter);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Regression: a chain-supplied (untrusted) intermediate that is CA:TRUE but
+ * whose KeyUsage extension does NOT assert keyCertSign must NOT be usable to
+ * sign the leaf - RFC 5280 4.2.1.3.  Previously such an intermediate, added as
+ * a temporary CA during path building, was accepted as a signing CA.
+ *
+ * Conversely, an intermediate with NO KeyUsage extension implies all usages
+ * (including keyCertSign) and must still verify - the fix must not over-reject
+ * those. */
+int test_X509_verify_cert_ca_no_keycertsign(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME)
+    WC_RNG rng;
+    RsaKey caKey, intKey, leafKey;
+    int rngI = 0, caI = 0, intI = 0, leafI = 0;
+    word32 idx;
+    byte* intDer = NULL;
+    byte* leafDer = NULL;
+    int intSz = 0, leafSz = 0;
+    int verifyRet = -1;
+    const byte* p;
+    X509* root = NULL;
+
+    intDer  = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    leafDer = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(intDer);
+    ExpectNotNull(leafDer);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngI = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
+    if (EXPECT_SUCCESS()) intI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &intKey,
+        sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafI = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        sizeof_client_key_der_2048), 0);
+
+    p = ca_cert_der_2048;
+    ExpectNotNull(root = d2i_X509(NULL, &p, (int)sizeof_ca_cert_der_2048));
+
+    /* Case 1: intermediate CA WITHOUT keyCertSign -> verification must fail. */
+    ExpectIntGT((intSz = gen_ca_int_keyusage(intDer, FOURK_BUF, &intKey, &caKey,
+        &rng, "No keyCertSign Intermediate", "digitalSignature")), 0);
+    ExpectIntGT((leafSz = gen_leaf_under_int(leafDer, FOURK_BUF, &leafKey,
+        intDer, intSz, &intKey, &rng, "Leaf under bad int")), 0);
+    verifyRet = -1;
+    ExpectIntEQ(run_int_keyusage_case(intDer, intSz, leafDer, leafSz, root,
+        &verifyRet), 1);
+    ExpectIntNE(verifyRet, 1);
+
+    /* Case 2: intermediate CA with NO KeyUsage extension -> must verify. */
+    ExpectIntGT((intSz = gen_ca_int_keyusage(intDer, FOURK_BUF, &intKey, &caKey,
+        &rng, "No KeyUsage Intermediate", NULL)), 0);
+    ExpectIntGT((leafSz = gen_leaf_under_int(leafDer, FOURK_BUF, &leafKey,
+        intDer, intSz, &intKey, &rng, "Leaf under noKU int")), 0);
+    verifyRet = -1;
+    ExpectIntEQ(run_int_keyusage_case(intDer, intSz, leafDer, leafSz, root,
+        &verifyRet), 1);
+    ExpectIntEQ(verifyRet, 1);
+
+    X509_free(root);
+    if (rngI)  wc_FreeRng(&rng);
+    if (caI)   wc_FreeRsaKey(&caKey);
+    if (intI)  wc_FreeRsaKey(&intKey);
+    if (leafI) wc_FreeRsaKey(&leafKey);
+    XFREE(intDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
         STACK_OF(X509)* chain)
