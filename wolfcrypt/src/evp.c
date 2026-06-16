@@ -13457,7 +13457,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     if (outl == NULL)
         return -1;
 
-    if (ctx == NULL || out == NULL || in == NULL) {
+    if (ctx == NULL || out == NULL || in == NULL || inl < 0) {
         *outl = 0;
         return -1;
     }
