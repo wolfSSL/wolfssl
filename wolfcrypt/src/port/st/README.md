@@ -22,7 +22,7 @@ Support for STM32 on-chip crypto hardware acceleration across the following fami
 | `WOLFSSL_STM32WBA`    | WBA52 (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK)                 |
 | `WOLFSSL_STM32WL`     | WL55 (TinyAES / RNG / V1 PKA)                                       |
 | `WOLFSSL_STM32C0`     | C0xx (not yet supported in settings.h; SW only)                     |
-| `WOLFSSL_STM32C5`     | C5xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK)                  |
+| `WOLFSSL_STM32C5`     | C5xx (TinyAES / HASH / RNG / SAES / V2 PKA sign-only / DHUK / CCB)   |
 | `WOLFSSL_STM32N6`     | N6xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK; M55 core)        |
 | `WOLFSSL_STM32MP13`   | MP13 (CRYP / HASH / RNG / PKA; Cortex-A7)                           |
 | `WOLFSSL_STM32MP25`   | MP25 (not yet supported in settings.h; Cortex-A35 + M33)            |
@@ -142,6 +142,58 @@ ECDSA mirrors this: init the key with `wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID)
 ### Optional exact-key import (off by default)
 
 `wc_Stm32_Aes_DhukOp[_ex]()` unwraps a previously DHUK-wrapped key into SAES KEYR and runs AES ECB/CBC with it (importing an externally-chosen key, vs deriving one from a seed). It is compiled only with `WOLFSSL_STM32_DHUK_UNWRAP`, is called explicitly (not auto-routed), and is not re-validated on current hardware.
+
+
+## STM32 CCB (Coupling and Chaining Bridge)
+
+STM32U3 and STM32C5 silicon (e.g. U385 / C5A3; RM0487 ch 31 and RM0522, the `WC_STM32_HAS_CCB` gate) carry the CCB peripheral, which chains the PKA, SAES and RNG over a private local interconnect. This lets a DHUK-protected ECDSA private scalar be unwrapped by the SAES and consumed by the PKA entirely in hardware -- the scalar never crosses the system bus or enters software, not even into a short-lived buffer (unlike the generic DHUK ECDSA path above, which decrypts the scalar into a stack buffer). CCB builds on DHUK: the private key is held as a chip-bound AES-GCM blob (`iv` / `tag` / wrapped scalar) created under the silicon DHUK.
+
+CCB is supported on both build paths: the bare-metal direct-register OPSTEP driver (`WOLFSSL_STM32_BARE`) and the CubeMX/HAL path (`WOLFSSL_STM32_CUBEMX`, via ST's `HAL_CCB_*` driver). It currently covers ECDSA over P-256.
+
+### Enabling
+
+```
+#define WOLFSSL_DHUK         /* CCB is a DHUK feature */
+#define WOLF_CRYPTO_CB       /* required -- transparent sign routes through crypto callbacks */
+#define WOLFSSL_STM32_CCB    /* opt in to the CCB-protected ECDSA path */
+```
+
+`WOLFSSL_STM32_CCB` requires CCB silicon (`WOLFSSL_STM32U3` or `WOLFSSL_STM32C5`) and either `WOLFSSL_STM32_BARE` or `WOLFSSL_STM32_CUBEMX` (a `#error` fires otherwise).
+
+### API
+
+The whole flow uses the **standard ECC API** -- there is no CCB-specific public API. Binding the key to `WC_DHUK_DEVID` routes keygen and sign through the STM32 crypto callback, which provisions and uses the CCB-protected key transparently (a drop-in for TLS and other consumers). The same flow works on both build paths.
+
+```c
+ecc_key key;
+
+/* one-time: register the STM32 DHUK/CCB crypto-callback device */
+wc_Stm32_DhukRegister(WC_DHUK_DEVID);
+
+wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID);
+
+/* provision a fresh device-bound key with the STANDARD keygen -- the crypto
+ * callback intercepts it: the CCB generates the scalar, wraps it into a blob
+ * and derives the public key, all in hardware. No CCB-specific API. */
+wc_ecc_make_key_ex(&rng, 32, &key, ECC_SECP256R1);
+
+/* transparent sign -- the scalar is unwrapped SAES->PKA in HW and signed */
+wc_ecc_sign_hash(hash, hashLen, sig, &sigLen, &rng, &key);
+
+/* verify with the in-clear public key, unchanged */
+wc_ecc_verify_hash(sig, sigLen, hash, hashLen, &verified, &key);
+
+wc_ecc_free(&key);
+wc_Stm32_DhukUnRegister(WC_DHUK_DEVID);
+```
+
+To reuse a key across resets, persist the blob from a provisioned key and reload it later with `wc_ecc_import_wrapped_private_ex(&key, curve_id, wrapped, wrappedLen, iv, tag, pub, pubLen)` (the public key in uncompressed `qx||qy` form), then sign as above. Both paths set `key->dhuk_is_ccb` and the device `devId`, so dispatch to the CCB happens automatically inside the crypto callback.
+
+### Current state
+
+- Validated on STM32U385 (NUCLEO-U385RG-Q, TZEN=0), P-256, on both the bare-metal and CubeMX/HAL build paths: `wc_ecc_make_key` -> `wc_ecc_sign_hash` -> `wc_ecc_verify_hash` round-trips, with the private scalar never present in software.
+- `Stm32Ccb_Init()` pulse-resets the PKA / SAES / RNG before each operation, so the first CCB op is robust even when prior standalone crypto (RNG seeding, ECC keygen) left an engine in a state that would otherwise stall the CCB's chained SAES GCM step. The family-specific reset register name is abstracted (`WC_STM32_CCB_RSTR`).
+- CCB requires the U3 at its full clock; the reference clock-tree bring-up (96 MHz) is in the bare example's `boards/u3/hw_init.c`.
 
 
 ## STM32 BARE-metal port

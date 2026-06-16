@@ -280,10 +280,14 @@ extern PKA_HandleTypeDef hpka;
 #define WC_STM32_PKA_OK_CODE   0UL
 #endif
 
-/* Number of word slots in the PKA RAM array (per the CMSIS device
- * header; e.g. 894 on WB55 V1). */
+/* Number of 32-bit word slots in the PKA RAM (e.g. 894 on WB55 V1).
+ * Computed from the RAM byte size / 4 rather than the element count:
+ * most CMSIS headers type RAM as uint32_t[], but the STM32C5 header
+ * types it as uint8_t[5336], so element-count would yield bytes. The
+ * PKA RAM is word-addressed on every part, so byte-size/4 is correct
+ * for both. */
 #define WC_STM32_PKA_RAM_WORDS \
-    (sizeof(((PKA_TypeDef*)0)->RAM) / sizeof(((PKA_TypeDef*)0)->RAM[0]))
+    (sizeof(((PKA_TypeDef*)0)->RAM) / 4U)
 
 /* Big-endian byte buffer -> PKA RAM (little-endian word order). The
  * destination is the PKA RAM slot indexed by 'word_idx'; n is the byte
@@ -354,7 +358,10 @@ static volatile uint32_t* wc_stm32_pka_prep_ram(PKA_HandleTypeDef* hpkah)
 #endif
         return NULL;
     }
-    return hpkah->Instance->RAM;
+    /* Cast to word pointer: the STM32C5 CMSIS types PKA RAM as uint8_t[],
+     * others as uint32_t[]. Callers word-index the returned pointer, which
+     * the PKA RAM requires (byte accesses bus-fault). */
+    return (volatile uint32_t*)(void*)hpkah->Instance->RAM;
 }
 
 /* PKA RAM (little-endian word order) -> big-endian byte buffer. */
@@ -500,10 +507,14 @@ static HAL_StatusTypeDef wc_stm32_pka_ensure_init(PKA_HandleTypeDef *hpkah)
 
 static void HAL_PKA_RAMReset(PKA_HandleTypeDef *hpkah)
 {
+    volatile uint32_t* ram;
     uint32_t i;
     if (hpkah == NULL || hpkah->Instance == NULL) return;
+    /* Word-addressed: index a uint32_t view, not the CMSIS RAM[] element
+     * type (uint8_t[] on STM32C5 -> byte stores, which bus-fault). */
+    ram = (volatile uint32_t*)(void*)hpkah->Instance->RAM;
     for (i = 0; i < WC_STM32_PKA_RAM_WORDS; i++) {
-        hpkah->Instance->RAM[i] = 0UL;
+        ram[i] = 0UL;
     }
 }
 
@@ -603,6 +614,49 @@ static HAL_StatusTypeDef wc_stm32_pka_process(PKA_HandleTypeDef *hpkah,
 
     return HAL_OK;
 }
+
+#ifdef WOLFSSL_STM32C5
+/* The STM32C5 PKA implements only the side-channel-PROTECTED ECDSA SIGN
+ * (mode 0x24); the plain ECDSA SIGN does not exist. The protected engine
+ * requires the operating MODE written to PKA_CR BEFORE the operands are loaded
+ * into PKA RAM, on a freshly-erased RAM. The standard V2 flow writes the mode
+ * AFTER the operands (correct on U3/U5/N6) and on the C5 yields an operation
+ * that completes cleanly (PROCENDF, OUT_ERROR=OK) but returns a WRONG r,s.
+ * Arm the mode up front here, on a fresh RAM erase (disable then re-enable ->
+ * INITOK). The HW RNG is intentionally left running -- the protected sign
+ * chains with it for side-channel blinding (RM0522 Table 241) and signs
+ * correctly with it enabled. This is for the SIGN only: ECDSA VERIFY (0x26) is
+ * a plain, non-protected public operation and runs the standard V2 path. */
+static HAL_StatusTypeDef wc_stm32_pka_arm_mode(PKA_HandleTypeDef *hpkah,
+    uint32_t mode)
+{
+    PKA_TypeDef *p;
+    uint32_t cr, t;
+
+    if (hpkah == NULL || hpkah->Instance == NULL) {
+        return HAL_ERROR;
+    }
+    p = hpkah->Instance;
+
+    /* Fresh PKA RAM erase: disable then re-enable, wait for INITOK. */
+    p->CR = 0U;
+    __DMB();
+    p->CR = PKA_CR_EN;
+    t = 0;
+    while ((p->SR & PKA_SR_INITOK) == 0U) {
+        if (++t >= WC_STM32_PKA_TIMEOUT_LOOPS) {
+            return HAL_TIMEOUT;
+        }
+    }
+    /* Write the operating mode before the operands are loaded. */
+    cr = p->CR;
+    cr &= ~PKA_CR_MODE;
+    cr |= (mode << PKA_CR_MODE_Pos) & PKA_CR_MODE;
+    p->CR = cr;
+    __DMB();
+    return HAL_OK;
+}
+#endif /* WOLFSSL_STM32C5 */
 
 static HAL_StatusTypeDef HAL_PKA_ECCMul(PKA_HandleTypeDef *hpkah,
     PKA_ECCMulInTypeDef *in, uint32_t Timeout)
@@ -749,6 +803,14 @@ static HAL_StatusTypeDef HAL_PKA_ECDSASign(PKA_HandleTypeDef *hpkah,
     if (in == NULL) return HAL_ERROR;
     RAM = wc_stm32_pka_prep_ram(hpkah);
     if (RAM == NULL) return HAL_ERROR;
+
+#ifdef WOLFSSL_STM32C5
+    /* C5 protected sign (0x24): arm the mode on a fresh RAM erase before the
+     * operands are written (see wc_stm32_pka_arm_mode). */
+    if (wc_stm32_pka_arm_mode(hpkah, PKA_MODE_ECDSA_SIGNATURE) != HAL_OK) {
+        return HAL_ERROR;
+    }
+#endif
 
     /* Capture sizes on the handle BEFORE the operation -- V2 PKA
      * clobbers RAM[MOD_NB_BITS] during compute. GetResult reads from
@@ -3140,11 +3202,9 @@ exit:
 }
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_STM32_PKA)
-/* Forward declarations: these PKA curve-param converters and the size cap are
- * defined later in the WOLFSSL_STM32_PKA section of this file. */
-#ifndef STM32_MAX_ECC_SIZE
-    #define STM32_MAX_ECC_SIZE (80)
-#endif
+/* Forward declarations: these PKA curve-param converters are defined later in
+ * the WOLFSSL_STM32_PKA section of this file. STM32_MAX_ECC_SIZE comes from
+ * wolfssl/wolfcrypt/port/st/stm32.h. */
 static int stm32_get_from_hexstr(const char* hex, uint8_t* dst, int sz);
 static int stm32_getabs_from_hexstr(const char* hex, uint8_t* dst, int sz,
     uint32_t *abs_sign);
@@ -3513,6 +3573,29 @@ static int Stm32Dhuk_PkSign(struct wc_CryptoInfo* info)
     if (key == NULL) {
         return CRYPTOCB_UNAVAILABLE;
     }
+#ifdef WOLFSSL_STM32_CCB
+    /* CCB-protected key: the scalar is unwrapped SAES->PKA in hardware and the
+     * signature returned as raw (r,s); encode it as the DER ECDSA-Sig output. */
+    if (key->dhuk_is_ccb) {
+        byte   r[MAX_ECC_BYTES];
+        byte   s[MAX_ECC_BYTES];
+        word32 sz = (word32)wc_ecc_size(key);
+
+        ret = wc_Stm32_Ccb_EccSign(ECC_SECP256R1, key->ccb_iv, key->ccb_tag,
+                                   key->dhuk_wrapped_priv,
+                                   key->dhuk_wrapped_priv_len,
+                                   info->pk.eccsign.in, info->pk.eccsign.inlen,
+                                   r, s);
+        if (ret == 0) {
+            ret = wc_ecc_rs_raw_to_sig(r, sz, s, sz,
+                                       info->pk.eccsign.out,
+                                       info->pk.eccsign.outlen);
+        }
+        ForceZero(r, sizeof(r));
+        ForceZero(s, sizeof(s));
+        return ret;
+    }
+#endif
     if (key->dhuk_seed_sz != 32u) {
         return CRYPTOCB_UNAVAILABLE;
     }
@@ -3548,6 +3631,15 @@ static int Stm32_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
             if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
                 return Stm32Dhuk_PkSign(info);
             }
+#ifdef WOLFSSL_STM32_CCB
+            /* Transparent provisioning: wc_ecc_make_key() on a WC_DHUK_DEVID
+             * key binds a fresh CCB-protected blob to it (no CCB-specific API). */
+            if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
+                return wc_ecc_dev_make_key(info->pk.eckg.rng,
+                    info->pk.eckg.size, info->pk.eckg.key,
+                    info->pk.eckg.curveId);
+            }
+#endif
             return CRYPTOCB_UNAVAILABLE;
 #endif
         default:
@@ -3572,6 +3664,789 @@ void wc_Stm32_DhukUnRegister(int devId)
     Stm32Dhuk_Cleanup(NULL);
 }
 #endif /* WOLF_CRYPTO_CB */
+
+#ifdef WOLFSSL_STM32_CCB
+/* ---------------------------------------------------------------------------
+ * CCB (Coupling and Chaining Bridge) -- STM32U3 (e.g. U385, RM0487 ch 31) and
+ * STM32C5 (e.g. C5A3, RM0522). The CCB chains PKA <-> SAES <-> RNG over a local
+ * interconnect so a DHUK-protected private key is used by the PKA without ever
+ * entering software or crossing the system bus.
+ * ------------------------------------------------------------------------- */
+
+/* Bound for CCB BUSY / OPSTEP polling (loop iterations). */
+#ifndef WC_STM32_CCB_TIMEOUT
+    #define WC_STM32_CCB_TIMEOUT 1000000u
+#endif
+
+/* PKA RAM as 32-bit words. STM32C5 types PKA->RAM as uint8_t[] -- byte access
+ * bus-faults, word access is required; U3 types it as uint32_t[]. Cast to a
+ * 32-bit word pointer so the slot indices below address the RAM correctly on
+ * both families (mirrors wc_stm32_pka_prep_ram in the standalone PKA path). */
+#define WC_CCB_PKA_RAMW   ((volatile uint32_t*)(void*)PKA->RAM)
+
+
+/* Initialize the CCB peripheral per RM0487 31.5.1: enable the RNG / PKA / SAES
+ * / CCB clocks, pulse CCB_CR.IPRST and wait for CCB_SR.BUSY to clear, then
+ * confirm no operation error (CCB_SR.OPERR) latched. GTZC is left at its reset
+ * configuration -- ST's CCB MspInit configures no GTZC and runs from the
+ * non-secure alias, so the TZEN=0 build uses the same. */
+static int Stm32Ccb_Init(void)
+{
+    word32 t;
+    word32 operr;
+
+    /* Clocks for every peer the CCB chains (RM 31.5.1 steps 2-5). */
+#ifdef WC_STM32_PKA_CLK_ENABLE
+    WC_STM32_PKA_CLK_ENABLE();
+#endif
+#ifdef WC_STM32_SAES_CLK_ENABLE
+    WC_STM32_SAES_CLK_ENABLE();
+#endif
+#ifdef WC_STM32_RNG_CLK_ENABLE
+    WC_STM32_RNG_CLK_ENABLE();
+#endif
+#ifdef WC_STM32_CCB_CLK_ENABLE
+    WC_STM32_CCB_CLK_ENABLE();
+#endif
+#ifdef WC_STM32_CCB_RST_PKA
+    /* Reset PKA / SAES / RNG so the CCB starts from a clean peripheral state.
+     * Prior standalone use of an engine -- wc_InitRng seeding the RNG, ECC
+     * keygen using the PKA -- can leave it in a mode that stalls the CCB's
+     * chained SAES GCM step (CCF never asserts, the create phase times out).
+     * A prior CCB op masks the problem by leaving the engines CCB-configured,
+     * so without this reset the very first CCB op after other crypto fails.
+     * Register names are family-abstracted (WC_STM32_CCB_RSTR/RST_*). */
+    RCC->WC_STM32_CCB_RSTR |= (WC_STM32_CCB_RST_PKA | WC_STM32_CCB_RST_SAES |
+                               WC_STM32_CCB_RST_RNG);
+    __DSB();
+    RCC->WC_STM32_CCB_RSTR &= ~(WC_STM32_CCB_RST_PKA | WC_STM32_CCB_RST_SAES |
+                                WC_STM32_CCB_RST_RNG);
+    __DSB();
+#endif
+#ifdef RCC_CR_SHSION
+    /* The SAES kernel clock is the SHSI (secure HSI); the CCB drives the SAES
+     * to unwrap the DHUK blob, so SHSI must be running or the SAES never
+     * computes -- CCF stalls and the GCM steps time out. The SAESSEL mux
+     * defaults to SHSI, so just enable it and wait for ready (ST does this in
+     * HAL_CRYP_MspInit). Without this the CCB only works if some prior SAES op
+     * happened to turn SHSI on. */
+    if ((RCC->CR & RCC_CR_SHSION) == 0U) {
+        t = 0;
+        RCC->CR |= RCC_CR_SHSION;
+        while ((RCC->CR & RCC_CR_SHSIRDY) == 0U) {
+            if (++t >= WC_STM32_CCB_TIMEOUT) {
+                break;
+            }
+        }
+        __DMB();
+    }
+#endif
+
+    /* Reset the CCB: set IPRST, wait while BUSY, then clear IPRST. */
+    CCB->CR |= CCB_CR_IPRST;
+    __DSB();
+    t = 0;
+    while ((CCB->SR & WC_STM32_CCB_SR_BUSY) != 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            CCB->CR &= ~CCB_CR_IPRST;
+            return WC_TIMEOUT_E;
+        }
+    }
+    CCB->CR &= ~CCB_CR_IPRST;
+
+    /* Nothing is running yet, so no operation error should be latched. */
+    operr = (CCB->SR & CCB_SR_OPERR) >> CCB_SR_OPERR_Pos;
+    if (operr != 0u) {
+        return WC_HW_E;
+    }
+    return 0;
+}
+
+/* Public M0 entry: bring up the CCB and report whether it is usable. Returns 0
+ * on success, WC_TIMEOUT_E if BUSY never clears, WC_HW_E if OPERR latched. */
+int wc_Stm32_CcbInit(void)
+{
+    int ret;
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    ret = Stm32Ccb_Init();
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+/* ---- Bare-metal CCB ECDSA OPSTEP driver (ported from RM0487 ch31 / ST
+ * HAL_CCB). The CCB couples PKA RAM writes to the SAES (GCM) so the wrapped
+ * scalar is decrypted SAES->PKA over the local bus and never enters software.
+ * Reuses the bare PKA helpers (wc_stm32_pka_load_param_be / _read_be) and the
+ * SAES CCF macros. Currently P-256 (ECC_SECP256R1). ---- */
+
+/* CCB operation / PKA-mode / magic constants (RM0487, ST hal_ccb). */
+#define WC_CCB_OP_SIGN_USE      0x000000C3u  /* CCOP: ECDSA blob-use sign */
+#define WC_CCB_OP_CREATE        0x000000C0u  /* CCOP: ECDSA CPU blob create */
+#define WC_CCB_OP_SCALAR_USE    0x00000081u  /* CCOP: scalar mul (pubkey) */
+#define WC_CCB_PKA_SIGN_MODE    0x24u        /* PKA_CR.MODE for ECDSA sign */
+#define WC_CCB_PKA_MUL_MODE     0x20u        /* PKA_CR.MODE for ECC scalar mul */
+#define WC_CCB_MAGIC            0x0CCBu      /* SAES->PKA chaining magic */
+#define WC_CCB_FAKE             0x0001u      /* placeholder fed to RNG->PKA */
+#define WC_CCB_PKA_OK           0x0000D60Du  /* PKA_ECDSA_SIGN_OUT_ERROR ok */
+
+/* NIST P-256 parameters (big-endian, 32 bytes). */
+static const byte wc_ccb_p256_aAbs[32] = {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x03};
+static const byte wc_ccb_p256_b[32] = {
+    0x5a,0xc6,0x35,0xd8,0xaa,0x3a,0x93,0xe7,0xb3,0xeb,0xbd,0x55,0x76,0x98,0x86,0xbc,
+    0x65,0x1d,0x06,0xb0,0xcc,0x53,0xb0,0xf6,0x3b,0xce,0x3c,0x3e,0x27,0xd2,0x60,0x4b};
+static const byte wc_ccb_p256_p[32] = {
+    0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+static const byte wc_ccb_p256_n[32] = {
+    0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+    0xbc,0xe6,0xfa,0xad,0xa7,0x17,0x9e,0x84,0xf3,0xb9,0xca,0xc2,0xfc,0x63,0x25,0x51};
+static const byte wc_ccb_p256_Gx[32] = {
+    0x6b,0x17,0xd1,0xf2,0xe1,0x2c,0x42,0x47,0xf8,0xbc,0xe6,0xe5,0x63,0xa4,0x40,0xf2,
+    0x77,0x03,0x7d,0x81,0x2d,0xeb,0x33,0xa0,0xf4,0xa1,0x39,0x45,0xd8,0x98,0xc2,0x96};
+static const byte wc_ccb_p256_Gy[32] = {
+    0x4f,0xe3,0x42,0xe2,0xfe,0x1a,0x7f,0x9b,0x8e,0xe7,0xeb,0x4a,0x7c,0x0f,0x9e,0x16,
+    0x2b,0xce,0x33,0x57,0x6b,0x31,0x5e,0xce,0xcb,0xb6,0x40,0x68,0x37,0xbf,0x51,0xf5};
+
+/* Wait until CCB_SR.OPSTEP reaches the given step value. */
+static int Stm32Ccb_WaitOpStep(word32 step)
+{
+    word32 t = 0;
+    while ((CCB->SR & step) != step) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    return 0;
+}
+
+/* Wait for a PKA_SR flag, then clear it via PKA_CLRFR (matches ST). */
+static int Stm32Ccb_PkaWaitFlag(word32 flag)
+{
+    word32 t = 0;
+    while ((PKA->SR & flag) == 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    PKA->CLRFR = flag;
+    return 0;
+}
+
+/* Wait for the SAES CCF (GCM step done), then clear it. */
+static int Stm32Ccb_SaesWaitCcf(void)
+{
+    word32 t = 0;
+    while ((SAES->ISR & AES_ISR_CCF) == 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    STM32_AES_CLEAR_INST(SAES);
+    return 0;
+}
+
+/* Initialize the RNG for CCB use. The U3 RNG only produces DRDY once a
+ * NIST-compliant config has been written under CONDRST (same as wc_GenerateSeed
+ * in random.c). Always (re)write it here so prior RNG use -- e.g. wc_InitRng
+ * leaving a different config -- cannot stall the CCB's RNG->PKA draws. */
+static int Stm32Ccb_RngInit(void)
+{
+    word32 t = 0;
+#if defined(RNG_CAND_NIST_CR_VALUE) && defined(RNG_CR_CONDRST)
+    RNG->CR = (word32)RNG_CAND_NIST_CR_VALUE | (word32)RNG_CR_CONDRST;
+#ifdef RNG_CAND_NIST_NSCR_VALUE
+    RNG->NSCR = (word32)RNG_CAND_NIST_NSCR_VALUE;
+#endif
+#ifdef RNG_CAND_NIST_HTCR_VALUE
+    RNG->HTCR[0] = (word32)RNG_CAND_NIST_HTCR_VALUE;
+#endif
+    RNG->CR &= ~(word32)RNG_CR_CONDRST;   /* latch config */
+    while ((RNG->CR & RNG_CR_CONDRST) != 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    RNG->CR |= RNG_CR_RNGEN;
+#else
+    RNG->CR = RNG_CR_CONDRST;
+    RNG->CR = 0u;
+    while ((RNG->CR & RNG_CR_CONDRST) != 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    RNG->CR = RNG_CR_RNGEN;
+#endif
+    if ((RNG->SR & RNG_SR_SEIS) != 0u) {
+        return WC_HW_E;
+    }
+    t = 0;
+    while ((RNG->SR & RNG_SR_DRDY) == 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    return 0;
+}
+
+/* Enable PKA and set the given protected mode (no interrupts). */
+static int Stm32Ccb_PkaInit(word32 mode)
+{
+    int ret;
+    PKA->CR = PKA_CR_EN;
+    ret = Stm32Ccb_PkaWaitFlag(PKA_SR_INITOK);
+    if (ret != 0) {
+        return ret;
+    }
+    PKA->CLRFR = PKA_CLRFR_PROCENDFC | PKA_CLRFR_RAMERRFC |
+                 PKA_CLRFR_ADDRERRFC | PKA_CLRFR_OPERRFC;
+    PKA->CR = (PKA->CR & ~(PKA_CR_MODE | PKA_CR_PROCENDIE | PKA_CR_RAMERRIE |
+                           PKA_CR_ADDRERRIE | PKA_CR_OPERRIE)) |
+              (mode << PKA_CR_MODE_Pos);
+    return 0;
+}
+
+/* Optimal bit length of a big-endian operand (ST GetOptBitSize_u8). */
+static word32 Stm32Ccb_OptBits(word32 nbytes, byte msb)
+{
+    return ((nbytes - 1u) * 8u) + (32u - (word32)__CLZ((word32)msb));
+}
+
+/* Write a small scalar (value + zero word) into PKA RAM, coupled: wait CCF. */
+static int Stm32Ccb_SetScalar(word32 slot, word32 val)
+{
+    WC_CCB_PKA_RAMW[slot]      = val;
+    WC_CCB_PKA_RAMW[slot + 1u] = 0u;
+    return Stm32Ccb_SaesWaitCcf();
+}
+
+/* Write a 32-byte (multiple-of-8) big-endian param into PKA RAM 64 bits at a
+ * time, waiting for the SAES CCF coupling after each pair and the terminator
+ * (per ST CCB_SetPram during the GCM header phase). */
+static int Stm32Ccb_SetParam(word32 slot, const byte* src, word32 sizeBytes)
+{
+    word32 operand = 2u * (((sizeBytes + 7u) / 8u) + 1u);
+    word32 off;
+    const byte* p;
+    int ret;
+
+    /* The big-endian 8-byte chunk loop walks src[] downward in 8-byte steps;
+     * a zero or non-multiple-of-8 sizeBytes would index below src[0] and
+     * mis-place the operand window. All callers pass a 32-byte field. */
+    if (sizeBytes == 0u || (sizeBytes % 8u) != 0u) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (off = 0u; off < (operand - 2u); off += 2u) {
+        p = &src[sizeBytes - ((off * 4u) + 1u)];
+        WC_CCB_PKA_RAMW[slot + off]      = (word32)p[0] | ((word32)p[-1] << 8) |
+                                    ((word32)p[-2] << 16) | ((word32)p[-3] << 24);
+        WC_CCB_PKA_RAMW[slot + off + 1u] = (word32)p[-4] | ((word32)p[-5] << 8) |
+                                    ((word32)p[-6] << 16) | ((word32)p[-7] << 24);
+        ret = Stm32Ccb_SaesWaitCcf();
+        if (ret != 0) {
+            return ret;
+        }
+    }
+    WC_CCB_PKA_RAMW[slot + ((sizeBytes + 3u) / 4u)]      = 0u;
+    WC_CCB_PKA_RAMW[slot + ((sizeBytes + 3u) / 4u) + 1u] = 0u;
+    return Stm32Ccb_SaesWaitCcf();
+}
+
+/* CCB teardown: pulse CCB_CR.IPRST and wait BUSY clear. */
+static void Stm32Ccb_Reset(void)
+{
+    word32 t = 0;
+    CCB->CR |= CCB_CR_IPRST;
+    __DSB();
+    while ((CCB->SR & WC_STM32_CCB_SR_BUSY) != 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            break;
+        }
+    }
+    CCB->CR &= ~CCB_CR_IPRST;
+}
+
+/* Write 8 big-endian bytes ending at p (p[0]..p[-7]) as two little-endian PKA
+ * words at slot -- the 64-bit chunk primitive used for the d / param loads. */
+static void Stm32Ccb_Wr64(word32 slot, const byte* p)
+{
+    WC_CCB_PKA_RAMW[slot]      = (word32)p[0] | ((word32)p[-1] << 8) |
+                          ((word32)p[-2] << 16) | ((word32)p[-3] << 24);
+    WC_CCB_PKA_RAMW[slot + 1u] = (word32)p[-4] | ((word32)p[-5] << 8) |
+                          ((word32)p[-6] << 16) | ((word32)p[-7] << 24);
+}
+
+/* Load the ECDSA curve params into PKA RAM, each coupled to the SAES GCM header
+ * (wait CCF). Shared by the bare create and sign paths. */
+static int Stm32Ccb_LoadCurve(void)
+{
+    int ret;
+    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_ORDER_NB_BITS,
+            Stm32Ccb_OptBits(32u, wc_ccb_p256_n[0]))) != 0) { return ret; }
+    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_MOD_NB_BITS,
+            Stm32Ccb_OptBits(32u, wc_ccb_p256_p[0]))) != 0) { return ret; }
+    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_A_COEFF_SIGN, 1u)) != 0)
+        { return ret; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_A_COEFF, wc_ccb_p256_aAbs,
+            32u)) != 0) { return ret; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_B_COEFF, wc_ccb_p256_b,
+            32u)) != 0) { return ret; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_MOD_GF, wc_ccb_p256_p,
+            32u)) != 0) { return ret; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_ORDER_N, wc_ccb_p256_n,
+            32u)) != 0) { return ret; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_INITIAL_POINT_X,
+            wc_ccb_p256_Gx, 32u)) != 0) { return ret; }
+    return Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_INITIAL_POINT_Y,
+            wc_ccb_p256_Gy, 32u);
+}
+
+/* Wait until a SAES_SR flag reaches the wanted state (used for BUSY/KEYVALID). */
+static int Stm32Ccb_SaesWaitSr(word32 flag, int wantSet)
+{
+    word32 t = 0;
+    while (((SAES->SR & flag) != 0u) != (wantSet != 0)) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    return 0;
+}
+
+/* Common prologue shared by the three CCB ECDSA operations (blob create, blob
+ * use sign, public-key scalar mult): reset/clock the CCB, select the operation
+ * (CCOP) and wait for OPSTEP 0x01, condition the RNG and PKA (mode = the PKA
+ * sub-operation), then wait for SAES to go idle so the blob key can be loaded.
+ * The caller holds the crypto HW mutex (it owns the matching unlock). */
+static int Stm32Ccb_OpBegin(word32 ccop, word32 pkaMode)
+{
+    int ret = Stm32Ccb_Init();
+    if (ret != 0) {
+        return ret;
+    }
+    CCB->CR = (CCB->CR & ~CCB_CR_CCOP) | ccop;
+    if ((ret = Stm32Ccb_WaitOpStep(0x01u)) != 0) {
+        return ret;
+    }
+    if ((ret = Stm32Ccb_RngInit()) != 0) {
+        return ret;
+    }
+    if ((ret = Stm32Ccb_PkaInit(pkaMode)) != 0) {
+        return ret;
+    }
+    return Stm32Ccb_SaesWaitSr(AES_SR_BUSY, 0);
+}
+
+/* Load the DHUK blob key into SAES (KEYSEL=HW, 256-bit, GCM) and wait for the
+ * CCB to advance. isUse=1 selects decrypt (MODE_1) for blob use (sign / pubkey)
+ * and the CCB reaches OPSTEP 0x12; isUse=0 selects encrypt for blob creation and
+ * the CCB reaches OPSTEP 0x02. */
+static int Stm32Ccb_LoadBlobKey(int isUse)
+{
+    word32 cr = AES_CR_KEYSEL_0 | AES_CR_KEYSIZE | STM32_AES_CHMOD_GCM;
+    int    ret;
+
+    if (isUse) {
+        cr |= AES_CR_MODE_1;
+    }
+    SAES->CR = cr;
+    if ((ret = Stm32Ccb_SaesWaitSr(AES_SR_KEYVALID, 1)) != 0) {
+        return ret;
+    }
+    return Stm32Ccb_WaitOpStep(isUse ? 0x12u : 0x02u);
+}
+
+/* Bare CCB public-key computation: scalar mult d*G via the blob. Mirrors the
+ * blob-use sign path, but loads the unwrapped scalar into the K slot (no random
+ * k) and reads the resulting point into pubX/pubY. */
+static int Stm32Ccb_ComputePub(const byte* iv, const byte* tag,
+    const byte* wrapped, byte* pubX, byte* pubY)
+{
+    word32 ivw[4];
+    word32 tagw[4];
+    word32 wrapw[8];
+    word32 opsz;
+    word32 cipsz;
+    word32 off;
+    word32 block;
+    word32 i;
+    int ret;
+
+    XMEMCPY(ivw,   iv,      sizeof(ivw));
+    XMEMCPY(tagw,  tag,     sizeof(tagw));
+    XMEMCPY(wrapw, wrapped, sizeof(wrapw));
+    opsz  = 2u * (((32u + 7u) / 8u) + 1u);
+    cipsz = ((opsz % 4u) != 0u) ? (opsz - 2u) : opsz;
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    ret = Stm32Ccb_OpBegin(WC_CCB_OP_SCALAR_USE, WC_CCB_PKA_MUL_MODE);
+    if (ret != 0) { goto done; }
+    if ((ret = Stm32Ccb_LoadBlobKey(1 /* use */)) != 0) { goto done; }
+
+    SAES->IVR0 = ivw[0];
+    SAES->IVR1 = ivw[1];
+    SAES->IVR2 = ivw[2];
+    SAES->IVR3 = ivw[3];
+    SAES->CR |= AES_CR_EN;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+    CCB->REFTAGR[0] = tagw[0];
+    CCB->REFTAGR[1] = tagw[1];
+    CCB->REFTAGR[2] = tagw[2];
+    CCB->REFTAGR[3] = tagw[3];
+    /* SAES GCM/chaining-phase field: STM32C5 names it AES_CR_CPHASE, U3 names it
+     * AES_CR_GCMPH -- same bit positions/values. WC_STM32_AES_CR_PHASE abstracts
+     * the name (port/st/stm32.h). This was the one genuinely-divergent part of
+     * the OPSTEP driver; the rest is already family-neutral (WC_STM32_CCB_*). */
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 |
+               AES_CR_EN;
+    if ((ret = Stm32Ccb_WaitOpStep(0x13u)) != 0) { goto done; }
+
+    if ((ret = Stm32Ccb_LoadCurve()) != 0) { goto done; }
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_1;
+    if ((ret = Stm32Ccb_WaitOpStep(0x14u)) != 0) { goto done; }
+
+    block = 0u;
+    for (off = 0u; off < cipsz; off++) {
+        SAES->DINR = wrapw[cipsz - 1u - off];
+        if ((off % 4u) == 3u) {
+            if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+            for (i = 0u; i < 4u; i++) {
+                WC_CCB_PKA_RAMW[PKA_ECC_SCALAR_MUL_IN_K + block + i] = WC_CCB_MAGIC;
+            }
+            block += 4u;
+        }
+    }
+    WC_CCB_PKA_RAMW[PKA_ECC_SCALAR_MUL_IN_K + cipsz]      = 0u;
+    WC_CCB_PKA_RAMW[PKA_ECC_SCALAR_MUL_IN_K + cipsz + 1u] = 0u;
+    if ((ret = Stm32Ccb_WaitOpStep(0x17u)) != 0) { goto done; }
+
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | WC_STM32_AES_CR_PHASE_1;
+    SAES->DINR = 0u;
+    SAES->DINR = (((opsz * 32u) * 6u) + (3u * 64u)) * 2u;
+    SAES->DINR = 0u;
+    SAES->DINR = cipsz * 32u;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+    for (i = 0u; i < 4u; i++) {
+        if (SAES->DOUTR != 0u) {
+            ret = WC_HW_E;
+            goto done;
+        }
+    }
+    if ((ret = Stm32Ccb_WaitOpStep(0x18u)) != 0) { goto done; }
+
+    PKA->CR |= PKA_CR_START;
+    if ((ret = Stm32Ccb_WaitOpStep(0x19u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_PROCENDF)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_WaitOpStep(0x1Au)) != 0) { goto done; }
+
+    wc_stm32_pka_read_be(pubX, &WC_CCB_PKA_RAMW[PKA_ECC_SCALAR_MUL_OUT_RESULT_X], 32u);
+    wc_stm32_pka_read_be(pubY, &WC_CCB_PKA_RAMW[PKA_ECC_SCALAR_MUL_OUT_RESULT_Y], 32u);
+    ret = 0;
+
+done:
+    Stm32Ccb_Reset();
+    SAES->CR &= ~AES_CR_EN;
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+/* Bare CCB ECDSA blob creation (P-256, CPU-supplied scalar). Produces the
+ * device-bound blob {iv, tag, wrapped d}; the clear scalar is fed to the SAES,
+ * encrypted under the DHUK, and read back encrypted -- it never persists in
+ * software here beyond the caller's input. The public key is derived by a
+ * separate compute step (left to the caller / wc_ecc layer). */
+int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
+    byte* iv, byte* tag, byte* wrapped, word32* wrappedSz,
+    byte* pubX, byte* pubY)
+{
+    word32 ivw[4];
+    word32 tagw[4];
+    word32 wrapw[8];
+    word32 opsz;
+    word32 cipsz;
+    word32 off;
+    word32 block;
+    word32 i;
+    int ret;
+
+    if (curveId != ECC_SECP256R1) {
+        return NOT_COMPILED_IN;
+    }
+    if (d == NULL || dLen != 32u || iv == NULL || tag == NULL ||
+        wrapped == NULL || wrappedSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    opsz  = 2u * (((32u + 7u) / 8u) + 1u);                /* 10 */
+    cipsz = ((opsz % 4u) != 0u) ? (opsz - 2u) : opsz;     /* 8  */
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    /* CCOP = ECDSA CPU blob creation; load the DHUK blob key in encrypt mode. */
+    ret = Stm32Ccb_OpBegin(WC_CCB_OP_CREATE, WC_CCB_PKA_SIGN_MODE);
+    if (ret != 0) { goto done; }
+    if ((ret = Stm32Ccb_LoadBlobKey(0 /* create */)) != 0) { goto done; }
+
+    /* Blob-creation initial phase: IVR0=2, IVR1-3 randomised by CCB, read the
+     * generated IV back, GCM init, header phase. */
+    SAES->IVR0 = 0x00000002u;
+    { word32 t = 0;
+      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
+          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    SAES->IVR1 = WC_CCB_FAKE;
+    { word32 t = 0;
+      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
+          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    SAES->IVR2 = WC_CCB_FAKE;
+    { word32 t = 0;
+      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
+          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    SAES->IVR3 = WC_CCB_FAKE;
+    { word32 t = 0;
+      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
+          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    if ((PKA->SR & PKA_SR_RNGERRF) != 0u) { ret = WC_HW_E; goto done; }
+    ivw[3] = SAES->IVR3;
+    ivw[2] = SAES->IVR2;
+    ivw[1] = SAES->IVR1;
+    ivw[0] = SAES->IVR0;
+    SAES->CR |= AES_CR_EN;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | AES_CR_EN;
+    if ((ret = Stm32Ccb_WaitOpStep(0x03u)) != 0) { goto done; }
+
+    /* Curve params (coupled), then GCM payload phase. */
+    if ((ret = Stm32Ccb_LoadCurve()) != 0) { goto done; }
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_1;
+    if ((ret = Stm32Ccb_WaitOpStep(0x04u)) != 0) { goto done; }
+
+    /* CPU writes the clear scalar d into PKA RAM (BE->LE words from the end). */
+    PKA->CLRFR = PKA_CLRFR_CMFC;
+    for (off = 0u; off < (opsz - 2u); off += 2u) {
+        Stm32Ccb_Wr64(PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + off,
+                      &d[32u - ((off * 4u) + 1u)]);
+    }
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + off]      = 0u;
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + off + 1u] = 0u;
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_DATAOKF)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_WaitOpStep(0x08u)) != 0) { goto done; }
+
+    /* Read back the encrypted scalar from the SAES: writing the magic value to
+     * PKA RAM triggers the chaining, every 4th word yields a 128-bit block. */
+    PKA->CLRFR = PKA_CLRFR_CMFC;
+    block = 0u;
+    for (off = 0u; off < cipsz; off++) {
+        WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + off] = WC_CCB_MAGIC;
+        if ((off % 4u) == 3u) {
+            if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+            for (i = 0u; i < 4u; i++) {
+                wrapw[cipsz - (block + i + 1u)] = SAES->DOUTR;
+            }
+            block += 4u;
+        }
+    }
+    { word32 t = 0;
+      while ((SAES->SR & AES_SR_BUSY) != 0u) {
+          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + cipsz]      = 0u;
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + cipsz + 1u] = 0u;
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_DATAOKF)) != 0) { goto done; }
+
+    /* GCM final phase: feed the length block and read the authentication tag. */
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | WC_STM32_AES_CR_PHASE_1;
+    if ((ret = Stm32Ccb_WaitOpStep(0x0Au)) != 0) { goto done; }
+    PKA->CLRFR = PKA_CLRFR_CMFC;
+    SAES->DINR = 0u;
+    SAES->DINR = (((opsz * 32u) * 6u) + (3u * 64u)) * 2u;
+    SAES->DINR = 0u;
+    SAES->DINR = cipsz * 32u;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+    for (i = 0u; i < 4u; i++) {
+        tagw[i] = SAES->DOUTR;
+    }
+
+    XMEMCPY(iv,      ivw,   sizeof(ivw));
+    XMEMCPY(tag,     tagw,  sizeof(tagw));
+    XMEMCPY(wrapped, wrapw, sizeof(wrapw));
+    *wrappedSz = (word32)sizeof(wrapw);
+    ret = 0;
+
+done:
+    Stm32Ccb_Reset();
+    SAES->CR &= ~AES_CR_EN;
+    wolfSSL_CryptHwMutexUnLock();
+    /* Derive the public key from the fresh blob (separate locked op). */
+    if (ret == 0 && pubX != NULL && pubY != NULL) {
+        ret = Stm32Ccb_ComputePub(iv, tag, wrapped, pubX, pubY);
+    }
+    return ret;
+}
+
+/* Bare CCB ECDSA blob-use sign (P-256). Drives the CCB OPSTEP machine
+ * 0x01 -> 0x12 -> 0x13 -> 0x14 -> 0x16 -> 0x17 -> 0x18 -> 0x19 -> 0x1A. */
+int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
+    const byte* wrapped, word32 wrappedSz, const byte* hash, word32 hashSz,
+    byte* r, byte* s)
+{
+    word32 ivw[4];
+    word32 tagw[4];
+    word32 wrapw[8];
+    word32 opsz;
+    word32 cipsz;
+    word32 off;
+    word32 block;
+    word32 i;
+    int ret;
+
+    if (curveId != ECC_SECP256R1) {
+        return NOT_COMPILED_IN;
+    }
+    if (iv == NULL || tag == NULL || wrapped == NULL || wrappedSz != 32u ||
+        hash == NULL || hashSz < 32u || r == NULL || s == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    XMEMCPY(ivw,   iv,      sizeof(ivw));
+    XMEMCPY(tagw,  tag,     sizeof(tagw));
+    XMEMCPY(wrapw, wrapped, sizeof(wrapw));
+
+    opsz  = 2u * (((32u + 7u) / 8u) + 1u);                /* 10 */
+    cipsz = ((opsz % 4u) != 0u) ? (opsz - 2u) : opsz;     /* 8  */
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    /* CCOP = ECDSA blob-use sign; load the DHUK blob key in decrypt (use) mode. */
+    ret = Stm32Ccb_OpBegin(WC_CCB_OP_SIGN_USE, WC_CCB_PKA_SIGN_MODE);
+    if (ret != 0) { goto done; }
+    if ((ret = Stm32Ccb_LoadBlobKey(1 /* use */)) != 0) { goto done; }
+
+    /* Hash -> PKA RAM (plain BE->LE words, no terminator, not yet coupled). */
+    for (i = 0u; i < 8u; i++) {
+        WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_HASH_E + i] =
+            (word32)hash[(32u - (i * 4u)) - 1u] |
+            ((word32)hash[(32u - (i * 4u)) - 2u] << 8) |
+            ((word32)hash[(32u - (i * 4u)) - 3u] << 16) |
+            ((word32)hash[(32u - (i * 4u)) - 4u] << 24);
+    }
+
+    /* Blob-use initial phase: load IV, GCM init, write reference tag. */
+    SAES->IVR0 = ivw[0];
+    SAES->IVR1 = ivw[1];
+    SAES->IVR2 = ivw[2];
+    SAES->IVR3 = ivw[3];
+    SAES->CR |= AES_CR_EN;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+    CCB->REFTAGR[0] = tagw[0];
+    CCB->REFTAGR[1] = tagw[1];
+    CCB->REFTAGR[2] = tagw[2];
+    CCB->REFTAGR[3] = tagw[3];
+    /* GCM header phase (keep EN) -> OPSTEP 0x12 -> 0x13. */
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | AES_CR_EN;
+    if ((ret = Stm32Ccb_WaitOpStep(0x13u)) != 0) { goto done; }
+
+    /* ECDSA curve params into PKA RAM (each coupled to SAES, wait CCF). */
+    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_ORDER_NB_BITS,
+            Stm32Ccb_OptBits(32u, wc_ccb_p256_n[0]))) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_MOD_NB_BITS,
+            Stm32Ccb_OptBits(32u, wc_ccb_p256_p[0]))) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_A_COEFF_SIGN, 1u)) != 0)
+        { goto done; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_A_COEFF,
+            wc_ccb_p256_aAbs, 32u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_B_COEFF,
+            wc_ccb_p256_b, 32u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_MOD_GF,
+            wc_ccb_p256_p, 32u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_ORDER_N,
+            wc_ccb_p256_n, 32u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_INITIAL_POINT_X,
+            wc_ccb_p256_Gx, 32u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_INITIAL_POINT_Y,
+            wc_ccb_p256_Gy, 32u)) != 0) { goto done; }
+
+    /* GCM payload phase -> OPSTEP 0x13 -> 0x14. */
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_1;
+    if ((ret = Stm32Ccb_WaitOpStep(0x14u)) != 0) { goto done; }
+
+    /* Feed the wrapped scalar to SAES; the CCB substitutes the decrypted key
+     * into PKA RAM where the magic value is written (SAES->PKA chaining). */
+    block = 0u;
+    for (off = 0u; off < cipsz; off++) {
+        SAES->DINR = wrapw[cipsz - 1u - off];
+        if ((off % 4u) == 3u) {
+            if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+            for (i = 0u; i < 4u; i++) {
+                WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + block + i] =
+                    WC_CCB_MAGIC;
+            }
+            block += 4u;
+        }
+    }
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + cipsz]      = 0u;
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + cipsz + 1u] = 0u;
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_DATAOKF)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_WaitOpStep(0x16u)) != 0) { goto done; }
+
+    /* Per-nonce k drawn by the RNG over CCB (CPU writes placeholders). */
+    for (off = 0u; off < (opsz - 2u); off++) {
+        word32 t = 0;
+        while ((RNG->SR & RNG_SR_DRDY) == 0u) {
+            if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; }
+        }
+        WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + off] = WC_CCB_FAKE;
+    }
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + (opsz - 2u)]      = 0u;
+    WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + (opsz - 2u) + 1u] = 0u;
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_RNGOKF)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_WaitOpStep(0x17u)) != 0) { goto done; }
+
+    /* Blob-use final phase: GCM length block + tag-integrity check. */
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | WC_STM32_AES_CR_PHASE_1;
+    SAES->DINR = 0u;
+    SAES->DINR = (((opsz * 32u) * 6u) + (3u * 64u)) * 2u;
+    SAES->DINR = 0u;
+    SAES->DINR = cipsz * 32u;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
+    for (i = 0u; i < 4u; i++) {
+        if (SAES->DOUTR != 0u) {   /* nonzero => blob tag mismatch */
+            ret = WC_HW_E;
+            goto done;
+        }
+    }
+    if ((ret = Stm32Ccb_WaitOpStep(0x18u)) != 0) { goto done; }
+
+    /* Run the PKA ECDSA signature. */
+    PKA->CR |= PKA_CR_START;
+    if ((ret = Stm32Ccb_WaitOpStep(0x19u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_PROCENDF)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_WaitOpStep(0x1Au)) != 0) { goto done; }
+
+    if (WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_OUT_ERROR] != WC_CCB_PKA_OK) {
+        ret = WC_HW_E;
+        goto done;
+    }
+    wc_stm32_pka_read_be(r, &WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_OUT_SIGNATURE_R], 32u);
+    wc_stm32_pka_read_be(s, &WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_OUT_SIGNATURE_S], 32u);
+    ret = 0;
+
+done:
+    Stm32Ccb_Reset();
+    SAES->CR &= ~AES_CR_EN;
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+#endif /* WOLFSSL_STM32_CCB */
 
 #endif /* WC_STM32_HAS_DHUK */
 #endif /* WOLFSSL_DHUK */
@@ -3765,7 +4640,242 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
 void wc_Stm32_Aes_Cleanup(void)
 {
 }
+
 #endif /* WOLFSSL_STM32_BARE / WOLFSSL_STM32_CUBEMX / StdPeriph */
+
+/* CubeMX/HAL CCB ECDSA port -- placed after the build-branch structure and
+ * guarded on WOLFSSL_STM32_CUBEMX so it compiles only for the HAL build (the
+ * BARE build provides its own wc_Stm32_Ccb_* above). */
+#if defined(WOLFSSL_STM32_CCB) && defined(WOLFSSL_STM32_CUBEMX)
+/* ---------------------------------------------------------------------------
+ * CCB (Coupling and Chaining Bridge) ECDSA -- CubeMX/HAL path (STM32U3).
+ * Implements the wolfSSL CCB port via ST's HAL_CCB_* driver. The DHUK is the
+ * blob encryption key (HAL_CCB_USER_KEY_HW), so the P-256 private scalar never
+ * enters software. The bare-metal counterpart lives in the BARE branch above.
+ * ------------------------------------------------------------------------- */
+
+/* NIST P-256 parameters (big-endian, 32 bytes). */
+static const byte ccb_p256_aAbs[32] = {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x03};
+static const byte ccb_p256_b[32] = {
+    0x5a,0xc6,0x35,0xd8,0xaa,0x3a,0x93,0xe7,0xb3,0xeb,0xbd,0x55,0x76,0x98,0x86,0xbc,
+    0x65,0x1d,0x06,0xb0,0xcc,0x53,0xb0,0xf6,0x3b,0xce,0x3c,0x3e,0x27,0xd2,0x60,0x4b};
+static const byte ccb_p256_p[32] = {
+    0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+static const byte ccb_p256_n[32] = {
+    0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+    0xbc,0xe6,0xfa,0xad,0xa7,0x17,0x9e,0x84,0xf3,0xb9,0xca,0xc2,0xfc,0x63,0x25,0x51};
+static const byte ccb_p256_Gx[32] = {
+    0x6b,0x17,0xd1,0xf2,0xe1,0x2c,0x42,0x47,0xf8,0xbc,0xe6,0xe5,0x63,0xa4,0x40,0xf2,
+    0x77,0x03,0x7d,0x81,0x2d,0xeb,0x33,0xa0,0xf4,0xa1,0x39,0x45,0xd8,0x98,0xc2,0x96};
+static const byte ccb_p256_Gy[32] = {
+    0x4f,0xe3,0x42,0xe2,0xfe,0x1a,0x7f,0x9b,0x8e,0xe7,0xeb,0x4a,0x7c,0x0f,0x9e,0x16,
+    0x2b,0xce,0x33,0x57,0x6b,0x31,0x5e,0xce,0xcb,0xb6,0x40,0x68,0x37,0xbf,0x51,0xf5};
+
+static void Stm32Ccb_SetP256(CCB_ECDSACurveParamTypeDef* p)
+{
+    p->primeOrderSizeByte = 32;
+    p->modulusSizeByte    = 32;
+    p->coefSignA          = 0x00000001u;
+    p->pAbsCoefA          = ccb_p256_aAbs;
+    p->pCoefB             = ccb_p256_b;
+    p->pModulus           = ccb_p256_p;
+    p->pPrimeOrder        = ccb_p256_n;
+    p->pPointX            = ccb_p256_Gx;
+    p->pPointY            = ccb_p256_Gy;
+}
+
+/* Enable the clocks for every peer the CCB chains. HAL_CCB_Init calls the weak
+ * HAL_CCB_MspInit (empty unless the app provides one), so the port enables them
+ * itself -- and random.c's HAL_RNG_DeInit may have gated the RNG clock off. */
+static void Stm32Ccb_HalClkEnable(void)
+{
+    __HAL_RCC_CCB_CLK_ENABLE();
+    __HAL_RCC_PKA_CLK_ENABLE();
+    __HAL_RCC_SAES_CLK_ENABLE();
+    __HAL_RCC_RNG_CLK_ENABLE();
+}
+
+int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
+    byte* iv, byte* tag, byte* wrapped, word32* wrappedSz,
+    byte* pubX, byte* pubY)
+{
+    CCB_HandleTypeDef          hccb;
+    CCB_ECDSACurveParamTypeDef param;
+    CCB_WrappingKeyTypeDef     wrap;
+    CCB_ECDSAKeyBlobTypeDef    blob;
+    CCB_ECCMulPointTypeDef     pub;
+    uint32_t ivW[4];
+    uint32_t tagW[4];
+    uint32_t wrapW[8];
+    int ret = 0;
+
+    if (curveId != ECC_SECP256R1) {
+        return NOT_COMPILED_IN;
+    }
+    if (d == NULL || dLen != 32u || iv == NULL || tag == NULL ||
+        wrapped == NULL || wrappedSz == NULL || pubX == NULL || pubY == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    Stm32Ccb_HalClkEnable();
+    XMEMSET(&hccb, 0, sizeof(hccb));
+    hccb.Instance = CCB;
+    if (HAL_CCB_Init(&hccb) != HAL_OK) {
+        wolfSSL_CryptHwMutexUnLock();
+        return WC_HW_E;
+    }
+    Stm32Ccb_SetP256(&param);
+    XMEMSET(&wrap, 0, sizeof(wrap));
+    wrap.WrappingKeyType = HAL_CCB_USER_KEY_HW;
+    blob.pIV = ivW;
+    blob.pTag = tagW;
+    blob.pWrappedKey = wrapW;
+
+    if (HAL_CCB_ECDSA_WrapPrivateKey(&hccb, &param, d, &wrap, &blob) != HAL_OK
+            || hccb.State != HAL_CCB_STATE_READY) {
+        ret = WC_HW_E;
+        goto out;
+    }
+    pub.pPointX = pubX;
+    pub.pPointY = pubY;
+    if (HAL_CCB_ECDSA_ComputePublicKey(&hccb, &param, &wrap, &blob, &pub)
+            != HAL_OK) {
+        ret = WC_HW_E;
+        goto out;
+    }
+    XMEMCPY(iv,      ivW,   sizeof(ivW));
+    XMEMCPY(tag,     tagW,  sizeof(tagW));
+    XMEMCPY(wrapped, wrapW, sizeof(wrapW));
+    *wrappedSz = (word32)sizeof(wrapW);
+
+out:
+    (void)HAL_CCB_DeInit(&hccb);
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
+    const byte* wrapped, word32 wrappedSz, const byte* hash, word32 hashSz,
+    byte* r, byte* s)
+{
+    CCB_HandleTypeDef          hccb;
+    CCB_ECDSACurveParamTypeDef param;
+    CCB_WrappingKeyTypeDef     wrap;
+    CCB_ECDSAKeyBlobTypeDef    blob;
+    CCB_ECDSASignTypeDef       sig;
+    uint32_t ivW[4];
+    uint32_t tagW[4];
+    uint32_t wrapW[8];
+    int ret = 0;
+
+    if (curveId != ECC_SECP256R1) {
+        return NOT_COMPILED_IN;
+    }
+    if (iv == NULL || tag == NULL || wrapped == NULL || wrappedSz != 32u ||
+        hash == NULL || hashSz < 32u || r == NULL || s == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    XMEMCPY(ivW,   iv,      sizeof(ivW));
+    XMEMCPY(tagW,  tag,     sizeof(tagW));
+    XMEMCPY(wrapW, wrapped, sizeof(wrapW));
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+    Stm32Ccb_HalClkEnable();
+    XMEMSET(&hccb, 0, sizeof(hccb));
+    hccb.Instance = CCB;
+    if (HAL_CCB_Init(&hccb) != HAL_OK) {
+        wolfSSL_CryptHwMutexUnLock();
+        return WC_HW_E;
+    }
+    Stm32Ccb_SetP256(&param);
+    XMEMSET(&wrap, 0, sizeof(wrap));
+    wrap.WrappingKeyType = HAL_CCB_USER_KEY_HW;
+    blob.pIV = ivW;
+    blob.pTag = tagW;
+    blob.pWrappedKey = wrapW;
+    sig.pRSign = r;
+    sig.pSSign = s;
+    if (HAL_CCB_ECDSA_Sign(&hccb, &param, &wrap, &blob, (uint8_t*)hash, &sig)
+            != HAL_OK) {
+        ret = WC_HW_E;
+    }
+    (void)HAL_CCB_DeInit(&hccb);
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+/* CubeMX CCB crypto-callback device. Transparent DHUK AES/GMAC is bare-only, so
+ * under the HAL build the CCB-protected ECDSA sign is the only transparent DHUK
+ * operation. This minimal device routes WC_PK_TYPE_ECDSA_SIGN for a CCB key
+ * (key->dhuk_is_ccb) to the HAL CCB sign and returns the DER-encoded (r,s); it
+ * mirrors the bare-metal device's CCB branch so the same wc_ecc_sign_hash flow
+ * works on both build paths. */
+static int Stm32Ccb_CryptoDevCb(int devId, struct wc_CryptoInfo* info,
+                                void* ctx)
+{
+    ecc_key* key;
+    byte     r[MAX_ECC_BYTES];
+    byte     s[MAX_ECC_BYTES];
+    word32   sz;
+    int      ret;
+
+    (void)devId;
+    (void)ctx;
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_PK) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    /* Transparent provisioning: wc_ecc_make_key() on a WC_DHUK_DEVID key binds
+     * a fresh CCB-protected blob to it (no CCB-specific API). */
+    if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
+        return wc_ecc_dev_make_key(info->pk.eckg.rng, info->pk.eckg.size,
+            info->pk.eckg.key, info->pk.eckg.curveId);
+    }
+    if (info->pk.type != WC_PK_TYPE_ECDSA_SIGN) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    key = info->pk.eccsign.key;
+    if (key == NULL || key->dhuk_is_ccb == 0u) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    sz = (word32)wc_ecc_size(key);
+    ret = wc_Stm32_Ccb_EccSign(ECC_SECP256R1, key->ccb_iv, key->ccb_tag,
+                               key->dhuk_wrapped_priv,
+                               key->dhuk_wrapped_priv_len,
+                               info->pk.eccsign.in, info->pk.eccsign.inlen,
+                               r, s);
+    if (ret == 0) {
+        ret = wc_ecc_rs_raw_to_sig(r, sz, s, sz,
+                                   info->pk.eccsign.out,
+                                   info->pk.eccsign.outlen);
+    }
+    ForceZero(r, sizeof(r));
+    ForceZero(s, sizeof(s));
+    return ret;
+}
+
+/* Register / unregister the STM32 DHUK/CCB device for the CubeMX build. Same
+ * name and contract as the bare-metal version so callers are build-agnostic. */
+int wc_Stm32_DhukRegister(int devId)
+{
+    return wc_CryptoCb_RegisterDevice(devId, Stm32Ccb_CryptoDevCb, NULL);
+}
+
+void wc_Stm32_DhukUnRegister(int devId)
+{
+    wc_CryptoCb_UnRegisterDevice(devId);
+}
+#endif /* WOLF_CRYPTO_CB && HAVE_ECC && HAVE_ECC_SIGN */
+#endif /* WOLFSSL_STM32_CCB && WOLFSSL_STM32_CUBEMX */
 #endif /* !NO_AES */
 #endif /* STM32_CRYPTO */
 
@@ -3890,10 +5000,8 @@ static int stm32_get_from_hexstr(const char* hex, uint8_t* dst, int sz)
     return stm32_getabs_from_hexstr(hex, dst, sz, NULL);
 }
 
-/* STM32 PKA supports up to 640-bit numbers */
-#ifndef STM32_MAX_ECC_SIZE
-#define STM32_MAX_ECC_SIZE (80)
-#endif
+/* STM32 PKA supports up to 640-bit numbers; STM32_MAX_ECC_SIZE is defined in
+ * wolfssl/wolfcrypt/port/st/stm32.h. */
 
 #ifdef WOLFSSL_STM32_PKA_V2
 /* find curve based on prime/modulus and return order/coefB */

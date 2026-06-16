@@ -248,7 +248,9 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
-#if defined(WOLFSSL_STM32_PKA)
+#if defined(WOLFSSL_STM32_PKA) || defined(WOLFSSL_STM32_CCB)
+    /* CCB without PKA still needs stm32.h so its consistency #errors (e.g. CCB
+     * requires DHUK + BARE/CUBEMX) are visible to this translation unit. */
     #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
@@ -282,8 +284,15 @@ ECC Curve Sizes:
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && \
-    !defined(WOLFSSL_STM32_PKA) && \
+    (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_SIGN_ONLY)) && \
     !defined(WOLFSSL_PSOC6_CRYPTO)
+    /* STM32 sign-only (e.g. C5): the HW PKA cannot run the integrated ECDSA
+     * verify (mode 0x26) correctly, so use the SW verify helper rather than the
+     * HW-accelerator sigRS path. Note the helper's scalar multiplications still
+     * run on the HW PKA generic-mul (stm32.c provides wc_ecc_mulmod_ex under
+     * !WC_STM32_PKA_VERIFY_ONLY) -- the C5 issue is specifically the verify-mode
+     * wrapper, not the point math, which is exercised and correct (the lead for
+     * a future real HW verify). */
     #undef  HAVE_ECC_VERIFY_HELPER
     #define HAVE_ECC_VERIFY_HELPER
 #endif
@@ -7171,6 +7180,11 @@ int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
     key->dhuk_wrapped_priv_len = wrappedLen;
     key->dhuk_plain_priv_len   = plainLen;
     key->dhuk_seed_sz          = seedSz;
+#ifdef WOLFSSL_STM32_CCB
+    /* This is a DHUK seed-wrapped (non-CCB) scalar; clear any CCB blob
+     * routing left from a prior import so signing uses the DHUK path. */
+    key->dhuk_is_ccb = 0;
+#endif
     return 0;
 }
 #endif /* WOLFSSL_DHUK && WOLFSSL_STM32_BARE && WC_STM32_HAS_DHUK */
@@ -8164,6 +8178,163 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 #endif /* WOLFSSL_ECDSA_SET_K || WOLFSSL_ECDSA_SET_K_ONE_LOOP */
 #endif /* WOLFSSL_ATECC508A && WOLFSSL_CRYPTOCELL */
 
+/* Guard must match the ecc.h prototype and the ccb_ / dhuk_ ecc_key struct
+ * members (both WOLFSSL_DHUK && WOLFSSL_STM32_CCB) -- the implementation must
+ * not be broader than the members it dereferences. */
+#if defined(WOLFSSL_DHUK) && defined(WOLFSSL_STM32_CCB)
+/* Load a previously provisioned device-protected ECDSA blob (wrapped scalar +
+ * AES-GCM iv/tag) and its public key onto the ecc_key. Sets the curve so the
+ * sign path can derive the parameters, and marks the key for the device
+ * crypto-callback. The caller enables the device with
+ * wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID). Generic name -- the wrapping is
+ * the STM32 CCB, but the surface is not CCB-specific. */
+int wc_ecc_import_wrapped_private_ex(ecc_key* key, int curve_id,
+                           const byte* wrapped, word32 wrappedLen,
+                           const byte* iv, word32 ivLen,
+                           const byte* tag, word32 tagLen,
+                           const byte* pub, word32 pubLen)
+{
+    int modSz;
+    int ret;
+
+    if (key == NULL || wrapped == NULL || iv == NULL || tag == NULL ||
+        pub == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    /* Fixed 16-byte AES-GCM iv/tag -- validate explicitly (no over-read). */
+    if (ivLen != sizeof(key->ccb_iv) || tagLen != sizeof(key->ccb_tag)) {
+        return BAD_FUNC_ARG;
+    }
+    modSz = wc_ecc_get_curve_size_from_id(curve_id);
+    if (modSz <= 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (wrappedLen == 0u || wrappedLen > sizeof(key->dhuk_wrapped_priv)) {
+        return BAD_FUNC_ARG;
+    }
+    if (pubLen != (word32)(2 * modSz)) {
+        return BAD_FUNC_ARG;
+    }
+    /* Import public key (qx||qy) + set the curve (key->dp). */
+    ret = wc_ecc_import_unsigned(key, pub, pub + modSz, NULL, curve_id);
+    if (ret != 0) {
+        return ret;
+    }
+    XMEMCPY(key->dhuk_wrapped_priv, wrapped, wrappedLen);
+    key->dhuk_wrapped_priv_len = wrappedLen;
+    XMEMCPY(key->ccb_iv,  iv,  sizeof(key->ccb_iv));
+    XMEMCPY(key->ccb_tag, tag, sizeof(key->ccb_tag));
+    key->dhuk_is_ccb = 1;
+    /* Clear any DHUK seed-import state left from a prior import; the CCB
+     * path keys off the wrapped blob + iv/tag, not the seed. */
+    ForceZero(key->dhuk_seed, sizeof(key->dhuk_seed));
+    key->dhuk_seed_sz        = 0;
+    key->dhuk_plain_priv_len = 0;
+    return 0;
+}
+
+/* Crypto-callback keygen handler (WC_PK_TYPE_EC_KEYGEN). Provisions a fresh
+ * device-protected key: generate a scalar, have the CCB wrap it into a
+ * device-bound blob and derive its public key, and store both on the ecc_key
+ * (the scalar is zeroized and never leaves this call / the hardware). The
+ * scalar is generated in software with the supplied rng on a throwaway key with
+ * no devId (so no callback recursion). Returns CRYPTOCB_UNAVAILABLE for curves
+ * the CCB cannot wrap so keygen falls back to software. Not a public entry
+ * point -- reached via wc_ecc_make_key() on a WC_DHUK_DEVID key. */
+int wc_ecc_dev_make_key(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key* tmp = NULL;             /* ecc_key is ~1-2KB -- heap it on the
+                                      * small-stack embedded targets this port
+                                      * runs on (repo convention). */
+#else
+    ecc_key  tmp[1];
+#endif
+#ifdef WOLFSSL_SMALL_STACK
+    /* d || pub || wrapped in one heap scratch buffer (~326 B) -- keep the
+     * fixed byte buffers off the stack too, like tmp above. */
+    byte*   scratch = NULL;
+    byte*   d;
+    byte*   pub;       /* qx || qy, contiguous */
+    byte*   wrapped;
+#else
+    byte    d[MAX_ECC_BYTES];
+    byte    pub[2 * MAX_ECC_BYTES];   /* qx || qy, contiguous */
+    byte    wrapped[96];
+#endif
+    byte    iv[16];
+    byte    tag[16];
+    word32  dLen;
+    word32  wrappedSz = 0;
+    int     modSz;
+    int     ret;
+    int     tmpInit = 0;
+
+    (void)keysize;
+    if (rng == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    /* wc_ecc_set_curve() ran before the callback, so key->dp is resolved even
+     * when curve_id came in as the default. */
+    if (curve_id <= 0 && key->dp != NULL) {
+        curve_id = key->dp->id;
+    }
+    modSz = wc_ecc_get_curve_size_from_id(curve_id);
+    if (modSz <= 0 || (word32)modSz > MAX_ECC_BYTES) {
+        return CRYPTOCB_UNAVAILABLE;   /* unsupported -> software keygen */
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmp = (ecc_key*)XMALLOC(sizeof(ecc_key), key->heap, DYNAMIC_TYPE_ECC);
+    if (tmp == NULL) {
+        return MEMORY_E;
+    }
+    scratch = (byte*)XMALLOC((3 * MAX_ECC_BYTES) + 96, key->heap,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+    if (scratch == NULL) {
+        XFREE(tmp, key->heap, DYNAMIC_TYPE_ECC);
+        return MEMORY_E;
+    }
+    d       = scratch;
+    pub     = scratch + MAX_ECC_BYTES;
+    wrapped = scratch + (3 * MAX_ECC_BYTES);
+#endif
+
+    ret = wc_ecc_init_ex(tmp, key->heap, INVALID_DEVID);
+    if (ret == 0) {
+        tmpInit = 1;
+        ret = wc_ecc_make_key_ex(rng, modSz, tmp, curve_id);
+    }
+    if (ret == 0) {
+        dLen = (word32)modSz;
+        ret = wc_ecc_export_private_only(tmp, d, &dLen);
+    }
+    if (ret == 0) {
+        ret = wc_Stm32_Ccb_EccMakeBlob(curve_id, d, dLen, iv, tag, wrapped,
+                                       &wrappedSz, pub, pub + modSz);
+        if (ret != 0) {
+            ret = CRYPTOCB_UNAVAILABLE;   /* curve not CCB-wrappable -> SW */
+        }
+    }
+    if (ret == 0) {
+        ret = wc_ecc_import_wrapped_private_ex(key, curve_id, wrapped, wrappedSz,
+                                     iv, (word32)sizeof(iv), tag,
+                                     (word32)sizeof(tag), pub,
+                                     (word32)(2 * modSz));
+    }
+
+    ForceZero(d, MAX_ECC_BYTES);
+    if (tmpInit) {
+        wc_ecc_free(tmp);
+    }
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(scratch, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmp, key->heap, DYNAMIC_TYPE_ECC);
+#endif
+    return ret;
+}
+#endif /* WOLFSSL_DHUK && WOLFSSL_STM32_CCB */
+
 #endif /* !HAVE_ECC_SIGN */
 
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -9010,7 +9181,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
 
-#if !defined(WOLFSSL_STM32_PKA) && \
+#if (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_SIGN_ONLY)) && \
     !defined(WOLFSSL_PSOC6_CRYPTO) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
@@ -9530,9 +9701,11 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
 {
-#if defined(WOLFSSL_STM32_PKA)
+#if defined(WOLFSSL_STM32_PKA) && !defined(WC_STM32_PKA_SIGN_ONLY)
     /* HW ECDSA verify via STM32 PKA. Works under both the CubeMX-HAL
-     * and the bare-metal direct-register paths. Mirror the non-FIPS
+     * and the bare-metal direct-register paths. (Under WC_STM32_PKA_SIGN_ONLY
+     * -- e.g. STM32C5 -- verify falls through to the software body below.)
+     * Mirror the non-FIPS
      * input-validation from the SW body below (length range, all-zero
      * digest rejection) so HW + SW share the same input contract. */
 #ifndef WC_ALLOW_ECC_ZERO_HASH
