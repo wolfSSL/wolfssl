@@ -32973,7 +32973,7 @@ int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
     typedef char ctx_size_test[sizeof(sp_ecc_sec_gen_384_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
-    if (*outLen < 32U) {
+    if (*outLen < 48U) {
         err = BUFFER_E;
     }
 
@@ -40644,7 +40644,7 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
     SP_DECL_VAR(sp_digit, k, 21);
     int err = MP_OKAY;
 
-    if (*outLen < 65U) {
+    if (*outLen < 66U) {
         err = BUFFER_E;
     }
 
@@ -40685,7 +40685,7 @@ int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
     typedef char ctx_size_test[sizeof(sp_ecc_sec_gen_521_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
-    if (*outLen < 32U) {
+    if (*outLen < 66U) {
         err = BUFFER_E;
     }
 
