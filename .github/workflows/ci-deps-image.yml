@@ -1,7 +1,9 @@
 name: CI deps image
 
 # Builds the prebuilt apt .deb bundles that the make-check family (the
-# -minimal tags) and the interop workflows (the -full tags, a superset)
+# -minimal tags), the interop workflows (the -full tags, a superset), the
+# membrowse embedded targets (the -embedded tag - the big ARM cross-toolchain)
+# and the linux kernel-module builds (the -linuxkm tag - kernel headers)
 # install offline (see .github/actions/install-apt-deps, input
 # ghcr-debs-tag). Each bundle holds the .debs for a package list in
 # .github/ci-deps/ - every package plus the dependencies not already on the
@@ -22,13 +24,18 @@ name: CI deps image
 
 on:
   schedule:
-    # Weekend only - refresh the bundles weekly so they track base-image
-    # security updates. A mid-week package-list change waits for Saturday
-    # (or run this manually via workflow_dispatch); until then the offline
-    # install (a single --no-download install of the whole set) fails if any
-    # requested package is missing from the bundle, and install-apt-deps
-    # falls back to the full apt path.
+    # Weekly (Saturday) - the static bundles (-minimal/-full/-embedded).
+    # Refreshes them so they track base-image security updates. A mid-week
+    # package-list change waits for Saturday (or run this manually via
+    # workflow_dispatch); until then the offline install (a single
+    # --no-download install of the whole set) fails if any requested package
+    # is missing from the bundle, and install-apt-deps falls back to apt.
     - cron: '0 2 * * 6'
+    # Daily - the kernel-tracking -linuxkm bundle only. linux-headers-$(uname
+    # -r) pins to the runner's running kernel (changes ~monthly); the linuxkm
+    # job rebuilds solely when uname -r differs from the published bundle, a
+    # cheap no-op otherwise. A mismatch mid-rollout just falls back to apt.
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -42,7 +49,11 @@ permissions:
 jobs:
   build:
     name: build ${{ matrix.tag }}
-    if: github.repository_owner == 'wolfssl'
+    # Static bundles: weekly cron or manual dispatch. Skip the daily cron,
+    # which exists only to refresh the kernel-tracking -linuxkm bundle below.
+    if: >-
+      github.repository_owner == 'wolfssl' &&
+      (github.event_name != 'schedule' || github.event.schedule == '0 2 * * 6')
     strategy:
       fail-fast: false
       matrix:
@@ -55,6 +66,10 @@ jobs:
             tag: ubuntu-24.04-minimal
           - runner: ubuntu-24.04
             tag: ubuntu-24.04-full
+          # membrowse embedded targets' ARM cross-toolchain (~0.5 GB). Its own
+          # tag so it does not bloat the -full pull for the interop workflows.
+          - runner: ubuntu-24.04
+            tag: ubuntu-24.04-embedded
           - runner: ubuntu-22.04
             tag: ubuntu-22.04-minimal
           - runner: ubuntu-22.04
@@ -114,3 +129,79 @@ jobs:
           docker tag bundle "$IMG:${{ matrix.tag }}"
           docker push "$IMG:${{ matrix.tag }}"
           echo "Pushed $IMG:${{ matrix.tag }}"
+
+  # Kernel-tracking bundle for the linux kernel-module builds (linuxkm.yml and
+  # the membrowse linuxkm targets). linux-headers-$(uname -r) pins to the
+  # runner's running kernel, so this runs daily but rebuilds only when the
+  # kernel changed since the published bundle (the image carries the kernel as
+  # a label). A mismatch - e.g. during a gradual runner-image rollout - just
+  # makes install-apt-deps fall back to apt.
+  linuxkm:
+    name: build ubuntu-24.04-linuxkm
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Log in to ghcr
+        shell: bash
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Decide whether the published bundle already matches this kernel
+        id: check
+        shell: bash
+        run: |
+          set -uo pipefail
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMG="ghcr.io/$OWNER/wolfssl-ci-debs:ubuntu-24.04-linuxkm"
+          K=$(uname -r)
+          echo "kernel=$K" >> "$GITHUB_OUTPUT"
+          echo "runner kernel: $K"
+          have=""
+          if docker pull -q "$IMG" >/dev/null 2>&1; then
+            have=$(docker inspect --format '{{ index .Config.Labels "kernel" }}' "$IMG" 2>/dev/null || true)
+          fi
+          echo "published bundle kernel: ${have:-<none>}"
+          if [ "$have" = "$K" ]; then
+            echo "rebuild=false" >> "$GITHUB_OUTPUT"
+            echo "Bundle already current for $K; nothing to do."
+          else
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve and download the .deb closure
+        if: steps.check.outputs.rebuild == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          K="${{ steps.check.outputs.kernel }}"
+          # linuxkm.yml installs only the headers; the membrowse linuxkm targets
+          # also need the build toolchain. Bundle the union - each consumer
+          # installs its own subset offline.
+          PKGS=(build-essential autoconf automake libtool "linux-headers-$K")
+          echo "Packages: ${PKGS[*]}"
+          export DEBIAN_FRONTEND=noninteractive
+          rm -rf debs && mkdir -p debs
+          sudo apt-get clean
+          retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
+          retry sudo apt-get update -q
+          skipped=0
+          for pkg in "${PKGS[@]}"; do
+            retry sudo apt-get install -y --download-only "$pkg" \
+              || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
+          done
+          sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
+          echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files; ${skipped} skipped"
+          test -n "$(ls debs/*.deb 2>/dev/null)"
+
+      - name: Build and push bundle (labelled with the kernel)
+        if: steps.check.outputs.rebuild == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          K="${{ steps.check.outputs.kernel }}"
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMG="ghcr.io/$OWNER/wolfssl-ci-debs:ubuntu-24.04-linuxkm"
+          printf 'FROM busybox\nCOPY debs /debs\nLABEL kernel=%s\n' "$K" > Dockerfile.debs
+          docker build -f Dockerfile.debs -t "$IMG" .
+          docker push "$IMG"
+          echo "Pushed $IMG (kernel $K)"

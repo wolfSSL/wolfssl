@@ -8,6 +8,7 @@ autoconf
 autoconf-archive
 automake
 autopoint
+bc
 bubblewrap
 build-essential
 ccache
@@ -51,6 +52,8 @@ libidn2-dev
 libio-socket-ssl-perl
 libjansson-dev
 libkrb5-dev
+libldb-dev
+libldb2
 liblz4-dev
 liblzma-dev
 liblzo2-dev
@@ -87,6 +90,7 @@ pkgconf
 psmisc
 python3-docutils
 python3-impacket
+python3-ldb
 python3-psutil
 shellcheck
 uuid-dev
