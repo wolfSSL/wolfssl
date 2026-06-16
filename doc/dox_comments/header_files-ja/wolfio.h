@@ -409,17 +409,17 @@ void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     \return none 戻り値なし。
 
     \param ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
-    \param nxSocket nxCtx構造体のnxTcpSocketメンバーに設定されるNX_TCP_SOCKET型へのポインタ。
-    \param waitOption nxCtx構造体のnxWaitメンバーに設定されるULONG型。
+    \param nxsocket nxCtx構造体のnxTcpSocketメンバーに設定されるNX_TCP_SOCKET型へのポインタ。
+    \param waitoption nxCtx構造体のnxWaitメンバーに設定されるULONG型。
 
     _Example_
     \code
     WOLFSSL* ssl = wolfSSL_new(ctx);
-    NX_TCP_SOCKET* nxSocket;
-    ULONG waitOption;
+    NX_TCP_SOCKET* nxsocket;
+    ULONG waitoption;
     …
-    if(ssl != NULL || nxSocket != NULL || waitOption <= 0){
-    wolfSSL_SetIO_NetX(ssl, nxSocket, waitOption);
+    if(ssl != NULL || nxsocket != NULL || waitoption <= 0){
+    wolfSSL_SetIO_NetX(ssl, nxsocket, waitoption);
     } else {
     	// 適切なパラメータを渡す必要があります。
     }
@@ -450,12 +450,12 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
     _Example_
     \code
     WOLFSSL* ssl = wolfSSL_new(ctx);
-    NX_UDP_SOCKET udpSocket;
-    NXD_ADDRESS   peerAddr;
-    USHORT        peerPort = 4433;
+    NX_UDP_SOCKET udpsocket;
+    NXD_ADDRESS   peeraddr;
+    USHORT        peerport = 4433;
     ULONG         wait     = NX_WAIT_FOREVER;
-    // … udpSocketとpeerAddrを初期化 …
-    wolfSSL_SetIO_NetX_Dtls(ssl, &udpSocket, peerAddr, peerPort, wait);
+    // … udpsocketとpeeraddrを初期化 …
+    wolfSSL_SetIO_NetX_Dtls(ssl, &udpsocket, peeraddr, peerport, wait);
     \endcode
 
     \sa wolfSSL_SetIO_NetX

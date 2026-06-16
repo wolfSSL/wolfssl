@@ -2639,60 +2639,134 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket, ULONG waitoption)
 
 /* WOLFSSL_NETX_DUO: requires ThreadX NetX Duo (NXD_ADDRESS, nxd_udp_socket_send) */
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_NETX_DUO)
+static void NetX_ResetPacket(NetX_Ctx* nxCtx)
+{
+    if (nxCtx->nxPacket != NULL) {
+        nx_packet_release(nxCtx->nxPacket);
+        nxCtx->nxPacket = NULL;
+    }
+    nxCtx->nxOffset = 0;
+}
+
+static int NetX_PeerAddrEqual(const NXD_ADDRESS* left, const NXD_ADDRESS* right)
+{
+    if (left->nxd_ip_version != right->nxd_ip_version)
+        return 0;
+
+    if (left->nxd_ip_version == NX_IP_VERSION_V4)
+        return left->nxd_ip_address.v4 == right->nxd_ip_address.v4;
+
+    return left->nxd_ip_address.v6[0] == right->nxd_ip_address.v6[0] &&
+           left->nxd_ip_address.v6[1] == right->nxd_ip_address.v6[1] &&
+           left->nxd_ip_address.v6[2] == right->nxd_ip_address.v6[2] &&
+           left->nxd_ip_address.v6[3] == right->nxd_ip_address.v6[3];
+}
+
 /* The NetX receive callback for DTLS
  *  return :  bytes read, or error
  */
 int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     NetX_Ctx* nxCtx = (NetX_Ctx*)ctx;
+    NXD_ADDRESS srcIp;
     ULONG left;
     ULONG total;
     ULONG copied = 0;
+    UINT  srcPort;
     UINT  status;
     ULONG waitOption;
+    int   dtls_timeout;
+    int   usingNonblock;
+    byte  doDtlsTimeout;
 
     if (nxCtx == NULL || nxCtx->nxUdpSocket == NULL) {
         WOLFSSL_MSG("NetX Recv NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    if (nxCtx->nxPacket == NULL) {
-        /* Compute wait ticks from the current DTLS retransmit timeout so the
-         * DTLS state machine can drive retransmission on packet loss. */
-        if (!wolfSSL_dtls_get_using_nonblock(ssl)) {
-            int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
-        #ifdef WOLFSSL_DTLS13
-            if (wolfSSL_dtls13_use_quick_timeout(ssl) &&
-                IsAtLeastTLSv1_3(ssl->version))
-                dtls_timeout = dtls_timeout / 4;
-        #endif
-            waitOption = (dtls_timeout > 0)
-                         ? (ULONG)dtls_timeout * NX_IP_PERIODIC_RATE
-                         : nxCtx->nxWait;
-        }
-        else {
-            waitOption = NX_NO_WAIT; /* non-blocking */
-        }
+    usingNonblock = wolfSSL_dtls_get_using_nonblock(ssl);
 
-        status = nx_udp_socket_receive(nxCtx->nxUdpSocket, &nxCtx->nxPacket,
-                                       waitOption);
-        if (status != NX_SUCCESS) {
-            if (status == NX_NO_PACKET) {
-                /* Normal receive timeout - allow DTLS to retransmit */
-                WOLFSSL_MSG("NetX Recv timeout");
-                return wolfSSL_dtls_get_using_nonblock(ssl)
-                       ? WOLFSSL_CBIO_ERR_WANT_READ
-                       : WOLFSSL_CBIO_ERR_TIMEOUT;
-            }
-            WOLFSSL_MSG("NetX Recv receive error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
+    /* Don't use ssl->options.handShakeDone since it is true even if
+     * we are in the process of renegotiation. */
+    doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+        doDtlsTimeout =
+            doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL ||
+            (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
     }
+#endif /* WOLFSSL_DTLS13 */
 
-    if (nxCtx->nxPacket) {
+    do {
+        if (nxCtx->nxPacket == NULL) {
+            /* Compute wait ticks from the DTLS retransmit timeout while a
+             * handshake/RTX timer is active, otherwise honor nxWait. */
+            if (!usingNonblock) {
+                dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
+                if (!doDtlsTimeout)
+                    dtls_timeout = 0;
+#ifdef WOLFSSL_DTLS13
+                if (dtls_timeout > 0 && wolfSSL_dtls13_use_quick_timeout(ssl) &&
+                    IsAtLeastTLSv1_3(ssl->version)) {
+                    if (dtls_timeout > 4)
+                        dtls_timeout /= 4;
+                    else
+                        dtls_timeout = 1;
+                }
+#endif /* WOLFSSL_DTLS13 */
+                waitOption = (dtls_timeout > 0)
+                             ? (ULONG)dtls_timeout * NX_IP_PERIODIC_RATE
+                             : nxCtx->nxWait;
+            }
+            else {
+                waitOption = NX_NO_WAIT; /* non-blocking */
+            }
+
+            status = nx_udp_socket_receive(nxCtx->nxUdpSocket, &nxCtx->nxPacket,
+                                           waitOption);
+            if (status != NX_SUCCESS) {
+                if (status == NX_NO_PACKET) {
+                    /* Normal receive timeout - allow DTLS to retransmit */
+                    WOLFSSL_MSG("NetX Recv timeout");
+                    return usingNonblock
+                           ? WOLFSSL_CBIO_ERR_WANT_READ
+                           : WOLFSSL_CBIO_ERR_TIMEOUT;
+                }
+                WOLFSSL_MSG("NetX Recv receive error");
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            status = nxd_udp_source_extract(nxCtx->nxPacket, &srcIp, &srcPort);
+            if (status != NX_SUCCESS) {
+                NetX_ResetPacket(nxCtx);
+                WOLFSSL_MSG("NetX Recv source extract error");
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            if ((USHORT)srcPort != nxCtx->nxPort ||
+                !NetX_PeerAddrEqual(&srcIp, &nxCtx->nxdIp)) {
+                WOLFSSL_MSG("NetX Recv ignored packet from invalid peer");
+                NetX_ResetPacket(nxCtx);
+                continue;
+            }
+        }
+
         status = nx_packet_length_get(nxCtx->nxPacket, &total);
         if (status != NX_SUCCESS) {
+            NetX_ResetPacket(nxCtx);
             WOLFSSL_MSG("NetX Recv length get error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        if (total == 0) {
+            WOLFSSL_MSG("Ignoring 0-length datagram");
+            NetX_ResetPacket(nxCtx);
+            continue;
+        }
+
+        if (nxCtx->nxOffset > total) {
+            NetX_ResetPacket(nxCtx);
+            WOLFSSL_MSG("NetX Recv invalid packet offset");
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
@@ -2700,6 +2774,7 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         status = nx_packet_data_extract_offset(nxCtx->nxPacket, nxCtx->nxOffset,
                                                buf, sz, &copied);
         if (status != NX_SUCCESS) {
+            NetX_ResetPacket(nxCtx);
             WOLFSSL_MSG("NetX Recv data extract offset error");
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
@@ -2708,13 +2783,13 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         if (copied == left) {
             WOLFSSL_MSG("NetX Recv Drained packet");
-            nx_packet_release(nxCtx->nxPacket);
-            nxCtx->nxPacket = NULL;
-            nxCtx->nxOffset = 0;
+            NetX_ResetPacket(nxCtx);
         }
-    }
 
-    return copied;
+        return copied;
+    } while (1);
+
+    /* unreachable */
 }
 
 /* The NetX send callback for DTLS
