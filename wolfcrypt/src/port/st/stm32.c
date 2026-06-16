@@ -916,8 +916,6 @@ static void HAL_PKA_ECDSASign_GetResult(PKA_HandleTypeDef *hpkah,
 
 #ifdef STM32_HASH
 
-/* #define DEBUG_STM32_HASH */
-
 #if defined(WOLFSSL_STM32_BARE) && !defined(WC_STM32_HASH_CLK_ENABLE)
     #error "WOLFSSL_STM32_BARE: HASH clock-enable not mapped for this STM32 \
         family. Add WC_STM32_HASH_CLK_ENABLE() to \
@@ -3793,6 +3791,14 @@ int wc_Stm32_CcbInit(void)
 #define WC_CCB_FAKE             0x0001u      /* placeholder fed to RNG->PKA */
 #define WC_CCB_PKA_OK           0x0000D60Du  /* PKA_ECDSA_SIGN_OUT_ERROR ok */
 
+/* P-256 CCB operand sizing. opsz = PKA operand words = 2*(ceil(32/8)+1) = 10;
+ * cipsz = SAES ciphertext block count = opsz minus the 2-word PKA pad when
+ * opsz is not a multiple of 4 = 8. (Single-curve P-256 today.) */
+#define WC_CCB_P256_OPSZ        10u
+#define WC_CCB_P256_CIPSZ        8u
+/* SAES GCM final-phase header length word for the blob (bit-length encoding). */
+#define WC_CCB_GCM_HDR_LEN(opsz) (((((opsz) * 32u) * 6u) + (3u * 64u)) * 2u)
+
 /* NIST P-256 parameters (big-endian, 32 bytes). */
 static const byte wc_ccb_p256_aAbs[32] = {
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x03};
@@ -4062,6 +4068,85 @@ static int Stm32Ccb_LoadBlobKey(int isUse)
     return Stm32Ccb_WaitOpStep(isUse ? 0x12u : 0x02u);
 }
 
+/* CCB RNG draw wait: spin until RNG_SR.DRDY with a bounded timeout. */
+static int Stm32Ccb_RngWaitDrdy(void)
+{
+    word32 t = 0;
+    while ((RNG->SR & RNG_SR_DRDY) == 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    return 0;
+}
+
+/* CCB SAES busy wait: spin until SAES_SR.BUSY clears with a bounded timeout. */
+static int Stm32Ccb_SaesWaitBusy(void)
+{
+    word32 t = 0;
+    while ((SAES->SR & AES_SR_BUSY) != 0u) {
+        if (++t >= WC_STM32_CCB_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    return 0;
+}
+
+/* Load the four blob IV words into SAES IVR0..IVR3 (blob-use ordering). */
+static void Stm32Ccb_LoadIv(const word32* v)
+{
+    SAES->IVR0 = v[0];
+    SAES->IVR1 = v[1];
+    SAES->IVR2 = v[2];
+    SAES->IVR3 = v[3];
+}
+
+/* Load the four reference-tag words into the CCB REFTAGR registers. */
+static void Stm32Ccb_LoadRefTag(const word32* v)
+{
+    CCB->REFTAGR[0] = v[0];
+    CCB->REFTAGR[1] = v[1];
+    CCB->REFTAGR[2] = v[2];
+    CCB->REFTAGR[3] = v[3];
+}
+
+/* Load the 32-byte hash into PKA RAM as big-endian -> little-endian words. */
+static void Stm32Ccb_LoadHash(const byte* hash)
+{
+    word32 i;
+    for (i = 0u; i < 8u; i++) {
+        WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_HASH_E + i] =
+            (word32)hash[(32u - (i * 4u)) - 1u] |
+            ((word32)hash[(32u - (i * 4u)) - 2u] << 8) |
+            ((word32)hash[(32u - (i * 4u)) - 3u] << 16) |
+            ((word32)hash[(32u - (i * 4u)) - 4u] << 24);
+    }
+}
+
+/* Blob-use GCM final phase: feed the length block, wait CCF, and verify the
+ * integrity tag reads back all-zero (nonzero => blob tag mismatch). Shared by
+ * the scalar-mul (public-key) and ECDSA sign blob-use paths. */
+static int Stm32Ccb_GcmFinalTagCheck(word32 opsz, word32 cipsz)
+{
+    word32 i;
+    int ret;
+    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 |
+               WC_STM32_AES_CR_PHASE_1;
+    SAES->DINR = 0u;
+    SAES->DINR = WC_CCB_GCM_HDR_LEN(opsz);
+    SAES->DINR = 0u;
+    SAES->DINR = cipsz * 32u;
+    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) {
+        return ret;
+    }
+    for (i = 0u; i < 4u; i++) {
+        if (SAES->DOUTR != 0u) {   /* nonzero => blob tag mismatch */
+            return WC_HW_E;
+        }
+    }
+    return 0;
+}
+
 /* Bare CCB public-key computation: scalar mult d*G via the blob. Mirrors the
  * blob-use sign path, but loads the unwrapped scalar into the K slot (no random
  * k) and reads the resulting point into pubX/pubY. */
@@ -4081,8 +4166,8 @@ static int Stm32Ccb_ComputePub(const byte* iv, const byte* tag,
     XMEMCPY(ivw,   iv,      sizeof(ivw));
     XMEMCPY(tagw,  tag,     sizeof(tagw));
     XMEMCPY(wrapw, wrapped, sizeof(wrapw));
-    opsz  = 2u * (((32u + 7u) / 8u) + 1u);
-    cipsz = ((opsz % 4u) != 0u) ? (opsz - 2u) : opsz;
+    opsz  = WC_CCB_P256_OPSZ;
+    cipsz = WC_CCB_P256_CIPSZ;
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
@@ -4092,16 +4177,10 @@ static int Stm32Ccb_ComputePub(const byte* iv, const byte* tag,
     if (ret != 0) { goto done; }
     if ((ret = Stm32Ccb_LoadBlobKey(1 /* use */)) != 0) { goto done; }
 
-    SAES->IVR0 = ivw[0];
-    SAES->IVR1 = ivw[1];
-    SAES->IVR2 = ivw[2];
-    SAES->IVR3 = ivw[3];
+    Stm32Ccb_LoadIv(ivw);
     SAES->CR |= AES_CR_EN;
     if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
-    CCB->REFTAGR[0] = tagw[0];
-    CCB->REFTAGR[1] = tagw[1];
-    CCB->REFTAGR[2] = tagw[2];
-    CCB->REFTAGR[3] = tagw[3];
+    Stm32Ccb_LoadRefTag(tagw);
     /* SAES GCM/chaining-phase field: STM32C5 names it AES_CR_CPHASE, U3 names it
      * AES_CR_GCMPH -- same bit positions/values. WC_STM32_AES_CR_PHASE abstracts
      * the name (port/st/stm32.h). This was the one genuinely-divergent part of
@@ -4129,18 +4208,7 @@ static int Stm32Ccb_ComputePub(const byte* iv, const byte* tag,
     WC_CCB_PKA_RAMW[PKA_ECC_SCALAR_MUL_IN_K + cipsz + 1u] = 0u;
     if ((ret = Stm32Ccb_WaitOpStep(0x17u)) != 0) { goto done; }
 
-    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | WC_STM32_AES_CR_PHASE_1;
-    SAES->DINR = 0u;
-    SAES->DINR = (((opsz * 32u) * 6u) + (3u * 64u)) * 2u;
-    SAES->DINR = 0u;
-    SAES->DINR = cipsz * 32u;
-    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
-    for (i = 0u; i < 4u; i++) {
-        if (SAES->DOUTR != 0u) {
-            ret = WC_HW_E;
-            goto done;
-        }
-    }
+    if ((ret = Stm32Ccb_GcmFinalTagCheck(opsz, cipsz)) != 0) { goto done; }
     if ((ret = Stm32Ccb_WaitOpStep(0x18u)) != 0) { goto done; }
 
     PKA->CR |= PKA_CR_START;
@@ -4185,8 +4253,8 @@ int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
         wrapped == NULL || wrappedSz == NULL) {
         return BAD_FUNC_ARG;
     }
-    opsz  = 2u * (((32u + 7u) / 8u) + 1u);                /* 10 */
-    cipsz = ((opsz % 4u) != 0u) ? (opsz - 2u) : opsz;     /* 8  */
+    opsz  = WC_CCB_P256_OPSZ;
+    cipsz = WC_CCB_P256_CIPSZ;
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
@@ -4200,21 +4268,13 @@ int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
     /* Blob-creation initial phase: IVR0=2, IVR1-3 randomised by CCB, read the
      * generated IV back, GCM init, header phase. */
     SAES->IVR0 = 0x00000002u;
-    { word32 t = 0;
-      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
-          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    if ((ret = Stm32Ccb_RngWaitDrdy()) != 0) { goto done; }
     SAES->IVR1 = WC_CCB_FAKE;
-    { word32 t = 0;
-      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
-          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    if ((ret = Stm32Ccb_RngWaitDrdy()) != 0) { goto done; }
     SAES->IVR2 = WC_CCB_FAKE;
-    { word32 t = 0;
-      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
-          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    if ((ret = Stm32Ccb_RngWaitDrdy()) != 0) { goto done; }
     SAES->IVR3 = WC_CCB_FAKE;
-    { word32 t = 0;
-      while ((RNG->SR & RNG_SR_DRDY) == 0u) {
-          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    if ((ret = Stm32Ccb_RngWaitDrdy()) != 0) { goto done; }
     if ((PKA->SR & PKA_SR_RNGERRF) != 0u) { ret = WC_HW_E; goto done; }
     ivw[3] = SAES->IVR3;
     ivw[2] = SAES->IVR2;
@@ -4255,9 +4315,7 @@ int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
             block += 4u;
         }
     }
-    { word32 t = 0;
-      while ((SAES->SR & AES_SR_BUSY) != 0u) {
-          if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; } } }
+    if ((ret = Stm32Ccb_SaesWaitBusy()) != 0) { goto done; }
     WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + cipsz]      = 0u;
     WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_PRIVATE_KEY_D + cipsz + 1u] = 0u;
     if ((ret = Stm32Ccb_PkaWaitFlag(PKA_SR_DATAOKF)) != 0) { goto done; }
@@ -4267,7 +4325,7 @@ int wc_Stm32_Ccb_EccMakeBlob(int curveId, const byte* d, word32 dLen,
     if ((ret = Stm32Ccb_WaitOpStep(0x0Au)) != 0) { goto done; }
     PKA->CLRFR = PKA_CLRFR_CMFC;
     SAES->DINR = 0u;
-    SAES->DINR = (((opsz * 32u) * 6u) + (3u * 64u)) * 2u;
+    SAES->DINR = WC_CCB_GCM_HDR_LEN(opsz);
     SAES->DINR = 0u;
     SAES->DINR = cipsz * 32u;
     if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
@@ -4319,8 +4377,8 @@ int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
     XMEMCPY(tagw,  tag,     sizeof(tagw));
     XMEMCPY(wrapw, wrapped, sizeof(wrapw));
 
-    opsz  = 2u * (((32u + 7u) / 8u) + 1u);                /* 10 */
-    cipsz = ((opsz % 4u) != 0u) ? (opsz - 2u) : opsz;     /* 8  */
+    opsz  = WC_CCB_P256_OPSZ;
+    cipsz = WC_CCB_P256_CIPSZ;
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
@@ -4332,48 +4390,19 @@ int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
     if ((ret = Stm32Ccb_LoadBlobKey(1 /* use */)) != 0) { goto done; }
 
     /* Hash -> PKA RAM (plain BE->LE words, no terminator, not yet coupled). */
-    for (i = 0u; i < 8u; i++) {
-        WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_HASH_E + i] =
-            (word32)hash[(32u - (i * 4u)) - 1u] |
-            ((word32)hash[(32u - (i * 4u)) - 2u] << 8) |
-            ((word32)hash[(32u - (i * 4u)) - 3u] << 16) |
-            ((word32)hash[(32u - (i * 4u)) - 4u] << 24);
-    }
+    Stm32Ccb_LoadHash(hash);
 
     /* Blob-use initial phase: load IV, GCM init, write reference tag. */
-    SAES->IVR0 = ivw[0];
-    SAES->IVR1 = ivw[1];
-    SAES->IVR2 = ivw[2];
-    SAES->IVR3 = ivw[3];
+    Stm32Ccb_LoadIv(ivw);
     SAES->CR |= AES_CR_EN;
     if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
-    CCB->REFTAGR[0] = tagw[0];
-    CCB->REFTAGR[1] = tagw[1];
-    CCB->REFTAGR[2] = tagw[2];
-    CCB->REFTAGR[3] = tagw[3];
+    Stm32Ccb_LoadRefTag(tagw);
     /* GCM header phase (keep EN) -> OPSTEP 0x12 -> 0x13. */
     SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | AES_CR_EN;
     if ((ret = Stm32Ccb_WaitOpStep(0x13u)) != 0) { goto done; }
 
     /* ECDSA curve params into PKA RAM (each coupled to SAES, wait CCF). */
-    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_ORDER_NB_BITS,
-            Stm32Ccb_OptBits(32u, wc_ccb_p256_n[0]))) != 0) { goto done; }
-    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_MOD_NB_BITS,
-            Stm32Ccb_OptBits(32u, wc_ccb_p256_p[0]))) != 0) { goto done; }
-    if ((ret = Stm32Ccb_SetScalar(PKA_ECDSA_SIGN_IN_A_COEFF_SIGN, 1u)) != 0)
-        { goto done; }
-    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_A_COEFF,
-            wc_ccb_p256_aAbs, 32u)) != 0) { goto done; }
-    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_B_COEFF,
-            wc_ccb_p256_b, 32u)) != 0) { goto done; }
-    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_MOD_GF,
-            wc_ccb_p256_p, 32u)) != 0) { goto done; }
-    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_ORDER_N,
-            wc_ccb_p256_n, 32u)) != 0) { goto done; }
-    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_INITIAL_POINT_X,
-            wc_ccb_p256_Gx, 32u)) != 0) { goto done; }
-    if ((ret = Stm32Ccb_SetParam(PKA_ECDSA_SIGN_IN_INITIAL_POINT_Y,
-            wc_ccb_p256_Gy, 32u)) != 0) { goto done; }
+    if ((ret = Stm32Ccb_LoadCurve()) != 0) { goto done; }
 
     /* GCM payload phase -> OPSTEP 0x13 -> 0x14. */
     SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_1;
@@ -4400,10 +4429,7 @@ int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
 
     /* Per-nonce k drawn by the RNG over CCB (CPU writes placeholders). */
     for (off = 0u; off < (opsz - 2u); off++) {
-        word32 t = 0;
-        while ((RNG->SR & RNG_SR_DRDY) == 0u) {
-            if (++t >= WC_STM32_CCB_TIMEOUT) { ret = WC_TIMEOUT_E; goto done; }
-        }
+        if ((ret = Stm32Ccb_RngWaitDrdy()) != 0) { goto done; }
         WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + off] = WC_CCB_FAKE;
     }
     WC_CCB_PKA_RAMW[PKA_ECDSA_SIGN_IN_K + (opsz - 2u)]      = 0u;
@@ -4412,18 +4438,7 @@ int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
     if ((ret = Stm32Ccb_WaitOpStep(0x17u)) != 0) { goto done; }
 
     /* Blob-use final phase: GCM length block + tag-integrity check. */
-    SAES->CR = (SAES->CR & ~WC_STM32_AES_CR_PHASE) | WC_STM32_AES_CR_PHASE_0 | WC_STM32_AES_CR_PHASE_1;
-    SAES->DINR = 0u;
-    SAES->DINR = (((opsz * 32u) * 6u) + (3u * 64u)) * 2u;
-    SAES->DINR = 0u;
-    SAES->DINR = cipsz * 32u;
-    if ((ret = Stm32Ccb_SaesWaitCcf()) != 0) { goto done; }
-    for (i = 0u; i < 4u; i++) {
-        if (SAES->DOUTR != 0u) {   /* nonzero => blob tag mismatch */
-            ret = WC_HW_E;
-            goto done;
-        }
-    }
+    if ((ret = Stm32Ccb_GcmFinalTagCheck(opsz, cipsz)) != 0) { goto done; }
     if ((ret = Stm32Ccb_WaitOpStep(0x18u)) != 0) { goto done; }
 
     /* Run the PKA ECDSA signature. */

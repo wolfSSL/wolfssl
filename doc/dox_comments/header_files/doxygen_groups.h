@@ -309,4 +309,5 @@
     \defgroup Setup wolfSSL Context and Session Set Up
     \defgroup IO wolfSSL Connection, Session, and I/O
     \defgroup Debug wolfSSL Error Handling and Reporting
+    \defgroup STM32 STM32 Hardware Crypto Port
 */

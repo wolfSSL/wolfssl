@@ -37,6 +37,21 @@ Support for the STSAFE-A secure element family via I2C is documented separately 
 
 For details see our [wolfSSL ST](https://www.wolfssl.com/docs/stm32/) page.
 
+### Examples and on-target tests
+
+The companion [wolfssl-examples-stm32](https://github.com/wolfSSL/wolfssl-examples-stm32) repo (added in PR [#13](https://github.com/wolfSSL/wolfssl-examples-stm32/pull/13)) provides the `STM32_Bare_Test` harness: a Makefile build over the 27-board NUCLEO matrix with per-feature targets. Build/flash with `make BOARD=<b> CONFIG=bare TARGET=<t>` (and `flash`). Each target maps to one worked example:
+
+| `TARGET=` | Source | Exercises |
+|-----------|--------|-----------|
+| `test`    | `STM32_Bare_Test/src/main_test.c`   | wolfCrypt KAT + full `wolfcrypt_test` suite |
+| `bench`   | `STM32_Bare_Test/src/main_bench.c`  | wolfCrypt benchmark |
+| `dhuk`    | `STM32_Bare_Test/src/main_dhuk.c`   | transparent DHUK GMAC / AES-ECB / ECDSA + `wc_ecc_import_wrapped_private` validation |
+| `ccb`     | `STM32_Bare_Test/src/main_ccb.c`    | transparent CCB ECDSA (make_key/sign/verify) + `wc_ecc_import_wrapped_private_ex` validation |
+| `ccbhal`  | `STM32_Bare_Test/src/main_ccbhal.c` | CubeMX `HAL_CCB_*` CCB reference flow |
+| `stsaes`  | `STM32_Bare_Test/src/main_stsaes.c` | ST HAL SAES wrapped-key (DHUK) flow |
+| `c5sign`  | `STM32_Bare_Test/src/main_c5sign.c` | STM32C5 bare PKA protected-ECDSA-sign probe (vs ST CAVP vector) |
+| `c5rng`   | `STM32_Bare_Test/src/main_c5rng.c`  | STM32C5 HW-RNG conditioning probe |
+
 
 ## STM32 Symmetric Acceleration
 
@@ -62,6 +77,8 @@ You can selectively disable parts of the HW acceleration:
 
 If your chip simply does not have an IP block (e.g. H7Ax has no CRYP/HASH; F207 has no CRYP/HASH) the family arm sets the appropriate `NO_STM32_*` defines for you.
 
+The TinyAES IP exposes a single key-size bit (128/256 only), so wolfSSL auto-defines `NO_AES_192` on those families (C5/H5/G4/G0/U0/L4/L5/U3/U5/WB/WBA/WL). AES-192 is therefore unavailable under HW crypto on these parts (there is no software fallback when `NO_STM32_CRYPTO` is not set); the CRYP-IP families are unaffected.
+
 ### SAES instance routing
 
 Some newer families (H5/H7S/U3/U5/WBA/C5/N6, plus the L562 sub-variant) expose a Secure AES (SAES) instance in addition to (or instead of) a regular AES block. Define `WOLFSSL_STM32_USE_SAES` to route all wolfcrypt AES traffic through SAES via the `WC_STM32_AES_INST` indirection macro. This is required when the regular AES block is TrustZone-gated (H7S3) and is also a prerequisite for DHUK key-wrap on the families in the `WC_STM32_HAS_DHUK` gate (U3/U5/H5/WBA/C5).
@@ -73,6 +90,11 @@ Include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers. If bu
 ### Benchmarks
 
 See our [benchmarks](https://www.wolfssl.com/docs/benchmarks/) page for canonical numbers. For per-silicon BARE-vs-CubeMX comparisons across the current 27-board NUCLEO matrix, see the bench tables in [wolfssl-examples-stm32/STM32_Bare_Test/README.md](https://github.com/wolfSSL/wolfssl-examples-stm32).
+
+
+## STM32 RNG
+
+The direct-register RNG path (`WOLFSSL_STM32F427_RNG` / `WOLFSSL_STM32_RNG_NOLIB` / `STM32_NUTTX_RNG`, and the new BARE/C5 port) shares one `wc_GenerateSeed` implementation. As of this port it does a bounded per-word poll plus a seed/clock-error (`SEIS`/`CEIS`) recover-and-retry loop -- clear the status, toggle `RNGEN`, discard up to four stale `DR` words, and retry up to a fixed budget -- instead of the previous immediate `SECS`/`CECS` hard-fail. It still fails closed (`RNG_FAILURE_E`) once the retry budget is exhausted and only emits a word when `DRDY` is set with no error latched. Net effect for existing F4/F7/F427/NuttX users: a transient seed/clock error is now recovered rather than reported on the first occurrence. The behavior is shared across all direct-register families; if you require the legacy immediate fast-fail, gate accordingly in `user_settings.h`.
 
 
 ## STM32 PKA (Public Key Acceleration)
@@ -111,6 +133,10 @@ A DHUK-protected key is driven by a per-key 256-bit seed. The SAES derives the d
 
 `WC_STM32_HAS_DHUK` is auto-defined for the SAES+DHUK families when `WOLFSSL_DHUK` is set; other families compile out the DHUK code. `WOLFSSL_STM32_BARE` selects the bare-metal SAES backend.
 
+### Migration from WOLFSSL_STM32U5_DHUK
+
+`WOLFSSL_STM32U5_DHUK` is now an alias for this `WOLFSSL_DHUK` crypto-callback model and requires `WOLF_CRYPTO_CB` (a `#error` fires otherwise). The previous experimental inline path -- wrapped-key AES handled directly inside `wc_AesEncrypt` / `wc_AesDecrypt` / `wc_AesCbcEncrypt` / `wc_AesCbcDecrypt`, plus `wc_Stm32_Aes_SetDHUK_IV()`, `wc_Stm32_Aes_UnWrap()`, and the `Aes.dhukIV` / `dhukIVLen` members -- has been removed (fail-loud: code referencing those symbols no longer compiles). Migrate to the devId model shown below: register the device, init with `WC_DHUK_DEVID`, and use the normal `wc_Aes*` / `wc_ecc_*` APIs. Note that transparent DHUK AES/GMAC is bare-only (`WOLFSSL_STM32_BARE`); on the CubeMX/HAL path the crypto callback covers CCB ECDSA sign/keygen only.
+
 ### API
 
 ```c
@@ -128,6 +154,8 @@ wc_Stm32_DhukUnRegister(WC_DHUK_DEVID);
 ```
 
 ECDSA mirrors this: init the key with `wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID)`, import the wrapped private scalar plus its derivation seed with `wc_ecc_import_wrapped_private(&key, seed, seedSz, wrapped, wrappedLen, plainLen)`, then call the normal `wc_ecc_sign_hash()`; verification uses the in-clear public key unchanged. The seed reaches the device as the AES key bytes (`aes->devKey`, set by the normal `wc_AesSetKey` / `wc_AesGcmSetKey`) or, for ECC, on the `ecc_key`; the STM32 callback reads it and derives the working key inside SAES.
+
+Worked example: [`STM32_Bare_Test/src/main_dhuk.c`](https://github.com/wolfSSL/wolfssl-examples-stm32/blob/master/STM32_Bare_Test/src/main_dhuk.c) drives `wc_Stm32_DhukRegister` through transparent GMAC, AES-ECB, and ECDSA, and exercises the `wc_ecc_import_wrapped_private` argument validation in its `test_ecc_dhuk_setter()` block.
 
 ### Provisioning helper
 
@@ -188,6 +216,8 @@ wc_Stm32_DhukUnRegister(WC_DHUK_DEVID);
 ```
 
 To reuse a key across resets, persist the blob from a provisioned key and reload it later with `wc_ecc_import_wrapped_private_ex(&key, curve_id, wrapped, wrappedLen, iv, tag, pub, pubLen)` (the public key in uncompressed `qx||qy` form), then sign as above. Both paths set `key->dhuk_is_ccb` and the device `devId`, so dispatch to the CCB happens automatically inside the crypto callback.
+
+Worked example: [`STM32_Bare_Test/src/main_ccb.c`](https://github.com/wolfSSL/wolfssl-examples-stm32/blob/master/STM32_Bare_Test/src/main_ccb.c) runs the full `wc_ecc_make_key` -> `wc_ecc_sign_hash` -> `wc_ecc_verify_hash` flow and exercises the `wc_ecc_import_wrapped_private_ex` argument validation in its `ccb_import_arg_checks()` block.
 
 ### Current state
 
