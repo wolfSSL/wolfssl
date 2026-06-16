@@ -1231,15 +1231,11 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             continue;
 
         if (unlikely(ret == WC_NO_ERR_TRACE(RNG_FAILURE_E))) {
-            if (slen > 0) {
-                ret = -EINVAL;
+            if (slen > 0)
                 break;
-            }
 
-            if (retried) {
-                ret = -EINVAL;
+            if (retried)
                 break;
-            }
             retried = 1;
 
             ret = wc_rng_bank_inst_reinit(ctx,
@@ -1248,20 +1244,21 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                           WC_RNG_BANK_FLAG_CAN_WAIT);
 
             if (ret == 0) {
-                pr_warn("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E from wc_RNG_GenerateBlock().\n", raw_smp_processor_id());
+                pr_warn_ratelimited("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E from wc_RNG_GenerateBlock().\n", raw_smp_processor_id());
                 continue;
             }
             else {
-                pr_warn_once("ERROR: reinitialization of DRBG #%d after RNG_FAILURE_E failed with ret %d.\n", raw_smp_processor_id(), ret);
-                ret = -EINVAL;
+                pr_err_ratelimited("ERROR: reinitialization of DRBG #%d after RNG_FAILURE_E failed with ret %d.\n", raw_smp_processor_id(), ret);
                 break;
             }
         }
-        else {
-            pr_warn_once("ERROR: wc_linuxkm_drbg_generate() wc_RNG_GenerateBlock returned %d.\n",ret);
-            ret = -EINVAL;
+        else
             break;
-        }
+    }
+
+    if (ret != 0) {
+        pr_err_ratelimited("ERROR: wc_linuxkm_drbg_generate() failing on wolfCrypt code %d.\n",ret);
+        ret = -EINVAL;
     }
 
 out:
