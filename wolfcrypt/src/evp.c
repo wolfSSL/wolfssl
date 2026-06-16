@@ -3106,6 +3106,11 @@ int wolfSSL_EVP_PKEY_CTX_add1_hkdf_info(WOLFSSL_EVP_PKEY_CTX* ctx,
         WOLFSSL_MSG("WOLFSSL_EVP_PKEY type is not HKDF.");
         ret = WOLFSSL_FAILURE;
     }
+    if (ret == WOLFSSL_SUCCESS && info != NULL && infoSz > 0 &&
+            ctx->pkey->hkdfInfoSz > (WOLFSSL_MAX_32BIT - (word32)infoSz)) {
+        WOLFSSL_MSG("HKDF info length overflow.");
+        ret = WOLFSSL_FAILURE;
+    }
 
     if (ret == WOLFSSL_SUCCESS && info != NULL && infoSz > 0) {
         unsigned char* p;
