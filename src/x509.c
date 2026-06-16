@@ -6482,6 +6482,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 key->type = WC_EVP_PKEY_DILITHIUM;
             }
         #endif
+        #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+            else if (x509->pubKeyOID == ED25519k) {
+                key->type = WC_EVP_PKEY_ED25519;
+            }
+        #endif
             else {
                 key->type = WC_EVP_PKEY_EC;
             }
@@ -6572,6 +6577,29 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 }
             }
             #endif /* NO_DSA */
+
+            /* decode Ed25519 key */
+            #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+            if (key->type == WC_EVP_PKEY_ED25519) {
+                key->ed25519 = wolfSSL_ED25519_new(x509->heap, INVALID_DEVID);
+                if (key->ed25519 == NULL) {
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+                key->ownEd25519 = 1;
+
+                /* The X.509 public key buffer holds the raw Ed25519 key
+                 * (CopyDecodedToX509 / StoreKey store the BIT STRING
+                 * contents), so import it directly. */
+                if (wc_ed25519_import_public(
+                            (const unsigned char*)key->pkey.ptr,
+                            (word32)key->pkey_sz, key->ed25519) != 0) {
+                    WOLFSSL_MSG("wc_ed25519_import_public failed");
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+            }
+            #endif /* HAVE_ED25519 */
         }
     }
     return key;
@@ -9010,6 +9038,12 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
     const byte* der;
     int derSz = 0;
     int type;
+    const byte* pubKey;
+    int pubKeySz;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    byte edPubKey[ED25519_PUB_KEY_SIZE];
+    word32 edPubKeySz = (word32)sizeof(edPubKey);
+#endif
 
     (void)req;
 
@@ -9022,6 +9056,10 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
         WOLFSSL_MSG("Error getting WOLFSSL_X509 DER");
         return WOLFSSL_FATAL_ERROR;
     }
+
+    /* Most key types verify against the cached public-key DER. */
+    pubKey   = (const byte*)pkey->pkey.ptr;
+    pubKeySz = pkey->pkey_sz;
 
     switch (pkey->type) {
         case WC_EVP_PKEY_RSA:
@@ -9036,6 +9074,23 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
             type = DSAk;
             break;
 
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+        case WC_EVP_PKEY_ED25519:
+            /* The signature check needs the raw public key; for Ed25519
+             * pkey->pkey.ptr holds a PKCS#8 private blob (or nothing), so
+             * export the public key from the ed25519_key instead. */
+            if (pkey->ed25519 == NULL ||
+                    wc_ed25519_export_public(pkey->ed25519, edPubKey,
+                        &edPubKeySz) != 0) {
+                WOLFSSL_MSG("Unable to export Ed25519 public key");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            pubKey   = edPubKey;
+            pubKeySz = (int)edPubKeySz;
+            type     = ED25519k;
+            break;
+    #endif
+
         default:
             WOLFSSL_MSG("Unknown pkey key type");
             return WOLFSSL_FATAL_ERROR;
@@ -9044,11 +9099,11 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
 #ifdef WOLFSSL_CERT_REQ
     if (req)
         ret = CheckCSRSignaturePubKey(der, (word32)derSz, x509->heap,
-                (unsigned char*)pkey->pkey.ptr, pkey->pkey_sz, type);
+                (unsigned char*)pubKey, pubKeySz, type);
     else
 #endif
         ret = CheckCertSignaturePubKey(der, (word32)derSz, x509->heap,
-                (unsigned char*)pkey->pkey.ptr, pkey->pkey_sz, type);
+                (unsigned char*)pubKey, pubKeySz, type);
     if (ret == 0) {
         return WOLFSSL_SUCCESS;
     }
@@ -12225,6 +12280,14 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
 
+    #if defined(HAVE_ED25519)
+        /* Ed25519 carries its own hash, so md is unused (and may be NULL).
+         * Resolve it before touching md. */
+        if (pkey->type == WC_EVP_PKEY_ED25519) {
+            return CTC_ED25519;
+        }
+    #endif
+
         /* Convert key type and hash algorithm to a signature algorithm */
         if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL)
             == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
@@ -12336,6 +12399,9 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     #endif
     #ifndef NO_DSA
         DsaKey* dsa = NULL;
+    #endif
+    #if defined(HAVE_ED25519)
+        ed25519_key* ed25519 = NULL;
     #endif
     #if defined(HAVE_FALCON)
         falcon_key* falcon = NULL;
@@ -12470,6 +12536,28 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
                 return ret;
             }
             key = (void*)dsa;
+        }
+    #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        if (x509->pubKeyOID == ED25519k) {
+            ed25519 = wolfSSL_ED25519_new(NULL, INVALID_DEVID);
+            if (ed25519 == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for ed25519_key");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
+            type = ED25519_TYPE;
+            /* The X.509 public key buffer holds the raw Ed25519 key. */
+            ret = wc_ed25519_import_public(x509->pubKey.buffer,
+                                           x509->pubKey.length, ed25519);
+            if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
+                wolfSSL_ED25519_free(ed25519);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)ed25519;
         }
     #endif
     #if defined(HAVE_FALCON)
@@ -12723,6 +12811,11 @@ cleanup:
             XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
         }
     #endif
+    #if defined(HAVE_ED25519)
+        if (x509->pubKeyOID == ED25519k) {
+            wolfSSL_ED25519_free(ed25519);
+        }
+    #endif
     #ifndef NO_DSA
         if (x509->pubKeyOID == DSAk) {
             wc_FreeDsaKey(dsa);
@@ -12805,6 +12898,12 @@ cleanup:
         if (pkey->type == WC_EVP_PKEY_EC) {
             type = ECC_TYPE;
             key = pkey->ecc->internal;
+        }
+    #endif
+    #if defined(HAVE_ED25519)
+        if (pkey->type == WC_EVP_PKEY_ED25519) {
+            type = ED25519_TYPE;
+            key = pkey->ed25519;
         }
     #endif
 
@@ -12895,9 +12994,22 @@ int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
 
     WOLFSSL_ENTER("wolfSSL_X509_sign");
 
-    if (x509 == NULL || pkey == NULL || md == NULL) {
+    if (x509 == NULL || pkey == NULL) {
         ret = WOLFSSL_FAILURE;
         goto out;
+    }
+
+    /* Most key types require an explicit digest.  Ed25519 is the exception:
+     * it signs with a NULL digest (the key has a built-in hash).  Kept as a
+     * dedicated block since other algorithms may grow similar edge cases. */
+    if (md == NULL) {
+    #if defined(HAVE_ED25519)
+        if (pkey->type != WC_EVP_PKEY_ED25519)
+    #endif
+        {
+            ret = WOLFSSL_FAILURE;
+            goto out;
+        }
     }
 
     x509->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
@@ -16406,6 +16518,30 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                 return WOLFSSL_FAILURE;
             }
             cert->pubKeyOID = ECDSAk;
+        }
+        break;
+#endif
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    case WC_EVP_PKEY_ED25519:
+        {
+            word32 rawLen = ED25519_PUB_KEY_SIZE;
+
+            if (pkey->ed25519 == NULL)
+                return WOLFSSL_FAILURE;
+
+            /* Store the RAW public key: wolfSSL keeps an X.509 Ed25519
+             * public key as the bare key bytes (see StoreKey /
+             * CopyDecodedToX509), not a SubjectPublicKeyInfo. */
+            p = (byte*)XMALLOC(rawLen, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL)
+                return WOLFSSL_FAILURE;
+
+            if (wc_ed25519_export_public(pkey->ed25519, p, &rawLen) != 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
+            derSz = (int)rawLen;
+            cert->pubKeyOID = ED25519k;
         }
         break;
 #endif
