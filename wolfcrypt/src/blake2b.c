@@ -532,6 +532,9 @@ int wc_Blake2bHmacUpdate(Blake2b* b2b, const byte* in, size_t in_len)
 {
     if (in == NULL)
         return BAD_FUNC_ARG;
+    /* Sanity check in_len to prevent truncation when cast to word32. */
+    if (in_len > WOLFSSL_MAX_32BIT)
+        return BAD_FUNC_ARG;
 
     return wc_Blake2bUpdate(b2b, in, (word32)in_len);
 }
