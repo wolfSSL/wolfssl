@@ -529,6 +529,8 @@ int wc_Blake2sHmacUpdate(Blake2s* b2s, const byte* in, size_t in_len)
 {
     if (in == NULL)
         return BAD_FUNC_ARG;
+    if ((word32)in_len != in_len)
+        return BAD_FUNC_ARG;
 
     return wc_Blake2sUpdate(b2s, in, (word32)in_len);
 }
