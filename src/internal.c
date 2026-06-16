@@ -22566,7 +22566,8 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 #endif
 
     /* make sure can read the message */
-    if (dataSz != ALERT_SIZE) {
+    if (dataSz != ALERT_SIZE ||
+            *inOutIdx + ALERT_SIZE > ssl->buffers.inputBuffer.length) {
 #ifdef WOLFSSL_EXTRA_ALERTS
         SendAlert(ssl, alert_fatal, unexpected_message);
 #endif
