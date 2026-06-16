@@ -184,14 +184,15 @@ jobs:
           sudo apt-get clean
           retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
           retry sudo apt-get update -q
-          skipped=0
-          for pkg in "${PKGS[@]}"; do
-            retry sudo apt-get install -y --download-only "$pkg" \
-              || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
-          done
+          # The whole set is required and this bundle is small, so resolve it as
+          # one closure and let any download failure fail the job. We push only
+          # on success, so a transient mirror error keeps the last good bundle
+          # rather than publishing a partial one - which the kernel-label skip
+          # would then pin in place until the kernel next changes (~monthly).
+          retry sudo apt-get install -y --download-only "${PKGS[@]}"
           sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
-          echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files; ${skipped} skipped"
-          test -n "$(ls debs/*.deb 2>/dev/null)"
+          echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files"
+          test -n "$(ls debs/*.deb 2>/dev/null)"  # headers are never preinstalled
 
       - name: Build and push bundle (labelled with the kernel)
         if: steps.check.outputs.rebuild == 'true'
