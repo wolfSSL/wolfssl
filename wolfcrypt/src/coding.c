@@ -675,6 +675,9 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (in == NULL || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
+    if (inLen > (WOLFSSL_MAX_32BIT / 2))
+        return BAD_FUNC_ARG;
+
     if (*outLen < (2 * inLen))
         return BAD_FUNC_ARG;
 
