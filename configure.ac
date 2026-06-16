@@ -12489,6 +12489,16 @@ if test "x$WOLFSSL_EXEC_PREFIX_ABS" = "xNONE"; then
 fi
 prefix=$WOLFSSL_PREFIX_ABS
 exec_prefix=$WOLFSSL_EXEC_PREFIX_ABS
+# The eval calls below expand ${prefix}/${exec_prefix} references embedded in
+# the libdir/includedir values. eval would, however, also execute any shell
+# command substitution contained in a --libdir/--includedir value (e.g.
+# --libdir='$(cmd)/lib'), running arbitrary commands during configure.
+# Reject values that contain command substitution before the eval.
+case "$libdir $includedir" in
+    *'`'* | *'$('*)
+        AC_MSG_ERROR([--libdir and --includedir must not contain shell command substitution])
+        ;;
+esac
 eval WOLFSSL_LIBDIR_ABS=\"$libdir\"
 eval WOLFSSL_INCLUDEDIR_ABS=\"$includedir\"
 AC_SUBST([WOLFSSL_PREFIX_ABS])
