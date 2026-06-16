@@ -772,6 +772,50 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
 #endif /* STM32_CRYPTO */
 
+/* DHUK (Device Hardware Unique Key) -- SAES key wrap / unwrap using a
+ * silicon-bound key. Originally introduced for STM32U5 only; the
+ * underlying SAES + DHUK infrastructure is also present on U3, H5,
+ * WBA, and C5. Use WOLFSSL_DHUK going forward; WOLFSSL_STM32U5_DHUK
+ * is kept as a backwards-compatible alias for one release cycle. */
+#if defined(WOLFSSL_STM32U5_DHUK) && !defined(WOLFSSL_DHUK)
+    #define WOLFSSL_DHUK
+#endif
+#if defined(WOLFSSL_DHUK) && !defined(WOLFSSL_STM32U5_DHUK)
+    #define WOLFSSL_STM32U5_DHUK
+#endif
+
+/* Family gate: only families that actually have SAES + DHUK silicon.
+ * L5 has a "secure AES" instance but its CR layout does not include
+ * KMOD / KEYSEL fields -- it does not implement the same DHUK key-
+ * wrap protocol as U5/U3/H5/WBA/C5. L5 is intentionally excluded. */
+#if defined(WOLFSSL_DHUK) && \
+    (defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32U3) || \
+     defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WBA) || \
+     defined(WOLFSSL_STM32C5) || defined(WOLFSSL_STM32H7S))
+    #define WC_STM32_HAS_DHUK
+#endif
+
+/* Transparent DHUK crypto flows through the crypto-callback framework, so
+ * WOLF_CRYPTO_CB is mandatory whenever DHUK is enabled. */
+#if defined(WOLFSSL_DHUK) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLFSSL_DHUK requires WOLF_CRYPTO_CB (crypto callback dispatch)"
+#endif
+
+#if defined(WOLFSSL_DHUK) && !defined(WOLFSSL_DHUK_DEVID)
+    /* SAES / DHUK device IDs. wc_Stm32_Aes_Wrap selects the wrap-key source
+     * by aes->devId (HW DHUK vs a software key). Transparent DHUK crypto
+     * routes through the crypto-callback device registered at WC_DHUK_DEVID
+     * (see wc_Stm32_DhukRegister), not these markers. */
+    #define WOLFSSL_DHUK_DEVID              808
+    #define WOLFSSL_SAES_DEVID              807
+    /* Crypto-callback device id for transparent DHUK crypto (same value as the
+     * SAES/DHUK marker; override before include if it collides). */
+    #ifndef WC_DHUK_DEVID
+        #define WC_DHUK_DEVID              808
+    #endif
+
+    int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
+        word32* outSz, const byte* iv, int ivSz);
 #ifdef WOLFSSL_STM32_BARE
     /* Optional exact-key import primitive: unwrap a DHUK-wrapped key into SAES
      * KEYR and ECB/CBC with it. _ex `isCbc`: 0=ECB, 1=CBC. Returns
@@ -785,6 +829,32 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #endif
 
 #if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
+struct ecc_key;
+struct WC_RNG;
+
+int stm32_ecc_verify_hash_ex(MATH_INT_T *r, MATH_INT_T *s, const byte* hash,
+                    word32 hashlen, int* res, struct ecc_key* key);
+
+int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
+                     struct ecc_key* key, MATH_INT_T *r, MATH_INT_T *s);
+#endif /* WOLFSSL_STM32_PKA && HAVE_ECC */
+
+
+/* DHUK BARE port: the STM32 crypto-callback device. Built on families with
+ * SAES + DHUK (the WC_STM32_HAS_DHUK gate); transparent DHUK crypto (AES /
+ * GMAC / ECDSA) routes through it via the cryptocb path. */
+#if defined(WOLFSSL_STM32_BARE) && defined(WC_STM32_HAS_DHUK)
+
+#ifdef WOLF_CRYPTO_CB
+    /* Register / unregister the STM32 DHUK device. After registering at
+     * WC_DHUK_DEVID, set an object's devId to it at init
+     * (wc_AesInit / wc_ecc_init_ex) and supply the 256-bit seed as the key
+     * (wc_AesGcmSetKey) or via wc_ecc_import_wrapped_private(). */
+    int  wc_Stm32_DhukRegister(int devId);
+    void wc_Stm32_DhukUnRegister(int devId);
+#endif
+
+#endif /* WOLFSSL_STM32_BARE && WC_STM32_HAS_DHUK */
 
 
 #endif /* _WOLFPORT_STM32_H_ */

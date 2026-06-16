@@ -96,6 +96,54 @@ The STM32 PKA peripheral accelerates ECC scalar multiplication and ECDSA sign/ve
 - BARE-metal V2 PKA ECDSA sign/verify is work-in-progress -- the single-curve P-256 path is functional but multi-curve sweeps in `wolfcrypt_test` hit a -248 result on some boards. Track this in the wolfssl-examples-stm32 STM32_Bare_Test/README.
 
 
+## STM32 DHUK (Device Hardware Unique Key)
+
+Newer STM32 silicon (U3/U5/WBA/H5/C5/N6; the `WC_STM32_HAS_DHUK` family gate) carries a chip-unique 256-bit key (DHUK) burned into the SAES key-derivation path. wolfSSL exposes it through the standard crypto-callback (`WOLF_CRYPTO_CB`) framework: register the STM32 DHUK device once, init a normal `Aes` / `ecc_key` with its `devId`, then perform NORMAL wolfCrypt operations (AES, AES-GCM/GMAC, ECDSA sign) transparently. There is no separate DHUK module -- the STM32 crypto callback lives in `wolfcrypt/src/port/st/stm32.c`.
+
+A DHUK-protected key is driven by a per-key 256-bit seed. The SAES derives the device-bound working key from (seed, DHUK) inside the hardware; for symmetric operations the derived key never appears in software. For ECDSA the derived key decrypts a wrapped private scalar into a short-lived buffer only.
+
+### Enabling
+
+```
+#define WOLFSSL_DHUK         /* enable DHUK */
+#define WOLF_CRYPTO_CB       /* required -- DHUK routes through crypto callbacks */
+```
+
+`WC_STM32_HAS_DHUK` is auto-defined for the SAES+DHUK families when `WOLFSSL_DHUK` is set; other families compile out the DHUK code. `WOLFSSL_STM32_BARE` selects the bare-metal SAES backend.
+
+### API
+
+```c
+/* one-time: register the STM32 DHUK crypto-callback device */
+wc_Stm32_DhukRegister(WC_DHUK_DEVID);
+
+/* AES / GMAC: enable via devId at init, then pass the 256-bit seed as the key */
+Aes aes;
+wc_AesInit(&aes, NULL, WC_DHUK_DEVID);
+wc_AesGcmSetKey(&aes, seed, 32);
+wc_AesGcmEncrypt(&aes, NULL, NULL, 0, iv, ivSz, tag, tagSz, aad, aadSz); /* GMAC */
+wc_AesFree(&aes);
+
+wc_Stm32_DhukUnRegister(WC_DHUK_DEVID);
+```
+
+ECDSA mirrors this: init the key with `wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID)`, import the wrapped private scalar plus its derivation seed with `wc_ecc_import_wrapped_private(&key, seed, seedSz, wrapped, wrappedLen, plainLen)`, then call the normal `wc_ecc_sign_hash()`; verification uses the in-clear public key unchanged. The seed reaches the device as the AES key bytes (`aes->devKey`, set by the normal `wc_AesSetKey` / `wc_AesGcmSetKey`) or, for ECC, on the `ecc_key`; the STM32 callback reads it and derives the working key inside SAES.
+
+### Provisioning helper
+
+`wc_Stm32_Aes_Wrap()` performs a chip-bound DHUK wrap (KEYSEL=HW, deterministic output) and is retained for provisioning wrapped key material. `WOLFSSL_DHUK_DEVID` (808) / `WOLFSSL_SAES_DEVID` (807) select its wrap-key source.
+
+### Current state
+
+- Validated on STM32U385 (TZEN=0): transparent GMAC, AES-ECB, and ECDSA sign all run through the crypto-callback path; the derived key is deterministic, AES round-trips, and ECDSA verifies with the public counterpart.
+- The SAES key-derivation/unwrap passes complete via `SR.BUSY` clearing plus `SR.KEYVALID`, NOT via `CCF` (which is only raised for data-output passes). Waiting on `CCF` for the key path was the original `WC_TIMEOUT_E`; the BUSY/KEYVALID completion is the fix.
+- STM32U585 under TZEN=1 secure state: the derive currently stalls (`SR.BUSY` does not clear) -- a secure-context concern (SAES RNG / GTZC) that is open work. DHUK does not otherwise require secure state.
+
+### Optional exact-key import (off by default)
+
+`wc_Stm32_Aes_DhukOp[_ex]()` unwraps a previously DHUK-wrapped key into SAES KEYR and runs AES ECB/CBC with it (importing an externally-chosen key, vs deriving one from a seed). It is compiled only with `WOLFSSL_STM32_DHUK_UNWRAP`, is called explicitly (not auto-routed), and is not re-validated on current hardware.
+
+
 ## STM32 BARE-metal port
 
 `WOLFSSL_STM32_BARE` selects a direct-register integration with zero HAL or StdPeriLib dependency. Use this for:

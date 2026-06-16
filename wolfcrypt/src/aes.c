@@ -4417,6 +4417,14 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(rk, userKey, keylen);
+    #ifdef WOLF_CRYPTO_CB
+        /* Keep a raw (non-reversed) copy for crypto-callback offload, e.g. the
+         * DHUK device reads the seed from devKey. Mirrors the generic
+         * wc_AesSetKey cryptocb path. */
+        if (keylen <= sizeof(aes->devKey)) {
+            XMEMCPY(aes->devKey, userKey, keylen);
+        }
+    #endif
     #if !defined(WOLFSSL_STM32_CUBEMX) || defined(STM32_HAL_V2)
         ByteReverseWords(rk, rk, keylen);
     #endif
