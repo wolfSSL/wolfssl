@@ -1518,7 +1518,6 @@ static int gen_ca_int_keyusage(byte* out, int outMax, RsaKey* subjKey,
     RsaKey* caKey, WC_RNG* rng, const char* cn, const char* keyUsage)
 {
     Cert cert;
-    int  sz;
 
     if (wc_InitCert(&cert) != 0)
         return -1;
@@ -1537,7 +1536,7 @@ static int gen_ca_int_keyusage(byte* out, int outMax, RsaKey* subjKey,
     if (wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
             (int)sizeof_ca_cert_der_2048) != 0)
         return -1;
-    if ((sz = wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng)) < 0)
+    if (wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng) < 0)
         return -1;
     return wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax, caKey,
         NULL, rng);
@@ -1549,7 +1548,6 @@ static int gen_leaf_under_int(byte* out, int outMax, RsaKey* leafKey,
     const char* cn)
 {
     Cert cert;
-    int  sz;
 
     if (wc_InitCert(&cert) != 0)
         return -1;
@@ -1566,7 +1564,7 @@ static int gen_leaf_under_int(byte* out, int outMax, RsaKey* leafKey,
         return -1;
     if (wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz) != 0)
         return -1;
-    if ((sz = wc_MakeCert(&cert, out, (word32)outMax, leafKey, NULL, rng)) < 0)
+    if (wc_MakeCert(&cert, out, (word32)outMax, leafKey, NULL, rng) < 0)
         return -1;
     return wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
         issuerKey, NULL, rng);
