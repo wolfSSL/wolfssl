@@ -1,41 +1,57 @@
 # ST Ports
 
-Support for the STM32 L4, F1, F2, F4, F7 and MP13 on-board crypto hardware
-acceleration:
- - symmetric AES (ECB/CBC/CTR/GCM)
- - MD5/SHA1/SHA224/SHA256 (MP13 does not have MD5 acceleration)
+Support for STM32 on-chip crypto hardware acceleration across the following families:
 
-Support for the STM32 PKA on WB55, H7, MP13 and other devices with on-board
-public-key acceleration:
- - ECC192/ECC224/ECC256/ECC384
+| Family flag           | Chips / typical NUCLEO board                                       |
+|-----------------------|--------------------------------------------------------------------|
+| `WOLFSSL_STM32F1`     | F1xx                                                                |
+| `WOLFSSL_STM32F2`     | F2xx (RNG only on F207)                                             |
+| `WOLFSSL_STM32F4`     | F4xx (CRYP / HASH / RNG)                                            |
+| `WOLFSSL_STM32F7`     | F7xx (CRYP / HASH / RNG)                                            |
+| `WOLFSSL_STM32G0`     | G0xx (TinyAES / RNG on crypto G0Bx/G0Cx; RNG-only on others)        |
+| `WOLFSSL_STM32G4`     | G4xx (TinyAES / RNG / V1 PKA)                                       |
+| `WOLFSSL_STM32H5`     | H5xx (HASH / RNG / SAES / V2 PKA / DHUK on H573)                    |
+| `WOLFSSL_STM32H7`     | H7xx classic (CRYP / HASH / RNG); H7Ax/H7Bx + H72x are RNG-only     |
+| `WOLFSSL_STM32H7S`    | H7Sx (SAES / HASH / RNG / V2 PKA)                                   |
+| `WOLFSSL_STM32L4`     | L4xx (TinyAES variants / HASH / RNG / V1 PKA on L4-rev)             |
+| `WOLFSSL_STM32L5`     | L5xx (HASH / RNG / V1 PKA; TinyAES + SAES on L562)                  |
+| `WOLFSSL_STM32U0`     | U0xx (TinyAES / RNG only)                                           |
+| `WOLFSSL_STM32U3`     | U3xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK)                  |
+| `WOLFSSL_STM32U5`     | U5xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK)                  |
+| `WOLFSSL_STM32WB`     | WB55 (TinyAES / RNG / V1 PKA)                                       |
+| `WOLFSSL_STM32WBA`    | WBA52 (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK)                 |
+| `WOLFSSL_STM32WL`     | WL55 (TinyAES / RNG / V1 PKA)                                       |
+| `WOLFSSL_STM32C0`     | C0xx (not yet supported in settings.h; SW only)                     |
+| `WOLFSSL_STM32C5`     | C5xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK)                  |
+| `WOLFSSL_STM32N6`     | N6xx (TinyAES / HASH / RNG / SAES / V2 PKA / DHUK; M55 core)        |
+| `WOLFSSL_STM32MP13`   | MP13 (CRYP / HASH / RNG / PKA; Cortex-A7)                           |
+| `WOLFSSL_STM32MP25`   | MP25 (not yet supported in settings.h; Cortex-A35 + M33)            |
 
-Support for the STSAFE-A secure element family via I2C for ECC supporting NIST P-256/P-384 and Brainpool 256/384-bit curves:
- - **STSAFE-A100/A110**: Uses ST's proprietary STSAFE-A1xx middleware. Contact us at support@wolfssl.com for integration assistance.
- - **STSAFE-A120**: Uses ST's open-source [STSELib](https://github.com/STMicroelectronics/STSELib) (BSD-3 license).
+The port supports three integration flavors:
 
+- **CubeMX HAL** (`WOLFSSL_STM32_CUBEMX`) -- recommended for most projects. Pairs with ST's CubeMX-generated HAL drivers. This is the legacy default and what STM32 forum tutorials describe.
+- **Standard Peripheral Library** (no `WOLFSSL_STM32_CUBEMX`) -- legacy StdPeriLib path, kept for older F1/F2/F4 projects that have not migrated.
+- **BARE-metal** (`WOLFSSL_STM32_BARE`) -- direct-register access with zero HAL or StdPeriLib dependency. Designed for wolfBoot / no-OS / FreeRTOS / TrustZone-NS workloads where pulling in the HAL is undesirable. See [wolfssl-examples-stm32/STM32_Bare_Test](https://github.com/wolfSSL/wolfssl-examples-stm32) for a 27-board reference matrix.
+
+Support for the STSAFE-A secure element family via I2C is documented separately below.
 
 For details see our [wolfSSL ST](https://www.wolfssl.com/docs/stm32/) page.
 
 
 ## STM32 Symmetric Acceleration
 
-We support using the STM32 CubeMX and Standard Peripheral Library.
+The CRYP IP block (full-size, older families F2/F4/F7/H7-classic/MP13) and the TinyAES IP block (smaller, newer families L4/L5/G4/U0/U3/U5/WB/WBA/WL/H5/C5/N6) are both driven through the same wolfcrypt entry points in `wolfcrypt/src/port/st/stm32.c`. The HASH IP block has its own driver and is independent of the AES block.
 
-### Building
+### Enabling
 
-To enable support define one of the following:
+Define the appropriate family flag from the table above, plus a build-flavor flag:
 
 ```
-#define WOLFSSL_STM32L4
-#define WOLFSSL_STM32F1
-#define WOLFSSL_STM32F2
-#define WOLFSSL_STM32F4
-#define WOLFSSL_STM32F7
+#define WOLFSSL_STM32U5            /* family */
+#define WOLFSSL_STM32_CUBEMX       /* or WOLFSSL_STM32_BARE */
 ```
 
-To use CubeMX define `WOLFSSL_STM32_CUBEMX` otherwise StdPeriLib is used.
-
-To disable portions of the hardware acceleration you can optionally define:
+You can selectively disable parts of the HW acceleration:
 
 ```
 #define NO_STM32_RNG
@@ -44,29 +60,111 @@ To disable portions of the hardware acceleration you can optionally define:
 #define NO_STM32_HMAC
 ```
 
+If your chip simply does not have an IP block (e.g. H7Ax has no CRYP/HASH; F207 has no CRYP/HASH) the family arm sets the appropriate `NO_STM32_*` defines for you.
+
+### SAES instance routing
+
+Some newer families (H5/H7S/U3/U5/WBA/C5/N6, plus the L562 sub-variant) expose a Secure AES (SAES) instance in addition to (or instead of) a regular AES block. Define `WOLFSSL_STM32_USE_SAES` to route all wolfcrypt AES traffic through SAES via the `WC_STM32_AES_INST` indirection macro. This is required when the regular AES block is TrustZone-gated (H7S3) and is also a prerequisite for DHUK key-wrap on the families in the `WC_STM32_HAS_DHUK` gate (U3/U5/H5/WBA/C5).
+
 ### Coding
 
-In your application you must include <wolfssl/wolfcrypt/settings.h> before any other wolfSSL headers. If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` and adding your own `user_settings.h` file. You can find a good reference for this in `IDE/GCC-ARM/Header/user_settings.h`.
-
+Include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers. If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` and adding your own `user_settings.h`. A reference is in `IDE/GCC-ARM/Header/user_settings.h`.
 
 ### Benchmarks
 
-See our [benchmarks](https://www.wolfssl.com/docs/benchmarks/) on the wolfSSL website.
+See our [benchmarks](https://www.wolfssl.com/docs/benchmarks/) page for canonical numbers. For per-silicon BARE-vs-CubeMX comparisons across the current 27-board NUCLEO matrix, see the bench tables in [wolfssl-examples-stm32/STM32_Bare_Test/README.md](https://github.com/wolfSSL/wolfssl-examples-stm32).
 
 
 ## STM32 PKA (Public Key Acceleration)
 
-STM32 PKA is present in STM32WB55 as well as STM32H7 series.
+The STM32 PKA peripheral accelerates ECC scalar multiplication and ECDSA sign/verify. Two distinct IP revisions are in the wild:
 
-### Building
+- **V1 PKA** (WB55, WL55, L5, some L4 rev) -- single-curve-at-a-time, limited curve set, slower. Driven via the legacy `WOLFSSL_STM32_PKA` path.
+- **V2 PKA** (U3, U5, WBA, H5, H7S, N6, L562, C5) -- larger RAM, more curves, more concurrent operations. Enabled by defining `WOLFSSL_STM32_PKA_V2` on top of `WOLFSSL_STM32_PKA`.
 
-To enable support define the following
+### Enabling
 
-`WOLFSSL_STM32_PKA`
+```
+#define WOLFSSL_STM32_PKA
+#define WOLFSSL_STM32_PKA_V2   /* additionally, for V2 silicon */
+```
 
-### Using
+### Notes
 
-When the support is enabled, the ECC operations will be accelerated using the PKA crypto co-processor.
+- On V1 PKA chips the PKA peripheral runs a PKA-RAM clear on first clock-enable and silently rejects `CR.EN` writes during the clear. The wolfcrypt init mirrors HAL's behavior by spinning on `CR.EN` readback up to `WC_STM32_PKA_INIT_TIMEOUT` iterations. This was discovered during L5 bring-up but benefits every PKA chip.
+- On V2 PKA the `coefB` parameter must be loaded explicitly (V1 hardware can derive it from the prime). The V2 ECC scalar-multiplication path in `HAL_PKA_ECCMul()` and the ECDSA sign/verify paths both populate it -- see `wolfcrypt/src/port/st/stm32.c`.
+- BARE-metal V2 PKA ECDSA sign/verify is work-in-progress -- the single-curve P-256 path is functional but multi-curve sweeps in `wolfcrypt_test` hit a -248 result on some boards. Track this in the wolfssl-examples-stm32 STM32_Bare_Test/README.
+
+
+## STM32 BARE-metal port
+
+`WOLFSSL_STM32_BARE` selects a direct-register integration with zero HAL or StdPeriLib dependency. Use this for:
+
+- wolfBoot / no-OS firmware where the HAL footprint is unwelcome.
+- TrustZone non-secure applications where the HAL link surface is too broad.
+- FreeRTOS or RTX projects that prefer to provide their own clock-tree and UART init.
+
+The caller is responsible for:
+
+1. Clock-tree bring-up (HSI/HSE, PLL, voltage scaling, flash latency).
+2. UART / VCP bring-up for stdout.
+3. Peripheral clock-enable for the IP blocks you use (RNG, CRYP/SAES, HASH, PKA).
+
+In return wolfcrypt drives the IP-block registers directly. Family-specific arms in `wolfssl/wolfcrypt/port/st/stm32.h` handle the per-chip register-name differences (e.g. `RCC->AHB2ENR` vs `RCC->AHB2ENR1`, `D2CCIP2R` vs `CDCCIP2R`).
+
+### Enabling
+
+```
+#define WOLFSSL_STM32_BARE
+#define WOLFSSL_STM32U5             /* or any other family flag */
+#define STM32_RNG                   /* HW IP enables */
+#define STM32_CRYPTO
+#define STM32_HASH
+```
+
+### Per-family HW IP coverage (BARE-metal validation matrix)
+
+The following table summarizes which IP blocks the BARE path drives on each family currently in the validation matrix. `-` means the silicon does not carry the IP; the corresponding wolfcrypt algorithm falls back to software.
+
+| Family   | Chip example     | AES        | HASH | RNG  | PKA | SAES | DHUK |
+|----------|------------------|------------|------|------|-----|------|------|
+| F2       | STM32F207ZG      | -          | -    | HW   | -   | -    | -    |
+| F3       | STM32F303ZE      | -          | -    | -    | -   | -    | -    |
+| F4       | STM32F437/F439ZI | CRYP       | HW   | HW   | -   | -    | -    |
+| F7       | STM32F767ZI      | CRYP       | HW   | HW   | -   | -    | -    |
+| G0       | STM32G071RB      | -          | -    | -    | -   | -    | -    |
+| G4       | STM32G491RE      | -          | -    | HW   | -   | -    | -    |
+| H5 (no SAES) | STM32H563ZI  | -          | HW   | HW   | -   | -    | -    |
+| H5 (full)| STM32H573ZI      | TinyAES    | HW   | HW   | V2  | HW   | HW   |
+| H7       | STM32H753ZI      | CRYP       | HW   | HW   | -   | -    | -    |
+| H7 RNG   | STM32H723/H7A3   | -          | -    | HW   | -   | -    | -    |
+| H7S      | STM32H7S3L8      | SAES       | HW   | HW   | V2  | HW   | -    |
+| L4       | STM32L4A6ZG      | TinyAES    | HW   | HW   | -   | -    | -    |
+| L5 (552) | STM32L552ZE-Q    | -          | HW   | HW   | V1  | -    | -    |
+| L5 (562) | STM32L562E-DK    | TinyAES    | HW   | HW   | V1  | HW   | -    |
+| N6       | STM32N657X0-Q    | TinyAES    | HW   | HW   | V2  | HW   | HW   |
+| U0       | STM32U083RC      | TinyAES    | -    | HW   | -   | -    | -    |
+| U3       | STM32U385RG-Q    | TinyAES    | HW   | HW   | V2  | HW   | HW   |
+| U5       | STM32U5xx        | TinyAES    | HW   | HW   | V2  | HW   | HW   |
+| WB       | STM32WB55RG      | TinyAES    | -    | HW   | V1  | -    | -    |
+| WBA      | STM32WBA52CG     | TinyAES    | HW   | HW   | V2  | HW   | HW   |
+| WL       | STM32WL55JC      | TinyAES    | -    | HW   | V1  | -    | -    |
+| C0       | STM32C031C6      | -          | -    | -    | -   | -    | -    |
+| C5       | STM32C5A3ZG      | TinyAES    | HW   | HW   | V2  | HW   | HW   |
+
+### Reference example
+
+See [wolfssl-examples-stm32/STM32_Bare_Test/](https://github.com/wolfSSL/wolfssl-examples-stm32) for a Makefile-based harness covering all of the above families. It exposes three CONFIG flavors (`bare` = HW path, `asm` = WOLFSSL_ARMASM, `c` = software-C baseline) and two TARGETs (`test` = wolfcrypt KAT, `bench` = wolfcrypt benchmark). Per-silicon build-size and benchmark tables live in the example's README.
+
+### TrustZone-aware silicon recovery
+
+Some chips ship with `TZEN=1` from the factory (H5, L5, U5). To run a non-secure-only BARE binary on these you must first disable TrustZone via the option bytes:
+
+```
+STM32_Programmer_CLI -c port=swd sn=<probe_sn> mode=UR -ob TZEN=0
+```
+
+If a flashed binary commits a bad supply config (e.g. H7Ax `PWR_CR3` first-write-wins lock) and the SWD AP becomes unreachable, recovery is via BOOT0=VDD to reach the ROM bootloader, then mass-erase from there.
 
 ## STSAFE-A ECC Acceleration
 

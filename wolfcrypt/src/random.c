@@ -4253,6 +4253,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(STM32_RNG)
      /* Generate a RNG seed using the hardware random number generator
       * on the STM32F2/F4/F7/L4. */
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+        /* Pulls in WC_STM32_RNG_CLK_ENABLE for WOLFSSL_STM32_BARE builds */
+    #ifdef WC_STM32_RNG_DIAG
+        /* The WC_STM32_RNG_DIAG paths below use printf(); pull in stdio.h so the
+         * file compiles on strict C99+ toolchains when diagnostics are enabled. */
+        #include <stdio.h>
+    #endif
+
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -4321,6 +4329,36 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
 
 
+    /* Bounded poll for DRDY, plus recovery from SECS / CECS. The
+     * unbounded `while (DRDY == 0)` loop in the original code spins
+     * forever on chips where the RNG kernel clock is unstable
+     * (e.g. WL55 with RNGSEL = MSI under sustained ECDSA-key-gen
+     * load), because once the IP latches a Seed-error or Clock-
+     * error condition it stops asserting DRDY. Per the STM32 RM
+     * recovery sequence: clear SEIS/CEIS, toggle RNGEN, discard the
+     * stale words sitting in the RNG output, then retry. */
+    #ifndef STM32_BARE_RNG_BYTE_TIMEOUT
+        #define STM32_BARE_RNG_BYTE_TIMEOUT 0x40000
+    #endif
+    #ifndef STM32_BARE_RNG_MAX_RETRIES
+        #define STM32_BARE_RNG_MAX_RETRIES 8
+    #endif
+
+    /* Recover-and-retry on a latched SECS/CECS is the behavior the new direct-
+     * register BARE port needs (e.g. WL55 with RNGSEL = MSI under sustained
+     * key-gen load) and the STM32C5 NIST RNG needs on first-init. The
+     * pre-existing direct-register users -- classic WOLFSSL_STM32F427_RNG,
+     * WOLFSSL_STM32_RNG_NOLIB and STM32_NUTTX_RNG -- keep the HISTORICAL
+     * immediate SECS/CECS fast-fail by default, so this change does not alter
+     * their behavior. Define WC_STM32_RNG_RECOVER to opt a classic family into
+     * the recovery path, or WOLFSSL_STM32_RNG_LEGACY_FAILFAST to force the
+     * fast-fail even on the new families. */
+    #if !defined(WC_STM32_RNG_RECOVER) && \
+        !defined(WOLFSSL_STM32_RNG_LEGACY_FAILFAST) && \
+        (defined(WOLFSSL_STM32_BARE) || defined(RNG_CAND_NIST_CR_VALUE))
+        #define WC_STM32_RNG_RECOVER
+    #endif
+
     /* Generate a RNG seed using the hardware RNG on the STM32F427
      * directly, following steps outlined in STM32F4 Reference
      * Manual (Chapter 24) for STM32F4xx family. */
@@ -4328,6 +4366,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
         word32 i;
+        word32 t;
+        word32 guard;
+        word32 retries;
+        word32 sr;
         (void)os;
 
         ret = wolfSSL_CryptHwMutexLock();
@@ -4337,29 +4379,204 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #ifndef STM32_NUTTX_RNG
         /* enable RNG peripheral clock */
-        RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN;
+        #ifdef WC_STM32_RNG_CLK_ENABLE
+            WC_STM32_RNG_CLK_ENABLE();
+        #else
+            /* Default for F4/F7/L4/L5/U5/H5/H7 -- RNG on AHB2 */
+            RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN;
+        #endif
+    #endif
+
+        /* On the new-gen STM32C5 RNG IP the CR register is locked at
+         * reset (CONFIGLOCK clear, but the IP refuses to produce data
+         * until a NIST-compliant CONFIG1/2/3 + NSCR + HTCR sequence
+         * has been written under CONDRST). The HAL ships canonical
+         * candidate values in the device header (RNG_CAND_NIST_*).
+         * Detect the family by presence of that symbol -- on chips
+         * without it (F4/F7/L4/U5/H7/H5/WL/etc.) skip. Do this only
+         * on the first call (RNGEN clear) so subsequent calls don't
+         * disturb a running peripheral. */
+    #if defined(RNG_CAND_NIST_CR_VALUE) && defined(RNG_CR_CONDRST) && \
+        !defined(WC_STM32_RNG_NO_NIST_INIT)
+        if ((WC_RNG_CR & RNG_CR_RNGEN) == 0U) {
+        #ifdef RNG_SR_BUSY
+            /* HAL flow: drain BUSY before writing CR. */
+            t = 0;
+            while ((WC_RNG_SR & RNG_SR_BUSY) != 0U) {
+                if (++t >= STM32_BARE_RNG_BYTE_TIMEOUT) {
+                    break;
+                }
+            }
+        #endif
+            WC_RNG_CR = (uint32_t)RNG_CAND_NIST_CR_VALUE |
+                        (uint32_t)RNG_CR_CONDRST;
+        #ifdef RNG_CAND_NIST_NSCR_VALUE
+            RNG->NSCR = (uint32_t)RNG_CAND_NIST_NSCR_VALUE;
+        #endif
+        #ifdef RNG_CAND_NIST_HTCR_VALUE
+            RNG->HTCR[0] = (uint32_t)RNG_CAND_NIST_HTCR_VALUE;
+        #endif
+            /* Clear CONDRST and wait for the IP to mirror it back. The
+             * STM32 HAL polls RNG_CR.CONDRST (not SR.BUSY) for completion
+             * of the conditioning soft-reset; SR.BUSY drops earlier in
+             * the seed-pull pipeline on at least the C5 IP and reading
+             * it as "conditioning done" trips a SECS=1 a few microseconds
+             * later when RNGEN goes high. Bounded so a misconfigured
+             * kernel clock returns a clean error instead of hanging. */
+            WC_RNG_CR &= ~(uint32_t)RNG_CR_CONDRST;
+            t = 0;
+            while ((WC_RNG_CR & RNG_CR_CONDRST) != 0U) {
+                if (++t >= STM32_BARE_RNG_BYTE_TIMEOUT) {
+#ifdef WC_STM32_RNG_DIAG
+                    printf("[RNG] CONDRST stuck CR=%08lx SR=%08lx\n",
+                           (unsigned long)WC_RNG_CR,
+                           (unsigned long)WC_RNG_SR);
+#endif
+                    wolfSSL_CryptHwMutexUnLock();
+                    return RNG_FAILURE_E;
+                }
+            }
+#ifdef WC_STM32_RNG_DIAG
+            printf("[RNG] post-NIST CR=%08lx SR=%08lx t=%lu\n",
+                   (unsigned long)WC_RNG_CR,
+                   (unsigned long)WC_RNG_SR,
+                   (unsigned long)t);
+#endif
+        }
     #endif
 
         /* enable RNG interrupt, set IE bit in RNG->CR register */
         WC_RNG_CR |= RNG_CR_IE;
 
         /* enable RNG, set RNGEN bit in RNG->CR. Activates RNG,
-         * RNG_LFSR, and error detector */
+         * RNG_LFSR, and error detector. WC_STM32_RNG_CED_DISABLE
+         * additionally sets CR.CED=1 to suppress the clock-error
+         * detection -- the Linux STM32 RNG driver does this and on
+         * the C5 silicon the CED detector trips on a (perfectly fine)
+         * 48 MHz kernel clock for reasons unclear in the RM. */
+#ifdef WC_STM32_RNG_CED_DISABLE
+        WC_RNG_CR |= RNG_CR_RNGEN | RNG_CR_CED;
+#else
         WC_RNG_CR |= RNG_CR_RNGEN;
+#endif
 
-        /* verify no errors, make sure SEIS and CEIS bits are 0
-         * in RNG->SR register */
-        if (WC_RNG_SR & (RNG_SR_SECS | RNG_SR_CECS)) {
+#ifndef WC_STM32_RNG_RECOVER
+        /* Default for the classic direct-register families
+         * (WOLFSSL_STM32F427_RNG / WOLFSSL_STM32_RNG_NOLIB / STM32_NUTTX_RNG):
+         * the historical immediate SECS/CECS fast-fail. The recover-and-retry
+         * path (below) is enabled only for the new families that need it
+         * (WC_STM32_RNG_RECOVER), where bailing here returned a spurious -199
+         * on first-init (e.g. STM32C5) or on a transient clock glitch. */
+        if ((WC_RNG_SR & (RNG_SR_SECS | RNG_SR_CECS)) != 0U) {
             wolfSSL_CryptHwMutexUnLock();
             return RNG_FAILURE_E;
         }
+#endif
+
+        /* (No early SECS/CECS bail here unless WOLFSSL_STM32_RNG_LEGACY_FAILFAST
+         * is defined, above.) The HAL doesn't check error status immediately
+         * after RNGEN -- the IP needs a few cycles after enable for the first
+         * seed pull, and a transient SEIS/SECS can latch and resolve itself
+         * through the auto-reset that the retry loop below already handles.
+         * Bailing here returned RNG_FAILURE_E (-199) on first-init on the
+         * STM32C5 silicon. NOTE: this branch serves all direct-register STM32
+         * RNG users (WOLFSSL_STM32F427_RNG / WOLFSSL_STM32_RNG_NOLIB /
+         * STM32_NUTTX_RNG), not only the BARE/C5 port, so this bounded-retry +
+         * recovery applies to every NOLIB family. It is strictly more robust
+         * than the old early fast-fail: it still returns RNG_FAILURE_E after
+         * the retry budget. */
 
         for (i = 0; i < sz; i++) {
-            /* wait until RNG number is ready */
-            while ((WC_RNG_SR & RNG_SR_DRDY) == 0) { }
+            retries = 0;
+            for (;;) {
+                t = 0;
+                /* Sample SR once before the loop so the post-loop
+                 * happy-path / error checks have a defined value even
+                 * if STM32_BARE_RNG_BYTE_TIMEOUT is configured to 0. */
+                sr = WC_RNG_SR;
+                /* Bounded DRDY poll -- breaks on either DRDY or any
+                 * error indication (SECS/CECS). */
+                while (t < STM32_BARE_RNG_BYTE_TIMEOUT) {
+                    sr = WC_RNG_SR;
+                    if ((sr & (RNG_SR_DRDY | RNG_SR_SECS |
+                               RNG_SR_CECS)) != 0U) {
+                        break;
+                    }
+                    t++;
+                }
 
-            /* get value */
-            output[i] = WC_RNG_DR;
+                /* Happy path: data ready and no error. */
+                if ((sr & RNG_SR_DRDY) != 0U &&
+                    (sr & (RNG_SR_SECS | RNG_SR_CECS)) == 0U) {
+                    output[i] = WC_RNG_DR;
+                    break;
+                }
+
+#ifndef WC_STM32_RNG_RECOVER
+                /* Classic-family default: a latched seed/clock error is a hard
+                 * failure, not something to recover-and-retry (preserves the
+                 * historical F427 / NOLIB / NuttX fast-fail). A plain timeout
+                 * (no error bit) still falls through to the bounded retry. */
+                if ((sr & (RNG_SR_SECS | RNG_SR_CECS)) != 0U) {
+                    wolfSSL_CryptHwMutexUnLock();
+                    return RNG_FAILURE_E;
+                }
+#endif
+
+                /* Either timed out or an error latched. Recover. */
+                if (++retries > STM32_BARE_RNG_MAX_RETRIES) {
+#ifdef WC_STM32_RNG_DIAG
+                    printf("[RNG] retry max byte=%lu sr=%08lx CR=%08lx\n",
+                           (unsigned long)i,
+                           (unsigned long)sr,
+                           (unsigned long)WC_RNG_CR);
+#endif
+                    wolfSSL_CryptHwMutexUnLock();
+                    return RNG_FAILURE_E;
+                }
+#ifdef WC_STM32_RNG_DIAG
+                printf("[RNG] retry byte=%lu retries=%lu sr=%08lx\n",
+                       (unsigned long)i,
+                       (unsigned long)retries,
+                       (unsigned long)sr);
+#endif
+
+                /* Recovery sequence (per STM32 RM RNG chapter):
+                 *   1. Clear SEIS / CEIS interrupt status by writing 0
+                 *      to those bits. All other SR bits are read-only
+                 *      status indicators (DRDY / BUSY / SECS / CECS);
+                 *      writing 0 to them has no effect per the RM, so
+                 *      a plain 0 write is safe and avoids the
+                 *      read-modify-write hitting any reserved bits the
+                 *      IP revision may add later.
+                 *   2. Toggle RNGEN off then on to drop any stale
+                 *      LFSR state that may be tainted by the error.
+                 *   3. Discard four DR reads to flush the pipeline
+                 *      (only meaningful when DRDY is set; otherwise
+                 *      the reads are harmless and bounded). The 'guard'
+                 *      counter bounds the loop independently of 't' so a
+                 *      marginal kernel clock (DRDY stays 0, no error
+                 *      latched) cannot spin forever -- it falls through
+                 *      to the outer retry/backoff instead of hanging. */
+                WC_RNG_SR = 0;
+                WC_RNG_CR &= ~RNG_CR_RNGEN;
+                WC_RNG_CR |= RNG_CR_RNGEN;
+                t = 0;
+                guard = 0;
+                while (t < 4U && guard < STM32_BARE_RNG_BYTE_TIMEOUT) {
+                    guard++;
+                    if ((WC_RNG_SR & RNG_SR_DRDY) != 0U) {
+                        (void)WC_RNG_DR;
+                        t++;
+                    }
+                    else if ((WC_RNG_SR &
+                              (RNG_SR_SECS | RNG_SR_CECS)) != 0U) {
+                        /* Clock-error during recovery -- bail and
+                         * let the outer retry handle it. */
+                        break;
+                    }
+                }
+            }
         }
 
         wolfSSL_CryptHwMutexUnLock();
