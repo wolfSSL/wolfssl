@@ -40,6 +40,7 @@ jobs:
       uses: ./.github/actions/install-apt-deps
       with:
         packages: mono-complete
+        ghcr-debs-tag: ubuntu-24.04-full
 
     - name: Copy wolfSSL.dll to C# wrapper directory
       run: |

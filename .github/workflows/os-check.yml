@@ -16,6 +16,13 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'doc/**'
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs restore: the
+  # linux and macOS jobs re-run --build-only (compile only, no tests) on the
+  # default branch, where their ccache writes are visible to every PR. Only
+  # Windows is skipped on schedule (see its job `if`) - seeding the linux and
+  # macOS shards is where the cold-cache cost lives.
+  schedule:
+    - cron: '0 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -68,6 +75,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential bubblewrap ccache
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
       # which would stop the test scripts from re-execing under
@@ -81,8 +89,11 @@ jobs:
       - name: Pin ccache directory
         run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
 
+      # PRs restore the cache the weekday seed writes but never save it, so
+      # PR runs add no per-shard ccache entries to the Actions cache. The
+      # seed (schedule) saves below.
       - name: Restore ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           # Per-shard cache lineage: each shard compiles a distinct config
@@ -93,6 +104,13 @@ jobs:
             os-check-linux-ccache-${{ matrix.shard }}-${{ github.base_ref || github.ref_name }}-
             os-check-linux-ccache-${{ matrix.shard }}-
             os-check-linux-ccache-
+
+      # On the weekday seed, force clean recompiles (CCACHE_RECACHE) so the
+      # saved master ccache is reseeded from scratch rather than only
+      # accumulating deltas. PR/push runs leave it unset and keep their warm hits.
+      - name: Force fresh compiles on scheduled reseed
+        if: github.event_name == 'schedule'
+        run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
       - name: autogen
         run: |
@@ -380,9 +398,19 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs "$RUNNER_TEMP/os-check-configs.json"
+
+      # Seed runs (schedule) refresh the master-scoped ccache that PR runs
+      # restore above; PR/push runs never save, so PRs add nothing.
+      - name: Save ccache (seed only)
+        if: github.event_name == 'schedule'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: os-check-linux-ccache-${{ matrix.shard }}-${{ github.ref_name }}-${{ github.sha }}
 
       - name: ccache stats
         if: always()
@@ -392,6 +420,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: os-check-linux-logs-${{ matrix.shard }}
           path: |
             build-*/make-check.log
@@ -413,6 +442,9 @@ jobs:
   # macos-apple-native-cert-validation.yml workflow.
   make_check_macos:
     name: make check macos
+    # Runs on PRs/pushes and on the weekday ccache-seed cron, where it
+    # --build-only-seeds the macOS ccache (like the linux shards). Only
+    # Windows is skipped on schedule (no ccache to seed).
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     # Serial checks: roughly the sum of the per-config minutes plus
@@ -442,6 +474,8 @@ jobs:
         with:
           workflow-id: os-check-macos
           max-size: 500M
+          # PRs read the weekday-seeded macOS ccache; only the seed saves.
+          read-only: ${{ github.event_name == 'pull_request' }}
 
       # Same JSON config format as make_check_linux above; "minutes" only
       # orders the serial schedule here (longest first).
@@ -478,6 +512,7 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --threads 1 --cc= \
             --cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
             --private-dir=certs "$RUNNER_TEMP/os-check-macos-configs.json"
@@ -490,6 +525,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: os-check-macos-logs
           path: |
             build-*/make-check.log
@@ -499,7 +535,8 @@ jobs:
 
   windows_build:
     name: Windows Build Test
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # Skipped on the weekday ccache-seed cron: no ccache to seed here.
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'schedule') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
     strategy:
       fail-fast: false

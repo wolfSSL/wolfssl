@@ -61,6 +61,7 @@ jobs:
       uses: ./.github/actions/install-apt-deps
       with:
         packages: valgrind
+        ghcr-debs-tag: ubuntu-24.04-full
 
     - name: Run Ada wrapper tests (valgrind)
       working-directory: ./wrapper/Ada/tests

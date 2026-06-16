@@ -69,6 +69,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: liblzo2-dev libpam0g-dev liblz4-dev libcap-ng-dev linux-libc-dev man2html libcmocka-dev python3-docutils libtool automake autoconf libnl-genl-3-dev libnl-genl-3-200
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: workaround high-entropy ASLR
         # not needed after either an update to llvm or runner is done

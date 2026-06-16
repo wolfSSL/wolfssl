@@ -34,6 +34,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       - name: Bootstrap
         run: ./autogen.sh

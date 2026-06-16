@@ -45,6 +45,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: gyp ninja-build
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Checkout nss
         if: steps.cache.outputs.cache-hit != 'true'
@@ -88,6 +89,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: gyp ninja-build
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Checkout nss (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'

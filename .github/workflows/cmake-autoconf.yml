@@ -20,6 +20,7 @@ jobs:
       uses: ./.github/actions/install-apt-deps
       with:
         packages: cmake autoconf automake libtool
+        ghcr-debs-tag: ubuntu-24.04-full
 
 # build and install wolfssl via autotools for CMake consumer test
     - name: Build wolfssl with autotools

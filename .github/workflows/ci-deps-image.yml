@@ -1,0 +1,116 @@
+name: CI deps image
+
+# Builds the prebuilt apt .deb bundles that the make-check family (the
+# -minimal tags) and the interop workflows (the -full tags, a superset)
+# install offline (see .github/actions/install-apt-deps, input
+# ghcr-debs-tag). Each bundle holds the .debs for a package list in
+# .github/ci-deps/ - every package plus the dependencies not already on the
+# matching runner image, so it is tied to that runner rather than being a
+# portable, self-contained closure - published to
+# ghcr.io/<owner>/wolfssl-ci-debs:<tag>.
+#
+# Why: the apt mirror times out often enough to break PR CI. Resolving the
+# closure ONCE here (on master, where a slow mirror only delays this job and
+# is retried hard) and pulling it from ghcr on every PR keeps apt off the PR
+# critical path entirely. ghcr storage/bandwidth is free for public images
+# and is a separate pool from the 10 GB Actions cache.
+#
+# ONE-TIME SETUP: after the first successful run, make the package
+# `wolfssl-ci-debs` PUBLIC (repo/org > Packages > Package settings >
+# Change visibility). Anonymous `docker pull` then works from fork PRs too;
+# until then install-apt-deps simply falls back to apt (no breakage).
+
+on:
+  schedule:
+    # Weekend only - refresh the bundles weekly so they track base-image
+    # security updates. A mid-week package-list change waits for Saturday
+    # (or run this manually via workflow_dispatch); until then the offline
+    # install (a single --no-download install of the whole set) fails if any
+    # requested package is missing from the bundle, and install-apt-deps
+    # falls back to the full apt path.
+    - cron: '0 2 * * 6'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-deps-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: build ${{ matrix.tag }}
+    if: github.repository_owner == 'wolfssl'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The .debs must be downloaded on the same Ubuntu version that
+          # consumes them, so the runner matches the tag. -minimal is the
+          # make-check family's packages (small, pulled on every PR);
+          # -full adds the interop workflows' packages (a superset).
+          - runner: ubuntu-24.04
+            tag: ubuntu-24.04-minimal
+          - runner: ubuntu-24.04
+            tag: ubuntu-24.04-full
+          - runner: ubuntu-22.04
+            tag: ubuntu-22.04-minimal
+          - runner: ubuntu-22.04
+            tag: ubuntu-22.04-full
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve and download the .deb closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIST=".github/ci-deps/packages-${{ matrix.tag }}.txt"
+          mapfile -t PKGS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$LIST")
+          echo "Packages (${#PKGS[@]}): ${PKGS[*]}"
+          export DEBIAN_FRONTEND=noninteractive
+          rm -rf debs && mkdir -p debs
+          sudo apt-get clean
+          # Retry the flaky bits; this is the one place we accept apt risk.
+          retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
+          retry sudo apt-get update -q
+          # Download each package's closure independently (requested package +
+          # any dependency not already installed) without installing. Per
+          # package, not one resolve of the whole list, so one unbundleable
+          # package - e.g. a conflict in the big -full union - cannot abort the
+          # rest; install-apt-deps falls back to apt for anything missing.
+          skipped=0
+          for pkg in "${PKGS[@]}"; do
+            retry sudo apt-get install -y --download-only "$pkg" \
+              || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
+          done
+          sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
+          echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files ($(du -sh debs | cut -f1)); ${skipped} skipped"
+          test -n "$(ls debs/*.deb 2>/dev/null)"  # fail if nothing was bundled
+
+      - name: Build bundle image
+        shell: bash
+        run: |
+          # Tiny busybox base so the consumer can `docker create`/`docker cp`
+          # the .debs out; the base size is negligible next to the .debs.
+          printf 'FROM busybox\nCOPY debs /debs\n' > Dockerfile.debs
+          docker build -f Dockerfile.debs -t bundle .
+
+      - name: Log in to ghcr
+        shell: bash
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push to ghcr
+        shell: bash
+        run: |
+          set -euo pipefail
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMG="ghcr.io/$OWNER/wolfssl-ci-debs"
+          # One mutable tag per bundle variant; each run overwrites it, so the
+          # package keeps exactly one version per variant (no dated duplicates).
+          docker tag bundle "$IMG:${{ matrix.tag }}"
+          docker push "$IMG:${{ matrix.tag }}"
+          echo "Pushed $IMG:${{ matrix.tag }}"

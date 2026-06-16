@@ -36,9 +36,13 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ master, main ]
+  # Weekday-morning (10:00 UTC) build-only seed of the master-scoped ccache that PR runs restore
+  # (in addition to the master pushes above). PR runs are read-only.
+  schedule:
+    - cron: '56 10 * * 1-5'
 
 concurrency:
-  group: smoke-${{ github.workflow }}-${{ github.ref }}
+  group: smoke-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -90,6 +94,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential bubblewrap ccache
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
       # which would stop the test scripts from re-execing under
@@ -99,15 +104,17 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       # ccache's default cache dir (XDG ~/.cache/ccache) is what the
-      # actions/cache step below saves; pin it explicitly so the two
+      # actions/cache steps below restore/save; pin it explicitly so the two
       # cannot drift apart (e.g. if a later change sets CCACHE_DIR).
       - name: Pin ccache directory
         if: steps.merge_check.outputs.skip != 'true'
         run: echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
 
+      # PRs restore the cache the master pushes / weekday seed write, but
+      # never save it (the save step is gated to non-PR events below).
       - name: Restore ccache
         if: steps.merge_check.outputs.skip != 'true'
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: smoke-ccache-${{ github.base_ref || github.ref_name }}-${{ github.sha }}
@@ -153,8 +160,17 @@ jobs:
             {"name": "leantls-extra", "configure": ["--enable-leantls", "--enable-session-ticket", "--enable-sni", "--enable-opensslextra"]}
           ]
           EOF
-          .github/scripts/parallel-make-check.py --cflags=-Werror \
+          .github/scripts/parallel-make-check.py ${{ github.event_name == 'schedule' && '--build-only' || '' }} --cflags=-Werror \
             --private-dir=certs "$RUNNER_TEMP/smoke-configs.json"
+
+      # Seed (master pushes + the weekday cron) writes the master-scoped
+      # ccache that PR runs restore; PRs never save.
+      - name: Save ccache
+        if: github.event_name != 'pull_request' && steps.merge_check.outputs.skip != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: smoke-ccache-${{ github.ref_name }}-${{ github.sha }}
 
       - name: ccache stats
         if: always() && steps.merge_check.outputs.skip != 'true'
@@ -164,6 +180,7 @@ jobs:
         if: failure() && steps.merge_check.outputs.skip != 'true'
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: smoke-logs
           path: |
             build-*/make-check.log

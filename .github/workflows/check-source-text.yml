@@ -41,6 +41,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: shellcheck
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Collect files to check
         id: files

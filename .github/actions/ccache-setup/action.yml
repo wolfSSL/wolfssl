@@ -4,7 +4,9 @@ description: >
   directory from a previous run, and prepend the ccache compiler-symlink
   dir to PATH. Subsequent gcc/cc/g++/c++/clang invocations are
   transparently intercepted by ccache, so no other workflow step needs to
-  change.
+  change. On scheduled (cron) runs the cache is reseeded from clean
+  compiles (CCACHE_RECACHE) instead of only being updated incrementally,
+  so it can't drift indefinitely.
 
 inputs:
   workflow-id:
@@ -21,6 +23,15 @@ inputs:
     description: 'Per-job ccache max size (passed to ccache -M).'
     required: false
     default: '500M'
+  read-only:
+    description: >
+      When 'true', restore the cache but do NOT save it (no post-job
+      upload). Callers should set this to the result of the expression
+      github.event_name == 'pull_request' so PR runs consume the shared
+      cache read-only - no per-PR entries, no churn - while scheduled/push
+      runs (read-only false) refresh it.
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -41,13 +52,29 @@ runs:
           exit 1
         fi
 
+    # read-only=false (default): restore + post-job save (the run_id in the
+    # key never hits, so it always saves its contribution).
     - name: Restore + save ccache
+      if: inputs.read-only != 'true'
       uses: actions/cache@v5
       with:
         path: ~/.ccache
         # Unique per run+attempt+config so each job persists its own
         # contribution; restore-keys falls back to the most recent
         # cache for this workflow/os/config.
+        key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
+    # read-only=true: restore the shared cache but never upload (PR runs).
+    - name: Restore ccache (read-only)
+      if: inputs.read-only == 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.ccache
+        # Same key shape as the save branch, for symmetry. This branch never
+        # saves, so the run_id/run_attempt primary key is never an exact hit -
+        # the restore-keys below always supply the most recent seeded cache.
         key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
         restore-keys: |
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
@@ -75,6 +102,18 @@ runs:
         fi
         echo "$CCACHE_LIBEXEC" >> "$GITHUB_PATH"
         echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+    # On the scheduled (cron) refresh, force every compile to miss the
+    # cache and re-store a fresh result (CCACHE_RECACHE still writes, it
+    # just skips lookups). This reseeds the shared cache from clean
+    # compiles instead of only layering deltas onto whatever accumulated,
+    # so a bad/stale entry can't live forever. The cache is still saved
+    # (read-only is false on schedule), and PR/push runs are unaffected -
+    # they keep their warm hits. Cost: the scheduled jobs recompile fully.
+    - name: Force fresh compiles on scheduled reseed
+      if: github.event_name == 'schedule'
+      shell: bash
+      run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
     - name: Show ccache stats (initial)
       shell: bash

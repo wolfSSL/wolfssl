@@ -63,6 +63,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: build-essential autoconf libtool pkg-config clang libc++-dev
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Download lib
         uses: actions/download-artifact@v7

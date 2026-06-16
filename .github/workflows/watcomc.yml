@@ -84,6 +84,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: ${{ matrix.platform.id }}-${{ matrix.thread.id }}-${{ matrix.library.id }}
           path: |
             build/**

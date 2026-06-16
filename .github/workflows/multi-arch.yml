@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '20 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,6 +38,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential crossbuild-essential-arm64 crossbuild-essential-armhf crossbuild-essential-riscv64 crossbuild-essential-armel qemu-user
+          ghcr-debs-tag: ubuntu-22.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
       # compiler to configure as CC="ccache gcc" (or a per-config "cc").
@@ -40,6 +46,7 @@ jobs:
         uses: ./.github/actions/ccache-setup
         with:
           workflow-id: multi-arch
+          read-only: ${{ github.event_name == 'pull_request' }}
           max-size: 500M
 
       # NOTE: the old runner-per-config matrix combined an "include" list
@@ -246,6 +253,7 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/multi-arch-configs.json"
 
       - name: ccache stats
@@ -256,6 +264,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
+          retention-days: 7
           name: multi-arch-logs
           path: |
             build-*/make-check.log

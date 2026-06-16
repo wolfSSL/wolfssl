@@ -468,9 +468,22 @@ def main() -> int:
                    help="give each build dir a private copy of this "
                         "symlinked source directory before make check, for "
                         "tests that write into it (repeatable)")
+    p.add_argument("--build-only", action="store_true",
+                   help="build every config but skip the make-check phase "
+                        "and any post-build \"run\" commands: the compile "
+                        "still populates ccache, which is the point when "
+                        "seeding a shared cache on a schedule")
     opts = p.parse_args()
 
     all_configs = load_configs(opts, p.error)
+    if opts.build_only:
+        # Pure build: drop the check phase (and post-build "run" steps) for
+        # every config. The compile alone fully populates ccache, so a
+        # scheduled --build-only pass on the default branch warms the
+        # shared cache that PR runs restore, without spending time on tests.
+        for cfg in all_configs:
+            cfg.check = False
+            cfg.run = []
     selected = all_configs
     if opts.configs:
         by_name = {cfg.name: cfg for cfg in all_configs}
