@@ -11835,7 +11835,10 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         if (
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-            !ssl->options.verifyPostHandshake &&
+            /* Exempt only the initial handshake; a pending post-handshake
+             * CertificateRequest (certReqCtx != NULL) still requires a peer
+             * certificate and a valid CertificateVerify. */
+            (!ssl->options.verifyPostHandshake || ssl->certReqCtx != NULL) &&
         #endif
             (!ssl->options.havePeerCert || !ssl->options.havePeerVerify)) {
             ret = NO_PEER_CERT; /* NO_PEER_VERIFY */
@@ -13507,7 +13510,19 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                  */
                 if (ssl->options.verifyPeer &&
                 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-                    !ssl->options.verifyPostHandshake &&
+                    /* The post-handshake-auth exemption is only valid during
+                     * the initial handshake. On the server, once a
+                     * post-handshake CertificateRequest is outstanding
+                     * (certReqCtx != NULL), a Certificate is required again.
+                     * Scoped to the server: certReqCtx means something
+                     * different on the client (a received request) and the
+                     * client does not process an inbound Finished in that
+                     * state. Whether an empty Certificate is then accepted
+                     * follows the verify mode (FAIL_IF_NO_PEER_CERT), exactly
+                     * as for first-handshake client authentication. */
+                    (!ssl->options.verifyPostHandshake ||
+                     (ssl->options.side == WOLFSSL_SERVER_END &&
+                      ssl->certReqCtx != NULL)) &&
                 #endif
                                            !ssl->msgsReceived.got_certificate) {
                     WOLFSSL_MSG("Finished received out of order - "
