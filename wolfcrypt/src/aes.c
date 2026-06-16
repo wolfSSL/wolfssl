@@ -12808,6 +12808,18 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = MISSING_IV;
     }
 
+    /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
+     * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
+     * currently pass around the cunulative sizes in bytes as word32s, so we
+     * can't currently support the maximum allowed.
+     */
+    if ((ret == 0) &&
+        (((aes->cSz > 0xffffffff - sz)) ||
+         ((aes->aSz > 0xffffffff - authInSz))))
+    {
+        ret = AES_GCM_OVERFLOW_E;
+    }
+
     if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
         aes->invokeCtr[0]++;
         if (aes->invokeCtr[0] == 0) {
@@ -12948,6 +12960,18 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     /* Check IV has been set. */
     if ((ret == 0) && (!aes->nonceSet)) {
         ret = MISSING_IV;
+    }
+
+    /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
+     * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
+     * currently pass around the cunulative sizes in bytes as word32s, so we
+     * can't currently support the maximum allowed.
+     */
+    if ((ret == 0) &&
+        (((aes->cSz > 0xffffffff - sz)) ||
+         ((aes->aSz > 0xffffffff - authInSz))))
+    {
+        ret = AES_GCM_OVERFLOW_E;
     }
 
     if (ret == 0) {
@@ -13586,6 +13610,17 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
+    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
+
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -13602,7 +13637,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
+
     B[0] = (byte)((authInSz > 0 ? 64 : 0)
                   + (8 * (((byte)authTagSz - 2) / 2))
                   + (lenSz - 1));
@@ -13739,6 +13774,17 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
+    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
+
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -13757,7 +13803,6 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     oSz = inSz;
     XMEMSET(A, 0, sizeof A);
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
 
     B[0] = (byte)(lenSz - 1U);
     for (i = 0; i < lenSz; i++)
