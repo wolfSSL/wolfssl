@@ -8338,8 +8338,6 @@ void FreeArrays(WOLFSSL* ssl, int keep)
             XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
             ssl->arrays->preMasterSecret = NULL;
         }
-        XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
-        ssl->arrays->pendingMsg = NULL;
         ForceZero(ssl->arrays, sizeof(Arrays)); /* clear arrays struct */
     }
     XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_ARRAYS);
@@ -8861,6 +8859,15 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
+    /* Defrag buffer for fragmented handshake messages. Lives in WOLFSSL (not
+     * Arrays) so it survives FreeArrays()/FreeHandshakeResources() and can be
+     * used to reassemble post-handshake messages; release it here. */
+    XFREE(ssl->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+    ssl->pendingMsg = NULL;
+    /* Reset the rest of the defrag state for a possible object reuse. */
+    ssl->pendingMsgSz = 0;
+    ssl->pendingMsgOffset = 0;
+    ssl->pendingMsgType = 0;
     FreeKeyExchange(ssl);
 #ifdef WOLFSSL_ASYNC_IO
     /* Cleanup async */
@@ -19182,7 +19189,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
-    if (ssl->arrays->pendingMsgSz == 0) {
+    if (ssl->pendingMsgSz == 0) {
         byte   type;
         word32 size;
 
@@ -19210,17 +19217,17 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         /* size is the size of the certificate message payload */
         if (inputLength - HANDSHAKE_HEADER_SZ < size) {
-            ssl->arrays->pendingMsgType = type;
-            ssl->arrays->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
-            ssl->arrays->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
-                                                     ssl->heap,
-                                                     DYNAMIC_TYPE_ARRAYS);
-            if (ssl->arrays->pendingMsg == NULL)
+            /* Commit pending state only after the allocation succeeds. */
+            ssl->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
+                                             ssl->heap, DYNAMIC_TYPE_ARRAYS);
+            if (ssl->pendingMsg == NULL)
                 return MEMORY_E;
-            XMEMCPY(ssl->arrays->pendingMsg,
+            ssl->pendingMsgType = type;
+            ssl->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
+            XMEMCPY(ssl->pendingMsg,
                     input + *inOutIdx - HANDSHAKE_HEADER_SZ,
                     inputLength);
-            ssl->arrays->pendingMsgOffset = inputLength;
+            ssl->pendingMsgOffset = inputLength;
             *inOutIdx += inputLength - HANDSHAKE_HEADER_SZ;
             return 0;
         }
@@ -19228,8 +19235,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
     else {
-        word32 pendSz =
-            ssl->arrays->pendingMsgSz - ssl->arrays->pendingMsgOffset;
+        word32 pendSz = ssl->pendingMsgSz - ssl->pendingMsgOffset;
 
         /* Catch the case where there may be the remainder of a fragmented
          * handshake message and the next handshake message in the same
@@ -19237,7 +19243,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (inputLength > pendSz)
             inputLength = pendSz;
 
-        ret = EarlySanityCheckMsgReceived(ssl, ssl->arrays->pendingMsgType,
+        ret = EarlySanityCheckMsgReceived(ssl, ssl->pendingMsgType,
                 inputLength);
         if (ret != 0) {
             WOLFSSL_ERROR(ret);
@@ -19250,32 +19256,32 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         {
             /* for async this copy was already done, do not replace, since
              * contents may have been changed for inline operations */
-            XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
+            XMEMCPY(ssl->pendingMsg + ssl->pendingMsgOffset,
                     input + *inOutIdx, inputLength);
         }
-        ssl->arrays->pendingMsgOffset += inputLength;
+        ssl->pendingMsgOffset += inputLength;
         *inOutIdx += inputLength;
 
-        if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
+        if (ssl->pendingMsgOffset == ssl->pendingMsgSz)
         {
             word32 idx = HANDSHAKE_HEADER_SZ;
             ret = DoHandShakeMsgType(ssl,
-                                     ssl->arrays->pendingMsg,
-                                     &idx, ssl->arrays->pendingMsgType,
-                                     ssl->arrays->pendingMsgSz - idx,
-                                     ssl->arrays->pendingMsgSz);
+                                     ssl->pendingMsg,
+                                     &idx, ssl->pendingMsgType,
+                                     ssl->pendingMsgSz - idx,
+                                     ssl->pendingMsgSz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 /* setup to process fragment again */
-                ssl->arrays->pendingMsgOffset -= inputLength;
+                ssl->pendingMsgOffset -= inputLength;
                 *inOutIdx -= inputLength;
             }
             else
         #endif
             {
-                XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
-                ssl->arrays->pendingMsg = NULL;
-                ssl->arrays->pendingMsgSz = 0;
+                XFREE(ssl->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+                ssl->pendingMsg = NULL;
+                ssl->pendingMsgSz = 0;
             }
         }
     }

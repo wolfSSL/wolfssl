@@ -5634,6 +5634,145 @@ int test_tls13_new_session_ticket_max_lifetime(void)
 }
 
 
+/* A TLS 1.3 client that does not retain its handshake arrays after the
+ * handshake (e.g. built without HAVE_SESSION_TICKET, as on a small embedded
+ * target) must still be able to receive a post-handshake NewSessionTicket that
+ * the negotiated max_fragment_length has split across multiple records.
+ *
+ * Regression test: the handshake-message defragmentation buffer used to live
+ * inside ssl->arrays, which FreeHandshakeResources() releases once the
+ * handshake completes. A fragmented NewSessionTicket arriving afterwards could
+ * therefore not be reassembled and the connection was torn down with
+ * INCOMPLETE_DATA (-310). Fragmentation *during* the handshake was unaffected
+ * because the arrays still existed then.
+ *
+ * The test completes a normal handshake, forces the post-handshake
+ * "arrays released" state with FreeArrays(), then injects a NewSessionTicket
+ * fragmented across two records and confirms the client reassembles and
+ * consumes it (WANT_READ, no application data) instead of failing with
+ * INCOMPLETE_DATA. */
+int test_tls13_fragmented_session_ticket(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    char buf[64];
+    /* NewSessionTicket: lifetime(4) + age_add(4) + nonce(1+8) + ticket(2+32) +
+     * extensions(2) = 53 byte body, 4 + 53 = 57 byte handshake message. */
+    byte ticketMsg[57];
+    byte rec[256];
+    int  recSz = 0;
+    int  split = 20; /* fragment boundary inside the message */
+    int  readRet, errRet;
+    int  i, idx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain any genuine NewSessionTicket the server already sent so the
+     * application-data record sequence numbers of both peers stay in sync with
+     * the records injected below. */
+    if (EXPECT_SUCCESS()) {
+        readRet = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        errRet = wolfSSL_get_error(ssl_c, readRet);
+        ExpectIntEQ(readRet, -1);
+        ExpectIntEQ(errRet, WOLFSSL_ERROR_WANT_READ);
+    }
+
+    /* Reproduce the embedded/no-session-ticket configuration in which the
+     * client's handshake arrays are released once the handshake completes
+     * (FreeHandshakeResources() -> FreeArrays()). It is done here inline using
+     * the library's own allocation types rather than calling FreeArrays(),
+     * which is an internal-only symbol hidden in shared-library builds. In
+     * configurations that already release the arrays (e.g. no HAVE_SESSION_TICKET)
+     * they are NULL at this point and the free is skipped. */
+    if (EXPECT_SUCCESS() && ssl_c->arrays != NULL) {
+        /* Zero before freeing so WOLFSSL_CHECK_MEM_ZERO builds don't abort. */
+        if (ssl_c->arrays->preMasterSecret != NULL) {
+            ForceZero(ssl_c->arrays->preMasterSecret, ENCRYPT_LEN);
+            XFREE(ssl_c->arrays->preMasterSecret, ssl_c->heap,
+                  DYNAMIC_TYPE_SECRET);
+            ssl_c->arrays->preMasterSecret = NULL;
+        }
+        ForceZero(ssl_c->arrays, sizeof(Arrays));
+        XFREE(ssl_c->arrays, ssl_c->heap, DYNAMIC_TYPE_ARRAYS);
+        ssl_c->arrays = NULL;
+    }
+    /* The post-handshake NewSessionTicket must now be processed with
+     * ssl->arrays == NULL, which is what historically broke reassembly. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNull(ssl_c->arrays);
+    }
+
+    /* Encode a syntactically valid NewSessionTicket so that a client built with
+     * HAVE_SESSION_TICKET parses it cleanly; a client built without it simply
+     * skips the body. Either way reassembly must succeed first. */
+    if (EXPECT_SUCCESS()) {
+        idx = 0;
+        ticketMsg[idx++] = session_ticket;            /* handshake msg type */
+        ticketMsg[idx++] = 0x00;                       /* 24-bit body length */
+        ticketMsg[idx++] = 0x00;
+        ticketMsg[idx++] = 0x35;                       /* = 53 */
+        ticketMsg[idx++] = 0x00; ticketMsg[idx++] = 0x00; /* lifetime = 3600 */
+        ticketMsg[idx++] = 0x0E; ticketMsg[idx++] = 0x10;
+        ticketMsg[idx++] = 0x01; ticketMsg[idx++] = 0x02; /* ticket_age_add */
+        ticketMsg[idx++] = 0x03; ticketMsg[idx++] = 0x04;
+        ticketMsg[idx++] = 0x08;                       /* nonce length */
+        for (i = 0; i < 8; i++)
+            ticketMsg[idx++] = (byte)(0xA0 + i);       /* nonce */
+        ticketMsg[idx++] = 0x00; ticketMsg[idx++] = 0x20; /* ticket length=32 */
+        for (i = 0; i < 32; i++)
+            ticketMsg[idx++] = (byte)(0x40 + i);       /* ticket */
+        ticketMsg[idx++] = 0x00; ticketMsg[idx++] = 0x00; /* extensions: none */
+        ExpectIntEQ(idx, (int)sizeof(ticketMsg));
+    }
+
+    /* Fragment 1: bytes [0, split) of the handshake message, encrypted with the
+     * server's keys, injected into the client's read path. */
+    if (EXPECT_SUCCESS()) {
+        recSz = BuildTls13Message(ssl_s, rec, (int)sizeof(rec), ticketMsg,
+                                  split, handshake, 0, 0, 0);
+        ExpectIntGT(recSz, 0);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)rec,
+                                              recSz), 0);
+    }
+    /* Fragment 2: the remaining bytes of the handshake message. */
+    if (EXPECT_SUCCESS()) {
+        recSz = BuildTls13Message(ssl_s, rec, (int)sizeof(rec),
+                                  ticketMsg + split,
+                                  (int)sizeof(ticketMsg) - split, handshake,
+                                  0, 0, 0);
+        ExpectIntGT(recSz, 0);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)rec,
+                                              recSz), 0);
+    }
+
+    /* Before the fix the first fragment reaches DoTls13HandShakeMsg while
+     * ssl->arrays is NULL, cannot be buffered, and the read fails with
+     * INCOMPLETE_DATA. With the fix the two records reassemble into the
+     * NewSessionTicket, which is consumed, leaving no application data. */
+    if (EXPECT_SUCCESS()) {
+        readRet = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        errRet = wolfSSL_get_error(ssl_c, readRet);
+        ExpectIntEQ(readRet, -1);
+        ExpectIntNE(errRet, WC_NO_ERR_TRACE(INCOMPLETE_DATA));
+        ExpectIntEQ(errRet, WOLFSSL_ERROR_WANT_READ);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 /* Test that a corrupted TLS 1.3 Finished verify_data is properly rejected
  * with VERIFY_FINISHED_ERROR. We run the handshake step-by-step and corrupt
  * the server's client_write_MAC_secret before it processes the client's

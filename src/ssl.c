@@ -7960,6 +7960,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
+        /* Discard any partial handshake-message reassembly on reuse. */
+        XFREE(ssl->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+        ssl->pendingMsg = NULL;
+        ssl->pendingMsgSz = 0;
+        ssl->pendingMsgOffset = 0;
+        ssl->pendingMsgType = 0;
+
         FreeCiphers(ssl);
         InitCiphers(ssl);
         InitCipherSpecs(&ssl->specs);
