@@ -980,6 +980,45 @@ int test_wolfSSL_BIO_write(void)
     return EXPECT_RESULT();
 }
 
+/* A negative length must never defeat the memory-BIO read bounds check and
+ * reach XMEMCPY with (size_t)-1. This exercises the public BIO_read() boundary
+ * (which rejects a negative length before dispatch); the matching guard in the
+ * static wolfSSL_BIO_MEMORY_read() sink is defense-in-depth and not separately
+ * reachable through the public API. Verify a negative length is rejected with
+ * an error without copying, a zero length reads nothing, and the pending data
+ * is left intact and still readable. */
+int test_wolfSSL_BIO_read_negative_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO*  bio = NULL;
+    char  msg[] = "negative length test";
+    int   msgLen = (int)XSTRLEN(msg);
+    char  out[64];
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(BIO_write(bio, msg, msgLen), msgLen);
+
+    /* Negative length: must be rejected with an error, not a wild copy and not
+     * a silent 0-byte read. */
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntLT(BIO_read(bio, out, -1), 0);
+    /* Data must be untouched - still all pending. */
+    ExpectIntEQ(BIO_pending(bio), msgLen);
+
+    /* Zero length: nothing read, data still pending. */
+    ExpectIntEQ(BIO_read(bio, out, 0), 0);
+    ExpectIntEQ(BIO_pending(bio), msgLen);
+
+    /* A normal read still returns the intact message. */
+    ExpectIntEQ(BIO_read(bio, out, (int)sizeof(out)), msgLen);
+    ExpectIntEQ(XMEMCMP(out, msg, msgLen), 0);
+
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 int test_wolfSSL_BIO_printf(void)
 {
