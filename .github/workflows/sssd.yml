@@ -67,7 +67,6 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: build-essential autoconf libldb-dev libldb2 python3-ldb bc libcap-dev
-          cache: 'false'
 
       - name: Setup env
         run: |

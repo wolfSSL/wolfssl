@@ -86,7 +86,6 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: ${{ matrix.apt_packages }}
-          cache: ${{ matrix.apt_cache || 'true' }}
 
       - name: Build firmware
         if: needs.check-changes.outputs.needs_build == 'true'
