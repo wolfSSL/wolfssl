@@ -2751,6 +2751,75 @@ int test_tls13_rpk_handshake(void)
     return EXPECT_RESULT();
 }
 
+/* Regression: a peer must not present a raw public key (RPK) that was never
+ * negotiated. Neither side calls set_client/server_cert_type, so RPK is not
+ * negotiated and the default type is X.509; a received bare key must be
+ * rejected instead of accepted without any chain verification (auth bypass).
+ * Covers both directions: server presenting an RPK to the client, and client
+ * presenting an RPK to the server. */
+int test_tls13_rpk_handshake_no_negotiation(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int tp = 0;
+
+    /* Direction 1: server loads an RPK cert, client is a plain X.509 client. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            cliCertFile,     CERT_FILETYPE,
+            svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
+        , 0);
+
+    /* Handshake must fail and the client must not record RPK as negotiated. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_c, &tp),
+                                                        WOLFSSL_SUCCESS);
+    ExpectIntNE(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = ssl_s = NULL;
+    ctx_c = ctx_s = NULL;
+
+    /* Direction 2: client loads an RPK cert and the server requests client
+     * auth (VERIFY_PEER, set in the helper). The server expects X.509 and must
+     * reject the client's un-negotiated bare key. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
+            svrCertFile,     CERT_FILETYPE,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
+        , 0);
+
+    /* Handshake must fail and the server must not record RPK as negotiated. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_negotiated_client_cert_type(ssl_s, &tp),
+                                                        WOLFSSL_SUCCESS);
+    ExpectIntNE(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \

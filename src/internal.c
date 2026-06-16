@@ -15690,31 +15690,29 @@ PRAGMA_GCC_DIAG_POP
     ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
 
 #if defined(HAVE_RPK)
-    /* if cert type has negotiated with peer, confirm the cert received has
-     * the same type.
-     */
-    if (ret == 0 ) {
-        if (ssl->options.side ==  WOLFSSL_CLIENT_END) {
-            if (ssl->options.rpkState.received_ServerCertTypeCnt == 1) {
+    /* Confirm the received certificate's form (X.509 vs raw public key) matches
+     * the type negotiated with the peer. A raw public key (RFC 7250) has no
+     * chain, so ParseCertRelative() accepts it without any trust verification;
+     * it must only be accepted when RPK was negotiated for this peer. When no
+     * type was negotiated the default is X.509 (RFC 7250/8446), so an
+     * un-negotiated bare key is rejected. The negotiated type is the received
+     * server cert type (client) or the selected client cert type (server). */
+    if (ret == 0) {
+        cType = WOLFSSL_CERT_TYPE_X509;
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            if (ssl->options.rpkState.received_ServerCertTypeCnt == 1)
                 cType = ssl->options.rpkState.received_ServerCertTypes[0];
-                if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
-                    (cType == WOLFSSL_CERT_TYPE_X509 && args->dCert->isRPK)) {
-                    /* cert type mismatch */
-                    WOLFSSL_MSG("unsupported certificate type received");
-                    ret = UNSUPPORTED_CERTIFICATE;
-                }
-            }
         }
         else if (ssl->options.side == WOLFSSL_SERVER_END) {
-            if (ssl->options.rpkState.received_ClientCertTypeCnt == 1) {
+            if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1)
                 cType = ssl->options.rpkState.sending_ClientCertTypes[0];
-                if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
-                    (cType == WOLFSSL_CERT_TYPE_X509 && args->dCert->isRPK)) {
-                    /* cert type mismatch */
-                    WOLFSSL_MSG("unsupported certificate type received");
-                    ret = UNSUPPORTED_CERTIFICATE;
-                }
-            }
+        }
+
+        if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
+            (cType != WOLFSSL_CERT_TYPE_RPK && args->dCert->isRPK)) {
+            /* cert type mismatch - includes an un-negotiated raw public key */
+            WOLFSSL_MSG("unsupported certificate type received");
+            ret = UNSUPPORTED_CERTIFICATE;
         }
     }
 #endif /* HAVE_RPK */
