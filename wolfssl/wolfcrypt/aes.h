@@ -70,8 +70,9 @@ WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
 #endif
-WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
-                         word32 cSz, byte* s, word32 sSz);
+WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
+                                            word32 aSz, const byte* c,
+                                            word32 cSz, byte* s, word32 sSz);
 #endif
 
 #ifndef NO_AES

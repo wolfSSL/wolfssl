@@ -8476,10 +8476,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 blocks, partial;
     byte* h;
 
-    if (gcm == NULL) {
-        return;
-    }
-
     h = gcm->H;
     XMEMSET(x, 0, WC_AES_BLOCK_SIZE);
 
@@ -8810,10 +8806,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     byte x[WC_AES_BLOCK_SIZE];
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
-
-    if (gcm == NULL) {
-        return;
-    }
 
     XMEMSET(x, 0, WC_AES_BLOCK_SIZE);
 
@@ -9303,10 +9295,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     byte scratch[WC_AES_BLOCK_SIZE];
     word32 blocks, partial;
 
-    if (gcm == NULL) {
-        return;
-    }
-
     XMEMSET(x, 0, WC_AES_BLOCK_SIZE);
 
     /* Hash in A, the Additional Authentication Data */
@@ -9458,10 +9446,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word64 x[2] = {0,0};
     word32 blocks, partial;
     word64 bigH[2];
-
-    if (gcm == NULL) {
-        return;
-    }
 
     XMEMCPY(bigH, gcm->H, WC_AES_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
@@ -9775,10 +9759,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 x[4] = {0,0,0,0};
     word32 blocks, partial;
     word32 bigH[4];
-
-    if (gcm == NULL) {
-        return;
-    }
 
     XMEMCPY(bigH, gcm->H, WC_AES_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER

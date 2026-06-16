@@ -784,6 +784,25 @@
 
     _Pragma("GCC diagnostic pop");
 
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0) && !defined(NO_AES)
+        /* with CONFIG_FORTIFY_SOURCE we've seen false positive
+         * maybe-uninitialized on counter in AES_GCM_encrypt_C().  This is easy
+         * to mitigate with a grafted-on attribute.
+         */
+        #if FIPS_VERSION3_LT(6,0,0)
+            struct Aes;
+            WOLFSSL_LOCAL void __attribute__((nonnull(1))) GHASH(struct Aes *aes, const unsigned char* a,
+                                            unsigned int aSz, const unsigned char* c,
+                                            unsigned int cSz, unsigned char* s, unsigned int sSz);
+        #else
+            struct Gcm;
+            WOLFSSL_LOCAL void __attribute__((nonnull(1))) GHASH(struct Gcm *gcm, const unsigned char* a,
+                                            unsigned int aSz, const unsigned char* c,
+                                            unsigned int cSz, unsigned char* s, unsigned int sSz);
+        #endif
+        _Pragma("GCC diagnostic ignored \"-Wnonnull-compare\"");
+    #endif
+
     /* avoid -Wpointer-arith, encountered when -DCONFIG_FORTIFY_SOURCE */
     #undef __is_constexpr
     #define __is_constexpr(x) __builtin_constant_p(x)
