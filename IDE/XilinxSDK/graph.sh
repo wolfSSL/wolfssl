@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2043 # noise.  fine for a loop to run only once.
 #
-# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Parametrisation to this script is as follows:
 # * none yet

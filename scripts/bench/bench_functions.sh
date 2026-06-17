@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Parametrisation to this script is as follows:
 # * `my_path` MUST be set
