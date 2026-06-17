@@ -2089,7 +2089,7 @@ struct DecodedCert {
     WC_BITFIELD extSubjAltNameSet:1;
     WC_BITFIELD inhibitAnyOidSet:1;
     WC_BITFIELD selfSigned:1;           /* Indicates subject and issuer are same */
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
     WC_BITFIELD extCertPolicySet:1;
 #endif
     WC_BITFIELD extCRLdistCrit:1;
@@ -2369,6 +2369,7 @@ typedef enum MimeStatus
     #define FreeSigner wc_FreeSigner
     #define AllocDer wc_AllocDer
     #define FreeDer wc_FreeDer
+    #define DecodeExtensionType wc_DecodeExtensionType
 #endif /* WOLFSSL_API_PREFIX_MAP */
 
 WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
@@ -2412,9 +2413,9 @@ WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,
                                   word32 inSz);
 WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
                                   const char *in, void* heap);
-WOLFSSL_LOCAL int DecodeExtensionType(const byte* input, word32 length,
-                                      word32 oid, byte critical,
-                                      DecodedCert* cert, int *isUnknownExt);
+WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
+                                         word32 oid, byte critical,
+                                         DecodedCert* cert, int *isUnknownExt);
 WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SMALL_CERT_VERIFY)

@@ -21036,8 +21036,9 @@ static int DecodeAltSigVal(const byte* input, int sz, DecodedCert* cert)
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  Other negative values on error.
  */
-int DecodeExtensionType(const byte* input, word32 length, word32 oid,
-                        byte critical, DecodedCert* cert, int *isUnknownExt)
+WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
+                                         word32 oid, byte critical,
+                                         DecodedCert* cert, int *isUnknownExt)
 {
     int ret = 0;
     word32 idx = 0;
@@ -21137,11 +21138,17 @@ int DecodeExtensionType(const byte* input, word32 length, word32 oid,
 
         /* Certificate policies. */
         case CERT_POLICY_OID:
-        #ifdef WOLFSSL_SEP
+        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+            /* certificatePolicies is non-repeatable (RFC 5280 4.2). In strict
+             * mode (the default; VERIFY_AND_SET_OID is a no-op under
+             * WOLFSSL_NO_ASN_STRICT, like every other extension) reject a
+             * duplicate regardless of WOLFSSL_SEP - otherwise the second one
+             * silently overwrites the first (DecodeCertPolicy resets
+             * extCertPoliciesNb), a policy-authorization confusion. */
             VERIFY_AND_SET_OID(cert->extCertPolicySet);
+        #ifdef WOLFSSL_SEP
             cert->extCertPolicyCrit = critical ? 1 : 0;
         #endif
-        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
             if (DecodeCertPolicy(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }

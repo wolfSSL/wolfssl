@@ -2314,6 +2314,208 @@ static int test_wolfSSL_set_cipher_list_tls13_with_version(void)
     return EXPECT_RESULT();
 }
 
+/* Build gating for the cipher-list exclusion test. Each sub-test is gated only
+ * on the BUILD_* macro of the suite it needs, so it cleanly skips (rather than
+ * failing at runtime) in any build missing it - and the two are independent
+ * (BUILD_TLS_DH_anon_* already implies HAVE_ANON;
+ * BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA already implies HAVE_NULL_CIPHER). The
+ * "survivor" suite used only by the mixed (scrub-is-surgical) sub-cases is
+ * gated separately, so the core exclusion cases still run without it. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
+    #if defined(BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA)
+        #define TEST_CIPHER_EXCLUDE_ANON
+    #endif
+    #if defined(BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA)
+        #define TEST_CIPHER_EXCLUDE_NULL
+    #endif
+#endif
+
+#if defined(TEST_CIPHER_EXCLUDE_ANON) || defined(TEST_CIPHER_EXCLUDE_NULL)
+/* Does the parsed suite list on ssl contain the given suite bytes? */
+static int test_suites_contains(WOLFSSL* ssl, byte s0, byte s1)
+{
+    int i;
+    if (ssl == NULL || ssl->suites == NULL)
+        return 0;
+    for (i = 0; (i + 1) < ssl->suites->suiteSz; i += 2) {
+        if ((ssl->suites->suites[i] == s0) &&
+            (ssl->suites->suites[i + 1] == s1))
+            return 1;
+    }
+    return 0;
+}
+#endif
+
+/* OpenSSL-style "!aNULL"/"!eNULL" must remove an explicitly-listed anonymous
+ * (ADH) or NULL-cipher suite from the parsed list, not merely clear the
+ * InitSuites mask - otherwise a list like "ADH-AES128-SHA:!aNULL" still
+ * negotiates an unauthenticated (anonymous) suite, defeating the operator's
+ * intent. Each sub-case uses a fresh WOLFSSL so state cannot bleed across
+ * calls. */
+static int test_wolfSSL_set_cipher_list_exclusions(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CIPHER_EXCLUDE_ANON) || defined(TEST_CIPHER_EXCLUDE_NULL)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+#ifdef TEST_CIPHER_EXCLUDE_ANON
+    /* Control: the explicit ADH suite IS recognized and added on its own (so
+     * the later "absent" checks cannot pass trivially). */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ADH-AES128-SHA"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Reported case: "!aNULL" after the only (anon) suite empties the list,
+     * which fails like OpenSSL - and leaves no anonymous suite behind. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ADH-AES128-SHA:!aNULL"),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Reverse order: "!aNULL" before the suite must also block it. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "!aNULL:ADH-AES128-SHA"),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Report PoC #3: the suite named by its IANA name must also be dropped
+     * (classification is by suite bytes, independent of the input name form). */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+                "TLS_DH_anon_WITH_AES_128_CBC_SHA:!aNULL"), WOLFSSL_FAILURE);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    /* Mixed list: the authenticated suite survives, only ADH is removed. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "ECDHE-RSA-AES128-GCM-SHA256:ADH-AES128-SHA:!aNULL"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256), 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+#endif /* BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 */
+
+    /* "DEFAULT" embeds "!aNULL", so an explicit ADH before it is removed. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ADH-AES128-SHA:DEFAULT"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Sticky/fail-closed: once "!aNULL" excludes anon, a later allowing form
+     * ("ALL" includes anon defaults) must NOT bring it back, matching
+     * OpenSSL's permanent "!". The generated default list must contain no ADH. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "!aNULL:ALL"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, CIPHER_BYTE,
+                TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+#endif /* TEST_CIPHER_EXCLUDE_ANON */
+
+#ifdef TEST_CIPHER_EXCLUDE_NULL
+    /* eNULL: a NULL-cipher suite must likewise be removed by "!eNULL". This
+     * runs independently of HAVE_ANON, in any NULL-cipher-enabled build. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-ECDSA-NULL-SHA"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_ECDHE_ECDSA_WITH_NULL_SHA), 1); /* control: recognized */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* "!eNULL" after the only (NULL-cipher) suite empties the list and fails,
+     * leaving no NULL-cipher suite behind (no survivor suite needed). */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-ECDSA-NULL-SHA:!eNULL"),
+                WOLFSSL_FAILURE);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_ECDHE_ECDSA_WITH_NULL_SHA), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    /* Mixed list: the survivor stays, only the NULL-cipher suite is removed. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-NULL-SHA:!eNULL"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_ECDHE_ECDSA_WITH_NULL_SHA), 0); /* NULL cipher dropped */
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256), 1); /* survivor kept */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+#ifdef BUILD_TLS_SHA256_SHA256
+    /* TLS 1.3 integrity-only suite (RFC 9150) has no "NULL" in its name but is
+     * NULL-encryption; "!eNULL" must still drop it (matched by suite id). */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "ECDHE-RSA-AES128-GCM-SHA256:TLS13-SHA256-SHA256:!eNULL"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_SHA256_SHA256), 0); /* integrity-only suite dropped */
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256), 1); /* survivor kept */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* OpenSSL compat: "ALL" is "all but eNULL" - it does not generate NULL
+     * suites, but it is not a delete directive, so a following "eNULL"
+     * re-enables them. (The earlier sticky excludeNull-for-ALL wrongly kept
+     * them disabled; only "!eNULL"/"DEFAULT" should.) */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_SHA256_SHA256), 0); /* ALL alone: no NULL generated */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL:eNULL"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_SHA256_SHA256), 1); /* "eNULL" after "ALL" re-enables NULL */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+#endif /* BUILD_TLS_SHA256_SHA256 */
+#endif /* BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 */
+#endif /* TEST_CIPHER_EXCLUDE_NULL */
+
+    wolfSSL_CTX_free(ctx);
+#endif /* TEST_CIPHER_EXCLUDE_ANON || TEST_CIPHER_EXCLUDE_NULL */
+    return EXPECT_RESULT();
+}
+#ifdef TEST_CIPHER_EXCLUDE_ANON
+    #undef TEST_CIPHER_EXCLUDE_ANON
+#endif
+#ifdef TEST_CIPHER_EXCLUDE_NULL
+    #undef TEST_CIPHER_EXCLUDE_NULL
+#endif
+
 static int test_wolfSSL_set_alpn_protos_default_fails(void)
 {
     EXPECT_DECLS;
@@ -16966,6 +17168,32 @@ static int test_wolfSSL_PKCS8_d2i(void)
     EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
+    /* A negative length must be rejected before the signed->word32 cast
+     * (CWE-190 -> CWE-125): length = -1 becomes (word32)0xFFFFFFFF, so the
+     * decoder believes ~4 GiB are available and reads past the input. The
+     * same key buffers are decoded with their correct positive length above,
+     * so these calls fail only because of the negative length. All must
+     * return NULL; with the guard removed the over-read is reported by ASan
+     * (and, with a full key, faults outright). */
+    {
+        const unsigned char  malformed[2] = { 0x30, 0x10 };
+        const unsigned char* mp;
+#ifndef NO_RSA
+    #ifdef USE_CERT_BUFFERS_1024
+        const unsigned char* rp = (const unsigned char*)server_key_der_1024;
+    #else
+        const unsigned char* rp = (const unsigned char*)server_key_der_2048;
+    #endif
+        const unsigned char* rp0 = rp;
+        ExpectNull(d2i_AutoPrivateKey(NULL, &rp, -1));
+        rp = rp0;
+        ExpectNull(d2i_PrivateKey(EVP_PKEY_RSA, NULL, &rp, -1));
+#endif
+        /* The reported PoC: a 2-byte header claiming 16 bytes of absent
+         * content drives the over-read in the key-type detection loop. */
+        mp = malformed;
+        ExpectNull(d2i_AutoPrivateKey(NULL, &mp, -1));
+    }
 #endif /* OPENSSL_ALL */
 
 #ifndef NO_FILESYSTEM
@@ -35084,6 +35312,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_keeps_tls12),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls12_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_with_version),
+    TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
     TEST_DECL(test_wolfSSL_set_alpn_protos_default_fails),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
