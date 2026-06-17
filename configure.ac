@@ -7049,7 +7049,7 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_hkdf" != "no")],
             [ENABLED_HKDF="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
 
-        AS_IF([test "$ENABLED_INTELASM" = "yes"],
+        AS_IF([test "$ENABLED_INTELRDSEED" = "yes" || test "$ENABLED_AMDRDSEED" = "yes" ],
             [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
 
         AS_IF([test "$ENABLED_SHA512" = "no" &&
