@@ -1495,6 +1495,46 @@ int test_DecodeAltNames_length_underflow(void)
     return EXPECT_RESULT();
 }
 
+/* A certificate must not carry two certificatePolicies extensions
+ * (non-repeatable per RFC 5280 4.2). DecodeCertExtensions calls
+ * DecodeExtensionType once per extension; with strict ASN.1 (the default) a
+ * second certificatePolicies extension must be rejected (ASN_OBJECT_ID_E)
+ * rather than silently overwriting the first - which happened in
+ * WOLFSSL_CERT_EXT builds without WOLFSSL_SEP before the duplicate guard was
+ * extended to cover them. */
+int test_DecodeCertExtensions_dup_certpol(void)
+{
+    EXPECT_DECLS;
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(WOLFSSL_NO_ASN_STRICT) && !defined(NO_CERTS) && !defined(NO_ASN)
+    /* Minimal certificatePolicies extnValue: SEQUENCE OF PolicyInformation
+     * with one policyIdentifier OID 1.2.3.4 (encoded 2A 03 04). */
+    static const byte policy[] = {
+        0x30, 0x07,                         /* certificatePolicies SEQUENCE */
+            0x30, 0x05,                     /* PolicyInformation SEQUENCE */
+                0x06, 0x03, 0x2A, 0x03, 0x04 /* policyIdentifier OID 1.2.3.4 */
+    };
+    DecodedCert cert;
+    int isUnknown = 0;
+
+    /* DecodeExtensionType only needs an initialized DecodedCert for its
+     * bit-fields and policy storage; the source buffer is never parsed here,
+     * so any non-NULL pointer/size suffices. */
+    wc_InitDecodedCert(&cert, policy, (word32)sizeof(policy), NULL);
+
+    /* First certificatePolicies extension: accepted. */
+    ExpectIntEQ(DecodeExtensionType(policy, (word32)sizeof(policy),
+        CERT_POLICY_OID, 0, &cert, &isUnknown), 0);
+    /* Duplicate certificatePolicies extension: rejected as non-repeatable. */
+    ExpectIntEQ(DecodeExtensionType(policy, (word32)sizeof(policy),
+        CERT_POLICY_OID, 0, &cert, &isUnknown),
+        WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+    wc_FreeDecodedCert(&cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_ParseCert_SM3wSM2_short_pubkey(void)
 {
     EXPECT_DECLS;
