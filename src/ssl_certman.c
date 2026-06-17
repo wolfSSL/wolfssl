@@ -3205,10 +3205,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     }
 #ifndef ALLOW_INVALID_CERTSIGN
     else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
-        type != WOLFSSL_TEMP_CA && !cert->selfSigned &&
+        !cert->selfSigned && cert->extKeyUsageSet &&
         (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
-        /* Intermediate CA certs are required to have the keyCertSign
-        * extension set. User loaded root certs are not. */
+        /* Intermediate CA certs - including chain-supplied temporary CAs
+        * (WOLFSSL_TEMP_CA) added while building a path - are required to have
+        * the keyCertSign key usage when a Key Usage extension is present.
+        * Only operator-loaded root certs (WOLFSSL_USER_CA) and self-signed
+        * roots are exempt. Per RFC 5280 an absent Key Usage extension implies
+        * all usages, so only enforce this when the extension is actually
+        * present (extKeyUsageSet). */
         WOLFSSL_MSG("\tDoesn't have key usage certificate signing");
         ret = NOT_CA_ERROR;
     }
