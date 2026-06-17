@@ -1,0 +1,135 @@
+name: Arduino cores image
+
+# Builds the prebuilt Arduino core bundles that arduino.yml restores offline
+# (see .github/actions/install-arduino-core). Each bundle is a tar of
+# ~/.arduino15 (the installed core + toolchain) and ~/Arduino/libraries (the
+# shared CI libraries) for one vendor:arch core, published to
+# ghcr.io/<owner>/wolfssl-ci-arduino:<core> (':' in the core id becomes '-').
+#
+# Why: the core/toolchain downloads (espressif, esp8266.com, pjrc.com) are
+# large and chronically flaky from runner egress, and the old actions/cache
+# layer both pressed on the 10 GB cache cap and - for esp32 - was deleted by
+# arduino.yml's disk cleanup before it was ever saved. Resolving each core ONCE
+# here and pulling it from ghcr on every PR keeps those downloads off the PR
+# critical path. ghcr storage/bandwidth is free for public images.
+#
+# ONE-TIME SETUP: after the first successful run, make the package
+# `wolfssl-ci-arduino` PUBLIC (repo/org > Packages > Package settings >
+# Change visibility). Anonymous `docker pull` then works from fork PRs too;
+# until then install-arduino-core simply installs the core online (no breakage).
+
+on:
+  schedule:
+    # Monthly (1st). esp32 - the fastest-moving core - releases roughly monthly
+    # and the rest far less often, so a monthly unconditional rebuild tracks
+    # them closely enough; between rebuilds install-arduino-core installs any
+    # newer core online. Each run republishes every bundle.
+    - cron: '0 4 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: arduino-cores-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: build ${{ matrix.core_id }}
+    if: github.repository_owner == 'wolfssl'
+    # teensy:avr's index lives at pjrc.com, chronically unreachable from runner
+    # egress; let it fail without blocking the other eight bundles.
+    continue-on-error: ${{ matrix.core_id == 'teensy:avr' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Distinct vendor:arch cores behind arduino.yml's board matrix. The
+          # esp32 and mbed_* cores are the GB-scale toolchains; the AVR/SAM/SAMD
+          # cores are small. board_url is set only for cores whose index is not
+          # in the default board manager.
+          - core_id: arduino:avr
+          - core_id: arduino:samd
+          - core_id: arduino:sam
+          - core_id: arduino:mbed_edge
+          - core_id: arduino:mbed_portenta
+          - core_id: arduino:renesas_uno
+          - core_id: esp32:esp32
+          - core_id: esp8266:esp8266
+            board_url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          - core_id: teensy:avr
+            board_url: https://www.pjrc.com/teensy/package_teensy_index.json
+    steps:
+      - name: Free disk space
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo apt-get clean
+          df -h
+
+      - name: Install Arduino CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          curl -fsSL --retry 5 --retry-delay 10 \
+            https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh \
+            | BINDIR="$HOME/bin" sh
+          "$HOME/bin/arduino-cli" version
+
+      - name: Install the core and shared libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE_ID='${{ matrix.core_id }}'
+          BM_URL='${{ matrix.board_url }}'
+          retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
+
+          arduino-cli config init --overwrite
+          arduino-cli config set network.connection_timeout 600s
+          if [ -n "$BM_URL" ]; then
+            arduino-cli config add board_manager.additional_urls "$BM_URL"
+          fi
+          retry arduino-cli core update-index
+          retry arduino-cli core install "$CORE_ID"
+          # Mirror arduino.yml's always-installed libraries so consumers get a
+          # complete bundle.
+          for lib in ArduinoJson WiFiNINA Ethernet Bridge; do
+            retry arduino-cli lib install "$lib"
+          done
+          mkdir -p "$HOME/Arduino/libraries"
+
+      - name: Pack the bundle tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ctx"
+          # Paths relative to $HOME so install-arduino-core can `tar -C $HOME -x`
+          # straight back. Drop the staging area and any wolfssl lib (arduino.yml
+          # always installs the latest wolfssl itself).
+          tar --exclude='.arduino15/staging' --exclude='Arduino/libraries/wolfssl' \
+            -C "$HOME" -cf "$RUNNER_TEMP/ctx/arduino-core.tar" .arduino15 Arduino/libraries
+          echo "Tarball size: $(du -h "$RUNNER_TEMP/ctx/arduino-core.tar" | cut -f1)"
+
+      - name: Log in to ghcr
+        shell: bash
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          TAG=$(echo "${{ matrix.core_id }}" | tr ':' '-')
+          IMG="ghcr.io/$OWNER/wolfssl-ci-arduino:$TAG"
+          # Tiny busybox base so the consumer can `docker cp` the tarball out;
+          # the base size is negligible next to the toolchain.
+          printf 'FROM busybox\nCOPY arduino-core.tar /arduino-core.tar\n' > "$RUNNER_TEMP/ctx/Dockerfile"
+          docker build -t "$IMG" "$RUNNER_TEMP/ctx"
+          docker push "$IMG"
+          echo "Pushed $IMG"
