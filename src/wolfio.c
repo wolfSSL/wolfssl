@@ -2260,6 +2260,210 @@ int wolfIO_HttpProcessResponseOcsp(int sfd, byte** respBuf,
         respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_OCSP, heap);
 }
 
+#if defined(WOLFSSL_OCSP_SCREEN_RESPONDER) && defined(HAVE_SOCKADDR)
+
+/* Return 1 if the given IPv4 address (4 octets, network byte order) falls in a
+ * loopback/private/link-local/reserved range that an OCSP responder must not
+ * live in, else 0. */
+static int wolfIO_OcspIPv4Blocked(const unsigned char a[4])
+{
+    if (a[0] == 0)                                 /* 0.0.0.0/8    "this" net */
+        return 1;
+    if (a[0] == 127)                               /* 127.0.0.0/8  loopback */
+        return 1;
+    if (a[0] == 10)                                /* 10.0.0.0/8   private */
+        return 1;
+    if (a[0] == 172 && (a[1] & 0xF0) == 16)        /* 172.16.0.0/12 private */
+        return 1;
+    if (a[0] == 192 && a[1] == 168)                /* 192.168.0.0/16 private */
+        return 1;
+    if (a[0] == 169 && a[1] == 254)                /* 169.254.0.0/16 link-local
+                                                    * (incl. cloud metadata) */
+        return 1;
+    if (a[0] == 100 && (a[1] & 0xC0) == 64)        /* 100.64.0.0/10 CGNAT */
+        return 1;
+    if (a[0] >= 224)                               /* 224.0.0.0/4 multicast,
+                                                    * 240.0.0.0/4 reserved,
+                                                    * 255.255.255.255 bcast */
+        return 1;
+    return 0;
+}
+
+/* Only the getaddrinfo resolver path yields AF_INET6 results; the gethostbyname
+ * fallback is IPv4-only. Guard on HAVE_GETADDRINFO so this is not compiled as an
+ * unused function in a WOLFSSL_IPV6 + gethostbyname-fallback build. */
+#if defined(WOLFSSL_IPV6) && defined(HAVE_GETADDRINFO)
+/* Return 1 if the given IPv6 address (16 octets, network byte order) falls in a
+ * loopback/unspecified/unique-local/link-local/multicast range, else 0.
+ * IPv4-mapped (::ffff:0:0/96), IPv4-compatible (::a.b.c.d), and NAT64
+ * (64:ff9b::/96) embeddings are unwrapped and screened as IPv4. */
+static int wolfIO_OcspIPv6Blocked(const unsigned char a[16])
+{
+    static const unsigned char v4mapped[12] =
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF };
+    int i;
+    int zeroPrefix = 1;  /* bytes 0..11 all zero (IPv4-compatible prefix) */
+
+    for (i = 0; i < 12; i++) {
+        if (a[i] != 0) {
+            zeroPrefix = 0;
+            break;
+        }
+    }
+    if ((a[0] & 0xFE) == 0xFC)                     /* fc00::/7 unique local */
+        return 1;
+    if (a[0] == 0xFE && (a[1] & 0xC0) == 0x80)     /* fe80::/10 link-local */
+        return 1;
+    if (a[0] == 0xFF)                              /* ff00::/8 multicast */
+        return 1;
+    if (XMEMCMP(a, v4mapped, sizeof(v4mapped)) == 0) /* ::ffff:0:0/96 mapped */
+        return wolfIO_OcspIPv4Blocked(a + 12);
+    /* :: unspecified, ::1 loopback, and deprecated IPv4-compatible ::a.b.c.d
+     * all have 96 zero leading bits; screen the embedded IPv4 (covers them,
+     * since 0.0.0.0/8 is blocked). No public unicast address looks like this. */
+    if (zeroPrefix)
+        return wolfIO_OcspIPv4Blocked(a + 12);
+    if (a[0] == 0x00 && a[1] == 0x64 && a[2] == 0xFF && a[3] == 0x9B) {
+        /* NAT64 well-known prefix 64:ff9b::/96 -> screen embedded IPv4 */
+        int zeroMid = 1;
+        for (i = 4; i < 12; i++) {
+            if (a[i] != 0) {
+                zeroMid = 0;
+                break;
+            }
+        }
+        if (zeroMid)
+            return wolfIO_OcspIPv4Blocked(a + 12);
+    }
+    return 0;
+}
+#endif /* WOLFSSL_IPV6 && HAVE_GETADDRINFO */
+
+#endif /* WOLFSSL_OCSP_SCREEN_RESPONDER && HAVE_SOCKADDR */
+
+#ifdef WOLFSSL_OCSP_SCREEN_RESPONDER
+
+/* Screen an OCSP responder host before connecting, so that a certificate-
+ * supplied AIA URL cannot steer the request at an internal/reserved address
+ * (SSRF, CWE-918). The host is resolved and every returned address is checked;
+ * the destination is rejected if ANY resolved address is in a blocked range.
+ * Returns 1 if the destination is permitted, 0 if it must be blocked.
+ *
+ * This is a best-effort guard performed at the integration boundary; a host
+ * that cannot be resolved is treated as not permitted. Note that the connect
+ * resolves the name again, so this does not by itself defeat a DNS-rebinding
+ * responder -- deployments that need a hard guarantee should install a custom
+ * OCSP IO callback with wolfSSL_CTX_SetOCSP_Cb.
+ *
+ * This screening is OPT-IN: it is compiled and active only when
+ * WOLFSSL_OCSP_SCREEN_RESPONDER is defined. It is off by default because many
+ * deployments legitimately run an OCSP responder on loopback or an internal
+ * network (the in-tree OCSP tests use http://127.0.0.1, for example), and an
+ * operator-configured override responder (wolfSSL_CTX_SetOCSP_OverrideURL) is
+ * delivered to this same default callback and would be screened identically. */
+int wolfIO_OcspDestAllowed(const char* host)
+{
+#ifdef HAVE_SOCKADDR
+    int blocked = 0;
+#if defined(HAVE_GETADDRINFO)
+    ADDRINFO  hints;
+    ADDRINFO* answer = NULL;
+    ADDRINFO* cur;
+
+    if (host == NULL)
+        return 0;
+
+    XMEMSET(&hints, 0, sizeof(hints));
+#ifdef WOLFSSL_IPV6
+    hints.ai_family = AF_UNSPEC;
+#else
+    hints.ai_family = AF_INET;
+#endif
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    if (getaddrinfo(host, NULL, &hints, &answer) != 0 || answer == NULL) {
+        /* cannot resolve -> cannot verify destination -> deny */
+        return 0;
+    }
+
+    for (cur = answer; cur != NULL && !blocked; cur = cur->ai_next) {
+        if (cur->ai_family == AF_INET) {
+            SOCKADDR_IN* s = (SOCKADDR_IN*)cur->ai_addr;
+            blocked = wolfIO_OcspIPv4Blocked(
+                (const unsigned char*)&s->sin_addr.s_addr);
+        }
+    #ifdef WOLFSSL_IPV6
+        else if (cur->ai_family == AF_INET6) {
+            SOCKADDR_IN6* s = (SOCKADDR_IN6*)cur->ai_addr;
+            blocked = wolfIO_OcspIPv6Blocked(
+                (const unsigned char*)&s->sin6_addr);
+        }
+    #endif
+    }
+    freeaddrinfo(answer);
+#else /* !HAVE_GETADDRINFO: gethostbyname fallback */
+    /* gethostbyname() returns non-reentrant static storage; on multi-threaded
+     * glibc use gethostbyname_r() with a heap buffer, matching the resolver
+     * pattern in wolfIO_TcpConnect(). */
+#if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
+    !defined(SINGLE_THREADED)
+    #define WOLFSSL_OCSP_GHBN_R
+#endif
+#ifdef WOLFSSL_OCSP_GHBN_R
+    HOSTENT  entry_buf, *entry = NULL;
+    char*    ghbn_r_buf;
+    int      ghbn_r_errno;
+#else
+    HOSTENT* entry;
+#endif
+    int i;
+
+    if (host == NULL)
+        return 0;
+
+#ifdef WOLFSSL_OCSP_GHBN_R
+    /* 2048 is the same empirically-chosen buffer size used in
+     * wolfIO_TcpConnect(). */
+    ghbn_r_buf = (char*)XMALLOC(2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ghbn_r_buf != NULL) {
+        gethostbyname_r(host, &entry_buf, ghbn_r_buf, 2048, &entry,
+                        &ghbn_r_errno);
+    }
+#else
+    entry = gethostbyname(host);
+#endif
+    if (entry == NULL) {
+#ifdef WOLFSSL_OCSP_GHBN_R
+        XFREE(ghbn_r_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return 0;
+    }
+
+    /* gethostbyname()/gethostbyname_r() resolve only IPv4 (h_addrtype
+     * AF_INET); IPv6 would require gethostbyname2()/getipnodebyname(), which
+     * are not used here, so screen each returned address as IPv4. */
+    for (i = 0; entry->h_addr_list[i] != NULL && !blocked; i++) {
+        if (entry->h_addrtype == AF_INET) {
+            blocked = wolfIO_OcspIPv4Blocked(
+                (const unsigned char*)entry->h_addr_list[i]);
+        }
+    }
+#ifdef WOLFSSL_OCSP_GHBN_R
+    XFREE(ghbn_r_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #undef WOLFSSL_OCSP_GHBN_R
+#endif
+#endif /* HAVE_GETADDRINFO */
+
+    return blocked ? 0 : 1;
+#else /* !HAVE_SOCKADDR: no address support to screen */
+    (void)host;
+    return 1;
+#endif /* HAVE_SOCKADDR */
+}
+
+#endif /* WOLFSSL_OCSP_SCREEN_RESPONDER */
+
 /* in default wolfSSL callback ctx is the heap pointer */
 int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
@@ -2297,6 +2501,14 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     else if (wolfIO_DecodeUrl(url, urlSz, domainName, path, &port) < 0) {
         WOLFSSL_MSG("Unable to decode OCSP URL");
     }
+#ifdef WOLFSSL_OCSP_SCREEN_RESPONDER
+    /* Opt-in: reject responders that resolve to private/loopback/link-local
+     * ranges to keep a certificate-supplied AIA URL from forcing an internal
+     * request (SSRF, CWE-918). */
+    else if (!wolfIO_OcspDestAllowed(domainName)) {
+        WOLFSSL_MSG("OCSP responder destination not permitted");
+    }
+#endif
     else {
         /* Note, the library uses the EmbedOcspRespFree() callback to
          * free this buffer. */

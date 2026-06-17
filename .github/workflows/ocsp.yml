@@ -37,3 +37,51 @@ jobs:
 
       - name: Test Look Up
         run: ./examples/client/client -A ./certs/ocsp/root-ca-cert.pem -o
+
+  ocsp_ssrf_screen:
+    name: ocsp responder SSRF screening
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+
+      # Build with the opt-in OCSP responder destination screening enabled
+      # (WOLFSSL_OCSP_SCREEN_RESPONDER). This guards against a certificate AIA
+      # OCSP URL driving an outbound request to an internal address (SSRF,
+      # CWE-918). The screening is off by default, so it is not exercised by
+      # the ocsp_stapling job above (which uses localhost responders).
+      - name: Build wolfSSL with OCSP responder screening enabled
+        run: autoreconf -ivf && ./configure --enable-ocsp CPPFLAGS=-DWOLFSSL_OCSP_SCREEN_RESPONDER && make
+
+      # Run only the boundary unit test, not the localhost OCSP test scripts:
+      # with screening on, 127.0.0.1 responders are (correctly) rejected, so
+      # the stapling scripts do not apply to this build. Assert the test
+      # actually ran (passed) rather than being compiled out and skipped, so a
+      # future build-define change cannot turn this into a false-green signal.
+      - name: Run OCSP destination screening boundary tests
+        run: |
+          ./tests/unit.test -test_wolfIO_OcspDestAllowed | tee out.txt
+          grep -Eq 'test_wolfIO_OcspDestAllowed[^_].*: passed' out.txt
+
+  ocsp_ssrf_screen_fallback:
+    name: ocsp responder SSRF screening (gethostbyname fallback)
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v5
+
+      # Force the gethostbyname() resolver fallback (ac_cv_func_getaddrinfo=no)
+      # so the otherwise-untested fallback path of wolfIO_OcspDestAllowed is
+      # exercised. The fallback is IPv4-only and relies on glibc parsing
+      # numeric IPv4 literals locally.
+      - name: Build wolfSSL forcing the gethostbyname resolver fallback
+        run: autoreconf -ivf && ./configure --enable-ocsp ac_cv_func_getaddrinfo=no CPPFLAGS=-DWOLFSSL_OCSP_SCREEN_RESPONDER && make
+
+      - name: Run OCSP destination screening fallback boundary tests
+        run: |
+          ./tests/unit.test -test_wolfIO_OcspDestAllowed_fallback | tee out.txt
+          grep -Eq 'test_wolfIO_OcspDestAllowed_fallback.*: passed' out.txt
