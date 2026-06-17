@@ -1,0 +1,243 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: wolfssl
+Upstream-Contact: licensing@wolfssl.com
+Source: https://www.wolfssl.com
+
+Files:
+ *
+Copyright:
+ 2006-2026 wolfSSL Inc.
+License: wolfSSL-Commercial
+Comment:
+ Contact wolfSSL with licensing, usage, or support questions:
+ licensing@wolfssl.com or support@wolfssl.com.
+
+Files:
+ wolfcrypt/src/camellia.c
+ wolfssl/wolfcrypt/camellia.h
+Copyright:
+ 2006-2007 NTT (Nippon Telegraph and Telephone Corporation)
+License: NTT-BSD-2-Clause
+
+Files:
+ wolfcrypt/src/blake2b.c
+ wolfcrypt/src/blake2s.c
+Copyright:
+ 2012 Samuel Neves <sneves@dei.uc.pt>
+License: CC0-1.0
+
+Files:
+ zephyr/Kconfig
+Copyright:
+ 2016 Intel Corporation
+License: Apache-2.0
+
+Files:
+ zephyr/Kconfig.tls-generic
+Copyright:
+ 2018 Intel Corporation
+ 2018 Nordic Semiconductor ASA
+License: Apache-2.0
+
+Files:
+ m4/ax_append_link_flags.m4
+Copyright:
+ 2011 Maarten Bosmans <mkbosmans@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_pthread.m4
+Copyright:
+ 2008 Steven G. Johnson <stevenj@alum.mit.edu>
+ 2011 Daniel Richard G. <skunk@iSKUNK.ORG>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_check_library.m4
+Copyright:
+ 2012 Brian Aker <brian@tangent.org>
+ 2010 Diego Elio Petteno` <flameeyes@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_append_flag.m4
+ m4/ax_check_compile_flag.m4
+ m4/ax_check_link_flag.m4
+Copyright:
+ 2008 Guido U. Draheim <guidod@gmx.de>
+ 2011 Maarten Bosmans <mkbosmans@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_append_compile_flags.m4
+Copyright:
+ 2011 Maarten Bosmans <mkbosmans@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_tls.m4
+Copyright:
+ 2008 Alan Woodland <ajw05@aber.ac.uk>
+ 2010 Diego Elio Petteno` <flameeyes@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_create_generic_config.m4
+Copyright:
+ 2008 Guido U. Draheim <guidod@gmx.de>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_compiler_version.m4
+ m4/ax_debug.m4
+ m4/ax_harden_compiler_flags.m4
+ m4/ax_vcs_checkout.m4
+Copyright:
+ 2012 Brian Aker
+License: BSD-3-Clause
+
+Files:
+ m4/ax_append_to_file.m4
+ m4/ax_file_escapes.m4
+ m4/ax_print_to_file.m4
+Copyright:
+ 2008 Tom Howard <tomhoward@users.sf.net>
+License: FSFAP
+
+Files:
+ m4/ax_add_am_macro.m4
+ m4/ax_am_macros.m4
+Copyright:
+ 2009 Tom Howard <tomhoward@users.sf.net>
+License: FSFAP
+
+Files:
+ m4/ax_am_jobserver.m4
+Copyright:
+ 2008 Michael Paul Bailey <jinxidoru@byu.net>
+License: FSFAP
+
+Files:
+ m4/ax_count_cpus.m4
+Copyright:
+ 2012 Brian Aker <brian@tangent.org>
+ 2008 Michael Paul Bailey <jinxidoru@byu.net>
+ 2008 Christophe Tournayre <turn3r@users.sourceforge.net>
+License: FSFAP
+
+Files:
+ m4/visibility.m4
+Copyright:
+ 2005, 2008, 2010-2018 Free Software Foundation, Inc.
+License: FSFAP
+
+Files:
+ debian/*
+Copyright:
+ 2014-2022 Felix Lechner <felix.lechner@lease-up.com>
+ 2024-2026 wolfSSL Inc.
+License: wolfSSL-Commercial
+
+
+License: wolfSSL-Commercial
+ Copyright (C) 2006-2026 wolfSSL Inc.  All rights reserved.
+ .
+ This software is provided under a commercial license agreement with
+ wolfSSL Inc.  Use, modification, and distribution of this software are
+ governed by the terms of the applicable wolfSSL commercial license
+ agreement.  No part of this software may be copied, modified, or
+ distributed except in accordance with that agreement.
+ .
+ Contact licensing@wolfssl.com with any questions or comments.
+ .
+ wolfSSL Inc.
+ 10016 Edmonds Way, Suite C-300
+ Edmonds, WA 98020
+ USA
+ .
+ https://www.wolfssl.com
+
+License: NTT-BSD-2-Clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer as
+    the first lines of this file unmodified.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+ .
+ THIS SOFTWARE IS PROVIDED BY NTT ``AS IS'' AND ANY EXPRESS OR
+ IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ IN NO EVENT SHALL NTT BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: CC0-1.0
+ To the extent possible under law, the author(s) have dedicated all copyright
+ and related and neighboring rights to this software to the public domain
+ worldwide. This software is distributed without any warranty.
+ .
+ On Debian systems, the complete text of the CC0 1.0 Universal license
+ can be found in "/usr/share/common-licenses/CC0-1.0".
+
+License: Apache-2.0
+ On Debian systems, the complete text of the Apache License version 2.0
+ can be found in "/usr/share/common-licenses/Apache-2.0".
+
+License: GPL-3+-with-autoconf
+ This program is free software; you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation; either version 3 of the License, or (at your
+ option) any later version.
+ .
+ As a special exception, the respective Autoconf Macro's copyright owner
+ gives unlimited permission to copy, distribute and modify the configure
+ scripts that are the output of Autoconf when processing the Macro. You
+ need not follow the terms of the GNU General Public License when using
+ or distributing such scripts, even though portions of the text of the
+ Macro appear in them.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 3 can be found in "/usr/share/common-licenses/GPL-3".
+
+License: BSD-3-Clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+     * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ .
+     * Redistributions in binary form must reproduce the above
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+ .
+     * The names of its contributors may not be used to endorse or
+ promote products derived from this software without specific prior
+ written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: FSFAP
+ Copying and distribution of this file, with or without modification, are
+ permitted in any medium without royalty provided the copyright notice
+ and this notice are preserved. This file is offered as-is, without any
+ warranty.
