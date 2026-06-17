@@ -1,0 +1,15 @@
+# membrowse embedded-target apt packages for ubuntu-24.04 (the
+# '-embedded' bundle: ghcr.io/<owner>/wolfssl-ci-debs:ubuntu-24.04-embedded).
+# Kept separate from -full because the ARM cross-toolchain is large (~0.5 GB)
+# and unrelated to the interop workflows that pull -full. Keep sorted.
+build-essential
+ca-certificates
+cmake
+gcc-arm-none-eabi
+git
+libnewlib-arm-none-eabi
+libstdc++-arm-none-eabi-newlib
+ninja-build
+python3
+unzip
+wget

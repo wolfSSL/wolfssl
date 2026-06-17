@@ -1,0 +1,81 @@
+name: 'Install Arduino core'
+description: >
+  Make an Arduino core (and the shared CI libraries) available, preferring a
+  prebuilt bundle pulled from ghcr (published by the arduino-cores-image
+  workflow) and falling back to `arduino-cli core install` when the bundle is
+  unavailable or stale. Assumes arduino-cli is already on PATH.
+inputs:
+  core-id:
+    description: 'vendor:arch core to make available, e.g. esp32:esp32'
+    required: true
+  board-manager-url:
+    description: >
+      Optional third-party board_manager index URL, used only on the
+      online-install fallback (the ghcr bundle already carries its own).
+    required: false
+    default: ''
+  libs:
+    description: 'Space-separated Arduino libraries to ensure are present'
+    required: false
+    default: 'ArduinoJson WiFiNINA Ethernet Bridge'
+runs:
+  using: 'composite'
+  steps:
+    # Preferred path: restore ~/.arduino15 (the core + toolchain) and the
+    # shared libraries from a prebuilt tarball pulled from ghcr, so the flaky
+    # board_manager / toolchain downloads are off the PR critical path. The
+    # bundle is published only under the wolfssl org (gated below), so fork PRs
+    # read the public upstream image too. Best-effort: any failure leaves
+    # "satisfied" unset and the online install below runs unchanged.
+    - name: Restore Arduino core from ghcr bundle
+      id: ghcr
+      shell: bash
+      run: |
+        set -u
+        command -v docker >/dev/null 2>&1 || { echo "::notice::docker unavailable; installing core online"; exit 0; }
+        command -v arduino-cli >/dev/null 2>&1 || { echo "::notice::arduino-cli not on PATH; installing core online"; exit 0; }
+        CORE_ID='${{ inputs.core-id }}'
+        TAG=$(echo "$CORE_ID" | tr ':' '-')
+        IMG="ghcr.io/wolfssl/wolfssl-ci-arduino:$TAG"
+        if ! docker pull -q "$IMG" >/dev/null 2>&1; then
+          echo "::notice::ghcr bundle $IMG unavailable; installing core online"
+          exit 0
+        fi
+        cid=$(docker create "$IMG" 2>/dev/null) || { echo "::notice::cannot open bundle; installing core online"; exit 0; }
+        rm -f "$RUNNER_TEMP/arduino-core.tar"
+        docker cp "$cid:/arduino-core.tar" "$RUNNER_TEMP/arduino-core.tar" >/dev/null 2>&1 || true
+        docker rm "$cid" >/dev/null 2>&1 || true
+        test -f "$RUNNER_TEMP/arduino-core.tar" || { echo "::notice::bundle had no tarball; installing core online"; exit 0; }
+        # Entries are stored relative to $HOME (.arduino15/..., Arduino/libraries/...).
+        tar -C "$HOME" -xf "$RUNNER_TEMP/arduino-core.tar" || { echo "::notice::could not unpack bundle; installing core online"; exit 0; }
+        rm -f "$RUNNER_TEMP/arduino-core.tar"
+        if arduino-cli core list 2>/dev/null | awk 'NR>1 {print $1}' | grep -Fxq "$CORE_ID"; then
+          echo "satisfied=true" >> "$GITHUB_OUTPUT"
+          echo "Restored $CORE_ID from $IMG"
+        else
+          echo "::notice::bundle did not yield $CORE_ID; installing core online"
+        fi
+
+    - name: Install Arduino core online
+      if: steps.ghcr.outputs.satisfied != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        CORE_ID='${{ inputs.core-id }}'
+        BM_URL='${{ inputs.board-manager-url }}'
+        retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
+
+        arduino-cli config init --overwrite
+        # Wait up to 10 minutes for the big toolchain downloads.
+        arduino-cli config set network.connection_timeout 600s
+        # Scope third-party indexes to the one core that needs them: arduino-cli
+        # re-reads every configured index on each call and fails if any is
+        # unreachable, so an unconditional URL makes all jobs depend on it.
+        if [ -n "$BM_URL" ]; then
+          arduino-cli config add board_manager.additional_urls "$BM_URL"
+        fi
+        retry arduino-cli core update-index
+        retry arduino-cli core install "$CORE_ID"
+        for lib in ${{ inputs.libs }}; do
+          retry arduino-cli lib install "$lib"
+        done
