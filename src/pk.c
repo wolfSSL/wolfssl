@@ -6911,8 +6911,14 @@ static int pem_write_data(const char *name, const char *header,
     int headerLen;
     char* pem = NULL;
     word32 pemLen;
-    word32 derLen = (word32)len;
+    word32 derLen;
     byte* p;
+
+    /* Reject lengths that would wrap the PEM size calculation below. */
+    if ((len < 0) || ((word32)len >= (WOLFSSL_MAX_32BIT / 4))) {
+        return BAD_FUNC_ARG;
+    }
+    derLen = (word32)len;
 
     nameLen = (int)XSTRLEN(name);
     headerLen = (int)XSTRLEN(header);

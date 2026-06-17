@@ -483,6 +483,10 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     if (in == NULL && inLen > 0)
         return BAD_FUNC_ARG;
 
+    /* Reject lengths that would wrap the encoded-size calculation below. */
+    if (inLen >= (WOLFSSL_MAX_32BIT / 4))
+        return BAD_FUNC_ARG;
+
     outSz = (inLen + 3 - 1) / 3 * 4;
     addSz = (outSz + BASE64_LINE_SZ - 1) / BASE64_LINE_SZ;  /* new lines */
 
