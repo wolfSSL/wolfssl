@@ -729,6 +729,13 @@ typedef int (*WolfSSLGenericIORecvCb)(char *buf, int sz, void *ctx);
     WOLFSSL_API int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf);
     WOLFSSL_API void EmbedOcspRespFree(void* ctx, byte *resp);
+    #ifdef WOLFSSL_OCSP_SCREEN_RESPONDER
+        /* Internal helper (not public API): returns 1 if an OCSP responder host
+         * is permitted, 0 if it resolves into a loopback/private/link-local/
+         * reserved range. WOLFSSL_TEST_VIS so the unit tests can link it in a
+         * default (shared) build; exported only as a test hook. */
+        WOLFSSL_TEST_VIS int wolfIO_OcspDestAllowed(const char* host);
+    #endif
 #endif
 
 #ifdef HAVE_CRL_IO
