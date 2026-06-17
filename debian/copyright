@@ -14,6 +14,7 @@ Files:
  wolfssl/wolfcrypt/camellia.h
 Copyright:
  2006-2007 NTT (Nippon Telegraph and Telephone Corporation)
+ 2006-2026 wolfSSL Inc.
 License: NTT-BSD-2-Clause
 
 Files:
