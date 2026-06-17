@@ -29406,6 +29406,93 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
     return ret;
 }
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+/* Classify a cipher suite for OpenSSL-style "!aNULL"/"!eNULL" exclusion.
+ *   anon  != 0: match suites that perform NO peer authentication.
+ *   enull != 0: match suites that perform NO encryption.
+ * Classification is by suite name: the RFC/IANA name when compiled in
+ * (anonymous suites contain "_anon_", named NULL-cipher suites contain "_NULL"
+ * - e.g. TLS_DH_anon_*, TLS_ECDH_anon_*, TLS_*_WITH_NULL_*) and the OpenSSL
+ * short name (ADH/AECDH/...NULL...), which is the only name available under
+ * NO_ERROR_STRINGS. The TLS 1.3 integrity-only suites (RFC 9150) are
+ * NULL-encryption too but carry no "NULL" token in their names, so they are
+ * matched by suite id below. */
+static int CipherSuiteExcluded(byte first, byte second, int anon, int enull)
+{
+    int i;
+    const int sz = GetCipherNamesSize();
+
+#ifdef HAVE_NULL_CIPHER
+    /* TLS 1.3 integrity-only suites perform no encryption; wolfSSL keys them
+     * off haveNull in InitSuites(), so honor "!eNULL" for them here too. */
+    if (enull && (first == ECC_BYTE) &&
+            ((second == TLS_SHA256_SHA256) || (second == TLS_SHA384_SHA384))) {
+        return 1;
+    }
+#endif
+
+    for (i = 0; i < sz; i++) {
+        if ((cipher_names[i].cipherSuite0 != first) ||
+            (cipher_names[i].cipherSuite  != second)) {
+            continue;
+        }
+    #ifndef NO_CIPHER_SUITE_ALIASES
+        if (cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS) {
+            continue;
+        }
+    #endif
+    #ifndef NO_ERROR_STRINGS
+        if (cipher_names[i].name_iana != NULL) {
+            if (anon &&
+                    (XSTRSTR(cipher_names[i].name_iana, "_anon_") != NULL)) {
+                return 1;
+            }
+            if (enull &&
+                    (XSTRSTR(cipher_names[i].name_iana, "_NULL") != NULL)) {
+                return 1;
+            }
+        }
+    #endif
+        if (cipher_names[i].name != NULL) {
+            if (anon && ((XSTRSTR(cipher_names[i].name, "ADH") != NULL) ||
+                         (XSTRSTR(cipher_names[i].name, "AECDH") != NULL))) {
+                return 1;
+            }
+            if (enull && (XSTRSTR(cipher_names[i].name, "NULL") != NULL)) {
+                return 1;
+            }
+        }
+        break; /* found the suite; not excluded */
+    }
+    return 0;
+}
+
+/* Drop suites matching an exclusion from the explicit user-suite array
+ * suites[0..*idx). Used to honor an OpenSSL-style exclusion ("!aNULL",
+ * "!eNULL"/"!NULL", and the "!aNULL:!eNULL" embedded by DEFAULT): the keyword
+ * only adjusts the InitSuites mask, so without this an explicitly listed
+ * anonymous or NULL-cipher suite would survive (anonymous = no peer
+ * authentication; NULL = no confidentiality). Compacts in place; *idx is a
+ * byte count of 2-byte suite pairs. */
+static void RemoveExcludedSuites(byte* suites, int* idx, int anon, int enull)
+{
+    int i;
+    int out = 0;
+
+    for (i = 0; (i + 1) < *idx; i += 2) {
+        if (CipherSuiteExcluded(suites[i], suites[i + 1], anon, enull)) {
+            continue;
+        }
+        if (out != i) {
+            suites[out + 0] = suites[i + 0];
+            suites[out + 1] = suites[i + 1];
+        }
+        out += 2;
+    }
+    *idx = out;
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
+
 /**
 Set the enabled cipher suites.
 
@@ -29438,6 +29525,8 @@ static int ParseCipherList(Suites* suites,
     word16    haveAES128       = 1; /* allowed by default if compiled in */
     word16    haveSHA1         = 1; /* allowed by default if compiled in */
     word16    haveRC4          = 1; /* allowed by default if compiled in */
+    int       excludeAnon      = 0; /* "!aNULL"/DEFAULT seen (applied at end) */
+    int       excludeNull      = 0; /* "!eNULL"/"!NULL"/DEFAULT seen */
 #endif
     int       tls1_3        = 0;
     const int suiteSz       = GetCipherNamesSize();
@@ -29542,10 +29631,19 @@ static int ParseCipherList(Suites* suites,
         }
 
         if (XSTRCMP(name, "DEFAULT") == 0 || XSTRCMP(name, "ALL") == 0) {
-            if (XSTRCMP(name, "ALL") == 0)
+            if (XSTRCMP(name, "ALL") == 0) {
+                /* OpenSSL "ALL" includes anonymous suites and is "all but
+                 * eNULL" (haveNull=0 below stops eNULL generation), but it is
+                 * not a delete directive: unlike DEFAULT it must not set
+                 * excludeAnon/excludeNull, nor clear a prior "!aNULL"/"!eNULL". */
                 haveSig |= SIG_ANON;
-            else
+            }
+            else {
+                /* OpenSSL "DEFAULT" embeds "!aNULL:!eNULL" (delete both). */
                 haveSig &= ~SIG_ANON;
+                excludeAnon = 1;
+                excludeNull = 1;
+            }
             haveRSA = 1;
             haveDH = 1;
             haveECC = 1;
@@ -29587,6 +29685,11 @@ static int ParseCipherList(Suites* suites,
                 haveSig |= SIG_ANON;
             else
                 haveSig &= ~SIG_ANON;
+            /* Track exclusion (sticky) so an explicit ADH suite is dropped at
+             * the end regardless of where "!aNULL" sits in the list; a later
+             * allowing "aNULL" does not undo it (OpenSSL "!" is permanent). */
+            if (!allowing)
+                excludeAnon = 1;
             if (allowing) {
                 /* Allow RSA by default. */
                 if (!haveECC)
@@ -29601,6 +29704,11 @@ static int ParseCipherList(Suites* suites,
 
         if (XSTRCMP(name, "eNULL") == 0 || XSTRCMP(name, "NULL") == 0) {
             haveNull = allowing;
+            /* Track exclusion (sticky) so an explicit NULL-cipher suite is
+             * dropped at the end regardless of "!eNULL"/"!NULL" position; a
+             * later allowing "eNULL" does not undo it. */
+            if (!allowing)
+                excludeNull = 1;
             if (allowing) {
                 /* Allow RSA by default. */
                 if (!haveECC)
@@ -29842,6 +29950,38 @@ static int ParseCipherList(Suites* suites,
             }
         }
     } while (next);
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    /* Apply OpenSSL-style category exclusions to the explicitly-listed suites.
+     * Done here, after the whole list is parsed, so list order does not matter:
+     * the "!aNULL"/"!eNULL" keywords above only adjust the InitSuites mask
+     * (which governs generated defaults), never the suites the user named
+     * explicitly. The excludeAnon/excludeNull flags are set-only / sticky: like
+     * OpenSSL's permanent "!", once "!aNULL"/"!eNULL" has excluded a category a
+     * later allowing keyword does not re-enable it - fail closed. */
+    if (excludeAnon) {
+        haveSig &= ~SIG_ANON;
+        RemoveExcludedSuites(suites->suites, &idx, 1, 0);
+    }
+    if (excludeNull) {
+        haveNull = 0;
+        RemoveExcludedSuites(suites->suites, &idx, 0, 1);
+    }
+    /* If the user named suites but every one was excluded, fail like OpenSSL
+     * (empty list) rather than silently returning an unusable suite set.
+     * callInitSuites means defaults were also requested, so an empty explicit
+     * part is fine there. */
+    if (ret && !callInitSuites && idx == 0) {
+        /* Commit a fully-consistent empty state: suiteSz 0 with setSuites set
+         * makes InitSuites() leave it empty (it early-outs on setSuites), so
+         * this fails closed - no suites offered, no default regeneration. */
+        suites->suiteSz       = 0;
+        suites->hashSigAlgoSz = 0;
+        suites->setSuites     = 1;
+        WOLFSSL_MSG("Cipher list empty after !aNULL/!eNULL exclusions");
+        return 0;
+    }
+#endif
 
     if (ret) {
         int keySz = 0;
