@@ -307,6 +307,10 @@ int test_wc_curve25519_shared_secret_ex(void)
     WC_RNG         rng;
     byte           out[CURVE25519_KEYSIZE];
     word32         outLen = sizeof(out);
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte           outHiBit[CURVE25519_KEYSIZE];
+    word32         outHiBitLen = sizeof(out);
+#endif
     int            endian = EC25519_BIG_ENDIAN;
 
     ExpectIntEQ(wc_curve25519_init(&private_key), 0);
@@ -336,11 +340,25 @@ int test_wc_curve25519_shared_secret_ex(void)
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
         NULL, endian), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
     /* curve25519.c is checking for public_key size less than or equal to 0x7f,
      * increasing to 0x8f checks for error being returned */
-    public_key.p.point[CURVE25519_KEYSIZE-1] = 0x8F;
+    if (EXPECT_SUCCESS()) {
+        public_key.p.point[CURVE25519_KEYSIZE-1] = 0x8F;
+    }
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
         &outLen, endian), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#else
+    ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
+        &outLen, endian), 0);
+    if (EXPECT_SUCCESS()) {
+        public_key.p.point[CURVE25519_KEYSIZE-1] |= 0x80;
+    }
+    ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
+        outHiBit, &outHiBitLen, endian), 0);
+    ExpectIntEQ(outLen, outHiBitLen);
+    ExpectBufEQ(out, outHiBit, outLen);
+#endif
 
     outLen = outLen - 2;
     ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
