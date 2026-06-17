@@ -12810,12 +12810,12 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
      * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
-     * currently pass around the cunulative sizes in bytes as word32s, so we
+     * currently pass around the cumulative sizes in bytes as word32s, so we
      * can't currently support the maximum allowed.
      */
     if ((ret == 0) &&
-        (((aes->cSz > 0xffffffff - sz)) ||
-         ((aes->aSz > 0xffffffff - authInSz))))
+        ((aes->cSz > 0xffffffff - sz) ||
+         (aes->aSz > 0xffffffff - authInSz)))
     {
         ret = AES_GCM_OVERFLOW_E;
     }
@@ -12964,12 +12964,12 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
      * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
-     * currently pass around the cunulative sizes in bytes as word32s, so we
+     * currently pass around the cumulative sizes in bytes as word32s, so we
      * can't currently support the maximum allowed.
      */
     if ((ret == 0) &&
-        (((aes->cSz > 0xffffffff - sz)) ||
-         ((aes->aSz > 0xffffffff - authInSz))))
+        ((aes->cSz > 0xffffffff - sz) ||
+         (aes->aSz > 0xffffffff - authInSz)))
     {
         ret = AES_GCM_OVERFLOW_E;
     }

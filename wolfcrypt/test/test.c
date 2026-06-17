@@ -19148,6 +19148,18 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
     ret = wc_AesGcmEncryptUpdate(enc, resultC, p, sizeof(p), a, sizeof(a));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
+    ret = wc_AesGcmEncryptUpdate(enc, resultC, p, 0xffffffff,
+                                 NULL /* authIn */, 0 /* authInSz */);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0) */
+
     ret = wc_AesGcmEncryptFinal(enc, resultT, sizeof(t1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -19163,6 +19175,18 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
     ret = wc_AesGcmDecryptUpdate(enc, resultP, c1, sizeof(c1), a, sizeof(a));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
+    ret = wc_AesGcmDecryptUpdate(enc, resultP, c1, 0xffffffff,
+                                 NULL /* authIn */, 0 /* authInSz */);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0) */
+
     ret = wc_AesGcmDecryptFinal(enc, t1, sizeof(t1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -21094,6 +21118,100 @@ static wc_test_ret_t aesccm_128_badarg_test(Aes* enc)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
+
+#if !defined(BENCH_EMBEDDED) && !defined(WOLFSSL_NO_MALLOC)
+    /* Test 64k - 1 with full nonce -- must work. */
+    {
+        wc_static_assert(sizeof(iv) >= 13);
+        word32 clear_size = ((word32)1 << 16);
+        word32 cipher_size = ((word32)1 << 16);
+        byte *large_alloc = (byte *)XMALLOC(clear_size + cipher_size, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        byte *clear = large_alloc;
+        byte *cipher = large_alloc + clear_size;
+
+        if (large_alloc == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+
+        XMEMSET(clear, 0, clear_size);
+
+        ret = wc_AesCcmEncrypt(enc, cipher, clear, clear_size - 1, iv,
+                               13, t_empty2, sizeof(t_empty2), a,
+                               sizeof(a));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+
+#ifdef HAVE_AES_DECRYPT
+        if (ret == 0) {
+            word32 i;
+
+            XMEMSET(clear, 0xff, clear_size);
+            ret = wc_AesCcmDecrypt(enc, clear, cipher, cipher_size - 1,
+                              iv, 13, t_empty2, sizeof(t_empty2), a,
+                              sizeof(a));
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else {
+                for (i = 0; i < clear_size - 1; ++i) {
+                    if (clear[i] != 0) {
+                        ret = WC_TEST_RET_ENC_I(i);
+                        break;
+                    }
+                }
+            }
+        }
+#endif
+
+        XFREE(large_alloc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret != 0)
+            goto out;
+    }
+#endif /* !BENCH_EMBEDDED && !WOLFSSL_NO_MALLOC */
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
+
+    ret = wc_AesCcmEncrypt(enc, buf, (const byte *)"", (word32)1 << 16,
+                              iv, 13, t_empty2, sizeof(t_empty2),
+                              a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesCcmDecrypt(enc, buf, (const byte *)"",
+                           (word32)1 << 16, iv, 13, t_empty2,
+                           sizeof(t_empty2), a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif
+
+    ret = wc_AesCcmEncrypt(enc, buf, (const byte *)"", (word32)1 << 24,
+                              iv, 12, t_empty2, sizeof(t_empty2),
+                              a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesCcmDecrypt(enc, buf, (const byte *)"",
+                           (word32)1 << 24, iv, 12, t_empty2,
+                           sizeof(t_empty2), a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif
+
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0) */
 
     ret = 0;
   out:
