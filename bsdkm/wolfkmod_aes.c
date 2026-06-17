@@ -83,9 +83,12 @@ static int wolfkdriv_test_aes_cbc_big(device_t dev, int crid)
         goto test_aes_cbc_big_out;
     }
 
+    /* configure it.
+     * note: CRYPTO_F_CBIFSYNC is required, or the callback may be deferred
+     * to later, even if the session was sync. */
     crp->crp_callback = wolfkdriv_test_crp_callback;
     crp->crp_op = CRYPTO_OP_ENCRYPT;
-    crp->crp_flags = CRYPTO_F_IV_SEPARATE;
+    crp->crp_flags = CRYPTO_F_IV_SEPARATE | CRYPTO_F_CBIFSYNC;
 
     memcpy(crp->crp_iv, iv, WC_AES_BLOCK_SIZE);
 
@@ -266,10 +269,12 @@ static int wolfkdriv_test_aes_gcm(device_t dev, int crid)
         goto test_aes_gcm_out;
     }
 
-    /* configure it */
+    /* configure it.
+     * note: CRYPTO_F_CBIFSYNC is required, or the callback may be deferred
+     * to later, even if the session was sync. */
     crp->crp_callback = wolfkdriv_test_crp_callback;
     crp->crp_op = (CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST);
-    crp->crp_flags = CRYPTO_F_IV_SEPARATE;
+    crp->crp_flags = CRYPTO_F_IV_SEPARATE | CRYPTO_F_CBIFSYNC;
 
     memcpy(crp->crp_iv, iv1, sizeof(iv1));
 
