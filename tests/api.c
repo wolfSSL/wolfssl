@@ -16966,6 +16966,32 @@ static int test_wolfSSL_PKCS8_d2i(void)
     EVP_PKEY_free(pkey);
     pkey = NULL;
 #endif
+    /* A negative length must be rejected before the signed->word32 cast
+     * (CWE-190 -> CWE-125): length = -1 becomes (word32)0xFFFFFFFF, so the
+     * decoder believes ~4 GiB are available and reads past the input. The
+     * same key buffers are decoded with their correct positive length above,
+     * so these calls fail only because of the negative length. All must
+     * return NULL; with the guard removed the over-read is reported by ASan
+     * (and, with a full key, faults outright). */
+    {
+        const unsigned char  malformed[2] = { 0x30, 0x10 };
+        const unsigned char* mp;
+#ifndef NO_RSA
+    #ifdef USE_CERT_BUFFERS_1024
+        const unsigned char* rp = (const unsigned char*)server_key_der_1024;
+    #else
+        const unsigned char* rp = (const unsigned char*)server_key_der_2048;
+    #endif
+        const unsigned char* rp0 = rp;
+        ExpectNull(d2i_AutoPrivateKey(NULL, &rp, -1));
+        rp = rp0;
+        ExpectNull(d2i_PrivateKey(EVP_PKEY_RSA, NULL, &rp, -1));
+#endif
+        /* The reported PoC: a 2-byte header claiming 16 bytes of absent
+         * content drives the over-read in the key-type detection loop. */
+        mp = malformed;
+        ExpectNull(d2i_AutoPrivateKey(NULL, &mp, -1));
+    }
 #endif /* OPENSSL_ALL */
 
 #ifndef NO_FILESYSTEM
