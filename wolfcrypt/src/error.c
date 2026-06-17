@@ -498,10 +498,10 @@ const char* wc_GetErrorString(int error)
         return "wolfcrypt FIPS ECDHE Known Answer Test Failure";
 
     case AES_GCM_OVERFLOW_E:
-        return "AES-GCM invocation counter overflow";
+        return "AES-GCM internal overflow averted";
 
     case AES_CCM_OVERFLOW_E:
-        return "AES-CCM invocation counter overflow";
+        return "AES-CCM internal overflow averted";
 
     case RSA_KEY_PAIR_E:
         return "RSA Key Pair-Wise Consistency check fail";

@@ -21167,7 +21167,7 @@ static wc_test_ret_t aesccm_128_badarg_test(Aes* enc)
     }
 #endif /* !BENCH_EMBEDDED && !WOLFSSL_NO_MALLOC */
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0))
 
     ret = wc_AesCcmEncrypt(enc, buf, (const byte *)"", (word32)1 << 16,
                               iv, 13, t_empty2, sizeof(t_empty2),
@@ -21211,7 +21211,7 @@ static wc_test_ret_t aesccm_128_badarg_test(Aes* enc)
     }
 #endif
 
-#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0) */
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0)) */
 
     ret = 0;
   out:

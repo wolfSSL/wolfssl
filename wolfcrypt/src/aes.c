@@ -13384,6 +13384,18 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return status;
     }
 
+    {
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - nonceSz;
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(inSz)) &&
+            (inSz >= ((word32)1 << (lenSz * 8))))
+        {
+            return AES_CCM_OVERFLOW_E;
+        }
+    }
+
     status = wolfSSL_CryptHwMutexLock();
     if (status != 0)
         return status;
@@ -13416,6 +13428,18 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     status = wc_AesGetKeySize(aes, &keySize);
     if (status != 0) {
         return status;
+    }
+
+    {
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - nonceSz;
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(inSz)) &&
+            (inSz >= ((word32)1 << (lenSz * 8))))
+        {
+            return AES_CCM_OVERFLOW_E;
+        }
     }
 
     status = wolfSSL_CryptHwMutexLock();

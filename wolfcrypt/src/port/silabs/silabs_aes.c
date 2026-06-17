@@ -273,8 +273,21 @@ int wc_AesCcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
 {
     sl_status_t status;
     if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+            (ivSz < CCM_NONCE_MIN_SZ) || (ivSz > CCM_NONCE_MAX_SZ) ||
             (authIn == NULL && authInSz != 0) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+
+    {
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - ivSz;
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(sz)) &&
+            (sz >= ((word32)1 << (lenSz * 8))))
+        {
+            return AES_CCM_OVERFLOW_E;
+        }
     }
 
     status = sl_se_ccm_encrypt_and_tag(
@@ -301,8 +314,21 @@ int wc_AesCcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
 {
     sl_status_t status;
     if ((in == NULL) || (out == NULL) || (iv == NULL) || (authTag == NULL) ||
+            (ivSz < CCM_NONCE_MIN_SZ) || (ivSz > CCM_NONCE_MAX_SZ) ||
             (authIn == NULL && authInSz != 0) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+
+    {
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - ivSz;
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(sz)) &&
+            (sz >= ((word32)1 << (lenSz * 8))))
+        {
+            return AES_CCM_OVERFLOW_E;
+        }
     }
 
     status = sl_se_ccm_auth_decrypt(
