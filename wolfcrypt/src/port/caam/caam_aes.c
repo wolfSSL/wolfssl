@@ -494,7 +494,7 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
     word32 keySz;
     word32 i;
     byte B0Ctr0[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE];
-    int lenSz;
+    word32 lenSz;
     byte mask = 0xFF;
     const word32 wordSz = (word32)sizeof(word32);
     int ret;
@@ -513,10 +513,20 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
          return ret;
     }
 
+    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
+
     /* set up B0 and CTR0 similar to how wolfcrypt/src/aes.c does */
     XMEMCPY(B0Ctr0+1, nonce, nonceSz);
     XMEMCPY(B0Ctr0+WC_AES_BLOCK_SIZE+1, nonce, nonceSz);
-    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+
     B0Ctr0[0] = (authInSz > 0 ? 64 : 0)
          + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
@@ -577,7 +587,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
     word32 i;
     byte B0Ctr0[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE];
     byte tag[WC_AES_BLOCK_SIZE];
-    int lenSz;
+    word32 lenSz;
     byte mask = 0xFF;
     const word32 wordSz = (word32)sizeof(word32);
     int ret;
@@ -596,10 +606,20 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
          return ret;
     }
 
+    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
+
     /* set up B0 and CTR0 similar to how wolfcrypt/src/aes.c does */
     XMEMCPY(B0Ctr0+1, nonce, nonceSz);
     XMEMCPY(B0Ctr0+WC_AES_BLOCK_SIZE+1, nonce, nonceSz);
-    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+
     B0Ctr0[0] = (authInSz > 0 ? 64 : 0)
          + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
