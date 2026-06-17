@@ -10486,6 +10486,23 @@ fi
 
 
 if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
+  case $host_cpu in
+  *x86_64* | *amd64*)
+    case $host_os in
+    *mingw* | *cygwin* | *msys*)
+      if test "$enable_sp_asm" = "yes"; then
+        AC_MSG_ERROR([--enable-sp-asm is not supported for x86_64 Windows hosts (MinGW/Cygwin). Reconfigure without --enable-sp-asm to use the C SP implementation.])
+      else
+        AC_MSG_WARN([x86_64 SP assembly is not supported for Windows hosts (MinGW/Cygwin); disabling SP assembly and using the C implementation.])
+        ENABLED_SP_ASM=no
+      fi
+      ;;
+    esac
+    ;;
+  esac
+fi
+
+if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
   if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AC_MSG_ERROR([SP non-blocking not supported with sp-asm])
   fi
