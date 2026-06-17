@@ -19150,8 +19150,16 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
-    ret = wc_AesGcmEncryptUpdate(enc, resultC, p, 0xffffffff,
+    ret = wc_AesGcmEncryptUpdate(enc, resultC, p, WOLFSSL_MAX_32BIT,
                                  NULL /* authIn */, 0 /* authInSz */);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+    ret = wc_AesGcmEncryptUpdate(enc, resultC, (const byte *)"", 0,
+                                 (const byte *)"", WOLFSSL_MAX_32BIT);
     if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
         if (ret == 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -19177,8 +19185,16 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
-    ret = wc_AesGcmDecryptUpdate(enc, resultP, c1, 0xffffffff,
+    ret = wc_AesGcmDecryptUpdate(enc, resultP, c1, WOLFSSL_MAX_32BIT,
                                  NULL /* authIn */, 0 /* authInSz */);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+    ret = wc_AesGcmDecryptUpdate(enc, resultP, (const byte *)"", 0,
+                                 (const byte *)"", WOLFSSL_MAX_32BIT);
     if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
         if (ret == 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -21125,7 +21141,8 @@ static wc_test_ret_t aesccm_128_badarg_test(Aes* enc)
         wc_static_assert(sizeof(iv) >= 13);
         word32 clear_size = ((word32)1 << 16);
         word32 cipher_size = ((word32)1 << 16);
-        byte *large_alloc = (byte *)XMALLOC(clear_size + cipher_size, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        byte *large_alloc = (byte *)XMALLOC(clear_size + cipher_size,
+                                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         byte *clear = large_alloc;
         byte *cipher = large_alloc + clear_size;
 

@@ -12814,8 +12814,8 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
      * can't currently support the maximum allowed.
      */
     if ((ret == 0) &&
-        ((aes->cSz > 0xffffffff - sz) ||
-         (aes->aSz > 0xffffffff - authInSz)))
+        ((aes->cSz > WOLFSSL_MAX_32BIT - sz) ||
+         (aes->aSz > WOLFSSL_MAX_32BIT - authInSz)))
     {
         ret = AES_GCM_OVERFLOW_E;
     }
@@ -12968,8 +12968,8 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
      * can't currently support the maximum allowed.
      */
     if ((ret == 0) &&
-        ((aes->cSz > 0xffffffff - sz) ||
-         (aes->aSz > 0xffffffff - authInSz)))
+        ((aes->cSz > WOLFSSL_MAX_32BIT - sz) ||
+         (aes->aSz > WOLFSSL_MAX_32BIT - authInSz)))
     {
         ret = AES_GCM_OVERFLOW_E;
     }
