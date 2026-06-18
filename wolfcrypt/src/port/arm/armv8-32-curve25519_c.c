@@ -59,9 +59,9 @@
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_init(void)
+WC_OMIT_FRAME_POINTER void fe_init()
 #else
-WC_OMIT_FRAME_POINTER void fe_init(void)
+WC_OMIT_FRAME_POINTER void fe_init()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -81,9 +81,9 @@ WC_OMIT_FRAME_POINTER void fe_init(void)
 
 void fe_add_sub_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
+WC_OMIT_FRAME_POINTER void fe_add_sub_op()
 #else
-WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
+WC_OMIT_FRAME_POINTER void fe_add_sub_op()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -198,8 +198,7 @@ WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
 #endif
         /*  Sub */
         "sbcs	r10, r4, r6\n\t"
-        "sbcs	r11, r5, r7\n\t"
-        "sbc	lr, lr, lr\n\t"
+        "sbc	r11, r5, r7\n\t"
         /*  Add */
         "subs	r12, r12, #1\n\t"
         "adcs	r8, r4, r6\n\t"
@@ -265,12 +264,9 @@ WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
 #else
         "strd	r8, r9, [r0, #24]\n\t"
 #endif
-        /*   Multiply -modulus by underflow */
-        "lsl	r3, lr, #1\n\t"
-        "mvn	lr, #18\n\t"
-        "orr	r3, r3, r11, lsr #31\n\t"
-        "mul	lr, r3, lr\n\t"
-        /*   Sub -x*modulus (if overflow) */
+        /*   Add -modulus on underflow */
+        "mov	lr, #19\n\t"
+        "and	lr, lr, r11, asr #31\n\t"
         "ldm	r1, {r4, r5, r6, r7, r8, r9}\n\t"
         "subs	r4, r4, lr\n\t"
         "sbcs	r5, r5, #0\n\t"
@@ -300,9 +296,9 @@ WC_OMIT_FRAME_POINTER void fe_add_sub_op(void)
 
 void fe_sub_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sub_op(void)
+WC_OMIT_FRAME_POINTER void fe_sub_op()
 #else
-WC_OMIT_FRAME_POINTER void fe_sub_op(void)
+WC_OMIT_FRAME_POINTER void fe_sub_op()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -319,12 +315,9 @@ WC_OMIT_FRAME_POINTER void fe_sub_op(void)
         "sbcs	r10, r2, r10\n\t"
         "sbcs	r11, r3, r11\n\t"
         "sbcs	r12, r4, r12\n\t"
-        "sbcs	lr, r5, lr\n\t"
-        "sbc	r3, r3, r3\n\t"
-        "mvn	r2, #18\n\t"
-        "lsl	r3, r3, #1\n\t"
-        "orr	r3, r3, lr, lsr #31\n\t"
-        "mul	r2, r3, r2\n\t"
+        "sbc	lr, r5, lr\n\t"
+        "mov	r2, #19\n\t"
+        "and	r2, r2, lr, asr #31\n\t"
         "subs	r6, r6, r2\n\t"
         "sbcs	r7, r7, #0\n\t"
         "sbcs	r8, r8, #0\n\t"
@@ -379,9 +372,9 @@ WC_OMIT_FRAME_POINTER void fe_sub(fe r, const fe a, const fe b)
 
 void fe_add_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_add_op(void)
+WC_OMIT_FRAME_POINTER void fe_add_op()
 #else
-WC_OMIT_FRAME_POINTER void fe_add_op(void)
+WC_OMIT_FRAME_POINTER void fe_add_op()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -398,13 +391,9 @@ WC_OMIT_FRAME_POINTER void fe_add_op(void)
         "adcs	r10, r2, r10\n\t"
         "adcs	r11, r3, r11\n\t"
         "adcs	r12, r4, r12\n\t"
-        "mov	r3, #0\n\t"
-        "adcs	lr, r5, lr\n\t"
-        "adc	r3, r3, #0\n\t"
+        "adc	lr, r5, lr\n\t"
         "mov	r2, #19\n\t"
-        "lsl	r3, r3, #1\n\t"
-        "orr	r3, r3, lr, lsr #31\n\t"
-        "mul	r2, r3, r2\n\t"
+        "and	r2, r2, lr, asr #31\n\t"
         "adds	r6, r6, r2\n\t"
         "adcs	r7, r7, #0\n\t"
         "adcs	r8, r8, #0\n\t"
@@ -797,6 +786,7 @@ WC_OMIT_FRAME_POINTER int fe_isnegative(const fe a)
 
     __asm__ __volatile__ (
         "ldm	%[a]!, {r2, r3, r4, r5}\n\t"
+        "and	r12, r2, #1\n\t"
         "adds	r1, r2, #19\n\t"
         "adcs	r1, r3, #0\n\t"
         "adcs	r1, r4, #0\n\t"
@@ -805,11 +795,9 @@ WC_OMIT_FRAME_POINTER int fe_isnegative(const fe a)
         "adcs	r1, r2, #0\n\t"
         "adcs	r1, r3, #0\n\t"
         "adcs	r1, r4, #0\n\t"
-        "ldr	r2, [%[a], #-16]\n\t"
         "adc	r1, r5, #0\n\t"
-        "and	%[a], r2, #1\n\t"
         "lsr	r1, r1, #31\n\t"
-        "eor	%[a], %[a], r1\n\t"
+        "eor	%[a], r12, r1\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [a] "+r" (a)
         :
@@ -817,7 +805,7 @@ WC_OMIT_FRAME_POINTER int fe_isnegative(const fe a)
         :
         : [a] "r" (a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-        : "memory", "cc", "r1", "r2", "r3", "r4", "r5"
+        : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r12"
     );
     return (word32)(size_t)a;
 }
@@ -2510,9 +2498,9 @@ WC_OMIT_FRAME_POINTER void fe_cmov_table(fe* r, const fe* base, signed char b)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 void fe_mul_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_OMIT_FRAME_POINTER void fe_mul_op()
 #else
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_OMIT_FRAME_POINTER void fe_mul_op()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2905,9 +2893,9 @@ WC_OMIT_FRAME_POINTER void fe_mul_op(void)
 #else
 void fe_mul_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_OMIT_FRAME_POINTER void fe_mul_op()
 #else
-WC_OMIT_FRAME_POINTER void fe_mul_op(void)
+WC_OMIT_FRAME_POINTER void fe_mul_op()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3086,9 +3074,9 @@ WC_OMIT_FRAME_POINTER void fe_mul(fe r, const fe a, const fe b)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 void fe_sq_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_OMIT_FRAME_POINTER void fe_sq_op()
 #else
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_OMIT_FRAME_POINTER void fe_sq_op()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3374,9 +3362,9 @@ WC_OMIT_FRAME_POINTER void fe_sq_op(void)
 #else
 void fe_sq_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_OMIT_FRAME_POINTER void fe_sq_op()
 #else
-WC_OMIT_FRAME_POINTER void fe_sq_op(void)
+WC_OMIT_FRAME_POINTER void fe_sq_op()
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

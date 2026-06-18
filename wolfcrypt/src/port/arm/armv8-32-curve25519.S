@@ -155,8 +155,7 @@ fe_add_sub_op:
 #endif
 	#  Sub
 	sbcs	r10, r4, r6
-	sbcs	r11, r5, r7
-	sbc	lr, lr, lr
+	sbc	r11, r5, r7
 	#  Add
 	subs	r12, r12, #1
 	adcs	r8, r4, r6
@@ -222,12 +221,9 @@ fe_add_sub_op:
 #else
 	strd	r8, r9, [r0, #24]
 #endif
-	#   Multiply -modulus by underflow
-	lsl	r3, lr, #1
-	mvn	lr, #18
-	orr	r3, r3, r11, lsr #31
-	mul	lr, r3, lr
-	#   Sub -x*modulus (if overflow)
+	#   Add -modulus on underflow
+	mov	lr, #19
+	and	lr, lr, r11, asr #31
 	ldm	r1, {r4, r5, r6, r7, r8, r9}
 	subs	r4, r4, lr
 	sbcs	r5, r5, #0
@@ -263,12 +259,9 @@ fe_sub_op:
 	sbcs	r10, r2, r10
 	sbcs	r11, r3, r11
 	sbcs	r12, r4, r12
-	sbcs	lr, r5, lr
-	sbc	r3, r3, r3
-	mvn	r2, #18
-	lsl	r3, r3, #1
-	orr	r3, r3, lr, lsr #31
-	mul	r2, r3, r2
+	sbc	lr, r5, lr
+	mov	r2, #19
+	and	r2, r2, lr, asr #31
 	subs	r6, r6, r2
 	sbcs	r7, r7, #0
 	sbcs	r8, r8, #0
@@ -312,13 +305,9 @@ fe_add_op:
 	adcs	r10, r2, r10
 	adcs	r11, r3, r11
 	adcs	r12, r4, r12
-	mov	r3, #0
-	adcs	lr, r5, lr
-	adc	r3, r3, #0
+	adc	lr, r5, lr
 	mov	r2, #19
-	lsl	r3, r3, #1
-	orr	r3, r3, lr, lsr #31
-	mul	r2, r3, r2
+	and	r2, r2, lr, asr #31
 	adds	r6, r6, r2
 	adcs	r7, r7, #0
 	adcs	r8, r8, #0
@@ -575,6 +564,7 @@ fe_isnonzero:
 fe_isnegative:
 	push	{r4, r5, lr}
 	ldm	r0!, {r2, r3, r4, r5}
+	and	r12, r2, #1
 	adds	r1, r2, #19
 	adcs	r1, r3, #0
 	adcs	r1, r4, #0
@@ -583,11 +573,9 @@ fe_isnegative:
 	adcs	r1, r2, #0
 	adcs	r1, r3, #0
 	adcs	r1, r4, #0
-	ldr	r2, [r0, #-16]
 	adc	r1, r5, #0
-	and	r0, r2, #1
 	lsr	r1, r1, #31
-	eor	r0, r0, r1
+	eor	r0, r12, r1
 	pop	{r4, r5, pc}
 	.size	fe_isnegative,.-fe_isnegative
 #if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN) || defined(WOLFSSL_CURVE25519_USE_ED25519)

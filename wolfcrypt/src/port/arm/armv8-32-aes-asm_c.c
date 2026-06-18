@@ -8993,37 +8993,36 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "add	%[ks], %[ks], #16\n\t"
         "stm	%[ks], {r4, r5, r6, r7}\n\t"
         "sub	%[ks], %[ks], #16\n\t"
-        "mov	r3, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
-        "lsl	r4, r3, #16\n\t"
+        "lsl	r4, r7, #16\n\t"
         "lsr	r4, r4, #24\n\t"
 #else
-        "uxtb	r4, r3, ror #8\n\t"
+        "uxtb	r4, r7, ror #8\n\t"
 #endif
 #else
-        "ubfx	r4, r3, #8, #8\n\t"
+        "ubfx	r4, r7, #8, #8\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
-        "lsl	r5, r3, #8\n\t"
+        "lsl	r5, r7, #8\n\t"
         "lsr	r5, r5, #24\n\t"
 #else
-        "uxtb	r5, r3, ror #16\n\t"
+        "uxtb	r5, r7, ror #16\n\t"
 #endif
 #else
-        "ubfx	r5, r3, #16, #8\n\t"
+        "ubfx	r5, r7, #16, #8\n\t"
 #endif
-        "lsr	r6, r3, #24\n\t"
+        "lsr	r6, r7, #24\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
-        "lsl	r3, r3, #24\n\t"
+        "lsl	r3, r7, #24\n\t"
         "lsr	r3, r3, #24\n\t"
 #else
-        "uxtb	r3, r3\n\t"
+        "uxtb	r3, r7\n\t"
 #endif
 #else
-        "ubfx	r3, r3, #0, #8\n\t"
+        "ubfx	r3, r7, #0, #8\n\t"
 #endif
         "ldrb	r4, [r8, r4, lsl #2]\n\t"
         "ldrb	r6, [r8, r6, lsl #2]\n\t"
@@ -24111,14 +24110,22 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ldr	r12, [r0, #12]\n\t"
         "ldr	%[len], [r2, #12]\n\t"
         "eor	r12, r12, %[len]\n\t"
-        "lsr	%[len], r12, #24\n\t"
-        "and	%[len], %[len], #15\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	%[len], r12, #4\n\t"
+        "lsr	%[len], %[len], #28\n\t"
+#else
+        "ubfx	%[len], r12, #24, #4\n\t"
+#endif
         "add	%[len], %[m], %[len], lsl #4\n\t"
         "ldm	%[len], {r8, r9, r10, r11}\n\t"
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsr	r4, r12, #28\n\t"
+#else
+        "ubfx	r4, r12, #28, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
@@ -24134,9 +24141,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #12\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #16, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24151,9 +24162,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #20\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #8\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #20, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24168,9 +24183,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #8\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #20\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #8, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24185,9 +24204,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #12\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #16\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #12, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24218,9 +24241,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #24\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #4, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24244,8 +24271,12 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ldr	r12, [r0, #8]\n\t"
         "ldr	%[len], [r2, #8]\n\t"
         "eor	r12, r12, %[len]\n\t"
-        "lsr	%[len], r12, #24\n\t"
-        "and	%[len], %[len], #15\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	%[len], r12, #4\n\t"
+        "lsr	%[len], %[len], #28\n\t"
+#else
+        "ubfx	%[len], r12, #24, #4\n\t"
+#endif
         "add	%[len], %[m], %[len], lsl #4\n\t"
         "ldm	%[len], {r4, r5, r6, r7}\n\t"
         "eor	r8, r8, r4\n\t"
@@ -24255,7 +24286,11 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsr	r4, r12, #28\n\t"
+#else
+        "ubfx	r4, r12, #28, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
@@ -24271,9 +24306,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #12\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #16, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24288,9 +24327,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #20\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #8\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #20, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24305,9 +24348,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #8\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #20\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #8, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24322,9 +24369,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #12\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #16\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #12, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24355,9 +24406,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #24\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #4, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24381,8 +24436,12 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ldr	r12, [r0, #4]\n\t"
         "ldr	%[len], [r2, #4]\n\t"
         "eor	r12, r12, %[len]\n\t"
-        "lsr	%[len], r12, #24\n\t"
-        "and	%[len], %[len], #15\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	%[len], r12, #4\n\t"
+        "lsr	%[len], %[len], #28\n\t"
+#else
+        "ubfx	%[len], r12, #24, #4\n\t"
+#endif
         "add	%[len], %[m], %[len], lsl #4\n\t"
         "ldm	%[len], {r4, r5, r6, r7}\n\t"
         "eor	r8, r8, r4\n\t"
@@ -24392,7 +24451,11 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsr	r4, r12, #28\n\t"
+#else
+        "ubfx	r4, r12, #28, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
@@ -24408,9 +24471,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #12\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #16, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24425,9 +24492,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #20\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #8\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #20, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24442,9 +24513,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #8\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #20\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #8, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24459,9 +24534,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #12\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #16\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #12, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24492,9 +24571,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #24\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #4, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24518,8 +24601,12 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "ldr	r12, [r0]\n\t"
         "ldr	%[len], [r2]\n\t"
         "eor	r12, r12, %[len]\n\t"
-        "lsr	%[len], r12, #24\n\t"
-        "and	%[len], %[len], #15\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	%[len], r12, #4\n\t"
+        "lsr	%[len], %[len], #28\n\t"
+#else
+        "ubfx	%[len], r12, #24, #4\n\t"
+#endif
         "add	%[len], %[m], %[len], lsl #4\n\t"
         "ldm	%[len], {r4, r5, r6, r7}\n\t"
         "eor	r8, r8, r4\n\t"
@@ -24529,7 +24616,11 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsr	r4, r12, #28\n\t"
+#else
+        "ubfx	r4, r12, #28, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
@@ -24545,9 +24636,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #12\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #16, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24562,9 +24657,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #20\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #8\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #20, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24579,9 +24678,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #8\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #20\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #8, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24596,9 +24699,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #12\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #16\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #12, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"
@@ -24629,9 +24736,13 @@ WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
         "lsr	r6, r10, #4\n\t"
         "and	%[len], r11, #15\n\t"
         "lsr	r11, r11, #4\n\t"
-        "lsr	r4, r12, #4\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r4, r12, #24\n\t"
+        "lsr	r4, r4, #28\n\t"
+#else
+        "ubfx	r4, r12, #4, #4\n\t"
+#endif
         "eor	r11, r11, r10, lsl #28\n\t"
-        "and	r4, r4, #15\n\t"
         "ldr	%[len], [lr, r3, lsl #2]\n\t"
         "add	r4, %[m], r4, lsl #4\n\t"
         "eor	r10, r6, r9, lsl #28\n\t"

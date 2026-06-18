@@ -39,7 +39,7 @@
 	.type	wc_chacha_setiv, %function
 wc_chacha_setiv:
 	PUSH	{r4, r5, r6, lr}
-	ADD	r3, r0, #0x34
+	ADD	r3, r0, #52
 	LDR	r4, [r1]
 	LDR	r5, [r1, #4]
 	LDR	r6, [r1, #8]
@@ -76,7 +76,7 @@ L_chacha_thumb2_constants:
 wc_chacha_setkey:
 	PUSH	{r4, r5, r6, r7, lr}
 	ADR	r7, L_chacha_thumb2_constants
-	SUBS	r2, r2, #0x10
+	SUBS	r2, r2, #16
 	ADD	r7, r7, r2
 	/* Start state with constants */
 	LDM	r7, {r3, r4, r5, r6}
@@ -116,7 +116,7 @@ L_chacha_thumb2_setkey_same_key_bytes:
 	.type	wc_chacha_crypt_bytes, %function
 wc_chacha_crypt_bytes:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	SUB	sp, sp, #0x34
+	SUB	sp, sp, #52
 	MOV	lr, r0
 	STRD	r0, r1, [sp, #32]
 	STRD	r2, r3, [sp, #40]
@@ -129,7 +129,7 @@ L_chacha_thumb2_crypt_block:
 	/* Load x[0]..x[12] into registers. */
 	LDM	lr, {r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12}
 	/* 10x 2 full rounds to perform. */
-	MOV	lr, #0xa
+	MOV	lr, #10
 	STR	lr, [sp, #48]
 L_chacha_thumb2_crypt_loop:
 	/* 0, 4,  8, 12 */
@@ -248,7 +248,7 @@ L_chacha_thumb2_crypt_loop:
 	STR	lr, [sp, #20]
 	/* Check if we have done enough rounds. */
 	LDR	lr, [sp, #48]
-	SUBS	lr, lr, #0x1
+	SUBS	lr, lr, #1
 	STR	lr, [sp, #48]
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGT	L_chacha_thumb2_crypt_loop
@@ -283,7 +283,7 @@ L_chacha_thumb2_crypt_loop:
 	LDM	lr!, {r10, r11}
 	ADD	r8, r8, r10
 	ADD	r9, r9, r11
-	ADD	r10, r10, #0x1
+	ADD	r10, r10, #1
 	STM	r12!, {r8, r9}
 	STR	r10, [lr, #-8]
 	LDM	r12, {r8, r9}
@@ -388,7 +388,7 @@ L_chacha_thumb2_crypt_lt_block:
 	STR	r12, [lr, #64]
 	ADD	lr, lr, #0x44
 L_chacha_thumb2_crypt_16byte_loop:
-	CMP	r3, #0x10
+	CMP	r3, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BLT	L_chacha_thumb2_crypt_word_loop
 #else
@@ -404,7 +404,7 @@ L_chacha_thumb2_crypt_16byte_loop:
 	EOR	r9, r9, r5
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
-	SUBS	r3, r3, #0x10
+	SUBS	r3, r3, #16
 	STR	r8, [r1]
 	STR	r9, [r1, #4]
 	STR	r10, [r1, #8]
@@ -414,15 +414,15 @@ L_chacha_thumb2_crypt_16byte_loop:
 #else
 	BEQ.N	L_chacha_thumb2_crypt_done
 #endif
-	ADD	r2, r2, #0x10
-	ADD	r1, r1, #0x10
+	ADD	r2, r2, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_chacha_thumb2_crypt_16byte_loop
 #else
 	B.N	L_chacha_thumb2_crypt_16byte_loop
 #endif
 L_chacha_thumb2_crypt_word_loop:
-	CMP	r3, #0x4
+	CMP	r3, #4
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BLT	L_chacha_thumb2_crypt_byte_start
 #else
@@ -432,16 +432,16 @@ L_chacha_thumb2_crypt_word_loop:
 	LDR	r4, [lr]
 	LDR	r8, [r2]
 	EOR	r8, r8, r4
-	SUBS	r3, r3, #0x4
+	SUBS	r3, r3, #4
 	STR	r8, [r1]
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_chacha_thumb2_crypt_done
 #else
 	BEQ.N	L_chacha_thumb2_crypt_done
 #endif
-	ADD	lr, lr, #0x4
-	ADD	r2, r2, #0x4
-	ADD	r1, r1, #0x4
+	ADD	lr, lr, #4
+	ADD	r2, r2, #4
+	ADD	r1, r1, #4
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_chacha_thumb2_crypt_word_loop
 #else
@@ -452,7 +452,7 @@ L_chacha_thumb2_crypt_byte_start:
 L_chacha_thumb2_crypt_byte_loop:
 	LDRB	r8, [r2]
 	EOR	r8, r8, r4
-	SUBS	r3, r3, #0x1
+	SUBS	r3, r3, #1
 	STRB	r8, [r1]
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_chacha_thumb2_crypt_done
@@ -460,15 +460,15 @@ L_chacha_thumb2_crypt_byte_loop:
 	BEQ.N	L_chacha_thumb2_crypt_done
 #endif
 	LSR	r4, r4, #8
-	ADD	r2, r2, #0x1
-	ADD	r1, r1, #0x1
+	ADD	r2, r2, #1
+	ADD	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_chacha_thumb2_crypt_byte_loop
 #else
 	B.N	L_chacha_thumb2_crypt_byte_loop
 #endif
 L_chacha_thumb2_crypt_done:
-	ADD	sp, sp, #0x34
+	ADD	sp, sp, #52
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 508 */
 	.size	wc_chacha_crypt_bytes,.-wc_chacha_crypt_bytes
@@ -479,7 +479,7 @@ L_chacha_thumb2_crypt_done:
 wc_chacha_use_over:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 L_chacha_thumb2_over_16byte_loop:
-	CMP	r3, #0x10
+	CMP	r3, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BLT	L_chacha_thumb2_over_word_loop
 #else
@@ -498,7 +498,7 @@ L_chacha_thumb2_over_16byte_loop:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r3, r3, #0x10
+	SUBS	r3, r3, #16
 	STR	r4, [r1]
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
@@ -508,16 +508,16 @@ L_chacha_thumb2_over_16byte_loop:
 #else
 	BEQ.N	L_chacha_thumb2_over_done
 #endif
-	ADD	r0, r0, #0x10
-	ADD	r2, r2, #0x10
-	ADD	r1, r1, #0x10
+	ADD	r0, r0, #16
+	ADD	r2, r2, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_chacha_thumb2_over_16byte_loop
 #else
 	B.N	L_chacha_thumb2_over_16byte_loop
 #endif
 L_chacha_thumb2_over_word_loop:
-	CMP	r3, #0x4
+	CMP	r3, #4
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BLT	L_chacha_thumb2_over_byte_loop
 #else
@@ -527,16 +527,16 @@ L_chacha_thumb2_over_word_loop:
 	LDR	r4, [r0]
 	LDR	r8, [r2]
 	EOR	r4, r4, r8
-	SUBS	r3, r3, #0x4
+	SUBS	r3, r3, #4
 	STR	r4, [r1]
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_chacha_thumb2_over_done
 #else
 	BEQ.N	L_chacha_thumb2_over_done
 #endif
-	ADD	r0, r0, #0x4
-	ADD	r2, r2, #0x4
-	ADD	r1, r1, #0x4
+	ADD	r0, r0, #4
+	ADD	r2, r2, #4
+	ADD	r1, r1, #4
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_chacha_thumb2_over_word_loop
 #else
@@ -547,16 +547,16 @@ L_chacha_thumb2_over_byte_loop:
 	LDRB	r4, [r0]
 	LDRB	r8, [r2]
 	EOR	r4, r4, r8
-	SUBS	r3, r3, #0x1
+	SUBS	r3, r3, #1
 	STRB	r4, [r1]
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_chacha_thumb2_over_done
 #else
 	BEQ.N	L_chacha_thumb2_over_done
 #endif
-	ADD	r0, r0, #0x1
-	ADD	r2, r2, #0x1
-	ADD	r1, r1, #0x1
+	ADD	r0, r0, #1
+	ADD	r2, r2, #1
+	ADD	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_chacha_thumb2_over_byte_loop
 #else

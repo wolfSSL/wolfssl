@@ -39,17 +39,17 @@
 	.type	poly1305_blocks_thumb2_16, %function
 poly1305_blocks_thumb2_16:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	SUB	sp, sp, #0x1c
-	CMP	r2, #0x0
+	SUB	sp, sp, #28
+	CMP	r2, #0
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_poly1305_thumb2_16_done
 #else
 	BEQ.N	L_poly1305_thumb2_16_done
 #endif
-	ADD	lr, sp, #0xc
+	ADD	lr, sp, #12
 	STM	lr, {r0, r1, r2, r3}
 	/* Get h pointer */
-	ADD	lr, r0, #0x10
+	ADD	lr, r0, #16
 	LDM	lr, {r4, r5, r6, r7, r8}
 L_poly1305_thumb2_16_loop:
 	/* Add m to h */
@@ -63,7 +63,7 @@ L_poly1305_thumb2_16_loop:
 	ADCS	r5, r5, r3
 	ADCS	r6, r6, r9
 	ADCS	r7, r7, r10
-	ADD	r1, r1, #0x10
+	ADD	r1, r1, #16
 	ADC	r8, r8, r11
 #ifdef WOLFSSL_ARM_ARCH_7M
 	STM	lr, {r4, r5, r6, r7, r8}
@@ -205,7 +205,7 @@ L_poly1305_thumb2_16_loop:
 	LDR	r5, [lr, #16]
 	/* r[3] * h[3] */
 	UMAAL	r10, r11, r3, r4
-	MOV	r12, #0x0
+	MOV	r12, #0
 	/* r[0] * h[4] */
 	UMAAL	r8, r12, r0, r5
 	/* r[1] * h[4] */
@@ -221,8 +221,8 @@ L_poly1305_thumb2_16_loop:
 	/* Load length */
 	LDR	r2, [sp, #20]
 	/* Reduce mod 2^130 - 5 */
-	BIC	r3, r8, #0x3
-	AND	r8, r8, #0x3
+	BIC	r3, r8, #3
+	AND	r8, r8, #3
 	ADDS	r4, r4, r3
 	LSR	r3, r3, #2
 	ADCS	r5, r5, r9
@@ -241,7 +241,7 @@ L_poly1305_thumb2_16_loop:
 	ADCS	r7, r7, r11
 	ADC	r8, r8, r12
 	/* Sub 16 from length. */
-	SUBS	r2, r2, #0x10
+	SUBS	r2, r2, #16
 	/* Store length. */
 	STR	r2, [sp, #20]
 	/* Loop again if more message to do. */
@@ -252,7 +252,7 @@ L_poly1305_thumb2_16_loop:
 #endif
 	STM	lr, {r4, r5, r6, r7, r8}
 L_poly1305_thumb2_16_done:
-	ADD	sp, sp, #0x1c
+	ADD	sp, sp, #28
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 250 */
 	.size	poly1305_blocks_thumb2_16,.-poly1305_blocks_thumb2_16
@@ -285,7 +285,7 @@ poly1305_set_key:
 	LDR	r3, [r1, #20]
 	LDR	r4, [r1, #24]
 	LDR	r5, [r1, #28]
-	ADD	r10, r0, #0x24
+	ADD	r10, r0, #36
 	STM	r10, {r2, r3, r4, r5}
 	/* Load, mask and store r. */
 	LDR	r2, [r1]
@@ -296,14 +296,14 @@ poly1305_set_key:
 	AND	r3, r3, r7
 	AND	r4, r4, r8
 	AND	r5, r5, r9
-	ADD	r10, r0, #0x0
+	ADD	r10, r0, #0
 	STM	r10, {r2, r3, r4, r5}
 	/* h (accumulator) = 0 */
 	EOR	r6, r6, r6
 	EOR	r7, r7, r7
 	EOR	r8, r8, r8
 	EOR	r9, r9, r9
-	ADD	r10, r0, #0x10
+	ADD	r10, r0, #16
 	EOR	r5, r5, r5
 	STM	r10, {r5, r6, r7, r8, r9}
 	/* Zero leftover */
@@ -317,25 +317,25 @@ poly1305_set_key:
 	.type	poly1305_final, %function
 poly1305_final:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	ADD	r11, r0, #0x10
+	ADD	r11, r0, #16
 	LDM	r11, {r2, r3, r4, r5, r6}
 	/* Add 5 and check for h larger than p. */
-	ADDS	r7, r2, #0x5
-	ADCS	r7, r3, #0x0
-	ADCS	r7, r4, #0x0
-	ADCS	r7, r5, #0x0
-	ADC	r7, r6, #0x0
-	SUB	r7, r7, #0x4
+	ADDS	r7, r2, #5
+	ADCS	r7, r3, #0
+	ADCS	r7, r4, #0
+	ADCS	r7, r5, #0
+	ADC	r7, r6, #0
+	SUB	r7, r7, #4
 	LSR	r7, r7, #31
-	SUB	r7, r7, #0x1
-	AND	r7, r7, #0x5
+	SUB	r7, r7, #1
+	AND	r7, r7, #5
 	/* Add 0/5 to h. */
 	ADDS	r2, r2, r7
-	ADCS	r3, r3, #0x0
-	ADCS	r4, r4, #0x0
-	ADC	r5, r5, #0x0
+	ADCS	r3, r3, #0
+	ADCS	r4, r4, #0
+	ADC	r5, r5, #0
 	/* Add padding */
-	ADD	r11, r0, #0x24
+	ADD	r11, r0, #36
 	LDM	r11, {r7, r8, r9, r10}
 	ADDS	r2, r2, r7
 	ADCS	r3, r3, r8
@@ -352,13 +352,13 @@ poly1305_final:
 	EOR	r4, r4, r4
 	EOR	r5, r5, r5
 	EOR	r6, r6, r6
-	ADD	r11, r0, #0x10
+	ADD	r11, r0, #16
 	STM	r11, {r2, r3, r4, r5, r6}
 	/* Zero out r. */
-	ADD	r11, r0, #0x0
+	ADD	r11, r0, #0
 	STM	r11, {r2, r3, r4, r5}
 	/* Zero out padding. */
-	ADD	r11, r0, #0x24
+	ADD	r11, r0, #36
 	STM	r11, {r2, r3, r4, r5}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 82 */
