@@ -957,6 +957,173 @@ static int test_wolfSSL_X509_STORE_CTX_ex12(void)
 #endif
 #endif
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(HAVE_ECC)
+/* Regression test for the x509-limbo "pathlen" finding:
+ * wolfSSL_X509_verify_cert() must enforce the BasicConstraints
+ * pathLenConstraint (RFC 5280 sec. 4.2.1.9 / sec. 6.1.4).  A CA asserting
+ * pathlen:0 may only issue end-entity certificates; it must not be permitted
+ * to issue a further intermediate CA.
+ *
+ *   root  ->  ica0 (CA, pathlen:0)  ->  ica1 (CA, pathlen:0)  ->  leaf
+ *
+ * ica1 is an intermediate CA following ica0, which ica0's pathlen:0 forbids,
+ * so the chain must be rejected with X509_V_ERR_PATH_LENGTH_EXCEEDED.  Before
+ * the fix this OpenSSL-compatibility path accepted the chain because each
+ * certificate was verified individually (as CERT_TYPE) without the issuer
+ * pathLen check the TLS handshake path performs. */
+static X509* pathlen_pem_to_x509(const char* pem)
+{
+    X509* x = NULL;
+    BIO* bio = BIO_new_mem_buf(pem, -1);
+    if (bio != NULL) {
+        x = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+        BIO_free(bio);
+    }
+    return x;
+}
+
+static int test_wolfSSL_X509_verify_cert_pathlen(void)
+{
+    EXPECT_DECLS;
+    /* x509-limbo intermediate-pathlen-0 chain (NIST P-256). */
+    static const char* root_pem =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIBjzCCATWgAwIBAgIUBr1M7Bi+lJsTuNKLX1Me8do6eaQwCgYIKoZIzj0EAwIw\n"
+        "GjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\n"
+        "NjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\n"
+        "hkjOPQIBBggqhkjOPQMBBwNCAAQbEiFksWbYAbT6XaE4bwPlfA9TBdDVohu/uCIL\n"
+        "xP51Zj39ZQijgxN9jxXyvCgo8Of/x5M0IHSUuc17eaBD+EEbo1cwVTAPBgNVHRMB\n"
+        "Af8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\n"
+        "BgNVHQ4EFgQUonHZJ38dXr7snblbNqaxj6KZwOYwCgYIKoZIzj0EAwIDSAAwRQIh\n"
+        "ANxM3gjJ/3FIvHLgFt9MlFXDUZs38+f+90xZ+UWEtg/sAiBwDNrH5LaFE+kGvHih\n"
+        "aXu0ueUy9q+2v7FMk1DqDF5QMA==\n"
+        "-----END CERTIFICATE-----\n";
+    static const char* ica0_pem =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIB/zCCAaWgAwIBAgIUWQmq3hQYYc2aAeHbkAhBu2TswggwCgYIKoZIzj0EAwIw\n"
+        "GjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\n"
+        "NjkwNTAzMDAwMDAxWjBmMTgwNgYDVQQLDC8zODQ3NTQ4NjM0MDcyNTc1NDQyNDQy\n"
+        "MTQxNDk1NTczNzU0OTc0NTAyNTYxMjE5NjEqMCgGA1UEAwwheDUwOS1saW1iby1p\n"
+        "bnRlcm1lZGlhdGUtcGF0aGxlbi0wMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\n"
+        "htjb5R5OipW7n8rfvqA7yP/yxpdq9QzwSxC41RjoE//1SX16xsjOAIOYu/1L8iEq\n"
+        "1Y6x7yBnkoFFpWW0R2JN0aN7MHkwEgYDVR0TAQH/BAgwBgEB/wIBADALBgNVHQ8E\n"
+        "BAMCAgQwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAUonHZJ38d\n"
+        "Xr7snblbNqaxj6KZwOYwHQYDVR0OBBYEFI5psdjr2bzbP8AYzh747r3zKXjzMAoG\n"
+        "CCqGSM49BAMCA0gAMEUCIQChdmrAmCCIGBKdR31PSCKcBFkhqIg1rFH5n9ISC0XT\n"
+        "MwIgBpm/FQrFVRPNXUq3Pjp5nCCQNuusc/UF0WQtogoxMcs=\n"
+        "-----END CERTIFICATE-----\n";
+    static const char* ica1_pem =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIICTDCCAfKgAwIBAgIUUzHoF6QQi7Q1abKHM2OkqXAyhXAwCgYIKoZIzj0EAwIw\n"
+        "ZjE4MDYGA1UECwwvMzg0NzU0ODYzNDA3MjU3NTQ0MjQ0MjE0MTQ5NTU3Mzc1NDk3\n"
+        "NDUwMjU2MTIxOTYxKjAoBgNVBAMMIXg1MDktbGltYm8taW50ZXJtZWRpYXRlLXBh\n"
+        "dGhsZW4tMDAgFw03MDAxMDEwMDAwMDFaGA8yOTY5MDUwMzAwMDAwMVowZzE5MDcG\n"
+        "A1UECwwwNTA4MzE1NzY5OTY4MTEzNTA3Njc4NzYzNDMxNDk4OTE0NTU3NTI4MDQ4\n"
+        "OTc2MzkyMSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1wYXRobGVu\n"
+        "LTAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQJAU5C0BQNKWv1lpCWYvrbguNZ\n"
+        "7Ru3850SYzxAHVdqoqpXQqz1rxMGkIIQzNk1GhUXbMUVbQD0jvaJcoGfkNO5o3sw\n"
+        "eTASBgNVHRMBAf8ECDAGAQH/AgEAMAsGA1UdDwQEAwICBDAWBgNVHREEDzANggtl\n"
+        "eGFtcGxlLmNvbTAfBgNVHSMEGDAWgBSOabHY69m82z/AGM4e+O698yl48zAdBgNV\n"
+        "HQ4EFgQUCRY9Zhvn1ujILJxVlXN6ngBEGUcwCgYIKoZIzj0EAwIDSAAwRQIhAPWq\n"
+        "eItvUILeT5ZV1sA/2T2KXLmhO+lyaIJKbayTWTluAiBAnlFFqQhLRPC9aXnmvzld\n"
+        "4OQO4zOBVTRVR1fyTaGRLA==\n"
+        "-----END CERTIFICATE-----\n";
+    static const char* leaf_pem =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIB/jCCAaOgAwIBAgIUUgfgeS9xej4Xq/a8Bg2Dzj3MedEwCgYIKoZIzj0EAwIw\n"
+        "ZzE5MDcGA1UECwwwNTA4MzE1NzY5OTY4MTEzNTA3Njc4NzYzNDMxNDk4OTE0NTU3\n"
+        "NTI4MDQ4OTc2MzkyMSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\n"
+        "YXRobGVuLTAwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMBYxFDAS\n"
+        "BgNVBAMMC2V4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERG/C\n"
+        "Q3diuQGNPeztXUpMthR9/695MnMj/tpF6NHkEBO91bBKFdjhnievo6XnpfEOer/z\n"
+        "nHvUEwH3UH7swoP3qKN8MHowHQYDVR0OBBYEFMorXKe6f7/o5tnf5iacR/PPM9F3\n"
+        "MB8GA1UdIwQYMBaAFAkWPWYb59boyCycVZVzep4ARBlHMAsGA1UdDwQEAwIHgDAT\n"
+        "BgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREEDzANggtleGFtcGxlLmNvbTAKBggq\n"
+        "hkjOPQQDAgNJADBGAiEAjQovFZD9svq8vGyuCa82Cq3/YeoHkDyyRalhv4BV7X8C\n"
+        "IQDqXCv7h0gMIVsWOSef8zu4DubHxn7Icm7DwJg0O2lSuw==\n"
+        "-----END CERTIFICATE-----\n";
+    X509* root = NULL;
+    X509* ica0 = NULL;
+    X509* ica1 = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* inter = NULL;
+
+    ExpectNotNull(root = pathlen_pem_to_x509(root_pem));
+    ExpectNotNull(ica0 = pathlen_pem_to_x509(ica0_pem));
+    ExpectNotNull(ica1 = pathlen_pem_to_x509(ica1_pem));
+    ExpectNotNull(leaf = pathlen_pem_to_x509(leaf_pem));
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectNotNull(inter = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(inter, ica0), 0);
+    ExpectIntGT(sk_X509_push(inter, ica1), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, inter), 1);
+    /* Must be rejected: ica1 violates ica0's pathlen:0 constraint. */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_PATH_LENGTH_EXCEEDED);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(inter);
+    X509_free(root);
+    X509_free(ica0);
+    X509_free(ica1);
+    X509_free(leaf);
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+/* Positive control: a legitimate chain whose intermediates assert pathlen:1
+ * must still verify, guarding the pathLen enforcement against over-rejection.
+ *
+ *   ca-cert -> ca-int (pathlen:1) -> ca-int2 (pathlen:1) -> server-chain
+ *
+ * ca-int permits one following intermediate (ca-int2), so the chain is valid. */
+static int test_wolfSSL_X509_verify_cert_pathlen_ok(void)
+{
+    EXPECT_DECLS;
+    X509* ca = NULL;
+    X509* caInt = NULL;
+    X509* caInt2 = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+
+    ExpectNotNull(ca = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/ca-cert.pem"));
+    ExpectNotNull(caInt = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/intermediate/ca-int-cert.pem"));
+    ExpectNotNull(caInt2 = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/intermediate/ca-int2-cert.pem"));
+    ExpectNotNull(leaf = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/intermediate/server-chain.pem"));
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, caInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, caInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_OK);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    X509_free(ca);
+    X509_free(caInt);
+    X509_free(caInt2);
+    X509_free(leaf);
+    return EXPECT_RESULT();
+}
+#endif /* !NO_FILESYSTEM && !NO_RSA */
+#endif /* OPENSSL_EXTRA && !NO_CERTS && HAVE_ECC */
+
 int test_wolfSSL_X509_STORE_CTX_ex(void)
 {
     EXPECT_DECLS;
@@ -1002,6 +1169,10 @@ int test_wolfSSL_X509_STORE_CTX_ex(void)
             &testData), 1);
 #ifdef HAVE_ECC
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex12(), 1);
+    ExpectIntEQ(test_wolfSSL_X509_verify_cert_pathlen(), 1);
+#if !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    ExpectIntEQ(test_wolfSSL_X509_verify_cert_pathlen_ok(), 1);
+#endif
 #endif
 
     if(testData.x509Ca) {
