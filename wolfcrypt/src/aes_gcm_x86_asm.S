@@ -750,6 +750,9 @@ L_AES_GCM_encrypt_aesni_calc_aad_done:
         # First 64 bytes of input
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm4
+        movdqu	%xmm4, %xmm3
+        paddd	L_aes_gcm_four, %xmm3
+        movdqu	%xmm3, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm3
         movdqa	%xmm4, %xmm5
         movdqa	%xmm4, %xmm6
@@ -761,9 +764,6 @@ L_AES_GCM_encrypt_aesni_calc_aad_done:
         pshufb	%xmm3, %xmm6
         paddd	L_aes_gcm_three, %xmm7
         pshufb	%xmm3, %xmm7
-        movdqu	64(%esp), %xmm3
-        paddd	L_aes_gcm_four, %xmm3
-        movdqu	%xmm3, 64(%esp)
         movdqa	(%ebp), %xmm3
         pxor	%xmm3, %xmm4
         pxor	%xmm3, %xmm5
@@ -867,6 +867,9 @@ L_AES_GCM_encrypt_aesni_ghash_64:
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm4
+        movdqu	%xmm4, %xmm3
+        paddd	L_aes_gcm_four, %xmm3
+        movdqu	%xmm3, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm3
         movdqa	%xmm4, %xmm5
         movdqa	%xmm4, %xmm6
@@ -878,9 +881,6 @@ L_AES_GCM_encrypt_aesni_ghash_64:
         pshufb	%xmm3, %xmm6
         paddd	L_aes_gcm_three, %xmm7
         pshufb	%xmm3, %xmm7
-        movdqu	64(%esp), %xmm3
-        paddd	L_aes_gcm_four, %xmm3
-        movdqu	%xmm3, 64(%esp)
         movdqa	(%ebp), %xmm3
         pxor	%xmm3, %xmm4
         pxor	%xmm3, %xmm5
@@ -2146,6 +2146,9 @@ L_AES_GCM_decrypt_aesni_ghash_64_inplace:
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm4
+        movdqu	%xmm4, %xmm3
+        paddd	L_aes_gcm_four, %xmm3
+        movdqu	%xmm3, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm3
         movdqa	%xmm4, %xmm5
         movdqa	%xmm4, %xmm6
@@ -2157,9 +2160,6 @@ L_AES_GCM_decrypt_aesni_ghash_64_inplace:
         pshufb	%xmm3, %xmm6
         paddd	L_aes_gcm_three, %xmm7
         pshufb	%xmm3, %xmm7
-        movdqu	64(%esp), %xmm3
-        paddd	L_aes_gcm_four, %xmm3
-        movdqu	%xmm3, 64(%esp)
         movdqa	(%ebp), %xmm3
         pxor	%xmm3, %xmm4
         pxor	%xmm3, %xmm5
@@ -2359,6 +2359,9 @@ L_AES_GCM_decrypt_aesni_ghash_64:
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm4
+        movdqu	%xmm4, %xmm3
+        paddd	L_aes_gcm_four, %xmm3
+        movdqu	%xmm3, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm3
         movdqa	%xmm4, %xmm5
         movdqa	%xmm4, %xmm6
@@ -2370,9 +2373,6 @@ L_AES_GCM_decrypt_aesni_ghash_64:
         pshufb	%xmm3, %xmm6
         paddd	L_aes_gcm_three, %xmm7
         pshufb	%xmm3, %xmm7
-        movdqu	64(%esp), %xmm3
-        paddd	L_aes_gcm_four, %xmm3
-        movdqu	%xmm3, 64(%esp)
         movdqa	(%ebp), %xmm3
         pxor	%xmm3, %xmm4
         pxor	%xmm3, %xmm5
@@ -2455,8 +2455,6 @@ L_AES_GCM_decrypt_aesni_aesenc_64_ghash_avx_done:
         movdqu	16(%ecx), %xmm1
         pxor	%xmm0, %xmm4
         pxor	%xmm1, %xmm5
-        movdqu	%xmm0, (%ecx)
-        movdqu	%xmm1, 16(%ecx)
         movdqu	%xmm4, (%edx)
         movdqu	%xmm5, 16(%edx)
         aesenclast	%xmm3, %xmm6
@@ -2465,8 +2463,6 @@ L_AES_GCM_decrypt_aesni_aesenc_64_ghash_avx_done:
         movdqu	48(%ecx), %xmm1
         pxor	%xmm0, %xmm6
         pxor	%xmm1, %xmm7
-        movdqu	%xmm0, 32(%ecx)
-        movdqu	%xmm1, 48(%ecx)
         movdqu	%xmm6, 32(%edx)
         movdqu	%xmm7, 48(%edx)
         # ghash encrypted counter
@@ -3536,6 +3532,9 @@ AES_GCM_encrypt_update_aesni:
         # First 64 bytes of input
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm0
+        movdqu	%xmm0, %xmm7
+        paddd	L_aes_gcm_four, %xmm7
+        movdqu	%xmm7, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm7
         movdqa	%xmm0, %xmm1
         movdqa	%xmm0, %xmm2
@@ -3547,9 +3546,6 @@ AES_GCM_encrypt_update_aesni:
         pshufb	%xmm7, %xmm2
         paddd	L_aes_gcm_three, %xmm3
         pshufb	%xmm7, %xmm3
-        movdqu	64(%esp), %xmm7
-        paddd	L_aes_gcm_four, %xmm7
-        movdqu	%xmm7, 64(%esp)
         movdqa	(%ebp), %xmm7
         pxor	%xmm7, %xmm0
         pxor	%xmm7, %xmm1
@@ -3644,6 +3640,8 @@ L_AES_GCM_encrypt_update_aesni_enc_done:
         movdqu	%xmm3, 48(%edi)
         cmpl	$0x40, %eax
         movl	$0x40, %ebx
+        movl	%esi, %ecx
+        movl	%edi, %edx
         jle	L_AES_GCM_encrypt_update_aesni_end_64
         # More 64 bytes of input
 L_AES_GCM_encrypt_update_aesni_ghash_64:
@@ -3651,6 +3649,9 @@ L_AES_GCM_encrypt_update_aesni_ghash_64:
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm0
+        movdqu	%xmm0, %xmm7
+        paddd	L_aes_gcm_four, %xmm7
+        movdqu	%xmm7, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm7
         movdqa	%xmm0, %xmm1
         movdqa	%xmm0, %xmm2
@@ -3662,9 +3663,6 @@ L_AES_GCM_encrypt_update_aesni_ghash_64:
         pshufb	%xmm7, %xmm2
         paddd	L_aes_gcm_three, %xmm3
         pshufb	%xmm7, %xmm3
-        movdqu	64(%esp), %xmm7
-        paddd	L_aes_gcm_four, %xmm7
-        movdqu	%xmm7, 64(%esp)
         movdqa	(%ebp), %xmm7
         pxor	%xmm7, %xmm0
         pxor	%xmm7, %xmm1
@@ -4406,6 +4404,9 @@ L_AES_GCM_decrypt_update_aesni_ghash_64_inplace:
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm0
+        movdqu	%xmm0, %xmm7
+        paddd	L_aes_gcm_four, %xmm7
+        movdqu	%xmm7, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm7
         movdqa	%xmm0, %xmm1
         movdqa	%xmm0, %xmm2
@@ -4417,9 +4418,6 @@ L_AES_GCM_decrypt_update_aesni_ghash_64_inplace:
         pshufb	%xmm7, %xmm2
         paddd	L_aes_gcm_three, %xmm3
         pshufb	%xmm7, %xmm3
-        movdqu	64(%esp), %xmm7
-        paddd	L_aes_gcm_four, %xmm7
-        movdqu	%xmm7, 64(%esp)
         movdqa	(%ebp), %xmm7
         pxor	%xmm7, %xmm0
         pxor	%xmm7, %xmm1
@@ -4619,6 +4617,9 @@ L_AES_GCM_decrypt_update_aesni_ghash_64:
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
         movdqu	64(%esp), %xmm0
+        movdqu	%xmm0, %xmm7
+        paddd	L_aes_gcm_four, %xmm7
+        movdqu	%xmm7, 64(%esp)
         movdqa	L_aes_gcm_bswap_epi64, %xmm7
         movdqa	%xmm0, %xmm1
         movdqa	%xmm0, %xmm2
@@ -4630,9 +4631,6 @@ L_AES_GCM_decrypt_update_aesni_ghash_64:
         pshufb	%xmm7, %xmm2
         paddd	L_aes_gcm_three, %xmm3
         pshufb	%xmm7, %xmm3
-        movdqu	64(%esp), %xmm7
-        paddd	L_aes_gcm_four, %xmm7
-        movdqu	%xmm7, 64(%esp)
         movdqa	(%ebp), %xmm7
         pxor	%xmm7, %xmm0
         pxor	%xmm7, %xmm1
@@ -4715,8 +4713,6 @@ L_AES_GCM_decrypt_update_aesni_aesenc_64_ghash_avx_done:
         movdqu	16(%ecx), %xmm5
         pxor	%xmm4, %xmm0
         pxor	%xmm5, %xmm1
-        movdqu	%xmm4, (%ecx)
-        movdqu	%xmm5, 16(%ecx)
         movdqu	%xmm0, (%edx)
         movdqu	%xmm1, 16(%edx)
         aesenclast	%xmm7, %xmm2
@@ -4725,8 +4721,6 @@ L_AES_GCM_decrypt_update_aesni_aesenc_64_ghash_avx_done:
         movdqu	48(%ecx), %xmm5
         pxor	%xmm4, %xmm2
         pxor	%xmm5, %xmm3
-        movdqu	%xmm4, 32(%ecx)
-        movdqu	%xmm5, 48(%ecx)
         movdqu	%xmm2, 32(%edx)
         movdqu	%xmm3, 48(%edx)
         # ghash encrypted counter
@@ -5556,6 +5550,8 @@ L_AES_GCM_encrypt_avx1_calc_aad_done:
         vmovdqu	%xmm3, 48(%esp)
         # First 64 bytes of input
         vmovdqu	64(%esp), %xmm4
+        vpaddd	L_aes_gcm_avx1_four, %xmm4, %xmm3
+        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm3
         vpaddd	L_aes_gcm_avx1_one, %xmm4, %xmm5
         vpshufb	%xmm3, %xmm5, %xmm5
@@ -5564,9 +5560,6 @@ L_AES_GCM_encrypt_avx1_calc_aad_done:
         vpaddd	L_aes_gcm_avx1_three, %xmm4, %xmm7
         vpshufb	%xmm3, %xmm7, %xmm7
         vpshufb	%xmm3, %xmm4, %xmm4
-        vmovdqu	64(%esp), %xmm3
-        vpaddd	L_aes_gcm_avx1_four, %xmm3, %xmm3
-        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	(%ebp), %xmm3
         vpxor	%xmm3, %xmm4, %xmm4
         vpxor	%xmm3, %xmm5, %xmm5
@@ -5649,8 +5642,6 @@ L_AES_GCM_encrypt_avx1_aesenc_64_enc_done:
         vmovdqu	16(%esi), %xmm1
         vpxor	%xmm0, %xmm4, %xmm4
         vpxor	%xmm1, %xmm5, %xmm5
-        vmovdqu	%xmm0, (%esi)
-        vmovdqu	%xmm1, 16(%esi)
         vmovdqu	%xmm4, (%edi)
         vmovdqu	%xmm5, 16(%edi)
         vaesenclast	%xmm3, %xmm6, %xmm6
@@ -5659,8 +5650,6 @@ L_AES_GCM_encrypt_avx1_aesenc_64_enc_done:
         vmovdqu	48(%esi), %xmm1
         vpxor	%xmm0, %xmm6, %xmm6
         vpxor	%xmm1, %xmm7, %xmm7
-        vmovdqu	%xmm0, 32(%esi)
-        vmovdqu	%xmm1, 48(%esi)
         vmovdqu	%xmm6, 32(%edi)
         vmovdqu	%xmm7, 48(%edi)
         cmpl	$0x40, %eax
@@ -5673,6 +5662,8 @@ L_AES_GCM_encrypt_avx1_ghash_64:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         vmovdqu	64(%esp), %xmm4
+        vpaddd	L_aes_gcm_avx1_four, %xmm4, %xmm3
+        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm3
         vpaddd	L_aes_gcm_avx1_one, %xmm4, %xmm5
         vpshufb	%xmm3, %xmm5, %xmm5
@@ -5681,9 +5672,6 @@ L_AES_GCM_encrypt_avx1_ghash_64:
         vpaddd	L_aes_gcm_avx1_three, %xmm4, %xmm7
         vpshufb	%xmm3, %xmm7, %xmm7
         vpshufb	%xmm3, %xmm4, %xmm4
-        vmovdqu	64(%esp), %xmm3
-        vpaddd	L_aes_gcm_avx1_four, %xmm3, %xmm3
-        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	(%ebp), %xmm3
         vpxor	%xmm3, %xmm4, %xmm4
         vpxor	%xmm3, %xmm5, %xmm5
@@ -5864,7 +5852,7 @@ L_AES_GCM_encrypt_avx1_end_64:
         vmovdqu	96(%esp), %xmm2
         # Block 1
         vmovdqa	L_aes_gcm_avx1_bswap_mask, %xmm4
-        vmovdqa	(%edx), %xmm1
+        vmovdqu	(%edx), %xmm1
         vpshufb	%xmm4, %xmm1, %xmm1
         vmovdqu	48(%esp), %xmm3
         vpxor	%xmm2, %xmm1, %xmm1
@@ -5886,7 +5874,7 @@ L_AES_GCM_encrypt_avx1_end_64:
         vpxor	%xmm5, %xmm2, %xmm2
         # Block 2
         vmovdqa	L_aes_gcm_avx1_bswap_mask, %xmm4
-        vmovdqa	16(%edx), %xmm1
+        vmovdqu	16(%edx), %xmm1
         vpshufb	%xmm4, %xmm1, %xmm1
         vmovdqu	32(%esp), %xmm3
         # ghash_gfmul_xor_avx
@@ -5907,7 +5895,7 @@ L_AES_GCM_encrypt_avx1_end_64:
         vpxor	%xmm5, %xmm2, %xmm2
         # Block 3
         vmovdqa	L_aes_gcm_avx1_bswap_mask, %xmm4
-        vmovdqa	32(%edx), %xmm1
+        vmovdqu	32(%edx), %xmm1
         vpshufb	%xmm4, %xmm1, %xmm1
         vmovdqu	16(%esp), %xmm3
         # ghash_gfmul_xor_avx
@@ -5928,7 +5916,7 @@ L_AES_GCM_encrypt_avx1_end_64:
         vpxor	%xmm5, %xmm2, %xmm2
         # Block 4
         vmovdqa	L_aes_gcm_avx1_bswap_mask, %xmm4
-        vmovdqa	48(%edx), %xmm1
+        vmovdqu	48(%edx), %xmm1
         vpshufb	%xmm4, %xmm1, %xmm1
         vmovdqu	(%esp), %xmm3
         # ghash_gfmul_xor_avx
@@ -6776,6 +6764,8 @@ L_AES_GCM_decrypt_avx1_ghash_64_inplace:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         vmovdqu	64(%esp), %xmm4
+        vpaddd	L_aes_gcm_avx1_four, %xmm4, %xmm3
+        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm3
         vpaddd	L_aes_gcm_avx1_one, %xmm4, %xmm5
         vpshufb	%xmm3, %xmm5, %xmm5
@@ -6784,9 +6774,6 @@ L_AES_GCM_decrypt_avx1_ghash_64_inplace:
         vpaddd	L_aes_gcm_avx1_three, %xmm4, %xmm7
         vpshufb	%xmm3, %xmm7, %xmm7
         vpshufb	%xmm3, %xmm4, %xmm4
-        vmovdqu	64(%esp), %xmm3
-        vpaddd	L_aes_gcm_avx1_four, %xmm3, %xmm3
-        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	(%ebp), %xmm3
         vpxor	%xmm3, %xmm4, %xmm4
         vpxor	%xmm3, %xmm5, %xmm5
@@ -6972,6 +6959,8 @@ L_AES_GCM_decrypt_avx1_ghash_64:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         vmovdqu	64(%esp), %xmm4
+        vpaddd	L_aes_gcm_avx1_four, %xmm4, %xmm3
+        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm3
         vpaddd	L_aes_gcm_avx1_one, %xmm4, %xmm5
         vpshufb	%xmm3, %xmm5, %xmm5
@@ -6980,9 +6969,6 @@ L_AES_GCM_decrypt_avx1_ghash_64:
         vpaddd	L_aes_gcm_avx1_three, %xmm4, %xmm7
         vpshufb	%xmm3, %xmm7, %xmm7
         vpshufb	%xmm3, %xmm4, %xmm4
-        vmovdqu	64(%esp), %xmm3
-        vpaddd	L_aes_gcm_avx1_four, %xmm3, %xmm3
-        vmovdqu	%xmm3, 64(%esp)
         vmovdqa	(%ebp), %xmm3
         vpxor	%xmm3, %xmm4, %xmm4
         vpxor	%xmm3, %xmm5, %xmm5
@@ -7065,8 +7051,6 @@ L_AES_GCM_decrypt_avx1_aesenc_64_ghash_avx_aesenc_64_enc_done:
         vmovdqu	16(%ecx), %xmm1
         vpxor	%xmm0, %xmm4, %xmm4
         vpxor	%xmm1, %xmm5, %xmm5
-        vmovdqu	%xmm0, (%ecx)
-        vmovdqu	%xmm1, 16(%ecx)
         vmovdqu	%xmm4, (%edx)
         vmovdqu	%xmm5, 16(%edx)
         vaesenclast	%xmm3, %xmm6, %xmm6
@@ -7075,8 +7059,6 @@ L_AES_GCM_decrypt_avx1_aesenc_64_ghash_avx_aesenc_64_enc_done:
         vmovdqu	48(%ecx), %xmm1
         vpxor	%xmm0, %xmm6, %xmm6
         vpxor	%xmm1, %xmm7, %xmm7
-        vmovdqu	%xmm0, 32(%ecx)
-        vmovdqu	%xmm1, 48(%ecx)
         vmovdqu	%xmm6, 32(%edx)
         vmovdqu	%xmm7, 48(%edx)
         # ghash encrypted counter
@@ -7181,7 +7163,6 @@ L_AES_GCM_decrypt_avx1_last_block_start:
         pshufb	L_aes_gcm_avx1_bswap_mask, %xmm7
         pxor	%xmm2, %xmm7
         vmovdqu	64(%esp), %xmm5
-        vmovdqu	%xmm7, %xmm7
         vpshufb	L_aes_gcm_avx1_bswap_epi64, %xmm5, %xmm4
         vpaddd	L_aes_gcm_avx1_one, %xmm5, %xmm5
         vmovdqu	%xmm5, 64(%esp)
@@ -7995,6 +7976,8 @@ AES_GCM_encrypt_update_avx1:
         vmovdqu	%xmm7, 48(%esp)
         # First 64 bytes of input
         vmovdqu	64(%esp), %xmm0
+        vpaddd	L_aes_gcm_avx1_four, %xmm0, %xmm7
+        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm7
         vpaddd	L_aes_gcm_avx1_one, %xmm0, %xmm1
         vpshufb	%xmm7, %xmm1, %xmm1
@@ -8003,9 +7986,6 @@ AES_GCM_encrypt_update_avx1:
         vpaddd	L_aes_gcm_avx1_three, %xmm0, %xmm3
         vpshufb	%xmm7, %xmm3, %xmm3
         vpshufb	%xmm7, %xmm0, %xmm0
-        vmovdqu	64(%esp), %xmm7
-        vpaddd	L_aes_gcm_avx1_four, %xmm7, %xmm7
-        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	(%ebp), %xmm7
         vpxor	%xmm7, %xmm0, %xmm0
         vpxor	%xmm7, %xmm1, %xmm1
@@ -8088,8 +8068,6 @@ L_AES_GCM_encrypt_update_avx1_aesenc_64_enc_done:
         vmovdqu	16(%esi), %xmm5
         vpxor	%xmm4, %xmm0, %xmm0
         vpxor	%xmm5, %xmm1, %xmm1
-        vmovdqu	%xmm4, (%esi)
-        vmovdqu	%xmm5, 16(%esi)
         vmovdqu	%xmm0, (%edi)
         vmovdqu	%xmm1, 16(%edi)
         vaesenclast	%xmm7, %xmm2, %xmm2
@@ -8098,8 +8076,6 @@ L_AES_GCM_encrypt_update_avx1_aesenc_64_enc_done:
         vmovdqu	48(%esi), %xmm5
         vpxor	%xmm4, %xmm2, %xmm2
         vpxor	%xmm5, %xmm3, %xmm3
-        vmovdqu	%xmm4, 32(%esi)
-        vmovdqu	%xmm5, 48(%esi)
         vmovdqu	%xmm2, 32(%edi)
         vmovdqu	%xmm3, 48(%edi)
         cmpl	$0x40, %eax
@@ -8112,6 +8088,8 @@ L_AES_GCM_encrypt_update_avx1_ghash_64:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         vmovdqu	64(%esp), %xmm0
+        vpaddd	L_aes_gcm_avx1_four, %xmm0, %xmm7
+        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm7
         vpaddd	L_aes_gcm_avx1_one, %xmm0, %xmm1
         vpshufb	%xmm7, %xmm1, %xmm1
@@ -8120,9 +8098,6 @@ L_AES_GCM_encrypt_update_avx1_ghash_64:
         vpaddd	L_aes_gcm_avx1_three, %xmm0, %xmm3
         vpshufb	%xmm7, %xmm3, %xmm3
         vpshufb	%xmm7, %xmm0, %xmm0
-        vmovdqu	64(%esp), %xmm7
-        vpaddd	L_aes_gcm_avx1_four, %xmm7, %xmm7
-        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	(%ebp), %xmm7
         vpxor	%xmm7, %xmm0, %xmm0
         vpxor	%xmm7, %xmm1, %xmm1
@@ -8754,6 +8729,8 @@ L_AES_GCM_decrypt_update_avx1_ghash_64_inplace:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         vmovdqu	64(%esp), %xmm0
+        vpaddd	L_aes_gcm_avx1_four, %xmm0, %xmm7
+        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm7
         vpaddd	L_aes_gcm_avx1_one, %xmm0, %xmm1
         vpshufb	%xmm7, %xmm1, %xmm1
@@ -8762,9 +8739,6 @@ L_AES_GCM_decrypt_update_avx1_ghash_64_inplace:
         vpaddd	L_aes_gcm_avx1_three, %xmm0, %xmm3
         vpshufb	%xmm7, %xmm3, %xmm3
         vpshufb	%xmm7, %xmm0, %xmm0
-        vmovdqu	64(%esp), %xmm7
-        vpaddd	L_aes_gcm_avx1_four, %xmm7, %xmm7
-        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	(%ebp), %xmm7
         vpxor	%xmm7, %xmm0, %xmm0
         vpxor	%xmm7, %xmm1, %xmm1
@@ -8950,6 +8924,8 @@ L_AES_GCM_decrypt_update_avx1_ghash_64:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         vmovdqu	64(%esp), %xmm0
+        vpaddd	L_aes_gcm_avx1_four, %xmm0, %xmm7
+        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	L_aes_gcm_avx1_bswap_epi64, %xmm7
         vpaddd	L_aes_gcm_avx1_one, %xmm0, %xmm1
         vpshufb	%xmm7, %xmm1, %xmm1
@@ -8958,9 +8934,6 @@ L_AES_GCM_decrypt_update_avx1_ghash_64:
         vpaddd	L_aes_gcm_avx1_three, %xmm0, %xmm3
         vpshufb	%xmm7, %xmm3, %xmm3
         vpshufb	%xmm7, %xmm0, %xmm0
-        vmovdqu	64(%esp), %xmm7
-        vpaddd	L_aes_gcm_avx1_four, %xmm7, %xmm7
-        vmovdqu	%xmm7, 64(%esp)
         vmovdqa	(%ebp), %xmm7
         vpxor	%xmm7, %xmm0, %xmm0
         vpxor	%xmm7, %xmm1, %xmm1
@@ -9043,8 +9016,6 @@ L_AES_GCM_decrypt_update_avx1_aesenc_64_ghash_avx_aesenc_64_enc_done:
         vmovdqu	16(%ecx), %xmm5
         vpxor	%xmm4, %xmm0, %xmm0
         vpxor	%xmm5, %xmm1, %xmm1
-        vmovdqu	%xmm4, (%ecx)
-        vmovdqu	%xmm5, 16(%ecx)
         vmovdqu	%xmm0, (%edx)
         vmovdqu	%xmm1, 16(%edx)
         vaesenclast	%xmm7, %xmm2, %xmm2
@@ -9053,8 +9024,6 @@ L_AES_GCM_decrypt_update_avx1_aesenc_64_ghash_avx_aesenc_64_enc_done:
         vmovdqu	48(%ecx), %xmm5
         vpxor	%xmm4, %xmm2, %xmm2
         vpxor	%xmm5, %xmm3, %xmm3
-        vmovdqu	%xmm4, 32(%ecx)
-        vmovdqu	%xmm5, 48(%ecx)
         vmovdqu	%xmm2, 32(%edx)
         vmovdqu	%xmm3, 48(%edx)
         # ghash encrypted counter
@@ -9155,12 +9124,10 @@ L_AES_GCM_decrypt_update_avx1_done_64:
 L_AES_GCM_decrypt_update_avx1_last_block_start:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
-        vmovdqu	(%ecx), %xmm1
-        vpshufb	L_aes_gcm_avx1_bswap_mask, %xmm1, %xmm1
-        vpxor	%xmm6, %xmm1, %xmm1
-        vmovdqu	%xmm1, (%esp)
+        vmovdqu	(%ecx), %xmm3
+        vpshufb	L_aes_gcm_avx1_bswap_mask, %xmm3, %xmm3
+        vpxor	%xmm6, %xmm3, %xmm3
         vmovdqu	64(%esp), %xmm1
-        vmovdqu	(%esp), %xmm3
         vpshufb	L_aes_gcm_avx1_bswap_epi64, %xmm1, %xmm0
         vpaddd	L_aes_gcm_avx1_one, %xmm1, %xmm1
         vmovdqu	%xmm1, 64(%esp)
@@ -11036,8 +11003,6 @@ L_AES_GCM_decrypt_avx2_aesenc_64_ghash_aesenc_64_enc_done:
         vmovdqu	16(%ecx), %xmm4
         vpxor	%xmm7, %xmm0, %xmm0
         vpxor	%xmm4, %xmm1, %xmm1
-        vmovdqu	%xmm7, (%ecx)
-        vmovdqu	%xmm4, 16(%ecx)
         vmovdqu	%xmm0, (%edx)
         vmovdqu	%xmm1, 16(%edx)
         vmovdqu	32(%ecx), %xmm7
@@ -12733,8 +12698,6 @@ L_AES_GCM_decrypt_update_avx2_aesenc_64_ghash_aesenc_64_enc_done:
         vmovdqu	16(%ecx), %xmm4
         vpxor	%xmm7, %xmm0, %xmm0
         vpxor	%xmm4, %xmm1, %xmm1
-        vmovdqu	%xmm7, (%ecx)
-        vmovdqu	%xmm4, 16(%ecx)
         vmovdqu	%xmm0, (%edx)
         vmovdqu	%xmm1, 16(%edx)
         vmovdqu	32(%ecx), %xmm7

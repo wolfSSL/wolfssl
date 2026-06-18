@@ -1831,11 +1831,11 @@ _AES_ECB_decrypt_AESNI:
         push	%edi
         push	%esi
         push	%ebx
-        movl	20(%esp), %edi
-        movl	24(%esp), %esi
-        movl	28(%esp), %edx
-        movl	32(%esp), %ecx
-        movl	36(%esp), %eax
+        movl	16(%esp), %edi
+        movl	20(%esp), %esi
+        movl	24(%esp), %edx
+        movl	28(%esp), %ecx
+        movl	32(%esp), %eax
 
 
         movl    %edx, %ebx

@@ -770,7 +770,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mull	%[a]		\n\t"                    \
         "movl	%%eax, %[l]	\n\t"                    \
         "movl	%%edx, %[h]	\n\t"                    \
-        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        : [h] "+rm" (vh), [l] "+rm" (vl)                 \
         : [a] "rm" (va), [b] "rm" (vb)                   \
         : "eax", "edx", "cc"                             \
     )
@@ -794,7 +794,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
         : [a] "rm" (va), [b] "rm" (vb)                   \
         : "eax", "edx", "cc"                             \
     )
@@ -820,7 +820,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
         : [a] "rm" (va), [b] "rm" (vb)                   \
         : "eax", "edx", "cc"                             \
     )
@@ -859,7 +859,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
         : [a] "rm" (va)                                  \
         : "eax", "edx", "cc"                             \
     )

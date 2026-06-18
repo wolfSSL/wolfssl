@@ -45,6 +45,9 @@
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
 #endif
+#ifdef WOLFSSL_X86_BUILD
+    #undef USE_INTEL_SPEEDUP
+#endif
 
 #if defined(WOLFSSL_PSOC6_CRYPTO)
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>

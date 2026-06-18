@@ -504,7 +504,6 @@ _poly1305_calc_powers_avx2:
         # Reduce 260-bit to 130-bit
         movq	%r15, %rax
         movq	%rsi, %rdx
-        movq	%rbx, %rbx
         andq	$-4, %rax
         andq	$3, %r15
         addq	%rax, %r13
