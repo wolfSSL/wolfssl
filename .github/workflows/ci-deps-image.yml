@@ -75,7 +75,10 @@ jobs:
           - runner: ubuntu-22.04
             tag: ubuntu-22.04-full
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    # Backstop only: the download step kills and retries stalled apt connections,
+    # but cap the job so a pathological mirror cannot hang a runner. -full
+    # normally finishes in a few minutes.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
@@ -89,9 +92,14 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           rm -rf debs && mkdir -p debs
           sudo apt-get clean
-          # Retry the flaky bits; this is the one place we accept apt risk.
+          # A single stalled mirror connection once hung -full for ~20 min (it
+          # normally finishes in a few). retry() only re-runs on a non-zero exit,
+          # so a hang never tripped it. Defend in depth: apt drops a stalled
+          # connection after 30s and retries it (Acquire timeouts), `timeout`
+          # hard-kills a wedged apt-get, then retry() re-runs from scratch.
+          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
           retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-          retry sudo apt-get update -q
+          retry sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
           # Download each package's closure independently (requested package +
           # any dependency not already installed) without installing. Per
           # package, not one resolve of the whole list, so one unbundleable
@@ -99,7 +107,7 @@ jobs:
           # rest; install-apt-deps falls back to apt for anything missing.
           skipped=0
           for pkg in "${PKGS[@]}"; do
-            retry sudo apt-get install -y --download-only "$pkg" \
+            retry sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y --download-only "$pkg" \
               || { echo "::warning::could not download $pkg"; skipped=$((skipped+1)); }
           done
           sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
