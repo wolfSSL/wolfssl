@@ -2678,6 +2678,12 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int   dtls_timeout;
     int   usingNonblock;
     byte  doDtlsTimeout;
+    word32 invalidPeerPackets = 0;
+#if defined(DTLS_RECEIVEFROM_MAX_INVALID_PEER)
+    const word32 maxInvalidPeerPackets = DTLS_RECEIVEFROM_MAX_INVALID_PEER;
+#else
+    const word32 maxInvalidPeerPackets = 10;
+#endif
 
     if (nxCtx == NULL || nxCtx->nxUdpSocket == NULL) {
         WOLFSSL_MSG("NetX Recv NULL parameters");
@@ -2743,11 +2749,28 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 return WOLFSSL_CBIO_ERR_GENERAL;
             }
 
-            if ((USHORT)srcPort != nxCtx->nxPort ||
-                !NetX_PeerAddrEqual(&srcIp, &nxCtx->nxdIp)) {
-                WOLFSSL_MSG("NetX Recv ignored packet from invalid peer");
-                NetX_ResetPacket(nxCtx);
-                continue;
+            if (nxCtx->nxPort != 0 &&
+                (nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V4 ||
+                 nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V6)) {
+                if ((USHORT)srcPort != nxCtx->nxPort ||
+                    !NetX_PeerAddrEqual(&srcIp, &nxCtx->nxdIp)) {
+                    WOLFSSL_MSG("NetX Recv ignored packet from invalid peer");
+                    NetX_ResetPacket(nxCtx);
+                    if (doDtlsTimeout) {
+                        invalidPeerPackets++;
+                        if (invalidPeerPackets > maxInvalidPeerPackets) {
+                            return usingNonblock
+                                   ? WOLFSSL_CBIO_ERR_WANT_READ
+                                   : WOLFSSL_CBIO_ERR_TIMEOUT;
+                        }
+                    }
+                    continue;
+                }
+            }
+            else {
+                /* No peer preset: accept first datagram and lock onto source. */
+                nxCtx->nxdIp = srcIp;
+                nxCtx->nxPort = (USHORT)srcPort;
             }
         }
 
@@ -2761,6 +2784,14 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         if (total == 0) {
             WOLFSSL_MSG("Ignoring 0-length datagram");
             NetX_ResetPacket(nxCtx);
+            if (doDtlsTimeout) {
+                invalidPeerPackets++;
+                if (invalidPeerPackets > maxInvalidPeerPackets) {
+                    return usingNonblock
+                           ? WOLFSSL_CBIO_ERR_WANT_READ
+                           : WOLFSSL_CBIO_ERR_TIMEOUT;
+                }
+            }
             continue;
         }
 
@@ -2789,7 +2820,7 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return copied;
     } while (1);
 
-    /* unreachable */
+    return (int)copied;
 }
 
 /* The NetX send callback for DTLS

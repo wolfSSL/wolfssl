@@ -466,7 +466,6 @@ void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket,
                               NXD_ADDRESS nxdip, USHORT nxport,
                               ULONG waitoption);
 
-
 /*!
     \brief この関数は、WOLFSSL_CTX構造体のCBIOCookieメンバーのコールバックを設定します。
     CallbackGenCookie型は関数ポインタで、次のシグネチャを持ちます：
