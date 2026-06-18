@@ -2933,10 +2933,33 @@ L_curve25519_inv_8:
 	LDR	r1, [sp, #160]
 	LDR	r0, [sp, #160]
 	BL	fe_mul_op
+	/* Ensure result is less than modulus */
+	LDR	r0, [sp, #160]
+	LDM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
+	ADDS	r2, r4, #0x13
+	ADCS	r2, r5, #0x0
+	ADCS	r2, r6, #0x0
+	ADCS	r2, r7, #0x0
+	ADCS	r2, r8, #0x0
+	ADCS	r2, r9, #0x0
+	ADCS	r2, r10, #0x0
+	ADC	r2, r11, #0x0
+	ASR	r2, r2, #31
+	AND	r2, r2, #0x13
+	ADDS	r4, r4, r2
+	ADCS	r5, r5, #0x0
+	ADCS	r6, r6, #0x0
+	ADCS	r7, r7, #0x0
+	ADCS	r8, r8, #0x0
+	ADCS	r9, r9, #0x0
+	ADCS	r10, r10, #0x0
+	ADC	r11, r11, #0x0
+	BFC	r11, #31, #1
+	STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
 	MOV	r0, #0x0
 	ADD	sp, sp, #0xbc
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 682 */
+	/* Cycle Count = 721 */
 	.size	curve25519,.-curve25519
 #else
 	.text
@@ -3253,22 +3276,30 @@ L_curve25519_inv_8:
 	/* Ensure result is less than modulus */
 	LDR	r0, [sp, #176]
 	LDM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
-	MOV	r2, #0x13
-	AND	r2, r2, r11, ASR #31
+	ADDS	r2, r4, #0x13
+	ADCS	r2, r5, #0x0
+	ADCS	r2, r6, #0x0
+	ADCS	r2, r7, #0x0
+	ADCS	r2, r8, #0x0
+	ADCS	r2, r9, #0x0
+	ADCS	r2, r10, #0x0
+	ADC	r2, r11, #0x0
+	ASR	r2, r2, #31
+	AND	r2, r2, #0x13
 	ADDS	r4, r4, r2
 	ADCS	r5, r5, #0x0
 	ADCS	r6, r6, #0x0
 	ADCS	r7, r7, #0x0
 	ADCS	r8, r8, #0x0
 	ADCS	r9, r9, #0x0
-	BFC	r11, #31, #1
 	ADCS	r10, r10, #0x0
 	ADC	r11, r11, #0x0
+	BFC	r11, #31, #1
 	STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
 	MOV	r0, #0x0
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 589 */
+	/* Cycle Count = 597 */
 	.size	curve25519,.-curve25519
 #endif /* WC_NO_CACHE_RESISTANT */
 #endif /* HAVE_CURVE25519 */
