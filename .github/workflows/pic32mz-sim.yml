@@ -34,7 +34,7 @@ permissions:
 jobs:
   pic32mz_sim:
     name: wolfCrypt on PIC32MZ ${{ matrix.chip_label }} (${{ matrix.port_label }})
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
