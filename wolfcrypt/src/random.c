@@ -3934,7 +3934,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 #endif
 
-    #ifdef HAVE_INTEL_RDSEED
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
         if (IS_INTEL_RDSEED(intel_flags)) {
              if (!wc_GenerateSeed_IntelRD(NULL, output, sz)) {
                  /* success, we're done */
@@ -3945,7 +3945,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
              return READ_RAN_E;
         #endif
         }
-    #endif /* HAVE_INTEL_RDSEED */
+    #ifdef FORCE_FAILURE_RDSEED
+        else {
+            /* Don't fall back to system randomness */
+            return MISSING_RNG_E;
+        }
+    #endif
+    #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
 #ifdef WIN_REUSE_CRYPT_HANDLE
     /* Check that handle was initialized.
@@ -4914,7 +4920,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
-        int ret;
+        int ret = WC_NO_ERR_TRACE(RNG_FAILURE_E);
 
     #ifdef HAVE_ENTROPY_MEMUSE
         ret = wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
@@ -4934,6 +4940,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return ret;
             #endif
         }
+    #ifdef FORCE_FAILURE_RDSEED
+        else {
+            /* Don't fall back to get_random_bytes() */
+            return MISSING_RNG_E;
+        }
+    #endif
     #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
     #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
@@ -4957,7 +4969,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
-        int ret;
+        int ret = WC_NO_ERR_TRACE(RNG_FAILURE_E);
 
     #ifdef HAVE_ENTROPY_MEMUSE
         ret = wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
@@ -4980,6 +4992,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 return ret;
             }
         }
+    #ifdef FORCE_FAILURE_RDSEED
+        else {
+            /* Don't fall back to arc4random_buf() */
+            return MISSING_RNG_E;
+        }
+    #endif
     #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
         (void)ret;

@@ -217,7 +217,7 @@
         #endif
     #endif
 
-    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(5, 2, 4)
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7, 0, 0)
         #if defined(HAVE_HASHDRBG) && \
             defined(HAVE_ENTROPY_MEMUSE) && \
             !defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
@@ -227,6 +227,11 @@
               !defined(HAVE_ENTROPY_MEMUSE) && \
               !defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
             #define WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+            /* Work around -Wmaybe-uninitialized in old FIPS random.c.
+             * Glue-layer wc_linuxkm_GenerateSeed_IntelRD() always forces
+             * failure if RDSEED is missing or fails.
+             */
+            #undef FORCE_FAILURE_RDSEED
         #endif
     #endif
     #if defined(WC_LINUXKM_WOLFENTROPY_IN_GLUE_LAYER)
