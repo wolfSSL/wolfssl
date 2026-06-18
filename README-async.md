@@ -28,6 +28,14 @@ Supported hardware backends:
 
 The wolfCrypt backend uses the same API as the hardware backends do. Once an asynchronous operation is initiated with the software backend, subsequent calls to `wolfSSL_AsyncPoll` will call into wolfCrypt to complete the operation. If non-blocking is enabled, for example, for ECC (via `WC_ECC_NONBLOCK`), each `wolfSSL_AsyncPoll` will do a chunk of work for the operation and return, to minimize blocking time.
 
+## Per-certificate Yield During Chain Verification (`WOLFSSL_ASYNC_CERT_YIELD`)
+
+By default the TLS handshake verifies every certificate in the peer's chain in a single `wolfSSL_connect()` / `wolfSSL_accept()` call. On a cooperative, single-threaded scheduler a long chain can therefore hold the CPU long enough to trip a watchdog. Building with `WOLFSSL_ASYNC_CRYPT` and the opt-in `WOLFSSL_ASYNC_CERT_YIELD` makes `ProcessPeerCerts()` return `WC_PENDING_E` to the caller after each chain certificate (and after the peer/leaf certificate) is verified, so the application's loop regains control between certificates and can service its watchdog or run other tasks before re-entering. This is independent of `WC_ECC_NONBLOCK`: you get one yield per certificate even when each signature verify is a single blocking call. `WC_ECC_NONBLOCK` additionally subdivides each verify into smaller chunks. The macro is registered with the example/test in `examples/async` (run the client/server with `--cert-chain`).
+
+Important: these per-certificate yields return `WC_PENDING_E` WITHOUT enqueuing an async device event (`ssl->asyncDev` stays NULL, the event queue stays empty). They are intended for cooperative schedulers that unconditionally re-call `wolfSSL_connect()` / `wolfSSL_accept()` (optionally after a best-effort `wolfSSL_AsyncPoll()`, which simply returns 0 events). They are NOT suitable for event-loop callers that block waiting on the async device file descriptor for a hardware completion, because no such completion is delivered for these yields and the caller would stall during peer certificate processing. Leave `WOLFSSL_ASYNC_CERT_YIELD` undefined (the default) for fd/event-driven async usage.
+
+If a handshake is abandoned after a per-certificate yield rather than driven to completion, call `wolfSSL_clear()` (or free and recreate the `WOLFSSL` object) before reusing it; `wolfSSL_clear()` clears the pending-yield state so the next handshake starts cleanly.
+
 ## API's
 
 ### ```wolfSSL_AsyncPoll```

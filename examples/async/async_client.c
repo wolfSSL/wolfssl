@@ -158,7 +158,8 @@ static int posix_net_connect(const char* host, int port)
 /* ------------------------------------------------------------------ */
 static void usage(const char* prog)
 {
-    printf("usage: %s [--ecc|--x25519] [--mutual] [--tls12] [host] [port]\n",
+    printf("usage: %s [--ecc|--x25519] [--mutual] [--cert-chain] [--tls12] "
+        "[host] [port]\n",
         prog);
 }
 
@@ -175,7 +176,8 @@ static const char* group_name(word16 group)
 }
 
 static int parse_client_args(int argc, char** argv,
-    const char** host, int* port, word16* group, int* mutual, int* tls12)
+    const char** host, int* port, word16* group, int* mutual, int* tls12,
+    int* certChain)
 {
     int i;
     int host_set = 0;
@@ -186,6 +188,7 @@ static int parse_client_args(int argc, char** argv,
     *group = WOLFSSL_ECC_SECP256R1;
     *mutual = 0;
     *tls12 = 0;
+    *certChain = 0;
 
     for (i = 1; i < argc; i++) {
         if (XSTRCMP(argv[i], "--ecc") == 0) {
@@ -196,6 +199,10 @@ static int parse_client_args(int argc, char** argv,
         }
         else if (XSTRCMP(argv[i], "--mutual") == 0) {
             *mutual = 1;
+        }
+        else if (XSTRCMP(argv[i], "--cert-chain") == 0) {
+            /* Verify the server's multi-certificate ECC chain (leaf + root). */
+            *certChain = 1;
         }
         else if (XSTRCMP(argv[i], "--tls12") == 0) {
             *tls12 = 1;
@@ -214,6 +221,11 @@ static int parse_client_args(int argc, char** argv,
         else {
             return -1;
         }
+    }
+
+    /* --cert-chain verifies an ECC certificate chain; it is ECC-only. */
+    if (*certChain && *group == WOLFSSL_ECC_X25519) {
+        return -1;
     }
 
     return 0;
@@ -252,9 +264,10 @@ int client_async_test(int argc, char** argv)
     const char* mode = NULL;
     int mutual = 0;
     int tls12 = 0;
+    int certChain = 0;
 
     if (parse_client_args(argc, argv, &host, &port, &group, &mutual,
-            &tls12) != 0) {
+            &tls12, &certChain) != 0) {
         usage(argv[0]);
         return 0;
     }
@@ -380,6 +393,17 @@ int client_async_test(int argc, char** argv)
                 fprintf(stderr, "ERROR: failed to load ECC client key.\n");
                 goto out;
             }
+        }
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    }
+    else if (certChain) {
+        /* Verify the server's multi-certificate ECC chain (leaf + root)
+         * against the root CA, without presenting a client certificate. */
+        ret = wolfSSL_CTX_load_verify_buffer(ctx, ca_ecc_cert_der_256,
+            sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+        if (ret != WOLFSSL_SUCCESS) {
+            fprintf(stderr, "ERROR: failed to load ECC CA cert.\n");
+            goto out;
         }
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
     }

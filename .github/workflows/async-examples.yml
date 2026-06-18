@@ -110,3 +110,81 @@ jobs:
               cat "$f"
             fi
           done
+
+  # Per-certificate non-blocking yield (WOLFSSL_ASYNC_CERT_YIELD): the server
+  # presents a multi-certificate ECC chain (--cert-chain) and the client must
+  # return WC_PENDING_E once per certificate while verifying it.
+  cert_chain_yield:
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        async_mode: ['sw', 'cryptocb']
+    name: Per-certificate yield (${{ matrix.async_mode }})
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Build async examples with WOLFSSL_ASYNC_CERT_YIELD
+        run: |
+          make -C examples/async clean
+          make -j -C examples/async ASYNC_MODE=${{ matrix.async_mode }} \
+            EXTRA_CFLAGS="-DWOLFSSL_ASYNC_CERT_YIELD"
+
+      - name: Run --cert-chain pair and assert per-certificate yield
+        run: |
+          set -euo pipefail
+          ASYNC_MODE="${{ matrix.async_mode }}"
+          ready="/tmp/wolfssl_cert_chain_ready"
+          rm -f "$ready"
+
+          WOLFSSL_ASYNC_READYFILE="$ready" \
+            ./examples/async/async_server --ecc --cert-chain \
+            > /tmp/cert_chain_server.log 2>&1 &
+          pid=$!
+
+          rc=0
+          WOLFSSL_ASYNC_READYFILE="$ready" \
+            ./examples/async/async_client --ecc --cert-chain 127.0.0.1 11111 \
+            > /tmp/cert_chain_client.log 2>&1 || rc=$?
+
+          kill "$pid" >/dev/null 2>&1 || true
+          wait "$pid" >/dev/null 2>&1 || true
+
+          cat /tmp/cert_chain_client.log
+          if [ "$rc" -ne 0 ]; then
+            echo "FAIL: handshake (exit=$rc)"
+            exit 1
+          fi
+
+          count=$(awk '/WC_PENDING_E count:/ {print $NF}' \
+            /tmp/cert_chain_client.log)
+          # The 2-cert chain (leaf + root) yields once per certificate.
+          # cryptocb mode has no crypto chunking, so the count is just the
+          # per-certificate yields (>= 2: one per intermediate plus the leaf).
+          # sw mode also chunks the SP ECC math, so the count is much larger.
+          if [ "$ASYNC_MODE" = "cryptocb" ]; then
+            if [ -z "$count" ] || [ "$count" -lt 2 ]; then
+              echo "FAIL: expected >= 2 per-certificate yields," \
+                "got ${count:-missing}"
+              exit 1
+            fi
+          else
+            if [ -z "$count" ] || [ "$count" -lt 100 ]; then
+              echo "FAIL: WC_PENDING_E count too low: ${count:-missing}"
+              exit 1
+            fi
+          fi
+          echo "PASS: $ASYNC_MODE per-certificate yield (WC_PENDING_E: $count)"
+
+      - name: Print cert-chain logs
+        if: ${{ failure() }}
+        run: |
+          for f in /tmp/cert_chain_server.log /tmp/cert_chain_client.log; do
+            if [ -f "$f" ]; then
+              echo "==> $f"
+              cat "$f"
+            fi
+          done
