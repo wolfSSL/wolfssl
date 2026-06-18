@@ -2392,8 +2392,13 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
     wolfSSL_free(ssl);
     ssl = NULL;
 
+#ifndef NO_ERROR_STRINGS
     /* Report PoC #3: the suite named by its IANA name must also be dropped
-     * (classification is by suite bytes, independent of the input name form). */
+     * (classification is by suite bytes, independent of the input name form).
+     *
+     * Note, no IANA name support in NO_ERROR_STRINGS builds (see struct
+     * CipherSuiteInfo definition in internal.h).
+     */
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
                 "TLS_DH_anon_WITH_AES_128_CBC_SHA:!aNULL"), WOLFSSL_FAILURE);
@@ -2401,6 +2406,7 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
                 TLS_DH_anon_WITH_AES_128_CBC_SHA), 0);
     wolfSSL_free(ssl);
     ssl = NULL;
+#endif /* NO_ERROR_STRINGS */
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
     /* Mixed list: the authenticated suite survives, only ADH is removed. */
