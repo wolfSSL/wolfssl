@@ -516,7 +516,6 @@ void wolfSSL_SetIO_NetX_Dtls(WOLFSSL* ssl, NX_UDP_SOCKET* nxsocket,
                               NXD_ADDRESS nxdip, USHORT nxport,
                               ULONG waitoption);
 
-
 /*!
     \brief This function sets the callback for the CBIOCookie member of the
     WOLFSSL_CTX structure. The CallbackGenCookie type is a function pointer
