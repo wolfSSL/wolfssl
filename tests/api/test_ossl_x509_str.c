@@ -1510,7 +1510,7 @@ int test_X509_verify_cert_untrusted_inter(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
     !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
-    !defined(NO_ASN_TIME)
+    !defined(NO_ASN_TIME) && !defined(ALLOW_INVALID_CERTSIGN)
 /* Build a CA:TRUE intermediate signed by the 2048-bit test root
  * (ca_cert_der_2048 / ca_key_der_2048).  keyUsage == NULL omits the KeyUsage
  * extension entirely.  Returns the DER length, or <= 0 on failure. */
@@ -1619,7 +1619,9 @@ int test_X509_verify_cert_ca_no_keycertsign(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
     !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
-    !defined(NO_ASN_TIME)
+    !defined(NO_ASN_TIME) && !defined(ALLOW_INVALID_CERTSIGN)
+    /* ALLOW_INVALID_CERTSIGN disables the keyCertSign enforcement that Case 1
+     * relies on, so the test is only meaningful when it is not defined. */
     WC_RNG rng;
     RsaKey caKey, intKey, leafKey;
     int rngI = 0, caI = 0, intI = 0, leafI = 0;

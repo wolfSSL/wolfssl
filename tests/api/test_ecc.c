@@ -579,7 +579,10 @@ int test_wc_ecc_shared_secret(void)
 } /* END tests_wc_ecc_shared_secret */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
-    (defined(HAVE_ECC384) || defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
+    (defined(HAVE_ECC384) || defined(HAVE_ECC521) || \
+     defined(HAVE_ALL_CURVES)) && \
+    (!defined(WOLFSSL_SP_521) || \
+     ((!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)))
 /* Verify the output-buffer size contract of wc_ecc_shared_secret() at the
  * field-size boundary. The single-precision (SP) math secret generators for
  * P-384/P-521 historically validated the caller's buffer against the wrong
@@ -655,7 +658,10 @@ int test_wc_ecc_shared_secret_size_bounds(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
-    (defined(HAVE_ECC384) || defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
+    (defined(HAVE_ECC384) || defined(HAVE_ECC521) || \
+     defined(HAVE_ALL_CURVES)) && \
+    (!defined(WOLFSSL_SP_521) || \
+     ((!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)))
     WC_RNG rng;
     int    rngInit = 0;
 
