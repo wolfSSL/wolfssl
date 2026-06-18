@@ -118,7 +118,9 @@ int test_wc_LmsKey_sign_verify(void)
     int     i;
     int     numSigs = 5;
 
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
     XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
@@ -174,8 +176,10 @@ int test_wc_LmsKey_reload_cache(void)
     /* Sign 33 times to advance q past the 32-entry cache window. */
     int     preSigs = 33;
 
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&vkey, 0, sizeof(vkey));
+    XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
@@ -862,7 +866,8 @@ static int rfc9802_gen_chain(void* caKey, int caKeyType, int caSigType,
     ExpectNotNull(leafDer = (byte*)XMALLOC(derCap, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
     ExpectIntEQ(wc_ecc_init(&leafKey), 0);
-    leafKeyInit = 1;
+    if (EXPECT_SUCCESS()) /* only flag for free if init ran and succeeded */
+        leafKeyInit = 1;
     ExpectIntEQ(wc_ecc_make_key(rng, 32, &leafKey), 0);
 
     /* Self-signed CA root. */
@@ -971,6 +976,10 @@ int test_rfc9802_lms_x509_gen(void)
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_LMS_SHA256_256)
     LmsKey  key;
     WC_RNG  rng;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
@@ -1176,6 +1185,10 @@ int test_rfc9802_xmss_x509_gen(void)
     defined(WOLFSSL_CERT_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     XmssKey key;
     WC_RNG  rng;
+
+    /* Zero so cleanup is safe if an early alloc failure skips init. */
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
