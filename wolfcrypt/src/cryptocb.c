@@ -896,8 +896,8 @@ int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut)
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         word32 curveSz = (word32)key->dp->size;
-        word32 ptSz    = 1 + 2 * curveSz;     /* X9.63 uncompressed length */
-        word32 outSz   = ptSz;
+        word32 ptSz    = 1 + 2 * curveSz;          /* X9.63 uncompressed length */
+        word32 outSz   = 1 + 2 * MAX_ECC_BYTES;    /* buffer size on input */
         WC_DECLARE_VAR(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap);
         WC_ALLOC_VAR_EX(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap,
             DYNAMIC_TYPE_ECC_BUFFER, return MEMORY_E);
@@ -966,11 +966,11 @@ int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv)
          * actual input instead of seeing "no public point". */
         int havePub    = (key->type != ECC_PRIVATEKEY_ONLY);
         WC_DECLARE_VAR(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap);
-        WC_ALLOC_VAR_EX(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap,
-            DYNAMIC_TYPE_ECC_BUFFER, return MEMORY_E);
 
         ret = MP_OKAY;
         if (havePub) {
+            WC_ALLOC_VAR_EX(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap,
+                DYNAMIC_TYPE_ECC_BUFFER, return MEMORY_E);
             /* serialize key->pubkey to X9.63 uncompressed (0x04 || X || Y) */
             buf[0] = ECC_POINT_UNCOMP;
             ret = wc_export_int(key->pubkey.x, buf + 1, &xSz, curveSz,
@@ -993,7 +993,9 @@ int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv)
             ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
         }
 
-        WC_FREE_VAR_EX(buf, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        if (havePub) {
+            WC_FREE_VAR_EX(buf, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        }
     }
 
     return wc_CryptoCb_TranslateErrorCode(ret);
