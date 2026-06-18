@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
   # Weekend cron and manual workflow_dispatch refresh the shared ghcr build
   # cache that PR runs read (cache-to below is gated to those two events).
