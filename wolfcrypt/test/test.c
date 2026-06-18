@@ -74053,6 +74053,70 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->cipher.aesctr.aes->devId = devIdArg;
         }
     #endif /* WOLFSSL_AES_COUNTER */
+    #ifdef WOLFSSL_AES_CFB
+        if (info->cipher.type == WC_CIPHER_AES_CFB) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.aescfb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesCfbEncrypt(
+                    info->cipher.aescfb.aes,
+                    info->cipher.aescfb.out,
+                    info->cipher.aescfb.in,
+                    info->cipher.aescfb.sz);
+
+                /* reset devId */
+                info->cipher.aescfb.aes->devId = devIdArg;
+            }
+        #ifdef HAVE_AES_DECRYPT
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.aescfb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesCfbDecrypt(
+                    info->cipher.aescfb.aes,
+                    info->cipher.aescfb.out,
+                    info->cipher.aescfb.in,
+                    info->cipher.aescfb.sz);
+
+                /* reset devId */
+                info->cipher.aescfb.aes->devId = devIdArg;
+            }
+        #endif /* HAVE_AES_DECRYPT */
+        }
+    #endif /* WOLFSSL_AES_CFB */
+    #ifdef WOLFSSL_AES_OFB
+        if (info->cipher.type == WC_CIPHER_AES_OFB) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesofb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesOfbEncrypt(
+                    info->cipher.aesofb.aes,
+                    info->cipher.aesofb.out,
+                    info->cipher.aesofb.in,
+                    info->cipher.aesofb.sz);
+
+                /* reset devId */
+                info->cipher.aesofb.aes->devId = devIdArg;
+            }
+        #ifdef HAVE_AES_DECRYPT
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesofb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesOfbDecrypt(
+                    info->cipher.aesofb.aes,
+                    info->cipher.aesofb.out,
+                    info->cipher.aesofb.in,
+                    info->cipher.aesofb.sz);
+
+                /* reset devId */
+                info->cipher.aesofb.aes->devId = devIdArg;
+            }
+        #endif /* HAVE_AES_DECRYPT */
+        }
+    #endif /* WOLFSSL_AES_OFB */
     #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
         if (info->cipher.type == WC_CIPHER_AES_CCM) {
             if (info->cipher.enc) {
@@ -75723,6 +75787,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     #ifdef HAVE_AES_CBC
     if (ret == 0)
         ret = aes_test();
+    #endif
+    #ifdef WOLFSSL_AES_CFB
+    if (ret == 0)
+        ret = aes_cfb_test();
+    #endif
+    #ifdef WOLFSSL_AES_OFB
+    if (ret == 0)
+        ret = aesofb_test();
     #endif
     #ifdef WOLFSSL_AES_XTS
     if (ret == 0)
