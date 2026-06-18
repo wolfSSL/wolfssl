@@ -10,6 +10,9 @@ on:
   schedule:
     - cron: '20 5 * * *'
 
+env:
+  NETXDUO_REF: v6.4.3_rel
+
 jobs:
   build:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
@@ -22,26 +25,26 @@ jobs:
       id: cache-netxduo
       uses: actions/cache/restore@v5
       with:
-        path: ./v6.4.3_rel.tar.gz
-        key: netxduo-bundle-v6.4.3_rel
+        path: ./${{ env.NETXDUO_REF }}.tar.gz
+        key: netxduo-bundle-${{ env.NETXDUO_REF }}
 
     - name: Download NetXDuo bundle if not cached
       if: steps.cache-netxduo.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/eclipse-threadx/netxduo/archive/refs/tags/v6.4.3_rel.tar.gz
+        wget https://github.com/eclipse-threadx/netxduo/archive/refs/tags/${{ env.NETXDUO_REF }}.tar.gz
 
     # Only master (the daily schedule) saves, so all PRs share one entry.
     - name: Save NetXDuo bundle cache
       if: github.ref == 'refs/heads/master' && steps.cache-netxduo.outputs.cache-hit != 'true'
       uses: actions/cache/save@v5
       with:
-        path: ./v6.4.3_rel.tar.gz
-        key: netxduo-bundle-v6.4.3_rel
+        path: ./${{ env.NETXDUO_REF }}.tar.gz
+        key: netxduo-bundle-${{ env.NETXDUO_REF }}
 
     - name: Extract NetXDuo bundle
       run: |
         mkdir -p netxduo_src
-        tar -xzf v6.4.3_rel.tar.gz -C netxduo_src --strip-components=1
+        tar -xzf ${{ env.NETXDUO_REF }}.tar.gz -C netxduo_src --strip-components=1
 
     - name: Install NetXDuo Dependencies
       working-directory: ./netxduo_src
