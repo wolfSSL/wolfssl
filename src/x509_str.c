@@ -644,9 +644,12 @@ static int X509StoreCertIsTrusted(WOLFSSL_X509_STORE* store,
  * ctx->chain is ordered leaf first (index 0) up to the trust anchor (highest
  * index).  Walk from the trust anchor down toward the leaf, tracking the
  * remaining number of non-self-issued intermediate certificates permitted.
- * WOLFSSL_MAX_PATH_LEN is used as the "no constraint" sentinel, mirroring
- * InitDecodedCert_ex()/ParseCertRelative().  The leaf (index 0) issues nothing
- * and is therefore not subject to the constraint.
+ * The budget is only enforced once some CA in the path actually asserts a
+ * pathLenConstraint; an explicit "haveConstraint" flag tracks that, so every
+ * value 0..WOLFSSL_MAX_PATH_LEN (the parser's hard cap on pathLenConstraint)
+ * is a usable budget rather than overloading the cap as a "no constraint"
+ * sentinel.  The leaf (index 0) issues nothing and is therefore not subject to
+ * the constraint.
  *
  * Returns WOLFSSL_SUCCESS if the path satisfies every pathLenConstraint, or
  * WOLFSSL_FAILURE (with ctx->error set) on the first violation. */
@@ -654,7 +657,8 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
 {
     int num;
     int i;
-    word32 maxPathLen = WOLFSSL_MAX_PATH_LEN;
+    word32 maxPathLen = 0;
+    byte haveConstraint = 0;
     WOLFSSL_X509* anchor;
 
     if (ctx == NULL || ctx->chain == NULL)
@@ -675,8 +679,10 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
      * anchor pointer can also appear at num-2; it is skipped by pointer below
      * to avoid double-counting. */
     anchor = wolfSSL_sk_X509_value(ctx->chain, num - 1);
-    if (anchor != NULL && anchor->isCa && anchor->basicConstPlSet)
+    if (anchor != NULL && anchor->isCa && anchor->basicConstPlSet) {
         maxPathLen = (word32)anchor->pathLength;
+        haveConstraint = 1;
+    }
 
     for (i = num - 2; i >= 1; i--) {
         WOLFSSL_X509* cert = wolfSSL_sk_X509_value(ctx->chain, i);
@@ -689,8 +695,9 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
             (wolfSSL_X509_NAME_cmp(&cert->issuer, &cert->subject) == 0);
 
         /* RFC 5280 sec. 6.1.4 (l): a non-self-issued certificate consumes one
-         * unit of the issuer's remaining path length budget. */
-        if (!selfIssued) {
+         * unit of the issuer's remaining path length budget. Only meaningful
+         * once a CA above has asserted a constraint (haveConstraint). */
+        if (!selfIssued && haveConstraint) {
             if (maxPathLen == 0) {
                 SetupStoreCtxError_ex(ctx,
                     WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED, i);
@@ -706,16 +713,16 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
             #endif
                 return WOLFSSL_FAILURE;
             }
-            else if (maxPathLen != WOLFSSL_MAX_PATH_LEN) {
-                maxPathLen--;
-            }
+            maxPathLen--;
         }
 
         /* RFC 5280 sec. 6.1.4 (m): tighten the budget with this CA's own
-         * pathLenConstraint, if present. */
+         * pathLenConstraint, if present. The first constraint encountered seeds
+         * the budget; subsequent ones only ever lower it. */
         if (cert->isCa && cert->basicConstPlSet &&
-                (word32)cert->pathLength < maxPathLen) {
+                (!haveConstraint || (word32)cert->pathLength < maxPathLen)) {
             maxPathLen = (word32)cert->pathLength;
+            haveConstraint = 1;
         }
     }
 
