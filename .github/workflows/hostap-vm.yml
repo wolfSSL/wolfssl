@@ -7,6 +7,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Daily run on master reseeds the shared cache (see save steps below).
+  schedule:
+    - cron: '40 5 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -72,7 +75,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checking if we have hostap in cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         id: cache
         with:
           path: hostap
@@ -81,6 +84,14 @@ jobs:
       - name: Checkout hostap
         if: steps.cache.outputs.cache-hit != 'true'
         run: git clone https://w1.fi/hostap.git hostap
+
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save hostap cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: hostap
+          key: hostap-repo
 
       - name: tar hostap
         run: tar -zcf hostap.tgz hostap
@@ -101,7 +112,7 @@ jobs:
     needs: checkout_hostap
     steps:
       - name: Checking if we have kernel in cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         id: cache
         with:
           path: linux/linux
@@ -132,6 +143,14 @@ jobs:
           cp hostap/tests/hwsim/vm/kernel-config.uml linux/.config
           cd linux
           yes "" | ARCH=um make -j $(nproc)
+
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save kernel cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: linux/linux
+          key: hostap-linux-${{ env.LINUX_REF }}
 
       - name: Upload kernel binary
         uses: actions/upload-artifact@v6

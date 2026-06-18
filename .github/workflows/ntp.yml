@@ -7,6 +7,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Daily run on master reseeds the shared cache (see save step below).
+  schedule:
+    - cron: '0 5 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -70,7 +73,7 @@ jobs:
 
       # Avoid DoS'ing ntp site so cache the tar.gz
       - name: Check if we have ntp
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         id: cache
         with:
           path: ntp-${{ matrix.ref }}.tar.gz
@@ -80,6 +83,14 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           wget https://downloads.nwtime.org/ntp/4.2.8/ntp-${{ matrix.ref }}.tar.gz
+
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save ntp cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ntp-${{ matrix.ref }}.tar.gz
+          key: ntp-${{ matrix.ref }}.tar.gz
 
       - name: Extract ntp
         run: |

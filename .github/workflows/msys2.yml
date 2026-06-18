@@ -27,6 +27,9 @@ jobs:
           msystem: msys
           update: true
           install: git gcc autotools base-devel autoconf netcat
+          # Per-PR cache entries can't be shared across PRs; the action
+          # offers no master-only save, so disable caching entirely.
+          cache: false
       - name: configure wolfSSL
         run: ./autogen.sh && ./configure --disable-sys-ca-certs CFLAGS="-DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -DNO_WRITE_TEMP_FILES"
       - name: build wolfSSL
