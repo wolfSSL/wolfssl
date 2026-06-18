@@ -74,6 +74,20 @@ jobs:
           path: dist
           key: nss-${{ env.NSS_REF }}
 
+      # On a cache miss, hand the freshly built dist/ to nss_test via an
+      # artifact so nss is not compiled a second time in the same run.
+      - name: tar nss dist
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tar -zcf nss-dist.tgz dist
+
+      - name: Upload nss build
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: nss-build
+          path: nss-dist.tgz
+          retention-days: 1
+
   nss_test:
     name: Test interop with nss
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
@@ -89,35 +103,17 @@ jobs:
           path: dist
           key: nss-${{ env.NSS_REF }}
 
-      - name: Checkout wolfSSL CI actions (fallback on cache miss)
+      # On a cache miss, reuse the build_nss artifact instead of recompiling.
+      # master restores from the cache above instead.
+      - name: Download nss build (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v5
+        uses: actions/download-artifact@v7
         with:
-          sparse-checkout: .github/actions
-          fetch-depth: 1
+          name: nss-build
 
-      - name: Install dependencies (fallback on cache miss)
+      - name: untar nss dist (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: ./.github/actions/install-apt-deps
-        with:
-          packages: gyp ninja-build
-          ghcr-debs-tag: ubuntu-24.04-full
-
-      - name: Checkout nss (fallback on cache miss)
-        if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v5
-        with:
-          repository: nss-dev/nss
-          ref: ${{ env.NSS_REF }}
-          path: nss
-          fetch-depth: 1
-
-      - name: Compile nss (fallback on cache miss)
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          hg clone https://hg.mozilla.org/projects/nspr
-          cd nss
-          ./build.sh
+        run: tar -xf nss-dist.tgz
 
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1

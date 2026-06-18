@@ -65,6 +65,20 @@ jobs:
           path: mbedtls
           key: mbedtls-${{ env.MBED_REF }}
 
+      # On a cache miss, hand the freshly built mbedtls to mbedtls_test via an
+      # artifact so it is not compiled a second time in the same run.
+      - name: tar mbedtls
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tar -zcf mbedtls.tgz mbedtls
+
+      - name: Upload mbedtls build
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: mbedtls-build
+          path: mbedtls.tgz
+          retention-days: 1
+
   mbedtls_test:
     name: Test interop with mbedtls
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
@@ -83,26 +97,17 @@ jobs:
           path: mbedtls
           key: mbedtls-${{ env.MBED_REF }}
 
-      - name: Checkout mbedtls (fallback on cache miss)
+      # On a cache miss, reuse the build_mbedtls artifact instead of
+      # recompiling. master restores from the cache above instead.
+      - name: Download mbedtls build (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v5
+        uses: actions/download-artifact@v7
         with:
-          repository: Mbed-TLS/mbedtls
-          ref: ${{ env.MBED_REF }}
-          path: mbedtls
-          fetch-depth: 1
+          name: mbedtls-build
 
-      - name: Compile mbedtls (fallback on cache miss)
+      - name: untar mbedtls (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        working-directory: mbedtls
-        run: |
-          git submodule update --init
-          mkdir build
-          cd build
-          cmake ..
-          make -j$(nproc)
-          openssl pkey -in framework/data_files/cli-rsa-sha256.key.der -text > framework/data_files/cli-rsa-sha256.key.pem
-          openssl pkey -in framework/data_files/server2.key.der -text > framework/data_files/server2.key.pem
+        run: tar -xf mbedtls.tgz
 
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
