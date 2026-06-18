@@ -239,6 +239,84 @@ int test_dtls13_frag_ch_pq(void)
     return EXPECT_RESULT();
 }
 
+/* Same as test_dtls13_frag_ch_pq but with the HRR cookie disabled on the
+ * server, so the HelloRetryRequest carries no cookie extension (as a peer that
+ * omits the optional DTLS 1.3 cookie would). The client must still send the
+ * real (large) key share in the second ClientHello and let it fragment. */
+int test_dtls13_frag_ch_pq_no_cookie(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_MLKEM) \
+    && defined(WOLFSSL_SEND_HRR_COOKIE)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char *test_str = "test";
+    int test_str_size;
+    byte buf[255];
+#if defined(WOLFSSL_MLKEM_KYBER)
+    #if !defined(WOLFSSL_NO_KYBER1024)
+    int group = WOLFSSL_KYBER_LEVEL5;
+    const char *group_name = "KYBER_LEVEL5";
+    #elif !defined(WOLFSSL_NO_KYBER768)
+    int group = WOLFSSL_KYBER_LEVEL3;
+    const char *group_name = "KYBER_LEVEL3";
+    #else
+    int group = WOLFSSL_KYBER_LEVEL1;
+    const char *group_name = "KYBER_LEVEL1";
+    #endif
+#elif !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE)
+    #if !defined(WOLFSSL_NO_ML_KEM_1024)
+    int group = WOLFSSL_ML_KEM_1024;
+    const char *group_name = "ML_KEM_1024";
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+    int group = WOLFSSL_ML_KEM_768;
+    const char *group_name = "ML_KEM_768";
+    #else
+    int group = WOLFSSL_ML_KEM_512;
+    const char *group_name = "ML_KEM_512";
+    #endif
+#elif defined(WOLFSSL_PQC_HYBRIDS)
+    #if defined(HAVE_CURVE25519) && !defined(WOLFSSL_NO_ML_KEM_768)
+    int group = WOLFSSL_X25519MLKEM768;
+    const char *group_name = "X25519MLKEM768";
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+    int group = WOLFSSL_SECP256R1MLKEM768;
+    const char *group_name = "SecP256r1MLKEM768";
+    #else
+    int group = WOLFSSL_SECP384R1MLKEM1024;
+    const char *group_name = "SecP384r1MLKEM1024";
+    #endif
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    /* Add in a large post-quantum key share to make the CH long. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+    /* No cookie in the HRR: the server processes the first CH statelessly
+     * disabled (dtlsStateful immediately) and reassembles the fragmented CH2. */
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), group_name);
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), group_name);
+    test_str_size = XSTRLEN("test") + 1;
+    ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), test_str_size);
+    ExpectIntEQ(XSTRCMP((char*)buf, test_str), 0);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) \
     && defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG) && \
     defined(WOLFSSL_AES_256)

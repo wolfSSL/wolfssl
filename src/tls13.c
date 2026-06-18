@@ -4888,10 +4888,12 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_DTLS_CH_FRAG
+        /* Only empty the key share on the first CH; this avoids first CH
+         * fragmentation (wolfSSL refuses them) */
         if (ssl->options.dtls && args->sendSz > maxFrag &&
-                TLSX_Find(ssl->extensions, TLSX_COOKIE) == NULL) {
-            /* Try again with an empty key share if we would be fragmenting
-             * without a cookie */
+                ssl->options.serverState !=
+                    SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+            /* Try again with an empty key share if we would be fragmenting */
             ret = TLSX_KeyShare_Empty(ssl);
             if (ret != 0)
                 return ret;
