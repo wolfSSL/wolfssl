@@ -638,6 +638,31 @@ int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
     wolfSSL_HwRngMutexUnLock(); /* Unlock Mutex no matter status value */
     return status;
 }
+
+#if defined(WOLFSSL_MAX3266X_OLD)
+/* Implements TRNG on-demand health test (the older SDK does not provide one) */
+int wc_MXC_TRNG_HealthTest(void)
+{
+    /* Clear on-going test if necessary */
+    if (MXC_TRNG->cn & MXC_F_TRNG_CN_ODHT) {
+        MXC_TRNG->cn &= ~MXC_F_TRNG_CN_ODHT;
+        while (MXC_TRNG->st & MXC_F_TRNG_ST_ODHTS) {}
+    }
+
+    /* Start on-demand health test */
+    MXC_TRNG->cn |= MXC_F_TRNG_CN_ODHT;
+
+    /* Wait for the test to finish */
+    while (MXC_TRNG->st & MXC_F_TRNG_ST_ODHTS) {}
+
+    /* Check results of test */
+    if (MXC_TRNG->st & MXC_F_TRNG_ST_HTS) {
+        MAX3266X_MSG("TRNG HW Health Test Failed");
+        return WC_HW_E;
+    }
+    return 0;
+}
+#endif /* WOLFSSL_MAX3266X_OLD */
 #endif /* MAX3266X_RNG */
 
 #if defined(MAX3266X_AES)
@@ -1051,6 +1076,12 @@ int wc_MXC_TPU_SHA_Final(unsigned char** msg, unsigned int* used,
 
 /* TPU hash helpers (bare-metal SHA accelerator) */
 
+#if defined(WOLFSSL_MAX3266X_OLD)
+    #define MXC_TPU_DATA_IN din
+#else
+    #define MXC_TPU_DATA_IN data_in
+#endif
+
 /* Reset TPU, select hash function, and restore intermediate state into
  * the HASH_DIGEST registers. */
 void wc_MXC_TPU_Hash_Setup(MXC_TPU_HASH_TYPE algo,
@@ -1089,7 +1120,7 @@ void wc_MXC_TPU_Hash_Feed_Block(const unsigned char* data,
 
     for (word = 0; word < blockSz; word += 4) {
         while (!(MXC_TPU->ctrl & MXC_F_TPU_CTRL_RDY)) {}
-        MXC_TPU->data_in[0] = (unsigned int)data[word]
+        MXC_TPU->MXC_TPU_DATA_IN[0] = (unsigned int)data[word]
                              | ((unsigned int)data[word + 1] << 8)
                              | ((unsigned int)data[word + 2] << 16)
                              | ((unsigned int)data[word + 3] << 24);
@@ -1117,26 +1148,26 @@ void wc_MXC_TPU_Hash_Feed_Last(const unsigned char* data,
      * trigger processing of the padding-only block. */
     if (totalLenLo == 0 && totalLenHi == 0) {
         while (!(MXC_TPU->ctrl & MXC_F_TPU_CTRL_RDY)) {}
-        MXC_TPU->data_in[0] = 0;
+        MXC_TPU->MXC_TPU_DATA_IN[0] = 0;
     }
 
     for (word = 0; word < dataLen; word += 4) {
         while (!(MXC_TPU->ctrl & MXC_F_TPU_CTRL_RDY)) {}
         if (dataLen >= (word + 4)) {
-            MXC_TPU->data_in[0] = (unsigned int)data[word]
+            MXC_TPU->MXC_TPU_DATA_IN[0] = (unsigned int)data[word]
                                  | ((unsigned int)data[word + 1] << 8)
                                  | ((unsigned int)data[word + 2] << 16)
                                  | ((unsigned int)data[word + 3] << 24);
         }
         else if ((dataLen & 3) == 1) {
-            MXC_TPU->data_in[0] = (unsigned int)data[word];
+            MXC_TPU->MXC_TPU_DATA_IN[0] = (unsigned int)data[word];
         }
         else if ((dataLen & 3) == 2) {
-            MXC_TPU->data_in[0] = (unsigned int)data[word]
+            MXC_TPU->MXC_TPU_DATA_IN[0] = (unsigned int)data[word]
                                  | ((unsigned int)data[word + 1] << 8);
         }
         else if ((dataLen & 3) == 3) {
-            MXC_TPU->data_in[0] = (unsigned int)data[word]
+            MXC_TPU->MXC_TPU_DATA_IN[0] = (unsigned int)data[word]
                                  | ((unsigned int)data[word + 1] << 8)
                                  | ((unsigned int)data[word + 2] << 16);
         }

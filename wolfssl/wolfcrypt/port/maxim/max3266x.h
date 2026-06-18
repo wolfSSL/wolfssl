@@ -93,8 +93,7 @@
     #if defined(MAX3266X_RNG)
         #include "trng.h"   /* Provides TRNG Drivers */
         #define MXC_TPU_TRNG_Read           TRNG_Read
-        #warning "TRNG Health Test not available in older Maxim SDK"
-        #define MXC_TRNG_HealthTest(...)    0
+        #define MXC_TRNG_HealthTest         wc_MXC_TRNG_HealthTest
     #endif
     #if defined(MAX3266X_AES)
         #include "cipher.h" /* Provides Drivers for AES */
@@ -152,7 +151,7 @@
     #endif
 
     /* TPU Functions */
-    #define MXC_TPU_Init                SYS_TPU_Init
+    #define MXC_TPU_Init(clock)         SYS_TPU_Init(NULL)
     #define MXC_TPU_Shutdown            SYS_TPU_Shutdown
     #define MXC_SYS_PERIPH_CLOCK_TPU    SYS_PERIPH_CLOCK_TPU
 
@@ -228,6 +227,9 @@
 #ifdef MAX3266X_RNG
     WOLFSSL_LOCAL int wc_MXC_TRNG_Random(unsigned char* output,
                                                 unsigned int sz);
+#if defined(WOLFSSL_MAX3266X_OLD)
+    WOLFSSL_LOCAL int wc_MXC_TRNG_HealthTest(void);
+#endif /* WOLFSSL_MAX3266X_OLD */
 #endif
 
 #ifdef MAX3266X_AES
