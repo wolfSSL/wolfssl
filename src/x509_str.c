@@ -629,6 +629,99 @@ static int X509StoreCertIsTrusted(WOLFSSL_X509_STORE* store,
     return 0;
 }
 
+/* Enforce the BasicConstraints pathLenConstraint (RFC 5280 sec. 4.2.1.9 and
+ * the path validation rules in sec. 6.1.4 (l)/(m)) over the certification path
+ * assembled in ctx->chain.
+ *
+ * wolfSSL_X509_verify_cert() authenticates each certificate individually via
+ * the CertManager, which parses every certificate as CERT_TYPE.  The issuer
+ * pathLen check in ParseCertRelative() is gated on a non-CERT_TYPE certificate
+ * type (it is reached on the TLS handshake path via CHAIN_CERT_TYPE), so the
+ * OpenSSL-compatibility path never enforced it.  Re-create that check here over
+ * the completed path so that a CA asserting pathlen:N cannot issue more than N
+ * subordinate intermediate CAs.
+ *
+ * ctx->chain is ordered leaf first (index 0) up to the trust anchor (highest
+ * index).  Walk from the trust anchor down toward the leaf, tracking the
+ * remaining number of non-self-issued intermediate certificates permitted.
+ * WOLFSSL_MAX_PATH_LEN is used as the "no constraint" sentinel, mirroring
+ * InitDecodedCert_ex()/ParseCertRelative().  The leaf (index 0) issues nothing
+ * and is therefore not subject to the constraint.
+ *
+ * Returns WOLFSSL_SUCCESS if the path satisfies every pathLenConstraint, or
+ * WOLFSSL_FAILURE (with ctx->error set) on the first violation. */
+static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
+{
+    int num;
+    int i;
+    word32 maxPathLen = WOLFSSL_MAX_PATH_LEN;
+    WOLFSSL_X509* anchor;
+
+    if (ctx == NULL || ctx->chain == NULL)
+        return WOLFSSL_SUCCESS;
+
+    num = wolfSSL_sk_X509_num(ctx->chain);
+    /* A pathLen violation requires at least one intermediate between the leaf
+     * (index 0) and the trust anchor, i.e. a chain of three or more. */
+    if (num < 3)
+        return WOLFSSL_SUCCESS;
+
+    /* The trust anchor (top of chain) is not part of the prospective
+     * certification path (RFC 5280 sec. 6.1): it does not consume path-length
+     * budget. A self-signed anchor that asserts its own pathLenConstraint does
+     * still bound the path, matching ParseCertRelative()'s trust-anchor
+     * handling, so seed the budget from it. The partial-chain branch of
+     * wolfSSL_X509_verify_cert() pushes the terminal certificate twice, so the
+     * anchor pointer can also appear at num-2; it is skipped by pointer below
+     * to avoid double-counting. */
+    anchor = wolfSSL_sk_X509_value(ctx->chain, num - 1);
+    if (anchor != NULL && anchor->isCa && anchor->basicConstPlSet)
+        maxPathLen = (word32)anchor->pathLength;
+
+    for (i = num - 2; i >= 1; i--) {
+        WOLFSSL_X509* cert = wolfSSL_sk_X509_value(ctx->chain, i);
+        int selfIssued;
+
+        if (cert == NULL || cert == anchor)
+            continue;
+
+        selfIssued =
+            (wolfSSL_X509_NAME_cmp(&cert->issuer, &cert->subject) == 0);
+
+        /* RFC 5280 sec. 6.1.4 (l): a non-self-issued certificate consumes one
+         * unit of the issuer's remaining path length budget. */
+        if (!selfIssued) {
+            if (maxPathLen == 0) {
+                SetupStoreCtxError_ex(ctx,
+                    WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED, i);
+            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+                /* Allow an application verify callback to override, matching
+                 * the INVALID_CA handling in wolfSSL_X509_verify_cert(). */
+                if (ctx->store != NULL && ctx->store->verify_cb != NULL &&
+                        ctx->store->verify_cb(0, ctx) == 1) {
+                    /* Overridden: keep walking without decrementing (budget is
+                     * already exhausted). */
+                    continue;
+                }
+            #endif
+                return WOLFSSL_FAILURE;
+            }
+            else if (maxPathLen != WOLFSSL_MAX_PATH_LEN) {
+                maxPathLen--;
+            }
+        }
+
+        /* RFC 5280 sec. 6.1.4 (m): tighten the budget with this CA's own
+         * pathLenConstraint, if present. */
+        if (cert->isCa && cert->basicConstPlSet &&
+                (word32)cert->pathLength < maxPathLen) {
+            maxPathLen = (word32)cert->pathLength;
+        }
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 1 on success or <= 0 on failure.
  */
@@ -876,6 +969,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG,
             wolfSSL_sk_X509_num(ctx->chain));
         ret = WOLFSSL_FAILURE;
+    }
+
+    /* RFC 5280 sec. 6.1.4: the per-certificate CertManager verification above
+     * does not enforce the issuer's BasicConstraints pathLenConstraint on this
+     * API path, so check it over the assembled path before reporting success. */
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = X509StoreCheckPathLen(ctx);
     }
 
 exit:
