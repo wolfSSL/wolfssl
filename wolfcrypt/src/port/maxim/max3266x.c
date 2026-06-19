@@ -625,7 +625,11 @@ int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
     if (status != 0) {
         return status;
     }
+#if defined(WOLFSSL_MAX3266X_OLD)
+    status = TRNG_Init(NULL);
+#else
     status = MXC_TPU_Init(MXC_SYS_PERIPH_CLOCK_TRNG);
+#endif
     if (status == 0) {
         /* void return function */
         MXC_TPU_TRNG_Read(MXC_TRNG, output, sz);
@@ -643,6 +647,13 @@ int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
 /* Implements TRNG on-demand health test (the older SDK does not provide one) */
 int wc_MXC_TRNG_HealthTest(void)
 {
+    if (TRNG_Init(NULL) != 0) {
+        MAX3266X_MSG("TRNG Device did not initialize");
+        return RNG_FAILURE_E;
+    }
+
+    while ((MXC_TRNG->st & MXC_F_TRNG_ST_RND_RDY) == 0) {}
+
     /* Clear on-going test if necessary */
     if (MXC_TRNG->cn & MXC_F_TRNG_CN_ODHT) {
         MXC_TRNG->cn &= ~MXC_F_TRNG_CN_ODHT;
