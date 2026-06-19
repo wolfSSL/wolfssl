@@ -1101,8 +1101,7 @@ L_chacha_use_over_arm64_byte_loop:
 	eor	w5, w5, w4
 	subs	x3, x3, #1
 	strb	w5, [x1], #1
-	beq	L_chacha_use_over_arm64_done
-	b	L_chacha_use_over_arm64_byte_loop
+	bne	L_chacha_use_over_arm64_byte_loop
 L_chacha_use_over_arm64_done:
 	ret
 #ifndef __APPLE__
