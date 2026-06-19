@@ -11,6 +11,7 @@ New features:
 - Add BLAKE2 digest module (blake2_digest)
 - Add BLAKE2 MAC module (blake2_mac)
 - Add Aes192Ccm and Aes192Gcm
+- Add SM2 wrapper (wolfssl_wolfcrypt::sm2 module)
 - Implement Clone for HMAC types
 - Improve cross-compilation and bare-metal target support in build.rs
 

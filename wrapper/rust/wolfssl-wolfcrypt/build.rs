@@ -504,5 +504,12 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitShake128", "shake128");
     check_cfg(&binding, "wc_InitShake256", "shake256");
 
+    /* sm2 */
+    check_cfg(&binding, "wc_ecc_sm2_make_key", "sm2");
+    check_cfg(&binding, "wc_ecc_sm2_shared_secret", "sm2_dh");
+    check_cfg(&binding, "wc_ecc_sm2_sign_hash", "sm2_sign");
+    check_cfg(&binding, "wc_ecc_sm2_verify_hash", "sm2_verify");
+    check_cfg(&binding, "wc_ecc_sm2_create_digest", "sm2_digest");
+
     Ok(())
 }

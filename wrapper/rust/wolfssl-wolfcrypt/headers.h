@@ -22,3 +22,4 @@
 #include "wolfssl/wolfcrypt/dilithium.h"
 #include "wolfssl/wolfcrypt/wc_mlkem.h"
 #include "wolfssl/wolfcrypt/wc_lms.h"
+#include "wolfssl/wolfcrypt/sm2.h"
