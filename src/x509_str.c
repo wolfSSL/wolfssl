@@ -693,10 +693,13 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
         selfIssued =
             (wolfSSL_X509_NAME_cmp(&cert->issuer, &cert->subject) == 0);
 
-        /* RFC 5280 sec. 6.1.4 (l): a non-self-issued certificate consumes one
-         * unit of the issuer's remaining path length budget. Only meaningful
-         * once a CA above has asserted a constraint (haveConstraint). */
-        if (!selfIssued && haveConstraint) {
+        /* RFC 5280 sec. 6.1.4 (l): a non-self-issued *CA* certificate consumes
+         * one unit of the issuer's remaining path length budget. Gate on isCa
+         * to match ParseCertRelative() (wolfcrypt/src/asn.c) and the (m) step
+         * below, so a non-CA intermediate tolerated via verify_cb does not
+         * trigger a false PATH_LENGTH_EXCEEDED. Only meaningful once a CA above
+         * has asserted a constraint (haveConstraint). */
+        if (!selfIssued && cert->isCa && haveConstraint) {
             if (maxPathLen == 0) {
                 SetupStoreCtxError_ex(ctx,
                     WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED, i);
