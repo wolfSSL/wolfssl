@@ -2375,6 +2375,29 @@ enum {
  * this bound. */
 wc_static_assert(STATIC_BUFFER_LEN >= RECORD_HEADER_SZ);
 
+/* Default read-ahead window: when read-ahead is enabled the record header read
+ * requests up to a full record's worth of data in a single recv() so the body
+ * (and possibly following records) can be pulled in without a second syscall.
+ * Sized to one maximum TLS record (MAX_RECORD_SIZE, not the buffer-sizing
+ * RECORD_SIZE which may be small) so the whole record is captured. Defined
+ * unconditionally so the setters and CTX init can reference it as the default
+ * window even when read-ahead I/O is not built. */
+#ifndef WOLFSSL_READ_AHEAD_SZ
+#define WOLFSSL_READ_AHEAD_SZ (RECORD_HEADER_SZ + MAX_RECORD_SIZE + \
+         COMP_EXTRA + MTU_EXTRA + MAX_MSG_EXTRA)
+#endif
+
+/* Upper bound for a caller-configured read-ahead window
+ * (wolfSSL_CTX/SSL_set_default_read_buffer_len()). The window feeds signed int
+ * arithmetic in GetInputData_ex(); bounding it well below INT_MAX ensures a
+ * large caller-supplied size can never overflow that arithmetic to a negative
+ * value (which would skip GrowInputBuffer() and drive an oversized recv()).
+ * 16 MB is far above any realistic coalescing window. Defined unconditionally
+ * so the setters can clamp even when read-ahead I/O is not built. */
+#ifndef WOLFSSL_MAX_READ_AHEAD_SZ
+#define WOLFSSL_MAX_READ_AHEAD_SZ (16 * 1024 * 1024)
+#endif
+
 typedef struct {
     ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
     byte*  buffer;       /* place holder for static or dynamic buffer */
@@ -4234,8 +4257,16 @@ struct WOLFSSL_CTX {
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL) || defined(WOLFSSL_TLS_READ_AHEAD)
     byte            readAhead;
+#endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_TLS_READ_AHEAD)
+    /* Read-ahead coalescing buffer size. 0 = use one record (default). See
+     * wolfSSL_CTX_set_default_read_buffer_len(). */
+    word32          readAheadSz;
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     void*           userPRFArg; /* passed to prf callback */
 #endif
 #ifdef HAVE_EX_DATA
@@ -6291,8 +6322,12 @@ struct WOLFSSL {
     defined(OPENSSL_ALL)
     unsigned long    peerVerifyRet;
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_TLS_READ_AHEAD)
     byte             readAhead;
+    /* Read-ahead coalescing buffer size; 0 = one record (default). */
+    word32           readAheadSz;
+#endif
+#ifdef OPENSSL_EXTRA
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
 #endif

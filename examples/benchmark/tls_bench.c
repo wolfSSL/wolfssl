@@ -1100,6 +1100,13 @@ static int bench_tls_client(info_t* info)
 #endif
         wolfSSL_SetIOReadCtx(cli_ssl, info);
         wolfSSL_SetIOWriteCtx(cli_ssl, info);
+#if defined(WOLFSSL_TLS_READ_AHEAD) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM)
+        /* Optional A/B benchmark toggle for TLS receive read-ahead. Gated on
+         * filesystem support since XGETENV is only defined there. */
+        if (XGETENV("WOLF_BENCH_READ_AHEAD") != NULL)
+            wolfSSL_set_read_ahead(cli_ssl, 1);
+#endif
 
 #if !defined(SINGLE_THREADED) && defined(WOLFSSL_DTLS)
         /* synchronize with server */
@@ -1557,6 +1564,13 @@ static int bench_tls_server(info_t* info)
 
         wolfSSL_SetIOReadCtx(srv_ssl, info);
         wolfSSL_SetIOWriteCtx(srv_ssl, info);
+#if defined(WOLFSSL_TLS_READ_AHEAD) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM)
+        /* Optional A/B benchmark toggle for TLS receive read-ahead. Gated on
+         * filesystem support since XGETENV is only defined there. */
+        if (XGETENV("WOLF_BENCH_READ_AHEAD") != NULL)
+            wolfSSL_set_read_ahead(srv_ssl, 1);
+#endif
     #ifndef NO_DH
         wolfSSL_SetTmpDH(srv_ssl, dhp, sizeof(dhp), dhg, sizeof(dhg));
     #endif

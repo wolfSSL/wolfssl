@@ -763,7 +763,21 @@ int wolfSSL_has_pending(const WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
-    return ssl->buffers.clearOutputBuffer.length > 0;
+    if (ssl->buffers.clearOutputBuffer.length > 0)
+        return 1;
+
+#ifdef WOLFSSL_TLS_READ_AHEAD
+    /* Read-ahead can leave undecrypted data buffered while the socket itself
+     * has no more data. This may be a complete record or only a partial one
+     * (e.g. a coalesced read that pulled a record plus the head of the next),
+     * so a non-zero return does not guarantee wolfSSL_read() will yield
+     * application data without another socket read. Report it so a
+     * select()/poll() loop keeps draining until wolfSSL_read() reports
+     * WANT_READ, instead of stalling on buffered data. */
+    if (ssl->buffers.inputBuffer.length > ssl->buffers.inputBuffer.idx)
+        return 1;
+#endif
+    return 0;
 }
 
 #ifndef USE_WINDOWS_API

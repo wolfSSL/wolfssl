@@ -4533,6 +4533,138 @@ int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
 /*!
     \ingroup Setup
 
+    \brief この関数は、このWOLFSSL_CTXから作成されるセッションに対して、リードアヘッドの
+    受信ウィンドウサイズを設定します。リードアヘッドが有効な場合
+    （wolfSSL_CTX_set_read_ahead()）、1回のrecv()で最大 \p len バイトを読み込みます。
+      - \p len が0の場合、ウィンドウは1レコード分のデフォルトにリセットされます。これは
+        新しく作成されたコンテキストがすでに持つウィンドウでもあり、レコードのボディが
+        ヘッダーと一緒に読み込まれるため、2回目のシステムコールを必要としません。
+      - \p len が1レコードより大きい場合、1回のrecv()で連続する複数のレコードをまとめて
+        読み込むことができ、レコードごとに1回ではなく1回のシステムコールで済みます。
+      - \p len が1レコードより小さい場合、ピアのレコードが小さいと分かっているとき
+        （例：4KB）に受信バッファのフットプリントを抑え、1レコード分のデフォルトと比べて
+        ヒープを節約します。
+    \p len は投機的な先読みウィンドウであり、上限ではありません。\p len より大きな
+    レコードも正しく受信されます。入力バッファはそのレコードの実際のサイズまでオンデマンドで
+    拡張され（そのレコードについては追加のシステムコールと再割り当てのコストがかかります）、
+    その後ウィンドウサイズまで縮小されます。そのため、保持されるフットプリントは、観測された
+    最大のレコードではなく \p len によって制限されたままになります。この設定は、ライブラリが
+    リードアヘッドサポート付き（--enable-readahead / WOLFSSL_TLS_READ_AHEAD）で
+    ビルドされている場合にのみI/Oに影響します。それ以外の場合、値は保存されますが効果は
+    ありません。これはOpenSSLのSSL_CTX_set_default_read_buffer_len()に相当するwolfSSLの
+    関数ですが、OpenSSLと異なりステータスコードを返し（戻り値を無視する呼び出し元も
+    ソース互換のままです）、1レコードより小さいサイズも尊重します（OpenSSLはバッファを
+    拡大することしかしません）。\p len がWOLFSSL_MAX_READ_AHEAD_SZ（16MB）を超える場合、
+    その最大値に制限されます。0と過大な値はどちらも正規化されるため、
+    wolfSSL_CTX_get_default_read_buffer_len()は生の引数ではなく、実効ウィンドウ（未設定の
+    場合は0ではなく1レコード分のデフォルト）を報告します。
+
+    \note これはメモリとシステムコールのトレードオフです。リードアヘッドが有効な間、入力
+    バッファは接続の存続期間中保持されます（\p len に制限されます）。そのため、大きな
+    \p len に多数の同時接続を掛け合わせると恒常的なメモリ消費となり、一方で小さな \p len は
+    接続ごとのフットプリントを抑えますが、それを超えるレコードではより多くのシステムコールが
+    必要になります。
+
+    \return SSL_SUCCESS バッファ長が設定された場合。
+    \return SSL_FAILURE ctxがNULLの場合。
+
+    \param ctx リードアヘッドバッファ長を設定するWOLFSSL_CTX構造体。
+    \param len リードアヘッドの結合バッファサイズ（バイト単位、0 = 1レコード）。
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    // ctxをセットアップ
+    wolfSSL_CTX_set_read_ahead(ctx, 1);
+    // 1回のrecv()で最大4つの最大サイズレコードをまとめて読み込む
+    wolfSSL_CTX_set_default_read_buffer_len(ctx, 4 * 16384);
+    \endcode
+
+    \sa wolfSSL_CTX_set_read_ahead
+    \sa wolfSSL_set_default_read_buffer_len
+    \sa wolfSSL_has_pending
+*/
+int  wolfSSL_CTX_set_default_read_buffer_len(WOLFSSL_CTX* ctx, size_t len);
+
+/*!
+    \ingroup Setup
+
+    \brief この関数は、単一のWOLFSSLセッションにリードアヘッドの結合バッファサイズを設定し、
+    そのWOLFSSL_CTXから継承した値を上書きします。詳しい説明、1レコード分のデフォルト、および
+    メモリとシステムコールのトレードオフについては、
+    wolfSSL_CTX_set_default_read_buffer_len()を参照してください。
+
+    \return SSL_SUCCESS バッファ長が設定された場合。
+    \return SSL_FAILURE sslがNULLの場合。
+
+    \param ssl リードアヘッドバッファ長を設定するWOLFSSL構造体。
+    \param len リードアヘッドの結合バッファサイズ（バイト単位、0 = 1レコード）。
+
+    \sa wolfSSL_CTX_set_default_read_buffer_len
+    \sa wolfSSL_set_read_ahead
+    \sa wolfSSL_has_pending
+*/
+int  wolfSSL_set_default_read_buffer_len(WOLFSSL* ssl, size_t len);
+
+/*!
+    \ingroup Setup
+
+    \brief この関数は、wolfSSL_CTX_set_default_read_buffer_len()によってWOLFSSL_CTXに
+    設定されたリードアヘッドの結合バッファサイズを返します。設定時に長さ0と過大な値は
+    正規化されるため、報告される値は生の引数ではなく、実際に使用されている実効ウィンドウ
+    （長さが一度も変更されていない場合は0ではなく1レコード分のデフォルト）です。
+
+    \return len 成功時にはリードアヘッドバッファ長（バイト単位）を返します。
+    \return SSL_FAILURE ctxがNULLの場合。
+
+    \param ctx リードアヘッドバッファ長を取得するWOLFSSL_CTX構造体。
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    long len;
+    // ctxをセットアップ
+    len = wolfSSL_CTX_get_default_read_buffer_len(ctx);
+    // lenを確認
+    \endcode
+
+    \sa wolfSSL_CTX_set_default_read_buffer_len
+    \sa wolfSSL_get_default_read_buffer_len
+    \sa wolfSSL_CTX_set_read_ahead
+*/
+long wolfSSL_CTX_get_default_read_buffer_len(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief この関数は、単一のWOLFSSLセッションで有効なリードアヘッドの結合バッファサイズを
+    返します。この値は、そのWOLFSSL_CTXから継承されたものか、
+    wolfSSL_set_default_read_buffer_len()で上書きされたもののいずれかです。WOLFSSL_CTXの
+    ゲッターと同様に、報告される値は生の引数ではなく、実際に使用されている実効ウィンドウです。
+
+    \return len 成功時にはリードアヘッドバッファ長（バイト単位）を返します。
+    \return SSL_FAILURE sslがNULLの場合。
+
+    \param ssl リードアヘッドバッファ長を取得するWOLFSSL構造体。
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    long len;
+    // sslをセットアップ
+    len = wolfSSL_get_default_read_buffer_len(ssl);
+    // lenを確認
+    \endcode
+
+    \sa wolfSSL_set_default_read_buffer_len
+    \sa wolfSSL_CTX_get_default_read_buffer_len
+    \sa wolfSSL_set_read_ahead
+*/
+long wolfSSL_get_default_read_buffer_len(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
     \brief この関数は、OCSPで使用するオプション引数を設定します。
 
     \return SSL_FAILURE ctxまたはその証明書マネージャがNULLの場合。
