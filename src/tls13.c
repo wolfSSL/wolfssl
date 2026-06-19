@@ -13844,8 +13844,9 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         break;
 #endif
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
+#if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448) || defined(HAVE_FALCON) || \
+     defined(WOLFSSL_HAVE_MLDSA)) && !defined(NO_CERTS)
     case certificate_verify:
         WOLFSSL_MSG("processing certificate verify");
         ret = DoTls13CertificateVerify(ssl, input, inOutIdx, size);

@@ -932,6 +932,61 @@ fi
 
 # MATH LIBRARY SELECTION
 
+# tiny TLS 1.3: align all feature switches with the WOLFSSL_TINY_TLS13 umbrella
+# here, EARLY, before they are consumed (math, ASN, TLS version, renegotiation,
+# etc. are decided at scattered points further down). The -D macros are emitted
+# later where the AC_ARG_ENABLE help/validation lives.
+if test "x$enable_tinytls13" != "x" && test "x$enable_tinytls13" != "xno"
+then
+    tinytls13_cert=no
+    tinytls13_p256=no
+    for v in `echo $enable_tinytls13 | tr ',' ' '`
+    do
+        case $v in
+        cert|mutualauth) tinytls13_cert=yes ;;
+        p256)            tinytls13_p256=yes ;;
+        rsaverify)       enable_rsa=yes ;;
+        asm)             enable_asm=yes ;;
+        mldsa)           enable_mldsa=yes ;;
+        sha384)          enable_sha384=yes; enable_sha512=yes ;;
+        esac
+    done
+
+    # Floor is SHA-256 only. SHA-384/512 share the (large) SHA-512 core and are
+    # otherwise pulled in by default, so keep them out unless asked (sha384).
+    test "x$enable_sha384" = "x" && enable_sha384=no
+    test "x$enable_sha512" = "x" && enable_sha512=no
+
+    # TLS 1.3 only, no legacy TLS / renegotiation / extras.
+    enable_tls13=yes
+    enable_oldtls=no
+    enable_tlsv10=no
+    test "x$enable_tlsv12" = "x" && enable_tlsv12=no
+    enable_dsa=no
+    enable_dh=no
+    enable_psk=yes
+    enable_lowresource=yes
+
+    if test "$tinytls13_cert" = "yes"
+    then
+        enable_ecc=yes
+        enable_sp=yes
+        test "x$enable_asn" = "x" && enable_asn=template
+        test "x$enable_rsa" = "x" && enable_rsa=no
+    else
+        test "x$enable_asn" = "x" && enable_asn=no
+        test "x$enable_rsa" = "x" && enable_rsa=no
+        if test "$tinytls13_p256" = "yes"
+        then
+            enable_ecc=yes
+            enable_sp=yes
+        else
+            test "x$enable_ecc" = "x" && enable_ecc=no
+            enable_curve25519=yes
+        fi
+    fi
+fi
+
 # Assure consistency of defaults
 if test "$DEF_FAST_MATH" = "yes" && ( (test "$enable_sp_math" != "no" && test "$enable_sp_math" != "") || test "$enable_heapmath" = "yes")
 then
@@ -2839,6 +2894,55 @@ if test "$ENABLED_LEANTLS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY -DNO_WOLFSSL_CM_VERIFY"
     enable_lowresource=yes
+fi
+
+# tiny TLS 1.3 footprint profile (TLS1.3-only; expansion lives in the
+# WOLFSSL_TINY_TLS13 umbrella in settings.h. See
+# examples/configs/user_settings_tinytls13.h.)
+AC_ARG_ENABLE([tinytls13],
+    [AS_HELP_STRING([--enable-tinytls13@<:@=LIST@:>@],
+        [Enable tiny TLS 1.3 footprint build. LIST is comma-separated from:
+         psk cert server mutualauth staticmem asm p256 sha384 mldsa rsaverify
+         (default: disabled; bare flag = psk)])],
+    [ ENABLED_TINYTLS13=$enableval ],
+    [ ENABLED_TINYTLS13=no ]
+    )
+
+if test "$ENABLED_TINYTLS13" != "no"
+then
+    if test "$FIPS_VERSION" != "none"
+    then
+        AC_MSG_ERROR([--enable-tinytls13 is a non-FIPS footprint profile and cannot be combined with FIPS.])
+    fi
+
+    # Feature switches were aligned early (MATH LIBRARY SELECTION section);
+    # here we only emit the umbrella + adder macros (settings.h does the rest).
+    tinytls13_base=psk
+    for v in `echo $ENABLED_TINYTLS13 | tr ',' ' '`
+    do
+        case $v in
+        yes|psk)    ;;
+        cert)       tinytls13_base=cert ;;
+        mutualauth) tinytls13_base=cert
+                    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_MUTUAL_AUTH" ;;
+        server)     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_SERVER" ;;
+        staticmem)  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_STATIC_MEM" ;;
+        asm)        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_ASM" ;;
+        p256)       AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DECC_USER_CURVES" ;;
+        rsaverify)  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_RSA_VERIFY" ;;
+        sha384)     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA384" ;;
+        mldsa)      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLDSA -DWOLFSSL_DILITHIUM_VERIFY_ONLY -DWOLFSSL_DILITHIUM_VERIFY_SMALL_MEM -DWOLFSSL_DILITHIUM_NO_ASN1 -DWOLFSSL_NO_ML_DSA_44 -DWOLFSSL_NO_ML_DSA_87" ;;
+        no)         ;;
+        *)          AC_MSG_ERROR([Invalid --enable-tinytls13 value: $v. Valid: psk cert server mutualauth staticmem asm p256 sha384 mldsa rsaverify.]) ;;
+        esac
+    done
+
+    if test "$tinytls13_base" = "cert"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_CERT"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13"
+    fi
 fi
 
 
@@ -12908,6 +13012,7 @@ echo "   * TLS v1.0 (Old):             $ENABLED_TLSV10"
 echo "   * TLS v1.1 (Old):             $ENABLED_OLD_TLS"
 echo "   * TLS v1.2:                   $ENABLED_TLSV12"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
+echo "   * Tiny TLS 1.3:               $ENABLED_TINYTLS13"
 echo "   * RPK:                        $ENABLED_RPK"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"

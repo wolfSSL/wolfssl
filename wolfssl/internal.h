@@ -6963,7 +6963,6 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
                                          int *initTmpRng);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#ifndef NO_CERTS
     #ifndef NO_RSA
         #ifdef WC_RSA_PSS
             WOLFSSL_LOCAL int CheckRsaPssPadding(const byte* plain, word32 plainSz,
@@ -7020,7 +7019,7 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
             buffer* keyBufInfo);
     #endif /* HAVE_ED448 */
 
-
+#ifndef NO_CERTS
     #ifdef WOLFSSL_TRUST_PEER_CERT
 
         /* options for searching hash table for a matching trusted peer cert */

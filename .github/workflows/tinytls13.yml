@@ -1,0 +1,94 @@
+name: Tiny TLS 1.3 Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  schedule:
+    - cron: '42 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  # Build + make check every --enable-tinytls13 spelling on one runner via
+  # .github/scripts/parallel-make-check.py (see psk.yml for the pattern).
+  make_check:
+    name: make check
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: tinytls13
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 100M
+
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # Every tiny TLS 1.3 profile/adder spelling, so each is proven to build
+      # and pass make check (which runs the TLS handshake test suite) out of
+      # the box. Server is enabled where a config needs the server-side tests.
+      - name: Build and make check all tinytls13 configs
+        run: |
+          cat > "$RUNNER_TEMP/tinytls13-configs.json" <<'EOF'
+          [
+          {"name": "tinytls13-psk-x25519", "minutes": 1,
+           "configure": ["--enable-tinytls13=psk,server", "--disable-mlkem"]},
+          {"name": "tinytls13-psk-p256", "minutes": 1,
+           "configure": ["--enable-tinytls13=psk,p256,server", "--disable-mlkem"]},
+          {"name": "tinytls13-psk-staticmem", "minutes": 1,
+           "configure": ["--enable-tinytls13=psk,server,staticmem", "--disable-mlkem"]},
+          {"name": "tinytls13-psk-mldsa", "minutes": 1,
+           "configure": ["--enable-tinytls13=psk,server,mldsa", "--disable-mlkem"]},
+          {"name": "tinytls13-psk-sha384", "minutes": 1,
+           "configure": ["--enable-tinytls13=psk,server,sha384", "--disable-mlkem"]},
+          {"name": "tinytls13-cert", "minutes": 1,
+           "configure": ["--enable-tinytls13=cert,server", "--disable-mlkem"]},
+          {"name": "tinytls13-cert-sha384", "minutes": 1,
+           "configure": ["--enable-tinytls13=cert,server,sha384", "--disable-mlkem"]},
+          {"name": "tinytls13-cert-mutualauth", "minutes": 1,
+           "configure": ["--enable-tinytls13=cert,mutualauth,server", "--disable-mlkem"]},
+          {"name": "tinytls13-cert-rsaverify", "minutes": 1,
+           "configure": ["--enable-tinytls13=cert,server,rsaverify", "--disable-mlkem"]},
+          {"name": "tinytls13-cert-mldsa", "minutes": 1,
+           "configure": ["--enable-tinytls13=cert,server,mldsa", "--disable-mlkem"]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --private-dir=certs \
+            "$RUNNER_TEMP/tinytls13-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: tinytls13-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore
