@@ -29,6 +29,10 @@ int test_wolfSSL_X509_STORE_check_time(void);
 int test_wolfSSL_X509_STORE_CTX_get0_store(void);
 int test_wolfSSL_X509_STORE_CTX(void);
 int test_wolfSSL_X509_STORE_CTX_ex(void);
+int test_wolfSSL_X509_verify_cert_pathlen(void);
+int test_wolfSSL_X509_verify_cert_pathlen_ok(void);
+int test_wolfSSL_X509_verify_cert_pathlen_override(void);
+int test_wolfSSL_X509_verify_cert_pathlen_anchor(void);
 int test_X509_verify_cert_untrusted_inter(void);
 int test_X509_verify_cert_ca_no_keycertsign(void);
 int test_X509_STORE_untrusted(void);
@@ -53,6 +57,14 @@ int test_wolfSSL_CTX_set_cert_store(void);
                                       test_wolfSSL_X509_STORE_CTX_get0_store), \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX),           \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX_ex),        \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                                    test_wolfSSL_X509_verify_cert_pathlen),    \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                                    test_wolfSSL_X509_verify_cert_pathlen_ok), \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                              test_wolfSSL_X509_verify_cert_pathlen_override), \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                                test_wolfSSL_X509_verify_cert_pathlen_anchor), \
     TEST_DECL_GROUP("ossl_x509_store", test_X509_verify_cert_untrusted_inter), \
     TEST_DECL_GROUP("ossl_x509_store",                                         \
                                   test_X509_verify_cert_ca_no_keycertsign),    \

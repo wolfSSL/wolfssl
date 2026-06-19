@@ -672,12 +672,11 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
 
     /* The trust anchor (top of chain) is not part of the prospective
      * certification path (RFC 5280 sec. 6.1): it does not consume path-length
-     * budget. A self-signed anchor that asserts its own pathLenConstraint does
-     * still bound the path, matching ParseCertRelative()'s trust-anchor
-     * handling, so seed the budget from it. The partial-chain branch of
-     * wolfSSL_X509_verify_cert() pushes the terminal certificate twice, so the
-     * anchor pointer can also appear at num-2; it is skipped by pointer below
-     * to avoid double-counting. */
+     * budget, and the loop below runs from num-2 down to 1 so the anchor is
+     * never processed as an intermediate. A self-signed anchor that asserts its
+     * own pathLenConstraint does still bound the path, matching
+     * ParseCertRelative()'s trust-anchor handling, so seed the budget from
+     * it. */
     anchor = wolfSSL_sk_X509_value(ctx->chain, num - 1);
     if (anchor != NULL && anchor->isCa && anchor->basicConstPlSet) {
         maxPathLen = (word32)anchor->pathLength;
@@ -688,7 +687,7 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx)
         WOLFSSL_X509* cert = wolfSSL_sk_X509_value(ctx->chain, i);
         int selfIssued;
 
-        if (cert == NULL || cert == anchor)
+        if (cert == NULL)
             continue;
 
         selfIssued =
@@ -928,6 +927,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                      * chain at a caller-trusted certificate. */
                     ctx->error = 0;
                     ret = WOLFSSL_SUCCESS;
+                    /* The caller-trusted certificate terminates the path:
+                     * it is the anchor, so stop here rather than falling
+                     * through to the "finish building the chain" push below,
+                     * which would add ctx->current_cert to ctx->chain a
+                     * second time.  Mirrors the self-issued terminus break
+                     * above; the depth>0/done==0 success path accepts it. */
+                    break;
                 } else {
                     X509VerifyCertSetupRetry(ctx, certs, failedCerts,
                         &depth, origDepth);
