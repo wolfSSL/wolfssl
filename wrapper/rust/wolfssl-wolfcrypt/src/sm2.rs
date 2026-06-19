@@ -42,7 +42,7 @@ impl SM2 {
     pub const CERT_SIG_ID: &'static [u8] = b"1234567812345678";
 
     /// wolfCrypt hash type identifier for SM3.
-    pub const HASH_TYPE_SM3: u32 = sys::wc_HashType_WC_HASH_TYPE_SM3 as u32;
+    pub const HASH_TYPE_SM3: u32 = sys::wc_HashType_WC_HASH_TYPE_SM3;
 
     /// No ECC operation flags.
     pub const FLAG_NONE: i32 = ECC::FLAG_NONE;
