@@ -50,7 +50,8 @@
     #error  MXC Not Compatible with Fast Math or Heap Math
     #include <wolfssl/wolfcrypt/tfm.h>
     #define MXC_WORD_SIZE               DIGIT_BIT
-#elif defined(WOLFSSL_SP_MATH_ALL)
+#elif defined(WOLFSSL_SP_MATH_ALL) || \
+      (defined(WOLFSSL_SP_MATH) && !defined(MAX3266X_MATH))
     #include <wolfssl/wolfcrypt/sp_int.h>
     #define MXC_WORD_SIZE               SP_WORD_SIZE
 #else
