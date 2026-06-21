@@ -1471,9 +1471,8 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
                         "wolfSSL_X509_add_ext");
             return WOLFSSL_FAILURE;
         }
-        else {
-            return WOLFSSL_FAILURE;
-        }
+        /* No data and no object stack: nothing to set, treat as no-op like the
+         * WC_NID_key_usage case above. */
         break;
     case WC_NID_basic_constraints:
         if (ext->obj) {

@@ -20077,11 +20077,20 @@ static int test_san_first_dns(WOLFSSL_X509* x509, const char** out, int* outLen)
     num = wolfSSL_sk_GENERAL_NAME_num(sk);
     gn = wolfSSL_sk_GENERAL_NAME_value(sk, 0);
     if ((gn != NULL) && (gn->type == GEN_DNS) && (gn->d.dNSName != NULL)) {
-        *out = (const char*)gn->d.dNSName->data;
+        /* Copy into a static buffer: the stack (and the dNSName data it owns)
+         * is freed below, so the caller must not see a dangling pointer. */
+        static char dnsBuf[256];
+        int len = gn->d.dNSName->length;
+        if (len > (int)sizeof(dnsBuf) - 1) {
+            len = (int)sizeof(dnsBuf) - 1;
+        }
+        if (len > 0) {
+            XMEMCPY(dnsBuf, gn->d.dNSName->data, (size_t)len);
+        }
+        dnsBuf[len] = '\0';
+        *out = dnsBuf;
         *outLen = gn->d.dNSName->length;
     }
-    /* Note: returned pointer is owned by sk; only used for comparison before
-     * the stack is freed by the caller path below. */
     wolfSSL_sk_GENERAL_NAME_pop_free(sk, wolfSSL_GENERAL_NAME_free);
     return num;
 }
