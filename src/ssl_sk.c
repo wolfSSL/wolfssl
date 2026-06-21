@@ -1221,7 +1221,7 @@ WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
 
     WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_delete");
 
-    if (sk == NULL || idx < 0)
+    if (sk == NULL || idx < 0 || idx >= wolfSSL_sk_SSL_CIPHER_num(sk))
         return NULL;
 
     /* Capture the inline cipher value before the pop_node call frees the
