@@ -28015,7 +28015,6 @@ static int test_wolfSSL_OpenSSL_version(void)
     ExpectNotNull(ver = OpenSSL_version(OPENSSL_ENGINES_DIR));
     ExpectStrEQ(ver, "ENGINESDIR: N/A");
 
-    /* Test unknown type falls back to version string */
     ExpectNotNull(ver = OpenSSL_version(99));
     ExpectStrEQ(ver, "not available");
 #else
