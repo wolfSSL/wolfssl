@@ -4965,10 +4965,7 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
          /* Add chain to DER buffer. */
          res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz,
              ctx->heap);
-    #ifdef WOLFSSL_TLS13
-        /* Update count of certificates. */
         ctx->certChainCnt++;
-    #endif
     }
 
     return res;

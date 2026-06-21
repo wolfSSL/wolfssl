@@ -8757,7 +8757,7 @@ const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value)
 }
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 /* Locate a cipher in the SSL's cipher list by 2-byte wire-format suite id.
  *
  * Mirrors OpenSSL's SSL_CIPHER_find(): the SSL's configured cipher list is
