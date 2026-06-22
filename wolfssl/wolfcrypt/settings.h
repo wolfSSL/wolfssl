@@ -1979,10 +1979,16 @@
     #define HAVE_AESGCM
     #undef  WOLFSSL_AES_128
     #define WOLFSSL_AES_128
-    #undef  NO_AES_192
-    #define NO_AES_192
-    #undef  NO_AES_256
-    #define NO_AES_256
+    /* Floor is AES-128 only, but let a user adder (WOLFSSL_AES_192 /
+     * WOLFSSL_AES_256) opt back in; user_settings.h is processed before this. */
+    #ifndef WOLFSSL_AES_192
+        #undef  NO_AES_192
+        #define NO_AES_192
+    #endif
+    #ifndef WOLFSSL_AES_256
+        #undef  NO_AES_256
+        #define NO_AES_256
+    #endif
     #undef  GCM_SMALL
     #define GCM_SMALL
     /* Small AES tables at the size-first headline; fast AES with the asm toggle. */
@@ -1996,6 +2002,13 @@
     #define WOLFSSL_NOSHA512_224
     #undef  WOLFSSL_NOSHA512_256
     #define WOLFSSL_NOSHA512_256
+    /* Floor is SHA-256. SHA-384/512 share the large SHA-512 core; keep them out
+     * unless asked (the sha384 adder defines WOLFSSL_SHA384). This matches the
+     * configure path so both build methods give the same SHA-256 floor. */
+    #if !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512)
+        #undef  NO_SHA512
+        #define NO_SHA512
+    #endif
 
     /* Strip legacy / unused algorithms. */
     #undef  NO_DSA
@@ -2031,14 +2044,15 @@
         #define NO_WOLFSSL_SERVER
     #endif
 
-    /* Optional zero-heap: serve all memory from a caller-provided static pool,
-     * with no system malloc at all (deterministic RAM, no fragmentation).
-     * Requires wolfSSL_CTX_load_static_memory() at runtime. */
+    /* Optional static memory: serve TLS allocations from a caller-provided
+     * static pool (deterministic RAM, no fragmentation). Requires
+     * wolfSSL_CTX_load_static_memory() at runtime. For a true zero-heap build
+     * (no system malloc at all), also define WOLFSSL_NO_MALLOC in your
+     * user_settings; that is left opt-in because it removes the allocator the
+     * standard test suite relies on. */
     #ifdef WOLFSSL_TINY_TLS13_STATIC_MEM
         #undef  WOLFSSL_STATIC_MEMORY
         #define WOLFSSL_STATIC_MEMORY
-        #undef  WOLFSSL_NO_MALLOC
-        #define WOLFSSL_NO_MALLOC
     #endif
 
     /* Profile A: no X.509 at all (the cert variant keeps ASN/certs). */

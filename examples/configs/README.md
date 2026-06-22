@@ -18,6 +18,7 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 * `user_settings_stm32.h`: Example configuration file generated from the wolfSSL STM32 Cube pack.
 * `user_settings_tls12.h`: Example for TLS v1.2 client only, ECC only, AES-GCM only, SHA2-256 only.
 * `user_settings_tls13.h`: TLS 1.3 only configuration (no TLS 1.2). Modern cipher suites with X25519/X448 key exchange.
+* `user_settings_tinytls13.h`: Smallest TLS 1.3 only footprint profile. PSK + ECDHE floor (no X.509) with opt-in adders: `cert` (minimal X.509 verify), `server`, `mutualauth`, `staticmem`, `asm`, `p256`, `sha384`, `mldsa`, `rsaverify`. Pairs with `--enable-tinytls13`. See `tinytls13_smoke.c` for the self-contained handshake check used by `--disable-examples` builds.
 * `user_settings_dtls13.h`: DTLS 1.3 for IoT and embedded. Includes connection ID support and smaller MTU options.
 * `user_settings_pq.h`: Post-quantum TLS with ML-KEM (Kyber) key exchange and ML-DSA (Dilithium) certificates.
 * `user_settings_openssl_compat.h`: OpenSSL compatibility layer for drop-in replacement. Enables OPENSSL_ALL and related APIs.

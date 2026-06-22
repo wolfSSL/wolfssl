@@ -10802,8 +10802,9 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 }
 #endif
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-                                                             defined(HAVE_ED448)
+#if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448) || defined(HAVE_FALCON) || \
+     defined(WOLFSSL_HAVE_MLDSA)) && !defined(NO_CERTS)
 
 typedef struct Dcv13Args {
     byte*  output; /* not allocated */

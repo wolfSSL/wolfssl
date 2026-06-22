@@ -3,6 +3,7 @@
 #
 
 EXTRA_DIST += \
+         certs/rsapss/ecc-leaf-rsapss.pem \
          certs/rsapss/ca-rsapss.der \
          certs/rsapss/ca-rsapss.pem \
          certs/rsapss/ca-rsapss-key.der \

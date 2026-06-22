@@ -47,7 +47,9 @@ extern "C" {
 #if 1   /* Profile A: PSK + ECDHE floor, no X.509 (smallest) */
     #define WOLFSSL_TINY_TLS13
 #endif
-#if 0   /* Profile B: + minimal X.509 cert verify (ECDSA P-256). Implies core. */
+#if 0   /* Profile B: + minimal X.509 cert verify (ECDSA P-256). Implies core.
+         * Reduced-security verify: no name constraints, relaxed ASN, no CRL.
+         * For a known or pinned CA, not general public-internet PKI. */
     #define WOLFSSL_TINY_TLS13_CERT
 #endif
 
@@ -63,9 +65,15 @@ extern "C" {
 #endif
 
 /* ===== MEMORY MODEL ===================================================== */
-#if 0   /* zero-heap: static memory pool, no system malloc (deterministic RAM).
-         * App provides the pool via wolfSSL_CTX_load_static_memory(). */
+#if 0   /* static memory pool for TLS allocations (deterministic RAM, no
+         * fragmentation). App provides the pool via
+         * wolfSSL_CTX_load_static_memory(). Keeps the malloc fallback. */
     #define WOLFSSL_TINY_TLS13_STATIC_MEM
+#endif
+#if 0   /* true zero-heap: forbid all system malloc. Opt-in because it removes
+         * the allocator the standard test suite relies on. Pair with the
+         * static memory pool above. */
+    #define WOLFSSL_NO_MALLOC
 #endif
 
 /* ===== SPEED ============================================================ */
@@ -95,11 +103,17 @@ extern "C" {
 #endif
 
 /* ===== PQC ADDERS (valid on either profile; SHA-3/SHAKE pulled in auto) = */
-#if 0   /* ML-DSA-65 verify-only */
+#if 0   /* ML-DSA-65 verify-only. Use with the cert profile (Profile B) for TLS
+         * auth: the PSK floor has no certificate to verify, so on Profile A
+         * this only confirms the umbrella builds. */
     #define WOLFSSL_HAVE_MLDSA
     #define WOLFSSL_DILITHIUM_VERIFY_ONLY
     #define WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM
-    #define WOLFSSL_DILITHIUM_NO_ASN1
+    #ifndef WOLFSSL_TINY_TLS13_CERT
+        /* PSK floor never parses a cert; the cert profile needs ML-DSA ASN.1
+         * to decode and verify ML-DSA certificates, so keep it there. */
+        #define WOLFSSL_DILITHIUM_NO_ASN1
+    #endif
     #define WOLFSSL_NO_ML_DSA_44
     #define WOLFSSL_NO_ML_DSA_87
 #endif

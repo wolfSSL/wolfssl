@@ -7177,7 +7177,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->eccTempKeySz = ctx->eccTempKeySz;
     ssl->ecdhCurveOID = ctx->ecdhCurveOID;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
 

@@ -940,13 +940,14 @@ if test "x$enable_tinytls13" != "x" && test "x$enable_tinytls13" != "xno"
 then
     tinytls13_cert=no
     tinytls13_p256=no
+    tinytls13_asm=no
     for v in `echo $enable_tinytls13 | tr ',' ' '`
     do
         case $v in
         cert|mutualauth) tinytls13_cert=yes ;;
         p256)            tinytls13_p256=yes ;;
         rsaverify)       enable_rsa=yes ;;
-        asm)             enable_asm=yes ;;
+        asm)             tinytls13_asm=yes ;;
         mldsa)           enable_mldsa=yes ;;
         sha384)          enable_sha384=yes; enable_sha512=yes ;;
         esac
@@ -956,6 +957,18 @@ then
     # otherwise pulled in by default, so keep them out unless asked (sha384).
     test "x$enable_sha384" = "x" && enable_sha384=no
     test "x$enable_sha512" = "x" && enable_sha512=no
+
+    # Small-C floor by default: no platform assembly unless the asm adder is
+    # selected. ENABLED_ASM (resolved above) is the variable the downstream
+    # assembly decisions read; emit the no-asm defines here too, since the
+    # WOLFSSL_NO_ASM emission earlier ran before this block.
+    if test "$tinytls13_asm" = "yes"
+    then
+        ENABLED_ASM=yes
+    else
+        ENABLED_ASM=no
+        AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
+    fi
 
     # TLS 1.3 only, no legacy TLS / renegotiation / extras.
     enable_tls13=yes
@@ -970,7 +983,9 @@ then
     if test "$tinytls13_cert" = "yes"
     then
         enable_ecc=yes
-        enable_sp=yes
+        # P-256 only SP math to match the documented footprint; bare "yes"
+        # would also pull in P-384/P-521 on 64-bit hosts.
+        enable_sp="yes,256"
         test "x$enable_asn" = "x" && enable_asn=template
         test "x$enable_rsa" = "x" && enable_rsa=no
     else
@@ -979,7 +994,7 @@ then
         if test "$tinytls13_p256" = "yes"
         then
             enable_ecc=yes
-            enable_sp=yes
+            enable_sp="yes,256"
         else
             test "x$enable_ecc" = "x" && enable_ecc=no
             enable_curve25519=yes
@@ -2903,7 +2918,9 @@ AC_ARG_ENABLE([tinytls13],
     [AS_HELP_STRING([--enable-tinytls13@<:@=LIST@:>@],
         [Enable tiny TLS 1.3 footprint build. LIST is comma-separated from:
          psk cert server mutualauth staticmem asm p256 sha384 mldsa rsaverify
-         (default: disabled; bare flag = psk)])],
+         (default: disabled; bare flag = psk). NOTE: the cert profile is a
+         reduced-security verify (no name constraints, relaxed ASN, no CRL)
+         meant for a known or pinned CA, not public-internet PKI.])],
     [ ENABLED_TINYTLS13=$enableval ],
     [ ENABLED_TINYTLS13=no ]
     )
@@ -2918,6 +2935,7 @@ then
     # Feature switches were aligned early (MATH LIBRARY SELECTION section);
     # here we only emit the umbrella + adder macros (settings.h does the rest).
     tinytls13_base=psk
+    tinytls13_mldsa=no
     for v in `echo $ENABLED_TINYTLS13 | tr ',' ' '`
     do
         case $v in
@@ -2931,15 +2949,25 @@ then
         p256)       AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DECC_USER_CURVES" ;;
         rsaverify)  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_RSA_VERIFY" ;;
         sha384)     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA384" ;;
-        mldsa)      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLDSA -DWOLFSSL_DILITHIUM_VERIFY_ONLY -DWOLFSSL_DILITHIUM_VERIFY_SMALL_MEM -DWOLFSSL_DILITHIUM_NO_ASN1 -DWOLFSSL_NO_ML_DSA_44 -DWOLFSSL_NO_ML_DSA_87" ;;
+        mldsa)      tinytls13_mldsa=yes
+                    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLDSA -DWOLFSSL_DILITHIUM_VERIFY_ONLY -DWOLFSSL_DILITHIUM_VERIFY_SMALL_MEM -DWOLFSSL_NO_ML_DSA_44 -DWOLFSSL_NO_ML_DSA_87" ;;
         no)         ;;
         *)          AC_MSG_ERROR([Invalid --enable-tinytls13 value: $v. Valid: psk cert server mutualauth staticmem asm p256 sha384 mldsa rsaverify.]) ;;
         esac
     done
 
+    # ML-DSA on the PSK floor never parses a certificate, so drop the ASN.1/
+    # X.509 surface for footprint. The cert profile needs it to decode and
+    # verify ML-DSA certificates, so keep ASN.1 there.
+    if test "$tinytls13_mldsa" = "yes" && test "$tinytls13_base" != "cert"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_ASN1"
+    fi
+
     if test "$tinytls13_base" = "cert"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_CERT"
+        AC_MSG_NOTICE([tiny TLS 1.3 cert profile is a reduced-security verify: no name constraints, relaxed ASN, no CRL. For a known or pinned CA, not public-internet PKI.])
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13"
     fi
