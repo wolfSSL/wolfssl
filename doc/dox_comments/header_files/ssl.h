@@ -5681,6 +5681,11 @@ long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char *resp, int 
     wolfSSL. The application must not free the buffer after calling this
     function.
 
+    Each stapled response (one per certificate) must carry exactly one
+    SingleResponse. A BasicOCSPResponse bundling more than one SingleResponse
+    is rejected by the peer, so responders must supply a separate response per
+    certificate rather than combining statuses into a single response.
+
     \param ssl The WOLFSSL session.
     \param resp Pointer to the response buffer.
     \param len  Length of the response buffer.

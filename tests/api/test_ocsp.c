@@ -1218,8 +1218,138 @@ int test_ocsp_tls_cert_cb(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12)
+/* Stapling for a 3-cert chain. The intermediate and root staples are the
+ * normal single-SingleResponse CERT_GOOD responses, but the leaf (idx 0)
+ * staple is resp_server1_revoked_good_first: one validly-signed
+ * BasicOCSPResponse that bundles a benign CERT_GOOD single FIRST and the
+ * server1 leaf cert's CERT_REVOKED single SECOND. */
+static int test_ocsp_revoked_multi_single_status_cb(WOLFSSL* ssl, void* ioCtx)
+{
+    byte* leaf_resp = NULL;
+    byte* int_resp = NULL;
+    byte* root_resp = NULL;
+    int ret = WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    (void)ioCtx;
+    leaf_resp = (byte*)XMALLOC(sizeof(resp_server1_revoked_good_first), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    int_resp = (byte*)XMALLOC(sizeof(resp_intermediate1_cert), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    root_resp = (byte*)XMALLOC(sizeof(resp_root_ca_cert), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (leaf_resp != NULL && int_resp != NULL && root_resp != NULL) {
+        XMEMCPY(leaf_resp, resp_server1_revoked_good_first,
+                sizeof(resp_server1_revoked_good_first));
+        XMEMCPY(int_resp, resp_intermediate1_cert,
+                sizeof(resp_intermediate1_cert));
+        XMEMCPY(root_resp, resp_root_ca_cert, sizeof(resp_root_ca_cert));
+        if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf_resp,
+                sizeof(resp_server1_revoked_good_first), 0) == WOLFSSL_SUCCESS)
+            leaf_resp = NULL;
+        if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, int_resp,
+                sizeof(resp_intermediate1_cert), 1) == WOLFSSL_SUCCESS)
+            int_resp = NULL;
+        if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, root_resp,
+                sizeof(resp_root_ca_cert), 2) == WOLFSSL_SUCCESS)
+            root_resp = NULL;
+        if (leaf_resp == NULL && int_resp == NULL && root_resp == NULL)
+            ret = WOLFSSL_OCSP_STATUS_CB_OK;
+    }
+    XFREE(leaf_resp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(int_resp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(root_resp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+/*
+ * status_request_v2 OCSP-multi must reject a stapled leaf response
+ * whose MATCHING SingleResponse is CERT_REVOKED, even when an unrelated
+ * CERT_GOOD SingleResponse appears first in the same BasicOCSPResponse.
+ */
+int test_ocsp_status_request_v2_multi_revoked_single(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+    } params[] = {
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2" },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2" },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        struct test_ssl_memio_ctx test_ctx;
+        WOLFSSL_ALERT_HISTORY h;
+
+        printf("\nTesting %s\n", params[i].tls_version);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.c_cb.caPemFile = "";
+        /* Server cert/key come only from the per-connection cert callback. */
+        test_ctx.s_cb.certPemFile = "";
+        test_ctx.s_cb.keyPemFile = "";
+        test_ctx.c_cb.method = params[i].client_meth;
+        test_ctx.s_cb.method = params[i].server_meth;
+
+        /* Full server1 -> intermediate1 -> root chain so the leaf staple is at
+         * idx 0. */
+        test_ocsp_tls_cert_cb_opts.chainLen = 3;
+        test_ocsp_tls_cert_cb_opts.failStaple = 0;
+        test_ctx.s_cb.ctx_ready = test_ocsp_tls_cert_cb_ctx_ready;
+
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(test_ctx.s_ssl), WOLFSSL_SUCCESS);
+
+        /* server: enable stapling and supply the multi-single leaf */
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.s_ctx),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx,
+                test_ocsp_revoked_multi_single_status_cb), WOLFSSL_SUCCESS);
+
+        /* client: verify chain via callback, request status_request_v2 multi.
+         * Deliberately no ocsp_status_verify_cb: exercise DoCertificateStatus
+         * in isolation. */
+        wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT,
+                test_ocsp_tls_cert_cb_verify_cb);
+        wolfSSL_SetCertCbCtx(test_ctx.c_ssl, test_ctx.c_ssl);
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(test_ctx.c_ctx),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                WOLFSSL_CSR2_OCSP_MULTI, WOLFSSL_CSR2_OCSP_USE_NONCE),
+                WOLFSSL_SUCCESS);
+
+        /* Revoked leaf must abort the handshake. */
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                TEST_FAIL);
+        XMEMSET(&h, 0, sizeof(h));
+        ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_rx.level, alert_fatal);
+        ExpectIntEQ(h.last_rx.code, bad_certificate_status_response);
+
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_status_request_v2_multi_revoked_single(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 && !WOLFSSL_NO_TLS12 */
+
 #else  /* feature guards */
 int test_ocsp_tls_cert_cb(void)
+{
+    return TEST_SKIPPED;
+}
+int test_ocsp_status_request_v2_multi_revoked_single(void)
 {
     return TEST_SKIPPED;
 }
