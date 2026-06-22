@@ -219,7 +219,7 @@ def preprocess_user_settings(path, includes, defines):
             # pcpp.define() takes "MACRO VALUE" (space-separated, no -D).
             pp.define(f'{d} 1')
         try:
-            pp.parse(open(path).read(), filename=path)
+            pp.parse(open(path).read(), source=path)
         except OSError as e:
             sys.exit(f"ERROR: cannot read user_settings file {path}: {e}")
         buf = io.StringIO()
