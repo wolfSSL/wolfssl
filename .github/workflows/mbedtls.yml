@@ -7,6 +7,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Daily run on master reseeds the shared cache (see save steps below).
+  schedule:
+    - cron: '20 4 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +28,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checking if we have mbed in cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v5
         id: cache
         with:
           path: mbedtls
@@ -34,7 +37,7 @@ jobs:
 
       - name: Checkout mbedtls
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Mbed-TLS/mbedtls
           ref: ${{ env.MBED_REF }}
@@ -54,6 +57,28 @@ jobs:
           openssl pkey -in framework/data_files/cli-rsa-sha256.key.der -text > framework/data_files/cli-rsa-sha256.key.pem
           openssl pkey -in framework/data_files/server2.key.der -text > framework/data_files/server2.key.pem
 
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save mbedtls cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: mbedtls
+          key: mbedtls-${{ env.MBED_REF }}
+
+      # On a cache miss, hand the freshly built mbedtls to mbedtls_test via an
+      # artifact so it is not compiled a second time in the same run.
+      - name: tar mbedtls
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tar -zcf mbedtls.tgz mbedtls
+
+      - name: Upload mbedtls build
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: mbedtls-build
+          path: mbedtls.tgz
+          retention-days: 1
+
   mbedtls_test:
     name: Test interop with mbedtls
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
@@ -64,33 +89,25 @@ jobs:
       - name: Disable IPv6 (IMPORTANT, OTHERWISE DTLS MBEDTLS CLIENT WON'T CONNECT)
         run: echo 1 | sudo tee /proc/sys/net/ipv6/conf/lo/disable_ipv6
 
+      # Restore only: the build_mbedtls job (master/schedule) owns the save.
       - name: Checking if we have mbed in cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v5
         id: cache
         with:
           path: mbedtls
           key: mbedtls-${{ env.MBED_REF }}
 
-      - name: Checkout mbedtls (fallback on cache miss)
+      # On a cache miss, reuse the build_mbedtls artifact instead of
+      # recompiling. master restores from the cache above instead.
+      - name: Download mbedtls build (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/download-artifact@v7
         with:
-          repository: Mbed-TLS/mbedtls
-          ref: ${{ env.MBED_REF }}
-          path: mbedtls
-          fetch-depth: 1
+          name: mbedtls-build
 
-      - name: Compile mbedtls (fallback on cache miss)
+      - name: untar mbedtls (fallback on cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
-        working-directory: mbedtls
-        run: |
-          git submodule update --init
-          mkdir build
-          cd build
-          cmake ..
-          make -j$(nproc)
-          openssl pkey -in framework/data_files/cli-rsa-sha256.key.der -text > framework/data_files/cli-rsa-sha256.key.pem
-          openssl pkey -in framework/data_files/server2.key.der -text > framework/data_files/server2.key.pem
+        run: tar -xf mbedtls.tgz
 
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1

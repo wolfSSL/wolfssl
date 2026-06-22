@@ -2519,6 +2519,9 @@ typedef struct CRL_Entry CRL_Entry;
 struct CRL_Entry {
     byte*   toBeSigned;
     byte*   signature;
+#ifdef WC_RSA_PSS
+    byte*   sigParams;   /* buffer with signature parameters */
+#endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
 #endif
@@ -2549,11 +2552,10 @@ struct CRL_Entry {
     int     verified;
     word32  tbsSz;
     word32  signatureSz;
-    word32  signatureOID;
 #ifdef WC_RSA_PSS
     word32  sigParamsSz; /* length of signature parameters   */
-    byte*   sigParams;   /* buffer with signature parameters */
 #endif
+    word32  signatureOID;
 #if !defined(NO_SKID) && !defined(NO_ASN)
     byte    extAuthKeyId[KEYID_SIZE];
     byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
@@ -3503,13 +3505,16 @@ enum key_cache_state {
 
 /* Additional Connection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
-   byte                 enabled;  /* secure_renegotiation flag in rfc */
-   byte                 verifySet;
-   byte                 startScr; /* server requested client to start scr */
+   /* Single-bit flags grouped together so they pack into one storage unit. */
+   WC_BITFIELD          enabled:1;  /* secure_renegotiation flag in rfc */
+   WC_BITFIELD          verifySet:1;
+   WC_BITFIELD          startScr:1; /* server requested client to start scr */
+   WC_BITFIELD          renegInfoSeen:1; /* renegotiation_info ext seen this
+                                          * handshake (RFC 5746 3.7) */
+   WC_BITFIELD          subject_hash_set:1; /* if peer cert hash is set */
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
-   byte                 subject_hash_set; /* if peer cert hash is set */
    byte                 subject_hash[KEYID_SIZE];  /* peer cert hash */
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
@@ -5967,8 +5972,10 @@ enum  {
     DTLS13_EPOCH_TRAFFIC0 = 3
 };
 
-/* RFC 9147 Section 4.2.1: the DTLS 1.3 epoch is a 48-bit value and must not
- * exceed 2^48-1. Expressed as the high/low 32-bit halves of a w64wrapper. */
+/* Sender-side DTLS 1.3 epoch ceiling: we MUST NOT advance our own epoch past
+ * 2^48-1 (RFC 9147 Section 4.2.1). This gates only the sending epoch; receivers
+ * MUST NOT enforce it on the peer epoch (RFC 9147 Section 8). Expressed as the
+ * high/low 32-bit halves of a w64wrapper. */
 #define DTLS13_EPOCH_MAX_HI32 0x0000FFFFU
 #define DTLS13_EPOCH_MAX_LO32 0xFFFFFFFFU
 

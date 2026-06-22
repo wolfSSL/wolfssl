@@ -6277,6 +6277,9 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                 if (ret == WOLFSSL_SUCCESS)
                     ret = 0;
             }
+            /* renegotiation_info seen (checked by DoClientHello, RFC 5746 3.7) */
+            if (ssl->secure_renegotiation != NULL)
+                ssl->secure_renegotiation->renegInfoSeen = 1;
             if (ret != 0 && ret != WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E)) {
             }
             else if (ssl->secure_renegotiation == NULL) {
@@ -10955,9 +10958,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     if (ret == 0) {
         ecc_kse = (KeyShareEntry*)XMALLOC(sizeof(*ecc_kse), ssl->heap,
                    DYNAMIC_TYPE_TLSX);
-        pqc_kse = (KeyShareEntry*)XMALLOC(sizeof(*pqc_kse), ssl->heap,
-                   DYNAMIC_TYPE_TLSX);
-        if (ecc_kse == NULL || pqc_kse == NULL) {
+        if (ecc_kse == NULL) {
             WOLFSSL_MSG("kse memory allocation failure");
             ret = MEMORY_ERROR;
         }
@@ -10965,6 +10966,15 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     if (ret == 0) {
         XMEMSET(ecc_kse, 0, sizeof(*ecc_kse));
         ecc_kse->group = ecc_group;
+
+        pqc_kse = (KeyShareEntry*)XMALLOC(sizeof(*pqc_kse), ssl->heap,
+                   DYNAMIC_TYPE_TLSX);
+        if (pqc_kse == NULL) {
+            WOLFSSL_MSG("kse memory allocation failure");
+            ret = MEMORY_ERROR;
+        }
+    }
+    if (ret == 0) {
         XMEMSET(pqc_kse, 0, sizeof(*pqc_kse));
         pqc_kse->group = pqc_group;
     }

@@ -5132,6 +5132,9 @@ int test_wc_AesXtsSetKey(void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65
     };
+#if defined(HAVE_FIPS) || !defined(WC_AES_XTS_ALLOW_DUPLICATE_KEYS)
+    static const byte dupKey32[AES_256_KEY_SIZE * 2] = { 0 };
+#endif
     byte* key;
     word32 keyLen;
 
@@ -5177,6 +5180,22 @@ int test_wc_AesXtsSetKey(void)
         AES_ENCRYPTION, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
     ExpectIntEQ(wc_AesXtsSetKey(&aes, key, keyLen, -2, NULL, INVALID_DEVID),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#if defined(HAVE_FIPS) || !defined(WC_AES_XTS_ALLOW_DUPLICATE_KEYS)
+#ifdef WOLFSSL_AES_128
+    ExpectIntEQ(wc_AesXtsSetKey(&aes, dupKey32, AES_128_KEY_SIZE * 2,
+        AES_ENCRYPTION, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+#if defined(WOLFSSL_AES_192) && !defined(HAVE_FIPS)
+    ExpectIntEQ(wc_AesXtsSetKey(&aes, dupKey32, AES_192_KEY_SIZE * 2,
+        AES_ENCRYPTION, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+#ifdef WOLFSSL_AES_256
+    ExpectIntEQ(wc_AesXtsSetKey(&aes, dupKey32, AES_256_KEY_SIZE * 2,
+        AES_ENCRYPTION, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+#endif /* HAVE_FIPS || !WC_AES_XTS_ALLOW_DUPLICATE_KEYS */
+
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_AesXtsSetKey */

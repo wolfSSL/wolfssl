@@ -47,7 +47,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: ${{ matrix.apt_packages }}
-          cache: ${{ matrix.apt_cache || 'true' }}
+          ghcr-debs-tag: ${{ matrix.ghcr_tag }}
 
       - name: Run Membrowse Onboard Action
         uses: membrowse/membrowse-action/onboard-action@v1

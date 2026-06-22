@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '48 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,40 +19,149 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # All former runner-per-config matrix entries build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config builds in its own out-of-tree ("VPATH") build
+  # directory off one checkout/autogen, on a pool of one-per-CPU worker
+  # threads, longest first.
   build_library:
-    strategy:
-      matrix:
-        config: [
-          # Add new configs here
-          '--disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa --enable-mldsa=yes,small --enable-lms --enable-xmss CPPFLAGS="-DWOLFSSL_MLDSA_ALIGNMENT=0 -DWC_XMSS_FULL_HASH -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
-          '--enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa=yes,sha2 --enable-mldsa=yes,draft --enable-lms --enable-xmss CPPFLAGS="-DWC_LMS_FULL_HASH -DWOLFSSL_LMS_LARGE_CACHES -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
-          '--enable-smallstack --disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa --enable-mldsa=yes,no-ctx --enable-lms=yes,small --enable-xmss CPPFLAGS="-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM -DWOLFSSL_XMSS_LARGE_SECRET_KEY -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
-          '--enable-smallstack --enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa=yes,sha2 --enable-mldsa --enable-lms --enable-xmss CPPFLAGS="-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC -DWOLFSSL_WC_LMS_SERIALIZE_STATE -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa=yes,sha2 --enable-mldsa --enable-lms --enable-xmss CPPFLAGS="-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A -DWOLFSSL_WC_XMSS_NO_SHA512 -DWOLFSSL_LMS_NO_SIG_CACHE -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128 -Wcast-qual"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa=yes,sha2 --enable-mldsa=yes,verify-only --enable-lms=yes,small,sha256-192,shake256 --enable-xmss=yes,verify-only CPPFLAGS="-DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_NO_MALLOC -DWOLFSSL_MLDSA_SMALL_MEM_POLY64 -DWOLFSSL_WC_XMSS_NO_SHAKE128 -DWOLFSSL_WC_XMSS_NO_SHAKE256 -Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual" --enable-32bit CFLAGS=-m32',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,small --enable-slhdsa=yes,small --enable-mldsa --enable-lms --enable-xmss=yes,small CPPFLAGS="-DWC_MLDSA_CACHE_MATRIX_A -DWOLFSSL_LMS_NO_SIGN_SMOOTHING -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,no-large-code --enable-slhdsa=yes,small-mem --enable-mldsa --enable-lms=yes,sha256-192,shake256 --enable-xmss CPPFLAGS="-DWOLFSSL_MLDSA_NO_LARGE_CODE -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
-          '--enable-smallstack --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa --enable-mldsa --enable-lms=yes,verify-only --enable-xmss CPPFLAGS="-DWC_MLDSA_CACHE_PRIV_VECTORS -DWC_MLDSA_CACHE_PUB_VECTORS -DWOLFSSL_MLDSA_DYNAMIC_KEYS -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
-          '--disable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem --enable-slhdsa=yes,verify-only --enable-mldsa --enable-lms --enable-xmss CPPFLAGS="-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -DWOLFSSL_MLDSA_NO_ASN1 -DWOLFSSL_MLDSA_ALIGNMENT=0 -Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual" --enable-32bit CFLAGS=-m32',
-          '--disable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests --enable-mlkem=yes,small --enable-slhdsa --enable-lms --enable-xmss CPPFLAGS="-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"',
-        ]
     name: build library
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 10
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout wolfSSL
 
-      - name: Install multilib
+      - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: gcc-multilib
+          packages: autoconf automake libtool build-essential gcc-multilib
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
-      - name: Build wolfCrypt with extra type conversion warnings
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: wconversion
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 300M
+
+      # The JSON list below is the former runner-per-config matrix. These
+      # are compile-only warning checks ("check": false): the -Wconversion
+      # family must come out clean, nothing is executed.
+      - name: Build all configs (parallel, out-of-tree)
         run: |
-          ./autogen.sh || $(exit 2)
-          echo "running ./configure ${{ matrix.config }}"
-          ./configure ${{ matrix.config }} || $(exit 3)
-          make -j 4 || $(exit 4)
+          cat > "$RUNNER_TEMP/wconversion-configs.json" <<'EOF'
+          [
+          {"name": "noasm-mldsa-align0", "minutes": 1,
+           "configure": ["--disable-asm", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem", "--enable-slhdsa",
+            "--enable-mldsa=yes,small", "--enable-lms", "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_ALIGNMENT=0 -DWC_XMSS_FULL_HASH -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"],
+           "check": false},
+          {"name": "intelasm-lms-full-hash", "minutes": 1,
+           "configure": ["--enable-intelasm", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa=yes,draft",
+            "--enable-lms", "--enable-xmss",
+            "CPPFLAGS=-DWC_LMS_FULL_HASH -DWOLFSSL_LMS_LARGE_CACHES -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"],
+           "check": false},
+          {"name": "smallstack-noasm-small-mem", "minutes": 1,
+           "configure": ["--enable-smallstack", "--disable-asm",
+            "--enable-cryptonly", "--enable-all-crypto", "--disable-examples",
+            "--disable-benchmark", "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa", "--enable-mldsa=yes,no-ctx",
+            "--enable-lms=yes,small", "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM -DWOLFSSL_XMSS_LARGE_SECRET_KEY -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"],
+           "check": false},
+          {"name": "smallstack-intelasm-precalc", "minutes": 1,
+           "configure": ["--enable-smallstack", "--enable-intelasm",
+            "--enable-cryptonly", "--enable-all-crypto", "--disable-examples",
+            "--disable-benchmark", "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa", "--enable-lms",
+            "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC -DWOLFSSL_WC_LMS_SERIALIZE_STATE -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"],
+           "check": false},
+          {"name": "precalc-a-no-int128", "minutes": 1,
+           "configure": ["--enable-cryptonly", "--enable-all-crypto",
+            "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa", "--enable-lms",
+            "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A -DWOLFSSL_WC_XMSS_NO_SHA512 -DWOLFSSL_LMS_NO_SIG_CACHE -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128 -Wcast-qual"],
+           "check": false},
+          {"name": "cache-matrix-no-smoothing", "minutes": 1,
+           "configure": ["--enable-cryptonly", "--enable-all-crypto",
+            "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem=yes,small",
+            "--enable-slhdsa=yes,small", "--enable-mldsa", "--enable-lms",
+            "--enable-xmss=yes,small",
+            "CPPFLAGS=-DWC_MLDSA_CACHE_MATRIX_A -DWOLFSSL_LMS_NO_SIGN_SMOOTHING -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"],
+           "check": false},
+          {"name": "no-large-code-lms192", "minutes": 1,
+           "configure": ["--enable-cryptonly", "--enable-all-crypto",
+            "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem=yes,no-large-code",
+            "--enable-slhdsa=yes,small-mem", "--enable-mldsa",
+            "--enable-lms=yes,sha256-192,shake256", "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_NO_LARGE_CODE -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"],
+           "check": false},
+          {"name": "smallstack-mldsa-dynamic", "minutes": 1,
+           "configure": ["--enable-smallstack", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem", "--enable-slhdsa",
+            "--enable-mldsa", "--enable-lms=yes,verify-only", "--enable-xmss",
+            "CPPFLAGS=-DWC_MLDSA_CACHE_PRIV_VECTORS -DWC_MLDSA_CACHE_PUB_VECTORS -DWOLFSSL_MLDSA_DYNAMIC_KEYS -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"],
+           "check": false},
+          {"name": "mlkem-small-no-int128", "minutes": 1,
+           "configure": ["--disable-intelasm", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem=yes,small",
+            "--enable-slhdsa", "--enable-lms", "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -DNO_INT128"],
+           "check": false},
+          {"name": "verify-only-m32", "minutes": 0.8,
+           "configure": ["--enable-cryptonly", "--enable-all-crypto",
+            "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa=yes,verify-only",
+            "--enable-lms=yes,small,sha256-192,shake256",
+            "--enable-xmss=yes,verify-only",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_NO_MALLOC -DWOLFSSL_MLDSA_SMALL_MEM_POLY64 -DWOLFSSL_WC_XMSS_NO_SHAKE128 -DWOLFSSL_WC_XMSS_NO_SHAKE256 -Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual",
+            "--enable-32bit", "CFLAGS=-m32"],
+           "check": false},
+          {"name": "m32-mlkem-small-mem", "minutes": 0.8,
+           "configure": ["--disable-intelasm", "--enable-cryptonly",
+            "--enable-all-crypto", "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,verify-only", "--enable-mldsa",
+            "--enable-lms", "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -DWOLFSSL_MLDSA_NO_ASN1 -DWOLFSSL_MLDSA_ALIGNMENT=0 -Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual",
+            "--enable-32bit", "CFLAGS=-m32"],
+           "check": false}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            "$RUNNER_TEMP/wconversion-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: wconversion-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

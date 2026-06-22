@@ -3349,6 +3349,10 @@ void FreeCiphers(WOLFSSL* ssl)
     ssl->dtlsRecordNumberDecrypt.aes = NULL;
 #endif /* BUILD_AES */
 #ifdef HAVE_CHACHA
+    if (ssl->dtlsRecordNumberEncrypt.chacha != NULL)
+        ForceZero(ssl->dtlsRecordNumberEncrypt.chacha, sizeof(ChaCha));
+    if (ssl->dtlsRecordNumberDecrypt.chacha != NULL)
+        ForceZero(ssl->dtlsRecordNumberDecrypt.chacha, sizeof(ChaCha));
     XFREE(ssl->dtlsRecordNumberEncrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->dtlsRecordNumberDecrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     ssl->dtlsRecordNumberEncrypt.chacha = NULL;
@@ -14259,8 +14263,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif
     }
 
-    if (dCert->signature != NULL && dCert->sigLength != 0 &&
-            dCert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Store a copy of the signature for later retrieval. The buffer is sized
+     * to the exact parsed length (itself bounded by the cert DER), so no fixed
+     * ceiling is applied -- a ceiling would drop large LMS/XMSS signatures. */
+    if (dCert->signature != NULL && dCert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dCert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -14604,9 +14610,9 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
     CopyDateToASN1_TIME(dAcert->afterDate, dAcert->afterDateLen,
         &x509->notAfter);
 
-    /* Copy the signature. */
-    if (dAcert->signature != NULL && dAcert->sigLength != 0 &&
-            dAcert->sigLength <= MAX_ENCODED_SIG_SZ) {
+    /* Copy the signature. Sized to the exact parsed length (bounded by the
+     * cert DER); no fixed ceiling, so large LMS/XMSS signatures are kept. */
+    if (dAcert->signature != NULL && dAcert->sigLength != 0) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dAcert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -15694,31 +15700,29 @@ PRAGMA_GCC_DIAG_POP
     ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
 
 #if defined(HAVE_RPK)
-    /* if cert type has negotiated with peer, confirm the cert received has
-     * the same type.
-     */
-    if (ret == 0 ) {
-        if (ssl->options.side ==  WOLFSSL_CLIENT_END) {
-            if (ssl->options.rpkState.received_ServerCertTypeCnt == 1) {
+    /* Confirm the received certificate's form (X.509 vs raw public key) matches
+     * the type negotiated with the peer. A raw public key (RFC 7250) has no
+     * chain, so ParseCertRelative() accepts it without any trust verification;
+     * it must only be accepted when RPK was negotiated for this peer. When no
+     * type was negotiated the default is X.509 (RFC 7250/8446), so an
+     * un-negotiated bare key is rejected. The negotiated type is the received
+     * server cert type (client) or the selected client cert type (server). */
+    if (ret == 0) {
+        cType = WOLFSSL_CERT_TYPE_X509;
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            if (ssl->options.rpkState.received_ServerCertTypeCnt == 1)
                 cType = ssl->options.rpkState.received_ServerCertTypes[0];
-                if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
-                    (cType == WOLFSSL_CERT_TYPE_X509 && args->dCert->isRPK)) {
-                    /* cert type mismatch */
-                    WOLFSSL_MSG("unsupported certificate type received");
-                    ret = UNSUPPORTED_CERTIFICATE;
-                }
-            }
         }
         else if (ssl->options.side == WOLFSSL_SERVER_END) {
-            if (ssl->options.rpkState.received_ClientCertTypeCnt == 1) {
+            if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1)
                 cType = ssl->options.rpkState.sending_ClientCertTypes[0];
-                if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
-                    (cType == WOLFSSL_CERT_TYPE_X509 && args->dCert->isRPK)) {
-                    /* cert type mismatch */
-                    WOLFSSL_MSG("unsupported certificate type received");
-                    ret = UNSUPPORTED_CERTIFICATE;
-                }
-            }
+        }
+
+        if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
+            (cType != WOLFSSL_CERT_TYPE_RPK && args->dCert->isRPK)) {
+            /* cert type mismatch - includes an un-negotiated raw public key */
+            WOLFSSL_MSG("unsupported certificate type received");
+            ret = UNSUPPORTED_CERTIFICATE;
         }
     }
 #endif /* HAVE_RPK */
@@ -18057,6 +18061,17 @@ static int DoHelloRequest(WOLFSSL* ssl, word32 size)
     }
 #ifdef HAVE_SECURE_RENEGOTIATION
     else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+        /* WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
+         * peer-initiated renegotiation. Respond with a no_renegotiation
+         * warning alert instead of starting a secure renegotiation. */
+        if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
+            int ret;
+            WOLFSSL_MSG("Rejecting HelloRequest: WOLFSSL_OP_NO_RENEGOTIATION");
+            ret = SendAlert(ssl, alert_warning, no_renegotiation);
+            WOLFSSL_LEAVE("DoHelloRequest", ret);
+            WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
+            return ret;
+        }
         ssl->secure_renegotiation->startScr = 1;
         WOLFSSL_LEAVE("DoHelloRequest", 0);
         WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
@@ -18789,6 +18804,17 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ssl->secure_renegotiation &&
             ssl->secure_renegotiation->enabled)
     {
+        /* WOLFSSL_OP_NO_RENEGOTIATION: caller opted into rejecting
+         * peer-initiated renegotiation. RFC 5246 7.2.2: no_renegotiation is a
+         * warning-level alert, so refuse the renegotiation but keep the
+         * established connection rather than aborting it. Skip the ClientHello
+         * body and leave handshake state untouched, mirroring the client-side
+         * HelloRequest refusal in DoHelloRequest(). */
+        if (ssl->options.mask & WOLFSSL_OP_NO_RENEGOTIATION) {
+            WOLFSSL_MSG("Refusing renegotiation: WOLFSSL_OP_NO_RENEGOTIATION");
+            *inOutIdx = expectedIdx;
+            return SendAlert(ssl, alert_warning, no_renegotiation);
+        }
         WOLFSSL_MSG("Reset handshake state");
         XMEMSET(&ssl->msgsReceived, 0, sizeof(MsgsReceived));
         ssl->options.serverState = NULL_STATE;
@@ -18797,6 +18823,8 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
         ssl->options.handShakeState = NULL_STATE;
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+        /* Reset for the renegotiation_info presence check below. */
+        ssl->secure_renegotiation->renegInfoSeen = 0;
 
         ret = InitHandshakeHashes(ssl);
         if (ret != 0)
@@ -22495,6 +22523,32 @@ static void LogAlert(int type)
 }
 
 /* process alert, return level */
+#ifndef NO_SESSION_CACHE
+/* RFC 5246 Section 7.2.2: a TLS 1.2 session whose connection is terminated by a
+ * fatal alert MUST be invalidated so it cannot be resumed. (TLS 1.3 RFC 8446
+ * Section 6.2 only requires closing the connection, but evicting here too is
+ * sound defense-in-depth.) Evict the cached session (which also drops any
+ * associated ticket). Acts on an established connection or an in-progress
+ * resumption - both reference a cached session; a brand-new full handshake has
+ * no cached session to remove. */
+static void InvalidateSessionOnFatalAlert(WOLFSSL* ssl)
+{
+    if (ssl == NULL || ssl->ctx == NULL || ssl->session == NULL)
+        return;
+    if (!ssl->options.handShakeDone && !ssl->options.resuming)
+        return;
+    /* Don't evict on an unauthenticated record: a TLS 1.3 plaintext alert
+     * received under encryption (current record not decrypted) is rejected (or
+     * ignored) by DoAlert, and the teardown alert routes back here. RFC 8446
+     * 6.2 doesn't require TLS 1.3 eviction; TLS 1.2 alerts are plaintext so are
+     * unaffected. */
+    if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
+            !ssl->keys.decryptedCur)
+        return;
+    (void)wolfSSL_SSL_CTX_remove_session(ssl->ctx, ssl->session);
+}
+#endif /* !NO_SESSION_CACHE */
+
 static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 {
     byte level;
@@ -22520,7 +22574,8 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 #endif
 
     /* make sure can read the message */
-    if (dataSz != ALERT_SIZE) {
+    if (dataSz != ALERT_SIZE ||
+            *inOutIdx + ALERT_SIZE > ssl->buffers.inputBuffer.length) {
 #ifdef WOLFSSL_EXTRA_ALERTS
         SendAlert(ssl, alert_fatal, unexpected_message);
 #endif
@@ -22601,6 +22656,15 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
              */
             WOLFSSL_ERROR(*type);
         }
+#ifndef NO_SESSION_CACHE
+        /* Validated fatal alert: invalidate the session so it can't be resumed
+         * (RFC 5246 7.2.2; in TLS 1.3 all error alerts are fatal, RFC 8446
+         * 6.2). */
+        if (*type != close_notify &&
+                (level == alert_fatal ||
+                 (IsAtLeastTLSv1_3(ssl->version) && *type != user_canceled)))
+            InvalidateSessionOnFatalAlert(ssl);
+#endif
     }
     return level;
 }
@@ -23105,6 +23169,52 @@ static void DropAndRestartProcessReply(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 }
 #endif /* WOLFSSL_DTLS */
+
+#ifndef WOLFSSL_NO_TLS12
+/* On a confirmed TLS 1.2 / DTLS 1.2 client resumption, check the abbreviated
+ * ServerHello's EMS state (RFC 7627 5.3) and cipher suite (RFC 5246 7.4.1.3)
+ * match the resumed session. Called once resumption is confirmed - at a renewed
+ * NewSessionTicket (before SetupSession refreshes the cached values) or the
+ * server ChangeCipherSpec. Deferred from ServerHello because a declined ticket
+ * (RFC 5077 3.4) falls back to a full handshake that must not be rejected.
+ * Returns 0 if consistent, else sends a fatal alert and returns an error. */
+static int CheckResumptionConsistency(WOLFSSL* ssl)
+{
+    if (ssl->session == NULL) /* nothing to compare against */
+        return 0;
+    /* EMS must match (RFC 7627 5.3); skip EAP-FAST (session-secret callback). */
+    if (
+#ifdef HAVE_SECRET_CALLBACK
+        !(ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                && ssl->session->ticketLen > 0
+#endif
+                ) &&
+#endif
+        ssl->session->haveEMS != ssl->options.haveEMS) {
+        WOLFSSL_MSG("Resumed session EMS state does not match "
+                    "ServerHello EMS state");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+        return EXT_MASTER_SECRET_NEEDED_E;
+    }
+#ifndef NO_RESUME_SUITE_CHECK
+    /* Suite must match (RFC 5246 7.4.1.3), tickets included. Skip when no suite
+     * was retained (both zero = TLS_NULL_WITH_NULL_NULL, e.g. EAP-FAST PAC). */
+    if ((ssl->session->cipherSuite0 != 0 || ssl->session->cipherSuite != 0) &&
+            (ssl->options.cipherSuite0 != ssl->session->cipherSuite0 ||
+             ssl->options.cipherSuite != ssl->session->cipherSuite)) {
+        WOLFSSL_MSG("Resumed session cipher suite does not match "
+                    "ServerHello cipher suite");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
+        return MATCH_SUITE_ERROR;
+    }
+#endif /* NO_RESUME_SUITE_CHECK */
+    return 0;
+}
+#endif /* !WOLFSSL_NO_TLS12 */
+
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
    ssl->error will be whitelisted. This is useful when the connection has been
@@ -23219,6 +23329,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             /* see if sending SSLv2 client hello */
             if ( ssl->options.side == WOLFSSL_SERVER_END &&
                  ssl->options.clientState == NULL_STATE &&
+                 !ssl->options.handShakeDone &&
                  ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx]
                          != handshake &&
                  /* change_cipher_spec here is an error but we want to handle
@@ -23932,6 +24043,15 @@ default:
                             break;
                         #endif /* WOLFSSL_DTLS */
                         }
+                    }
+
+                    /* Server CCS confirms the abbreviated handshake: validate
+                     * the resumed session before installing keys. */
+                    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->options.resuming) {
+                        ret = CheckResumptionConsistency(ssl);
+                        if (ret != 0)
+                            return ret;
                     }
 
                     ssl->keys.encryptionOn = 1;
@@ -24668,6 +24788,19 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
+    /* RFC 5246 6.1: sequence numbers MUST NOT wrap. GetSEQIncrement post-
+     * increments, so refuse at hi == lo == 0xFFFFFFFF (2^64-1): that last legal
+     * value is deliberately sacrificed to avoid wrapping to 0 and reusing
+     * sequence number 0. The caller must renegotiate or close. DTLS sequence
+     * numbers are epoch-scoped and handled elsewhere. */
+    if (!sizeOnly && !ssl->options.dtls &&
+            ssl->keys.sequence_number_hi == 0xFFFFFFFFU &&
+            ssl->keys.sequence_number_lo == 0xFFFFFFFFU) {
+        WOLFSSL_MSG("TLS write sequence number would wrap");
+        WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+        return SEQUENCE_NUMBER_E;
+    }
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;
     if (asyncOkay) {
@@ -27560,6 +27693,17 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
         return BAD_FUNC_ARG;
     }
 
+    /* InvalidateSessionOnFatalAlert() is defined in the !NO_TLS section, so the
+     * guard here must match (with NO_TLS there are no TLS sessions to evict). */
+#if !defined(NO_SESSION_CACHE) && !defined(NO_TLS)
+    /* RFC 5246 Section 7.2.2: a fatal alert terminates the connection;
+     * invalidate the established session so it cannot be resumed. Do this as
+     * soon as the fatal alert is generated, before the pendingAlert/backpressure
+     * handling below which can return early without sending the alert now. */
+    if (severity == alert_fatal)
+        InvalidateSessionOnFatalAlert(ssl);
+#endif
+
     if (ssl->pendingAlert.level != alert_none) {
         ret = RetrySendAlert(ssl);
         if (ret != 0) {
@@ -28242,6 +28386,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case ECH_REQUIRED_E:
         return "ECH offered but rejected by server";
+
+    case SEQUENCE_NUMBER_E:
+        return "Record sequence number would wrap";
     }
 
     return "unknown error number";
@@ -28887,6 +29034,20 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
 
     offset = cipher->offset;
 
+    /* offset is not set via wolfSSL_get_current_cipher(), so resolve it from
+     * the always-populated suite bytes. */
+    for (i = 0; i < GetCipherNamesSize(); i++) {
+        if (cipher_names[i].cipherSuite0 == cipher->cipherSuite0 &&
+            cipher_names[i].cipherSuite  == cipher->cipherSuite
+        #ifndef NO_CIPHER_SUITE_ALIASES
+            && (!(cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+        #endif
+            ) {
+            offset = (unsigned long)i;
+            break;
+        }
+    }
+
     if (offset >= (unsigned long)GetCipherNamesSize())
         return NULL;
 
@@ -29253,6 +29414,93 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
     return ret;
 }
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+/* Classify a cipher suite for OpenSSL-style "!aNULL"/"!eNULL" exclusion.
+ *   anon  != 0: match suites that perform NO peer authentication.
+ *   enull != 0: match suites that perform NO encryption.
+ * Classification is by suite name: the RFC/IANA name when compiled in
+ * (anonymous suites contain "_anon_", named NULL-cipher suites contain "_NULL"
+ * - e.g. TLS_DH_anon_*, TLS_ECDH_anon_*, TLS_*_WITH_NULL_*) and the OpenSSL
+ * short name (ADH/AECDH/...NULL...), which is the only name available under
+ * NO_ERROR_STRINGS. The TLS 1.3 integrity-only suites (RFC 9150) are
+ * NULL-encryption too but carry no "NULL" token in their names, so they are
+ * matched by suite id below. */
+static int CipherSuiteExcluded(byte first, byte second, int anon, int enull)
+{
+    int i;
+    const int sz = GetCipherNamesSize();
+
+#ifdef HAVE_NULL_CIPHER
+    /* TLS 1.3 integrity-only suites perform no encryption; wolfSSL keys them
+     * off haveNull in InitSuites(), so honor "!eNULL" for them here too. */
+    if (enull && (first == ECC_BYTE) &&
+            ((second == TLS_SHA256_SHA256) || (second == TLS_SHA384_SHA384))) {
+        return 1;
+    }
+#endif
+
+    for (i = 0; i < sz; i++) {
+        if ((cipher_names[i].cipherSuite0 != first) ||
+            (cipher_names[i].cipherSuite  != second)) {
+            continue;
+        }
+    #ifndef NO_CIPHER_SUITE_ALIASES
+        if (cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS) {
+            continue;
+        }
+    #endif
+    #ifndef NO_ERROR_STRINGS
+        if (cipher_names[i].name_iana != NULL) {
+            if (anon &&
+                    (XSTRSTR(cipher_names[i].name_iana, "_anon_") != NULL)) {
+                return 1;
+            }
+            if (enull &&
+                    (XSTRSTR(cipher_names[i].name_iana, "_NULL") != NULL)) {
+                return 1;
+            }
+        }
+    #endif
+        if (cipher_names[i].name != NULL) {
+            if (anon && ((XSTRSTR(cipher_names[i].name, "ADH") != NULL) ||
+                         (XSTRSTR(cipher_names[i].name, "AECDH") != NULL))) {
+                return 1;
+            }
+            if (enull && (XSTRSTR(cipher_names[i].name, "NULL") != NULL)) {
+                return 1;
+            }
+        }
+        break; /* found the suite; not excluded */
+    }
+    return 0;
+}
+
+/* Drop suites matching an exclusion from the explicit user-suite array
+ * suites[0..*idx). Used to honor an OpenSSL-style exclusion ("!aNULL",
+ * "!eNULL"/"!NULL", and the "!aNULL:!eNULL" embedded by DEFAULT): the keyword
+ * only adjusts the InitSuites mask, so without this an explicitly listed
+ * anonymous or NULL-cipher suite would survive (anonymous = no peer
+ * authentication; NULL = no confidentiality). Compacts in place; *idx is a
+ * byte count of 2-byte suite pairs. */
+static void RemoveExcludedSuites(byte* suites, int* idx, int anon, int enull)
+{
+    int i;
+    int out = 0;
+
+    for (i = 0; (i + 1) < *idx; i += 2) {
+        if (CipherSuiteExcluded(suites[i], suites[i + 1], anon, enull)) {
+            continue;
+        }
+        if (out != i) {
+            suites[out + 0] = suites[i + 0];
+            suites[out + 1] = suites[i + 1];
+        }
+        out += 2;
+    }
+    *idx = out;
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
+
 /**
 Set the enabled cipher suites.
 
@@ -29285,6 +29533,8 @@ static int ParseCipherList(Suites* suites,
     word16    haveAES128       = 1; /* allowed by default if compiled in */
     word16    haveSHA1         = 1; /* allowed by default if compiled in */
     word16    haveRC4          = 1; /* allowed by default if compiled in */
+    int       excludeAnon      = 0; /* "!aNULL"/DEFAULT seen (applied at end) */
+    int       excludeNull      = 0; /* "!eNULL"/"!NULL"/DEFAULT seen */
 #endif
     int       tls1_3        = 0;
     const int suiteSz       = GetCipherNamesSize();
@@ -29389,10 +29639,19 @@ static int ParseCipherList(Suites* suites,
         }
 
         if (XSTRCMP(name, "DEFAULT") == 0 || XSTRCMP(name, "ALL") == 0) {
-            if (XSTRCMP(name, "ALL") == 0)
+            if (XSTRCMP(name, "ALL") == 0) {
+                /* OpenSSL "ALL" includes anonymous suites and is "all but
+                 * eNULL" (haveNull=0 below stops eNULL generation), but it is
+                 * not a delete directive: unlike DEFAULT it must not set
+                 * excludeAnon/excludeNull, nor clear a prior "!aNULL"/"!eNULL". */
                 haveSig |= SIG_ANON;
-            else
+            }
+            else {
+                /* OpenSSL "DEFAULT" embeds "!aNULL:!eNULL" (delete both). */
                 haveSig &= ~SIG_ANON;
+                excludeAnon = 1;
+                excludeNull = 1;
+            }
             haveRSA = 1;
             haveDH = 1;
             haveECC = 1;
@@ -29434,6 +29693,11 @@ static int ParseCipherList(Suites* suites,
                 haveSig |= SIG_ANON;
             else
                 haveSig &= ~SIG_ANON;
+            /* Track exclusion (sticky) so an explicit ADH suite is dropped at
+             * the end regardless of where "!aNULL" sits in the list; a later
+             * allowing "aNULL" does not undo it (OpenSSL "!" is permanent). */
+            if (!allowing)
+                excludeAnon = 1;
             if (allowing) {
                 /* Allow RSA by default. */
                 if (!haveECC)
@@ -29448,6 +29712,11 @@ static int ParseCipherList(Suites* suites,
 
         if (XSTRCMP(name, "eNULL") == 0 || XSTRCMP(name, "NULL") == 0) {
             haveNull = allowing;
+            /* Track exclusion (sticky) so an explicit NULL-cipher suite is
+             * dropped at the end regardless of "!eNULL"/"!NULL" position; a
+             * later allowing "eNULL" does not undo it. */
+            if (!allowing)
+                excludeNull = 1;
             if (allowing) {
                 /* Allow RSA by default. */
                 if (!haveECC)
@@ -29689,6 +29958,38 @@ static int ParseCipherList(Suites* suites,
             }
         }
     } while (next);
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    /* Apply OpenSSL-style category exclusions to the explicitly-listed suites.
+     * Done here, after the whole list is parsed, so list order does not matter:
+     * the "!aNULL"/"!eNULL" keywords above only adjust the InitSuites mask
+     * (which governs generated defaults), never the suites the user named
+     * explicitly. The excludeAnon/excludeNull flags are set-only / sticky: like
+     * OpenSSL's permanent "!", once "!aNULL"/"!eNULL" has excluded a category a
+     * later allowing keyword does not re-enable it - fail closed. */
+    if (excludeAnon) {
+        haveSig &= ~SIG_ANON;
+        RemoveExcludedSuites(suites->suites, &idx, 1, 0);
+    }
+    if (excludeNull) {
+        haveNull = 0;
+        RemoveExcludedSuites(suites->suites, &idx, 0, 1);
+    }
+    /* If the user named suites but every one was excluded, fail like OpenSSL
+     * (empty list) rather than silently returning an unusable suite set.
+     * callInitSuites means defaults were also requested, so an empty explicit
+     * part is fine there. */
+    if (ret && !callInitSuites && idx == 0) {
+        /* Commit a fully-consistent empty state: suiteSz 0 with setSuites set
+         * makes InitSuites() leave it empty (it early-outs on setSuites), so
+         * this fails closed - no suites offered, no default regeneration. */
+        suites->suiteSz       = 0;
+        suites->hashSigAlgoSz = 0;
+        suites->setSuites     = 1;
+        WOLFSSL_MSG("Cipher list empty after !aNULL/!eNULL exclusions");
+        return 0;
+    }
+#endif
 
     if (ret) {
         int keySz = 0;
@@ -32397,6 +32698,9 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         }
         else {
             if (DSH_CheckSessionId(ssl)) {
+                /* EMS/suite consistency is checked once resumption is confirmed
+                 * (CheckResumptionConsistency), not here: a ticket the server
+                 * declines (RFC 5077 3.4) must fall back to a full handshake. */
                 if (SetCipherSpecs(ssl) == 0) {
                     if (!HaveUniqueSessionObj(ssl)) {
                         WOLFSSL_MSG("Unable to have unique session object");
@@ -33833,12 +34137,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                              }
                             #endif
                             if (IsAtLeastTLSv1_2(ssl)) {
+                                /* DigestInfo encoding for RSA, never a PQC
+                                 * signature -- size to the classic tier. */
                                 WC_DECLARE_VAR(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, 0);
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, 0);
                                 word32 encSigSz;
 
                                 WC_ALLOC_VAR_EX(encodedSig, byte,
-                                    MAX_ENCODED_SIG_SZ, ssl->heap,
+                                    MAX_ENCODED_CLASSIC_SIG_SZ, ssl->heap,
                                     DYNAMIC_TYPE_SIGNATURE,
                                     ERROR_OUT(MEMORY_E,exit_dske));
 
@@ -33848,7 +34154,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                     TypeHash(ssl->options.peerHashAlgo));
                                 if (encSigSz != args->sigSz || !args->output ||
                                     XMEMCMP(args->output, encodedSig,
-                                            min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                            min(encSigSz,
+                                                MAX_ENCODED_CLASSIC_SIG_SZ))
+                                                                         != 0) {
                                     ret = VERIFY_SIGN_ERROR;
                                 }
                                 WC_FREE_VAR_EX(encodedSig, ssl->heap,
@@ -35149,9 +35457,14 @@ int SendCertificateVerify(WOLFSSL* ssl)
             args->verify = &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
             args->extraSz = 0;  /* tls 1.2 hash/sig */
 
-            /* build encoded signature buffer */
-            ssl->buffers.sig.length = MAX_ENCODED_SIG_SZ;
-            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+            /* Build encoded signature buffer. This is TLS 1.2 and earlier
+             * (TLS 1.3 uses SendTls13CertificateVerify), so the signature is
+             * always classic (RSA/ECC/EdDSA), never PQC -- size to the classic
+             * tier rather than the (potentially huge) PQC worst case. This
+             * comfortably holds an ECC/EdDSA signature written directly, or the
+             * PKCS#1 DigestInfo that is the input to RsaSign. */
+            ssl->buffers.sig.length = MAX_ENCODED_CLASSIC_SIG_SZ;
+            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                         ssl->heap, DYNAMIC_TYPE_SIGNATURE);
             if (ssl->buffers.sig.buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scv);
@@ -35651,6 +35964,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_MSG("Unexpected session ticket");
         WOLFSSL_ERROR_VERBOSE(SESSION_TICKET_EXPECT_E);
         return SESSION_TICKET_EXPECT_E;
+    }
+
+    /* A renewed ticket while resuming confirms resumption; check before the
+     * SetupSession() below refreshes the cached suite/EMS and masks a downgrade.
+     * (The ChangeCipherSpec check covers the no-renewal case.) */
+    if (ssl->options.resuming) {
+        ret = CheckResumptionConsistency(ssl);
+        if (ret != 0)
+            return ret;
     }
 
     if (OPAQUE32_LEN > size)
@@ -36362,8 +36684,9 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     static int ReEncodeSig(WOLFSSL* ssl)
     {    /* For TLS 1.2 re-encode signature */
         if (IsAtLeastTLSv1_2(ssl)) {
-            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
-                                              DYNAMIC_TYPE_DIGEST);
+            /* DigestInfo encoding for RSA, never a PQC signature. */
+            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
+                                              ssl->heap, DYNAMIC_TYPE_DIGEST);
             if (encodedSig == NULL)
                 return MEMORY_E;
             ssl->buffers.digest.length =
@@ -38777,6 +39100,17 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 0) {
             TLSX* extension;
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+            /* SCSV not allowed on a renegotiation ClientHello (RFC 5746 3.5). */
+            if (ssl->secure_renegotiation &&
+                    ssl->secure_renegotiation->enabled &&
+                    ssl->secure_renegotiation->verifySet) {
+                WOLFSSL_MSG("SCSV received on renegotiation ClientHello");
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                ret = SECURE_RENEGOTIATION_E;
+                goto out;
+            }
+#endif
             /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS) {
@@ -39028,6 +39362,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             else
                 *inOutIdx = begin + helloSz; /* skip extensions */
         }
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+        /* renegotiation_info MUST be present on a renegotiation (RFC 5746 3.7). */
+        if (ssl->secure_renegotiation &&
+                ssl->secure_renegotiation->enabled &&
+                ssl->secure_renegotiation->verifySet &&
+                !ssl->secure_renegotiation->renegInfoSeen) {
+            WOLFSSL_MSG("Renegotiation ClientHello missing renegotiation_info");
+            SendAlert(ssl, alert_fatal, handshake_failure);
+            ret = SECURE_RENEGOTIATION_E;
+            goto out;
+        }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 #ifdef WOLFSSL_DTLS_CID
         if (ssl->options.useDtlsCID)
@@ -39524,10 +39871,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         else
                     #endif
                         {
+                        /* DigestInfo encoding for RSA */
                         #ifndef WOLFSSL_SMALL_STACK
-                            byte  encodedSig[MAX_ENCODED_SIG_SZ];
+                            byte  encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
                         #else
-                            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+                            byte* encodedSig =
+                                (byte*)XMALLOC(MAX_ENCODED_CLASSIC_SIG_SZ,
                                              ssl->heap, DYNAMIC_TYPE_SIGNATURE);
                             if (encodedSig == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_dcv);
@@ -39542,7 +39891,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
                             if (args->sendSz != args->sigSz || !args->output ||
                                 XMEMCMP(args->output, encodedSig,
-                                   min(args->sigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                   min(args->sigSz, MAX_ENCODED_CLASSIC_SIG_SZ)) != 0) {
                                 ret = VERIFY_CERT_ERROR;
                             }
 

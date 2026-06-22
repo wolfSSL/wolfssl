@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '28 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,34 +19,80 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # All former runner-per-config matrix entries build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config builds in its own out-of-tree ("VPATH") build
+  # directory off one checkout/autogen, on a pool of one-per-CPU worker
+  # threads, longest first.
   make_check:
-    strategy:
-      matrix:
-        config: [
-          # Add new configs here
-          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-ecc --enable-rsa --enable-keygen --enable-ed25519 --enable-curve25519 --enable-ed448 --enable-curve448 --enable-mlkem CFLAGS="-DWOLFSSL_NO_MALLOC -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-ecc --enable-rsa --enable-keygen --enable-ed25519 --enable-curve25519 --enable-ed448 --enable-curve448 --enable-mlkem --enable-staticmemory CFLAGS="-DWOLFSSL_NO_MALLOC -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-        ]
     name: make check
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 6
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout wolfSSL
 
-      - name: Test wolfSSL
-        run: |
-          ./autogen.sh
-          ./configure ${{ matrix.config }}
-          make -j
-          ./wolfcrypt/test/testwolfcrypt
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
-      - name: Print errors
-        if: ${{ failure() }}
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: no-malloc
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 100M
+
+      # The JSON list below is the former runner-per-config matrix. These
+      # configs never ran the TLS check phase - just the build plus
+      # testwolfcrypt - hence "check": false with an explicit "run".
+      - name: Build all configs (parallel, out-of-tree)
         run: |
-          if [ -f test-suite.log ] ; then
-            cat test-suite.log
-          fi
+          cat > "$RUNNER_TEMP/no-malloc-configs.json" <<'EOF'
+          [
+          {"name": "rsa-keygen", "minutes": 0.8,
+           "configure": ["--enable-rsa", "--enable-keygen", "--disable-dh",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+          {"name": "pk-mlkem", "minutes": 0.8,
+           "configure": ["--enable-ecc", "--enable-rsa", "--enable-keygen",
+            "--enable-ed25519", "--enable-curve25519", "--enable-ed448",
+            "--enable-curve448", "--enable-mlkem",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+          {"name": "pk-mlkem-staticmemory", "minutes": 0.8,
+           "configure": ["--enable-ecc", "--enable-rsa", "--enable-keygen",
+            "--enable-ed25519", "--enable-curve25519", "--enable-ed448",
+            "--enable-curve448", "--enable-mlkem", "--enable-staticmemory",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            "$RUNNER_TEMP/no-malloc-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: no-malloc-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

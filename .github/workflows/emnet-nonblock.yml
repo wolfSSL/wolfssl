@@ -28,12 +28,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install build deps
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       - name: Bootstrap
         run: ./autogen.sh

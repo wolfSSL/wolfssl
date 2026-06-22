@@ -44,7 +44,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wolf-install-nginx
           path: build-dir.tgz
@@ -154,7 +154,7 @@ jobs:
     needs: build_wolfssl
     steps:
       - name: Download lib
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: wolf-install-nginx
 
@@ -176,13 +176,13 @@ jobs:
           cpanm --notest Proc::Find Net::SSLeay@1.94 IO::Socket::SSL@2.090
 
       - name: Checkout wolfssl-nginx
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: wolfssl/wolfssl-nginx
           path: wolfssl-nginx
 
       - name: Checkout nginx
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: nginx/nginx
           path: nginx
@@ -198,7 +198,7 @@ jobs:
         run: patch -p1 < ../wolfssl-nginx/nginx-${{ matrix.ref }}-wolfssl-debug.patch
 
       - name: Checkout nginx-tests
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: nginx/nginx-tests
           path: nginx-tests

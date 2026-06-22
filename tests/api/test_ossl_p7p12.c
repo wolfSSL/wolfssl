@@ -142,7 +142,9 @@ int test_wolfSSL_PKCS7_certs(void)
             ExpectNotNull(info = sk_X509_INFO_shift(info_sk));
             if (EXPECT_SUCCESS() && info != NULL) {
                 ExpectIntGT(sk_X509_push(sk, info->x509), 0);
-                info->x509 = NULL;
+                if (EXPECT_SUCCESS()) {
+                    info->x509 = NULL;
+                }
             }
             X509_INFO_free(info);
         }
@@ -669,6 +671,101 @@ int test_wolfSSL_PKCS7_verify_signer_forgery(void)
     X509_STORE_free(store);
     X509_free(caCert);
     BIO_free(caBio);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A degenerate (certs-only) PKCS#7 - one with an empty signerInfos SET and
+ * therefore no signature at all - must NOT be reported as verified, even when
+ * the embedded certificate chains to a trusted CA, and even when
+ * PKCS7_NOVERIFY is set (which only suppresses signer-cert chain validation,
+ * not the requirement that a signature exist). */
+int test_wolfSSL_PKCS7_verify_degenerate(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    const char* signerCertFile = "./certs/server-cert.pem";
+    const char* caFile         = "./certs/ca-cert.pem";
+    const byte  attackerContent[] = "ATTACKER-CONTENT";
+    PKCS7* encodeP7 = NULL;
+    PKCS7* p7 = NULL;
+    X509*  signerCert = NULL;
+    X509*  caCert = NULL;
+    STACK_OF(X509)* sk = NULL;
+    X509_STORE* store = NULL;
+    BIO* certBio = NULL;
+    BIO* caBio = NULL;
+    BIO* derBio = NULL;
+    BIO* inBio = NULL;
+    BIO* outBio = NULL;
+    const byte* der = NULL;
+    const byte* outData = NULL;
+    int derSz = 0;
+
+    /* ---- Build a degenerate certs-only PKCS#7 wrapping server-cert. ---- */
+    ExpectNotNull(certBio = BIO_new_file(signerCertFile, "r"));
+    ExpectNotNull(signerCert = PEM_read_bio_X509(certBio, NULL, 0, NULL));
+    ExpectNotNull(sk = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(sk, signerCert), 0);
+    if (EXPECT_SUCCESS())
+        signerCert = NULL; /* now owned by sk */
+
+    ExpectNotNull(encodeP7 = PKCS7_new());
+    if (encodeP7 != NULL) {
+        encodeP7->version = 1;
+    #ifdef NO_SHA
+        encodeP7->hashOID = SHA256h;
+    #else
+        encodeP7->hashOID = SHAh;
+    #endif
+    }
+    ExpectNotNull(derBio = BIO_new(BIO_s_mem()));
+    /* wolfSSL_PKCS7_encode_certs() takes ownership of sk (sets p7->certs, freed
+     * by PKCS7_free(encodeP7) below) whenever it is called with a valid PKCS7
+     * and BIO - success or failure. It only declines ownership when encodeP7 or
+     * derBio is NULL, in which case the test still owns sk and frees it in
+     * cleanup. */
+    ExpectIntEQ(wolfSSL_PKCS7_encode_certs(encodeP7, sk, derBio), 1);
+    if (encodeP7 != NULL && derBio != NULL)
+        sk = NULL; /* now owned by encodeP7 */
+    ExpectIntGT((derSz = BIO_get_mem_data(derBio, &der)), 0);
+
+    /* ---- Re-parse it; a degenerate bundle parses successfully. ---- */
+    ExpectNotNull(p7 = d2i_PKCS7(NULL, &der, derSz));
+
+    /* ---- Trust store contains the embedded cert's issuer (ca-cert). ---- */
+    ExpectNotNull(caBio = BIO_new_file(caFile, "r"));
+    ExpectNotNull(caCert = PEM_read_bio_X509(caBio, NULL, 0, NULL));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, caCert), 1);
+
+    /* ---- Attacker-supplied detached content + capture of any output. ---- */
+    ExpectNotNull(inBio = BIO_new_mem_buf(attackerContent,
+        (int)sizeof(attackerContent) - 1));
+    ExpectNotNull(outBio = BIO_new(BIO_s_mem()));
+
+    /* With a trust store (flags = 0): must be rejected, and the attacker
+     * content must NOT be emitted through the output BIO. */
+    ExpectIntEQ(PKCS7_verify(p7, NULL, store, inBio, outBio, 0),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntLE(BIO_get_mem_data(outBio, &outData), 0);
+
+    /* PKCS7_NOVERIFY must not turn a signature-less bundle into a pass. */
+    ExpectIntEQ(PKCS7_verify(p7, NULL, store, inBio, NULL, PKCS7_NOVERIFY),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    PKCS7_free(p7);
+    PKCS7_free(encodeP7);          /* frees sk + signerCert once owned */
+    X509_STORE_free(store);
+    X509_free(caCert);
+    sk_X509_pop_free(sk, X509_free); /* no-op if ownership passed to encodeP7 */
+    X509_free(signerCert);         /* no-op if pushed onto sk */
+    BIO_free(certBio);
+    BIO_free(caBio);
+    BIO_free(derBio);
+    BIO_free(inBio);
+    BIO_free(outBio);
 #endif
     return EXPECT_RESULT();
 }

@@ -203,10 +203,11 @@ WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
             WOLFSSL_MSG("Capacity over error in tsip_StoreMessage");
             ret = MEMORY_E;
         }
-
-        XMEMCPY(bag->buff + bag->buffIdx, data, sz);
-        bag->msgTypes[bag->msgIdx++] = *data;   /* store message type */
-        bag->buffIdx += sz;
+        else {
+            XMEMCPY(bag->buff + bag->buffIdx, data, sz);
+            bag->msgTypes[bag->msgIdx++] = *data;   /* store message type */
+            bag->buffIdx += sz;
+        }
     }
 
     WOLFSSL_LEAVE("tsip_StoreMessage", ret);

@@ -14,10 +14,14 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install alire
       uses: alire-project/setup-alire@v5
+      with:
+        # The toolchain is downloaded from GitHub releases, so caching is not
+        # beneficial relative to the cache space it uses.
+        cache: false
 
     - name: Install wolfssl Ada
       working-directory: ./wrapper/Ada
@@ -61,6 +65,7 @@ jobs:
       uses: ./.github/actions/install-apt-deps
       with:
         packages: valgrind
+        ghcr-debs-tag: ubuntu-24.04-full
 
     - name: Run Ada wrapper tests (valgrind)
       working-directory: ./wrapper/Ada/tests

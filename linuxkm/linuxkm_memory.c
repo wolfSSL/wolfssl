@@ -197,7 +197,7 @@ ssize_t wc_reloc_normalize_segment(
         return i;
 
     WC_SANITIZE_DISABLE();
-    memcpy(seg_out, seg_in, *seg_in_out_len);
+    XMEMCPY(seg_out, seg_in, *seg_in_out_len);
     WC_SANITIZE_ENABLE();
 
     /* note, if there are no relocations in the src seg, the loop isn't entered

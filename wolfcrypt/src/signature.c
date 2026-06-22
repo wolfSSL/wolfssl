@@ -46,8 +46,10 @@
     #ifndef MAX_DER_DIGEST_ASN_SZ
         #define MAX_DER_DIGEST_ASN_SZ 36
     #endif
-    #ifndef MAX_ENCODED_SIG_SZ
-        #define MAX_ENCODED_SIG_SZ 1024 /* Supports 8192 bit keys */
+    /* Fallback when asn.h (which defines MAX_ENCODED_CLASSIC_SIG_SZ) is not
+     * available. Sized to hold an RSA-modulus signature. */
+    #ifndef MAX_ENCODED_CLASSIC_SIG_SZ
+        #define MAX_ENCODED_CLASSIC_SIG_SZ 1024 /* Supports 8192 bit keys */
     #endif
 #endif
 
@@ -289,7 +291,7 @@ int wc_SignatureVerifyHash(
         #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             byte *plain_data;
         #else
-            ALIGN64 byte plain_data[MAX_ENCODED_SIG_SZ];
+            ALIGN64 byte plain_data[MAX_ENCODED_CLASSIC_SIG_SZ];
         #endif
 
             /* Make sure the plain text output is at least key size */

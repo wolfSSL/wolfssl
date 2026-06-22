@@ -7,6 +7,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Daily run on master reseeds the shared cache (see save step below).
+  schedule:
+    - cron: '0 4 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +35,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wolf-install-haproxy
           path: build-dir.tgz
@@ -51,7 +54,7 @@ jobs:
         haproxy_ref: [ 'v3.1.0', 'v3.2.0']
     steps:
     - name: Checkout wolfSSL CI actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         sparse-checkout: .github/actions
         fetch-depth: 1
@@ -60,9 +63,10 @@ jobs:
       uses: ./.github/actions/install-apt-deps
       with:
         packages: libpcre2-dev
+        ghcr-debs-tag: ubuntu-24.04-full
 
     - name: Download lib
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: wolf-install-haproxy
 
@@ -70,8 +74,8 @@ jobs:
       run: tar -xf build-dir.tgz
 
     # check cache for haproxy if not there then download it
-    - name: Check haproxy cache
-      uses: actions/cache@v4
+    - name: Restore haproxy cache
+      uses: actions/cache/restore@v5
       id: cache-haproxy
       with:
         path: build-dir/haproxy-${{matrix.haproxy_ref}}
@@ -79,12 +83,20 @@ jobs:
 
     - name: Download haproxy if needed
       if: steps.cache-haproxy.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: haproxy/haproxy
         ref: ${{matrix.haproxy_ref}}
         path: build-dir/haproxy-${{matrix.haproxy_ref}}
         fetch-depth: 1
+
+    # Only master (the daily schedule) saves, so all PRs share one entry.
+    - name: Save haproxy cache
+      if: github.ref == 'refs/heads/master' && steps.cache-haproxy.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: build-dir/haproxy-${{matrix.haproxy_ref}}
+        key: haproxy-${{matrix.haproxy_ref}}
 
     - name: Build haproxy
       working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}

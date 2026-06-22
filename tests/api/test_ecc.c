@@ -578,6 +578,116 @@ int test_wc_ecc_shared_secret(void)
     return EXPECT_RESULT();
 } /* END tests_wc_ecc_shared_secret */
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ECC521) || \
+     defined(HAVE_ALL_CURVES)) && \
+    (!defined(WOLFSSL_SP_521) || \
+     ((!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)))
+/* Verify the output-buffer size contract of wc_ecc_shared_secret() at the
+ * field-size boundary. The single-precision (SP) math secret generators for
+ * P-384/P-521 historically validated the caller's buffer against the wrong
+ * length (e.g. P-521 checked 65 but writes 66), so a buffer declared one byte
+ * short of the field size slipped past the check and was overwritten. Assert
+ * that fieldSz-1 is rejected with BUFFER_E and fieldSz succeeds, for whichever
+ * math backend is built.
+ *
+ * Coverage note: this drives the blocking generators only (wc_ecc_shared_secret
+ * is synchronous). The fix also corrected the non-blocking (_nb) variants
+ * (sp_ecc_secret_gen_384_nb / _521_nb), which need WOLFSSL_SP_NONBLOCK plus the
+ * specialized SP build and are not exercised here. Of the blocking cases only
+ * P-521 (65->66) actually fails without the fix; P-384 already used 48, so its
+ * case is a guard against regression rather than a reproduction. */
+static int ecc_shared_secret_size_bound(WC_RNG* rng, int curveId, int fieldSz)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    ecc_key pub;
+    byte    out[80]; /* >= P-521 field size (66) */
+    word32  outlen;
+    int     keyInit = 0, pubInit = 0;
+    int     ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&pub, 0, sizeof(pub));
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_ecc_init(&pub), 0);
+    if (EXPECT_SUCCESS()) pubInit = 1;
+
+    ret = wc_ecc_make_key_ex(rng, fieldSz, &key, curveId);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
+    ret = wc_ecc_make_key_ex(rng, fieldSz, &pub, curveId);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &pub.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&key, rng), 0);
+#endif
+
+    /* One byte short of the field size: must be rejected, not written past. */
+    outlen = (word32)(fieldSz - 1);
+    ExpectIntEQ(wc_ecc_shared_secret(&key, &pub, out, &outlen),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Exactly the field size: must succeed and report the field size. */
+    outlen = (word32)fieldSz;
+    ExpectIntEQ(wc_ecc_shared_secret(&key, &pub, out, &outlen), 0);
+    ExpectIntEQ(outlen, (word32)fieldSz);
+
+    if (pubInit)
+        wc_ecc_free(&pub);
+    if (keyInit)
+        wc_ecc_free(&key);
+    return EXPECT_RESULT();
+}
+#endif
+
+/*
+ * Testing wc_ecc_shared_secret() output buffer bounds at the field-size edge.
+ */
+int test_wc_ecc_shared_secret_size_bounds(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ECC521) || \
+     defined(HAVE_ALL_CURVES)) && \
+    (!defined(WOLFSSL_SP_521) || \
+     ((!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)))
+    WC_RNG rng;
+    int    rngInit = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS())
+        rngInit = 1;
+
+#if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+    ExpectIntEQ(ecc_shared_secret_size_bound(&rng, ECC_SECP384R1, 48), 1);
+#endif
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    ExpectIntEQ(ecc_shared_secret_size_bound(&rng, ECC_SECP521R1, 66), 1);
+#endif
+
+    if (rngInit)
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+    PRIVATE_KEY_LOCK();
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * testint wc_ecc_export_x963()
  */

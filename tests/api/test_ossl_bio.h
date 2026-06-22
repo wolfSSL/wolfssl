@@ -35,6 +35,7 @@ int test_wolfSSL_BIO_datagram(void);
 int test_wolfSSL_BIO_s_null(void);
 int test_wolfSSL_BIO_accept(void);
 int test_wolfSSL_BIO_write(void);
+int test_wolfSSL_BIO_read_negative_len(void);
 int test_wolfSSL_BIO_printf(void);
 int test_wolfSSL_BIO_f_md(void);
 int test_wolfSSL_BIO_up_ref(void);
@@ -55,6 +56,7 @@ int test_wolfSSL_BIO_get_init(void);
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_should_retry),   \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_s_null),         \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_write),          \
+    TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_read_negative_len), \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_printf),         \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_f_md),           \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_up_ref),         \

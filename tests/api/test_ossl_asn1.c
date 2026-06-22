@@ -2816,6 +2816,28 @@ int test_ASN1_strings(void)
         der = NULL;
     }
 
+    /* Negative length must be rejected before the signed->word32 cast
+     * (CWE-190 -> CWE-125). The 2-byte header claims 16 bytes of content
+     * that are not present in the buffer; passing len = -1 would, without
+     * the guard, cast to ~4 GiB so GetLength accepts the claimed length and
+     * d2i_ASN1_STRING over-reads 16 bytes past the buffer. Every wrapper
+     * must instead return NULL without reading the content. */
+    {
+        unsigned char hdr[2];
+        const unsigned char* p;
+
+        hdr[1] = 0x10; /* claim 16 bytes of (absent) content */
+
+        p = hdr; hdr[0] = ASN_OCTET_STRING;
+        ExpectNull(d2i_ASN1_OCTET_STRING(NULL, &p, -1));
+        p = hdr; hdr[0] = ASN_GENERALSTRING;
+        ExpectNull(d2i_ASN1_GENERALSTRING(NULL, &p, -1));
+        p = hdr; hdr[0] = ASN_UTF8STRING;
+        ExpectNull(d2i_ASN1_UTF8STRING(NULL, &p, -1));
+        p = hdr; hdr[0] = ASN_BIT_STRING;
+        ExpectNull(d2i_ASN1_BIT_STRING(NULL, &p, -1));
+    }
+
 #endif
     return EXPECT_RESULT();
 }

@@ -576,7 +576,7 @@ void mlkem_from_bytes(sword16* p, const byte* b, int k);
 WOLFSSL_LOCAL
 void mlkem_to_bytes(byte* b, sword16* p, int k);
 WOLFSSL_LOCAL
-int mlkem_check_public(const sword16* p, int k);
+int mlkem_check_reduced(const sword16* p, int k);
 
 #ifdef USE_INTEL_SPEEDUP
 WOLFSSL_LOCAL

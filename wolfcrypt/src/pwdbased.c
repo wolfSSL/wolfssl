@@ -777,7 +777,9 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #endif
     }
 
+    ForceZero(B, WC_MAX_BLOCK_SIZE);
     WC_FREE_VAR_EX(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ForceZero(buffer, totalLen);
     if (buffer != staticBuffer) {
         XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
     }

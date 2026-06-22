@@ -251,8 +251,8 @@ enum wolfCrypt_ErrorCodes {
     AESCCM_KAT_FIPS_E   = -257,  /* AESCCM KAT failure */
     SHA3_KAT_FIPS_E     = -258,  /* SHA-3 KAT failure */
     ECDHE_KAT_FIPS_E    = -259,  /* ECDHE KAT failure */
-    AES_GCM_OVERFLOW_E  = -260,  /* AES-GCM invocation counter overflow. */
-    AES_CCM_OVERFLOW_E  = -261,  /* AES-CCM invocation counter overflow. */
+    AES_GCM_OVERFLOW_E  = -260,  /* AES-GCM internal overflow averted */
+    AES_CCM_OVERFLOW_E  = -261,  /* AES-CCM internal overflow averted */
     RSA_KEY_PAIR_E      = -262,  /* RSA Key Pair-Wise Consistency check fail. */
     DH_CHECK_PRIV_E     = -263,  /* DH Check Priv Key error */
 

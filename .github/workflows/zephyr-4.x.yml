@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        zephyr-ref: [ v4.1.0, v4.3.0 ]
+        zephyr-ref: [ v4.1.0, v4.3.0, v4.4.0 ]
         board: [ native_sim, frdm_rw612/rw612 ]
         sample: [ wolfssl_tls_sock, wolfssl_test, wolfssl_benchmark ]
         extra-conf: [ '', external_libc.conf ]
@@ -32,7 +32,7 @@ jobs:
             extra-conf: external_libc.conf
     steps:
       - name: Checkout test driver
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .github/scripts/zephyr-4.x
           fetch-depth: 1
@@ -48,9 +48,11 @@ jobs:
         id: src
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # Fetch via upstream PR ref so renames, deletes, or visibility changes on the fork do not break us
+            # Fetch via upstream PR ref so renames, deletes, or visibility changes on the fork do not break us.
+            # Use the /merge ref (PR merged into the base branch) instead of /head so we test master+PR,
+            # picking up fixes already on master rather than testing the PR branch in isolation.
             echo "repo=https://github.com/${{ github.repository }}" >> "$GITHUB_OUTPUT"
-            echo "branch=refs/pull/${{ github.event.pull_request.number }}/head" >> "$GITHUB_OUTPUT"
+            echo "branch=refs/pull/${{ github.event.pull_request.number }}/merge" >> "$GITHUB_OUTPUT"
           else
             echo "repo=https://github.com/${{ github.repository }}" >> "$GITHUB_OUTPUT"
             echo "branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
@@ -73,7 +75,7 @@ jobs:
 
       - name: Upload logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zephyr-4.x-${{ matrix.zephyr-ref }}-${{ matrix.sample }}-${{ strategy.job-index }}
           path: .github/scripts/zephyr-4.x/logs/
@@ -89,7 +91,7 @@ jobs:
           matrix.zephyr-ref == 'v4.3.0' &&
           matrix.sample == 'wolfssl_test' &&
           matrix.extra-conf == ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: membrowse-zephyr-${{ matrix.board == 'native_sim' && 'native_sim' || 'frdm_rw612' }}
           path: |

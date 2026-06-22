@@ -1528,13 +1528,10 @@ int wc_ed25519_export_key(const ed25519_key* key,
 
     /* export 'full' private part */
     ret = wc_ed25519_export_private(key, priv, privSz);
-    if (ret != 0)
-        return ret;
-
-    /* export public part */
-    ret = wc_ed25519_export_public(key, pub, pubSz);
-    if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E))
-        ret = 0; /* ignore no public key */
+    if (ret == 0) {
+        /* export public part */
+        ret = wc_ed25519_export_public(key, pub, pubSz);
+    }
 
     return ret;
 }

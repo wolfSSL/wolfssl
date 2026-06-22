@@ -296,7 +296,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 /*!
     \ingroup DSA
 
-    \brief Convert DsaKey key to DER format, write to output (inLen),
+    \brief Convert DsaKey key to DER format, write to output (outLen),
     return bytes written.
 
     \return outLen Success, number of bytes written
@@ -306,7 +306,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     \param key Pointer to DsaKey structure to convert.
     \param output Pointer to output buffer for converted key.
-    \param inLen Length of key input.
+    \param outLen Length of output buffer.
 
     _Example_
     \code
@@ -326,7 +326,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     \sa wc_FreeDsaKey
     \sa wc_MakeDsaKey
 */
-int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
+int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 outLen);
 
 /*!
     \ingroup DSA
@@ -496,7 +496,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen,
 
     \param key DSA key
     \param output Output buffer
-    \param inLen Output buffer length
+    \param outLen Output buffer length
 
     _Example_
     \code
@@ -523,7 +523,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen,
 
     \sa wc_SetDsaPublicKey
 */
-int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen);
+int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 outLen);
 
 /*!
     \ingroup DSA

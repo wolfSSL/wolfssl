@@ -14,12 +14,13 @@ jobs:
 
     steps:
 # pull wolfSSL
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install cmake
       uses: ./.github/actions/install-apt-deps
       with:
         packages: cmake
+        ghcr-debs-tag: ubuntu-24.04-full
 
 # build wolfssl
     - name: Build wolfssl

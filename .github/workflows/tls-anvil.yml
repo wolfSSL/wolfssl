@@ -40,12 +40,13 @@ jobs:
 
     steps:
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
           packages: build-essential autoconf automake libtool jq psmisc
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Pull TLS-Anvil Docker image
         run: docker pull ghcr.io/tls-attacker/tlsanvil:latest
@@ -87,7 +88,7 @@ jobs:
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: tls-anvil-results-${{ matrix.test-name }}
           path: tls-anvil-results/

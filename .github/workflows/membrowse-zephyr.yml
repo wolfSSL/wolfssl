@@ -48,7 +48,7 @@ jobs:
 
       - name: Download Zephyr build artifact
         id: download
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: zephyr-artifacts/${{ matrix.target_name }}

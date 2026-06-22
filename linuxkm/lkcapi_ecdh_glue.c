@@ -189,14 +189,14 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
 
     /* the type of secret should be the first byte. */
     ptr = buf;
-    memcpy(&secret, ptr, sizeof(secret));
+    XMEMCPY(&secret, ptr, sizeof(secret));
     ptr += sizeof(secret);
     if (secret.type != CRYPTO_KPP_SECRET_TYPE_ECDH) {
         return -EINVAL;
     }
 
     /* the key_size field will be present */
-    memcpy(&params->key_size, ptr, sizeof(params->key_size));
+    XMEMCPY(&params->key_size, ptr, sizeof(params->key_size));
     ptr += sizeof(params->key_size);
 
     /* Calculate expected len. Verify we got expected data. */
@@ -206,6 +206,14 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
         #ifdef WOLFKM_DEBUG_ECDH
         pr_err("%s: km_ecdh_decode_secret: got %d, expected %zu\n",
                WOLFKM_ECDH_DRIVER, secret.len, expected_len);
+        #endif /* WOLFKM_DEBUG_ECDH */
+        return -EINVAL;
+    }
+
+    if (len != expected_len) {
+        #ifdef WOLFKM_DEBUG_ECDH
+        pr_err("%s: km_ecdh_decode_secret: caller passed %u, expected %zu\n",
+               WOLFKM_ECDH_DRIVER, len, expected_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         return -EINVAL;
     }
@@ -235,7 +243,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
     struct ecdh          params;
 
     ctx = kpp_tfm_ctx(tfm);
-    memset(&params, 0, sizeof(params));
+    XMEMSET(&params, 0, sizeof(params));
 
     switch (ctx->curve_len) {
     #if defined(LINUXKM_ECC192)
@@ -374,9 +382,10 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
 {
     struct km_ecdh_ctx * ctx = NULL;
     int                   ret = 0;
+    int key_inited = 0;
 
     ctx = kpp_tfm_ctx(tfm);
-    memset(ctx, 0, sizeof(struct km_ecdh_ctx));
+    XMEMSET(ctx, 0, sizeof(struct km_ecdh_ctx));
     ctx->curve_id = curve_id;
     ctx->curve_len = 0;
 
@@ -402,22 +411,23 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
 
     ctx->key = (ecc_key *)malloc(sizeof(ecc_key));
     if (!ctx->key) {
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
 
     ret = wc_ecc_init(ctx->key);
     if (ret < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
+
+    key_inited = 1;
 
     #ifdef ECC_TIMING_RESISTANT
     ret = wc_ecc_set_rng(ctx->key, &ctx->rng);
     if (ret < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
     #endif /* ECC_TIMING_RESISTANT */
 
@@ -425,7 +435,20 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     pr_info("info: exiting km_ecdh_init: curve_id %d,  curve_len %d\n",
             ctx->curve_id, ctx->curve_len);
     #endif /* WOLFKM_DEBUG_ECDH */
-    return 0;
+
+out:
+
+    if (ret != 0) {
+        if (ctx->key) {
+            if (key_inited)
+                wc_ecc_free(ctx->key);
+            free(ctx->key);
+            ctx->key = NULL;
+        }
+        wc_FreeRng(&ctx->rng);
+    }
+
+    return ret;
 }
 
 #if defined(LINUXKM_ECC192)
@@ -492,6 +515,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
         pr_err("error: dst_len too small: %d\n", req->dst_len);
         #endif /* WOLFKM_DEBUG_ECDH */
         err = -EOVERFLOW;
+        req->dst_len = raw_pub_len;
         goto ecdh_gen_pub_end;
     }
 
@@ -501,7 +525,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
         goto ecdh_gen_pub_end;
     }
 
-    memset(pub, 0, raw_pub_len);
+    XMEMSET(pub, 0, raw_pub_len);
 
     if (ctx->key->type == ECC_PRIVATEKEY_ONLY) {
         /* ecc key was imported as priv only.
@@ -649,6 +673,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
 
     if (req->dst_len < shared_secret_len) {
         err = -EOVERFLOW;
+        req->dst_len = shared_secret_len;
         goto ecdh_shared_secret_end;
     }
 
@@ -905,14 +930,10 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
     }
 
     req = kpp_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        test_rc = -ENOMEM;
         pr_err("error: allocating kpp request %s failed\n",
                driver);
-        if (PTR_ERR(req) == -ENOMEM)
-            test_rc = MEMORY_E;
-        else
-            test_rc = BAD_FUNC_ARG;
-        req = NULL;
         goto test_ecdh_nist_end;
     }
 
@@ -938,7 +959,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
         goto test_ecdh_nist_end;
     }
 
-    memset(dst_buf, 0, dst_len);
+    XMEMSET(dst_buf, 0, dst_len);
 
     /* generate pub key from input, and verify matches expected. */
     kpp_request_set_input(req, NULL, 0);
@@ -965,7 +986,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
         goto test_ecdh_nist_end;
     }
 
-    memcpy(src_buf, b_pub, pub_len);
+    XMEMCPY(src_buf, b_pub, pub_len);
 
     /* generate shared secret, verify matches expected value. */
     sg_init_one(&src, src_buf, src_len);

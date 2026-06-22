@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '12 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,98 +19,226 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # All former runner-per-config matrix entries build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config in its own out-of-tree ("VPATH") build directory
+  # off one checkout/autogen, checks on a pool of one-per-CPU worker
+  # threads, longest first. bubblewrap gives every test script its own
+  # network namespace so concurrent checks cannot collide on TCP/UDP ports
+  # (do not set AM_BWRAPPED here - that would disable it).
   make_check:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # WOLF_CRYPTO_CB_ONLY_ECC: strips software ECC; swdev provides the
-          # software path via cryptocb.  FP_ECC / ECCSI / SAKKE / deterministic-k
-          # test / OPENSSL_EXTRA compat layer all reference stripped primitives
-          # directly, so they stay off.
-          - name: ECC
-            cppflags: -DWOLF_CRYPTO_CB_ONLY_ECC
-          # WOLF_CRYPTO_CB_ONLY_RSA: strips software RSA; swdev provides the
-          # software path via cryptocb.
-          - name: RSA
-            cppflags: -DWOLF_CRYPTO_CB_ONLY_RSA
-          # WOLF_CRYPTO_CB_ONLY_SHA256: strips software SHA-256; swdev provides
-          # the software path via cryptocb.
-          - name: SHA256
-            cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA256
-          # WOLF_CRYPTO_CB_ONLY_SHA512: strips software SHA-512 family (SHA-384,
-          # SHA-512/224, SHA-512/256, SHA-512); swdev handles every variant
-          # explicitly via cryptocb.
-          - name: SHA512
-            cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA512
-          # Same as SHA512 but tells swdev to refuse the SHA-384 / SHA-512/224 /
-          # SHA-512/256 variant callbacks (WOLFSSL_SWDEV_SHA512_GENERAL_ONLY). That
-          # forces the cryptocb dispatcher's fallback-to-plain-SHA-512-with-
-          # truncation path. The SHA512 entry above instead has swdev handle
-          # every variant end-to-end, so the dispatcher fallback is otherwise
-          # uncovered.
-          - name: SHA512_via_general
-            cppflags: -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLFSSL_SWDEV_SHA512_GENERAL_ONLY
-          # WOLF_CRYPTO_CB_ONLY_AES: strips software AES; swdev provides the
-          # software path via cryptocb.
-          - name: AES
-            cppflags: -DWOLF_CRYPTO_CB_ONLY_AES
-          # Same as AES but tells swdev to refuse AES-GCM (SWDEV_AES_ONLYECB).
-          # That forces the parent's CB_ONLY_AES host-side GCM software path:
-          # GHASH runs on the host while AES-CTR blocks dispatch back through
-          # cryptocb ECB.  The AES entry above instead has swdev handle GCM
-          # end-to-end, so the host-side GCM path is otherwise uncovered.
-          - name: AES_GCM_via_ECB
-            cppflags: -DWOLF_CRYPTO_CB_ONLY_AES -DSWDEV_AES_ONLYECB
-          # All four ONLY_* macros at once: every supported software primitive
-          # is stripped and dispatched through cryptocb.  Catches any cross-
-          # algorithm call that a single-strip entry would still resolve via
-          # the remaining software paths.
-          - name: ALL
-            cppflags: >-
-              -DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA
-              -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512
-              -DWOLF_CRYPTO_CB_ONLY_AES
-    name: make check (${{ matrix.name }})
+    name: make check
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      # Common feature set for every entry.
-      BASE_CONFIG: >-
-        --enable-swdev --enable-cryptocb --enable-ecc --enable-rsa --enable-dh
-        --enable-aesgcm --enable-aesccm --enable-aesctr --enable-aescfb
-        --enable-aeskeywrap --enable-aessiv --enable-aesofb --enable-aesxts
-        --enable-camellia --enable-chacha --enable-poly1305
-        --enable-sha --enable-sha3 --enable-shake128 --enable-shake256
-        --enable-blake2 --enable-blake2s
-        --enable-hkdf --enable-hashdrbg --enable-hashflags
-        --enable-curve25519 --enable-ed25519 --enable-curve448 --enable-ed448
-        --enable-mlkem --enable-dilithium
-        --enable-scrypt --enable-pwdbased --enable-pkcs7 --enable-pkcs12
-        --enable-certgen --enable-certreq --enable-certext
-        --enable-keygen --enable-asn=all
-        --enable-cmac --enable-xchacha
-        --enable-crl --enable-ocsp --enable-ocspstapling --enable-ocspstapling2
-        --enable-dtls --enable-dtls13 --enable-tls13
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout wolfSSL
 
-      - name: Test wolfSSL
-        run: |
-          ./autogen.sh
-          ./configure $BASE_CONFIG ${{ matrix.extra_config }} CPPFLAGS="${{ matrix.cppflags }}"
-          make -j 4
-          make check
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
-      - name: Print errors
-        if: ${{ failure() }}
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: cryptocb-only
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 200M
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # The JSON list below is the former runner-per-config matrix (the
+      # shared BASE_CONFIG env is folded into every entry); add new configs
+      # as new entries. "minutes" drives longest-first scheduling: refresh
+      # it from the Minutes column of a previous run's step summary.
+      - name: Build and make check all configs (parallel, out-of-tree)
         run: |
-          for file in scripts/*.log
-          do
-              if [ -f "$file" ]; then
-                  echo "${file}:"
-                  cat "$file"
-              fi
-          done
+          cat > "$RUNNER_TEMP/cryptocb-only-configs.json" <<'EOF'
+          [
+          {"name": "ecc", "minutes": 2,
+           "comment": "WOLF_CRYPTO_CB_ONLY_ECC: strips software ECC; swdev provides the software path via cryptocb. FP_ECC / ECCSI / SAKKE / deterministic-k test / OPENSSL_EXTRA compat layer all reference stripped primitives directly, so they stay off.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC"]},
+          {"name": "rsa", "minutes": 2,
+           "comment": "WOLF_CRYPTO_CB_ONLY_RSA: strips software RSA; swdev provides the software path via cryptocb.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_RSA"]},
+          {"name": "sha256", "minutes": 2,
+           "comment": "WOLF_CRYPTO_CB_ONLY_SHA256: strips software SHA-256; swdev provides the software path via cryptocb.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SHA256"]},
+          {"name": "sha512", "minutes": 2,
+           "comment": "WOLF_CRYPTO_CB_ONLY_SHA512: strips software SHA-512 family (SHA-384, SHA-512/224, SHA-512/256, SHA-512); swdev handles every variant explicitly via cryptocb.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SHA512"]},
+          {"name": "sha512-via-general", "minutes": 2,
+           "comment": "Same as sha512 but tells swdev to refuse the SHA-384 / SHA-512/224 / SHA-512/256 variant callbacks (WOLFSSL_SWDEV_SHA512_GENERAL_ONLY). That forces the cryptocb dispatcher's fallback-to-plain-SHA-512-with-truncation path. The sha512 entry above instead has swdev handle every variant end-to-end, so the dispatcher fallback is otherwise uncovered.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13",
+            "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLFSSL_SWDEV_SHA512_GENERAL_ONLY"]},
+          {"name": "aes", "minutes": 2,
+           "comment": "WOLF_CRYPTO_CB_ONLY_AES: strips software AES; swdev provides the software path via cryptocb.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_AES"]},
+          {"name": "aes-gcm-via-ecb", "minutes": 2,
+           "comment": "Same as aes but tells swdev to refuse AES-GCM (SWDEV_AES_ONLYECB). That forces the parent's CB_ONLY_AES host-side GCM software path: GHASH runs on the host while AES-CTR blocks dispatch back through cryptocb ECB. The aes entry instead has swdev handle GCM end-to-end, so the host-side GCM path is otherwise uncovered.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13",
+            "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_AES -DSWDEV_AES_ONLYECB"]},
+          {"name": "all", "minutes": 2,
+           "comment": "All five ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
+           "configure": ["--enable-swdev", "--enable-cryptocb", "--enable-ecc",
+            "--enable-rsa", "--enable-dh", "--enable-aesgcm",
+            "--enable-aesccm", "--enable-aesctr", "--enable-aescfb",
+            "--enable-aeskeywrap", "--enable-aessiv", "--enable-aesofb",
+            "--enable-aesxts", "--enable-camellia", "--enable-chacha",
+            "--enable-poly1305", "--enable-sha", "--enable-sha3",
+            "--enable-shake128", "--enable-shake256", "--enable-blake2",
+            "--enable-blake2s", "--enable-hkdf", "--enable-hashdrbg",
+            "--enable-hashflags", "--enable-curve25519", "--enable-ed25519",
+            "--enable-curve448", "--enable-ed448", "--enable-mlkem",
+            "--enable-dilithium", "--enable-scrypt", "--enable-pwdbased",
+            "--enable-pkcs7", "--enable-pkcs12", "--enable-certgen",
+            "--enable-certreq", "--enable-certext", "--enable-keygen",
+            "--enable-asn=all", "--enable-cmac", "--enable-xchacha",
+            "--enable-crl", "--enable-ocsp", "--enable-ocspstapling",
+            "--enable-ocspstapling2", "--enable-dtls", "--enable-dtls13",
+            "--enable-tls13",
+            "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES"]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --private-dir=certs \
+            "$RUNNER_TEMP/cryptocb-only-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: cryptocb-only-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

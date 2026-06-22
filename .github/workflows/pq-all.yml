@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs restore, by
+  # re-running --build-only (compile only, no tests) on the default branch.
+  # PR runs are read-only.
+  schedule:
+    - cron: '4 10 * * 1-5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,57 +19,233 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # All former runner-per-config matrix entries build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config in its own out-of-tree ("VPATH") build directory
+  # off one checkout/autogen, checks on a pool of one-per-CPU worker
+  # threads, longest first. bubblewrap gives every test script its own
+  # network namespace so concurrent checks cannot collide on TCP/UDP ports
+  # (do not set AM_BWRAPPED here - that would disable it).
   make_check:
-    strategy:
-      matrix:
-        config: [
-          # Add new configs here
-          '--disable-shared --enable-dilithium --enable-mlkem CFLAGS="-fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer" LDFLAGS="-fsanitize=undefined" CPPFLAGS="-DWOLFSSL_MLDSA_ALIGNMENT=4"',
-          '--enable-intelasm --enable-sp-asm --enable-mlkem=yes,kyber,ml-kem CPPFLAGS="-DWOLFSSL_ML_KEM_USE_OLD_IDS"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem --enable-tls-mlkem-standalone --enable-extra-pqc-hybrids --enable-lms --enable-xmss --enable-slhdsa --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_BLIND_PRIVATE_KEY -DWOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ"',
-          '--enable-intelasm --enable-sp-math --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --disable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem --enable-tls-mlkem-standalone --enable-extra-pqc-hybrids --enable-lms --enable-xmss --enable-slhdsa --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_BLIND_PRIVATE_KEY -DWOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ"',
-          '--enable-smallstack --enable-smallstackcache --enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem --enable-lms --enable-xmss --enable-slhdsa --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem --enable-lms --enable-xmss --enable-slhdsa --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-Wdeclaration-after-statement -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" CC=c++',
-          '--disable-intelasm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem,small --enable-lms=yes,small --enable-xmss=yes,small --enable-slhdsa=yes,small --enable-dilithium=yes,small --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_NO_LARGE_CODE -DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM -DWOLFSSL_MLDSA_NO_LARGE_CODE"',
-          '--disable-intelasm --enable-smallstack --enable-smallstackcache --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem,small --enable-lms=yes,small --enable-xmss=yes,small --enable-slhdsa=yes,small --enable-dilithium=yes,small --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_NO_LARGE_CODE -DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM -DWOLFSSL_MLDSA_NO_LARGE_CODE"',
-          '--disable-intelasm --enable-all --disable-mlkem --enable-lms=yes,small,verify-only --enable-xmss=yes,small,verify-only --enable-slhdsa=yes,small,verify-only --enable-dilithium=yes,small,verify-only --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_NO_LARGE_CODE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,512 --enable-tls-mlkem-standalone --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,768 --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,768 --enable-tls-mlkem-standalone --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,768 --enable-tls-mlkem-standalone --disable-pqc-hybrids --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,1024 --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,1024 --enable-tls-mlkem-standalone --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-mlkem=make,enc,dec,1024 --enable-tls-mlkem-standalone --disable-pqc-hybrids --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-mlkem=yes,kyber,ml-kem --enable-lms --enable-xmss --enable-slhdsa --enable-dilithium=yes,no-ctx --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
-          '--enable-intelasm --enable-sp-asm --enable-mlkem=yes,kyber,ml-kem,cache-a CPPFLAGS="-DWOLFSSL_MLKEM_DYNAMIC_KEYS"',
-          '--enable-intelasm --enable-sp-asm --enable-dilithium=yes CPPFLAGS="-DWOLFSSL_MLDSA_DYNAMIC_KEYS"',
-          '--disable-intelasm --enable-dilithium=yes,small CPPFLAGS="-DWOLFSSL_MLDSA_DYNAMIC_KEYS"',
-          '--disable-intelasm --enable-dilithium=44,65,87,verify-only CPPFLAGS="-DWOLFSSL_MLDSA_DYNAMIC_KEYS"',
-        ]
     name: make check
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 10
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout wolfSSL
 
-      - name: Test wolfSSL
-        run: |
-          ./autogen.sh
-          ./configure ${{ matrix.config }}
-          make -j 4
-          make check
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
-      - name: Print errors
-        if: ${{ failure() }}
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: pq-all
+          config-hash: shard-${{ matrix.shard }}
+          max-size: 350M
+          # PRs read the cache the weekday seed writes; they never
+          # save, so PR runs add nothing to the Actions cache.
+          read-only: ${{ github.event_name == 'pull_request' }}
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # The JSON list below is the former runner-per-config matrix; add new
+      # configs as new entries (a "comment" key is allowed for notes).
+      # "minutes" is the expected duration driving longest-first scheduling:
+      # take it from the Minutes column of a previous run's step summary, or
+      # omit it for a new config (defaults to 1) and refresh later. The list
+      # is kept sorted by minutes for readability, but the schedule sorts by
+      # the values, not list order.
+      - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |
-          for file in scripts/*.log
-          do
-              if [ -f "$file" ]; then
-                  echo "${file}:"
-                  cat "$file"
-                  echo "========================================================================"
-              fi
-          done
+          cat > "$RUNNER_TEMP/pq-all-configs.json" <<'EOF'
+          [
+          {"name": "all-pq-small-noasm", "minutes": 4,
+           "configure": ["--disable-intelasm", "--enable-all",
+            "--enable-testcert", "--enable-acert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-quic", "--with-sys-crypto-policy",
+            "--enable-experimental", "--enable-mlkem=yes,kyber,ml-kem,small",
+            "--enable-lms=yes,small", "--enable-xmss=yes,small",
+            "--enable-slhdsa=yes,small", "--enable-dilithium=yes,small",
+            "--enable-dual-alg-certs", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_NO_LARGE_CODE -DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM -DWOLFSSL_MLDSA_NO_LARGE_CODE"]},
+          {"name": "all-pq-small-smallstack-noasm", "minutes": 4,
+           "configure": ["--disable-intelasm", "--enable-smallstack",
+            "--enable-smallstackcache", "--enable-all", "--enable-testcert",
+            "--enable-acert", "--enable-dtls13", "--enable-dtls-mtu",
+            "--enable-dtls-frag-ch", "--enable-dtlscid", "--enable-quic",
+            "--with-sys-crypto-policy", "--enable-experimental",
+            "--enable-mlkem=yes,kyber,ml-kem,small", "--enable-lms=yes,small",
+            "--enable-xmss=yes,small", "--enable-slhdsa=yes,small",
+            "--enable-dilithium=yes,small", "--enable-dual-alg-certs",
+            "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -DWOLFSSL_MLKEM_NO_LARGE_CODE -DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM -DWOLFSSL_MLDSA_NO_LARGE_CODE"]},
+          {"name": "all-pq-quic", "minutes": 3.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-acert",
+            "--enable-dtls13", "--enable-dtls-mtu", "--enable-dtls-frag-ch",
+            "--enable-dtlscid", "--enable-quic", "--with-sys-crypto-policy",
+            "--enable-experimental", "--enable-mlkem=yes,kyber,ml-kem",
+            "--enable-tls-mlkem-standalone", "--enable-extra-pqc-hybrids",
+            "--enable-lms", "--enable-xmss", "--enable-slhdsa",
+            "--enable-dilithium", "--enable-dual-alg-certs", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_BLIND_PRIVATE_KEY -DWOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ"]},
+          {"name": "all-pq-sp-math", "minutes": 3.5,
+           "configure": ["--enable-intelasm", "--enable-sp-math",
+            "--enable-sp-asm", "--enable-all", "--enable-testcert",
+            "--enable-acert", "--enable-dtls13", "--enable-dtls-mtu",
+            "--enable-dtls-frag-ch", "--enable-dtlscid", "--disable-quic",
+            "--with-sys-crypto-policy", "--enable-experimental",
+            "--enable-mlkem=yes,kyber,ml-kem", "--enable-tls-mlkem-standalone",
+            "--enable-extra-pqc-hybrids", "--enable-lms", "--enable-xmss",
+            "--enable-slhdsa", "--enable-dilithium", "--enable-dual-alg-certs",
+            "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_BLIND_PRIVATE_KEY -DWOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ"]},
+          {"name": "all-pq-smallstack", "minutes": 3.5,
+           "configure": ["--enable-smallstack", "--enable-smallstackcache",
+            "--enable-intelasm", "--enable-sp-asm", "--enable-all",
+            "--enable-testcert", "--enable-acert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-quic", "--with-sys-crypto-policy",
+            "--enable-experimental", "--enable-mlkem=yes,kyber,ml-kem",
+            "--enable-lms", "--enable-xmss", "--enable-slhdsa",
+            "--enable-dilithium", "--enable-dual-alg-certs", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-pq-cxx", "minutes": 3.5,
+           "cc": "ccache c++",
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-acert",
+            "--enable-dtls13", "--enable-dtls-mtu", "--enable-dtls-frag-ch",
+            "--enable-dtlscid", "--enable-quic", "--with-sys-crypto-policy",
+            "--enable-experimental", "--enable-mlkem=yes,kyber,ml-kem",
+            "--enable-lms", "--enable-xmss", "--enable-slhdsa",
+            "--enable-dilithium", "--enable-dual-alg-certs", "--disable-qt",
+            "CPPFLAGS=-Wdeclaration-after-statement -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-pq-verify-only-noasm", "minutes": 3,
+           "configure": ["--disable-intelasm", "--enable-all",
+            "--disable-mlkem", "--enable-lms=yes,small,verify-only",
+            "--enable-xmss=yes,small,verify-only",
+            "--enable-slhdsa=yes,small,verify-only",
+            "--enable-dilithium=yes,small,verify-only", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_NO_LARGE_CODE"]},
+          {"name": "all-pq-mldsa-no-ctx", "minutes": 3,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-acert",
+            "--enable-dtls13", "--enable-dtls-mtu", "--enable-dtls-frag-ch",
+            "--enable-dtlscid", "--enable-quic", "--with-sys-crypto-policy",
+            "--enable-experimental", "--enable-mlkem=yes,kyber,ml-kem",
+            "--enable-lms", "--enable-xmss", "--enable-slhdsa",
+            "--enable-dilithium=yes,no-ctx", "--enable-dual-alg-certs",
+            "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "ubsan-mldsa-mlkem", "minutes": 2.5,
+           "configure": ["--disable-shared", "--enable-dilithium",
+            "--enable-mlkem",
+            "CFLAGS=-fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer",
+            "LDFLAGS=-fsanitize=undefined",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_ALIGNMENT=4"]},
+          {"name": "all-mlkem-512-standalone", "minutes": 2.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-mlkem=make,enc,dec,512", "--enable-tls-mlkem-standalone",
+            "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-mlkem-768", "minutes": 2.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-mlkem=make,enc,dec,768", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-mlkem-768-standalone", "minutes": 2.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-mlkem=make,enc,dec,768", "--enable-tls-mlkem-standalone",
+            "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-mlkem-768-standalone-no-hybrids", "minutes": 2.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-mlkem=make,enc,dec,768", "--enable-tls-mlkem-standalone",
+            "--disable-pqc-hybrids", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-mlkem-1024", "minutes": 2.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-mlkem=make,enc,dec,1024", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-mlkem-1024-standalone", "minutes": 2.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-mlkem=make,enc,dec,1024",
+            "--enable-tls-mlkem-standalone", "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "all-mlkem-1024-standalone-no-hybrids", "minutes": 2.5,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-all", "--enable-testcert", "--enable-dtls13",
+            "--enable-dtls-mtu", "--enable-dtls-frag-ch", "--enable-dtlscid",
+            "--enable-mlkem=make,enc,dec,1024",
+            "--enable-tls-mlkem-standalone", "--disable-pqc-hybrids",
+            "--disable-qt",
+            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"name": "mlkem-old-ids", "minutes": 1.2,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-mlkem=yes,kyber,ml-kem",
+            "CPPFLAGS=-DWOLFSSL_ML_KEM_USE_OLD_IDS"]},
+          {"name": "mlkem-dynamic-keys", "minutes": 1.2,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-mlkem=yes,kyber,ml-kem,cache-a",
+            "CPPFLAGS=-DWOLFSSL_MLKEM_DYNAMIC_KEYS"]},
+          {"name": "mldsa-dynamic-keys", "minutes": 1.2,
+           "configure": ["--enable-intelasm", "--enable-sp-asm",
+            "--enable-dilithium=yes", "CPPFLAGS=-DWOLFSSL_MLDSA_DYNAMIC_KEYS"]},
+          {"name": "mldsa-small-dynamic-keys", "minutes": 1.2,
+           "configure": ["--disable-intelasm", "--enable-dilithium=yes,small",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_DYNAMIC_KEYS"]},
+          {"name": "mldsa-verify-only-dynamic-keys", "minutes": 1.2,
+           "configure": ["--disable-intelasm",
+            "--enable-dilithium=44,65,87,verify-only",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_DYNAMIC_KEYS"]}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
+            --private-dir=certs \
+            "$RUNNER_TEMP/pq-all-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: pq-all-logs-${{ matrix.shard }}
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

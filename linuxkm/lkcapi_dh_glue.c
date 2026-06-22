@@ -329,18 +329,18 @@ static int km_dh_decode_secret(const u8 * buf, unsigned int len,
 
     /* the type of secret should be the first byte. */
     ptr = buf;
-    memcpy(&secret, ptr, sizeof(secret));
+    XMEMCPY(&secret, ptr, sizeof(secret));
     ptr += sizeof(secret);
     if (secret.type != CRYPTO_KPP_SECRET_TYPE_DH) {
         return -EINVAL;
     }
 
     /* all three of these fields will be present */
-    memcpy(&params->key_size, ptr, sizeof(params->key_size));
+    XMEMCPY(&params->key_size, ptr, sizeof(params->key_size));
     ptr += sizeof(params->key_size);
-    memcpy(&params->p_size, ptr, sizeof(params->p_size));
+    XMEMCPY(&params->p_size, ptr, sizeof(params->p_size));
     ptr += sizeof(params->p_size);
-    memcpy(&params->g_size, ptr, sizeof(params->g_size));
+    XMEMCPY(&params->g_size, ptr, sizeof(params->g_size));
     ptr += sizeof(params->g_size);
 
     /* Calculate expected len based on provided 3 fields. Verify
@@ -352,6 +352,14 @@ static int km_dh_decode_secret(const u8 * buf, unsigned int len,
         #ifdef WOLFKM_DEBUG_DH
         pr_err("%s: km_dh_decode_secret: got %d, expected %zu\n",
                WOLFKM_DH_DRIVER, secret.len, expected_len);
+        #endif /* WOLFKM_DEBUG_DH */
+        return -EINVAL;
+    }
+
+    if (len != expected_len) {
+        #ifdef WOLFKM_DEBUG_DH
+        pr_err("%s: km_dh_decode_secret: caller passed %u, expected %zu\n",
+               WOLFKM_DH_DRIVER, len, expected_len);
         #endif /* WOLFKM_DEBUG_DH */
         return -EINVAL;
     }
@@ -403,7 +411,7 @@ static int km_dh_alloc_keys(struct km_dh_ctx * ctx)
         goto alloc_keys_end;
     }
 
-    memset(ctx->priv_key, 0, ctx->priv_len);
+    XMEMSET(ctx->priv_key, 0, ctx->priv_len);
 
     ctx->pub_key = malloc(ctx->pub_len);
     if (!ctx->pub_key) {
@@ -411,7 +419,7 @@ static int km_dh_alloc_keys(struct km_dh_ctx * ctx)
         goto alloc_keys_end;
     }
 
-    memset(ctx->pub_key, 0, ctx->pub_len);
+    XMEMSET(ctx->pub_key, 0, ctx->pub_len);
 
 alloc_keys_end:
     if (err) {
@@ -477,7 +485,7 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
     struct dh          params;
 
     ctx = kpp_tfm_ctx(tfm);
-    memset(&params, 0, sizeof(params));
+    XMEMSET(&params, 0, sizeof(params));
 
     if (km_dh_decode_secret(buf, len, &params) < 0) {
         #ifdef WOLFKM_DEBUG_DH
@@ -554,6 +562,9 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
     ctx->has_pub_key = 0;
 dh_secret_end:
 
+    if (err != 0)
+        km_dh_reset_ctx(ctx);
+
     #ifdef WOLFKM_DEBUG_DH
     pr_info("info: exiting km_dh_set_secret\n");
     #endif /* WOLFKM_DEBUG_DH */
@@ -580,7 +591,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
     struct dh          params;
 
     ctx = kpp_tfm_ctx(tfm);
-    memset(&params, 0, sizeof(params));
+    XMEMSET(&params, 0, sizeof(params));
 
     /* buf is optional for ffdhe */
     if (buf) {
@@ -648,7 +659,7 @@ static int km_ffdhe_set_secret(struct crypto_kpp *tfm, const void *buf,
             #endif
 
             memmove(ctx->pub_key + pad_len, ctx->pub_key, ctx->pub_len);
-            memset(ctx->pub_key, 0, pad_len);
+            XMEMSET(ctx->pub_key, 0, pad_len);
 
             ctx->pub_len += pad_len;
         }
@@ -746,9 +757,10 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
 {
     struct km_dh_ctx * ctx = NULL;
     int                err = 0;
+    int key_inited = 0;
 
     ctx = kpp_tfm_ctx(tfm);
-    memset(ctx, 0, sizeof(struct km_dh_ctx));
+    XMEMSET(ctx, 0, sizeof(struct km_dh_ctx));
     ctx->name = name;
     ctx->nbits = nbits;
 
@@ -762,15 +774,17 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
 
     ctx->key = (DhKey *)malloc(sizeof(DhKey));
     if (!ctx->key) {
-        return -ENOMEM;
+        err = -ENOMEM;
+        goto out;
     }
 
     err = wc_InitDhKey(ctx->key);
     if (err < 0) {
-        free(ctx->key);
-        ctx->key = NULL;
-        return -ENOMEM;
+        err = -ENOMEM;
+        goto out;
     }
+
+    key_inited = 1;
 
     if (ctx->name) {
         err = wc_DhSetNamedKey(ctx->key, ctx->name);
@@ -779,9 +793,8 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
             pr_err("%s: wc_DhSetNamedKey returned: %d\n", WOLFKM_DH_DRIVER,
                    err);
             #endif /* WOLFKM_DEBUG_DH */
-            free(ctx->key);
-            ctx->key = NULL;
-            return -ENOMEM;
+            err = -ENOMEM;
+            goto out;
         }
     }
 
@@ -789,7 +802,20 @@ static int km_ffdhe_init(struct crypto_kpp *tfm, int name, word32 nbits)
     pr_info("info: exiting km_dh_init: name %d, nbits %d\n",
             ctx->name, ctx->nbits);
     #endif /* WOLFKM_DEBUG_DH */
-    return 0;
+
+out:
+
+    if (err != 0) {
+        if (ctx->key) {
+            if (key_inited)
+                wc_FreeDhKey(ctx->key);
+            free(ctx->key);
+            ctx->key = NULL;
+        }
+        wc_FreeRng(&ctx->rng);
+    }
+
+    return err;
 }
 
 #ifdef LINUXKM_DH
@@ -859,7 +885,7 @@ static int km_dh_gen_pub(struct kpp_request *req)
     }
 
     if (ctx->has_pub_key == 0) {
-        memset(ctx->pub_key, 0, ctx->pub_len);
+        XMEMSET(ctx->pub_key, 0, ctx->pub_len);
 
         err = wc_DhGeneratePublic(ctx->key, ctx->priv_key, ctx->priv_len,
                                   ctx->pub_key, &ctx->pub_len);
@@ -939,12 +965,20 @@ static int km_dh_compute_shared_secret(struct kpp_request *req)
         goto dh_shared_secret_end;
     }
 
-    memset(pub, 0, pub_len);
+    XMEMSET(pub, 0, pub_len);
 
     /* copy req->src to pub */
     scatterwalk_map_and_copy(pub, req->src, 0, req->src_len, 0);
 
-    shared_secret_len = pub_len;
+    /* Note, shared_secret_len must use the canonical length of ctx->key, not
+     * the untrustworthy req->src_len, to prevent underallocation of
+     * shared_secret.
+     */
+    shared_secret_len = mp_unsigned_bin_size(&ctx->key->p);
+    if (shared_secret_len < req->src_len) {
+        err = -EINVAL;
+        goto dh_shared_secret_end;
+    }
     shared_secret = malloc(shared_secret_len);
     if (!shared_secret) {
         err = -ENOMEM;
@@ -2878,14 +2912,10 @@ static int linuxkm_test_kpp_driver(const char * driver,
     }
 
     req = kpp_request_alloc(tfm, GFP_KERNEL);
-    if (IS_ERR(req)) {
+    if (! req) {
+        test_rc = MEMORY_E;
         pr_err("error: allocating kpp request %s failed\n",
                driver);
-        if (PTR_ERR(req) == -ENOMEM)
-            test_rc = MEMORY_E;
-        else
-            test_rc = BAD_FUNC_ARG;
-        req = NULL;
         goto test_kpp_end;
     }
 
@@ -2911,7 +2941,7 @@ static int linuxkm_test_kpp_driver(const char * driver,
         goto test_kpp_end;
     }
 
-    memset(dst_buf, 0, dst_len);
+    XMEMSET(dst_buf, 0, dst_len);
 
     /* generate pub key from input, and verify matches expected. */
     kpp_request_set_input(req, NULL, 0);
@@ -2938,7 +2968,7 @@ static int linuxkm_test_kpp_driver(const char * driver,
         goto test_kpp_end;
     }
 
-    memcpy(src_buf, b_pub, pub_len);
+    XMEMCPY(src_buf, b_pub, pub_len);
 
     /* generate shared secret, verify matches expected value. */
     sg_init_one(&src, src_buf, src_len);

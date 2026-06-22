@@ -28,10 +28,12 @@ permissions:
 
 jobs:
   check:
+    # Only run from the wolfssl org to avoid burning forks' CI minutes.
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -39,6 +41,7 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: shellcheck
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Collect files to check
         id: files

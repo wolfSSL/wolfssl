@@ -368,6 +368,7 @@ static int HmacKeyCopyHash(byte macType, wc_HmacHash* src, wc_HmacHash* dst)
     #endif
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -475,6 +476,7 @@ static int HmacKeyHashUpdate(byte macType, wc_HmacHash* hash, byte* pad)
     #endif
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -1020,7 +1022,6 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
-        ret = 0; /* reset error code */
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
@@ -1135,6 +1136,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     #endif
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 

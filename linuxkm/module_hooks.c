@@ -472,6 +472,7 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
         WC_SANITIZE_ENABLE();
         buf = 0;
     }
+    wc_ForceZero(&buf, sizeof buf);
     return 0;
 }
 
@@ -731,7 +732,7 @@ static int wolfssl_init(void)
         unsigned int stabilized_rodata_hash = 1;
 
         if (! canon_buf) {
-            pr_err("ERROR: malloc(%d) for WOLFSSL_*_SEGMENT_CANONICALIZER failed: %ld.\n", WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ, PTR_ERR(canon_buf));
+            pr_err("ERROR: malloc(%d) for WOLFSSL_*_SEGMENT_CANONICALIZER failed.\n", WOLFSSL_SEGMENT_CANONICALIZER_BUFSIZ);
             return -ECANCELED;
         }
 
@@ -1367,7 +1368,7 @@ static int my_preempt_count(void) {
 }
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
-    memset(
+    XMEMSET(
         &wolfssl_linuxkm_pie_redirect_table,
         0,
         sizeof wolfssl_linuxkm_pie_redirect_table);
@@ -2058,7 +2059,7 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
         corrected_count = count;
     if ((corrected_count < 1) || (corrected_count > 4))
         return -EINVAL;
-    memcpy(code_buf, buf, corrected_count);
+    XMEMCPY(code_buf, buf, corrected_count);
     code_buf[corrected_count] = 0;
 
     if (strspn(code_buf, "-0123456789") != corrected_count)

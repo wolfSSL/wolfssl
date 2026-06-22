@@ -32,7 +32,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wolf-install-curl
           path: build-dir.tgz
@@ -51,7 +51,7 @@ jobs:
         curl_ref: [ 'master', 'curl-8_4_0' ]
     steps:
     - name: Checkout wolfSSL CI actions
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         sparse-checkout: .github/actions
         fetch-depth: 1
@@ -60,9 +60,10 @@ jobs:
       uses: ./.github/actions/install-apt-deps
       with:
         packages: nghttp2 libpsl5 libpsl-dev python3-impacket apache2 apache2-dev
+        ghcr-debs-tag: ubuntu-24.04-full
 
     - name: Download lib
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: wolf-install-curl
 

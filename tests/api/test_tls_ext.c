@@ -153,6 +153,166 @@ int test_tls_ems_resumption_downgrade(void)
 }
 
 
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE)
+/* Remove the extended_master_secret extension from the ServerHello record at
+ * the head of the server-to-client memio buffer, patching up the record,
+ * handshake and extension-block lengths so the message still parses.
+ * Returns 0 on success. */
+static int StripEmsFromServerHello(struct test_memio_ctx* test_ctx)
+{
+    byte* buf = test_ctx->c_buff;
+    int   len = test_ctx->c_len;
+    int   recLen;
+    int   hsLen;
+    int   extsLenIdx;
+    int   extsLen;
+    int   idx;
+    int   extsEnd;
+
+    /* Record header: type(1) version(2) length(2) */
+    if (len < 5 || buf[0] != handshake)
+        return -1;
+    recLen = (buf[3] << 8) | buf[4];
+    if (5 + recLen > len)
+        return -1;
+    /* Handshake header: type(1) length(3) */
+    if (recLen < HANDSHAKE_HEADER_SZ || buf[5] != server_hello)
+        return -1;
+    hsLen = (buf[6] << 16) | (buf[7] << 8) | buf[8];
+    /* Skip version(2), random(32) to the session ID length, then skip the
+     * session ID, cipher suite(2) and compression(1) to the extensions
+     * length. */
+    extsLenIdx = 5 + HANDSHAKE_HEADER_SZ + OPAQUE16_LEN + RAN_LEN +
+                 OPAQUE8_LEN + buf[5 + HANDSHAKE_HEADER_SZ + OPAQUE16_LEN +
+                                    RAN_LEN] +
+                 OPAQUE16_LEN + OPAQUE8_LEN;
+    if (extsLenIdx + OPAQUE16_LEN > 5 + recLen)
+        return -1;
+    extsLen = (buf[extsLenIdx] << 8) | buf[extsLenIdx + 1];
+    idx = extsLenIdx + OPAQUE16_LEN;
+    extsEnd = idx + extsLen;
+    if (extsEnd > 5 + recLen)
+        return -1;
+    while (idx + 4 <= extsEnd) {
+        int extType = (buf[idx] << 8) | buf[idx + 1];
+        int extLen = (buf[idx + 2] << 8) | buf[idx + 3];
+        int rmLen = 4 + extLen;
+
+        if (idx + rmLen > extsEnd)
+            return -1;
+        if (extType == HELLO_EXT_EXTMS) {
+            XMEMMOVE(buf + idx, buf + idx + rmLen,
+                     (size_t)(len - idx - rmLen));
+            recLen -= rmLen;
+            hsLen -= rmLen;
+            extsLen -= rmLen;
+            buf[3] = (byte)(recLen >> 8);
+            buf[4] = (byte)recLen;
+            buf[6] = (byte)(hsLen >> 16);
+            buf[7] = (byte)(hsLen >> 8);
+            buf[8] = (byte)hsLen;
+            buf[extsLenIdx] = (byte)(extsLen >> 8);
+            buf[extsLenIdx + 1] = (byte)extsLen;
+            test_ctx->c_len -= rmLen;
+            /* The ServerHello record sits wholly inside the first buffered
+             * message. */
+            test_ctx->c_msg_sizes[0] -= rmLen;
+            return 0;
+        }
+        idx += rmLen;
+    }
+    return -1;
+}
+
+/* Full handshake with EMS, then resume and strip the EMS extension from the
+ * ServerHello in transit. The client must catch the downgrade and abort
+ * (RFC 7627 Section 5.3). useTicket selects session-ticket resumption
+ * instead of session-ID resumption. */
+static int test_tls_ems_resumption_server_downgrade_ex(int useTicket)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+
+#ifndef HAVE_SESSION_TICKET
+    (void)useTicket;
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#ifdef HAVE_SESSION_TICKET
+    if (useTicket)
+        ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    ExpectTrue(session->haveEMS);
+#ifdef HAVE_SESSION_TICKET
+    if (useTicket)
+        ExpectIntGT(session->ticketLen, 0);
+#endif
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+
+    /* ClientHello */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server flight accepting the resumption */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Drop EMS from the ServerHello to simulate a downgrading server. */
+    ExpectIntEQ(StripEmsFromServerHello(&test_ctx), 0);
+    /* The client must refuse to resume without EMS. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+            WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* F-5807: a server that resumes an EMS session but omits the
+ * extended_master_secret extension from its ServerHello must be rejected by
+ * the client with EXT_MASTER_SECRET_NEEDED_E (RFC 7627 Section 5.3), on both
+ * session-ID and session-ticket resumption. */
+int test_tls_ems_resumption_server_downgrade(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE)
+    ExpectIntEQ(test_tls_ems_resumption_server_downgrade_ex(0), TEST_SUCCESS);
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    ExpectIntEQ(test_tls_ems_resumption_server_downgrade_ex(1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if !defined(WOLFSSL_NO_TLS12) && \
         defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
@@ -350,6 +510,145 @@ int test_scr_verify_data_mismatch(void)
     return EXPECT_RESULT();
 }
 
+/* F-4144: WOLFSSL_OP_NO_RENEGOTIATION on the server must refuse a
+ * client-initiated renegotiation with a no_renegotiation *warning* while
+ * keeping the established connection alive, rather than aborting it. */
+int test_scr_no_renegotiation_option(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_ALERT_HISTORY history;
+    byte readBuf[16];
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&history, 0, sizeof(history));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Server opts into rejecting peer-initiated renegotiation. */
+    wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_RENEGOTIATION);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Client initiates renegotiation: it sends a ClientHello and waits for a
+     * ServerHello that never comes. */
+    ExpectIntLT(wolfSSL_Rehandshake(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Server processes the renegotiation ClientHello. It must refuse without
+     * aborting: the read returns WANT_READ (connection still alive), not a
+     * SECURE_RENEGOTIATION_E fatal error. */
+    ExpectIntLT(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The refusal was a warning-level no_renegotiation alert. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_tx.level, alert_warning);
+    ExpectIntEQ(history.last_tx.code, no_renegotiation);
+
+    /* The connection is still active and passes data: the server sends
+     * application data which the client receives and decrypts correctly, even
+     * though the client's renegotiation attempt was refused. The client
+     * surfaces the data once it has processed the no_renegotiation warning. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, "hello", 5), 5);
+    for (i = 0; i < 10 && ret != 5; i++)
+        ret = wolfSSL_read(ssl_c, readBuf, sizeof(readBuf));
+    ExpectIntEQ(ret, 5);
+    ExpectIntEQ(XMEMCMP(readBuf, "hello", 5), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* F-4144: WOLFSSL_OP_NO_RENEGOTIATION on the client must refuse a
+ * server-initiated renegotiation (HelloRequest) with a no_renegotiation
+ * *warning* while keeping the established connection alive, rather than
+ * starting a secure renegotiation. */
+int test_helloRequest_no_renegotiation_option(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_ALERT_HISTORY history;
+    byte readBuf[16];
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&history, 0, sizeof(history));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method,
+            wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Client opts into rejecting peer-initiated renegotiation. */
+    wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_RENEGOTIATION);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Server asks the client to renegotiate by sending a HelloRequest, then
+     * waits for the ClientHello that never comes. */
+    ExpectIntLT(wolfSSL_Rehandshake(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Client processes the HelloRequest. It must refuse without starting a
+     * renegotiation: the read returns WANT_READ (connection still alive). */
+    ExpectIntLT(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The refusal was a warning-level no_renegotiation alert. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &history), WOLFSSL_SUCCESS);
+    ExpectIntEQ(history.last_tx.level, alert_warning);
+    ExpectIntEQ(history.last_tx.code, no_renegotiation);
+
+    /* The connection is still active and passes data: the client sends
+     * application data which the server receives and decrypts correctly, even
+     * though its renegotiation request was refused. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+    for (i = 0; i < 10 && ret != 5; i++)
+        ret = wolfSSL_read(ssl_s, readBuf, sizeof(readBuf));
+    ExpectIntEQ(ret, 5);
+    ExpectIntEQ(XMEMCMP(readBuf, "hello", 5), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* F-2126: DoTls13ClientHello must reject a second ClientHello whose
  * cipher suite does not match the server's HelloRetryRequest. The
  * client offers two suites in CH1 and only a different one in CH2. */
@@ -390,16 +689,18 @@ int test_tls13_hrr_cipher_suite_mismatch(void)
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"),
             WOLFSSL_SUCCESS);
 
-    /* CH2 */
-    (void)wolfSSL_connect(ssl_c);
-    (void)wolfSSL_accept(ssl_s);
-    (void)wolfSSL_connect(ssl_c);
-    /* The cipher-suite mismatch is caught server-side; the server's
-     * alert reaches the client, so either peer can surface it. */
-    ret = wolfSSL_get_error(ssl_s, 0);
-    if (ret != WC_NO_ERR_TRACE(INVALID_PARAMETER))
-        ret = wolfSSL_get_error(ssl_c, 0);
-    ExpectIntEQ(ret, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    if (EXPECT_SUCCESS()) {
+        /* CH2 */
+        (void)wolfSSL_connect(ssl_c);
+        (void)wolfSSL_accept(ssl_s);
+        (void)wolfSSL_connect(ssl_c);
+        /* The cipher-suite mismatch is caught server-side; the server's
+         * alert reaches the client, so either peer can surface it. */
+        ret = wolfSSL_get_error(ssl_s, 0);
+        if (ret != WC_NO_ERR_TRACE(INVALID_PARAMETER))
+            ret = wolfSSL_get_error(ssl_c, 0);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    }
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

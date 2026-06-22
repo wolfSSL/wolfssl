@@ -204,7 +204,9 @@ then
     fi
 fi
 
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
+# Special case: Since types.h depends on HAVE_LIMITS_H, we must define it in options.h.
+AC_CHECK_HEADER([limits.h], [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIMITS_H=1"], [])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
 AC_C___ATOMIC
@@ -7047,7 +7049,7 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_hkdf" != "no")],
             [ENABLED_HKDF="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
 
-        AS_IF([test "$ENABLED_INTELASM" = "yes"],
+        AS_IF([test "$ENABLED_INTELRDSEED" = "yes" || test "$ENABLED_AMDRDSEED" = "yes" ],
             [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
 
         AS_IF([test "$ENABLED_SHA512" = "no" &&
@@ -10766,9 +10768,6 @@ then
     if test "$ENABLED_CRYPTOCB" != "yes" && test "$enable_usersettings" != "yes"; then
         AC_MSG_ERROR([--enable-swdev requires --enable-cryptocb (or --enable-usersettings with WOLF_CRYPTO_CB defined in user_settings.h)])
     fi
-    if test "x$srcdir" != "x."; then
-        AC_MSG_ERROR([--enable-swdev currently supports in-tree builds only])
-    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SWDEV -DWOLF_CRYPTO_CB_FIND"
 fi
 
@@ -12657,7 +12656,7 @@ echo "" >> $OPTION_FILE
 
 if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "no"
 then
-    support/gen-debug-trace-error-codes.sh || AC_MSG_ERROR([Header generation for debug-trace-errcodes failed.])
+    "$srcdir"/support/gen-debug-trace-error-codes.sh "$srcdir" || AC_MSG_ERROR([Header generation for debug-trace-errcodes failed.])
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"

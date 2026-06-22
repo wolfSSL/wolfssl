@@ -126,13 +126,10 @@ Or
 #endif
 
 #ifdef WOLFSSL_DTLS
-    #ifdef BENCH_EMBEDDED
-        /* WOLFSSL_MAX_MTU in internal.h */
-        #define TEST_DTLS_PACKET_SIZE   (1500)
-    #else
-        /* MAX_UDP_SIZE in interna.h */
-        #define TEST_DTLS_PACKET_SIZE   (8092)
-    #endif
+    /* Must fit in one DTLS record: WOLFSSL_MAX_MTU (1400) - MAX_MSG_EXTRA (~102).
+     * Define WOLFSSL_DTLS_MTU and call wolfSSL_dtls_set_mtu() to use larger
+     * packets; or build with WOLFSSL_NO_DTLS_SIZE_CHECK to auto-fragment. */
+    #define TEST_DTLS_PACKET_SIZE   (1200)
 #endif
 
 /* In memory transfer buffer maximum size */
@@ -1304,25 +1301,29 @@ static int SetupSocketAndListen(int* listenFd, word32 port, int doDTLS)
             fprintf(stderr, "ERROR: failed to create the socket\n");
             return -1;
         }
-
-        /* allow reuse */
-        if (setsockopt(*listenFd, SOL_SOCKET, SO_REUSEADDR,
-                    &optval, sizeof(optval)) == -1) {
-            fprintf(stderr, "setsockopt SO_REUSEADDR failed\n");
-            return -1;
-        }
-
-        /* Listen for the client. */
-        if (bind(*listenFd, (struct sockaddr*)&servAddr,
-                                                    sizeof(servAddr)) == -1) {
-            fprintf(stderr, "ERROR: failed to bind\n");
-            return -1;
-        }
     }
 
-    if (listen(*listenFd, 5) != 0) {
-        fprintf(stderr, "ERROR: failed to listen\n");
+    /* allow reuse */
+    if (setsockopt(*listenFd, SOL_SOCKET, SO_REUSEADDR,
+                &optval, sizeof(optval)) == -1) {
+        fprintf(stderr, "setsockopt SO_REUSEADDR failed\n");
         return -1;
+    }
+
+    if (bind(*listenFd, (struct sockaddr*)&servAddr,
+                                                sizeof(servAddr)) == -1) {
+        fprintf(stderr, "ERROR: failed to bind\n");
+        return -1;
+    }
+
+#ifdef WOLFSSL_DTLS
+    if (!doDTLS)
+#endif
+    {
+        if (listen(*listenFd, 5) != 0) {
+            fprintf(stderr, "ERROR: failed to listen\n");
+            return -1;
+        }
     }
 
 #ifdef BENCH_USE_NONBLOCK
@@ -2119,7 +2120,14 @@ int bench_tls(void* args)
         }
     }
 #endif
-    fprintf(stderr, "Running TLS Benchmarks...\n");
+#ifdef WOLFSSL_DTLS
+    if (doDTLS) {
+        fprintf(stderr, "Running DTLS Benchmarks...\n");
+    } else
+#endif
+    {
+        fprintf(stderr, "Running TLS Benchmarks...\n");
+    }
 
     /* parse by : */
     while ((cipher != NULL) && (cipher[0] != '\0')) {
@@ -2134,6 +2142,14 @@ int bench_tls(void* args)
         if (argShowVerbose) {
             fprintf(stderr, "Cipher: %s\n", cipher);
         }
+
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_DTLS13)
+        if (doDTLS && XSTRNCMP(cipher, "TLS13", 5) == 0) {
+            /* DTLS 1.3 not compiled in; skip TLS 1.3 ciphers */
+            cipher = (next_cipher != NULL) ? (next_cipher + 1) : NULL;
+            continue;
+        }
+#endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         for (group_index = 0; groups[group_index].name != NULL; group_index++) {

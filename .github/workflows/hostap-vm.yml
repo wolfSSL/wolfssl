@@ -7,6 +7,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Daily run on master reseeds the shared cache (see save steps below).
+  schedule:
+    - cron: '40 5 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -58,7 +61,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.build_id }}
           path: build-dir.tgz
@@ -72,7 +75,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checking if we have hostap in cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v5
         id: cache
         with:
           path: hostap
@@ -82,11 +85,19 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: git clone https://w1.fi/hostap.git hostap
 
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save hostap cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: hostap
+          key: hostap-repo
+
       - name: tar hostap
         run: tar -zcf hostap.tgz hostap
 
       - name: Upload hostap repo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hostap-repo
           path: hostap.tgz
@@ -101,7 +112,7 @@ jobs:
     needs: checkout_hostap
     steps:
       - name: Checking if we have kernel in cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v5
         id: cache
         with:
           path: linux/linux
@@ -109,7 +120,7 @@ jobs:
 
       - name: Download hostap repo
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: hostap-repo
 
@@ -119,7 +130,7 @@ jobs:
 
       - name: Checkout linux
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: torvalds/linux
           path: linux
@@ -133,8 +144,16 @@ jobs:
           cd linux
           yes "" | ARCH=um make -j $(nproc)
 
+      # Only master (the daily schedule) saves, so all PRs share one entry.
+      - name: Save kernel cache
+        if: github.ref == 'refs/heads/master' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: linux/linux
+          key: hostap-linux-${{ env.LINUX_REF }}
+
       - name: Upload kernel binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: uml-linux-kernel
           path: linux/linux
@@ -189,7 +208,7 @@ jobs:
     needs: [build_wolfssl, build_uml_linux, checkout_hostap]
     steps:
       - name: Download kernel binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: uml-linux-kernel
           path: linux
@@ -214,12 +233,12 @@ jobs:
           echo Our job run ID is $SHA_SUM
 
       - name: Checkout wolfSSL
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: wolfssl
 
       - name: Download lib
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ${{ matrix.config.build_id }}
 
@@ -230,12 +249,13 @@ jobs:
         uses: ./wolfssl/.github/actions/install-apt-deps
         with:
           packages: libpcap0.8 libpcap-dev curl libcurl4-openssl-dev libnl-3-dev binutils-dev libssl-dev libiberty-dev libnl-genl-3-dev libnl-route-3-dev libdbus-1-dev bridge-utils tshark python3-pycryptodome
+          ghcr-debs-tag: ubuntu-22.04-full
 
       - name: Install pip dependencies
         run: sudo pip install pycryptodome
 
       - name: Download hostap repo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: hostap-repo
 
@@ -248,7 +268,7 @@ jobs:
 
       - if: ${{ matrix.config.osp_ref }}
         name: Checkout OSP
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: wolfssl/osp
           path: osp
@@ -401,7 +421,7 @@ jobs:
       #
       #- name: Upload failure logs
       #  if: ${{ failure() && steps.testing.outcome == 'failure' }}
-      #  uses: actions/upload-artifact@v4
+      #  uses: actions/upload-artifact@v6
       #  with:
       #    name: hostap-logs-${{ env.our_job_run_id }}
       #    path: hostap/tests/hwsim/logs.zip

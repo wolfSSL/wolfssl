@@ -9080,6 +9080,7 @@ int wolfSSL_CIPHER_get_kx_nid(const WOLFSSL_CIPHER* cipher)
         {"RSAPSK",    WC_NID_kx_rsa_psk},
         {"SRP",       WC_NID_kx_srp},
         {"EDH",       WC_NID_kx_dhe},
+        {"PSK",       WC_NID_kx_psk},
         {"RSA",       WC_NID_kx_rsa},
         {NULL,        WC_NID_undef}
     };

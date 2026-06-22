@@ -330,7 +330,7 @@ static int AesAuthSetKey(Aes* aes, const byte* key, word32 keySz)
 static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     const byte* nonce, word32 nonceSz,
     const byte* authTag, word32 authTagSz,
-    word32 *M, word32 *L)
+    word32 *M, word32 *L, int mode)
 {
     if (aes == NULL || nonce == NULL || authTag == NULL)
         return BAD_FUNC_ARG;
@@ -376,6 +376,19 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     default:
         return BAD_FUNC_ARG;
     }
+
+    if (mode == AES_CFG_MODE_CCM) {
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - nonceSz;
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(inSz)) &&
+            (inSz >= ((word32)1 << (lenSz * 8))))
+        {
+            return AES_CCM_OVERFLOW_E;
+        }
+    }
+
     return 0;
 }
 
@@ -468,8 +481,8 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     word32 tmpTag[WC_AES_BLOCK_SIZE/sizeof(word32)];
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
-        authTagSz, &M, &L);
-    if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        authTagSz, &M, &L, mode);
+    if (ret != 0) {
         return ret;
     }
     if ((authIn == NULL) && (authInSz > 0)) {
@@ -571,8 +584,8 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     word32 tmpTag[WC_AES_BLOCK_SIZE/sizeof(word32)];
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
-        authTagSz, &M, &L);
-    if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        authTagSz, &M, &L, mode);
+    if (ret != 0) {
         return ret;
     }
     if ((authIn == NULL) && (authInSz > 0)) {

@@ -16604,7 +16604,6 @@ static wc_test_ret_t aes_xts_partial_test_common(XtsAes *aes,
  * structurally identical and only differ in the key constants and expected
  * ciphertext.
  */
-#ifndef HAVE_FIPS
 static wc_test_ret_t aes_xts_inplace_test_common(XtsAes *aes,
     const unsigned char *k3, word32 k3Sz,
     const unsigned char *i3, word32 i3Sz,
@@ -16707,7 +16706,6 @@ static wc_test_ret_t aes_xts_inplace_test_common(XtsAes *aes,
   out:
     return ret;
 }
-#endif /* !HAVE_FIPS */
 
 /* test vectors from http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html */
 #ifdef WOLFSSL_AES_128
@@ -16933,14 +16931,13 @@ static wc_test_ret_t aes_xts_128_partial_test(XtsAes *aes)
         p2, sizeof(p2), c2, sizeof(c2));
 }
 
-#ifndef HAVE_FIPS
 static wc_test_ret_t aes_xts_128_inplace_test(XtsAes *aes)
 {
     WOLFSSL_SMALL_STACK_STATIC const unsigned char k3[] = {
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
-        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x21
     };
     WOLFSSL_SMALL_STACK_STATIC const unsigned char i3[] = {
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -16954,17 +16951,16 @@ static wc_test_ret_t aes_xts_128_inplace_test(XtsAes *aes)
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
     };
     WOLFSSL_SMALL_STACK_STATIC const unsigned char c3[] = {
-        0xA2, 0x07, 0x47, 0x76, 0x3F, 0xEC, 0x0C, 0x23,
-        0x1B, 0xD0, 0xBD, 0x46, 0x9A, 0x27, 0x38, 0x12,
-        0x95, 0x02, 0x3D, 0x5D, 0xC6, 0x94, 0x51, 0x36,
-        0xA0, 0x85, 0xD2, 0x69, 0x6E, 0x87, 0x0A, 0xBF,
-        0xB5, 0x5A, 0xDD, 0xCB, 0x80, 0xE0, 0xFC, 0xCD
+        0x39, 0x06, 0xE7, 0xF3, 0x33, 0x0B, 0x1B, 0x1D,
+        0x2B, 0x11, 0xB0, 0xB7, 0xAF, 0x43, 0xB1, 0x8F,
+        0xE6, 0xBE, 0x79, 0x34, 0xBD, 0x31, 0x64, 0x3D,
+        0xA1, 0x16, 0xB5, 0xF0, 0x9B, 0x1D, 0x41, 0xF2,
+        0x3F, 0xED, 0x11, 0x37, 0xCB, 0x4D, 0xAD, 0xA4
     };
     return aes_xts_inplace_test_common(aes,
         k3, sizeof(k3), i3, sizeof(i3),
         p3, sizeof(p3), c3, sizeof(c3));
 }
-#endif /* !HAVE_FIPS */
 
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
     !defined(WOLFSSL_AFALG)
@@ -17047,11 +17043,9 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (ret != 0)
         ERROR_OUT(ret, out);
 
-#ifndef HAVE_FIPS
     ret = aes_xts_128_inplace_test(aes);
     if (ret != 0)
         ERROR_OUT(ret, out);
-#endif /* !HAVE_FIPS */
 
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
     !defined(WOLFSSL_AFALG)
@@ -17313,7 +17307,7 @@ static wc_test_ret_t aes_xts_192_inplace_test(XtsAes *aes)
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
-        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x21
     };
     WOLFSSL_SMALL_STACK_STATIC const unsigned char i3[] = {
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -17327,11 +17321,11 @@ static wc_test_ret_t aes_xts_192_inplace_test(XtsAes *aes)
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
     };
     WOLFSSL_SMALL_STACK_STATIC const unsigned char c3[] = {
-        0xa4, 0xf2, 0x71, 0x5d, 0x80, 0x60, 0x68, 0xa0,
-        0x80, 0x61, 0xd7, 0xc1, 0x55, 0xc8, 0x3a, 0x2e,
-        0xd7, 0xf4, 0x62, 0xaf, 0xbd, 0x2d, 0xf9, 0x5f,
-        0xe8, 0xc5, 0x99, 0x3d, 0x58, 0x3c, 0xeb, 0xba,
-        0x86, 0xea, 0x2c, 0x7e, 0x1f, 0xba, 0x81, 0xde
+        0x72, 0x7A, 0xBC, 0x25, 0x37, 0x20, 0x65, 0x1E,
+        0xF8, 0x45, 0xB0, 0x16, 0xE7, 0xEE, 0xDA, 0x36,
+        0xAB, 0x4F, 0xF4, 0xDB, 0x3C, 0xFB, 0x75, 0x19,
+        0xA3, 0x01, 0x74, 0x28, 0xD5, 0x92, 0x09, 0x7A,
+        0xDB, 0x0D, 0x96, 0x9F, 0xB7, 0xA2, 0xB7, 0x57
     };
     return aes_xts_inplace_test_common(aes,
         k3, sizeof(k3), i3, sizeof(i3),
@@ -19154,6 +19148,26 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
     ret = wc_AesGcmEncryptUpdate(enc, resultC, p, sizeof(p), a, sizeof(a));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
+    ret = wc_AesGcmEncryptUpdate(enc, resultC, p, WOLFSSL_MAX_32BIT,
+                                 NULL /* authIn */, 0 /* authInSz */);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+    ret = wc_AesGcmEncryptUpdate(enc, resultC, (const byte *)"", 0,
+                                 (const byte *)"", WOLFSSL_MAX_32BIT);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0) */
+
     ret = wc_AesGcmEncryptFinal(enc, resultT, sizeof(t1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -19169,6 +19183,26 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
     ret = wc_AesGcmDecryptUpdate(enc, resultP, c1, sizeof(c1), a, sizeof(a));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0)
+    ret = wc_AesGcmDecryptUpdate(enc, resultP, c1, WOLFSSL_MAX_32BIT,
+                                 NULL /* authIn */, 0 /* authInSz */);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+    ret = wc_AesGcmDecryptUpdate(enc, resultP, (const byte *)"", 0,
+                                 (const byte *)"", WOLFSSL_MAX_32BIT);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0) */
+
     ret = wc_AesGcmDecryptFinal(enc, t1, sizeof(t1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -21100,6 +21134,101 @@ static wc_test_ret_t aesccm_128_badarg_test(Aes* enc)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
+
+#if !defined(BENCH_EMBEDDED) && !defined(WOLFSSL_NO_MALLOC)
+    /* Test 64k - 1 with full nonce -- must work. */
+    {
+        wc_static_assert(sizeof(iv) >= 13);
+        word32 clear_size = ((word32)1 << 16);
+        word32 cipher_size = ((word32)1 << 16);
+        byte *large_alloc = (byte *)XMALLOC(clear_size + cipher_size,
+                                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        byte *clear = large_alloc;
+        byte *cipher = large_alloc + clear_size;
+
+        if (large_alloc == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+
+        XMEMSET(clear, 0, clear_size);
+
+        ret = wc_AesCcmEncrypt(enc, cipher, clear, clear_size - 1, iv,
+                               13, t_empty2, sizeof(t_empty2), a,
+                               sizeof(a));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+
+#ifdef HAVE_AES_DECRYPT
+        if (ret == 0) {
+            word32 i;
+
+            XMEMSET(clear, 0xff, clear_size);
+            ret = wc_AesCcmDecrypt(enc, clear, cipher, cipher_size - 1,
+                              iv, 13, t_empty2, sizeof(t_empty2), a,
+                              sizeof(a));
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else {
+                for (i = 0; i < clear_size - 1; ++i) {
+                    if (clear[i] != 0) {
+                        ret = WC_TEST_RET_ENC_I(i);
+                        break;
+                    }
+                }
+            }
+        }
+#endif
+
+        XFREE(large_alloc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret != 0)
+            goto out;
+    }
+#endif /* !BENCH_EMBEDDED && !WOLFSSL_NO_MALLOC */
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7, 0, 0))
+
+    ret = wc_AesCcmEncrypt(enc, buf, (const byte *)"", (word32)1 << 16,
+                              iv, 13, t_empty2, sizeof(t_empty2),
+                              a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesCcmDecrypt(enc, buf, (const byte *)"",
+                           (word32)1 << 16, iv, 13, t_empty2,
+                           sizeof(t_empty2), a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif
+
+    ret = wc_AesCcmEncrypt(enc, buf, (const byte *)"", (word32)1 << 24,
+                              iv, 12, t_empty2, sizeof(t_empty2),
+                              a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesCcmDecrypt(enc, buf, (const byte *)"",
+                           (word32)1 << 24, iv, 12, t_empty2,
+                           sizeof(t_empty2), a, sizeof(a));
+    if (ret != WC_NO_ERR_TRACE(AES_CCM_OVERFLOW_E)) {
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        else
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+#endif
+
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(7, 0, 0)) */
 
     ret = 0;
   out:
@@ -44866,6 +44995,65 @@ static wc_test_ret_t ed25519_test_check_key(void)
 }
 #endif
 
+#if defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_KEY_IMPORT)
+/* When only the private key is set, the public part is unavailable.
+ * wc_ed25519_export_public() must report PUBLIC_KEY_E, and
+ * wc_ed25519_export_key() must propagate that error rather than silently
+ * succeeding (matches wc_ed448_export_key()). */
+static wc_test_ret_t ed25519_export_key_no_pub_test(void)
+{
+    int res = 0;
+
+#if !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0))
+    /* RFC 8032 section 7.1 test-vector secret key. */
+    WOLFSSL_SMALL_STACK_STATIC const byte privKey[] = {
+        0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
+        0xba,0x84,0x4a,0xf4,0x92,0xec,0x2c,0xc4,
+        0x44,0x49,0xc5,0x69,0x7b,0x32,0x69,0x19,
+        0x70,0x3b,0xac,0x03,0x1c,0xae,0x7f,0x60
+    };
+    ed25519_key key;
+    byte    priv[ED25519_PRV_KEY_SIZE];
+    byte    pub[ED25519_PUB_KEY_SIZE];
+    word32  privSz = (word32)sizeof(priv);
+    word32  pubSz = (word32)sizeof(pub);
+    int     ret;
+
+    ret = wc_ed25519_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Import the private key only; no public key is set. */
+    ret = wc_ed25519_import_private_only(privKey, (word32)sizeof(privKey),
+        &key);
+    if (ret != 0) {
+        res = WC_TEST_RET_ENC_NC;
+    }
+
+    /* With no public key, exporting the public part must fail. */
+    if (res == 0) {
+        ret = wc_ed25519_export_public(&key, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* wc_ed25519_export_key() must propagate the missing-public-key error. */
+    if (res == 0) {
+        ret = wc_ed25519_export_key(&key, priv, &privSz, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    wc_ed25519_free(&key);
+#endif
+
+    return res;
+}
+#endif
+
 #if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) && \
     defined(HAVE_ED25519_KEY_IMPORT)
 static wc_test_ret_t ed25519ctx_test(void)
@@ -45908,6 +46096,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     if (ret < 0)
         goto cleanup;
 #endif
+#if defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_KEY_IMPORT)
+    ret = ed25519_export_key_no_pub_test();
+    if (ret < 0)
+        goto cleanup;
+#endif
 #ifdef WOLFSSL_TEST_CERT
     ret = ed25519_test_cert();
     if (ret < 0)
@@ -46613,6 +46806,68 @@ static wc_test_ret_t ed448_test_check_key(void)
 
     /* Dispose of key. */
     wc_ed448_free(&key);
+
+    return res;
+}
+#endif
+
+#if defined(HAVE_ED448_KEY_EXPORT) && defined(HAVE_ED448_KEY_IMPORT)
+/* When only the private key is set, the public part is unavailable.
+ * wc_ed448_export_public() must report PUBLIC_KEY_E, and
+ * wc_ed448_export_key() must propagate that error rather than silently
+ * succeeding. */
+static wc_test_ret_t ed448_export_key_no_pub_test(void)
+{
+    int res = 0;
+
+#if !(defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0))
+    /* RFC 8032 section 7.4 test-vector secret key. */
+    WOLFSSL_SMALL_STACK_STATIC const byte privKey[] = {
+        0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d, 0x10,
+        0xd6, 0x32, 0xbe, 0x89, 0xc8, 0x51, 0x3e, 0xbf,
+        0x6c, 0x92, 0x9f, 0x34, 0xdd, 0xfa, 0x8c, 0x9f,
+        0x63, 0xc9, 0x96, 0x0e, 0xf6, 0xe3, 0x48, 0xa3,
+        0x52, 0x8c, 0x8a, 0x3f, 0xcc, 0x2f, 0x04, 0x4e,
+        0x39, 0xa3, 0xfc, 0x5b, 0x94, 0x49, 0x2f, 0x8f,
+        0x03, 0x2e, 0x75, 0x49, 0xa2, 0x00, 0x98, 0xf9,
+        0x5b
+    };
+    ed448_key key;
+    byte    priv[ED448_PRV_KEY_SIZE];
+    byte    pub[ED448_PUB_KEY_SIZE];
+    word32  privSz = (word32)sizeof(priv);
+    word32  pubSz = (word32)sizeof(pub);
+    int     ret;
+
+    ret = wc_ed448_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Import the private key only; no public key is set. */
+    ret = wc_ed448_import_private_only(privKey, (word32)sizeof(privKey), &key);
+    if (ret != 0) {
+        res = WC_TEST_RET_ENC_NC;
+    }
+
+    /* With no public key, exporting the public part must fail. */
+    if (res == 0) {
+        ret = wc_ed448_export_public(&key, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* wc_ed448_export_key() must propagate the missing-public-key error. */
+    if (res == 0) {
+        ret = wc_ed448_export_key(&key, priv, &privSz, pub, &pubSz);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            res = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    wc_ed448_free(&key);
+#endif
 
     return res;
 }
@@ -47674,6 +47929,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 
 #if defined(HAVE_ED448_KEY_IMPORT)
     ret = ed448_test_check_key();
+    if (ret < 0)
+        return ret;
+#endif
+#if defined(HAVE_ED448_KEY_EXPORT) && defined(HAVE_ED448_KEY_IMPORT)
+    ret = ed448_export_key_no_pub_test();
     if (ret < 0)
         return ret;
 #endif
@@ -52299,8 +52559,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
-        if (XMEMCMP(priv, priv2, testData[i][2]) != 0)
+        if (XMEMCMP(priv, priv2, testData[i][1]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+
+        /* FIPS 203 modulus check: a private key whose first coefficient is
+         * not reduced (>= q) must be rejected on decode. Free first so the
+         * reinit does not leak the decoded dynamic priv/pub buffers. */
+        wc_MlKemKey_Free(key);
+        ret = wc_MlKemKey_Init(key, testData[i][0], HEAP_HINT, devId);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        priv[0] = 0xff;
+        priv[1] |= 0x0f;
+        ret = wc_MlKemKey_DecodePrivateKey(key, priv, testData[i][1]);
+        if (ret != WC_NO_ERR_TRACE(PUBLIC_KEY_E))
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        ret = 0;
 
 #if !defined(WOLFSSL_NO_MALLOC) && !defined(WC_NO_CONSTRUCTORS)
         tmpKey = wc_MlKemKey_New(testData[i][0], HEAP_HINT, devId);
@@ -55846,6 +56120,26 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
         ret = WC_TEST_RET_ENC_NC;
     }
 #endif /* !WOLFSSL_MLDSA_FIPS204_DRAFT */
+
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    /* Negative: a private key with an out-of-range s1 coefficient must be
+     * rejected. s1 follows rho || K || tr; force its first byte out of range. */
+    if ((ret == 0) && (!isPublicOnlyKey)) {
+        XMEMCPY(der, rawKey, rawKeySz);
+        der[MLDSA_PUB_SEED_SZ + MLDSA_K_SZ + MLDSA_TR_SZ] = 0xff;
+        wc_MlDsaKey_Free(key);
+        ret = wc_MlDsaKey_Init(key, NULL, devId);
+        if (ret == 0) {
+            ret = wc_MlDsaKey_SetParams(key, expectedLevel);
+        }
+        if (ret == 0) {
+            if (wc_MlDsaKey_ImportPrivRaw(key, der, rawKeySz) !=
+                    WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+    }
+#endif
 #endif /* !WOLFSSL_MLDSA_NO_ASN1 && WOLFSSL_ASN_TEMPLATE */
 
     /* Cleanup */
@@ -74784,32 +75078,55 @@ static wc_test_ret_t aes_siv_oneassoc_test(const AesSivTestVector* testVectors,
     return 0;
 }
 
-static wc_test_ret_t aes_siv_negative_test(const AesSivTestVector* testVectors)
+static wc_test_ret_t aes_siv_negative_test(const AesSivTestVector* testVectors,
+        int n_vectors)
 {
     byte computedCiphertext[82];
     byte computedPlaintext[82];
     byte siv[WC_AES_BLOCK_SIZE];
+    word32 j;
     wc_test_ret_t ret;
+    int vector_idx;
+
+    /* Find a test vector that has a non-empty plaintext size */
+    for (vector_idx = 0; vector_idx < n_vectors; vector_idx++) {
+        if (testVectors[vector_idx].plaintextSz > 0U)
+            break;
+    }
+    if (vector_idx == n_vectors) {
+        return WC_TEST_RET_ENC_NC;
+    }
 
     /* Negative test: corrupted SIV must be rejected with AES_SIV_AUTH_E. */
-    ret = wc_AesSivEncrypt(testVectors[0].key, testVectors[0].keySz,
-                          testVectors[0].assoc1, testVectors[0].assoc1Sz,
-                          testVectors[0].nonce, testVectors[0].nonceSz,
-                          testVectors[0].plaintext,
-                          testVectors[0].plaintextSz, siv,
-                          computedCiphertext);
+    ret = wc_AesSivEncrypt(
+            testVectors[vector_idx].key,
+            testVectors[vector_idx].keySz,
+            testVectors[vector_idx].assoc1,
+            testVectors[vector_idx].assoc1Sz,
+            testVectors[vector_idx].nonce,
+            testVectors[vector_idx].nonceSz,
+            testVectors[vector_idx].plaintext,
+            testVectors[vector_idx].plaintextSz,
+            siv, computedCiphertext);
     if (ret != 0) {
         return WC_TEST_RET_ENC_EC(ret);
     }
+    XMEMSET(computedPlaintext, 0xFF, sizeof(computedPlaintext));
     /* Corrupt one byte of the SIV tag. */
     siv[0] ^= 0x01;
-    ret = wc_AesSivDecrypt(testVectors[0].key, testVectors[0].keySz,
-                          testVectors[0].assoc1, testVectors[0].assoc1Sz,
-                          testVectors[0].nonce, testVectors[0].nonceSz,
-                          computedCiphertext, testVectors[0].plaintextSz,
-                          siv, computedPlaintext);
+    ret = wc_AesSivDecrypt(
+            testVectors[vector_idx].key, testVectors[vector_idx].keySz,
+            testVectors[vector_idx].assoc1, testVectors[vector_idx].assoc1Sz,
+            testVectors[vector_idx].nonce, testVectors[vector_idx].nonceSz,
+            computedCiphertext, testVectors[vector_idx].plaintextSz,
+            siv, computedPlaintext);
     if (ret != WC_NO_ERR_TRACE(AES_SIV_AUTH_E)) {
         return WC_TEST_RET_ENC_EC(ret);
+    }
+    for (j = 0; j < testVectors[vector_idx].plaintextSz; ++j) {
+        if (computedPlaintext[j] != 0) {
+            return WC_TEST_RET_ENC_NC;
+        }
     }
     return 0;
 }
@@ -75002,7 +75319,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
     ret = aes_siv_multiassoc_test(testVectors, AES_SIV_TEST_VECTORS);
     if (ret != 0)
         return ret;
-    ret = aes_siv_negative_test(testVectors);
+    ret = aes_siv_negative_test(testVectors, AES_SIV_TEST_VECTORS);
     if (ret != 0)
         return ret;
     return 0;

@@ -7,11 +7,20 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+  # Weekend cron and manual workflow_dispatch refresh the shared ghcr build
+  # cache that PR runs read (cache-to below is gated to those two events).
+  schedule:
+    - cron: '45 6 * * 6'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 # END OF COMMON SECTION
+
+permissions:
+  contents: read
+  packages: write
 
 # Build the TROPIC01 software simulator (https://github.com/wolfSSL/simulators,
 # TROPIC01Sim/ subdirectory), build wolfSSL --with-tropic01 against libtropic
@@ -38,7 +47,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout wolfSSL (PR source)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: wolfssl-src
 
@@ -72,18 +81,22 @@ jobs:
           sed -i '/^RUN sed -i .*ForceZero/,/tropic01\.c$/c\RUN true' Dockerfile.wolfcrypt
           ! grep -q 'sed -i .*ForceZero' Dockerfile.wolfcrypt
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to ghcr (cache refresh on cron/manual dispatch)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build wolfCrypt-TROPIC01 test image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: simulators/TROPIC01Sim
           file: simulators/TROPIC01Sim/Dockerfile.wolfcrypt
           push: false
           load: true
           tags: wolfssl-tropic01-sim:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/wolfssl/wolfssl-sim-cache:tropic01
+          cache-to: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'type=registry,ref=ghcr.io/wolfssl/wolfssl-sim-cache:tropic01,mode=max' || '' }}
 
       - name: Run wolfCrypt tests against simulator
         run: docker run --rm wolfssl-tropic01-sim:ci

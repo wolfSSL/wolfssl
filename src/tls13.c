@@ -3974,9 +3974,9 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
          * don't add a cookie */
         if (ret == 0) {
             ret = InitHandshakeHashes(ssl);
+            ssl->hsHashesEch = ssl->hsHashes;
         }
         if (ret == 0) {
-            ssl->hsHashesEch = ssl->hsHashes;
             AddTls13HandShakeHeader(messageHashHeader, (word32)hashSz, 0, 0,
                 message_hash, ssl);
             ret = HashRaw(ssl, messageHashHeader, headerSz);
@@ -6030,7 +6030,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     i += OPAQUE16_LEN;
 
     /* Extension data. */
-    if (i - begin + totalExtSz > totalSz)
+    if (i - begin + totalExtSz != totalSz)
         return BUFFER_ERROR;
     if ((ret = TLSX_Parse(ssl, input + i, totalExtSz, encrypted_extensions,
                                                                        NULL))) {
@@ -6168,6 +6168,10 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     }
     *inOutIdx += len;
 
+    /* No trailing bytes allowed (RFC 8446 4.3.2). */
+    if ((*inOutIdx - begin) != size)
+        return BUFFER_ERROR;
+
     /* RFC 8446 Section 4.3.2: the signature_algorithms extension MUST be
      * present in a CertificateRequest. */
     if (peerSuites.hashSigAlgoSz == 0) {
@@ -6175,7 +6179,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
         return INVALID_PARAMETER;
     }
-
 #ifdef WOLFSSL_CERT_SETUP_CB
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         return ret;
@@ -11832,7 +11835,10 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         if (
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-            !ssl->options.verifyPostHandshake &&
+            /* Exempt only the initial handshake; a pending post-handshake
+             * CertificateRequest (certReqCtx != NULL) still requires a peer
+             * certificate and a valid CertificateVerify. */
+            (!ssl->options.verifyPostHandshake || ssl->certReqCtx != NULL) &&
         #endif
             (!ssl->options.havePeerCert || !ssl->options.havePeerVerify)) {
             ret = NO_PEER_CERT; /* NO_PEER_VERIFY */
@@ -12411,15 +12417,14 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
+        /* Increment on a local copy so ssl->dtls13PeerEpoch is left
+         * untouched when the check fails. */
         w64wrapper newEpoch = ssl->dtls13PeerEpoch;
         w64Increment(&newEpoch);
 
-        /* RFC 9147 Section 4.2.1: the epoch must not exceed 2^48-1. Reject a
-         * peer KeyUpdate that would advance the receiving epoch past the
-         * limit. Validate on a local copy so ssl->dtls13PeerEpoch is left
-         * untouched when the check fails. */
-        if (w64GT(newEpoch,
-                  w64From32(DTLS13_EPOCH_MAX_HI32, DTLS13_EPOCH_MAX_LO32)))
+        /* RFC 9147 Section 8: the 2^48-1 cap is sender-only; receivers MUST
+         * NOT enforce it. Guard only the wrap-to-zero (Section 4.2.1). */
+        if (w64IsZero(newEpoch))
             return BAD_STATE_E;
 
         ssl->dtls13PeerEpoch = newEpoch;
@@ -13505,7 +13510,19 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                  */
                 if (ssl->options.verifyPeer &&
                 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-                    !ssl->options.verifyPostHandshake &&
+                    /* The post-handshake-auth exemption is only valid during
+                     * the initial handshake. On the server, once a
+                     * post-handshake CertificateRequest is outstanding
+                     * (certReqCtx != NULL), a Certificate is required again.
+                     * Scoped to the server: certReqCtx means something
+                     * different on the client (a received request) and the
+                     * client does not process an inbound Finished in that
+                     * state. Whether an empty Certificate is then accepted
+                     * follows the verify mode (FAIL_IF_NO_PEER_CERT), exactly
+                     * as for first-handshake client authentication. */
+                    (!ssl->options.verifyPostHandshake ||
+                     (ssl->options.side == WOLFSSL_SERVER_END &&
+                      ssl->certReqCtx != NULL)) &&
                 #endif
                                            !ssl->msgsReceived.got_certificate) {
                     WOLFSSL_MSG("Finished received out of order - "

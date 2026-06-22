@@ -2751,6 +2751,143 @@ int test_tls13_rpk_handshake(void)
     return EXPECT_RESULT();
 }
 
+/* Regression: a peer must not present a raw public key (RPK) that was never
+ * negotiated. Neither side calls set_client/server_cert_type, so RPK is not
+ * negotiated and the default type is X.509; a received bare key must be
+ * rejected instead of accepted without any chain verification (auth bypass).
+ * Covers both directions: server presenting an RPK to the client, and client
+ * presenting an RPK to the server. */
+int test_tls13_rpk_handshake_no_negotiation(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int tp = 0;
+
+    /* Direction 1: server loads an RPK cert, client is a plain X.509 client. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            cliCertFile,     CERT_FILETYPE,
+            svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
+        , 0);
+
+    /* Handshake must fail and the client must not record RPK as negotiated. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_c, &tp),
+                                                        WOLFSSL_SUCCESS);
+    ExpectIntNE(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = ssl_s = NULL;
+    ctx_c = ctx_s = NULL;
+
+    /* Direction 2: client loads an RPK cert and the server requests client
+     * auth (VERIFY_PEER, set in the helper). The server expects X.509 and must
+     * reject the client's un-negotiated bare key. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
+            svrCertFile,     CERT_FILETYPE,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
+        , 0);
+
+    /* Handshake must fail and the server must not record RPK as negotiated. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_negotiated_client_cert_type(ssl_s, &tp),
+                                                        WOLFSSL_SUCCESS);
+    ExpectIntNE(tp, WOLFSSL_CERT_TYPE_RPK);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Post-handshake authentication (PHA) positive guard. A server configured with
+ * WOLFSSL_VERIFY_POST_HANDSHAKE must complete the initial handshake WITHOUT a
+ * client certificate (verification is deferred) and then be able to request one
+ * post-handshake. This guards the property the auth-bypass fix must preserve:
+ * the missing-certificate exemption stays in force while no post-handshake
+ * request is outstanding (certReqCtx == NULL). If the fix wrongly treated the
+ * initial handshake as a pending PHA request, the handshake below would fail.
+ *
+ * Scope: this is a positive guard only.
+ *  - The bypass itself is NOT reproduced here: the
+ *    SanityCheckTls13MsgReceived / DoTls13Finished branches the fix re-enables
+ *    only fire when a client sends a Finished with NO Certificate message at all
+ *    (got_certificate == 0). A conformant wolfSSL client always sends at least
+ *    an empty Certificate, so reproducing the bypass needs a non-conformant
+ *    client; the report used a state-machine model. The negative direction
+ *    rests on code review.
+ *  - Driving the full post-handshake certificate exchange to completion is
+ *    intentionally not asserted: whether the peer chain ends up populated
+ *    depends on build options unrelated to this fix (it differs between
+ *    --enable-all and the user_settings_all header build), so it is not a
+ *    portable assertion. */
+int test_tls13_pha(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(SESSION_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_X509_CHAIN* chain = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Server: trust the (self-signed) client certificate and defer
+     * verification to post-handshake. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+
+    /* Client: load a cert/key and advertise post-handshake auth. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+
+    /* Initial handshake must complete even though no client cert was sent -
+     * the verifyPostHandshake exemption (certReqCtx == NULL) is intact. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(chain = wolfSSL_get_peer_chain(ssl_s));
+    ExpectIntEQ(wolfSSL_get_chain_count(chain), 0);
+
+    /* And the server can issue a post-handshake certificate request. */
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
@@ -5557,7 +5694,7 @@ int test_tls13_short_session_ticket(void)
      * session. The session object is accessible; replicate the exact
      * vulnerable arithmetic: ticket + length - ID_LEN with length=5.
      * With the fix, sessIdLen is capped to length so no underflow. */
-    {
+    if (EXPECT_SUCCESS()) {
         byte shortTicket[5] = { 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
         word32 length = sizeof(shortTicket);
         word32 sessIdLen = ID_LEN;

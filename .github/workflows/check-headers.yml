@@ -23,15 +23,18 @@ permissions:
 
 jobs:
   check:
+    # Only run from the wolfssl org to avoid burning forks' CI minutes.
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       - name: autogen
         run: ./autogen.sh

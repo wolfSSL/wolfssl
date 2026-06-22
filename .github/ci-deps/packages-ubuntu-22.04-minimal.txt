@@ -1,0 +1,12 @@
+# make-check family apt packages for ubuntu-22.04 (the '-minimal'
+# bundle: ghcr.io/<owner>/wolfssl-ci-debs:ubuntu-22.04-minimal). UNION of
+# every family workflow's list; superset is fine. Keep sorted.
+autoconf
+automake
+build-essential
+crossbuild-essential-arm64
+crossbuild-essential-armel
+crossbuild-essential-armhf
+crossbuild-essential-riscv64
+libtool
+qemu-user

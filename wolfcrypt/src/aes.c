@@ -12808,6 +12808,18 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = MISSING_IV;
     }
 
+    /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
+     * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
+     * currently pass around the cumulative sizes in bytes as word32s, so we
+     * can't currently support the maximum allowed.
+     */
+    if ((ret == 0) &&
+        ((aes->cSz > WOLFSSL_MAX_32BIT - sz) ||
+         (aes->aSz > WOLFSSL_MAX_32BIT - authInSz)))
+    {
+        ret = AES_GCM_OVERFLOW_E;
+    }
+
     if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
         aes->invokeCtr[0]++;
         if (aes->invokeCtr[0] == 0) {
@@ -12948,6 +12960,18 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     /* Check IV has been set. */
     if ((ret == 0) && (!aes->nonceSet)) {
         ret = MISSING_IV;
+    }
+
+    /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
+     * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
+     * currently pass around the cumulative sizes in bytes as word32s, so we
+     * can't currently support the maximum allowed.
+     */
+    if ((ret == 0) &&
+        ((aes->cSz > WOLFSSL_MAX_32BIT - sz) ||
+         (aes->aSz > WOLFSSL_MAX_32BIT - authInSz)))
+    {
+        ret = AES_GCM_OVERFLOW_E;
     }
 
     if (ret == 0) {
@@ -13360,6 +13384,18 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return status;
     }
 
+    {
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - nonceSz;
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(inSz)) &&
+            (inSz >= ((word32)1 << (lenSz * 8))))
+        {
+            return AES_CCM_OVERFLOW_E;
+        }
+    }
+
     status = wolfSSL_CryptHwMutexLock();
     if (status != 0)
         return status;
@@ -13392,6 +13428,18 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     status = wc_AesGetKeySize(aes, &keySize);
     if (status != 0) {
         return status;
+    }
+
+    {
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - nonceSz;
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(inSz)) &&
+            (inSz >= ((word32)1 << (lenSz * 8))))
+        {
+            return AES_CCM_OVERFLOW_E;
+        }
     }
 
     status = wolfSSL_CryptHwMutexLock();
@@ -13586,6 +13634,17 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
+    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
+
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -13602,7 +13661,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
+
     B[0] = (byte)((authInSz > 0 ? 64 : 0)
                   + (8 * (((byte)authTagSz - 2) / 2))
                   + (lenSz - 1));
@@ -13739,6 +13798,17 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
+    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
+
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -13757,7 +13827,6 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     oSz = inSz;
     XMEMSET(A, 0, sizeof A);
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
 
     B[0] = (byte)(lenSz - 1U);
     for (i = 0; i < lenSz; i++)
@@ -15517,9 +15586,9 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
 
     keySz = len/2;
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) || !defined(WC_AES_XTS_ALLOW_DUPLICATE_KEYS)
     if (XMEMCMP(key, key + keySz, keySz) == 0) {
-        WOLFSSL_MSG("FIPS AES-XTS main and tweak keys must differ");
+        WOLFSSL_MSG("AES-XTS main and tweak keys must differ");
         return BAD_FUNC_ARG;
     }
 #endif
@@ -17094,10 +17163,14 @@ static WARN_UNUSED_RESULT int AesSivCipher(
                 WOLFSSL_MSG("S2V failed.");
             }
 
-            if (ConstantCompare(siv, sivTmp, WC_AES_BLOCK_SIZE) != 0) {
+            if (ret == 0 && ConstantCompare(siv, sivTmp, WC_AES_BLOCK_SIZE) != 0) {
                 WOLFSSL_MSG("Computed SIV doesn't match received SIV.");
                 ret = AES_SIV_AUTH_E;
             }
+        }
+
+        if (ret != 0) {
+            ForceZero(out, dataSz);
         }
 
     #ifdef WOLFSSL_SMALL_STACK

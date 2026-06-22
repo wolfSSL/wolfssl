@@ -24,16 +24,17 @@ jobs:
         ]
     name: build module
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout wolfSSL
 
       - name: Install linux-headers
         uses: ./.github/actions/install-apt-deps
         with:
           packages: linux-headers-$(uname -r)
+          ghcr-debs-tag: ubuntu-24.04-linuxkm
 
       - name: Prepare target kernel for module builds
         run: |

@@ -120,6 +120,16 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
     WOLFSSL_ENTER("wolfSSL_BIO_MEMORY_read");
     }
 
+    /* Reject a negative length up front. Callers are expected to validate, but
+     * guarding here too prevents a negative len from defeating the signed
+     * bounds checks below (sz/memSz comparisons) and reaching XMEMCPY with a
+     * length of (size_t)-1. Return the same error the public wolfSSL_BIO_read()
+     * does for a negative length rather than silently reporting 0 bytes read. A
+     * zero length is handled correctly by the logic below (copies nothing). */
+    if (len < 0) {
+        return WOLFSSL_BIO_ERROR;
+    }
+
     sz = wolfSSL_BIO_pending(bio);
     if (sz > 0) {
         int memSz;

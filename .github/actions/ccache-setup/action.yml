@@ -1,9 +1,12 @@
 name: 'Set up ccache'
 description: >
-  Install ccache (on Ubuntu), restore the ccache directory from a previous
-  run, and prepend the ccache compiler-symlink dir to PATH. Subsequent
-  gcc/cc/g++/c++ invocations are transparently intercepted by ccache, so
-  no other workflow step needs to change. macOS is not supported yet.
+  Install ccache (Ubuntu via apt, macOS via brew), restore the ccache
+  directory from a previous run, and prepend the ccache compiler-symlink
+  dir to PATH. Subsequent gcc/cc/g++/c++/clang invocations are
+  transparently intercepted by ccache, so no other workflow step needs to
+  change. On scheduled (cron) runs the cache is reseeded from clean
+  compiles (CCACHE_RECACHE) instead of only being updated incrementally,
+  so it can't drift indefinitely.
 
 inputs:
   workflow-id:
@@ -20,28 +23,58 @@ inputs:
     description: 'Per-job ccache max size (passed to ccache -M).'
     required: false
     default: '500M'
+  read-only:
+    description: >
+      When 'true', restore the cache but do NOT save it (no post-job
+      upload). Callers should set this to the result of the expression
+      github.event_name == 'pull_request' so PR runs consume the shared
+      cache read-only - no per-PR entries, no churn - while scheduled/push
+      runs (read-only false) refresh it.
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
   steps:
-    - name: Install ccache (Ubuntu)
+    - name: Install ccache
       shell: bash
       run: |
         if command -v ccache >/dev/null 2>&1; then
           echo "ccache already installed: $(ccache --version | head -1)"
-        else
+        elif [ "${{ runner.os }}" = "Linux" ]; then
           sudo apt-get update -q
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             --no-install-recommends ccache
+        elif [ "${{ runner.os }}" = "macOS" ]; then
+          brew install ccache
+        else
+          echo "::error::ccache install not supported on ${{ runner.os }}"
+          exit 1
         fi
 
+    # read-only=false (default): restore + post-job save (the run_id in the
+    # key never hits, so it always saves its contribution).
     - name: Restore + save ccache
-      uses: actions/cache@v4
+      if: inputs.read-only != 'true'
+      uses: actions/cache@v5
       with:
         path: ~/.ccache
         # Unique per run+attempt+config so each job persists its own
         # contribution; restore-keys falls back to the most recent
         # cache for this workflow/os/config.
+        key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
+          ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
+    # read-only=true: restore the shared cache but never upload (PR runs).
+    - name: Restore ccache (read-only)
+      if: inputs.read-only == 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.ccache
+        # Same key shape as the save branch, for symmetry. This branch never
+        # saves, so the run_id/run_attempt primary key is never an exact hit -
+        # the restore-keys below always supply the most recent seeded cache.
         key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
         restore-keys: |
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
@@ -56,11 +89,31 @@ runs:
         ccache --set-config=base_dir="$GITHUB_WORKSPACE"
         ccache --set-config=hash_dir=false
         ccache -z   # zero stats so the post-build summary is per-job
-        # /usr/lib/ccache contains gcc, g++, cc, c++ symlinks that resolve
-        # to ccache. Prepending to PATH makes the build transparently use
-        # ccache without changing any configure/make invocation.
-        echo "/usr/lib/ccache" >> "$GITHUB_PATH"
+        # The ccache compiler-symlink dir (gcc, g++, cc, c++, clang, ...
+        # all resolving to ccache) differs by platform. Prepending it to
+        # PATH makes the build transparently use ccache without changing
+        # any configure/make invocation. On macOS the symlinks live under
+        # the Homebrew libexec dir, whose prefix is /opt/homebrew on arm64
+        # and /usr/local on Intel - resolve it via `brew --prefix`.
+        if [ "${{ runner.os }}" = "macOS" ]; then
+          CCACHE_LIBEXEC="$(brew --prefix)/opt/ccache/libexec"
+        else
+          CCACHE_LIBEXEC="/usr/lib/ccache"
+        fi
+        echo "$CCACHE_LIBEXEC" >> "$GITHUB_PATH"
         echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+    # On the scheduled (cron) refresh, force every compile to miss the
+    # cache and re-store a fresh result (CCACHE_RECACHE still writes, it
+    # just skips lookups). This reseeds the shared cache from clean
+    # compiles instead of only layering deltas onto whatever accumulated,
+    # so a bad/stale entry can't live forever. The cache is still saved
+    # (read-only is false on schedule), and PR/push runs are unaffected -
+    # they keep their warm hits. Cost: the scheduled jobs recompile fully.
+    - name: Force fresh compiles on scheduled reseed
+      if: github.event_name == 'schedule'
+      shell: bash
+      run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
     - name: Show ccache stats (initial)
       shell: bash

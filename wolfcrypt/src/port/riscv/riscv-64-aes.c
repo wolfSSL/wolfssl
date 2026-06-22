@@ -9102,6 +9102,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authIn, word32 authInSz)
 {
     int ret = 0;
+    byte lenSz = 0;
 
     /* sanity check on arguments */
     if ((aes == NULL) || ((inSz != 0) && ((in == NULL) || (out == NULL))) ||
@@ -9115,13 +9116,25 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
     if (ret == 0) {
+        lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(inSz)) &&
+            (inSz >= ((word32)1 << (lenSz * 8))))
+        {
+            ret = AES_CCM_OVERFLOW_E;
+        }
+    }
+
+    if (ret == 0) {
         byte A[WC_AES_BLOCK_SIZE];
         byte B[WC_AES_BLOCK_SIZE];
-        byte lenSz;
         byte i;
 
         XMEMCPY(B+1, nonce, nonceSz);
-        lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+
         B[0] = (authInSz > 0 ? 64 : 0)
              + (8 * (((byte)authTagSz - 2) / 2))
              + (lenSz - 1);
@@ -9180,6 +9193,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authIn, word32 authInSz)
 {
     int ret = 0;
+    byte lenSz = 0;
 
     /* sanity check on arguments */
     if ((aes == NULL) || ((inSz != 0) && ((in == NULL) || (out == NULL))) ||
@@ -9193,15 +9207,26 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
     if (ret == 0) {
+        lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+
+        /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+         * that, the counter itself can wrap.
+         */
+        if ((lenSz < sizeof(inSz)) &&
+            (inSz >= ((word32)1 << (lenSz * 8))))
+        {
+            ret = AES_CCM_OVERFLOW_E;
+        }
+    }
+
+    if (ret == 0) {
         byte A[WC_AES_BLOCK_SIZE];
         byte B[WC_AES_BLOCK_SIZE];
-        byte lenSz;
         byte i;
         byte* o = out;
         word32 oSz = inSz;
 
         XMEMCPY(B+1, nonce, nonceSz);
-        lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
 
         B[0] = lenSz - 1;
         for (i = 0; i < lenSz; i++) {

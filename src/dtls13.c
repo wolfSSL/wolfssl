@@ -996,6 +996,7 @@ void Dtls13FreeFsmResources(WOLFSSL* ssl)
     /* Use 1.2 API to clear 1.2 buffers too */
     DtlsMsgPoolReset(ssl);
     Dtls13RtxFlushBuffered(ssl, 0);
+    Dtls13FreeFragmentsBuffer(ssl);
 }
 
 static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
@@ -2225,6 +2226,7 @@ static int Dtls13InitChaChaCipher(RecordNumberCiphers* c, byte* key,
 
     ret = wc_Chacha_SetKey(c->chacha, key, keySize);
     if (ret != 0) {
+        ForceZero(c->chacha, sizeof(ChaCha));
         XFREE(c->chacha, heap, DYNAMIC_TYPE_CIPHER);
         c->chacha = NULL;
     }

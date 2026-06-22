@@ -33,7 +33,7 @@ jobs:
         run: tar -zcf build-dir.tgz build-dir
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wolf-install-msmtp
           path: build-dir.tgz
@@ -52,13 +52,13 @@ jobs:
     needs: build_wolfssl
     steps:
       - name: Checkout wolfSSL CI actions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .github/actions
           fetch-depth: 1
 
       - name: Download lib
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: wolf-install-msmtp
 
@@ -66,7 +66,7 @@ jobs:
         run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: wolfssl/osp
           path: osp
@@ -76,9 +76,10 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: autoconf automake libtool pkg-config gettext libidn2-dev libsecret-1-dev autopoint
+          ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Checkout msmtp
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: marlam/msmtp
           ref: msmtp-${{ matrix.ref }}

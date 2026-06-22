@@ -1543,7 +1543,9 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
     cid->status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
         DYNAMIC_TYPE_OCSP_STATUS);
     if (cid->status == NULL) {
-        XFREE(cid, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (isAllocated) {
+            XFREE(cid, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
         return NULL;
     }
     XMEMSET(cid->status, 0, sizeof(CertStatus));

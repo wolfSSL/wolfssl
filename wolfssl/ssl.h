@@ -1092,6 +1092,8 @@ typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);
 
 /* CTX Method Constructor Functions */
 
+#ifndef NO_TLS
+
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_API WOLFSSL_METHOD *wolfTLS_client_method_ex(void* heap);
     WOLFSSL_API WOLFSSL_METHOD *wolfTLS_client_method(void);
@@ -1243,6 +1245,8 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 #endif /* WOLFSSL_DTLS13 */
 
 #endif /* WOLFSSL_DTLS */
+
+#endif /* !NO_TLS */
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 WOLFSSL_API int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx,
