@@ -272,10 +272,16 @@ def hash_srcs(paths):
     supplied.  This gives an integrity anchor that a consumer can re-verify by
     reprocessing the same source tree.
 
-    This is used for embedded / custom-builder SBOMs where no compiled library
-    artifact (.so, .a, firmware image) is available as a single hash target.
-    The digest covers exactly the set of .c files compiled into the wolfSSL
-    build, which is the closest equivalent to hashing the library.
+    For embedded builds this is the legally correct artifact to hash.  Neither
+    NTIA minimum elements, SPDX 2.3, nor CycloneDX 1.6 require a hash -- but
+    when one is present it should uniquely identify the component as delivered.
+    The firmware image is the wrong artifact: that is the customer's product,
+    not wolfSSL's component, and wolfSSL cannot control what else goes into it.
+    The wolfSSL source files are the component boundary; their combined hash is
+    independently verifiable against the public wolfSSL git tree.  The hash is
+    only as good as the list: it must include every wolfSSL .c file on the link
+    line, ideally generated from the actual link step (link map or IDE project
+    export) rather than constructed by hand.
 
     Args:
         paths: Iterable of file path strings (need not be sorted).

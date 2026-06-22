@@ -187,8 +187,19 @@ python3 scripts/gen-sbom \
 
 #### Source file combined hash
 
-When `--srcs` or `--srcs-file` is used, `gen-sbom` computes a combined
-SHA-256 as follows:
+For embedded builds, hashing the compiled wolfSSL source files is the legally
+correct artifact.  Neither NTIA minimum elements, SPDX 2.3, nor CycloneDX 1.6
+require a hash — but when one is present it should uniquely identify the
+component as delivered.  The firmware image is the wrong artifact: that is the
+customer's product, not wolfSSL's component, and wolfSSL cannot control what
+else goes into it.  The wolfSSL source files are the component boundary; their
+combined hash is independently verifiable against the public wolfSSL git tree.
+The hash is only as good as the list: it must include every wolfSSL `.c` file
+on the link line, ideally generated from the actual link step (link map or IDE
+project export) rather than constructed by hand.
+
+When `--srcs` or `--srcs-file` is used, `gen-sbom` computes the combined hash
+as follows:
 
 1. Hash each file individually with SHA-256.
 2. Sort the `(path, digest)` pairs by path.
