@@ -3249,3 +3249,172 @@ if(WOLFSSL_INSTALL)
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
     )
 endif()
+
+####################################################
+# SBOM generation
+####################################################
+#
+# Targets:
+#   sbom           -- Generate CycloneDX 1.6 + SPDX 2.3 artifacts in CMAKE_BINARY_DIR
+#   install-sbom   -- Copy artifacts to CMAKE_INSTALL_DOCDIR (triggers sbom first)
+#   uninstall-sbom -- Remove installed artifacts
+#
+# All three targets are always defined.  If required tools were not found at
+# configure time the targets fail with a clear error; re-run cmake after
+# installing the tools to re-detect them.
+#
+# Output filenames match the autotools convention exactly so that CRA Kit
+# scripts can locate them with the same pattern:
+#   wolfssl-<version>.cdx.json   CycloneDX 1.6
+#   wolfssl-<version>.spdx.json  SPDX 2.3 JSON   (input to pyspdxtools)
+#   wolfssl-<version>.spdx       SPDX 2.3 tag-value (pyspdxtools output)
+#
+# Equivalent autotools targets: make sbom / make install-sbom / make uninstall-sbom
+
+find_program(WOLFSSL_SBOM_PYTHON3
+    NAMES python3
+    DOC   "Python 3 interpreter for SBOM generation (scripts/gen-sbom)")
+find_program(WOLFSSL_SBOM_PYSPDXTOOLS
+    NAMES pyspdxtools
+    DOC   "pyspdxtools SPDX validator for SBOM generation (pip install spdx-tools)")
+find_program(WOLFSSL_SBOM_GIT
+    NAMES git
+    DOC   "git binary for version detection by gen-sbom (optional; empty string if absent)")
+
+# git is optional: gen-sbom accepts --git "" and falls back to other version sources.
+# find_program sets the variable to <VAR>-NOTFOUND when the program is absent;
+# normalise that to an empty string so VERBATIM does not pass the literal
+# "WOLFSSL_SBOM_GIT-NOTFOUND" string to gen-sbom.
+if(NOT WOLFSSL_SBOM_GIT)
+    set(WOLFSSL_SBOM_GIT "")
+endif()
+
+# SBOM output file paths (build directory, matching autotools naming).
+set(WOLFSSL_SBOM_CDX  "${CMAKE_BINARY_DIR}/wolfssl-${PROJECT_VERSION}.cdx.json")
+set(WOLFSSL_SBOM_SPDX "${CMAKE_BINARY_DIR}/wolfssl-${PROJECT_VERSION}.spdx.json")
+set(WOLFSSL_SBOM_TV   "${CMAKE_BINARY_DIR}/wolfssl-${PROJECT_VERSION}.spdx")
+
+# Map CMake feature options to gen-sbom --dep-* flags.
+#
+# libz:    not yet implemented in the CMake build; see "TODO: - LIBZ" comment
+#          earlier in this file.  Hardcoded "no" until a WOLFSSL_LIBZ option is
+#          added and wired up here.
+#
+# liblms / libxmss: being removed in wolfssl PR #10292.  Mapped here so the
+#          SBOM remains accurate for builds that still enable them.  The
+#          autotools --dep-libxmss-root and --dep-liblms-root arguments are
+#          omitted because CMakeLists.txt has no XMSS_ROOT / LIBLMS_ROOT
+#          equivalents.
+set(_wolfssl_sbom_dep_liboqs  "$<IF:$<BOOL:${WOLFSSL_OQS}>,yes,no>")
+set(_wolfssl_sbom_dep_libxmss "$<IF:$<BOOL:${WOLFSSL_XMSS}>,yes,no>")
+set(_wolfssl_sbom_dep_liblms  "$<IF:$<BOOL:${WOLFSSL_LMS}>,yes,no>")
+set(_wolfssl_sbom_dep_libz    "no")
+
+if(NOT WOLFSSL_SBOM_PYTHON3 OR NOT WOLFSSL_SBOM_PYSPDXTOOLS)
+    # Stub targets: always defined so that cmake --build --target sbom produces a
+    # clear diagnostic rather than "No rule to make target 'sbom'".
+    # Re-run cmake after installing the missing tools to enable the real targets.
+    set(_wolfssl_sbom_missing "")
+    if(NOT WOLFSSL_SBOM_PYTHON3)
+        message(STATUS "SBOM: python3 not found -- 'sbom' target disabled")
+        string(APPEND _wolfssl_sbom_missing " python3")
+    endif()
+    if(NOT WOLFSSL_SBOM_PYSPDXTOOLS)
+        message(STATUS
+            "SBOM: pyspdxtools not found -- 'sbom' target disabled (pip install spdx-tools)")
+        string(APPEND _wolfssl_sbom_missing " pyspdxtools")
+    endif()
+
+    foreach(_wolfssl_sbom_stub IN ITEMS sbom install-sbom uninstall-sbom)
+        add_custom_target(${_wolfssl_sbom_stub}
+            COMMAND ${CMAKE_COMMAND} -E echo
+                "ERROR: Required SBOM tools not found at configure time:${_wolfssl_sbom_missing}"
+            COMMAND ${CMAKE_COMMAND} -E echo
+                "       Install the missing tools, re-run cmake, then retry."
+            COMMAND ${CMAKE_COMMAND} -E false
+            COMMENT "SBOM prerequisites missing -- re-run cmake to re-detect"
+        )
+    endforeach()
+    unset(_wolfssl_sbom_stub)
+    unset(_wolfssl_sbom_missing)
+else()
+    # gen-sbom reads wolfssl/options.h for build-configuration #defines.
+    # That file is produced by configure_file(cmake/options.h.in ...) during
+    # the cmake configure step, so it is always present before the sbom target
+    # runs and does not require a separate build step.
+    #
+    # --lib uses $<TARGET_FILE:wolfssl> (the built library in the build tree)
+    # rather than a staging-install path.  The autotools target stages an
+    # install solely to obtain the versioned .so path for SHA-256 hashing;
+    # the build-tree file is byte-for-byte identical and avoids that overhead.
+    add_custom_target(sbom
+        COMMAND "${WOLFSSL_SBOM_PYTHON3}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen-sbom"
+            --name         wolfssl
+            --version      "${PROJECT_VERSION}"
+            --license-file "${CMAKE_CURRENT_SOURCE_DIR}/LICENSING"
+            --options-h    "${WOLFSSL_OUTPUT_BASE}/wolfssl/options.h"
+            --lib          "$<TARGET_FILE:wolfssl>"
+            --dep-liboqs   "${_wolfssl_sbom_dep_liboqs}"
+            --dep-libxmss  "${_wolfssl_sbom_dep_libxmss}"
+            --dep-liblms   "${_wolfssl_sbom_dep_liblms}"
+            --dep-libz     "${_wolfssl_sbom_dep_libz}"
+            --git          "${WOLFSSL_SBOM_GIT}"
+            --cdx-out      "${WOLFSSL_SBOM_CDX}"
+            --spdx-out     "${WOLFSSL_SBOM_SPDX}"
+        COMMAND "${WOLFSSL_SBOM_PYSPDXTOOLS}"
+            --infile  "${WOLFSSL_SBOM_SPDX}"
+            --outfile "${WOLFSSL_SBOM_TV}"
+        COMMENT "Generating wolfSSL SBOM (CycloneDX 1.6 + SPDX 2.3)"
+        VERBATIM
+    )
+    # wolfssl must be built before gen-sbom can hash $<TARGET_FILE:wolfssl>.
+    add_dependencies(sbom wolfssl)
+
+    # install-sbom: copy SBOM artifacts to the documentation install directory.
+    # Mirrors autotools: sbomdir = $(datadir)/doc/$(PACKAGE).
+    #
+    # Delegates to cmake/install-sbom.cmake so that DESTDIR is read from the
+    # environment at build time rather than configure time.  This matches the
+    # autotools behaviour: DESTDIR=/staging make install-sbom.
+    # CMake equivalent: DESTDIR=/staging cmake --build <dir> --target install-sbom
+    add_custom_target(install-sbom
+        COMMAND ${CMAKE_COMMAND}
+            "-DWOLFSSL_SBOM_CDX=${WOLFSSL_SBOM_CDX}"
+            "-DWOLFSSL_SBOM_SPDX=${WOLFSSL_SBOM_SPDX}"
+            "-DWOLFSSL_SBOM_TV=${WOLFSSL_SBOM_TV}"
+            "-DWOLFSSL_VERSION=${PROJECT_VERSION}"
+            "-DWOLFSSL_INSTALL_DOCDIR=${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/install-sbom.cmake"
+        COMMENT "Installing wolfSSL SBOM to ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+        VERBATIM
+    )
+    # sbom must complete before install-sbom copies its outputs.
+    add_dependencies(install-sbom sbom)
+
+    # uninstall-sbom: remove installed artifacts.
+    # Delegates to cmake/uninstall-sbom.cmake for the same DESTDIR reason.
+    # file(REMOVE ...) in that script is a no-op for absent files, matching
+    # autotools `rm -f`.
+    add_custom_target(uninstall-sbom
+        COMMAND ${CMAKE_COMMAND}
+            "-DWOLFSSL_VERSION=${PROJECT_VERSION}"
+            "-DWOLFSSL_INSTALL_DOCDIR=${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/uninstall-sbom.cmake"
+        COMMENT
+            "Uninstalling wolfSSL SBOM from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}"
+        VERBATIM
+    )
+
+    # Register SBOM outputs with cmake's clean target so they are removed by
+    # cmake --build . --target clean alongside compiled artifacts.
+    set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" APPEND PROPERTY
+        ADDITIONAL_CLEAN_FILES
+            "${WOLFSSL_SBOM_CDX}"
+            "${WOLFSSL_SBOM_SPDX}"
+            "${WOLFSSL_SBOM_TV}")
+endif()
+
+unset(_wolfssl_sbom_dep_liboqs)
+unset(_wolfssl_sbom_dep_libxmss)
+unset(_wolfssl_sbom_dep_liblms)
+unset(_wolfssl_sbom_dep_libz)
