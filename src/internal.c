@@ -7279,6 +7279,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.verifyNone     = ctx->verifyNone;
     ssl->options.failNoCert     = ctx->failNoCert;
     ssl->options.failNoCertxPSK = ctx->failNoCertxPSK;
+    ssl->options.failNoPSK      = ctx->failNoPSK;
     ssl->options.sendVerify     = ctx->sendVerify;
 
     ssl->options.partialWrite  = ctx->partialWrite;
@@ -27955,6 +27956,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DUPE_ENTRY_E:
         return "duplicate entry error";
 
+    case PSK_MISSING_ERROR:
+        return "psk missing error";
+
     case GETTIME_ERROR:
         return "gettimeofday() error";
 
@@ -36210,6 +36214,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return missing_extension;
             case WC_NO_ERR_TRACE(MATCH_SUITE_ERROR):
             case WC_NO_ERR_TRACE(MISSING_HANDSHAKE_DATA):
+            case WC_NO_ERR_TRACE(PSK_MISSING_ERROR):
                 return handshake_failure;
             case WC_NO_ERR_TRACE(VERSION_ERROR):
                 return wolfssl_alert_protocol_version;

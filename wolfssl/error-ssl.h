@@ -83,6 +83,7 @@ enum wolfSSL_ErrorCodes {
     SERVER_HINT_ERROR            = -332,   /* psk server hint error  */
     PSK_KEY_ERROR                = -333,   /* psk key error  */
     DUPE_ENTRY_E                 = -334,   /* duplicate entry error */
+    PSK_MISSING_ERROR            = -335,   /* psk missing  */
 
     GETTIME_ERROR                = -337,   /* gettimeofday failed ??? */
     GETITIMER_ERROR              = -338,   /* getitimer failed ??? */

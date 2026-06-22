@@ -1499,6 +1499,8 @@ WOLFSSL_API int  wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_only_dhe_psk(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_only_dhe_psk(WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_CTX_require_psk(WOLFSSL_CTX* ctx);
+WOLFSSL_API int  wolfSSL_require_psk(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_update_keys(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_key_update_response(WOLFSSL* ssl, int* required);
 WOLFSSL_API int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
@@ -3191,6 +3193,8 @@ enum { /* ssl Constants */
     WOLFSSL_VERIFY_CLIENT_ONCE          = 1 << 2,
     WOLFSSL_VERIFY_POST_HANDSHAKE       = 1 << 3,
     WOLFSSL_VERIFY_FAIL_EXCEPT_PSK      = 1 << 4,
+    /* 1 << 5 reserved (previously WOLFSSL_VERIFY_FAIL_IF_NO_PSK; a mandatory
+     * PSK is now requested with wolfSSL_[CTX_]require_psk()). */
     WOLFSSL_VERIFY_DEFAULT              = 1 << 9,
 
     WOLFSSL_SESS_CACHE_OFF                = 0x0000,
