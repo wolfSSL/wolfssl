@@ -455,7 +455,7 @@ if [ "$tls13" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE 6 LOAD CERT IN SSL -------------------"
     remove_single_rF "$ready_file5"
-    ./examples/server/server -c certs/ocsp/server1-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem \
                             -k certs/ocsp/server1-key.pem -R "$ready_file5" -v 4 \
                             -p "$port5" -H loadSSL &
     server_pid5=$!
@@ -470,7 +470,7 @@ if [ "$tls13" == "yes" ]; then
     printf '%s\n\n' "Test successful"
     printf '%s\n\n' "------------- TEST CASE 7 SHOULD REVOKE ----------------------"
     remove_single_rF "$ready_file5"
-    ./examples/server/server -c certs/ocsp/server4-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server4-cert.pem \
                             -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                             -p "$port5" -H loadSSL -v 4 &
     server_pid5=$!
