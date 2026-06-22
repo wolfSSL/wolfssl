@@ -41,6 +41,13 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#ifdef WC_ED25519_NONBLOCK
+    #ifndef ED25519_SMALL
+        #error "WC_ED25519_NONBLOCK requires ED25519_SMALL"
+    #endif
+    #include <wolfssl/wolfcrypt/ge_operations.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -80,6 +87,37 @@ enum {
     WC_ED25519_FLAG_DEC_SIGN = 0x01
 };
 
+/* Non-blocking context for Ed25519 verify operations.
+ * Requires WC_ED25519_NONBLOCK and ED25519_SMALL.
+ * Tracks state across multiple calls to wc_ed25519_verify_msg() (and
+ * variants) so the caller can yield between steps of the scalar
+ * multiplications and resume by calling the same function again with
+ * identical arguments.  Returns MP_WOULDBLOCK while in progress, 0 on
+ * success, <0 on error.  The context is zeroed automatically on any
+ * non-pending return.
+ */
+#ifdef WC_ED25519_NONBLOCK
+/* Number of scalar-multiply bit-steps processed per wc_ed25519_verify_msg()
+ * call before returning MP_WOULDBLOCK.  Override in user_settings.h to tune
+ * yield granularity: higher values reduce call overhead at the cost of longer
+ * blocking intervals.  Default 1 preserves the original one-bit-per-call
+ * behaviour. */
+#ifndef ED25519_NB_STEPS_PER_YIELD
+    #define ED25519_NB_STEPS_PER_YIELD 1
+#endif
+
+typedef struct ed25519_nb_ctx_t {
+    int   state;   /* operation state machine */
+    int   i;       /* bit index for scalar mult (starts 255, ends at -1) */
+    ge_p3 r;       /* scalar mult accumulator */
+    ge_p3 pt;      /* current base point for scalar mult */
+    ge_p3 neg_A;   /* negated public key point */
+    ge_p3 SB;      /* saved result of first scalar mult (SB) */
+    ALIGN16 byte sig_S[ED25519_KEY_SIZE];       /* copy of sig[32..63] */
+    ALIGN16 byte h[WC_SHA512_DIGEST_SIZE];      /* reduced H(R,A,M) */
+} ed25519_nb_ctx_t;
+#endif /* WC_ED25519_NONBLOCK */
+
 /* An ED25519 Key */
 struct ed25519_key {
     ALIGN16 byte p[ED25519_PUB_KEY_SIZE]; /* compressed public key */
@@ -107,6 +145,9 @@ struct ed25519_key {
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
+#endif
+#ifdef WC_ED25519_NONBLOCK
+    ed25519_nb_ctx_t* nb_ctx;
 #endif
 };
 
@@ -181,6 +222,24 @@ WOLFSSL_API
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
+
+#ifdef WC_ED25519_NONBLOCK
+/*!
+    \brief Enable non-blocking support for Ed25519 verify operations on a key.
+           When enabled, wc_ed25519_verify_msg() and its variants return
+           MP_WOULDBLOCK during each step of the two scalar multiplications,
+           allowing the caller to yield and resume by calling the same
+           function again with identical arguments.
+           Requires WC_ED25519_NONBLOCK and ED25519_SMALL.
+
+    \param key  Pointer to ed25519_key to configure
+    \param ctx  Pointer to ed25519_nb_ctx_t context, or NULL to disable
+
+    \return 0 on success, BAD_FUNC_ARG if key is NULL
+*/
+WOLFSSL_API
+int wc_ed25519_set_nonblock(ed25519_key* key, ed25519_nb_ctx_t* ctx);
+#endif /* WC_ED25519_NONBLOCK */
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API
 ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code);
