@@ -263,6 +263,216 @@ static int ed25519_is_small_order(const byte p[ED25519_PUB_KEY_SIZE])
     return 0;
 }
 
+#ifdef HAVE_ED25519_VERIFY
+/* Group order in little-endian (same value as ed25519_order in ge_low_mem.c). */
+static const byte ed25519_order[ED25519_KEY_SIZE] = {
+    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+    0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
+};
+#endif /* HAVE_ED25519_VERIFY */
+
+#if defined(WC_ED25519_NONBLOCK) && defined(ED25519_SMALL)
+/* Forward declarations for static helpers defined later in this file. */
+#ifdef HAVE_ED25519_VERIFY
+static int ed25519_verify_msg_init_with_sha(const byte* sig, word32 sigLen,
+    ed25519_key* key, wc_Sha512 *sha, byte type, const byte* context,
+    byte contextLen);
+static int ed25519_verify_msg_update_with_sha(const byte* msgSegment,
+    word32 msgSegmentLen, ed25519_key* key, wc_Sha512 *sha);
+#endif
+
+/*
+ * Perform one bit-step of a scalar multiplication in extended twisted Edwards
+ * coordinates (double-and-add, constant-time select).
+ *
+ * ctx->r  : accumulator (must be initialized to ed25519_neutral before call 0)
+ * ctx->pt : base point for this multiplication
+ * ctx->i  : current bit index, caller must set to 255 before first call
+ * scalar  : 32-byte reduced scalar
+ *
+ * Returns MP_WOULDBLOCK while bits remain (ctx->i >= 0 after decrement),
+ * or 0 when done (ctx->i fell below 0).
+ */
+static int ed25519_smult_nb_step(ed25519_nb_ctx_t* ctx, const byte* scalar)
+{
+    word32 n;
+    for (n = 0; n < ED25519_NB_STEPS_PER_YIELD && ctx->i >= 0; n++) {
+        const byte bit = (scalar[ctx->i >> 3] >> (ctx->i & 7)) & 1;
+        ge_p3 s;
+
+        ed25519_double(&ctx->r, &ctx->r);
+        ed25519_add(&s, &ctx->r, &ctx->pt);
+
+        fe_select(ctx->r.X, ctx->r.X, s.X, bit);
+        fe_select(ctx->r.Y, ctx->r.Y, s.Y, bit);
+        fe_select(ctx->r.Z, ctx->r.Z, s.Z, bit);
+        fe_select(ctx->r.T, ctx->r.T, s.T, bit);
+
+        ctx->i--;
+    }
+    return (ctx->i >= 0) ? MP_WOULDBLOCK : 0;
+}
+
+int wc_ed25519_set_nonblock(ed25519_key* key, ed25519_nb_ctx_t* ctx)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* If replacing a context, clear the old one first. */
+    if (key->nb_ctx != NULL && key->nb_ctx != ctx) {
+        ForceZero(key->nb_ctx, sizeof(ed25519_nb_ctx_t));
+    }
+    if (ctx != NULL) {
+        XMEMSET(ctx, 0, sizeof(ed25519_nb_ctx_t));
+    }
+    key->nb_ctx = ctx;
+    return 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Non-blocking verify (state 0 = setup, state 1 = SB smult, state 2 = hA smult)
+ * ----------------------------------------------------------------------- */
+#ifdef HAVE_ED25519_VERIFY
+
+static int ed25519_verify_nb(const byte* sig, word32 sigLen, const byte* msg,
+                             word32 msgLen, int* res, ed25519_key* key,
+                             byte type, const byte* context, byte contextLen)
+{
+    ed25519_nb_ctx_t* nb_ctx = key->nb_ctx;
+    int ret = 0;
+
+    switch (nb_ctx->state) {
+        case 0: {
+            /* ---- Setup phase (synchronous) ---- */
+            int j;
+#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
+            wc_Sha512* sha = &key->sha;
+#else
+            WC_DECLARE_VAR(sha, wc_Sha512, 1, key->heap);
+            WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                            ret = MEMORY_E; break);
+            ret = ed25519_hash_init(key, sha);
+            if (ret != 0) {
+                WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+                break;
+            }
+#endif
+
+            /* init + update (domain, sig_R, pub) + update (msg) */
+            ret = ed25519_verify_msg_init_with_sha(sig, sigLen, key, sha,
+                                                   type, context, contextLen);
+            if (ret == 0)
+                ret = ed25519_verify_msg_update_with_sha(msg, msgLen, key, sha);
+
+            /* S range check: S must be < group order */
+            if (ret == 0) {
+                if (sigLen != ED25519_SIG_SIZE) {
+                    ret = BAD_FUNC_ARG;
+                }
+            }
+            if (ret == 0) {
+                for (j = (int)sizeof(ed25519_order) - 1; j >= 0; j--) {
+                    if (sig[ED25519_SIG_SIZE / 2 + j] > ed25519_order[j]) {
+                        ret = BAD_FUNC_ARG;
+                        break;
+                    }
+                    if (sig[ED25519_SIG_SIZE / 2 + j] < ed25519_order[j])
+                        break;
+                }
+                if (ret == 0 && j == -1) /* S == order */
+                    ret = BAD_FUNC_ARG;
+            }
+
+            /* Decompress and negate public key -> neg_A */
+            if (ret == 0)
+                ret = ge_frombytes_negate_vartime(&nb_ctx->neg_A, key->p);
+
+            /* hash_final -> h */
+            if (ret == 0)
+                ret = ed25519_hash_final(key, sha, nb_ctx->h);
+
+#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+            ed25519_hash_free(key, sha);
+            WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#endif
+            if (ret != 0)
+                break;
+
+            sc_reduce(nb_ctx->h);
+
+            /* Save sig_S (32 bytes) for first scalar mult */
+            XMEMCPY(nb_ctx->sig_S, sig + (ED25519_SIG_SIZE / 2), ED25519_KEY_SIZE);
+
+            /* Init first smult: B * sig_S */
+            XMEMCPY(&nb_ctx->r,  &ed25519_neutral, sizeof(ge_p3));
+            XMEMCPY(&nb_ctx->pt, &ed25519_base,    sizeof(ge_p3));
+            nb_ctx->i     = 255;
+            nb_ctx->state = 1;
+            ret = MP_WOULDBLOCK;
+            break;
+        }
+
+        case 1: {
+            /* ---- First scalar mult: ge_scalarmult_base(sig_S) = SB ---- */
+            ret = ed25519_smult_nb_step(nb_ctx, nb_ctx->sig_S);
+            if (ret == MP_WOULDBLOCK)
+                break;
+
+            /* Save SB, then init second smult: neg_A * h */
+            XMEMCPY(&nb_ctx->SB, &nb_ctx->r, sizeof(ge_p3));
+            XMEMCPY(&nb_ctx->r,  &ed25519_neutral, sizeof(ge_p3));
+            XMEMCPY(&nb_ctx->pt, &nb_ctx->neg_A,   sizeof(ge_p3));
+            nb_ctx->i     = 255;
+            nb_ctx->state = 2;
+            ret = MP_WOULDBLOCK;
+            break;
+        }
+
+        case 2: {
+            /* ---- Second scalar mult: neg_A * h = hA ---- */
+            ret = ed25519_smult_nb_step(nb_ctx, nb_ctx->h);
+            if (ret == MP_WOULDBLOCK)
+                break;
+
+            /* SB + hA = SB - H(R,A,M)*A */
+            {
+                ge_p3 sum;
+                ALIGN16 byte rcheck[ED25519_KEY_SIZE];
+
+                ed25519_add(&sum, &nb_ctx->SB, &nb_ctx->r);
+                ge_p3_tobytes(rcheck, &sum);
+
+                ret = ConstantCompare(rcheck, sig, ED25519_SIG_SIZE / 2);
+                if (ret != 0)
+                    ret = SIG_VERIFY_E;
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+                if (ret == 0 &&
+                        ConstantCompare(rcheck, sig, ED25519_SIG_SIZE / 2) != 0)
+                    ret = SIG_VERIFY_E;
+#endif
+                if (ret == 0)
+                    *res = 1;
+            }
+            break;
+        }
+
+        default:
+            ret = BAD_STATE_E;
+            break;
+    }
+
+    if (ret != MP_WOULDBLOCK) {
+        ForceZero(nb_ctx, sizeof(ed25519_nb_ctx_t));
+    }
+    return ret;
+}
+#endif /* HAVE_ED25519_VERIFY */
+
+#endif /* WC_ED25519_NONBLOCK && ED25519_SMALL */
+
+
 #ifdef HAVE_ED25519_MAKE_KEY
 #if FIPS_VERSION3_GE(6,0,0)
 /* Performs a Pairwise Consistency Test on an Ed25519 key pair.
@@ -356,6 +566,236 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     return ret;
 }
 
+#if defined(WC_ED25519_NONBLOCK) && defined(ED25519_SMALL)
+/*
+ * Non-blocking key generation.  Called by wc_ed25519_make_key() when a
+ * non-blocking context is set.
+ *
+ * state 0: generate private key, hash+clamp → store scalar in sig_S, init smult
+ * state 1: one bit-step of scalar mult A = az*B per call; encode pubkey when done
+ */
+static int ed25519_make_key_nb(WC_RNG* rng, int keySz, ed25519_key* key)
+{
+    ed25519_nb_ctx_t* nb_ctx = key->nb_ctx;
+    int ret = 0;
+
+    (void)keySz;
+
+    switch (nb_ctx->state) {
+        case 0: {
+            ALIGN16 byte az[ED25519_PRV_KEY_SIZE];
+
+            ret = wc_RNG_GenerateBlock(rng, key->k, ED25519_KEY_SIZE);
+            if (ret != 0)
+                break;
+            key->privKeySet = 1;
+
+            ret = ed25519_hash(key, key->k, ED25519_KEY_SIZE, az);
+            if (ret != 0) {
+                key->privKeySet = 0;
+                ForceZero(key->k, ED25519_KEY_SIZE);
+                break;
+            }
+
+            az[0]  &= 248;
+            az[31] &= 63;
+            az[31] |= 64;
+
+            /* sig_S (32 bytes) is reused to carry the clamped scalar az[0..31]
+             * across calls during the scalar multiplication in state 1. */
+            XMEMCPY(nb_ctx->sig_S, az, ED25519_KEY_SIZE);
+            ForceZero(az, sizeof(az));
+
+            XMEMCPY(&nb_ctx->r,  &ed25519_neutral, sizeof(ge_p3));
+            XMEMCPY(&nb_ctx->pt, &ed25519_base,    sizeof(ge_p3));
+            nb_ctx->i     = 255;
+            nb_ctx->state = 1;
+            ret = MP_WOULDBLOCK;
+            break;
+        }
+
+        case 1: {
+            ret = ed25519_smult_nb_step(nb_ctx, nb_ctx->sig_S);
+            if (ret == MP_WOULDBLOCK)
+                break;
+
+            ge_p3_tobytes(key->p, &nb_ctx->r);
+            XMEMCPY(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
+            key->pubKeySet = 1;
+
+#if FIPS_VERSION3_GE(6,0,0)
+            if (ret == 0)
+                ret = wc_ed25519_check_key(key);
+            if (ret == 0)
+                ret = ed25519_pairwise_consistency_test(key, rng);
+#endif
+            if (ret != 0) {
+                key->privKeySet = 0;
+                key->pubKeySet  = 0;
+                ForceZero(key->k, sizeof(key->k));
+                ForceZero(key->p, sizeof(key->p));
+            }
+            break;
+        }
+
+        default:
+            ret = BAD_STATE_E;
+            break;
+    }
+
+    if (ret != MP_WOULDBLOCK)
+        ForceZero(nb_ctx, sizeof(ed25519_nb_ctx_t));
+    return ret;
+}
+
+#ifdef HAVE_ED25519_SIGN
+/*
+ * Non-blocking sign.  Called by wc_ed25519_sign_msg_ex() when a non-blocking
+ * context is set.  The caller must pass identical arguments on every call.
+ *
+ * state 0: hash private key → az, compute nonce = H(az_hi || msg), sc_reduce,
+ *          save az[0..31] in h[0..31] and nonce[0..31] in sig_S, init smult
+ * state 1: one bit-step of R = nonce*B per call; on completion hash and
+ *          sc_muladd to produce S
+ */
+static int ed25519_sign_nb(const byte* in, word32 inLen, byte* out,
+                            word32* outLen, ed25519_key* key, byte type,
+                            const byte* context, byte contextLen)
+{
+    ed25519_nb_ctx_t* nb_ctx = key->nb_ctx;
+    int ret = 0;
+
+    switch (nb_ctx->state) {
+        case 0: {
+            ALIGN16 byte az[ED25519_PRV_KEY_SIZE];
+            ALIGN16 byte nonce[WC_SHA512_DIGEST_SIZE];
+#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
+            wc_Sha512 *sha = &key->sha;
+#else
+            WC_DECLARE_VAR(sha, wc_Sha512, 1, key->heap);
+            WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                            ret = MEMORY_E; break);
+            ret = ed25519_hash_init(key, sha);
+#endif
+
+            /* hash private key → az, then clamp */
+            if (ret == 0)
+                ret = ed25519_hash(key, key->k, ED25519_KEY_SIZE, az);
+            if (ret == 0) {
+                az[0]  &= 248;
+                az[31] &= 63;
+                az[31] |= 64;
+            }
+
+            /* nonce = H(domain || az[32..63] || message) */
+            if (ret == 0 && (type == Ed25519ctx || type == Ed25519ph)) {
+                ret = ed25519_hash_update(key, sha, ed25519Ctx, ED25519CTX_SIZE);
+                if (ret == 0)
+                    ret = ed25519_hash_update(key, sha, &type, sizeof(type));
+                if (ret == 0)
+                    ret = ed25519_hash_update(key, sha, &contextLen,
+                                              sizeof(contextLen));
+                if (ret == 0 && context != NULL)
+                    ret = ed25519_hash_update(key, sha, context, contextLen);
+            }
+            if (ret == 0)
+                ret = ed25519_hash_update(key, sha, az + ED25519_KEY_SIZE,
+                                          ED25519_KEY_SIZE);
+            if (ret == 0)
+                ret = ed25519_hash_update(key, sha, in, inLen);
+            if (ret == 0)
+                ret = ed25519_hash_final(key, sha, nonce);
+#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+            ed25519_hash_free(key, sha);
+            WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#endif
+
+            if (ret == 0) {
+                sc_reduce(nonce);
+                /* h[0..31]: private scalar az[0..31] (for sc_muladd in state 1)
+                 * sig_S:     nonce scalar (for smult and sc_muladd in state 1) */
+                XMEMCPY(nb_ctx->h,     az,    ED25519_KEY_SIZE);
+                XMEMCPY(nb_ctx->sig_S, nonce, ED25519_KEY_SIZE);
+            }
+            ForceZero(az,    sizeof(az));
+            ForceZero(nonce, sizeof(nonce));
+            if (ret != 0)
+                break;
+
+            XMEMCPY(&nb_ctx->r,  &ed25519_neutral, sizeof(ge_p3));
+            XMEMCPY(&nb_ctx->pt, &ed25519_base,    sizeof(ge_p3));
+            nb_ctx->i     = 255;
+            nb_ctx->state = 1;
+            ret = MP_WOULDBLOCK;
+            break;
+        }
+
+        case 1: {
+            /* non-blocking scalar mult: R = nonce * B */
+            ret = ed25519_smult_nb_step(nb_ctx, nb_ctx->sig_S);
+            if (ret == MP_WOULDBLOCK)
+                break;
+
+            /* encode R → out[0..31] */
+            ge_p3_tobytes(out, &nb_ctx->r);
+
+            /* H(domain || R || pubkey || message) → hram, then S */
+            {
+                ALIGN16 byte hram[WC_SHA512_DIGEST_SIZE];
+#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
+                wc_Sha512 *sha = &key->sha;
+#else
+                WC_DECLARE_VAR(sha, wc_Sha512, 1, key->heap);
+                WC_ALLOC_VAR_EX(sha, wc_Sha512, 1, key->heap, DYNAMIC_TYPE_HASHES,
+                                ret = MEMORY_E);
+                if (ret == 0)
+                    ret = ed25519_hash_init(key, sha);
+#endif
+                if (ret == 0 && (type == Ed25519ctx || type == Ed25519ph)) {
+                    ret = ed25519_hash_update(key, sha, ed25519Ctx, ED25519CTX_SIZE);
+                    if (ret == 0)
+                        ret = ed25519_hash_update(key, sha, &type, sizeof(type));
+                    if (ret == 0)
+                        ret = ed25519_hash_update(key, sha, &contextLen,
+                                                  sizeof(contextLen));
+                    if (ret == 0 && context != NULL)
+                        ret = ed25519_hash_update(key, sha, context, contextLen);
+                }
+                if (ret == 0)
+                    ret = ed25519_hash_update(key, sha, out, ED25519_SIG_SIZE/2);
+                if (ret == 0)
+                    ret = ed25519_hash_update(key, sha, key->p, ED25519_PUB_KEY_SIZE);
+                if (ret == 0)
+                    ret = ed25519_hash_update(key, sha, in, inLen);
+                if (ret == 0)
+                    ret = ed25519_hash_final(key, sha, hram);
+#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+                ed25519_hash_free(key, sha);
+                WC_FREE_VAR_EX(sha, key->heap, DYNAMIC_TYPE_HASHES);
+#endif
+                if (ret == 0) {
+                    sc_reduce(hram);
+                    sc_muladd(out + (ED25519_SIG_SIZE/2), hram,
+                              nb_ctx->h, nb_ctx->sig_S);
+                }
+                ForceZero(hram, sizeof(hram));
+            }
+            *outLen = ED25519_SIG_SIZE;
+            break;
+        }
+
+        default:
+            ret = BAD_STATE_E;
+            break;
+    }
+
+    if (ret != MP_WOULDBLOCK)
+        ForceZero(nb_ctx, sizeof(ed25519_nb_ctx_t));
+    return ret;
+}
+#endif /* HAVE_ED25519_SIGN */
+#endif /* WC_ED25519_NONBLOCK && ED25519_SMALL */
+
 /* generate an ed25519 key pair.
  * returns 0 on success
  */
@@ -369,6 +809,11 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     /* ed25519 has 32 byte key sizes */
     if (keySz != ED25519_KEY_SIZE)
         return BAD_FUNC_ARG;
+
+#if defined(WC_ED25519_NONBLOCK) && defined(ED25519_SMALL)
+    if (key->nb_ctx != NULL)
+        return ed25519_make_key_nb(rng, keySz, key);
+#endif
 
     key->privKeySet = 0;
     key->pubKeySet = 0;
@@ -478,6 +923,14 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         *outLen = ED25519_SIG_SIZE;
         return BUFFER_E;
     }
+
+#if defined(WC_ED25519_NONBLOCK) && defined(ED25519_SMALL)
+    if (key->nb_ctx != NULL) {
+        return ed25519_sign_nb(in, inLen, out, outLen, key, type,
+                               context, contextLen);
+    }
+#endif
+
     *outLen = ED25519_SIG_SIZE;
 
 #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
@@ -811,12 +1264,6 @@ static int ed25519_verify_msg_update_with_sha(const byte* msgSegment,
 }
 
 /* ed25519 order in little endian. */
-static const byte ed25519_order[] = {
-    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
-    0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
-};
 
 /*
    sig     is array of bytes containing the signature
@@ -964,6 +1411,18 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
                               byte type, const byte* context, byte contextLen)
 {
     int ret;
+#if defined(WC_ED25519_NONBLOCK) && defined(ED25519_SMALL)
+    if (key != NULL && key->nb_ctx != NULL) {
+        if (sig == NULL || msg == NULL || res == NULL ||
+                (context == NULL && contextLen != 0)) {
+            return BAD_FUNC_ARG;
+        }
+        if ((type == Ed25519ph) && (msgLen != WC_SHA512_DIGEST_SIZE))
+            return BAD_LENGTH_E;
+        return ed25519_verify_nb(sig, sigLen, msg, msgLen, res, key,
+                                 type, context, contextLen);
+    }
+#endif
 #ifdef WOLFSSL_SE050
     (void)type;
     (void)context;
