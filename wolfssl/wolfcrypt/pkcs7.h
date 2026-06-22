@@ -318,6 +318,9 @@ struct wc_PKCS7 {
     int devId;                    /* device ID for HW based private key   */
     byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
     byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
+    /* Signer public key, stored only for RSA/ECC (consumed by the raw-sign
+     * callback paths). PQC keys (e.g. ML-DSA) are large and never read back
+     * from here, so they are not stored and this stays RSA-sized. */
     byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ]; /* MAX RSA key size (m + e)*/
     word32 certSz[MAX_PKCS7_CERTS];
 

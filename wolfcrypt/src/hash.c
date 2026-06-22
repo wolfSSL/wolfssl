@@ -353,6 +353,20 @@ enum wc_HashType wc_OidGetHash(int oid)
             hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
         #endif
             break;
+        case SHAKE128h:
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+            hash_type = WC_HASH_TYPE_SHAKE128;
+        #else
+            hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
+        #endif
+            break;
+        case SHAKE256h:
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+            hash_type = WC_HASH_TYPE_SHAKE256;
+        #else
+            hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
+        #endif
+            break;
         case SM3h:
         #ifdef WOLFSSL_SM3
             hash_type = WC_HASH_TYPE_SM3;

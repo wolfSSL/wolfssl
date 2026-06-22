@@ -233,7 +233,11 @@ jobs:
           {"name": "mldsa-no-asn1-fips204-draft-opensslextra", "minutes": 1.2,
            "configure": ["--enable-intelasm", "--enable-sp-asm",
             "--enable-dilithium=yes,draft", "--enable-opensslextra",
-            "CPPFLAGS=-DWOLFSSL_MLDSA_NO_ASN1"]}
+            "CPPFLAGS=-DWOLFSSL_MLDSA_NO_ASN1"]},
+          {"name": "pkcs7-mldsa-only", "minutes": 1.2,
+           "comment": "PKCS#7 SignedData with ML-DSA as the only signature algorithm (no RSA, no ECC); guards the ML-DSA-only PKCS7 build path",
+           "configure": ["--enable-cryptonly", "--enable-mldsa",
+            "--enable-pkcs7", "--disable-rsa", "--disable-ecc"]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
