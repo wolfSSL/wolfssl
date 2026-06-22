@@ -3,7 +3,9 @@
 
 import argparse
 import hashlib
+import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -48,6 +50,19 @@ DEP_META = {
     },
 }
 
+# Sentinel used in SBOM hash fields when --no-artifact-hash is given.
+# 64 zeros is an impossible SHA-256 output (no input hashes to all zeros)
+# and is visually unambiguous as a placeholder to downstream tooling.
+_NO_HASH_SENTINEL = '0' * 64
+
+# Note embedded in the SBOM when --no-artifact-hash is used.  Points
+# integrators toward wolfSSL rather than leaving a silent gap.
+_NO_HASH_NOTE = (
+    'No artifact hash recorded for this build. '
+    'Contact wolfssl@wolfssl.com to discuss SBOM and integrity '
+    'verification options for your specific build system.'
+)
+
 
 def detect_license(license_file):
     """Parse LICENSING file and return an SPDX license ID.
@@ -80,13 +95,14 @@ def detect_license(license_file):
 
 
 def sha256_file(path):
+    """SHA-256 a single file.  Exits on read error."""
     h = hashlib.sha256()
     try:
         with open(path, 'rb') as f:
             for chunk in iter(lambda: f.read(65536), b''):
                 h.update(chunk)
     except OSError as e:
-        sys.exit(f"ERROR: cannot read library for hashing: {e}")
+        sys.exit(f"ERROR: cannot read file for hashing: {path}: {e}")
     return h.hexdigest()
 
 
@@ -133,19 +149,202 @@ def dep_version(key):
     return None
 
 
+def _parse_defines_text(text):
+    """Extract sorted deduplicated #define pairs from preprocessor text.
+
+    Accepts wolfssl/options.h format, 'cc -dM -E' output, and pcpp output.
+    All three use the same '#define NAME [value]' syntax.
+
+    Returns a sorted list of (name, value_str) pairs.
+    """
+    defines = {}
+    for m in re.finditer(r'^#define[ \t]+(\w+)(?:[ \t]+(.+))?$',
+                         text, re.MULTILINE):
+        defines[m.group(1)] = (m.group(2) or '').strip()
+    return sorted(defines.items())
+
+
 def parse_options_h(path):
-    """Parse wolfssl/options.h and return sorted deduplicated list of
-    (name, value) pairs for every #define found."""
+    """Parse wolfssl/options.h and return sorted (name, value) define pairs.
+
+    Used by the autotools and cmake build paths where options.h is generated
+    by configure or cmake during the build.
+    """
     try:
         text = open(path).read()
     except OSError as e:
         print(f"WARNING: cannot read options.h {path}: {e}", file=sys.stderr)
         return []
+    return _parse_defines_text(text)
 
-    defines = {}
-    for m in re.finditer(r'^#define[ \t]+(\w+)(?:[ \t]+(.+))?$', text, re.MULTILINE):
-        defines[m.group(1)] = (m.group(2) or '').strip()
-    return sorted(defines.items())
+
+def preprocess_user_settings(path, includes, defines):
+    """Preprocess user_settings.h and return sorted (name, value) define pairs.
+
+    Used by the embedded / custom-builder path where no wolfssl/options.h
+    exists because the build system does not run autotools or cmake configure.
+    wolfSSL embedded builds are configured entirely through user_settings.h,
+    so preprocessing it gives the same information as options.h would.
+
+    Two preprocessor strategies, tried in order:
+
+    1. pcpp (pip install pcpp): pure Python, no compiler required.
+       Preferred for cross-compilation scenarios because it runs on the host
+       without expanding host-compiler-specific macros.
+
+    2. CC -dM -E: the C compiler named by the CC environment variable
+       (default: 'cc').  For cross-compilation builds, set CC to the target
+       compiler, e.g. CC=arm-none-eabi-gcc, so that target-specific macros
+       are expanded correctly rather than host macros.
+
+    If both strategies fail the function exits with a clear error that names
+    the install command for pcpp and the CC variable that controls fallback.
+
+    Args:
+        path:     Path to user_settings.h.
+        includes: List of include directories (passed as -I to preprocessor).
+        defines:  List of macro names (without -D prefix) to pre-define before
+                  processing, e.g. ['WOLFSSL_USER_SETTINGS'].
+    """
+    # Strategy 1: pcpp
+    try:
+        import pcpp  # type: ignore[import]
+
+        pp = pcpp.Preprocessor()
+        # Suppress #line directives; we only care about #define output.
+        pp.line_directive = None
+        for inc in includes:
+            pp.add_path(inc)
+        for d in defines:
+            # pcpp.define() takes "MACRO VALUE" (space-separated, no -D).
+            pp.define(f'{d} 1')
+        try:
+            pp.parse(open(path).read(), filename=path)
+        except OSError as e:
+            sys.exit(f"ERROR: cannot read user_settings file {path}: {e}")
+        buf = io.StringIO()
+        pp.write(buf)
+        print(f"NOTE: preprocessed {path} using pcpp", file=sys.stderr)
+        return _parse_defines_text(buf.getvalue())
+    except ImportError:
+        pass  # pcpp not installed; fall through to CC
+
+    # Strategy 2: CC -dM -E
+    cc = os.environ.get('CC', 'cc')
+    cmd = [cc, '-dM', '-E']
+    for d in defines:
+        cmd.append(f'-D{d}')
+    for inc in includes:
+        cmd.append(f'-I{inc}')
+    cmd.append(path)
+    print(
+        f"NOTE: preprocessed {path} using {cc} -dM -E\n"
+        f"      For cross-compilation set CC=<target-compiler> so that\n"
+        f"      target-specific macros are expanded, not host macros.\n"
+        f"      To avoid this message install pcpp: pip install pcpp",
+        file=sys.stderr
+    )
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        sys.exit(
+            f"ERROR: no preprocessor available.\n"
+            f"  Tried pcpp: not installed (pip install pcpp).\n"
+            f"  Tried {cc}: not found.\n"
+            f"  Install pcpp, or set CC to a working C compiler."
+        )
+    if r.returncode != 0:
+        sys.exit(
+            f"ERROR: {cc} -dM -E failed (exit {r.returncode}):\n{r.stderr}"
+        )
+    return _parse_defines_text(r.stdout)
+
+
+def hash_srcs(paths):
+    """Compute a deterministic combined SHA-256 over a set of source files.
+
+    Each file is hashed individually; the results are sorted by file path and
+    combined into a single manifest digest:
+
+      manifest = SHA-256 of sorted lines '<path>:<per-file-sha256>\\n'
+
+    Sorting by path makes the digest stable regardless of the order paths were
+    supplied.  This gives an integrity anchor that a consumer can re-verify by
+    reprocessing the same source tree.
+
+    This is used for embedded / custom-builder SBOMs where no compiled library
+    artifact (.so, .a, firmware image) is available as a single hash target.
+    The digest covers exactly the set of .c files compiled into the wolfSSL
+    build, which is the closest equivalent to hashing the library.
+
+    Args:
+        paths: Iterable of file path strings (need not be sorted).
+
+    Returns:
+        (combined_hex, per_file) where per_file is a sorted list of
+        (path, hex_digest) pairs, one entry per source file.
+
+    Exits with a clear error if any file cannot be read.
+    """
+    per_file = []
+    for p in sorted(paths):
+        h = hashlib.sha256()
+        try:
+            with open(p, 'rb') as f:
+                for chunk in iter(lambda: f.read(65536), b''):
+                    h.update(chunk)
+        except OSError as e:
+            sys.exit(
+                f"ERROR: cannot read source file for hashing: {p}: {e}"
+            )
+        per_file.append((p, h.hexdigest()))
+
+    manifest = hashlib.sha256()
+    for p, digest in per_file:
+        manifest.update(f"{p}:{digest}\n".encode())
+
+    return manifest.hexdigest(), per_file
+
+
+def _collect_srcs(srcs_args, srcs_file):
+    """Merge --srcs and --srcs-file into a deduplicated sorted list of paths.
+
+    --srcs-file format: one file path per line.  Blank lines and lines whose
+    first non-whitespace character is '#' are ignored, so build-system-
+    generated file lists can include comments.
+
+    Duplicates (from either source) are silently dropped; order is normalised
+    to sorted order by hash_srcs() so the result is deterministic.
+
+    Exits with a clear error if --srcs-file cannot be read or the combined
+    list is empty.
+    """
+    paths = list(srcs_args or [])
+    if srcs_file:
+        try:
+            with open(srcs_file) as f:
+                for line in f:
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith('#'):
+                        paths.append(stripped)
+        except OSError as e:
+            sys.exit(f"ERROR: cannot read --srcs-file {srcs_file}: {e}")
+
+    # Deduplicate, preserving first-seen order before hash_srcs sorts.
+    seen = set()
+    unique = []
+    for p in paths:
+        if p not in seen:
+            seen.add(p)
+            unique.append(p)
+
+    if not unique:
+        sys.exit(
+            "ERROR: --srcs / --srcs-file produced an empty source list.\n"
+            "       Pass at least one .c file, or use --no-artifact-hash\n"
+            "       if no hashable artifact is available for this build."
+        )
+    return unique
 
 
 def cdx_dep_component(key):
@@ -195,8 +394,21 @@ def spdx_dep_package(key):
     return spdx_id, pkg
 
 
-def generate_cdx(name, version, supplier, license_id, lib_hash,
-                 timestamp, serial, enabled_deps, build_props):
+def generate_cdx(name, version, supplier, license_id, artifact_hash,
+                 hash_source, timestamp, serial, enabled_deps, build_props):
+    """Generate a CycloneDX 1.6 SBOM dict.
+
+    Args:
+        artifact_hash: SHA-256 hex string of the hashed artifact, or
+                       _NO_HASH_SENTINEL when --no-artifact-hash is used.
+        hash_source:   One of:
+                         'lib'  -- artifact_hash is SHA-256 of a compiled
+                                   library (libwolfssl.so or similar).
+                         'srcs' -- artifact_hash is the combined SHA-256
+                                   of the compiled source files (see hash_srcs).
+                         'none' -- artifact_hash is _NO_HASH_SENTINEL; no
+                                   real artifact was available to hash.
+    """
     year = datetime.now(timezone.utc).year
     bom_ref = str(uuid.uuid4())
 
@@ -211,6 +423,13 @@ def generate_cdx(name, version, supplier, license_id, lib_hash,
         {'name': f'wolfssl:build:{k}', 'value': v if v else '1'}
         for k, v in build_props
     ]
+    # Record what was hashed so consumers know how to re-verify.
+    properties.append({'name': 'wolfssl:sbom:hash-source', 'value': hash_source})
+    if hash_source == 'none':
+        properties.append({
+            'name': 'wolfssl:sbom:no-artifact-hash-note',
+            'value': _NO_HASH_NOTE,
+        })
 
     return {
         '$schema': 'http://cyclonedx.org/schema/bom-1.6.schema.json',
@@ -238,7 +457,7 @@ def generate_cdx(name, version, supplier, license_id, lib_hash,
                 'copyright': f'Copyright (C) 2006-{year} wolfSSL Inc.',
                 'cpe': f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*',
                 'purl': f'pkg:generic/{name}@{version}',
-                'hashes': [{'alg': 'SHA-256', 'content': lib_hash}],
+                'hashes': [{'alg': 'SHA-256', 'content': artifact_hash}],
                 'externalReferences': [{
                     'type': 'vcs',
                     'url': 'https://github.com/wolfSSL/wolfssl'
@@ -254,11 +473,30 @@ def generate_cdx(name, version, supplier, license_id, lib_hash,
     }
 
 
-def generate_spdx(name, version, supplier, license_id, lib_hash,
-                  timestamp, doc_ns_uuid, enabled_deps, build_props):
-    year = datetime.now(timezone.utc).year
+def generate_spdx(name, version, supplier, license_id, artifact_hash,
+                  hash_source, timestamp, doc_ns_uuid, enabled_deps,
+                  build_props):
+    """Generate an SPDX 2.3 SBOM dict.
 
+    Args:
+        artifact_hash, hash_source: same semantics as generate_cdx.
+    """
+    year = datetime.now(timezone.utc).year
     build_defines = ', '.join(k for k, _ in build_props)
+
+    # Build the package comment: always includes the build defines; appends
+    # context notes when the hash is not a standard library artifact hash.
+    comment_parts = [f'Build configuration defines: {build_defines}']
+    if hash_source == 'srcs':
+        comment_parts.append(
+            'Checksum is a combined SHA-256 over compiled source files '
+            '(see wolfssl:sbom:hash-source property in CycloneDX output). '
+            'This build used an embedded or custom build system; no compiled '
+            'library artifact was available to hash.'
+        )
+    elif hash_source == 'none':
+        comment_parts.append(_NO_HASH_NOTE)
+
     wolfssl_pkg = {
         'SPDXID': 'SPDXRef-Package-wolfssl',
         'name': name,
@@ -266,11 +504,11 @@ def generate_spdx(name, version, supplier, license_id, lib_hash,
         'supplier': f'Organization: {supplier}',
         'downloadLocation': 'https://github.com/wolfSSL/wolfssl',
         'filesAnalyzed': False,
-        'checksums': [{'algorithm': 'SHA256', 'checksumValue': lib_hash}],
+        'checksums': [{'algorithm': 'SHA256', 'checksumValue': artifact_hash}],
         'licenseConcluded': license_id,
         'licenseDeclared': license_id,
         'copyrightText': f'Copyright (C) 2006-{year} wolfSSL Inc.',
-        'comment': f'Build configuration defines: {build_defines}',
+        'comment': '  '.join(comment_parts),
         'externalRefs': [
             {
                 'referenceCategory': 'SECURITY',
@@ -326,38 +564,181 @@ def generate_spdx(name, version, supplier, license_id, lib_hash,
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate CycloneDX and SPDX SBOMs for wolfssl'
+        description=(
+            'Generate CycloneDX 1.6 and SPDX 2.3 SBOMs for wolfssl.\n\n'
+            'Three build-system paths are supported:\n'
+            '  autotools/cmake: pass --options-h and --lib\n'
+            '  embedded/custom: pass --user-settings and --srcs/--srcs-file\n'
+            '  no hashable artifact: pass --user-settings and --no-artifact-hash'
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('--name', required=True, help='Package name')
-    parser.add_argument('--version', required=True, help='Package version')
+
+    # -- Identity --------------------------------------------------------
+    parser.add_argument('--name', required=True,
+                        help='Package name (e.g. wolfssl)')
+    parser.add_argument('--version', required=True,
+                        help='Package version string')
     parser.add_argument('--supplier', default='wolfSSL Inc.',
                         help='Supplier name (default: wolfSSL Inc.)')
-    parser.add_argument('--lib', required=True,
-                        help='Path to libwolfssl.so.X.Y.Z for SHA-256 hashing')
+
+    # -- Build configuration source (exactly one required) ---------------
+    cfg_group = parser.add_argument_group(
+        'build configuration source (exactly one required)'
+    )
+    cfg_group.add_argument(
+        '--options-h',
+        help=(
+            'Path to wolfssl/options.h generated by autotools configure or '
+            'cmake. Mutually exclusive with --user-settings.'
+        )
+    )
+    cfg_group.add_argument(
+        '--user-settings',
+        metavar='PATH',
+        help=(
+            'Path to user_settings.h (or wolfssl/wolfcrypt/settings.h) for '
+            'embedded / custom-builder builds that configure wolfSSL via '
+            'WOLFSSL_USER_SETTINGS rather than autotools or cmake. '
+            'The file is preprocessed using pcpp (preferred) or CC -dM -E '
+            '(fallback; set CC=<target-compiler> for cross builds). '
+            'Mutually exclusive with --options-h.'
+        )
+    )
+    cfg_group.add_argument(
+        '--user-settings-include',
+        metavar='DIR',
+        action='append',
+        default=[],
+        help=(
+            'Add an include directory for --user-settings preprocessing. '
+            'Repeat for multiple directories. Typically includes the wolfssl '
+            'source root and the directory containing user_settings.h.'
+        )
+    )
+    cfg_group.add_argument(
+        '--user-settings-define',
+        metavar='MACRO',
+        action='append',
+        default=[],
+        help=(
+            'Pre-define a macro before preprocessing --user-settings. '
+            'Repeat for multiple macros. '
+            'At minimum pass WOLFSSL_USER_SETTINGS to activate the '
+            'user_settings.h configuration path in wolfssl headers.'
+        )
+    )
+
+    # -- Artifact hash source (at least one required) --------------------
+    hash_group = parser.add_argument_group(
+        'artifact hash source (at least one of --lib / --srcs / '
+        '--srcs-file / --no-artifact-hash required)'
+    )
+    hash_group.add_argument(
+        '--lib',
+        metavar='PATH',
+        help=(
+            'Path to the compiled wolfssl library (e.g. libwolfssl.so.X.Y.Z '
+            'or libwolfssl.a) for SHA-256 hashing. Used by the autotools and '
+            'cmake paths. May be combined with --srcs/--srcs-file to record '
+            'both a library hash and a source hash.'
+        )
+    )
+    hash_group.add_argument(
+        '--srcs',
+        metavar='FILE',
+        nargs='+',
+        default=[],
+        help=(
+            'One or more compiled wolfssl source files (.c) to hash. '
+            'Used by the embedded path where no compiled library artifact '
+            'exists. A deterministic combined SHA-256 is computed over all '
+            'listed files (see also --srcs-file for longer lists). '
+            'May be repeated or combined with --srcs-file.'
+        )
+    )
+    hash_group.add_argument(
+        '--srcs-file',
+        metavar='PATH',
+        help=(
+            'Path to a file listing compiled wolfssl source files, one per '
+            'line. Blank lines and lines beginning with "#" are ignored. '
+            'Useful when the source list is too long for the command line, '
+            'or when the build system can generate the list automatically '
+            '(e.g. from a link map or IDE project file). '
+            'Combined with any --srcs arguments.'
+        )
+    )
+    hash_group.add_argument(
+        '--no-artifact-hash',
+        action='store_true',
+        help=(
+            'Emit an SBOM without a real artifact hash. A placeholder '
+            '(64 zero digits) is recorded in the hash fields, and a note '
+            'directing integrators to contact wolfSSL is added to the SBOM '
+            'properties. Use this only when no compiled library AND no source '
+            'file list is available (e.g. binary-only distributions, ROM '
+            'builds, or HSM firmware where source files are not accessible). '
+            'Cannot be combined with --lib, --srcs, or --srcs-file.'
+        )
+    )
+
+    # -- Common ----------------------------------------------------------
     parser.add_argument('--license-file', required=True,
-                        help='Path to LICENSING file for SPDX ID detection')
-    parser.add_argument('--options-h', required=True,
-                        help='Path to wolfssl/options.h for build config')
+                        help='Path to wolfssl LICENSING file for SPDX ID detection')
     parser.add_argument('--dep-liboqs', default='no',
-                        help='yes if built with --with-liboqs')
+                        help='yes if built with liboqs (Open Quantum Safe)')
     parser.add_argument('--dep-libxmss', default='no',
-                        help='yes if built with --with-libxmss')
+                        help='yes if built with libxmss')
     parser.add_argument('--dep-libxmss-root', default='',
-                        help='Path to xmss-reference source tree root')
+                        help='Path to xmss-reference source tree root for version detection')
     parser.add_argument('--dep-liblms', default='no',
-                        help='yes if built with --with-liblms')
+                        help='yes if built with liblms (hash-sigs)')
     parser.add_argument('--dep-liblms-root', default='',
-                        help='Path to hash-sigs source tree root')
+                        help='Path to hash-sigs source tree root for version detection')
     parser.add_argument('--dep-libz', default='no',
-                        help='yes if built with --with-libz')
+                        help='yes if built with libz (zlib)')
     parser.add_argument('--git', default='',
-                        help='Path to git binary for version detection')
+                        help='Path to git binary for dep version detection (optional)')
     parser.add_argument('--cdx-out', required=True,
-                        help='Output path for CycloneDX JSON')
+                        help='Output path for CycloneDX 1.6 JSON')
     parser.add_argument('--spdx-out', required=True,
-                        help='Output path for SPDX JSON')
+                        help='Output path for SPDX 2.3 JSON')
+
     args = parser.parse_args()
 
+    # -- Validate argument combinations ----------------------------------
+
+    # Build-config source: exactly one of --options-h / --user-settings.
+    if args.options_h and args.user_settings:
+        parser.error('--options-h and --user-settings are mutually exclusive')
+    if not args.options_h and not args.user_settings:
+        parser.error('one of --options-h or --user-settings is required')
+
+    # --user-settings-include/define require --user-settings.
+    if args.user_settings_include and not args.user_settings:
+        parser.error('--user-settings-include requires --user-settings')
+    if args.user_settings_define and not args.user_settings:
+        parser.error('--user-settings-define requires --user-settings')
+
+    # Artifact hash: --no-artifact-hash cannot coexist with any hash source.
+    if args.no_artifact_hash and (args.lib or args.srcs or args.srcs_file):
+        parser.error(
+            '--no-artifact-hash cannot be combined with '
+            '--lib, --srcs, or --srcs-file'
+        )
+
+    # At least one artifact hash source must be present.
+    has_hash_source = bool(
+        args.lib or args.srcs or args.srcs_file or args.no_artifact_hash
+    )
+    if not has_hash_source:
+        parser.error(
+            'at least one artifact hash source is required: '
+            '--lib, --srcs, --srcs-file, or --no-artifact-hash'
+        )
+
+    # -- Initialise globals ----------------------------------------------
     global GIT_BIN
     GIT_BIN = args.git or None
 
@@ -376,29 +757,74 @@ def main():
         if flag.lower() == 'yes'
     ]
 
+    # -- Build configuration defines -------------------------------------
+    if args.options_h:
+        build_props = parse_options_h(args.options_h)
+    else:
+        build_props = preprocess_user_settings(
+            args.user_settings,
+            args.user_settings_include,
+            args.user_settings_define,
+        )
+
+    # -- Artifact hash ---------------------------------------------------
+    if args.no_artifact_hash:
+        artifact_hash = _NO_HASH_SENTINEL
+        hash_source = 'none'
+        print("NOTE: --no-artifact-hash: recording placeholder hash",
+              file=sys.stderr)
+
+    elif args.lib and not (args.srcs or args.srcs_file):
+        # Standard library hash (autotools / cmake path).
+        artifact_hash = sha256_file(args.lib)
+        hash_source = 'lib'
+
+    elif (args.srcs or args.srcs_file) and not args.lib:
+        # Source-file combined hash (embedded path).
+        src_paths = _collect_srcs(args.srcs, args.srcs_file)
+        artifact_hash, per_file = hash_srcs(src_paths)
+        hash_source = 'srcs'
+        print(f"NOTE: hashed {len(per_file)} source file(s) "
+              f"(combined SHA-256: {artifact_hash[:16]}...)",
+              file=sys.stderr)
+
+    else:
+        # Both --lib and --srcs/--srcs-file provided: record the library hash
+        # (the primary artifact) but note source files were also present.
+        # The source hash is printed for reference but not embedded in the SBOM
+        # to avoid two competing hash values in the same hash field.
+        artifact_hash = sha256_file(args.lib)
+        hash_source = 'lib'
+        src_paths = _collect_srcs(args.srcs, args.srcs_file)
+        _, per_file = hash_srcs(src_paths)
+        print(f"NOTE: --lib and --srcs both provided; recording library hash. "
+              f"Source hash ({len(per_file)} files) computed but not embedded.",
+              file=sys.stderr)
+
+    # -- License ---------------------------------------------------------
     license_id = detect_license(args.license_file)
     if license_id is None:
         print("WARNING: license could not be determined; using NOASSERTION",
               file=sys.stderr)
         license_id = 'NOASSERTION'
 
-    build_props = parse_options_h(args.options_h)
-    lib_hash = sha256_file(args.lib)
+    # -- Generate --------------------------------------------------------
     timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     serial = str(uuid.uuid4())
     doc_ns_uuid = str(uuid.uuid4())
 
     cdx = generate_cdx(
         args.name, args.version, args.supplier,
-        license_id, lib_hash, timestamp, serial,
-        enabled_deps, build_props,
+        license_id, artifact_hash, hash_source,
+        timestamp, serial, enabled_deps, build_props,
     )
     spdx = generate_spdx(
         args.name, args.version, args.supplier,
-        license_id, lib_hash, timestamp, doc_ns_uuid,
-        enabled_deps, build_props,
+        license_id, artifact_hash, hash_source,
+        timestamp, doc_ns_uuid, enabled_deps, build_props,
     )
 
+    # -- Write -----------------------------------------------------------
     try:
         with open(args.cdx_out, 'w') as f:
             json.dump(cdx, f, indent=2)

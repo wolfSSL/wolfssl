@@ -97,6 +97,148 @@ falls back to `git describe --tags --always` on the source tree root (passed via
 source tree is unavailable or `git` is not found, version is recorded as
 `NOASSERTION`.
 
+## Build System Integration
+
+`gen-sbom` supports three build paths.  All produce the same two output files
+(CycloneDX 1.6 JSON and SPDX 2.3 JSON).
+
+### autotools / cmake
+
+The standard path.  The build system generates `wolfssl/options.h` at
+configure time and a compiled library artifact at link time.  Both are hashed
+to produce a deterministic artifact identity.
+
+```sh
+# autotools
+./configure && make
+make sbom
+
+# cmake (out-of-source build)
+cmake -B build && cmake --build build
+cmake --build build --target sbom
+```
+
+### Embedded / custom build systems (IAR, Keil, MPLAB, custom Makefile)
+
+wolfSSL embedded builds configure the library through `user_settings.h`
+rather than through autotools or cmake.  There is no generated `options.h`
+and no standalone compiled library — the wolfSSL source files are compiled
+directly into the application firmware image.
+
+`gen-sbom` handles this with two new argument groups:
+
+**Configuration source** — exactly one of:
+
+| Flag | Description |
+|------|-------------|
+| `--options-h PATH` | Path to generated `wolfssl/options.h` (autotools/cmake only) |
+| `--user-settings PATH` | Path to `user_settings.h`; preprocessed with `pcpp` (preferred) or `CC -dM -E` |
+| `--user-settings-include DIR` | Add include directory for preprocessing (repeat as needed) |
+| `--user-settings-define MACRO` | Pre-define a macro before preprocessing (repeat as needed) |
+
+**Artifact hash source** — at least one of:
+
+| Flag | Description |
+|------|-------------|
+| `--lib PATH` | Compiled library (`libwolfssl.so.X.Y.Z`); SHA-256 is recorded |
+| `--srcs FILE [FILE …]` | Compiled source files; deterministic combined SHA-256 is recorded |
+| `--srcs-file PATH` | File listing sources, one per line; blank and `#` lines ignored |
+| `--no-artifact-hash` | No hash available; placeholder recorded with a wolfSSL contact note |
+
+#### Example: embedded build, source file list on the command line
+
+```sh
+python3 scripts/gen-sbom \
+    --name wolfssl --version 5.9.1 \
+    --license-file LICENSING \
+    --user-settings /path/to/user_settings.h \
+    --user-settings-include /path/to/wolfssl \
+    --user-settings-define WOLFSSL_USER_SETTINGS \
+    --srcs wolfcrypt/src/aes.c wolfcrypt/src/sha256.c src/tls.c \
+    --cdx-out wolfssl-5.9.1.cdx.json \
+    --spdx-out wolfssl-5.9.1.spdx.json
+```
+
+#### Example: embedded build, source list from a file
+
+Useful when the source list is too long for the command line, or when the
+IDE/build system can generate the list automatically (e.g. from a link map):
+
+```sh
+python3 scripts/gen-sbom \
+    --name wolfssl --version 5.9.1 \
+    --license-file LICENSING \
+    --user-settings /path/to/user_settings.h \
+    --user-settings-include /path/to/wolfssl \
+    --user-settings-define WOLFSSL_USER_SETTINGS \
+    --srcs-file /path/to/wolfssl-sources.txt \
+    --cdx-out wolfssl-5.9.1.cdx.json \
+    --spdx-out wolfssl-5.9.1.spdx.json
+```
+
+`wolfssl-sources.txt` format — one path per line, comments allowed:
+
+```
+# wolfssl core
+/path/to/wolfssl/wolfcrypt/src/aes.c
+/path/to/wolfssl/wolfcrypt/src/sha256.c
+/path/to/wolfssl/src/tls.c
+```
+
+#### Source file combined hash
+
+When `--srcs` or `--srcs-file` is used, `gen-sbom` computes a combined
+SHA-256 as follows:
+
+1. Hash each file individually with SHA-256.
+2. Sort the `(path, digest)` pairs by path.
+3. Hash the sorted manifest `<path>:<digest>\n` lines with SHA-256.
+
+The result is deterministic regardless of the order paths were listed.
+Consumers can re-verify by reprocessing the same source tree.
+
+The SBOM records `wolfssl:sbom:hash-source=srcs` so downstream tooling
+can identify which hash method was used.
+
+#### No hashable artifact available
+
+For binary-only distributions, ROM builds, or HSM firmware where neither a
+compiled library nor source files are accessible:
+
+```sh
+python3 scripts/gen-sbom \
+    --name wolfssl --version 5.9.1 \
+    --license-file LICENSING \
+    --user-settings /path/to/user_settings.h \
+    --user-settings-include /path/to/wolfssl \
+    --user-settings-define WOLFSSL_USER_SETTINGS \
+    --no-artifact-hash \
+    --cdx-out wolfssl-5.9.1.cdx.json \
+    --spdx-out wolfssl-5.9.1.spdx.json
+```
+
+A placeholder (64 zero digits) is recorded in the hash fields, and a note
+directing integrators to contact wolfSSL is embedded in the SBOM properties.
+The `wolfssl:sbom:hash-source=none` property signals to downstream tooling
+that no real artifact hash was available.
+
+Contact wolfssl@wolfssl.com to discuss integrity verification options for
+your specific build system before using `--no-artifact-hash` in production.
+
+#### Preprocessor detection for `--user-settings`
+
+`gen-sbom` tries preprocessors in order:
+
+1. **pcpp** (`pip install pcpp`): pure Python, host-independent.  Preferred
+   for cross-compilation scenarios where the host compiler would expand host
+   macros rather than target macros.
+2. **`CC -dM -E`**: the C compiler from the `CC` environment variable
+   (default: `cc`).  Set `CC=arm-none-eabi-gcc` (or your target compiler)
+   for cross builds.
+
+If both fail, `gen-sbom` exits with a message that names both fallback
+commands and the install path for pcpp.
+
 ## Implementation Notes
 
 SBOM generation is implemented in `scripts/gen-sbom` (Python 3, stdlib only)
