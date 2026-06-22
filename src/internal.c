@@ -17953,6 +17953,11 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ||  (response->single->status->status != CERT_GOOD))
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
 
+                    /* Bundling more than one SingleResponse inside a single
+                     * stapled BasicOCSPResponse is not supported. */
+                    if (ret == 0 && response->single->next != NULL)
+                        ret = BAD_CERTIFICATE_STATUS_ERROR;
+
                     if (ret == 0) {
                         request = (OcspRequest*)TLSX_CSR2_GetRequest(
                                 ssl->extensions, status_type, idx);
