@@ -101,7 +101,7 @@ run_test() {
     # starts the server on pk_port, -R generates ready file to be used as a
     # mutex lock, -P does pkcallbacks. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -P -R "$ready_file" -p $pk_port &
+    timeout -s KILL 2m ./examples/server/server -P -R "$ready_file" -p $pk_port &
     server_pid=$!
 
     while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do

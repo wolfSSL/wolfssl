@@ -455,7 +455,7 @@ if [ "$stapling_v1" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS -------------------------"
     # client test against our own server - GOOD CERT
-    ./examples/server/server -c certs/ocsp/server1-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem \
                              -k certs/ocsp/server1-key.pem -R $ready_file5 \
                              -p $port5 &
     server_pid5=$!
@@ -468,7 +468,7 @@ if [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE -----------------------"
     # client test against our own server - REVOKED CERT
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server2-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server2-cert.pem \
                              -k certs/ocsp/server2-key.pem -R $ready_file5 \
                              -p $port5 &
     server_pid5=$!
@@ -486,7 +486,7 @@ if [ "$stapling_v1" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE 3 TLS13 SHOULD PASS -----------------"
         # client test against our own server - GOOD CERT
         remove_single_rF $ready_file5
-        ./examples/server/server -c certs/ocsp/server1-cert.pem \
+        timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem \
                                  -k certs/ocsp/server1-key.pem -v 4 \
                                  -R $ready_file5 -p $port5 &
         server_pid5=$!
@@ -500,7 +500,7 @@ if [ "$stapling_v1" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE 4 TLS13 MUST-STAPLE SHOULD PASS -----"
         # client test against our own server, must staple - GOOD CERT
         remove_single_rF $ready_file5
-        ./examples/server/server -c certs/ocsp/server1-cert.pem \
+        timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem \
                                  -k certs/ocsp/server1-key.pem -v 4 \
                                  -R $ready_file5 -p $port5 &
         server_pid5=$!
@@ -514,7 +514,7 @@ if [ "$stapling_v1" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE 5 TLS13 SHOULD REVOKE ---------------"
         # client test against our own server - REVOKED CERT
         remove_single_rF $ready_file5
-        ./examples/server/server -c certs/ocsp/server2-cert.pem \
+        timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server2-cert.pem \
                                  -k certs/ocsp/server2-key.pem -v 4 \
                                  -R $ready_file5 -p $port5 &
         server_pid5=$!
@@ -533,7 +533,7 @@ if [ "$stapling_v1" == "yes" ]; then
     if [[ "$dtls12" == "yes" ]]; then
         printf '%s\n\n' "------------- TEST CASE DTLS12-1 SHOULD PASS ----------------"
         remove_single_rF $ready_file5
-        ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
+        timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
                                  -k certs/ocsp/server1-key.pem -u -v 3 \
                                  -p $port5 &
         server_pid5=$!
@@ -549,7 +549,7 @@ if [ "$stapling_v1" == "yes" ]; then
     if [ "$dtls13" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE DTLS13-1 SHOULD PASS ----------------"
         remove_single_rF $ready_file5
-        ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
+        timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file5 \
                                  -k certs/ocsp/server1-key.pem -u -v 4 \
                                  -p $port5 &
         server_pid5=$!
@@ -575,7 +575,7 @@ if [ "$stapling_v2" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE V2-1 SHOULD PASS ----------------------"
     # client test against our own server - GOOD CERTS
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server3-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server3-cert.pem \
                              -k certs/ocsp/server3-key.pem -R $ready_file5 \
                              -p $port5 &
     server_pid5=$!
@@ -588,7 +588,7 @@ if [ "$stapling_v2" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE V2-2 SHOULD PASS ----------------------"
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server3-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server3-cert.pem \
                              -k certs/ocsp/server3-key.pem -R $ready_file5 \
                              -p $port5 &
     server_pid5=$!
@@ -602,7 +602,7 @@ if [ "$stapling_v2" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE V2-3 SHOULD REVOKE --------------------"
     # client test against our own server - REVOKED SERVER CERT
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server4-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server4-cert.pem \
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
                              -p $port5 &
     server_pid5=$!
@@ -616,7 +616,7 @@ if [ "$stapling_v2" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE V2-4 SHOULD REVOKE --------------------"
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server4-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server4-cert.pem \
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
                              -p $port5 &
     sleep 0.1
@@ -630,7 +630,7 @@ if [ "$stapling_v2" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE V2-5 SHOULD PASS ----------------------"
     # client test against our own server - REVOKED INTERMEDIATE CERT
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server5-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server5-cert.pem \
                              -k certs/ocsp/server5-key.pem -R $ready_file5 \
                              -p $port5 &
     server_pid5=$!
@@ -643,7 +643,7 @@ if [ "$stapling_v2" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE V2-6 SHOULD REVOKE --------------------"
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server5-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server5-cert.pem \
                              -k certs/ocsp/server5-key.pem -R $ready_file5 \
                              -p $port5 &
     server_pid5=$!
@@ -659,7 +659,7 @@ if [ "$stapling_v2" == "yes" ]; then
         if [[ "$dtls12" == "yes" ]]; then
             printf '%s\n\n' "------------- TEST CASE DTLS12-V2 SHOULD PASS ----------------"
             remove_single_rF $ready_file5
-            ./examples/server/server -c certs/ocsp/server3-cert.pem \
+            timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server3-cert.pem \
                                      -k certs/ocsp/server3-key.pem -R $ready_file5 \
                                      -p $port5 -u -v 3 &
             server_pid5=$!
@@ -685,7 +685,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE T13-1 SHOULD PASS --------------------"
     # client test against our own server - GOOD CERTS
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server3-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server3-cert.pem \
                              -k certs/ocsp/server3-key.pem -R $ready_file5 \
                              -p $port5 -v 4 &
     server_pid5=$!
@@ -699,7 +699,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE T13-2 SHOULD REVOKE ------------------"
     # client test against our own server - REVOKED SERVER CERT
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server4-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server4-cert.pem \
                              -k certs/ocsp/server4-key.pem -R $ready_file5 \
                              -p $port5 -v 4 &
     server_pid5=$!
@@ -714,7 +714,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     printf '%s\n\n' "------------- TEST CASE T13-3 SHOULD REVOKE ------------------"
     # client test against our own server - REVOKED INTERMEDIATE CERT
     remove_single_rF $ready_file5
-    ./examples/server/server -c certs/ocsp/server5-cert.pem \
+    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server5-cert.pem \
                              -k certs/ocsp/server5-key.pem -R $ready_file5 \
                              -p $port5 -v 4 &
     server_pid5=$!
@@ -730,7 +730,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
     if [ "$dtls13" == "yes" ]; then
         printf '%s\n\n' "------------- TEST CASE DTLS13-V2 SHOULD PASS ----------------"
         remove_single_rF $ready_file5
-        ./examples/server/server -c certs/ocsp/server3-cert.pem \
+        timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server3-cert.pem \
                                  -k certs/ocsp/server3-key.pem -R $ready_file5 \
                                  -p $port5 -u -v 4 &
         server_pid5=$!
@@ -743,7 +743,7 @@ if [ "$tls13" == "yes" ] && [ "$stapling_v1" == "yes" ]; then
 
         printf '%s\n\n' "------------- TEST CASE DTLS13-V2-REVOKE SHOULD REVOKE -------"
         remove_single_rF $ready_file5
-        ./examples/server/server -c certs/ocsp/server4-cert.pem \
+        timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server4-cert.pem \
                                  -k certs/ocsp/server4-key.pem -R $ready_file5 \
                                  -p $port5 -v 4 &
         server_pid5=$!

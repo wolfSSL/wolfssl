@@ -99,7 +99,7 @@ run_test() {
     # starts the server on crl_port, -R generates ready file to be used as a
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -R "$ready_file" -p $crl_port \
+    timeout -s KILL 2m ./examples/server/server -R "$ready_file" -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
     server_pid=$!
@@ -176,7 +176,7 @@ run_hashdir_test() {
   # starts the server on crl_port, -R generates ready file to be used as a
   # mutex lock, -c loads the revoked certificate. We capture the processid
   # into the variable server_pid
-  ./examples/server/server -R "$ready_file" -p $crl_port \
+  timeout -s KILL 2m ./examples/server/server -R "$ready_file" -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
   server_pid=$!

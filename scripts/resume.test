@@ -77,7 +77,7 @@ do_test() {
 
     remove_ready_file
     echo "./examples/server/server -r -R \"$ready_file\" -p $resume_port"
-    ./examples/server/server -r -R "$ready_file" -p $resume_port &
+    timeout -s KILL 2m ./examples/server/server -r -R "$ready_file" -p $resume_port &
     server_pid=$!
 
     while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
