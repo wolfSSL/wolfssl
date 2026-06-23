@@ -389,6 +389,13 @@
     #define __aarch64__ 1
 #endif
 
+/* Versal Gen2 ASU port: enable the crypto callback and map WC_USE_DEVID before
+ * the rest of settings.h and before the unmodified test and benchmark read it.
+ * This header is macro only and pulls in no BSP dependencies. */
+#if defined(WOLFSSL_VERSAL_GEN2_ASU)
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_settings.h>
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still
