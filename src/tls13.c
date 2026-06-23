@@ -5536,8 +5536,26 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     if ((args->idx - args->begin) + OPAQUE16_LEN > helloSz) {
-        if (!ssl->options.downgrade)
-            return BUFFER_ERROR;
+        if (!ssl->options.downgrade) {
+            /* Fewer than OPAQUE16_LEN bytes remain after the compression
+             * method, so there is no complete extensions length field. */
+            if ((args->idx - args->begin) < helloSz) {
+                /* A partial extensions length field is genuinely malformed:
+                 * report it as a decode error. */
+                WOLFSSL_MSG("Truncated extensions length in ServerHello");
+                return BUFFER_ERROR;
+            }
+            /* No extensions field at all, so the server is not offering TLS 1.3
+             * (no supported_versions extension - see RFC 8446 4.2.1) but TLS 1.2
+             * or below. This is a well-formed message, so a TLS 1.3-only client
+             * (downgrade disabled) must reject it as a version mismatch, not as
+             * a malformed message. Returning VERSION_ERROR makes the caller send
+             * a protocol_version alert (RFC 8446 6.2) rather than decode_error. */
+            WOLFSSL_MSG("Server offered TLS 1.2 (no supported_versions ext) "
+                        "but downgrade not allowed");
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+            return VERSION_ERROR;
+        }
 #ifndef WOLFSSL_NO_TLS12
         /* Force client hello version 1.2 to work for static RSA. */
         ssl->chVersion.minor = TLSv1_2_MINOR;
