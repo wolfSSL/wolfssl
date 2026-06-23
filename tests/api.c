@@ -12223,6 +12223,10 @@ static int test_wc_CheckCertSigPubKey(void)
     ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
     ExpectIntGE(ret = wc_CertPemToDer(cert_buf, (int)cert_sz, cert_der,
         (int)cert_dersz, CERT_TYPE), 0);
+    /* Use the actual DER length, not the (larger) PEM buffer size, otherwise
+     * the decoded cert would have trailing bytes after its outer SEQUENCE. */
+    if (ret > 0)
+        cert_dersz = (word32)ret;
 
     wc_InitDecodedCert(&decoded, cert_der, cert_dersz, NULL);
     ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
