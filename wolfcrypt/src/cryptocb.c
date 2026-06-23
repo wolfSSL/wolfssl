@@ -80,9 +80,6 @@ Crypto Callback Build Options:
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 /* TODO: Consider linked list with mutex */
-#ifndef MAX_CRYPTO_DEVID_CALLBACKS
-#define MAX_CRYPTO_DEVID_CALLBACKS 8
-#endif
 
 typedef struct CryptoCb {
     int devId;
@@ -365,6 +362,15 @@ static CryptoCb* wc_CryptoCb_GetDevice(int devId)
     return NULL;
 }
 
+/* Returns 1 if the given device ID is currently registered, 0 otherwise.
+ * INVALID_DEVID marks free table slots, so it is never reported registered. */
+int wc_CryptoCb_IsDeviceRegistered(int devId)
+{
+    if (devId == INVALID_DEVID)
+        return 0;
+    return wc_CryptoCb_GetDevice(devId) != NULL;
+}
+
 
 /* Filters through find callback set when trying to get the device,
  * returns the device found on success and null if not found. */
@@ -451,12 +457,18 @@ void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb)
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     int rc = 0;
+    CryptoCb* dev;
 
-    /* find existing or new */
-    CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
-    if (dev == NULL)
-        dev = wc_CryptoCb_GetDevice(INVALID_DEVID);
+    /* INVALID_DEVID marks a free slot and cannot be registered as a device. */
+    if (devId == INVALID_DEVID)
+        return BAD_FUNC_ARG;
 
+    /* Reject re-registration of an already-registered device ID. */
+    if (wc_CryptoCb_GetDevice(devId) != NULL)
+        return ALREADY_E;
+
+    /* find a free slot */
+    dev = wc_CryptoCb_GetDevice(INVALID_DEVID);
     if (dev == NULL)
         return BUFFER_E; /* out of devices */
 
