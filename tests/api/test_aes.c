@@ -8708,6 +8708,8 @@ out:
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && defined(WOLFSSL_AES_CFB) && \
     !defined(WOLF_CRYPTO_CB_ONLY_AES)
 
+#if defined(WOLFSSL_AES_128)
+
 #define TEST_CRYPTOCB_AESCFB_DEVID  10
 
 static int cryptoCbAesCfbEncryptCalled = 0;
@@ -8757,6 +8759,7 @@ static int test_CryptoCb_AesCfb_Cb(int devId, wc_CryptoInfo* info, void* ctx)
 
     return CRYPTOCB_UNAVAILABLE;
 }
+#endif /* WOLFSSL_AES_128 */
 
 /*
  * Test: End-to-End AES-CFB Offload via CryptoCB
@@ -8858,6 +8861,8 @@ int test_wc_CryptoCb_AesCfb_EncryptDecrypt(void)
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_AES) && defined(WOLFSSL_AES_OFB) && \
     !defined(WOLF_CRYPTO_CB_ONLY_AES)
 
+#if defined(WOLFSSL_AES_128)
+
 #define TEST_CRYPTOCB_AESOFB_DEVID  11
 
 static int cryptoCbAesOfbEncryptCalled = 0;
@@ -8907,6 +8912,7 @@ static int test_CryptoCb_AesOfb_Cb(int devId, wc_CryptoInfo* info, void* ctx)
 
     return CRYPTOCB_UNAVAILABLE;
 }
+#endif /* WOLFSSL_AES_128 */
 
 /*
  * Test: End-to-End AES-OFB Offload via CryptoCB
