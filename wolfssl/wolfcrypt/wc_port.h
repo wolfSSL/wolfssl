@@ -516,11 +516,13 @@
     typedef wolfSSL_Mutex wolfSSL_RwLock;
 #endif
 
-#ifdef WC_16BIT_CPU
-    #define WC_ATOMIC_INT_ARG long int
-    #define WC_ATOMIC_UINT_ARG long unsigned int
-#else
+#if defined(WC_ATOMIC_INT_ARG) != defined(WC_ATOMIC_UINT_ARG)
+    #error WC_ATOMIC_INT_ARG and WC_ATOMIC_UINT_ARG overrides must be paired.
+#endif
+#ifndef WC_ATOMIC_INT_ARG
     #define WC_ATOMIC_INT_ARG int
+#endif
+#ifndef WC_ATOMIC_UINT_ARG
     #define WC_ATOMIC_UINT_ARG unsigned int
 #endif
 
@@ -998,7 +1000,7 @@ WOLFSSL_API mutex_cb* wc_GetMutexCb(void);
 #define WC_INIT_STATE_CLEANING_UP 3U
 #define WC_INIT_STATE_BAD_STATE 4U
 #define WC_INIT_STATE_STATE_BITS 3
-#define WC_INIT_STATE_COUNT_BITS 29
+#define WC_INIT_STATE_COUNT_BITS ((sizeof(WC_ATOMIC_UINT_ARG) * 8) - WC_INIT_STATE_STATE_BITS)
 union wc_init_state_bitfields {
     WC_ATOMIC_UINT_ARG u;
     struct {

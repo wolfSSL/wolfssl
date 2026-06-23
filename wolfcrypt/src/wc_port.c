@@ -253,8 +253,11 @@ int wc_local_InitUp(wc_init_state_t *s)
      * WC_INIT_ERROR_WHEN_CONTENDED.
      */
     for (;;) {
-        wc_static_assert(WC_INIT_STATE_STATE_BITS + WC_INIT_STATE_COUNT_BITS ==
-                         sizeof(WC_ATOMIC_UINT_ARG) * 8);
+        wc_static_assert(WC_INIT_STATE_STATE_BITS < sizeof(WC_ATOMIC_UINT_ARG) * 8);
+#ifdef CHAR_BIT
+        wc_static_assert(WC_INIT_STATE_STATE_BITS + WC_INIT_STATE_COUNT_BITS <=
+                         sizeof(WC_ATOMIC_UINT_ARG) * CHAR_BIT);
+#endif
         if (exp_wc_init_state.c.count ==
             (((WC_ATOMIC_UINT_ARG)1 << WC_INIT_STATE_COUNT_BITS)
              - (WC_ATOMIC_UINT_ARG)1))
