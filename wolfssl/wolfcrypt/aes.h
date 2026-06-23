@@ -294,6 +294,11 @@ struct Aes {
 #endif
     int     keylen;
 
+    /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
+     * GcmSetKey). Checked by the mode APIs so they fail instead of running
+     * with the all-zero key schedule left by wc_AesInit. */
+    WC_BITFIELD keySet:1;
+
     ALIGN16 word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     ALIGN16 word32 tmp[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
 
