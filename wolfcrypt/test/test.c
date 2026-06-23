@@ -28452,6 +28452,9 @@ done:
 static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
     byte             digest[WC_MAX_DIGEST_SIZE];
+#ifndef WOLFSSL_MICROCHIP_TA100
+    byte             tamperedDigest[WC_MAX_DIGEST_SIZE];
+#endif
     wc_test_ret_t ret = 0;
     const char       inStr[] = TEST_STRING;
     word32           inLen   = (word32)TEST_STRING_SZ;
@@ -28579,6 +28582,27 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+
+            /* A well-formed PSS structure must not verify against a different
+             * message hash. Flip one digest bit, keep the correct salt length,
+             * and confirm the signature-to-message binding rejects it. */
+            XMEMCPY(tamperedDigest, digest, digestSz);
+            tamperedDigest[0] ^= 0x01;
+#if defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
+            ret = wc_RsaPSS_CheckPadding_ex(tamperedDigest, digestSz, plain,
+                                         plainSz, hash[j], -1);
+#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+            ret = wc_RsaPSS_CheckPadding_ex(tamperedDigest, digestSz, plain,
+                                         plainSz, hash[j], -1, 0);
+#else
+            ret = wc_RsaPSS_CheckPadding_ex2(tamperedDigest, digestSz, plain,
+                              plainSz, hash[j], -1, wc_RsaEncryptSize(key)*8,
+                              HEAP_HINT);
+#endif
+            if (ret != WC_NO_ERR_TRACE(BAD_PADDING_E))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+            ret = 0;
 #endif /* WOLFSSL_MICROCHIP_TA100 */
 
 #ifdef RSA_PSS_TEST_WRONG_PARAMS
