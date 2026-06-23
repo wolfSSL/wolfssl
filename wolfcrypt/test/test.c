@@ -16122,11 +16122,144 @@ static wc_test_ret_t aes_ecb_direct_test(void)
 }
 #endif /* HAVE_AES_ECB || WOLFSSL_AES_DIRECT */
 
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AESGCM) || defined(HAVE_AES_ECB) || \
+    defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB)
+#define WC_TEST_HAVE_AES_NO_KEY_SET
+/* Ensure AES mode APIs fail when used before wc_AesSetKey installs a key,
+ * instead of running with the all-zero key schedule left by wc_AesInit. */
+static wc_test_ret_t aes_no_key_set_test(void)
+{
+    wc_test_ret_t ret = 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    Aes    *aes = NULL;
+#else
+    Aes    aes[1];
+#endif
+    byte    plain[WC_AES_BLOCK_SIZE];
+    byte    cipher[WC_AES_BLOCK_SIZE];
+#ifdef HAVE_AESGCM
+    byte    iv[WC_AES_BLOCK_SIZE];
+    byte    tag[WC_AES_BLOCK_SIZE];
+#endif
+
+    XMEMSET(plain, 0, sizeof(plain));
+    XMEMSET(cipher, 0, sizeof(cipher));
+#ifdef HAVE_AESGCM
+    XMEMSET(iv, 0, sizeof(iv));
+    XMEMSET(tag, 0, sizeof(tag));
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    aes = wc_AesNew(HEAP_HINT, devId, &ret);
+    if (aes == NULL)
+        return WC_TEST_RET_ENC_EC(ret);
+#else
+    ret = wc_AesInit(aes, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+#endif
+
+    /* No wc_AesSetKey: aes->keylen is 0, so every mode must reject the call. */
+#ifdef HAVE_AES_CBC
+    if (wc_AesCbcEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesCbcDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#endif /* HAVE_AES_CBC */
+
+#ifdef WOLFSSL_AES_COUNTER
+    if (wc_AesCtrEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+#ifdef HAVE_AESGCM
+    if (wc_AesGcmEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, sizeof(iv),
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_AesGcmDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE, iv, sizeof(iv),
+            tag, sizeof(tag), NULL, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+#ifdef HAVE_AES_ECB
+    if (wc_AesEcbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesEcbDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#endif /* HAVE_AES_ECB */
+
+#ifdef WOLFSSL_AES_CFB
+    if (wc_AesCfbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesCfbDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#if !defined(WOLFSSL_NO_AES_CFB_1_8)
+    if (wc_AesCfb1Encrypt(aes, cipher, plain, 8) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_AesCfb8Encrypt(aes, cipher, plain, 1) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesCfb1Decrypt(aes, cipher, plain, 8) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_AesCfb8Decrypt(aes, cipher, plain, 1) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#endif /* !WOLFSSL_NO_AES_CFB_1_8 */
+#endif /* WOLFSSL_AES_CFB */
+
+#ifdef WOLFSSL_AES_OFB
+    if (wc_AesOfbEncrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesOfbDecrypt(aes, cipher, plain, WC_AES_BLOCK_SIZE) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#endif /* WOLFSSL_AES_OFB */
+
+    ret = 0; /* success */
+  out:
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    wc_AesDelete(aes, &aes);
+#else
+    wc_AesFree(aes);
+#endif
+
+    return ret;
+}
+#endif /* any AES mode for aes_no_key_set_test */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_test(void)
 {
     wc_test_ret_t ret = 0;
 
     WOLFSSL_ENTER("aes_test");
+
+#ifdef WC_TEST_HAVE_AES_NO_KEY_SET
+    ret = aes_no_key_set_test();
+    if (ret != 0)
+        return ret;
+#endif
 
 #ifndef HAVE_RENESAS_SYNC
     ret = aes_key_size_test();
