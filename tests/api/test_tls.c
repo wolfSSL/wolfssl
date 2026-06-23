@@ -318,6 +318,224 @@ int test_tls12_dhe_rsa_pss_sigalg(void)
     return EXPECT_RESULT();
 }
 
+int test_tls12_ske_sig_param_binding(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(HAVE_AESGCM) && \
+    !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA)
+    /* Negative test for the client-side ServerKeyExchange signature-content
+     * check in DoServerKeyExchange (classic rsa_sa_algo / PKCS#1 v1.5 path). */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* msg = NULL;
+    int msgSz = 0;
+    int i;
+    int skeIdx = -1;
+    int off = 0;
+    int len = 0;
+    byte* b = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+
+    /* Force the classic RSA PKCS#1 v1.5 signature path (not RSA-PSS). */
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA+SHA256"), 1);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA+SHA256"), 1);
+    /* Send each handshake message in its own record so the ServerKeyExchange
+     * can be located and tampered with individually. */
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), 1);
+
+    /* Client sends ClientHello. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server sends ServerHello..ServerKeyExchange..ServerHelloDone. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Locate the ServerKeyExchange record in the server->client queue. */
+    for (i = 0; test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i) == 0;
+            i++) {
+        if (msgSz > 10 && (byte)msg[0] == handshake &&
+                (byte)msg[5] == server_key_exchange) {
+            skeIdx = i;
+            break;
+        }
+    }
+    ExpectIntGE(skeIdx, 0);
+
+    if (EXPECT_SUCCESS()) {
+        /* Layout: record hdr[5] | hs hdr[4] | ServerDHParams. ServerDHParams
+         * is dh_p, dh_g, dh_Ys, each opaque<1..2^16-1> (a 2-byte length
+         * followed by that many bytes), then the signature. Walk to dh_Ys
+         * and corrupt its last byte. */
+        b = (byte*)msg;
+        /* start of dh_p */
+        off = 9;
+        len = (b[off] << 8) | b[off + 1]; off += 2 + len;
+        /* skip dh_p */
+        ExpectIntLT(off + 2, msgSz);
+    }
+    if (EXPECT_SUCCESS()) {
+        /* skip dh_g */
+        len = (b[off] << 8) | b[off + 1]; off += 2 + len;
+        ExpectIntLT(off + 2, msgSz);
+    }
+    if (EXPECT_SUCCESS()) {
+        /* dh_Ys length */
+        len = (b[off] << 8) | b[off + 1]; off += 2;
+        ExpectIntGE(len, 1);
+        ExpectIntLE(off + len, msgSz);
+    }
+    if (EXPECT_SUCCESS()) {
+        /* corrupt server DH pub value */
+        b[off + len - 1] ^= 0x01;
+    }
+
+    /* Client consumes the tampered flight. It must notice that
+     * the signature no longer matches the parameters and fail. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    /* Confirm the classic PKCS#1 v1.5 path was exercised... */
+    ExpectIntEQ(ssl_c->options.peerSigAlgo, rsa_sa_algo);
+    /* ...and that the parameter/signature mismatch
+     * was the reason for failure. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+            WC_NO_ERR_TRACE(VERIFY_SIGN_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls12_bad_cv_sig_content(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(HAVE_AESGCM) && \
+    !defined(WOLFSSL_HARDEN_TLS) && defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
+    /* Negative test for the server-side CertificateVerify signature-content
+     * check in DoCertificateVerify (classic rsa_sa_algo / PKCS#1 v1.5 path).
+     * That XMEMCMP is the only proof the client holds the private key for the
+     * certificate it presented; peerAuthGood is set from havePeerCert whenever
+     * ret == 0, so it cannot catch a deleted compare. */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* msg = NULL;
+    int msgSz = 0;
+    int i;
+    int ckeIdx = -1;
+    int off = 0;
+    int len = 0;
+    byte* b = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* Pin classic safe-prime DH params (no q) so
+     * a one-byte change to the client's DH public value still passes
+     * the server's range-only public-key check and
+     * reaches the CertificateVerify content comparison. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+                    WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+                    WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl_s, dhParamFile, WOLFSSL_FILETYPE_PEM),
+                    WOLFSSL_SUCCESS);
+
+    /* Client presents an RSA certificate so its CertificateVerify is signed on
+     * the classic rsa_sa_algo path. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+                    WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-RSA-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-RSA-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+
+    /* Force the classic RSA PKCS#1 v1.5 path for the CertificateVerify. */
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA+SHA256"), 1);
+#ifdef HAVE_ECC
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA+SHA256:ECDSA+SHA256"), 1);
+#else
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA+SHA256"), 1);
+#endif
+    /* Send each client handshake message in its own record so the
+     * ClientKeyExchange can be located and tampered with individually. */
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_c), 1);
+
+    /* Client sends ClientHello. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server sends ServerHello..CertificateRequest..ServerHelloDone. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client sends Certificate, ClientKeyExchange, CertificateVerify, ... */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Locate the ClientKeyExchange record in the client->server queue. */
+    for (i = 0; test_memio_get_message(&test_ctx, 0, &msg, &msgSz, i) == 0;
+            i++) {
+        if (msgSz > 11 && (byte)msg[0] == handshake &&
+                (byte)msg[5] == client_key_exchange) {
+            ckeIdx = i;
+            break;
+        }
+    }
+    ExpectIntGE(ckeIdx, 0);
+
+    if (EXPECT_SUCCESS()) {
+        /* Layout: record hdr[5] | hs hdr[4] | dh_Yc (opaque<1..2^16-1>: a
+         * 2-byte length followed by that many bytes). Corrupt the last byte of
+         * the client's DH public value so the server hashes a transcript that
+         * differs from the one the client signed in its CertificateVerify. */
+        b = (byte*)msg;
+        off = 9;
+        len = (b[off] << 8) | b[off + 1]; off += 2;
+        ExpectIntGE(len, 1);
+        ExpectIntLE(off + len, msgSz);
+    }
+    if (EXPECT_SUCCESS()) {
+        /* corrupt client DH pub value */
+        b[off + len - 1] ^= 0x01;
+    }
+
+    /* Server consumes the client's flight, the CertificateVerify signature no
+     * longer matches the transcript and must be rejected. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    /* Confirm the classic PKCS#1 v1.5 path was exercised... */
+    ExpectIntEQ(ssl_s->options.peerSigAlgo, rsa_sa_algo);
+    /* ...that the client was not accepted as authenticated... */
+    ExpectIntEQ(ssl_s->options.peerAuthGood, 0);
+    /* ...and that the content mismatch was the reason for failure. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+            WC_NO_ERR_TRACE(VERIFY_CERT_ERROR));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls13_curve_intersection(void) {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
