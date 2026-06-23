@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+fi
+
+
 # dtlscid.test
 # Copyright wolfSSL 2022-2024
 
