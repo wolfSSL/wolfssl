@@ -7208,6 +7208,13 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* fall-through when unavailable */
         }
     #endif
+
+        /* Software/HW key schedule required from here on. */
+        if (aes->keylen == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
@@ -7445,6 +7452,13 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* fall-through when unavailable */
         }
     #endif
+
+        /* Software/HW key schedule required from here on. */
+        if (aes->keylen == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
@@ -7943,6 +7957,12 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 /* fall-through when unavailable */
             }
         #endif
+
+            /* Software/HW key schedule required from here on. */
+            if (aes->keylen == 0) {
+                WOLFSSL_MSG("AES key not set");
+                return BAD_FUNC_ARG;
+            }
 
             /* consume any unused bytes left in aes->tmp */
             processed = min(aes->left, sz);
@@ -11374,6 +11394,12 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif
 
+    /* Software/HW key schedule (and hash subkey H) required from here on. */
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
     /* only 12-byte IV is supported in HW */
@@ -12228,6 +12254,12 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         /* fall-through when unavailable */
     }
 #endif
+
+    /* Software/HW key schedule (and hash subkey H) required from here on. */
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
@@ -16366,6 +16398,12 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
         return DCPAesEcbEncrypt(aes, out, in, sz);
 #endif
 
+    /* Software key schedule required from here on. */
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
+
     VECTOR_REGISTERS_PUSH;
 
 #if defined(WOLFSSL_RISCV_ASM)
@@ -16475,6 +16513,12 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     if (aes->keylen == 16)
         return DCPAesEcbDecrypt(aes, out, in, sz);
 #endif
+
+    /* Software key schedule required from here on. */
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
 
     VECTOR_REGISTERS_PUSH;
 
@@ -16631,6 +16675,10 @@ static WARN_UNUSED_RESULT int AesCfbEncrypt_C(Aes* aes, byte* out,
     if (sz == 0) {
         return 0;
     }
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
 
     if (aes->left > 0) {
         /* consume any unused bytes left in aes->tmp */
@@ -16713,6 +16761,10 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
     }
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
     }
 
     if (aes->left > 0) {
@@ -16942,6 +16994,10 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(
     if (sz == 0) {
         return 0;
     }
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
+    }
 
     VECTOR_REGISTERS_PUSH;
 
@@ -17001,6 +17057,10 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
 
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
     }
 
     VECTOR_REGISTERS_PUSH;
@@ -17159,6 +17219,10 @@ static WARN_UNUSED_RESULT int AesOfbCrypt_C(Aes* aes, byte* out, const byte* in,
     }
     if (sz == 0) {
         return 0;
+    }
+    if (aes->keylen == 0) {
+        WOLFSSL_MSG("AES key not set");
+        return BAD_FUNC_ARG;
     }
 
     if (aes->left > 0) {
