@@ -46,6 +46,16 @@
 #define HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
+#ifndef NO_VAES_SUPPORT
+#ifndef HAVE_INTEL_VAES
+#define HAVE_INTEL_VAES
+#endif /* HAVE_INTEL_VAES */
+#endif /* NO_VAES_SUPPORT */
+#ifndef NO_AVX512_SUPPORT
+#ifndef HAVE_INTEL_AVX512
+#define HAVE_INTEL_AVX512
+#endif /* HAVE_INTEL_AVX512 */
+#endif /* NO_AVX512_SUPPORT */
 
 #ifndef __APPLE__
 .text

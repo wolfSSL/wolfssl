@@ -130,6 +130,8 @@
             if (cpuid_flag(1, 0, ECX, 22)) { new_cpuid_flags |= CPUID_MOVBE ; }
             if (cpuid_flag(7, 0, EBX,  3)) { new_cpuid_flags |= CPUID_BMI1  ; }
             if (cpuid_flag(7, 0, EBX, 29)) { new_cpuid_flags |= CPUID_SHA   ; }
+            if (cpuid_flag(7, 0, ECX,  9)) { new_cpuid_flags |= CPUID_VAES  ; }
+            if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }

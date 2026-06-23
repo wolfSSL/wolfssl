@@ -4794,6 +4794,8 @@ static void print_cpu_features(void)
     if (IS_INTEL_MOVBE(cpuid_flags))  printf(" movbe");
     if (IS_INTEL_BMI1(cpuid_flags))   printf(" bmi1");
     if (IS_INTEL_SHA(cpuid_flags))    printf(" sha");
+    if (IS_INTEL_VAES(cpuid_flags))   printf(" vaes");
+    if (IS_INTEL_AVX512(cpuid_flags)) printf(" avx512");
 #endif
 #ifdef __aarch64__
     printf("Aarch64 -");
