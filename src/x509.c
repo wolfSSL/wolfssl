@@ -6231,17 +6231,18 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
     /* ready to be decoded. */
     if (der != NULL && der->buffer != NULL) {
         WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
-        /* For TRUSTED_CERT_TYPE, the DER buffer contains the certificate
-         * followed by auxiliary trust info. ParseCertRelative expects CERT_TYPE
-         * and will parse only the certificate portion, ignoring the rest. */
-        int parseType = (type == TRUSTED_CERT_TYPE) ? CERT_TYPE : type;
 
         WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
             ret=MEMORY_ERROR);
         if (WC_VAR_OK(cert))
         {
             InitDecodedCert(cert, der->buffer, der->length, NULL);
-            ret = ParseCertRelative(cert, parseType, 0, NULL, NULL);
+            /* For TRUSTED_CERT_TYPE the DER buffer holds the certificate
+             * followed by auxiliary trust info. ParseCertRelative() recognizes
+             * the type: it parses only the certificate, permits the trailing
+             * aux data, and treats it as CERT_TYPE for verification. The DER is
+             * trimmed to the certificate below. */
+            ret = ParseCertRelative(cert, type, 0, NULL, NULL);
             if (ret == 0) {
                 /* For TRUSTED_CERT_TYPE, truncate the DER buffer to exclude
                  * auxiliary trust data. ParseCertRelative sets srcIdx to the
