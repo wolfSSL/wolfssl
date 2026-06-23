@@ -8029,7 +8029,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #if !defined(FREESCALE_LTC_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO)
 
 
-#ifdef WOLF_CRYPTO_CB_AES_SETKEY
+#if defined(WOLF_CRYPTO_CB_AES_SETKEY) || defined(WOLF_CRYPTO_CB_SETKEY)
     if ((ret == 0) && (aes->devId != INVALID_DEVID && aes->devCtx != NULL)) {
         /* SE owns key - skip H and M table generation */
     }
