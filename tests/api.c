@@ -15260,18 +15260,26 @@ static int ech_seek_extensions(byte* buf, word16* innerExtLen)
     word16 cipherSuitesLen;
     byte compressionLen;
 
+    *innerExtLen = 0;
+
     idx = OPAQUE16_LEN + RAN_LEN;
 
     sessionIdLen = buf[idx++];
     idx += sessionIdLen;
 
     ato16(buf + idx, &cipherSuitesLen);
+    if (cipherSuitesLen > MAX_RECORD_SIZE) {
+        return BAD_FUNC_ARG;
+    }
     idx += OPAQUE16_LEN + cipherSuitesLen;
 
     compressionLen = buf[idx++];
     idx += compressionLen;
 
     ato16(buf + idx, innerExtLen);
+    if (*innerExtLen > MAX_RECORD_SIZE) {
+        return BAD_FUNC_ARG;
+    }
     idx += OPAQUE16_LEN;
 
     return idx;
@@ -15282,11 +15290,13 @@ static int ech_find_extension(byte* buf, word16* idx_p, word16 extType)
     word16 idx;
     word16 innerExtIdx;
     word16 innerExtLen;
+    int    seekRet;
 
-    innerExtIdx = ech_seek_extensions(buf + *idx_p, &innerExtLen) + *idx_p;
-    if (innerExtLen > MAX_RECORD_SIZE) {
+    seekRet = ech_seek_extensions(buf + *idx_p, &innerExtLen);
+    if (seekRet < 0) {
         return BAD_FUNC_ARG;
     }
+    innerExtIdx = (word16)seekRet + *idx_p;
     idx = innerExtIdx;
 
     while (idx - innerExtIdx < innerExtLen) {
@@ -15713,20 +15723,23 @@ static int ech_tamper_padding(byte* innerCh, word32 innerChLen)
 {
     word16 idx;
     word16 innerExtLen;
+    int    seekRet;
 
     /* get the unpadded length */
-    idx = ech_seek_extensions(innerCh, &innerExtLen);
+    seekRet = ech_seek_extensions(innerCh, &innerExtLen);
+    if (seekRet < 0) {
+        return BAD_FUNC_ARG;
+    }
+    idx = (word16)seekRet;
     idx += innerExtLen;
 
     /* no padding, but the test would fail if the message is not incorrect...
      * so fail the callback */
-    if (idx == innerChLen) {
+    if (idx >= innerChLen) {
         return BAD_FUNC_ARG;
     }
-    else {
-        innerCh[idx] = '\x01';
-        return 0;
-    }
+    innerCh[idx] = '\x01';
+    return 0;
 }
 
 static int ech_tamper_type(byte* innerCh, word32 innerChLen)
