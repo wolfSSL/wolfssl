@@ -506,6 +506,7 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     if (ret == 0) {
         /* Finish setting the AES object. */
         aes->keylen = keyLen;
+        aes->keyInstalled = 1;
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
@@ -696,6 +697,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     /* Validate parameters. */
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
         ret = BAD_FUNC_ARG;
     }
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
@@ -908,6 +913,10 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     /* Validate parameters. */
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
         ret = BAD_FUNC_ARG;
     }
     /* Ensure a multiple of blocks is being decrypted.  */
@@ -1778,6 +1787,7 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     if (ret == 0) {
         /* Finish setting the AES object. */
         aes->keylen = keyLen;
+        aes->keyInstalled = 1;
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
@@ -2988,6 +2998,7 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     #endif
         aes->keylen = (int)keyLen;
         aes->rounds = (keyLen / 4) + 6;
+        aes->keyInstalled = 1;
 
         /* Compute the key schedule. */
         AesSetKey_C(aes, key, keyLen, dir);
@@ -3870,6 +3881,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
+        ret = BAD_FUNC_ARG;
+    }
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
     /* Ensure a multiple of blocks is to be encrypted.  */
     if ((ret == 0) && (sz % WC_AES_BLOCK_SIZE)) {
@@ -3936,6 +3951,10 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     /* Validate parameters. */
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
         ret = BAD_FUNC_ARG;
     }
     /* Ensure a multiple of blocks is being decrypted.  */
@@ -4011,6 +4030,10 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
+        ret = BAD_FUNC_ARG;
+    }
     /* Ensure a multiple of blocks is to be encrypted.  */
     if ((ret == 0) && ((sz % WC_AES_BLOCK_SIZE) != 0)) {
         ret = BAD_LENGTH_E;
@@ -4046,6 +4069,10 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     /* Validate parameters. */
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
         ret = BAD_FUNC_ARG;
     }
     /* Ensure a multiple of blocks is to be decrypted.  */
@@ -6937,6 +6964,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         WOLFSSL_MSG("GcmEncrypt tagSz error");
         ret = BAD_FUNC_ARG;
     }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
+        ret = BAD_FUNC_ARG;
+    }
 
     if (ret == 0) {
         switch (aes->rounds) {
@@ -8840,6 +8871,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         WOLFSSL_MSG("GcmEncrypt tagSz error");
         ret = BAD_FUNC_ARG;
     }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
+        ret = BAD_FUNC_ARG;
+    }
 
 
     if (ret == 0) {
@@ -8935,6 +8970,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             ((aad == NULL) && (aadSz > 0)) || (nonceSz == 0) ||
             ((sz != 0) && ((in == NULL) || (out == NULL)))) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
+        ret = BAD_FUNC_ARG;
+    }
+    /* A key must have been installed. */
+    if ((ret == 0) && (aes->keyInstalled == 0)) {
         ret = BAD_FUNC_ARG;
     }
 
