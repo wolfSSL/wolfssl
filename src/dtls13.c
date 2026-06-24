@@ -1889,6 +1889,21 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         return INCOMPLETE_DATA;
     }
 
+    /* Cap the handshake message size before it can be buffered for reassembly,
+     * matching the DTLSv1.2 path (DoDtlsHandShakeMsg()). RFC 9147 Sec 4.5.2
+     * says invalid records SHOULD be silently discarded, so only error out once
+     * the record is authenticated (received in an encrypted epoch); a plaintext
+     * message is just dropped. */
+    if (messageLength > MAX_HANDSHAKE_SZ) {
+        WOLFSSL_MSG("Handshake message too large");
+        if (IsEncryptionOn(ssl, 0)) {
+            WOLFSSL_ERROR_VERBOSE(HANDSHAKE_SIZE_ERROR);
+            return HANDSHAKE_SIZE_ERROR;
+        }
+        *processedSize = idx + fragLength;
+        return 0;
+    }
+
     if (fragOff + fragLength > messageLength)
         return BUFFER_ERROR;
 
