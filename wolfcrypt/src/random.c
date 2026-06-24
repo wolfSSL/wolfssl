@@ -383,7 +383,11 @@ static int sha512DrbgDisabled = 0;
 static wolfSSL_Mutex drbgStateMutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(drbgStateMutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
+#ifdef WOLFSSL_ATOMIC_OPS
+static wolfSSL_Atomic_Int drbgStateMutex_inited = WOLFSSL_ATOMIC_INITIALIZER(0);
+#else
 static int drbgStateMutex_inited = 0;
+#endif
 #endif
 #endif /* !SINGLE_THREADED */
 
@@ -391,11 +395,17 @@ int wc_DrbgState_MutexInit(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (!drbgStateMutex_inited) {
+    int expected = 0;
+    /* Check if mutex is not inited and set it to true before init.
+     * This means that the mutex is marked as init before it actually is.
+     * Necessary to ensure that two threads don't init at the same time.*/
+    if (wolfSSL_Atomic_Int_CompareExchange(&drbgStateMutex_inited,
+                                           &expected, 1)) {
         int ret = wc_InitMutex(&drbgStateMutex);
-        if (ret != 0)
+        if (ret != 0) {
+            (void)wolfSSL_Atomic_Int_Exchange(&drbgStateMutex_inited, 0);
             return ret;
-        drbgStateMutex_inited = 1;
+        }
     }
 #endif
 #endif
@@ -3721,9 +3731,13 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
                                                     output += sizeof(word64)) {
-        ret = IntelRDseed64_r((word64*)output);
-        if (ret != 0)
+        word64 rndTmpLocal;
+        ret = IntelRDseed64_r(&rndTmpLocal);
+        if (ret != 0) {
+            ForceZero(&rndTmp, sizeof(rndTmp));
             return ret;
+        }
+        writeUnalignedWord64(output, rndTmpLocal);
     }
     if (sz == 0)
         return 0;
