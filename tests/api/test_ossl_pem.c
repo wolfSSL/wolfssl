@@ -768,8 +768,6 @@ int test_wolfSSL_PEM_write_PrivateKey(void)
     EVP_PKEY* readPriv = NULL;
     XFILE fp = XBADFILE;
 
-    remove(privFile);
-
     ExpectNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &serverKey,
         (long)sizeof_server_key_der_2048));
 
@@ -804,9 +802,6 @@ int test_wolfSSL_PEM_write_PrivateKey(void)
 
     EVP_PKEY_free(readPriv);
     EVP_PKEY_free(pkey);
-    if (fp != XBADFILE) {
-        XFCLOSE(fp);
-    }
     remove(privFile);
 #endif
     return EXPECT_RESULT();
@@ -828,8 +823,6 @@ int test_wolfSSL_PEM_write_PUBKEY(void)
     XFILE fp = XBADFILE;
     int pubDerSz = 0;
     int readPubDerSz = 0;
-
-    remove(pubFile);
 
     ExpectNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &serverKey,
         (long)sizeof_server_key_der_2048));
@@ -867,9 +860,6 @@ int test_wolfSSL_PEM_write_PUBKEY(void)
     XFREE(pubDer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     EVP_PKEY_free(readPub);
     EVP_PKEY_free(pkey);
-    if (fp != XBADFILE) {
-        XFCLOSE(fp);
-    }
     remove(pubFile);
 #endif
     return EXPECT_RESULT();
