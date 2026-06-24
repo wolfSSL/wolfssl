@@ -176,9 +176,13 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
         inSz -= add;
 
         if (cmac->bufferSz == AES_BLOCK_SIZE && inSz != 0) {
-            if (cmac->totalSz != 0) {
-                xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
-            }
+            /* XOR must be unconditional. The old 'if (totalSz != 0)' guard
+             * only meant to skip the no-op on the first block (digest is
+             * zero), but totalSz is a word32 that wraps to 0 every 2^28 blocks
+             * (4 GiB), so the guard fired again at block 2^28+1 and dropped the
+             * accumulated MAC state. digest is zero-initialized, so removing
+             * the guard preserves the first-block no-op. */
+            xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
 #ifdef WOLFSSL_LINUXKM
             ret =
 #endif
