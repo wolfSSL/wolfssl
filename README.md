@@ -106,178 +106,366 @@ macro `NO_OLD_SHA_NAMES`. These names get mapped to the OpenSSL API for a
 single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` and
 `WC_SHA512` should be used for the enum name.
 
+# wolfSSL Release 5.9.2 (Jun 23, 2026)
 
-# wolfSSL Release 5.9.1 (Apr. 8, 2026)
-
-Release 5.9.1 has been developed according to wolfSSL's development and QA
+Release 5.9.2 has been developed according to wolfSSL's development and QA
 process (see link below) and successfully passed the quality criteria.
 https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assurance
 
 NOTE:
-* --enable-heapmath is deprecated
-* MD5 is now disabled by default
+* The pre-standardization Dilithium API has been renamed to its FIPS 204 ML-DSA name; the legacy `dilithium.h` header and `wc_dilithium_*` names remain available through a temporary compatibility shim.
+* The SLH-DSA Hash sign/verify APIs now require a caller-supplied pre-hashed digest rather than the raw message (see Enhancements below).
+* liboqs integrations for ML-KEM, ML-DSA, and SLH-DSA (SPHINCS+) have been removed in favor of the native implementations; the deprecated liblms and libxmss integrations have also been removed.
+* **BREAKING (RFC 6960 4.2.2.2)**: OCSP responder authorization is now strictly enforced. Removes the non-compliant `CheckOcspResponderChain()` fallback, which authorized any OCSP responder cert issued by an ancestor of the target's issuer; RFC 6960 4.2.2.2 requires direct issuance by the CA identified in the request. Also removes the now-unused `WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK` macro and the `vp` parameter from `CheckOcspResponder()`.
 
 PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request number where the code change was added.
 
 ## Vulnerabilities
 
-* [Critical] CVE-2026-5194
-Missing hash/digest size and OID checks allow digests smaller than allowed by FIPS 186-4 or 186-5 (as appropriate), or smaller than is appropriate for the relevant key type, to be accepted by signature verification functions, reducing the security of certificate-based authentication. Affects multiple signature algorithms, including ECDSA/ECC, DSA, ML-DSA, ED25519, and ED448. Builds that have both ECC and EdDSA or ML-DSA enabled that are doing certificate verification are recommended to update to the latest wolfSSL release. Thanks to Nicholas Carlini from Anthropic for the report. Fixed in PR 10131.
+* [High] CVE-2026-11310
+  X.509 trust-chain bypass in the OpenSSL compatibility certificate verifier (wolfSSL_X509_verify_cert()).
 
-* [High] CVE-2026-5264
-Heap buffer overflow in DTLS 1.3 ACK message processing. A remote attacker can send a crafted DTLS 1.3 ACK message that triggers a heap buffer overflow. Thanks to Sunwoo Lee and Seunghyun Yoon, Korea Institute of Energy Technology (KENTECH). Fixed in PR 10076.
+  This affects only builds with --enable-opensslextra (OPENSSL_EXTRA) and whose application validates certificates by calling X509_verify_cert() (OpenSSL compatibility layer function) with caller-supplied untrusted intermediate certificates; for those users it is critical, otherwise the library is unaffected.  In particular, native wolfSSL TLS/DTLS usage is not impacted.
 
-* [High] CVE-2026-5263
-URI nameConstraints from constrained intermediate CAs are parsed but not enforced during certificate chain verification in wolfcrypt/src/asn.c. A compromised or malicious sub-CA could issue leaf certificates with URI SAN entries that violate the nameConstraints of the issuing CA, and wolfSSL would accept them as valid. Thanks to Oleh Konko @1seal for the report. Fixed in PR 10048.
+  wolfSSL’s X509_verify_cert() temporarily loads each caller-supplied untrusted intermediate into the certificate manager but failed to drop them before the trusted-store check, so an untrusted intermediate could anchor the path itself. An attacker can present a chain that never reaches a configured trust anchor and have it accepted, resulting in acceptance of an attacker-controlled certificate.
 
-* [High] CVE-2026-5295
-Stack buffer overflow in PKCS7 ORI (Other Recipient Info) OID processing. When parsing a PKCS7 envelope with a crafted ORI OID value, a stack-based buffer overflow can be triggered. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon (Korea Institute of Energy Technology, KENTECH). Fixed in PR 10116.
+  This is certificate verification independent of TLS (e.g. S/MIME/CMS, code/firmware signing, JWT/JWS x5c), is not specific to any key type or algorithm, and a single untrusted intermediate suffices. The default wolfSSL TLS handshake (WOLFSSL_VERIFY_PEER) is not affected; only TLS applications doing manual or deferred peer verification through this API are, which also requires --enable-sessioncerts. Affected: v5.8.4, v5.9.0 and v5.9.1 (introduced by commit 025dbc34); v5.8.2 and earlier are not. Thanks to Corban Villa, Sohee Kim and Austin Chu (UC Berkeley, Sky Lab). Fixed in PR 10674.
 
-* [High] CVE-2026-5466
-wolfSSL's ECCSI signature verifier `wc_VerifyEccsiHash` decodes the `r` and `s` scalars from the signature blob via `mp_read_unsigned_bin` with no check that they lie in `[1, q-1]`. A crafted forged signature could verify against any message for any identity, using only publicly-known constants. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10102.
+* [High] CVE-2026-11999
+  X.509 trust-chain bypass (path-depth exhaustion) in the OpenSSL compatibility certificate verifier (wolfSSL_X509_verify_cert()). This affects only builds with --enable-opensslextra whose application calls X509_verify_cert() with caller-supplied untrusted intermediates; for those users it is critical, otherwise the library is unaffected. Native wolfSSL TLS/DTLS usage is not impacted.
 
-* [High] CVE-2026-5477
-Potential for AES-EAX AEAD and CMAC authentication bypass on messages larger than 4 GiB. An attacker who observes one valid (ciphertext, tag) pair for a >4 GiB EAX message can replace the first 4 GiB of ciphertext arbitrarily while the tag still verifies. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10102.
+  X509_verify_cert() returned success based only on the last verified link rather than on reaching a trust anchor: when the supplied chain is deeper than the verifier's maximum path depth (default 100), path building runs out of depth while still walking untrusted intermediates and the chain is accepted even though it never reaches a configured trust anchor, allowing acceptance of an attacker-controlled certificate. The default TLS handshake (WOLFSSL_VERIFY_PEER) is not affected; only applications doing manual or deferred verification through this API are. Affected versions: v5.7.4 through v5.9.1, introduced in commit 17c9e92b7 (first released in v5.7.4); v5.7.2 and earlier are not affected. Thanks to Corban Villa, Sohee Kim and Austin Chu (UC Berkeley, Sky Lab). Fixed in PR 10674.
 
-* [High] CVE-2026-5447
-Heap buffer overflow in CertFromX509 via AuthorityKeyIdentifier size confusion. A heap buffer overflow occurs when converting an X.509 certificate internally due to incorrect size handling of the AuthorityKeyIdentifier extension. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10112.
+* [High] CVE-2026-6679
+  A heap buffer overflow could occur in the DTLS 1.3 ACK serialization path before the connecting peer is authenticated. The buffer overflow was due to an integer truncation when computing the length of the ACK record-number list, causing an undersized buffer to be allocated and then overrun. This affects builds using DTLS 1.3 and wolfSSL version 5.9.0 and earlier. A fix was added to the 5.9.1 release. Thanks to Nicholas Carlini from Anthropic for the report. Fixed in PR 10116.
 
-* [High] CVE-2026-5500
-wolfSSL's `wc_PKCS7_DecodeAuthEnvelopedData()` does not properly sanitize the AES-GCM authentication tag length received and has no lower bounds check. A man-in-the-middle can therefore truncate the `mac` field from 16 bytes to 1 byte, reducing the tag check from 2⁻¹²⁸ to 2⁻⁸. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10102.
+* [High] CVE-2026-55958
+  Out-of-bounds write in the Renesas TSIP TLS 1.3 transcript buffer. In tsip_StoreMessage() the capacity check guarding the fixed message bag (MSGBAG_SIZE) sets an error code but fails to return, so execution falls through to an XMEMCPY that writes past the end of the buffer once the accumulated TLS 1.3 handshake transcript exceeds MSGBAG_SIZE (8 KB), corrupting adjacent heap state and potentially causing a remote denial of service crash. The bag is sized to hold a normal handshake, so this is reached only by an unusually large but valid certificate chain, or by a malicious or man-in-the-middle server sending an oversized handshake message to a client that does not strictly verify the chain. This only affects builds using the Renesas TSIP TLS port (WOLFSSL_RENESAS_TSIP_TLS) as a TLS 1.3 client on Renesas MCUs with TSIP hardware enabled, and is rated High within those builds. All other configurations are unaffected. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10705.
 
-* [High] CVE-2026-5501
-`wolfSSL_X509_verify_cert()` in the OpenSSL compatibility layer accepts a certificate chain in which the leaf's signature is not checked, if the attacker supplies an untrusted intermediate with Basic Constraints `CA:FALSE` that is legitimately signed by a trusted root. An attacker who obtains any leaf certificate from a trusted CA (e.g. a free DV cert from Let's Encrypt) can forge a certificate for any subject name with any public key and arbitrary signature bytes, and the function returns `WOLFSSL_SUCCESS` / `X509_V_OK`. The native wolfSSL TLS handshake path (`ProcessPeerCerts`) is not susceptible and the issue is limited to applications using the OpenSSL compatibility API directly. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10102.
+* [High] CVE-2026-55960
+  Un-negotiated Raw Public Key (RFC 7250) accepted in place of an X.509 certificate, bypassing chain validation. A raw public key has no chain, so ParseCertRelative() accepts it without performing any trust verification; it must therefore only be accepted when RPK was actually negotiated for that peer. The check now defaults the expected type to X.509 (per RFC 7250/8446) when no type was negotiated, comparing against the received server certificate type on the client and the selected client certificate type on the server, and rejects any mismatch, including an un-negotiated raw public key, with UNSUPPORTED_CERTIFICATE.  Only affects builds with Raw Public Key support (HAVE_RPK) enabled - disabled by default in a standalone build, but included in --enable-all. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10702.
 
-* [High] CVE-2026-5503
-In TLSX_EchChangeSNI, the ctx->extensions branch set extensions unconditionally even when TLSX_Find returned NULL. This caused TLSX_UseSNI to attach the attacker-controlled publicName to the shared WOLFSSL_CTX when no inner SNI was configured. TLSX_EchRestoreSNI then failed to clean it up because its removal was gated on serverNameX != NULL. The inner ClientHello was sized before the pollution but written after it, causing TLSX_SNI_Write to memcpy 255 bytes past the allocation boundary. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10102.
+* [High] CVE-2026-55961
+  wolfSSL_PKCS7_verify() returning success for a degenerate (certs-only) PKCS#7 object that contains no signer. Such an object has empty signerInfos, so the underlying signed-data verification succeeds without authenticating any content. The compatibility-layer verify path now rejects the object when no signer signature has actually been verified, so a PKCS#7 carrying no valid signature is no longer reported as verified. This is enforced regardless of the PKCS7_NOVERIFY flag, which only suppresses signer certificate chain validation and was never intended to waive the requirement that a signature exist. Only affects OpenSSL compatibility builds that call the PKCS7_verify() compatibility API on potentially degenerate PKCS#7 bundles. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10702.
 
-* [High] CVE-2026-5479
-In wolfSSL's EVP layer, the ChaCha20-Poly1305 AEAD decryption path in wolfSSL_EVP_CipherFinal (and related EVP cipher finalization functions) fails to verify the authentication tag before returning plaintext to the caller. When an application uses the EVP API to perform ChaCha20-Poly1305 decryption, the implementation computes or accepts the tag but does not compare it against the expected value. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10102.
+* [Med] CVE-2026-6731
+  X.509 name constraint bypass via the Subject Common Name when treated as a DNS-type name. A certificate whose Subject CN violates an issuing CA's DNS name constraints could be accepted. Thanks to d0sf3t (Aradex) for the report. Fixed in PR 10223.
 
-* [Med] CVE-2026-5392
-Heap out-of-bounds read in PKCS7 parsing. A crafted PKCS7 message can trigger an OOB read on the heap. The missing bounds check is in the indefinite-length end-of-content verification loop in PKCS7_VerifySignedData(). This only affects builds with PKCS7 support enabled. Thanks to J Laratro (d0sf3t) for the report. Fixed in PR 10039.
+* [Med] CVE-2026-6091
+  Partial-chain certificate verification may accept chains that terminate at a peer-supplied, untrusted intermediate certificate rather than a trusted anchor. An attacker could present a chain that ends at an intermediate they control and have it accepted as valid. Thanks to Dikai Zou for the report. Fixed in PR 10170.
 
-* [Med] CVE-2026-5446
-ARIA-GCM nonce reuse in TLS 1.2 record encryption. ARIA cipher support requires a proprietary Korean library (MagicCrypto) and --enable-aria, limiting real-world exposure. Thanks to Calif.io in collaboration with Claude and Anthropic Research for the report. Fixed in PR 10111.
+* [Med] CVE-2026-6094
+  Heap buffer overread in wc_PKCS7_DecodeEnvelopedData when parsing crafted PKCS7 EnvelopedData. This could theoretically be triggered by attacker-supplied data delivered via S/MIME or CMS. Thanks to Dikai Zou for the report. Fixed in PR 10128.
 
-* [Med] CVE-2026-5460
-When a malicious TLS 1.3 server sends a ServerHello with a truncated PQC hybrid KeyShare (e.g., P256_ML_KEM_512 with 10 bytes instead of the required 768+), the error cleanup path double-frees the KyberKey. Thanks to Calvin Young (eWalker Consulting Inc.) and Enoch Chow (Isomorph Cyber). Fixed in PR 10092.
+* [Med] CVE-2026-6329
+  PKCS#12 MAC verification uses an attacker-controlled comparison length, weakening the integrity check on the MAC and allowing a mismatched MAC to be accepted. Thanks to Nicholas Carlini from Anthropic for the report. Fixed in PR 10192.
 
-* [Med] CVE-2026-5504
-A padding oracle exists in wolfSSL's PKCS7 CBC decryption that could allow an attacker to recover plaintext through repeated decryption queries with modified ciphertext. In previous versions of wolfSSL the interior padding bytes are not validated. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon of Korea Institute of Energy Technology (KENTECH) for the report. Fixed in PR 10088.
+* [Med] CVE-2026-6330
+  The ML-KEM ARM64 NEON ciphertext comparison only compares half of the input, breaking the Fujisaki-Okamoto transform's implicit rejection and weakening IND-CCA2 security on that code path. Thanks to Nicholas Carlini from Anthropic for the report. Fixed in PR 10192.
 
-* [Med] CVE-2026-5507
-When restoring a session from cache, a pointer from the serialized session data is used in a free operation without validation. An attacker who can poison the session cache could trigger an arbitrary free. Exploitation requires the ability to inject a crafted session into the cache and for the application to call specific session restore APIs. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon of Korea Institute of Energy Technology (KENTECH) for the report. Fixed in PR 10088.
+* [Med] CVE-2026-8720
+  wc_Blake2bHmacFinal and wc_Blake2sHmacFinal discard the message when the key length exceeds the block size, producing a MAC that is independent of the input. This bug is specific to the HMAC-BLAKE2 API’s that were added in wolfSSL version 5.9.0. Fixed in PR 10447.
 
-* [Low] CVE-2026-5187
-Heap out-of-bounds write in DecodeObjectId() caused by an off-by-one bounds check combined with a sizeof mismatch. A crafted ASN.1 object identifier can trigger a small heap OOB write. Thanks to Yuteng for the report. Fixed in PR 10025.
+* [Med] CVE-2026-10097
+  ML-KEM-1024 x64 AVX2 implicit rejection failure in the Fujisaki-Okamoto transform breaks IND-CCA2 security, allowing decapsulation to deviate from the implicit-rejection behavior required by the standard. Thanks to 007bsd for the report. Fixed in PR 10430.
 
-* [Low] CVE-2026-5188
-An integer underflow issue exists in wolfSSL when parsing the Subject Alternative Name (SAN) extension of X.509 certificates. A malformed certificate can specify an entry length larger than the enclosing sequence, causing the internal length counter to wrap during parsing. This results in incorrect handling of certificate data. The issue is limited to configurations using the original ASN.1 parsing implementation. The original ASN.1 parsing implementation is off by default. Thanks to Muhammad Arya Arjuna Habibullah for the report. Fixed in PR 10024.
+* [Med] CVE-2026-10098
+  OCSP CertID serial-number length-confusion in wolfSSL_OCSP_resp_find_status allows a same-issuer SingleResponse whose serial is a prefix of the target serial to be reported as the revocation status of a different certificate. Thanks to Kim Youngjoon (Team-Atlanta and Georgia Institute of Technology) for the report. Fixed in PR 10554.
 
-* [Low] CVE-2026-5448
-X.509 date buffer overflow in wolfSSL_X509_notAfter / wolfSSL_X509_notBefore. A buffer overflow may occur when parsing date fields from a crafted X.509 certificate via the compatibility layer API. This is only triggered when calling these two APIs directly from an application, and does not affect TLS or certificate verify operations in wolfSSL. Thanks to Sunwoo Lee and Seunghyun Yoon, Korea Institute of Energy Technology (KENTECH) for the report. Fixed in PR 10071.
+* [Med] CVE-2026-10592
+  Certificates with wildcard DNS SANs (e.g. *.example.com) bypassed CA name-constraint checks. Thanks to tonghuaroot for the report. Fixed in PR 10549.
 
-* [Low] CVE-2026-5772
-A 1-byte stack buffer over-read exists in the MatchDomainName function in src/internal.c when processing wildcard patterns with the LEFT_MOST_WILDCARD_ONLY flag active. When a wildcard '*' exhausts the entire hostname string (strLen reaches 0), the function proceeds to compare remaining pattern characters against the now-exhausted buffer without a bounds check, causing an out-of-bounds read. Thanks to Zou Dikai for the report. Fixed in PR 10119.
+* [Med] CVE-2026-7532
+  iPAddress name constraints bypass when WOLFSSL_IP_ALT_NAME is not defined. IP address name constraints are not enforced in that configuration, allowing a certificate to bypass an issuing CA's IP address constraints. Thanks to Ankur Tyagi of Cisco Talos (TALOS-2026-2409) for the report. Fixed in PR 10354.
 
-* [Low] CVE-2026-5778
-An integer underflow exists in the ChaCha20-Poly1305 decryption path where a malformed TLS 1.2 record with a payload shorter than the AEAD MAC size causes the message length calculation to underflow, resulting in an out-of-bounds read. This only affects sniffer builds. Thanks to Zou Dikai for the report. Fixed in PR 10125.
+* [Med] CVE-2026-6291
+  Bleichenbacher padding oracle in PKCS#7 KTRI decryption. When decrypting PKCS#7 EnvelopedData using RSA PKCS#1 v1.5 key transport, wolfSSL returned distinguishable error codes depending on whether RSA padding validation failed versus whether the decrypted content was malformed. An attacker able to submit crafted EnvelopedData messages and observe error responses could use this as a padding oracle to incrementally recover the encrypted Content Encryption Key (CEK). The fix generates a deterministic pseudo-random fake CEK on padding failure (via HMAC-SHA256) and proceeds with decryption identically, using constant-time operations throughout, so that all failure paths produce the same error regardless of padding validity. Found with internal wolfSSL review. Fixed in PR 10203.
 
-## Experimental Build Vulnerability
+* [Med] CVE-2026-7511
+  PKCS7_verify signer confusion allows forged signatures, where the signer associated with a signature is not correctly bound, permitting a forged signature to be accepted. Thanks to Nicholas Carlini from Anthropic for the report. Fixed in PR 10203.
 
-* [Med] CVE-2026-5393
-Dual-Algorithm CertificateVerify out-of-bounds read. When processing a dual-algorithm CertificateVerify message, an out-of-bounds read can occur on crafted input. This can only occur when --enable-experimental and --enable-dual-alg-certs is used when building wolfSSL. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon (Korea Institute of Energy Technology, KENTECH) for testing the fix. Fixed in PR 10079.
+* [Med] CVE-2026-11703
+  Fixed missing SNI/ALPN binding on stateful (session-ID) resumption, which previously skipped the binding check performed for ticket-based resumption. A cached session could be resumed under a different SNI/ALPN than originally negotiated and, where client-authentication policy differs across virtual hosts, carry the cached peer-authentication state into a context it was not established for. Resumption now verifies the SNI/ALPN binding for all paths and declines (falling back to a full handshake) on mismatch. Thanks to Dikai Zou for the report. Fixed in PR 10489.
+
+* [Med] CVE-2026-55962
+  TLS 1.3 post-handshake authentication (PHA) issue where a server could accept a client's Finished message without the client having sent a Certificate and CertificateVerify. The post-handshake-auth exemption that allows an empty/absent peer certificate was only intended for the initial handshake, but it was also being applied while a post-handshake CertificateRequest was still outstanding. The check is now scoped to the initial handshake only: on the server, once a post-handshake CertificateRequest has been sent (certReqCtx is set), a peer certificate and a valid CertificateVerify are required again before the Finished is accepted, with empty-certificate handling following the configured verify mode (FAIL_IF_NO_PEER_CERT) just as during first-handshake client authentication. Only affects TLS 1.3 servers built with post-handshake authentication support (WOLFSSL_POST_HANDSHAKE_AUTH / --enable-postauth, included in --enable-all) that enable WOLFSSL_VERIFY_POST_HANDSHAKE and request a client certificate after the handshake via wolfSSL_request_certificate(). Clients, and servers that do not use post-handshake authentication, are unaffected. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10702.
+
+* [Med] CVE-2026-55964
+  Chain intermediate CA:TRUE without keyCertSign accepted as a signing CA. Intermediate CA certificates are required to have the keyCertSign key usage when a Key Usage extension is present, but chain-supplied temporary CAs (WOLFSSL_TEMP_CA) added while building a certificate path were previously exempted from this check, so an intermediate asserting CA:TRUE but lacking keyCertSign was accepted as a signing CA. The check now applies to chain-supplied temporary CAs as well; only operator-loaded root certificates (WOLFSSL_USER_CA) and self-signed roots remain exempt. Per RFC 5280 an absent Key Usage extension implies all usages, so the requirement is enforced only when the extension is actually present (extKeyUsageSet). Affects the OpenSSL-compatibility certificate-path-building path (X509_verify_cert / X509_STORE, OPENSSL_EXTRA/OPENSSL_ALL), where untrusted chain intermediates are added as temporary CAs; native (non-OpenSSL-compat) certificate verification does not create temporary CAs and is unaffected. Within those builds, the check applies unless ALLOW_INVALID_CERTSIGN is defined. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10702.
+
+* [Low] CVE-2026-6092
+  When HAVE_ENCRYPT_THEN_MAC is configured, the implementation could fall back to MAC-then-Encrypt rather than enforcing Encrypt-then-MAC. Thanks to Marcin Olejnik (Rockwell Automation) for the report. Fixed in PR 10167.
+
+* [Low] CVE-2026-6331
+  HMAC zero-length tag forgery in EVP_DigestVerifyFinal, where a zero-length tag could be accepted as valid during HMAC verification. Thanks to Nicholas Carlini from Anthropic for the report. Fixed in PR 10192.
+
+* [Low] CVE-2026-6681
+  The PKCS#7 decode path ignores the caller-supplied output buffer size (outputSz), allowing decoded content to be written past the bounds of the provided buffer. This affects wolfSSL 5.9.0 and earlier and was fixed in the 5.9.1 release. Thanks to Nicholas Carlini from Anthropic for the report. Fixed in PR 10116.
+
+* [Low] CVE-2026-10512
+  The X25519 x86_64 assembly implementation fails to clear the most significant bit during the final modular reduction, so the computed result may not be fully reduced modulo the field prime 2^255 - 19. This can leave the field element in a non-canonical form, producing an incorrect result from the scalar multiplication and potentially a wrong shared secret. Thanks to Haruki Oyama for the report. Fixed in PR 10536.
+
+* [Low] CVE-2026-6678
+  Integer underflow in wc_PKCS7_DecryptOri when handling crafted Other Recipient Info, leading to incorrect length handling during decryption. Thanks to Dikai Zou for the report. Fixed in PR 10203.
+
+* [Low] CVE-2026-7531
+  Use-after-free in PQC hybrid key-share handling. This is an incomplete-fix follow-up to CVE-2026-5460 (released in 5.9.1): a malicious TLS 1.3 server sending a truncated PQC hybrid KeyShare can still trigger the error cleanup path to operate on freed memory. Thanks to Thai Duong (Calif.io / Anthropic) for the report. Fixed in PR 10327.
+
+* [Low] CVE-2026-6325
+  Out-of-bounds write in SetSuitesHashSigAlgo when processing an oversized signature algorithms list, allowing a write past the bounds of the destination buffer. Thanks to Muhammad Arya Arjuna Habibullah (Pelioro) for the report. Fixed in PR 10204.
+
+* [Low] CVE-2026-6412
+  Certificate policy and RFC 8446 compliance concerns regarding the continued acceptance of SHA-1/MD5 in certificate processing. Thanks to Xiangdong Li (Student, Beijing University of Posts and Telecommunications [BUPT]) for the report. Fixed in PR 10222.
+
+* [Low] CVE-2026-6450
+  A CRL critical extension bypass exists in ParseCRL_Extensions where critical extensions are not properly enforced, allowing a crafted CRL with an unhandled critical extension to be accepted. This only affects builds with CRL support enabled and where a crafted CRL had a trusted signature when parsed. Thanks to Oleh Konko (@1seal) for the report. Fixed in PR 10239.
+
+* [Low] CVE-2026-12340
+  Out-of-bounds heap read during SM2/SM3 certificate signature verification. When parsing a certificate with an SM3wSM2 signature, the Subject Key Identifier computation reads the trailing 65 bytes of the public key without checking that the key is at least that long. A public key shorter than 65 bytes results in an out-of-bounds heap read, leading to a potential crash (denial of service); there is no out-of-bounds write. Note this only affects builds with SM2 support (--enable-sm2 or --enable-all). Thanks to David Pokora, Trail of Bits (in collaboration with Anthropic). Fixed in PR 10641.
+
+* [Low] CVE-2026-55967
+  AES-GCM encryption/decryption with extremely large cumulative single message sizes (>64 GiB) were not properly rejected by the streaming APIs, allowing counter wrap, keystream reuse, and consequent plaintext recovery. Thanks to NVIDIA Project Vanessa for the report. Fixed in PR 10709.
+
+## Enhancements
+
+* **BREAKING (FIPS 205 SLH-DSA)**: `wc_SlhDsaKey_SignHash`, `wc_SlhDsaKey_SignHashDeterministic`, `wc_SlhDsaKey_SignHashWithRandom`, and `wc_SlhDsaKey_VerifyHash` now take the **caller-pre-hashed message digest** via `hash`/`hashSz` parameters (renamed from `msg`/`msgSz`), aligned with ML-DSA's `wc_dilithium_sign_ctx_hash` / `wc_dilithium_verify_ctx_hash` semantics, and NIST ACVP `signatureInterface=external` / `preHash=preHash` test vectors. `hashSz` must equal `wc_HashGetDigestSize(hashType)` (32 bytes for SHAKE128, 64 bytes for SHAKE256 per FIPS 205 Section 10.2.2); otherwise `BAD_LENGTH_E` is returned. Migration: hash the message yourself before the call (callers using positional arguments are source-compatible; only the parameter names changed). Caveat: callers who today pass a raw message whose length happens to equal the digest size for the chosen `hashType` (e.g., signing a 32-byte handle/IV/seed with `WC_HASH_TYPE_SHA256`) will not trip `BAD_LENGTH_E`; the resulting signature is syntactically valid but is over the wrong bytes. The pre-existing `wc_SlhDsaKey_SignMsgDeterministic` and `wc_SlhDsaKey_SignMsgWithRandom` retain their M'-supplied-directly contract (FIPS 205 internal interface, Algorithm 19); their input validation is hardened with the same NULL/length/`MISSING_KEY` checks as the `*Hash*` family. `wc_SlhDsaKey_VerifyMsg` is unchanged. All three gain doxygen coverage. (PR 10450, PR 10465)
+
+* **Behavioral change (RSA-PSS trailerField enforcement)**: `DecodeRsaPssParams`
+  (and its public wrapper `wc_DecodeRsaPssParams`) now enforces RFC 8017 A.2.3,
+  which mandates `trailerField == trailerFieldBC(1)`.  In the default build
+  (i.e., without `WOLFSSL_NO_ASN_STRICT`), any certificate or CMS/PKCS#7
+  structure whose RSA-PSS parameters contain a `trailerField` value other than 1
+  is now rejected with `ASN_PARSE_E`.  Previously, any positive integer value was
+  silently accepted.  This affects all call paths that decode RSA-PSS algorithm
+  parameters, including X.509 certificate parsing and PKCS#7 signature
+  verification.  Users who need to interoperate with non-conformant peers can
+  define `WOLFSSL_NO_ASN_STRICT` to restore the previous permissive behavior. (PR 10595)
+
+* Renamed the post-quantum signature implementation from its pre-standardization name *Dilithium* to its NIST-standardized name **ML-DSA** (FIPS 204), mirroring the earlier Kyber -> ML-KEM rename in `wc_mlkem.{h,c}`. The legacy `<wolfssl/wolfcrypt/dilithium.h>` header, `dilithium_key` type, `wc_dilithium_*` / `wc_Dilithium_*` functions, and `HAVE_DILITHIUM` / `WOLFSSL_DILITHIUM_*` / `WC_DILITHIUM_*` build gates remain available through a temporary compatibility shim, so application code keeps compiling unchanged. See doc/dilithium-to-mldsa-migration.md for the full list of renamed symbols, the new `WOLFSSL_MLDSA` cmake option / `--enable-mldsa` configure switch, and the migration steps for moving consumer code to the canonical API. (PR 10436, PR 10497, PR 10516)
+
+* TLS 1.3: zero traffic key staging buffers in `SetKeysSide()` once a CryptoCB callback has imported the AES key into a Secure Element (`aes->devCtx != NULL`).  Clears `keys->{client,server}_write_key` on the provisioned side(s) after cipher init succeeds.  The static IV buffers (`keys->{client,server}_write_IV`, `keys->aead_{enc,dec}_imp_IV`) are intentionally left intact because `BuildTls13Nonce()` reads them on every AEAD record to construct the per-record nonce.  Scoped to TLS 1.3, non-DTLS, non-QUIC; requires `WOLF_CRYPTO_CB` and `WOLF_CRYPTO_CB_AES_SETKEY`. (PR 10246)
+
+* The `wc_AesCmacVerify/_ex` API were hardened to more closely conform to
+  NIST SP 800-38B MAC length guidance, and these verify functions will now
+  correctly enforce bounds on tag length checks. As a result, Cmac verification
+  that previously were erroneously passing will now return `MAC_CMP_FAILED_E`
+  or `BAD_FUNC_ARG`. (PR 10462)
 
 ## New Features
-* Enabled PQC algorithm ML-KEM (FIPS203) on by default. by @Frauschi (PR 9732)
-* Added brainpool curve support to wolfSSL_CTX_set1_sigalgs_list. by @kojo1 (PR 9993)
-* Implemented wolfSSL_Atomic_Int_Exchange() in wolfssl/wolfcrypt/wc_port.h and wolfcrypt/src/wc_port.c. by @douzzer (PR 10036)
-* Added a GPLv2 license exception for VDE (Virtual Distributed Ethernet) to the licensing terms. by @danielinux (PR 10107)
-* Added DTLS 1.3/TLS 1.3 write-dup (Duplicate SSL) support so the read-side can delegate post-handshake work (KeyUpdate responses, DTLS13 ACK sending, post-handshake auth) to the write-side, along with new tests and CI coverage. (PR 10006)
+
+* Added wolfCrypt SRAM PUF (Physically Unclonable Function) support, deriving device-unique keys from SRAM power-on state using a BCH fuzzy extractor and HKDF (`wc_PufInit`/`wc_PufEnroll`/`wc_PufReconstruct`). by @dgarske (PR 10066)
+* Added SHE (Secure Hardware Extension) support to wolfCrypt with software CMD_LOAD_KEY message generation/verification (M1-M5) and optional crypto callback hardware offload. by @night1rider (PR 10009)
+* Added `WOLF_CRYPTO_CB_SETKEY` and `WOLF_CRYPTO_CB_EXPORT_KEY` generic crypto callbacks to bridge raw key bytes to and from hardware key stores. by @night1rider (PR 9851)
+* Added key id/label constructors (`wc_InitCmac_Id`/`_Label`, `wc_AesNew_Id`/`_Label`, `wc_NewRsaKey_Id`/`_Label`) so algorithms can forward a hardware key-slot identifier. by @night1rider (PR 10072)
+* Added RFC 8773(bis) cert_with_extern_psk support for TLS 1.3, with API and handshake tests. by @Frauschi (PR 10085)
+* Added native TLS-ALPN-01 ACME challenge certificate support via the RFC 8737 id-pe-acmeIdentifier extension. by @lealem47 (PR 10334)
+* Extended `WOLFSSL_SP_NONBLOCK` to RSA and Diffie-Hellman for the C/Small 2048/3072/4096 backends so handshakes never block for long on a single big-integer operation. by @dgarske (PR 10394)
+* Added ML-KEM and ML-DSA support to the C# wrapper. by @dgarske (PR 10191)
+* Added an HPKE (RFC 9180) C# wrapper. by @dgarske (PR 10171)
+* Added `--enable-wolfzfs` support for the wolfCrypt OpenZFS patch in both kernel-space and user-space builds. by @philljj (PR 10397)
+* Added a minimal DTLS 1.3 client-only build via `WOLFSSL_DTLS_ONLY` and an `--enable-dtls13` autoconf cascade. by @julek-wolfssl (PR 10353)
+* Raised the `--enable-context-extra-user-data` ex_data index limit to 9999 and increased external cookie/extra-user-data maximum sizes for large-scale deployments. by @Roy-Carter (PR 10236)
+* Published wolfSSL's external Security Policy and a structured Vulnerability Report Template (`SECURITY-POLICY.md`, `SECURITY-REPORT-TEMPLATE.md`). by @ColtonWilley (PR 10284)
+* Extended the OpenSSL compatibility layer for libevent integration, adding struct-tag compatibility defines, `BIO_get_init`, and short-form alert string helpers. by @Roy-Carter (PR 10158, PR 10160)
+* Add support for WOLF_CRYPTO_CB_ONLY_SHA512 by @rizlik (PR 10550)
+* Support RFC 9802 LMS and XMSS in X.509 certificate and CSR generation by @Frauschi (PR 10572)
 
 ## Post-Quantum Cryptography (PQC)
-* Fixed Dilithium API to use byte type for context length parameters, enforcing the 0–255 byte constraint. by @SparkiDev (PR 10010)
-* Fixed benchmarking for ML-DSA with static memory enabled. by @JacobBarthelmeh (PR 9970)
-* Added checks to verify the private key is set before performing private key operations in Ed25519, Ed448, ML-DSA, and ML-KEM. by @anhu (PR 10083)
-* Added buffer size and callback validation checks to wc_LmsKey_Sign to prevent signing with insufficient output buffer or missing required callbacks. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon (Korea Institute of Energy Technology, KENTECH) for the report. (PR 10084)
-* Fixed an out-of-bounds shift in the ML-DSA implementation by ensuring the cast is performed before large shift operations in dilithium.c. Thanks to Dominik Blain / COBALT Security for the bug report. by @padelsbach (PR 10096)
-* Zeroize sensitive memory buffers in the ML-DSA (Dilithium) implementation to prevent leakage of cryptographic material. by @Frauschi (PR 10100)
-* Fixed undefined behavior in SLH-DSA key initialization by casting to unsigned before performing a left shift that could set the MSB. by @padelsbach (PR 10104)
-* Added null checks for buffer size and callback validity in the external wc_LmsKey_Sign function to prevent CI failures. by @padelsbach (PR 10105)
-* Ensured that the heap buffer used (among others) to store sensitive data during ML-DSA signing is zeroized before freeing the memory. Thanks to Abhinav Agarwal (@abhinavagarwal07) for the report. (PR 10113)
-* The legacy non-context ML-DSA (Dilithium) API is now guarded behind WOLFSSL_DILITHIUM_NO_CTX, making the context-aware FIPS 204 API the default and adding a no-ctx configure option to explicitly re-enable the legacy path. by @Frauschi (PR 10047)
+
+* Added a SHA-512 DRBG and FIPS module-boundary wrappers for ML-KEM, ML-DSA, LMS, XMSS, and SLH-DSA as part of the upcoming post-quantum FIPS submission. by @kaleb-himes (PR 9843)
+* Replaced the liboqs-based pre-standardization SPHINCS+ with the native FIPS 205 SLH-DSA implementation throughout the certificate/ASN.1/X.509 layers. by @Frauschi (PR 10261)
+* Removed the liboqs integrations for ML-KEM and ML-DSA in favor of the native implementations. by @Frauschi (PR 10293)
+* Removed the deprecated liblms and libxmss integrations now that wolfCrypt has its own LMS/XMSS implementations. by @Frauschi (PR 10292)
+* Wired RFC 9802 HSS/LMS and XMSS/XMSS^MT stateful hash-based signatures into X.509 certificate verification. by @Frauschi (PR 10406)
+* Added crypto callbacks (`MakeKey`/`Sign`/`Verify`/`SigsLeft`) and id/label support for LMS and XMSS. by @padelsbach (PR 10380)
+* Added CryptoCb support for SLH-DSA. by @Frauschi (PR 10466)
+* Added dynamic key allocation for ML-KEM (`WOLFSSL_MLKEM_DYNAMIC_KEYS`) to right-size key buffers and reduce handshake memory use on constrained systems. by @Frauschi (PR 10179, PR 10206)
+* Added dynamic key allocation for ML-DSA (`WOLFSSL_DILITHIUM_DYNAMIC_KEYS`). by @Frauschi (PR 10180)
+* Added ML-KEM support for PKCS#11 via the PKCS#11 3.2 encapsulate/decapsulate interface. by @Frauschi (PR 10077)
+* Added ML-DSA to `X509_get_pubkey` and `EVP_PKEY_base_id`. by @kojo1 (PR 9965)
+* Added ML-DSA SPKI/PKCS#8 DER support to `d2i_PUBKEY`/`d2i_PrivateKey`, `EVP_PKCS82PKEY`, and `X509_check_private_key`. by @cconlon (PR 10310, PR 10483)
+* Added Ed25519/Ed448 support to the EVP_PKEY layer and fixed a d2i key-probe bug affecting RSA/ECC/DH. by @lealem47 (PR 10135)
+* Fixed PQC key exchange when a ClientHello offers multiple KEM key shares. by @Frauschi (PR 10299)
+* Fixed ML-DSA signing when `WC_DILITHIUM_CACHE_MATRIX_A` is enabled. by @embhorn (PR 10400)
+* Fixed ML-KEM AVX2 assembly (5-bit decompression and final-block ciphertext comparison). by @SparkiDev (PR 10430)
+* Various ML-KEM correctness and key-state validation improvements. by @SparkiDev (PR 10405)
+* Reduced the ML-DSA verify-only key object size and allowed SHAKE-only builds without the SHA-3 APIs. by @SparkiDev (PR 10420)
+* LMS fixes and improvements including a 32-bit signature length, hash-algorithm parameter accessors, and empty-message signing. by @SparkiDev (PR 10448)
+* Migrate internal ML-KEM consumers to canonical wc_MlKemKey API by @Frauschi (PR 10571)
+* Add PQ documentation for LMS, ML-DSA, ML-KEM, XMSS by @kaleb-himes (PR 10514)
+* Various leak / alloc and zeroization fixes for SLH-DSA by @Frauschi (PR 10698)
 
 ## TLS/DTLS
-* Fixed handling of OCSP_WANT_READ return value in the TLS 1.3 handshake message type processing to prevent incorrect error propagation during OCSP stapling operations. by @julek-wolfssl (PR 9995)
-* Fixed a bug in the HPKE implementation where the KDF digest was incorrectly used for the KEM, and refactored HPKE-related code out of the TLS/ECH layer into dedicated local functions, adding tests for all 24 algorithm combination variants. by @sebastian-carpenter (PR 9999)
-* Fixed DTLS 1.3 ServerHello to not echo the legacy_session_id field, bringing the implementation into compliance with the DTLS 1.3 specification. by @julek-wolfssl (PR 10007)
-* Fixed a TLS 1.3 server issue where a mismatched ciphersuite in a second ClientHello following a HelloRetryRequest was incorrectly accepted instead of rejected. by @sebastian-carpenter (PR 10034)
-* Fixed a possible memory leak in ECC non-blocking cryptography operations within the TLS layer. by @dgarske (PR 10065)
-* Fixed multiple correctness issues in DTLS 1.3 and TLS 1.3 including wrong return values, missing bounds checks, a PSK identity buffer overread, swapped server/client parameters in finished secret derivation, a static array data race, resource leaks, and a potential NULL dereference in the SM3 exporter path. by @gasbytes (PR 10117)
+
+* Multiple TLS 1.3 Encrypted Client Hello (ECH) compliance fixes per RFC 9849, covering rejection handling, ECHConfig parsing, and inner ClientHello validation. by @sebastian-carpenter (PR 10141)
+* Added client-side ECH ech_outer_extensions encoding to shrink the HPKE-sealed inner ClientHello. by @sebastian-carpenter (PR 10306)
+* Added maximum_name_length padding for the ECH ClientHelloInner and a new `wolfSSL_CTX_GenerateEchConfigEx()` API. by @sebastian-carpenter (PR 10326)
+* Added opt-in ECH trial decryption (`wolfSSL_CTX_SetEchEnableTrialDecrypt()`) and ECH connection-status reporting. by @sebastian-carpenter (PR 10469)
+* Evict the session from cache after an accepted 0-RTT resumption to prevent early-data replay (RFC 8446 section 8). by @julek-wolfssl (PR 10221)
+* Gate 0-RTT acceptance on a cache-backed resumption ticket and stop auto-advertising 0-RTT unless the application requests it. by @julek-wolfssl (PR 10289)
+* Send a missing_extension alert when the SNI extension is absent in TLS 1.3. by @jackctj117 (PR 10332)
+* Reject extensions in a TLS 1.3 Certificate message that were not offered in the prior ClientHello/CertificateRequest (RFC 8446 section 4.4.2). by @gasbytes (PR 10338)
+* Error out on unknown/unsolicited extensions in TLS 1.3 response messages while still tolerating GREASE in NewSessionTicket. by @Frauschi (PR 10186)
+* Fixed encrypt-then-mac handling on the non-resumption path. by @embhorn (PR 10167)
+* Fixed a TLS 1.3 AEAD/KeyUpdate limit that used 16-bit counters where 32-bit values were required. by @SparkiDev (PR 10513)
+* Decoupled the speculative ClientHello key share from `preferredGroup[0]` via `WOLFSSL_KEY_SHARE_DEFAULT_GROUP` to reduce HelloRetryRequests. by @Frauschi (PR 10435)
+* Fixed DTLS 1.3 unnecessary client retransmission after HelloRetryRequest and improved server robustness. by @rizlik (PR 10349)
+* Free and NULL the DTLS 1.3 cipher slot on init failure. by @gasbytes (PR 10360)
+* Added a `WOLFSSL_DTLS13_5_9_0_COMPAT` compatibility mode for interoperating with pre-5.9.0 DTLS 1.3 clients. by @rizlik (PR 10492)
+* Added a missing `WOLFSSL_QUIC_MAX_RECORD_CAPACITY` check on the QUIC early-data path. by @gasbytes (PR 10201)
+* Default `WOLFSSL_MAX_SIGALGO` to 128. by @julek-wolfssl (PR 10528)
+* Added NID_X25519 and NID_X448 support to the EVP layer. by @julek-wolfssl (PR 10552)
+* Enabled the all-zero shared-secret check for Curve25519/Curve448 by default and ensured post_handshake_auth was offered before accepting a post-handshake CertificateRequest. by @kareem-wolfssl (PR 10374)
+* Fixed a DupSSL (write-dup) issue with Poly1305 authentication. by @embhorn (PR 10337)
+* Various X509 enhancements and fixes by @SparkiDev (PR 10548)
+* Cache AEAD record overhead on WOLFSSL by @julek-wolfssl (PR 10476)
+* Add keylog support for TLS 1.3 ECH by @sebastian-carpenter (PR 10259)
+* Enhance OCSP responder authorization by @rlm2002 (PR 10532)
+* Allow RSA client certs on ECDHE-ECDSA mutual auth by @julek-wolfssl (PR 10553)
+* Enforce only 1 protocolname in serverhello by @anhu (PR 10443)
+* Fix tls_bench DTLS mode failures by @miyazakh (PR 10606)
+* Fix cipher property NIDs for SSL_get_current_cipher and add PSK kx mapping by @julek-wolfssl (PR 10639)
 
 ## ASN and Certificate Parsing
-* Added wolfSSL_check_ip_address() to support filtering connections based on Subject Alternative Name (SAN) IP address entries, mirroring the existing domain name check functionality. by @padelsbach (PR 9935)
-* Added host name verification from the verification context parameter when calling wolfSSL_X509_verify_cert. by @julek-wolfssl (PR 9952)
-* Moved non-template (WOLFSSL_ASN_ORIGINAL) code into asn_orig.c and include from asn.c. by @dgarske (PR 9920)
-* Fixed additional potential null pointer dereferences in ASN parsing code identified by Coverity static analysis. by @rlm2002 (PR 9990)
-* Fixed wolfssl/wolfcrypt/asn.h to directly include wolfssl/wolfcrypt/sha512.h for WC_SHA384_DIGEST_SIZE and WC_SHA512_DIGEST_SIZE. Previously this relied on transitive include order and broke builds where asn.h is parsed before hash.h/sha512.h. by @danielinux (PR 10014)
-* Removed FIPS-conditional guards from the GetASN_BitString length check so the validation applies in all builds. by @embhorn (PR 10027)
-* Added validation to reject negative ASN.1 integers in CRL number fields during decoding, preventing an overflow that could corrupt the adjacent hash field. Thanks to Sunwoo Lee for the bug report. by @padelsbach (PR 10087)
+
+* Allow serial number 0 for self-signed root CA certificates while keeping the RFC 5280 check for others. by @jackctj117 (PR 9567)
+* Fixed peer certificate verification with IP address SAN entries. by @embhorn (PR 10169)
+* Fixed partial chain verification to only terminate at a certificate present in the original trust set. by @embhorn (PR 10170)
+* Apply DNS name constraints to the Subject CN when no SAN is present. by @rlm2002 (PR 10223)
+* Fixed IDNA wildcard matching. Thanks to Andrew Chin, SSLab at Georgia Institute of Technology. by @embhorn (PR 10331)
+* Honor the otherName GeneralName form in name-constraint checks and add `WOLFSSL_X509_STORE_ALLOW_NON_CA_INTERMEDIATE` for backward compatibility. by @embhorn (PR 10339)
+* Always parse and store iPAddress and registeredID GeneralNames for name-constraint enforcement. by @embhorn (PR 10354) Thanks to Ankur Tyagi of Cisco Talos for the report.
+* Hardened X.509 chain validation, session-ticket peer-cert binding, and peer-cert restore, and reject embedded NUL in dNSName/rfc822Name/URI SAN entries. by @julek-wolfssl (PR 10279)
+* Restrict domain-name pattern matching and case folding to valid FQDNs via a new `IsValidFQDN()` helper. by @douzzer (PR 10183, PR 10419)
+* Report a certificate verify failure for MD5-signed certificates during chain verification. by @embhorn (PR 10222)
+* Make SHA-1-with-RSA the last-resort signature type, as SHA-1 signatures are deprecated. by @SparkiDev (PR 10173)
+* Tightened the key length check in `wc_SignatureGetSize()` from `>=` to exact equality. by @miyazakh (PR 10122)
+* Fixed a malformed AKID extension produced by `wolfSSL_X509_set_authority_key_id()`. by @cconlon (PR 10370)
+* Set the PKCS#8 (RFC 5958) version correctly when a private key bundles the optional publicKey field. by @cconlon (PR 10427)
+* Bind OCSP responder authorization to the CertID issuerKeyHash. by @julek-wolfssl (PR 10303)
+* Fixed multi-CRL PEM bundles being truncated to the first CRL in `wolfSSL_PEM_read_bio_X509_CRL`. by @julek-wolfssl (PR 10336)
+* Reject CRLs with unrecognized critical extensions and critical entry extensions per RFC 5280. by @gasbytes (PR 10239, PR 10274)
+* Validate DSA parameters when verifying a DSA key. by @kareem-wolfssl (PR 10381).  Thanks to Kr0emer for the report.
+* Validate parameters in `wolfSSL_EC_POINT_hex2point`. Thanks to breakingbad6, Yanzhao Shen, and Yingpei Zeng (Hangzhou Dianzi University). by @embhorn (PR 10445)
+* Adjusted the CA pathlen check and added glitch hardening when a trust anchor is included in the certificate chain. by @JacobBarthelmeh (PR 10296)
+* Added ascii-digit validation in the ASN.1 time decode functions. by @padelsbach (PR 10276)
+* Allow a SubjectInfoAccess extension without an id-ad-caRepository entry. by @holtrop-wolfssl (PR 10368)
+* Tighten RFC 8017 A.2.3 compliance for RSA-PSS by @miyazakh (PR 10595)
 
 ## Hardware and Embedded Ports
-* Fixed SE050 hardware security module integration by routing RSA-PSS sign/verify operations through the software path to prevent double-hashing, releasing persistent SE050 key slots on free for RSA, ECC, Ed25519, and Curve25519 keys, and adding missing mutex unlock calls before early returns in RSA crypto functions. by @LinuxJedi (PR 9912)
-* When WOLFSSL_NO_HASH_RAW is defined due to hardware hash offload, turn on LMS and XMSS full hash. Without this they will not compile automatically when there is hardware SHA acceleration. by @LinuxJedi (PR 9946)
-* Applied AI-review fixes across hardware and embedded port implementations spanning Espressif, Renesas, Silicon Labs, NXP, STM32, TI, Xilinx, and numerous other targets to improve correctness and code quality. by @SparkiDev (PR 10003)
-* Fixed issues found by the testing of the MAX32666 tests. by @night1rider (PR 10035)
-* Fixed buffer overflows, key material exposure, mutex leaks, and logic errors across hardware crypto port backends. by @JeremiahM37 (PR 10080)
+
+* Reworked the Microchip TA-100 port for cryptoauthlib v3.6.0, with AES-GCM now working. by @danielinux (PR 9702)
+* Added wolfCrypt hardware crypto support for NXP LPC55S69. by @twcook86 (PR 10278)
+* Added STM32U3 hardware crypto support (AES, hash, TRNG). by @dgarske (PR 10361)
+* Fixed STM32 AES hardware crypto when `WOLFSSL_ARMASM` is set. by @dgarske (PR 10311)
+* Allow custom time functions on STM32 by not forcing `NO_ASN_TIME` when `XTIME` is defined. by @lealem47 (PR 10295)
+* Fixed NXP DCP AES multiblock CBC encrypt/decrypt and the in-place case. by @padelsbach (PR 10307)
+* Fixed Octeon/Cavium AES-GCM AAD GHASH and non-12-byte IV J0 derivation bugs. by @ejohnstown (PR 10439) and @JacobBarthelmeh (PR 10471)
+* SE050 fixes plus new `SE050_RSA_NO_VERIFY`/`SE050_ECDSA_NO_VERIFY`/`SE050_ECDSA_NO_ECDHE` options and simulator CI. by @rizlik (PR 10219)
+* Improved MQX/Fusion RTOS compatibility for `XINET_PTON` (MQX RTCS support, IPv6 buffer sizing). by @josepho0918 (PR 10075)
+* Added Zephyr 4.3 default TLS-socket support. by @ColtonWilley (PR 10268)
+* Fixed wolfSSL support on the CHERI RISC-V architecture. by @wbeasley-thegoodpenguin (PR 10272)
+* Revived and hardened the IoT-Safe memory-TLS example. by @danielinux (PR 10457)
+* Fixed the NXP CAAM build when WOLFSSL_HASH_KEEP is not defined. by @JacobBarthelmeh (PR 10459)
+* Set `hashType` in port hash implementations so SHA-512 modes can be distinguished. by @padelsbach (PR 10193)
+* Fixed the LMS/XMSS crypto callback software fallback to propagate `CRYPTOCB_UNAVAILABLE`. by @padelsbach (PR 10456)
+* Fixed a PIC32 hardware-acceleration stack-pointer free bug and added PIC32MZ emulator tests. by @LinuxJedi (PR 10495)
+* Numerous hardware/embedded port hardening fixes (Xilinx/AMD, PSoC6, TROPIC01, devcrypto, RX64, STM32, KCAPI, QAT) from Fenrir review. by @JacobBarthelmeh (PR 10467, PR 10470, PR 10508) and @dgarske (PR 10496)
+* Implements the SHA accelerator for MAX32666 as bare-metal by @mattia-moffa (PR 10431)
 
 ## Rust Wrapper
-* Released version 1.2.0 of the wolfssl-wolfcrypt Rust crate with updated changelog and README. by @holtrop-wolfssl (PR 9953)
-* Updated the Rust wrapper's build script to support cross-compiling and bare-metal targets, including RISC-V architectures. by @holtrop-wolfssl (PR 10031)
+
+* Added rand_core, aead, and cipher crate trait implementations. by @holtrop-wolfssl (PR 10070)
+* Added digest and signature crate trait implementations. by @holtrop-wolfssl (PR 10248)
+* Added password-hash, kem, and mac crate trait implementations. by @holtrop-wolfssl (PR 10305)
+* Added zeroize-on-drop and fixed Fenrir findings across the crate. by @holtrop-wolfssl (PR 10205)
+* Ensured memory safety for the C RNG struct and added functionality found during boringtun integration. by @holtrop-wolfssl (PR 10402)
+* Added buffer-size checks to the ChaCha20-Poly1305 one-shot wrappers. by @holtrop-wolfssl (PR 10267)
+* Add scrypt KDF and RSA-OAEP support by @holtrop-wolfssl (PR 10556)
 
 ## Build System and Portability
-* Removed default declaration of WC_ALLOC_DO_ON_FAILURE. by @julek-wolfssl (PR 9905)
-* Refactored wc_Hash* so that known wc_HashType values are unconditionally defined in enum wc_HashType, and always either succeed if used properly, or return HASH_TYPE_E if gated out or used improperly; added detailed error code tracing. by @douzzer (PR 9937)
-* Removed the forced enabling of MD5 when building with --enable-jni so that MD5 can be explicitly disabled in FIPS builds. by @mattia-moffa (PR 10011)
-* Changed the example server/client to not modify macro defines that come from how the wolfSSL library is configured when built. by @JacobBarthelmeh (PR 10037)
-* Added __extension__ to __GNUC__&&!__STRICT_ANSI__ variant of wc_debug_trace_error_codes_enabled() in wolfssl/wolfcrypt/error-crypt.h, to inhibit false positive "error: ISO C forbids braced-groups within expressions" with -pedantic. by @douzzer (PR 10041)
-* Fixed IAR compiler warnings about undefined volatile access order by reading volatile values into local copies before use in expressions. by @embhorn (PR 10045)
-* Automatically enables WOLFSSL_SP_4096 when WOLFSSL_HAVE_SP_DH is defined under the --enable-usersettings configuration to fix a missing dependency for C# user settings builds. by @kojo1 (PR 10054)
-* Added volatile casting to a port header definition to address a correctness issue. by @anhu (PR 10062)
-* Extended the WC_MAYBE_UNUSED macro definition to cover GCC versions greater than 3 to fix a build error in GCC 3.4.0. by @embhorn (PR 10101)
-* Fixed a compile error when building with --enable-crl and --disable-ecc by adding the appropriate preprocessor guards around SetBitString in asn.c. by @padelsbach (PR 10118)
-* Fixed -Wcast-qual hygiene in wolfCrypt. by @douzzer (PR 10120)
+
+* Removed unused m4 macros and updated AX_PTHREAD to the latest autoconf-archive macro. by @BrianAker (PR 10106)
+* Guard `<stddef.h>` behind `NO_STDDEF_H` and userspace fcntl/filesystem code behind `WOLFSSL_KERNEL_MODE`. by @philljj (PR 10280, PR 10521)
+* Support building `--enable-opensslextra` with `NO_BIO` and `NO_FILESYSTEM`. by @JacobBarthelmeh (PR 10393)
+* Allow `--enable-writedup` when DTLS is disabled. by @mattia-moffa (PR 10527)
+* Set `WOLFSSL_USE_ALIGN` automatically for ARM user_settings.h builds. by @embhorn (PR 10487)
+* Added `WC_LINUXKM_USE_HEAP_WRAPPERS` heap wrappers and AES-CCM LKCAPI shims for the Linux kernel module. by @douzzer (PR 10512, PR 10194)
+* linuxkm enhancements for wolfGuard support by @douzzer (PR 10590)
+* Added a software CryptoCb test device and `WOLF_CRYPTO_CB_ONLY_*` test infrastructure (SHA-256, SHA-224, AES). by @rizlik (PR 10351, PR 10500)
+* Added configure and CMake options for `WOLF_CRYPTO_CB_RSA_PAD`. by @kareem-wolfssl (PR 10428)
+* Fixed mem_track.h compilation on multi-threaded non-Linux builds. by @LinuxJedi (PR 10453)
+* Fixed CUDA builds with `WOLFSSL_AES_SMALL_TABLES`. by @embhorn (PR 10366)
+* Skip testsuite.test for `--enable-leantls` builds. by @miyazakh (PR 10510)
+* RPM packaging fixes for examples/cmake artifacts and RHEL10 LTO builds. by @space88man (PR 10270, PR 10356) and @twcook86 (PR 10275)
+* Fixed the SGX build to not require fcntl.h. by @JacobBarthelmeh (PR 10524)
+* Various linuxkm Fenrir fixes by @douzzer (PR 10688)
+* Various bsdkm fixes and cleanup by @philljj (PR 10565)
 
 ## Bug Fixes
-* Fixed stack memory tracking for the wolfCrypt benchmark. by @Frauschi (PR 9983)
-* Fixed a bug in FillSigner where pubKeyStored and subjectCNStored flags were not cleared after transferring pointers from a DecodedCert to a signer, preventing stale NULL pointers from being copied on subsequent calls. by @embhorn (PR 10033)
-* Fixed a heap overflow in ssl_DecodePacketInternal caused by silent truncation when summing 64-bit iov_len values into a 32-bit integer, which resulted in an undersized buffer allocation followed by an out-of-bounds copy. by @embhorn (PR 10017)
-* Added a bounds check in GetSafeContent to prevent an unsigned integer underflow in the content size calculation when the OID parsed by GetObjectId exceeds the declared ContentInfo SEQUENCE length. by @embhorn (PR 10018)
-* Fixed a potential double free issue in non-blocking async handling within ASN parsing. by @dgarske (PR 10022)
-* Fixed bounds checking and buffer size calculation in DecodeObjectId to correctly validate two output slots before writing and pass the proper element count instead of byte count when handling unknown ASN.1 extensions. by @embhorn (PR 10025)
-* Fixed stack buffer overflow in RSA exponent print via wolfSSL_EVP_PKEY_print_public in evp.c. Printing an RSA public key with a large exponent can overflow a stack buffer in the EVP printing routine. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon (Korea Institute of Energy Technology, KENTECH) for the bug report. (PR 10088)
-* Fixed sanity check on hashLen provided to wc_dilithium_verify_ctx_hash. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon (Korea Institute of Energy Technology, KENTECH) for the bug report. (PR 10131)
-* Disallowed wildcard partial domains when using MatchDomainName. Thanks to Oleh Konko (@1seal) for the report. (PR 9991)
-* Fixed a buffer underflow that occurred when a zero-length size was passed to the devcrypto AES-CBC implementation. by @JeremiahM37 (PR 10005)
-* Routed BIO_ctrl_pending, BIO_reset, and BIO_get_mem_data through the custom method's ctrlCb when set, enabling fully custom BIO types to handle these operations. by @julek-wolfssl (PR 10004)
-* Fixed multiple issues in the SP integer implementation including negative number handling, edge cases when a->used is zero, missing bounds checks, and redundant code, while also re-implementing wc_PKCS12_PBKDF() without MP and adding 128-bit integer types for cleaner PKCS#12 support. by @SparkiDev (PR 10020)
-* Fixed functional bugs in x86_64 AES-XTS register clobbering and ARM32 multiply/accumulate source registers, along with assembly label typos, instruction mnemonic corrections, and comment fixes across AES, ChaCha, SHA-3, SHA-512, ML-KEM, and Curve25519 assembly for x86_64, ARM32, and ARM64 targets. by @SparkiDev (PR 10023)
-* Fixed a bug in the SP non-blocking ECC mont_inv_order function where the last bit was not being processed during modular inverse computation. by @SparkiDev (PR 10044)
-* Added bounds check to prevent potential out-of-bounds access when parsing end-of-content octets in PKCS7 streaming indefinite-length encoding. by @anhu (PR 10039)
-* Refactored the "Increment B by 1" loop in wc_PKCS12_PBKDF_ex() to avoid bugprone-inc-dec-in-conditions. by @douzzer (PR 10059)
-* Fixed OpenSSL compatibility layer ASN1_INTEGER and ASN1_STRING to be compatible structs. by @julek-wolfssl (PR 10089)
-* Fixed potential data truncation in wc_XChaCha20Poly1305_crypt_oneshot() by replacing long int casts with size_t to correctly handle 64-bit sizes on platforms where long int is 32-bit. by @rlm2002 (PR 10091)
-* Fixed error handling in the Linux kernel AES AEAD glue code so that scatterwalk_map failures correctly propagate an error code instead of returning success with uninitialized data. by @sameehj (PR 9996)
-* Fixed DTLS Fragment Reassembly to not read uninitialized heap contents. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon (Korea Institute of Energy Technology, KENTECH) for the report. (PR 10090)
-* Fixed DTLS 1.3 word16 truncation on handshake send size. A handshake message exceeding 65535 bytes causes silent integer truncation when the size is stored in a word16, leading to malformed or truncated handshake transmissions. Thanks to Sunwoo Lee, Woohyun Choi, and Seunghyun Yoon (Korea Institute of Energy Technology, KENTECH) for the report. (PR 10103)
-* Fixed invalid-pointer-pair memory errors reported by clang sanitizer with detect_invalid_pointer_pairs=2 in ASAN_OPTIONS. by @douzzer (PR 10095)
-* Hardened default builds by enabling ECC curve validation unconditionally, removing the previous dependency on USE_ECC_B_PARAM. Users on older versions can also harden their builds by enabling WOLFSSL_VALIDATE_ECC_IMPORT. by @Frauschi (PR 10133)
+
+* AES-CCM encryption/decryption with 13 or 12 byte nonces and large messages (>1 MiB and >256 MiB respectively) were not properly rejected at argument validation time, allowing counter wrap, keystream reuse, and consequent plaintext recovery. Thanks to NVIDIA Project Vanessa for the report. (PR 10709)
+* Out-of-bounds write in wolfSSL_get_finished() and wolfSSL_get_peer_finished(). The functions validated the caller buffer against TLS_FINISHED_SZ (12 bytes) but copied the full Finished message, which for TLS 1.3 is the handshake hash size (32 or 48 bytes), overrunning a correctly sized 12-byte buffer. The output length is now validated before the copy. Thanks to Qiushi Wu from IBM Research for the report. (PR 10576)
+* Fix for rejecting the import of a public key that is the identity element with Ed448. Use of a public key that is the identity element allows for crafting a forged signature that verifies with that specific public key. wolfSSL does not generate an Ed448 key pair that is the identity element. This defense-in-depth hardening for Ed448 and has been available since release 5.9.1. Thanks to Nicholas Carlini from Anthropic for the report. (PR 10116)
+* Fix for !aNULL after an explicit ADH suite leaving the anon suite available. Thanks to NVIDIA Project Vanessa for the report. (PR 10714)
+* P-521 ECDH SP-math validates 65 bytes but writes 66 leading to a 1-byte heap overflow. Thanks to NVIDIA Project Vanessa for the report. (PR 10702)
+* Fix for FreeBSD kernel module to have additional sanity checks on IV size when copying. This avoids a stack overflow in --enable-freebsdkm-crypto-register builds used for preliminary testing. Thanks to NVIDIA Project Vanessa for the report. (PR 10695)
+* Added an upper limit to the PBKDF iteration count and changed iterations <= 0 to fail closed instead of silently clamping to 1. by @anhu (PR 10050) and @miyazakh (PR 10504)
+* Added MP integer size bounds checks in `SizeASN_Items`. by @anhu (PR 10051)
+* Ensure certificates are correctly added to the cert manager. by @anhu (PR 10073)
+* Use `O_CLOEXEC` at file creation to harden against multithread races. by @embhorn (PR 10162)
+* BIO improvements and fixes, including an out-of-bounds read and an inverted ctrl_pending check. by @rizlik (PR 10164)
+* Guard against negative lengths in BIO, I/O callbacks, and PKCS12 PBKDF. by @ColtonWilley (PR 10208)
+* Fixed a dangling `secure_renegotiation` pointer after `TLSX_FreeAll`. by @ColtonWilley (PR 10210)
+* Added missing NULL checks across public API entry points. by @ColtonWilley (PR 10216)
+* Fixed NULL dereferences, a DSA SignFinal overflow, and the i2d contract across EVP/OCSP/X509. by @ColtonWilley (PR 10217)
+* Enforce the minimum auth tag size in `wc_AesGcmDecryptFinal`. by @yosuke-wolfssl (PR 10175)
+* AES-EAX and AES-SIV lifecycle and NULL-check fixes. by @SparkiDev (PR 10174)
+* Added a C implementation for ARM AES-GCM small-table builds without NEON. by @SparkiDev (PR 10176)
+* SP integer fixes for negative numbers, zero-used edge cases, bounds, and truncation, plus added testing. by @SparkiDev (PR 10235, PR 10529) and @embhorn (PR 10478) Thanks to Kr0emer for reporting these issues and testing the fixes.
+* Fixed the Curve25519 private-key clamp check to enforce RFC 7748 rule 3. by @MarkAtwood (PR 10363)
+* Fixed the Blake2 oversized-key path. by @mattia-moffa (PR 10447)
+* Fixed a SAKKE heap buffer overflow and a correctness gap in `sakke_hash_to_range`, plus a `wc_export_int` size check. by @JeremiahM37 (PR 10442) and @philljj (PR 10444)
+* Added checks to `PKCS7_VerifySignedData` to prevent out-of-bounds access. Thanks to Feng Ning / Innora. by @padelsbach (PR 10441)
+* Various PKCS#7 fixes. by @Frauschi (PR 10203) and @kareem-wolfssl (PR 10128)
+* Various PKCS#12 fixes including strict-aliasing, zeroization, and overflow checks. by @rlm2002 (PR 10378)
+* Fixed an ECC temporary-key leak and undefined behavior, and an ECC validation regression. by @Frauschi (PR 10346, PR 10260)
+* Fixed a double free in `wolfSSL_X509_set_ext`. by @padelsbach (PR 10481)
+* Reset the SHA-3 hashType between ML-KEM cryptocb calls. by @night1rider (PR 10211)
+* Plumb the caller heap into CMAC before the cryptocb fires. by @night1rider (PR 10401)
+* Fixed inverted AllocDer checks in the alt private key id/label paths. by @night1rider (PR 10168)
+* TLS extension bounds-checking fixes. Thanks to Suryansh Mansharamani (Plainshift AI). by @embhorn (PR 10220)
+* Hardened `TLSX_KeyShare_ProcessPqcHybridClient` against double free and wrong-key NULLing. by @embhorn (PR 10327) and @kareem-wolfssl (PR 10493)
+* Various missing bounds and length checks. by @kareem-wolfssl (PR 10142, PR 10277)
+* Fixed the `NO_VERIFY_OID` build in `GetOID`. Thanks to @cpsource. by @JeremiahM37 (PR 10440)
+* Ensure large buffers are heap-allocated under `WOLFSSL_SMALL_STACK`. by @Frauschi (PR 10245)
+* Fixed private key lock issues. by @kaleb-himes (PR 10446)
+* Improved HPKE return codes to use defined error values. by @sebastian-carpenter (PR 10455)
+* MD4 and MD2 public APIs now return int instead of void, alongside static-analysis fixes for SECO, devcrypto, and ARIA. by @JacobBarthelmeh (PR 10460)
+* Extensive wolfCrypt input-validation, key-zeroization, and side-channel hardening across RSA, ECC, EdDSA, Curve25519/448, DH, SRP, PKCS#7, KDF, LMS, and PQ key handling. by @JeremiahM37 (PR 10136, PR 10231, PR 10238, PR 10264, PR 10304, PR 10340, PR 10386, PR 10392, PR 10413, PR 10426, PR 10468), @julek-wolfssl (PR 10230, PR 10247, PR 10398), and @aidangarske (PR 10155)
+* Fixed a word32 size overflow in wc_DeCompressDynamic that could under-allocate a buffer and cause a heap overflow on --with-libz + PKCS7-compressed builds. by @JeremiahM37 (PR #10413).
+* Resolved numerous Coverity static-analysis findings. by @rlm2002 (PR 10129, PR 10165, PR 10376, PR 10418, PR 10482)
+* Enforce MAX_ENTROPY_BITS upper bound in wc_Entropy_Get() by @miyazakh (PR 10593)
+* Various EVP API bug fixes by @MarkAtwood (PR 10364, PR 9987)
+* Various ppc and armv8 asm and linuxkm fixes by @douzzer (PR 10600)
+* Fixes for Zephyr secure sockets integration by @Frauschi (PR 10583)
+* Add signed-length validation to d2i, PEM, and buffer-load APIs to harden against potential out of bounds case by @ColtonWilley (PR 10207)
+* Reject duplicate certificatePolicies certificate extensions (RFC 5280), previously accepted as last-wins by @Frauschi (PR 10714)
+* Strengthen subgroup check in wc_DhAgree by @philljj (PR 10560). Thanks to Muhammad Arya Arjuna Habibullah (Pelioro) for the report.
+* Fix missing private key zeroization in ML-KEM by @anhu (PR 10665). Thanks to Uday Devaraj, SYNE Lab, Syracuse University.
+* Force-zero wc_AesSivDecrypt output buffer on authentication failure by @holtrop-wolfssl (PR 10668)
+* Ed448: check for public key presence on export by @holtrop-wolfssl (PR 10656)
+* Hardening fixes in wolfSSL_strnstr and mp_get_digit. Thanks to Dominik Blain / COBALT Security for the bug report. by @padelsbach (PR 10138)
 
 ## Documentation and Maintenance
-* Added inline Doxygen documentation for previously undocumented macros across TLS, cryptography, and ASN source files, and corrected spelling errors throughout the codebase. by @dgarske (PR 9992)
-* Fixed typos in documentation for SSL API function argument descriptions. by @dgarske (PR 10021)
-* Updated documentation to reflect support for both FIPS 140-2 and FIPS 140-3. by @anhu (PR 10061)
+
+* Added documentation for the new OCSP responder and certificate accessor APIs. by @julek-wolfssl (PR 10147)
+* Improved API documentation argument descriptions for the sigalgs/groups/cipher-list/options setters. by @kojo1 (PR 10382)
+* Added doxygen coverage for the SHE API. by @night1rider (PR 10243)
+* Added the `BN_bn2binpad` API. by @julek-wolfssl (PR 10148)
+* Added TLS 1.3 decryption fuzz tests, Monte Carlo / unaligned / in-place cipher tests, and expanded negative test coverage for handshake, AEAD, PKCS7, PSS, DSA, DRBG, and PQ paths. by @SparkiDev (PR 10461, PR 10213, PR 10226) and @JeremiahM37 (PR 10166, PR 10291)
+* Various improvements to CI efficiency and parallelism by @julek-wolfssl (PR 10667, PR 10685, PR 10701, PR 10731)
+
 
 For additional vulnerability information visit the vulnerability page at:
 https://www.wolfssl.com/docs/security-vulnerabilities/
