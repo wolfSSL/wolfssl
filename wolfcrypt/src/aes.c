@@ -9954,6 +9954,16 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
+
     B[0] = (authInSz > 0 ? 64 : 0)
          + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
@@ -10058,6 +10068,15 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     XMEMSET(A, 0, sizeof A);
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+
+    /* With a large nonce, B[] runs out of room to represent inSz, and beyond
+     * that, the counter itself can wrap.
+     */
+    if ((lenSz < sizeof(inSz)) &&
+        (inSz >= ((word32)1 << (lenSz * 8))))
+    {
+        return AES_CCM_OVERFLOW_E;
+    }
 
     B[0] = lenSz - 1;
     for (i = 0; i < lenSz; i++)
