@@ -5499,7 +5499,9 @@ int test_wolfSSL_dtls_create_free_peer(void)
     ExpectIntEQ(wolfSSL_dtls_free_peer(peer), WOLFSSL_SUCCESS);
 
     /* Invalid address string returns NULL. */
-    ExpectNull(wolfSSL_dtls_create_peer(11111, (char*)"not-an-ip-address"));
+    ExpectNull(peer = wolfSSL_dtls_create_peer(11111,
+                                               (char*)"not-an-ip-address"));
+    wolfSSL_dtls_free_peer(peer);
 #endif
     return EXPECT_RESULT();
 }
