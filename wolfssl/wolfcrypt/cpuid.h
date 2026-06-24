@@ -43,6 +43,10 @@
     #define HAVE_CPUID
     #define HAVE_CPUID_AARCH64
 #endif
+#if defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_NO_ASM)
+    #define HAVE_CPUID
+    #define HAVE_CPUID_PPC64
+#endif
 
 #define WC_CPUID_INITIALIZER 0xffffffffU
 typedef word32 cpuid_flags_t;
@@ -100,6 +104,29 @@ typedef word32 cpuid_flags_t;
     #define IS_AARCH64_SM3(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SM3)
     #define IS_AARCH64_SM4(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SM4)
     #define IS_AARCH64_SB(f)        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SB)
+
+#elif defined(HAVE_CPUID_PPC64)
+
+    #define CPUID_ALTIVEC     0x0001    /* VMX / AltiVec */
+    #define CPUID_VSX         0x0002    /* Vector-Scalar Extension */
+    #define CPUID_ARCH_2_07   0x0004    /* POWER8 / PowerISA 2.07 */
+    #define CPUID_VEC_CRYPTO  0x0008    /* Vector crypto: vshasigmaw, vcipher,
+                                         * vpmsumd, ... */
+    #define CPUID_ARCH_3_00   0x0010    /* POWER9 / PowerISA 3.0 */
+    #define CPUID_ARCH_3_1    0x0020    /* POWER10 / PowerISA 3.1 */
+
+    #define IS_PPC64_ALTIVEC(f)    \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ALTIVEC)
+    #define IS_PPC64_VSX(f)        \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_VSX)
+    #define IS_PPC64_ARCH_2_07(f)  \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ARCH_2_07)
+    #define IS_PPC64_VEC_CRYPTO(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_VEC_CRYPTO)
+    #define IS_PPC64_ARCH_3_00(f)  \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ARCH_3_00)
+    #define IS_PPC64_ARCH_3_1(f)   \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ARCH_3_1)
 
 #endif
 

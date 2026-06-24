@@ -121,7 +121,8 @@
 #endif
 #endif
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
+    !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
 
 #ifdef WOLFSSL_SHA3_SMALL
 /* Rotate a 64-bit value left.
@@ -601,7 +602,52 @@ void BlockSha3(word64* s)
 }
 #endif /* WC_SHA3_SW_KECCAK */
 #endif /* !WOLFSSL_SHA3_SMALL */
-#endif /* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
+#endif /* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM && !WOLFSSL_PPC64_ASM &&
+        * !WOLFSSL_PPC32_ASM */
+
+#if defined(WOLFSSL_PPC64_ASM)
+#if defined(WOLFSSL_PPC64_ASM_POWER8)
+/* PowerPC64 provides two Keccak-f[1600] implementations: the scalar
+ * BlockSha3_base and a POWER8 (PowerISA 2.07) VSX BlockSha3_power8 (which uses
+ * vrld/mtvsrd).  Select the POWER8 one at run time when the CPU is POWER8 or
+ * later.
+ *
+ * A run-time flag with direct calls is used rather than a function pointer: an
+ * indirect call would require an ELFv1 function descriptor, whereas direct
+ * calls work under both the ELFv1 and ELFv2 ABIs. */
+#include <wolfssl/wolfcrypt/cpuid.h>
+
+/* -1 = not yet determined, 0 = base, 1 = POWER8 */
+static int sha3_use_power8 = -1;
+
+void BlockSha3(word64* s)
+{
+    if (sha3_use_power8 < 0) {
+        word32 f = cpuid_get_flags();
+        /* The VSX permutation is only worthwhile where the scalar issue width
+         * does not already win.  POWER9 (PowerISA 3.0 but not 3.1) has enough
+         * scalar throughput that BlockSha3_base is faster, so use the VSX path
+         * only on POWER8 and on POWER10 (3.1) or later. */
+        sha3_use_power8 = IS_PPC64_ARCH_2_07(f) &&
+            (!IS_PPC64_ARCH_3_00(f) || IS_PPC64_ARCH_3_1(f));
+    }
+
+    if (sha3_use_power8)
+        BlockSha3_power8(s);
+    else
+        BlockSha3_base(s);
+}
+#else
+/* Only the scalar implementation is built; call it directly (no run-time
+ * dispatch, no function pointer). */
+void BlockSha3(word64* s)
+{
+    BlockSha3_base(s);
+}
+#endif
+#endif
+/* Scalar PowerPC32 assembly provides BlockSha3 directly (see
+ * wolfcrypt/src/port/ppc32/ppc32-sha3-asm.S), so nothing is needed here. */
 
 #ifdef WC_SHA3_SW_KECCAK
 #if defined(BIG_ENDIAN_ORDER)

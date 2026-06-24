@@ -1501,9 +1501,69 @@ static void Sha512_SetTransform(void)
     transform_check = 1;
 }
 
+#elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+
+/* Scalar (base instruction) SHA-512 transform for big-endian PowerPC (32- and
+ * 64-bit).  The asm loads the message words directly, so no byte reversal is
+ * needed and the (sha512, data, len) form is used just like the ARM assembly. */
+extern void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
+    word32 len);
+
+#if defined(WOLFSSL_PPC64_ASM) && defined(WOLFSSL_PPC64_ASM_CRYPTO)
+/* POWER8+ has a vector SHA-512 sigma instruction (vshasigmad).  When built
+ * in, select that implementation at run time if the CPU supports it.
+ *
+ * A run-time flag with direct calls is used rather than a function pointer:
+ * an indirect call would require an ELFv1 function descriptor, whereas direct
+ * calls work under both the ELFv1 and ELFv2 ABIs. */
+extern void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
+    word32 len);
+
+/* -1 = not yet determined, 0 = base, 1 = vector-crypto */
+static int sha512_use_crypto = -1;
+
+/* Detect CPU support via the central cpuid module on first use.  Idempotent -
+ * safe to call from multiple threads as all callers compute the same value. */
+static WC_INLINE void SHA512_TRANSFORM_LEN(wc_Sha512* sha512, const byte* data,
+    word32 len)
+{
+    if (sha512_use_crypto < 0)
+        sha512_use_crypto = IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0;
+
+    if (sha512_use_crypto)
+        Transform_Sha512_Len_crypto(sha512, data, len);
+    else
+        Transform_Sha512_Len(sha512, data, len);
+}
+/* SHA512_TRANSFORM_LEN is a function here, not a macro, so signal that a
+ * dispatcher is provided - otherwise the generic fallback below sees
+ * !defined(SHA512_TRANSFORM_LEN) and shadows it with a base-only macro. */
+#define SHA512_HAVE_TRANSFORM_LEN
+#else
+#define SHA512_TRANSFORM_LEN(s, d, l)   Transform_Sha512_Len((s), (d), (l))
+#define SHA512_HAVE_TRANSFORM_LEN
+#endif
+
+static WC_INLINE int Transform_Sha512(wc_Sha512* sha512, const byte* data)
+{
+    SHA512_TRANSFORM_LEN(sha512, data, WC_SHA512_BLOCK_SIZE);
+    return 0;
+}
+
+#define Sha512_SetTransform()   WC_DO_NOTHING
+
 #else
     #define Transform_Sha512(sha512) _Transform_Sha512(sha512)
 
+#endif
+
+/* For platforms that share the (sha512, data, len) block-loop call below but
+ * don't provide their own dispatcher (e.g. ARM), call the length transform
+ * directly. */
+#if (defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
+     defined(WOLFSSL_PPC32_ASM)) && \
+    !defined(SHA512_TRANSFORM_LEN) && !defined(SHA512_HAVE_TRANSFORM_LEN)
+#define SHA512_TRANSFORM_LEN(s, d, l)   Transform_Sha512_Len((s), (d), (l))
 #endif
 
 #ifdef WOLFSSL_SHA512
@@ -1611,7 +1671,7 @@ int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
 
 #endif /* WOLFSSL_SHA512 */
 
-#ifndef WOLFSSL_ARMASM
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
 
 static const word64 K512[80] = {
     W64LIT(0x428a2f98d728ae22), W64LIT(0x7137449123ef65cd),
@@ -1803,7 +1863,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
         #endif
             }
     #endif
-    #ifdef WOLFSSL_ARMASM
+    #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
             Transform_Sha512(sha512, (const byte*)sha512->buffer);
     #elif !defined(WOLFSSL_ESP32_CRYPT) || \
            defined(NO_WOLFSSL_ESP32_CRYPT_HASH) || \
@@ -1829,11 +1889,11 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
         }
     }
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
     if (len >= WC_SHA512_BLOCK_SIZE) {
         word32 blocksLen = len & ~((word32)WC_SHA512_BLOCK_SIZE-1);
 
-        Transform_Sha512_Len(sha512, data, blocksLen);
+        SHA512_TRANSFORM_LEN(sha512, data, blocksLen);
         data += blocksLen;
         len  -= blocksLen;
     }
@@ -1993,7 +2053,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 {
-#ifndef WOLFSSL_ARMASM
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && !defined(WOLFSSL_PPC32_ASM)
     int ret;
 #endif
     byte* local;
@@ -2041,7 +2101,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         }
 
 #endif /* LITTLE_ENDIAN_ORDER */
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
         Transform_Sha512(sha512, (const byte*)sha512->buffer);
 #else
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
@@ -2122,7 +2182,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     }
 #endif
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
     Transform_Sha512(sha512, (const byte*)sha512->buffer);
 #else
 #if !defined(WOLFSSL_ESP32_CRYPT) || \
@@ -2389,6 +2449,11 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     ByteReverseWords64(buffer, (word64*)data, WC_SHA512_BLOCK_SIZE);
     Transform_Sha512(sha, (const byte*)buffer);
     ret = 0;
+#elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
+    /* PPC assembly uses the (sha, data) form and reads the block directly
+     * (big-endian native - any little-endian reversal was done above). */
+    (void)buffer;
+    ret = Transform_Sha512(sha, data);
 #else
     XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
     XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);

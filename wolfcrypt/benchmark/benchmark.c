@@ -4806,6 +4806,15 @@ static void print_cpu_features(void)
     if (IS_AARCH64_SM3(cpuid_flags))    printf(" sm3");
     if (IS_AARCH64_SM4(cpuid_flags))    printf(" sm4");
 #endif
+#ifdef HAVE_CPUID_PPC64
+    printf("PPC64 -");
+    if (IS_PPC64_ALTIVEC(cpuid_flags))    printf(" altivec");
+    if (IS_PPC64_VSX(cpuid_flags))        printf(" vsx");
+    if (IS_PPC64_VEC_CRYPTO(cpuid_flags)) printf(" vcrypto");
+    if (IS_PPC64_ARCH_2_07(cpuid_flags))  printf(" arch_2_07");
+    if (IS_PPC64_ARCH_3_00(cpuid_flags))  printf(" arch_3_00");
+    if (IS_PPC64_ARCH_3_1(cpuid_flags))   printf(" arch_3_1");
+#endif
     printf("\n");
 }
 #endif

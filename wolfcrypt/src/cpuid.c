@@ -24,7 +24,7 @@
 #include <wolfssl/wolfcrypt/cpuid.h>
 
 #if defined(HAVE_CPUID) || defined(HAVE_CPUID_INTEL) || \
-    defined(HAVE_CPUID_AARCH64)
+    defined(HAVE_CPUID_AARCH64) || defined(HAVE_CPUID_PPC64)
     static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 #endif
 
@@ -366,6 +366,108 @@
             new_cpuid_flags |= CPUID_SM4;
         #endif
 
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#endif
+#elif defined(HAVE_CPUID_PPC64)
+
+/* PowerPC feature bits as reported through the ELF auxiliary vector
+ * (see <asm/cputable.h>).  Defined here so a kernel header is not required. */
+#ifndef AT_HWCAP2
+    #define AT_HWCAP2                 26
+#endif
+#ifndef PPC_FEATURE_HAS_ALTIVEC
+    #define PPC_FEATURE_HAS_ALTIVEC   0x10000000  /* AT_HWCAP  */
+#endif
+#ifndef PPC_FEATURE_HAS_VSX
+    #define PPC_FEATURE_HAS_VSX       0x00000080  /* AT_HWCAP  */
+#endif
+#ifndef PPC_FEATURE2_ARCH_2_07
+    #define PPC_FEATURE2_ARCH_2_07    0x80000000  /* AT_HWCAP2 */
+#endif
+#ifndef PPC_FEATURE2_VEC_CRYPTO
+    #define PPC_FEATURE2_VEC_CRYPTO   0x02000000  /* AT_HWCAP2 */
+#endif
+#ifndef PPC_FEATURE2_ARCH_3_00
+    #define PPC_FEATURE2_ARCH_3_00    0x00800000  /* AT_HWCAP2 */
+#endif
+#ifndef PPC_FEATURE2_ARCH_3_1
+    #define PPC_FEATURE2_ARCH_3_1     0x00040000  /* AT_HWCAP2 */
+#endif
+
+#if defined(__linux__) && defined(__GLIBC__)
+    #include <sys/auxv.h>
+
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+            unsigned long hwcap  = getauxval(AT_HWCAP);
+            unsigned long hwcap2 = getauxval(AT_HWCAP2);
+
+            if (hwcap & PPC_FEATURE_HAS_ALTIVEC)
+                new_cpuid_flags |= CPUID_ALTIVEC;
+            if (hwcap & PPC_FEATURE_HAS_VSX)
+                new_cpuid_flags |= CPUID_VSX;
+            if (hwcap2 & PPC_FEATURE2_ARCH_2_07)
+                new_cpuid_flags |= CPUID_ARCH_2_07;
+            if (hwcap2 & PPC_FEATURE2_VEC_CRYPTO)
+                new_cpuid_flags |= CPUID_VEC_CRYPTO;
+            if (hwcap2 & PPC_FEATURE2_ARCH_3_00)
+                new_cpuid_flags |= CPUID_ARCH_3_00;
+            if (hwcap2 & PPC_FEATURE2_ARCH_3_1)
+                new_cpuid_flags |= CPUID_ARCH_3_1;
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#elif defined(__FreeBSD__)
+    #include <sys/auxv.h>
+
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+            unsigned long hwcap = 0, hwcap2 = 0;
+
+            elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap));
+            elf_aux_info(AT_HWCAP2, &hwcap2, sizeof(hwcap2));
+
+            if (hwcap & PPC_FEATURE_HAS_ALTIVEC)
+                new_cpuid_flags |= CPUID_ALTIVEC;
+            if (hwcap & PPC_FEATURE_HAS_VSX)
+                new_cpuid_flags |= CPUID_VSX;
+            if (hwcap2 & PPC_FEATURE2_ARCH_2_07)
+                new_cpuid_flags |= CPUID_ARCH_2_07;
+            if (hwcap2 & PPC_FEATURE2_VEC_CRYPTO)
+                new_cpuid_flags |= CPUID_VEC_CRYPTO;
+            if (hwcap2 & PPC_FEATURE2_ARCH_3_00)
+                new_cpuid_flags |= CPUID_ARCH_3_00;
+            if (hwcap2 & PPC_FEATURE2_ARCH_3_1)
+                new_cpuid_flags |= CPUID_ARCH_3_1;
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
+        }
+    }
+#else
+    /* No run-time detection available - report no acceleration. */
+    static WC_INLINE void cpuid_set_flags(void)
+    {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
+        #ifdef WOLFSSL_PPC64_ASM_POWER8
+            new_cpuid_flags |= CPUID_ARCH_2_07;
+        #endif
+        #ifdef WOLFSSL_PPC64_ASM_CRYPTO
+            new_cpuid_flags |= CPUID_VEC_CRYPTO;
+        #endif
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }

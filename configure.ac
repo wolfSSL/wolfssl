@@ -3943,6 +3943,7 @@ then
     done
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
     AC_MSG_NOTICE([32-bit PowerPC assembly for SHA-256])
     ENABLED_PPC32_ASM=yes
 
@@ -3950,6 +3951,11 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
     else
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
+    fi
+    if test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
+        # The inline-register variant names GPRs (r0..r31) in inline assembly,
+        # which the PowerPC assembler only accepts with -mregnames.
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE_REG -Wa,-mregnames"
     fi
     if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
@@ -3986,8 +3992,14 @@ then
       small)
         ENABLED_PPC64_ASM_SMALL=yes
         ;;
+      crypto)
+        ENABLED_PPC64_ASM_CRYPTO=yes
+        ;;
+      power8)
+        ENABLED_PPC64_ASM_POWER8=yes
+        ;;
       *)
-        AC_MSG_ERROR([Invalid RISC-V option [yes,inline,small]: $ENABLED_PPC64_ASM.])
+        AC_MSG_ERROR([Invalid PPC64 option [yes,inline,small,crypto,power8]: $ENABLED_PPC64_ASM.])
         break
         ;;
       esac
@@ -4006,6 +4018,20 @@ fi
 if test "$ENABLED_PPC64_ASM_SMALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_SMALL"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM_SMALL"
+fi
+# POWER8 vector-crypto (vshasigmaw) SHA-256, selected at run time.  The
+# generated code marks the relevant function/section as POWER8 itself, so no
+# global -mcpu=power8 is needed and the rest of the library stays portable.
+if test "$ENABLED_PPC64_ASM_CRYPTO" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_CRYPTO"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM_CRYPTO"
+fi
+# POWER8 VSX (vrld) SHA-3, selected at run time.  Like the crypto variant the
+# generated code marks its own function/section as POWER8, so no global
+# -mcpu=power8 is needed and the rest of the library stays portable.
+if test "$ENABLED_PPC64_ASM_POWER8" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_POWER8"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM_POWER8"
 fi
 
 
@@ -4691,6 +4717,9 @@ fi
 if test "$ENABLED_SHA512" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512"
+    # The SHA-512 transform is asm on some targets (PPC); the .S is guarded by
+    # WOLFSSL_SHA512/WOLFSSL_SHA384 so the assembler needs the macro too.
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SHA512"
 fi
 
 # SHA-256 Hash DRBG (SP 800-90A) -- sub-option of hashdrbg
@@ -4734,6 +4763,7 @@ fi
 if test "$ENABLED_SHA384" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA384"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SHA384"
 fi
 
 
@@ -7431,6 +7461,9 @@ fi
 if test "$ENABLED_SHA3" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
+    # The SHA-3 block transform is asm on some targets (PPC); the .S is guarded
+    # by WOLFSSL_SHA3 so the assembler needs the macro too.
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SHA3"
 fi
 
 # Set SHAKE128 flags
@@ -11843,28 +11876,54 @@ then
     if test "$ENABLED_AESGCM" = "word32"
     then
         AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_WORD32"
         ENABLED_AESGCM=yes
     fi
 
     if test "$ENABLED_AESGCM" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_SMALL"
         ENABLED_AESGCM=yes
     fi
 
     if test "$ENABLED_AESGCM" = "table"
     then
         AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_TABLE"
         ENABLED_AESGCM=yes
     fi
 
     if test "$ENABLED_AESGCM" = "4bit"
     then
         AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE_4BIT"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_TABLE_4BIT"
         ENABLED_AESGCM=yes
     fi
 
+    # The GCM table layout macro must reach assembled (.S) sources too: the
+    # PPC asm GCM_gmult_len is a single file with both layouts guarded by
+    # GCM_TABLE / GCM_TABLE_4BIT.  Default (no explicit table choice) is 4bit.
+    case " $AM_CCASFLAGS " in
+        *" -DGCM_TABLE "*|*" -DGCM_TABLE_4BIT "*|*" -DGCM_SMALL "*|*" -DGCM_WORD32 "*) ;;
+        *) AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_TABLE_4BIT" ;;
+    esac
+
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"
+fi
+# AES-CTR may be turned on by many presets above; mirror the feature macro to
+# the assembler flags so the AES_CTR_encrypt in the PPC asm is emitted.
+if test "$ENABLED_AESCTR" = "yes"
+then
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_COUNTER"
+fi
+# Asm sources include settings.h, which enforces that AES-XTS streaming
+# requires AES-XTS.  Mirror the base WOLFSSL_AES_XTS macro to the assembler
+# flags so that check is satisfied (it is otherwise only set for C sources).
+if test "$ENABLED_AESXTS" = "yes"
+then
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"
 fi
 if test "$ENABLED_AESGCM_STREAM" != "no"
 then
@@ -12992,6 +13051,10 @@ fi
 if test "$ENABLED_PPC64_ASM_INLINE_REG" = "yes"
 then
     ENABLED_PPC64_ASM="inline C Reg"
+fi
+if test "$ENABLED_PPC64_ASM_CRYPTO" = "yes"
+then
+    ENABLED_PPC64_ASM="$ENABLED_PPC64_ASM + crypto"
 fi
 echo "   * PPC64 ASM                   $ENABLED_PPC64_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
