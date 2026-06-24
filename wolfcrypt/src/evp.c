@@ -9925,6 +9925,255 @@ int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
 }
 #endif /* HAVE_ECC */
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+/* Get the public key from a key as an encoded point / raw octet string.
+ *
+ * This is the implementation behind both EVP_PKEY_get1_encoded_public_key()
+ * and the deprecated (but functionally identical) EVP_PKEY_get1_tls_encodedpoint().
+ *
+ * For EC keys the encoding is the uncompressed octet point (0x04 || X || Y).
+ * For X25519/X448 keys it is the raw little-endian public key (RFC 7748).
+ *
+ * The buffer returned through ppub is allocated here and must be released by
+ * the caller with OPENSSL_free().
+ *
+ * @param [in]  pkey  Key to encode the public part of.
+ * @param [out] ppub  Reference into which the allocated buffer is returned.
+ * @return  Length of the encoding in bytes on success.
+ * @return  0 on error.
+ */
+size_t wolfSSL_EVP_PKEY_get1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
+    unsigned char** ppub)
+{
+    size_t ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get1_encoded_public_key");
+
+    if ((pkey == NULL) || (ppub == NULL)) {
+        WOLFSSL_MSG("Bad parameter");
+        return 0;
+    }
+    /* Always initialize the output so the caller never uses or frees a stale
+     * pointer when this function returns 0. */
+    *ppub = NULL;
+
+    switch (pkey->type) {
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
+        case WC_EVP_PKEY_EC: {
+            int len;
+            WOLFSSL_EC_KEY* ec = wolfSSL_EVP_PKEY_get1_EC_KEY(pkey);
+            if (ec == NULL) {
+                WOLFSSL_MSG("No EC key in EVP_PKEY");
+                break;
+            }
+            /* *ppub is NULL here, so i2o allocates the buffer for us. */
+            len = wolfSSL_i2o_ECPublicKey(ec, ppub);
+            wolfSSL_EC_KEY_free(ec);
+            if (len > 0) {
+                ret = (size_t)len;
+            }
+            break;
+        }
+#endif /* HAVE_ECC && OPENSSL_EXTRA */
+#ifdef HAVE_CURVE25519
+        case WC_EVP_PKEY_X25519: {
+            word32 len = CURVE25519_PUB_KEY_SIZE;
+            byte* buf;
+
+            if (pkey->curve25519 == NULL) {
+                WOLFSSL_MSG("No X25519 key in EVP_PKEY");
+                break;
+            }
+            buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (buf == NULL) {
+                WOLFSSL_MSG("malloc failed");
+                break;
+            }
+            /* TLS wire format is little-endian (RFC 7748). */
+            if (wc_curve25519_export_public_ex(pkey->curve25519, buf, &len,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve25519_export_public_ex error");
+                XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+                break;
+            }
+            *ppub = buf;
+            ret = (size_t)len;
+            break;
+        }
+#endif /* HAVE_CURVE25519 */
+#ifdef HAVE_CURVE448
+        case WC_EVP_PKEY_X448: {
+            word32 len = CURVE448_PUB_KEY_SIZE;
+            byte* buf;
+
+            if (pkey->curve448 == NULL) {
+                WOLFSSL_MSG("No X448 key in EVP_PKEY");
+                break;
+            }
+            buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (buf == NULL) {
+                WOLFSSL_MSG("malloc failed");
+                break;
+            }
+            /* TLS wire format is little-endian (RFC 7748). */
+            if (wc_curve448_export_public_ex(pkey->curve448, buf, &len,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve448_export_public_ex error");
+                XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+                break;
+            }
+            *ppub = buf;
+            ret = (size_t)len;
+            break;
+        }
+#endif /* HAVE_CURVE448 */
+        default:
+            WOLFSSL_MSG("Unsupported key type");
+            break;
+    }
+
+    return ret;
+}
+
+/* Set the public key in a key from an encoded point / raw octet string.
+ *
+ * This is the implementation behind both EVP_PKEY_set1_encoded_public_key()
+ * and the deprecated (but functionally identical) EVP_PKEY_set1_tls_encodedpoint().
+ *
+ * For EC keys the EVP_PKEY must already hold the curve parameters; pub is
+ * decoded as an octet point. For X25519/X448 keys pkey->type must already be
+ * set; pub is the raw little-endian public key (RFC 7748).
+ *
+ * @param [in, out] pkey    Key to set the public part of.
+ * @param [in]      pub     Encoded public key.
+ * @param [in]      publen  Length of encoded public key in bytes.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on error.
+ */
+int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
+    const unsigned char* pub, size_t publen)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_encoded_public_key");
+
+    if ((pkey == NULL) || (pub == NULL) || (publen == 0) ||
+            (publen > INT_MAX)) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    switch (pkey->type) {
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
+        case WC_EVP_PKEY_EC: {
+            const unsigned char* in = pub;
+            /* Need the EC key (with its group) to decode the point into. */
+            WOLFSSL_EC_KEY* ec = wolfSSL_EVP_PKEY_get1_EC_KEY(pkey);
+            if (ec == NULL) {
+                WOLFSSL_MSG("No EC parameters in EVP_PKEY");
+                break;
+            }
+            /* Decode the octet point into the external public key. */
+            if (wolfSSL_o2i_ECPublicKey(&ec, &in, (long)publen) == NULL) {
+                WOLFSSL_MSG("wolfSSL_o2i_ECPublicKey error");
+                wolfSSL_EC_KEY_free(ec);
+                break;
+            }
+            /* Push the new public point into the internal wolfCrypt key so
+             * that consumers such as EVP_PKEY_derive() can use it. */
+            ec->inSet = 0;
+            if (SetECKeyInternal(ec) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("SetECKeyInternal error");
+                wolfSSL_EC_KEY_free(ec);
+                break;
+            }
+            /* Refresh the cached DER representation in the EVP_PKEY. */
+            ret = ECC_populate_EVP_PKEY(pkey, ec);
+            wolfSSL_EC_KEY_free(ec);
+            break;
+        }
+#endif /* HAVE_ECC && OPENSSL_EXTRA */
+#ifdef HAVE_CURVE25519
+        case WC_EVP_PKEY_X25519: {
+            curve25519_key* key;
+
+            /* Build the replacement in a temporary first; only commit (and
+             * free the old key) once the import has succeeded, so a failure
+             * leaves the original EVP_PKEY intact. */
+            key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE25519);
+            if (key == NULL) {
+                WOLFSSL_MSG("malloc failed");
+                break;
+            }
+            if (wc_curve25519_init_ex(key, pkey->heap, INVALID_DEVID) != 0) {
+                XFREE(key, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            /* Raw X25519 keys are little-endian (RFC 7748). */
+            if (wc_curve25519_import_public_ex(pub, (word32)publen, key,
+                    EC25519_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve25519_import_public_ex error");
+                wc_curve25519_free(key);
+                XFREE(key, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+                break;
+            }
+            /* Import succeeded - replace any existing key. */
+            if ((pkey->curve25519 != NULL) && (pkey->ownCurve25519 == 1)) {
+                wc_curve25519_free(pkey->curve25519);
+                XFREE(pkey->curve25519, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+            }
+            pkey->curve25519 = key;
+            pkey->ownCurve25519 = 1;
+            ret = WOLFSSL_SUCCESS;
+            break;
+        }
+#endif /* HAVE_CURVE25519 */
+#ifdef HAVE_CURVE448
+        case WC_EVP_PKEY_X448: {
+            curve448_key* key;
+
+            /* Build the replacement in a temporary first; only commit (and
+             * free the old key) once the import has succeeded, so a failure
+             * leaves the original EVP_PKEY intact. */
+            key = (curve448_key*)XMALLOC(sizeof(curve448_key), pkey->heap,
+                DYNAMIC_TYPE_CURVE448);
+            if (key == NULL) {
+                WOLFSSL_MSG("malloc failed");
+                break;
+            }
+            if (wc_curve448_init(key) != 0) {
+                XFREE(key, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            /* Raw X448 keys are little-endian (RFC 7748). */
+            if (wc_curve448_import_public_ex(pub, (word32)publen, key,
+                    EC448_LITTLE_ENDIAN) != 0) {
+                WOLFSSL_MSG("wc_curve448_import_public_ex error");
+                wc_curve448_free(key);
+                XFREE(key, pkey->heap, DYNAMIC_TYPE_CURVE448);
+                break;
+            }
+            /* Import succeeded - replace any existing key. */
+            if ((pkey->curve448 != NULL) && (pkey->ownCurve448 == 1)) {
+                wc_curve448_free(pkey->curve448);
+                XFREE(pkey->curve448, pkey->heap, DYNAMIC_TYPE_CURVE448);
+            }
+            pkey->curve448 = key;
+            pkey->ownCurve448 = 1;
+            ret = WOLFSSL_SUCCESS;
+            break;
+        }
+#endif /* HAVE_CURVE448 */
+        default:
+            WOLFSSL_MSG("Unsupported key type");
+            break;
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 #ifndef NO_WOLFSSL_STUB
 const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void)
 {
