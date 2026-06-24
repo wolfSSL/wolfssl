@@ -5321,6 +5321,866 @@ int test_dtls_old_seq_number(void)
 }
 
 /*-- dtls12_missing_finished (api.c lines 32007,32068) ---*/
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Drive a DTLS 1.3 handshake up to the point where the client has sent its
+ * second ClientHello (carrying the HRR cookie), with the cookie signed by
+ * secret s1.  Leaves ssl_s about to process that ClientHello. */
+static int test_dtls13_hrr_cookie_pump_to_ch2(struct test_memio_ctx* test_ctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    const byte* s1, word32 s1Sz)
+{
+    EXPECT_DECLS;
+    int group = WOLFSSL_ECC_SECP256R1;
+
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* Force a single ECC key share so the ClientHello is not fragmented. */
+    ExpectIntEQ(wolfSSL_set_groups(*ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(*ssl_s, &group, 1), WOLFSSL_SUCCESS);
+
+    /* Server signs the HRR cookie with the primary secret s1. */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(*ssl_s, s1, s1Sz), WOLFSSL_SUCCESS);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HRR (cookie signed with s1) */
+    ExpectIntEQ(wolfSSL_accept(*ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 carrying the s1 cookie */
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A cookie issued under the previous (now secondary) secret is still accepted
+ * after an application-driven secret rotation on a stateless DTLS 1.3 server. */
+int test_dtls13_hrr_cookie_secret_secondary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[32];
+    byte s2[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0xA5, sizeof(s2));
+
+    ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* The secondary-secret API is server side only. */
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_c, s1, sizeof(s1)),
+        WC_NO_ERR_TRACE(SIDE_ERROR));
+
+    /* Application rotates the cookie secret before CH2 is processed: s2 becomes
+     * the primary, and s1 is installed as the secondary (verify-only) secret. */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, s2, sizeof(s2)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s1, sizeof(s1)),
+        WOLFSSL_SUCCESS);
+
+    /* The cookie (signed with s1) must verify against the secondary secret and
+     * the handshake must complete. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A cookie whose signing secret is neither the primary nor the secondary secret
+ * (rotated out entirely) is rejected with HRR_COOKIE_ERROR. */
+int test_dtls13_hrr_cookie_secret_secondary_dropped(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[32];
+    byte s2[32];
+    byte s3[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0x22, sizeof(s2));
+    XMEMSET(s3, 0x11, sizeof(s3));
+
+    ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* Two rotations have happened: s1 is now neither the primary (s3) nor the
+     * secondary (s2) secret. */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, s3, sizeof(s3)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s2, sizeof(s2)),
+        WOLFSSL_SUCCESS);
+
+    /* Server drops the ClientHello carrying the unverifiable cookie and sends
+     * an illegal_parameter alert; the handshake cannot complete. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    {
+        WOLFSSL_ALERT_HISTORY h;
+        XMEMSET(&h, 0, sizeof(h));
+        ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_rx.code, illegal_parameter);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Assert that the pumped CH2 cookie is rejected: the handshake does not
+ * complete and the client receives an illegal_parameter alert. */
+static int test_dtls13_hrr_assert_rejected(WOLFSSL* ssl_c, WOLFSSL* ssl_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_ALERT_HISTORY h;
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_rx.code, illegal_parameter);
+
+    return EXPECT_RESULT();
+}
+
+/* Set primary=p and secondary=q on a fresh DTLS 1.3 server, then drive the
+ * handshake until the client has sent CH2.  The cookie is issued during the
+ * HRR step (and per the contract must be signed with the primary p).  Leaves
+ * ssl_s about to process CH2. */
+static int test_dtls13_hrr_issue_with_secondary(struct test_memio_ctx* test_ctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    const byte* p, word32 pSz, const byte* q, word32 qSz)
+{
+    EXPECT_DECLS;
+    int group = WOLFSSL_ECC_SECP256R1;
+
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(*ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(*ssl_s, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(*ssl_s, p, pSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(*ssl_s, q, qSz),
+        WOLFSSL_SUCCESS);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HRR - cookie issued here */
+    ExpectIntEQ(wolfSSL_accept(*ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 carrying the issued cookie */
+    ExpectIntEQ(wolfSSL_connect(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Clearing the secondary secret (NULL/0) makes a cookie issued under it stop
+ * verifying again. */
+int test_dtls13_hrr_cookie_secret_secondary_cleared(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[32];
+    byte s2[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0xA5, sizeof(s2));
+
+    ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* Rotate primary to s2 and install s1 as the secondary - this alone would
+     * make the s1 cookie verify. */
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, s2, sizeof(s2)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s1, sizeof(s1)),
+        WOLFSSL_SUCCESS);
+    /* But clearing it again must drop it. */
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+
+    /* The s1 cookie is no longer accepted (only primary s2 remains). */
+    ExpectIntEQ(test_dtls13_hrr_assert_rejected(ssl_c, ssl_s), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A cookie that matches the primary secret is accepted on the normal fast path
+ * even when a (different) secondary secret is configured. */
+int test_dtls13_hrr_cookie_secret_primary_wins(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[32];
+    byte s2[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0xA5, sizeof(s2));
+
+    ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* Primary still s1 (matches the cookie); a different secondary is present
+     * but must not be needed. */
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s2, sizeof(s2)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Setting the secondary secret equal to the primary is harmless (guards against
+ * duplication/double-free regressions). */
+int test_dtls13_hrr_cookie_secret_same_as_primary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+
+    ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s1, sizeof(s1)),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Replacing the secondary secret keeps only the most recent value: the old
+ * secondary is discarded and the new one is active (single overlap window). */
+int test_dtls13_hrr_cookie_secret_secondary_replaced(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte sP[32];
+    byte sA[32];
+    byte sB[32];
+
+    XMEMSET(sP, 0x11, sizeof(sP));
+    XMEMSET(sA, 0x5A, sizeof(sA));
+    XMEMSET(sB, 0xA5, sizeof(sB));
+
+    /* Replacing secondary sA with sB discards sA: a cookie signed with sA is
+     * then rejected (neither primary sP nor secondary sB). */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, sA, sizeof(sA)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, sP, sizeof(sP)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, sA, sizeof(sA)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, sB, sizeof(sB)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_assert_rejected(ssl_c, ssl_s), TEST_SUCCESS);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = NULL; ctx_c = NULL; ssl_s = NULL; ctx_s = NULL;
+
+    /* The replacement value sB is active: a cookie signed with sB verifies. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls13_hrr_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, sB, sizeof(sB)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, sP, sizeof(sP)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, sA, sizeof(sA)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, sB, sizeof(sB)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The secondary secret is verify-only: cookies are always issued with the
+ * primary, never the secondary. */
+int test_dtls13_hrr_cookie_secret_issue_uses_primary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte p[32];
+    byte q[32];
+
+    XMEMSET(p, 0x5A, sizeof(p));
+    XMEMSET(q, 0xA5, sizeof(q));
+
+    /* Control: with primary=p, secondary=q at issue time, dropping the
+     * secondary and keeping only the primary p still verifies the cookie -
+     * confirming the cookie is valid under p. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls13_hrr_issue_with_secondary(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, p, sizeof(p), q, sizeof(q)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = NULL; ctx_c = NULL; ssl_s = NULL; ctx_s = NULL;
+
+    /* Test: making the secondary value q the only secret rejects the cookie.
+     * If issuance had (incorrectly) used the secondary q, the cookie would now
+     * verify - so rejection proves the cookie was signed with the primary p. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls13_hrr_issue_with_secondary(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, p, sizeof(p), q, sizeof(q)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, q, sizeof(q)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_assert_rejected(ssl_c, ssl_s), TEST_SUCCESS);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Argument validation for the secondary cookie-secret APIs. */
+int test_dtls13_hrr_cookie_secret_secondary_args(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s[16];
+
+    XMEMSET(s, 0x5A, sizeof(s));
+
+    /* NULL ssl is rejected by both APIs. */
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(NULL, s, sizeof(s)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(NULL, s, sizeof(s)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* DTLS 1.3 objects: client side is rejected, server side accepts, and the
+     * NULL/0 clear forms both succeed. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_c, s, sizeof(s)),
+        WC_NO_ERR_TRACE(SIDE_ERROR));
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s, sizeof(s)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s, 0),
+        WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = NULL; ctx_c = NULL; ssl_s = NULL; ctx_s = NULL;
+
+    /* The DTLS 1.3 secondary API is DTLS only: a (non-DTLS) TLS 1.3 server is
+     * rejected. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s, sizeof(s)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = NULL; ctx_c = NULL; ssl_s = NULL; ctx_s = NULL;
+
+#ifndef WOLFSSL_NO_TLS12
+    /* A non-TLS-1.3 object (DTLS 1.2 server) is rejected by the 1.3 API. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_hrr_cookie_secret_secondary(ssl_s, s, sizeof(s)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Drive a DTLS 1.2 handshake up to the point where the client has sent its
+ * second ClientHello (carrying the HelloVerifyRequest cookie), with the cookie
+ * signed by secret s1.  Leaves ssl_s about to process that ClientHello. */
+static int test_dtls12_cookie_pump_to_ch2(struct test_memio_ctx* test_ctx,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    const byte* s1, word32 s1Sz)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* Server signs the HelloVerifyRequest cookie with the primary secret s1. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(*ssl_s, s1, s1Sz), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HVR (cookie signed with s1) */
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 carrying the s1 cookie */
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    return EXPECT_RESULT();
+}
+
+/* Set primary=p and secondary=q on a fresh DTLS 1.2 server, then drive the
+ * handshake until the client has sent CH2.  The cookie is issued in the
+ * HelloVerifyRequest (and per the contract must be signed with the primary p).
+ * Leaves ssl_s about to process CH2. */
+static int test_dtls12_cookie_issue_with_secondary(
+    struct test_memio_ctx* test_ctx, WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s,
+    WOLFSSL** ssl_c, WOLFSSL** ssl_s, const byte* p, word32 pSz,
+    const byte* q, word32 qSz)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(*ssl_s, p, pSz), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(*ssl_s, q, qSz), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HVR - cookie issued here */
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 carrying the issued cookie */
+    ExpectIntEQ(wolfSSL_negotiate(*ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(*ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A DTLS 1.2 cookie issued under the previous (now secondary) secret is still
+ * accepted after an application-driven secret rotation: the server becomes
+ * stateful immediately instead of issuing another HelloVerifyRequest. */
+int test_dtls12_cookie_secret_secondary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[16];
+    byte s2[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0xA5, sizeof(s2));
+
+    ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* Application rotates the cookie secret before CH2 is processed: s2 becomes
+     * the primary, and s1 is installed as the secondary (verify-only) secret. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, s2, sizeof(s2)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s1, sizeof(s1)), 0);
+
+    /* Server processes CH2: the cookie verifies against the secondary secret,
+     * so the server enters stateful processing rather than re-issuing an HVR. */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+
+    /* And the handshake completes. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* When the signing secret has been rotated out of both the primary and the
+ * secondary slot, the DTLS 1.2 cookie no longer verifies, so the server stays
+ * stateless and re-issues a HelloVerifyRequest instead of accepting CH2. */
+int test_dtls12_cookie_secret_secondary_dropped(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[16];
+    byte s2[16];
+    byte s3[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0x22, sizeof(s2));
+    XMEMSET(s3, 0x11, sizeof(s3));
+
+    ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* Two rotations have happened: s1 is now neither the primary (s3) nor the
+     * secondary (s2) secret. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, s3, sizeof(s3)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s2, sizeof(s2)), 0);
+
+    /* Server processes CH2: the cookie does not verify, so it stays stateless
+     * (re-issuing a HelloVerifyRequest) rather than accepting the ClientHello. */
+    test_memio_clear_buffer(&test_ctx, 1); /* drop anything queued to client */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    /* And it actually emitted a fresh HelloVerifyRequest to the client. */
+    ExpectIntGT(test_ctx.c_len, DTLS_RECORD_HEADER_SZ);
+    ExpectIntEQ(test_ctx.c_buff[0], handshake);
+    ExpectIntEQ(test_ctx.c_buff[DTLS_RECORD_HEADER_SZ], hello_verify_request);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Clearing the DTLS 1.2 secondary secret (NULL/0) makes a cookie issued under
+ * it stop verifying again. */
+int test_dtls12_cookie_secret_secondary_cleared(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[16];
+    byte s2[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0xA5, sizeof(s2));
+
+    ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* Rotate primary to s2 and install s1 as the secondary - this alone would
+     * make the s1 cookie verify - then clear the secondary again. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, s2, sizeof(s2)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s1, sizeof(s1)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, NULL, 0), 0);
+
+    /* Server processes CH2: the s1 cookie no longer verifies (only primary s2
+     * remains), so the server stays stateless. */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A DTLS 1.2 cookie that matches the primary secret is accepted on the normal
+ * fast path even when a (different) secondary secret is configured. */
+int test_dtls12_cookie_secret_primary_wins(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[16];
+    byte s2[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+    XMEMSET(s2, 0xA5, sizeof(s2));
+
+    ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    /* Primary still s1 (matches the cookie); a different secondary is present
+     * but must not be needed. */
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s2, sizeof(s2)), 0);
+
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Setting the DTLS 1.2 secondary secret equal to the primary is harmless
+ * (guards against duplication/double-free regressions). */
+int test_dtls12_cookie_secret_same_as_primary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte s1[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(s1, 0x5A, sizeof(s1));
+
+    ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, s1, sizeof(s1)), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s1, sizeof(s1)), 0);
+
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Replacing the DTLS 1.2 secondary secret keeps only the most recent value:
+ * the old secondary is discarded and the new one is active. */
+int test_dtls12_cookie_secret_secondary_replaced(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte sP[16];
+    byte sA[16];
+    byte sB[16];
+
+    XMEMSET(sP, 0x11, sizeof(sP));
+    XMEMSET(sA, 0x5A, sizeof(sA));
+    XMEMSET(sB, 0xA5, sizeof(sB));
+
+    /* Replacing secondary sA with sB discards sA: a cookie signed with sA is
+     * then not accepted (neither primary sP nor secondary sB). */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, sA, sizeof(sA)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, sP, sizeof(sP)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, sA, sizeof(sA)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, sB, sizeof(sB)), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = NULL; ctx_c = NULL; ssl_s = NULL; ctx_s = NULL;
+
+    /* The replacement value sB is active: a cookie signed with sB verifies. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls12_cookie_pump_to_ch2(&test_ctx, &ctx_c, &ctx_s,
+        &ssl_c, &ssl_s, sB, sizeof(sB)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, sP, sizeof(sP)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, sA, sizeof(sA)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, sB, sizeof(sB)), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The DTLS 1.2 secondary secret is verify-only: cookies are always issued with
+ * the primary, never the secondary. */
+int test_dtls12_cookie_secret_issue_uses_primary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte p[16];
+    byte q[16];
+
+    XMEMSET(p, 0x5A, sizeof(p));
+    XMEMSET(q, 0xA5, sizeof(q));
+
+    /* Control: with primary=p, secondary=q at issue time, dropping the
+     * secondary and keeping only the primary p still verifies the cookie -
+     * confirming the cookie is valid under p. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls12_cookie_issue_with_secondary(&test_ctx, &ctx_c,
+        &ctx_s, &ssl_c, &ssl_s, p, sizeof(p), q, sizeof(q)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 1);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    ssl_c = NULL; ctx_c = NULL; ssl_s = NULL; ctx_s = NULL;
+
+    /* Test: making the secondary value q the only secret stops the cookie from
+     * verifying.  If issuance had (incorrectly) used the secondary q, the
+     * cookie would now verify - so rejection proves it was signed with the
+     * primary p. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_dtls12_cookie_issue_with_secondary(&test_ctx, &ctx_c,
+        &ctx_s, &ssl_c, &ssl_s, p, sizeof(p), q, sizeof(q)), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, q, sizeof(q)), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.dtlsStateful, 0);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls12_missing_finished(void)
 {
     EXPECT_DECLS;
