@@ -411,8 +411,8 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    k0 = ((const word64*)key)[0];
-    k1 = ((const word64*)key)[1];
+    k0 = GET_U64(key);
+    k1 = GET_U64(key + 8);
     __asm__ __volatile__ (
         "xorq   %[k0], %[v0]\n\t"
         "xorq   %[k1], %[v1]\n\t"
@@ -640,8 +640,8 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    k0 = ((word64*)key)[0];
-    k1 = ((word64*)key)[1];
+    k0 = GET_U64(key + 0);
+    k1 = GET_U64(key + 8);
     __asm__ __volatile__ (
         "eor    %[v0], %[v0], %[k0]\n\t"
         "eor    %[v1], %[v1], %[k1]\n\t"
