@@ -1635,8 +1635,14 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
                                             PKCS7Attrib* attribs, int attribsSz)
 {
     int i;
-    int maxSz = (int)min((word32)eaSz, (word32)attribsSz);
-    int allAttribsSz = 0;
+    int maxSz;
+    word32 allAttribsSz = 0;
+
+    if (eaSz < 0 || attribsSz < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    maxSz = (int)min((word32)eaSz, (word32)attribsSz);
 
     for (i = 0; i < maxSz; i++)
     {
@@ -1675,13 +1681,13 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
          * against the build's actual int maximum rather than assuming 32-bit
          * int, so the (int) cast below cannot overflow on narrow-int targets. */
         if (attribSz > (word32)WC_MAX_SINT_OF(int) ||
-            (word32)allAttribsSz > (word32)WC_MAX_SINT_OF(int) - attribSz) {
+            allAttribsSz > (word32)WC_MAX_SINT_OF(int) - attribSz) {
             WOLFSSL_MSG("PKCS7 attributes total size overflow");
             return BUFFER_E;
         }
-        allAttribsSz += (int)attribSz;
+        allAttribsSz += attribSz;
     }
-    return allAttribsSz;
+    return (int)allAttribsSz;
 }
 
 
