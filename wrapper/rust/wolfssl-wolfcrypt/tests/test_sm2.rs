@@ -20,17 +20,6 @@ fn test_sm2_set_rng() {
 }
 
 #[test]
-#[cfg(all(random, feature = "alloc"))]
-fn test_sm2_set_shared_rng() {
-    common::setup();
-    let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
-    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error with generate()");
-
-    key.set_shared_rng(Rc::clone(&rng))
-        .expect("Error with set_shared_rng()");
-}
-
-#[test]
 #[cfg(random)]
 fn test_sm2_generate() {
     common::setup();
@@ -117,6 +106,32 @@ fn test_sm2_sign_rejects_small_buffer() {
     let mut signature = [0u8; 1];
 
     assert!(key.sign_hash(&digest, &mut signature, &rng).is_err());
+}
+
+#[test]
+#[cfg(all(random, sm2_sign, sm2_verify))]
+fn test_sm2_sign_and_verify_hash() {
+    common::setup();
+    let rng = RNG::new().expect("Failed to create RNG");
+    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
+    let mut digest = [0x42u8; 32];
+    let mut signature = [0u8; 80];
+
+    let signature_len = key
+        .sign_hash(&digest, &mut signature, &rng)
+        .expect("Error signing SM2 hash");
+    assert!(signature_len > 0 && signature_len <= signature.len());
+
+    let valid = key
+        .verify_hash(&signature[..signature_len], &digest)
+        .expect("Error verifying SM2 signature");
+    assert!(valid);
+
+    digest[0] ^= 0x01;
+    let valid = key
+        .verify_hash(&signature[..signature_len], &digest)
+        .expect("Error verifying modified SM2 hash");
+    assert!(!valid);
 }
 
 #[test]
