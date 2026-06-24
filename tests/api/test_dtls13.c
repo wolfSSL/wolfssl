@@ -1001,7 +1001,7 @@ int test_dtls13_epochs(void) {
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     /* Some manual setup to enter the epoch check */
-    ExpectTrue(ssl->options.tls1_3 = 1);
+    if (ssl != NULL) ssl->options.tls1_3 = 1;
 
     inOutIdx = 0;
     if (ssl != NULL) ssl->keys.curEpoch64 = w64From32(0x0, 0x0);
