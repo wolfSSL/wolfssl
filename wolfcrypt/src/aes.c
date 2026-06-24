@@ -6614,6 +6614,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
 
+        if (aes == NULL || aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return BAD_FUNC_ARG;
+        }
+
         if (sz == 0)
             return 0;
 
@@ -6643,6 +6648,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
         byte scratch[WC_AES_BLOCK_SIZE];
+
+        if (aes == NULL || aes->keyInstalled == 0) {
+            WOLFSSL_MSG("AES key not set");
+            return BAD_FUNC_ARG;
+        }
 
         if (sz == 0)
             return 0;
