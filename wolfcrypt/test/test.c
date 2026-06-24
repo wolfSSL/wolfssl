@@ -28604,8 +28604,12 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
                               plainSz, hash[j], -1, wc_RsaEncryptSize(key)*8,
                               HEAP_HINT);
 #endif
+            /* Negative test: any result other than BAD_PADDING_E is a
+             * failure. In particular a 0 return (tampered digest wrongly
+             * accepted) must fail the test, so use a ret-independent,
+             * non-zero code rather than encoding ret. */
             if (ret != WC_NO_ERR_TRACE(BAD_PADDING_E))
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
+                ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_pss);
             ret = 0;
 #endif /* WOLFSSL_MICROCHIP_TA100 */
 
