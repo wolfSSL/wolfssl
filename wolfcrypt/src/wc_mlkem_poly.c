@@ -4349,13 +4349,16 @@ static int mlkem_get_noise_k4_avx2(MLKEM_PRF_T* prf, sword16* vec1,
  */
 static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
 {
-    word64* state = (word64*)rand;
+    word64 state[3 * 25];
 
     state[0*25 + 4] = 0x1f00 + 0 + o;
     state[1*25 + 4] = 0x1f00 + 1 + o;
     state[2*25 + 4] = 0x1f00 + 2 + o;
 
     mlkem_shake256_blocksx3_seed_neon(state, seed);
+    XMEMCPY(rand + 0 * 25 * 8, state + 0*25, ETA2_RAND_SIZE);
+    XMEMCPY(rand + 1 * 25 * 8, state + 1*25, ETA2_RAND_SIZE);
+    XMEMCPY(rand + 2 * 25 * 8, state + 2*25, ETA2_RAND_SIZE);
 }
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
@@ -4413,10 +4416,7 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
     word64 state[25];
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[16] = W64LIT(0x8000000000000000);
@@ -4476,17 +4476,15 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
  */
 static void mlkem_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
 {
-    word64* state = (word64*)rand;
+    word64 state[25];
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     /* Transposed value same as not. */
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[16] = W64LIT(0x8000000000000000);
     BlockSha3(state);
+    XMEMCPY(rand, state, ETA2_RAND_SIZE);
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial

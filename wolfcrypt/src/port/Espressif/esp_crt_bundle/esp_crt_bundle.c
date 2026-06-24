@@ -983,14 +983,12 @@ static CB_INLINE int wolfssl_ssl_conf_verify_cb_no_signer(int preverify,
     /* Clean up and exit */
     if ((_crt_found == 0) && (bundle_cert != NULL)) {
         ESP_LOGW(TAG, "Cert not found, free bundle_cert");
+        /* this_subject and this_issuer are apart of bundle_cert and will be
+         * freed here*/
         wolfSSL_X509_free(bundle_cert);
         bundle_cert = NULL;
-        /* this_subject and this_issuer are pointers into cert used.
-         * Don't free if the cert was found. */
-        wolfSSL_X509_NAME_free(this_subject);
-        this_subject = NULL;
-        wolfSSL_X509_NAME_free(this_issuer);
         this_issuer = NULL;
+        this_subject = NULL;
     }
 
     /* We don't clean up the store_cert and x509 as we are in a callback,

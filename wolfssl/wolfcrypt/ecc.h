@@ -76,6 +76,10 @@
 #endif
 
 
+#if defined(WOLFSSL_CAAM)
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -528,8 +532,13 @@ struct ecc_key {
 #endif
 
 #ifdef WOLFSSL_CAAM
-    word32 blackKey;     /* address of key encrypted and in secure memory */
-    word32 securePubKey; /* address of public key in secure memory */
+    #ifdef CAAM_ADDRESS
+        CAAM_ADDRESS blackKey;     /* address of key encrypted and in secure memory */
+        CAAM_ADDRESS securePubKey; /* address of public key in secure memory */
+    #else
+        word32 blackKey;     /* address of key encrypted and in secure memory */
+        word32 securePubKey; /* address of public key in secure memory */
+    #endif
     int    partNum; /* partition number*/
 #endif
 #ifdef WOLFSSL_SE050
