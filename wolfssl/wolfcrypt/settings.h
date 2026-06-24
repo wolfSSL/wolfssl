@@ -2028,13 +2028,19 @@
     #undef  NO_PWDBASED
     #define NO_PWDBASED
 
-    /* Footprint hygiene. */
+    /* Footprint hygiene. NO_FILESYSTEM stays template-only so examples link. */
     #undef  NO_ERROR_STRINGS
     #define NO_ERROR_STRINGS
     #undef  WOLFSSL_SMALL_STACK
     #define WOLFSSL_SMALL_STACK
     #undef  NO_SESSION_CACHE
     #define NO_SESSION_CACHE
+    #undef  NO_CLIENT_CACHE
+    #define NO_CLIENT_CACHE
+    #undef  NO_HANDSHAKE_DONE_CB
+    #define NO_HANDSHAKE_DONE_CB
+    #undef  NO_SIG_WRAPPER
+    #define NO_SIG_WRAPPER
     #undef  SINGLE_THREADED
     #define SINGLE_THREADED
 
@@ -2053,6 +2059,8 @@
     #ifdef WOLFSSL_TINY_TLS13_STATIC_MEM
         #undef  WOLFSSL_STATIC_MEMORY
         #define WOLFSSL_STATIC_MEMORY
+        /* Size a tiny WOLFMEM_* pool with the memory-bucket-optimizer; see the
+         * measured starting point in user_settings_tinytls13.h. */
     #endif
 
     /* Profile A: no X.509 at all (the cert variant keeps ASN/certs). */

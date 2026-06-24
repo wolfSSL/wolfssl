@@ -123,7 +123,8 @@ int main(int argc, char** argv)
     membuf c2s; /* client writes, server reads */
     membuf s2c; /* server writes, client reads */
     int i, cdone = 0, sdone = 0, ret = 1;
-    int cret = WOLFSSL_FATAL_ERROR, sret = WOLFSSL_FATAL_ERROR;
+    int cret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int sret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     const char* cipher = (argc > 1) ? argv[1] : "-";
     const char* group  = (argc > 2) ? argv[2] : "-";
     int mlkemGroup[1];
@@ -156,11 +157,11 @@ int main(int argc, char** argv)
 #ifdef WOLFSSL_TINY_TLS13_CERT
     /* Server presents a P-256 ECDSA leaf; the client validates it against the
      * CA. The leaf is signed by the CA whose algorithm this profile verifies,
-     * so a completed handshake drives that verify path (ECDSA, ML-DSA-65, or
+     * so a completed handshake drives that verify path (ECDSA, ML-DSA-44, or
      * RSA-PSS). */
     #if defined(WOLFSSL_HAVE_MLDSA)
-        XSNPRINTF(sCert, sizeof(sCert), "%s/mldsa/ecc-leaf-mldsa65.pem", certDir);
-        XSNPRINTF(cCa,   sizeof(cCa),   "%s/mldsa/mldsa65-cert.pem", certDir);
+        XSNPRINTF(sCert, sizeof(sCert), "%s/mldsa/ecc-leaf-mldsa44.pem", certDir);
+        XSNPRINTF(cCa,   sizeof(cCa),   "%s/mldsa/mldsa44-cert.pem", certDir);
     #elif defined(WOLFSSL_TINY_TLS13_RSA_VERIFY)
         XSNPRINTF(sCert, sizeof(sCert), "%s/rsapss/ecc-leaf-rsapss.pem", certDir);
         XSNPRINTF(cCa,   sizeof(cCa),   "%s/rsapss/ca-rsapss.pem", certDir);

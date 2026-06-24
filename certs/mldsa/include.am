@@ -28,10 +28,10 @@ EXTRA_DIST += \
 		 certs/mldsa/mldsa44-key.pem \
 		 certs/mldsa/mldsa44-cert.pem \
 		 certs/mldsa/mldsa44-cert.der \
+		 certs/mldsa/ecc-leaf-mldsa44.pem \
 		 certs/mldsa/mldsa65-key.pem \
 		 certs/mldsa/mldsa65-cert.pem \
 		 certs/mldsa/mldsa65-cert.der \
-		 certs/mldsa/ecc-leaf-mldsa65.pem \
 		 certs/mldsa/mldsa87-key.pem \
 		 certs/mldsa/mldsa87-cert.pem \
 		 certs/mldsa/mldsa87-cert.der \

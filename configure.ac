@@ -2950,7 +2950,7 @@ then
         rsaverify)  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TINY_TLS13_RSA_VERIFY" ;;
         sha384)     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA384" ;;
         mldsa)      tinytls13_mldsa=yes
-                    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLDSA -DWOLFSSL_DILITHIUM_VERIFY_ONLY -DWOLFSSL_DILITHIUM_VERIFY_SMALL_MEM -DWOLFSSL_NO_ML_DSA_44 -DWOLFSSL_NO_ML_DSA_87" ;;
+                    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLDSA -DWOLFSSL_MLDSA_VERIFY_ONLY -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_NO_ML_DSA_65 -DWOLFSSL_NO_ML_DSA_87" ;;
         no)         ;;
         *)          AC_MSG_ERROR([Invalid --enable-tinytls13 value: $v. Valid: psk cert server mutualauth staticmem asm p256 sha384 mldsa rsaverify.]) ;;
         esac
@@ -2961,7 +2961,7 @@ then
     # verify ML-DSA certificates, so keep ASN.1 there.
     if test "$tinytls13_mldsa" = "yes" && test "$tinytls13_base" != "cert"
     then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_ASN1"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_ASN1"
     fi
 
     if test "$tinytls13_base" = "cert"

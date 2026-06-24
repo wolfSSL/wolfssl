@@ -75,6 +75,16 @@ extern "C" {
          * static memory pool above. */
     #define WOLFSSL_NO_MALLOC
 #endif
+#if 0   /* Static-memory pool buckets for a tinytls13 PSK handshake, measured with
+         * wolfSSL's memory-bucket-optimizer. The distribution sets the minimum
+         * pool size (~320 KB for client+server, ~half a single role), so enable
+         * these only once your buffer matches; re-run the optimizer for your own
+         * role/adders. Left out of the floor because forcing a large distribution
+         * breaks consumers that load a smaller buffer. */
+    #define WOLFMEM_BUCKETS     64,96,160,288,816,3408,5088,6176,10784
+    #define WOLFMEM_DIST        92,34,36,421,63,20,3,1,2
+    #define WOLFMEM_DEF_BUCKETS 9
+#endif
 
 /* ===== SPEED ============================================================ */
 #if 0   /* tiny+fast: assembly crypto instead of small-C (size up, speed up) */
@@ -103,23 +113,28 @@ extern "C" {
 #endif
 
 /* ===== PQC ADDERS (valid on either profile; SHA-3/SHAKE pulled in auto) = */
-#if 0   /* ML-DSA-65 verify-only. Use with the cert profile (Profile B) for TLS
+#if 0   /* ML-DSA-44 verify-only. Use with the cert profile (Profile B) for TLS
          * auth: the PSK floor has no certificate to verify, so on Profile A
-         * this only confirms the umbrella builds. */
+         * this only confirms the umbrella builds. ML-DSA-44 is the right tier
+         * for a tiny stack paired with X25519/P-256 + AES-128; higher levels
+         * add no security against that classical floor. */
     #define WOLFSSL_HAVE_MLDSA
-    #define WOLFSSL_DILITHIUM_VERIFY_ONLY
-    #define WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM
+    #define WOLFSSL_MLDSA_VERIFY_ONLY
+    #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
     #ifndef WOLFSSL_TINY_TLS13_CERT
         /* PSK floor never parses a cert; the cert profile needs ML-DSA ASN.1
          * to decode and verify ML-DSA certificates, so keep it there. */
-        #define WOLFSSL_DILITHIUM_NO_ASN1
+        #define WOLFSSL_MLDSA_NO_ASN1
     #endif
-    #define WOLFSSL_NO_ML_DSA_44
+    #define WOLFSSL_NO_ML_DSA_65
     #define WOLFSSL_NO_ML_DSA_87
 #endif
-#if 0   /* ML-KEM-768 + X25519MLKEM768 hybrid */
+#if 0   /* ML-KEM-768 + X25519MLKEM768 hybrid (768 is the widely-adopted tier;
+         * disable 512/1024) */
     #define WOLFSSL_HAVE_MLKEM
-    #define WOLFSSL_WC_MLKEM
+    #define WOLFSSL_NO_ML_KEM_512
+    #define WOLFSSL_NO_ML_KEM_1024
+    #define WOLFSSL_MLKEM_DYNAMIC_KEYS
 #endif
 
 /* ===== PLATFORM (bare-metal defaults; adjust for your target) ========== */
