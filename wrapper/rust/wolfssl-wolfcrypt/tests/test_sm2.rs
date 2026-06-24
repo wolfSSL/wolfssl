@@ -98,7 +98,7 @@ fn test_sm2_create_digest_with_sm3_rejects_small_buffer() {
 
 #[test]
 #[cfg(all(random, sm2_sign))]
-fn test_sm2_sign_rejects_small_buffer() {
+fn test_sm2_sign_hash_rejects_small_buffer() {
     common::setup();
     let rng = RNG::new().expect("Failed to create RNG");
     let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
