@@ -15284,6 +15284,9 @@ static int ech_find_extension(byte* buf, word16* idx_p, word16 extType)
     word16 innerExtLen;
 
     innerExtIdx = ech_seek_extensions(buf + *idx_p, &innerExtLen) + *idx_p;
+    if (innerExtLen > MAX_RECORD_SIZE) {
+        return BAD_FUNC_ARG;
+    }
     idx = innerExtIdx;
 
     while (idx - innerExtIdx < innerExtLen) {
@@ -15298,6 +15301,10 @@ static int ech_find_extension(byte* buf, word16* idx_p, word16 extType)
 
         idx += OPAQUE16_LEN;
         ato16(buf + idx, &len);
+        if (len > MAX_RECORD_SIZE ||
+            (word16)(idx + OPAQUE16_LEN + len) < idx) {
+            break;
+        }
         idx += OPAQUE16_LEN + len;
     }
 
