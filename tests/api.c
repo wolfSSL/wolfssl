@@ -462,6 +462,21 @@ static int test_wc_LoadStaticMemory_ex(void)
     ExpectIntEQ(wc_LoadStaticMemory_ex(NULL, 0, NULL, NULL, NULL, 0, 0, 0),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* Set the bucket list size to 0. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                0, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
+    ExpectIntEQ(wolfSSL_StaticBufferSz_ex(0, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                WOLFMEM_GENERAL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
     /* Set the heap pointer to NULL. */
     ExpectIntEQ(wc_LoadStaticMemory_ex(NULL,
                 WOLFMEM_DEF_BUCKETS, sizeList, distList,
@@ -29523,6 +29538,11 @@ static int test_wc_CryptoCb_TLS(int tlsVer,
 static int test_wc_CryptoCb(void)
 {
     EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB)
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(INVALID_DEVID, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
 #if defined(WOLF_CRYPTO_CB) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_SHA256) && !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
