@@ -28,113 +28,6 @@ fn test_sm2_generate() {
 }
 
 #[test]
-#[cfg(all(random, sm2_digest, sm3))]
-fn test_sm2_create_digest_with_sm3() {
-    common::setup();
-    let rng = RNG::new().expect("Failed to create RNG");
-    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
-    let mut digest = [0u8; 32];
-
-    key.create_digest(
-        SM2::CERT_SIG_ID,
-        b"message digest",
-        SM2::HASH_TYPE_SM3,
-        &mut digest,
-    )
-    .expect("Error creating SM2 digest");
-
-    assert_ne!(digest, [0u8; 32]);
-}
-
-#[test]
-#[cfg(all(random, sm2_digest, sm2_sign, sm2_verify, sm3))]
-fn test_sm2_sign_and_verify_with_sm3_digest() {
-    common::setup();
-    let rng = RNG::new().expect("Failed to create RNG");
-    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
-    let mut digest = [0u8; 32];
-    key.create_digest(
-        SM2::CERT_SIG_ID,
-        b"message digest",
-        SM2::HASH_TYPE_SM3,
-        &mut digest,
-    )
-    .expect("Error creating SM2 digest");
-
-    let mut signature = [0u8; 80];
-    let signature_len = key
-        .sign_hash(&digest, &mut signature, &rng)
-        .expect("Error signing SM2 digest");
-    assert!(signature_len > 0 && signature_len <= signature.len());
-
-    let valid = key
-        .verify_hash(&signature[..signature_len], &digest)
-        .expect("Error verifying SM2 signature");
-    assert!(valid);
-
-    digest[0] ^= 0x01;
-    let valid = key
-        .verify_hash(&signature[..signature_len], &digest)
-        .expect("Error verifying modified SM2 digest");
-    assert!(!valid);
-}
-
-#[test]
-#[cfg(all(random, sm2_digest, sm3))]
-fn test_sm2_create_digest_with_sm3_rejects_small_buffer() {
-    common::setup();
-    let rng = RNG::new().expect("Failed to create RNG");
-    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
-    let mut digest = [0u8; 31];
-
-    let result = key.create_digest(
-        SM2::CERT_SIG_ID,
-        b"message digest",
-        SM2::HASH_TYPE_SM3,
-        &mut digest,
-    );
-    assert!(result.is_err());
-}
-
-#[test]
-#[cfg(all(random, sm2_sign))]
-fn test_sm2_sign_hash_rejects_small_buffer() {
-    common::setup();
-    let rng = RNG::new().expect("Failed to create RNG");
-    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
-    let digest = [0x42u8; 32];
-    let mut signature = [0u8; 1];
-
-    assert!(key.sign_hash(&digest, &mut signature, &rng).is_err());
-}
-
-#[test]
-#[cfg(all(random, sm2_sign, sm2_verify))]
-fn test_sm2_sign_and_verify_hash() {
-    common::setup();
-    let rng = RNG::new().expect("Failed to create RNG");
-    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
-    let mut digest = [0x42u8; 32];
-    let mut signature = [0u8; 80];
-
-    let signature_len = key
-        .sign_hash(&digest, &mut signature, &rng)
-        .expect("Error signing SM2 hash");
-    assert!(signature_len > 0 && signature_len <= signature.len());
-
-    let valid = key
-        .verify_hash(&signature[..signature_len], &digest)
-        .expect("Error verifying SM2 signature");
-    assert!(valid);
-
-    digest[0] ^= 0x01;
-    let valid = key
-        .verify_hash(&signature[..signature_len], &digest)
-        .expect("Error verifying modified SM2 hash");
-    assert!(!valid);
-}
-
-#[test]
 #[cfg(all(random, sm2_dh))]
 fn test_sm2_shared_secret() {
     common::setup();
@@ -177,4 +70,111 @@ fn test_sm2_shared_secret_rejects_small_buffer() {
     let mut secret = [0u8; 1];
 
     assert!(alice.shared_secret(&mut bob, &mut secret).is_err());
+}
+
+#[test]
+#[cfg(all(random, sm2_digest, sm3))]
+fn test_sm2_create_digest_with_sm3() {
+    common::setup();
+    let rng = RNG::new().expect("Failed to create RNG");
+    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
+    let mut digest = [0u8; 32];
+
+    key.create_digest(
+        SM2::CERT_SIG_ID,
+        b"message digest",
+        SM2::HASH_TYPE_SM3,
+        &mut digest,
+    )
+    .expect("Error creating SM2 digest");
+
+    assert_ne!(digest, [0u8; 32]);
+}
+
+#[test]
+#[cfg(all(random, sm2_digest, sm3))]
+fn test_sm2_create_digest_with_sm3_rejects_small_buffer() {
+    common::setup();
+    let rng = RNG::new().expect("Failed to create RNG");
+    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
+    let mut digest = [0u8; 31];
+
+    let result = key.create_digest(
+        SM2::CERT_SIG_ID,
+        b"message digest",
+        SM2::HASH_TYPE_SM3,
+        &mut digest,
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+#[cfg(all(random, sm2_sign, sm2_verify))]
+fn test_sm2_sign_and_verify_hash() {
+    common::setup();
+    let rng = RNG::new().expect("Failed to create RNG");
+    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
+    let mut digest = [0x42u8; 32];
+    let mut signature = [0u8; 80];
+
+    let signature_len = key
+        .sign_hash(&digest, &mut signature, &rng)
+        .expect("Error signing SM2 hash");
+    assert!(signature_len > 0 && signature_len <= signature.len());
+
+    let valid = key
+        .verify_hash(&signature[..signature_len], &digest)
+        .expect("Error verifying SM2 signature");
+    assert!(valid);
+
+    digest[0] ^= 0x01;
+    let valid = key
+        .verify_hash(&signature[..signature_len], &digest)
+        .expect("Error verifying modified SM2 hash");
+    assert!(!valid);
+}
+
+#[test]
+#[cfg(all(random, sm2_sign))]
+fn test_sm2_sign_hash_rejects_small_buffer() {
+    common::setup();
+    let rng = RNG::new().expect("Failed to create RNG");
+    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
+    let digest = [0x42u8; 32];
+    let mut signature = [0u8; 1];
+
+    assert!(key.sign_hash(&digest, &mut signature, &rng).is_err());
+}
+
+#[test]
+#[cfg(all(random, sm2_digest, sm2_sign, sm2_verify, sm3))]
+fn test_sm2_sign_and_verify_with_sm3_digest() {
+    common::setup();
+    let rng = RNG::new().expect("Failed to create RNG");
+    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
+    let mut digest = [0u8; 32];
+    key.create_digest(
+        SM2::CERT_SIG_ID,
+        b"message digest",
+        SM2::HASH_TYPE_SM3,
+        &mut digest,
+    )
+    .expect("Error creating SM2 digest");
+
+    let mut signature = [0u8; 80];
+    let signature_len = key
+        .sign_hash(&digest, &mut signature, &rng)
+        .expect("Error signing SM2 digest");
+    assert!(signature_len > 0 && signature_len <= signature.len());
+
+    let valid = key
+        .verify_hash(&signature[..signature_len], &digest)
+        .expect("Error verifying SM2 signature");
+    assert!(valid);
+
+    digest[0] ^= 0x01;
+    let valid = key
+        .verify_hash(&signature[..signature_len], &digest)
+        .expect("Error verifying modified SM2 digest");
+    assert!(!valid);
 }
