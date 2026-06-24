@@ -8700,6 +8700,22 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK"
 fi
 
+AC_ARG_ENABLE([asn-template-stack-alloc],
+    [AS_HELP_STRING([--enable-asn-template-stack-alloc],
+        [Force ASN template macros to allocate ASNGetData/ASNSetData arrays on
+         the stack even when --enable-smallstack is active. Required for
+         CHERIoT where stack-derived capabilities cannot be stored on the heap
+         WARNING: increases stack consumption despite smallstack being set.
+         (default: disabled)])],
+    [ ENABLED_ASN_TEMPLATE_STACK_ALLOC=$enableval ],
+    [ ENABLED_ASN_TEMPLATE_STACK_ALLOC=no ]
+    )
+
+if test "x$ENABLED_ASN_TEMPLATE_STACK_ALLOC" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE_STACK_ALLOC"
+fi
+
 
 #valgrind
 AC_ARG_ENABLE([valgrind],
