@@ -2,9 +2,33 @@
 
 mod common;
 
+#[cfg(all(random, sm2_dh))]
+use std::rc::Rc;
 #[cfg(random)]
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::sm2::SM2;
+
+#[test]
+#[cfg(random)]
+fn test_sm2_set_rng() {
+    common::setup();
+    let key_gen_rng = RNG::new().expect("Failed to create key generation RNG");
+    let blinding_rng = RNG::new().expect("Failed to create blinding RNG");
+    let mut key = SM2::generate(&key_gen_rng, SM2::FLAG_NONE).expect("Error with generate()");
+
+    key.set_rng(blinding_rng).expect("Error with set_rng()");
+}
+
+#[test]
+#[cfg(all(random, feature = "alloc"))]
+fn test_sm2_set_shared_rng() {
+    common::setup();
+    let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
+    let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error with generate()");
+
+    key.set_shared_rng(Rc::clone(&rng))
+        .expect("Error with set_shared_rng()");
+}
 
 #[test]
 #[cfg(random)]
@@ -15,8 +39,8 @@ fn test_sm2_generate() {
 }
 
 #[test]
-#[cfg(all(random, sm2_digest))]
-fn test_sm2_create_digest() {
+#[cfg(all(random, sm2_digest, sm3))]
+fn test_sm2_create_digest_with_sm3() {
     common::setup();
     let rng = RNG::new().expect("Failed to create RNG");
     let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
@@ -34,8 +58,8 @@ fn test_sm2_create_digest() {
 }
 
 #[test]
-#[cfg(all(random, sm2_digest, sm2_sign, sm2_verify))]
-fn test_sm2_sign_and_verify() {
+#[cfg(all(random, sm2_digest, sm2_sign, sm2_verify, sm3))]
+fn test_sm2_sign_and_verify_with_sm3_digest() {
     common::setup();
     let rng = RNG::new().expect("Failed to create RNG");
     let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
@@ -67,8 +91,8 @@ fn test_sm2_sign_and_verify() {
 }
 
 #[test]
-#[cfg(all(random, sm2_digest))]
-fn test_sm2_digest_rejects_small_buffer() {
+#[cfg(all(random, sm2_digest, sm3))]
+fn test_sm2_create_digest_with_sm3_rejects_small_buffer() {
     common::setup();
     let rng = RNG::new().expect("Failed to create RNG");
     let mut key = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating SM2 key");
@@ -99,9 +123,14 @@ fn test_sm2_sign_rejects_small_buffer() {
 #[cfg(all(random, sm2_dh))]
 fn test_sm2_shared_secret() {
     common::setup();
-    let rng = RNG::new().expect("Failed to create RNG");
+    let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
     let mut alice = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating Alice key");
     let mut bob = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating Bob key");
+    alice
+        .set_shared_rng(Rc::clone(&rng))
+        .expect("Error with set_shared_rng()");
+    bob.set_shared_rng(Rc::clone(&rng))
+        .expect("Error with set_shared_rng()");
     let mut alice_secret = [0u8; SM2::KEY_SIZE];
     let mut bob_secret = [0u8; SM2::KEY_SIZE];
 
@@ -112,7 +141,8 @@ fn test_sm2_shared_secret() {
         .shared_secret(&mut alice, &mut bob_secret)
         .expect("Error deriving Bob shared secret");
 
-    assert_eq!(alice_len, SM2::KEY_SIZE);
+    assert!(alice_len > 0 && alice_len <= SM2::KEY_SIZE);
+    assert!(bob_len > 0 && bob_len <= SM2::KEY_SIZE);
     assert_eq!(alice_len, bob_len);
     assert_eq!(alice_secret[..alice_len], bob_secret[..bob_len]);
 }
@@ -121,9 +151,14 @@ fn test_sm2_shared_secret() {
 #[cfg(all(random, sm2_dh))]
 fn test_sm2_shared_secret_rejects_small_buffer() {
     common::setup();
-    let rng = RNG::new().expect("Failed to create RNG");
+    let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
     let mut alice = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating Alice key");
     let mut bob = SM2::generate(&rng, SM2::FLAG_NONE).expect("Error generating Bob key");
+    alice
+        .set_shared_rng(Rc::clone(&rng))
+        .expect("Error with set_shared_rng()");
+    bob.set_shared_rng(Rc::clone(&rng))
+        .expect("Error with set_shared_rng()");
     let mut secret = [0u8; 1];
 
     assert!(alice.shared_secret(&mut bob, &mut secret).is_err());

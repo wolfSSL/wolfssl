@@ -504,6 +504,9 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitShake128", "shake128");
     check_cfg(&binding, "wc_InitShake256", "shake256");
 
+    /* sm3 */
+    check_cfg(&binding, "wc_InitSm3", "sm3");
+
     /* sm2 */
     check_cfg(&binding, "wc_ecc_sm2_make_key", "sm2");
     check_cfg(&binding, "wc_ecc_sm2_shared_secret", "sm2_dh");
