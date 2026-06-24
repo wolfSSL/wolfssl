@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2026 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.9.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.9.2],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # Inhibit unwanted regeneration of autotools artifacts by Makefile.
@@ -60,11 +60,11 @@ AC_SUBST([CONFIGURE_OPTIONS])
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
 
 # increment if interfaces have been removed or changed
-WOLFSSL_LIBRARY_VERSION_FIRST=44
+WOLFSSL_LIBRARY_VERSION_FIRST=45
 
 # increment if interfaces have been added
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
-WOLFSSL_LIBRARY_VERSION_SECOND=2
+WOLFSSL_LIBRARY_VERSION_SECOND=0
 
 # increment if source code has changed
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
