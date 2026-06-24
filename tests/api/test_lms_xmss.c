@@ -865,9 +865,9 @@ static int rfc9802_gen_chain(void* caKey, int caKeyType, int caSigType,
     ExpectNotNull(caDer = (byte*)XMALLOC(derCap, NULL, DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(leafDer = (byte*)XMALLOC(derCap, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
-    ExpectIntEQ(wc_ecc_init(&leafKey), 0);
-    if (EXPECT_SUCCESS()) /* only flag for free if init ran and succeeded */
+    if (wc_ecc_init(&leafKey) == 0) /* only flag for free if init succeeded */
         leafKeyInit = 1;
+    ExpectIntEQ(leafKeyInit, 1);
     ExpectIntEQ(wc_ecc_make_key(rng, 32, &leafKey), 0);
 
     /* Self-signed CA root. */
