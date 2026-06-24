@@ -802,7 +802,7 @@ int test_wolfSSL_PEM_write_PrivateKey(void)
 
     EVP_PKEY_free(readPriv);
     EVP_PKEY_free(pkey);
-    remove(privFile);
+    (void)remove(privFile);
 #endif
     return EXPECT_RESULT();
 }
@@ -860,7 +860,7 @@ int test_wolfSSL_PEM_write_PUBKEY(void)
     XFREE(pubDer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     EVP_PKEY_free(readPub);
     EVP_PKEY_free(pkey);
-    remove(pubFile);
+    (void)remove(pubFile);
 #endif
     return EXPECT_RESULT();
 }
