@@ -2390,6 +2390,11 @@ WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
 WOLFSSL_ASN_API void FreeAltNames(DNS_entry* altNames, void* heap);
 WOLFSSL_ASN_API DNS_entry* AltNameNew(void* heap);
 WOLFSSL_ASN_API DNS_entry* AltNameDup(DNS_entry* from, void* heap);
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_ALT_NAMES)
+WOLFSSL_ASN_API int wc_SetDNSEntry(void* heap, const char* str, int strLen,
+                                   int type, DNS_entry** entries);
+#endif
 #ifndef IGNORE_NAME_CONSTRAINTS
     WOLFSSL_ASN_API void FreeNameSubtrees(Base_entry* names, void* heap);
 #endif /* IGNORE_NAME_CONSTRAINTS */
@@ -2677,6 +2682,11 @@ WOLFSSL_API int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
 #endif
 WOLFSSL_LOCAL int FlattenAltNames(byte* output, word32 outputSz,
                                   const DNS_entry* names);
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES)
+WOLFSSL_ASN_API int wc_FlattenAltNames(byte* output, word32 outputSz,
+                                       const DNS_entry* names);
+WOLFSSL_ASN_API int wc_SetAltNamesFromList(Cert* cert, const DNS_entry* names);
+#endif
 
 WOLFSSL_LOCAL int wc_EncodeName(EncodedName* name, const char* nameStr,
         char nameType, byte type);

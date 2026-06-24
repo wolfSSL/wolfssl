@@ -14520,6 +14520,46 @@ static int SetDNSEntry(void* heap, const char* str, int strLen,
 
     return ret;
 }
+
+/* Public wrapper for SetDNSEntry(): allocate an alt-name entry that copies the
+ * given name, set its type/length, and append it to the linked list. The list
+ * is freed with FreeAltNames() and can be flattened with wc_FlattenAltNames().
+ * Additionally requires WOLFSSL_ASN_TEMPLATE (its internal SetDNSEntry/
+ * AddDNSEntryToList helpers are template-only), on top of the
+ * WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES gating of its companions
+ * wc_FlattenAltNames()/wc_SetAltNamesFromList(). Because this builder is the
+ * more restrictive of the set, a DNS_entry list built here can always be
+ * encoded by a public API in the same build. */
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES)
+int wc_SetDNSEntry(void* heap, const char* str, int strLen, int type,
+                   DNS_entry** entries)
+{
+    /* Validate caller-supplied arguments at the public boundary: a negative
+     * strLen would cast to a huge size_t in the internal allocate/copy, a NULL
+     * entries list head would be dereferenced, and a NULL str cannot be
+     * copied. */
+    if (str == NULL || entries == NULL || strLen < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Reject unsupported GeneralName types so a public caller cannot OR an
+     * out-of-range value into the context tag emitted by FlattenAltNames(). */
+    switch (type) {
+        case ASN_OTHER_TYPE:
+        case ASN_RFC822_TYPE:
+        case ASN_DNS_TYPE:
+        case ASN_DIR_TYPE:
+        case ASN_URI_TYPE:
+        case ASN_IP_TYPE:
+        case ASN_RID_TYPE:
+            break;
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return SetDNSEntry(heap, str, strLen, type, entries);
+}
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES */
 #endif
 
 /* Set the details of a subject name component into a certificate.
@@ -26960,6 +27000,15 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
     return (int)idx;
 }
 
+/* Public wrapper for FlattenAltNames(): encode a linked list of alt-name
+ * entries into the DER GeneralNames SEQUENCE used as the subjectAltName
+ * extension value. Returns the encoded length, 0 for a NULL list, or a
+ * negative error code. */
+int wc_FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
+{
+    return FlattenAltNames(output, outputSz, names);
+}
+
 #endif /* WOLFSSL_ALT_NAMES */
 #endif /* WOLFSSL_CERT_GEN */
 
@@ -31505,6 +31554,26 @@ int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
     }
 
     return(ret);
+}
+
+/* Set cert alt names from a linked list of alt-name entries (e.g. built with
+ * wc_SetDNSEntry()). Encodes the list into cert->altNames and stores the
+ * length in cert->altNamesSz. Returns 0 on success or a negative error code. */
+int wc_SetAltNamesFromList(Cert* cert, const DNS_entry* names)
+{
+    int ret;
+
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = FlattenAltNames(cert->altNames, sizeof(cert->altNames), names);
+    if (ret < 0) {
+        return ret;
+    }
+
+    cert->altNamesSz = ret;
+    return 0;
 }
 
 /* Set cert dates from DER buffer */
