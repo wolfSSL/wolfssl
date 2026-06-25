@@ -622,10 +622,18 @@ def main() -> int:
     if dups:
         p.error(f"config names collide after shard fan-out: {' '.join(dups)}")
 
-    if any(cfg.netns for cfg in selected) and not BWRAP:
-        p.error("netns requested but bwrap not found; install bubblewrap "
-                "(without it the commands share the host network namespace "
-                "and collide on ports)")
+    # netns needs bwrap; without it commands silently share the host network
+    # namespace and parallel network tests collide on ports. On CI that silent
+    # degradation is a misconfiguration, so fail loudly; locally just warn and
+    # let the run fall back to the shared namespace. --list needs neither bwrap
+    # nor a netns, so never block it.
+    if not opts.list and any(cfg.netns for cfg in selected) and not BWRAP:
+        msg = ("netns requested but bwrap not found; install bubblewrap "
+               "(without it commands share the host network namespace and "
+               "collide on ports)")
+        if ON_GITHUB:
+            p.error(msg)
+        warn(f"{msg}; falling back to the shared namespace")
 
     if opts.list:
         for cfg in selected:
