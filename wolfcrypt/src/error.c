@@ -728,9 +728,6 @@ const char* wc_GetErrorString(int error)
     case HWPUF_GENERATE_KEY_E:
         return "HWPUF generate key failed";
 
-    case HWPUF_SET_KEY_E:
-        return "HWPUF set key failed";
-
     case HWPUF_GET_KEY_E:
         return "HWPUF get key failed";
 

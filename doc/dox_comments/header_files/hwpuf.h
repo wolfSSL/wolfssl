@@ -196,48 +196,10 @@ int wc_HWPUF_Start(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz);
     \endcode
 
     \sa wc_HWPUF_Start
-    \sa wc_HWPUF_SetKey
     \sa wc_HWPUF_GetKey
 */
 int wc_HWPUF_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
                          byte* keyCode, word32 keyCodeSz);
-
-/*!
-    \ingroup HWPUF
-
-    \brief Set a key into the device and return a key code.  
-    The key code should be stored in NVM and used whenever the key is
-    requested from the device, i.e., wc_HWPUF_GetKey().
-    This is typically done in a secure factory, for pre-shared keys.
-
-    \return 0 on success
-    \return BAD_FUNC_ARG if hwpuf NULL, or a problem with other params
-    \return HWPUF_START_E if device is not started (ready)
-    \return HWPUF_SET_KEY_E if the device failed to set the key
-
-    \param hwpuf pointer to wc_HWPUF context
-    \param keyIdx index to associate with the generated key/keyCode pair
-    \param key input buffer with key to set
-    \param keySz size of the key to set in bytes
-    \param keyCode output buffer for key code
-    \param keyCodeSz size of the key code in bytes
-
-    _Example_
-    \code
-    byte key2[16];
-    byte keyCode2[HWPUF_KEY_SIZE_TO_KEY_CODE_SIZE(16)];
-    XMEMCPY(key2, nvm.key2, sizeof(key2));
-    ret = wc_HWPUF_SetKey(&s_hwpuf, 2, 16, key2, sizeof(key2),
-                          keyCode2, sizeof(keyCode2));
-    < write keyCode2 to nvm >
-    \endcode
-
-    \sa wc_HWPUF_GetKey
-    \sa wc_HWPUF_GenerateKey
-*/
-int wc_HWPUF_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
-                    byte* key, word32 keySz,
-                    byte* keyCode, word32 keyCodeSz);
 
 /*!
     \ingroup HWPUF
@@ -265,7 +227,6 @@ int wc_HWPUF_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
     \endcode
 
     \sa wc_HWPUF_GenerateKey
-    \sa wc_HWPUF_SetKey
     \sa wc_HWPUF_Start
 */
 int wc_HWPUF_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,

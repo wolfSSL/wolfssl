@@ -184,24 +184,6 @@ static int nxp_hwpuf_GenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
     return 0;
 }
 
-static int nxp_hwpuf_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
-                            byte* key, word32 keySz,
-                            byte* keyCode, word32 keyCodeSz)
-{
-    WOLFSSL_ENTER("nxp_hwpuf_SetKey");
-
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    (void)keyIdx;
-    (void)key;
-    (void)keySz;
-    (void)keyCode;
-    (void)keyCodeSz;
-
-    return CRYPTOCB_UNAVAILABLE;
-}
-
 static int nxp_hwpuf_GetKey(wc_HWPUF* hwpuf, byte* keyCode, word32 keyCodeSz,
                             byte* key, word32 keySz)
 {
@@ -304,14 +286,6 @@ static int nxp_hwpuf_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
                                 info->hwpuf.op.generateKey.keySz,
                                 info->hwpuf.op.generateKey.keyCode,
                                 info->hwpuf.op.generateKey.keyCodeSz);
-    }
-    else if (info->hwpuf.type == WC_HWPUF_TYPE_SET_KEY) {
-        ret = nxp_hwpuf_SetKey(info->hwpuf.hwpuf,
-                               info->hwpuf.op.setKey.keyIdx,
-                               info->hwpuf.op.setKey.key,
-                               info->hwpuf.op.setKey.keySz,
-                               info->hwpuf.op.setKey.keyCode,
-                               info->hwpuf.op.setKey.keyCodeSz);
     }
     else if (info->hwpuf.type == WC_HWPUF_TYPE_GET_KEY) {
         ret = nxp_hwpuf_GetKey(info->hwpuf.hwpuf,

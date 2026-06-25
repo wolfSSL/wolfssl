@@ -23447,13 +23447,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
         }
     }
 
-    /* ---- Test 7: set key fails for now ---- */
-    if (wc_HWPUF_SetKey(&hwpuf, 7, key32_2, sizeof(key32_2),
-                        keyCode32, sizeof(keyCode32))
-            != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
-        return WC_TEST_RET_ENC_NC;
-
-    /* ---- Test 8: Bad argument checks ---- */
+    /* ---- Test 7: Bad argument checks ---- */
     /* null hwpuf */
     if (wc_HWPUF_Init(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_NC;
@@ -23487,7 +23481,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
             != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_NC;
 
-    /* ---- Test 9: Zeroize ---- */
+    /* ---- Test 8: Zeroize ---- */
     ret = wc_HWPUF_GetKey(&hwpuf, keyCode24, sizeof(keyCode24), key24_1, sizeof(key24_1));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
@@ -23498,7 +23492,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hwpuf_test(void)
             != WC_NO_ERR_TRACE(HWPUF_START_E))
         return WC_TEST_RET_ENC_NC;
 
-    /* ---- Test 10: double register fails ---- */
+    /* ---- Test 9: double register fails ---- */
     if (wc_HWPUF_Register(&hwpuf, NULL, INVALID_DEVID)
             != WC_NO_ERR_TRACE(HWPUF_REGISTER_E))
         return WC_TEST_RET_ENC_NC;

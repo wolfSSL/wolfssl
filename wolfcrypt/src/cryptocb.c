@@ -261,8 +261,6 @@ static const char* GetHwpufTypeStr(int type)
             return "START";
         case WC_HWPUF_TYPE_GENERATE_KEY:
             return "GENERATE_KEY";
-        case WC_HWPUF_TYPE_SET_KEY:
-            return "SET_KEY";
         case WC_HWPUF_TYPE_GET_KEY:
             return "GET_KEY";
         case WC_HWPUF_TYPE_ZEROIZE:
@@ -2695,35 +2693,6 @@ int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx, word32 keySz,
         cryptoInfo.hwpuf.op.generateKey.keySz     = keySz;
         cryptoInfo.hwpuf.op.generateKey.keyCode   = keyCode;
         cryptoInfo.hwpuf.op.generateKey.keyCodeSz = keyCodeSz;
-
-        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
-    }
-
-    return wc_CryptoCb_TranslateErrorCode(ret);
-}
-
-int wc_CryptoCb_HwpufSetKey(wc_HWPUF* hwpuf, byte keyIdx,
-                            byte* key, word32 keySz,
-                            byte* keyCode, word32 keyCodeSz)
-{
-    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
-    CryptoCb* dev;
-
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-
-    dev = wc_CryptoCb_FindDevice(hwpuf->devId, WC_ALGO_TYPE_HWPUF);
-    if (dev && dev->cb) {
-        wc_CryptoInfo cryptoInfo;
-        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type   = WC_ALGO_TYPE_HWPUF;
-        cryptoInfo.hwpuf.hwpuf = hwpuf;
-        cryptoInfo.hwpuf.type  = WC_HWPUF_TYPE_SET_KEY;
-        cryptoInfo.hwpuf.op.setKey.keyIdx    = keyIdx;
-        cryptoInfo.hwpuf.op.setKey.key       = key;
-        cryptoInfo.hwpuf.op.setKey.keySz     = keySz;
-        cryptoInfo.hwpuf.op.setKey.keyCode   = keyCode;
-        cryptoInfo.hwpuf.op.setKey.keyCodeSz = keyCodeSz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

@@ -599,13 +599,6 @@ typedef struct wc_CryptoInfo {
                 word32  keyCodeSz;
             } generateKey;
             struct {
-                byte    keyIdx;
-                byte*   key;
-                word32  keySz;
-                byte*   keyCode;
-                word32  keyCodeSz;
-            } setKey;
-            struct {
                 byte*   keyCode;
                 word32  keyCodeSz;
                 byte*   key;
@@ -993,9 +986,6 @@ WOLFSSL_LOCAL int wc_CryptoCb_HwpufStart(wc_HWPUF* hwpuf,
                                 byte* actCode, word32 actCodeSz);
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufGenerateKey(wc_HWPUF* hwpuf, byte keyIdx,
                                 word32 keySz, byte* keyCode, word32 keyCodeSz);
-WOLFSSL_LOCAL int wc_CryptoCb_HwpufSetKey(wc_HWPUF* hwpuf, byte keyIdx,
-                                byte* key, word32 keySz,
-                                byte* keyCode, word32 keyCodeSz);
 WOLFSSL_LOCAL int wc_CryptoCb_HwpufGetKey(wc_HWPUF* hwpuf,
                                 byte* keyCode, word32 keyCodeSz,
                                 byte* key, word32 keySz);
