@@ -434,6 +434,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef HAVE_PKCS7
     #include <wolfssl/wolfcrypt/pkcs7.h>
 #endif
+#ifdef WOLFSSL_TSP
+    #include <wolfssl/wolfcrypt/tsp.h>
+#endif
 #ifdef HAVE_PKCS12
     #include <wolfssl/wolfcrypt/pkcs12.h>
 #endif
@@ -1021,6 +1024,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7callback_test(byte* cert, word32 certSz, byte* key,
                 word32 keySz);
     #endif
+#endif
+#if defined(WOLFSSL_TSP) && defined(WOLFSSL_TSP_REQUESTER) && \
+    defined(WOLFSSL_TSP_RESPONDER)
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tsp_test(void);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
     !defined(NO_FILESYSTEM)
@@ -3253,6 +3260,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             TEST_PASS("PKCS7authenveloped  test passed!\n");
         PRIVATE_KEY_LOCK();
     #endif
+#endif
+
+#if defined(WOLFSSL_TSP) && defined(WOLFSSL_TSP_REQUESTER) && \
+    defined(WOLFSSL_TSP_RESPONDER)
+    if ( (ret = tsp_test()) != 0)
+        TEST_FAIL("TSP      test failed!\n", ret);
+    else
+        TEST_PASS("TSP      test passed!\n");
 #endif
 
 #if defined(WOLFSSL_PUBLIC_MP) && \
@@ -67756,6 +67771,555 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
 }
 
 #endif /* HAVE_PKCS7 */
+
+#if defined(WOLFSSL_TSP) && defined(WOLFSSL_TSP_REQUESTER) && \
+    defined(WOLFSSL_TSP_RESPONDER)
+
+#ifndef NO_SHA256
+    #define TSP_TEST_HASH_OID   SHA256h
+    #define TSP_TEST_HASH_SZ    32
+#elif !defined(NO_SHA)
+    #define TSP_TEST_HASH_OID   SHAh
+    #define TSP_TEST_HASH_SZ    20
+#endif
+
+#ifdef TSP_TEST_HASH_OID
+
+/* 1.3.6.1.4.1.999.1 - test TSA policy. */
+static const byte tspTestPolicy[] = {
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x87, 0x67, 0x01
+};
+/* Nonce with top bit set to check INTEGER encoding. */
+static const byte tspTestNonce[] = {
+    0xc3, 0x5a, 0x10, 0x42, 0x77, 0x08, 0x99, 0x01
+};
+/* Serial number with top bit set to check INTEGER encoding. */
+static const byte tspTestSerial[] = { 0x9a, 0x33 };
+/* Time of test time-stamp. */
+static const byte tspTestGenTime[] = "20260604120000Z";
+
+/* Test encoding and decoding of TimeStampReq. */
+static wc_test_ret_t tsp_req_test(byte* hashedMsg)
+{
+    wc_test_ret_t ret = 0;
+    int r;
+    TspRequest req;
+    TspRequest reqDec;
+    byte enc[256];
+    word32 encSz = 0;
+    word32 sz;
+
+    r = wc_TspRequest_Init(&req);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    req.imprint.hashAlgOID = TSP_TEST_HASH_OID;
+    XMEMCPY(req.imprint.hash, hashedMsg, TSP_TEST_HASH_SZ);
+    req.imprint.hashSz = TSP_TEST_HASH_SZ;
+    XMEMCPY(req.policy, tspTestPolicy, sizeof(tspTestPolicy));
+    req.policySz = sizeof(tspTestPolicy);
+    XMEMCPY(req.nonce, tspTestNonce, sizeof(tspTestNonce));
+    req.nonceSz = sizeof(tspTestNonce);
+    req.certReq = 1;
+
+    /* Get length of encoding. */
+    r = wc_TspRequest_Encode(&req, NULL, &encSz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if ((encSz == 0) || (encSz > sizeof(enc)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    /* Check too small a buffer is rejected. */
+    sz = encSz - 1;
+    r = wc_TspRequest_Encode(&req, enc, &sz);
+    if (r != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    sz = sizeof(enc);
+    r = wc_TspRequest_Encode(&req, enc, &sz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if (sz != encSz)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    r = wc_TspRequest_Decode(&reqDec, enc, sz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if (reqDec.version != WC_TSP_VERSION)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (reqDec.imprint.hashAlgOID != TSP_TEST_HASH_OID)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((reqDec.imprint.hashSz != TSP_TEST_HASH_SZ) ||
+            (XMEMCMP(reqDec.imprint.hash, hashedMsg,
+                TSP_TEST_HASH_SZ) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((reqDec.policySz != sizeof(tspTestPolicy)) ||
+            (XMEMCMP(reqDec.policy, tspTestPolicy,
+                sizeof(tspTestPolicy)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((reqDec.nonceSz != sizeof(tspTestNonce)) ||
+            (XMEMCMP(reqDec.nonce, tspTestNonce, sizeof(tspTestNonce)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (reqDec.certReq != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+out:
+    return ret;
+}
+
+/* Test encoding and decoding of TSTInfo and checking against request. */
+static wc_test_ret_t tsp_tstinfo_test(byte* hashedMsg)
+{
+    wc_test_ret_t ret = 0;
+    int r;
+    TspTstInfo tst;
+    TspTstInfo tstDec;
+    TspRequest req;
+    byte enc[256];
+    word32 sz;
+
+    r = wc_TspTstInfo_Init(&tst);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    tst.policy = tspTestPolicy;
+    tst.policySz = sizeof(tspTestPolicy);
+    tst.imprint.hashAlgOID = TSP_TEST_HASH_OID;
+    XMEMCPY(tst.imprint.hash, hashedMsg, TSP_TEST_HASH_SZ);
+    tst.imprint.hashSz = TSP_TEST_HASH_SZ;
+    tst.serial = tspTestSerial;
+    tst.serialSz = sizeof(tspTestSerial);
+    tst.genTime = tspTestGenTime;
+    tst.genTimeSz = sizeof(tspTestGenTime) - 1;
+    /* millis 2 bytes encoded and micros has top bit set - zero byte added. */
+    tst.accuracy.seconds = 1;
+    tst.accuracy.millis = 500;
+    tst.accuracy.micros = 130;
+    tst.ordering = 1;
+    tst.nonce = tspTestNonce;
+    tst.nonceSz = sizeof(tspTestNonce);
+
+    sz = sizeof(enc);
+    r = wc_TspTstInfo_Encode(&tst, enc, &sz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+
+    r = wc_TspTstInfo_Decode(&tstDec, enc, sz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if (tstDec.version != WC_TSP_VERSION)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((tstDec.policySz != sizeof(tspTestPolicy)) ||
+            (XMEMCMP(tstDec.policy, tspTestPolicy,
+                sizeof(tspTestPolicy)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (tstDec.imprint.hashAlgOID != TSP_TEST_HASH_OID)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((tstDec.imprint.hashSz != TSP_TEST_HASH_SZ) ||
+            (XMEMCMP(tstDec.imprint.hash, hashedMsg,
+                TSP_TEST_HASH_SZ) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((tstDec.serialSz != sizeof(tspTestSerial)) ||
+            (XMEMCMP(tstDec.serial, tspTestSerial,
+                sizeof(tspTestSerial)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((tstDec.genTimeSz != sizeof(tspTestGenTime) - 1) ||
+            (XMEMCMP(tstDec.genTime, tspTestGenTime,
+                sizeof(tspTestGenTime) - 1) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((tstDec.accuracy.seconds != 1) || (tstDec.accuracy.millis != 500) ||
+            (tstDec.accuracy.micros != 130))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (tstDec.ordering != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((tstDec.nonceSz != sizeof(tspTestNonce)) ||
+            (XMEMCMP(tstDec.nonce, tspTestNonce, sizeof(tspTestNonce)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (tstDec.tsa != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Check TSTInfo against a matching request. */
+    r = wc_TspRequest_Init(&req);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    req.imprint.hashAlgOID = TSP_TEST_HASH_OID;
+    XMEMCPY(req.imprint.hash, hashedMsg, TSP_TEST_HASH_SZ);
+    req.imprint.hashSz = TSP_TEST_HASH_SZ;
+    XMEMCPY(req.policy, tspTestPolicy, sizeof(tspTestPolicy));
+    req.policySz = sizeof(tspTestPolicy);
+    XMEMCPY(req.nonce, tspTestNonce, sizeof(tspTestNonce));
+    req.nonceSz = sizeof(tspTestNonce);
+    r = wc_TspTstInfo_CheckRequest(&tstDec, &req);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    /* Check nonce mismatch is detected. */
+    XMEMCPY(req.nonce, tspTestSerial, sizeof(tspTestSerial));
+    req.nonceSz = sizeof(tspTestSerial);
+    r = wc_TspTstInfo_CheckRequest(&tstDec, &req);
+    if (r != WC_NO_ERR_TRACE(TSP_VERIFY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    XMEMCPY(req.nonce, tspTestNonce, sizeof(tspTestNonce));
+    req.nonceSz = sizeof(tspTestNonce);
+    /* Check hash mismatch is detected. */
+    req.imprint.hash[0] ^= 0x80;
+    r = wc_TspTstInfo_CheckRequest(&tstDec, &req);
+    req.imprint.hash[0] ^= 0x80;
+    if (r != WC_NO_ERR_TRACE(TSP_VERIFY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+
+out:
+    return ret;
+}
+
+/* Test encoding and decoding of TimeStampResp. */
+static wc_test_ret_t tsp_resp_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int r;
+    TspResponse resp;
+    TspResponse respDec;
+    static const char statusText[] = "hash algorithm not supported";
+    byte enc[256];
+    word32 sz;
+
+    /* Rejection response with status string and failure information. */
+    r = wc_TspResponse_Init(&resp);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    resp.status = WC_TSP_PKISTATUS_REJECTION;
+    resp.statusString = (const byte*)statusText;
+    resp.statusStringSz = (word32)XSTRLEN(statusText);
+    resp.failInfo = WC_TSP_FAIL_BAD_ALG | WC_TSP_FAIL_BAD_REQUEST;
+
+    sz = sizeof(enc);
+    r = wc_TspResponse_Encode(&resp, enc, &sz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+
+    r = wc_TspResponse_Decode(&respDec, enc, sz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if (respDec.status != WC_TSP_PKISTATUS_REJECTION)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((respDec.statusStringSz != (word32)XSTRLEN(statusText)) ||
+            (XMEMCMP(respDec.statusString, statusText,
+                respDec.statusStringSz) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (respDec.failInfo != (WC_TSP_FAIL_BAD_ALG | WC_TSP_FAIL_BAD_REQUEST))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (respDec.token != NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+out:
+    return ret;
+}
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(WC_NO_RNG)
+/* Test creating and verifying a TimeStampResp with a TimeStampToken. */
+static wc_test_ret_t tsp_token_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int r;
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    int rngInit = 0;
+    byte* tsaCert = NULL;
+    byte* tsaKey = NULL;
+    word32 tsaCertSz = FOURK_BUF;
+    word32 tsaKeySz = FOURK_BUF;
+    byte* token = NULL;
+    word32 tokenSz = FOURK_BUF;
+    byte* respEnc = NULL;
+    word32 respEncSz = FOURK_BUF;
+    TspRequest req;
+    TspTstInfo tst;
+    TspTstInfo tstDec;
+    TspResponse resp;
+    TspResponse respDec;
+    static const char msg[] = "wolfSSL time-stamped message";
+    byte digest[WC_SHA256_DIGEST_SIZE];
+
+    tsaCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    tsaKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    token = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    respEnc = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if ((tsaCert == NULL) || (tsaKey == NULL) || (token == NULL) ||
+            (respEnc == NULL))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Load the TSA's certificate and key. */
+#ifdef USE_CERT_BUFFERS_2048
+    XMEMCPY(tsaCert, tsa_cert_der_2048, sizeof_tsa_cert_der_2048);
+    tsaCertSz = (word32)sizeof_tsa_cert_der_2048;
+    XMEMCPY(tsaKey, tsa_key_der_2048, sizeof_tsa_key_der_2048);
+    tsaKeySz = (word32)sizeof_tsa_key_der_2048;
+#elif !defined(NO_FILESYSTEM)
+    {
+        XFILE  file;
+
+        file = XFOPEN(CERT_ROOT "tsa-cert.der", "rb");
+        if (file == XBADFILE)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+        tsaCertSz = (word32)XFREAD(tsaCert, 1, FOURK_BUF, file);
+        XFCLOSE(file);
+
+        file = XFOPEN(CERT_ROOT "tsa-key.der", "rb");
+        if (file == XBADFILE)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+        tsaKeySz = (word32)XFREAD(tsaKey, 1, FOURK_BUF, file);
+        XFCLOSE(file);
+    }
+#else
+    /* No TSA certificate available - skip test. */
+    goto out;
+#endif
+
+#ifndef HAVE_FIPS
+    r = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    r = wc_InitRng(&rng);
+#endif
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    rngInit = 1;
+
+    /* Requester creates a request for a time-stamp of a message hash. */
+    r = wc_Sha256Hash((const byte*)msg, (word32)XSTRLEN(msg), digest);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    r = wc_TspRequest_Init(&req);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    req.imprint.hashAlgOID = SHA256h;
+    XMEMCPY(req.imprint.hash, digest, sizeof(digest));
+    req.imprint.hashSz = (word32)sizeof(digest);
+    XMEMCPY(req.nonce, tspTestNonce, sizeof(tspTestNonce));
+    req.nonceSz = sizeof(tspTestNonce);
+    req.certReq = 1;
+
+    /* TSA creates the TSTInfo for the request. */
+    r = wc_TspTstInfo_Init(&tst);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    tst.policy = tspTestPolicy;
+    tst.policySz = sizeof(tspTestPolicy);
+    tst.imprint = req.imprint;
+    tst.serial = tspTestSerial;
+    tst.serialSz = sizeof(tspTestSerial);
+    tst.accuracy.seconds = 1;
+    tst.nonce = req.nonce;
+    tst.nonceSz = req.nonceSz;
+#if defined(NO_ASN_TIME) || defined(USER_TIME) || defined(TIME_OVERRIDES)
+    /* No current time available - set the time of the time-stamp. */
+    tst.genTime = tspTestGenTime;
+    tst.genTimeSz = sizeof(tspTestGenTime) - 1;
+#endif
+
+    /* TSA signs the TSTInfo to make a TimeStampToken. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    r = wc_PKCS7_InitWithCert(pkcs7, tsaCert, tsaCertSz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    pkcs7->rng = &rng;
+    pkcs7->hashOID = SHA256h;
+    pkcs7->encryptOID = RSAk;
+    pkcs7->privateKey = tsaKey;
+    pkcs7->privateKeySz = tsaKeySz;
+    r = wc_TspTstInfo_SignWithPkcs7(&tst, pkcs7, token, &tokenSz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* TSA puts the token in a granted response. */
+    r = wc_TspResponse_Init(&resp);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    resp.status = WC_TSP_PKISTATUS_GRANTED;
+    resp.token = token;
+    resp.tokenSz = tokenSz;
+    r = wc_TspResponse_Encode(&resp, respEnc, &respEncSz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+
+    /* Requester decodes the response. */
+    r = wc_TspResponse_Decode(&respDec, respEnc, respEncSz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if (respDec.status != WC_TSP_PKISTATUS_GRANTED)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((respDec.token == NULL) || (respDec.tokenSz != tokenSz) ||
+            (XMEMCMP(respDec.token, token, tokenSz) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Requester verifies the token and checks it against the request. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    r = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    r = wc_TspTstInfo_VerifyWithPKCS7(pkcs7, (byte*)respDec.token, respDec.tokenSz,
+        &tstDec);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    r = wc_TspTstInfo_CheckRequest(&tstDec, &req);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if (tstDec.genTimeSz < 15)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* Check a token for a different message hash is detected. */
+    req.imprint.hash[0] ^= 0x80;
+    r = wc_TspTstInfo_CheckRequest(&tstDec, &req);
+    if (r != WC_NO_ERR_TRACE(TSP_VERIFY_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+
+out:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(respEnc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(token, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tsaKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 && !WC_NO_RNG */
+
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256) && \
+    !defined(WC_NO_RNG)
+/* Test creating and verifying a time-stamp token signed with ECDSA. */
+static wc_test_ret_t tsp_ecc_token_test(void)
+{
+    wc_test_ret_t ret = 0;
+    int r;
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    int rngInit = 0;
+    TspTstInfo tst;
+    TspTstInfo tstDec;
+    byte* token = NULL;
+    word32 tokenSz = FOURK_BUF;
+    byte hashedMsg[TSP_TEST_HASH_SZ];
+    word32 i;
+
+    for (i = 0; i < (word32)sizeof(hashedMsg); i++)
+        hashedMsg[i] = (byte)(0x80 + i);
+
+    token = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (token == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifndef HAVE_FIPS
+    r = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    r = wc_InitRng(&rng);
+#endif
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    rngInit = 1;
+
+    /* TSTInfo to be signed by the ECC TSA. */
+    r = wc_TspTstInfo_Init(&tst);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    tst.policy = tspTestPolicy;
+    tst.policySz = sizeof(tspTestPolicy);
+    tst.imprint.hashAlgOID = TSP_TEST_HASH_OID;
+    XMEMCPY(tst.imprint.hash, hashedMsg, TSP_TEST_HASH_SZ);
+    tst.imprint.hashSz = TSP_TEST_HASH_SZ;
+    tst.serial = tspTestSerial;
+    tst.serialSz = sizeof(tspTestSerial);
+#if defined(NO_ASN_TIME) || defined(USER_TIME) || defined(TIME_OVERRIDES)
+    /* No current time available - set the time of the time-stamp. */
+    tst.genTime = tspTestGenTime;
+    tst.genTimeSz = sizeof(tspTestGenTime) - 1;
+#endif
+
+    /* TSA signs the TSTInfo with its ECC key. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    r = wc_PKCS7_InitWithCert(pkcs7, (byte*)tsa_ecc_cert_der_256,
+        sizeof_tsa_ecc_cert_der_256);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    pkcs7->rng = &rng;
+    pkcs7->hashOID = SHA256h;
+    pkcs7->encryptOID = ECDSAk;
+    pkcs7->privateKey = (byte*)tsa_ecc_key_der_256;
+    pkcs7->privateKeySz = sizeof_tsa_ecc_key_der_256;
+    r = wc_TspTstInfo_SignWithPkcs7(&tst, pkcs7, token, &tokenSz);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Requester verifies the token. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    r = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    r = wc_TspTstInfo_VerifyWithPKCS7(pkcs7, token, tokenSz, &tstDec);
+    if (r != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(r), out);
+    if (tstDec.version != WC_TSP_VERSION)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if ((tstDec.imprint.hashSz != TSP_TEST_HASH_SZ) ||
+            (XMEMCMP(tstDec.imprint.hash, hashedMsg, TSP_TEST_HASH_SZ) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+out:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(token, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* HAVE_PKCS7 && HAVE_ECC && USE_CERT_BUFFERS_256 && !NO_SHA256 &&
+        * !WC_NO_RNG */
+
+#endif /* TSP_TEST_HASH_OID */
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tsp_test(void)
+{
+    wc_test_ret_t ret = 0;
+#ifdef TSP_TEST_HASH_OID
+    byte hashedMsg[TSP_TEST_HASH_SZ];
+    word32 i;
+
+    WOLFSSL_ENTER("tsp_test");
+
+    for (i = 0; i < (word32)sizeof(hashedMsg); i++)
+        hashedMsg[i] = (byte)(0x80 + i);
+
+    ret = tsp_req_test(hashedMsg);
+    if (ret == 0)
+        ret = tsp_tstinfo_test(hashedMsg);
+    if (ret == 0)
+        ret = tsp_resp_test();
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(WC_NO_RNG)
+    if (ret == 0)
+        ret = tsp_token_test();
+#endif
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_SHA256) && \
+    !defined(WC_NO_RNG)
+    if (ret == 0)
+        ret = tsp_ecc_token_test();
+#endif
+#endif /* TSP_TEST_HASH_OID */
+
+    return ret;
+}
+
+#endif /* WOLFSSL_TSP */
 
 #if defined(WOLFSSL_PUBLIC_MP) && \
     ((defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \

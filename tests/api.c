@@ -245,11 +245,13 @@
 #include <tests/api/test_session.h>
 #include <tests/api/test_x509.h>
 #include <tests/api/test_asn.h>
+#include <tests/api/test_tsp.h>
 #include <tests/api/test_lms_xmss.h>
 #include <tests/api/test_pkcs7.h>
 #include <tests/api/test_pkcs12.h>
 #include <tests/api/test_pwdbased.h>
 #include <tests/api/test_ossl_asn1.h>
+#include <tests/api/test_ossl_tsp.h>
 #include <tests/api/test_ossl_bn.h>
 #include <tests/api/test_ossl_bio.h>
 #include <tests/api/test_ossl_dgst.h>
@@ -35046,6 +35048,9 @@ TEST_CASE testCases[] = {
     /* ASN */
     TEST_ASN_DECLS,
 
+    /* Time-Stamp Protocol (RFC 3161) */
+    TEST_TSP_DECLS,
+
     /* LMS, and RFC 9802 (HSS/LMS and XMSS/XMSS^MT in X.509) */
     TEST_LMS_XMSS_DECLS,
 
@@ -35196,6 +35201,7 @@ TEST_CASE testCases[] = {
 
     /* X509 tests */
     TEST_OSSL_X509_DECLS,
+    TEST_OSSL_TSP_DECLS,
     TEST_OSSL_X509_NAME_DECLS,
     TEST_OSSL_X509_EXT_DECLS,
     TEST_OSSL_X509_PK_DECLS,

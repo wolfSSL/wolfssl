@@ -599,6 +599,11 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
     /* FirmwarePkgData (1.2.840.113549.1.9.16.1.16), RFC 4108 */
     static const byte firmwarePkgData[]    =
         { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x10, 0x01, 0x10 };
+#ifdef WOLFSSL_TSP
+    /* id-ct-TSTInfo (1.2.840.113549.1.9.16.1.4), RFC 3161 */
+    static const byte tstInfoData[]        =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x10, 0x01, 0x04 };
+#endif
 #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
     /* id-ct-compressedData (1.2.840.113549.1.9.16.1.9), RFC 3274 */
     static const byte compressedData[]     =
@@ -669,6 +674,13 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
             typeSz = sizeof(firmwarePkgData);
             typeName = firmwarePkgData;
             break;
+
+#ifdef WOLFSSL_TSP
+        case TSTINFO_DATA:
+            typeSz = sizeof(tstInfoData);
+            typeName = tstInfoData;
+            break;
+#endif
 
 #if !defined(NO_PWDBASED) && !defined(NO_SHA)
         case PWRI_KEK_WRAP:

@@ -87,6 +87,7 @@
     <ClCompile Include="..\..\wolfcrypt\src\sp_x86_64.c" />
     <ClCompile Include="..\..\wolfcrypt\src\srp.c" />
     <ClCompile Include="..\..\wolfcrypt\src\tfm.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\tsp.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_port.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />

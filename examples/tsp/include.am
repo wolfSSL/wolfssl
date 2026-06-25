@@ -1,0 +1,21 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+if BUILD_EXAMPLE_TSP
+noinst_PROGRAMS += examples/tsp/tsp_query examples/tsp/tsp_reply \
+                   examples/tsp/tsp_verify
+
+examples_tsp_tsp_query_SOURCES      = examples/tsp/tsp_query.c
+examples_tsp_tsp_query_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+examples_tsp_tsp_query_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+
+examples_tsp_tsp_reply_SOURCES      = examples/tsp/tsp_reply.c
+examples_tsp_tsp_reply_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+examples_tsp_tsp_reply_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+
+examples_tsp_tsp_verify_SOURCES      = examples/tsp/tsp_verify.c
+examples_tsp_tsp_verify_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+examples_tsp_tsp_verify_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+endif
