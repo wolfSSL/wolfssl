@@ -18578,29 +18578,31 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
             default:
                 WOLFSSL_MSG("Unknown TLS extension type");
-#if defined(WOLFSSL_TLS13)
-                /* RFC 8446 Sec. 4.2: a TLS 1.3 client MUST abort with an
-                 * unsupported_extension alert when it receives an extension
-                 * "response" that was not advertised in the ClientHello. The
-                 * rule applies only to messages whose extensions are responses
-                 * to the ClientHello: ServerHello, HelloRetryRequest,
-                 * EncryptedExtensions and Certificate.
+                /* RFC 5246 Sec. 7.4.1.4 (TLS 1.2) and RFC 8446 Sec. 4.2
+                 * (TLS 1.3): a client MUST abort with an unsupported_extension
+                 * alert when it receives an extension "response" that was not
+                 * advertised in the ClientHello. wolfSSL never offers an
+                 * extension type that has no case here, so an unknown type in
+                 * a ServerHello is always unsolicited.
                  *
-                 * Extensions in CertificateRequest and NewSessionTicket are
-                 * independent server-initiated payloads, not responses, and
-                 * per RFC 8701 (GREASE) the server MAY include unknown
-                 * (GREASE) extension types there which the client MUST treat
-                 * like any other unknown value (i.e. ignore them). */
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        (msgType == server_hello ||
-                         msgType == hello_retry_request ||
-                         msgType == encrypted_extensions ||
-                         msgType == certificate)) {
+                 * For TLS 1.3 the rule also covers HelloRetryRequest,
+                 * EncryptedExtensions and Certificate. CertificateRequest and
+                 * NewSessionTicket are independent server-initiated payloads,
+                 * not responses, and per RFC 8701 (GREASE) the server MAY
+                 * include unknown extension types there which the client MUST
+                 * ignore like any other unknown value. */
+                if (msgType == server_hello
+#if defined(WOLFSSL_TLS13)
+                        || (IsAtLeastTLSv1_3(ssl->version) &&
+                            (msgType == hello_retry_request ||
+                             msgType == encrypted_extensions ||
+                             msgType == certificate))
+#endif
+                        ) {
                     SendAlert((WOLFSSL*)ssl, alert_fatal, unsupported_extension);
                     WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
                     return UNSUPPORTED_EXTENSION;
                 }
-#endif
         }
 
         /* offset should be updated here! */
