@@ -2357,6 +2357,14 @@ static const char* bench_result_words2[][6] = {
 
 static int    numBlocks  = NUM_BLOCKS;
 static word32 bench_size = BENCH_SIZE;
+#ifdef WOLFSSL_NO_MALLOC
+    /* No heap: file-scope static bench buffers, sized for bench_buf_size plus
+     * the +16 slack used at the alloc site below (buffers are used as-is; no
+     * runtime re-alignment beyond XGEN_ALIGN). */
+    #define BENCH_MAX_PAD (BENCH_CIPHER_ADD + 16)
+    static THREAD_LS_T XGEN_ALIGN byte bench_plain_buf[BENCH_SIZE + BENCH_MAX_PAD];
+    static THREAD_LS_T XGEN_ALIGN byte bench_cipher_buf[BENCH_SIZE + BENCH_MAX_PAD];
+#endif
 static int base2 = 1;
 static int digest_stream = 1;
 #ifndef NO_HMAC
@@ -3805,7 +3813,21 @@ static void* benchmarks_do(void* args)
     if (bench_buf_size % 16)
         bench_buf_size += 16 - (bench_buf_size % 16);
 
-#ifdef WOLFSSL_AFALG_XILINX_AES
+#ifdef WOLFSSL_NO_MALLOC
+    /* No heap: point at the static buffers, but bench_size can be raised at
+     * runtime (benchmark_configure / size paths), so check it fits the fixed
+     * capacity first - else later writes would overrun the buffer. */
+    if ((unsigned long)bench_buf_size + 16UL >
+            (unsigned long)sizeof(bench_plain_buf)) {
+        printf("%sBenchmark size %lu exceeds WOLFSSL_NO_MALLOC static buffer "
+               "(%lu); rebuild with a larger BENCH_SIZE\n", err_prefix,
+               (unsigned long)bench_buf_size,
+               (unsigned long)sizeof(bench_plain_buf));
+        goto exit;
+    }
+    bench_plain = bench_plain_buf;
+    bench_cipher = bench_cipher_buf;
+#elif defined(WOLFSSL_AFALG_XILINX_AES)
     bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
     bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
 #else
@@ -3918,7 +3940,8 @@ static void* benchmarks_do(void* args)
     }
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(HAVE_INTEL_QA_SYNC)
+#if (defined(WOLFSSL_ASYNC_CRYPT) || defined(HAVE_INTEL_QA_SYNC)) && \
+    !defined(WOLFSSL_NO_MALLOC)
     bench_key = (byte*)XMALLOC(sizeof(bench_key_buf),
                                HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     bench_iv = (byte*)XMALLOC(sizeof(bench_iv_buf),
@@ -4744,9 +4767,12 @@ static void* benchmarks_do(void* args)
 
 exit:
     /* free benchmark buffers */
+#ifndef WOLFSSL_NO_MALLOC
+    /* under WOLFSSL_NO_MALLOC these point at file-scope static buffers */
     XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-#ifdef WOLFSSL_ASYNC_CRYPT
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 #endif
