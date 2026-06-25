@@ -172,12 +172,16 @@ int SetTsiptlsKey()
 
 #endif
 
+extern void sci2_uart_init(void);
+
 void main(void)
 {
     int i = 0;
     int ret;
     int doClientCheck = 0;
     uint32_t channel;
+
+    sci2_uart_init();  /* route printf → SCI2 UART (P13/TXD2, 19200 baud) */
 
 #if defined(SIMPLE_TCP_CLIENT)
     int cipherlist_sz = 1;
@@ -234,6 +238,7 @@ void main(void)
          printf("wolfCrypt_Init failed %d\n", ret);
     }
 
+    sci2_uart_init();  /* re-init: TSIP may change PCLKB during wolfCrypt_Init */
     printf("Start wolfCrypt Test\n");
     wolfcrypt_test(args);
     printf("End wolfCrypt Test\n");

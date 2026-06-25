@@ -364,7 +364,7 @@ static int TSIPHashUpdate(wolfssl_TSIP_Hash* hash, const byte* data, word32 sz)
 
 static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
 {
-    int ret;
+    int ret = WC_HW_E;
     void* heap;
     tsip_sha_md5_handle_t handle;
     uint32_t sz;
@@ -400,11 +400,18 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
             ret = Final(&handle, out, (uint32_t*)&sz);
             if (ret != TSIP_SUCCESS || sz != outSz) {
                 tsip_hw_unlock();
-                return ret;
+                return (ret == TSIP_SUCCESS) ? WC_HW_E : ret;
             }
+        }
+        else {
+            ret = WC_HW_E;
         }
     }
     tsip_hw_unlock();
+
+    if (ret != 0) {
+        return ret;
+    }
 
     TSIPHashFree(hash);
     return TSIPHashInit(hash, heap, 0, hash->sha_type);
@@ -412,7 +419,7 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
 
 static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
 {
-    int ret;
+    int ret = WC_HW_E;
     tsip_sha_md5_handle_t handle;
     uint32_t sz;
 
@@ -445,14 +452,17 @@ static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
             ret = Final(&handle, out, &sz);
             if (ret != TSIP_SUCCESS || sz != outSz) {
                 tsip_hw_unlock();
-                return ret;
+                return (ret == TSIP_SUCCESS) ? WC_HW_E : ret;
             }
+        }
+        else {
+            ret = WC_HW_E;
         }
     }
 
     tsip_hw_unlock();
 
-    return 0;
+    return ret;
 }
 
 static int TSIPHashCopy(wolfssl_TSIP_Hash* src, wolfssl_TSIP_Hash* dst)

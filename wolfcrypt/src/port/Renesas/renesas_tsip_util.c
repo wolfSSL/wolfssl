@@ -2459,7 +2459,8 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                         sizeof(tsip_rsa2048_public_key_index_t), NULL,
                         DYNAMIC_TYPE_RSA_BUFFER);
                 if (tuc->rsa2048pub_keyIdx == NULL) {
-                    return MEMORY_E;
+                    ret = MEMORY_E;
+                    break;
                 }
             #endif
                 err = R_TSIP_GenerateRsa2048PublicKeyIndex(
@@ -3220,8 +3221,10 @@ int wc_tsip_generateSessionKey(
                 if (enc->aes == NULL) {
                     enc->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap,
                                                     DYNAMIC_TYPE_CIPHER);
-                    if (enc->aes == NULL)
+                    if (enc->aes == NULL) {
+                        tsip_hw_unlock();
                         return MEMORY_E;
+                    }
                 }
 
                 ForceZero(enc->aes, sizeof(Aes));
@@ -3234,6 +3237,7 @@ int wc_tsip_generateSessionKey(
                         if (enc) {
                             XFREE(enc->aes, NULL, DYNAMIC_TYPE_CIPHER);
                         }
+                        tsip_hw_unlock();
                         return MEMORY_E;
                     }
                 }
