@@ -1271,7 +1271,12 @@ int test_wc_RsaFunctionCheckIn_OversizedModulus(void)
         flatCSz = (word32)encSz;
         XMEMSET(flatC, 0, flatCSz);
         ExpectIntEQ(wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
-            RSA_PRIVATE_DECRYPT, &rng), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+            RSA_PRIVATE_DECRYPT, &rng),
+    #if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
+                WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    #else
+                WC_NO_ERR_TRACE(RSA_OUT_OF_RANGE_E));
+    #endif
     }
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
