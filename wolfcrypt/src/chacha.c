@@ -136,7 +136,7 @@ Public domain.
 int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 {
 #if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
-    !defined(USE_RISCV_CHACHA_SPEEDUP)
+    !defined(USE_RISCV_CHACHA_SPEEDUP) && !defined(WOLFSSL_WIDE_BYTE)
     word32 temp[CHACHA_IV_WORDS];/* used for alignment of memory */
 #endif
 
@@ -156,6 +156,15 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 #if (!defined(USE_ARM_CHACHA_SPEEDUP) || defined(WOLFSSL_ARM_CHACHA_NEED_C)) && \
     !defined(USE_RISCV_CHACHA_SPEEDUP)
     {
+#ifdef WOLFSSL_WIDE_BYTE
+        /* inIv holds one octet per cell, so XMEMCPY into a word32[] would
+         * overflow; load the three little-endian nonce/counter words
+         * octet-wise instead. */
+        ctx->X[CHACHA_MATRIX_CNT_IV+0] = counter;
+        ctx->X[CHACHA_MATRIX_CNT_IV+1] = U8TO32_LITTLE(inIv + 0);
+        ctx->X[CHACHA_MATRIX_CNT_IV+2] = U8TO32_LITTLE(inIv + 4);
+        ctx->X[CHACHA_MATRIX_CNT_IV+3] = U8TO32_LITTLE(inIv + 8);
+#else
         XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
         /* block counter */
         ctx->X[CHACHA_MATRIX_CNT_IV+0] = counter;
@@ -165,6 +174,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
         ctx->X[CHACHA_MATRIX_CNT_IV+2] = LITTLE32(temp[1]);
         /* counter from nonce */
         ctx->X[CHACHA_MATRIX_CNT_IV+3] = LITTLE32(temp[2]);
+#endif
     }
 #endif
 
@@ -271,7 +281,11 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 x[CHACHA_CHUNK_WORDS],
 {
     word32 i;
 
-    XMEMCPY(x, state, CHACHA_CHUNK_BYTES);
+    /* Copy the word32[] state array by its cell size, not CHACHA_CHUNK_BYTES:
+     * that macro is an octet count (=64) for serialized keystream buffers, and
+     * XMEMCPY works in CHAR_BIT-sized cells, so using it here would over-copy
+     * (2x) on CHAR_BIT == 16 targets. See chacha.h CHACHA_CHUNK_BYTES note. */
+    XMEMCPY(x, state, CHACHA_CHUNK_WORDS * sizeof(word32));
 
     for (i = (ROUNDS); i > 0; i -= 2) {
         QUARTERROUND(0, 4,  8, 12)
@@ -317,17 +331,33 @@ extern void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
 static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                                     word32 bytes)
 {
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A C byte is wider than an octet here, so the keystream cannot be aliased
+     * as both word32 and byte through a union; generate the 16 state words and
+     * serialize them little-endian into a one-octet-per-cell byte buffer. */
+    word32 ks32[CHACHA_CHUNK_WORDS];
+    byte   sbuf[CHACHA_CHUNK_BYTES];
+    byte*  state = sbuf;
+    #define WC_CHACHA_GEN_STREAM()                                  \
+        do {                                                        \
+            wc_Chacha_wordtobyte(ks32, ctx->X);                     \
+            BytesFromWordsLE32(sbuf, ks32, CHACHA_CHUNK_BYTES);     \
+        } while (0)
+#else
     union {
         byte state[CHACHA_CHUNK_BYTES];
         word32 state32[CHACHA_CHUNK_WORDS];
         wolfssl_word align_word; /* align for xorbufout */
     } tmp;
+    byte* state = tmp.state;
+    #define WC_CHACHA_GEN_STREAM() wc_Chacha_wordtobyte(tmp.state32, ctx->X)
+#endif
 
     /* handle left overs */
     if (bytes > 0 && ctx->left > 0) {
         word32 processed = min(bytes, ctx->left);
-        wc_Chacha_wordtobyte(tmp.state32, ctx->X); /* recreate the stream */
-        xorbufout(c, m, tmp.state + CHACHA_CHUNK_BYTES - ctx->left, processed);
+        WC_CHACHA_GEN_STREAM(); /* recreate the stream */
+        xorbufout(c, m, state + CHACHA_CHUNK_BYTES - ctx->left, processed);
         ctx->left -= processed;
 
         /* Used up all of the stream that was left, increment the counter */
@@ -341,9 +371,9 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     }
 
     while (bytes >= CHACHA_CHUNK_BYTES) {
-        wc_Chacha_wordtobyte(tmp.state32, ctx->X);
+        WC_CHACHA_GEN_STREAM();
         ctx->X[CHACHA_MATRIX_CNT_IV] = PLUSONE(ctx->X[CHACHA_MATRIX_CNT_IV]);
-        xorbufout(c, m, tmp.state, CHACHA_CHUNK_BYTES);
+        xorbufout(c, m, state, CHACHA_CHUNK_BYTES);
         bytes -= CHACHA_CHUNK_BYTES;
         c += CHACHA_CHUNK_BYTES;
         m += CHACHA_CHUNK_BYTES;
@@ -353,10 +383,11 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         /* in this case there will always be some left over since bytes is less
          * than CHACHA_CHUNK_BYTES, so do not increment counter after getting
          * stream in order for the stream to be recreated on next call */
-        wc_Chacha_wordtobyte(tmp.state32, ctx->X);
-        xorbufout(c, m, tmp.state, bytes);
+        WC_CHACHA_GEN_STREAM();
+        xorbufout(c, m, state, bytes);
         ctx->left = CHACHA_CHUNK_BYTES - bytes;
     }
+    #undef WC_CHACHA_GEN_STREAM
 }
 #endif /* !USE_INTEL_CHACHA_SPEEDUP */
 
