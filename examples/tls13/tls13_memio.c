@@ -1,4 +1,4 @@
-/* tinytls13_smoke.c
+/* tls13_memio.c
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -19,25 +19,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Self-contained TLS 1.3 handshake smoke test for the tiny TLS 1.3 profile.
+/* Self-contained TLS 1.3 handshake over an in-memory transport.
  *
  * Single process, no sockets, no threads (SINGLE_THREADED safe): the client
  * and server WOLFSSL objects are wired together through two in-memory byte
  * queues, and the handshake is driven to completion in one loop. It exercises
  * the real TLS 1.3 handshake state machine for builds where the example/unit
- * test harness is not available, e.g. --enable-tinytls13=psk,p256
- * --disable-examples.
+ * test harness is not available, e.g. a minimal --disable-examples build.
  *
- * On the PSK floor it runs a PSK + ECDHE handshake. On the cert profile
- * (WOLFSSL_TINY_TLS13_CERT) it runs a certificate handshake: the server
- * presents an ECDSA P-256 certificate and the client validates it, driving
- * the Certificate / CertificateVerify path. Cert files default to ../certs
- * (the layout used by parallel-make-check.py builds); pass a directory as
- * argv[1] to override.
+ * By default it runs the minimal PSK + ECDHE handshake (no X.509). On a cert
+ * build (WOLFSSL_TINY_TLS13_CERT) it runs a certificate handshake instead: the
+ * server presents an ECDSA P-256 certificate and the client validates it,
+ * driving the Certificate / CertificateVerify path. Cert files default to
+ * ../certs (the layout used by parallel-make-check.py builds); pass a
+ * directory as argv[3] to override.
  *
- * Build against a static tiny build and run:
- *   cc -I<build> -I<src> tinytls13_smoke.c <build>/src/.libs/libwolfssl.a -lm \
- *      -o tinytls13_smoke && ./tinytls13_smoke
+ * Build against a static build and run:
+ *   cc -I<build> -I<src> tls13_memio.c <build>/src/.libs/libwolfssl.a -lm \
+ *      -o tls13_memio && ./tls13_memio
  */
 
 #include <wolfssl/options.h>
@@ -225,12 +224,12 @@ int main(int argc, char** argv)
 
     if (cdone && sdone &&
             XSTRCMP(wolfSSL_get_version(c), "TLSv1.3") == 0) {
-        printf("tinytls13 handshake OK: %s %s\n",
+        printf("tls13_memio handshake OK: %s %s\n",
             wolfSSL_get_version(c), wolfSSL_get_cipher(c));
         ret = 0;
     }
     else {
-        printf("tinytls13 handshake FAILED (client err %d, server err %d)\n",
+        printf("tls13_memio handshake FAILED (client err %d, server err %d)\n",
             wolfSSL_get_error(c, cret), wolfSSL_get_error(s, sret));
     }
 
