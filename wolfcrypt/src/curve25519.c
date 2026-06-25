@@ -710,10 +710,12 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         return ECC_BAD_ARG_E;
     }
 
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
     /* avoid implementation fingerprinting - make sure signed bit is not set */
     if (public_key->p.point[CURVE25519_KEYSIZE-1] & 0x80) {
         return ECC_BAD_ARG_E;
     }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     if (private_key->devId != INVALID_DEVID) {
@@ -768,15 +770,24 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         else
     #endif /* WOLFSSL_SE050 */
         {
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            byte* pubVal = public_key->p.point;
+        #else
+            byte pubVal[CURVE25519_KEYSIZE];
+
+            XMEMCPY(pubVal, public_key->p.point, CURVE25519_KEYSIZE);
+            pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+        #endif
+
 #ifndef WOLFSSL_CURVE25519_BLINDING
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
-            ret = curve25519(o.point, private_key->k, public_key->p.point);
+            ret = curve25519(o.point, private_key->k, pubVal);
 
             RESTORE_VECTOR_REGISTERS();
 #else
-            ret = curve25519_smul_blind(o.point, private_key->k,
-                      public_key->p.point, private_key->rng);
+            ret = curve25519_smul_blind(o.point, private_key->k, pubVal,
+                      private_key->rng);
 #endif
         }
 #endif /* FREESCALE_LTC_ECC */
