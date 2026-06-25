@@ -12066,32 +12066,8 @@ int wc_MlDsaKey_ExportKey(wc_MlDsaKey* key, byte* priv, word32 *privSz,
 
 #endif /* WOLFSSL_MLDSA_PRIVATE_KEY */
 
-#ifndef WOLFSSL_MLDSA_NO_ASN1
-
-/* Maps ASN.1 OID to wolfCrypt security level macros */
-static int mapOidToSecLevel(int oid)
-{
-    switch (oid) {
-        case ML_DSA_44k:
-            return WC_ML_DSA_44;
-        case ML_DSA_65k:
-            return WC_ML_DSA_65;
-        case ML_DSA_87k:
-            return WC_ML_DSA_87;
-#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
-        case DILITHIUM_LEVEL2k:
-            return WC_ML_DSA_44_DRAFT;
-        case DILITHIUM_LEVEL3k:
-            return WC_ML_DSA_65_DRAFT;
-        case DILITHIUM_LEVEL5k:
-            return WC_ML_DSA_87_DRAFT;
-#endif
-        default:
-            return ASN_UNKNOWN_OID_E;
-    }
-}
-
-/* Get OID sum from ML-DSA key */
+/* Get OID sum from ML-DSA key. No ASN.1 dependency, so available regardless
+ * of WOLFSSL_MLDSA_NO_ASN1. */
 int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat) {
     int ret = 0;
 
@@ -12125,6 +12101,31 @@ int mldsa_get_oid_sum(wc_MlDsaKey* key, int* keyFormat) {
     }
 
     return ret;
+}
+
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+
+/* Maps ASN.1 OID to wolfCrypt security level macros */
+static int mapOidToSecLevel(int oid)
+{
+    switch (oid) {
+        case ML_DSA_44k:
+            return WC_ML_DSA_44;
+        case ML_DSA_65k:
+            return WC_ML_DSA_65;
+        case ML_DSA_87k:
+            return WC_ML_DSA_87;
+#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+            return WC_ML_DSA_44_DRAFT;
+        case DILITHIUM_LEVEL3k:
+            return WC_ML_DSA_65_DRAFT;
+        case DILITHIUM_LEVEL5k:
+            return WC_ML_DSA_87_DRAFT;
+#endif
+        default:
+            return ASN_UNKNOWN_OID_E;
+    }
 }
 
 #if defined(WOLFSSL_MLDSA_PRIVATE_KEY)
@@ -12514,13 +12515,10 @@ static int mldsa_oid_to_level(const byte* oid, word32 oidLen, byte* level)
  *                            input, the level will be detected from the DER
  *                            file based on the algorithm OID, appropriately
  *                            decoded, then updated in the key structure on
- *                            output. Auto-detection is not supported for
- *                            FIPS 204 draft mode unless WOLFSSL_MLDSA_NO_ASN1
- *                            is also defined.
+ *                            output.
  * @param [in]      inSz      Total size of data in array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
- * @return  BAD_FUNC_ARG when level not set and auto-detection unsupported.
  * @return  Other negative on parse error.
  */
 int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
@@ -12554,8 +12552,13 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
 
     #if !defined(WOLFSSL_MLDSA_NO_ASN1)
             /* Get OID sum for level. */
+            if (key->level == 0) { /* Check first, because key->params will
+                                   * be NULL when key->level = 0 */
+                /* Level not set by caller, decode from DER */
+                keyType = ANONk; /* 0, not a valid key type in this situation*/
+            }
         #if defined(WOLFSSL_MLDSA_FIPS204_DRAFT)
-            if (key->params == NULL) {
+            else if (key->params == NULL) {
                 ret = BAD_FUNC_ARG;
             }
             else if (key->params->level == WC_ML_DSA_44_DRAFT) {
@@ -12567,9 +12570,8 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
             else if (key->params->level == WC_ML_DSA_87_DRAFT) {
                 keyType = DILITHIUM_LEVEL5k;
             }
-            else
         #endif
-            if (key->level == WC_ML_DSA_44) {
+            else if (key->level == WC_ML_DSA_44) {
                 keyType = ML_DSA_44k;
             }
             else if (key->level == WC_ML_DSA_65) {
@@ -12579,8 +12581,7 @@ int wc_MlDsaKey_PublicKeyDecode(wc_MlDsaKey* key, const byte* input,
                 keyType = ML_DSA_87k;
             }
             else {
-                /* Level not set by caller, decode from DER */
-                keyType = ANONk; /* 0, not a valid key type in this situation*/
+                ret = BAD_FUNC_ARG;
             }
             if (ret == 0) {
                 /* Decode the asymmetric key and get out public key data. */

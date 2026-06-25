@@ -3056,13 +3056,8 @@ int test_mldsa_der(void)
     /* When security level is not set, we attempt to parse it from DER. Since
      * the supplied DER is invalid, this should fail with ASN parsing error */
     idx = 0;
-#ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
-    ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, der, pubDerLen, &idx),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#else
     ExpectIntEQ(wc_MlDsaKey_PublicKeyDecode(key, der, pubDerLen, &idx),
                 WC_NO_ERR_TRACE(ASN_PARSE_E));
-#endif
     idx = 0;
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(key, der, privDerLen, &idx),

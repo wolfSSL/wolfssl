@@ -1001,6 +1001,8 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     word32 keyIdx = 0;
     int isMlDsa = 0;
     int i, numLevels, rc;
+    int oidSum = 0;
+    int ret;
     WC_DECLARE_VAR(mldsa, wc_MlDsaKey, 1, NULL);
 
 #if !defined(WOLFSSL_MLDSA_PRIVATE_KEY)
@@ -1064,6 +1066,16 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         }
     }
 
+    if (isMlDsa) {
+        /* Level is already known from the successful import/decode above -
+         * grab the OID now so callers don't need to re-decode the key
+         * later just to recover it (e.g. wolfSSL_X509_verify()). */
+        int keyFormat = 0;
+        if (mldsa_get_oid_sum(mldsa, &keyFormat) == 0) {
+            oidSum = keyFormat;
+        }
+    }
+
     wc_MlDsaKey_Free(mldsa);
     WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
 
@@ -1072,7 +1084,11 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     }
 
     /* Copy the consumed DER into pkey->pkey.ptr when the input was DER */
-    return d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
+    ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
+    if ((ret == 1) && (out != NULL) && (*out != NULL) && (oidSum != 0)) {
+        WOLFSSL_ATOMIC_STORE((*out)->mldsaOID, oidSum);
+    }
+    return ret;
 }
 #endif /* WOLFSSL_HAVE_MLDSA */
 

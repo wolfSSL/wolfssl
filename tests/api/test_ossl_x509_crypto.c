@@ -82,6 +82,7 @@ int test_wolfSSL_X509_check_private_key_mldsa(void)
     !defined(NO_BIO) && !defined(NO_CHECK_PRIVATE_KEY) && \
     defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)) && \
     (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_65) || \
      !defined(WOLFSSL_NO_ML_DSA_87))
@@ -249,6 +250,109 @@ int test_wolfSSL_X509_verify(void)
 
     wolfSSL_FreeX509(ca);
     wolfSSL_FreeX509(serv);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify must use the verifying key's own ML-DSA level, not the leaf's. */
+int test_wolfSSL_X509_verify_mldsa_cross_level(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_65) && \
+    !defined(WOLFSSL_NO_ML_DSA_87)
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* leaf = NULL;
+    WOLFSSL_X509* wrongLevelCert = NULL;
+    WOLFSSL_EVP_PKEY* caPubKey = NULL;
+    WOLFSSL_EVP_PKEY* d2iPubKey = NULL;
+    WOLFSSL_EVP_PKEY* wrongLevelPubKey = NULL;
+    unsigned char buf[4096];
+    const unsigned char* pt = NULL;
+    int bufSz;
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(
+        "./certs/mldsa/mldsa87-ca-cert.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(
+        "./certs/mldsa/mldsa65-leaf87ca-cert.der", WOLFSSL_FILETYPE_ASN1));
+
+    ExpectNotNull(caPubKey = wolfSSL_X509_get_pubkey(ca));
+    ExpectIntEQ(wolfSSL_X509_verify(leaf, caPubKey), WOLFSSL_SUCCESS);
+
+    /* Same key via d2i_PUBKEY (raw SPKI, no cert). */
+    bufSz = (int)sizeof(buf);
+    ExpectIntEQ(wolfSSL_X509_get_pubkey_buffer(ca, buf, &bufSz),
+        WOLFSSL_SUCCESS);
+    pt = buf;
+    ExpectNotNull(d2iPubKey = wolfSSL_d2i_PUBKEY(NULL, &pt, bufSz));
+    ExpectIntEQ(wolfSSL_X509_verify(leaf, d2iPubKey), WOLFSSL_SUCCESS);
+
+    /* Wrong-level key must fail. */
+    ExpectNotNull(wrongLevelCert = wolfSSL_X509_load_certificate_file(
+        "./certs/mldsa/mldsa44-cert.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull(wrongLevelPubKey = wolfSSL_X509_get_pubkey(wrongLevelCert));
+    ExpectIntEQ(wolfSSL_X509_verify(leaf, wrongLevelPubKey),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    wolfSSL_EVP_PKEY_free(caPubKey);
+    wolfSSL_EVP_PKEY_free(d2iPubKey);
+    wolfSSL_EVP_PKEY_free(wrongLevelPubKey);
+    wolfSSL_FreeX509(ca);
+    wolfSSL_FreeX509(leaf);
+    wolfSSL_FreeX509(wrongLevelCert);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* EVP_PKCS82PKEY() decodes the DER itself (via d2iTryMlDsaKey()), which
+ * already knows the OID from that decode and stashes it on the pkey, so
+ * wolfSSL_X509_verify() has what it needs even though this pkey was never
+ * loaded from a cert. */
+int test_wolfSSL_X509_verify_mldsa_privkey_pkey(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_BIO) && \
+    defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)) && \
+    !defined(WOLFSSL_NO_ML_DSA_44)
+    PKCS8_PRIV_KEY_INFO* pt = NULL;
+    EVP_PKEY* pkey = NULL;
+    X509* x509 = NULL;
+    BIO* bio = NULL;
+    byte* buf = NULL;
+    size_t sz = 0;
+
+    ExpectIntEQ(load_file("./certs/mldsa/mldsa44-key.pem", &buf, &sz), 0);
+    ExpectNotNull(bio = BIO_new_mem_buf((void*)buf, (int)sz));
+    ExpectNotNull(pt = d2i_PKCS8_PRIV_KEY_INFO_bio(bio, NULL));
+    ExpectNotNull(pkey = EVP_PKCS82PKEY(pt));
+    if (pkey != NULL) {
+        /* Not loaded from a cert, but d2iTryMlDsaKey() already decoded the
+         * DER once to build this pkey, so it stashes the OID it already
+         * knows instead of leaving it to be rediscovered later. */
+        ExpectIntEQ(WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID), ML_DSA_44k);
+        ExpectNotNull(pkey->pkey.ptr);
+        ExpectIntGT(pkey->pkey_sz, 0);
+    }
+
+    ExpectNotNull(x509 = X509_load_certificate_file(
+        "./certs/mldsa/mldsa44-cert.der", SSL_FILETYPE_ASN1));
+
+    /* Fails the actual signature check (this is a private key, not the
+     * cert's public key), but must not hit the "missing key OID"
+     * FATAL_ERROR path. */
+    ExpectIntEQ(wolfSSL_X509_verify(x509, pkey),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    X509_free(x509);
+    EVP_PKEY_free(pkey);
+    PKCS8_PRIV_KEY_INFO_free(pt);
+    BIO_free(bio);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }

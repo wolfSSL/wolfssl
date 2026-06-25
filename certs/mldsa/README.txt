@@ -36,3 +36,31 @@ using OpenSSL 3.5+:
 Regenerating the private-key variants requires producing each of the
 PKCS#8 shape options explicitly; OpenSSL's default output is the
 seed-and-expanded form.
+
+Cross-level chain (tests that verification uses the verifying key's own
+ML-DSA level, not the leaf's):
+  mldsa87-ca-cert.pem / .der         self-signed ML-DSA-87 CA certificate
+  mldsa87-ca-key.pem                 CA private key (PEM, seed-and-expanded)
+  mldsa65-leaf87ca-cert.pem / .der   ML-DSA-65 leaf certificate signed by the
+                                      ML-DSA-87 CA above
+  mldsa65-leaf87ca-key.pem           leaf private key (PEM, seed-and-expanded)
+
+Generated with OpenSSL 3.5+:
+
+  openssl genpkey -algorithm ML-DSA-87 -out mldsa87-ca-key.pem
+  openssl req -x509 -new -key mldsa87-ca-key.pem -days 3650 \
+      -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/CN=ML-DSA-87 CA" \
+      -out mldsa87-ca-cert.pem
+
+  openssl genpkey -algorithm ML-DSA-65 -out mldsa65-leaf87ca-key.pem
+  openssl req -new -key mldsa65-leaf87ca-key.pem \
+      -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/CN=ML-DSA-65 leaf signed by ML-DSA-87" \
+      -out leaf.csr
+  openssl x509 -req -in leaf.csr -CA mldsa87-ca-cert.pem \
+      -CAkey mldsa87-ca-key.pem -CAcreateserial -days 3650 \
+      -out mldsa65-leaf87ca-cert.pem
+
+  openssl x509 -in mldsa87-ca-cert.pem -outform DER \
+      -out mldsa87-ca-cert.der
+  openssl x509 -in mldsa65-leaf87ca-cert.pem -outform DER \
+      -out mldsa65-leaf87ca-cert.der

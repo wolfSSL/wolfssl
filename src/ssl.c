@@ -6911,7 +6911,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
         return (unsigned long)wc_GetErrorNodeErr();
 #else
-        return (unsigned long)(0 - NOT_COMPILED_IN);
+        return 0;
 #endif
     }
 #endif
@@ -12400,7 +12400,7 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
         return (unsigned long)ret;
     }
 #else
-    return (unsigned long)(0 - NOT_COMPILED_IN);
+    return 0;
 #endif
 }
 
@@ -13374,7 +13374,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
         return (unsigned long)ret;
     }
 #else
-    return (unsigned long)(0 - NOT_COMPILED_IN);
+    return 0;
 #endif
 }
 
