@@ -3913,7 +3913,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             } /* switch (extType) */
 
             /* make sure the extension fits in the remaining declared length */
-            if ((word16)(extLen + EXT_TYPE_SZ + LENGTH_SZ) > len) {
+            if ((word32)extLen + EXT_TYPE_SZ + LENGTH_SZ > len) {
                 SetError(SERVER_HELLO_INPUT_STR, error, session,
                          FATAL_ERROR_STATE);
                 return WOLFSSL_FATAL_ERROR;
