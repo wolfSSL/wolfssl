@@ -32,6 +32,20 @@
 #              checks, e.g. [["wolfcrypt/test/testwolfcrypt"]]
 #   comment    ignored; JSON has no comment syntax, so notes go here
 #
+# The pool is not wolfSSL-specific; these keys let any command ride it:
+#
+#   build      false skips configure/make/check, so the config is just its
+#              prepare+run commands (default true). Use it to run an
+#              arbitrary command across the pool.
+#   netns      true runs each command under "bwrap --unshare-net" (its own
+#              network namespace), so parallel network tests can't collide
+#              on ports (default false; needs bubblewrap).
+#   shards     fan the config out into N instances run as separate jobs,
+#              each with $SHARD (1..N) and $SHARDS=N in its environment and
+#              its own build-<name>-<k> dir, so a command can split work
+#              N ways (default 1). The pool (--threads) still bounds how
+#              many run at once, so N>threads load-balances dynamically.
+#
 # For example:
 #
 #   [
@@ -71,7 +85,7 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import NoReturn
 
@@ -94,9 +108,25 @@ class Config:
     # Whether "minutes" was given in the JSON (vs the 1.0 default); only an
     # explicit estimate is checked for >50% drift against the real time.
     minutes_provided: bool = False
+    # Generic-command extensions. Defaults keep a config behaving as a
+    # wolfSSL build. With build=false a config is just its prepare+run
+    # commands (no configure/make/check), so any command can ride the pool.
+    build: bool = True
+    # netns=true runs each command under "bwrap --unshare-net" so parallel
+    # network tests can't collide on ports (same isolation as the .test scripts).
+    netns: bool = False
+    # shards>1 fans the config out into that many instances, each run with
+    # $SHARD (1..N) and $SHARDS=N in its environment so the command can pick
+    # its slice of the work; each instance gets its own build-<name>-<k> dir.
+    shards: int = 1
+    # Extra environment for the commands (set by the shard fan-out).
+    env: dict[str, str] = field(default_factory=dict)
 
 SRCDIR = Path(__file__).resolve().parents[2]
 ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
+# Used by configs with "netns": true to give each command its own network
+# namespace (so parallel network tests can't collide on ports).
+BWRAP = shutil.which("bwrap")
 print_lock = threading.Lock()
 
 # Fail-fast state: the first failure sets stop_event (under fail_lock, so
@@ -162,7 +192,8 @@ def load_configs(opts: argparse.Namespace,
             error(f"{opts.json}: config entries must be objects: {entry!r}")
         unknown = set(entry) - {"name", "configure", "cc", "cflags",
                                 "ldflags", "minutes", "user_settings",
-                                "check", "prepare", "run", "comment"}
+                                "check", "prepare", "run", "comment",
+                                "build", "netns", "shards"}
         if unknown:
             error(f"{opts.json}: unknown key(s) in {entry.get('name', entry)!r}: "
                   f"{' '.join(sorted(unknown))}")
@@ -198,6 +229,12 @@ def load_configs(opts: argparse.Namespace,
         check = entry.get("check", True)
         if not isinstance(check, bool):
             error(f"{opts.json}: \"check\" must be a boolean in {name!r}")
+        for key in ("build", "netns"):
+            if not isinstance(entry.get(key, False), bool):
+                error(f"{opts.json}: \"{key}\" must be a boolean in {name!r}")
+        shards = entry.get("shards", 1)
+        if isinstance(shards, bool) or not isinstance(shards, int) or shards < 1:
+            error(f"{opts.json}: \"shards\" must be an integer >= 1 in {name!r}")
         cc = entry.get("cc", opts.cc or "")
         if not isinstance(cc, str):
             error(f"{opts.json}: \"cc\" must be a string in {name!r}")
@@ -215,7 +252,10 @@ def load_configs(opts: argparse.Namespace,
                               float(minutes), user_settings, check,
                               list(entry.get("prepare", [])),
                               list(entry.get("run", [])),
-                              minutes_provided="minutes" in entry))
+                              minutes_provided="minutes" in entry,
+                              build=entry.get("build", True),
+                              netns=entry.get("netns", False),
+                              shards=shards))
     if not configs:
         error(f"{opts.json}: no configs")
     return configs
@@ -323,16 +363,23 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                       lambda: shutil.copy(SRCDIR / cfg.user_settings,
                                           bdir / "user_settings.h")))
     steps += [(" ".join(cmd), cmd) for cmd in cfg.prepare]
-    steps += [("configure", configure), ("make", make)]
-    if cfg.check:
-        steps += [
-            # Prebuild the check programs without running any tests so
-            # "make check" below is pure test execution.
-            ("make check TESTS=", make + ["check", "TESTS="]),
-            ("private dirs", lambda: privatize_dirs(bdir, opts.private_dir)),
-            ("make check", ["make"] + flags + ["check"]),
-        ]
+    if cfg.build:
+        steps += [("configure", configure), ("make", make)]
+        if cfg.check:
+            steps += [
+                # Prebuild the check programs without running any tests so
+                # "make check" below is pure test execution.
+                ("make check TESTS=", make + ["check", "TESTS="]),
+                ("private dirs", lambda: privatize_dirs(bdir, opts.private_dir)),
+                ("make check", ["make"] + flags + ["check"]),
+            ]
     steps += [(" ".join(cmd), cmd) for cmd in cfg.run]
+    # With "netns", each command runs in its own network namespace; --chdir
+    # keeps the build dir as cwd inside the sandbox. CAP_NET_ADMIN lets the
+    # command configure that netns (bring interfaces up, add addresses).
+    netns = ([BWRAP, "--unshare-net", "--cap-add", "CAP_NET_ADMIN",
+              "--dev-bind", "/", "/", "--chdir", str(bdir)]
+             if cfg.netns and BWRAP else [])
     failed: str | None = None
     start = time.monotonic()
     log = bdir / "make-check.log"
@@ -363,12 +410,14 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                     failed = record_failure(step)
                     break
                 continue
+            cmd = netns + cmd
             print(f"+ {' '.join(cmd)}", file=logf, flush=True)
             # stdin=DEVNULL so a test that reads stdin sees EOF (as in CI)
             # instead of blocking forever on an interactive/socket stdin.
             proc = subprocess.Popen(cmd, cwd=bdir, stdout=logf,
                                     stderr=subprocess.STDOUT,
                                     stdin=subprocess.DEVNULL,
+                                    env={**os.environ, **cfg.env},
                                     start_new_session=True)
             with procs_lock:
                 live_procs.add(proc)
@@ -438,14 +487,21 @@ def summarize(results: list[tuple[Config, str | None, float]],
     # (serial configure/link/test phases show up here).
     busy_min = sum(minutes for _, _, minutes in results)
     ncpu = nproc()
+    thread_min = wall_min * nthreads
+    cpu_avail = wall_min * ncpu
+    # Guard the ratios against a zero wall time (e.g. every job a no-op, which
+    # can happen when there are more shards than work) so the line never
+    # divides by zero.
+    occupancy = 100 * busy_min / thread_min if thread_min else 0
+    cpu_util = 100 * cpu_min / cpu_avail if cpu_avail else 0
     lines += [
         "",
         f"{len(results)} configs in {wall_min:.1f} min on {nthreads} "
         f"threads / {ncpu} CPUs: "
-        f"thread occupancy {100 * busy_min / (wall_min * nthreads):.0f}% "
-        f"({busy_min:.1f} of {wall_min * nthreads:.1f} thread-min), "
-        f"CPU utilization {100 * cpu_min / (wall_min * ncpu):.0f}% "
-        f"({cpu_min:.1f} of {wall_min * ncpu:.1f} CPU-min)",
+        f"thread occupancy {occupancy:.0f}% "
+        f"({busy_min:.1f} of {thread_min:.1f} thread-min), "
+        f"CPU utilization {cpu_util:.0f}% "
+        f"({cpu_min:.1f} of {cpu_avail:.1f} CPU-min)",
     ]
     table = "\n".join(lines)
     print(table)
@@ -453,6 +509,18 @@ def summarize(results: list[tuple[Config, str | None, float]],
     if summary:
         with open(summary, "a") as f:
             print(f"### make check\n\n{table}", file=f)
+
+
+def shard_instances(cfg: Config) -> list[Config]:
+    # A config that asks for shards>1 becomes that many independent jobs: each
+    # gets its index as $SHARD (1..N) / $SHARDS=N and its own build-<name>-<k>
+    # dir, so its command can run one slice of the work. A config with the
+    # default shards=1 is left as a single unchanged job.
+    if cfg.shards <= 1:
+        return [cfg]
+    return [replace(cfg, name=f"{cfg.name}-{k}", shards=1,
+                    env={**cfg.env, "SHARD": str(k), "SHARDS": str(cfg.shards)})
+            for k in range(1, cfg.shards + 1)]
 
 
 def main() -> int:
@@ -537,6 +605,28 @@ def main() -> int:
             loads[i] += cfg.minutes
         selected = shards[k - 1]
 
+    # Replace each config with its shard instances (a no-op for shards=1),
+    # then re-sort so the pool still takes the longest jobs first. Done after
+    # --shard so a CI-level split and in-job fan-out compose.
+    expanded = []
+    for cfg in selected:
+        expanded.extend(shard_instances(cfg))
+    expanded.sort(key=lambda cfg: -cfg.minutes)
+    selected = expanded
+
+    # A fanned-out name (<name>-<k>) could collide with another config's name,
+    # which would make two jobs share a build-<name> dir and race. Catch it,
+    # like the duplicate-name check in load_configs.
+    names = [cfg.name for cfg in selected]
+    dups = sorted({n for n in names if names.count(n) > 1})
+    if dups:
+        p.error(f"config names collide after shard fan-out: {' '.join(dups)}")
+
+    if any(cfg.netns for cfg in selected) and not BWRAP:
+        p.error("netns requested but bwrap not found; install bubblewrap "
+                "(without it the commands share the host network namespace "
+                "and collide on ports)")
+
     if opts.list:
         for cfg in selected:
             print(f"{cfg.name} [{cfg.minutes:g} min]: "
@@ -546,7 +636,7 @@ def main() -> int:
         print(f"shard {opts.shard}: no configs to run")
         return 0
 
-    if not (SRCDIR / "configure").exists():
+    if any(cfg.build for cfg in selected) and not (SRCDIR / "configure").exists():
         subprocess.run(["./autogen.sh"], cwd=SRCDIR, check=True)
 
     nthreads = max(1, min(opts.threads, len(selected)))
