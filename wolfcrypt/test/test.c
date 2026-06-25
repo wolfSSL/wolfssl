@@ -34880,6 +34880,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     int L;
+    byte prk[WC_MAX_DIGEST_SIZE];
     byte okm1[42];
     byte ikm1[22] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                       0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
@@ -34944,7 +34945,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
     L = (int)sizeof(okm1);
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+#if !defined(HAVE_SELFTEST)
     ret = wc_HKDF_ex(WC_SHA, ikm1, 11, salt1, (word32)sizeof(salt1), info1,
                      (word32)sizeof(info1), okm1, (word32)L, HEAP_HINT, devId);
 #else
@@ -34956,7 +34957,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res2, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* HAVE_FIPS */
+#endif /* !HAVE_FIPS */
 #endif /* !NO_SHA */
 
 #ifndef NO_SHA256
@@ -34989,7 +34990,106 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
 
     if (XMEMCMP(okm1, res4, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
-#endif /* HAVE_FIPS */
+#endif /* !HAVE_FIPS */
+#endif /* !NO_SHA256 */
+
+#ifndef NO_SHA
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    ret = wc_HKDF_Extract_ex(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1),
+                             prk, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Extract(WC_SHA, NULL, 0, ikm1, (word32)sizeof(ikm1), prk);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    ret = wc_HKDF_Expand_ex(WC_SHA, prk, WC_SHA_DIGEST_SIZE, NULL, 0,
+                            okm1, (word32)L, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Expand(WC_SHA, prk, WC_SHA_DIGEST_SIZE, NULL, 0,
+                         okm1, (word32)L);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+#ifndef HAVE_FIPS
+    /* fips can't have key size under 14 bytes, salt is key too */
+#if !defined(HAVE_SELFTEST)
+    ret = wc_HKDF_Extract_ex(WC_SHA, salt1, (word32)sizeof(salt1), ikm1, 11,
+                             prk, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Extract(WC_SHA, salt1, (word32)sizeof(salt1), ikm1, 11, prk);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST)
+    ret = wc_HKDF_Expand_ex(WC_SHA, prk, WC_SHA_DIGEST_SIZE, info1,
+                     (word32)sizeof(info1), okm1, (word32)L, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Expand(WC_SHA, prk, WC_SHA_DIGEST_SIZE, info1,
+                     (word32)sizeof(info1), okm1, (word32)L);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(okm1, res2, (unsigned long)L) != 0)
+        return WC_TEST_RET_ENC_NC;
+#endif /* !HAVE_FIPS */
+#endif /* !NO_SHA */
+
+#ifndef NO_SHA256
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    ret = wc_HKDF_Extract_ex(WC_SHA256, NULL, 0, ikm1, (word32)sizeof(ikm1),
+                             prk, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Extract(WC_SHA256, NULL, 0, ikm1, (word32)sizeof(ikm1), prk);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    ret = wc_HKDF_Expand_ex(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, NULL, 0,
+                            okm1, (word32)L, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Expand(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, NULL, 0,
+                         okm1, (word32)L);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(okm1, res3, (unsigned long)L) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+#ifndef HAVE_FIPS
+    /* fips can't have key size under 14 bytes, salt is key too */
+#if !defined(HAVE_SELFTEST)
+    ret = wc_HKDF_Extract_ex(WC_SHA256, salt1, (word32)sizeof(salt1), ikm1,
+                             (word32)sizeof(ikm1), prk, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Extract(WC_SHA256, salt1, (word32)sizeof(salt1), ikm1,
+                          (word32)sizeof(ikm1), prk);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+#if !defined(HAVE_SELFTEST)
+    ret = wc_HKDF_Expand_ex(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, info1,
+                     (word32)sizeof(info1), okm1, (word32)L, HEAP_HINT, devId);
+#else
+    ret = wc_HKDF_Expand(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, info1,
+                         (word32)sizeof(info1), okm1, (word32)L);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(okm1, res4, (unsigned long)L) != 0)
+        return WC_TEST_RET_ENC_NC;
+#endif /* !HAVE_FIPS */
 #endif /* !NO_SHA256 */
 #endif /* !NO_SHA || !NO_SHA256 */
 
@@ -35003,8 +35103,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     ret = wc_HKDF_Extract(WC_SHA256, NULL, 0, NULL, 5, okm1);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
-#endif /* !NO_SHA256 && !HAVE_SELFTEST &&         */
-       /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
+    /* wc_HKDF_Expand bad arg: NULL out */
+    ret = wc_HKDF_Expand(WC_SHA256, prk, WC_SHA256_DIGEST_SIZE, NULL, 0,
+                         NULL, (word32)L);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+    /* wc_HKDF_Expand bad arg: NULL inKey with non-zero inKeySz */
+    ret = wc_HKDF_Expand(WC_SHA256, NULL, WC_SHA256_DIGEST_SIZE, NULL, 0,
+                         okm1, (word32)L);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+#endif /* !NO_SHA256 && !HAVE_SELFTEST               */
+       /* && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
     return 0;
 }
@@ -74536,6 +74646,36 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                           info->kdf.hkdf.salt, info->kdf.hkdf.saltSz,
                           info->kdf.hkdf.info, info->kdf.hkdf.infoSz,
                           info->kdf.hkdf.out, info->kdf.hkdf.outSz);
+        #endif
+        }
+        if (info->kdf.type == WC_KDF_TYPE_HKDF_EXTRACT) {
+        #if !defined(HAVE_SELFTEST) && \
+           (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+            ret = wc_HKDF_Extract_ex(info->kdf.hkdf_extract.hashType,
+                info->kdf.hkdf_extract.salt, info->kdf.hkdf_extract.saltSz,
+                info->kdf.hkdf_extract.inKey, info->kdf.hkdf_extract.inKeySz,
+                info->kdf.hkdf_extract.out,
+                NULL, INVALID_DEVID);
+        #else
+            ret = wc_HKDF_Extract(info->kdf.hkdf_extract.hashType,
+                info->kdf.hkdf_extract.salt, info->kdf.hkdf_extract.saltSz,
+                info->kdf.hkdf_extract.inKey, info->kdf.hkdf_extract.inKeySz,
+                info->kdf.hkdf_extract.out);
+        #endif
+        }
+        if (info->kdf.type == WC_KDF_TYPE_HKDF_EXPAND) {
+        #if !defined(HAVE_SELFTEST) && \
+           (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+            ret = wc_HKDF_Expand_ex(info->kdf.hkdf_expand.hashType,
+                info->kdf.hkdf_expand.inKey, info->kdf.hkdf_expand.inKeySz,
+                info->kdf.hkdf_expand.info, info->kdf.hkdf_expand.infoSz,
+                info->kdf.hkdf_expand.out, info->kdf.hkdf_expand.outSz,
+                NULL, INVALID_DEVID);
+        #else
+            ret = wc_HKDF_Expand(info->kdf.hkdf_expand.hashType,
+                info->kdf.hkdf_expand.inKey, info->kdf.hkdf_expand.inKeySz,
+                info->kdf.hkdf_expand.info, info->kdf.hkdf_expand.infoSz,
+                info->kdf.hkdf_expand.out, info->kdf.hkdf_expand.outSz);
         #endif
         }
     #endif /* HAVE_HKDF && !NO_HMAC */

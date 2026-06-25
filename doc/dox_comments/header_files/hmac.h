@@ -254,7 +254,8 @@ int wc_HKDF_Extract(
     \param saltSz length of the salt. Use 0 if not using a salt
     \param inKey pointer to the buffer containing the key to use for KDF
     \param inKeySz length of the input key
-    \param out pointer to the buffer in which to store the derived key
+    \param out pointer to the buffer in which to store the derived key. Must be
+    digest length per hash 'type'.  See wc_HmacSizeByType()
     \param heap  heap hint to use for memory. Can be NULL
     \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
@@ -275,6 +276,7 @@ int wc_HKDF_Extract(
     \sa wc_HKDF_Extract
     \sa wc_HKDF_Expand
     \sa wc_HKDF_Expand_ex
+    \sa wc_HmacSizeByType
 */
 int wc_HKDF_Extract_ex(
     int type,
