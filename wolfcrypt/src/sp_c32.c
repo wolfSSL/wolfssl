@@ -380,13 +380,13 @@ static void sp_2048_to_bin_72(sp_digit* r, byte* a)
     for (i=0; i<71 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint32)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint32)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 29) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -5313,13 +5313,13 @@ static void sp_3072_to_bin_106(sp_digit* r, byte* a)
     for (i=0; i<106 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint32)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint32)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 29) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -12915,13 +12915,13 @@ static void sp_4096_to_bin_142(sp_digit* r, byte* a)
     for (i=0; i<142 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint32)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint32)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 29) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;
@@ -25240,13 +25240,13 @@ static void sp_256_to_bin_9(sp_digit* r, byte* a)
     for (i=0; i<9 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)((sp_uint32)r[i] << s); /*lint !e9033*/
+        a[j--] |= (byte)(((sp_uint32)r[i] << s) & 0xFF); /*lint !e9033*/
         b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 29) {
-            a[j--] = (byte)(r[i] >> b);
+            a[j--] = (byte)((r[i] >> b) & 0xFF);
             b += 8;
             if (j < 0) {
                 break;

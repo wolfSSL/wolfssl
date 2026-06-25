@@ -109,6 +109,9 @@ void sc_reduce(byte* s)
 {
     sword64 t[24];
     sword64 carry;
+#ifdef WOLFSSL_WIDE_BYTE
+    int i;
+#endif
 
     t[ 0] = MASK_21 & (load_3(s +  0) >> 0);
     t[ 1] = MASK_21 & (load_4(s +  2) >> 5);
@@ -296,6 +299,11 @@ void sc_reduce(byte* s)
     s[29] = (byte)(t[11] >>  1);
     s[30] = (byte)(t[11] >>  9);
     s[31] = (byte)(t[11] >> 17);
+#ifdef WOLFSSL_WIDE_BYTE
+    /* CHAR_BIT != 8: (byte) does not truncate to an octet; mask each output. */
+    for (i = 0; i < 32; i++)
+        s[i] = WC_OCTET(s[i]);
+#endif
 }
 
 /*
@@ -313,6 +321,9 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     word32 ad[12], bd[12], cd[12];
     sword64 t[24];
     sword64 carry;
+#ifdef WOLFSSL_WIDE_BYTE
+    int i;
+#endif
 
     ad[ 0] = MASK_21 & (load_3(a +  0) >> 0);
     ad[ 1] = MASK_21 & (load_4(a +  2) >> 5);
@@ -616,6 +627,11 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     s[29] = (byte)(t[11] >>  1);
     s[30] = (byte)(t[11] >>  9);
     s[31] = (byte)(t[11] >> 17);
+#ifdef WOLFSSL_WIDE_BYTE
+    /* CHAR_BIT != 8: (byte) does not truncate to an octet; mask each output. */
+    for (i = 0; i < 32; i++)
+        s[i] = WC_OCTET(s[i]);
+#endif
 }
 #endif
 #else
@@ -974,7 +990,9 @@ static unsigned char equal(unsigned char b,unsigned char c)
 
 static unsigned char negative(signed char b)
 {
-  return ((unsigned char)b) >> 7;
+  /* Want bit 7 as 0/1.  Where a byte is wider than an octet (C28x) an
+   * (unsigned char) cast does not mask to 8 bits; WC_OCTET does (no-op on 8-bit). */
+  return (unsigned char)(WC_OCTET(b) >> 7);
 }
 
 static WC_INLINE void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b,
