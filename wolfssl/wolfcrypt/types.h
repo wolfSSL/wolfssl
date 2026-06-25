@@ -1802,6 +1802,17 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define ALIGN256 WOLFSSL_ALIGN(256)
 #endif
 
+/* Define the unaligned type modifier across different compilers */
+#if defined(__GNUC__) || defined(__clang__)
+    /* Works on GCC 2.0+ and all versions of Clang */
+    #define MAYBE_UNALIGNED __attribute__((aligned(1)))
+#elif defined(_MSC_VER)
+    /* MSVC handles unaligned reads via hardware or __unaligned keyword */
+    #define MAYBE_UNALIGNED __unaligned
+#else
+    #define MAYBE_UNALIGNED
+#endif
+
 #if !defined(PEDANTIC_EXTENSION)
     #if defined(__GNUC__)
         #define PEDANTIC_EXTENSION __extension__

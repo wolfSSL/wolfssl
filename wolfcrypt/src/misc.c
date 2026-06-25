@@ -231,30 +231,52 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 #endif
 }
 
+#if ((defined(WOLFSSL_AARCH64_BUILD) || defined(__aarch64__)) && \
+     defined(__APPLE__)) || \
+    defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_X86_BUILD)
+    #ifndef WOLFSSL_RW_UNALIGNED_32
+        #define WOLFSSL_RW_UNALIGNED_32
+    #endif
+#endif
+#ifdef WOLFSSL_RW_UNALIGNED_32
+typedef word32 MAYBE_UNALIGNED uword32;
+#endif
+
 WC_MISC_STATIC WC_INLINE word32 readUnalignedWord32(const byte *in)
 {
-    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0)
+#ifndef WOLFSSL_RW_UNALIGNED_32
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0) {
         return *(const word32 *)in;
+    }
     else {
         word32 out = 0; /* else CONFIG_FORTIFY_SOURCE -Wmaybe-uninitialized */
         XMEMCPY(&out, in, sizeof(out));
         return out;
     }
+#else
+    return *(const uword32 *)in;
+#endif
 }
 
 WC_MISC_STATIC WC_INLINE word32 writeUnalignedWord32(void *out, word32 in)
 {
-    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0)
+#ifndef WOLFSSL_RW_UNALIGNED_32
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0) {
         *(word32 *)out = in;
+    }
     else {
         XMEMCPY(out, &in, sizeof(in));
     }
+#else
+    *(uword32 *)out = in;
+#endif
     return in;
 }
 
 WC_MISC_STATIC WC_INLINE void readUnalignedWords32(word32 *out, const byte *in,
                                                    size_t count)
 {
+#ifndef WOLFSSL_RW_UNALIGNED_32
     if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0) {
         const word32 *in_word32 = (const word32 *)in;
         while (count-- > 0)
@@ -263,11 +285,17 @@ WC_MISC_STATIC WC_INLINE void readUnalignedWords32(word32 *out, const byte *in,
     else {
         XMEMCPY(out, in, count * sizeof(*out));
     }
+#else
+    const uword32 *in_word32 = (const uword32 *)in;
+    while (count-- > 0)
+        *out++ = *in_word32++;
+#endif
 }
 
 WC_MISC_STATIC WC_INLINE void writeUnalignedWords32(byte *out, const word32 *in,
                                                     size_t count)
 {
+#ifndef WOLFSSL_RW_UNALIGNED_32
     if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0) {
         word32 *out_word32 = (word32 *)out;
         while (count-- > 0)
@@ -276,34 +304,61 @@ WC_MISC_STATIC WC_INLINE void writeUnalignedWords32(byte *out, const word32 *in,
     else {
         XMEMCPY(out, in, count * sizeof(*in));
     }
+#else
+    uword32 *out_word32 = (uword32 *)out;
+    while (count-- > 0)
+        *out_word32++ = *in++;
+#endif
 }
 
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
 
+#if ((defined(WOLFSSL_AARCH64_BUILD) || defined(__aarch64__)) && \
+     defined(__APPLE__)) || \
+    defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_X86_BUILD)
+    #ifndef WOLFSSL_RW_UNALIGNED_64
+        #define WOLFSSL_RW_UNALIGNED_64
+    #endif
+#endif
+#ifdef WOLFSSL_RW_UNALIGNED_64
+typedef word64 MAYBE_UNALIGNED uword64;
+#endif
+
 WC_MISC_STATIC WC_INLINE word64 readUnalignedWord64(const byte *in)
 {
-    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0)
+#ifndef WOLFSSL_RW_UNALIGNED_64
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
         return *(const word64 *)in;
+    }
     else {
         word64 out = 0; /* else CONFIG_FORTIFY_SOURCE -Wmaybe-uninitialized */
         XMEMCPY(&out, in, sizeof(out));
         return out;
     }
+#else
+    return *(const uword64 *)in;
+#endif
 }
 
 WC_MISC_STATIC WC_INLINE word64 writeUnalignedWord64(void *out, word64 in)
 {
-    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0)
+#ifndef WOLFSSL_RW_UNALIGNED_64
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
         *(word64 *)out = in;
+    }
     else {
         XMEMCPY(out, &in, sizeof(in));
     }
+#else
+    *(uword64 *)out = in;
+#endif
     return in;
 }
 
 WC_MISC_STATIC WC_INLINE void readUnalignedWords64(word64 *out, const byte *in,
                                                    size_t count)
 {
+#ifndef WOLFSSL_RW_UNALIGNED_64
     if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
         const word64 *in_word64 = (const word64 *)in;
         while (count-- > 0)
@@ -312,11 +367,17 @@ WC_MISC_STATIC WC_INLINE void readUnalignedWords64(word64 *out, const byte *in,
     else {
         XMEMCPY(out, in, count * sizeof(*out));
     }
+#else
+    const uword64 *in_word64 = (const uword64 *)in;
+    while (count-- > 0)
+        *out++ = *in_word64++;
+#endif
 }
 
 WC_MISC_STATIC WC_INLINE void writeUnalignedWords64(byte *out, const word64 *in,
                                                     size_t count)
 {
+#ifndef WOLFSSL_RW_UNALIGNED_64
     if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
         word64 *out_word64 = (word64 *)out;
         while (count-- > 0)
@@ -325,6 +386,11 @@ WC_MISC_STATIC WC_INLINE void writeUnalignedWords64(byte *out, const word64 *in,
     else {
         XMEMCPY(out, in, count * sizeof(*in));
     }
+#else
+    uword64 *out_word64 = (uword64 *)out;
+    while (count-- > 0)
+        *out_word64++ = *in++;
+#endif
 }
 
 WC_MISC_STATIC WC_INLINE word64 rotlFixed64(word64 x, word64 y)
