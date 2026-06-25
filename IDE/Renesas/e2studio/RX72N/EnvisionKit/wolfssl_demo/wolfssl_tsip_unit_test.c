@@ -1506,12 +1506,192 @@ int tsip_crypt_Sha_AesCbcGcm_multitest(void)
 #endif
 
 
+#if !defined(NO_SHA256) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+static int tsip_sha256_hash_test(int prnt)
+{
+    wc_Sha256 sha;
+    byte hash1[WC_SHA256_DIGEST_SIZE];
+    byte hash2[WC_SHA256_DIGEST_SIZE];
+    int  ret = 0;
+
+    /* SHA-256("abc") */
+    static const byte msg[] = { 0x61, 0x62, 0x63 };
+    static const byte expected[WC_SHA256_DIGEST_SIZE] = {
+        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
+        0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
+        0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
+        0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad
+    };
+
+    if (prnt)
+        printf(" tsip_sha256_hash_test() ");
+
+    /* wc_Sha256Final: correct digest */
+    ret = wc_InitSha256_ex(&sha, NULL, 0);
+    if (ret != 0) {
+        ret = -1;
+        goto out;
+    }
+    ret = wc_Sha256Update(&sha, msg, sizeof(msg));
+    if (ret != 0) {
+        ret = -2;
+        goto out;
+    }
+    XMEMSET(hash1, 0, sizeof(hash1));
+    ret = wc_Sha256Final(&sha, hash1);
+    if (ret != 0) {
+        ret = -3;
+        goto out;
+    }
+    if (XMEMCMP(hash1, expected, WC_SHA256_DIGEST_SIZE) != 0) {
+        ret = -4; goto out;
+    }
+
+    /* wc_Sha256GetHash: non-destructive, same digest on repeated calls */
+    ret = wc_Sha256Update(&sha, msg, sizeof(msg));
+    if (ret != 0) {
+        ret = -5;
+        goto out;
+    }
+    XMEMSET(hash1, 0, sizeof(hash1));
+    ret = wc_Sha256GetHash(&sha, hash1);
+    if (ret != 0) {
+        ret = -6;
+        goto out;
+    }
+    if (XMEMCMP(hash1, expected, WC_SHA256_DIGEST_SIZE) != 0) {
+        ret = -7;
+        goto out;
+    }
+    XMEMSET(hash2, 0, sizeof(hash2));
+    ret = wc_Sha256GetHash(&sha, hash2);
+    if (ret != 0) {
+        ret = -8;
+        goto out;
+    }
+    if (XMEMCMP(hash1, hash2, WC_SHA256_DIGEST_SIZE) != 0) {
+        ret = -9; goto out;
+    }
+
+    /* Final after GetHash must also match */
+    XMEMSET(hash2, 0, sizeof(hash2));
+    ret = wc_Sha256Final(&sha, hash2);
+    if (ret != 0) {
+        ret = -10;
+        goto out;
+    }
+    if (XMEMCMP(hash1, hash2, WC_SHA256_DIGEST_SIZE) != 0) {
+        ret = -11; goto out;
+    }
+
+out:
+    if (prnt) {
+        if (ret != 0)
+            printf("(code=%d) ", ret);
+        RESULT_STR(ret)
+    }
+    return ret;
+}
+#endif /* !NO_SHA256 && !NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH */
+
+#if !defined(NO_SHA) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+static int tsip_sha1_hash_test(int prnt)
+{
+    wc_Sha sha;
+    byte hash1[WC_SHA_DIGEST_SIZE];
+    byte hash2[WC_SHA_DIGEST_SIZE];
+    int  ret = 0;
+
+    /* NIST FIPS 180-4: SHA-1("abc") */
+    static const byte msg[] = { 0x61, 0x62, 0x63 };
+    static const byte expected[WC_SHA_DIGEST_SIZE] = {
+        0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81, 0x6a,
+        0xba, 0x3e, 0x25, 0x71, 0x78, 0x50, 0xc2, 0x6c,
+        0x9c, 0xd0, 0xd8, 0x9d
+    };
+
+    if (prnt)
+        printf(" tsip_sha1_hash_test() ");
+
+    /* wc_ShaFinal: correct digest */
+    ret = wc_InitSha_ex(&sha, NULL, 0);
+    if (ret != 0) {
+        ret = -1;
+        goto out;
+    }
+    
+    ret = wc_ShaUpdate(&sha, msg, sizeof(msg));
+    if (ret != 0) {
+        ret = -2;
+        goto out;
+    }
+    
+    XMEMSET(hash1, 0, sizeof(hash1));
+    ret = wc_ShaFinal(&sha, hash1);
+    if (ret != 0) {
+        ret = -3;
+        goto out;
+    }
+    if (XMEMCMP(hash1, expected, WC_SHA_DIGEST_SIZE) != 0) {
+        ret = -4;
+        goto out;
+    }
+
+    /* wc_ShaGetHash: non-destructive, same digest on repeated calls */
+    ret = wc_ShaUpdate(&sha, msg, sizeof(msg));
+    if (ret != 0) {
+        ret = -5;
+        goto out;
+    }
+    XMEMSET(hash1, 0, sizeof(hash1));
+    ret = wc_ShaGetHash(&sha, hash1);
+    if (ret != 0) {
+        ret = -6;
+        goto out;
+    }
+    if (XMEMCMP(hash1, expected, WC_SHA_DIGEST_SIZE) != 0) {
+        ret = -7;
+        goto out;
+    }
+    
+    XMEMSET(hash2, 0, sizeof(hash2));
+    ret = wc_ShaGetHash(&sha, hash2);
+    if (ret != 0) {
+        ret = -8;
+        goto out;
+    }
+
+    if (XMEMCMP(hash1, hash2, WC_SHA_DIGEST_SIZE) != 0) {
+        ret = -9;
+        goto out;
+    }
+
+    /* Final after GetHash must also match */
+    XMEMSET(hash2, 0, sizeof(hash2));
+    ret = wc_ShaFinal(&sha, hash2);
+    if (ret != 0) {
+        ret = -10;
+        goto out;
+    }
+    if (XMEMCMP(hash1, hash2, WC_SHA_DIGEST_SIZE) != 0) {
+        ret = -11; goto out;
+    }
+
+out:
+    if (prnt) {
+        if (ret != 0)
+            printf("(code=%d) ", ret);
+        RESULT_STR(ret)
+    }
+    return ret;
+}
+#endif /* !NO_SHA && !NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH */
+
 int tsip_crypt_test(void)
 {
     int ret = 0;
     int devId;
 
-    Clr_CallbackCtx(&userContext);
     if (ret != 0) {
         printf("TSIP Key Generation failed\n");
         return -1;
@@ -1535,6 +1715,16 @@ int tsip_crypt_test(void)
             ret = sha256_test();
             RESULT_STR(ret);
         }
+    #endif
+
+    #if !defined(NO_SHA256) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+        if (ret == 0)
+            ret = tsip_sha256_hash_test(1);
+    #endif
+
+    #if !defined(NO_SHA) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+        if (ret == 0)
+            ret = tsip_sha1_hash_test(1);
     #endif
 
     #ifdef HAVE_AES_CBC
