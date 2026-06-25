@@ -5648,7 +5648,10 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
            " with static memory (WOLFSSL_STATIC_MEMORY)"
 #endif
 #if defined(WC_16BIT_CPU) && \
-    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    !defined(WOLFSSL_SP_ALLOW_16BIT_CPU)
+    /* SP math works on a 16-bit-int CPU with SP_WORD_SIZE >= 32 (validated on
+     * TI C28x); opt past this guard with WOLFSSL_SP_ALLOW_16BIT_CPU. */
     #error "16-bit build (WC_16BIT_CPU) is not available with SP math"
 #endif
 
