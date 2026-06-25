@@ -1,4 +1,4 @@
-# wolfSSL Embedded SSL/TLS Library
+# wolfSSL Embedded SSL/TLS Library - DO NOT MERGE
 
 The [wolfSSL embedded SSL library](https://www.wolfssl.com/products/wolfssl/)
 (formerly CyaSSL) is a lightweight SSL/TLS library written in ANSI C and
