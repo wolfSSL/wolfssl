@@ -7,6 +7,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ascon.h \
                          wolfssl/wolfcrypt/asn.h \
                          wolfssl/wolfcrypt/asn_public.h \
+                         wolfssl/wolfcrypt/tsp.h \
                          wolfssl/wolfcrypt/poly1305.h \
                          wolfssl/wolfcrypt/camellia.h \
                          wolfssl/wolfcrypt/cmac.h \

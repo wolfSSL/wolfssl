@@ -39,6 +39,17 @@
 #                       aia/multi-aia-cert.pem
 #                       aia/overflow-aia-cert.pem
 #                       sia/timestamping-sia-cert.pem
+#                       tsa-cert.pem
+#                       tsa-cert.der
+#                       tsa-ecc-cert.pem
+#                       tsa-ecc-cert.der
+#                       tsa-bad-ku-cert.pem
+#                       tsa-bad-ku-cert.der
+#                       tsa-extra-eku-cert.pem
+#                       tsa-extra-eku-cert.der
+#                       tsa-chain-cert.pem
+#                       tsa-chain-cert.der
+#                       intermediate/ca-int-cert.der
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -213,6 +224,118 @@ run_renewcerts(){
     openssl x509 -in client-cert.pem -text > tmp.pem
     check_result $? "Step 3"
     mv tmp.pem client-cert.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ######## update the self-signed (2048-bit) tsa-cert.pem ###
+    ############################################################
+    echo "Updating 2048-bit tsa-cert.pem"
+    echo ""
+    openssl req -new -key tsa-key.pem -config ./renewcerts/wolfssl.cnf -nodes -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=TSA-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out tsa-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in tsa-cert.csr -days 1000 -extfile ./renewcerts/wolfssl.cnf -extensions tsa_cert -signkey tsa-key.pem -out tsa-cert.pem
+    check_result $? "Step 2"
+    rm tsa-cert.csr
+
+    openssl x509 -in tsa-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem tsa-cert.pem
+
+    openssl x509 -in tsa-cert.pem -outform der -out tsa-cert.der
+    check_result $? "Step 4"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ## update the intermediate-issued tsa-chain-cert.pem ######
+    ############################################################
+    echo "Updating 2048-bit tsa-chain-cert.pem"
+    echo ""
+    openssl req -new -key tsa-chain-key.pem -config ./renewcerts/wolfssl.cnf -nodes -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=TSA-chain-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out tsa-chain-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in tsa-chain-cert.csr -days 1000 -extfile ./renewcerts/wolfssl.cnf -extensions tsa_cert -CA intermediate/ca-int-cert.pem -CAkey intermediate/ca-int-key.pem -CAcreateserial -out tsa-chain-cert.pem
+    check_result $? "Step 2"
+    rm tsa-chain-cert.csr
+    rm -f intermediate/ca-int-cert.srl
+
+    openssl x509 -in tsa-chain-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem tsa-chain-cert.pem
+
+    openssl x509 -in tsa-chain-cert.pem -outform der -out tsa-chain-cert.der
+    check_result $? "Step 4"
+
+    # DER of the issuing intermediate CA - consumed as a cert buffer
+    # (certs_test.h) for the TSA chain verification test. Derived from the
+    # existing PEM; not removed.
+    openssl x509 -in intermediate/ca-int-cert.pem -outform der -out intermediate/ca-int-cert.der
+    check_result $? "Step 5"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## update the self-signed tsa-ecc-cert.pem ########
+    ############################################################
+    echo "Updating tsa-ecc-cert.pem"
+    echo ""
+    openssl req -new -key tsa-ecc-key.pem -config ./renewcerts/wolfssl.cnf -nodes -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=TSA-ECC/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out tsa-ecc-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in tsa-ecc-cert.csr -days 1000 -extfile ./renewcerts/wolfssl.cnf -extensions tsa_cert -signkey tsa-ecc-key.pem -out tsa-ecc-cert.pem
+    check_result $? "Step 2"
+    rm tsa-ecc-cert.csr
+
+    openssl x509 -in tsa-ecc-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem tsa-ecc-cert.pem
+
+    openssl x509 -in tsa-ecc-cert.pem -outform der -out tsa-ecc-cert.der
+    check_result $? "Step 4"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ## update the self-signed (2048-bit) tsa-bad-ku-cert.pem ##
+    ############################################################
+    echo "Updating 2048-bit tsa-bad-ku-cert.pem"
+    echo ""
+    openssl req -new -key tsa-key.pem -config ./renewcerts/wolfssl.cnf -nodes -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=TSA-bad-ku-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out tsa-bad-ku-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in tsa-bad-ku-cert.csr -days 1000 -extfile ./renewcerts/wolfssl.cnf -extensions tsa_bad_ku_cert -signkey tsa-key.pem -out tsa-bad-ku-cert.pem
+    check_result $? "Step 2"
+    rm tsa-bad-ku-cert.csr
+
+    openssl x509 -in tsa-bad-ku-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem tsa-bad-ku-cert.pem
+
+    openssl x509 -in tsa-bad-ku-cert.pem -outform der -out tsa-bad-ku-cert.der
+    check_result $? "Step 4"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ###############################################################
+    ## update the self-signed (2048-bit) tsa-extra-eku-cert.pem ##
+    ###############################################################
+    echo "Updating 2048-bit tsa-extra-eku-cert.pem"
+    echo ""
+    openssl req -new -key tsa-key.pem -config ./renewcerts/wolfssl.cnf -nodes -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=TSA-extra-eku-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com" -out tsa-extra-eku-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in tsa-extra-eku-cert.csr -days 1000 -extfile ./renewcerts/wolfssl.cnf -extensions tsa_extra_eku_cert -signkey tsa-key.pem -out tsa-extra-eku-cert.pem
+    check_result $? "Step 2"
+    rm tsa-extra-eku-cert.csr
+
+    openssl x509 -in tsa-extra-eku-cert.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem tsa-extra-eku-cert.pem
+
+    openssl x509 -in tsa-extra-eku-cert.pem -outform der -out tsa-extra-eku-cert.der
+    check_result $? "Step 4"
     echo "End of section"
     echo "---------------------------------------------------------------------"
 

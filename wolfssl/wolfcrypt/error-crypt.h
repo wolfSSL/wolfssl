@@ -328,8 +328,11 @@ enum wolfCrypt_ErrorCodes {
     DRBG_SHA512_KAT_FIPS_E = -1017, /* SHA-512 DRBG KAT failure */
     SLH_DSA_KAT_FIPS_E  = -1018, /* SLH-DSA CAST KAT failure */
 
-    WC_SPAN2_LAST_E     = -1018, /* Update to indicate last used error code */
-    WC_LAST_E           = -1018, /* the last code used either here or in
+    TSP_VERIFY_E        = -1019, /* TSP token invalid or response doesn't
+                                  * match request */
+
+    WC_SPAN2_LAST_E     = -1019, /* Update to indicate last used error code */
+    WC_LAST_E           = -1019, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

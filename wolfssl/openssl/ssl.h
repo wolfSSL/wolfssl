@@ -974,6 +974,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_BIT_STRING_free            wolfSSL_ASN1_BIT_STRING_free
 #define ASN1_BIT_STRING_get_bit         wolfSSL_ASN1_BIT_STRING_get_bit
 #define ASN1_BIT_STRING_set_bit         wolfSSL_ASN1_BIT_STRING_set_bit
+#define ASN1_BIT_STRING_set1            wolfSSL_ASN1_BIT_STRING_set1
 #define i2d_ASN1_BIT_STRING             wolfSSL_i2d_ASN1_BIT_STRING
 #define d2i_ASN1_BIT_STRING             wolfSSL_d2i_ASN1_BIT_STRING
 

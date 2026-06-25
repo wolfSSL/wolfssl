@@ -1209,6 +1209,7 @@ my @p7t_encrypted_data = ( 1, 2, 840, 113549, 1, 7, 6 );
 my @p7t_compressed_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 9 );
 my @p7t_firmware_pkg_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 16 );
 my @p7t_auth_env_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 23 );
+my @p7t_tstinfo_data = ( 1, 2, 840, 113549, 1, 9, 16, 1, 4 );
 my @p7t_encrypted_key_package = ( 2, 16, 840, 1, 101, 2, 1, 2, 78, 2 );
 
 my @pkcs7_types = (
@@ -1222,6 +1223,7 @@ my @pkcs7_types = (
     { name => "ENCRYPTED_DATA",             oid => \@p7t_encrypted_data     },
     { name => "FIRMWARE_PKG_DATA",          oid => \@p7t_firmware_pkg_data  },
     { name => "AUTH_ENVELOPED_DATA",        oid => \@p7t_auth_env_data      },
+    { name => "TSTINFO_DATA",               oid => \@p7t_tstinfo_data       },
     { name => "ENCRYPTED_KEY_PACKAGE",      oid => \@p7t_encrypted_key_package },
 );
 
