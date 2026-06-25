@@ -2138,7 +2138,13 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
     if (iphdr->next_header != TCP_PROTOCOL) {
         Ip6ExtHdr* exthdr = (Ip6ExtHdr*)((byte*)iphdr + IP6_HDR_SZ);
         do {
-            int hdrsz = (exthdr->length + 1) * 8;
+            int hdrsz;
+            /* make sure the extension header is fully present before reading */
+            if (length - exthdrsz < (int)sizeof(Ip6ExtHdr)) {
+                SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            hdrsz = (exthdr->length + 1) * 8;
             if (hdrsz > length - exthdrsz) {
                 SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
                 return WOLFSSL_FATAL_ERROR;
