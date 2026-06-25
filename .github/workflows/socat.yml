@@ -39,10 +39,11 @@ jobs:
 
 
   socat_check:
+    name: socat ${{ matrix.socat_version }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 30
+    # This should be a safe limit for the parallel tests to run.
+    timeout-minutes: 15
     needs: build_wolfssl
     strategy:
       fail-fast: false
@@ -56,13 +57,15 @@ jobs:
       - name: Checkout wolfSSL CI actions
         uses: actions/checkout@v5
         with:
-          sparse-checkout: .github/actions
+          sparse-checkout: |
+            .github/actions
+            .github/scripts
           fetch-depth: 1
 
       - name: Install prereqs
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: build-essential autoconf libtool pkg-config clang libc++-dev
+          packages: build-essential autoconf libtool pkg-config clang libc++-dev bubblewrap
           ghcr-debs-tag: ubuntu-24.04-full
 
       - name: Download lib
@@ -91,9 +94,48 @@ jobs:
           ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir --enable-default-ipv=4
           make -j
 
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which leaves CAP_NET_ADMIN ineffective inside bwrap's netns; the shards
+      # need it to re-create IPv6 loopback there. Relax the restriction.
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
       - name: Run socat tests
-        working-directory: ./socat-${{ matrix.socat_version }}
+        env:
+          SOCAT_SRC: ${{ github.workspace }}/socat-${{ matrix.socat_version }}
+          EXPECT_FAIL: ${{ matrix.expect_fail }}
         run: |
           export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
-          export SHELL=/bin/bash
-          SOCAT=$GITHUB_WORKSPACE/socat-${{ matrix.socat_version }}/socat ./test.sh -t 1.0 --expect-fail ${{ matrix.expect_fail }}
+          # The socat suite is sleep-bound, so run it as parallel shards via the
+          # shared parallel runner. The work is almost all waiting (timeouts and
+          # sleeps; only ~16% CPU even when packed), so oversubscribe: ~6 shards
+          # per CPU below, run 2 per CPU at once (--threads), so several overlap
+          # their waits (bigger runners get proportionally more). Each shard runs
+          # a round-robin slice of the tests ($SHARD/$SHARDS) in its own bwrap
+          # network namespace (no port collisions) and its own build-dir copy.
+          # ${tests:-0} keeps a shard that drew no test numbers a no-op (test 0
+          # matches nothing) instead of letting test.sh fall back to running the
+          # whole suite.
+          #
+          # bwrap --unshare-net gives each shard a fresh netns with loopback up
+          # but IPv4-only; re-create IPv6 loopback (CAP_NET_ADMIN is granted by
+          # the runner) so the suite's ::1 / dual-stack tests work as in the host
+          # namespace. fc00::1 and 192.0.2.1 are non-loopback placeholders so
+          # glibc's AI_ADDRCONFIG still returns IPv6/IPv4: with only loopback
+          # configured it drops the family, and socat's getaddrinfo then fails on
+          # numeric non-loopback addresses (e.g. the multicast tests). Best-effort
+          # (|| true), errors left visible so a runner without IPv6 still runs the
+          # IPv4 tests and any failure stays diagnosable in the log.
+          cat > socat-configs.json <<'EOF'
+          [{
+            "name": "socat", "build": false, "netns": true, "shards": __SHARDS__,
+            "run": [["bash", "-c", "set -e; ip link set lo up || true; sysctl -wq net.ipv6.conf.lo.disable_ipv6=0 || true; ip addr add ::1/128 dev lo || true; ip addr add fc00::1/128 dev lo || true; ip addr add 192.0.2.1/32 dev lo || true; sysctl -wq net.ipv6.bindv6only=0 || true; cp -a \"$SOCAT_SRC/.\" .; tests=$(seq \"$SHARD\" \"$SHARDS\" 999); SOCAT=\"$PWD/socat\" SHELL=/bin/bash ./test.sh -t 1.0 --expect-fail \"$EXPECT_FAIL\" ${tests:-0}"]]
+          }]
+          EOF
+          sed -i "s/__SHARDS__/$(( 6 * $(nproc) ))/" socat-configs.json
+          # Run 2 shards per CPU at once: the per-shard netns isolates ports, so
+          # the only real cost of overlap is CPU, and the suite barely uses any
+          # (mostly waiting), so this just overlaps the waits. fail-fast (the
+          # default) aborts the rest on the first failure.
+          .github/scripts/parallel-make-check.py \
+            --threads "$(( 2 * $(nproc) ))" socat-configs.json
