@@ -180,22 +180,6 @@ WOLFSSL_API int wc_HWPUF_GenerateKey(wc_HWPUF* hwpuf,
     return ret;
 }
 
-WOLFSSL_API int wc_HWPUF_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
-                                byte* key, word32 keySz,
-                                byte* keyCode, word32 keyCodeSz)
-{
-    int ret;
-
-    if (hwpuf == NULL)
-        return BAD_FUNC_ARG;
-    if ((hwpuf->flags & WC_HWPUF_FLAG_READY) == 0)
-        return HWPUF_START_E;
-
-    ret = wc_CryptoCb_HwpufSetKey(hwpuf, keyIdx, key, keySz,
-                                  keyCode, keyCodeSz);
-    return ret;
-}
-
 WOLFSSL_API int wc_HWPUF_GetKey(wc_HWPUF* hwpuf,
                                 byte* keyCode, word32 keyCodeSz,
                                 byte* key, word32 keySz)

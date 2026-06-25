@@ -362,12 +362,11 @@ enum wolfCrypt_ErrorCodes {
     HWPUF_ENROLL_E      = -1037, /* HWPUF enrollment failed */
     HWPUF_START_E       = -1038, /* HWPUF start failed */
     HWPUF_GENERATE_KEY_E= -1039, /* HWPUF generate key failed */
-    HWPUF_SET_KEY_E     = -1040, /* HWPUF set key failed */
-    HWPUF_GET_KEY_E     = -1041, /* HWPUF get key failed */
-    HWPUF_ZEROIZE_E     = -1042, /* HWPUF zeroize failed */
+    HWPUF_GET_KEY_E     = -1040, /* HWPUF get key failed */
+    HWPUF_ZEROIZE_E     = -1041, /* HWPUF zeroize failed */
 
-    WC_SPAN2_LAST_E     = -1042, /* Update to indicate last used error code */
-    WC_LAST_E           = -1042, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1041, /* Update to indicate last used error code */
+    WC_LAST_E           = -1041, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

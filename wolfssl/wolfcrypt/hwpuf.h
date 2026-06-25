@@ -58,9 +58,8 @@ enum wc_HwpufType {
     WC_HWPUF_TYPE_ENROLL = 3,
     WC_HWPUF_TYPE_START = 4,
     WC_HWPUF_TYPE_GENERATE_KEY = 5,
-    WC_HWPUF_TYPE_SET_KEY = 6,
-    WC_HWPUF_TYPE_GET_KEY = 7,
-    WC_HWPUF_TYPE_ZEROIZE = 8,
+    WC_HWPUF_TYPE_GET_KEY = 6,
+    WC_HWPUF_TYPE_ZEROIZE = 7,
     WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_HWPUF_TYPE)
 };
 
@@ -81,9 +80,6 @@ WOLFSSL_API int wc_HWPUF_Start(wc_HWPUF* hwpuf,
                                 byte* actCode, word32 actCodeSz);
 WOLFSSL_API int wc_HWPUF_GenerateKey(wc_HWPUF* hwpuf,
                                 byte keyIdx, word32 keySz,
-                                byte* keyCode, word32 keyCodeSz);
-WOLFSSL_API int wc_HWPUF_SetKey(wc_HWPUF* hwpuf, byte keyIdx,
-                                byte* key, word32 keySz,
                                 byte* keyCode, word32 keyCodeSz);
 WOLFSSL_API int wc_HWPUF_GetKey(wc_HWPUF* hwpuf,
                                 byte* keyCode, word32 keyCodeSz,
