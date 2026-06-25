@@ -3281,12 +3281,19 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
 
     if (ret == 0) {
         pointSz = (int)tmpl[0].ulValueLen;
+        /* reject a token length that does not fit in a positive int */
+        if (pointSz <= 0 || (CK_ULONG)pointSz != tmpl[0].ulValueLen) {
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0) {
         point = (unsigned char*)XMALLOC(pointSz, key->heap, DYNAMIC_TYPE_ECC);
         if (point == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
         tmpl[0].pValue = point;
+        tmpl[0].ulValueLen = (CK_ULONG)pointSz;
 
         PKCS11_DUMP_TEMPLATE("Get Ec Public Key", tmpl, tmplCnt);
         rv = session->func->C_GetAttributeValue(session->handle, pubKey,
