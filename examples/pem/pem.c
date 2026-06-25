@@ -112,13 +112,20 @@ static int pemApp_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             /* Add read data amount to length. */
             len += (word32)read_len;
 
+            /* Stop before the length or reallocation size can wrap word32. */
+            if (len > (word32)(0xFFFFFFFFU - DATA_INC_LEN - BLOCK_SIZE_MAX)) {
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                data = NULL;
+                break;
+            }
+
             /* Stop if we are at end-of-file. */
             if (feof(fp)) {
                 break;
             }
 
             /* Make space for more data to be added to buffer. */
-            p = (unsigned char*)XREALLOC(data, len + DATA_INC_LEN +
+            p = (unsigned char*)XREALLOC(data, (size_t)len + DATA_INC_LEN +
                 BLOCK_SIZE_MAX, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (p == NULL) {
                 /* Reallocation failed - free current buffer. */
