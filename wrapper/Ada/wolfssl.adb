@@ -1522,6 +1522,10 @@ package body WolfSSL is
                                   Size : Integer;
                                   Result : out Integer) is
    begin
+      if Size < 0 then
+         Result := Exception_Error;
+         return;
+      end if;
       declare
          R : int;
       begin
