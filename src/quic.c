@@ -147,6 +147,9 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
             uint8_t *ndata = (uint8_t*)XREALLOC(qr->data, qr->len, ssl->heap,
                                                 DYNAMIC_TYPE_TMP_BUFFER);
             if (!ndata) {
+                /* keep len consistent with the unchanged buffer so a later
+                 * append does not copy into the smaller allocation */
+                qr->len = 0;
                 ret = WOLFSSL_FAILURE;
                 goto cleanup;
             }
