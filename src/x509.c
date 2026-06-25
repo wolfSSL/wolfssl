@@ -8954,6 +8954,12 @@ static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
             type = DSAk;
             break;
 
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        case WC_EVP_PKEY_DILITHIUM:
+            type = x509->pubKeyOID;
+            break;
+    #endif
+
         default:
             WOLFSSL_MSG("Unknown pkey key type");
             return WOLFSSL_FATAL_ERROR;
