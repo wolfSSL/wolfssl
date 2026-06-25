@@ -30,6 +30,12 @@
  * SHA3_BY_SPEC:             Use specification Keccak-f order      default: off
  * WC_SHA3_NO_ASM:           Disable SHA-3 assembly optimizations  default: off
  * WC_SHA3_FAULT_HARDEN:     Harden SHA-3 against fault attacks    default: off
+ * WC_SHA3_SPLIT64:          Run the Keccak permutation on 32-bit halves of each
+ *                           64-bit lane so a compiler that lowers 64-bit bitwise
+ *                           ops to out-of-line helper calls (e.g. cl2000 on TI
+ *                           C28x) emits native 32-bit ops instead.  Auto-enabled
+ *                           for little-endian WC_16BIT_CPU; the default
+ *                           permutation is otherwise unchanged.    default: off
  *
  * Hardware Acceleration (SHA-3-specific):
  * WC_ASYNC_ENABLE_SHA3:     Enable async SHA-3 operations         default: off
@@ -582,6 +588,153 @@ while (0)
  *
  * s  The state.
  */
+
+/* WC_16BIT_CPU (e.g. TI C28x) lowers every 64-bit ^, | and & to an out-of-line
+ * runtime-helper call (cl2000: __c28xabi_xorll / _orll / _andll), which
+ * dominates the Keccak permutation.  Auto-select a BlockSha3 that runs on
+ * 32-bit halves so the compiler emits native 32-bit ops; external state stays
+ * word64 s[25].  Auto-enabled only for WOLFSSL_WIDE_BYTE (the hardware-validated
+ * targets); other little-endian 16-bit ports keep the long-tested generic
+ * permutation but can opt in by defining WC_SHA3_SPLIT64.  Little-endian word
+ * layout assumed (lo half first). */
+#if !defined(WC_SHA3_SPLIT64) && defined(WOLFSSL_WIDE_BYTE) && \
+    !defined(BIG_ENDIAN_ORDER)
+    #define WC_SHA3_SPLIT64
+#endif
+
+#ifdef WC_SHA3_SPLIT64
+
+/* Rotate the 64-bit value (sl=low, sh=high) left by compile-time constant r in
+ * 1..63, r != 32, into (dl, dh).  r is always a Keccak rho offset (never 0 or
+ * 32; r==32 would need a plain half-swap), so that case never occurs.  The & 31
+ * keeps the shift count in range in the dead (compile-time-eliminated) branch
+ * so there is no undefined shift. */
+#define WC_SHA3_RL(dl, dh, sl, sh, r)                                        \
+    do {                                                                     \
+        word32 _l = (sl), _h = (sh);                                         \
+        if ((r) < 32) {                                                      \
+            (dl) = (word32)((_l << ((r) & 31)) | (_h >> ((32 - (r)) & 31))); \
+            (dh) = (word32)((_h << ((r) & 31)) | (_l >> ((32 - (r)) & 31))); \
+        }                                                                    \
+        else {                                                               \
+            (dl) = (word32)((_h << (((r) - 32) & 31)) |                      \
+                            (_l >> ((64 - (r)) & 31)));                      \
+            (dh) = (word32)((_l << (((r) - 32) & 31)) |                      \
+                            (_h >> ((64 - (r)) & 31)));                      \
+        }                                                                    \
+    } while (0)
+
+/* Chi over the rotated row held in bl[0..4]/bh[0..4], writing five output lanes
+ * at (DL,DH)[k..k+4].  a ^ (~b & c) == (a ^ b) ^ (b | c) per half. */
+#define WC_SHA3_CHI(DL, DH, k)                                  \
+    do {                                                        \
+        word32 al = bl[1] ^ bl[2], ah = bh[1] ^ bh[2];          \
+        word32 cl = bl[3] ^ bl[4], ch = bh[3] ^ bh[4];          \
+        (DL)[(k)+0] = bl[0] ^ (bl[2] &  al);                    \
+        (DH)[(k)+0] = bh[0] ^ (bh[2] &  ah);                    \
+        (DL)[(k)+1] =  al   ^ (bl[2] | bl[3]);                  \
+        (DH)[(k)+1] =  ah   ^ (bh[2] | bh[3]);                  \
+        (DL)[(k)+2] = bl[2] ^ (bl[4] &  cl);                    \
+        (DH)[(k)+2] = bh[2] ^ (bh[4] &  ch);                    \
+        (DL)[(k)+3] =  cl   ^ (bl[4] | bl[0]);                  \
+        (DH)[(k)+3] =  ch   ^ (bh[4] | bh[0]);                  \
+        (DL)[(k)+4] = bl[4] ^ (bl[1] & (bl[0] ^ bl[1]));        \
+        (DH)[(k)+4] = bh[4] ^ (bh[1] & (bh[0] ^ bh[1]));        \
+    } while (0)
+
+/* Theta: mix the column parities into split state L (low) / H (high). */
+#define WC_SHA3_THETA(L, H)                                                   \
+    do {                                                                      \
+        int c;                                                                \
+        for (c = 0; c < 5; c++) {                                             \
+            bl[c] = (L)[c]^(L)[c+5]^(L)[c+10]^(L)[c+15]^(L)[c+20];            \
+            bh[c] = (H)[c]^(H)[c+5]^(H)[c+10]^(H)[c+15]^(H)[c+20];            \
+        }                                                                     \
+        for (c = 0; c < 5; c++) {                                             \
+            int d = (c + 1) % 5, e = (c + 4) % 5;                             \
+            word32 xl = bl[e] ^ (word32)((bl[d] << 1) | (bh[d] >> 31));       \
+            word32 xh = bh[e] ^ (word32)((bh[d] << 1) | (bl[d] >> 31));       \
+            (L)[c]   ^= xl; (H)[c]   ^= xh; (L)[c+5]  ^= xl; (H)[c+5]  ^= xh; \
+            (L)[c+10]^= xl; (H)[c+10]^= xh; (L)[c+15] ^= xl; (H)[c+15] ^= xh; \
+            (L)[c+20]^= xl; (H)[c+20]^= xh;                                   \
+        }                                                                     \
+    } while (0)
+
+/* Rho + pi + chi: rotate/permute split state SL/SH into DL/DH. */
+#define WC_SHA3_ROWMIX(DL, DH, SL, SH)                            \
+    do {                                                          \
+        bl[0] = (SL)[0]; bh[0] = (SH)[0];                         \
+        WC_SHA3_RL(bl[1],bh[1], (SL)[KI_0], (SH)[KI_0],  KR_0);   \
+        WC_SHA3_RL(bl[2],bh[2], (SL)[KI_1], (SH)[KI_1],  KR_1);   \
+        WC_SHA3_RL(bl[3],bh[3], (SL)[KI_2], (SH)[KI_2],  KR_2);   \
+        WC_SHA3_RL(bl[4],bh[4], (SL)[KI_3], (SH)[KI_3],  KR_3);   \
+        WC_SHA3_CHI(DL, DH, 0);                                   \
+        WC_SHA3_RL(bl[0],bh[0], (SL)[KI_4], (SH)[KI_4],  KR_4);   \
+        WC_SHA3_RL(bl[1],bh[1], (SL)[KI_5], (SH)[KI_5],  KR_5);   \
+        WC_SHA3_RL(bl[2],bh[2], (SL)[KI_6], (SH)[KI_6],  KR_6);   \
+        WC_SHA3_RL(bl[3],bh[3], (SL)[KI_7], (SH)[KI_7],  KR_7);   \
+        WC_SHA3_RL(bl[4],bh[4], (SL)[KI_8], (SH)[KI_8],  KR_8);   \
+        WC_SHA3_CHI(DL, DH, 5);                                   \
+        WC_SHA3_RL(bl[0],bh[0], (SL)[KI_9], (SH)[KI_9],  KR_9);   \
+        WC_SHA3_RL(bl[1],bh[1], (SL)[KI_10],(SH)[KI_10], KR_10);  \
+        WC_SHA3_RL(bl[2],bh[2], (SL)[KI_11],(SH)[KI_11], KR_11);  \
+        WC_SHA3_RL(bl[3],bh[3], (SL)[KI_12],(SH)[KI_12], KR_12);  \
+        WC_SHA3_RL(bl[4],bh[4], (SL)[KI_13],(SH)[KI_13], KR_13);  \
+        WC_SHA3_CHI(DL, DH, 10);                                  \
+        WC_SHA3_RL(bl[0],bh[0], (SL)[KI_14],(SH)[KI_14], KR_14);  \
+        WC_SHA3_RL(bl[1],bh[1], (SL)[KI_15],(SH)[KI_15], KR_15);  \
+        WC_SHA3_RL(bl[2],bh[2], (SL)[KI_16],(SH)[KI_16], KR_16);  \
+        WC_SHA3_RL(bl[3],bh[3], (SL)[KI_17],(SH)[KI_17], KR_17);  \
+        WC_SHA3_RL(bl[4],bh[4], (SL)[KI_18],(SH)[KI_18], KR_18);  \
+        WC_SHA3_CHI(DL, DH, 15);                                  \
+        WC_SHA3_RL(bl[0],bh[0], (SL)[KI_19],(SH)[KI_19], KR_19);  \
+        WC_SHA3_RL(bl[1],bh[1], (SL)[KI_20],(SH)[KI_20], KR_20);  \
+        WC_SHA3_RL(bl[2],bh[2], (SL)[KI_21],(SH)[KI_21], KR_21);  \
+        WC_SHA3_RL(bl[3],bh[3], (SL)[KI_22],(SH)[KI_22], KR_22);  \
+        WC_SHA3_RL(bl[4],bh[4], (SL)[KI_23],(SH)[KI_23], KR_23);  \
+        WC_SHA3_CHI(DL, DH, 20);                                  \
+    } while (0)
+
+void BlockSha3(word64* s)
+{
+    /* Process the 25 little-endian lanes as 32-bit halves to avoid 64-bit
+     * helper calls.  XMEMCPY in/out (aliasing s through word32* is strict-
+     * aliasing UB); st[2k] is lane k's low half, st[2k+1] the high half.
+     * Round constants are split with shifts for the same reason. */
+    word32 st[50];
+    word32 sl[25], sh[25], nl[25], nh[25], bl[5], bh[5];
+    word32 i, k;
+    word64 rc;
+
+    XMEMCPY(st, s, sizeof(st));
+    for (k = 0; k < 25; k++) {
+        sl[k] = st[2 * k];
+        sh[k] = st[2 * k + 1];
+    }
+    for (i = 0; i < 24; i += 2) {
+        WC_SHA3_THETA(sl, sh);
+        WC_SHA3_ROWMIX(nl, nh, sl, sh);
+        rc = hash_keccak_r[i];
+        nl[0] ^= (word32)rc;          nh[0] ^= (word32)(rc >> 32);
+        WC_SHA3_THETA(nl, nh);
+        WC_SHA3_ROWMIX(sl, sh, nl, nh);
+        rc = hash_keccak_r[i + 1];
+        sl[0] ^= (word32)rc;          sh[0] ^= (word32)(rc >> 32);
+    }
+    for (k = 0; k < 25; k++) {
+        st[2 * k]     = sl[k];
+        st[2 * k + 1] = sh[k];
+    }
+    XMEMCPY(s, st, sizeof(st));
+}
+
+#undef WC_SHA3_RL
+#undef WC_SHA3_CHI
+#undef WC_SHA3_THETA
+#undef WC_SHA3_ROWMIX
+
+#else /* !WC_SHA3_SPLIT64 */
+
 void BlockSha3(word64* s)
 {
     word64 n[25];
@@ -603,6 +756,8 @@ void BlockSha3(word64* s)
         s[0] ^= hash_keccak_r[i+1];
     }
 }
+
+#endif /* WC_SHA3_SPLIT64 */
 #endif /* WC_SHA3_SW_KECCAK */
 #endif /* !WOLFSSL_SHA3_SMALL */
 #endif /* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM && !WOLFSSL_PPC64_ASM &&
@@ -653,7 +808,7 @@ void BlockSha3(word64* s)
  * wolfcrypt/src/port/ppc32/ppc32-sha3-asm.S), so nothing is needed here. */
 
 #ifdef WC_SHA3_SW_KECCAK
-#if defined(BIG_ENDIAN_ORDER)
+#if defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
     return ((word64)a[0] <<  0) |
@@ -829,7 +984,8 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         sha3->i = (byte)(sha3->i + i);
 
         if (sha3->i == p * 8) {
-    #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
+    #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
+        !defined(WOLFSSL_WIDE_BYTE)
             xorbuf(sha3->s, sha3->t, (word32)(p * 8));
     #else
             for (i = 0; i < p; i++) {
@@ -866,7 +1022,8 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     total_check += blocks * p;
 #endif
     for (; blocks > 0; blocks--) {
-#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
+#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
+    !defined(WOLFSSL_WIDE_BYTE)
         xorbuf(sha3->s, data, (word32)(p * 8));
 #else
         for (i = 0; i < p; i++) {
@@ -915,18 +1072,34 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
  * len   Number of bytes in output.
  * returns 0 on success.
  */
+#ifdef WOLFSSL_WIDE_BYTE
+/* Squeeze len output bytes from the Keccak state, extracting each octet from
+ * the 64-bit lanes (little-endian within a lane).  Used where a C 'byte' is
+ * wider than 8 bits (CHAR_BIT != 8) so the state cannot be copied as an octet
+ * stream. */
+static void Sha3SqueezeBytes(byte* out, const word64* s, word32 len)
+{
+    word32 k;
+    for (k = 0; k < len; k++) {
+        out[k] = (byte)((s[k >> 3] >> (8 * (k & 7))) & 0xFF);
+    }
+}
+#endif
+
 static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 {
     word32 rate = p * 8U;
     word32 j;
-#if defined(BIG_ENDIAN_ORDER) || defined(WC_SHA3_FAULT_HARDEN)
+#if defined(BIG_ENDIAN_ORDER) || defined(WC_SHA3_FAULT_HARDEN) || \
+    defined(WOLFSSL_WIDE_BYTE)
     word32 i;
 #endif
 #ifdef WC_SHA3_FAULT_HARDEN
     int check = 0;
 #endif
 
-#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN)
+#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
+    !defined(WOLFSSL_WIDE_BYTE)
     xorbuf(sha3->s, sha3->t, sha3->i);
 #ifdef WOLFSSL_HASH_FLAGS
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
@@ -973,6 +1146,8 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)(hash + j), sha3->s, rate);
+    #elif defined(WOLFSSL_WIDE_BYTE)
+        Sha3SqueezeBytes(hash + j, sha3->s, rate);
     #else
         XMEMCPY(hash + j, sha3->s, rate);
     #endif
@@ -985,8 +1160,12 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64(sha3->s, sha3->s, rate);
-    #endif
         XMEMCPY(hash + j, sha3->s, l - j);
+    #elif defined(WOLFSSL_WIDE_BYTE)
+        Sha3SqueezeBytes(hash + j, sha3->s, l - j);
+    #else
+        XMEMCPY(hash + j, sha3->s, l - j);
+    #endif
     }
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(USE_INTEL_SPEEDUP)
     if (SHA3_BLOCK == sha3_block_avx2) {
@@ -1965,6 +2144,8 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)out, shake->s, WC_SHA3_128_COUNT * 8);
+    #elif defined(WOLFSSL_WIDE_BYTE)
+        Sha3SqueezeBytes(out, shake->s, WC_SHA3_128_COUNT * 8);
     #else
         XMEMCPY(out, shake->s, WC_SHA3_128_COUNT * 8);
     #endif
@@ -2206,6 +2387,8 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
     #endif
     #if defined(BIG_ENDIAN_ORDER)
         ByteReverseWords64((word64*)out, shake->s, WC_SHA3_256_COUNT * 8);
+    #elif defined(WOLFSSL_WIDE_BYTE)
+        Sha3SqueezeBytes(out, shake->s, WC_SHA3_256_COUNT * 8);
     #else
         XMEMCPY(out, shake->s, WC_SHA3_256_COUNT * 8);
     #endif
