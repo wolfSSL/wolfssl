@@ -662,7 +662,11 @@ struct wc_MlDsaKey {
 #endif
 #if defined(WOLFSSL_MLDSA_VERIFY_NO_MALLOC) && \
     defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+    sword32 z[MLDSA_N];                  /* one z poly, streamed per use */
+#else
     sword32 z[MLDSA_MAX_L_VECTOR_COUNT];
+#endif
     sword32 c[MLDSA_N];
     sword32 w[MLDSA_N];
     sword32 t1[MLDSA_N];

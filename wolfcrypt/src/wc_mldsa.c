@@ -1051,9 +1051,9 @@ static void mldsa_vec_encode_eta_bits_c(const sword32* s, byte d, byte eta,
                 byte s7 = (byte)(2 - s[j + 7]);
 
                 /* Pack 8 3-bit values into 3 bytes. */
-                p[0] = (byte)((s0 >> 0) | (s1 << 3) | (s2 << 6));
-                p[1] = (byte)((s2 >> 2) | (s3 << 1) | (s4 << 4) | (s5 << 7));
-                p[2] = (byte)((s5 >> 1) | (s6 << 2) | (s7 << 5));
+                p[0] = WC_OCTET((s0 >> 0) | (s1 << 3) | (s2 << 6));
+                p[1] = WC_OCTET((s2 >> 2) | (s3 << 1) | (s4 << 4) | (s5 << 7));
+                p[2] = WC_OCTET((s5 >> 1) | (s6 << 2) | (s7 << 5));
                 /* Move to next place to encode into. */
                 p += MLDSA_ETA_2_BITS;
             }
@@ -1163,15 +1163,16 @@ static void mldsa_decode_eta_2_bits_c(const byte* p, sword32* s)
      * 3 bits to encode each number.
      * 8 numbers from 3 bytes. (8 * 3 bits = 3 * 8 bits) */
     for (j = 0; j < MLDSA_N; j += 8) {
-        /* Get 3 bits and put in range of -2..2. */
-        s[j + 0] = 2 - ((p[0] >> 0) & 0x7                      );
-        s[j + 1] = 2 - ((p[0] >> 3) & 0x7                      );
-        s[j + 2] = 2 - ((p[0] >> 6)       | ((p[1] << 2) & 0x7));
-        s[j + 3] = 2 - ((p[1] >> 1) & 0x7                      );
-        s[j + 4] = 2 - ((p[1] >> 4) & 0x7                      );
-        s[j + 5] = 2 - ((p[1] >> 7)       | ((p[2] << 1) & 0x7));
-        s[j + 6] = 2 - ((p[2] >> 2) & 0x7                      );
-        s[j + 7] = 2 - ((p[2] >> 5) & 0x7                      );
+        /* Get 3 bits, range -2..2.  Cast to sword32 before the subtract: a
+         * 16-bit-int byte field promotes unsigned and would zero-extend. */
+        s[j + 0] = 2 - (sword32)((p[0] >> 0) & 0x7                      );
+        s[j + 1] = 2 - (sword32)((p[0] >> 3) & 0x7                      );
+        s[j + 2] = 2 - (sword32)((p[0] >> 6)       | ((p[1] << 2) & 0x7));
+        s[j + 3] = 2 - (sword32)((p[1] >> 1) & 0x7                      );
+        s[j + 4] = 2 - (sword32)((p[1] >> 4) & 0x7                      );
+        s[j + 5] = 2 - (sword32)((p[1] >> 7)       | ((p[2] << 1) & 0x7));
+        s[j + 6] = 2 - (sword32)((p[2] >> 2) & 0x7                      );
+        s[j + 7] = 2 - (sword32)((p[2] >> 5) & 0x7                      );
         /* Move to next place to decode from. */
         p += MLDSA_ETA_2_BITS;
     }
@@ -1225,24 +1226,24 @@ static void mldsa_decode_eta_4_bits_c(const byte* p, sword32* s)
      * 4 bits to encode each number.
      * 2 numbers from 1 bytes. (2 * 4 bits = 1 * 8 bits) */
     for (j = 0; j < MLDSA_N / 2; j++) {
-        /* Get 4 bits and put in range of -4..4. */
-        s[j * 2 + 0] = 4 - (p[j] & 0xf);
-        s[j * 2 + 1] = 4 - (p[j] >> 4);
+        /* Get 4 bits and put in range of -4..4. (sword32 cast: see eta-2.) */
+        s[j * 2 + 0] = 4 - (sword32)(p[j] & 0xf);
+        s[j * 2 + 1] = 4 - (sword32)(p[j] >> 4);
     }
 #else
     /* Step 6 or 9.
      * 4 bits to encode each number.
      * 8 numbers from 4 bytes. (8 * 4 bits = 4 * 8 bits) */
     for (j = 0; j < MLDSA_N / 2; j += 4) {
-        /* Get 4 bits and put in range of -4..4. */
-        s[j * 2 + 0] = 4 - (p[j + 0] & 0xf);
-        s[j * 2 + 1] = 4 - (p[j + 0] >> 4);
-        s[j * 2 + 2] = 4 - (p[j + 1] & 0xf);
-        s[j * 2 + 3] = 4 - (p[j + 1] >> 4);
-        s[j * 2 + 4] = 4 - (p[j + 2] & 0xf);
-        s[j * 2 + 5] = 4 - (p[j + 2] >> 4);
-        s[j * 2 + 6] = 4 - (p[j + 3] & 0xf);
-        s[j * 2 + 7] = 4 - (p[j + 3] >> 4);
+        /* Get 4 bits and put in range of -4..4. (sword32 cast: see eta-2.) */
+        s[j * 2 + 0] = 4 - (sword32)(p[j + 0] & 0xf);
+        s[j * 2 + 1] = 4 - (sword32)(p[j + 0] >> 4);
+        s[j * 2 + 2] = 4 - (sword32)(p[j + 1] & 0xf);
+        s[j * 2 + 3] = 4 - (sword32)(p[j + 1] >> 4);
+        s[j * 2 + 4] = 4 - (sword32)(p[j + 2] & 0xf);
+        s[j * 2 + 5] = 4 - (sword32)(p[j + 2] >> 4);
+        s[j * 2 + 6] = 4 - (sword32)(p[j + 3] & 0xf);
+        s[j * 2 + 7] = 4 - (sword32)(p[j + 3] >> 4);
     }
 #endif /* WOLFSSL_MLDSA_SMALL */
 }
@@ -1382,21 +1383,21 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
                 MLDSA_D);
             /* Take 8 values of t and take bottom bits and make positive. */
             word16 n0_0 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 0] - (n1_0 << MLDSA_D)));
+                                   (t[j + 0] - ((sword32)n1_0 << MLDSA_D)));
             word16 n0_1 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 1] - (n1_1 << MLDSA_D)));
+                                   (t[j + 1] - ((sword32)n1_1 << MLDSA_D)));
             word16 n0_2 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 2] - (n1_2 << MLDSA_D)));
+                                   (t[j + 2] - ((sword32)n1_2 << MLDSA_D)));
             word16 n0_3 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 3] - (n1_3 << MLDSA_D)));
+                                   (t[j + 3] - ((sword32)n1_3 << MLDSA_D)));
             word16 n0_4 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 4] - (n1_4 << MLDSA_D)));
+                                   (t[j + 4] - ((sword32)n1_4 << MLDSA_D)));
             word16 n0_5 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 5] - (n1_5 << MLDSA_D)));
+                                   (t[j + 5] - ((sword32)n1_5 << MLDSA_D)));
             word16 n0_6 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 6] - (n1_6 << MLDSA_D)));
+                                   (t[j + 6] - ((sword32)n1_6 << MLDSA_D)));
             word16 n0_7 = (word16)(MLDSA_D_MAX_HALF -
-                                   (t[j + 7] - (n1_7 << MLDSA_D)));
+                                   (t[j + 7] - ((sword32)n1_7 << MLDSA_D)));
 
             /* 13 bits per number.
              * 8 numbers become 13 bytes. (8 * 13 bits = 13 * 8 bits) */
@@ -1412,20 +1413,20 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
             writeUnalignedWord32(tp+2, (n0_4 >> 12) | ((word32)n0_5 <<  1) |
                 ((word32)n0_6 << 14) | ((word32)n0_7 << 27));
         #else
-            t0[ 0] = (byte)(               (n0_0 <<  0));
-            t0[ 1] = (byte)((n0_0 >>  8) | (n0_1 <<  5));
-            t0[ 2] = (byte)((n0_1 >>  3)               );
-            t0[ 3] = (byte)((n0_1 >> 11) | (n0_2 <<  2));
-            t0[ 4] = (byte)((n0_2 >>  6) | (n0_3 <<  7));
-            t0[ 5] = (byte)((n0_3 >>  1)               );
-            t0[ 6] = (byte)((n0_3 >>  9) | (n0_4 <<  4));
-            t0[ 7] = (byte)((n0_4 >>  4)               );
-            t0[ 8] = (byte)((n0_4 >> 12) | (n0_5 <<  1));
-            t0[ 9] = (byte)((n0_5 >>  7) | (n0_6 <<  6));
-            t0[10] = (byte)((n0_6 >>  2)               );
-            t0[11] = (byte)((n0_6 >> 10) | (n0_7 <<  3));
+            t0[ 0] = WC_OCTET(             (n0_0 <<  0));
+            t0[ 1] = WC_OCTET((n0_0 >>  8) | (n0_1 <<  5));
+            t0[ 2] = WC_OCTET((n0_1 >>  3)               );
+            t0[ 3] = WC_OCTET((n0_1 >> 11) | (n0_2 <<  2));
+            t0[ 4] = WC_OCTET((n0_2 >>  6) | (n0_3 <<  7));
+            t0[ 5] = WC_OCTET((n0_3 >>  1)               );
+            t0[ 6] = WC_OCTET((n0_3 >>  9) | (n0_4 <<  4));
+            t0[ 7] = WC_OCTET((n0_4 >>  4)               );
+            t0[ 8] = WC_OCTET((n0_4 >> 12) | (n0_5 <<  1));
+            t0[ 9] = WC_OCTET((n0_5 >>  7) | (n0_6 <<  6));
+            t0[10] = WC_OCTET((n0_6 >>  2)               );
+            t0[11] = WC_OCTET((n0_6 >> 10) | (n0_7 <<  3));
         #endif
-            t0[12] = (byte)((n0_7 >>  5)               );
+            t0[12] = WC_OCTET((n0_7 >>  5)               );
 
             /* 10 bits per number.
              * 8 bytes become 10 bytes. (8 * 10 bits = 10 * 8 bits) */
@@ -1436,17 +1437,17 @@ static void mldsa_vec_encode_t0_t1_c(const sword32* t, byte d, byte* t0,
             writeUnalignedWord32(tp+1, (n1_3 >>  2) | ((word32)n1_4 <<  8) |
                 ((word32)n1_5 << 18) | ((word32)n1_6 << 28));
         #else
-            t1[0] = (byte)(               (n1_0 << 0));
-            t1[1] = (byte)((n1_0 >> 8) |  (n1_1 << 2));
-            t1[2] = (byte)((n1_1 >> 6) |  (n1_2 << 4));
-            t1[3] = (byte)((n1_2 >> 4) |  (n1_3 << 6));
-            t1[4] = (byte)((n1_3 >> 2)               );
-            t1[5] = (byte)(               (n1_4 << 0));
-            t1[6] = (byte)((n1_4 >> 8) |  (n1_5 << 2));
-            t1[7] = (byte)((n1_5 >> 6) |  (n1_6 << 4));
+            t1[0] = WC_OCTET(             (n1_0 << 0));
+            t1[1] = WC_OCTET((n1_0 >> 8) |  (n1_1 << 2));
+            t1[2] = WC_OCTET((n1_1 >> 6) |  (n1_2 << 4));
+            t1[3] = WC_OCTET((n1_2 >> 4) |  (n1_3 << 6));
+            t1[4] = WC_OCTET((n1_3 >> 2)               );
+            t1[5] = WC_OCTET(             (n1_4 << 0));
+            t1[6] = WC_OCTET((n1_4 >> 8) |  (n1_5 << 2));
+            t1[7] = WC_OCTET((n1_5 >> 6) |  (n1_6 << 4));
         #endif
-            t1[8] = (byte)((n1_6 >> 4) |  (n1_7 << 6));
-            t1[9] = (byte)((n1_7 >> 2)               );
+            t1[8] = WC_OCTET((n1_6 >> 4) |  (n1_7 << 6));
+            t1[9] = WC_OCTET((n1_7 >> 2)               );
 
             /* Move to next place to encode bottom bits to. */
             t0 += MLDSA_D;
@@ -1532,25 +1533,27 @@ static void mldsa_decode_t0_c(const byte* t0, sword32* t)
         t[j + 7] = MLDSA_D_MAX_HALF - (sword32)
                    (( t32_2 >> 27          ) | ((word32)t0[12] ) <<  5 );
 #else
-        t[j + 0] = MLDSA_D_MAX_HALF -
+        /* sword32 cast on the unpacked field: see eta-2 decode - the subtract
+         * must be signed/32-bit so a negative t0 sign-extends correctly. */
+        t[j + 0] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 0]     ) | (((word16)(t0[ 1] & 0x1f)) <<  8));
-        t[j + 1] = MLDSA_D_MAX_HALF -
+        t[j + 1] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 1] >> 5) | (((word16)(t0[ 2]       )) <<  3) |
                                     (((word16)(t0[ 3] & 0x03)) << 11));
-        t[j + 2] = MLDSA_D_MAX_HALF -
+        t[j + 2] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 3] >> 2) | (((word16)(t0[ 4] & 0x7f)) <<  6));
-        t[j + 3] = MLDSA_D_MAX_HALF -
+        t[j + 3] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 4] >> 7) | (((word16)(t0[ 5]       )) <<  1) |
                                     (((word16)(t0[ 6] & 0x0f)) <<  9));
-        t[j + 4] = MLDSA_D_MAX_HALF -
+        t[j + 4] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 6] >> 4) | (((word16)(t0[ 7]       )) <<  4) |
                                     (((word16)(t0[ 8] & 0x01)) << 12));
-        t[j + 5] = MLDSA_D_MAX_HALF -
+        t[j + 5] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 8] >> 1) | (((word16)(t0[ 9] & 0x3f)) <<  7));
-        t[j + 6] = MLDSA_D_MAX_HALF -
+        t[j + 6] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[ 9] >> 6) | (((word16)(t0[10]       )) <<  2) |
                                     (((word16)(t0[11] & 0x07)) << 10));
-        t[j + 7] = MLDSA_D_MAX_HALF -
+        t[j + 7] = MLDSA_D_MAX_HALF - (sword32)
                    ((t0[11] >> 3) | (((word16)(t0[12]       )) <<  5));
 #endif
         /* Move to next place to decode from. */
@@ -1777,16 +1780,16 @@ static void mldsa_encode_gamma1_17_bits_c(const sword32* z, byte* s)
         writeUnalignedWord32(s32p+1, (z1 >> 14) | (z2 <<  4) | (z3 << 22));
     #endif
 #else
-        s[0] = (byte)( z0                   );
-        s[1] = (byte)( z0 >>  8             );
-        s[2] = (byte)((z0 >> 16) | (z1 << 2));
-        s[3] = (byte)( z1 >>  6             );
-        s[4] = (byte)((z1 >> 14) | (z2 << 4));
-        s[5] = (byte)( z2 >>  4             );
-        s[6] = (byte)((z2 >> 12) | (z3 << 6));
-        s[7] = (byte)( z3 >>  2             );
+        s[0] = WC_OCTET( z0                   );
+        s[1] = WC_OCTET( z0 >>  8             );
+        s[2] = WC_OCTET((z0 >> 16) | (z1 << 2));
+        s[3] = WC_OCTET( z1 >>  6             );
+        s[4] = WC_OCTET((z1 >> 14) | (z2 << 4));
+        s[5] = WC_OCTET( z2 >>  4             );
+        s[6] = WC_OCTET((z2 >> 12) | (z3 << 6));
+        s[7] = WC_OCTET( z3 >>  2             );
 #endif
-        s[8] = (byte)( z3 >> 10             );
+        s[8] = WC_OCTET( z3 >> 10             );
         /* Move to next place to encode to. */
         s += MLDSA_GAMMA1_17_ENC_BITS / 2;
     }
@@ -1848,16 +1851,16 @@ static void mldsa_encode_gamma1_19_bits_c(const sword32* z, byte* s)
     #endif
         s16p[4] = (word16)((z3 >>  4)                          );
 #else
-        s[0] = (byte)  z0                    ;
-        s[1] = (byte) (z0 >>  8)             ;
-        s[2] = (byte)((z0 >> 16) | (z1 << 4));
-        s[3] = (byte) (z1 >>  4)             ;
-        s[4] = (byte) (z1 >> 12)             ;
-        s[5] = (byte)  z2                    ;
-        s[6] = (byte) (z2 >>  8)             ;
-        s[7] = (byte)((z2 >> 16) | (z3 << 4));
-        s[8] = (byte) (z3 >>  4)             ;
-        s[9] = (byte) (z3 >> 12)             ;
+        s[0] = WC_OCTET( z0                    );
+        s[1] = WC_OCTET((z0 >>  8)             );
+        s[2] = WC_OCTET((z0 >> 16) | (z1 << 4));
+        s[3] = WC_OCTET((z1 >>  4)             );
+        s[4] = WC_OCTET((z1 >> 12)             );
+        s[5] = WC_OCTET( z2                    );
+        s[6] = WC_OCTET((z2 >>  8)             );
+        s[7] = WC_OCTET((z2 >> 16) | (z3 << 4));
+        s[8] = WC_OCTET((z3 >>  4)             );
+        s[9] = WC_OCTET((z3 >> 12)             );
 #endif
         /* Move to next place to encode to. */
         s += MLDSA_GAMMA1_19_ENC_BITS / 2;
@@ -2250,6 +2253,9 @@ static void mldsa_decode_gamma1(const byte* s, int bits, sword32* z)
  * @param [in]  bits  Number of bits used in encoding - GAMMA1 bits.
  * @param [out] z  Vector of polynomials.
  */
+#ifndef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+/* The smallest-mem verify streams z one polynomial at a time with
+ * mldsa_decode_gamma1() directly, so the whole-vector wrapper is unused. */
 static void mldsa_vec_decode_gamma1(const byte* x, byte l, int bits,
     sword32* z)
 {
@@ -2264,6 +2270,7 @@ static void mldsa_vec_decode_gamma1(const byte* x, byte l, int bits,
         z += MLDSA_N;
     }
 }
+#endif /* !WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM */
 #endif
 
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
@@ -4630,8 +4637,12 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
 
         /* Step 8: Move value from random index to current index. */
         c[i] = c[j];
-        /* Step 9: Set value at random index to +/- 1. */
-        c[j] = 1 - ((((signs[s >> 3]) >> (s & 0x7)) & 0x1) << 1);
+        /* Step 9: Set value at random index to +/- 1.
+         * Cast to sword32 before the subtract: where a byte is as wide as int,
+         * signs[] promotes to unsigned and -1 would widen as 0x0000ffff.
+         * Matches the USE_INTEL_SPEEDUP path. */
+        c[j] = (sword32)1 -
+               (sword32)((((signs[s >> 3]) >> (s & 0x7)) & 0x1) << 1);
         /* Next sign bit index. */
         s++;
     }
@@ -5586,7 +5597,13 @@ static void mldsa_vec_use_hint(sword32* w1, byte k, sword32 gamma2,
 static sword32 mldsa_mont_red(sword64 a)
 {
 #ifndef MLDSA_MUL_QINV_SLOW
+#ifdef MLDSA_MUL_QINV_WIDE64
+    /* Low 32 bits of the q^-1 product via the 64-bit multiply; see
+     * MLDSA_MUL_QINV_WIDE64 in dilithium.h. */
+    sword64 t = (sword32)((sword64)(sword32)a * (sword64)MLDSA_QINV);
+#else
     sword64 t = (sword32)((sword32)a * (sword32)MLDSA_QINV);
+#endif
 #else
     sword64 t = (sword32)((sword32)a + (sword32)((sword32)a << 13) -
         (sword32)((sword32)a << 23) + (sword32)((sword32)a << 26));
@@ -9777,6 +9794,10 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     byte o;
     byte* encW1;
     byte* seed = commit_calc;
+#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+    /* Bytes of encoded z per polynomial - z is streamed one poly at a time. */
+    word32 zStride = (word32)(MLDSA_N / 8) * (word32)(params->gamma1_bits + 1);
+#endif
 
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
@@ -9831,15 +9852,33 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #endif
 
     if (ret == 0) {
-        /* Step 2: Decode z from signature. */
-        mldsa_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         /* Step 13: Check z is valid - values are low enough. */
         hi = ((sword32)1 << params->gamma1_bits) - params->beta;
+#ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+        {
+            /* Step 2/13: Stream z one polynomial at a time for the range check;
+             * the per-poly NTT happens inside the matrix loop below. */
+            const byte*  zp = ze;
+            unsigned int zi;
+
+            valid = 1;
+            for (zi = 0; valid && (zi < params->l); zi++) {
+                mldsa_decode_gamma1(zp, params->gamma1_bits, z);
+                valid = mldsa_check_low(z, hi);
+                zp += zStride;
+            }
+        }
+#else
+        /* Step 2: Decode z from signature. */
+        mldsa_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         valid = mldsa_vec_check_low(z, params->l, hi);
+#endif
     }
     if ((ret == 0) && valid) {
+#ifndef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
         /* Step 10: NTT(z) */
         mldsa_vec_ntt_full(z, params->l);
+#endif
 
          /* Step 9: Compute c from first 256 bits of commit. */
 #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
@@ -9913,6 +9952,14 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
             for (s = 0; (ret == 0) && (s < params->l); s++) {
                 /* Put s into buffer to be hashed. */
                 seed[MLDSA_PUB_SEED_SZ + 0] = (byte)s;
+            #ifdef WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM
+                /* Step 2/10: Decode and NTT this z polynomial on demand (z is
+                 * not kept as a whole vector in this mode). */
+                mldsa_decode_gamma1(ze + (word32)s * zStride,
+                    params->gamma1_bits, z);
+                mldsa_ntt_full(z);
+                zt = z;
+            #endif
                 /* Step 3: Create polynomial from hashing seed. */
             #ifdef WOLFSSL_MLDSA_VERIFY_NO_MALLOC
                 ret = mldsa_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
