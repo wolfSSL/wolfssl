@@ -2513,6 +2513,13 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
     if (ret == 0) {
         modSz = (int)tmpl[0].ulValueLen;
         expSz = (int)tmpl[1].ulValueLen;
+        /* reject token lengths that do not fit in a positive int */
+        if (modSz <= 0 || (CK_ULONG)modSz != tmpl[0].ulValueLen ||
+                expSz <= 0 || (CK_ULONG)expSz != tmpl[1].ulValueLen) {
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0) {
         mod = (unsigned char*)XMALLOC(modSz, key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (mod == NULL)
@@ -2526,7 +2533,9 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
     }
     if (ret == 0) {
         tmpl[0].pValue = mod;
+        tmpl[0].ulValueLen = (CK_ULONG)modSz;
         tmpl[1].pValue = exp;
+        tmpl[1].ulValueLen = (CK_ULONG)expSz;
 
         PKCS11_DUMP_TEMPLATE("Get RSA Public Key", tmpl, tmplCnt);
         rv = session->func->C_GetAttributeValue(session->handle, pubKey,
