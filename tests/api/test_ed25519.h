@@ -38,21 +38,25 @@ int test_wc_Ed25519KeyToDer(void);
 int test_wc_Ed25519PrivateKeyToDer(void);
 int test_wc_Ed25519KeyToDer_oneasymkey_version(void);
 int test_wc_ed25519_reject_small_order_keys(void);
+int test_wc_ed25519_verify_msg_nonblock(void);
+int test_wc_ed25519_make_key_nonblock(void);
 
-#define TEST_ED25519_DECLS                                          \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key),           \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_init),               \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg),           \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg_pubonly_fails), \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_public),      \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_private_key), \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_export),             \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_size),               \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_exportKey),          \
-    TEST_DECL_GROUP("ed25519", test_wc_Ed25519PublicKeyToDer),      \
-    TEST_DECL_GROUP("ed25519", test_wc_Ed25519KeyToDer),            \
-    TEST_DECL_GROUP("ed25519", test_wc_Ed25519PrivateKeyToDer),     \
-    TEST_DECL_GROUP("ed25519", test_wc_Ed25519KeyToDer_oneasymkey_version), \
-    TEST_DECL_GROUP("ed25519", test_wc_ed25519_reject_small_order_keys)
+#define TEST_ED25519_DECLS                                                    \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key),                     \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_init),                         \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg),                     \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_sign_msg_pubonly_fails),       \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_public),                \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_private_key),           \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_export),                       \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_size),                         \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_exportKey),                    \
+    TEST_DECL_GROUP("ed25519", test_wc_Ed25519PublicKeyToDer),                \
+    TEST_DECL_GROUP("ed25519", test_wc_Ed25519KeyToDer),                      \
+    TEST_DECL_GROUP("ed25519", test_wc_Ed25519PrivateKeyToDer),               \
+    TEST_DECL_GROUP("ed25519", test_wc_Ed25519KeyToDer_oneasymkey_version),   \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_reject_small_order_keys),      \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_verify_msg_nonblock),          \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key_nonblock)
 
 #endif /* WOLFCRYPT_TEST_ED25519_H */

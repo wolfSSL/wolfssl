@@ -99,6 +99,13 @@ WOLFSSL_LOCAL void ge_p3_tobytes(unsigned char *s,const ge_p3 *h);
 #endif
 
 
+#ifdef ED25519_SMALL
+WOLFSSL_LOCAL extern const ge_p3 ed25519_base;
+WOLFSSL_LOCAL extern const ge_p3 ed25519_neutral;
+WOLFSSL_LOCAL void ed25519_add(ge_p3 *r, const ge_p3 *a, const ge_p3 *b);
+WOLFSSL_LOCAL void ed25519_double(ge_p3 *r, const ge_p3 *a);
+#endif /* ED25519_SMALL */
+
 #ifndef ED25519_SMALL
 typedef struct {
   ge X;
