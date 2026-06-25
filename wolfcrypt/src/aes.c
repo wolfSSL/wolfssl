@@ -236,6 +236,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #ifdef WOLFSSL_STM32_BARE
         /* Bare-metal driver handles mutex, clock and key/IV internally.
          * DHUK is routed via the crypto-callback framework, not here. */
+    #ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+        if (ret < 0)
+            return ret;
+    #endif
         return wc_Stm32_Aes_Ecb(aes, outBlock, inBlock, WC_AES_BLOCK_SIZE, 1);
     #else
         int ret = 0;
@@ -346,6 +351,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     {
     #ifdef WOLFSSL_STM32_BARE
         /* DHUK is routed via the crypto-callback framework, not here. */
+    #ifdef WC_DEBUG_CIPHER_LIFECYCLE
+        int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
+        if (ret < 0)
+            return ret;
+    #endif
         return wc_Stm32_Aes_Ecb(aes, outBlock, inBlock, WC_AES_BLOCK_SIZE, 0);
     #else
         int ret = 0;
@@ -4154,6 +4164,18 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(rk, userKey, keylen);
+    #ifdef WOLF_CRYPTO_CB
+        /* Keep a raw (non-reversed) copy for crypto-callback offload, e.g. the
+         * DHUK device reads the seed from devKey. Mirrors the generic
+         * wc_AesSetKey cryptocb path: only for a cryptocb-bound key, and reject
+         * an oversized key (matches the other devKey copy sites in this file). */
+        if (aes->devId != INVALID_DEVID) {
+            if (keylen > sizeof(aes->devKey)) {
+                return BAD_FUNC_ARG;
+            }
+            XMEMCPY(aes->devKey, userKey, keylen);
+        }
+    #endif
     #if !defined(WOLFSSL_STM32_CUBEMX) || defined(STM32_HAL_V2)
         ByteReverseWords(rk, rk, keylen);
     #endif
@@ -5720,8 +5742,17 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (sz == 0) {
             return 0;
         }
-        /* DHUK is routed via the crypto-callback framework, not here.
-         * wc_Stm32_Aes_Cbc processes whole blocks and ignores any sub-block
+#if defined(WOLFSSL_DHUK) && defined(WOLF_CRYPTO_CB)
+        /* Transparent DHUK AES is ECB/GCM only (those route through the crypto
+         * callback). CBC has no crypto-callback entry on the BARE path, so a
+         * DHUK key -- devId == WC_DHUK_DEVID, where wc_AesSetKey stored the
+         * derivation seed in aes->key -- would run with the seed as the AES
+         * key. Reject rather than silently produce a non-device-bound result. */
+        if (aes->devId == WC_DHUK_DEVID) {
+            return NOT_COMPILED_IN;
+        }
+#endif
+        /* wc_Stm32_Aes_Cbc processes whole blocks and ignores any sub-block
          * remainder, matching the SW / CUBEMX CBC backends; define
          * WOLFSSL_AES_CBC_LENGTH_CHECKS (above) to reject a non-block-multiple
          * length with BAD_LENGTH_E instead. */
@@ -5738,7 +5769,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (sz == 0) {
             return 0;
         }
-        /* DHUK is routed via the crypto-callback framework, not here. */
+#if defined(WOLFSSL_DHUK) && defined(WOLF_CRYPTO_CB)
+        /* DHUK keys are unsupported for CBC -- see wc_AesCbcEncrypt above. */
+        if (aes->devId == WC_DHUK_DEVID) {
+            return NOT_COMPILED_IN;
+        }
+#endif
         return wc_Stm32_Aes_Cbc(aes, out, in, sz, 0);
     }
     #endif /* HAVE_AES_DECRYPT */
