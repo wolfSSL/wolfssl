@@ -1252,7 +1252,6 @@ then
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
     test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
-    test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
     test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
     test "$enable_sni" = "" && enable_sni=yes
     test "$enable_maxfragment" = "" && enable_maxfragment=yes
@@ -8315,18 +8314,6 @@ AC_ARG_ENABLE([secure-renegotiation-info],
     )
 
 
-# Fallback SCSV
-AC_ARG_ENABLE([fallback-scsv],
-    [AS_HELP_STRING([--enable-fallback-scsv],[Enable Fallback SCSV (default: disabled)])],
-    [ ENABLED_FALLBACK_SCSV=$enableval ],
-    [ ENABLED_FALLBACK_SCSV=no ]
-    )
-
-if test "x$ENABLED_FALLBACK_SCSV" = "xyes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FALLBACK_SCSV"
-fi
-
 # Exporting Keying Material
 AC_ARG_ENABLE([keying-material],
     [AS_HELP_STRING([--enable-keying-material],[Enable Keying Material Exporters (default: disabled)])],
@@ -12936,7 +12923,6 @@ echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
 echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
-echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * S/MIME:                     $ENABLED_SMIME"

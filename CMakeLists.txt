@@ -1889,7 +1889,6 @@ endif()
 #       - Truncated HMAC
 #       - Renegotiation indication
 #       - Secure renegotiation
-#       - Fallback SCSV
 
 add_option(WOLFSSL_OCSP "Enable OCSP (default: disabled)" "no" "yes;no")
 add_option(WOLFSSL_OCSPSTAPLING "Enable OCSP Stapling (default: disabled)" "no" "yes;no")
