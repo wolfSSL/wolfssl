@@ -4393,7 +4393,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         }
 
         /* make sure the extension fits in the remaining declared length */
-        if ((word16)(extLen + EXT_TYPE_SZ + LENGTH_SZ) > len) {
+        if ((word32)extLen + EXT_TYPE_SZ + LENGTH_SZ > len) {
             SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
         }
