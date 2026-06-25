@@ -813,11 +813,11 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
 /* Family gate: only families that actually have SAES + DHUK silicon.
  * L5 has a "secure AES" instance but its CR layout does not include
  * KMOD / KEYSEL fields -- it does not implement the same DHUK key-
- * wrap protocol as U5/U3/H5/WBA/C5. L5 is intentionally excluded. */
+ * wrap protocol as U5/U3/H5/WBA/C5/N6. L5 is intentionally excluded. */
 #if defined(WOLFSSL_DHUK) && \
     (defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32U3) || \
      defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WBA) || \
-     defined(WOLFSSL_STM32C5) || defined(WOLFSSL_STM32H7S))
+     defined(WOLFSSL_STM32C5) || defined(WOLFSSL_STM32N6))
     #define WC_STM32_HAS_DHUK
 #endif
 
@@ -874,10 +874,10 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
  * via ST's HAL_CCB_* driver). Requires CCB silicon (STM32U3 or STM32C5). */
 #if defined(WOLFSSL_STM32_CCB)
     #if !defined(WOLFSSL_STM32_BARE) && !defined(WOLFSSL_STM32_CUBEMX)
-        #error "WOLFSSL_STM32_CCB requires WOLFSSL_STM32_BARE or WOLFSSL_STM32_CUBEMX"
+        #error "WOLFSSL_STM32_CCB requires WOLFSSL_STM32_BARE or CUBEMX"
     #endif
     #if !defined(WC_STM32_HAS_CCB)
-        #error "WOLFSSL_STM32_CCB requires CCB silicon (STM32U3/U385 or STM32C5/C5A3)"
+        #error "WOLFSSL_STM32_CCB requires CCB silicon (STM32U3 or STM32C5)"
     #endif
 #endif
 
@@ -949,10 +949,12 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
 
 #endif /* WOLFSSL_STM32_BARE && WC_STM32_HAS_DHUK */
 
-/* CubeMX CCB build: DHUK AES/GMAC is bare-only, but the CCB-protected ECDSA
- * sign routes through the crypto-callback device too, so expose the same
- * register/unregister entry points under the HAL build. */
-#if defined(WOLFSSL_STM32_CUBEMX) && defined(WOLFSSL_STM32_CCB) && \
+/* CubeMX build: the DHUK crypto-callback device (transparent AES/GMAC and
+ * seed-based ECDSA sign via the SAES register path, plus CCB sign/keygen where
+ * the CCB peripheral is present) registers through the same entry points as the
+ * bare build. */
+#if defined(WOLFSSL_STM32_CUBEMX) && \
+    (defined(WC_STM32_HAS_DHUK) || defined(WOLFSSL_STM32_CCB)) && \
     defined(WOLF_CRYPTO_CB)
     int  wc_Stm32_DhukRegister(int devId);
     void wc_Stm32_DhukUnRegister(int devId);

@@ -4251,13 +4251,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(STM32_RNG)
-     /* Generate a RNG seed using the hardware random number generator
-      * on the STM32F2/F4/F7/L4. */
+     /* Generate a RNG seed using the STM32 hardware RNG. Covers the STM32
+      * families that carry an RNG IP block -- via the CubeMX HAL or the
+      * bare-metal direct-register backend (incl. the C5 NIST init and a
+      * generic bounded retry) -- not just the original F2/F4/F7/L4. */
     #include <wolfssl/wolfcrypt/port/st/stm32.h>
         /* Pulls in WC_STM32_RNG_CLK_ENABLE for WOLFSSL_STM32_BARE builds */
     #ifdef WC_STM32_RNG_DIAG
-        /* The WC_STM32_RNG_DIAG paths below use printf(); pull in stdio.h so the
-         * file compiles on strict C99+ toolchains when diagnostics are enabled. */
+        /* The WC_STM32_RNG_DIAG paths below use printf(); pull in stdio.h so
+         * the file compiles on strict C99+ toolchains when diagnostics are
+         * enabled. */
         #include <stdio.h>
     #endif
 
@@ -4473,8 +4476,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 #endif
 
-        /* (No early SECS/CECS bail here unless WOLFSSL_STM32_RNG_LEGACY_FAILFAST
-         * is defined, above.) The HAL doesn't check error status immediately
+        /* (No early SECS/CECS bail here unless
+         * WOLFSSL_STM32_RNG_LEGACY_FAILFAST is defined, above.) The HAL
+         * doesn't check error status immediately
          * after RNGEN -- the IP needs a few cycles after enable for the first
          * seed pull, and a transient SEIS/SECS can latch and resolve itself
          * through the auto-reset that the retry loop below already handles.

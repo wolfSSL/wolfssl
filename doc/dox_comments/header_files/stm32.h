@@ -5,10 +5,11 @@
     crypto-callback device. After registering at WC_DHUK_DEVID, bind an object
     to the device by setting its devId at init (wc_AesInit / wc_ecc_init_ex) and
     supply the per-key 256-bit seed as the key (wc_AesGcmSetKey) or via
-    wc_ecc_import_wrapped_private; normal wolfCrypt AES / GMAC / ECDSA calls then
-    run transparently with the working key derived inside the SAES. Available on
-    STM32 builds with WOLFSSL_DHUK, WOLF_CRYPTO_CB, and a DHUK-capable SAES
-    (WC_STM32_HAS_DHUK); on the CubeMX path it is also provided for CCB ECDSA.
+    wc_ecc_import_wrapped_private; normal wolfCrypt AES / GMAC / ECDSA calls
+    then run transparently with the working key derived inside the SAES.
+    Available on STM32 builds with WOLFSSL_DHUK, WOLF_CRYPTO_CB, and a
+    DHUK-capable SAES (WC_STM32_HAS_DHUK); on the CubeMX path it is also
+    provided for CCB ECDSA.
 
     \return 0 Returned on success.
     \return <0 A negative error code is returned if device registration fails.
@@ -35,8 +36,8 @@ int wc_Stm32_DhukRegister(int devId);
     \ingroup STM32
 
     \brief This function unregisters the STM32 DHUK crypto-callback device that
-    was registered with wc_Stm32_DhukRegister. Call it once transparent DHUK / CCB
-    operations are complete.
+    was registered with wc_Stm32_DhukRegister. Call it once transparent
+    DHUK / CCB operations are complete.
 
     \return none No return value.
 
@@ -62,9 +63,9 @@ void wc_Stm32_DhukUnRegister(int devId);
     builds with WOLFSSL_DHUK and a DHUK-capable SAES.
 
     \return 0 Returned on success.
-    \return BAD_FUNC_ARG Returned if a required pointer is NULL, if inSz is not a
-    supported block size, if the iv is non-NULL with ivSz != 16, or (software-key
-    path) if the wrapping key length is not 16 or 32.
+    \return BAD_FUNC_ARG Returned if a required pointer is NULL, if inSz is
+    not a supported block size, if the iv is non-NULL with ivSz != 16, or
+    (software-key path) if the wrapping key length is not 16 or 32.
     \return <0 A negative error code may be returned on a hardware error.
 
     \param aes pointer to an initialized Aes; aes->devId selects the wrap key.
@@ -86,10 +87,10 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
     \brief This function brings up the STM32 CCB (Coupling and Chaining Bridge)
     peripheral and reports whether it is usable: it enables the CCB / PKA / SAES
     / RNG clocks, pulse-resets the engines, waits for BUSY to clear, and checks
-    for an operation error. Bare-metal only (WOLFSSL_STM32_BARE). The transparent
-    CCB sign path calls this internally, so most callers do not invoke it
-    directly. Available on STM32 builds with WOLFSSL_STM32_CCB on CCB silicon
-    (STM32U3 or STM32C5).
+    for an operation error. Bare-metal only (WOLFSSL_STM32_BARE). The
+    transparent CCB sign path calls this internally, so most callers do not
+    invoke it directly. Available on STM32 builds with WOLFSSL_STM32_CCB on
+    CCB silicon (STM32U3 or STM32C5).
 
     \return 0 Returned when the CCB is up and usable.
     \return WC_TIMEOUT_E Returned if BUSY does not clear within the timeout.
@@ -115,7 +116,8 @@ int wc_Stm32_CcbInit(void);
 
     \return 0 Returned on success.
     \return NOT_COMPILED_IN Returned if curveId is an unsupported curve.
-    \return BAD_FUNC_ARG Returned if a required pointer is NULL or dLen is wrong.
+    \return BAD_FUNC_ARG Returned if a required pointer is NULL or dLen is
+    wrong.
     \return WC_TIMEOUT_E Returned if a hardware step times out.
 
     \param curveId the ECC curve id; currently ECC_SECP256R1.

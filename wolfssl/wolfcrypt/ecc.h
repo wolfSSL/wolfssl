@@ -763,9 +763,12 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
-#if defined(WOLFSSL_DHUK) && defined(WOLFSSL_STM32_BARE) && \
-    defined(WC_STM32_HAS_DHUK) && \
-    defined(WOLFSSL_STM32_PKA) && !defined(WC_STM32_PKA_VERIFY_ONLY)
+#if defined(WOLFSSL_DHUK) && \
+    (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
+/* Gated on user-visible macros only (WOLFSSL_DHUK + the build-flavor), NOT the
+ * port-internal WC_STM32_HAS_DHUK -- that one is defined in port/st/stm32.h,
+ * which ecc.h does not include, so a WC_STM32_HAS_DHUK guard here would leave
+ * the prototype invisible to ecc.h consumers and to the definition's own TU. */
 /* DHUK ECC sign: import a hardware-wrapped ECC private scalar + its derivation
  * seed onto the ecc_key for the crypto-callback sign path. The caller MUST also
  * populate key->pubkey (via wc_ecc_import_x963) so verify can use the

@@ -1291,10 +1291,12 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     a chip-bound wrapped blob together with the 256-bit derivation seed; the
     plaintext scalar is never imported. The key must be bound to the STM32 DHUK
     crypto-callback device (init with wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)
-    after registering the device with wc_Stm32_DhukRegister). Available only on
-    STM32 bare-metal builds (WOLFSSL_STM32_BARE) with WOLFSSL_DHUK, a
-    DHUK-capable SAES (WC_STM32_HAS_DHUK), and HW PKA signing enabled
-    (WOLFSSL_STM32_PKA, not WC_STM32_PKA_VERIFY_ONLY).
+    after registering the device with wc_Stm32_DhukRegister). Available on the
+    STM32 bare-metal (WOLFSSL_STM32_BARE) and CubeMX/HAL (WOLFSSL_STM32_CUBEMX)
+    build paths with WOLFSSL_DHUK. This setter is a pure import (no STM32 PKA
+    dependency, and is used on the DHUK-capable SAES families); the matching
+    ECDSA sign uses the HW PKA, so signing additionally requires
+    WOLFSSL_STM32_PKA (and not WC_STM32_PKA_VERIFY_ONLY).
 
     \return 0 Returned on success.
     \return BAD_FUNC_ARG Returned if key, seed, or wrapped is NULL; if seedSz is

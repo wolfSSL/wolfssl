@@ -91,6 +91,17 @@ Include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers. If bu
 
 See our [benchmarks](https://www.wolfssl.com/docs/benchmarks/) page for canonical numbers. For per-silicon BARE-vs-CubeMX comparisons across the NUCLEO board matrix, see the bench tables in the `STM32_Bare_Test/README.md` of the examples repo (PR #13).
 
+BARE vs CubeMX on the SAES+DHUK boards (wolfCrypt benchmark, symmetric in MiB/s, ECDSA P-256 sign in ops/sec; `bare / cubemx`):
+
+| Board (NUCLEO)  | SYSCLK  | AES-128-CBC | AES-128-GCM | SHA-256     | ECDSA P-256 sign |
+|-----------------|---------|-------------|-------------|-------------|------------------|
+| U385RG-Q (U3)   | 96 MHz  | 9.46 / 4.91 | 0.50 / 4.41 | 7.04 / 11.66| 33.83 / 5.48     |
+| U545RE-Q (U5)   | 96 MHz  | 11.18 / 5.40| 0.73 / 5.02 | 12.52 / 20.21| 34.16 / 34.45   |
+| U585 (U5)       | 96 MHz  | 11.55 / 5.61| 0.73 / 5.22 | 12.76 / 21.97| 34.16 / 34.45   |
+| C5A3ZG (C5)     | 144 MHz | 16.56 / 16.58| 1.05 / 1.05| 2.00 / 1.99 | 51.03 / 51.03    |
+
+Takeaways: (1) On STM32C5 the CubeMX build keeps wolfcrypt on the register crypto path (C5's new-generation HAL has no classic crypto driver), so its bare and CubeMX columns are identical. (2) On the U5 family the CubeMX HAL-PKA path reaches HW parity for ECDSA sign (34.45 vs 34.16 bare). (3) On U3 the CubeMX ECDSA is ~6x slower because the HAL PKA include-chain does not yet cover U3 and it falls back to SW math (the bare path uses HW V2 PKA). (4) AES-128-GCM is 7-9x faster under HAL on the U5 family because the bare U5 path does SW GHASH + HW ECB while the HAL drives full HW GCM. (5) Because DHUK and CCB run the same SAES register sequence on both build flavors, their throughput tracks the bare column. Captured on real hardware; raw logs in the examples repo `STM32_Bare_Test/bench_logs/`.
+
 
 ## STM32 RNG
 
@@ -133,11 +144,11 @@ A DHUK-protected key is driven by a per-key 256-bit seed. The SAES derives the d
 #define WOLF_CRYPTO_CB       /* required -- DHUK routes through crypto callbacks */
 ```
 
-`WC_STM32_HAS_DHUK` is auto-defined for the SAES+DHUK families when `WOLFSSL_DHUK` is set; other families compile out the DHUK code. `WOLFSSL_STM32_BARE` selects the bare-metal SAES backend.
+`WC_STM32_HAS_DHUK` is auto-defined for the SAES+DHUK families when `WOLFSSL_DHUK` is set; other families compile out the DHUK code. DHUK works on both the bare-metal (`WOLFSSL_STM32_BARE`) and CubeMX/HAL (`WOLFSSL_STM32_CUBEMX`) build paths. Both drive the SAES key-derivation through the same direct-register sequence, so the derived device key is bit-identical across build flavors (validated on STM32U385, STM32U545 and STM32C5A3: the GMAC tag and AES-ECB ciphertext match between the bare and CubeMX builds for the same seed). On the classic-HAL families (U3/U5/H5) the CubeMX path uses the HAL for clock/UART/RNG bring-up and, for seed-based ECDSA sign, the HAL PKA. STM32C5 ships ST's new-generation HAL (no classic crypto driver APIs), so there the CubeMX build keeps wolfcrypt on the register path entirely and the HAL is used only for board bring-up -- the DHUK result is still bit-identical to the C5 bare build. Because both flavors execute the same SAES register sequence, transparent DHUK AES/GMAC and CCB-sign throughput is the same on the bare and CubeMX builds (on STM32C5A3 the bare and CubeMX benchmark columns are equal to within noise).
 
 ### Migration from WOLFSSL_STM32U5_DHUK
 
-`WOLFSSL_STM32U5_DHUK` is now an alias for this `WOLFSSL_DHUK` crypto-callback model and requires `WOLF_CRYPTO_CB` (a `#error` fires otherwise). The previous experimental inline path -- wrapped-key AES handled directly inside `wc_AesEncrypt` / `wc_AesDecrypt` / `wc_AesCbcEncrypt` / `wc_AesCbcDecrypt`, plus `wc_Stm32_Aes_SetDHUK_IV()`, `wc_Stm32_Aes_UnWrap()`, and the `Aes.dhukIV` / `dhukIVLen` members -- has been removed (fail-loud: code referencing those symbols no longer compiles). Migrate to the devId model shown below: register the device, init with `WC_DHUK_DEVID`, and use the normal `wc_Aes*` / `wc_ecc_*` APIs. Note that transparent DHUK AES/GMAC is bare-only (`WOLFSSL_STM32_BARE`); on the CubeMX/HAL path the crypto callback covers CCB ECDSA sign/keygen only.
+`WOLFSSL_STM32U5_DHUK` is now an alias for this `WOLFSSL_DHUK` crypto-callback model and requires `WOLF_CRYPTO_CB` (a `#error` fires otherwise). The previous experimental inline path -- wrapped-key AES handled directly inside `wc_AesEncrypt` / `wc_AesDecrypt` / `wc_AesCbcEncrypt` / `wc_AesCbcDecrypt`, plus `wc_Stm32_Aes_SetDHUK_IV()`, `wc_Stm32_Aes_UnWrap()`, and the `Aes.dhukIV` / `dhukIVLen` members -- has been removed (fail-loud: code referencing those symbols no longer compiles). Migrate to the devId model shown below: register the device, init with `WC_DHUK_DEVID`, and use the normal `wc_Aes*` / `wc_ecc_*` APIs. Transparent DHUK AES/GMAC and seed-based ECDSA sign are available on both the bare-metal (`WOLFSSL_STM32_BARE`) and CubeMX/HAL (`WOLFSSL_STM32_CUBEMX`) build paths; on the CubeMX path the crypto callback additionally provisions and signs with a CCB-protected key (`wc_ecc_make_key` keygen + sign) where the CCB peripheral is present.
 
 ### API
 
@@ -225,7 +236,7 @@ Worked example: `STM32_Bare_Test/src/main_ccb.c` (examples repo, PR #13) runs th
 
 - Validated on STM32U385 (NUCLEO-U385RG-Q, TZEN=0), P-256, on both the bare-metal and CubeMX/HAL build paths: `wc_ecc_make_key` -> `wc_ecc_sign_hash` -> `wc_ecc_verify_hash` round-trips, with the private scalar never present in software.
 - Also validated on STM32C5 (NUCLEO-C5A3ZG, TZEN=0), P-256, bare-metal: the same `wc_ecc_make_key` -> `wc_ecc_sign_hash` -> `wc_ecc_verify_hash` flow plus a persisted-blob re-import (`wc_ecc_import_wrapped_private_ex`) round-trip, all on the CCB hardware. On STM32C5 the blob-create step is a combined create-and-sign: the C5 OPSTEP machine only advances through the GCM-final phase when the random k is drawn and the PKA sign is started during creation (the r,s are a by-product and discarded). That extra sequence is gated by `WOLFSSL_STM32C5` in the bare driver; the U3 OPSTEP machine does not require it.
-- `Stm32Ccb_Init()` pulse-resets the PKA / SAES / RNG before each operation, so the first CCB op is robust even when prior standalone crypto (RNG seeding, ECC keygen) left an engine in a state that would otherwise stall the CCB's chained SAES GCM step. The family-specific reset register name is abstracted (`WC_STM32_CCB_RSTR`).
+- `wc_Stm32_CcbInit()` pulse-resets the PKA / SAES / RNG before each operation, so the first CCB op is robust even when prior standalone crypto (RNG seeding, ECC keygen) left an engine in a state that would otherwise stall the CCB's chained SAES GCM step. The family-specific reset register name is abstracted (`WC_STM32_CCB_RSTR`).
 - CCB requires the U3 / C5 at its full clock; the reference clock-tree bring-up is in the bare example's `boards/u3/hw_init.c` (96 MHz) and `boards/c5a3/hw_init.c`.
 
 
@@ -241,7 +252,8 @@ The caller is responsible for:
 
 1. Clock-tree bring-up (HSI/HSE, PLL, voltage scaling, flash latency).
 2. UART / VCP bring-up for stdout.
-3. Peripheral clock-enable for the IP blocks you use (RNG, CRYP/SAES, HASH, PKA).
+
+For `WOLFSSL_STM32_BARE` builds wolfcrypt enables the per-IP peripheral clocks it needs (RNG, CRYP/SAES, HASH, PKA) internally via the `WC_STM32_*_CLK_ENABLE` macros in `stm32.h`, so the caller does not have to enable those AHB/APB peripheral clocks itself.
 
 In return wolfcrypt drives the IP-block registers directly. Family-specific arms in `wolfssl/wolfcrypt/port/st/stm32.h` handle the per-chip register-name differences (e.g. `RCC->AHB2ENR` vs `RCC->AHB2ENR1`, `D2CCIP2R` vs `CDCCIP2R`).
 

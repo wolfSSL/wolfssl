@@ -4167,8 +4167,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     #ifdef WOLF_CRYPTO_CB
         /* Keep a raw (non-reversed) copy for crypto-callback offload, e.g. the
          * DHUK device reads the seed from devKey. Mirrors the generic
-         * wc_AesSetKey cryptocb path: only for a cryptocb-bound key, and reject
-         * an oversized key (matches the other devKey copy sites in this file). */
+         * wc_AesSetKey cryptocb path: only for a cryptocb-bound key, and
+         * reject an oversized key (matches the other devKey copy sites in
+         * this file). */
         if (aes->devId != INVALID_DEVID) {
             if (keylen > sizeof(aes->devKey)) {
                 return BAD_FUNC_ARG;
@@ -5747,7 +5748,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
          * callback). CBC has no crypto-callback entry on the BARE path, so a
          * DHUK key -- devId == WC_DHUK_DEVID, where wc_AesSetKey stored the
          * derivation seed in aes->key -- would run with the seed as the AES
-         * key. Reject rather than silently produce a non-device-bound result. */
+         * key. Reject rather than silently produce a non-device-bound
+         * result. */
         if (aes->devId == WC_DHUK_DEVID) {
             return NOT_COMPILED_IN;
         }

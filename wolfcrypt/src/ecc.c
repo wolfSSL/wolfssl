@@ -288,9 +288,9 @@ ECC Curve Sizes:
      * verify (mode 0x26) correctly, so use the SW verify helper rather than the
      * HW-accelerator sigRS path. Note the helper's scalar multiplications still
      * run on the HW PKA generic-mul (stm32.c provides wc_ecc_mulmod_ex under
-     * !WC_STM32_PKA_VERIFY_ONLY) -- the C5 issue is specifically the verify-mode
-     * wrapper, not the point math, which is exercised and correct (the lead for
-     * a future real HW verify). */
+     * !WC_STM32_PKA_VERIFY_ONLY) -- the C5 issue is specifically the
+     * verify-mode wrapper, not the point math, which is exercised and correct
+     * (the lead for a future real HW verify). */
     #undef  HAVE_ECC_VERIFY_HELPER
     #define HAVE_ECC_VERIFY_HELPER
 #endif
@@ -7032,6 +7032,62 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
 #endif /* WOLFSSL_ECDSA_DETERMINISTIC_K ||
           WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT */
 
+/* Gated to match the ecc.h prototype: user-visible macros only (WOLFSSL_DHUK +
+ * build-flavor), NOT the port-internal WC_STM32_HAS_DHUK, so the WOLFSSL_API
+ * prototype in ecc.h is in scope at this definition. The DHUK key fields it
+ * sets are themselves WOLFSSL_DHUK-gated in ecc.h. */
+#if defined(WOLFSSL_DHUK) && \
+    (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
+/* Import a hardware-wrapped ECC private scalar + its derivation seed onto the
+ * ecc_key for the DHUK crypto-callback sign path. The scalar is AES-encrypted
+ * (offline or on-chip) with the device key that the SAES derives from the seed;
+ * at sign time it is decrypted into a short-lived buffer. The devId is NOT set
+ * here -- enable the device by setting devId at init
+ * (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)). See ecc.h for the contract.
+ * This is a pure setter (no STM32 PKA dependency), so it is available on both
+ * the bare-metal and CubeMX/HAL DHUK build paths. */
+int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+                                  const byte* wrapped, word32 wrappedLen,
+                                  word32 plainLen)
+{
+    if (key == NULL || seed == NULL || wrapped == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    /* Seed is the 256-bit DHUK derivation secret. */
+    if (seedSz != sizeof(key->dhuk_seed)) {
+        return BAD_FUNC_ARG;
+    }
+    /* Wrapped scalar blob must be a non-zero multiple of one AES block. */
+    if (wrappedLen == 0u || (wrappedLen % 16u) != 0u) {
+        return BAD_FUNC_ARG;
+    }
+    if (wrappedLen > sizeof(key->dhuk_wrapped_priv)) {
+        return BAD_FUNC_ARG;
+    }
+    /* Plain length must fit inside the wrapped blob and be non-zero. */
+    if (plainLen == 0u || plainLen > wrappedLen) {
+        return BAD_FUNC_ARG;
+    }
+    /* Wrapped blob must be no larger than the plaintext padded up to a full
+     * AES block; a larger blob is malformed and would overrun the fixed-size
+     * unwrap buffer used during signing. */
+    if (wrappedLen > ((plainLen + 15u) & ~15u)) {
+        return BAD_FUNC_ARG;
+    }
+    XMEMCPY(key->dhuk_wrapped_priv, wrapped, wrappedLen);
+    XMEMCPY(key->dhuk_seed, seed, seedSz);
+    key->dhuk_wrapped_priv_len = wrappedLen;
+    key->dhuk_plain_priv_len   = plainLen;
+    key->dhuk_seed_sz          = seedSz;
+#ifdef WOLFSSL_STM32_CCB
+    /* This is a DHUK seed-wrapped (non-CCB) scalar; clear any CCB blob
+     * routing left from a prior import so signing uses the DHUK path. */
+    key->dhuk_is_ccb = 0;
+#endif
+    return 0;
+}
+#endif /* WOLFSSL_DHUK && (BARE || CUBEMX) */
+
 /* WOLFSSL_STM32_PKA routes HW ECDSA sign/verify through the STM32 PKA
  * (HAL_PKA_ECDSASign / Verify). Works under both the CubeMX-HAL path
  * and the bare-metal direct-register path (WOLFSSL_STM32_BARE) -- the
@@ -7073,56 +7129,6 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
     return stm32_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 }
-
-#if defined(WOLFSSL_DHUK) && defined(WOLFSSL_STM32_BARE) && \
-    defined(WC_STM32_HAS_DHUK)
-/* Import a hardware-wrapped ECC private scalar + its derivation seed onto the
- * ecc_key for the DHUK crypto-callback sign path. The scalar is AES-encrypted
- * (offline or on-chip) with the device key that the SAES derives from the seed;
- * at sign time it is decrypted into a short-lived buffer. The devId is NOT set
- * here -- enable the device by setting devId at init
- * (wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)). See ecc.h for the contract. */
-int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
-                                  const byte* wrapped, word32 wrappedLen,
-                                  word32 plainLen)
-{
-    if (key == NULL || seed == NULL || wrapped == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    /* Seed is the 256-bit DHUK derivation secret. */
-    if (seedSz != sizeof(key->dhuk_seed)) {
-        return BAD_FUNC_ARG;
-    }
-    /* Wrapped scalar blob must be a non-zero multiple of one AES block. */
-    if (wrappedLen == 0u || (wrappedLen % 16u) != 0u) {
-        return BAD_FUNC_ARG;
-    }
-    if (wrappedLen > sizeof(key->dhuk_wrapped_priv)) {
-        return BAD_FUNC_ARG;
-    }
-    /* Plain length must fit inside the wrapped blob and be non-zero. */
-    if (plainLen == 0u || plainLen > wrappedLen) {
-        return BAD_FUNC_ARG;
-    }
-    /* Wrapped blob must be no larger than the plaintext padded up to a full
-     * AES block; a larger blob is malformed and would overrun the fixed-size
-     * unwrap buffer used during signing. */
-    if (wrappedLen > ((plainLen + 15u) & ~15u)) {
-        return BAD_FUNC_ARG;
-    }
-    XMEMCPY(key->dhuk_wrapped_priv, wrapped, wrappedLen);
-    XMEMCPY(key->dhuk_seed, seed, seedSz);
-    key->dhuk_wrapped_priv_len = wrappedLen;
-    key->dhuk_plain_priv_len   = plainLen;
-    key->dhuk_seed_sz          = seedSz;
-#ifdef WOLFSSL_STM32_CCB
-    /* This is a DHUK seed-wrapped (non-CCB) scalar; clear any CCB blob
-     * routing left from a prior import so signing uses the DHUK path. */
-    key->dhuk_is_ccb = 0;
-#endif
-    return 0;
-}
-#endif /* WOLFSSL_DHUK && WOLFSSL_STM32_BARE && WC_STM32_HAS_DHUK */
 
 #elif !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
       !defined(WOLFSSL_MICROCHIP_TA100) && \
@@ -8264,13 +8270,25 @@ int wc_ecc_dev_make_key(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         }
     }
     if (ret == 0) {
-        ret = wc_ecc_import_wrapped_private_ex(key, curve_id, wrapped, wrappedSz,
-                                     iv, (word32)sizeof(iv), tag,
+        ret = wc_ecc_import_wrapped_private_ex(key, curve_id, wrapped,
+                                     wrappedSz, iv, (word32)sizeof(iv), tag,
                                      (word32)sizeof(tag), pub,
                                      (word32)(2 * modSz));
     }
 
-    ForceZero(d, MAX_ECC_BYTES);
+    /* Clear all sensitive material: the plaintext scalar (d) and the wrapped
+     * private-scalar blob (wrapped). In the small-stack path d/pub/wrapped all
+     * live in scratch, so clear it all; iv/tag are always on the stack. */
+#ifdef WOLFSSL_SMALL_STACK
+    if (scratch != NULL) {
+        ForceZero(scratch, (3 * MAX_ECC_BYTES) + 96);
+    }
+#else
+    ForceZero(d, sizeof(d));
+    ForceZero(wrapped, sizeof(wrapped));
+#endif
+    ForceZero(iv, sizeof(iv));
+    ForceZero(tag, sizeof(tag));
     if (tmpInit) {
         wc_ecc_free(tmp);
     }
