@@ -6239,6 +6239,7 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
     CK_ULONG            count = 0;
     CK_OBJECT_HANDLE    certHandle = CK_INVALID_HANDLE;
     byte               *certData = NULL;
+    int                 certDataSz = 0;
     CK_ATTRIBUTE    certTemplate[2] = {
         { CKA_CLASS,           &certClass, sizeof(certClass)   }
     };
@@ -6280,19 +6281,21 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
         goto exit;
     }
 
-    if (tmpl[0].ulValueLen <= 0) {
+    certDataSz = (int)tmpl[0].ulValueLen;
+    /* reject a token length that does not fit in a positive int */
+    if (certDataSz <= 0 || (CK_ULONG)certDataSz != tmpl[0].ulValueLen) {
         ret = WC_HW_E;
         goto exit;
     }
 
-    certData = (byte *)XMALLOC(
-        (int)tmpl[0].ulValueLen, info->cert.heap, DYNAMIC_TYPE_CERT);
+    certData = (byte *)XMALLOC(certDataSz, info->cert.heap, DYNAMIC_TYPE_CERT);
     if (certData == NULL) {
         ret = MEMORY_E;
         goto exit;
     }
 
     tmpl[0].pValue = certData;
+    tmpl[0].ulValueLen = (CK_ULONG)certDataSz;
     rv = session->func->C_GetAttributeValue(
         session->handle, certHandle, tmpl, tmplCnt);
     PKCS11_RV("C_GetAttributeValue", rv);
@@ -6302,7 +6305,7 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
     }
 
     *info->cert.certDataOut = certData;
-    *info->cert.certSz = (word32)tmpl[0].ulValueLen;
+    *info->cert.certSz = (word32)certDataSz;
     if (info->cert.certFormatOut != NULL) {
         *info->cert.certFormatOut = CTC_FILETYPE_ASN1;
     }
