@@ -453,9 +453,10 @@ typedef struct sp_dh_ctx {
         #ifdef WOLFSSL_MYSQL_COMPATIBLE
             /* MySQL wants to be able to use 8192-bit numbers. */
             #define SP_INT_BITS     8192
-        #elif !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH) && \
-            !defined(WOLFSSL_HAVE_SP_ECC)
-            /* Not using SP - must be SP math all. */
+        #elif defined(WOLFSSL_SP_MATH_ALL) || \
+              (!defined(WOLFSSL_HAVE_SP_RSA) && \
+               !defined(WOLFSSL_HAVE_SP_DH) && !defined(WOLFSSL_HAVE_SP_ECC))
+            /* Using multi-precision implementation. */
             #if !defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA)
                 /* Support max size FFHDE parameters compiled in. */
                 #if !defined(NO_DH) && defined(HAVE_FFDHE_8192)

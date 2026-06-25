@@ -50,24 +50,43 @@
 #endif
 
 /* in bytes */
+/* Digest and block sizes are macros (like the other hash headers, e.g.
+ * sha256.h) rather than enum values so they are visible to the preprocessor -
+ * e.g. the WC_MIN_DIGEST_SIZE selection in hash.h evaluates them in #if. */
+#define WC_SHA3_224_DIGEST_SIZE  28
+#define WC_SHA3_256_DIGEST_SIZE  32
+#define WC_SHA3_384_DIGEST_SIZE  48
+#define WC_SHA3_512_DIGEST_SIZE  64
+
+#if !defined(HAVE_SELFTEST) || \
+    defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION >= 2)
+/* These values are used for HMAC, not SHA-3 directly.
+ * They come from from FIPS PUB 202. */
+#define WC_SHA3_128_BLOCK_SIZE   168
+#define WC_SHA3_224_BLOCK_SIZE   144
+#define WC_SHA3_256_BLOCK_SIZE   136
+#define WC_SHA3_384_BLOCK_SIZE   104
+#define WC_SHA3_512_BLOCK_SIZE   72
+#else
+/* For SELFTEST version < 2, define WC_SHA3_128_BLOCK_SIZE
+ * for Kyber/Dilithium */
+#define WC_SHA3_128_BLOCK_SIZE   168
+#endif
+
 enum {
     /* SHAKE-128 */
     WC_SHA3_128_COUNT        = 21,
 
     WC_SHA3_224              = WC_HASH_TYPE_SHA3_224,
-    WC_SHA3_224_DIGEST_SIZE  = 28,
     WC_SHA3_224_COUNT        = 18,
 
     WC_SHA3_256              = WC_HASH_TYPE_SHA3_256,
-    WC_SHA3_256_DIGEST_SIZE  = 32,
     WC_SHA3_256_COUNT        = 17,
 
     WC_SHA3_384              = WC_HASH_TYPE_SHA3_384,
-    WC_SHA3_384_DIGEST_SIZE  = 48,
     WC_SHA3_384_COUNT        = 13,
 
     WC_SHA3_512              = WC_HASH_TYPE_SHA3_512,
-    WC_SHA3_512_DIGEST_SIZE  = 64,
     WC_SHA3_512_COUNT        =  9,
 
     #ifdef WOLFSSL_SHAKE128
@@ -77,20 +96,6 @@ enum {
         WC_SHAKE256          = WC_HASH_TYPE_SHAKE256,
     #endif
 
-#if !defined(HAVE_SELFTEST) || \
-    defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION >= 2)
-    /* These values are used for HMAC, not SHA-3 directly.
-     * They come from from FIPS PUB 202. */
-    WC_SHA3_128_BLOCK_SIZE = 168,
-    WC_SHA3_224_BLOCK_SIZE = 144,
-    WC_SHA3_256_BLOCK_SIZE = 136,
-    WC_SHA3_384_BLOCK_SIZE = 104,
-    WC_SHA3_512_BLOCK_SIZE = 72,
-#else
-    /* For SELFTEST version < 2, define WC_SHA3_128_BLOCK_SIZE
-     * for Kyber/Dilithium */
-    WC_SHA3_128_BLOCK_SIZE = 168,
-#endif
     WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_SHA3)
 };
 

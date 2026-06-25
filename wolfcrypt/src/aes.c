@@ -8441,6 +8441,7 @@ static void GMULT(byte *x, byte m[256][WC_AES_BLOCK_SIZE])
 
     XMEMCPY(x, Z, WC_AES_BLOCK_SIZE);
 #elif defined(WC_32BIT_CPU)
+#ifndef WOLFSSL_USE_ALIGN
     byte Z[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE];
     byte a;
     word32* pZ;
@@ -8472,6 +8473,24 @@ static void GMULT(byte *x, byte m[256][WC_AES_BLOCK_SIZE])
     pm = (word32*)(m[x[0]]);
     px[0] = pZ[0] ^ pm[0]; px[1] = pZ[1] ^ pm[1];
     px[2] = pZ[2] ^ pm[2]; px[3] = pZ[3] ^ pm[3];
+#else
+    byte Z[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE];
+    byte a;
+    int i;
+
+    XMEMCPY(Z + 16, m[x[15]], WC_AES_BLOCK_SIZE);
+    a = Z[16 + 15];
+    Z[15]  = R[a][0];
+    Z[16] ^= R[a][1];
+    for (i = 14; i > 0; i--) {
+        xorbuf(Z + i + 1, m[x[i]], WC_AES_BLOCK_SIZE);
+        a = Z[16 + i];
+        Z[i]    = R[a][0];
+        Z[i+1] ^= R[a][1];
+    }
+    xorbuf(Z + 1, m[x[0]], WC_AES_BLOCK_SIZE);
+    XMEMCPY(x, Z + 1, WC_AES_BLOCK_SIZE);
+#endif
 #else
     byte Z[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE];
     byte a;

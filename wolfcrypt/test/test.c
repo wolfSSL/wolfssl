@@ -15616,6 +15616,18 @@ static wc_test_ret_t aes_cbc_large_msg_test(Aes* enc, Aes* dec)
     /* Iterate from one WC_AES_BLOCK_SIZE of bigMsg through the whole
      * message by WC_AES_BLOCK_SIZE for each size of AES key. */
     for (keySz = 16; keySz <= 32; keySz += 8) {
+    #ifdef NO_AES_128
+        if (keySz == 16)
+            continue;
+    #endif
+    #ifdef NO_AES_192
+        if (keySz == 24)
+            continue;
+    #endif
+    #ifdef NO_AES_256
+        if (keySz == 32)
+            continue;
+    #endif
         for (msgSz = WC_AES_BLOCK_SIZE;
              msgSz <= sizeof(bigMsg);
              msgSz += WC_AES_BLOCK_SIZE) {
@@ -16377,7 +16389,9 @@ static wc_test_ret_t aes_xts_partial_test_common(XtsAes *aes,
     const unsigned char *c2, word32 c2Sz)
 {
     wc_test_ret_t ret = 0;
+#if defined(WOLFSSL_AESXTS_STREAM) || defined(HAVE_AES_DECRYPT)
     byte buf[WC_AES_BLOCK_SIZE * 2 + 8];
+#endif
     byte cipher[WC_AES_BLOCK_SIZE * 2 + 8];
 #ifdef WOLFSSL_AESXTS_STREAM
     struct XtsAesStreamData stream;
@@ -56116,7 +56130,9 @@ static wc_test_ret_t test_mldsa_decode_level(const byte* rawKey,
     byte*         der = NULL;
     wc_MlDsaKey *key = NULL;
 #else
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
     byte          der[MLDSA_MAX_PRV_KEY_DER_SIZE];
+#endif
     wc_MlDsaKey  key[1];
 #endif
 

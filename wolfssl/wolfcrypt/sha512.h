@@ -224,7 +224,9 @@ struct wc_Sha512 {
 
 #endif /* HAVE_FIPS */
 
-#if defined(WOLFSSL_SHA512)
+/* SHA-384 reuses the SHA-512 transform, so these internal functions are
+ * needed whenever either algorithm is enabled. */
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(WOLFSSL_ARMASM_NO_NEON)
@@ -239,8 +241,10 @@ WOLFSSL_LOCAL void Transform_Sha512_Len_crypto(wc_Sha512* sha512,
 WOLFSSL_LOCAL void Transform_Sha512_Len_base(wc_Sha512* sha512,
     const byte* data, word32 len);
 #endif
-#endif
+#endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 
+#if defined(WOLFSSL_SHA512)
 WOLFSSL_API int wc_InitSha512(wc_Sha512* sha);
 WOLFSSL_API int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId);
 WOLFSSL_API int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len);

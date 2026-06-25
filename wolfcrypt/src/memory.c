@@ -239,8 +239,8 @@ void wc_MemZero_Free(void)
         int i;
         fprintf(stderr, "[MEM_ZERO] Unseen: %d\n", nextIdx);
         for (i = 0; i < nextIdx; i++) {
-            fprintf(stderr, "  %s - %p:%ld\n", memZero[i].name, memZero[i].addr,
-                memZero[i].len);
+            fprintf(stderr, "  %s - %p:%lu\n", memZero[i].name, memZero[i].addr,
+                (unsigned long)memZero[i].len);
         }
     }
     /* Uninitialized value in next index. */
@@ -301,9 +301,10 @@ void wc_MemZero_Check(void* addr, size_t len)
         for (j = 0; j < memZero[i].len; j++) {
             if (((unsigned char*)memZero[i].addr)[j] != 0) {
                 /* Byte not zero - abort! */
-                fprintf(stderr, "\n[MEM_ZERO] %s:%p + %ld is not zero\n",
-                    memZero[i].name, memZero[i].addr, j);
-                fprintf(stderr, "[MEM_ZERO] Checking %p:%ld\n", addr, len);
+                fprintf(stderr, "\n[MEM_ZERO] %s:%p + %lu is not zero\n",
+                    memZero[i].name, memZero[i].addr, (unsigned long)j);
+                fprintf(stderr, "[MEM_ZERO] Checking %p:%lu\n", addr,
+                    (unsigned long)len);
             #ifndef TEST_ALWAYS_RUN_TO_END
                 abort();
             #endif
