@@ -2118,7 +2118,10 @@ static const FLASH_QUALIFIER byte Td4[256] =
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
 #endif /* HAVE_AES_DECRYPT */
 
-#define GETBYTE(x, y) (word32)((byte)((x) >> (8 * (y))))
+/* Extract octet y of word x.  Mask with 0xFF explicitly: a (byte) cast only
+ * truncates to 8 bits where a byte is 8 bits; on a wider-byte target (C28x,
+ * CHAR_BIT==16) it would leave a >8-bit Te/Td table index. */
+#define GETBYTE(x, y) (word32)(((x) >> (8 * (y))) & 0xFFU)
 
 #ifdef WOLFSSL_AES_SMALL_TABLES
 static const byte Tsbox[256] = {
@@ -2486,6 +2489,9 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
     word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
+#ifdef WOLFSSL_WIDE_BYTE
+    word32 stw[4]; /* octet-wise block I/O scratch (CHAR_BIT != 8) */
+#endif
 
 #ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
@@ -2497,6 +2503,12 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
      * map byte array block to cipher state
      * and add initial round key:
      */
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A C byte is wider than an octet here: the block is one octet per cell, so
+     * assemble the 4 big-endian state words octet-wise (no aliasing/reverse). */
+    WordsFromBytesBE32(stw, inBlock, 4);
+    s0 = stw[0]; s1 = stw[1]; s2 = stw[2]; s3 = stw[3];
+#else
     XMEMCPY(&s0, inBlock,                  sizeof(s0));
     XMEMCPY(&s1, inBlock +     sizeof(s0), sizeof(s1));
     XMEMCPY(&s2, inBlock + 2 * sizeof(s0), sizeof(s2));
@@ -2508,6 +2520,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     s2 = ByteReverseWord32(s2);
     s3 = ByteReverseWord32(s3);
 #endif
+#endif /* WOLFSSL_WIDE_BYTE */
 
     /* AddRoundKey */
     s0 ^= rk[0];
@@ -2756,6 +2769,10 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #endif /* WOLFSSL_AES_SMALL_TABLES */
 
     /* write out */
+#ifdef WOLFSSL_WIDE_BYTE
+    stw[0] = s0; stw[1] = s1; stw[2] = s2; stw[3] = s3;
+    BytesFromWordsBE32(outBlock, stw, WC_AES_BLOCK_SIZE);
+#else
 #ifdef LITTLE_ENDIAN_ORDER
     s0 = ByteReverseWord32(s0);
     s1 = ByteReverseWord32(s1);
@@ -2767,6 +2784,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     XMEMCPY(outBlock +     sizeof(s0), &s1, sizeof(s1));
     XMEMCPY(outBlock + 2 * sizeof(s0), &s2, sizeof(s2));
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
+#endif /* WOLFSSL_WIDE_BYTE */
 }
 
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
@@ -3589,6 +3607,9 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
     word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
+#ifdef WOLFSSL_WIDE_BYTE
+    word32 stw[4]; /* octet-wise block I/O scratch (CHAR_BIT != 8) */
+#endif
 
 #ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
@@ -3600,6 +3621,12 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
      * map byte array block to cipher state
      * and add initial round key:
      */
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A C byte is wider than an octet here: the block is one octet per cell, so
+     * assemble the 4 big-endian state words octet-wise (no aliasing/reverse). */
+    WordsFromBytesBE32(stw, inBlock, 4);
+    s0 = stw[0]; s1 = stw[1]; s2 = stw[2]; s3 = stw[3];
+#else
     XMEMCPY(&s0, inBlock,                  sizeof(s0));
     XMEMCPY(&s1, inBlock + sizeof(s0),     sizeof(s1));
     XMEMCPY(&s2, inBlock + 2 * sizeof(s0), sizeof(s2));
@@ -3611,6 +3638,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     s2 = ByteReverseWord32(s2);
     s3 = ByteReverseWord32(s3);
 #endif
+#endif /* WOLFSSL_WIDE_BYTE */
 
     s0 ^= rk[0];
     s1 ^= rk[1];
@@ -3817,6 +3845,10 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #endif /* WOLFSSL_AES_SMALL_TABLES */
 
     /* write out */
+#ifdef WOLFSSL_WIDE_BYTE
+    stw[0] = s0; stw[1] = s1; stw[2] = s2; stw[3] = s3;
+    BytesFromWordsBE32(outBlock, stw, WC_AES_BLOCK_SIZE);
+#else
 #ifdef LITTLE_ENDIAN_ORDER
     s0 = ByteReverseWord32(s0);
     s1 = ByteReverseWord32(s1);
@@ -3828,6 +3860,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     XMEMCPY(outBlock + sizeof(s0),     &s1, sizeof(s1));
     XMEMCPY(outBlock + 2 * sizeof(s0), &s2, sizeof(s2));
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
+#endif /* WOLFSSL_WIDE_BYTE */
 
 }
 
@@ -5123,8 +5156,15 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     word32 temp;
     unsigned int i = 0;
 
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A C byte is wider than an octet: assemble the big-endian key schedule
+     * words octet-wise rather than aliasing the key byte buffer as word32. */
+    WordsFromBytesBE32(rk, key, keySz / 4);
+#else
     XMEMCPY(rk, key, keySz);
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
+#endif
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_WIDE_BYTE) && \
+    !defined(WOLFSSL_PIC32MZ_CRYPT) && \
     (!defined(WOLFSSL_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES)) && \
     !defined(MAX3266X_AES)
     /* Always reverse words when using only SW */
@@ -16651,7 +16691,7 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
             byte tmpC;
 
             tmpC   = (i[j] >> 7) & 0x01;
-            i[j] = (byte)((i[j] << 1) + carry);
+            i[j] = (byte)(((i[j] << 1) + carry) & 0xFF);
             carry  = tmpC;
         }
         if (carry) {
@@ -17169,7 +17209,7 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
             byte tmpC;
 
             tmpC   = (i[j] >> 7) & 0x01;
-            i[j] = (byte)((i[j] << 1) + carry);
+            i[j] = (byte)(((i[j] << 1) + carry) & 0xFF);
             carry  = tmpC;
         }
         if (carry) {
