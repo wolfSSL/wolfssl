@@ -762,9 +762,18 @@ int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
   int     res;
   int     digits_needed;
 
+  if (c < 0) {
+      return MP_VAL;
+  }
+
   while (c > 0 && b[0] == 0) {
       c--;
       b++;
+  }
+
+  /* reject sizes where the bit count would overflow an int */
+  if (c > (WOLFSSL_MAX_32BIT - (DIGIT_BIT - 1)) / CHAR_BIT) {
+      return MP_VAL;
   }
 
   digits_needed = ((c * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT;
