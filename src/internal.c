@@ -14280,6 +14280,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     /* if der contains original source buffer then store for potential
      * retrieval */
     if (dCert->source != NULL && dCert->maxIdx > 0) {
+        word32 derCertSz = dCert->maxIdx;
+#ifdef WOLFSSL_CERT_REJECT_TRAILING
         /* Store only the certificate itself, bounded by the end of its outer
          * SEQUENCE (dCert->srcIdx), never any trailing bytes that may follow in
          * the source buffer. This keeps wolfSSL_i2d_X509 / wolfSSL_X509_get_der
@@ -14287,10 +14289,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
          * builds/paths that do not reject trailing data (e.g.
          * WOLFSSL_NO_ASN_STRICT). It removes only bytes after the certificate,
          * so the signed certificate bytes are preserved verbatim. */
-        word32 derCertSz = dCert->maxIdx;
         if ((dCert->srcIdx > 0) && (dCert->srcIdx < derCertSz)) {
             derCertSz = dCert->srcIdx;
         }
+#endif
         if (AllocDer(&x509->derCert, derCertSz, CERT_TYPE, x509->heap) == 0) {
             XMEMCPY(x509->derCert->buffer, dCert->source, derCertSz);
         }
@@ -14628,12 +14630,14 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
     /* if der contains original source buffer then store for potential
      * retrieval */
     if (dAcert->source != NULL && dAcert->maxIdx > 0) {
+        word32 derCertSz = dAcert->maxIdx;
+#ifdef WOLFSSL_CERT_REJECT_TRAILING
         /* Bound to the end of the attribute certificate's outer SEQUENCE so no
          * trailing bytes after it are ever re-emitted by i2d / get_der. */
-        word32 derCertSz = dAcert->maxIdx;
         if ((dAcert->srcIdx > 0) && (dAcert->srcIdx < derCertSz)) {
             derCertSz = dAcert->srcIdx;
         }
+#endif
         if (AllocDer(&x509->derCert, derCertSz, CERT_TYPE, x509->heap) == 0) {
             XMEMCPY(x509->derCert->buffer, dAcert->source, derCertSz);
         }

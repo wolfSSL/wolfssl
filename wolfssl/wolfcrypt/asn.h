@@ -2067,10 +2067,12 @@ struct DecodedCert {
 
     /* Option Bits */
     WC_BITFIELD subjectCNStored:1;      /* have we saved a copy we own */
+#ifdef WOLFSSL_CERT_REJECT_TRAILING
     WC_BITFIELD allowTrailing:1;        /* permit data after the cert's outer
                                          * SEQUENCE. Used internally for the
                                          * TRUSTED CERTIFICATE auxiliary trust
                                          * info. */
+#endif
     WC_BITFIELD extSubjKeyIdSet:1;      /* Set when the SKID was read from cert */
     WC_BITFIELD extAuthKeyIdSet:1;      /* Set when the AKID was read from cert */
 #ifndef IGNORE_NAME_CONSTRAINTS
