@@ -42,7 +42,7 @@ static int hwpuf_registered = 0;
 
 WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
@@ -57,7 +57,7 @@ WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
     ret = nxp_hwpuf_RegisterDevice(hwpuf);
 #endif
     if (ret != 0) {
-        if (ret != CRYPTOCB_UNAVAILABLE) {
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             ret = HWPUF_REGISTER_E;
         }
         ForceZero(hwpuf, sizeof(wc_HWPUF));
@@ -69,7 +69,7 @@ WOLFSSL_API int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId)
 
 WOLFSSL_API int wc_HWPUF_Unregister(wc_HWPUF* hwpuf)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
     if (hwpuf == NULL)
         return BAD_FUNC_ARG;
