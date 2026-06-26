@@ -101,6 +101,7 @@
   #define HAVE_TLS_EXTENSIONS
 
   #define HAVE_AESGCM
+  #define GCM_TABLE_4BIT
   #define HAVE_AESCCM
   #define HAVE_AES_CBC
   #define WOLFSSL_AES_DIRECT
