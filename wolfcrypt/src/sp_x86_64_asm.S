@@ -7656,7 +7656,7 @@ _sp_2048_sqr_32:
         subq	$0x110, %rsp
         movq	%rdi, 256(%rsp)
         movq	%rsi, 264(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	128(%rsi), %r9
         movq	(%rsi), %rdx
@@ -7820,7 +7820,7 @@ _sp_2048_sqr_32:
         movq	256(%rsp), %rsi
         leaq	128(%rsp), %r8
         addq	$0x180, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-128(%r8), %rax
         subq	-128(%rsi), %rax
         movq	-120(%r8), %rdx
@@ -8197,7 +8197,7 @@ _sp_2048_sqr_avx2_32:
         subq	$0x110, %rsp
         movq	%rdi, 256(%rsp)
         movq	%rsi, 264(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	128(%rsi), %r9
         movq	(%rsi), %rdx
@@ -8361,7 +8361,7 @@ _sp_2048_sqr_avx2_32:
         movq	256(%rsp), %rsi
         leaq	128(%rsp), %r8
         addq	$0x180, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-128(%r8), %rax
         subq	-128(%rsi), %rax
         movq	-120(%r8), %rdx
@@ -9405,7 +9405,6 @@ L_2048_mont_reduce_16_loop:
         movq	%rsi, %rdx
 #endif /* _WIN64 */
         movq	%rdi, %rsi
-        movq	%rdi, %rdi
         subq	$0x80, %rdi
 #ifndef __APPLE__
         callq	sp_2048_cond_sub_16@plt
@@ -10017,7 +10016,6 @@ _sp_2048_mont_reduce_avx2_16:
         movq	16(%rdi), %r14
         movq	24(%rdi), %r15
         addq	$0x40, %rdi
-        xorq	%rbp, %rbp
 L_2048_mont_reduce_avx2_16_loop:
         # mu = a[i] * mp
         movq	%r12, %rdx
@@ -11482,7 +11480,6 @@ L_2048_mont_reduce_32_loop:
         movq	%rsi, %rdx
 #endif /* _WIN64 */
         movq	%rdi, %rsi
-        movq	%rdi, %rdi
         subq	$0x100, %rdi
 #ifndef __APPLE__
         callq	sp_2048_cond_sub_32@plt
@@ -12368,7 +12365,6 @@ _sp_2048_mont_reduce_avx2_32:
         movq	16(%rdi), %r14
         movq	24(%rdi), %r15
         addq	$0x80, %rdi
-        xorq	%rbp, %rbp
 L_2048_mont_reduce_avx2_32_loop:
         # mu = a[i] * mp
         movq	%r12, %rdx
@@ -15173,7 +15169,7 @@ sp_2048_lshift_32:
 _sp_2048_lshift_32:
 #endif /* __APPLE__ */
         movb	%dl, %cl
-        movq	$0x00, %r10
+        xorq	%r10, %r10
         movq	216(%rsi), %r11
         movq	224(%rsi), %rdx
         movq	232(%rsi), %rax
@@ -22716,7 +22712,7 @@ _sp_3072_sqr_24:
         subq	$0xd0, %rsp
         movq	%rdi, 192(%rsp)
         movq	%rsi, 200(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	96(%rsi), %r9
         movq	(%rsi), %rdx
@@ -22848,7 +22844,7 @@ _sp_3072_sqr_24:
         movq	192(%rsp), %rsi
         leaq	96(%rsp), %r8
         addq	$0x120, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-96(%r8), %rax
         subq	-96(%rsi), %rax
         movq	-88(%r8), %rdx
@@ -23141,7 +23137,7 @@ _sp_3072_sqr_avx2_24:
         subq	$0xd0, %rsp
         movq	%rdi, 192(%rsp)
         movq	%rsi, 200(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	96(%rsi), %r9
         movq	(%rsi), %rdx
@@ -23273,7 +23269,7 @@ _sp_3072_sqr_avx2_24:
         movq	192(%rsp), %rsi
         leaq	96(%rsp), %r8
         addq	$0x120, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-96(%r8), %rax
         subq	-96(%rsi), %rax
         movq	-88(%r8), %rdx
@@ -23566,7 +23562,7 @@ _sp_3072_sqr_48:
         subq	$0x190, %rsp
         movq	%rdi, 384(%rsp)
         movq	%rsi, 392(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	192(%rsi), %r9
         movq	(%rsi), %rdx
@@ -23794,7 +23790,7 @@ _sp_3072_sqr_48:
         movq	384(%rsp), %rsi
         leaq	192(%rsp), %r8
         addq	$0x240, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-192(%r8), %rax
         subq	-192(%rsi), %rax
         movq	-184(%r8), %rdx
@@ -24339,7 +24335,7 @@ _sp_3072_sqr_avx2_48:
         subq	$0x190, %rsp
         movq	%rdi, 384(%rsp)
         movq	%rsi, 392(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	192(%rsi), %r9
         movq	(%rsi), %rdx
@@ -24567,7 +24563,7 @@ _sp_3072_sqr_avx2_48:
         movq	384(%rsp), %rsi
         leaq	192(%rsp), %r8
         addq	$0x240, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-192(%r8), %rax
         subq	-192(%rsi), %rax
         movq	-184(%r8), %rdx
@@ -25973,7 +25969,6 @@ L_3072_mont_reduce_24_loop:
         movq	%rsi, %rdx
 #endif /* _WIN64 */
         movq	%rdi, %rsi
-        movq	%rdi, %rdi
         subq	$0xc0, %rdi
 #ifndef __APPLE__
         callq	sp_3072_cond_sub_24@plt
@@ -26801,7 +26796,6 @@ _sp_3072_mont_reduce_avx2_24:
         movq	16(%rdi), %r14
         movq	24(%rdi), %r15
         addq	$0x60, %rdi
-        xorq	%rbp, %rbp
 L_3072_mont_reduce_avx2_24_loop:
         # mu = a[i] * mp
         movq	%r12, %rdx
@@ -28885,7 +28879,6 @@ L_3072_mont_reduce_48_loop:
         movq	%rsi, %rdx
 #endif /* _WIN64 */
         movq	%rdi, %rsi
-        movq	%rdi, %rdi
         subq	$0x180, %rdi
 #ifndef __APPLE__
         callq	sp_3072_cond_sub_48@plt
@@ -30123,7 +30116,6 @@ _sp_3072_mont_reduce_avx2_48:
         movq	16(%rdi), %r14
         movq	24(%rdi), %r15
         addq	$0xc0, %rdi
-        xorq	%rbp, %rbp
 L_3072_mont_reduce_avx2_48_loop:
         # mu = a[i] * mp
         movq	%r12, %rdx
@@ -31900,7 +31892,7 @@ sp_3072_lshift_48:
 _sp_3072_lshift_48:
 #endif /* __APPLE__ */
         movb	%dl, %cl
-        movq	$0x00, %r10
+        xorq	%r10, %r10
         movq	344(%rsi), %r11
         movq	352(%rsi), %rdx
         movq	360(%rsi), %rax
@@ -35658,7 +35650,7 @@ _sp_4096_sqr_64:
         subq	$0x210, %rsp
         movq	%rdi, 512(%rsp)
         movq	%rsi, 520(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	256(%rsi), %r9
         movq	(%rsi), %rdx
@@ -35950,7 +35942,7 @@ _sp_4096_sqr_64:
         movq	512(%rsp), %rsi
         leaq	256(%rsp), %r8
         addq	$0x300, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-256(%r8), %rax
         subq	-256(%rsi), %rax
         movq	-248(%r8), %rdx
@@ -36663,7 +36655,7 @@ _sp_4096_sqr_avx2_64:
         subq	$0x210, %rsp
         movq	%rdi, 512(%rsp)
         movq	%rsi, 520(%rsp)
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	%rsp, %r8
         leaq	256(%rsi), %r9
         movq	(%rsi), %rdx
@@ -36955,7 +36947,7 @@ _sp_4096_sqr_avx2_64:
         movq	512(%rsp), %rsi
         leaq	256(%rsp), %r8
         addq	$0x300, %rsi
-        movq	$0x00, %rcx
+        xorq	%rcx, %rcx
         movq	-256(%r8), %rax
         subq	-256(%rsi), %rax
         movq	-248(%r8), %rdx
@@ -39337,7 +39329,6 @@ L_4096_mont_reduce_64_loop:
         movq	%rsi, %rdx
 #endif /* _WIN64 */
         movq	%rdi, %rsi
-        movq	%rdi, %rdi
         subq	$0x200, %rdi
 #ifndef __APPLE__
         callq	sp_4096_cond_sub_64@plt
@@ -40927,7 +40918,6 @@ _sp_4096_mont_reduce_avx2_64:
         movq	16(%rdi), %r14
         movq	24(%rdi), %r15
         addq	$0x100, %rdi
-        xorq	%rbp, %rbp
 L_4096_mont_reduce_avx2_64_loop:
         # mu = a[i] * mp
         movq	%r12, %rdx
@@ -43260,7 +43250,7 @@ sp_4096_lshift_64:
 _sp_4096_lshift_64:
 #endif /* __APPLE__ */
         movb	%dl, %cl
-        movq	$0x00, %r10
+        xorq	%r10, %r10
         movq	472(%rsi), %r11
         movq	480(%rsi), %rdx
         movq	488(%rsi), %rax
@@ -44326,15 +44316,11 @@ _sp_256_mont_sqr_4:
         #  A[0] * A[0]
         movq	(%rsi), %rax
         mulq	%rax
-        movq	%rax, %rax
-        movq	%rdx, %rdx
         movq	%rax, %r8
         movq	%rdx, %rbx
         #  A[1] * A[1]
         movq	8(%rsi), %rax
         mulq	%rax
-        movq	%rax, %rax
-        movq	%rdx, %rdx
         addq	%rbx, %r9
         adcq	%rax, %r10
         adcq	$0x00, %rdx
@@ -44342,8 +44328,6 @@ _sp_256_mont_sqr_4:
         #  A[2] * A[2]
         movq	16(%rsi), %rax
         mulq	%rax
-        movq	%rax, %rax
-        movq	%rdx, %rdx
         addq	%rbx, %r11
         adcq	%rax, %r12
         adcq	$0x00, %rdx
@@ -44351,8 +44335,6 @@ _sp_256_mont_sqr_4:
         #  A[3] * A[3]
         movq	24(%rsi), %rax
         mulq	%rax
-        movq	%rax, %rax
-        movq	%rdx, %rdx
         addq	%rbx, %r13
         adcq	%rax, %r14
         adcq	%rdx, %r15
@@ -48981,7 +48963,6 @@ L_384_mont_reduce_order_6_loop:
         movq	%rsi, %rdx
 #endif /* _WIN64 */
         movq	%rdi, %rsi
-        movq	%rdi, %rdi
         subq	$48, %rdi
 #ifndef __APPLE__
         callq	sp_384_cond_sub_6@plt
@@ -56409,7 +56390,6 @@ _sp_521_mont_reduce_order_avx2_9:
         movq	16(%rdi), %r14
         movq	24(%rdi), %r15
         addq	$32, %rdi
-        xorq	%rbp, %rbp
 L_521_mont_reduce_order_avx2_9_loop:
         # mu = a[i] * mp
         movq	%r12, %rdx
@@ -57531,7 +57511,7 @@ sp_521_lshift_9:
 _sp_521_lshift_9:
 #endif /* __APPLE__ */
         movb	%dl, %cl
-        movq	$0x00, %r10
+        xorq	%r10, %r10
         movq	32(%rsi), %r11
         movq	40(%rsi), %rdx
         movq	48(%rsi), %rax
@@ -57584,7 +57564,7 @@ sp_521_lshift_18:
 _sp_521_lshift_18:
 #endif /* __APPLE__ */
         movb	%dl, %cl
-        movq	$0x00, %r10
+        xorq	%r10, %r10
         movq	104(%rsi), %r11
         movq	112(%rsi), %rdx
         movq	120(%rsi), %rax
@@ -64747,7 +64727,6 @@ L_1024_mont_reduce_16_loop:
         movq	%rsi, %rdx
 #endif /* _WIN64 */
         movq	%rdi, %rsi
-        movq	%rdi, %rdi
         subq	$0x80, %rdi
 #ifndef __APPLE__
         callq	sp_1024_cond_sub_16@plt
@@ -65797,7 +65776,6 @@ _sp_1024_mont_reduce_avx2_16:
         movq	16(%rdi), %r14
         movq	24(%rdi), %r15
         addq	$0x40, %rdi
-        xorq	%rbp, %rbp
 L_1024_mont_reduce_avx2_16_loop:
         # mu = a[i] * mp
         movq	%r12, %rdx

@@ -74,6 +74,9 @@
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
 #endif
+#ifdef WOLFSSL_X86_BUILD
+    #undef USE_INTEL_SPEEDUP
+#endif
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #include <wolfssl/wolfcrypt/sha3.h>

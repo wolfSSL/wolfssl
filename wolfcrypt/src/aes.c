@@ -15778,7 +15778,7 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
 }
 #endif
 
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
 
 #if defined(USE_INTEL_SPEEDUP_FOR_AES) && !defined(USE_INTEL_SPEEDUP)
     #define USE_INTEL_SPEEDUP
@@ -15841,7 +15841,7 @@ void AES_XTS_decrypt_update_avx1(const unsigned char *in, unsigned char *out, wo
 #endif /* HAVE_INTEL_AVX1 */
 #endif /* HAVE_AES_DECRYPT */
 
-#endif /* WOLFSSL_AESNI */
+#endif /* WOLFSSL_AESNI && !WOLFSSL_X86_BUILD */
 
 #ifdef HAVE_AES_ECB
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
@@ -16094,7 +16094,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     AES_XTS_encrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
     ret = 0;
-#elif defined(WOLFSSL_AESNI)
+#elif defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -16196,7 +16196,7 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
     stream->bytes_crypted_with_this_tweak = 0;
 
     {
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -16217,7 +16217,7 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* WOLFSSL_AESNI */
+#endif /* WOLFSSL_AESNI && !WOLFSSL_X86_BUILD */
         {
             ret = AesXtsInitTweak_sw(xaes, stream->tweak_block);
         }
@@ -16247,7 +16247,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 {
     int ret;
 
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
     Aes *aes;
 #endif
 
@@ -16255,7 +16255,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
     aes = &xaes->aes;
 #endif
 
@@ -16291,7 +16291,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 #endif
     {
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -16314,7 +16314,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* WOLFSSL_AESNI */
+#endif /* WOLFSSL_AESNI && !WOLFSSL_X86_BUILD */
         {
             ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, stream->tweak_block);
         }
@@ -16575,7 +16575,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     AES_XTS_decrypt_AARCH32(in, out, sz, i, (byte*)xaes->aes.key,
         (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
     ret = 0;
-#elif defined(WOLFSSL_AESNI)
+#elif defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -16680,7 +16680,7 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
     stream->bytes_crypted_with_this_tweak = 0;
 
     {
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -16701,7 +16701,7 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* WOLFSSL_AESNI */
+#endif /* WOLFSSL_AESNI && !WOLFSSL_X86_BUILD */
         {
             ret = AesXtsInitTweak_sw(xaes, stream->tweak_block);
         }
@@ -16729,7 +16729,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
                            struct XtsAesStreamData *stream)
 {
     int ret;
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
     Aes *aes;
 #endif
 
@@ -16737,7 +16737,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     aes = &xaes->aes_decrypt;
 #else
@@ -16767,7 +16767,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 #endif
 
     {
-#ifdef WOLFSSL_AESNI
+#if defined(WOLFSSL_AESNI) && !defined(WOLFSSL_X86_BUILD)
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -16790,7 +16790,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* WOLFSSL_AESNI */
+#endif /* WOLFSSL_AESNI && !WOLFSSL_X86_BUILD */
         {
             ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz,
                                          stream->tweak_block);

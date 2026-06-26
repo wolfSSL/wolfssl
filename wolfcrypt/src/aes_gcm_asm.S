@@ -3485,7 +3485,6 @@ L_AES_GCM_decrypt_aesni_last_block_start:
         movdqa	%xmm1, %xmm12
         pclmulqdq	$0x00, %xmm0, %xmm12
         aesenc	80(%r15), %xmm8
-        movdqa	%xmm1, %xmm1
         pclmulqdq	$0x11, %xmm0, %xmm1
         aesenc	96(%r15), %xmm8
         pxor	%xmm11, %xmm10
@@ -6303,7 +6302,6 @@ L_AES_GCM_decrypt_update_aesni_last_block_start:
         movdqa	%xmm1, %xmm12
         pclmulqdq	$0x00, %xmm0, %xmm12
         aesenc	80(%rdi), %xmm8
-        movdqa	%xmm1, %xmm1
         pclmulqdq	$0x11, %xmm0, %xmm1
         aesenc	96(%rdi), %xmm8
         pxor	%xmm11, %xmm10

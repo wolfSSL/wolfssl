@@ -29,7 +29,8 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(USE_INTEL_SPEEDUP) && !defined(NO_CURVED25519_X64)
+#if defined(USE_INTEL_SPEEDUP) && defined(WOLFSSL_X86_64_BUILD) && \
+    !defined(NO_CURVED25519_X64)
     #define CURVED25519_X64
 #elif defined(HAVE___UINT128_T) && !defined(NO_CURVED25519_128BIT)
     #define CURVED25519_128BIT

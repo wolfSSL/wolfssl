@@ -454,7 +454,6 @@ poly1305_calc_powers_avx2 PROC
         ; Reduce 260-bit to 130-bit
         mov	rax, rdi
         mov	rdx, rsi
-        mov	rbx, rbx
         and	rax, -4
         and	rdi, 3
         add	r14, rax

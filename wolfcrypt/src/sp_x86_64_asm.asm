@@ -7505,7 +7505,7 @@ sp_2048_sqr_32 PROC
         sub	rsp, 272
         mov	QWORD PTR [rsp+256], rcx
         mov	QWORD PTR [rsp+264], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+128]
         mov	rax, QWORD PTR [rdx]
@@ -7657,7 +7657,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+256]
         lea	r10, QWORD PTR [rsp+128]
         add	rdx, 384
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-128]
         sub	r8, QWORD PTR [rdx+-128]
         mov	rax, QWORD PTR [r10+-120]
@@ -8023,7 +8023,7 @@ sp_2048_sqr_avx2_32 PROC
         sub	rsp, 272
         mov	QWORD PTR [rsp+256], rcx
         mov	QWORD PTR [rsp+264], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+128]
         mov	rax, QWORD PTR [rdx]
@@ -8175,7 +8175,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+256]
         lea	r10, QWORD PTR [rsp+128]
         add	rdx, 384
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-128]
         sub	r8, QWORD PTR [rdx+-128]
         mov	rax, QWORD PTR [r10+-120]
@@ -9179,7 +9179,6 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        mov	rcx, rcx
         sub	rcx, 128
         call	sp_2048_cond_sub_16
         pop	rsi
@@ -9736,7 +9735,6 @@ sp_2048_mont_reduce_avx2_16 PROC
         mov	rdi, QWORD PTR [r9+16]
         mov	rsi, QWORD PTR [r9+24]
         add	r9, 64
-        xor	rbp, rbp
 L_2048_mont_reduce_avx2_16_loop:
         ; mu = a[i] * mp
         mov	rdx, r14
@@ -11190,7 +11188,6 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        mov	rcx, rcx
         sub	rcx, 256
         call	sp_2048_cond_sub_32
         pop	rsi
@@ -12019,7 +12016,6 @@ sp_2048_mont_reduce_avx2_32 PROC
         mov	rdi, QWORD PTR [r9+16]
         mov	rsi, QWORD PTR [r9+24]
         add	r9, 128
-        xor	rbp, rbp
 L_2048_mont_reduce_avx2_32_loop:
         ; mu = a[i] * mp
         mov	rdx, r14
@@ -14805,7 +14801,7 @@ sp_2048_lshift_32 PROC
         push	r13
         mov	rax, rcx
         mov	cl, r8b
-        mov	r12, 0
+        xor	r12, r12
         mov	r13, QWORD PTR [rdx+216]
         mov	r8, QWORD PTR [rdx+224]
         mov	r9, QWORD PTR [rdx+232]
@@ -22145,7 +22141,7 @@ sp_3072_sqr_24 PROC
         sub	rsp, 208
         mov	QWORD PTR [rsp+192], rcx
         mov	QWORD PTR [rsp+200], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+96]
         mov	rax, QWORD PTR [rdx]
@@ -22265,7 +22261,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+192]
         lea	r10, QWORD PTR [rsp+96]
         add	rdx, 288
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-96]
         sub	r8, QWORD PTR [rdx+-96]
         mov	rax, QWORD PTR [r10+-88]
@@ -22547,7 +22543,7 @@ sp_3072_sqr_avx2_24 PROC
         sub	rsp, 208
         mov	QWORD PTR [rsp+192], rcx
         mov	QWORD PTR [rsp+200], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+96]
         mov	rax, QWORD PTR [rdx]
@@ -22667,7 +22663,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+192]
         lea	r10, QWORD PTR [rsp+96]
         add	rdx, 288
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-96]
         sub	r8, QWORD PTR [rdx+-96]
         mov	rax, QWORD PTR [r10+-88]
@@ -22949,7 +22945,7 @@ sp_3072_sqr_48 PROC
         sub	rsp, 400
         mov	QWORD PTR [rsp+384], rcx
         mov	QWORD PTR [rsp+392], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+192]
         mov	rax, QWORD PTR [rdx]
@@ -23165,7 +23161,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+384]
         lea	r10, QWORD PTR [rsp+192]
         add	rdx, 576
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-192]
         sub	r8, QWORD PTR [rdx+-192]
         mov	rax, QWORD PTR [r10+-184]
@@ -23699,7 +23695,7 @@ sp_3072_sqr_avx2_48 PROC
         sub	rsp, 400
         mov	QWORD PTR [rsp+384], rcx
         mov	QWORD PTR [rsp+392], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+192]
         mov	rax, QWORD PTR [rdx]
@@ -23915,7 +23911,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+384]
         lea	r10, QWORD PTR [rsp+192]
         add	rdx, 576
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-192]
         sub	r8, QWORD PTR [rdx+-192]
         mov	rax, QWORD PTR [r10+-184]
@@ -25292,7 +25288,6 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        mov	rcx, rcx
         sub	rcx, 192
         call	sp_3072_cond_sub_24
         pop	rsi
@@ -26065,7 +26060,6 @@ sp_3072_mont_reduce_avx2_24 PROC
         mov	rdi, QWORD PTR [r9+16]
         mov	rsi, QWORD PTR [r9+24]
         add	r9, 96
-        xor	rbp, rbp
 L_3072_mont_reduce_avx2_24_loop:
         ; mu = a[i] * mp
         mov	rdx, r14
@@ -28138,7 +28132,6 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        mov	rcx, rcx
         sub	rcx, 384
         call	sp_3072_cond_sub_48
         pop	rsi
@@ -29319,7 +29312,6 @@ sp_3072_mont_reduce_avx2_48 PROC
         mov	rdi, QWORD PTR [r9+16]
         mov	rsi, QWORD PTR [r9+24]
         add	r9, 192
-        xor	rbp, rbp
 L_3072_mont_reduce_avx2_48_loop:
         ; mu = a[i] * mp
         mov	rdx, r14
@@ -31077,7 +31069,7 @@ sp_3072_lshift_48 PROC
         push	r13
         mov	rax, rcx
         mov	cl, r8b
-        mov	r12, 0
+        xor	r12, r12
         mov	r13, QWORD PTR [rdx+344]
         mov	r8, QWORD PTR [rdx+352]
         mov	r9, QWORD PTR [rdx+360]
@@ -34728,7 +34720,7 @@ sp_4096_sqr_64 PROC
         sub	rsp, 528
         mov	QWORD PTR [rsp+512], rcx
         mov	QWORD PTR [rsp+520], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+256]
         mov	rax, QWORD PTR [rdx]
@@ -35008,7 +35000,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+512]
         lea	r10, QWORD PTR [rsp+256]
         add	rdx, 768
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-256]
         sub	r8, QWORD PTR [rdx+-256]
         mov	rax, QWORD PTR [r10+-248]
@@ -35710,7 +35702,7 @@ sp_4096_sqr_avx2_64 PROC
         sub	rsp, 528
         mov	QWORD PTR [rsp+512], rcx
         mov	QWORD PTR [rsp+520], rdx
-        mov	r9, 0
+        xor	r9, r9
         mov	r10, rsp
         lea	r11, QWORD PTR [rdx+256]
         mov	rax, QWORD PTR [rdx]
@@ -35990,7 +35982,7 @@ ENDIF
         mov	rdx, QWORD PTR [rsp+512]
         lea	r10, QWORD PTR [rsp+256]
         add	rdx, 768
-        mov	r9, 0
+        xor	r9, r9
         mov	r8, QWORD PTR [r10+-256]
         sub	r8, QWORD PTR [rdx+-256]
         mov	rax, QWORD PTR [r10+-248]
@@ -38343,7 +38335,6 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        mov	rcx, rcx
         sub	rcx, 512
         call	sp_4096_cond_sub_64
         pop	rsi
@@ -39876,7 +39867,6 @@ sp_4096_mont_reduce_avx2_64 PROC
         mov	rdi, QWORD PTR [r9+16]
         mov	rsi, QWORD PTR [r9+24]
         add	r9, 256
-        xor	rbp, rbp
 L_4096_mont_reduce_avx2_64_loop:
         ; mu = a[i] * mp
         mov	rdx, r14
@@ -42190,7 +42180,7 @@ sp_4096_lshift_64 PROC
         push	r13
         mov	rax, rcx
         mov	cl, r8b
-        mov	r12, 0
+        xor	r12, r12
         mov	r13, QWORD PTR [rdx+472]
         mov	r8, QWORD PTR [rdx+480]
         mov	r9, QWORD PTR [rdx+488]
@@ -43187,15 +43177,11 @@ sp_256_mont_sqr_4 PROC
         ;  A[0] * A[0]
         mov	rax, QWORD PTR [r8]
         mul	rax
-        mov	rax, rax
-        mov	rdx, rdx
         mov	r10, rax
         mov	rbx, rdx
         ;  A[1] * A[1]
         mov	rax, QWORD PTR [r8+8]
         mul	rax
-        mov	rax, rax
-        mov	rdx, rdx
         add	r11, rbx
         adc	r12, rax
         adc	rdx, 0
@@ -43203,8 +43189,6 @@ sp_256_mont_sqr_4 PROC
         ;  A[2] * A[2]
         mov	rax, QWORD PTR [r8+16]
         mul	rax
-        mov	rax, rax
-        mov	rdx, rdx
         add	r13, rbx
         adc	r14, rax
         adc	rdx, 0
@@ -43212,8 +43196,6 @@ sp_256_mont_sqr_4 PROC
         ;  A[3] * A[3]
         mov	rax, QWORD PTR [r8+24]
         mul	rax
-        mov	rax, rax
-        mov	rdx, rdx
         add	r15, rbx
         adc	rdi, rax
         adc	rsi, rdx
@@ -47531,7 +47513,6 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        mov	rcx, rcx
         sub	rcx, 48
         call	sp_384_cond_sub_6
         pop	rsi
@@ -54689,7 +54670,6 @@ sp_521_mont_reduce_order_avx2_9 PROC
         mov	rdi, QWORD PTR [r9+16]
         mov	rsi, QWORD PTR [r9+24]
         add	r9, 32
-        xor	rbp, rbp
 L_521_mont_reduce_order_avx2_9_loop:
         ; mu = a[i] * mp
         mov	rdx, r14
@@ -55781,7 +55761,7 @@ sp_521_lshift_9 PROC
         push	r13
         mov	rax, rcx
         mov	cl, r8b
-        mov	r12, 0
+        xor	r12, r12
         mov	r13, QWORD PTR [rdx+32]
         mov	r8, QWORD PTR [rdx+40]
         mov	r9, QWORD PTR [rdx+48]
@@ -55828,7 +55808,7 @@ sp_521_lshift_18 PROC
         push	r13
         mov	rax, rcx
         mov	cl, r8b
-        mov	r12, 0
+        xor	r12, r12
         mov	r13, QWORD PTR [rdx+104]
         mov	r8, QWORD PTR [rdx+112]
         mov	r9, QWORD PTR [rdx+120]
@@ -62803,7 +62783,6 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        mov	rcx, rcx
         sub	rcx, 128
         call	sp_1024_cond_sub_16
         pop	rsi
@@ -63804,7 +63783,6 @@ sp_1024_mont_reduce_avx2_16 PROC
         mov	rdi, QWORD PTR [r9+16]
         mov	rsi, QWORD PTR [r9+24]
         add	r9, 64
-        xor	rbp, rbp
 L_1024_mont_reduce_avx2_16_loop:
         ; mu = a[i] * mp
         mov	rdx, r14

@@ -166,6 +166,10 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef WOLFSSL_X86_BUILD
+    #undef USE_INTEL_SPEEDUP
+#endif
+
 #if defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) && \
         !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
     #define WOLFSSL_MLDSA_SIGN_SMALL_MEM
