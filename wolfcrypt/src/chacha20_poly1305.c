@@ -126,7 +126,10 @@ int wc_ChaCha20Poly1305_Decrypt(
         /* zero plaintext on error */
         ForceZero(outPlaintext, inCiphertextLen);
     }
-    ForceZero(aead, sizeof(ChaChaPoly_Aead));
+    #ifdef WOLFSSL_SMALL_STACK
+    if (aead != NULL)
+    #endif
+        ForceZero(aead, sizeof(ChaChaPoly_Aead));
     WC_FREE_VAR_EX(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
