@@ -23433,7 +23433,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                             wolfssl_alert_protocol_version);
                     break;
                 case WC_NO_ERR_TRACE(LENGTH_ERROR):
-                    /* record exceeds the size limit, RFC 8446 section 5.1 */
+                    /* invalid record length, RFC 8446 section 5.1 */
                     SendAlert(ssl, alert_fatal, record_overflow);
                     break;
                 default:
