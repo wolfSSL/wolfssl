@@ -37,7 +37,7 @@ int wc_HWPUF_Register(wc_HWPUF* hwpuf, void* heap, int devId);
     \ingroup HWPUF
 
     \brief Unregister the CryptoCb device and zero the wc_HWPUF context.
-    
+
     \return 0 on success, or if not registered
     \return BAD_FUNC_ARG if hwpuf is NULL
     \return CRYPTOCB_UNAVAILABLE if nothing to unregister
@@ -117,7 +117,7 @@ int wc_HWPUF_Deinit(wc_HWPUF* hwpuf);
     wc_HWPUF_Deinit() / wc_HWPUF_Init() cycle before wc_HWPUF_Start().
 
     \return 0 on success
-    \return BAD_FUNC_ARG if hwpuf or actCode is NULL, or if invalid actCodeSz 
+    \return BAD_FUNC_ARG if hwpuf or actCode is NULL, or if invalid actCodeSz
     \return HWPUF_INIT_E if not yet initialized
     \return HWPUF_ENROLL_E if already enrolled, or if enrollment failed
 
@@ -146,7 +146,7 @@ int wc_HWPUF_Enroll(wc_HWPUF* hwpuf, byte* actCode, word32 actCodeSz);
     Starting puts the device into a ready state for key operations.
 
     \return 0 on success
-    \return BAD_FUNC_ARG if hwpuf or actCode is NULL, or if invalid actCodeSz 
+    \return BAD_FUNC_ARG if hwpuf or actCode is NULL, or if invalid actCodeSz
     \return HWPUF_INIT_E if not yet initialized
     \return HWPUF_START_E if already started, or if start failed
 
