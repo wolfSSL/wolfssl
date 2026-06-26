@@ -1795,6 +1795,73 @@ int test_wolfSSL_MatchDomainName_idn(void)
     return EXPECT_RESULT();
 }
 
+/* Regression test mirroring curl test 311 ("HTTPS wrong subjectAltName but
+ * right CN"). The leaf Subject CN is the wanted host ("localhost") while its
+ * only dNSName SAN carries an embedded NUL ("localhost\0h"). Such a SAN is an
+ * invalid presented identifier (RFC 6125 Sec. 6.3 / RFC 9525 Sec. 6.3), not a
+ * malformed certificate, so the certificate must parse. Verification must then
+ * report DOMAIN_NAME_MISMATCH: the SAN presence suppresses Subject CN fallback
+ * and the NUL name can never match the NUL-free reference host, so the
+ * otherwise-correct CN must not rescue it. Before the parser stored rather than
+ * rejected the entry, verification aborted earlier with ASN_PARSE_E. */
+int test_wolfSSL_X509_check_host_embedded_nul_san(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256) && !defined(NO_ASN)
+    WOLFSSL_EVP_PKEY* priv = NULL;
+    WOLFSSL_X509* leaf = NULL;
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    const char host[] = "localhost";
+    /* dNSName "localhost" + embedded NUL + 'h', length 11. */
+    static const byte nulSan[] = {
+        'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', '\0', 'h'
+    };
+    byte* keyPt = NULL;
+    const byte* der = NULL;
+    int derSz = 0;
+    DecodedCert dCert;
+    int parseRet = -1;
+
+    keyPt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+        (const unsigned char**)&keyPt, sizeof_server_key_der_2048));
+
+    /* server-goodcn.pem has CN=localhost and no SAN; add one dNSName SAN that
+     * carries an embedded NUL, then re-sign so the SAN is serialized. */
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(server_cert,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_add_altname_ex(leaf, (const char*)nulSan,
+        sizeof(nulSan), ASN_DNS_TYPE), WOLFSSL_SUCCESS);
+    ExpectIntGT(wolfSSL_X509_sign(leaf, priv, EVP_sha256()), 0);
+
+    /* Regression pin: the signed certificate must parse despite the embedded
+     * NUL (it aborted with ASN_PARSE_E before the parser stored the entry). */
+    ExpectNotNull(der = wolfSSL_X509_get_der(leaf, &derSz));
+    ExpectIntGT(derSz, 0);
+    if ((der != NULL) && (derSz > 0)) {
+        wc_InitDecodedCert(&dCert, der, (word32)derSz, NULL);
+        parseRet = wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL);
+        ExpectIntEQ(parseRet, 0);
+        wc_FreeDecodedCert(&dCert);
+    }
+
+    /* Security pin: the host must still be rejected. With parsing now
+     * succeeding, the only remaining failure path in check_host for a
+     * non-IP host is the hostname comparison, so a failure here means
+     * DOMAIN_NAME_MISMATCH: the SAN presence suppressed CN fallback and the
+     * NUL name did not match. The correct CN must not rescue the wrong SAN. */
+    ExpectIntEQ(wolfSSL_X509_check_host(leaf, host, XSTRLEN(host), 0, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    wolfSSL_X509_free(leaf);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_max_altnames(void)
 {
     EXPECT_DECLS;

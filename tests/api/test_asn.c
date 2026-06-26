@@ -1378,7 +1378,9 @@ int test_wc_DecodeRsaPssParams(void)
 }
 
 /* Test that DecodeAltNames rejects a SAN entry whose length exceeds the
- * remaining SEQUENCE length (integer underflow on the length tracker). */
+ * remaining SEQUENCE length (integer underflow on the length tracker), and
+ * that a dNSName SAN carrying an embedded NUL is stored rather than rejected
+ * so verification reports a name mismatch instead of a parse error. */
 int test_DecodeAltNames_length_underflow(void)
 {
     EXPECT_DECLS;
@@ -1481,14 +1483,29 @@ int test_DecodeAltNames_length_underflow(void)
         WC_NO_ERR_TRACE(ASN_PARSE_E));
     wc_FreeDecodedCert(&cert);
 
-    /* NUL in dNSName SAN must be rejected per RFC 5280 4.2.1.6. */
+    /* An embedded NUL in a dNSName SAN is an invalid presented identifier
+     * (RFC 6125 Sec. 6.3 / RFC 9525 Sec. 6.3), not a malformed certificate.
+     * Set the third byte of the 4-byte dNSName ("a*b*") to NUL, giving
+     * "a*\0*".  The certificate must still parse: the entry is stored with
+     * its embedded NUL intact (length 4, not truncated) so that hostname
+     * verification reports DOMAIN_NAME_MISMATCH rather than the parser
+     * aborting with ASN_PARSE_E (regression from curl test 311). */
     XMEMCPY(bad_san_cert, good_san_cert, sizeof(good_san_cert));
     bad_san_cert[SAN_SEQ_LEN_OFFSET + 5] = 0x00;
 
     wc_InitDecodedCert(&cert, bad_san_cert, (word32)sizeof(bad_san_cert),
         NULL);
-    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL),
-        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+    ExpectNotNull(cert.altNames);
+    if (cert.altNames != NULL) {
+        ExpectIntEQ(cert.altNames->type, ASN_DNS_TYPE);
+        ExpectIntEQ(cert.altNames->len, 4);
+        /* Embedded NUL preserved at offset 2: stored, not truncated. */
+        ExpectNotNull(cert.altNames->name);
+        if (cert.altNames->name != NULL) {
+            ExpectIntEQ(cert.altNames->name[2], 0x00);
+        }
+    }
     wc_FreeDecodedCert(&cert);
 
 #endif /* !NO_CERTS && !NO_RSA && !NO_ASN */
