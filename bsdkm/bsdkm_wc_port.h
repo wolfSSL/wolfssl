@@ -81,9 +81,10 @@ extern struct malloc_type M_WOLFSSL[1];
 #if defined(WOLFSSL_BSDKM_MEMORY_DEBUG)
     #define XMALLOC(s, h, t) ({                                              \
         (void)(h); (void)(t);                                                \
+        size_t _sz = (size_t)(s);                                            \
         int _wait_flag = curthread->td_critnest == 0 ? M_WAITOK : M_NOWAIT;  \
-        void * _ptr = malloc((s), M_WOLFSSL, _wait_flag | M_ZERO);           \
-        printf("info: malloc: %p, M_WOLFSSL, %zu\n", _ptr, (size_t) s);      \
+        void * _ptr = malloc(_sz, M_WOLFSSL, _wait_flag | M_ZERO);           \
+        printf("info: malloc: %p, M_WOLFSSL, %zu\n", _ptr, _sz);             \
         (void *)_ptr;                                                        \
     })
 

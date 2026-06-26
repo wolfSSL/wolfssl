@@ -107,22 +107,25 @@ void wolfkmod_vecreg_exit(void)
  * Build with WOLFSSL_BSDKM_FPU_DEBUG to see verbose FPU logging.
  */
 #if defined(WOLFSSL_BSDKM_FPU_DEBUG)
-    #define wolfkmod_print_curthread(what)                                   \
+    #define wolfkmod_print_curthread(what) do {                              \
         printf("%s: cpuid = %d, curthread: td_tid = %d, pid = %d (%s), "     \
                "td_critnest = %d, kernfpu = %02x\n",                         \
                (what), PCPU_GET(cpuid), curthread->td_tid,                   \
                curthread->td_proc ? curthread->td_proc->p_pid : -1,          \
                curthread->td_proc ? curthread->td_proc->p_comm : "noproc",   \
                curthread->td_critnest,                                       \
-               curthread->td_pcb->pcb_flags & PCB_KERNFPU);
+               curthread->td_pcb->pcb_flags & PCB_KERNFPU);                  \
+    } while (0)
 
-    #define wolfkmod_fpu_kern_enter()                                        \
+    #define wolfkmod_fpu_kern_enter() do {                                   \
         wolfkmod_print_curthread("fpu_kern_enter");                          \
-        fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
+        fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);                     \
+    } while (0)
 
-    #define wolfkmod_fpu_kern_leave()                                        \
+    #define wolfkmod_fpu_kern_leave() do {                                   \
         wolfkmod_print_curthread("fpu_kern_leave");                          \
-        fpu_kern_leave(curthread, NULL);
+        fpu_kern_leave(curthread, NULL);                                     \
+    } while (0)
 #else
     #define wolfkmod_fpu_kern_enter()                                        \
         fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);

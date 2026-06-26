@@ -830,7 +830,7 @@ static int wolfkdriv_cbc_work(device_t dev, wolfkdriv_session_t * session,
         else {
             error = wc_AesCbcDecrypt(&aes, out_block, in_block, seg_len);
             if (error) {
-                device_printf(dev, "error: wc_AesCbcEncrypt: %d\n", error);
+                device_printf(dev, "error: wc_AesCbcDecrypt: %d\n", error);
                 goto cbc_work_out;
             }
         }
@@ -930,7 +930,7 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
 
     /* process aad first */
     if (crp->crp_aad != NULL) {
-        /* they passed aad in separate buffer. */
+        /* they passed aad in separate buffer. process it in one go. */
         if (is_encrypt) {
             error = wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0,
                                            crp->crp_aad, crp->crp_aad_length);
@@ -955,6 +955,13 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
         for (aad_len = crp->crp_aad_length; aad_len > 0; aad_len -= seg_len) {
             in_seg = crypto_cursor_segment(&cc_in, &in_len);
             seg_len = MIN(aad_len, in_len);
+
+            if (seg_len == 0) {
+                /* the crypto_cursor logic should prevent this from happening,
+                 * but just in case. */
+                error = EINVAL;
+                goto gcm_work_out;
+            }
 
             if (is_encrypt) {
                 error = wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0,
@@ -982,8 +989,6 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
     crypto_cursor_init(&cc_in, &crp->crp_buf);
     crypto_cursor_advance(&cc_in, crp->crp_payload_start);
 
-    in_seg = crypto_cursor_segment(&cc_in, &in_len);
-
     /* handle if the user supplied a separate out buffer. */
     if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
         crypto_cursor_init(&cc_out, &crp->crp_obuf);
@@ -993,19 +998,25 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
         cc_out = cc_in;
     }
 
-    out_seg = crypto_cursor_segment(&cc_out, &out_len);
-
     while (data_len) {
         /* process through the available segments. */
         in_seg = crypto_cursor_segment(&cc_in, &in_len);
         out_seg = crypto_cursor_segment(&cc_out, &out_len);
         seg_len = MIN(data_len, MIN(in_len, out_len));
 
+        if (seg_len == 0) {
+            /* the crypto_cursor logic should prevent this from happening,
+             * but just in case. */
+            error = EINVAL;
+            goto gcm_work_out;
+        }
+
         if (is_encrypt) {
             error = wc_AesGcmEncryptUpdate(&aes, out_seg, in_seg, seg_len,
                                            NULL, 0);
             if (error) {
-                device_printf(dev, "error: wc_AesGcmEncrypt: %d\n", error);
+                device_printf(dev, "error: wc_AesGcmEncryptUpdate: %d\n",
+                              error);
                 goto gcm_work_out;
             }
         }
@@ -1013,7 +1024,8 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
             error = wc_AesGcmDecryptUpdate(&aes, out_seg, in_seg, seg_len,
                                            NULL, 0);
             if (error) {
-                device_printf(dev, "error: wc_AesGcmDecrypt: %d\n", error);
+                device_printf(dev, "error: wc_AesGcmDecryptUpdate: %d\n",
+                              error);
                 goto gcm_work_out;
             }
         }
