@@ -67,6 +67,8 @@ typedef word32 cpuid_flags_t;
     #define CPUID_MOVBE  0x0080   /* Move and byte swap */
     #define CPUID_BMI1   0x0100   /* ANDN */
     #define CPUID_SHA    0x0200   /* SHA-1 and SHA-256 instructions */
+    #define CPUID_VAES   0x0400
+    #define CPUID_AVX512 0x0800
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -78,6 +80,8 @@ typedef word32 cpuid_flags_t;
     #define IS_INTEL_MOVBE(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_MOVBE)
     #define IS_INTEL_BMI1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_BMI1)
     #define IS_INTEL_SHA(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA)
+    #define IS_INTEL_VAES(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_VAES)
+    #define IS_INTEL_AVX512(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512)
 
 #elif defined(HAVE_CPUID_AARCH64)
 
