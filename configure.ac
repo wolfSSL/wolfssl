@@ -12512,13 +12512,13 @@ fi
 prefix=$WOLFSSL_PREFIX_ABS
 exec_prefix=$WOLFSSL_EXEC_PREFIX_ABS
 # The eval calls below expand ${prefix}/${exec_prefix} references embedded in
-# the libdir/includedir values. eval would, however, also execute any shell
-# command substitution contained in a --libdir/--includedir value (e.g.
-# --libdir='$(cmd)/lib'), running arbitrary commands during configure.
-# Reject values that contain command substitution before the eval.
+# the libdir/includedir values. eval would, however, also execute or be
+# subverted by shell metacharacters in a --libdir/--includedir value (command
+# substitution, quote breakout, command separators, etc.), running arbitrary
+# commands during configure. Reject such values before the eval.
 case "$libdir $includedir" in
-    *'`'* | *'$('*)
-        AC_MSG_ERROR([--libdir and --includedir must not contain shell command substitution])
+    *'`'* | *'$('* | *'"'* | *"'"* | *';'* | *'&'* | *'|'* | *'<'* | *'>'* | *'\'* )
+        AC_MSG_ERROR([--libdir and --includedir must not contain shell metacharacters])
         ;;
 esac
 eval WOLFSSL_LIBDIR_ABS=\"$libdir\"
