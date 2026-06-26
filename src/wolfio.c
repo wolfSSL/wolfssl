@@ -1758,7 +1758,7 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
             /* Reject out-of-range ports rather than silently truncating to
              * word16, which would otherwise wrap (e.g. 65536 -> 0) and
              * connect to an unintended port. */
-            if (bigPort > 65535)
+            if (bigPort > WOLFSSL_MAX_16BIT)
                 return WOLFSSL_FATAL_ERROR;
             if (outPort)
                 *outPort = (word16)bigPort;

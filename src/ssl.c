@@ -15469,7 +15469,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
 
     /* verify provided arguments. The return value is an int, so reject any
      * len that cannot be represented as a positive int. */
-    if (buf == NULL || len == 0 || len > (size_t)INT_MAX) {
+    if (buf == NULL || len == 0 || len > (size_t)WOLFSSL_MAX_32BIT) {
         return 0; /* BAD_FUNC_ARG; */
     }
 
