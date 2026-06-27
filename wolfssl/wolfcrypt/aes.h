@@ -615,6 +615,7 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 #endif
 
 #ifdef HAVE_AESGCM
+WOLFSSL_LOCAL int wc_local_AesGcmCheckTagSz(word32 authTagSz);
 #ifdef WOLFSSL_XILINX_CRYPT
  WOLFSSL_API int  wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len,
          word32 kup);

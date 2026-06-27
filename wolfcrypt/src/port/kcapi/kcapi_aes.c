@@ -246,10 +246,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
-        ret = BAD_FUNC_ARG;
-    }
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(authTagSz);
 
     if (ret == 0) {
         ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);
@@ -361,10 +359,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)) {
-        WOLFSSL_MSG("GcmDecrypt authTagSz too small error");
-        ret = BAD_FUNC_ARG;
-    }
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(authTagSz);
 
     if (ret == 0) {
         ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);

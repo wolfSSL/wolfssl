@@ -584,15 +584,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         WOLFSSL_MSG("IV size not supported on system");
         return BAD_FUNC_ARG;
     }
-    if (authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("Authentication tag size not supported on system");
-        return BAD_FUNC_ARG;
-    }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
-        return BAD_FUNC_ARG;
-    }
+    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
 
     if (aes->alFd == WC_SOCK_NOTSET) {
         WOLFSSL_MSG("AF_ALG GcmEncrypt called with alFd unset");
@@ -796,15 +791,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         WOLFSSL_MSG("IV size not supported on system");
         return BAD_FUNC_ARG;
     }
-    if (authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("Authentication tag size not supported on system");
-        return BAD_FUNC_ARG;
-    }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
-        return BAD_FUNC_ARG;
-    }
+    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
 
     if (aes->rdFd == WC_SOCK_NOTSET) {
         aes->dir = AES_DECRYPTION;

@@ -6932,11 +6932,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && ((tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
-            (tagSz > WC_AES_BLOCK_SIZE))) {
-        WOLFSSL_MSG("GcmEncrypt tagSz error");
-        ret = BAD_FUNC_ARG;
-    }
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         switch (aes->rounds) {
@@ -8572,12 +8569,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* sanity checks */
     if ((aes == NULL) || (nonce == NULL) || (tag == NULL) ||
-            (tagSz > WC_AES_BLOCK_SIZE) || (tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
             ((aad == NULL) && (aadSz > 0)) || (nonceSz == 0) ||
             ((sz != 0) && ((in == NULL) || (out == NULL)))) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
+
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         switch (aes->rounds) {
@@ -8835,12 +8834,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && ((tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
-            (tagSz > WC_AES_BLOCK_SIZE))) {
-        WOLFSSL_MSG("GcmEncrypt tagSz error");
-        ret = BAD_FUNC_ARG;
-    }
-
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         if (nonceSz == GCM_NONCE_MID_SZ) {
@@ -8931,12 +8926,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* Validate parameters. */
     if ((aes == NULL) || (nonce == NULL) || (tag == NULL) ||
-            (tagSz > WC_AES_BLOCK_SIZE) || (tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
             ((aad == NULL) && (aadSz > 0)) || (nonceSz == 0) ||
             ((sz != 0) && ((in == NULL) || (out == NULL)))) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         ret = BAD_FUNC_ARG;
     }
+
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         if (nonceSz == GCM_NONCE_MID_SZ) {

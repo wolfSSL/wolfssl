@@ -19580,8 +19580,23 @@ static wc_test_ret_t aesgcm_non12iv_test(Aes* enc, Aes* dec)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif /* HAVE_AES_DECRYPT */
 
-    for (tlen = WOLFSSL_MIN_AUTH_TAG_SZ; tlen < 16; tlen++) {
+    for (tlen = WOLFSSL_MIN_AUTH_TAG_SZ; tlen <= WC_AES_BLOCK_SIZE; tlen++) {
         int ii;
+
+#ifndef WC_AES_GCM_ALLOW_NONSTANDARD_TAG_LENGTH
+        switch (tlen) {
+        case 4:
+        case 8:
+        case 12:
+        case 13:
+        case 14:
+        case 15:
+        case 16:
+            break;
+        default:
+            continue;
+        }
+#endif
 
         XMEMSET(resultT, 0, sizeof(resultT));
         wc_AesGcmSetKey(enc, k3, (word32)k3Sz);

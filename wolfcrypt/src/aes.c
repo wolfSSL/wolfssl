@@ -7995,6 +7995,63 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #endif
 
+#if !defined(NO_INLINE) && defined(__GNUC__)
+/* Inline for callers here in aes.c, but a callable local function for outside
+ * callers.  Don't use WC_INLINE unconditionally, because we can't count on
+ * correct behavior beyond gcc/clang, and we don't want the the WC_MAYBE_UNUSED
+ * attribute in NO_INLINE builds.
+ */
+WC_INLINE
+#endif
+int wc_local_AesGcmCheckTagSz(word32 authTagSz) {
+#ifdef WC_AES_GCM_ALLOW_NONSTANDARD_TAG_LENGTH
+    #ifdef HAVE_FIPS
+        #error WC_AES_GCM_ALLOW_NONSTANDARD_TAG_LENGTH not allowed with FIPS 140.
+    #endif
+    wc_static_assert(WOLFSSL_MIN_AUTH_TAG_SZ >= 4);
+    if ((authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
+        (authTagSz > WC_AES_BLOCK_SIZE))
+    {
+        WOLFSSL_MSG("AES-GCM unsupported authTagSz");
+        return BAD_FUNC_ARG;
+    }
+    else
+        return 0;
+#else
+    /* A switch is actually better for the optimizer than most hand-rolled
+     * equivalents, because it hands the compiler the exact value set and lets
+     * it pick the best lowering per WOLFSSL_MIN_AUTH_TAG_SZ configuration.
+     */
+    switch (authTagSz) {
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 4
+    case 4:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 8
+    case 8:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 12
+    case 12:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 13
+    case 13:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 14
+    case 14:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 15
+    case 15:
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 16
+    case 16:
+#endif
+        return 0;
+    default:
+        WOLFSSL_MSG("AES-GCM unsupported authTagSz");
+        return BAD_FUNC_ARG;
+    }
+#endif
+}
+
 #if defined(WOLFSSL_RISCV_ASM)
     /* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
 
@@ -10184,14 +10241,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     word32 keySize;
 
     /* argument checks */
-    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0) {
+    if (aes == NULL || ivSz == 0) {
         return BAD_FUNC_ARG;
     }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
-        return BAD_FUNC_ARG;
-    }
+    status = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (status != 0)
+        return status;
 
     status = wc_AesGetKeySize(aes, &keySize);
     if (status)
@@ -10715,16 +10771,15 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
      * out are don't cares (GMAC case), matching wc_AesGcmDecrypt. */
     if (aes == NULL || iv == NULL || ivSz == 0 ||
         (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE ||
+        authTag == NULL ||
         ((authInSz > 0) && (authIn == NULL)))
     {
         return BAD_FUNC_ARG;
     }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
-        return BAD_FUNC_ARG;
-    }
+    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -10922,12 +10977,15 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE ||
-        authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ || ivSz == 0 ||
+        authTag == NULL || ivSz == 0 ||
         ((authInSz > 0) && (authIn == NULL)))
     {
         return BAD_FUNC_ARG;
     }
+
+    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0) {
@@ -11488,11 +11546,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > WC_AES_BLOCK_SIZE ||
-        authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ || ivSz == 0) {
-
+        authTag == NULL || ivSz == 0)
+    {
         return BAD_FUNC_ARG;
     }
+
+    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -13513,10 +13574,12 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
     int ret = 0;
 
     /* Check validity of parameters. */
-    if ((aes == NULL) || (authTag == NULL) || (authTagSz > WC_AES_BLOCK_SIZE) ||
-            (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)) {
+    if ((aes == NULL) || (authTag == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(authTagSz);
 
     /* Check key has been set. */
     if ((ret == 0) && (!aes->gcmKeySet)) {
@@ -13655,10 +13718,12 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
     int ret = 0;
 
     /* Check validity of parameters. */
-    if ((aes == NULL) || (authTag == NULL) || (authTagSz > WC_AES_BLOCK_SIZE) ||
-            (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ)) {
+    if ((aes == NULL) || (authTag == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(authTagSz);
 
     /* Check key has been set. */
     if ((ret == 0) && (!aes->gcmKeySet)) {

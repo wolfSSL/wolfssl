@@ -687,9 +687,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz)
 {
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        return BAD_FUNC_ARG;
-    }
+    int ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
+
     return AesAuthEncrypt(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
                               authIn, authInSz, AES_CFG_MODE_GCM_HY0CALC);
 }
