@@ -827,6 +827,30 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #if !defined(NO_AVX512_SUPPORT) && !defined(HAVE_INTEL_AVX512)
             #define HAVE_INTEL_AVX512
         #endif
+
+        /* Below this threshold the narrower path (AVX1 / AES-NI) is faster on
+         * Zen 4 than the wide VAES/AVX512 path.  Verify and tune
+         * per-microarchecture.
+         */
+        #ifndef WC_VAES_MIN_BLOCKS
+            #define WC_VAES_MIN_BLOCKS 8
+        #elif WC_VAES_MIN_BLOCKS < 1
+            #error Invalid WC_VAES_MIN_BLOCKS
+        #endif
+        /* CFB/ECB: wide ECB setup (key broadcast) doesn't pay off below this. */
+        #ifndef WC_VAES_ECB_MIN_BLOCKS
+            #define WC_VAES_ECB_MIN_BLOCKS WC_VAES_MIN_BLOCKS
+        #elif WC_VAES_ECB_MIN_BLOCKS < 1
+            #error Invalid WC_VAES_ECB_MIN_BLOCKS
+        #endif
+        /* GCM one-shot: AVX2 faster than wide below this (layout/setup, not
+         * amortization); pure GMAC (sz==0) routes to AVX2 by construction.
+         */
+        #ifndef WC_VAES_GCM_MIN_BLOCKS
+            #define WC_VAES_GCM_MIN_BLOCKS WC_VAES_MIN_BLOCKS
+        #elif WC_VAES_GCM_MIN_BLOCKS < 1
+            #error Invalid WC_VAES_GCM_MIN_BLOCKS
+        #endif
     #endif
 
     void AES_CTR_encrypt_AESNI(const unsigned char* in, unsigned char* out,
@@ -885,13 +909,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         unsigned char* out, word32 sz, const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_ECB_encrypt_avx512(in, out, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_ECB_encrypt_vaes(in, out, sz, key, nr);
         }
         else
@@ -912,13 +938,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         unsigned char* out, word32 sz, const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_ECB_decrypt_avx512(in, out, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_ECB_decrypt_vaes(in, out, sz, key, nr);
         }
         else
@@ -941,13 +969,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_CBC_encrypt_avx512(in, out, iv, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_CBC_encrypt_vaes(in, out, iv, sz, key, nr);
         }
         else
@@ -970,13 +1000,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         const unsigned char* key, int nr)
     {
     #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_CBC_decrypt_avx512(in, out, iv, sz, key, nr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_CBC_decrypt_vaes(in, out, iv, sz, key, nr);
         }
         else
@@ -998,13 +1030,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         unsigned char* ctr)
     {
     #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_CTR_encrypt_avx512(in, out, sz, key, nr, ctr);
         }
         else
     #endif
     #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_ECB_MIN_BLOCKS) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_CTR_encrypt_vaes(in, out, sz, key, nr, ctr);
         }
         else
@@ -10817,7 +10851,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     if (aes->use_aesni) {
 #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_GCM_encrypt_avx512(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (const byte*)aes->key, (int)aes->rounds);
             ret = 0;
@@ -10825,7 +10860,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         else
 #endif
 #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_GCM_encrypt_vaes(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (const byte*)aes->key, (int)aes->rounds);
             ret = 0;
@@ -11591,7 +11627,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     if (aes->use_aesni) {
 #ifdef HAVE_INTEL_AVX512
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_GCM_decrypt_avx512(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (byte*)aes->key, (int)aes->rounds, &res);
             if (res == 0)
@@ -11602,7 +11639,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         else
 #endif
 #ifdef HAVE_INTEL_VAES
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_AES_BLOCK_SIZE * WC_VAES_GCM_MIN_BLOCKS) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_GCM_decrypt_vaes(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (byte*)aes->key, (int)aes->rounds, &res);
             if (res == 0)
@@ -12074,14 +12112,16 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
         if (blocks > 0) {
             /* GHASH full blocks now. */
 #ifdef HAVE_INTEL_AVX512
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
+                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_GCM_aad_update_avx512(a, blocks * WC_AES_BLOCK_SIZE,
                                         AES_TAG(aes), aes->gcm.H);
             }
             else
 #endif
 #ifdef HAVE_INTEL_VAES
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
+                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_GCM_aad_update_vaes(a, blocks * WC_AES_BLOCK_SIZE,
                                         AES_TAG(aes), aes->gcm.H);
             }
@@ -12248,7 +12288,8 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
         if (blocks > 0) {
             /* Encrypt and GHASH full blocks now. */
 #ifdef HAVE_INTEL_AVX512
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
+                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_GCM_encrypt_update_avx512((byte*)aes->key, (int)aes->rounds,
                     c, p, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -12256,7 +12297,8 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
             else
 #endif
 #ifdef HAVE_INTEL_VAES
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
+                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_GCM_encrypt_update_vaes((byte*)aes->key, (int)aes->rounds,
                     c, p, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -12573,7 +12615,8 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
         if (blocks > 0) {
             /* Decrypt and GHASH full blocks now. */
 #ifdef HAVE_INTEL_AVX512
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
+                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_GCM_decrypt_update_avx512((byte*)aes->key, (int)aes->rounds,
                     p, c, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -12581,7 +12624,8 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
             else
 #endif
 #ifdef HAVE_INTEL_VAES
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((blocks >= WC_VAES_GCM_MIN_BLOCKS) &&
+                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_GCM_decrypt_update_vaes((byte*)aes->key, (int)aes->rounds,
                     p, c, blocks * WC_AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
@@ -13866,6 +13910,9 @@ int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 }
 
 
+/* Note, wc_GmacUpdate() is not a streaming API, it's a one-shot calculation of
+ * the authTag.
+ */
 int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                               const byte* authIn, word32 authInSz,
                               byte* authTag, word32 authTagSz)
@@ -15426,19 +15473,29 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
         !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         (defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM))
     {
-        ALIGN16 byte tmp[4 * WC_AES_BLOCK_SIZE];
-        while (sz >= 4 * WC_AES_BLOCK_SIZE) {
+        #ifndef WC_AES_CFB_DEC_BUF_BLOCKS
+            #define WC_AES_CFB_DEC_BUF_BLOCKS 32
+        #elif WC_AES_CFB_DEC_BUF_BLOCKS < 2
+            #error Invalid WC_AES_CFB_DEC_BUF_BLOCKS
+        #endif
+        ALIGN16 byte tmp[WC_AES_CFB_DEC_BUF_BLOCKS * WC_AES_BLOCK_SIZE];
+        while (sz >= 2 * WC_AES_BLOCK_SIZE) {
+            word32 blocks = sz / WC_AES_BLOCK_SIZE;
+            word32 nbytes;
+            if (blocks > WC_AES_CFB_DEC_BUF_BLOCKS)
+                blocks = WC_AES_CFB_DEC_BUF_BLOCKS;
+            nbytes = blocks * WC_AES_BLOCK_SIZE;
             XMEMCPY(tmp, aes->reg, WC_AES_BLOCK_SIZE);
-            XMEMCPY(tmp + WC_AES_BLOCK_SIZE, in, 3 * WC_AES_BLOCK_SIZE);
-            XMEMCPY(aes->reg, in + 3 * WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
-            ret = wc_AesEcbEncrypt(aes, tmp, tmp, 4 * WC_AES_BLOCK_SIZE);
+            XMEMCPY(tmp + WC_AES_BLOCK_SIZE, in, nbytes - WC_AES_BLOCK_SIZE);
+            XMEMCPY(aes->reg, in + nbytes - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+            ret = wc_AesEcbEncrypt(aes, tmp, tmp, nbytes);
             if (ret != 0) {
                 break;
             }
-            xorbufout(out, in, tmp, 4 * WC_AES_BLOCK_SIZE);
-            out += 4 * WC_AES_BLOCK_SIZE;
-            in  += 4 * WC_AES_BLOCK_SIZE;
-            sz  -= 4 * WC_AES_BLOCK_SIZE;
+            xorbufout(out, in, tmp, nbytes);
+            out += nbytes;
+            in  += nbytes;
+            sz  -= nbytes;
         }
     }
     #endif
@@ -16733,7 +16790,8 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_XTS_encrypt_avx512(in, out, sz, i,
                                    (const byte*)aes->key,
                                    (const byte*)xaes->tweak.key,
@@ -16743,7 +16801,8 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         else
 #endif
 #if defined(HAVE_INTEL_VAES)
-        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
+            IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_XTS_encrypt_vaes(in, out, sz, i,
                                  (const byte*)aes->key,
                                  (const byte*)xaes->tweak.key,
@@ -16968,7 +17027,8 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
+                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_XTS_encrypt_update_avx512(in, out, sz,
                                               (const byte*)aes->key,
                                               stream->tweak_block,
@@ -17272,7 +17332,8 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-        if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+        if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
+            IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
             AES_XTS_decrypt_avx512(in, out, sz, i,
                                    (const byte*)aes->key,
                                    (const byte*)xaes->tweak.key,
@@ -17502,7 +17563,8 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX512)
-            if (IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
+                IS_INTEL_AVX512(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_XTS_decrypt_update_avx512(in, out, sz,
                                               (const byte*)aes->key,
                                               stream->tweak_block,
@@ -17512,7 +17574,8 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
             else
 #endif
 #if defined(HAVE_INTEL_VAES)
-            if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
+            if ((sz >= WC_VAES_ECB_MIN_BLOCKS * WC_AES_BLOCK_SIZE) &&
+                IS_INTEL_AVX2(intel_flags) && IS_INTEL_VAES(intel_flags)) {
                 AES_XTS_decrypt_update_vaes(in, out, sz,
                                             (const byte*)aes->key,
                                             stream->tweak_block,
