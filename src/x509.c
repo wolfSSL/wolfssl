@@ -11013,16 +11013,21 @@ static WOLFSSL_X509_REVOKED* RevokedCertToRevoked(RevokedCert* rc, int seq)
         return NULL;
     }
     if (rc->serialSz > 0 && rc->serialSz <= EXTERNAL_SERIAL_SIZE) {
-        serial->data = (unsigned char*)XMALLOC((size_t)rc->serialSz, NULL,
+        /* Allocate tag byte + length byte + content so that
+         * i2c_ASN1_INTEGER can read data[0] as tag and data[1] as length
+         * without overrunning the allocation. */
+        serial->data = (unsigned char*)XMALLOC((size_t)rc->serialSz + 2, NULL,
                                                DYNAMIC_TYPE_OPENSSL);
         if (serial->data == NULL) {
             wolfSSL_ASN1_INTEGER_free(serial);
             XFREE(rev, NULL, DYNAMIC_TYPE_OPENSSL);
             return NULL;
         }
-        XMEMCPY(serial->data, rc->serialNumber, (size_t)rc->serialSz);
+        serial->data[0] = ASN_INTEGER;
+        serial->data[1] = (unsigned char)rc->serialSz;
+        XMEMCPY(serial->data + 2, rc->serialNumber, (size_t)rc->serialSz);
         serial->length = rc->serialSz;
-        serial->dataMax = rc->serialSz;
+        serial->dataMax = (word32)rc->serialSz + 2;
         serial->isDynamic = 1;
     }
     rev->serialNumber = serial;
