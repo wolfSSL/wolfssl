@@ -3998,8 +3998,31 @@
         #undef HAVE_PUBLIC_FFDHE
     #endif
 
-    #undef WOLFSSL_MIN_AUTH_TAG_SZ
-    #define WOLFSSL_MIN_AUTH_TAG_SZ 4
+    #if defined(HAVE_FIPS)
+        #if FIPS_VERSION3_LT(7, 0, 0)
+            /* support RFC 4106 IPsec ESP 64 bit tags */
+           #undef WOLFSSL_MIN_AUTH_TAG_SZ
+           #define WOLFSSL_MIN_AUTH_TAG_SZ 8
+        #else
+            /* No short (<96 bit) tags per SP 800-38D 2026 revision in process. */
+            #if WOLFSSL_MIN_AUTH_TAG_SZ < 12
+                #undef WOLFSSL_MIN_AUTH_TAG_SZ
+                #define WOLFSSL_MIN_AUTH_TAG_SZ 12
+            #endif
+        #endif
+    #elif defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || defined(CONFIG_CRYPTO_SELFTESTS_FULL)
+        /* The Linux kernel native crypto fuzzer expects small AES-GCM tag sizes to succeed. */
+        #if WOLFSSL_MIN_AUTH_TAG_SZ > 4
+            #undef WOLFSSL_MIN_AUTH_TAG_SZ
+            #define WOLFSSL_MIN_AUTH_TAG_SZ 4
+        #endif
+    #else
+        /* support RFC 4106 IPsec ESP */
+        #if WOLFSSL_MIN_AUTH_TAG_SZ > 8
+            #undef WOLFSSL_MIN_AUTH_TAG_SZ
+            #define WOLFSSL_MIN_AUTH_TAG_SZ 8
+        #endif
+    #endif
 
     #if defined(LINUXKM_LKCAPI_REGISTER) && !defined(WOLFSSL_ASN_INT_LEAD_0_ANY)
         /* kernel 5.10 crypto manager tests key(s) that fail unless leading
@@ -4011,9 +4034,20 @@
         #define WOLFSSL_AARCH64_PRIVILEGE_MODE
     #endif
 
-    /* USE_INTEL_SPEEDUP currently gives wrong results for ML-KEM in linuxkm. */
-    #if !defined(WC_MLKEM_NO_ASM) && !defined(WC_MLKEM_KERNEL_ASM)
-        #define WC_MLKEM_NO_ASM
+    /* SHA-3 low level state can't alternate freely between C and intelasm. */
+    #ifdef _WC_BUILDING_WC_MLKEM_POLY_C
+        #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    #endif
+    #ifdef _WC_BUILDING_WC_MLDSA_C
+        #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    #endif
+    #ifdef _WC_BUILDING_WC_SLHDSA_C
+        #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    #endif
+
+    #ifndef WC_SIPHASH_NO_ASM
+        /* siphash asm produces wrong results in kernel mode. */
+        #define WC_SIPHASH_NO_ASM
     #endif
 #endif /* WOLFSSL_LINUXKM */
 
@@ -4094,8 +4128,10 @@
     #define WOLFSSL_HAVE_MAX
 #endif /* WOLFSSL_BSDKM */
 
-/* Common setup for kernel mode builds */
-#ifdef WOLFSSL_KERNEL_MODE
+/* Common setup for kernel mode builds, also compatible with user library via
+ * WOLFSSL_KERNEL_MODE_DEFAULTS.
+ */
+#if defined(WOLFSSL_KERNEL_MODE) || defined(WOLFSSL_KERNEL_MODE_DEFAULTS)
     #ifndef WOLFSSL_API_PREFIX_MAP
         #define WOLFSSL_API_PREFIX_MAP
     #endif
@@ -4149,7 +4185,11 @@
         #undef WOLFSSL_GENERAL_ALIGNMENT
         #define WOLFSSL_GENERAL_ALIGNMENT SIZEOF_LONG
     #endif
-#endif /* WOLFSSL_KERNEL_MODE */
+
+    #ifndef WOLFSSL_SMALL_STACK_STATIC
+        #define WOLFSSL_SMALL_STACK_STATIC
+    #endif
+#endif /* WOLFSSL_KERNEL_MODE || WOLFSSL_KERNEL_MODE_DEFAULTS */
 
 #if defined(WC_SYM_RELOC_TABLES) && defined(HAVE_FIPS) && \
     !defined(WC_PIE_RELOC_TABLES)
