@@ -106,7 +106,10 @@
     #endif
 #endif /* !WC_DEPRECATED */
 
-/* use inlining if compiler allows */
+/* Use inlining if compiler allows -- omit the static attribute here, so that
+ * WC_INLINE can be used on functions that are instantiated both inline in the
+ * TU, and callable from outside the TU.
+ */
 #ifndef WC_INLINE
 #ifndef NO_INLINE
     #ifdef _MSC_VER
@@ -141,6 +144,10 @@
 #else
     #define WC_INLINE WC_MAYBE_UNUSED
 #endif
+#endif
+
+#if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
+    #define INLINE WC_INLINE
 #endif
 
 #ifndef WC_NO_INLINE
@@ -549,8 +556,7 @@
      * should not be included. Use FreeBSD <machine/atomic.h> instead.
      * definitions are in bsdkm/bsdkm_wc_port.h */
     #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
-        !defined(__cplusplus) && \
-        !(defined(__clang__) && defined(WOLFSSL_KERNEL_MODE))
+        !defined(__cplusplus)
         /* Default C Implementation */
         #include <stdatomic.h>
         typedef atomic_int wolfSSL_Atomic_Int;

@@ -125,8 +125,8 @@ WC_MAYBE_UNUSED static int check_skcipher_driver_masking(struct crypto_skcipher 
         tfm = crypto_alloc_skcipher(alg_name, 0, 0);
     }
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating skcipher algorithm %s failed: %ld\n",
-               alg_name, PTR_ERR(tfm));
+        pr_err("error: allocating skcipher algorithm %s failed: %d\n",
+               alg_name, (int)PTR_ERR(tfm));
         return -EINVAL;
     }
     actual_driver_name = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
@@ -158,8 +158,8 @@ WC_MAYBE_UNUSED static int check_aead_driver_masking(struct crypto_aead *tfm, co
         tfm = crypto_alloc_aead(alg_name, 0, 0);
     }
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating AEAD algorithm %s failed: %ld\n",
-               alg_name, PTR_ERR(tfm));
+        pr_err("error: allocating AEAD algorithm %s failed: %d\n",
+               alg_name, (int)PTR_ERR(tfm));
         return -EINVAL;
     }
     actual_driver_name = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
@@ -191,8 +191,8 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
         tfm = crypto_alloc_shash(alg_name, 0, 0);
     }
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating shash algorithm %s failed: %ld\n",
-               alg_name, PTR_ERR(tfm));
+        pr_err("error: allocating shash algorithm %s failed: %d\n",
+               alg_name, (int)PTR_ERR(tfm));
         return -EINVAL;
     }
     actual_driver_name = crypto_tfm_alg_driver_name(crypto_shash_tfm(tfm));

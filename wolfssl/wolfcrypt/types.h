@@ -433,10 +433,6 @@ enum {
     #endif
 #endif
 
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
-    #define INLINE WC_INLINE
-#endif
-
 /* set up rotate style */
 #if ((defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
     defined(__BCPLUSPLUS__)) && !defined(WOLFSSL_SGX) && \

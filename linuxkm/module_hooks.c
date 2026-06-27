@@ -265,7 +265,7 @@ static ssize_t dump_to_file(const char *path, const u8 *buf, size_t buf_len)
 
     fp = filp_open(path, O_WRONLY | O_CREAT, 0644);
     if (IS_ERR(fp)) {
-        pr_err("libwolfssl: cannot open %s: %ld\n", path, PTR_ERR(fp));
+        pr_err("libwolfssl: cannot open %s: %d\n", path, (int)PTR_ERR(fp));
         return PTR_ERR(fp);
     }
 
@@ -1873,7 +1873,7 @@ static int updateFipsHash(void)
             pr_err("ERROR: crypto_alloc_shash failed: target kernel is missing algorithm implementation for hash type %u\n", FIPS_IN_CORE_HASH_TYPE);
             ret = NOT_COMPILED_IN;
         } else {
-            pr_err("ERROR: crypto_alloc_shash failed with ret %ld\n",PTR_ERR(tfm));
+            pr_err("ERROR: crypto_alloc_shash failed with ret %d\n", (int)PTR_ERR(tfm));
             ret = HASH_TYPE_E;
         }
         tfm = NULL;

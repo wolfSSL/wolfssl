@@ -76,6 +76,31 @@
     #define _GCC_STDINT_H
     #define WC_PTR_TYPE uintptr_t
 
+    #ifdef __clang__
+        /* inhibit inclusion of LLVM stdint.h (included via LLVM stdatomic.h) to
+         * avoid conflicts with linux/types.h.
+         */
+        #define __CLANG_STDINT_H
+        #define uint_least64_t uint64_t
+        #define int_least64_t int64_t
+        #define uint_least32_t uint32_t
+        #define int_least32_t int32_t
+        #define uint_least16_t uint16_t
+        #define int_least16_t int16_t
+        #define uint_least8_t uint8_t
+        #define int_least8_t int8_t
+        #define uint_fast64_t uint64_t
+        #define int_fast64_t int64_t
+        #define uint_fast32_t uint32_t
+        #define int_fast32_t int32_t
+        #define uint_fast16_t uint16_t
+        #define int_fast16_t int16_t
+        #define uint_fast8_t uint8_t
+        #define int_fast8_t int8_t
+        #define uintmax_t uint64_t
+        #define intmax_t int64_t
+    #endif
+
     /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     #define XSNPRINTF snprintf
 
@@ -320,6 +345,10 @@
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
     _Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\""); /* needed for kernel 4.9.282 */
     _Pragma("GCC diagnostic ignored \"-Wattributes\"");
+#ifdef __clang__
+    _Pragma("clang diagnostic ignored \"-Wshorten-64-to-32\"");
+    _Pragma("clang diagnostic ignored \"-Wframe-address\"");
+#endif
 
     #ifdef CONFIG_KASAN
         #ifndef WC_SANITIZE_DISABLE
@@ -776,6 +805,8 @@
 
     _Pragma("GCC diagnostic pop");
 
+    #define PTR_ERR(x) ((int)PTR_ERR(x))
+
     #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0) && !defined(NO_AES)
         /* with CONFIG_FORTIFY_SOURCE we've seen false positive
          * maybe-uninitialized on counter in AES_GCM_encrypt_C().  This is easy
@@ -792,6 +823,7 @@
                                             unsigned int aSz, const unsigned char* c,
                                             unsigned int cSz, unsigned char* s, unsigned int sSz);
         #endif
+         /* Need to suppress the otherwise-warned nullness checks in old FIPS aes.c. */
         _Pragma("GCC diagnostic ignored \"-Wnonnull-compare\"");
     #endif
 
@@ -1211,8 +1243,8 @@
             typeof(wolfCrypt_FIPS_ft_ro_sanity) *wolfCrypt_FIPS_ft_ro_sanity;
             typeof(wolfCrypt_FIPS_f_ro_sanity) *wolfCrypt_FIPS_f_ro_sanity;
             typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
-        #endif
-        #endif
+        #endif /* FIPS_VERSION3_GE(6,0,0) */
+        #endif /* HAVE_FIPS */
 
         #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
         typeof(GetCA) *GetCA;

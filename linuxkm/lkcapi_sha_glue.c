@@ -1352,7 +1352,12 @@ static int wc_linuxkm_drbg_loaded = 0;
 static int wc__get_random_bytes(void *buf, size_t len)
 {
     struct wc_rng_bank *current_default_wc_rng_bank;
-    int ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
+    int ret;
+
+    if (len > WC_MAX_UINT_OF(unsigned int))
+        return -EINVAL;
+
+    ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
 #ifdef WC_VERBOSE_RNG
         pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc__get_random_bytes() returned %d.\n", ret);
@@ -1361,7 +1366,7 @@ static int wc__get_random_bytes(void *buf, size_t len)
     }
     else {
         ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
-                                           NULL, 0, buf, len);
+                                           NULL, 0, buf, (unsigned int)len);
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         if (ret) {
             pr_warn("BUG: wc__get_random_bytes falling through to native get_random_bytes with wc_linuxkm_drbg_default_instance_registered, ret=%d.\n", ret);
@@ -1374,14 +1379,14 @@ static int wc__get_random_bytes(void *buf, size_t len)
 /* used by kernel >=5.14.0 */
 static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
     struct wc_rng_bank *current_default_wc_rng_bank;
-    int ret;
+    ssize_t ret;
     if (unlikely(!iov_iter_count(iter)))
         return 0;
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
 #ifdef WC_VERBOSE_RNG
-        pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_get_random_bytes_user() returned %d.\n", ret);
+        pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_get_random_bytes_user() returned %ld.\n", ret);
 #endif
         return -ECANCELED;
     }
@@ -1393,7 +1398,7 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, sizeof block);
             if (unlikely(ret != 0)) {
-                pr_err("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %d.\n", ret);
+                pr_err("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
                 break;
             }
 
@@ -1435,7 +1440,7 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
 
 /* used by kernel 4.9.0-5.13.x */
 static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
-    int ret;
+    ssize_t ret;
     struct wc_rng_bank *current_default_wc_rng_bank;
     if (unlikely(!nbytes))
         return 0;
@@ -1443,7 +1448,7 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
 #ifdef WC_VERBOSE_RNG
-        pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_extract_crng_user() returned %d.\n", ret);
+        pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_extract_crng_user() returned %ld.\n", ret);
 #endif
         return -ECANCELED;
     }
@@ -1455,11 +1460,13 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, sizeof block);
             if (unlikely(ret != 0)) {
-                pr_err("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %d.\n", ret);
+                pr_err("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
                 break;
             }
 
-            this_copied = min(nbytes - total_copied, sizeof(block));
+            this_copied = nbytes - total_copied;
+            if (this_copied > sizeof(block))
+                this_copied = sizeof(block);
             if (copy_to_user((byte *)buf + total_copied, block, this_copied)) {
                 ret = -EFAULT;
                 break;
@@ -1808,8 +1815,8 @@ static int wc_linuxkm_drbg_startup(void)
     {
         struct crypto_rng *tfm = crypto_alloc_rng(wc_linuxkm_drbg.base.cra_name, 0, 0);
         if (IS_ERR(tfm)) {
-            pr_err("ERROR: allocating rng algorithm %s failed: %ld\n",
-                   wc_linuxkm_drbg.base.cra_name, PTR_ERR(tfm));
+            pr_err("ERROR: allocating rng algorithm %s failed: %d\n",
+                   wc_linuxkm_drbg.base.cra_name, (int)PTR_ERR(tfm));
             ret = PTR_ERR(tfm);
             tfm = NULL;
         }

@@ -2298,8 +2298,8 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
      * */
     tfm = crypto_alloc_akcipher(driver, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
-               driver, PTR_ERR(tfm));
+        pr_err("error: allocating akcipher algorithm %s failed: %d\n",
+               driver, (int)PTR_ERR(tfm));
         tfm = NULL;
         goto test_rsa_end;
     }
@@ -2722,8 +2722,8 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
             skipped = 1;
         }
         else {
-            pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
-                   driver, PTR_ERR(tfm));
+            pr_err("error: allocating akcipher algorithm %s failed: %d\n",
+                   driver, (int)PTR_ERR(tfm));
             if (PTR_ERR(tfm) == -ENOMEM) {
                 test_rc = MEMORY_E;
             }
@@ -3229,8 +3229,8 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
             skipped = 1;
         }
         else {
-            pr_err("error: allocating sig algorithm %s failed: %ld\n",
-                   driver, PTR_ERR(tfm));
+            pr_err("error: allocating sig algorithm %s failed: %d\n",
+                   driver, (int)PTR_ERR(tfm));
             if (PTR_ERR(tfm) == -ENOMEM) {
                 test_rc = MEMORY_E;
             }

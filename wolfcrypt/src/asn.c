@@ -15340,10 +15340,10 @@ int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
     if (format == ASN_UTC_TIME) {
         /* UTC Time */
         if (ts->tm_year >= 50 && ts->tm_year < 100) {
-            year = ts->tm_year;
+            year = (int)ts->tm_year;
         }
         else {
-            year = ts->tm_year - 100;
+            year = (int)ts->tm_year - 100;
         }
         mon  = ts->tm_mon + 1;
         day  = ts->tm_mday;
@@ -15360,7 +15360,7 @@ int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
     }
     else {
         /* GeneralizedTime */
-        year = ts->tm_year + 1900;
+        year = (int)ts->tm_year + 1900;
         mon  = ts->tm_mon + 1;
         day  = ts->tm_mday;
         hour = ts->tm_hour;
