@@ -400,7 +400,7 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
             ret = Final(&handle, out, (uint32_t*)&sz);
             if (ret != TSIP_SUCCESS || sz != outSz) {
                 tsip_hw_unlock();
-                return ret;
+                return (ret == TSIP_SUCCESS) ? WC_HW_E : ret;
             }
         }
         else {
@@ -452,7 +452,7 @@ static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
             ret = Final(&handle, out, &sz);
             if (ret != TSIP_SUCCESS || sz != outSz) {
                 tsip_hw_unlock();
-                return ret;
+                return (ret == TSIP_SUCCESS) ? WC_HW_E : ret;
             }
         }
         else {

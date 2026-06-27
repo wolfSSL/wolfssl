@@ -1513,6 +1513,7 @@ static int tsip_sha256_hash_test(int prnt)
     byte hash1[WC_SHA256_DIGEST_SIZE];
     byte hash2[WC_SHA256_DIGEST_SIZE];
     int  ret = 0;
+    int  shaInited = 0;
 
     /* SHA-256("abc") */
     static const byte msg[] = { 0x61, 0x62, 0x63 };
@@ -1532,6 +1533,7 @@ static int tsip_sha256_hash_test(int prnt)
         ret = -1;
         goto out;
     }
+    shaInited = 1;
     ret = wc_Sha256Update(&sha, msg, sizeof(msg));
     if (ret != 0) {
         ret = -2;
@@ -1585,6 +1587,8 @@ static int tsip_sha256_hash_test(int prnt)
     }
 
 out:
+    if (shaInited)
+        wc_Sha256Free(&sha);
     if (prnt) {
         if (ret != 0)
             printf("(code=%d) ", ret);
@@ -1601,6 +1605,7 @@ static int tsip_sha1_hash_test(int prnt)
     byte hash1[WC_SHA_DIGEST_SIZE];
     byte hash2[WC_SHA_DIGEST_SIZE];
     int  ret = 0;
+    int  shaInited = 0;
 
     /* NIST FIPS 180-4: SHA-1("abc") */
     static const byte msg[] = { 0x61, 0x62, 0x63 };
@@ -1619,7 +1624,7 @@ static int tsip_sha1_hash_test(int prnt)
         ret = -1;
         goto out;
     }
-    
+    shaInited = 1;
     ret = wc_ShaUpdate(&sha, msg, sizeof(msg));
     if (ret != 0) {
         ret = -2;
@@ -1678,6 +1683,8 @@ static int tsip_sha1_hash_test(int prnt)
     }
 
 out:
+    if (shaInited)
+        wc_ShaFree(&sha);
     if (prnt) {
         if (ret != 0)
             printf("(code=%d) ", ret);
