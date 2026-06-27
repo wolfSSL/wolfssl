@@ -150,6 +150,12 @@
 
 #if defined(WOLFSSL_HAVE_MLDSA)
 
+#if defined(WC_MLDSA_NO_ASM) || defined(WC_SHA3_NO_ASM)
+    #undef USE_INTEL_SPEEDUP
+    #undef WOLFSSL_ARMASM
+    #undef WOLFSSL_RISCV_ASM
+#endif
+
 /* Pull in the legacy compatibility shim. wc_mldsa.h pulls in dilithium.h
  * itself for the forward arm of the sub-config gate translation (so the
  * canonical WOLFSSL_MLDSA_* gates are visible to wc_mldsa.h's own
