@@ -323,6 +323,11 @@ WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
         }
     }
 
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    if (SAVE_VECTOR_REGISTERS2_fuzzer() != 0)
+        return 0;
+#endif
+
     if ((preempt_count() == 0) || may_use_simd())
         return 1;
     else
@@ -422,6 +427,14 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
         return 0;
     }
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    if (flags & WC_SVR_FLAG_FUZZ) {
+        int ret = SAVE_VECTOR_REGISTERS2_fuzzer();
+        if (ret != 0)
+            return ret;
+    }
+#endif
 
     if ((preempt_count() == 0) || may_use_simd()) {
         /* fpregs_lock() calls either local_bh_disable() or preempt_disable()

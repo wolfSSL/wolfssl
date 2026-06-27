@@ -192,6 +192,7 @@
     enum wc_svr_flags {
         WC_SVR_FLAG_NONE = 0,
         WC_SVR_FLAG_INHIBIT = 1,
+        WC_SVR_FLAG_FUZZ
     };
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
@@ -705,11 +706,7 @@
             #endif
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-                #define CAN_SAVE_VECTOR_REGISTERS() (wc_can_save_vector_registers_x86() && (SAVE_VECTOR_REGISTERS2_fuzzer() == 0))
-            #else
-                #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
-            #endif
+            #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
@@ -721,12 +718,7 @@
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-                #define SAVE_VECTOR_REGISTERS2() ({                    \
-                    int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
-                    (_fuzzer_ret == 0) ?                               \
-                     wc_save_vector_registers_x86(WC_SVR_FLAG_NONE) :  \
-                     _fuzzer_ret;                                      \
-                })
+                #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_FUZZ)
             #else
                 #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_NONE)
             #endif
