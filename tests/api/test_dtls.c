@@ -6352,6 +6352,11 @@ int test_dtls13_server_ctx_reuse_ticket(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    /* Set hint > WOLFSSL_TICKET_KEY_LIFETIME / 2 to trigger the bug in
+     * TicketEncCbCtx_ChooseKey: both keys become alive but neither covers
+     * the hint window, returning BAD_STATE_E on the 2nd handshake. */
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx_s,
+        WOLFSSL_TICKET_KEY_LIFETIME + 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
