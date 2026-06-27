@@ -1012,9 +1012,12 @@
     #ifndef __ARCH_STRSTR_NO_REDIRECT
         typeof(strstr) *strstr;
     #endif
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
+    /* note strncpy() purged from kernel by 079a028d63 */
     #ifndef __ARCH_STRNCPY_NO_REDIRECT
         typeof(strncpy) *strncpy;
     #endif
+    #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0) */
     #ifndef __ARCH_STRNCAT_NO_REDIRECT
         typeof(strncat) *strncat;
     #endif
@@ -1364,8 +1367,10 @@
     #ifndef __ARCH_STRSTR_NO_REDIRECT
         #define strstr WC_PIE_INDIRECT_SYM(strstr)
     #endif
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
     #ifndef __ARCH_STRNCPY_NO_REDIRECT
         #define strncpy WC_PIE_INDIRECT_SYM(strncpy)
+    #endif
     #endif
     #ifndef __ARCH_STRNCAT_NO_REDIRECT
         #define strncat WC_PIE_INDIRECT_SYM(strncat)
@@ -1773,6 +1778,23 @@
     #define NO_TIMEVAL 1
 
     #endif /* BUILDING_WOLFSSL */
+
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
+    /* note strncpy() purged from kernel by 079a028d63 */
+    static __always_inline char *wc_linuxkm_strncpy(char *dst, const char *src, size_t dsize) {
+        char *dstart = dst, *dend = dst + dsize;
+        while (dst < dend) {
+            if (*src == 0) {
+                *dst = 0;
+                /* don't bother zero-filling dst. */
+                break;
+            }
+            *dst++ = *src++;
+        }
+        return dstart;
+    }
+    #define strncpy wc_linuxkm_strncpy
+    #endif
 
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */

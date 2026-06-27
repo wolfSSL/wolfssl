@@ -1412,8 +1412,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef __ARCH_STRSTR_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strstr = strstr;
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
 #ifndef __ARCH_STRNCPY_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncpy = strncpy;
+#endif
 #endif
 #ifndef __ARCH_STRNCAT_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncat = strncat;
