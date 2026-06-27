@@ -7995,7 +7995,7 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #endif
 
-#if !defined(NO_INLINE) && defined(__GNUC__)
+#if !defined(NO_INLINE) && defined(__GNUC__) && !defined(__cplusplus)
 /* Inline for callers here in aes.c, but a callable local function for outside
  * callers.  Don't use WC_INLINE unconditionally, because we can't count on
  * correct behavior beyond gcc/clang, and we don't want the the WC_MAYBE_UNUSED
