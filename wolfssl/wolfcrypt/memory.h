@@ -382,7 +382,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
               fprintf(stderr,                                       \
                       ("%s() %s @ L %d : incr : "                   \
                        "wc_svr_count %d (last op %s L %d)\n"),      \
-                        __FUNCTION__,                               \
+                      __func__,                                     \
                       __FILE__,                                     \
                       __LINE__,                                     \
                       wc_svr_count,                                 \
@@ -405,7 +405,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
                 fprintf(stderr,                                     \
                         ("%s() %s @ L %d : incr : "                 \
                          "wc_svr_count %d (last op %s L %d)\n"),    \
-                        __FUNCTION__,                               \
+                        __func__,                                   \
                         __FILE__,                                   \
                         __LINE__,                                   \
                         wc_svr_count,                               \
@@ -460,7 +460,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
                 fprintf(stderr,                                     \
                         ("%s() %s @ L %d : incr : "                 \
                         "wc_svr_count %d (last op %s L %d)\n"),     \
-                        __FUNCTION__,                               \
+                        __func__,                                   \
                         __FILE__,                                   \
                         __LINE__,                                   \
                         wc_svr_count,                               \
@@ -475,7 +475,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
                 fprintf(stderr,                                     \
                         ("%s() %s @ L %d : incr : "                 \
                          "wc_svr_count %d (last op %s L %d)\n"),    \
-                        __FUNCTION__,                               \
+                        __func__,                                   \
                         __FILE__,                                   \
                         __LINE__,                                   \
                         wc_svr_count,                               \
@@ -497,7 +497,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
             fprintf(stderr,                                         \
                     ("ASSERT_SAVED_VECTOR_REGISTERS : %s() %s @ L %d : "  \
                     "wc_svr_count %d (last op %s L %d)\n"),         \
-                        __FUNCTION__,                               \
+                    __func__,                                       \
                     __FILE__,                                       \
                     __LINE__,                                       \
                     wc_svr_count,                                   \
@@ -511,7 +511,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
             fprintf(stderr,                                         \
                     ("ASSERT_RESTORED_VECTOR_REGISTERS : %s() %s @ L %d"  \
                      " : wc_svr_count %d (last op %s L %d)\n"),     \
-                        __FUNCTION__,                               \
+                    __func__,                                       \
                     __FILE__,                                       \
                     __LINE__,                                       \
                     wc_svr_count,                                   \
@@ -527,7 +527,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
             fprintf(stderr,                                         \
                     ("%s() %s @ L %d : decr : "                     \
                      "wc_svr_count %d (last op %s L %d)\n"),        \
-                        __FUNCTION__,                               \
+                    __func__,                                       \
                     __FILE__,                                       \
                     __LINE__,                                       \
                     wc_svr_count,                                   \

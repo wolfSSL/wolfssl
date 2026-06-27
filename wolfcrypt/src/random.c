@@ -555,7 +555,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 
 #ifdef WC_VERBOSE_RNG
     if (ret != 0)
-        WOLFSSL_DEBUG_PRINTF("ERROR: %s failed with err = %d", __FUNCTION__,
+        WOLFSSL_DEBUG_PRINTF("ERROR: %s failed with err = %d", __func__,
                              ret);
 #endif
 
@@ -1148,7 +1148,7 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
 
 #ifdef WC_VERBOSE_RNG
     if (ret != 0)
-        WOLFSSL_DEBUG_PRINTF("ERROR: %s failed with err = %d", __FUNCTION__,
+        WOLFSSL_DEBUG_PRINTF("ERROR: %s failed with err = %d", __func__,
                              ret);
 #endif
 

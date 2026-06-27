@@ -1127,7 +1127,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cts_test(void);
         do { \
             ret = (err); \
             ESP_LOGE(ESPIDF_TAG, "Failed: Error = %d during %s, line %d", \
-                                    err, __FUNCTION__, __LINE__); \
+                                    err, __func__, __LINE__); \
             ESP_LOGI(ESPIDF_TAG, "Extended system info:"); \
             esp_ShowExtendedSystemInfo(); \
             ESP_LOGW(ESPIDF_TAG, "Paused for %d seconds! " \

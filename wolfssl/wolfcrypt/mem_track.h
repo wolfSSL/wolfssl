@@ -728,7 +728,7 @@ int StackSizeHWMReset(void)
 
 #if defined(__GNUC__) || defined(__clang__)
 #define STACK_SIZE_INIT() \
-    (void)StackSizeSetOffset(__FUNCTION__, __builtin_frame_address(0))
+    (void)StackSizeSetOffset(__func__, __builtin_frame_address(0))
 #endif
 
 #endif /* HAVE_STACK_SIZE_VERBOSE */

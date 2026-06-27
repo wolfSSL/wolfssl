@@ -82,7 +82,7 @@ static inline long find_reloc_tab_offset(
     unsigned long hop;
 
     if (seg_in_offset >= (size_t)reloc_tab[reloc_tab_len - 1].offset) {
-        RELOC_DEBUG_PRINTF("ERROR: %s failed.\n", __FUNCTION__);
+        RELOC_DEBUG_PRINTF("ERROR: %s failed.\n", __func__);
         return BAD_FUNC_ARG;
     }
 
@@ -113,7 +113,7 @@ static inline long find_reloc_tab_offset(
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
     if (ret < 0)
-        RELOC_DEBUG_PRINTF("ERROR: %s returning %ld.\n", __FUNCTION__, ret);
+        RELOC_DEBUG_PRINTF("ERROR: %s returning %ld.\n", __func__, ret);
 #endif
     return ret;
 }
@@ -176,7 +176,7 @@ ssize_t wc_reloc_normalize_segment(
     else
     {
         RELOC_DEBUG_PRINTF("ERROR: %s returning BAD_FUNC_ARG with span %llx-%llx versus text %llx-%llx and rodata %llx-%llx.\n",
-               __FUNCTION__,
+               __func__,
                (unsigned long long)(uintptr_t)seg_in,
                (unsigned long long)(uintptr_t)(seg_in + *seg_in_out_len),
                (unsigned long long)seg_map->text_start,

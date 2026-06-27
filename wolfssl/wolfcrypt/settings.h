@@ -1641,14 +1641,14 @@
             #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
                 #define XMALLOC(s, h, type)  \
                               ((void)(h), (void)(type), wc_debug_pvPortMalloc( \
-                               (s), (__FILE__), (__LINE__), (__FUNCTION__) ))
+                               s, __FILE__, __LINE__, __func__))
             #else
                 #define XMALLOC(s, h, type)  \
-                        ((void)(h), (void)(type), wc_pvPortMalloc((s))) /* native heap */
+                        ((void)(h), (void)(type), wc_pvPortMalloc(s)) /* native heap */
             #endif
         #else
             #define XMALLOC(s, h, type)  \
-                           ((void)(h), (void)(type), pvPortMalloc((s))) /* native heap */
+                           ((void)(h), (void)(type), pvPortMalloc(s)) /* native heap */
         #endif
 
         /* XFREE */
@@ -1656,14 +1656,14 @@
             #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
                 #define XFREE(p, h, type)   \
                         ((void)(h), (void)(type), wc_debug_pvPortFree( \
-                                 (p), (__FILE__), (__LINE__), (__FUNCTION__) ))
+                                 p, __FILE__, __LINE__, __func__))
             #else
                 #define XFREE(p, h, type)   \
-                        ((void)(h), (void)(type), wc_pvPortFree((p)))
+                        ((void)(h), (void)(type), wc_pvPortFree(p))
             #endif
         #else
             #define XFREE(p, h, type)   \
-                     ((void)(h), (void)(type), vPortFree((p))) /* native heap */
+                     ((void)(h), (void)(type), vPortFree(p)) /* native heap */
         #endif
 
         /* XREALLOC */
@@ -1671,19 +1671,19 @@
             #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
                 #define XREALLOC(p, n, h, t) \
                         ((void)(h), (void)(t), wc_debug_pvPortRealloc( \
-                        (p), (n),(__FILE__), (__LINE__), (__FUNCTION__) ))
+                        p, n, __FILE__, __LINE__, __func__))
             #else
                 /* In the Espressif EDP-IDF, realloc(p, n) is equivalent to
                  *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
                  * There's no pvPortRealloc available, use native heap:  */
                 #define XREALLOC(p, n, h, t) \
-                       ((void)(h), (void)(t), wc_pvPortRealloc((p), (n)))
+                       ((void)(h), (void)(t), wc_pvPortRealloc(p, n))
             #endif
         #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA) || \
               defined(OPENSSL_ALL)
             /* FreeRTOS pvPortRealloc() implementation can be found here:
              * https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
-            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), pvPortRealloc((p), (n)))
+            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), pvPortRealloc(p, n))
         #else
             /* no XREALLOC available */
         #endif
