@@ -4552,7 +4552,6 @@ static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
     byte* s, word32 sSz)
 {
-    if (gcm != NULL) {
         ALIGN8 byte x[WC_AES_BLOCK_SIZE];
         ALIGN8 byte scratch[WC_AES_BLOCK_SIZE];
         byte* h = gcm->H;
@@ -4688,7 +4687,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
 
         /* Copy the result into s. */
         XMEMCPY(s, x, sSz);
-    }
 }
 
 #define HAVE_GHASH
@@ -5295,7 +5293,6 @@ static void ghash_blocks(byte* x, byte* y, const byte* in, word32 blocks)
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
     byte* s, word32 sSz)
 {
-    if (gcm != NULL) {
         ALIGN8 byte x[WC_AES_BLOCK_SIZE];
         ALIGN8 byte scratch[WC_AES_BLOCK_SIZE];
         word32 blocks, partial;
@@ -5343,7 +5340,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
 
         /* Copy the result into s. */
         XMEMCPY(s, x, sSz);
-    }
 }
 
 #define HAVE_GHASH
@@ -8720,7 +8716,6 @@ static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
     byte* s, word32 sSz)
 {
-    if (gcm != NULL) {
         ALIGN8 byte x[WC_AES_BLOCK_SIZE];
         ALIGN8 byte scratch[WC_AES_BLOCK_SIZE];
         word32 blocks, partial;
@@ -8769,7 +8764,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
 
         /* Copy the result into s. */
         XMEMCPY(s, x, sSz);
-    }
 }
 #endif /* !HAVE_GHASH */
 
