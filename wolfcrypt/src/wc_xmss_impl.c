@@ -29,6 +29,8 @@
  *       (https://ece.engr.uvic.ca/~raltawy/SAC2021/9.pdf)
  */
 
+#define _WC_BUILDING_WC_XMSS_IMPL_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/wc_xmss.h>

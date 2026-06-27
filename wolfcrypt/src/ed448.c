@@ -30,6 +30,8 @@
  *     Check that the private key didn't change during the signing operations.
  */
 
+#define _WC_BUILDING_ED448_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED448

@@ -38,6 +38,8 @@
  * PSOC6_HASH_SHA3:          PSoC6 hardware SHA-3                  default: off
  */
 
+#define _WC_BUILDING_SHA3_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WC_SHA3_NO_ASM

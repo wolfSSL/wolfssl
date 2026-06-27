@@ -135,6 +135,8 @@
  *   shift equivalent.
  */
 
+#define _WC_BUILDING_WC_MLDSA_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if FIPS_VERSION3_GE(2,0,0)

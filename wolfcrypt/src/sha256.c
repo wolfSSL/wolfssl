@@ -38,6 +38,8 @@ on the specific device platform.
 
 */
 
+#define _WC_BUILDING_SHA256_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*

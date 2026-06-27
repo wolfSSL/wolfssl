@@ -70,6 +70,8 @@
  *   Cannot be used with WOLFSSL_NO_MALLOC.
  */
 
+#define _WC_BUILDING_WC_MLKEM_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WC_MLKEM_NO_ASM

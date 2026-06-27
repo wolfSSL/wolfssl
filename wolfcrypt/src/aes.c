@@ -110,6 +110,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_HW_METRICS:      Track hardware acceleration usage     default: off
  */
 
+#define _WC_BUILDING_AES_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(NO_AES)

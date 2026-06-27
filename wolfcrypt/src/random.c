@@ -102,6 +102,8 @@ This library contains implementation for the random number generator.
  * WOLFSSL_XILINX_CRYPT_VERSAL: Xilinx Versal crypto RNG          default: off
  */
 
+#define _WC_BUILDING_RANDOM_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /* on HPUX 11 you may need to install /dev/random see

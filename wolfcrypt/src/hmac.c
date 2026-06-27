@@ -35,6 +35,8 @@
  * WOLFSSL_KCAPI_HMAC:       Linux kernel crypto API for HMAC     default: off
  */
 
+#define _WC_BUILDING_HMAC_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_HMAC

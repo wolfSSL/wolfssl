@@ -67,6 +67,8 @@
  *   some platforms and is smaller in code size.
  */
 
+#define _WC_BUILDING_WC_MLKEM_POLY_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WC_MLKEM_NO_ASM
