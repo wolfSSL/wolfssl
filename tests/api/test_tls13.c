@@ -8706,9 +8706,10 @@ int test_tls13_KeyUpdate_sender_limit(void)
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
     !defined(NO_CERTS) && !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-/* Mock OCSP I/O callback: returns 0 bytes so the server stapling slot
- * stays empty. This intentionally exercises the "no staple available"
- * path on both peers. */
+/* Mock OCSP I/O callback that yields no response. It lets stapling be enabled
+ * without contacting a real responder, but may not even be invoked (the test
+ * certs need not advertise an OCSP responder URL). Either way no staple is
+ * produced, which is the "no staple available" path this test exercises. */
 static int test_pha_ocsp_io_cb(void* ioCtx, const char* url, int urlSz,
     unsigned char* req, int reqSz, unsigned char** resp)
 {
