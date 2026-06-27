@@ -3558,6 +3558,12 @@
     #error WOLFSSL_MIN_AUTH_TAG_SZ must be at least 1
 #endif
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7, 0, 0)
+    /* No short (<96 bit) tags per SP 800-38D 2026 revision in process. */
+    #if WOLFSSL_MIN_AUTH_TAG_SZ < 12
+        #error WOLFSSL_MIN_AUTH_TAG_SZ must be >= 12 per SP 800-38D Rev 1
+    #endif
+#endif
 
 /* sniffer requires:
  * static RSA cipher suites
