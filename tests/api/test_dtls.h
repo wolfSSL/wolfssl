@@ -31,6 +31,8 @@ int test_dtls12_record_length_mismatch(void);
 int test_dtls12_short_read(void);
 int test_dtls13_longer_length(void);
 int test_dtls13_short_read(void);
+int test_dtls13_server_ctx_reuse_no_ticket_ok(void);
+int test_dtls13_server_ctx_reuse_ticket(void);
 int test_records_span_network_boundaries(void);
 int test_dtls_record_cross_boundaries(void);
 int test_dtls_rtx_across_epoch_change(void);
@@ -161,6 +163,8 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls13_min_rtx_interval),                 \
         TEST_DECL_GROUP("dtls", test_dtls13_no_session_id_echo),               \
         TEST_DECL_GROUP("dtls", test_dtls13_oversized_cert_chain),             \
+        TEST_DECL_GROUP("dtls", test_dtls13_server_ctx_reuse_no_ticket_ok),    \
+        TEST_DECL_GROUP("dtls", test_dtls13_server_ctx_reuse_ticket),          \
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_create_free_peer),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_get0_peer),                  \
