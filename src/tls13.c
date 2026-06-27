@@ -9531,7 +9531,18 @@ static int SetupOcspResp(WOLFSSL* ssl)
         XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
         return ret;
     }
-    ret = TLSX_CSR_InitRequest(ssl->extensions, cert, ssl->heap);
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    /* On client PHA the same certificate is re-stapled every round; reuse
+     * request slot 0 instead of appending, else csr->requests grows until
+     * MAX_CERT_EXTENSIONS_ERR. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.handShakeDone) {
+        ret = TLSX_CSR_InitRequest_ex(ssl->extensions, cert, ssl->heap, 0);
+    }
+    else
+#endif
+    {
+        ret = TLSX_CSR_InitRequest(ssl->extensions, cert, ssl->heap);
+    }
     FreeDecodedCert(cert);
     XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
     if (ret != 0 )
@@ -13925,6 +13936,25 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->error = 0;
     }
 #endif
+#if defined(HAVE_WRITE_DUP) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    /* Read side: a fresh PHA CertificateRequest. Resume from the transcript
+     * the write side published after the previous PHA response, so this CR is
+     * hashed onto the same base the server has. */
+    if (ret == 0 && type == certificate_request &&
+            ssl->options.side == WOLFSSL_CLIENT_END &&
+            ssl->dupSide == READ_DUP_SIDE &&
+            ssl->options.handShakeState == HANDSHAKE_DONE &&
+            ssl->dupWrite != NULL) {
+        if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+            return BAD_MUTEX_E;
+        if (ssl->dupWrite->postHandshakeSyncedHashState != NULL) {
+            FreeHandshakeHashes(ssl);
+            ssl->hsHashes = ssl->dupWrite->postHandshakeSyncedHashState;
+            ssl->dupWrite->postHandshakeSyncedHashState = NULL;
+        }
+        wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+    }
+#endif /* HAVE_WRITE_DUP && WOLFSSL_POST_HANDSHAKE_AUTH */
     if (ret == 0 && type != client_hello && type != session_ticket &&
                                                            type != key_update) {
         ret = HashInput(ssl, input + inIdx, (int)size);

@@ -849,6 +849,7 @@ void FreeWriteDup(WOLFSSL* ssl)
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         Free_HS_Hashes(ssl->dupWrite->postHandshakeHashState, ssl->heap);
+        Free_HS_Hashes(ssl->dupWrite->postHandshakeSyncedHashState, ssl->heap);
         {
             CertReqCtx* ctx = ssl->dupWrite->postHandshakeCertReqCtx;
             while (ctx != NULL) {
@@ -1751,6 +1752,15 @@ static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
                         ssl->error = POST_HAND_AUTH_ERROR;
                     }
                     return WOLFSSL_FATAL_ERROR;
+                }
+                /* PHA response fully sent: publish the write side's updated
+                 * transcript to the read side for the next PHA round. */
+                if (ssl->hsHashes != NULL && ssl->dupWrite != NULL) {
+                    if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+                        return BAD_MUTEX_E;
+                    (void)InitHandshakeHashesAndCopy(ssl, ssl->hsHashes,
+                        &ssl->dupWrite->postHandshakeSyncedHashState);
+                    wc_UnLockMutex(&ssl->dupWrite->dupMutex);
                 }
             }
 #endif /* WOLFSSL_POST_HANDSHAKE_AUTH */

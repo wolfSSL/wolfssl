@@ -5902,6 +5902,10 @@ typedef struct BuildMsgArgs {
         byte postHandshakeSendVerify;    /* ssl->options.sendVerify */
         byte postHandshakeSigAlgo;       /* ssl->options.sigAlgo */
         byte postHandshakeHashAlgo;      /* ssl->options.hashAlgo */
+        /* After the write side sends the PHA response, it stores its updated
+         * transcript here so the read side can resume from it on the next
+         * CertificateRequest (keeps client/server transcript in sync). */
+        struct HS_Hashes* postHandshakeSyncedHashState;
 #endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
 #endif /* WOLFSSL_TLS13 */
 
