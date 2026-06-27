@@ -907,6 +907,13 @@
             extern struct WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap);
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+        #ifdef HAVE_OCSP
+            struct OcspResponse;
+            extern int CheckOcspResponder(struct OcspResponse *bs, unsigned char* subjectNameHash,
+                unsigned char* subjectKeyHash, unsigned char extExtKeyUsage, unsigned char* issuerNameHash,
+                unsigned char* issuerKeyHash);
+        #endif
+
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #if defined(WC_CONTAINERIZE_THIS) && !defined(WC_SYM_RELOC_TABLES)
@@ -1222,6 +1229,10 @@
         typeof(wolfSSL_X509_NAME_new_ex) *wolfSSL_X509_NAME_new_ex;
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+        #ifdef HAVE_OCSP
+        typeof(CheckOcspResponder) *CheckOcspResponder;
+        #endif
+
         #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
         typeof(dump_stack) *dump_stack;
@@ -1514,6 +1525,10 @@
             #define wolfSSL_X509_NAME_free WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_free)
             #define wolfSSL_X509_NAME_new_ex WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_new_ex)
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+        #ifdef HAVE_OCSP
+            #define CheckOcspResponder WC_PIE_INDIRECT_SYM(CheckOcspResponder)
+        #endif
 
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 

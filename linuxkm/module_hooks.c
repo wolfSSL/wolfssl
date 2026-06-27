@@ -1689,6 +1689,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_free = wolfSSL_X509_NAME_free;
     wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_new_ex = wolfSSL_X509_NAME_new_ex;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef HAVE_OCSP
+    wolfssl_linuxkm_pie_redirect_table.CheckOcspResponder = CheckOcspResponder;
+#endif
+
 #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
