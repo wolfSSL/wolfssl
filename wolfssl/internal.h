@@ -2595,7 +2595,6 @@ typedef HANDLE wolfSSL_CRL_mfd_t; /* monitor fd, INVALID_HANDLE_VALUE if
 /* wolfSSL CRL controller */
 struct WOLFSSL_CRL {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
-    CRL_Entry*            currentEntry;  /* Current CRL entry being processed */
     CRL_Entry*            crlList;       /* our CRL list */
 #ifdef HAVE_CRL_IO
     CbCrlIO               crlIOCb;
