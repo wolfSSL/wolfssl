@@ -14185,9 +14185,9 @@ static int test_wolfSSL_ECH_conn_ex(method_provider serverMeth,
     ExpectIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
     ExpectIntEQ(WOLFSSL_SUCCESS,
-        wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+        wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, WOLFSSL_FILETYPE_PEM));
     ExpectIntEQ(WOLFSSL_SUCCESS,
-        wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+        wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, WOLFSSL_FILETYPE_PEM));
 
     tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
 
@@ -16358,8 +16358,8 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 #else
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
 #endif
-    ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
-    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
     ExpectNotNull(sk = SSL_get_ciphers(ssl));
     ExpectNotNull(dupSk = sk_SSL_CIPHER_dup(sk));
@@ -16394,8 +16394,8 @@ static int test_wolfSSL_set1_curves_list(void)
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
 #endif
     ExpectTrue(SSL_CTX_use_certificate_file(ctx, eccCertFile,
-               SSL_FILETYPE_PEM));
-    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, SSL_FILETYPE_PEM));
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
 
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -16553,8 +16553,8 @@ static int test_wolfSSL_set1_sigalgs_list(void)
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
 #endif
     ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile,
-               SSL_FILETYPE_PEM));
-    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
 
     ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(NULL, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -16703,8 +16703,8 @@ static int test_wolfSSL_set_tlsext_status_type(void)
 
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
     ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile,
-        SSL_FILETYPE_PEM));
-    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+        WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
     ExpectIntEQ(SSL_set_tlsext_status_type(ssl,TLSEXT_STATUSTYPE_ocsp),
         SSL_SUCCESS);
@@ -16774,7 +16774,7 @@ static int test_wolfSSL_X509_ALGOR_get0(void)
     const byte badObj[] = { 0x06, 0x00 };
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
-        SSL_FILETYPE_PEM));
+        WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(alg = X509_get0_tbs_sigalg(x509));
 
     /* Invalid case */
@@ -19807,7 +19807,7 @@ static int test_wolfSSL_X509_SEP(void)
 #if 0
     /* Use certificate with the extension here. */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
-        SSL_FILETYPE_PEM));
+        WOLFSSL_FILETYPE_PEM));
 
     outSz = 0;
     ExpectNotNull(out = wolfSSL_X509_get_device_type(x509, NULL, &outSz));
@@ -20592,7 +20592,7 @@ static int test_wolfSSL_CTX_ctrl(void)
             SSL_FILETYPE_ASN1));
 #else
         ExpectNotNull(ecX509 = wolfSSL_X509_load_certificate_file(
-            cliEccCertFile, SSL_FILETYPE_PEM));
+            cliEccCertFile, WOLFSSL_FILETYPE_PEM));
 #endif
         ExpectNotNull(pkey = X509_get_pubkey(ecX509));
         /* current ECC key is 256 bit (32 bytes) */
@@ -21022,9 +21022,9 @@ static int test_wolfSSL_OCSP_id_get0_info(void)
     ASN1_INTEGER* x509Int = NULL;
 
     ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(svrCertFile,
-        SSL_FILETYPE_PEM));
+        WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(issuer = wolfSSL_X509_load_certificate_file(caCertFile,
-        SSL_FILETYPE_PEM));
+        WOLFSSL_FILETYPE_PEM));
 
     ExpectNotNull(id = OCSP_cert_to_id(NULL, cert, issuer));
     ExpectNotNull(id2 = OCSP_cert_to_id(NULL, cert, issuer));
@@ -27379,7 +27379,7 @@ static int test_wolfSSL_crypto_policy_certs_and_keys(void)
         if (ctx != NULL) {
             /* 1024 RSA */
             rc = SSL_CTX_use_PrivateKey_file(ctx, key1024,
-                                             SSL_FILETYPE_PEM);
+                                             WOLFSSL_FILETYPE_PEM);
 
             if (is_legacy) {
                 ExpectIntEQ(rc, WOLFSSL_SUCCESS);
@@ -27390,7 +27390,7 @@ static int test_wolfSSL_crypto_policy_certs_and_keys(void)
 
             /* 2048 RSA */
             rc = SSL_CTX_use_PrivateKey_file(ctx, key2048,
-                                             SSL_FILETYPE_PEM);
+                                             WOLFSSL_FILETYPE_PEM);
 
             if (!is_future) {
                 ExpectIntEQ(rc, WOLFSSL_SUCCESS);
@@ -27401,17 +27401,17 @@ static int test_wolfSSL_crypto_policy_certs_and_keys(void)
 
             /* 3072 RSA */
             rc = SSL_CTX_use_PrivateKey_file(ctx, key3072,
-                                             SSL_FILETYPE_PEM);
+                                             WOLFSSL_FILETYPE_PEM);
             ExpectIntEQ(rc, WOLFSSL_SUCCESS);
 
             /* 256 ecc */
             rc = SSL_CTX_use_PrivateKey_file(ctx, key256,
-                                             SSL_FILETYPE_PEM);
+                                             WOLFSSL_FILETYPE_PEM);
             ExpectIntEQ(rc, WOLFSSL_SUCCESS);
 
             /* 384 ecc */
             rc = SSL_CTX_use_PrivateKey_file(ctx, key384,
-                                             SSL_FILETYPE_PEM);
+                                             WOLFSSL_FILETYPE_PEM);
             ExpectIntEQ(rc, WOLFSSL_SUCCESS);
 
             /* cleanup */
@@ -27867,9 +27867,9 @@ static int test_wolfSSL_SSL_in_init(void)
 #endif
     if ((testCertFile != NULL) && (testKeyFile != NULL)) {
         ExpectTrue(SSL_CTX_use_certificate_file(ctx, testCertFile,
-            SSL_FILETYPE_PEM));
+            WOLFSSL_FILETYPE_PEM));
         ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
-            SSL_FILETYPE_PEM));
+            WOLFSSL_FILETYPE_PEM));
     }
 
     ExpectNotNull(ssl = SSL_new(ctx));
@@ -28192,9 +28192,9 @@ static int test_wolfSSL_set_psk_use_session_callback(void)
 #endif
     if ((testCertFile != NULL) && (testKeyFile != NULL)) {
         ExpectTrue(SSL_CTX_use_certificate_file(ctx, testCertFile,
-            SSL_FILETYPE_PEM));
+            WOLFSSL_FILETYPE_PEM));
         ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
-            SSL_FILETYPE_PEM));
+            WOLFSSL_FILETYPE_PEM));
     }
 
     ExpectNotNull(ssl = SSL_new(ctx));
@@ -28413,9 +28413,9 @@ static int test_SSL_CIPHER_get_xxx(void)
     #endif
         if  (testCertFile != NULL && testKeyFile != NULL) {
             ExpectTrue(SSL_CTX_use_certificate_file(ctx, testCertFile,
-                                                    SSL_FILETYPE_PEM));
+                                                    WOLFSSL_FILETYPE_PEM));
             ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
-                                                    SSL_FILETYPE_PEM));
+                                                    WOLFSSL_FILETYPE_PEM));
         }
 
         ExpectNotNull(ssl = SSL_new(ctx));

@@ -146,7 +146,7 @@
 #endif
 #endif
 
-#if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
+#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
     #define INLINE WC_INLINE
 #endif
 

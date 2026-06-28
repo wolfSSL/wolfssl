@@ -1291,22 +1291,22 @@ int test_dtls_rtx_across_epoch_change(void)
     /* CH0 */
     wolfSSL_SetLoggingPrefix("client:");
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* HRR */
     wolfSSL_SetLoggingPrefix("server:");
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* CH1 */
     wolfSSL_SetLoggingPrefix("client:");
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* SH ... FINISHED */
     wolfSSL_SetLoggingPrefix("server:");
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* we should have now SH ... FINISHED messages in the buffer*/
     ExpectIntGE(test_ctx.c_msg_count, 2);
@@ -1319,7 +1319,7 @@ int test_dtls_rtx_across_epoch_change(void)
     /* Read the SH */
     wolfSSL_SetLoggingPrefix("client:");
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* trigger client timeout */
     ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
