@@ -15263,16 +15263,19 @@ authenv_atrbend:
             if (ret == 0 &&
                     (encOID == AES128GCMb || encOID == AES192GCMb ||
                      encOID == AES256GCMb)) {
-#ifdef HAVE_AESGCM
+    #if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || \
+        defined(HAVE_SELFTEST) || !defined(HAVE_AESGCM)
+                if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+                    WOLFSSL_MSG("AuthEnvelopedData GCM authTag too small");
+                    ret = ASN_PARSE_E;
+                }
+    #else
                 ret = wc_local_AesGcmCheckTagSz(authTagSz);
                 if (ret != 0) {
                     ret = ASN_PARSE_E;
                     WOLFSSL_MSG("AuthEnvelopedData GCM authTag invalid size");
                 }
-#else
-                ret = ASN_PARSE_E;
-                WOLFSSL_MSG("AuthEnvelopedData GCM with GCM not compiled in");
-#endif
+    #endif
             }
             if (ret == 0 &&
                     (encOID == AES128CCMb || encOID == AES192CCMb ||
