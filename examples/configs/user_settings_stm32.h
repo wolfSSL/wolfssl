@@ -211,7 +211,6 @@ extern "C" {
     #define HAL_CONSOLE_UART huart1
 #elif defined(STM32L552xx)
     #define WOLFSSL_STM32L5
-    #undef  NO_STM32_HASH
     #define HAL_CONSOLE_UART hlpuart1
 #elif defined(STM32F207xx)
     #define WOLFSSL_STM32F2

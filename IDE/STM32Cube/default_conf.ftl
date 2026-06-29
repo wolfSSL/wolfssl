@@ -169,7 +169,6 @@ extern ${variable.value} ${variable.name};
     #endif
 #elif defined(STM32L552xx)
     #define WOLFSSL_STM32L5
-    #undef  NO_STM32_HASH
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART hlpuart1
     #endif
