@@ -67613,6 +67613,136 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
 }
 
 
+#if !defined(NO_RSA) && !defined(NO_SHA256)
+/* Round-trip test of a CMS SignedData whose encapContentInfo carries no
+ * eContent: a signed-attributes-only signature over empty content, as used by
+ * SCEP CertRep PENDING/FAILURE (RFC 8894 section 3.2.2). The encoder must omit
+ * the eContent and compute the messageDigest over the empty content; the
+ * verifier must accept the absent eContent and check that digest without any
+ * caller-supplied content or hash. */
+static wc_test_ret_t pkcs7_signed_no_content_test(byte* cert, word32 certSz,
+                                                  byte* key, word32 keySz)
+{
+    wc_test_ret_t ret = 0;
+    wc_PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    int    rngInit = 0;
+    byte*  out = NULL;
+    int    encSz = 0;
+    const word32 outSz = FOURK_BUF;
+    static const byte content[] = "non-empty content that gets stripped";
+
+    out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+    rngInit = 1;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    pkcs7->rng          = &rng;
+    pkcs7->content      = NULL;     /* no eContent */
+    pkcs7->contentSz    = 0;
+    pkcs7->contentOID   = DATA;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+
+    /* detached signature with empty content -> absent eContent on the wire */
+    ret = wc_PKCS7_SetDetached(pkcs7, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out_lbl);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Verify with no caller-supplied content or hash. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    /* the eContent must be reported absent after decode */
+    if (pkcs7->content != NULL || pkcs7->contentSz != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Negative case: a signature made over non-empty content but transmitted
+     * with the eContent absent (as if stripped) must be rejected. The
+     * messageDigest signed attribute covers the real content, so a verifier
+     * that treats the absent eContent as empty content gets a digest mismatch
+     * (SIG_VERIFY_E). This locks in the documented security property that a
+     * stripped non-empty eContent still fails verification. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    pkcs7->rng          = &rng;
+    pkcs7->content      = (byte*)content;
+    pkcs7->contentSz    = (word32)XSTRLEN((const char*)content);
+    pkcs7->contentOID   = DATA;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+
+    /* detached over non-empty content -> eContent absent on the wire, while the
+     * messageDigest attribute still covers the real content */
+    ret = wc_PKCS7_SetDetached(pkcs7, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_lbl);
+
+    encSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    if (encSz <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(encSz), out_lbl);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Verify without supplying the detached content: the absent eContent is
+     * hashed as empty content, which must not match the messageDigest computed
+     * over the real content. */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out_lbl);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, out, (word32)encSz);
+    if (ret != SIG_VERIFY_E)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_lbl);
+
+    ret = 0;
+
+out_lbl:
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* !NO_RSA && !NO_SHA256 */
+
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -67739,6 +67869,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
     defined(WOLFSSL_AES_256) && defined(HAVE_AES_KEYWRAP)
     if (ret >= 0)
         ret = pkcs7callback_test(
+                            rsaClientCertBuf, (word32)rsaClientCertBufSz,
+                            rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
+#endif
+
+#if !defined(NO_RSA) && !defined(NO_SHA256)
+    /* SignedData with absent eContent (detached over empty content) */
+    if (ret >= 0)
+        ret = pkcs7_signed_no_content_test(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,
                             rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
 #endif
