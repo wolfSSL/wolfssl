@@ -3930,6 +3930,145 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     return EXPECT_RESULT();
 }
 
+/* Test SSL_clear_chain_certs: must drop chain certs added via add0/add1,
+ * leave leaf certificate intact, and tolerate repeated calls / NULL input. */
+static int test_wolfSSL_clear_chain_certs(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLF_STACK_OF(X509)* chain = NULL;
+    const char* chainCerts[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        NULL
+    };
+    const char** cert;
+
+    /* NULL arg. */
+    ExpectIntEQ(SSL_clear_chain_certs(NULL), 0);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Clear on an SSL with no chain is a no-op success. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+
+    /* Set leaf so subsequent adds go to the chain. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/client-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+
+    for (cert = chainCerts; EXPECT_SUCCESS() && *cert != NULL; cert++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(*cert,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+
+    /* Chain populated with the 2 intermediates. */
+    ExpectIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
+    ExpectIntEQ(sk_X509_num(chain), 2);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->buffers.certChainCnt, 2);
+        ExpectNotNull(ssl->buffers.certChain);
+        ExpectNotNull(ssl->ourCertChain);
+    }
+
+    /* Clear. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+    if (ssl != NULL) {
+        ExpectNull(ssl->buffers.certChain);
+        ExpectNull(ssl->ourCertChain);
+        ExpectIntEQ(ssl->buffers.weOwnCertChain, 0);
+        /* Leaf untouched. */
+        ExpectNotNull(ssl->ourCert);
+    }
+    chain = NULL;
+    ExpectIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
+    /* Like OpenSSL, the chain is emptied (NULL) after a clear. */
+    ExpectNull(chain);
+
+    /* Idempotent: clearing again still succeeds. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+
+    /* Re-adding after clear works. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+    wolfSSL_X509_free(x509);
+    chain = NULL;
+    ExpectIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
+    ExpectIntEQ(sk_X509_num(chain), 1);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
+/* Server-side ssl_ready hook: add chain certs then clear them, so the
+ * handshake runs against a freshly-cleared chain state. */
+static int test_wolfSSL_clear_chain_certs_handshake_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509* x509 = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+    wolfSSL_X509_free(x509);
+
+    /* Drop the chain again; connection must still complete afterwards. */
+    ExpectIntEQ(SSL_clear_chain_certs(ssl), 1);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that a connection still completes after SSL_clear_chain_certs. */
+static int test_wolfSSL_clear_chain_certs_handshake(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLS_client_method;
+    server_cbs.method = wolfTLS_server_method;
+
+    server_cbs.ssl_ready = test_wolfSSL_clear_chain_certs_handshake_ssl_ready;
+
+    /* nofail_memio runs the full handshake and a read/write exchange, so a
+     * successful return proves the connection completed after the clear. */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfssl_add_to_chain rejects sizes that would overflow word32.
  * ZD #21241 */
 static int test_wolfSSL_add_to_chain_overflow(void)
@@ -16368,6 +16507,26 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 
     /* error case because connection has not been established yet */
     ExpectIntEQ(sk_SSL_CIPHER_find(sk, SSL_get_current_cipher(ssl)), -1);
+
+    /* Exercise sk_SSL_CIPHER_delete on the duplicated stack so we don't
+     * disturb the SSL object's internal cipher list. */
+    {
+        int dupNum = sk_SSL_CIPHER_num(dupSk);
+        if (dupNum > 0) {
+            SSL_CIPHER* removed = NULL;
+
+            /* Out-of-range and negative idx should return NULL. */
+            ExpectNull(sk_SSL_CIPHER_delete(dupSk, -1));
+            ExpectNull(sk_SSL_CIPHER_delete(dupSk, dupNum));
+            ExpectNull(sk_SSL_CIPHER_delete(NULL, 0));
+
+            /* Delete the head element and verify count decreased. */
+            ExpectNotNull(removed = sk_SSL_CIPHER_delete(dupSk, 0));
+            ExpectIntEQ(sk_SSL_CIPHER_num(dupSk), dupNum - 1);
+            XFREE(removed, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+    }
+
     sk_SSL_CIPHER_free(dupSk);
 
     /* sk is pointer to internal struct that should be free'd in SSL_free */
@@ -16376,6 +16535,82 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 #endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
          !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SSL_CIPHER_find(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && \
+    !defined(OPENSSL_COEXIST) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    SSL*     ssl = NULL;
+    SSL_CTX* ctx = NULL;
+    STACK_OF(SSL_CIPHER)* sk = NULL;
+    const SSL_CIPHER* found = NULL;
+    unsigned char id[2];
+    const unsigned char bogus[2] = { 0xFF, 0xFF };
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    ExpectNotNull(ssl = SSL_new(ctx));
+    ExpectNotNull(sk = SSL_get_ciphers(ssl));
+    ExpectIntGT(sk_SSL_CIPHER_num(sk), 0);
+
+    /* Pick the first cipher in ssl's list and round-trip via SSL_CIPHER_find. */
+    if (sk != NULL && sk_SSL_CIPHER_num(sk) > 0) {
+        const WOLFSSL_CIPHER* first = sk_SSL_CIPHER_value(sk, 0);
+        ExpectNotNull(first);
+        if (first != NULL) {
+            id[0] = first->cipherSuite0;
+            id[1] = first->cipherSuite;
+
+            ExpectNotNull(found = SSL_CIPHER_find(ssl, id));
+            if (found != NULL) {
+                ExpectIntEQ(found->cipherSuite0, id[0]);
+                ExpectIntEQ(found->cipherSuite,  id[1]);
+            }
+        }
+    }
+
+    /* A suite known to the library but not enabled on ssl is still found via
+     * the library-wide fallback (matching OpenSSL). Restrict ssl to a single
+     * cipher, then look up a different suite that was in the default list. */
+    if (sk != NULL && sk_SSL_CIPHER_num(sk) > 1) {
+        const WOLFSSL_CIPHER* keep = sk_SSL_CIPHER_value(sk, 0);
+        const WOLFSSL_CIPHER* other = sk_SSL_CIPHER_value(sk,
+                                          sk_SSL_CIPHER_num(sk) - 1);
+        unsigned char otherId[2];
+        otherId[0] = other->cipherSuite0;
+        otherId[1] = other->cipherSuite;
+
+        ExpectIntEQ(SSL_set_cipher_list(ssl, SSL_CIPHER_get_name(keep)),
+                    WOLFSSL_SUCCESS);
+        found = SSL_CIPHER_find(ssl, otherId);
+        ExpectNotNull(found);
+        if (found != NULL) {
+            ExpectIntEQ(found->cipherSuite0, otherId[0]);
+            ExpectIntEQ(found->cipherSuite,  otherId[1]);
+        }
+    }
+
+    /* NULL arg handling. */
+    ExpectNull(SSL_CIPHER_find(NULL, id));
+    ExpectNull(SSL_CIPHER_find(ssl, NULL));
+
+    /* Suite unknown to the library returns NULL. */
+    ExpectNull(SSL_CIPHER_find(ssl, bogus));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
     return EXPECT_RESULT();
 }
 
@@ -35051,6 +35286,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_configure_args),
     TEST_DECL(test_wolfSSL_sk_SSL_CIPHER),
+    TEST_DECL(test_wolfSSL_SSL_CIPHER_find),
     TEST_DECL(test_wolfSSL_set1_curves_list),
     TEST_DECL(test_wolfSSL_curves_mismatch),
     TEST_DECL(test_wolfSSL_set1_sigalgs_list),
@@ -35342,6 +35578,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_add1_chain_cert),
+    TEST_DECL(test_wolfSSL_clear_chain_certs),
+    TEST_DECL(test_wolfSSL_clear_chain_certs_handshake),
     TEST_DECL(test_wolfSSL_add_to_chain_overflow),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_buffer_format),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
