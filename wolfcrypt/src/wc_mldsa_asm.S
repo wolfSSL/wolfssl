@@ -22755,7 +22755,7 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 32(%rsi)
         # 3/32
-        vperm2i128	$0x21, %ymm1, %ymm0, %ymm0
+        vperm2i128	$33, %ymm1, %ymm0, %ymm0
         vpermq	$0xe9, %ymm0, %ymm4
         vpshufb	%ymm7, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22770,7 +22770,7 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 96(%rsi)
         # 5/32
-        vperm2i128	$0x21, %ymm2, %ymm1, %ymm1
+        vperm2i128	$33, %ymm2, %ymm1, %ymm1
         vpermq	$0x94, %ymm1, %ymm4
         vpshufb	%ymm9, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22792,7 +22792,7 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 192(%rsi)
         # 8/32
-        vperm2i128	$0x21, %ymm3, %ymm2, %ymm2
+        vperm2i128	$33, %ymm3, %ymm2, %ymm2
         vpermq	$0xe9, %ymm2, %ymm4
         vpshufb	%ymm12, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22809,7 +22809,7 @@ _wc_mldsa_decode_t0_avx2:
         # 10/32
         vmovdqu	128(%rdi), %ymm0
         vmovdqu	160(%rdi), %ymm1
-        vperm2i128	$0x21, %ymm0, %ymm3, %ymm3
+        vperm2i128	$33, %ymm0, %ymm3, %ymm3
         vpermq	$0x94, %ymm3, %ymm4
         vpshufb	%ymm6, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22831,7 +22831,7 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 352(%rsi)
         # 13/32
-        vperm2i128	$0x21, %ymm1, %ymm0, %ymm0
+        vperm2i128	$33, %ymm1, %ymm0, %ymm0
         vpermq	$0xe9, %ymm0, %ymm4
         vpshufb	%ymm9, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22848,7 +22848,7 @@ _wc_mldsa_decode_t0_avx2:
         # 15/32
         vmovdqu	192(%rdi), %ymm2
         vmovdqu	224(%rdi), %ymm3
-        vperm2i128	$0x21, %ymm2, %ymm1, %ymm1
+        vperm2i128	$33, %ymm2, %ymm1, %ymm1
         vpermq	$0x94, %ymm1, %ymm4
         vpshufb	%ymm11, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22870,7 +22870,7 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 512(%rsi)
         # 18/32
-        vperm2i128	$0x21, %ymm3, %ymm2, %ymm2
+        vperm2i128	$33, %ymm3, %ymm2, %ymm2
         vpermq	$0xe9, %ymm2, %ymm4
         vpshufb	%ymm6, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22887,7 +22887,7 @@ _wc_mldsa_decode_t0_avx2:
         # 20/32
         vmovdqu	256(%rdi), %ymm0
         vmovdqu	288(%rdi), %ymm1
-        vperm2i128	$0x21, %ymm0, %ymm3, %ymm3
+        vperm2i128	$33, %ymm0, %ymm3, %ymm3
         vpermq	$0x94, %ymm3, %ymm4
         vpshufb	%ymm8, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22909,7 +22909,7 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 672(%rsi)
         # 23/32
-        vperm2i128	$0x21, %ymm1, %ymm0, %ymm0
+        vperm2i128	$33, %ymm1, %ymm0, %ymm0
         vpermq	$0xe9, %ymm0, %ymm4
         vpshufb	%ymm11, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22926,7 +22926,7 @@ _wc_mldsa_decode_t0_avx2:
         # 25/32
         vmovdqu	320(%rdi), %ymm2
         vmovdqu	352(%rdi), %ymm3
-        vperm2i128	$0x21, %ymm2, %ymm1, %ymm1
+        vperm2i128	$33, %ymm2, %ymm1, %ymm1
         vpermq	$0x99, %ymm1, %ymm4
         vpshufb	%ymm5, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22941,14 +22941,14 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 800(%rsi)
         # 27/32
-        vpermq	$0x3e, %ymm2, %ymm4
+        vpermq	$62, %ymm2, %ymm4
         vpshufb	%ymm7, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
         vpand	%ymm14, %ymm4, %ymm4
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 832(%rsi)
         # 28/32
-        vperm2i128	$0x21, %ymm3, %ymm2, %ymm2
+        vperm2i128	$33, %ymm3, %ymm2, %ymm2
         vpermq	$0xe9, %ymm2, %ymm4
         vpshufb	%ymm8, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22965,7 +22965,7 @@ _wc_mldsa_decode_t0_avx2:
         # 30/32
         vmovdqu	384(%rdi), %ymm0
         vmovdqu	416(%rdi), %ymm1
-        vperm2i128	$0x21, %ymm0, %ymm3, %ymm3
+        vperm2i128	$33, %ymm0, %ymm3, %ymm3
         vpermq	$0x99, %ymm3, %ymm4
         vpshufb	%ymm10, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
@@ -22980,7 +22980,7 @@ _wc_mldsa_decode_t0_avx2:
         vpsubd	%ymm4, %ymm15, %ymm4
         vmovdqu	%ymm4, 960(%rsi)
         # 32/32
-        vpermq	$0x3e, %ymm0, %ymm4
+        vpermq	$62, %ymm0, %ymm4
         vpshufb	%ymm12, %ymm4, %ymm4
         vpsrlvd	%ymm13, %ymm4, %ymm4
         vpand	%ymm14, %ymm4, %ymm4
@@ -23115,14 +23115,14 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 32(%rsi)
         # 3/32
-        vpermq	$0x3e, %ymm0, %ymm4
+        vpermq	$62, %ymm0, %ymm4
         vpshufb	%ymm7, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
         vpand	%ymm10, %ymm4, %ymm4
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 64(%rsi)
         # 4/32
-        vperm2i128	$0x21, %ymm1, %ymm0, %ymm0
+        vperm2i128	$33, %ymm1, %ymm0, %ymm0
         vpermq	$0xe9, %ymm0, %ymm4
         vpshufb	%ymm8, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23144,7 +23144,7 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 160(%rsi)
         # 7/32
-        vperm2i128	$0x21, %ymm2, %ymm1, %ymm1
+        vperm2i128	$33, %ymm2, %ymm1, %ymm1
         vpermq	$0xe9, %ymm1, %ymm4
         vpshufb	%ymm7, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23166,7 +23166,7 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 256(%rsi)
         # 10/32
-        vperm2i128	$0x21, %ymm3, %ymm2, %ymm2
+        vperm2i128	$33, %ymm3, %ymm2, %ymm2
         vpermq	$0x99, %ymm2, %ymm4
         vpshufb	%ymm6, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23190,7 +23190,7 @@ _wc_mldsa_decode_t1_avx2:
         # 13/32
         vmovdqu	128(%rdi), %ymm0
         vmovdqu	160(%rdi), %ymm1
-        vperm2i128	$0x21, %ymm0, %ymm3, %ymm3
+        vperm2i128	$33, %ymm0, %ymm3, %ymm3
         vpermq	$0x99, %ymm3, %ymm4
         vpshufb	%ymm5, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23212,7 +23212,7 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 448(%rsi)
         # 16/32
-        vpermq	$0x3e, %ymm0, %ymm4
+        vpermq	$62, %ymm0, %ymm4
         vpshufb	%ymm8, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
         vpand	%ymm10, %ymm4, %ymm4
@@ -23233,7 +23233,7 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 544(%rsi)
         # 19/32
-        vpermq	$0x3e, %ymm1, %ymm4
+        vpermq	$62, %ymm1, %ymm4
         vpshufb	%ymm7, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
         vpand	%ymm10, %ymm4, %ymm4
@@ -23242,7 +23242,7 @@ _wc_mldsa_decode_t1_avx2:
         # 20/32
         vmovdqu	192(%rdi), %ymm2
         vmovdqu	224(%rdi), %ymm3
-        vperm2i128	$0x21, %ymm2, %ymm1, %ymm1
+        vperm2i128	$33, %ymm2, %ymm1, %ymm1
         vpermq	$0xe9, %ymm1, %ymm4
         vpshufb	%ymm8, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23264,7 +23264,7 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 672(%rsi)
         # 23/32
-        vperm2i128	$0x21, %ymm3, %ymm2, %ymm2
+        vperm2i128	$33, %ymm3, %ymm2, %ymm2
         vpermq	$0xe9, %ymm2, %ymm4
         vpshufb	%ymm7, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23288,7 +23288,7 @@ _wc_mldsa_decode_t1_avx2:
         # 26/32
         vmovdqu	256(%rdi), %ymm0
         vmovdqu	288(%rdi), %ymm1
-        vperm2i128	$0x21, %ymm0, %ymm3, %ymm3
+        vperm2i128	$33, %ymm0, %ymm3, %ymm3
         vpermq	$0x99, %ymm3, %ymm4
         vpshufb	%ymm6, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23310,7 +23310,7 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 864(%rsi)
         # 29/32
-        vperm2i128	$0x21, %ymm1, %ymm0, %ymm0
+        vperm2i128	$33, %ymm1, %ymm0, %ymm0
         vpermq	$0x99, %ymm0, %ymm4
         vpshufb	%ymm5, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
@@ -23332,7 +23332,7 @@ _wc_mldsa_decode_t1_avx2:
         vpslld	$13, %ymm4, %ymm4
         vmovdqu	%ymm4, 960(%rsi)
         # 32/32
-        vpermq	$0x3e, %ymm1, %ymm4
+        vpermq	$62, %ymm1, %ymm4
         vpshufb	%ymm8, %ymm4, %ymm4
         vpsrlvd	%ymm9, %ymm4, %ymm4
         vpand	%ymm10, %ymm4, %ymm4
