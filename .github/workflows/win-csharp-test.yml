@@ -13,6 +13,13 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        # false: pure C.  true: assemble the crypto .asm files and enable the
+        # USE_INTEL_SPEEDUP code paths (x64).
+        asm: [ false, true ]
+
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6
 
@@ -48,7 +55,7 @@ jobs:
           working-directory: ${{env.GITHUB_WORKSPACE}}
           # Add additional options to the MSBuild command line here (like platform or verbosity level).
           # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-          run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{env.BUILD_PLATFORM}} /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
+          run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{env.BUILD_PLATFORM}} /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:WolfSSLIntelAsm=${{matrix.asm}} ${{env.SOLUTION_FILE_PATH}}
 
         - name: Run wolfCrypt test
           working-directory: ${{env.GITHUB_WORKSPACE}}wolfssl\wrapper\CSharp\Debug\x64\

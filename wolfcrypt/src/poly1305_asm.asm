@@ -598,16 +598,14 @@ poly1305_setkey_avx2 ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_poly1305_avx2_blocks_mask QWORD \
-     0000000003ffffffh,  0000000003ffffffh,
-     0000000003ffffffh,  0000000003ffffffh
+L_poly1305_avx2_blocks_mask QWORD 0000000003ffffffh, 0000000003ffffffh
+        QWORD 0000000003ffffffh, 0000000003ffffffh
 ptr_L_poly1305_avx2_blocks_mask QWORD L_poly1305_avx2_blocks_mask
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_poly1305_avx2_blocks_hibit QWORD \
-     0000000001000000h,  0000000001000000h,
-     0000000001000000h,  0000000001000000h
+L_poly1305_avx2_blocks_hibit QWORD 0000000001000000h, 0000000001000000h
+        QWORD 0000000001000000h, 0000000001000000h
 ptr_L_poly1305_avx2_blocks_hibit QWORD L_poly1305_avx2_blocks_hibit
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
@@ -736,15 +734,15 @@ L_poly1305_avx2_blocks_mul_5:
         vpaddq	ymm12, ymm8, ymm12
         vpaddq	ymm13, ymm9, ymm13
         ; Store powers of r and multiple of 5 for use in multiply.
-        vmovdqa	YMMWORD PTR [rbx], ymm10
-        vmovdqa	YMMWORD PTR [rbx+32], ymm11
-        vmovdqa	YMMWORD PTR [rbx+64], ymm12
-        vmovdqa	YMMWORD PTR [rbx+96], ymm13
-        vmovdqa	YMMWORD PTR [rcx], ymm5
-        vmovdqa	YMMWORD PTR [rcx+32], ymm6
-        vmovdqa	YMMWORD PTR [rcx+64], ymm7
-        vmovdqa	YMMWORD PTR [rcx+96], ymm8
-        vmovdqa	YMMWORD PTR [rcx+128], ymm9
+        vmovdqu	YMMWORD PTR [rbx], ymm10
+        vmovdqu	YMMWORD PTR [rbx+32], ymm11
+        vmovdqu	YMMWORD PTR [rbx+64], ymm12
+        vmovdqu	YMMWORD PTR [rbx+96], ymm13
+        vmovdqu	YMMWORD PTR [rcx], ymm5
+        vmovdqu	YMMWORD PTR [rcx+32], ymm6
+        vmovdqu	YMMWORD PTR [rcx+64], ymm7
+        vmovdqu	YMMWORD PTR [rcx+96], ymm8
+        vmovdqu	YMMWORD PTR [rcx+128], ymm9
         vmovdqu	ymm14, YMMWORD PTR [r13]
         ; If not finished then loop over data
         cmp	BYTE PTR [rdi+616], 1

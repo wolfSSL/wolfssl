@@ -470,23 +470,25 @@ AES_256_Key_Expansion_AESNI ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_ECB_encrypt_AESNI PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 16
         movdqu	OWORD PTR [rsp], xmm6
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 64
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_encrypt_AESNI_done_64
-        and	r9d, 4294967232
+        and	r11d, 4294967232
 L_AES_ECB_encrypt_AESNI_enc_64:
         ; 64 bytes of input
         ; aes_ecb_enc_64
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        movdqu	xmm0, OWORD PTR [r10]
-        movdqu	xmm1, OWORD PTR [r10+16]
-        movdqu	xmm2, OWORD PTR [r10+32]
-        movdqu	xmm3, OWORD PTR [r10+48]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        movdqu	xmm0, OWORD PTR [r12]
+        movdqu	xmm1, OWORD PTR [r12+16]
+        movdqu	xmm2, OWORD PTR [r12+32]
+        movdqu	xmm3, OWORD PTR [r12+48]
         ; aes_enc_block
         movdqu	xmm4, OWORD PTR [r9]
         pxor	xmm0, xmm4
@@ -568,22 +570,22 @@ L_AES_ECB_encrypt_AESNI_64_aes_enc_block_last:
         aesenclast	xmm1, xmm4
         aesenclast	xmm2, xmm4
         aesenclast	xmm3, xmm4
-        movdqu	OWORD PTR [r11], xmm0
-        movdqu	OWORD PTR [r11+16], xmm1
-        movdqu	OWORD PTR [r11+32], xmm2
-        movdqu	OWORD PTR [r11+48], xmm3
-        add	eax, 64
-        cmp	eax, r9d
+        movdqu	OWORD PTR [r13], xmm0
+        movdqu	OWORD PTR [r13+16], xmm1
+        movdqu	OWORD PTR [r13+32], xmm2
+        movdqu	OWORD PTR [r13+48], xmm3
+        add	r10d, 64
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_AESNI_enc_64
 L_AES_ECB_encrypt_AESNI_done_64:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_encrypt_AESNI_done_enc
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_encrypt_AESNI_enc_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        movdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        movdqu	xmm0, OWORD PTR [r12]
         ; aes_enc_block
         pxor	xmm0, [r9]
         movdqu	xmm5, OWORD PTR [r9+16]
@@ -619,36 +621,40 @@ L_AES_ECB_encrypt_AESNI_enc_16:
         movdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_encrypt_AESNI_16_aes_enc_block_last:
         aesenclast	xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        movdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        movdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_AESNI_enc_16
 L_AES_ECB_encrypt_AESNI_done_enc:
         movdqu	xmm6, OWORD PTR [rsp]
         add	rsp, 16
+        pop	r13
+        pop	r12
         ret
 AES_ECB_encrypt_AESNI ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_ECB_decrypt_AESNI PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 16
         movdqu	OWORD PTR [rsp], xmm6
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 64
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_decrypt_AESNI_done_64
-        and	r9d, 4294967232
+        and	r11d, 4294967232
 L_AES_ECB_decrypt_AESNI_dec_64:
         ; 64 bytes of input
         ; aes_ecb_dec_64
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        movdqu	xmm0, OWORD PTR [r10]
-        movdqu	xmm1, OWORD PTR [r10+16]
-        movdqu	xmm2, OWORD PTR [r10+32]
-        movdqu	xmm3, OWORD PTR [r10+48]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        movdqu	xmm0, OWORD PTR [r12]
+        movdqu	xmm1, OWORD PTR [r12+16]
+        movdqu	xmm2, OWORD PTR [r12+32]
+        movdqu	xmm3, OWORD PTR [r12+48]
         ; aes_dec_block
         movdqu	xmm4, OWORD PTR [r9]
         pxor	xmm0, xmm4
@@ -730,22 +736,22 @@ L_AES_ECB_decrypt_AESNI_64_aes_dec_block_last:
         aesdeclast	xmm1, xmm4
         aesdeclast	xmm2, xmm4
         aesdeclast	xmm3, xmm4
-        movdqu	OWORD PTR [r11], xmm0
-        movdqu	OWORD PTR [r11+16], xmm1
-        movdqu	OWORD PTR [r11+32], xmm2
-        movdqu	OWORD PTR [r11+48], xmm3
-        add	eax, 64
-        cmp	eax, r9d
+        movdqu	OWORD PTR [r13], xmm0
+        movdqu	OWORD PTR [r13+16], xmm1
+        movdqu	OWORD PTR [r13+32], xmm2
+        movdqu	OWORD PTR [r13+48], xmm3
+        add	r10d, 64
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_AESNI_dec_64
 L_AES_ECB_decrypt_AESNI_done_64:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_decrypt_AESNI_done_dec
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_decrypt_AESNI_dec_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        movdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        movdqu	xmm0, OWORD PTR [r12]
         ; aes_dec_block
         pxor	xmm0, [r9]
         movdqu	xmm5, OWORD PTR [r9+16]
@@ -781,29 +787,33 @@ L_AES_ECB_decrypt_AESNI_dec_16:
         movdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_decrypt_AESNI_16_aes_dec_block_last:
         aesdeclast	xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        movdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        movdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_AESNI_dec_16
 L_AES_ECB_decrypt_AESNI_done_dec:
         movdqu	xmm6, OWORD PTR [rsp]
         add	rsp, 16
+        pop	r13
+        pop	r12
         ret
 AES_ECB_decrypt_AESNI ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_encrypt_AESNI PROC
-        mov	rax, QWORD PTR [rsp+40]
-        mov	r10d, DWORD PTR [rsp+48]
+        push	r12
+        push	r13
+        mov	rax, QWORD PTR [rsp+56]
+        mov	r10d, DWORD PTR [rsp+64]
         movdqu	xmm0, OWORD PTR [r8]
-        xor	eax, eax
-        cmp	eax, r9d
+        xor	r11d, r11d
+        cmp	r11d, r9d
         je	L_AES_CBC_encrypt_AESNI_done
 L_AES_CBC_encrypt_AESNI_loop:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        movdqu	xmm1, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r11]
+        movdqu	xmm1, OWORD PTR [r12]
         pxor	xmm1, xmm0
         ; aes_enc_block
         pxor	xmm1, [rax]
@@ -840,41 +850,45 @@ L_AES_CBC_encrypt_AESNI_loop:
         movdqu	xmm3, OWORD PTR [rax+224]
 L_AES_CBC_encrypt_AESNI_aes_enc_block_last:
         aesenclast	xmm1, xmm3
-        lea	r11, QWORD PTR [rdx+rax]
-        movdqu	OWORD PTR [r11], xmm1
+        lea	r13, QWORD PTR [rdx+r11]
+        movdqu	OWORD PTR [r13], xmm1
         movdqa	xmm0, xmm1
-        add	eax, 16
-        cmp	eax, r9d
+        add	r11d, 16
+        cmp	r11d, r9d
         jl	L_AES_CBC_encrypt_AESNI_loop
 L_AES_CBC_encrypt_AESNI_done:
         movdqu	OWORD PTR [r8], xmm0
+        pop	r13
+        pop	r12
         ret
 AES_CBC_encrypt_AESNI ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_decrypt_AESNI PROC
         push	r12
-        mov	rax, QWORD PTR [rsp+48]
-        mov	r10d, DWORD PTR [rsp+56]
+        push	r13
+        push	r14
+        mov	rax, QWORD PTR [rsp+64]
+        mov	r10d, DWORD PTR [rsp+72]
         sub	rsp, 48
         movdqu	OWORD PTR [rsp], xmm6
         movdqu	OWORD PTR [rsp+16], xmm7
         movdqu	OWORD PTR [rsp+32], xmm8
         movdqu	xmm4, OWORD PTR [r8]
-        xor	eax, eax
+        xor	r11d, r11d
         cmp	r9d, 64
-        mov	r10d, r9d
+        mov	r12d, r9d
         jl	L_AES_CBC_decrypt_AESNI_done_64
-        and	r10d, 4294967232
+        and	r12d, 4294967232
 L_AES_CBC_decrypt_AESNI_dec_64:
         ; 64 bytes of input
         ; aes_cbc_dec_64
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	r12, QWORD PTR [rdx+rax]
-        movdqu	xmm0, OWORD PTR [r11]
-        movdqu	xmm1, OWORD PTR [r11+16]
-        movdqu	xmm2, OWORD PTR [r11+32]
-        movdqu	xmm3, OWORD PTR [r11+48]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
+        movdqu	xmm0, OWORD PTR [r13]
+        movdqu	xmm1, OWORD PTR [r13+16]
+        movdqu	xmm2, OWORD PTR [r13+32]
+        movdqu	xmm3, OWORD PTR [r13+48]
         ; aes_dec_block
         movdqu	xmm5, OWORD PTR [rax]
         pxor	xmm0, xmm5
@@ -957,29 +971,29 @@ L_AES_CBC_decrypt_AESNI_64_aes_dec_block_last:
         aesdeclast	xmm2, xmm5
         aesdeclast	xmm3, xmm5
         pxor	xmm0, xmm4
-        movdqu	xmm5, OWORD PTR [r11]
+        movdqu	xmm5, OWORD PTR [r13]
         pxor	xmm1, xmm5
-        movdqu	xmm5, OWORD PTR [r11+16]
+        movdqu	xmm5, OWORD PTR [r13+16]
         pxor	xmm2, xmm5
-        movdqu	xmm5, OWORD PTR [r11+32]
+        movdqu	xmm5, OWORD PTR [r13+32]
         pxor	xmm3, xmm5
-        movdqu	xmm4, OWORD PTR [r11+48]
-        movdqu	OWORD PTR [r12], xmm0
-        movdqu	OWORD PTR [r12+16], xmm1
-        movdqu	OWORD PTR [r12+32], xmm2
-        movdqu	OWORD PTR [r12+48], xmm3
-        add	eax, 64
-        cmp	eax, r10d
+        movdqu	xmm4, OWORD PTR [r13+48]
+        movdqu	OWORD PTR [r14], xmm0
+        movdqu	OWORD PTR [r14+16], xmm1
+        movdqu	OWORD PTR [r14+32], xmm2
+        movdqu	OWORD PTR [r14+48], xmm3
+        add	r11d, 64
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_AESNI_dec_64
 L_AES_CBC_decrypt_AESNI_done_64:
-        cmp	eax, r9d
-        mov	r10d, r9d
+        cmp	r11d, r9d
+        mov	r12d, r9d
         je	L_AES_CBC_decrypt_AESNI_done_dec
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CBC_decrypt_AESNI_dec_16:
         ; 16 bytes of input
-        lea	r11, QWORD PTR [rcx+rax]
-        movdqu	xmm0, OWORD PTR [r11]
+        lea	r13, QWORD PTR [rcx+r11]
+        movdqu	xmm0, OWORD PTR [r13]
         movdqa	xmm8, xmm0
         ; aes_dec_block
         pxor	xmm0, [rax]
@@ -1018,10 +1032,10 @@ L_AES_CBC_decrypt_AESNI_16_aes_dec_block_last:
         aesdeclast	xmm0, xmm6
         pxor	xmm0, xmm4
         movdqa	xmm4, xmm8
-        lea	r11, QWORD PTR [rdx+rax]
-        movdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rdx+r11]
+        movdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_AESNI_dec_16
 L_AES_CBC_decrypt_AESNI_done_dec:
         movdqu	OWORD PTR [r8], xmm4
@@ -1029,27 +1043,29 @@ L_AES_CBC_decrypt_AESNI_done_dec:
         movdqu	xmm7, OWORD PTR [rsp+16]
         movdqu	xmm8, OWORD PTR [rsp+32]
         add	rsp, 48
+        pop	r14
+        pop	r13
         pop	r12
         ret
 AES_CBC_decrypt_AESNI ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_aesni_bswap QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_ctr_aesni_bswap QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_ctr_aesni_bswap QWORD L_aes_ctr_aesni_bswap
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_aesni_one QWORD \
-     0000000000000001h,  0000000000000000h
+L_aes_ctr_aesni_one QWORD 0000000000000001h, 0000000000000000h
 ptr_L_aes_ctr_aesni_one QWORD L_aes_ctr_aesni_one
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CTR_encrypt_AESNI PROC
-        push	rbx
-        mov	eax, DWORD PTR [rsp+48]
-        mov	r10, QWORD PTR [rsp+56]
+        push	r12
+        push	r13
+        push	r14
+        mov	eax, DWORD PTR [rsp+64]
+        mov	r10, QWORD PTR [rsp+72]
         sub	rsp, 96
         movdqu	OWORD PTR [rsp], xmm6
         movdqu	OWORD PTR [rsp+16], xmm7
@@ -1062,16 +1078,16 @@ AES_CTR_encrypt_AESNI PROC
         pxor	xmm10, xmm10
         movdqu	xmm7, OWORD PTR [r10]
         pshufb	xmm7, xmm8
-        xor	eax, eax
+        xor	r11d, r11d
         cmp	r8d, 64
-        mov	r10d, r8d
+        mov	r12d, r8d
         jl	L_AES_CTR_encrypt_AESNI_done_64
-        and	r10d, 4294967232
+        and	r12d, 4294967232
 L_AES_CTR_encrypt_AESNI_enc_64:
         ; 64 bytes of input
         ; aes_ctr_enc_64
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	rbx, QWORD PTR [rdx+rax]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
         movdqa	xmm0, xmm7
         pshufb	xmm0, xmm8
         paddq	xmm7, xmm9
@@ -1185,26 +1201,26 @@ L_AES_CTR_encrypt_AESNI_64_aes_enc_block_last:
         aesenclast	xmm1, xmm4
         aesenclast	xmm2, xmm4
         aesenclast	xmm3, xmm4
-        movdqu	xmm4, OWORD PTR [r11]
+        movdqu	xmm4, OWORD PTR [r13]
         pxor	xmm0, xmm4
-        movdqu	xmm4, OWORD PTR [r11+16]
+        movdqu	xmm4, OWORD PTR [r13+16]
         pxor	xmm1, xmm4
-        movdqu	xmm4, OWORD PTR [r11+32]
+        movdqu	xmm4, OWORD PTR [r13+32]
         pxor	xmm2, xmm4
-        movdqu	xmm4, OWORD PTR [r11+48]
+        movdqu	xmm4, OWORD PTR [r13+48]
         pxor	xmm3, xmm4
-        movdqu	OWORD PTR [rbx], xmm0
-        movdqu	OWORD PTR [rbx+16], xmm1
-        movdqu	OWORD PTR [rbx+32], xmm2
-        movdqu	OWORD PTR [rbx+48], xmm3
-        add	eax, 64
-        cmp	eax, r10d
+        movdqu	OWORD PTR [r14], xmm0
+        movdqu	OWORD PTR [r14+16], xmm1
+        movdqu	OWORD PTR [r14+32], xmm2
+        movdqu	OWORD PTR [r14+48], xmm3
+        add	r11d, 64
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_AESNI_enc_64
 L_AES_CTR_encrypt_AESNI_done_64:
-        cmp	eax, r8d
-        mov	r10d, r8d
+        cmp	r11d, r8d
+        mov	r12d, r8d
         je	L_AES_CTR_encrypt_AESNI_done_enc
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CTR_encrypt_AESNI_enc_16:
         ; 16 bytes of input
         movdqa	xmm0, xmm7
@@ -1250,13 +1266,13 @@ L_AES_CTR_encrypt_AESNI_enc_16:
         movdqu	xmm5, OWORD PTR [r9+224]
 L_AES_CTR_encrypt_AESNI_16_aes_enc_block_last:
         aesenclast	xmm0, xmm5
-        lea	r11, QWORD PTR [rcx+rax]
-        movdqu	xmm4, OWORD PTR [r11]
+        lea	r13, QWORD PTR [rcx+r11]
+        movdqu	xmm4, OWORD PTR [r13]
         pxor	xmm0, xmm4
-        lea	r11, QWORD PTR [rdx+rax]
-        movdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rdx+r11]
+        movdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_AESNI_enc_16
 L_AES_CTR_encrypt_AESNI_done_enc:
         pshufb	xmm7, xmm8
@@ -1268,30 +1284,34 @@ L_AES_CTR_encrypt_AESNI_done_enc:
         movdqu	xmm10, OWORD PTR [rsp+64]
         movdqu	xmm11, OWORD PTR [rsp+80]
         add	rsp, 96
-        pop	rbx
+        pop	r14
+        pop	r13
+        pop	r12
         ret
 AES_CTR_encrypt_AESNI ENDP
 _TEXT ENDS
 IFDEF HAVE_INTEL_AVX1
 _TEXT SEGMENT READONLY PARA
 AES_ECB_encrypt_avx1 PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 16
         vmovdqu	OWORD PTR [rsp], xmm6
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 64
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_encrypt_avx1_done_64
-        and	r9d, 4294967232
+        and	r11d, 4294967232
 L_AES_ECB_encrypt_avx1_enc_64:
         ; 64 bytes of input
         ; aes_ecb_enc_64
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
-        vmovdqu	xmm1, OWORD PTR [r10+16]
-        vmovdqu	xmm2, OWORD PTR [r10+32]
-        vmovdqu	xmm3, OWORD PTR [r10+48]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
+        vmovdqu	xmm1, OWORD PTR [r12+16]
+        vmovdqu	xmm2, OWORD PTR [r12+32]
+        vmovdqu	xmm3, OWORD PTR [r12+48]
         ; aes_enc_block
         vmovdqu	xmm4, OWORD PTR [r9]
         vpxor	xmm0, xmm0, xmm4
@@ -1373,22 +1393,22 @@ L_AES_ECB_encrypt_avx1_64_aes_enc_block_last:
         vaesenclast	xmm1, xmm1, xmm4
         vaesenclast	xmm2, xmm2, xmm4
         vaesenclast	xmm3, xmm3, xmm4
-        vmovdqu	OWORD PTR [r11], xmm0
-        vmovdqu	OWORD PTR [r11+16], xmm1
-        vmovdqu	OWORD PTR [r11+32], xmm2
-        vmovdqu	OWORD PTR [r11+48], xmm3
-        add	eax, 64
-        cmp	eax, r9d
+        vmovdqu	OWORD PTR [r13], xmm0
+        vmovdqu	OWORD PTR [r13+16], xmm1
+        vmovdqu	OWORD PTR [r13+32], xmm2
+        vmovdqu	OWORD PTR [r13+48], xmm3
+        add	r10d, 64
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_avx1_enc_64
 L_AES_ECB_encrypt_avx1_done_64:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_encrypt_avx1_done_enc
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_encrypt_avx1_enc_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
         ; aes_enc_block
         vpxor	xmm0, xmm0, [r9]
         vmovdqu	xmm5, OWORD PTR [r9+16]
@@ -1424,36 +1444,40 @@ L_AES_ECB_encrypt_avx1_enc_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_encrypt_avx1_16_aes_enc_block_last:
         vaesenclast	xmm0, xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        vmovdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_avx1_enc_16
 L_AES_ECB_encrypt_avx1_done_enc:
         vmovdqu	xmm6, OWORD PTR [rsp]
         add	rsp, 16
+        pop	r13
+        pop	r12
         ret
 AES_ECB_encrypt_avx1 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_ECB_decrypt_avx1 PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 16
         vmovdqu	OWORD PTR [rsp], xmm6
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 64
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_decrypt_avx1_done_64
-        and	r9d, 4294967232
+        and	r11d, 4294967232
 L_AES_ECB_decrypt_avx1_dec_64:
         ; 64 bytes of input
         ; aes_ecb_dec_64
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
-        vmovdqu	xmm1, OWORD PTR [r10+16]
-        vmovdqu	xmm2, OWORD PTR [r10+32]
-        vmovdqu	xmm3, OWORD PTR [r10+48]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
+        vmovdqu	xmm1, OWORD PTR [r12+16]
+        vmovdqu	xmm2, OWORD PTR [r12+32]
+        vmovdqu	xmm3, OWORD PTR [r12+48]
         ; aes_dec_block
         vmovdqu	xmm4, OWORD PTR [r9]
         vpxor	xmm0, xmm0, xmm4
@@ -1535,22 +1559,22 @@ L_AES_ECB_decrypt_avx1_64_aes_dec_block_last:
         vaesdeclast	xmm1, xmm1, xmm4
         vaesdeclast	xmm2, xmm2, xmm4
         vaesdeclast	xmm3, xmm3, xmm4
-        vmovdqu	OWORD PTR [r11], xmm0
-        vmovdqu	OWORD PTR [r11+16], xmm1
-        vmovdqu	OWORD PTR [r11+32], xmm2
-        vmovdqu	OWORD PTR [r11+48], xmm3
-        add	eax, 64
-        cmp	eax, r9d
+        vmovdqu	OWORD PTR [r13], xmm0
+        vmovdqu	OWORD PTR [r13+16], xmm1
+        vmovdqu	OWORD PTR [r13+32], xmm2
+        vmovdqu	OWORD PTR [r13+48], xmm3
+        add	r10d, 64
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_avx1_dec_64
 L_AES_ECB_decrypt_avx1_done_64:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_decrypt_avx1_done_dec
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_decrypt_avx1_dec_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
         ; aes_dec_block
         vpxor	xmm0, xmm0, [r9]
         vmovdqu	xmm5, OWORD PTR [r9+16]
@@ -1586,29 +1610,33 @@ L_AES_ECB_decrypt_avx1_dec_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_decrypt_avx1_16_aes_dec_block_last:
         vaesdeclast	xmm0, xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        vmovdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_avx1_dec_16
 L_AES_ECB_decrypt_avx1_done_dec:
         vmovdqu	xmm6, OWORD PTR [rsp]
         add	rsp, 16
+        pop	r13
+        pop	r12
         ret
 AES_ECB_decrypt_avx1 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_encrypt_avx1 PROC
-        mov	rax, QWORD PTR [rsp+40]
-        mov	r10d, DWORD PTR [rsp+48]
+        push	r12
+        push	r13
+        mov	rax, QWORD PTR [rsp+56]
+        mov	r10d, DWORD PTR [rsp+64]
         vmovdqu	xmm0, OWORD PTR [r8]
-        xor	eax, eax
-        cmp	eax, r9d
+        xor	r11d, r11d
+        cmp	r11d, r9d
         je	L_AES_CBC_encrypt_avx1_done
 L_AES_CBC_encrypt_avx1_loop:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm1, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r11]
+        vmovdqu	xmm1, OWORD PTR [r12]
         vpxor	xmm1, xmm1, xmm0
         ; aes_enc_block
         vpxor	xmm1, xmm1, [rax]
@@ -1645,41 +1673,45 @@ L_AES_CBC_encrypt_avx1_loop:
         vmovdqu	xmm3, OWORD PTR [rax+224]
 L_AES_CBC_encrypt_avx1_aes_enc_block_last:
         vaesenclast	xmm1, xmm1, xmm3
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm1
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm1
         vmovdqa	xmm0, xmm1
-        add	eax, 16
-        cmp	eax, r9d
+        add	r11d, 16
+        cmp	r11d, r9d
         jl	L_AES_CBC_encrypt_avx1_loop
 L_AES_CBC_encrypt_avx1_done:
         vmovdqu	OWORD PTR [r8], xmm0
+        pop	r13
+        pop	r12
         ret
 AES_CBC_encrypt_avx1 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_decrypt_avx1 PROC
         push	r12
-        mov	rax, QWORD PTR [rsp+48]
-        mov	r10d, DWORD PTR [rsp+56]
+        push	r13
+        push	r14
+        mov	rax, QWORD PTR [rsp+64]
+        mov	r10d, DWORD PTR [rsp+72]
         sub	rsp, 48
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
         vmovdqu	OWORD PTR [rsp+32], xmm8
         vmovdqu	xmm4, OWORD PTR [r8]
-        xor	eax, eax
+        xor	r11d, r11d
         cmp	r9d, 64
-        mov	r10d, r9d
+        mov	r12d, r9d
         jl	L_AES_CBC_decrypt_avx1_done_64
-        and	r10d, 4294967232
+        and	r12d, 4294967232
 L_AES_CBC_decrypt_avx1_dec_64:
         ; 64 bytes of input
         ; aes_cbc_dec_64
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	r12, QWORD PTR [rdx+rax]
-        vmovdqu	xmm0, OWORD PTR [r11]
-        vmovdqu	xmm1, OWORD PTR [r11+16]
-        vmovdqu	xmm2, OWORD PTR [r11+32]
-        vmovdqu	xmm3, OWORD PTR [r11+48]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
+        vmovdqu	xmm0, OWORD PTR [r13]
+        vmovdqu	xmm1, OWORD PTR [r13+16]
+        vmovdqu	xmm2, OWORD PTR [r13+32]
+        vmovdqu	xmm3, OWORD PTR [r13+48]
         ; aes_dec_block
         vmovdqu	xmm5, OWORD PTR [rax]
         vpxor	xmm0, xmm0, xmm5
@@ -1762,26 +1794,26 @@ L_AES_CBC_decrypt_avx1_64_aes_dec_block_last:
         vaesdeclast	xmm2, xmm2, xmm5
         vaesdeclast	xmm3, xmm3, xmm5
         vpxor	xmm0, xmm0, xmm4
-        vpxor	xmm1, xmm1, [r11]
-        vpxor	xmm2, xmm2, [r11+16]
-        vpxor	xmm3, xmm3, [r11+32]
-        vmovdqu	xmm4, OWORD PTR [r11+48]
-        vmovdqu	OWORD PTR [r12], xmm0
-        vmovdqu	OWORD PTR [r12+16], xmm1
-        vmovdqu	OWORD PTR [r12+32], xmm2
-        vmovdqu	OWORD PTR [r12+48], xmm3
-        add	eax, 64
-        cmp	eax, r10d
+        vpxor	xmm1, xmm1, [r13]
+        vpxor	xmm2, xmm2, [r13+16]
+        vpxor	xmm3, xmm3, [r13+32]
+        vmovdqu	xmm4, OWORD PTR [r13+48]
+        vmovdqu	OWORD PTR [r14], xmm0
+        vmovdqu	OWORD PTR [r14+16], xmm1
+        vmovdqu	OWORD PTR [r14+32], xmm2
+        vmovdqu	OWORD PTR [r14+48], xmm3
+        add	r11d, 64
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_avx1_dec_64
 L_AES_CBC_decrypt_avx1_done_64:
-        cmp	eax, r9d
-        mov	r10d, r9d
+        cmp	r11d, r9d
+        mov	r12d, r9d
         je	L_AES_CBC_decrypt_avx1_done_dec
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CBC_decrypt_avx1_dec_16:
         ; 16 bytes of input
-        lea	r11, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r11]
+        lea	r13, QWORD PTR [rcx+r11]
+        vmovdqu	xmm0, OWORD PTR [r13]
         vmovdqa	xmm8, xmm0
         ; aes_dec_block
         vpxor	xmm0, xmm0, [rax]
@@ -1820,10 +1852,10 @@ L_AES_CBC_decrypt_avx1_16_aes_dec_block_last:
         vaesdeclast	xmm0, xmm0, xmm6
         vpxor	xmm0, xmm0, xmm4
         vmovdqa	xmm4, xmm8
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_avx1_dec_16
 L_AES_CBC_decrypt_avx1_done_dec:
         vmovdqu	OWORD PTR [r8], xmm4
@@ -1831,27 +1863,29 @@ L_AES_CBC_decrypt_avx1_done_dec:
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
         add	rsp, 48
+        pop	r14
+        pop	r13
         pop	r12
         ret
 AES_CBC_decrypt_avx1 ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_avx1_bswap QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_ctr_avx1_bswap QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_ctr_avx1_bswap QWORD L_aes_ctr_avx1_bswap
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_avx1_one QWORD \
-     0000000000000001h,  0000000000000000h
+L_aes_ctr_avx1_one QWORD 0000000000000001h, 0000000000000000h
 ptr_L_aes_ctr_avx1_one QWORD L_aes_ctr_avx1_one
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CTR_encrypt_avx1 PROC
-        push	rbx
-        mov	eax, DWORD PTR [rsp+48]
-        mov	r10, QWORD PTR [rsp+56]
+        push	r12
+        push	r13
+        push	r14
+        mov	eax, DWORD PTR [rsp+64]
+        mov	r10, QWORD PTR [rsp+72]
         sub	rsp, 96
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -1864,16 +1898,16 @@ AES_CTR_encrypt_avx1 PROC
         vpxor	xmm10, xmm10, xmm10
         vmovdqu	xmm7, OWORD PTR [r10]
         vpshufb	xmm7, xmm7, xmm8
-        xor	eax, eax
+        xor	r11d, r11d
         cmp	r8d, 64
-        mov	r10d, r8d
+        mov	r12d, r8d
         jl	L_AES_CTR_encrypt_avx1_done_64
-        and	r10d, 4294967232
+        and	r12d, 4294967232
 L_AES_CTR_encrypt_avx1_enc_64:
         ; 64 bytes of input
         ; aes_ctr_enc_64
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	rbx, QWORD PTR [rdx+rax]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
         vpshufb	xmm0, xmm7, xmm8
         vpaddq	xmm7, xmm7, xmm9
         vpcmpeqq	xmm11, xmm7, xmm10
@@ -1979,22 +2013,22 @@ L_AES_CTR_encrypt_avx1_64_aes_enc_block_last:
         vaesenclast	xmm1, xmm1, xmm4
         vaesenclast	xmm2, xmm2, xmm4
         vaesenclast	xmm3, xmm3, xmm4
-        vpxor	xmm0, xmm0, [r11]
-        vpxor	xmm1, xmm1, [r11+16]
-        vpxor	xmm2, xmm2, [r11+32]
-        vpxor	xmm3, xmm3, [r11+48]
-        vmovdqu	OWORD PTR [rbx], xmm0
-        vmovdqu	OWORD PTR [rbx+16], xmm1
-        vmovdqu	OWORD PTR [rbx+32], xmm2
-        vmovdqu	OWORD PTR [rbx+48], xmm3
-        add	eax, 64
-        cmp	eax, r10d
+        vpxor	xmm0, xmm0, [r13]
+        vpxor	xmm1, xmm1, [r13+16]
+        vpxor	xmm2, xmm2, [r13+32]
+        vpxor	xmm3, xmm3, [r13+48]
+        vmovdqu	OWORD PTR [r14], xmm0
+        vmovdqu	OWORD PTR [r14+16], xmm1
+        vmovdqu	OWORD PTR [r14+32], xmm2
+        vmovdqu	OWORD PTR [r14+48], xmm3
+        add	r11d, 64
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_avx1_enc_64
 L_AES_CTR_encrypt_avx1_done_64:
-        cmp	eax, r8d
-        mov	r10d, r8d
+        cmp	r11d, r8d
+        mov	r12d, r8d
         je	L_AES_CTR_encrypt_avx1_done_enc
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CTR_encrypt_avx1_enc_16:
         ; 16 bytes of input
         vpshufb	xmm0, xmm7, xmm8
@@ -2038,12 +2072,12 @@ L_AES_CTR_encrypt_avx1_enc_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_CTR_encrypt_avx1_16_aes_enc_block_last:
         vaesenclast	xmm0, xmm0, xmm5
-        lea	r11, QWORD PTR [rcx+rax]
-        vpxor	xmm0, xmm0, [r11]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rcx+r11]
+        vpxor	xmm0, xmm0, [r13]
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_avx1_enc_16
 L_AES_CTR_encrypt_avx1_done_enc:
         vpshufb	xmm7, xmm7, xmm8
@@ -2055,7 +2089,9 @@ L_AES_CTR_encrypt_avx1_done_enc:
         vmovdqu	xmm10, OWORD PTR [rsp+64]
         vmovdqu	xmm11, OWORD PTR [rsp+80]
         add	rsp, 96
-        pop	rbx
+        pop	r14
+        pop	r13
+        pop	r12
         ret
 AES_CTR_encrypt_avx1 ENDP
 _TEXT ENDS
@@ -2063,172 +2099,174 @@ ENDIF
 IFDEF HAVE_INTEL_VAES
 _TEXT SEGMENT READONLY PARA
 AES_ECB_encrypt_vaes PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 32
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 128
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_encrypt_vaes_done_128
-        and	r9d, 4294967168
+        and	r11d, 4294967168
 L_AES_ECB_encrypt_vaes_enc_128:
         ; 128 bytes of input
         ; aes_ecb_enc_128
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	ymm0, YMMWORD PTR [r10]
-        vmovdqu	ymm1, YMMWORD PTR [r10+32]
-        vmovdqu	ymm2, YMMWORD PTR [r10+64]
-        vmovdqu	ymm3, YMMWORD PTR [r10+96]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu	ymm0, YMMWORD PTR [r12]
+        vmovdqu	ymm1, YMMWORD PTR [r12+32]
+        vmovdqu	ymm2, YMMWORD PTR [r12+64]
+        vmovdqu	ymm3, YMMWORD PTR [r12+96]
         ; aes_enc_block
-        vbroadcasti128	ymm7, [r9]
+        vbroadcasti128	ymm7, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm7
         vpxor	ymm1, ymm1, ymm7
         vpxor	ymm2, ymm2, ymm7
         vpxor	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+16]
+        vbroadcasti128	ymm7, OWORD PTR [r9+16]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+32]
+        vbroadcasti128	ymm7, OWORD PTR [r9+32]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+48]
+        vbroadcasti128	ymm7, OWORD PTR [r9+48]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+64]
+        vbroadcasti128	ymm7, OWORD PTR [r9+64]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+80]
+        vbroadcasti128	ymm7, OWORD PTR [r9+80]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+96]
+        vbroadcasti128	ymm7, OWORD PTR [r9+96]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+112]
+        vbroadcasti128	ymm7, OWORD PTR [r9+112]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+128]
+        vbroadcasti128	ymm7, OWORD PTR [r9+128]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+144]
+        vbroadcasti128	ymm7, OWORD PTR [r9+144]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
         cmp	eax, 11
-        vbroadcasti128	ymm7, [r9+160]
+        vbroadcasti128	ymm7, OWORD PTR [r9+160]
         jl	L_AES_ECB_encrypt_vaes_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+176]
+        vbroadcasti128	ymm7, OWORD PTR [r9+176]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
         cmp	eax, 13
-        vbroadcasti128	ymm7, [r9+192]
+        vbroadcasti128	ymm7, OWORD PTR [r9+192]
         jl	L_AES_ECB_encrypt_vaes_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+208]
+        vbroadcasti128	ymm7, OWORD PTR [r9+208]
         vaesenc	ymm0, ymm0, ymm7
         vaesenc	ymm1, ymm1, ymm7
         vaesenc	ymm2, ymm2, ymm7
         vaesenc	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+224]
+        vbroadcasti128	ymm7, OWORD PTR [r9+224]
 L_AES_ECB_encrypt_vaes_128_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm7
         vaesenclast	ymm1, ymm1, ymm7
         vaesenclast	ymm2, ymm2, ymm7
         vaesenclast	ymm3, ymm3, ymm7
-        vmovdqu	YMMWORD PTR [r11], ymm0
-        vmovdqu	YMMWORD PTR [r11+32], ymm1
-        vmovdqu	YMMWORD PTR [r11+64], ymm2
-        vmovdqu	YMMWORD PTR [r11+96], ymm3
-        add	eax, 128
-        cmp	eax, r9d
+        vmovdqu	YMMWORD PTR [r13], ymm0
+        vmovdqu	YMMWORD PTR [r13+32], ymm1
+        vmovdqu	YMMWORD PTR [r13+64], ymm2
+        vmovdqu	YMMWORD PTR [r13+96], ymm3
+        add	r10d, 128
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_vaes_enc_128
 L_AES_ECB_encrypt_vaes_done_128:
-        mov	r9d, r8d
-        and	r9d, 4294967264
-        cmp	eax, r9d
+        mov	r11d, r8d
+        and	r11d, 4294967264
+        cmp	r10d, r11d
         je	L_AES_ECB_encrypt_vaes_done_32
 L_AES_ECB_encrypt_vaes_enc_32:
         ; 32 bytes of input
         ; aes_ecb_enc_32
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	ymm0, YMMWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu	ymm0, YMMWORD PTR [r12]
         ; aes_enc_block
-        vbroadcasti128	ymm7, [r9]
+        vbroadcasti128	ymm7, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+16]
+        vbroadcasti128	ymm7, OWORD PTR [r9+16]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+32]
+        vbroadcasti128	ymm7, OWORD PTR [r9+32]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+48]
+        vbroadcasti128	ymm7, OWORD PTR [r9+48]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+64]
+        vbroadcasti128	ymm7, OWORD PTR [r9+64]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+80]
+        vbroadcasti128	ymm7, OWORD PTR [r9+80]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+96]
+        vbroadcasti128	ymm7, OWORD PTR [r9+96]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+112]
+        vbroadcasti128	ymm7, OWORD PTR [r9+112]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+128]
+        vbroadcasti128	ymm7, OWORD PTR [r9+128]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+144]
+        vbroadcasti128	ymm7, OWORD PTR [r9+144]
         vaesenc	ymm0, ymm0, ymm7
         cmp	eax, 11
-        vbroadcasti128	ymm7, [r9+160]
+        vbroadcasti128	ymm7, OWORD PTR [r9+160]
         jl	L_AES_ECB_encrypt_vaes_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+176]
+        vbroadcasti128	ymm7, OWORD PTR [r9+176]
         vaesenc	ymm0, ymm0, ymm7
         cmp	eax, 13
-        vbroadcasti128	ymm7, [r9+192]
+        vbroadcasti128	ymm7, OWORD PTR [r9+192]
         jl	L_AES_ECB_encrypt_vaes_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+208]
+        vbroadcasti128	ymm7, OWORD PTR [r9+208]
         vaesenc	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+224]
+        vbroadcasti128	ymm7, OWORD PTR [r9+224]
 L_AES_ECB_encrypt_vaes_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm7
-        vmovdqu	YMMWORD PTR [r11], ymm0
-        add	eax, 32
-        cmp	eax, r9d
+        vmovdqu	YMMWORD PTR [r13], ymm0
+        add	r10d, 32
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_vaes_enc_32
 L_AES_ECB_encrypt_vaes_done_32:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_encrypt_vaes_done_enc
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_encrypt_vaes_enc_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
         ; aes_enc_block
         vpxor	xmm0, xmm0, [r9]
         vmovdqu	xmm5, OWORD PTR [r9+16]
@@ -2264,186 +2302,190 @@ L_AES_ECB_encrypt_vaes_enc_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_encrypt_vaes_16_aes_enc_block_last:
         vaesenclast	xmm0, xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        vmovdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_vaes_enc_16
 L_AES_ECB_encrypt_vaes_done_enc:
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         add	rsp, 32
+        pop	r13
+        pop	r12
         ret
 AES_ECB_encrypt_vaes ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_ECB_decrypt_vaes PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 32
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 128
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_decrypt_vaes_done_128
-        and	r9d, 4294967168
+        and	r11d, 4294967168
 L_AES_ECB_decrypt_vaes_dec_128:
         ; 128 bytes of input
         ; aes_ecb_dec_128
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	ymm0, YMMWORD PTR [r10]
-        vmovdqu	ymm1, YMMWORD PTR [r10+32]
-        vmovdqu	ymm2, YMMWORD PTR [r10+64]
-        vmovdqu	ymm3, YMMWORD PTR [r10+96]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu	ymm0, YMMWORD PTR [r12]
+        vmovdqu	ymm1, YMMWORD PTR [r12+32]
+        vmovdqu	ymm2, YMMWORD PTR [r12+64]
+        vmovdqu	ymm3, YMMWORD PTR [r12+96]
         ; aes_dec_block
-        vbroadcasti128	ymm7, [r9]
+        vbroadcasti128	ymm7, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm7
         vpxor	ymm1, ymm1, ymm7
         vpxor	ymm2, ymm2, ymm7
         vpxor	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+16]
+        vbroadcasti128	ymm7, OWORD PTR [r9+16]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+32]
+        vbroadcasti128	ymm7, OWORD PTR [r9+32]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+48]
+        vbroadcasti128	ymm7, OWORD PTR [r9+48]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+64]
+        vbroadcasti128	ymm7, OWORD PTR [r9+64]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+80]
+        vbroadcasti128	ymm7, OWORD PTR [r9+80]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+96]
+        vbroadcasti128	ymm7, OWORD PTR [r9+96]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+112]
+        vbroadcasti128	ymm7, OWORD PTR [r9+112]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+128]
+        vbroadcasti128	ymm7, OWORD PTR [r9+128]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+144]
+        vbroadcasti128	ymm7, OWORD PTR [r9+144]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
         cmp	eax, 11
-        vbroadcasti128	ymm7, [r9+160]
+        vbroadcasti128	ymm7, OWORD PTR [r9+160]
         jl	L_AES_ECB_decrypt_vaes_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+176]
+        vbroadcasti128	ymm7, OWORD PTR [r9+176]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
         cmp	eax, 13
-        vbroadcasti128	ymm7, [r9+192]
+        vbroadcasti128	ymm7, OWORD PTR [r9+192]
         jl	L_AES_ECB_decrypt_vaes_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+208]
+        vbroadcasti128	ymm7, OWORD PTR [r9+208]
         vaesdec	ymm0, ymm0, ymm7
         vaesdec	ymm1, ymm1, ymm7
         vaesdec	ymm2, ymm2, ymm7
         vaesdec	ymm3, ymm3, ymm7
-        vbroadcasti128	ymm7, [r9+224]
+        vbroadcasti128	ymm7, OWORD PTR [r9+224]
 L_AES_ECB_decrypt_vaes_128_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm7
         vaesdeclast	ymm1, ymm1, ymm7
         vaesdeclast	ymm2, ymm2, ymm7
         vaesdeclast	ymm3, ymm3, ymm7
-        vmovdqu	YMMWORD PTR [r11], ymm0
-        vmovdqu	YMMWORD PTR [r11+32], ymm1
-        vmovdqu	YMMWORD PTR [r11+64], ymm2
-        vmovdqu	YMMWORD PTR [r11+96], ymm3
-        add	eax, 128
-        cmp	eax, r9d
+        vmovdqu	YMMWORD PTR [r13], ymm0
+        vmovdqu	YMMWORD PTR [r13+32], ymm1
+        vmovdqu	YMMWORD PTR [r13+64], ymm2
+        vmovdqu	YMMWORD PTR [r13+96], ymm3
+        add	r10d, 128
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_vaes_dec_128
 L_AES_ECB_decrypt_vaes_done_128:
-        mov	r9d, r8d
-        and	r9d, 4294967264
-        cmp	eax, r9d
+        mov	r11d, r8d
+        and	r11d, 4294967264
+        cmp	r10d, r11d
         je	L_AES_ECB_decrypt_vaes_done_32
 L_AES_ECB_decrypt_vaes_dec_32:
         ; 32 bytes of input
         ; aes_ecb_dec_32
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	ymm0, YMMWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu	ymm0, YMMWORD PTR [r12]
         ; aes_dec_block
-        vbroadcasti128	ymm7, [r9]
+        vbroadcasti128	ymm7, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+16]
+        vbroadcasti128	ymm7, OWORD PTR [r9+16]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+32]
+        vbroadcasti128	ymm7, OWORD PTR [r9+32]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+48]
+        vbroadcasti128	ymm7, OWORD PTR [r9+48]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+64]
+        vbroadcasti128	ymm7, OWORD PTR [r9+64]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+80]
+        vbroadcasti128	ymm7, OWORD PTR [r9+80]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+96]
+        vbroadcasti128	ymm7, OWORD PTR [r9+96]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+112]
+        vbroadcasti128	ymm7, OWORD PTR [r9+112]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+128]
+        vbroadcasti128	ymm7, OWORD PTR [r9+128]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+144]
+        vbroadcasti128	ymm7, OWORD PTR [r9+144]
         vaesdec	ymm0, ymm0, ymm7
         cmp	eax, 11
-        vbroadcasti128	ymm7, [r9+160]
+        vbroadcasti128	ymm7, OWORD PTR [r9+160]
         jl	L_AES_ECB_decrypt_vaes_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+176]
+        vbroadcasti128	ymm7, OWORD PTR [r9+176]
         vaesdec	ymm0, ymm0, ymm7
         cmp	eax, 13
-        vbroadcasti128	ymm7, [r9+192]
+        vbroadcasti128	ymm7, OWORD PTR [r9+192]
         jl	L_AES_ECB_decrypt_vaes_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+208]
+        vbroadcasti128	ymm7, OWORD PTR [r9+208]
         vaesdec	ymm0, ymm0, ymm7
-        vbroadcasti128	ymm7, [r9+224]
+        vbroadcasti128	ymm7, OWORD PTR [r9+224]
 L_AES_ECB_decrypt_vaes_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm7
-        vmovdqu	YMMWORD PTR [r11], ymm0
-        add	eax, 32
-        cmp	eax, r9d
+        vmovdqu	YMMWORD PTR [r13], ymm0
+        add	r10d, 32
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_vaes_dec_32
 L_AES_ECB_decrypt_vaes_done_32:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_decrypt_vaes_done_dec
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_decrypt_vaes_dec_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
         ; aes_dec_block
         vpxor	xmm0, xmm0, [r9]
         vmovdqu	xmm5, OWORD PTR [r9+16]
@@ -2479,30 +2521,34 @@ L_AES_ECB_decrypt_vaes_dec_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_decrypt_vaes_16_aes_dec_block_last:
         vaesdeclast	xmm0, xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        vmovdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_vaes_dec_16
 L_AES_ECB_decrypt_vaes_done_dec:
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         add	rsp, 32
+        pop	r13
+        pop	r12
         ret
 AES_ECB_decrypt_vaes ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_encrypt_vaes PROC
-        mov	rax, QWORD PTR [rsp+40]
-        mov	r10d, DWORD PTR [rsp+48]
+        push	r12
+        push	r13
+        mov	rax, QWORD PTR [rsp+56]
+        mov	r10d, DWORD PTR [rsp+64]
         vmovdqu	xmm0, OWORD PTR [r8]
-        xor	eax, eax
-        cmp	eax, r9d
+        xor	r11d, r11d
+        cmp	r11d, r9d
         je	L_AES_CBC_encrypt_vaes_done
 L_AES_CBC_encrypt_vaes_loop:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm1, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r11]
+        vmovdqu	xmm1, OWORD PTR [r12]
         vpxor	xmm1, xmm1, xmm0
         ; aes_enc_block
         vpxor	xmm1, xmm1, [rax]
@@ -2539,22 +2585,26 @@ L_AES_CBC_encrypt_vaes_loop:
         vmovdqu	xmm3, OWORD PTR [rax+224]
 L_AES_CBC_encrypt_vaes_aes_enc_block_last:
         vaesenclast	xmm1, xmm1, xmm3
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm1
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm1
         vmovdqa	xmm0, xmm1
-        add	eax, 16
-        cmp	eax, r9d
+        add	r11d, 16
+        cmp	r11d, r9d
         jl	L_AES_CBC_encrypt_vaes_loop
 L_AES_CBC_encrypt_vaes_done:
         vmovdqu	OWORD PTR [r8], xmm0
+        pop	r13
+        pop	r12
         ret
 AES_CBC_encrypt_vaes ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_decrypt_vaes PROC
         push	r12
-        mov	rax, QWORD PTR [rsp+48]
-        mov	r10d, DWORD PTR [rsp+56]
+        push	r13
+        push	r14
+        mov	rax, QWORD PTR [rsp+64]
+        mov	r10d, DWORD PTR [rsp+72]
         sub	rsp, 128
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -2565,101 +2615,101 @@ AES_CBC_decrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+96], xmm12
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	xmm8, OWORD PTR [r8]
-        xor	eax, eax
+        xor	r11d, r11d
         cmp	r9d, 128
-        mov	r10d, r9d
+        mov	r12d, r9d
         jl	L_AES_CBC_decrypt_vaes_done_128
-        and	r10d, 4294967168
+        and	r12d, 4294967168
 L_AES_CBC_decrypt_vaes_dec_128:
         ; 128 bytes of input
         ; aes_cbc_dec_128
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	r12, QWORD PTR [rdx+rax]
-        vmovdqu	ymm0, YMMWORD PTR [r11]
-        vmovdqu	ymm1, YMMWORD PTR [r11+32]
-        vmovdqu	ymm2, YMMWORD PTR [r11+64]
-        vmovdqu	ymm3, YMMWORD PTR [r11+96]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
+        vmovdqu	ymm0, YMMWORD PTR [r13]
+        vmovdqu	ymm1, YMMWORD PTR [r13+32]
+        vmovdqu	ymm2, YMMWORD PTR [r13+64]
+        vmovdqu	ymm3, YMMWORD PTR [r13+96]
         vinserti128	ymm10, ymm8, xmm0, 1
-        vmovdqu	ymm11, YMMWORD PTR [r11+16]
-        vmovdqu	ymm12, YMMWORD PTR [r11+48]
-        vmovdqu	ymm13, YMMWORD PTR [r11+80]
+        vmovdqu	ymm11, YMMWORD PTR [r13+16]
+        vmovdqu	ymm12, YMMWORD PTR [r13+48]
+        vmovdqu	ymm13, YMMWORD PTR [r13+80]
         vextracti128	xmm8, ymm3, 1
         ; aes_dec_block
-        vbroadcasti128	ymm9, [rax]
+        vbroadcasti128	ymm9, OWORD PTR [rax]
         vpxor	ymm0, ymm0, ymm9
         vpxor	ymm1, ymm1, ymm9
         vpxor	ymm2, ymm2, ymm9
         vpxor	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+16]
+        vbroadcasti128	ymm9, OWORD PTR [rax+16]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+32]
+        vbroadcasti128	ymm9, OWORD PTR [rax+32]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+48]
+        vbroadcasti128	ymm9, OWORD PTR [rax+48]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+64]
+        vbroadcasti128	ymm9, OWORD PTR [rax+64]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+80]
+        vbroadcasti128	ymm9, OWORD PTR [rax+80]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+96]
+        vbroadcasti128	ymm9, OWORD PTR [rax+96]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+112]
+        vbroadcasti128	ymm9, OWORD PTR [rax+112]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+128]
+        vbroadcasti128	ymm9, OWORD PTR [rax+128]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+144]
+        vbroadcasti128	ymm9, OWORD PTR [rax+144]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [rax+160]
+        vbroadcasti128	ymm9, OWORD PTR [rax+160]
         jl	L_AES_CBC_decrypt_vaes_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+176]
+        vbroadcasti128	ymm9, OWORD PTR [rax+176]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [rax+192]
+        vbroadcasti128	ymm9, OWORD PTR [rax+192]
         jl	L_AES_CBC_decrypt_vaes_128_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+208]
+        vbroadcasti128	ymm9, OWORD PTR [rax+208]
         vaesdec	ymm0, ymm0, ymm9
         vaesdec	ymm1, ymm1, ymm9
         vaesdec	ymm2, ymm2, ymm9
         vaesdec	ymm3, ymm3, ymm9
-        vbroadcasti128	ymm9, [rax+224]
+        vbroadcasti128	ymm9, OWORD PTR [rax+224]
 L_AES_CBC_decrypt_vaes_128_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vaesdeclast	ymm1, ymm1, ymm9
@@ -2669,76 +2719,76 @@ L_AES_CBC_decrypt_vaes_128_aes_dec_block_last:
         vpxor	ymm1, ymm1, ymm11
         vpxor	ymm2, ymm2, ymm12
         vpxor	ymm3, ymm3, ymm13
-        vmovdqu	YMMWORD PTR [r12], ymm0
-        vmovdqu	YMMWORD PTR [r12+32], ymm1
-        vmovdqu	YMMWORD PTR [r12+64], ymm2
-        vmovdqu	YMMWORD PTR [r12+96], ymm3
-        add	eax, 128
-        cmp	eax, r10d
+        vmovdqu	YMMWORD PTR [r14], ymm0
+        vmovdqu	YMMWORD PTR [r14+32], ymm1
+        vmovdqu	YMMWORD PTR [r14+64], ymm2
+        vmovdqu	YMMWORD PTR [r14+96], ymm3
+        add	r11d, 128
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_vaes_dec_128
 L_AES_CBC_decrypt_vaes_done_128:
-        mov	r10d, r9d
-        and	r10d, 4294967264
-        cmp	eax, r10d
+        mov	r12d, r9d
+        and	r12d, 4294967264
+        cmp	r11d, r12d
         je	L_AES_CBC_decrypt_vaes_done_32
 L_AES_CBC_decrypt_vaes_dec_32:
         ; 32 bytes of input
         ; aes_cbc_dec_32
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	r12, QWORD PTR [rdx+rax]
-        vmovdqu	ymm0, YMMWORD PTR [r11]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
+        vmovdqu	ymm0, YMMWORD PTR [r13]
         vinserti128	ymm10, ymm8, xmm0, 1
         vextracti128	xmm8, ymm0, 1
         ; aes_dec_block
-        vbroadcasti128	ymm9, [rax]
+        vbroadcasti128	ymm9, OWORD PTR [rax]
         vpxor	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+16]
+        vbroadcasti128	ymm9, OWORD PTR [rax+16]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+32]
+        vbroadcasti128	ymm9, OWORD PTR [rax+32]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+48]
+        vbroadcasti128	ymm9, OWORD PTR [rax+48]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+64]
+        vbroadcasti128	ymm9, OWORD PTR [rax+64]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+80]
+        vbroadcasti128	ymm9, OWORD PTR [rax+80]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+96]
+        vbroadcasti128	ymm9, OWORD PTR [rax+96]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+112]
+        vbroadcasti128	ymm9, OWORD PTR [rax+112]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+128]
+        vbroadcasti128	ymm9, OWORD PTR [rax+128]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+144]
+        vbroadcasti128	ymm9, OWORD PTR [rax+144]
         vaesdec	ymm0, ymm0, ymm9
         cmp	r10d, 11
-        vbroadcasti128	ymm9, [rax+160]
+        vbroadcasti128	ymm9, OWORD PTR [rax+160]
         jl	L_AES_CBC_decrypt_vaes_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+176]
+        vbroadcasti128	ymm9, OWORD PTR [rax+176]
         vaesdec	ymm0, ymm0, ymm9
         cmp	r10d, 13
-        vbroadcasti128	ymm9, [rax+192]
+        vbroadcasti128	ymm9, OWORD PTR [rax+192]
         jl	L_AES_CBC_decrypt_vaes_32_aes_dec_block_last
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+208]
+        vbroadcasti128	ymm9, OWORD PTR [rax+208]
         vaesdec	ymm0, ymm0, ymm9
-        vbroadcasti128	ymm9, [rax+224]
+        vbroadcasti128	ymm9, OWORD PTR [rax+224]
 L_AES_CBC_decrypt_vaes_32_aes_dec_block_last:
         vaesdeclast	ymm0, ymm0, ymm9
         vpxor	ymm0, ymm0, ymm10
-        vmovdqu	YMMWORD PTR [r12], ymm0
-        add	eax, 32
-        cmp	eax, r10d
+        vmovdqu	YMMWORD PTR [r14], ymm0
+        add	r11d, 32
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_vaes_dec_32
 L_AES_CBC_decrypt_vaes_done_32:
-        cmp	eax, r9d
-        mov	r10d, r9d
+        cmp	r11d, r9d
+        mov	r12d, r9d
         je	L_AES_CBC_decrypt_vaes_done_dec
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CBC_decrypt_vaes_dec_16:
         ; 16 bytes of input
-        lea	r11, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r11]
+        lea	r13, QWORD PTR [rcx+r11]
+        vmovdqu	xmm0, OWORD PTR [r13]
         vmovdqa	xmm7, xmm0
         ; aes_dec_block
         vpxor	xmm0, xmm0, [rax]
@@ -2777,10 +2827,10 @@ L_AES_CBC_decrypt_vaes_16_aes_dec_block_last:
         vaesdeclast	xmm0, xmm0, xmm5
         vpxor	xmm0, xmm0, xmm8
         vmovdqa	xmm8, xmm7
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_vaes_dec_16
 L_AES_CBC_decrypt_vaes_done_dec:
         vmovdqu	OWORD PTR [r8], xmm8
@@ -2793,43 +2843,45 @@ L_AES_CBC_decrypt_vaes_done_dec:
         vmovdqu	xmm12, OWORD PTR [rsp+96]
         vmovdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
+        pop	r14
+        pop	r13
         pop	r12
         ret
 AES_CBC_decrypt_vaes ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_bswap_vaes QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_ctr_bswap_vaes QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_ctr_bswap_vaes QWORD L_aes_ctr_bswap_vaes
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_inc_vaes QWORD \
-     0000000000000000h,  0000000000000000h,
-     0000000000000001h,  0000000000000000h,
-     0000000000000002h,  0000000000000000h,
-     0000000000000003h,  0000000000000000h,
-     0000000000000004h,  0000000000000000h,
-     0000000000000005h,  0000000000000000h,
-     0000000000000006h,  0000000000000000h,
-     0000000000000007h,  0000000000000000h,
-     0000000000000008h,  0000000000000000h,
-     0000000000000009h,  0000000000000000h,
-     000000000000000ah,  0000000000000000h,
-     000000000000000bh,  0000000000000000h,
-     000000000000000ch,  0000000000000000h,
-     000000000000000dh,  0000000000000000h,
-     000000000000000eh,  0000000000000000h,
-     000000000000000fh,  0000000000000000h,
-     0000000000000010h,  0000000000000000h
+L_aes_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000001h, 0000000000000000h
+        QWORD 0000000000000002h, 0000000000000000h
+        QWORD 0000000000000003h, 0000000000000000h
+        QWORD 0000000000000004h, 0000000000000000h
+        QWORD 0000000000000005h, 0000000000000000h
+        QWORD 0000000000000006h, 0000000000000000h
+        QWORD 0000000000000007h, 0000000000000000h
+        QWORD 0000000000000008h, 0000000000000000h
+        QWORD 0000000000000009h, 0000000000000000h
+        QWORD 000000000000000ah, 0000000000000000h
+        QWORD 000000000000000bh, 0000000000000000h
+        QWORD 000000000000000ch, 0000000000000000h
+        QWORD 000000000000000dh, 0000000000000000h
+        QWORD 000000000000000eh, 0000000000000000h
+        QWORD 000000000000000fh, 0000000000000000h
+        QWORD 0000000000000010h, 0000000000000000h
 ptr_L_aes_ctr_inc_vaes QWORD L_aes_ctr_inc_vaes
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CTR_encrypt_vaes PROC
-        push	rbx
-        mov	eax, DWORD PTR [rsp+48]
-        mov	r10, QWORD PTR [rsp+56]
+        push	r12
+        push	r13
+        push	r14
+        mov	eax, DWORD PTR [rsp+64]
+        mov	r10, QWORD PTR [rsp+72]
         sub	rsp, 144
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -2841,16 +2893,16 @@ AES_CTR_encrypt_vaes PROC
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vbroadcasti128	ymm8, ptr_L_aes_ctr_bswap_vaes
-        vbroadcasti128	ymm7, [r10]
+        vbroadcasti128	ymm7, OWORD PTR [r10]
         vpshufb	ymm7, ymm7, ymm8
-        vbroadcasti128	ymm10, [ptr_L_aes_ctr_inc_vaes+128]
-        vbroadcasti128	ymm11, [ptr_L_aes_ctr_inc_vaes+32]
-        vbroadcasti128	ymm12, [ptr_L_aes_ctr_inc_vaes+16]
-        xor	eax, eax
+        vbroadcasti128	ymm10, OWORD PTR [ptr_L_aes_ctr_inc_vaes+128]
+        vbroadcasti128	ymm11, OWORD PTR [ptr_L_aes_ctr_inc_vaes+32]
+        vbroadcasti128	ymm12, OWORD PTR [ptr_L_aes_ctr_inc_vaes+16]
+        xor	r11d, r11d
         cmp	r8d, 128
-        mov	r10d, r8d
+        mov	r12d, r8d
         jl	L_AES_CTR_encrypt_vaes_done_128
-        and	r10d, 4294967168
+        and	r12d, 4294967168
         vmovdqa	ymm9, ymm7
         vpaddq	ymm4, ymm7, [ptr_L_aes_ctr_inc_vaes]
         vpand	ymm14, ymm9, [ptr_L_aes_ctr_inc_vaes]
@@ -2889,8 +2941,8 @@ AES_CTR_encrypt_vaes PROC
         vpaddq	ymm7, ymm7, ymm9
 L_AES_CTR_encrypt_vaes_enc_128:
         ; 128 bytes of input
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	rbx, QWORD PTR [rdx+rax]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
         vpshufb	ymm0, ymm4, ymm8
         vpshufb	ymm1, ymm5, ymm8
         vpshufb	ymm2, ymm6, ymm8
@@ -2932,108 +2984,108 @@ L_AES_CTR_encrypt_vaes_enc_128:
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm7, ymm7, ymm9
         ; aes_enc_block
-        vbroadcasti128	ymm13, [r9]
+        vbroadcasti128	ymm13, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm13
         vpxor	ymm1, ymm1, ymm13
         vpxor	ymm2, ymm2, ymm13
         vpxor	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+16]
+        vbroadcasti128	ymm13, OWORD PTR [r9+16]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+32]
+        vbroadcasti128	ymm13, OWORD PTR [r9+32]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+48]
+        vbroadcasti128	ymm13, OWORD PTR [r9+48]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+64]
+        vbroadcasti128	ymm13, OWORD PTR [r9+64]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+80]
+        vbroadcasti128	ymm13, OWORD PTR [r9+80]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+96]
+        vbroadcasti128	ymm13, OWORD PTR [r9+96]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+112]
+        vbroadcasti128	ymm13, OWORD PTR [r9+112]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+128]
+        vbroadcasti128	ymm13, OWORD PTR [r9+128]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+144]
+        vbroadcasti128	ymm13, OWORD PTR [r9+144]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
         cmp	eax, 11
-        vbroadcasti128	ymm13, [r9+160]
+        vbroadcasti128	ymm13, OWORD PTR [r9+160]
         jl	L_AES_CTR_encrypt_vaes_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+176]
+        vbroadcasti128	ymm13, OWORD PTR [r9+176]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
         cmp	eax, 13
-        vbroadcasti128	ymm13, [r9+192]
+        vbroadcasti128	ymm13, OWORD PTR [r9+192]
         jl	L_AES_CTR_encrypt_vaes_128_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+208]
+        vbroadcasti128	ymm13, OWORD PTR [r9+208]
         vaesenc	ymm0, ymm0, ymm13
         vaesenc	ymm1, ymm1, ymm13
         vaesenc	ymm2, ymm2, ymm13
         vaesenc	ymm3, ymm3, ymm13
-        vbroadcasti128	ymm13, [r9+224]
+        vbroadcasti128	ymm13, OWORD PTR [r9+224]
 L_AES_CTR_encrypt_vaes_128_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm13
         vaesenclast	ymm1, ymm1, ymm13
         vaesenclast	ymm2, ymm2, ymm13
         vaesenclast	ymm3, ymm3, ymm13
-        vpxor	ymm0, ymm0, [r11]
-        vpxor	ymm1, ymm1, [r11+32]
-        vpxor	ymm2, ymm2, [r11+64]
-        vpxor	ymm3, ymm3, [r11+96]
-        vmovdqu	YMMWORD PTR [rbx], ymm0
-        vmovdqu	YMMWORD PTR [rbx+32], ymm1
-        vmovdqu	YMMWORD PTR [rbx+64], ymm2
-        vmovdqu	YMMWORD PTR [rbx+96], ymm3
-        add	eax, 128
-        cmp	eax, r10d
+        vpxor	ymm0, ymm0, [r13]
+        vpxor	ymm1, ymm1, [r13+32]
+        vpxor	ymm2, ymm2, [r13+64]
+        vpxor	ymm3, ymm3, [r13+96]
+        vmovdqu	YMMWORD PTR [r14], ymm0
+        vmovdqu	YMMWORD PTR [r14+32], ymm1
+        vmovdqu	YMMWORD PTR [r14+64], ymm2
+        vmovdqu	YMMWORD PTR [r14+96], ymm3
+        add	r11d, 128
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_vaes_enc_128
         vperm2i128	ymm7, ymm4, ymm4, 0
 L_AES_CTR_encrypt_vaes_done_128:
-        mov	r10d, r8d
-        and	r10d, 4294967264
-        cmp	eax, r10d
+        mov	r12d, r8d
+        and	r12d, 4294967264
+        cmp	r11d, r12d
         je	L_AES_CTR_encrypt_vaes_done_32
 L_AES_CTR_encrypt_vaes_enc_32:
         ; 32 bytes of input
         ; aes_ctr_enc_32
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	rbx, QWORD PTR [rdx+rax]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
         vpaddq	ymm0, ymm7, [ptr_L_aes_ctr_inc_vaes]
         vmovdqa	ymm9, ymm7
         vpand	ymm14, ymm9, [ptr_L_aes_ctr_inc_vaes]
@@ -3054,51 +3106,51 @@ L_AES_CTR_encrypt_vaes_enc_32:
         vpslldq	ymm9, ymm9, 8
         vpaddq	ymm7, ymm7, ymm9
         ; aes_enc_block
-        vbroadcasti128	ymm13, [r9]
+        vbroadcasti128	ymm13, OWORD PTR [r9]
         vpxor	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+16]
+        vbroadcasti128	ymm13, OWORD PTR [r9+16]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+32]
+        vbroadcasti128	ymm13, OWORD PTR [r9+32]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+48]
+        vbroadcasti128	ymm13, OWORD PTR [r9+48]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+64]
+        vbroadcasti128	ymm13, OWORD PTR [r9+64]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+80]
+        vbroadcasti128	ymm13, OWORD PTR [r9+80]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+96]
+        vbroadcasti128	ymm13, OWORD PTR [r9+96]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+112]
+        vbroadcasti128	ymm13, OWORD PTR [r9+112]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+128]
+        vbroadcasti128	ymm13, OWORD PTR [r9+128]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+144]
+        vbroadcasti128	ymm13, OWORD PTR [r9+144]
         vaesenc	ymm0, ymm0, ymm13
         cmp	eax, 11
-        vbroadcasti128	ymm13, [r9+160]
+        vbroadcasti128	ymm13, OWORD PTR [r9+160]
         jl	L_AES_CTR_encrypt_vaes_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+176]
+        vbroadcasti128	ymm13, OWORD PTR [r9+176]
         vaesenc	ymm0, ymm0, ymm13
         cmp	eax, 13
-        vbroadcasti128	ymm13, [r9+192]
+        vbroadcasti128	ymm13, OWORD PTR [r9+192]
         jl	L_AES_CTR_encrypt_vaes_32_aes_enc_block_last
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+208]
+        vbroadcasti128	ymm13, OWORD PTR [r9+208]
         vaesenc	ymm0, ymm0, ymm13
-        vbroadcasti128	ymm13, [r9+224]
+        vbroadcasti128	ymm13, OWORD PTR [r9+224]
 L_AES_CTR_encrypt_vaes_32_aes_enc_block_last:
         vaesenclast	ymm0, ymm0, ymm13
-        vpxor	ymm0, ymm0, [r11]
-        vmovdqu	YMMWORD PTR [rbx], ymm0
-        add	eax, 32
-        cmp	eax, r10d
+        vpxor	ymm0, ymm0, [r13]
+        vmovdqu	YMMWORD PTR [r14], ymm0
+        add	r11d, 32
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_vaes_enc_32
 L_AES_CTR_encrypt_vaes_done_32:
-        cmp	eax, r8d
-        mov	r10d, r8d
+        cmp	r11d, r8d
+        mov	r12d, r8d
         je	L_AES_CTR_encrypt_vaes_done_enc
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CTR_encrypt_vaes_enc_16:
         ; 16 bytes of input
         vpshufb	xmm0, xmm7, xmm8
@@ -3146,12 +3198,12 @@ L_AES_CTR_encrypt_vaes_enc_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_CTR_encrypt_vaes_16_aes_enc_block_last:
         vaesenclast	xmm0, xmm0, xmm5
-        lea	r11, QWORD PTR [rcx+rax]
-        vpxor	xmm0, xmm0, [r11]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rcx+r11]
+        vpxor	xmm0, xmm0, [r13]
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_vaes_enc_16
 L_AES_CTR_encrypt_vaes_done_enc:
         vpshufb	xmm0, xmm7, xmm8
@@ -3166,7 +3218,9 @@ L_AES_CTR_encrypt_vaes_done_enc:
         vmovdqu	xmm13, OWORD PTR [rsp+112]
         vmovdqu	xmm14, OWORD PTR [rsp+128]
         add	rsp, 144
-        pop	rbx
+        pop	r14
+        pop	r13
+        pop	r12
         ret
 AES_CTR_encrypt_vaes ENDP
 _TEXT ENDS
@@ -3174,7 +3228,9 @@ ENDIF
 IFDEF HAVE_INTEL_AVX512
 _TEXT SEGMENT READONLY PARA
 AES_ECB_encrypt_avx512 PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -3186,42 +3242,42 @@ AES_ECB_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 64
         jl	L_AES_ECB_encrypt_avx512_done_64
-        vbroadcasti32x4	zmm8, [r9]
-        vbroadcasti32x4	zmm9, [r9+16]
-        vbroadcasti32x4	zmm10, [r9+32]
-        vbroadcasti32x4	zmm11, [r9+48]
-        vbroadcasti32x4	zmm12, [r9+64]
-        vbroadcasti32x4	zmm13, [r9+80]
-        vbroadcasti32x4	zmm14, [r9+96]
-        vbroadcasti32x4	zmm15, [r9+112]
-        vbroadcasti32x4	zmm16, [r9+128]
-        vbroadcasti32x4	zmm17, [r9+144]
-        vbroadcasti32x4	zmm18, [r9+160]
+        vbroadcasti32x4	zmm8, OWORD PTR [r9]
+        vbroadcasti32x4	zmm9, OWORD PTR [r9+16]
+        vbroadcasti32x4	zmm10, OWORD PTR [r9+32]
+        vbroadcasti32x4	zmm11, OWORD PTR [r9+48]
+        vbroadcasti32x4	zmm12, OWORD PTR [r9+64]
+        vbroadcasti32x4	zmm13, OWORD PTR [r9+80]
+        vbroadcasti32x4	zmm14, OWORD PTR [r9+96]
+        vbroadcasti32x4	zmm15, OWORD PTR [r9+112]
+        vbroadcasti32x4	zmm16, OWORD PTR [r9+128]
+        vbroadcasti32x4	zmm17, OWORD PTR [r9+144]
+        vbroadcasti32x4	zmm18, OWORD PTR [r9+160]
         cmp	eax, 11
         jl	L_AES_ECB_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm19, [r9+176]
-        vbroadcasti32x4	zmm20, [r9+192]
+        vbroadcasti32x4	zmm19, OWORD PTR [r9+176]
+        vbroadcasti32x4	zmm20, OWORD PTR [r9+192]
         cmp	eax, 13
         jl	L_AES_ECB_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm21, [r9+208]
-        vbroadcasti32x4	zmm22, [r9+224]
+        vbroadcasti32x4	zmm21, OWORD PTR [r9+208]
+        vbroadcasti32x4	zmm22, OWORD PTR [r9+224]
 L_AES_ECB_encrypt_avx512_key_cached:
         cmp	r8d, 256
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_encrypt_avx512_done_256
-        and	r9d, 4294967040
+        and	r11d, 4294967040
 L_AES_ECB_encrypt_avx512_enc_256:
         ; 256 bytes of input
         ; aes_ecb_enc_256
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu64	zmm0, [r10]
-        vmovdqu64	zmm1, [r10+64]
-        vmovdqu64	zmm2, [r10+128]
-        vmovdqu64	zmm3, [r10+192]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu64	zmm0, [r12]
+        vmovdqu64	zmm1, [r12+64]
+        vmovdqu64	zmm2, [r12+128]
+        vmovdqu64	zmm3, [r12+192]
         ; aes_enc_block
         vpxorq	zmm0, zmm0, zmm8
         vpxorq	zmm1, zmm1, zmm8
@@ -3291,24 +3347,24 @@ L_AES_ECB_encrypt_avx512_256_aes_enc_block_last:
         vaesenclast	zmm1, zmm1, zmm7
         vaesenclast	zmm2, zmm2, zmm7
         vaesenclast	zmm3, zmm3, zmm7
-        vmovdqu64	[r11], zmm0
-        vmovdqu64	[r11+64], zmm1
-        vmovdqu64	[r11+128], zmm2
-        vmovdqu64	[r11+192], zmm3
-        add	eax, 256
-        cmp	eax, r9d
+        vmovdqu64	[r13], zmm0
+        vmovdqu64	[r13+64], zmm1
+        vmovdqu64	[r13+128], zmm2
+        vmovdqu64	[r13+192], zmm3
+        add	r10d, 256
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_avx512_enc_256
 L_AES_ECB_encrypt_avx512_done_256:
-        mov	r9d, r8d
-        and	r9d, 4294967232
-        cmp	eax, r9d
+        mov	r11d, r8d
+        and	r11d, 4294967232
+        cmp	r10d, r11d
         je	L_AES_ECB_encrypt_avx512_done_64
 L_AES_ECB_encrypt_avx512_enc_64:
         ; 64 bytes of input
         ; aes_ecb_enc_64
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu64	zmm0, [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu64	zmm0, [r12]
         ; aes_enc_block
         vpxorq	zmm0, zmm0, zmm8
         vaesenc	zmm0, zmm0, zmm9
@@ -3333,19 +3389,19 @@ L_AES_ECB_encrypt_avx512_enc_64:
         vmovdqa64	zmm7, zmm22
 L_AES_ECB_encrypt_avx512_64_aes_enc_block_last:
         vaesenclast	zmm0, zmm0, zmm7
-        vmovdqu64	[r11], zmm0
-        add	eax, 64
-        cmp	eax, r9d
+        vmovdqu64	[r13], zmm0
+        add	r10d, 64
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_avx512_enc_64
 L_AES_ECB_encrypt_avx512_done_64:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_encrypt_avx512_done_enc
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_encrypt_avx512_enc_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
         ; aes_enc_block
         vpxor	xmm0, xmm0, [r9]
         vmovdqu	xmm5, OWORD PTR [r9+16]
@@ -3381,10 +3437,10 @@ L_AES_ECB_encrypt_avx512_enc_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_encrypt_avx512_16_aes_enc_block_last:
         vaesenclast	xmm0, xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        vmovdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_encrypt_avx512_enc_16
 L_AES_ECB_encrypt_avx512_done_enc:
         vmovdqu	xmm6, OWORD PTR [rsp]
@@ -3398,12 +3454,16 @@ L_AES_ECB_encrypt_avx512_done_enc:
         vmovdqu	xmm14, OWORD PTR [rsp+128]
         vmovdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
+        pop	r13
+        pop	r12
         ret
 AES_ECB_encrypt_avx512 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_ECB_decrypt_avx512 PROC
-        mov	eax, DWORD PTR [rsp+40]
+        push	r12
+        push	r13
+        mov	eax, DWORD PTR [rsp+56]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -3415,42 +3475,42 @@ AES_ECB_decrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+112], xmm13
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
-        xor	eax, eax
+        xor	r10d, r10d
         cmp	r8d, 64
         jl	L_AES_ECB_decrypt_avx512_done_64
-        vbroadcasti32x4	zmm8, [r9]
-        vbroadcasti32x4	zmm9, [r9+16]
-        vbroadcasti32x4	zmm10, [r9+32]
-        vbroadcasti32x4	zmm11, [r9+48]
-        vbroadcasti32x4	zmm12, [r9+64]
-        vbroadcasti32x4	zmm13, [r9+80]
-        vbroadcasti32x4	zmm14, [r9+96]
-        vbroadcasti32x4	zmm15, [r9+112]
-        vbroadcasti32x4	zmm16, [r9+128]
-        vbroadcasti32x4	zmm17, [r9+144]
-        vbroadcasti32x4	zmm18, [r9+160]
+        vbroadcasti32x4	zmm8, OWORD PTR [r9]
+        vbroadcasti32x4	zmm9, OWORD PTR [r9+16]
+        vbroadcasti32x4	zmm10, OWORD PTR [r9+32]
+        vbroadcasti32x4	zmm11, OWORD PTR [r9+48]
+        vbroadcasti32x4	zmm12, OWORD PTR [r9+64]
+        vbroadcasti32x4	zmm13, OWORD PTR [r9+80]
+        vbroadcasti32x4	zmm14, OWORD PTR [r9+96]
+        vbroadcasti32x4	zmm15, OWORD PTR [r9+112]
+        vbroadcasti32x4	zmm16, OWORD PTR [r9+128]
+        vbroadcasti32x4	zmm17, OWORD PTR [r9+144]
+        vbroadcasti32x4	zmm18, OWORD PTR [r9+160]
         cmp	eax, 11
         jl	L_AES_ECB_decrypt_avx512_key_cached
-        vbroadcasti32x4	zmm19, [r9+176]
-        vbroadcasti32x4	zmm20, [r9+192]
+        vbroadcasti32x4	zmm19, OWORD PTR [r9+176]
+        vbroadcasti32x4	zmm20, OWORD PTR [r9+192]
         cmp	eax, 13
         jl	L_AES_ECB_decrypt_avx512_key_cached
-        vbroadcasti32x4	zmm21, [r9+208]
-        vbroadcasti32x4	zmm22, [r9+224]
+        vbroadcasti32x4	zmm21, OWORD PTR [r9+208]
+        vbroadcasti32x4	zmm22, OWORD PTR [r9+224]
 L_AES_ECB_decrypt_avx512_key_cached:
         cmp	r8d, 256
-        mov	r9d, r8d
+        mov	r11d, r8d
         jl	L_AES_ECB_decrypt_avx512_done_256
-        and	r9d, 4294967040
+        and	r11d, 4294967040
 L_AES_ECB_decrypt_avx512_dec_256:
         ; 256 bytes of input
         ; aes_ecb_dec_256
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu64	zmm0, [r10]
-        vmovdqu64	zmm1, [r10+64]
-        vmovdqu64	zmm2, [r10+128]
-        vmovdqu64	zmm3, [r10+192]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu64	zmm0, [r12]
+        vmovdqu64	zmm1, [r12+64]
+        vmovdqu64	zmm2, [r12+128]
+        vmovdqu64	zmm3, [r12+192]
         ; aes_dec_block
         vpxorq	zmm0, zmm0, zmm8
         vpxorq	zmm1, zmm1, zmm8
@@ -3520,24 +3580,24 @@ L_AES_ECB_decrypt_avx512_256_aes_dec_block_last:
         vaesdeclast	zmm1, zmm1, zmm7
         vaesdeclast	zmm2, zmm2, zmm7
         vaesdeclast	zmm3, zmm3, zmm7
-        vmovdqu64	[r11], zmm0
-        vmovdqu64	[r11+64], zmm1
-        vmovdqu64	[r11+128], zmm2
-        vmovdqu64	[r11+192], zmm3
-        add	eax, 256
-        cmp	eax, r9d
+        vmovdqu64	[r13], zmm0
+        vmovdqu64	[r13+64], zmm1
+        vmovdqu64	[r13+128], zmm2
+        vmovdqu64	[r13+192], zmm3
+        add	r10d, 256
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_avx512_dec_256
 L_AES_ECB_decrypt_avx512_done_256:
-        mov	r9d, r8d
-        and	r9d, 4294967232
-        cmp	eax, r9d
+        mov	r11d, r8d
+        and	r11d, 4294967232
+        cmp	r10d, r11d
         je	L_AES_ECB_decrypt_avx512_done_64
 L_AES_ECB_decrypt_avx512_dec_64:
         ; 64 bytes of input
         ; aes_ecb_dec_64
-        lea	r10, QWORD PTR [rcx+rax]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu64	zmm0, [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        lea	r13, QWORD PTR [rdx+r10]
+        vmovdqu64	zmm0, [r12]
         ; aes_dec_block
         vpxorq	zmm0, zmm0, zmm8
         vaesdec	zmm0, zmm0, zmm9
@@ -3562,19 +3622,19 @@ L_AES_ECB_decrypt_avx512_dec_64:
         vmovdqa64	zmm7, zmm22
 L_AES_ECB_decrypt_avx512_64_aes_dec_block_last:
         vaesdeclast	zmm0, zmm0, zmm7
-        vmovdqu64	[r11], zmm0
-        add	eax, 64
-        cmp	eax, r9d
+        vmovdqu64	[r13], zmm0
+        add	r10d, 64
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_avx512_dec_64
 L_AES_ECB_decrypt_avx512_done_64:
-        cmp	eax, r8d
-        mov	r9d, r8d
+        cmp	r10d, r8d
+        mov	r11d, r8d
         je	L_AES_ECB_decrypt_avx512_done_dec
-        and	r9d, 4294967280
+        and	r11d, 4294967280
 L_AES_ECB_decrypt_avx512_dec_16:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r10]
+        vmovdqu	xmm0, OWORD PTR [r12]
         ; aes_dec_block
         vpxor	xmm0, xmm0, [r9]
         vmovdqu	xmm5, OWORD PTR [r9+16]
@@ -3610,10 +3670,10 @@ L_AES_ECB_decrypt_avx512_dec_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_ECB_decrypt_avx512_16_aes_dec_block_last:
         vaesdeclast	xmm0, xmm0, xmm5
-        lea	r10, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r10], xmm0
-        add	eax, 16
-        cmp	eax, r9d
+        lea	r12, QWORD PTR [rdx+r10]
+        vmovdqu	OWORD PTR [r12], xmm0
+        add	r10d, 16
+        cmp	r10d, r11d
         jl	L_AES_ECB_decrypt_avx512_dec_16
 L_AES_ECB_decrypt_avx512_done_dec:
         vmovdqu	xmm6, OWORD PTR [rsp]
@@ -3627,21 +3687,25 @@ L_AES_ECB_decrypt_avx512_done_dec:
         vmovdqu	xmm14, OWORD PTR [rsp+128]
         vmovdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
+        pop	r13
+        pop	r12
         ret
 AES_ECB_decrypt_avx512 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_encrypt_avx512 PROC
-        mov	rax, QWORD PTR [rsp+40]
-        mov	r10d, DWORD PTR [rsp+48]
+        push	r12
+        push	r13
+        mov	rax, QWORD PTR [rsp+56]
+        mov	r10d, DWORD PTR [rsp+64]
         vmovdqu	xmm0, OWORD PTR [r8]
-        xor	eax, eax
-        cmp	eax, r9d
+        xor	r11d, r11d
+        cmp	r11d, r9d
         je	L_AES_CBC_encrypt_avx512_done
 L_AES_CBC_encrypt_avx512_loop:
         ; 16 bytes of input
-        lea	r10, QWORD PTR [rcx+rax]
-        vmovdqu	xmm1, OWORD PTR [r10]
+        lea	r12, QWORD PTR [rcx+r11]
+        vmovdqu	xmm1, OWORD PTR [r12]
         vpternlogq	xmm1, xmm0, [rax], 150
         ; aes_enc_block
         vmovdqu	xmm3, OWORD PTR [rax+16]
@@ -3677,22 +3741,26 @@ L_AES_CBC_encrypt_avx512_loop:
         vmovdqu	xmm3, OWORD PTR [rax+224]
 L_AES_CBC_encrypt_avx512_aes_enc_block_last:
         vaesenclast	xmm1, xmm1, xmm3
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm1
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm1
         vmovdqa	xmm0, xmm1
-        add	eax, 16
-        cmp	eax, r9d
+        add	r11d, 16
+        cmp	r11d, r9d
         jl	L_AES_CBC_encrypt_avx512_loop
 L_AES_CBC_encrypt_avx512_done:
         vmovdqu	OWORD PTR [r8], xmm0
+        pop	r13
+        pop	r12
         ret
 AES_CBC_encrypt_avx512 ENDP
 _TEXT ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CBC_decrypt_avx512 PROC
         push	r12
-        mov	rax, QWORD PTR [rsp+48]
-        mov	r10d, DWORD PTR [rsp+56]
+        push	r13
+        push	r14
+        mov	rax, QWORD PTR [rsp+64]
+        mov	r10d, DWORD PTR [rsp+72]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -3705,47 +3773,47 @@ AES_CBC_decrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
         vmovdqu	xmm8, OWORD PTR [r8]
-        xor	eax, eax
+        xor	r11d, r11d
         cmp	r9d, 64
         jl	L_AES_CBC_decrypt_avx512_done_64
-        vbroadcasti32x4	zmm14, [rax]
-        vbroadcasti32x4	zmm15, [rax+16]
-        vbroadcasti32x4	zmm16, [rax+32]
-        vbroadcasti32x4	zmm17, [rax+48]
-        vbroadcasti32x4	zmm18, [rax+64]
-        vbroadcasti32x4	zmm19, [rax+80]
-        vbroadcasti32x4	zmm20, [rax+96]
-        vbroadcasti32x4	zmm21, [rax+112]
-        vbroadcasti32x4	zmm22, [rax+128]
-        vbroadcasti32x4	zmm23, [rax+144]
-        vbroadcasti32x4	zmm24, [rax+160]
+        vbroadcasti32x4	zmm14, OWORD PTR [rax]
+        vbroadcasti32x4	zmm15, OWORD PTR [rax+16]
+        vbroadcasti32x4	zmm16, OWORD PTR [rax+32]
+        vbroadcasti32x4	zmm17, OWORD PTR [rax+48]
+        vbroadcasti32x4	zmm18, OWORD PTR [rax+64]
+        vbroadcasti32x4	zmm19, OWORD PTR [rax+80]
+        vbroadcasti32x4	zmm20, OWORD PTR [rax+96]
+        vbroadcasti32x4	zmm21, OWORD PTR [rax+112]
+        vbroadcasti32x4	zmm22, OWORD PTR [rax+128]
+        vbroadcasti32x4	zmm23, OWORD PTR [rax+144]
+        vbroadcasti32x4	zmm24, OWORD PTR [rax+160]
         cmp	r10d, 11
         jl	L_AES_CBC_decrypt_avx512_key_cached
-        vbroadcasti32x4	zmm25, [rax+176]
-        vbroadcasti32x4	zmm26, [rax+192]
+        vbroadcasti32x4	zmm25, OWORD PTR [rax+176]
+        vbroadcasti32x4	zmm26, OWORD PTR [rax+192]
         cmp	r10d, 13
         jl	L_AES_CBC_decrypt_avx512_key_cached
-        vbroadcasti32x4	zmm27, [rax+208]
-        vbroadcasti32x4	zmm28, [rax+224]
+        vbroadcasti32x4	zmm27, OWORD PTR [rax+208]
+        vbroadcasti32x4	zmm28, OWORD PTR [rax+224]
 L_AES_CBC_decrypt_avx512_key_cached:
         cmp	r9d, 256
-        mov	r10d, r9d
+        mov	r12d, r9d
         jl	L_AES_CBC_decrypt_avx512_done_256
-        and	r10d, 4294967040
+        and	r12d, 4294967040
 L_AES_CBC_decrypt_avx512_dec_256:
         ; 256 bytes of input
         ; aes_cbc_dec_256
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	r12, QWORD PTR [rdx+rax]
-        vmovdqu64	zmm0, [r11]
-        vmovdqu64	zmm1, [r11+64]
-        vmovdqu64	zmm2, [r11+128]
-        vmovdqu64	zmm3, [r11+192]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
+        vmovdqu64	zmm0, [r13]
+        vmovdqu64	zmm1, [r13+64]
+        vmovdqu64	zmm2, [r13+128]
+        vmovdqu64	zmm3, [r13+192]
         vshufi64x2	zmm10, zmm0, zmm0, 144
         vinserti32x4	zmm10, zmm10, xmm8, 0
-        vmovdqu64	zmm11, [r11+48]
-        vmovdqu64	zmm12, [r11+112]
-        vmovdqu64	zmm13, [r11+176]
+        vmovdqu64	zmm11, [r13+48]
+        vmovdqu64	zmm12, [r13+112]
+        vmovdqu64	zmm13, [r13+176]
         vextracti32x4	xmm8, zmm3, 3
         ; aes_dec_block
         vpxorq	zmm0, zmm0, zmm14
@@ -3820,24 +3888,24 @@ L_AES_CBC_decrypt_avx512_256_aes_dec_block_last:
         vpxorq	zmm1, zmm1, zmm11
         vpxorq	zmm2, zmm2, zmm12
         vpxorq	zmm3, zmm3, zmm13
-        vmovdqu64	[r12], zmm0
-        vmovdqu64	[r12+64], zmm1
-        vmovdqu64	[r12+128], zmm2
-        vmovdqu64	[r12+192], zmm3
-        add	eax, 256
-        cmp	eax, r10d
+        vmovdqu64	[r14], zmm0
+        vmovdqu64	[r14+64], zmm1
+        vmovdqu64	[r14+128], zmm2
+        vmovdqu64	[r14+192], zmm3
+        add	r11d, 256
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_avx512_dec_256
 L_AES_CBC_decrypt_avx512_done_256:
-        mov	r10d, r9d
-        and	r10d, 4294967232
-        cmp	eax, r10d
+        mov	r12d, r9d
+        and	r12d, 4294967232
+        cmp	r11d, r12d
         je	L_AES_CBC_decrypt_avx512_done_64
 L_AES_CBC_decrypt_avx512_dec_64:
         ; 64 bytes of input
         ; aes_cbc_dec_64
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	r12, QWORD PTR [rdx+rax]
-        vmovdqu64	zmm0, [r11]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
+        vmovdqu64	zmm0, [r13]
         vshufi64x2	zmm10, zmm0, zmm0, 144
         vinserti32x4	zmm10, zmm10, xmm8, 0
         vextracti32x4	xmm8, zmm0, 3
@@ -3866,19 +3934,19 @@ L_AES_CBC_decrypt_avx512_dec_64:
 L_AES_CBC_decrypt_avx512_64_aes_dec_block_last:
         vaesdeclast	zmm0, zmm0, zmm9
         vpxorq	zmm0, zmm0, zmm10
-        vmovdqu64	[r12], zmm0
-        add	eax, 64
-        cmp	eax, r10d
+        vmovdqu64	[r14], zmm0
+        add	r11d, 64
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_avx512_dec_64
 L_AES_CBC_decrypt_avx512_done_64:
-        cmp	eax, r9d
-        mov	r10d, r9d
+        cmp	r11d, r9d
+        mov	r12d, r9d
         je	L_AES_CBC_decrypt_avx512_done_dec
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CBC_decrypt_avx512_dec_16:
         ; 16 bytes of input
-        lea	r11, QWORD PTR [rcx+rax]
-        vmovdqu	xmm0, OWORD PTR [r11]
+        lea	r13, QWORD PTR [rcx+r11]
+        vmovdqu	xmm0, OWORD PTR [r13]
         vmovdqa	xmm7, xmm0
         ; aes_dec_block
         vpxor	xmm0, xmm0, [rax]
@@ -3917,10 +3985,10 @@ L_AES_CBC_decrypt_avx512_16_aes_dec_block_last:
         vaesdeclast	xmm0, xmm0, xmm5
         vpxor	xmm0, xmm0, xmm8
         vmovdqa	xmm8, xmm7
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CBC_decrypt_avx512_dec_16
 L_AES_CBC_decrypt_avx512_done_dec:
         vmovdqu	OWORD PTR [r8], xmm8
@@ -3935,43 +4003,45 @@ L_AES_CBC_decrypt_avx512_done_dec:
         vmovdqu	xmm14, OWORD PTR [rsp+128]
         vmovdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
+        pop	r14
+        pop	r13
         pop	r12
         ret
 AES_CBC_decrypt_avx512 ENDP
 _TEXT ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_bswap_avx512 QWORD \
-     08090a0b0c0d0e0fh,  0001020304050607h
+L_aes_ctr_bswap_avx512 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_ctr_bswap_avx512 QWORD L_aes_ctr_bswap_avx512
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
-L_aes_ctr_inc_avx512 QWORD \
-     0000000000000000h,  0000000000000000h,
-     0000000000000001h,  0000000000000000h,
-     0000000000000002h,  0000000000000000h,
-     0000000000000003h,  0000000000000000h,
-     0000000000000004h,  0000000000000000h,
-     0000000000000005h,  0000000000000000h,
-     0000000000000006h,  0000000000000000h,
-     0000000000000007h,  0000000000000000h,
-     0000000000000008h,  0000000000000000h,
-     0000000000000009h,  0000000000000000h,
-     000000000000000ah,  0000000000000000h,
-     000000000000000bh,  0000000000000000h,
-     000000000000000ch,  0000000000000000h,
-     000000000000000dh,  0000000000000000h,
-     000000000000000eh,  0000000000000000h,
-     000000000000000fh,  0000000000000000h,
-     0000000000000010h,  0000000000000000h
+L_aes_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
+        QWORD 0000000000000001h, 0000000000000000h
+        QWORD 0000000000000002h, 0000000000000000h
+        QWORD 0000000000000003h, 0000000000000000h
+        QWORD 0000000000000004h, 0000000000000000h
+        QWORD 0000000000000005h, 0000000000000000h
+        QWORD 0000000000000006h, 0000000000000000h
+        QWORD 0000000000000007h, 0000000000000000h
+        QWORD 0000000000000008h, 0000000000000000h
+        QWORD 0000000000000009h, 0000000000000000h
+        QWORD 000000000000000ah, 0000000000000000h
+        QWORD 000000000000000bh, 0000000000000000h
+        QWORD 000000000000000ch, 0000000000000000h
+        QWORD 000000000000000dh, 0000000000000000h
+        QWORD 000000000000000eh, 0000000000000000h
+        QWORD 000000000000000fh, 0000000000000000h
+        QWORD 0000000000000010h, 0000000000000000h
 ptr_L_aes_ctr_inc_avx512 QWORD L_aes_ctr_inc_avx512
 _DATA ENDS
 _TEXT SEGMENT READONLY PARA
 AES_CTR_encrypt_avx512 PROC
-        push	rbx
-        mov	eax, DWORD PTR [rsp+48]
-        mov	r10, QWORD PTR [rsp+56]
+        push	r12
+        push	r13
+        push	r14
+        mov	eax, DWORD PTR [rsp+64]
+        mov	r10, QWORD PTR [rsp+72]
         sub	rsp, 160
         vmovdqu	OWORD PTR [rsp], xmm6
         vmovdqu	OWORD PTR [rsp+16], xmm7
@@ -3984,38 +4054,38 @@ AES_CTR_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+128], xmm14
         vmovdqu	OWORD PTR [rsp+144], xmm15
         vbroadcasti32x4	zmm8, ptr_L_aes_ctr_bswap_avx512
-        vbroadcasti32x4	zmm7, [r10]
+        vbroadcasti32x4	zmm7, OWORD PTR [r10]
         vpshufb	zmm7, zmm7, zmm8
-        vbroadcasti32x4	zmm10, [ptr_L_aes_ctr_inc_avx512+256]
-        vbroadcasti32x4	zmm11, [ptr_L_aes_ctr_inc_avx512+64]
-        vbroadcasti32x4	zmm12, [ptr_L_aes_ctr_inc_avx512+16]
-        xor	eax, eax
+        vbroadcasti32x4	zmm10, OWORD PTR [ptr_L_aes_ctr_inc_avx512+256]
+        vbroadcasti32x4	zmm11, OWORD PTR [ptr_L_aes_ctr_inc_avx512+64]
+        vbroadcasti32x4	zmm12, OWORD PTR [ptr_L_aes_ctr_inc_avx512+16]
+        xor	r11d, r11d
         cmp	r8d, 64
         jl	L_AES_CTR_encrypt_avx512_done_64
-        vbroadcasti32x4	zmm14, [r9]
-        vbroadcasti32x4	zmm15, [r9+16]
-        vbroadcasti32x4	zmm16, [r9+32]
-        vbroadcasti32x4	zmm17, [r9+48]
-        vbroadcasti32x4	zmm18, [r9+64]
-        vbroadcasti32x4	zmm19, [r9+80]
-        vbroadcasti32x4	zmm20, [r9+96]
-        vbroadcasti32x4	zmm21, [r9+112]
-        vbroadcasti32x4	zmm22, [r9+128]
-        vbroadcasti32x4	zmm23, [r9+144]
-        vbroadcasti32x4	zmm24, [r9+160]
+        vbroadcasti32x4	zmm14, OWORD PTR [r9]
+        vbroadcasti32x4	zmm15, OWORD PTR [r9+16]
+        vbroadcasti32x4	zmm16, OWORD PTR [r9+32]
+        vbroadcasti32x4	zmm17, OWORD PTR [r9+48]
+        vbroadcasti32x4	zmm18, OWORD PTR [r9+64]
+        vbroadcasti32x4	zmm19, OWORD PTR [r9+80]
+        vbroadcasti32x4	zmm20, OWORD PTR [r9+96]
+        vbroadcasti32x4	zmm21, OWORD PTR [r9+112]
+        vbroadcasti32x4	zmm22, OWORD PTR [r9+128]
+        vbroadcasti32x4	zmm23, OWORD PTR [r9+144]
+        vbroadcasti32x4	zmm24, OWORD PTR [r9+160]
         cmp	eax, 11
         jl	L_AES_CTR_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm25, [r9+176]
-        vbroadcasti32x4	zmm26, [r9+192]
+        vbroadcasti32x4	zmm25, OWORD PTR [r9+176]
+        vbroadcasti32x4	zmm26, OWORD PTR [r9+192]
         cmp	eax, 13
         jl	L_AES_CTR_encrypt_avx512_key_cached
-        vbroadcasti32x4	zmm27, [r9+208]
-        vbroadcasti32x4	zmm28, [r9+224]
+        vbroadcasti32x4	zmm27, OWORD PTR [r9+208]
+        vbroadcasti32x4	zmm28, OWORD PTR [r9+224]
 L_AES_CTR_encrypt_avx512_key_cached:
         cmp	r8d, 256
-        mov	r10d, r8d
+        mov	r12d, r8d
         jl	L_AES_CTR_encrypt_avx512_done_256
-        and	r10d, 4294967040
+        and	r12d, 4294967040
         vmovdqa64	zmm9, zmm7
         vpaddq	zmm4, zmm7, [ptr_L_aes_ctr_inc_avx512]
         vpternlogq	zmm9, zmm4, [ptr_L_aes_ctr_inc_avx512], 178
@@ -4042,8 +4112,8 @@ L_AES_CTR_encrypt_avx512_key_cached:
         vpaddq	zmm7, zmm7, zmm9
 L_AES_CTR_encrypt_avx512_enc_256:
         ; 256 bytes of input
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	rbx, QWORD PTR [rdx+rax]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
         vpshufb	zmm0, zmm4, zmm8
         vpshufb	zmm1, zmm5, zmm8
         vpshufb	zmm2, zmm6, zmm8
@@ -4141,28 +4211,28 @@ L_AES_CTR_encrypt_avx512_256_aes_enc_block_last:
         vaesenclast	zmm1, zmm1, zmm13
         vaesenclast	zmm2, zmm2, zmm13
         vaesenclast	zmm3, zmm3, zmm13
-        vpxorq	zmm0, zmm0, [r11]
-        vpxorq	zmm1, zmm1, [r11+64]
-        vpxorq	zmm2, zmm2, [r11+128]
-        vpxorq	zmm3, zmm3, [r11+192]
-        vmovdqu64	[rbx], zmm0
-        vmovdqu64	[rbx+64], zmm1
-        vmovdqu64	[rbx+128], zmm2
-        vmovdqu64	[rbx+192], zmm3
-        add	eax, 256
-        cmp	eax, r10d
+        vpxorq	zmm0, zmm0, [r13]
+        vpxorq	zmm1, zmm1, [r13+64]
+        vpxorq	zmm2, zmm2, [r13+128]
+        vpxorq	zmm3, zmm3, [r13+192]
+        vmovdqu64	[r14], zmm0
+        vmovdqu64	[r14+64], zmm1
+        vmovdqu64	[r14+128], zmm2
+        vmovdqu64	[r14+192], zmm3
+        add	r11d, 256
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_avx512_enc_256
         vshufi64x2	zmm7, zmm4, zmm4, 0
 L_AES_CTR_encrypt_avx512_done_256:
-        mov	r10d, r8d
-        and	r10d, 4294967232
-        cmp	eax, r10d
+        mov	r12d, r8d
+        and	r12d, 4294967232
+        cmp	r11d, r12d
         je	L_AES_CTR_encrypt_avx512_done_64
 L_AES_CTR_encrypt_avx512_enc_64:
         ; 64 bytes of input
         ; aes_ctr_enc_64
-        lea	r11, QWORD PTR [rcx+rax]
-        lea	rbx, QWORD PTR [rdx+rax]
+        lea	r13, QWORD PTR [rcx+r11]
+        lea	r14, QWORD PTR [rdx+r11]
         vpaddq	zmm0, zmm7, [ptr_L_aes_ctr_inc_avx512]
         vmovdqa64	zmm9, zmm7
         vpternlogq	zmm9, zmm0, [ptr_L_aes_ctr_inc_avx512], 178
@@ -4200,16 +4270,16 @@ L_AES_CTR_encrypt_avx512_enc_64:
         vmovdqa64	zmm13, zmm28
 L_AES_CTR_encrypt_avx512_64_aes_enc_block_last:
         vaesenclast	zmm0, zmm0, zmm13
-        vpxorq	zmm0, zmm0, [r11]
-        vmovdqu64	[rbx], zmm0
-        add	eax, 64
-        cmp	eax, r10d
+        vpxorq	zmm0, zmm0, [r13]
+        vmovdqu64	[r14], zmm0
+        add	r11d, 64
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_avx512_enc_64
 L_AES_CTR_encrypt_avx512_done_64:
-        cmp	eax, r8d
-        mov	r10d, r8d
+        cmp	r11d, r8d
+        mov	r12d, r8d
         je	L_AES_CTR_encrypt_avx512_done_enc
-        and	r10d, 4294967280
+        and	r12d, 4294967280
 L_AES_CTR_encrypt_avx512_enc_16:
         ; 16 bytes of input
         vpshufb	xmm0, xmm7, xmm8
@@ -4254,12 +4324,12 @@ L_AES_CTR_encrypt_avx512_enc_16:
         vmovdqu	xmm5, OWORD PTR [r9+224]
 L_AES_CTR_encrypt_avx512_16_aes_enc_block_last:
         vaesenclast	xmm0, xmm0, xmm5
-        lea	r11, QWORD PTR [rcx+rax]
-        vpxor	xmm0, xmm0, [r11]
-        lea	r11, QWORD PTR [rdx+rax]
-        vmovdqu	OWORD PTR [r11], xmm0
-        add	eax, 16
-        cmp	eax, r10d
+        lea	r13, QWORD PTR [rcx+r11]
+        vpxor	xmm0, xmm0, [r13]
+        lea	r13, QWORD PTR [rdx+r11]
+        vmovdqu	OWORD PTR [r13], xmm0
+        add	r11d, 16
+        cmp	r11d, r12d
         jl	L_AES_CTR_encrypt_avx512_enc_16
 L_AES_CTR_encrypt_avx512_done_enc:
         vpshufb	xmm0, xmm7, xmm8
@@ -4275,7 +4345,9 @@ L_AES_CTR_encrypt_avx512_done_enc:
         vmovdqu	xmm14, OWORD PTR [rsp+128]
         vmovdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
-        pop	rbx
+        pop	r14
+        pop	r13
+        pop	r12
         ret
 AES_CTR_encrypt_avx512 ENDP
 _TEXT ENDS

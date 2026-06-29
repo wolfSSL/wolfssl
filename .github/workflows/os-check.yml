@@ -542,6 +542,12 @@ jobs:
       fail-fast: false
       matrix:
         arch: [ x64, Win32, ARM64 ]
+        asm: [ false ]
+        include:
+          # Intel assembly build (x64 only): assembles the crypto .asm files
+          # and enables the matching USE_INTEL_SPEEDUP code paths.
+          - arch: x64
+            asm: true
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6
     env:
@@ -566,7 +572,7 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{matrix.arch}} /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
+      run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{matrix.arch}} /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:WolfSSLIntelAsm=${{matrix.asm}} ${{env.SOLUTION_FILE_PATH}}
 
     - if: ${{ matrix.arch != 'ARM64' }}
       name: Run Test

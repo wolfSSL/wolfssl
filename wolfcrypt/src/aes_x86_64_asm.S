@@ -1141,7 +1141,7 @@ AES_CTR_encrypt_AESNI:
 .p2align	4
 _AES_CTR_encrypt_AESNI:
 #endif /* __APPLE__ */
-        pushq	%rbx
+        pushq	%r12
         movdqu	L_aes_ctr_aesni_bswap(%rip), %xmm8
         movdqu	L_aes_ctr_aesni_one(%rip), %xmm9
         pxor	%xmm10, %xmm10
@@ -1156,7 +1156,7 @@ L_AES_CTR_encrypt_AESNI_enc_64:
         # 64 bytes of input
         # aes_ctr_enc_64
         leaq	(%rdi,%rax,1), %r11
-        leaq	(%rsi,%rax,1), %rbx
+        leaq	(%rsi,%rax,1), %r12
         movdqa	%xmm7, %xmm0
         pshufb	%xmm8, %xmm0
         paddq	%xmm9, %xmm7
@@ -1278,10 +1278,10 @@ L_AES_CTR_encrypt_AESNI_64_aes_enc_block_last:
         pxor	%xmm4, %xmm2
         movdqu	48(%r11), %xmm4
         pxor	%xmm4, %xmm3
-        movdqu	%xmm0, (%rbx)
-        movdqu	%xmm1, 16(%rbx)
-        movdqu	%xmm2, 32(%rbx)
-        movdqu	%xmm3, 48(%rbx)
+        movdqu	%xmm0, (%r12)
+        movdqu	%xmm1, 16(%r12)
+        movdqu	%xmm2, 32(%r12)
+        movdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
         jl	L_AES_CTR_encrypt_AESNI_enc_64
@@ -1346,7 +1346,7 @@ L_AES_CTR_encrypt_AESNI_16_aes_enc_block_last:
 L_AES_CTR_encrypt_AESNI_done_enc:
         pshufb	%xmm8, %xmm7
         movdqu	%xmm7, (%r9)
-        popq	%rbx
+        popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	AES_CTR_encrypt_AESNI,.-AES_CTR_encrypt_AESNI
@@ -1972,7 +1972,7 @@ AES_CTR_encrypt_avx1:
 .p2align	4
 _AES_CTR_encrypt_avx1:
 #endif /* __APPLE__ */
-        pushq	%rbx
+        pushq	%r12
         vmovdqu	L_aes_ctr_avx1_bswap(%rip), %xmm8
         vmovdqu	L_aes_ctr_avx1_one(%rip), %xmm9
         vpxor	%xmm10, %xmm10, %xmm10
@@ -1987,7 +1987,7 @@ L_AES_CTR_encrypt_avx1_enc_64:
         # 64 bytes of input
         # aes_ctr_enc_64
         leaq	(%rdi,%rax,1), %r11
-        leaq	(%rsi,%rax,1), %rbx
+        leaq	(%rsi,%rax,1), %r12
         vpshufb	%xmm8, %xmm7, %xmm0
         vpaddq	%xmm9, %xmm7, %xmm7
         vpcmpeqq	%xmm10, %xmm7, %xmm11
@@ -2097,10 +2097,10 @@ L_AES_CTR_encrypt_avx1_64_aes_enc_block_last:
         vpxor	16(%r11), %xmm1, %xmm1
         vpxor	32(%r11), %xmm2, %xmm2
         vpxor	48(%r11), %xmm3, %xmm3
-        vmovdqu	%xmm0, (%rbx)
-        vmovdqu	%xmm1, 16(%rbx)
-        vmovdqu	%xmm2, 32(%rbx)
-        vmovdqu	%xmm3, 48(%rbx)
+        vmovdqu	%xmm0, (%r12)
+        vmovdqu	%xmm1, 16(%r12)
+        vmovdqu	%xmm2, 32(%r12)
+        vmovdqu	%xmm3, 48(%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
         jl	L_AES_CTR_encrypt_avx1_enc_64
@@ -2162,7 +2162,7 @@ L_AES_CTR_encrypt_avx1_16_aes_enc_block_last:
 L_AES_CTR_encrypt_avx1_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm7
         vmovdqu	%xmm7, (%r9)
-        popq	%rbx
+        popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	AES_CTR_encrypt_avx1,.-AES_CTR_encrypt_avx1
@@ -2965,7 +2965,7 @@ AES_CTR_encrypt_vaes:
 .p2align	4
 _AES_CTR_encrypt_vaes:
 #endif /* __APPLE__ */
-        pushq	%rbx
+        pushq	%r12
         vbroadcasti128	L_aes_ctr_bswap_vaes(%rip), %ymm8
         vbroadcasti128	(%r9), %ymm7
         vpshufb	%ymm8, %ymm7, %ymm7
@@ -3016,7 +3016,7 @@ _AES_CTR_encrypt_vaes:
 L_AES_CTR_encrypt_vaes_enc_128:
         # 128 bytes of input
         leaq	(%rdi,%rax,1), %r11
-        leaq	(%rsi,%rax,1), %rbx
+        leaq	(%rsi,%rax,1), %r12
         vpshufb	%ymm8, %ymm4, %ymm0
         vpshufb	%ymm8, %ymm5, %ymm1
         vpshufb	%ymm8, %ymm6, %ymm2
@@ -3142,10 +3142,10 @@ L_AES_CTR_encrypt_vaes_128_aes_enc_block_last:
         vpxor	32(%r11), %ymm1, %ymm1
         vpxor	64(%r11), %ymm2, %ymm2
         vpxor	96(%r11), %ymm3, %ymm3
-        vmovdqu	%ymm0, (%rbx)
-        vmovdqu	%ymm1, 32(%rbx)
-        vmovdqu	%ymm2, 64(%rbx)
-        vmovdqu	%ymm3, 96(%rbx)
+        vmovdqu	%ymm0, (%r12)
+        vmovdqu	%ymm1, 32(%r12)
+        vmovdqu	%ymm2, 64(%r12)
+        vmovdqu	%ymm3, 96(%r12)
         addl	$0x80, %eax
         cmpl	%r10d, %eax
         jl	L_AES_CTR_encrypt_vaes_enc_128
@@ -3159,7 +3159,7 @@ L_AES_CTR_encrypt_vaes_enc_32:
         # 32 bytes of input
         # aes_ctr_enc_32
         leaq	(%rdi,%rax,1), %r11
-        leaq	(%rsi,%rax,1), %rbx
+        leaq	(%rsi,%rax,1), %r12
         vpaddq	0+L_aes_ctr_inc_vaes(%rip), %ymm7, %ymm0
         vmovdqa	%ymm7, %ymm9
         vpand	0+L_aes_ctr_inc_vaes(%rip), %ymm9, %ymm14
@@ -3216,7 +3216,7 @@ L_AES_CTR_encrypt_vaes_enc_32:
 L_AES_CTR_encrypt_vaes_32_aes_enc_block_last:
         vaesenclast	%ymm13, %ymm0, %ymm0
         vpxor	(%r11), %ymm0, %ymm0
-        vmovdqu	%ymm0, (%rbx)
+        vmovdqu	%ymm0, (%r12)
         addl	$32, %eax
         cmpl	%r10d, %eax
         jl	L_AES_CTR_encrypt_vaes_enc_32
@@ -3282,7 +3282,7 @@ L_AES_CTR_encrypt_vaes_16_aes_enc_block_last:
 L_AES_CTR_encrypt_vaes_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqu	%xmm0, (%r9)
-        popq	%rbx
+        popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	AES_CTR_encrypt_vaes,.-AES_CTR_encrypt_vaes
@@ -4080,7 +4080,7 @@ AES_CTR_encrypt_avx512:
 .p2align	4
 _AES_CTR_encrypt_avx512:
 #endif /* __APPLE__ */
-        pushq	%rbx
+        pushq	%r12
         vbroadcasti32x4	L_aes_ctr_bswap_avx512(%rip), %zmm8
         vbroadcasti32x4	(%r9), %zmm7
         vpshufb	%zmm8, %zmm7, %zmm7
@@ -4141,7 +4141,7 @@ L_AES_CTR_encrypt_avx512_key_cached:
 L_AES_CTR_encrypt_avx512_enc_256:
         # 256 bytes of input
         leaq	(%rdi,%rax,1), %r11
-        leaq	(%rsi,%rax,1), %rbx
+        leaq	(%rsi,%rax,1), %r12
         vpshufb	%zmm8, %zmm4, %zmm0
         vpshufb	%zmm8, %zmm5, %zmm1
         vpshufb	%zmm8, %zmm6, %zmm2
@@ -4243,10 +4243,10 @@ L_AES_CTR_encrypt_avx512_256_aes_enc_block_last:
         vpxorq	64(%r11), %zmm1, %zmm1
         vpxorq	128(%r11), %zmm2, %zmm2
         vpxorq	192(%r11), %zmm3, %zmm3
-        vmovdqu64	%zmm0, (%rbx)
-        vmovdqu64	%zmm1, 64(%rbx)
-        vmovdqu64	%zmm2, 128(%rbx)
-        vmovdqu64	%zmm3, 192(%rbx)
+        vmovdqu64	%zmm0, (%r12)
+        vmovdqu64	%zmm1, 64(%r12)
+        vmovdqu64	%zmm2, 128(%r12)
+        vmovdqu64	%zmm3, 192(%r12)
         addl	$0x100, %eax
         cmpl	%r10d, %eax
         jl	L_AES_CTR_encrypt_avx512_enc_256
@@ -4260,7 +4260,7 @@ L_AES_CTR_encrypt_avx512_enc_64:
         # 64 bytes of input
         # aes_ctr_enc_64
         leaq	(%rdi,%rax,1), %r11
-        leaq	(%rsi,%rax,1), %rbx
+        leaq	(%rsi,%rax,1), %r12
         vpaddq	0+L_aes_ctr_inc_avx512(%rip), %zmm7, %zmm0
         vmovdqa64	%zmm7, %zmm9
         vpternlogq	$0xb2, 0+L_aes_ctr_inc_avx512(%rip), %zmm0, %zmm9
@@ -4299,7 +4299,7 @@ L_AES_CTR_encrypt_avx512_enc_64:
 L_AES_CTR_encrypt_avx512_64_aes_enc_block_last:
         vaesenclast	%zmm13, %zmm0, %zmm0
         vpxorq	(%r11), %zmm0, %zmm0
-        vmovdqu64	%zmm0, (%rbx)
+        vmovdqu64	%zmm0, (%r12)
         addl	$0x40, %eax
         cmpl	%r10d, %eax
         jl	L_AES_CTR_encrypt_avx512_enc_64
@@ -4362,7 +4362,7 @@ L_AES_CTR_encrypt_avx512_16_aes_enc_block_last:
 L_AES_CTR_encrypt_avx512_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqu	%xmm0, (%r9)
-        popq	%rbx
+        popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	AES_CTR_encrypt_avx512,.-AES_CTR_encrypt_avx512
