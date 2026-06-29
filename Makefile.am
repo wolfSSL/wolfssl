@@ -25,6 +25,18 @@ ignore_files =
 SUBDIRS_OPT =
 DIST_SUBDIRS_OPT =
 
+# Serialize the build when Intel QuickAssist is enabled. Concurrent QAT user
+# processes (the parallel test binaries that `make -j check` launches) exhaust
+# the device's crypto instances and usdm contiguous memory, so the test phase
+# must run serially. With the non-recursive build this disables -j for the
+# whole invocation, which also matches the QAT driver's build guidance.
+if BUILD_INTEL_QA
+.NOTPARALLEL:
+endif
+if BUILD_INTEL_QA_SYNC
+.NOTPARALLEL:
+endif
+
 # allow supplementary or override flags to be passed at make time:
 AM_CPPFLAGS += $(EXTRA_CPPFLAGS)
 AM_CFLAGS += $(EXTRA_CFLAGS)
