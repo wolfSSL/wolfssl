@@ -13266,6 +13266,11 @@ int wolfSSL_EVP_EncodeBlock(unsigned char *out, const unsigned char *in,
     if (inLen < 0)
         return WOLFSSL_FATAL_ERROR;
 
+    /* Reject lengths whose base64 output would overflow a positive int. This
+     * also guards against reads far past the caller's input allocation. */
+    if (inLen > (INT_MAX / 4) * 3)
+        return WOLFSSL_FATAL_ERROR;
+
     if (Base64_Encode_NoNl(in, (word32)inLen, out, &ret) == 0)
         return (int)ret;
     else
