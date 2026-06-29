@@ -452,3 +452,16 @@ DNS.1 = www.example.org
 URI.1 = https://www.wolfssl.com/
 otherName.2 = 2.16.840.1.101.3.6.6;FORMAT:HEX,OCT:D1:38:10:D8:28:AF:2C:10:84:35:15:A1:68:58:28:AF:02:10:86:A2:84:E7:39:C3:EB
 
+# RFC 9174 (Bundle Protocol / DTN) id-on-bundleEID OtherName with an
+# IA5String value, followed by a dNSName. Used by the WOLFSSL_DTN test.
+[bundle_eid_ext]
+basicConstraints = critical, CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid
+keyUsage = critical, digitalSignature
+subjectAltName = @bundle_eid_altname
+
+[bundle_eid_altname]
+otherName.1 = 1.3.6.1.5.5.7.8.11;IA5STRING:dtn://node000/
+DNS.1 = node000.local
+
