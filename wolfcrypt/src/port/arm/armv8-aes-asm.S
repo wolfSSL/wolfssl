@@ -43126,9 +43126,7 @@ L_aes_xts_decrypt_arm64_crypto_done:
 #endif /* WOLFSSL_AES_XTS */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #ifndef WOLFSSL_ARMASM_NO_NEON
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
-    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -43193,8 +43191,7 @@ L_AES_ARM64_NEON_te:
 L_AES_ARM64_NEON_shift_rows_shuffle:
 	.byte	0x0c,0x09,0x06,0x03,0x00,0x0d,0x0a,0x07
 	.byte	0x04,0x01,0x0e,0x0b,0x08,0x05,0x02,0x0f
-#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
-        * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
 .text
@@ -43521,9 +43518,7 @@ L_AES_set_encrypt_key_NEON_end:
 #ifndef __APPLE__
 	.size	AES_set_encrypt_key_NEON,.-AES_set_encrypt_key_NEON
 #endif /* __APPLE__ */
-#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_ECB)
+#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_NEON
@@ -44302,8 +44297,7 @@ L_AES_ECB_encrypt_NEON_data_done:
 #ifndef __APPLE__
 	.size	AES_ECB_encrypt_NEON,.-AES_ECB_encrypt_NEON
 #endif /* __APPLE__ */
-#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
-        * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
+#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
 #ifdef HAVE_AES_CBC
 #ifndef __APPLE__
 .text
@@ -45298,8 +45292,7 @@ L_AES_CTR_encrypt_NEON_data_done:
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -47485,8 +47478,7 @@ L_AES_CBC_decrypt_NEON_data_done:
 	.size	AES_CBC_decrypt_NEON,.-AES_CBC_decrypt_NEON
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_CBC */
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
-        * HAVE_AES_ECB */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC || HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
 #ifndef __APPLE__
@@ -51363,9 +51355,7 @@ L_AES_ARM64_td:
 	.long	0x7139a801,0xde080cb3,0x9cd8b4e4,0x906456c1
 	.long	0x617bcb84,0x70d532b6,0x74486c5c,0x42d0b857
 #endif /* HAVE_AES_DECRYPT */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
-    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -51445,8 +51435,7 @@ L_AES_ARM64_te:
 	.long	0xda65bfbf,0x31d7e6e6,0xc6844242,0xb8d06868
 	.long	0xc3824141,0xb0299999,0x775a2d2d,0x111e0f0f
 	.long	0xcb7bb0b0,0xfca85454,0xd66dbbbb,0x3a2c1616
-#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
-        * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
 .text
@@ -51855,9 +51844,7 @@ L_AES_set_encrypt_key_end:
 #ifndef __APPLE__
 	.size	AES_set_encrypt_key,.-AES_set_encrypt_key
 #endif /* __APPLE__ */
-#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_ECB)
+#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt
@@ -52188,8 +52175,7 @@ L_AES_ECB_encrypt_loop_nr:
 #ifndef __APPLE__
 	.size	AES_ECB_encrypt,.-AES_ECB_encrypt
 #endif /* __APPLE__ */
-#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
-        * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
+#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
 #ifdef HAVE_AES_CBC
 #ifndef __APPLE__
 .text
@@ -52873,8 +52859,7 @@ L_AES_CTR_encrypt_loop_nr:
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -53832,8 +53817,7 @@ L_AES_CBC_decrypt_end_dec:
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_CBC */
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
-        * HAVE_AES_ECB */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC || HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
 #ifndef __APPLE__

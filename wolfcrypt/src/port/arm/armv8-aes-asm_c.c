@@ -43515,8 +43515,8 @@ void AES_XTS_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #ifndef WOLFSSL_ARMASM_NO_NEON
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
-    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+        defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 XALIGNED(4) static const word8 L_AES_ARM64_NEON_te[] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
     0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
@@ -43852,8 +43852,8 @@ void AES_set_encrypt_key_NEON(const unsigned char* key, word32 len,
 }
 
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_ECB)
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(HAVE_AES_ECB)
 void AES_ECB_encrypt_NEON(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr);
 void AES_ECB_encrypt_NEON(const unsigned char* in, unsigned char* out,
@@ -45575,7 +45575,7 @@ void AES_CTR_encrypt_NEON(const unsigned char* in, unsigned char* out,
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
+        defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 XALIGNED(4) static const word8 L_AES_ARM64_NEON_td[] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
     0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
@@ -47711,7 +47711,7 @@ void AES_CBC_decrypt_NEON(const unsigned char* in, unsigned char* out,
 }
 
 #endif /* HAVE_AES_CBC */
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC ||
         * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
@@ -51501,8 +51501,8 @@ XALIGNED(8) static const word32 L_AES_ARM64_td[] = {
 
 #endif /* HAVE_AES_DECRYPT */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
-    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+        defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 XALIGNED(8) static const word32 L_AES_ARM64_te[] = {
     0xa5c66363, 0x84f87c7c, 0x99ee7777, 0x8df67b7b,
     0x0dfff2f2, 0xbdd66b6b, 0xb1de6f6f, 0x5491c5c5,
@@ -51944,8 +51944,8 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
 }
 
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_ECB)
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(HAVE_AES_ECB)
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr);
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
@@ -52924,7 +52924,7 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
+        defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 XALIGNED(4) static const word8 L_AES_ARM64_td4[] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
     0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
@@ -53836,7 +53836,7 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
 }
 
 #endif /* HAVE_AES_CBC */
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC ||
         * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
