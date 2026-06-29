@@ -59,6 +59,10 @@ WOLFSSL_API void* IntelQaRealloc(void *ptr, size_t size, void* heap, int type
 #endif
 );
 
+/* Nonzero when the QAT crypto service is running (defined in quickassist.c).
+ * Lets the memory layer fall back to regular memory when QAT is not up. */
+WOLFSSL_LOCAL int IntelQaIsStarted(void);
+
 #endif /* HAVE_INTEL_QA */
 
 #endif /* _QUICKASSIST_MEM_H_ */

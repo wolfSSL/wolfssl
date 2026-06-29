@@ -323,6 +323,13 @@ void IntelQaHardwareStop(void)
     printf("IntelQA: Stop\n");
 }
 
+/* Returns nonzero when the QAT crypto service is running. Lets the memory
+ * layer fall back to regular memory when the service is not started. */
+int IntelQaIsStarted(void)
+{
+    return (g_cyServiceStarted == CPA_TRUE) ? 1 : 0;
+}
+
 int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
 {
     int ret = 0, i;
