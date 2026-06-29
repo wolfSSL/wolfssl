@@ -702,6 +702,13 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
 #endif /* HAVE_AESCCM */
 
 #ifdef HAVE_AES_KEYWRAP
+ /* RFC 3394 AES key wrap.  On success return the produced (wrap) or recovered
+  * (unwrap) byte count (>= 0); on failure a negative error (BAD_FUNC_ARG,
+  * BAD_KEYWRAP_IV_E, ...).  in and out may alias (in-place is supported).  iv is
+  * the optional 8-byte integrity check value; NULL uses the default A6..A6.
+  * The _ex variants take a caller-provided Aes already keyed with the KEK
+  * (AES_ENCRYPTION to wrap, AES_DECRYPTION to unwrap) and, when its devId is set,
+  * route through a registered crypto callback. */
  WOLFSSL_API int  wc_AesKeyWrap(const byte* key, word32 keySz,
                                 const byte* in, word32 inSz,
                                 byte* out, word32 outSz,
@@ -718,6 +725,31 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
                                 const byte* in, word32 inSz,
                                 byte* out, word32 outSz,
                                 const byte* iv);
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+ /* RFC 5649 AES key wrap with padding.  Wrap accepts any inSz >= 1 and produces
+  * ceil(inSz/8)*8 + 8 bytes; unwrap recovers and returns the original inSz.  On
+  * success return that byte count (>= 0); on failure a negative error.  in and
+  * out may alias (in-place is supported).  iv is optional: NULL uses the RFC
+  * 5649 AIV constant (A6 59 59 A6).  If non-NULL it overrides ONLY that 4-byte
+  * high half - the low 4 bytes always carry the computed length indicator.  NOTE
+  * this differs from the non-padded wc_AesKeyWrap* iv, which is a full 8 bytes. */
+ WOLFSSL_API int  wc_AesKeyWrap_Pad(const byte* key, word32 keySz,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyWrap_Pad_ex(Aes* aes,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyUnWrap_Pad(const byte* key, word32 keySz,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyUnWrap_Pad_ex(Aes* aes,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+#endif /* WOLFSSL_AES_KEYWRAP_PADDING */
 #endif /* HAVE_AES_KEYWRAP */
 
 #ifdef WOLFSSL_AES_XTS

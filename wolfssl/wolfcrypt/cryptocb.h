@@ -442,6 +442,18 @@ typedef struct wc_CryptoInfo {
                 word32      keySz;
             } aessetkey;
         #endif
+        #if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP)
+            struct {
+                Aes*        aes;
+                const byte* in;
+                word32      inSz;
+                byte*       out;
+                word32      outSz;    /* size of out buffer (input) */
+                word32      outResSz; /* bytes produced (output, set by cb) */
+                const byte* iv;
+                int         pad;      /* 1 = RFC 5649 padded, 0 = RFC 3394 */
+            } aeskeywrap;
+        #endif
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
@@ -860,6 +872,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
 #ifdef WOLF_CRYPTO_CB_AES_SETKEY
 WOLFSSL_API int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
 #endif /* WOLF_CRYPTO_CB_AES_SETKEY */
+#ifdef HAVE_AES_KEYWRAP
+WOLFSSL_LOCAL int wc_CryptoCb_AesKeyWrap(Aes* aes, const byte* in,
+    word32 inSz, byte* out, word32 outSz, const byte* iv, int pad);
+WOLFSSL_LOCAL int wc_CryptoCb_AesKeyUnWrap(Aes* aes, const byte* in,
+    word32 inSz, byte* out, word32 outSz, const byte* iv, int pad);
+#endif /* HAVE_AES_KEYWRAP */
 #endif /* !NO_AES */
 
 #ifndef NO_DES3

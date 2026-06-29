@@ -79,6 +79,9 @@ int test_wc_AesEaxStream(void);
 #if defined(WOLFSSL_AES_SIV) && defined(WOLFSSL_AES_128)
 int test_wc_AesSivEncryptDecrypt(void);
 #endif
+#if defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_KEYWRAP_PADDING)
+int test_wc_AesKeyWrap_Pad(void);
+#endif
 
 int test_wc_AesCbc_MonteCarlo(void);
 int test_wc_AesCtr_MonteCarlo(void);
@@ -119,6 +122,15 @@ int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void);
                                         TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesGcm_EncryptDecrypt)
 #else
 #define TEST_CRYPTOCB_AES_SETKEY_DECL
+#endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_AES_KEYWRAP) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+int test_wc_CryptoCb_AesKeyWrap(void);
+#define TEST_CRYPTOCB_AES_KEYWRAP_DECL \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesKeyWrap)
+#else
+#define TEST_CRYPTOCB_AES_KEYWRAP_DECL
 #endif
 
 #define TEST_AES_DECLS                                          \
@@ -174,6 +186,7 @@ int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void);
     TEST_DECL_GROUP("aes", test_wc_AesCfb_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesOfb_MonteCarlo)     \
     TEST_CRYPTOCB_AES_SETKEY_DECL                         \
+    TEST_CRYPTOCB_AES_KEYWRAP_DECL                        \
     TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL
 
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
@@ -189,6 +202,11 @@ int test_wc_CryptoCb_Tls13_Key_No_Zero_Without_Offload(void);
 #define TEST_AES_SIV_DECLS \
     TEST_DECL_GROUP("aes-siv", test_wc_AesSivEncryptDecrypt)
 #endif /* WOLFSSL_AES_SIV && WOLFSSL_AES_128 */
+
+#if defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_KEYWRAP_PADDING)
+#define TEST_AES_KEYWRAP_DECLS \
+    TEST_DECL_GROUP("aes-keywrap", test_wc_AesKeyWrap_Pad)
+#endif /* HAVE_AES_KEYWRAP && WOLFSSL_AES_KEYWRAP_PADDING */
 
 #define TEST_GMAC_DECLS                             \
     TEST_DECL_GROUP("gmac", test_wc_GmacSetKey),    \
