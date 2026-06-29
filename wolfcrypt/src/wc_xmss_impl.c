@@ -478,29 +478,24 @@ do {                                                  \
 #define XMSS_ADDR_TREE_SET_SUBTREE(a, s) \
     XMSS_ADDR_SET_SUBTREE(a, s, WC_XMSS_ADDR_TYPE_TREE)
 
-#ifdef LITTLE_ENDIAN_ORDER
-
 /* Set a byte value into a word of an encoded address.
+ *
+ * The address is a byte array whose alignment is not guaranteed, so encode the
+ * word value with byte-wise stores rather than casting to word32* (which can be
+ * an unaligned access and violates strict aliasing). The word is stored in
+ * network byte order, so the value occupies the least significant (last) byte.
  *
  * @param [in, out] a  Encoded hash address.
  * @param [in]      i  Index of word.
  * @param [in]      b  Byte to set.
  */
-#define XMSS_ADDR_SET_BYTE(a, i, b)     \
-    ((word32*)(a))[i] = (word32)(b) << 24
-
-#else
-
-/* Set a byte value into a word of an encoded address.
- *
- * @param [in, out] a  Encoded hash address.
- * @param [in]      i  Index of word.
- * @param [in]      b  Byte to set.
- */
-#define XMSS_ADDR_SET_BYTE(a, i, b)     \
-    ((word32*)(a))[i] = (b)
-
-#endif /* LITTLE_ENDIAN_ORDER */
+#define XMSS_ADDR_SET_BYTE(a, i, b)             \
+    do {                                        \
+        (a)[(i) * 4 + 0] = 0;                   \
+        (a)[(i) * 4 + 1] = 0;                   \
+        (a)[(i) * 4 + 2] = 0;                   \
+        (a)[(i) * 4 + 3] = (byte)(b);           \
+    } while (0)
 
 /* Convert hash address to bytes.
  *
@@ -702,7 +697,7 @@ static void wc_xmss_chain_hash_sha256_32(XmssState* state, const byte* tmp,
     int ret;
 
     /* Calculate n-byte key - KEY. */
-    ((word32*)addr)[XMSS_ADDR_KEY_MASK] = 0;
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_KEY_MASK, 0);
     /* Copy back state after first 64 bytes. */
     XMSS_SHA256_STATE_RESTORE_DATA(state, addr, WC_XMSS_ADDR_LEN,
         XMSS_HASH_PRF_DATA_LEN_SHA256_32);
@@ -762,7 +757,7 @@ static void wc_xmss_chain_hash_sha256_32(XmssState* state, const byte* tmp,
     byte* bm = key + XMSS_SHA256_32_N;
 
     /* Calculate n-byte key - KEY. */
-    ((word32*)addr)[XMSS_ADDR_KEY_MASK] = 0;
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_KEY_MASK, 0);
     wc_xmss_hash(state, state->prf_buf, XMSS_HASH_PRF_DATA_LEN_SHA256_32, key);
     /* Calculate the n-byte mask. */
     addr[XMSS_ADDR_KEY_MASK * 4 + 3] = 1;
@@ -803,7 +798,7 @@ static void wc_xmss_chain_hash(XmssState* state, const byte* tmp, byte* hash)
     byte* bm = key + params->n;
 
     /* Calculate n-byte key - KEY. */
-    ((word32*)addr)[XMSS_ADDR_KEY_MASK] = 0;
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_KEY_MASK, 0);
     wc_xmss_hash(state, state->prf_buf, XMSS_HASH_PRF_DATA_LEN(params), key);
     /* Calculate n-byte bit mask - BM. */
     addr[XMSS_ADDR_KEY_MASK * 4 + 3] = 1;
@@ -1452,9 +1447,9 @@ static void wc_xmss_wots_get_wots_sk_sha256_32(XmssState* state,
     byte* addr_buf = seed + XMSS_SHA256_32_N;
     int ret;
 
-    ((word32*)addr)[XMSS_ADDR_CHAIN] = 0;
-    ((word32*)addr)[XMSS_ADDR_HASH] = 0;
-    ((word32*)addr)[XMSS_ADDR_KEY_MASK] = 0;
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_CHAIN, 0);
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_HASH, 0);
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_KEY_MASK, 0);
 
     XMSS_PAD_ENC(XMSS_HASH_PADDING_PRF_KEYGEN, pad, XMSS_SHA256_32_PAD_LEN);
     XMEMCPY(s_xmss, sk_seed, XMSS_SHA256_32_N);
@@ -1543,9 +1538,9 @@ static void wc_xmss_wots_get_wots_sk(XmssState* state, const byte* sk_seed,
 #endif /* XMSS_CALL_PRF_KEYGEN */
 
     /* Ensure hash address fields are 0. */
-    ((word32*)addr)[XMSS_ADDR_CHAIN] = 0;
-    ((word32*)addr)[XMSS_ADDR_HASH] = 0;
-    ((word32*)addr)[XMSS_ADDR_KEY_MASK] = 0;
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_CHAIN, 0);
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_HASH, 0);
+    XMSS_ADDR_SET_BYTE(addr, XMSS_ADDR_KEY_MASK, 0);
 
 #ifdef XMSS_CALL_PRF_KEYGEN
     /* Copy the seed and address into PRF keygen message buffer. */
