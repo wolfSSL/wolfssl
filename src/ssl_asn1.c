@@ -2222,6 +2222,7 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
     WOLFSSL_ASN1_OBJECT* ret = NULL;
     int len = 0;
     word32 idx = 0;
+    word32 maxIdx;
 
     WOLFSSL_ENTER("wolfSSL_d2i_ASN1_OBJECT");
 
@@ -2231,7 +2232,17 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
         return NULL;
     }
 
-    if (GetASNHeader(*der, ASN_OBJECT_ID, &idx, &len, (word32)length) < 0) {
+    /* An ASN.1 OBJECT is an OID, whose DER encoding cannot exceed the OID
+     * ceiling: a tag byte, a single short-form length byte (content is at
+     * most MAX_OID_SZ, which is below the long-form threshold) and the OID
+     * content. Cap the parse window so an oversized length argument cannot
+     * drive the header decode to read past the end of the actual buffer. */
+    maxIdx = (word32)length;
+    if (maxIdx > (word32)(MAX_OID_SZ + 2)) {
+        maxIdx = (word32)(MAX_OID_SZ + 2);
+    }
+
+    if (GetASNHeader(*der, ASN_OBJECT_ID, &idx, &len, maxIdx) < 0) {
         WOLFSSL_MSG("error getting tag");
         return NULL;
     }

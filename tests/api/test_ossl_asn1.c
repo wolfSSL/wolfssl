@@ -916,6 +916,8 @@ int test_wolfSSL_ASN1_get_object(void)
     const unsigned char objDerBadLen[] = { 0x30, 0x04 };
     const unsigned char objDerNotObj[] = { 0x02, 0x01, 0x00 };
     const unsigned char objDerNoData[] = { 0x06, 0x00 };
+    /* OBJECT_ID header claims 126 content bytes but only one is present. */
+    const unsigned char objDerOobLen[] = { 0x06, 0x7e, 0x2a };
     const unsigned char* p;
     unsigned char objDer[10];
     unsigned char* der;
@@ -1018,6 +1020,10 @@ int test_wolfSSL_ASN1_get_object(void)
     ExpectNull(d2i_ASN1_OBJECT(&a, &p, sizeof(objDerNotObj)));
     p = objDerNoData;
     ExpectNull(d2i_ASN1_OBJECT(&a, &p, sizeof(objDerNoData)));
+    /* Oversized length must not let the header's claimed content length drive
+     * a read past the end of the actual buffer. */
+    p = objDerOobLen;
+    ExpectNull(d2i_ASN1_OBJECT(&a, &p, INT_MAX));
 
     /* Create an ASN OBJECT from content */
     p = derBuf + 2;
