@@ -19160,12 +19160,20 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
  *  (RFC3280 sec 4.2.1.7). Often used with FIPS 201 smartcard login.
  * FASC-N (Federal Agency Smart Credential Number), defined in the document
  *  fpki-x509-cert-policy-common.pdf. Used for a smart card ID.
+ *
+ * id-on-bundleEID (RFC 9174, sec 4.4.1), an Other Name whose value is an
+ *  IA5String holding a Bundle Protocol node/endpoint ID (e.g. "dtn://node/").
+ *  Only handled when WOLFSSL_DTN is defined as these OIDs are specific to
+ *  Delay-Tolerant Networking (DTN) / the Bundle Protocol.
  */
 static const ASNItem otherNameASN[] = {
 /* TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
 /* VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 1, 0 },
 /* UPN      */     { 1, ASN_UTF8STRING, 0, 0, 2 },
 /* FASC-N   */     { 1, ASN_OCTET_STRING, 0, 0, 2 },
+#ifdef WOLFSSL_DTN
+/* BEID     */     { 1, ASN_IA5_STRING, 0, 0, 2 },
+#endif
 /* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 2 },
 /* HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
@@ -19175,6 +19183,9 @@ enum {
     OTHERNAMEASN_IDX_VALUE,
     OTHERNAMEASN_IDX_UPN,
     OTHERNAMEASN_IDX_FASCN,
+#ifdef WOLFSSL_DTN
+    OTHERNAMEASN_IDX_BEID,
+#endif
     OTHERNAMEASN_IDX_HWN_SEQ,
     OTHERNAMEASN_IDX_HWN_TYPE,
     OTHERNAMEASN_IDX_HWN_NUM
@@ -19242,6 +19253,13 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
             bufLen = dataASN[OTHERNAMEASN_IDX_UPN].data.ref.length;
             buf    = (const char*)dataASN[OTHERNAMEASN_IDX_UPN].data.ref.data;
             break;
+#ifdef WOLFSSL_DTN
+        case BUNDLE_EID_OID:
+            /* id-on-bundleEID (RFC 9174) carries an IA5String value. */
+            bufLen = dataASN[OTHERNAMEASN_IDX_BEID].data.ref.length;
+            buf    = (const char*)dataASN[OTHERNAMEASN_IDX_BEID].data.ref.data;
+            break;
+#endif /* WOLFSSL_DTN */
         default:
             WOLFSSL_ERROR_VERBOSE(ASN_UNKNOWN_OID_E);
             ret = ASN_UNKNOWN_OID_E;
@@ -19306,6 +19324,9 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         #ifdef WOLFSSL_FPKI
             case FASCN_OID:
         #endif /* WOLFSSL_FPKI */
+        #ifdef WOLFSSL_DTN
+            case BUNDLE_EID_OID:
+        #endif /* WOLFSSL_DTN */
             case UPN_OID:
                 ret = DecodeOtherHelper(dataASN, cert,
                            (int)dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum);
