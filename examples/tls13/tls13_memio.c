@@ -31,21 +31,41 @@
  * build (WOLFSSL_TINY_TLS13_CERT) it runs a certificate handshake instead: the
  * server presents an ECDSA P-256 certificate and the client validates it,
  * driving the Certificate / CertificateVerify path. Cert files default to
- * ../certs (the layout used by parallel-make-check.py builds); pass a
- * directory as argv[3] to override.
+ * ../certs (the layout used by parallel-make-check.py builds); override the
+ * CERT_DIR macro at build time to point elsewhere.
  *
  * Build against a static build and run:
  *   cc -I<build> -I<src> tls13_memio.c <build>/src/.libs/libwolfssl.a -lm \
  *      -o tls13_memio && ./tls13_memio
  */
 
-#include <wolfssl/options.h>
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/ssl.h>
 
 #include <string.h>
 #include <stdio.h>
 
+/* In-memory transport buffer; must hold one handshake flight. Build-time override. */
+#ifndef MEM_BUF_SZ
 #define MEM_BUF_SZ 32768
+#endif
+
+/* Max connect/accept round trips to drive the handshake. Build-time override. */
+#ifndef HS_MAX_ITERS
+#define HS_MAX_ITERS 50
+#endif
+
+#ifndef WOLFSSL_TINY_TLS13_CERT
+/* Example-only fixed test PSK and identity shared by both endpoints; not a
+ * real secret. Provision your own for anything beyond this smoke test. */
+static const unsigned char psk_key[16] = {
+    0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70, 0x81,
+    0x92, 0xa3, 0xb4, 0xc5, 0xd6, 0xe7, 0xf8, 0x09
+};
+static const char psk_identity[] = "tinytls13-client";
+#endif /* !WOLFSSL_TINY_TLS13_CERT */
 
 typedef struct membuf {
     unsigned char data[MEM_BUF_SZ];
@@ -82,12 +102,6 @@ static int mem_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 }
 
 #ifndef WOLFSSL_TINY_TLS13_CERT
-static const unsigned char psk_key[16] = {
-    0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70, 0x81,
-    0x92, 0xa3, 0xb4, 0xc5, 0xd6, 0xe7, 0xf8, 0x09
-};
-static const char psk_identity[] = "tinytls13-client";
-
 static unsigned int psk_client_cb(WOLFSSL* ssl, const char* hint,
     char* identity, unsigned int id_max, unsigned char* key,
     unsigned int key_max)
@@ -113,6 +127,24 @@ static unsigned int psk_server_cb(WOLFSSL* ssl, const char* identity,
 }
 #endif /* !WOLFSSL_TINY_TLS13_CERT */
 
+#ifdef WOLFSSL_TINY_TLS13_CERT
+/* Build-time override to point at a different certs tree. */
+#ifndef CERT_DIR
+#define CERT_DIR "../certs"
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA)
+    #define SERVER_CERT_FILE CERT_DIR "/mldsa/ecc-leaf-mldsa44.pem"
+    #define CLIENT_CA_FILE   CERT_DIR "/mldsa/mldsa44-cert.pem"
+#elif defined(WOLFSSL_TINY_TLS13_RSA_VERIFY)
+    #define SERVER_CERT_FILE CERT_DIR "/rsapss/ecc-leaf-rsapss.pem"
+    #define CLIENT_CA_FILE   CERT_DIR "/rsapss/ca-rsapss.pem"
+#else
+    #define SERVER_CERT_FILE CERT_DIR "/server-ecc.pem"
+    #define CLIENT_CA_FILE   CERT_DIR "/ca-ecc-cert.pem"
+#endif
+#define SERVER_KEY_FILE CERT_DIR "/ecc-key.pem"
+#endif /* WOLFSSL_TINY_TLS13_CERT */
+
 int main(int argc, char** argv)
 {
     WOLFSSL_CTX* cctx = NULL;
@@ -127,12 +159,6 @@ int main(int argc, char** argv)
     const char* cipher = (argc > 1) ? argv[1] : "-";
     const char* group  = (argc > 2) ? argv[2] : "-";
     int mlkemGroup[1];
-#ifdef WOLFSSL_TINY_TLS13_CERT
-    const char* certDir = (argc > 3) ? argv[3] : "../certs";
-    char sCert[300];
-    char sKey[300];
-    char cCa[300];
-#endif
 
     XMEMSET(&c2s, 0, sizeof(c2s));
     XMEMSET(&s2c, 0, sizeof(s2c));
@@ -154,28 +180,16 @@ int main(int argc, char** argv)
     }
 
 #ifdef WOLFSSL_TINY_TLS13_CERT
-    /* Server presents a P-256 ECDSA leaf; the client validates it against the
-     * CA. The leaf is signed by the CA whose algorithm this profile verifies,
-     * so a completed handshake drives that verify path (ECDSA, ML-DSA-44, or
-     * RSA-PSS). */
-    #if defined(WOLFSSL_HAVE_MLDSA)
-        XSNPRINTF(sCert, sizeof(sCert), "%s/mldsa/ecc-leaf-mldsa44.pem", certDir);
-        XSNPRINTF(cCa,   sizeof(cCa),   "%s/mldsa/mldsa44-cert.pem", certDir);
-    #elif defined(WOLFSSL_TINY_TLS13_RSA_VERIFY)
-        XSNPRINTF(sCert, sizeof(sCert), "%s/rsapss/ecc-leaf-rsapss.pem", certDir);
-        XSNPRINTF(cCa,   sizeof(cCa),   "%s/rsapss/ca-rsapss.pem", certDir);
-    #else
-        XSNPRINTF(sCert, sizeof(sCert), "%s/server-ecc.pem", certDir);
-        XSNPRINTF(cCa,   sizeof(cCa),   "%s/ca-ecc-cert.pem", certDir);
-    #endif
-    XSNPRINTF(sKey,  sizeof(sKey),  "%s/ecc-key.pem", certDir);
-    if (wolfSSL_CTX_use_certificate_file(sctx, sCert, WOLFSSL_FILETYPE_PEM)
-            != WOLFSSL_SUCCESS ||
-        wolfSSL_CTX_use_PrivateKey_file(sctx, sKey, WOLFSSL_FILETYPE_PEM)
-            != WOLFSSL_SUCCESS ||
-        wolfSSL_CTX_load_verify_locations(cctx, cCa, NULL)
+    /* Server presents an ECDSA leaf signed by the CA whose algorithm this
+     * profile verifies (ECDSA, ML-DSA-44, or RSA-PSS); a completed handshake
+     * drives that verify path. */
+    if (wolfSSL_CTX_use_certificate_file(sctx, SERVER_CERT_FILE,
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS ||
+        wolfSSL_CTX_use_PrivateKey_file(sctx, SERVER_KEY_FILE,
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS ||
+        wolfSSL_CTX_load_verify_locations(cctx, CLIENT_CA_FILE, NULL)
             != WOLFSSL_SUCCESS) {
-        printf("smoke: cert load failed (certDir=%s)\n", certDir);
+        printf("smoke: cert load failed (dir=%s)\n", CERT_DIR);
         goto done;
     }
 #else
@@ -209,7 +223,7 @@ int main(int argc, char** argv)
     wolfSSL_SetIOReadCtx(s, &c2s);
     wolfSSL_SetIOWriteCtx(s, &s2c);
 
-    for (i = 0; i < 50 && !(cdone && sdone); i++) {
+    for (i = 0; i < HS_MAX_ITERS && !(cdone && sdone); i++) {
         if (!cdone) {
             cret = wolfSSL_connect(c);
             if (cret == WOLFSSL_SUCCESS)
