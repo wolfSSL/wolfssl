@@ -13329,6 +13329,15 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     *outl = 0;
 
+    if (inl < 0)
+        return 0;
+
+    /* Reject lengths whose base64 output would overflow a positive int. This
+     * also guards against reads far past the caller's input allocation. */
+    if (inl > (INT_MAX / (BASE64_ENCODE_RESULT_BLOCK_SIZE + 1)) *
+            BASE64_ENCODE_BLOCK_SIZE)
+        return 0;
+
     /* if the remaining data exists in the ctx, add input data to them
      * to create a block(48bytes) for encoding
      */
