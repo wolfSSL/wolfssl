@@ -1019,6 +1019,39 @@ int test_wolfSSL_BIO_read_negative_len(void)
     return EXPECT_RESULT();
 }
 
+/* A length larger than the source buffer must never reach XMEMCPY in the
+ * memory-BIO write path. A huge positive length on a fresh buffer would
+ * otherwise overflow the buffer growth calculation, allocate a short
+ * destination, and copy far past the small source. Verify such a length is
+ * rejected with an error, nothing is buffered, and normal writes still work. */
+int test_wolfSSL_BIO_write_large_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    BIO*  bio = NULL;
+    char  msg[] = "large length test";
+    int   msgLen = (int)XSTRLEN(msg);
+    char  out[64];
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+
+    /* Oversized length on a fresh buffer: must be rejected with an error, not
+     * a wild copy from the small source buffer. */
+    ExpectIntLT(BIO_write(bio, msg, (int)0x7FFFFFFF), 0);
+    /* Nothing should have been buffered. */
+    ExpectIntEQ(BIO_pending(bio), 0);
+
+    /* A normal write then read still returns the intact message. */
+    ExpectIntEQ(BIO_write(bio, msg, msgLen), msgLen);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(BIO_read(bio, out, (int)sizeof(out)), msgLen);
+    ExpectIntEQ(XMEMCMP(out, msg, msgLen), 0);
+
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 int test_wolfSSL_BIO_printf(void)
 {
