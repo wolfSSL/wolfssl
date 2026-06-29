@@ -256,6 +256,14 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
+  <!-- Keep USE_INTEL_SPEEDUP/WOLFSSL_X86_64_BUILD consistent with the library
+       (set by /p:WolfSSLIntelAsm=true) so struct layouts match; a mismatch
+       overruns hash/Hmac stack buffers. -->
+  <ItemDefinitionGroup Condition="'$(WolfSSLIntelAsm)'=='true' And '$(Platform)'=='x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>USE_INTEL_SPEEDUP;WOLFSSL_X86_64_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
