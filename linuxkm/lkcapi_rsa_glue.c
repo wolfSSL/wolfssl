@@ -1259,6 +1259,12 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
         goto pkcs1pad_verify_out;
     }
 
+    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA key. */
+    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
+        err = -EOVERFLOW;
+        goto pkcs1pad_verify_out;
+    }
+
     work_buffer = malloc(2 * ctx->key_len);
     if (unlikely(work_buffer == NULL)) {
         err = -ENOMEM;
@@ -1510,6 +1516,12 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
                WOLFKM_RSA_DRIVER, msg_len, ctx->digest_len);
         #endif /* WOLFKM_DEBUG_RSA */
         err = -EINVAL;
+        goto pkcs1_verify_out;
+    }
+
+    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA key. */
+    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
+        err = -EOVERFLOW;
         goto pkcs1_verify_out;
     }
 

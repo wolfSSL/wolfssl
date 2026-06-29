@@ -1920,7 +1920,7 @@
     #define WC_LINUXKM_ROUND_UP_P_OF_2(x) (                                \
     {                                                                      \
         size_t _alloc_sz = (x);                                            \
-        if ((_alloc_sz < 8192) && (_alloc_sz != 0))                        \
+        if ((_alloc_sz < 8192) && (_alloc_sz > 1))                         \
           _alloc_sz = 1UL <<                                               \
               ((sizeof(_alloc_sz) * 8UL) - __builtin_clzl(_alloc_sz - 1)); \
         _alloc_sz;                                                         \
