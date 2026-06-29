@@ -228,6 +228,37 @@ int test_wc_Rc2CbcEncryptDecrypt(void)
 } /* END test_wc_Rc2CbcEncryptDecrypt */
 
 
+/*
+ * Cipher operations must fail safely when no key has been configured.
+ */
+int test_wc_Rc2_MissingKey(void)
+{
+    EXPECT_DECLS;
+#ifdef WC_RC2
+    Rc2  rc2;
+    byte out[RC2_BLOCK_SIZE];
+    byte in[RC2_BLOCK_SIZE];
+
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(in, 0, sizeof(in));
+
+    /* Zeroed context, never keyed: every op must reject with MISSING_KEY
+     * rather than ciphering under an all-zero key schedule. */
+    XMEMSET(&rc2, 0, sizeof(rc2));
+
+    ExpectIntEQ(wc_Rc2EcbEncrypt(&rc2, out, in, RC2_BLOCK_SIZE),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_Rc2EcbDecrypt(&rc2, out, in, RC2_BLOCK_SIZE),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_Rc2CbcEncrypt(&rc2, out, in, RC2_BLOCK_SIZE),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(wc_Rc2CbcDecrypt(&rc2, out, in, RC2_BLOCK_SIZE),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Rc2_MissingKey */
+
+
 #define MC_CIPHER_TEST_COUNT 100
 #define MC_RC2_MAX_DATA_SZ   1024
 
