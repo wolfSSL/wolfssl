@@ -12471,7 +12471,14 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
             altNames->ridStringStored = 0;
         }
     #endif
+#ifdef WC_ASN_NO_HEAP
+        /* Only free heap nodes; no-heap pool nodes aren't owned. */
+        if (altNames->entryStored) {
+            XFREE(altNames,   heap, DYNAMIC_TYPE_ALTNAME);
+        }
+#else
         XFREE(altNames,       heap, DYNAMIC_TYPE_ALTNAME);
+#endif
         altNames = tmp;
     }
 }
@@ -12483,6 +12490,9 @@ DNS_entry* AltNameNew(void* heap)
     ret = (DNS_entry*)XMALLOC(sizeof(DNS_entry), heap, DYNAMIC_TYPE_ALTNAME);
     if (ret != NULL) {
         XMEMSET(ret, 0, sizeof(DNS_entry));
+#ifdef WC_ASN_NO_HEAP
+        ret->entryStored = 1;   /* heap-allocated node; FreeAltNames frees it */
+#endif
     }
     (void)heap;
     return ret;
@@ -12631,7 +12641,9 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 {
     int ret;
     int length;
+#ifndef WC_ASN_NO_HEAP
     byte* publicKey;
+#endif
 
     ret = CheckBitString(source, srcIdx, &length, maxIdx, 1, NULL);
     if (ret == 0) {
@@ -12641,6 +12653,17 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     }
     if (ret == 0) {
     #endif
+#ifdef WC_ASN_NO_HEAP
+        /* No heap: reference the key in place; source must outlive the cert. */
+        cert->publicKey = (byte*)&source[*srcIdx];
+        cert->pubKeyStored = 0;
+        cert->pubKeySize   = (word32)length;
+    #ifdef HAVE_OCSP_RESPONDER
+        cert->publicKeyForHash = cert->publicKey;
+        cert->pubKeyForHashSize = cert->pubKeySize;
+    #endif
+        *srcIdx += (word32)length;
+#else
         publicKey = (byte*)XMALLOC((size_t)length, cert->heap,
                                    DYNAMIC_TYPE_PUBLIC_KEY);
         if (publicKey == NULL) {
@@ -12659,6 +12682,7 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 
             *srcIdx += (word32)length;
         }
+#endif
     }
 
     return ret;
@@ -13299,7 +13323,9 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 {
     int ret = 0;
     DECL_ASNGETDATA(dataASN, eccCertKeyASN_Length);
+#ifndef WC_ASN_NO_HEAP
     byte* publicKey;
+#endif
 
     /* Validate parameters. */
     if (pubKey == NULL) {
@@ -13369,6 +13395,11 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     #endif
         /* Store public key data length. */
         cert->pubKeySize = pubKeyLen;
+#ifdef WC_ASN_NO_HEAP
+        /* No heap: reference the key in place; source must outlive the cert. */
+        cert->publicKey = (byte*)pubKey;
+        cert->pubKeyStored = 0;
+#else
         /* Must allocated space for key.
          * Don't memcpy into constant pointer so use temp. */
         publicKey = (byte*)XMALLOC(cert->pubKeySize, cert->heap,
@@ -13383,6 +13414,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
             /* Indicate publicKey needs to be freed. */
             cert->pubKeyStored = 1;
         }
+#endif
     }
     FREE_ASNGETDATA(dataASN, cert->heap);
 
@@ -14466,13 +14498,55 @@ static int AddDNSEntryToList(DNS_entry** lst, DNS_entry* entry)
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-static int SetDNSEntry(void* heap, const char* str, int strLen,
-                       int type, DNS_entry** entries)
+/* No-heap SAN entries come from a caller pool; pass NULL,NULL if none. */
+#ifdef WC_ASN_NO_HEAP
+    #define WC_DNS_POOL(obj)  (obj)->altNamePool, &(obj)->altNamePoolUsed
+#else
+    #define WC_DNS_POOL(obj)  NULL, NULL
+#endif
+
+static int SetDNSEntry(void* heap, DNS_entry* pool, word32* poolUsed,
+                       const char* str, int strLen, int type,
+                       DNS_entry** entries)
 {
     DNS_entry* dnsEntry;
     int ret = 0;
+#ifndef WC_ASN_NO_HEAP
     char *dnsEntry_name = NULL;
+#endif
 
+#ifdef WC_ASN_NO_HEAP
+    /* No heap: borrow a pool slot; name points into the source DER. */
+    (void)heap;
+#ifdef WOLFSSL_IP_ALT_NAME
+    /* No-heap path can't synthesise an ipString; reject rather than skip. */
+    if (type == ASN_IP_TYPE) {
+        return ASN_PARSE_E;
+    }
+#endif
+#ifdef WOLFSSL_RID_ALT_NAME
+    if (type == ASN_RID_TYPE) {
+        return ASN_PARSE_E;
+    }
+#endif
+    if ((pool == NULL) || (*poolUsed >= WC_ASN_MAX_ALTNAMES)) {
+        ret = MEMORY_E;
+        dnsEntry = NULL;
+    }
+    else {
+        dnsEntry = &pool[(*poolUsed)++];
+        XMEMSET(dnsEntry, 0, sizeof(*dnsEntry));
+        dnsEntry->type = type;
+        dnsEntry->len  = strLen;
+        dnsEntry->name = (char*)str;   /* points into the source DER */
+        dnsEntry->nameStored = 0;
+    }
+    if (ret == 0) {
+        ret = AddDNSEntryToList(entries, dnsEntry);
+    }
+#else
+    (void)pool;
+    (void)poolUsed;
     /* TODO: consider one malloc. */
     /* Allocate DNS Entry object. */
     dnsEntry = AltNameNew(heap);
@@ -14517,6 +14591,7 @@ static int SetDNSEntry(void* heap, const char* str, int strLen,
         XFREE(dnsEntry_name, heap, DYNAMIC_TYPE_ALTNAME);
         XFREE(dnsEntry, heap, DYNAMIC_TYPE_ALTNAME);
     }
+#endif
 
     return ret;
 }
@@ -18988,7 +19063,7 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
     }
 
     if (ret == 0) {
-        ret = SetDNSEntry(cert->heap, buf, (int)bufLen, ASN_OTHER_TYPE, &entry);
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), buf, (int)bufLen, ASN_OTHER_TYPE, &entry);
         if (ret == 0) {
         #ifdef WOLFSSL_FPKI
             entry->oidSum = oid;
@@ -19050,7 +19125,7 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
                 break;
             default:
                 WOLFSSL_MSG("\tadding unsupported OID");
-                ret = SetDNSEntry(cert->heap, name, len, ASN_OTHER_TYPE,
+                ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), name, len, ASN_OTHER_TYPE,
                         &cert->altNames);
                 break;
         }
@@ -19089,7 +19164,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      * reference hostname. The result is DOMAIN_NAME_MISMATCH at verification
      * time rather than ASN_PARSE_E at parse time. */
     if (tag == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), (const char*)(input + idx), len,
                 ASN_DNS_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -19108,7 +19183,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             return ASN_PARSE_E;
         }
 
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idxDir), strLen,
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), (const char*)(input + idxDir), strLen,
                 ASN_DIR_TYPE, &cert->altDirNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -19116,7 +19191,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     }
     /* GeneralName choice: rfc822Name */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), (const char*)(input + idx), len,
                 ASN_RFC822_TYPE, &cert->altEmailNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -19163,7 +19238,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         }
     #endif
 
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), (const char*)(input + idx), len,
                 ASN_URI_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -19196,7 +19271,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      *     ASN_IP_TYPE case under WOLFSSL_GEN_IPADD in src/x509.c).
      */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), (const char*)(input + idx), len,
                 ASN_IP_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -19228,7 +19303,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      *     when ridString is not generated, instead of failing the
      *     whole print operation. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), (const char*)(input + idx), len,
                 ASN_RID_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -19244,7 +19319,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      * the public altNames view (used by OpenSSL-compat APIs) reflects
      * exactly what the SAN extension carries. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
-        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert), (const char*)(input + idx), len,
                 ASN_OTHER_TYPE, &cert->altOtherNamesRaw);
         if (ret != 0) {
             return ret;
@@ -38800,7 +38875,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
 
     /* GeneralName choice: dnsName */
     if (tag == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
-        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(acert->heap, WC_DNS_POOL(acert), (const char*)(input + idx), len,
                           ASN_DNS_TYPE, entries);
         if (ret == 0) {
             idx += (word32)len;
@@ -38819,7 +38894,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
             return ASN_PARSE_E;
         }
 
-        ret = SetDNSEntry(acert->heap, (const char*)(input + idxDir), strLen,
+        ret = SetDNSEntry(acert->heap, WC_DNS_POOL(acert), (const char*)(input + idxDir), strLen,
                           ASN_DIR_TYPE, entries);
         if (ret == 0) {
             idx += (word32)len;
@@ -38827,7 +38902,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
     }
     /* GeneralName choice: rfc822Name */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
-        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(acert->heap, WC_DNS_POOL(acert), (const char*)(input + idx), len,
                 ASN_RFC822_TYPE, entries);
         if (ret == 0) {
             idx += (word32)len;
@@ -38874,7 +38949,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
         }
     #endif
 
-        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(acert->heap, WC_DNS_POOL(acert), (const char*)(input + idx), len,
                           ASN_URI_TYPE, entries);
         if (ret == 0) {
             idx += (word32)len;
@@ -38892,7 +38967,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
      * IP-SAN compat layer). If iPAddress name-constraint enforcement is
      * ever extended to attribute certificates, this gate must drop. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
-        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(acert->heap, WC_DNS_POOL(acert), (const char*)(input + idx), len,
                           ASN_IP_TYPE, entries);
         if (ret == 0) {
             idx += (word32)len;
@@ -38903,7 +38978,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
     #ifdef OPENSSL_ALL
     /* GeneralName choice: registeredID */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
-        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+        ret = SetDNSEntry(acert->heap, WC_DNS_POOL(acert), (const char*)(input + idx), len,
                 ASN_RID_TYPE, entries);
         if (ret == 0) {
             idx += (word32)len;
