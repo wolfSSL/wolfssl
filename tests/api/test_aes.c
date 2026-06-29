@@ -3705,6 +3705,242 @@ int test_wc_AesGcmMixedEncDecLongIV(void)
  * AES-GCM non-standard nonce lengths
  ******************************************************************************/
 
+#if defined(WOLFSSL_AESGCM_SIV) && !defined(NO_AES) && defined(HAVE_AESGCM)
+/* Decode a hex string into 'out' (spaces ignored, NULL -> length 0).
+ * Returns the byte length, or -1 on a malformed string / overflow. */
+static int gcmsiv_hex(const char* hex, byte* out, word32 max)
+{
+    word32 n = 0;
+    int hi, lo;
+
+    if (hex == NULL)
+        return 0;
+    while (*hex != '\0') {
+        if (*hex == ' ') { hex++; continue; }
+        if (hex[1] == '\0') return -1;
+        hi = (*hex >= '0' && *hex <= '9') ? *hex - '0' :
+             (*hex >= 'a' && *hex <= 'f') ? *hex - 'a' + 10 :
+             (*hex >= 'A' && *hex <= 'F') ? *hex - 'A' + 10 : -1;
+        hex++;
+        lo = (*hex >= '0' && *hex <= '9') ? *hex - '0' :
+             (*hex >= 'a' && *hex <= 'f') ? *hex - 'a' + 10 :
+             (*hex >= 'A' && *hex <= 'F') ? *hex - 'A' + 10 : -1;
+        hex++;
+        if (hi < 0 || lo < 0 || n >= max) return -1;
+        out[n++] = (byte)((hi << 4) | lo);
+    }
+    return (int)n;
+}
+
+/* Run one RFC 8452 known-answer vector (expH = ciphertext || 16-byte tag):
+ * encrypt and check ciphertext+tag, then decrypt and check the recovered
+ * plaintext and that authentication succeeds. Returns 0 on a full match,
+ * or a negative step code on the first failure. */
+static int gcmsiv_kat(const char* keyH, const char* nonceH, const char* aadH,
+    const char* ptH, const char* expH)
+{
+    byte key[32], nonce[12], aad[64], pt[64], exp[96], ct[80], tag[16], dec[64];
+    int keySz, nonceSz, aadSz, ptSz, expSz;
+
+    keySz   = gcmsiv_hex(keyH,   key,   (word32)sizeof(key));
+    nonceSz = gcmsiv_hex(nonceH, nonce, (word32)sizeof(nonce));
+    aadSz   = gcmsiv_hex(aadH,   aad,   (word32)sizeof(aad));
+    ptSz    = gcmsiv_hex(ptH,    pt,    (word32)sizeof(pt));
+    expSz   = gcmsiv_hex(expH,   exp,   (word32)sizeof(exp));
+    if (keySz < 0 || nonceSz < 0 || aadSz < 0 || ptSz < 0 || expSz < 0)
+        return -1;
+    if (expSz != ptSz + 16)
+        return -2;
+
+    if (wc_AesGcmSivEncrypt(key, (word32)keySz, nonce, (word32)nonceSz,
+            aad, (word32)aadSz, pt, (word32)ptSz, ct, tag, 16) != 0)
+        return -3;
+    if (ptSz > 0 && XMEMCMP(ct, exp, (size_t)ptSz) != 0)
+        return -4;
+    if (XMEMCMP(tag, exp + ptSz, 16) != 0)
+        return -5;
+
+    if (wc_AesGcmSivDecrypt(key, (word32)keySz, nonce, (word32)nonceSz,
+            aad, (word32)aadSz, ct, (word32)ptSz, dec, tag, 16) != 0)
+        return -6;
+    if (ptSz > 0 && XMEMCMP(dec, pt, (size_t)ptSz) != 0)
+        return -7;
+
+    return 0;
+}
+#endif /* WOLFSSL_AESGCM_SIV ... */
+
+/*
+ * AES-GCM-SIV (RFC 8452): RFC 8452 Appendix C known-answer vectors (encrypt and
+ * decrypt), a full encrypt/decrypt round trip, authentication-failure handling
+ * (corrupted tag / AAD / ciphertext), edge cases (empty plaintext, empty AAD,
+ * AES-128 and AES-256), and an exhaustive invalid-parameter matrix.
+ */
+int test_wc_AesGcmSivEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_AESGCM_SIV) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_128)
+    byte    key[32];
+    byte    nonce[12];
+    byte    aad[20];
+    byte    pt[32];
+    byte    ct[32];
+    byte    tag[16];
+    byte    dec[32];
+    word32  i;
+
+    /* --- RFC 8452 Appendix C.1 known-answer vectors (AES-128) --- */
+    ExpectIntEQ(gcmsiv_kat("01000000000000000000000000000000",
+        "030000000000000000000000", NULL, NULL,
+        "dc20e2d83f25705bb49e439eca56de25"), 0);
+    ExpectIntEQ(gcmsiv_kat("01000000000000000000000000000000",
+        "030000000000000000000000", NULL, "0100000000000000",
+        "b5d839330ac7b786578782fff6013b815b287c22493a364c"), 0);
+    ExpectIntEQ(gcmsiv_kat("01000000000000000000000000000000",
+        "030000000000000000000000", NULL, "010000000000000000000000",
+        "7323ea61d05932260047d942a4978db357391a0bc4fdec8b0d106639"), 0);
+    ExpectIntEQ(gcmsiv_kat("01000000000000000000000000000000",
+        "030000000000000000000000", "01", "0200000000000000",
+        "1e6daba35669f4273b0a1a2560969cdf790d99759abd1508"), 0);
+    ExpectIntEQ(gcmsiv_kat("01000000000000000000000000000000",
+        "030000000000000000000000", "01",
+        "02000000000000000000000000000000",
+        "e2b0c5da79a901c1745f700525cb335b8f8936ec039e4e4bb97ebd8c4457441f"), 0);
+    /* Non-block-aligned AAD (18 B) and plaintext (20 B). */
+    ExpectIntEQ(gcmsiv_kat("01000000000000000000000000000000",
+        "030000000000000000000000",
+        "010000000000000000000000000000000200",
+        "030000000000000000000000000000000400 0000",
+        "6bb0fecf5ded9b77f902c7d5da236a4391dd029724afc9805e976f451e6d87f6"
+        "fe106514"), 0);
+    /* Non-block-aligned AAD (20 B) and plaintext (18 B). */
+    ExpectIntEQ(gcmsiv_kat("01000000000000000000000000000000",
+        "030000000000000000000000",
+        "0100000000000000000000000000000002000000",
+        "030000000000000000000000000000000400",
+        "44d0aaf6fb2f1f34add5e8064e83e12a2adabff9b2ef00fb47920cc72a0c0f13"
+        "b9fd"), 0);
+
+#ifdef WOLFSSL_AES_256
+    /* --- RFC 8452 Appendix C.2 known-answer vectors (AES-256) --- */
+    ExpectIntEQ(gcmsiv_kat(
+        "0100000000000000000000000000000000000000000000000000000000000000",
+        "030000000000000000000000", NULL, NULL,
+        "07f5f4169bbf55a8400cd47ea6fd400f"), 0);
+    ExpectIntEQ(gcmsiv_kat(
+        "0100000000000000000000000000000000000000000000000000000000000000",
+        "030000000000000000000000", NULL, "0100000000000000",
+        "c2ef328e5c71c83b843122130f7364b761e0b97427e3df28"), 0);
+    ExpectIntEQ(gcmsiv_kat(
+        "0100000000000000000000000000000000000000000000000000000000000000",
+        "030000000000000000000000", NULL, "010000000000000000000000",
+        "9aab2aeb3faa0a34aea8e2b18ca50da9ae6559e48fd10f6e5c9ca17e"), 0);
+#endif /* WOLFSSL_AES_256 */
+
+    /* --- Round trip + authentication-failure handling (AES-128) --- */
+    for (i = 0; i < (word32)sizeof(key);   i++) key[i]   = (byte)i;
+    for (i = 0; i < (word32)sizeof(nonce); i++) nonce[i] = (byte)(i + 1);
+    for (i = 0; i < (word32)sizeof(aad);   i++) aad[i]   = (byte)(i + 2);
+    for (i = 0; i < (word32)sizeof(pt);    i++) pt[i]    = (byte)(i + 3);
+
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), 0);
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), 0);
+    ExpectIntEQ(XMEMCMP(pt, dec, sizeof(pt)), 0);
+
+    /* Corrupted tag -> authentication failure. */
+    tag[0] ^= 0xff;
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    tag[0] ^= 0xff;
+    /* Corrupted AAD -> authentication failure. */
+    aad[0] ^= 0xff;
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    aad[0] ^= 0xff;
+    /* Corrupted ciphertext -> authentication failure. */
+    ct[0] ^= 0xff;
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    ct[0] ^= 0xff;
+
+    /* Edge cases: empty plaintext (tag only) and empty AAD. */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, NULL, 0, NULL, 0,
+        NULL, tag, 16), 0);
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, NULL, 0, NULL, 0,
+        NULL, tag, 16), 0);
+
+#ifdef WOLFSSL_AES_256
+    /* AES-256 round trip. */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 32, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), 0);
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 32, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), 0);
+    ExpectIntEQ(XMEMCMP(pt, dec, sizeof(pt)), 0);
+#endif
+
+    /* --- Invalid parameters: encrypt --- */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(NULL, 16, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, NULL, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, NULL, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* in/out NULL while inSz != 0 */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        NULL, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), NULL, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* aad NULL while aadSz != 0 */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, NULL, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* invalid key sizes (only 16 and 32 allowed; 24/AES-192 is rejected) */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 0, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 15, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 24, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 33, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* invalid nonce sizes (must be exactly 12) */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 0, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 11, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 13, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* invalid tag sizes (must be exactly 16) */
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 15), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivEncrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        pt, sizeof(pt), ct, tag, 17), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* --- Invalid parameters: decrypt --- */
+    ExpectIntEQ(wc_AesGcmSivDecrypt(NULL, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, NULL, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, NULL, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        NULL, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), NULL, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, NULL, 12, NULL, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 24, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 13, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmSivDecrypt(key, 16, nonce, 12, aad, sizeof(aad),
+        ct, sizeof(pt), dec, tag, 17), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif /* WOLFSSL_AESGCM_SIV && !NO_AES && HAVE_AESGCM && WOLFSSL_AES_128 */
+    return EXPECT_RESULT();
+}
+
 /*
  * Non-standard (non-96-bit) nonce tests for AES-GCM.
  *

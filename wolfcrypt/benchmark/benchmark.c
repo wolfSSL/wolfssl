@@ -829,6 +829,7 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define BENCH_SM4_GCM            0x00100000
 #define BENCH_SM4_CCM            0x00200000
 #define BENCH_SM4                (BENCH_SM4_CBC | BENCH_SM4_GCM | BENCH_SM4_CCM)
+#define BENCH_AESGCM_SIV         0x00800000
 /* Digest algorithms. */
 #define BENCH_MD5                0x00000001
 #define BENCH_POLY1305           0x00000002
@@ -1065,6 +1066,9 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifdef WOLFSSL_AES_SIV
     { "-aes-siv",            BENCH_AES_SIV           },
+#endif
+#ifdef WOLFSSL_AESGCM_SIV
+    { "-aesgcm-siv",         BENCH_AESGCM_SIV        },
 #endif
 #ifdef HAVE_CAMELLIA
     { "-camellia",           BENCH_CAMELLIA          },
@@ -4033,6 +4037,10 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_cipher_algs & BENCH_AES_SIV))
         bench_aessiv();
 #endif
+#ifdef WOLFSSL_AESGCM_SIV
+    if (bench_all || (bench_cipher_algs & BENCH_AESGCM_SIV))
+        bench_aesgcmsiv();
+#endif
 #endif /* !NO_AES */
 
 #ifdef HAVE_CAMELLIA
@@ -6913,6 +6921,86 @@ void bench_aessiv(void)
     bench_aessiv_internal(bench_key, 64, "AES-512-SIV-enc", "AES-512-SIV-dec");
 }
 #endif /* WOLFSSL_AES_SIV */
+
+#ifdef WOLFSSL_AESGCM_SIV
+static void bench_aesgcmsiv_internal(const byte* key, word32 keySz, const char*
+                                     encLabel, const char* decLabel)
+{
+    int i;
+    int ret = 0;
+    byte nonce[12];
+    byte additional[AES_AUTH_ADD_SZ];
+    byte tag[WC_AES_BLOCK_SIZE];
+    int count = 0;
+    double start;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    XMEMSET(nonce, 0, sizeof(nonce));
+    XMEMSET(additional, 0, sizeof(additional));
+
+    bench_stats_prepare();
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_AesGcmSivEncrypt(key, keySz, nonce, sizeof(nonce),
+                                      additional, aesAuthAddSz,
+                                      bench_plain, bench_size, bench_cipher,
+                                      tag, sizeof(tag));
+            if (ret != 0) {
+                printf("wc_AesGcmSivEncrypt failed (%d)\n", ret);
+                return;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+
+    bench_stats_sym_finish(encLabel, 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+    RESET_MULTI_VALUE_STATS_VARS();
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_AesGcmSivDecrypt(key, keySz, nonce, sizeof(nonce),
+                                      additional, aesAuthAddSz,
+                                      bench_cipher, bench_size, bench_plain,
+                                      tag, sizeof(tag));
+            if (ret != 0) {
+                printf("wc_AesGcmSivDecrypt failed (%d)\n", ret);
+                return;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+#endif
+           );
+
+    bench_stats_sym_finish(decLabel, 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+}
+
+void bench_aesgcmsiv(void)
+{
+    bench_aesgcmsiv_internal(bench_key, 16, "AES-128-GCM-SIV-enc",
+                             "AES-128-GCM-SIV-dec");
+    bench_aesgcmsiv_internal(bench_key, 32, "AES-256-GCM-SIV-enc",
+                             "AES-256-GCM-SIV-dec");
+}
+#endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !NO_AES */
 
 

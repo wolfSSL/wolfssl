@@ -877,6 +877,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  siphash_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  poly1305_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesgcm_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesgcm_default_test(void);
+#ifdef WOLFSSL_AESGCM_SIV
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesgcm_siv_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  gmac_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesccm_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aeskeywrap_test(void);
@@ -2857,6 +2860,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     if (ret == 0) {
         TEST_PASS("AES-GCM  test passed!\n");
     }
+#ifdef WOLFSSL_AESGCM_SIV
+    if ((ret = aesgcm_siv_test()) != 0)
+        TEST_FAIL("AES-GCM-SIV test failed!\n", ret);
+    else
+        TEST_PASS("AES-GCM-SIV test passed!\n");
+#endif
 #endif
 
 #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
@@ -20297,6 +20306,108 @@ static wc_test_ret_t aesgcm_aes256_large_test(Aes* enc, Aes* dec)
     return ret;
 }
 #endif /* WOLFSSL_AES_256 */
+
+#ifdef WOLFSSL_AESGCM_SIV
+/* AES-GCM-SIV (RFC 8452) self test: known-answer vectors from RFC 8452
+ * Appendix C (AES-128 C.1-2 and AES-256 C.2-2), an encrypt/decrypt round trip,
+ * authentication-failure handling and invalid-parameter spot checks. The
+ * exhaustive coverage lives in tests/api/test_aes.c. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_siv_test(void)
+{
+    wc_test_ret_t ret = 0;
+    WOLFSSL_SMALL_STACK_STATIC const byte key128[16] = {
+        0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte nonce[12] = {
+        0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte pt8[8] = {
+        0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte exp128[8] = {
+        0xb5,0xd8,0x39,0x33,0x0a,0xc7,0xb7,0x86
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte tag128[16] = {
+        0x57,0x87,0x82,0xff,0xf6,0x01,0x3b,0x81,
+        0x5b,0x28,0x7c,0x22,0x49,0x3a,0x36,0x4c
+    };
+#ifdef WOLFSSL_AES_256
+    WOLFSSL_SMALL_STACK_STATIC const byte key256[32] = {
+        0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte exp256[8] = {
+        0xc2,0xef,0x32,0x8e,0x5c,0x71,0xc8,0x3b
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte tag256[16] = {
+        0x84,0x31,0x22,0x13,0x0f,0x73,0x64,0xb7,
+        0x61,0xe0,0xb9,0x74,0x27,0xe3,0xdf,0x28
+    };
+#endif
+    byte ct[8];
+    byte tag[16];
+    byte dec[8];
+
+    /* AES-128 known-answer (encrypt). */
+    ret = wc_AesGcmSivEncrypt(key128, sizeof(key128), nonce, sizeof(nonce),
+        NULL, 0, pt8, sizeof(pt8), ct, tag, sizeof(tag));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ct, exp128, sizeof(exp128)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (XMEMCMP(tag, tag128, sizeof(tag128)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    /* Decrypt round trip. */
+    ret = wc_AesGcmSivDecrypt(key128, sizeof(key128), nonce, sizeof(nonce),
+        NULL, 0, ct, sizeof(ct), dec, tag, sizeof(tag));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(dec, pt8, sizeof(pt8)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    /* Tampered tag must fail authentication. */
+    tag[0] ^= 0xff;
+    if (wc_AesGcmSivDecrypt(key128, sizeof(key128), nonce, sizeof(nonce),
+            NULL, 0, ct, sizeof(ct), dec, tag, sizeof(tag)) !=
+            WC_NO_ERR_TRACE(AES_GCM_AUTH_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    tag[0] ^= 0xff;
+
+#ifdef WOLFSSL_AES_256
+    /* AES-256 known-answer + round trip. */
+    ret = wc_AesGcmSivEncrypt(key256, sizeof(key256), nonce, sizeof(nonce),
+        NULL, 0, pt8, sizeof(pt8), ct, tag, sizeof(tag));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ct, exp256, sizeof(exp256)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (XMEMCMP(tag, tag256, sizeof(tag256)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_AesGcmSivDecrypt(key256, sizeof(key256), nonce, sizeof(nonce),
+        NULL, 0, ct, sizeof(ct), dec, tag, sizeof(tag));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(dec, pt8, sizeof(pt8)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AES_256 */
+
+    /* Invalid-parameter spot checks (NULL key; AES-192 key size rejected). */
+    if (wc_AesGcmSivEncrypt(NULL, sizeof(key128), nonce, sizeof(nonce),
+            NULL, 0, pt8, sizeof(pt8), ct, tag, sizeof(tag)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (wc_AesGcmSivEncrypt(key128, 24, nonce, sizeof(nonce),
+            NULL, 0, pt8, sizeof(pt8), ct, tag, sizeof(tag)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    ret = 0;
+out:
+    return ret;
+}
+#endif /* WOLFSSL_AESGCM_SIV */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 {
