@@ -686,6 +686,9 @@ int wolfAsync_EventQueuePoll(WOLF_EVENT_QUEUE* queue, void* context_filter,
                         if (ret != 0) {
                             break;
                         }
+                        /* buffer flushed: restart indexing to avoid writing
+                         * past multi_req.req[CAVIUM_MAX_POLL] */
+                        req_count = 0;
                     }
             #else
                 #if defined(HAVE_INTEL_QA)
