@@ -1194,6 +1194,22 @@ int test_wolfSSL_ASN1_STRING(void)
     ExpectIntEQ(ASN1_STRING_length(NULL), 0);
     ExpectIntGT(ASN1_STRING_length(str), 0);
 
+    /* Setting from the object's own buffer must not read freed/cleared data.
+     * Fixed-buffer case: data is held in the small array. */
+    ExpectIntEQ(ASN1_STRING_set(str, (const void*)data, (int)XSTRLEN(data)), 1);
+    ExpectIntEQ(ASN1_STRING_set(str, ASN1_STRING_get0_data(str),
+        ASN1_STRING_length(str)), 1);
+    ExpectIntEQ(ASN1_STRING_length(str), (int)XSTRLEN(data));
+    ExpectIntEQ(XMEMCMP(ASN1_STRING_get0_data(str), data, XSTRLEN(data)), 0);
+    /* Dynamic-buffer case: data is held in a heap allocation. */
+    ExpectIntEQ(ASN1_STRING_set(str, (const void*)longData,
+        (int)XSTRLEN(longData)), 1);
+    ExpectIntEQ(ASN1_STRING_set(str, ASN1_STRING_get0_data(str),
+        ASN1_STRING_length(str)), 1);
+    ExpectIntEQ(ASN1_STRING_length(str), (int)XSTRLEN(longData));
+    ExpectIntEQ(XMEMCMP(ASN1_STRING_get0_data(str), longData,
+        XSTRLEN(longData)), 0);
+
     ASN1_STRING_free(c);
     ASN1_STRING_free(str);
     ASN1_STRING_free(NULL);
