@@ -1810,14 +1810,14 @@ do {                                                                        \
  */
 #define SHAKE256_SET_HASH_X4_16(state, hash)                                \
 do {                                                                        \
-    (state)[24] = ((word64*)((hash) + 0 * 16))[0];                          \
-    (state)[25] = ((word64*)((hash) + 1 * 16))[0];                          \
-    (state)[26] = ((word64*)((hash) + 2 * 16))[0];                          \
-    (state)[27] = ((word64*)((hash) + 3 * 16))[0];                          \
-    (state)[28] = ((word64*)((hash) + 0 * 16))[1];                          \
-    (state)[29] = ((word64*)((hash) + 1 * 16))[1];                          \
-    (state)[30] = ((word64*)((hash) + 2 * 16))[1];                          \
-    (state)[31] = ((word64*)((hash) + 3 * 16))[1];                          \
+    (state)[24] = readUnalignedWord64((hash) + 0 * 16 + 0 * 8);             \
+    (state)[25] = readUnalignedWord64((hash) + 1 * 16 + 0 * 8);             \
+    (state)[26] = readUnalignedWord64((hash) + 2 * 16 + 0 * 8);             \
+    (state)[27] = readUnalignedWord64((hash) + 3 * 16 + 0 * 8);             \
+    (state)[28] = readUnalignedWord64((hash) + 0 * 16 + 1 * 8);             \
+    (state)[29] = readUnalignedWord64((hash) + 1 * 16 + 1 * 8);             \
+    (state)[30] = readUnalignedWord64((hash) + 2 * 16 + 1 * 8);             \
+    (state)[31] = readUnalignedWord64((hash) + 3 * 16 + 1 * 8);             \
 } while (0)
 
 /* Get the four SHAKE-256 16-byte hash results.
@@ -1827,14 +1827,14 @@ do {                                                                        \
  */
 #define SHAKE256_GET_HASH_X4_16(state, hash)                                \
 do {                                                                        \
-    ((word64*)((hash) + 0 * 16))[0] = (state)[0];                           \
-    ((word64*)((hash) + 1 * 16))[0] = (state)[1];                           \
-    ((word64*)((hash) + 2 * 16))[0] = (state)[2];                           \
-    ((word64*)((hash) + 3 * 16))[0] = (state)[3];                           \
-    ((word64*)((hash) + 0 * 16))[1] = (state)[4];                           \
-    ((word64*)((hash) + 1 * 16))[1] = (state)[5];                           \
-    ((word64*)((hash) + 2 * 16))[1] = (state)[6];                           \
-    ((word64*)((hash) + 3 * 16))[1] = (state)[7];                           \
+    writeUnalignedWord64((hash) + 0 * 16 + 0 * 8, (state)[0]);              \
+    writeUnalignedWord64((hash) + 1 * 16 + 0 * 8, (state)[1]);              \
+    writeUnalignedWord64((hash) + 2 * 16 + 0 * 8, (state)[2]);              \
+    writeUnalignedWord64((hash) + 3 * 16 + 0 * 8, (state)[3]);              \
+    writeUnalignedWord64((hash) + 0 * 16 + 1 * 8, (state)[4]);              \
+    writeUnalignedWord64((hash) + 1 * 16 + 1 * 8, (state)[5]);              \
+    writeUnalignedWord64((hash) + 2 * 16 + 1 * 8, (state)[6]);              \
+    writeUnalignedWord64((hash) + 3 * 16 + 1 * 8, (state)[7]);              \
 } while (0)
 #endif
 
@@ -1871,18 +1871,18 @@ do {                                                                        \
  */
 #define SHAKE256_SET_HASH_X4_24(state, hash)                                \
 do {                                                                        \
-    (state)[28] = ((word64*)((hash) + 0 * 24))[0];                          \
-    (state)[29] = ((word64*)((hash) + 1 * 24))[0];                          \
-    (state)[30] = ((word64*)((hash) + 2 * 24))[0];                          \
-    (state)[31] = ((word64*)((hash) + 3 * 24))[0];                          \
-    (state)[32] = ((word64*)((hash) + 0 * 24))[1];                          \
-    (state)[33] = ((word64*)((hash) + 1 * 24))[1];                          \
-    (state)[34] = ((word64*)((hash) + 2 * 24))[1];                          \
-    (state)[35] = ((word64*)((hash) + 3 * 24))[1];                          \
-    (state)[36] = ((word64*)((hash) + 0 * 24))[2];                          \
-    (state)[37] = ((word64*)((hash) + 1 * 24))[2];                          \
-    (state)[38] = ((word64*)((hash) + 2 * 24))[2];                          \
-    (state)[39] = ((word64*)((hash) + 3 * 24))[2];                          \
+    (state)[28] = readUnalignedWord64((hash) + 0 * 24 + 0 * 8);             \
+    (state)[29] = readUnalignedWord64((hash) + 1 * 24 + 0 * 8);             \
+    (state)[30] = readUnalignedWord64((hash) + 2 * 24 + 0 * 8);             \
+    (state)[31] = readUnalignedWord64((hash) + 3 * 24 + 0 * 8);             \
+    (state)[32] = readUnalignedWord64((hash) + 0 * 24 + 1 * 8);             \
+    (state)[33] = readUnalignedWord64((hash) + 1 * 24 + 1 * 8);             \
+    (state)[34] = readUnalignedWord64((hash) + 2 * 24 + 1 * 8);             \
+    (state)[35] = readUnalignedWord64((hash) + 3 * 24 + 1 * 8);             \
+    (state)[36] = readUnalignedWord64((hash) + 0 * 24 + 2 * 8);             \
+    (state)[37] = readUnalignedWord64((hash) + 1 * 24 + 2 * 8);             \
+    (state)[38] = readUnalignedWord64((hash) + 2 * 24 + 2 * 8);             \
+    (state)[39] = readUnalignedWord64((hash) + 3 * 24 + 2 * 8);             \
 } while (0)
 
 /* Get the four SHAKE-256 24-byte (hash) results.
@@ -1892,18 +1892,18 @@ do {                                                                        \
  */
 #define SHAKE256_GET_HASH_X4_24(state, hash)                                \
 do {                                                                        \
-    ((word64*)((hash) + 0 * 24))[0] = (state)[ 0];                          \
-    ((word64*)((hash) + 1 * 24))[0] = (state)[ 1];                          \
-    ((word64*)((hash) + 2 * 24))[0] = (state)[ 2];                          \
-    ((word64*)((hash) + 3 * 24))[0] = (state)[ 3];                          \
-    ((word64*)((hash) + 0 * 24))[1] = (state)[ 4];                          \
-    ((word64*)((hash) + 1 * 24))[1] = (state)[ 5];                          \
-    ((word64*)((hash) + 2 * 24))[1] = (state)[ 6];                          \
-    ((word64*)((hash) + 3 * 24))[1] = (state)[ 7];                          \
-    ((word64*)((hash) + 0 * 24))[2] = (state)[ 8];                          \
-    ((word64*)((hash) + 1 * 24))[2] = (state)[ 9];                          \
-    ((word64*)((hash) + 2 * 24))[2] = (state)[10];                          \
-    ((word64*)((hash) + 3 * 24))[2] = (state)[11];                          \
+    writeUnalignedWord64((hash) + 0 * 24 + 0 * 8, (state)[ 0]);             \
+    writeUnalignedWord64((hash) + 1 * 24 + 0 * 8, (state)[ 1]);             \
+    writeUnalignedWord64((hash) + 2 * 24 + 0 * 8, (state)[ 2]);             \
+    writeUnalignedWord64((hash) + 3 * 24 + 0 * 8, (state)[ 3]);             \
+    writeUnalignedWord64((hash) + 0 * 24 + 1 * 8, (state)[ 4]);             \
+    writeUnalignedWord64((hash) + 1 * 24 + 1 * 8, (state)[ 5]);             \
+    writeUnalignedWord64((hash) + 2 * 24 + 1 * 8, (state)[ 6]);             \
+    writeUnalignedWord64((hash) + 3 * 24 + 1 * 8, (state)[ 7]);             \
+    writeUnalignedWord64((hash) + 0 * 24 + 2 * 8, (state)[ 8]);             \
+    writeUnalignedWord64((hash) + 1 * 24 + 2 * 8, (state)[ 9]);             \
+    writeUnalignedWord64((hash) + 2 * 24 + 2 * 8, (state)[10]);             \
+    writeUnalignedWord64((hash) + 3 * 24 + 2 * 8, (state)[11]);             \
 } while (0)
 #endif
 
@@ -1942,22 +1942,22 @@ do {                                                                        \
  */
 #define SHAKE256_SET_HASH_X4_32(state, hash)                                \
 do {                                                                        \
-    (state)[32] = ((word64*)((hash) + 0 * 32))[0];                          \
-    (state)[33] = ((word64*)((hash) + 1 * 32))[0];                          \
-    (state)[34] = ((word64*)((hash) + 2 * 32))[0];                          \
-    (state)[35] = ((word64*)((hash) + 3 * 32))[0];                          \
-    (state)[36] = ((word64*)((hash) + 0 * 32))[1];                          \
-    (state)[37] = ((word64*)((hash) + 1 * 32))[1];                          \
-    (state)[38] = ((word64*)((hash) + 2 * 32))[1];                          \
-    (state)[39] = ((word64*)((hash) + 3 * 32))[1];                          \
-    (state)[40] = ((word64*)((hash) + 0 * 32))[2];                          \
-    (state)[41] = ((word64*)((hash) + 1 * 32))[2];                          \
-    (state)[42] = ((word64*)((hash) + 2 * 32))[2];                          \
-    (state)[43] = ((word64*)((hash) + 3 * 32))[2];                          \
-    (state)[44] = ((word64*)((hash) + 0 * 32))[3];                          \
-    (state)[45] = ((word64*)((hash) + 1 * 32))[3];                          \
-    (state)[46] = ((word64*)((hash) + 2 * 32))[3];                          \
-    (state)[47] = ((word64*)((hash) + 3 * 32))[3];                          \
+    (state)[32] = readUnalignedWord64((hash) + 0 * 32 + 0 * 8);             \
+    (state)[33] = readUnalignedWord64((hash) + 1 * 32 + 0 * 8);             \
+    (state)[34] = readUnalignedWord64((hash) + 2 * 32 + 0 * 8);             \
+    (state)[35] = readUnalignedWord64((hash) + 3 * 32 + 0 * 8);             \
+    (state)[36] = readUnalignedWord64((hash) + 0 * 32 + 1 * 8);             \
+    (state)[37] = readUnalignedWord64((hash) + 1 * 32 + 1 * 8);             \
+    (state)[38] = readUnalignedWord64((hash) + 2 * 32 + 1 * 8);             \
+    (state)[39] = readUnalignedWord64((hash) + 3 * 32 + 1 * 8);             \
+    (state)[40] = readUnalignedWord64((hash) + 0 * 32 + 2 * 8);             \
+    (state)[41] = readUnalignedWord64((hash) + 1 * 32 + 2 * 8);             \
+    (state)[42] = readUnalignedWord64((hash) + 2 * 32 + 2 * 8);             \
+    (state)[43] = readUnalignedWord64((hash) + 3 * 32 + 2 * 8);             \
+    (state)[44] = readUnalignedWord64((hash) + 0 * 32 + 3 * 8);             \
+    (state)[45] = readUnalignedWord64((hash) + 1 * 32 + 3 * 8);             \
+    (state)[46] = readUnalignedWord64((hash) + 2 * 32 + 3 * 8);             \
+    (state)[47] = readUnalignedWord64((hash) + 3 * 32 + 3 * 8);             \
 } while (0)
 
 /* Get the four SHAKE-256 32-byte hash results.
@@ -1967,22 +1967,22 @@ do {                                                                        \
  */
 #define SHAKE256_GET_HASH_X4_32(state, hash)                                \
 do {                                                                        \
-    ((word64*)((hash) + 0 * 32))[0] = (state)[ 0];                          \
-    ((word64*)((hash) + 1 * 32))[0] = (state)[ 1];                          \
-    ((word64*)((hash) + 2 * 32))[0] = (state)[ 2];                          \
-    ((word64*)((hash) + 3 * 32))[0] = (state)[ 3];                          \
-    ((word64*)((hash) + 0 * 32))[1] = (state)[ 4];                          \
-    ((word64*)((hash) + 1 * 32))[1] = (state)[ 5];                          \
-    ((word64*)((hash) + 2 * 32))[1] = (state)[ 6];                          \
-    ((word64*)((hash) + 3 * 32))[1] = (state)[ 7];                          \
-    ((word64*)((hash) + 0 * 32))[2] = (state)[ 8];                          \
-    ((word64*)((hash) + 1 * 32))[2] = (state)[ 9];                          \
-    ((word64*)((hash) + 2 * 32))[2] = (state)[10];                          \
-    ((word64*)((hash) + 3 * 32))[2] = (state)[11];                          \
-    ((word64*)((hash) + 0 * 32))[3] = (state)[12];                          \
-    ((word64*)((hash) + 1 * 32))[3] = (state)[13];                          \
-    ((word64*)((hash) + 2 * 32))[3] = (state)[14];                          \
-    ((word64*)((hash) + 3 * 32))[3] = (state)[15];                          \
+    writeUnalignedWord64((hash) + 0 * 32 + 0 * 8, (state)[ 0]);             \
+    writeUnalignedWord64((hash) + 1 * 32 + 0 * 8, (state)[ 1]);             \
+    writeUnalignedWord64((hash) + 2 * 32 + 0 * 8, (state)[ 2]);             \
+    writeUnalignedWord64((hash) + 3 * 32 + 0 * 8, (state)[ 3]);             \
+    writeUnalignedWord64((hash) + 0 * 32 + 1 * 8, (state)[ 4]);             \
+    writeUnalignedWord64((hash) + 1 * 32 + 1 * 8, (state)[ 5]);             \
+    writeUnalignedWord64((hash) + 2 * 32 + 1 * 8, (state)[ 6]);             \
+    writeUnalignedWord64((hash) + 3 * 32 + 1 * 8, (state)[ 7]);             \
+    writeUnalignedWord64((hash) + 0 * 32 + 2 * 8, (state)[ 8]);             \
+    writeUnalignedWord64((hash) + 1 * 32 + 2 * 8, (state)[ 9]);             \
+    writeUnalignedWord64((hash) + 2 * 32 + 2 * 8, (state)[10]);             \
+    writeUnalignedWord64((hash) + 3 * 32 + 2 * 8, (state)[11]);             \
+    writeUnalignedWord64((hash) + 0 * 32 + 3 * 8, (state)[12]);             \
+    writeUnalignedWord64((hash) + 1 * 32 + 3 * 8, (state)[13]);             \
+    writeUnalignedWord64((hash) + 2 * 32 + 3 * 8, (state)[14]);             \
+    writeUnalignedWord64((hash) + 3 * 32 + 3 * 8, (state)[15]);             \
 } while (0)
 #endif
 
@@ -2079,10 +2079,10 @@ static void slhdsakey_shake256_get_hash_x4(const word64* state, byte* hash,
     int i;
 
     for (i = 0; i < (n / 8); i++) {
-        ((word64*)(hash + 0 * n))[i] = state[4 * i + 0];
-        ((word64*)(hash + 1 * n))[i] = state[4 * i + 1];
-        ((word64*)(hash + 2 * n))[i] = state[4 * i + 2];
-        ((word64*)(hash + 3 * n))[i] = state[4 * i + 3];
+        writeUnalignedWord64(hash + 0 * n + i * 8, state[4 * i + 0]);
+        writeUnalignedWord64(hash + 1 * n + i * 8, state[4 * i + 1]);
+        writeUnalignedWord64(hash + 2 * n + i * 8, state[4 * i + 2]);
+        writeUnalignedWord64(hash + 3 * n + i * 8, state[4 * i + 3]);
     }
 }
 
@@ -5148,10 +5148,10 @@ static int slhdsakey_hash_f_ti_x4(const byte* pk_seed, byte* addr, byte* node,
         o = slhdsakey_shake256_set_seed_ha_x4(state, pk_seed, addr, n);
         SHAKE256_SET_TREE_INDEX(state, o, ti);
         for (i = 0; i < n / 8; i++) {
-            state[o + 0] = ((word64*)(node + 0 * n))[i];
-            state[o + 1] = ((word64*)(node + 1 * n))[i];
-            state[o + 2] = ((word64*)(node + 2 * n))[i];
-            state[o + 3] = ((word64*)(node + 3 * n))[i];
+            state[o + 0] = readUnalignedWord64(node + 0 * n + i * 8);
+            state[o + 1] = readUnalignedWord64(node + 1 * n + i * 8);
+            state[o + 2] = readUnalignedWord64(node + 2 * n + i * 8);
+            state[o + 3] = readUnalignedWord64(node + 3 * n + i * 8);
             o += 4;
         }
         SHAKE256_SET_END_X4(state, o);
@@ -5205,10 +5205,10 @@ static int slhdsakey_hash_h_ti_x4(const byte* pk_seed, byte* addr,
         o = slhdsakey_shake256_set_seed_ha_x4(state, pk_seed, addr, n);
         SHAKE256_SET_TREE_INDEX(state, o, ti);
         for (i = 0; i < 2 * n / 8; i++) {
-            state[o + 0] = ((const word64*)(m + 0 * n))[i];
-            state[o + 1] = ((const word64*)(m + 2 * n))[i];
-            state[o + 2] = ((const word64*)(m + 4 * n))[i];
-            state[o + 3] = ((const word64*)(m + 6 * n))[i];
+            state[o + 0] = readUnalignedWord64(m + 0 * n + i * 8);
+            state[o + 1] = readUnalignedWord64(m + 2 * n + i * 8);
+            state[o + 2] = readUnalignedWord64(m + 4 * n + i * 8);
+            state[o + 3] = readUnalignedWord64(m + 6 * n + i * 8);
             o += 4;
         }
         SHAKE256_SET_END_X4(state, o);
@@ -6002,10 +6002,10 @@ static int slhdsakey_hash_f_ti4_x4(const byte* pk_seed, byte* addr,
         o = slhdsakey_shake256_set_seed_ha_x4(state, pk_seed, addr, n);
         SHAKE256_SET_TREE_INDEX_IDX(state, o, ti);
         for (i = 0; i < n / 8; i++) {
-            state[o + 0] = ((const word64*)(sig_fors + 0 * so * n))[i];
-            state[o + 1] = ((const word64*)(sig_fors + 1 * so * n))[i];
-            state[o + 2] = ((const word64*)(sig_fors + 2 * so * n))[i];
-            state[o + 3] = ((const word64*)(sig_fors + 3 * so * n))[i];
+            state[o + 0] = readUnalignedWord64(sig_fors + 0 * so * n + i * 8);
+            state[o + 1] = readUnalignedWord64(sig_fors + 1 * so * n + i * 8);
+            state[o + 2] = readUnalignedWord64(sig_fors + 2 * so * n + i * 8);
+            state[o + 3] = readUnalignedWord64(sig_fors + 3 * so * n + i * 8);
             o += 4;
         }
         SHAKE256_SET_END_X4(state, o);
@@ -6067,11 +6067,12 @@ static int slhdsakey_hash_h_2_x4(const byte* pk_seed, byte* addr, byte* node,
         for (i = 0; i < n / 8; i++) {
             for (j = 0; j < 4; j++) {
                 if (bit[j] == 0) {
-                    state[o + j] = ((const word64*)(node + j * n))[i];
+                    state[o + j] = readUnalignedWord64(node + j * n + i * 8);
                 }
                 else {
                     state[o + j] =
-                        ((const word64*)(sig_fors + j * (word32)so * n))[i];
+                        readUnalignedWord64(sig_fors + j *
+                                        (word32)so * n + i * 8);
                 }
             }
             o += 4;
@@ -6080,10 +6081,11 @@ static int slhdsakey_hash_h_2_x4(const byte* pk_seed, byte* addr, byte* node,
             for (j = 0; j < 4; j++) {
                 if (bit[j] == 0) {
                     state[o + j] =
-                        ((const word64*)(sig_fors + j * (word32)so * n))[i];
+                        readUnalignedWord64(sig_fors + j *
+                                        (word32)so * n + i * 8);
                 }
                 else {
-                    state[o + j] = ((const word64*)(node + j * n))[i];
+                    state[o + j] = readUnalignedWord64(node + j * n + i * 8);
                 }
             }
             o += 4;
