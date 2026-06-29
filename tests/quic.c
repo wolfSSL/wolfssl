@@ -1470,6 +1470,56 @@ static int test_quic_server_hello_fail(int verbose) {
     return EXPECT_RESULT();
 }
 
+static int test_quic_key_update_rejected(int verbose) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX * ctx_c = NULL;
+    WOLFSSL_CTX * ctx_s = NULL;
+    QuicTestContext tclient, tserver;
+    QuicConversation conv;
+    uint8_t lbuffer[16];
+    size_t len;
+    int ret;
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+
+    /* complete a normal QUIC handshake */
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+    QuicConversation_init(&conv, &tclient, &tserver);
+    QuicConversation_do(&conv);
+
+    /* RFC 9001 section 6: a QUIC connection must not send a TLS KeyUpdate;
+     * key updates are handled at the QUIC packet-protection layer. The
+     * public wolfSSL_update_keys() must refuse on a QUIC connection. */
+    ExpectIntEQ(wolfSSL_update_keys(tserver.ssl),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* RFC 9001 section 6: a TLS KeyUpdate handshake message must be rejected
+     * as a fatal unexpected_message connection error when running over QUIC.
+     * Feed a key_update (update_not_requested) as post-handshake CRYPTO data
+     * and confirm the server refuses to process it. */
+    len = fake_record(key_update, OPAQUE8_LEN, lbuffer);
+    lbuffer[HANDSHAKE_HEADER_SZ] = update_not_requested;
+    ExpectIntEQ(wolfSSL_provide_quic_data(tserver.ssl,
+                wolfssl_encryption_application, lbuffer, len), WOLFSSL_SUCCESS);
+    ret = wolfSSL_process_quic_post_handshake(tserver.ssl);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(SANITY_MSG_E));
+
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    printf("    test_quic_key_update_rejected: %s\n",
+           EXPECT_RESULT() ? pass : fail);
+    return EXPECT_RESULT();
+}
+
 /* This has gotten a bit out of hand. */
 #if (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
     (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
@@ -2005,6 +2055,7 @@ int QuicTest(void)
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     if ((ret = test_quic_server_hello(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_server_hello_fail(verbose)) != TEST_SUCCESS) goto leave;
+    if ((ret = test_quic_key_update_rejected(verbose)) != TEST_SUCCESS) goto leave;
 #ifdef REALLY_HAVE_ALPN_AND_SNI
     if ((ret = test_quic_alpn(verbose)) != TEST_SUCCESS) goto leave;
 #endif /* REALLY_HAVE_ALPN_AND_SNI */
