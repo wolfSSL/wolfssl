@@ -1737,7 +1737,7 @@ static void IntelQaRsaPublicFree(WC_ASYNC_DEV* dev)
     }
     if (outBuf) {
         if (outBuf->pData) {
-            XFREE(outBuf->pData, dev, DYNAMIC_TYPE_ASYNC_NUMA64);
+            XFREE(outBuf->pData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA64);
             outBuf->pData = NULL;
         }
         XMEMSET(outBuf, 0, sizeof(CpaFlatBuffer));
