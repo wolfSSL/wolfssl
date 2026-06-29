@@ -3536,6 +3536,25 @@ then
     ENABLED_AESSIV=yes
 fi
 
+# AES-GCM-SIV (RFC 8452)
+AC_ARG_ENABLE([aesgcm-siv],
+    [AS_HELP_STRING([--enable-aesgcm-siv],[Enable AES-GCM-SIV (RFC 8452) (default: disabled)])],
+    [ ENABLED_AESGCMSIV=$enableval ],
+    [ ENABLED_AESGCMSIV=no ]
+    )
+
+if test "$ENABLED_AESGCMSIV" = "yes"
+then
+    if test "$ENABLED_AESGCM" = "no"
+    then
+        AC_MSG_ERROR([AES-GCM-SIV requires AES-GCM. Please enable it (--enable-aesgcm).])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_SIV"
+    # The generated AES-GCM-SIV assembly (aes_gcm_asm.S) is guarded by
+    # WOLFSSL_AESGCM_SIV, so the assembler needs the define too.
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_SIV"
+fi
+
 # AES-CTR
 AC_ARG_ENABLE([aesctr],
     [AS_HELP_STRING([--enable-aesctr],[Enable wolfSSL AES-CTR support (default: disabled)])],
@@ -12981,6 +13000,7 @@ echo "   * AES-OFB:                    $ENABLED_AESOFB"
 echo "   * AES-XTS:                    $ENABLED_AESXTS"
 echo "   * AES-XTS streaming:          $ENABLED_AESXTS_STREAM"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
+echo "   * AES-GCM-SIV:                $ENABLED_AESGCMSIV"
 echo "   * AES-EAX:                    $ENABLED_AESEAX"
 echo "   * AES Bitspliced:             $ENABLED_AESBS"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"

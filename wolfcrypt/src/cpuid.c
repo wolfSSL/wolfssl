@@ -53,6 +53,14 @@
             new_cpuid_flags |= CPUID_ADX;
             new_cpuid_flags |= CPUID_MOVBE;
             new_cpuid_flags |= CPUID_BMI1;
+        #ifdef WOLFSSL_SGX_CPUID_AVX512_VAES
+            /* CPUID is unavailable inside an SGX enclave, so the integrator
+             * defines this macro to assert the target CPU implements VAES and
+             * AVX512. This enables ALL VAES/AVX512-gated code (AES-GCM and the
+             * rest), not just AES-GCM-SIV - only set it when that is true. */
+            new_cpuid_flags |= CPUID_VAES;
+            new_cpuid_flags |= CPUID_AVX512;
+        #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);

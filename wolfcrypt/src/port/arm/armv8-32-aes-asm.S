@@ -7818,6 +7818,325 @@ L_aes_xts_decrypt_arm32_crypto_done:
 	.size	AES_XTS_decrypt_AARCH32,.-AES_XTS_decrypt_AARCH32
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_XTS */
+#ifdef WOLFSSL_AESGCM_SIV
+	.text
+	.align	4
+	.globl	AES_GCMSIV_polyval_crypto
+	.type	AES_GCMSIV_polyval_crypto, %function
+AES_GCMSIV_polyval_crypto:
+	vpush	{d8-d15}
+	veor.8	q2, q2, q2
+	vld1.8	{q1}, [r1]
+	vld1.8	{q0}, [r0]
+	vrev64.8	q0, q0
+	vext.8	q0, q0, q0, #8
+	vmull.p64	q7, d2, d2
+	vmull.p64	q11, d2, d3
+	vmull.p64	q12, d3, d2
+	vmull.p64	q8, d3, d3
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q7, q7, q12
+	veor.8	q8, q8, q11
+	vshr.u32	q6, q7, #31
+	vshr.u32	q9, q8, #31
+	vshl.i32	q7, q7, #1
+	vshl.i32	q8, q8, #1
+	vext.8	q10, q6, q2, #12
+	vext.8	q9, q2, q9, #12
+	vext.8	q6, q2, q6, #12
+	veor.8	q7, q7, q6
+	veor.8	q8, q8, q9
+	veor.8	q8, q8, q10
+	vshl.i32	q6, q7, #31
+	vshl.i32	q9, q7, #30
+	vshl.i32	q10, q7, #25
+	veor.8	q6, q6, q9
+	veor.8	q6, q6, q10
+	vext.8	q9, q6, q2, #4
+	vext.8	q6, q2, q6, #4
+	veor.8	q7, q7, q6
+	vshr.u32	q11, q7, #1
+	vshr.u32	q12, q7, #2
+	vshr.u32	q13, q7, #7
+	veor.8	q11, q11, q12
+	veor.8	q11, q11, q13
+	veor.8	q11, q11, q9
+	veor.8	q7, q7, q11
+	veor.8	q3, q8, q7
+	vmull.p64	q7, d6, d2
+	vmull.p64	q11, d6, d3
+	vmull.p64	q12, d7, d2
+	vmull.p64	q8, d7, d3
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q7, q7, q12
+	veor.8	q8, q8, q11
+	vshr.u32	q6, q7, #31
+	vshr.u32	q9, q8, #31
+	vshl.i32	q7, q7, #1
+	vshl.i32	q8, q8, #1
+	vext.8	q10, q6, q2, #12
+	vext.8	q9, q2, q9, #12
+	vext.8	q6, q2, q6, #12
+	veor.8	q7, q7, q6
+	veor.8	q8, q8, q9
+	veor.8	q8, q8, q10
+	vshl.i32	q6, q7, #31
+	vshl.i32	q9, q7, #30
+	vshl.i32	q10, q7, #25
+	veor.8	q6, q6, q9
+	veor.8	q6, q6, q10
+	vext.8	q9, q6, q2, #4
+	vext.8	q6, q2, q6, #4
+	veor.8	q7, q7, q6
+	vshr.u32	q11, q7, #1
+	vshr.u32	q12, q7, #2
+	vshr.u32	q13, q7, #7
+	veor.8	q11, q11, q12
+	veor.8	q11, q11, q13
+	veor.8	q11, q11, q9
+	veor.8	q7, q7, q11
+	veor.8	q4, q8, q7
+	vmull.p64	q7, d6, d6
+	vmull.p64	q11, d6, d7
+	vmull.p64	q12, d7, d6
+	vmull.p64	q8, d7, d7
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q7, q7, q12
+	veor.8	q8, q8, q11
+	vshr.u32	q6, q7, #31
+	vshr.u32	q9, q8, #31
+	vshl.i32	q7, q7, #1
+	vshl.i32	q8, q8, #1
+	vext.8	q10, q6, q2, #12
+	vext.8	q9, q2, q9, #12
+	vext.8	q6, q2, q6, #12
+	veor.8	q7, q7, q6
+	veor.8	q8, q8, q9
+	veor.8	q8, q8, q10
+	vshl.i32	q6, q7, #31
+	vshl.i32	q9, q7, #30
+	vshl.i32	q10, q7, #25
+	veor.8	q6, q6, q9
+	veor.8	q6, q6, q10
+	vext.8	q9, q6, q2, #4
+	vext.8	q6, q2, q6, #4
+	veor.8	q7, q7, q6
+	vshr.u32	q11, q7, #1
+	vshr.u32	q12, q7, #2
+	vshr.u32	q13, q7, #7
+	veor.8	q11, q11, q12
+	veor.8	q11, q11, q13
+	veor.8	q11, q11, q9
+	veor.8	q7, q7, q11
+	veor.8	q5, q8, q7
+	lsr	r12, r3, #2
+	cmp	r12, #0
+	beq	L_AES_GCMSIV_polyval_crypto_rem_start
+L_AES_GCMSIV_polyval_crypto_group:
+	vld1.8	{q6}, [r2]!
+	veor.8	q6, q6, q0
+	vmull.p64	q9, d12, d10
+	vmull.p64	q11, d12, d11
+	vmull.p64	q12, d13, d10
+	vmull.p64	q10, d13, d11
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q9, q9, q12
+	veor.8	q10, q10, q11
+	vld1.8	{q6}, [r2]!
+	vmull.p64	q7, d12, d8
+	vmull.p64	q11, d12, d9
+	vmull.p64	q12, d13, d8
+	vmull.p64	q8, d13, d9
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q7, q7, q12
+	veor.8	q8, q8, q11
+	veor.8	q9, q9, q7
+	veor.8	q10, q10, q8
+	vld1.8	{q6}, [r2]!
+	vmull.p64	q7, d12, d6
+	vmull.p64	q11, d12, d7
+	vmull.p64	q12, d13, d6
+	vmull.p64	q8, d13, d7
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q7, q7, q12
+	veor.8	q8, q8, q11
+	veor.8	q9, q9, q7
+	veor.8	q10, q10, q8
+	vld1.8	{q6}, [r2]!
+	vmull.p64	q7, d12, d2
+	vmull.p64	q11, d12, d3
+	vmull.p64	q12, d13, d2
+	vmull.p64	q8, d13, d3
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q7, q7, q12
+	veor.8	q8, q8, q11
+	veor.8	q9, q9, q7
+	veor.8	q10, q10, q8
+	vshr.u32	q6, q9, #31
+	vshr.u32	q7, q10, #31
+	vshl.i32	q9, q9, #1
+	vshl.i32	q10, q10, #1
+	vext.8	q8, q6, q2, #12
+	vext.8	q7, q2, q7, #12
+	vext.8	q6, q2, q6, #12
+	veor.8	q9, q9, q6
+	veor.8	q10, q10, q7
+	veor.8	q10, q10, q8
+	vshl.i32	q6, q9, #31
+	vshl.i32	q7, q9, #30
+	vshl.i32	q8, q9, #25
+	veor.8	q6, q6, q7
+	veor.8	q6, q6, q8
+	vext.8	q7, q6, q2, #4
+	vext.8	q6, q2, q6, #4
+	veor.8	q9, q9, q6
+	vshr.u32	q11, q9, #1
+	vshr.u32	q12, q9, #2
+	vshr.u32	q13, q9, #7
+	veor.8	q11, q11, q12
+	veor.8	q11, q11, q13
+	veor.8	q11, q11, q7
+	veor.8	q9, q9, q11
+	veor.8	q0, q10, q9
+	subs	r12, r12, #1
+	bne	L_AES_GCMSIV_polyval_crypto_group
+L_AES_GCMSIV_polyval_crypto_rem_start:
+	and	r3, r3, #3
+	cmp	r3, #0
+	beq	L_AES_GCMSIV_polyval_crypto_done
+L_AES_GCMSIV_polyval_crypto_rem:
+	vld1.8	{q6}, [r2]!
+	veor.8	q0, q0, q6
+	vmull.p64	q9, d0, d2
+	vmull.p64	q11, d0, d3
+	vmull.p64	q12, d1, d2
+	vmull.p64	q10, d1, d3
+	veor.8	q11, q11, q12
+	vext.8	q12, q2, q11, #8
+	vext.8	q11, q11, q2, #8
+	veor.8	q9, q9, q12
+	veor.8	q10, q10, q11
+	vshr.u32	q6, q9, #31
+	vshr.u32	q7, q10, #31
+	vshl.i32	q9, q9, #1
+	vshl.i32	q10, q10, #1
+	vext.8	q8, q6, q2, #12
+	vext.8	q7, q2, q7, #12
+	vext.8	q6, q2, q6, #12
+	veor.8	q9, q9, q6
+	veor.8	q10, q10, q7
+	veor.8	q10, q10, q8
+	vshl.i32	q6, q9, #31
+	vshl.i32	q7, q9, #30
+	vshl.i32	q8, q9, #25
+	veor.8	q6, q6, q7
+	veor.8	q6, q6, q8
+	vext.8	q7, q6, q2, #4
+	vext.8	q6, q2, q6, #4
+	veor.8	q9, q9, q6
+	vshr.u32	q11, q9, #1
+	vshr.u32	q12, q9, #2
+	vshr.u32	q13, q9, #7
+	veor.8	q11, q11, q12
+	veor.8	q11, q11, q13
+	veor.8	q11, q11, q7
+	veor.8	q9, q9, q11
+	veor.8	q0, q10, q9
+	subs	r3, r3, #1
+	bne	L_AES_GCMSIV_polyval_crypto_rem
+L_AES_GCMSIV_polyval_crypto_done:
+	vrev64.8	q0, q0
+	vext.8	q0, q0, q0, #8
+	vst1.8	{q0}, [r0]
+	vpop	{d8-d15}
+	bx	lr
+	.size	AES_GCMSIV_polyval_crypto,.-AES_GCMSIV_polyval_crypto
+	.text
+	.align	4
+	.globl	AES_GCMSIV_ctr_crypto
+	.type	AES_GCMSIV_ctr_crypto, %function
+AES_GCMSIV_ctr_crypto:
+	push	{r4, r5, r6, r7, r8, r9, r10, lr}
+	vpush	{d8-d11}
+	ldr	r12, [sp, #64]
+	ldr	lr, [sp, #68]
+	vld1.8	{q0}, [lr]
+	lsr	r5, r2, #4
+	vmov	r7, r8, d0
+	vmov	r9, r10, d1
+L_AES_GCMSIV_ctr_crypto_loop2:
+	cmp	r5, #2
+	blt	L_AES_GCMSIV_ctr_crypto_tail
+	vmov	d2, r7, r8
+	vmov	d3, r9, r10
+	add	r2, r7, #1
+	vmov	d4, r2, r8
+	vmov	d5, r9, r10
+	add	r7, r7, #2
+	mov	r4, r3
+	sub	r6, r12, #1
+L_AES_GCMSIV_ctr_crypto_rounds2:
+	vld1.32	{q5}, [r4]!
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	aese.8	q2, q5
+	aesmc.8	q2, q2
+	subs	r6, r6, #1
+	bne	L_AES_GCMSIV_ctr_crypto_rounds2
+	vld1.32	{q5}, [r4]!
+	aese.8	q1, q5
+	aese.8	q2, q5
+	vld1.32	{q5}, [r4]
+	veor.8	q1, q1, q5
+	veor.8	q2, q2, q5
+	vld1.8	{q3-q4}, [r0]!
+	veor.8	q3, q3, q1
+	veor.8	q4, q4, q2
+	vst1.8	{q3-q4}, [r1]!
+	sub	r5, r5, #2
+	b	L_AES_GCMSIV_ctr_crypto_loop2
+L_AES_GCMSIV_ctr_crypto_tail:
+	cmp	r5, #0
+	beq	L_AES_GCMSIV_ctr_crypto_done
+	vmov	d2, r7, r8
+	vmov	d3, r9, r10
+	add	r7, r7, #1
+	mov	r4, r3
+	sub	r6, r12, #1
+L_AES_GCMSIV_ctr_crypto_rounds1:
+	vld1.32	{q5}, [r4]!
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	subs	r6, r6, #1
+	bne	L_AES_GCMSIV_ctr_crypto_rounds1
+	vld1.32	{q5}, [r4]!
+	aese.8	q1, q5
+	vld1.32	{q5}, [r4]
+	veor.8	q1, q1, q5
+	vld1.8	{q3}, [r0]!
+	veor.8	q3, q3, q1
+	vst1.8	{q3}, [r1]!
+L_AES_GCMSIV_ctr_crypto_done:
+	vmov	d0, r7, r8
+	vst1.8	{q0}, [lr]
+	vpop	{d8-d11}
+	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+	.size	AES_GCMSIV_ctr_crypto,.-AES_GCMSIV_ctr_crypto
+#endif /* WOLFSSL_AESGCM_SIV */
 #else
 #ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
@@ -26100,6 +26419,3127 @@ L_AES_GCM_encrypt_end:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
+#ifdef WOLFSSL_AESGCM_SIV
+#ifndef __APPLE__
+	.text
+	.type	L_AES_GCMSIV_polyval_base_r, %object
+	.size	L_AES_GCMSIV_polyval_base_r, 64
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_polyval_base_r:
+	.long	0x00000000,0x1c200000,0x38400000,0x24600000
+	.long	0x70800000,0x6ca00000,0x48c00000,0x54e00000
+	.long	0xe1000000,0xfd200000,0xd9400000,0xc5600000
+	.long	0x91800000,0x8da00000,0xa9c00000,0xb5e00000
+	.text
+	.align	4
+	.globl	AES_GCMSIV_polyval_base
+	.type	AES_GCMSIV_polyval_base, %function
+AES_GCMSIV_polyval_base:
+	push	{r4, r5, r6, r7, r8, r9, r10, lr}
+	adr	r6, L_AES_GCMSIV_polyval_base_r
+	cmp	r3, #0
+	beq	L_AES_GCMSIV_polyval_base_done
+L_AES_GCMSIV_polyval_base_loop:
+	ldr	r10, [r2, #12]
+	rev	r10, r10
+	ldr	r8, [r0]
+	eor	r8, r8, r10
+	str	r8, [r0]
+	ldr	r10, [r2, #8]
+	rev	r10, r10
+	ldr	r8, [r0, #4]
+	eor	r8, r8, r10
+	str	r8, [r0, #4]
+	ldr	r10, [r2, #4]
+	rev	r10, r10
+	ldr	r8, [r0, #8]
+	eor	r8, r8, r10
+	str	r8, [r0, #8]
+	ldr	r10, [r2]
+	rev	r10, r10
+	ldr	r8, [r0, #12]
+	eor	r8, r8, r10
+	str	r8, [r0, #12]
+	mov	r12, #0
+	mov	lr, #0
+	mov	r4, #0
+	mov	r5, #0
+	ldr	r7, [r0, #12]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #4
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #24, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsr	r8, r7, #28
+#else
+	ubfx	r8, r7, #28, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #12
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #16, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #8
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #20, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #20
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #8, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #16
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #12, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #28
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #0, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #24
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #4, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+	ldr	r7, [r0, #8]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #4
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #24, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsr	r8, r7, #28
+#else
+	ubfx	r8, r7, #28, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #12
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #16, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #8
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #20, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #20
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #8, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #16
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #12, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #28
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #0, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #24
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #4, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+	ldr	r7, [r0, #4]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #4
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #24, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsr	r8, r7, #28
+#else
+	ubfx	r8, r7, #28, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #12
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #16, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #8
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #20, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #20
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #8, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #16
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #12, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #28
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #0, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #24
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #4, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+	ldr	r7, [r0]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #4
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #24, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsr	r8, r7, #28
+#else
+	ubfx	r8, r7, #28, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #12
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #16, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #8
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #20, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #20
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #8, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #16
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #12, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #28
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #0, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	and	r8, r4, #15
+	lsr	r4, r4, #4
+	orr	r4, r4, r5, lsl #28
+	lsr	r5, r5, #4
+	orr	r5, r5, r12, lsl #28
+	lsr	r12, r12, #4
+	orr	r12, r12, lr, lsl #28
+	lsr	lr, lr, #4
+	ldr	r10, [r6, r8, lsl #2]
+	eor	lr, lr, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r8, r7, #24
+	lsr	r8, r8, #28
+#else
+	ubfx	r8, r7, #4, #4
+#endif
+	add	r9, r1, r8, lsl #4
+	ldr	r10, [r9]
+	eor	r12, r12, r10
+	ldr	r10, [r9, #4]
+	eor	lr, lr, r10
+	ldr	r10, [r9, #8]
+	eor	r4, r4, r10
+	ldr	r10, [r9, #12]
+	eor	r5, r5, r10
+	rev	lr, lr
+	rev	r12, r12
+	rev	r5, r5
+	rev	r4, r4
+	str	lr, [r0]
+	str	r12, [r0, #4]
+	str	r5, [r0, #8]
+	str	r4, [r0, #12]
+	subs	r3, r3, #1
+	add	r2, r2, #16
+	bne	L_AES_GCMSIV_polyval_base_loop
+L_AES_GCMSIV_polyval_base_done:
+	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+	.size	AES_GCMSIV_polyval_base,.-AES_GCMSIV_polyval_base
+#ifndef __APPLE__
+	.text
+	.type	L_AES_GCMSIV_ctr_base_te_data, %object
+	.size	L_AES_GCMSIV_ctr_base_te_data, 1024
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_ctr_base_te_data:
+	.long	0xa5c66363,0x84f87c7c,0x99ee7777,0x8df67b7b
+	.long	0x0dfff2f2,0xbdd66b6b,0xb1de6f6f,0x5491c5c5
+	.long	0x50603030,0x03020101,0xa9ce6767,0x7d562b2b
+	.long	0x19e7fefe,0x62b5d7d7,0xe64dabab,0x9aec7676
+	.long	0x458fcaca,0x9d1f8282,0x4089c9c9,0x87fa7d7d
+	.long	0x15effafa,0xebb25959,0xc98e4747,0x0bfbf0f0
+	.long	0xec41adad,0x67b3d4d4,0xfd5fa2a2,0xea45afaf
+	.long	0xbf239c9c,0xf753a4a4,0x96e47272,0x5b9bc0c0
+	.long	0xc275b7b7,0x1ce1fdfd,0xae3d9393,0x6a4c2626
+	.long	0x5a6c3636,0x417e3f3f,0x02f5f7f7,0x4f83cccc
+	.long	0x5c683434,0xf451a5a5,0x34d1e5e5,0x08f9f1f1
+	.long	0x93e27171,0x73abd8d8,0x53623131,0x3f2a1515
+	.long	0x0c080404,0x5295c7c7,0x65462323,0x5e9dc3c3
+	.long	0x28301818,0xa1379696,0x0f0a0505,0xb52f9a9a
+	.long	0x090e0707,0x36241212,0x9b1b8080,0x3ddfe2e2
+	.long	0x26cdebeb,0x694e2727,0xcd7fb2b2,0x9fea7575
+	.long	0x1b120909,0x9e1d8383,0x74582c2c,0x2e341a1a
+	.long	0x2d361b1b,0xb2dc6e6e,0xeeb45a5a,0xfb5ba0a0
+	.long	0xf6a45252,0x4d763b3b,0x61b7d6d6,0xce7db3b3
+	.long	0x7b522929,0x3edde3e3,0x715e2f2f,0x97138484
+	.long	0xf5a65353,0x68b9d1d1,0x00000000,0x2cc1eded
+	.long	0x60402020,0x1fe3fcfc,0xc879b1b1,0xedb65b5b
+	.long	0xbed46a6a,0x468dcbcb,0xd967bebe,0x4b723939
+	.long	0xde944a4a,0xd4984c4c,0xe8b05858,0x4a85cfcf
+	.long	0x6bbbd0d0,0x2ac5efef,0xe54faaaa,0x16edfbfb
+	.long	0xc5864343,0xd79a4d4d,0x55663333,0x94118585
+	.long	0xcf8a4545,0x10e9f9f9,0x06040202,0x81fe7f7f
+	.long	0xf0a05050,0x44783c3c,0xba259f9f,0xe34ba8a8
+	.long	0xf3a25151,0xfe5da3a3,0xc0804040,0x8a058f8f
+	.long	0xad3f9292,0xbc219d9d,0x48703838,0x04f1f5f5
+	.long	0xdf63bcbc,0xc177b6b6,0x75afdada,0x63422121
+	.long	0x30201010,0x1ae5ffff,0x0efdf3f3,0x6dbfd2d2
+	.long	0x4c81cdcd,0x14180c0c,0x35261313,0x2fc3ecec
+	.long	0xe1be5f5f,0xa2359797,0xcc884444,0x392e1717
+	.long	0x5793c4c4,0xf255a7a7,0x82fc7e7e,0x477a3d3d
+	.long	0xacc86464,0xe7ba5d5d,0x2b321919,0x95e67373
+	.long	0xa0c06060,0x98198181,0xd19e4f4f,0x7fa3dcdc
+	.long	0x66442222,0x7e542a2a,0xab3b9090,0x830b8888
+	.long	0xca8c4646,0x29c7eeee,0xd36bb8b8,0x3c281414
+	.long	0x79a7dede,0xe2bc5e5e,0x1d160b0b,0x76addbdb
+	.long	0x3bdbe0e0,0x56643232,0x4e743a3a,0x1e140a0a
+	.long	0xdb924949,0x0a0c0606,0x6c482424,0xe4b85c5c
+	.long	0x5d9fc2c2,0x6ebdd3d3,0xef43acac,0xa6c46262
+	.long	0xa8399191,0xa4319595,0x37d3e4e4,0x8bf27979
+	.long	0x32d5e7e7,0x438bc8c8,0x596e3737,0xb7da6d6d
+	.long	0x8c018d8d,0x64b1d5d5,0xd29c4e4e,0xe049a9a9
+	.long	0xb4d86c6c,0xfaac5656,0x07f3f4f4,0x25cfeaea
+	.long	0xafca6565,0x8ef47a7a,0xe947aeae,0x18100808
+	.long	0xd56fbaba,0x88f07878,0x6f4a2525,0x725c2e2e
+	.long	0x24381c1c,0xf157a6a6,0xc773b4b4,0x5197c6c6
+	.long	0x23cbe8e8,0x7ca1dddd,0x9ce87474,0x213e1f1f
+	.long	0xdd964b4b,0xdc61bdbd,0x860d8b8b,0x850f8a8a
+	.long	0x90e07070,0x427c3e3e,0xc471b5b5,0xaacc6666
+	.long	0xd8904848,0x05060303,0x01f7f6f6,0x121c0e0e
+	.long	0xa3c26161,0x5f6a3535,0xf9ae5757,0xd069b9b9
+	.long	0x91178686,0x5899c1c1,0x273a1d1d,0xb9279e9e
+	.long	0x38d9e1e1,0x13ebf8f8,0xb32b9898,0x33221111
+	.long	0xbbd26969,0x70a9d9d9,0x89078e8e,0xa7339494
+	.long	0xb62d9b9b,0x223c1e1e,0x92158787,0x20c9e9e9
+	.long	0x4987cece,0xffaa5555,0x78502828,0x7aa5dfdf
+	.long	0x8f038c8c,0xf859a1a1,0x80098989,0x171a0d0d
+	.long	0xda65bfbf,0x31d7e6e6,0xc6844242,0xb8d06868
+	.long	0xc3824141,0xb0299999,0x775a2d2d,0x111e0f0f
+	.long	0xcb7bb0b0,0xfca85454,0xd66dbbbb,0x3a2c1616
+#ifndef __APPLE__
+	.text
+	.type	L_AES_GCMSIV_ctr_base_te, %object
+	.size	L_AES_GCMSIV_ctr_base_te, 12
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+	# 8-byte aligned, 64-bit aligned
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_AES_GCMSIV_ctr_base_te:
+	.long	L_AES_GCMSIV_ctr_base_te_data
+	.text
+	.align	4
+	.globl	AES_GCMSIV_ctr_base
+	.type	AES_GCMSIV_ctr_base, %function
+AES_GCMSIV_ctr_base:
+	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	ldr	r12, [sp, #36]
+	ldr	r8, [sp, #40]
+	mov	lr, r0
+	adr	r0, L_AES_GCMSIV_ctr_base_te
+	ldr	r0, [r0]
+	ldm	r8, {r4, r5, r6, r7}
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	eor	r10, r4, r4, ror #16
+	eor	r11, r5, r5, ror #16
+	bic	r10, r10, #0xff0000
+	bic	r11, r11, #0xff0000
+	ror	r4, r4, #8
+	ror	r5, r5, #8
+	eor	r4, r4, r10, lsr #8
+	eor	r5, r5, r11, lsr #8
+	eor	r10, r6, r6, ror #16
+	eor	r11, r7, r7, ror #16
+	bic	r10, r10, #0xff0000
+	bic	r11, r11, #0xff0000
+	ror	r6, r6, #8
+	ror	r7, r7, #8
+	eor	r6, r6, r10, lsr #8
+	eor	r7, r7, r11, lsr #8
+#else
+	rev	r4, r4
+	rev	r5, r5
+	rev	r6, r6
+	rev	r7, r7
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+	stm	r8, {r4, r5, r6, r7}
+	push	{r3, r8}
+	cmp	r12, #10
+	beq	L_AES_GCMSIV_ctr_base_start_block_128
+	cmp	r12, #12
+	beq	L_AES_GCMSIV_ctr_base_start_block_192
+L_AES_GCMSIV_ctr_base_loop_block_256:
+	push	{r1, r2, lr}
+	ldr	lr, [sp, #16]
+	rev	r8, r4
+	add	r8, r8, #1
+	rev	r8, r8
+	mov	r9, r5
+	mov	r10, r6
+	mov	r11, r7
+	stm	lr, {r8, r9, r10, r11}
+	ldm	r3!, {r8, r9, r10, r11}
+	# Round: 0 - XOR in key schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	mov	r1, #6
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
+	bl	AES_encrypt_block
+#else
+L_AES_GCMSIV_ctr_base_block_nr_256:
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r8, r5, #8
+	lsr	r8, r8, #24
+#else
+	uxtb	r8, r5, ror #16
+#endif
+#else
+	ubfx	r8, r5, #16, #8
+#endif
+	lsr	r11, r4, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r6, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r6, ror #8
+#endif
+#else
+	ubfx	lr, r6, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r7, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r7
+#endif
+#else
+	ubfx	r2, r7, #0, #8
+#endif
+	ldr	r8, [r0, r8, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r9, r6, #8
+	lsr	r9, r9, #24
+#else
+	uxtb	r9, r6, ror #16
+#endif
+#else
+	ubfx	r9, r6, #16, #8
+#endif
+	eor	r8, r8, r11, ror #24
+	lsr	r11, r5, #24
+	eor	r8, r8, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r7, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r7, ror #8
+#endif
+#else
+	ubfx	lr, r7, #8, #8
+#endif
+	eor	r8, r8, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r4, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r4
+#endif
+#else
+	ubfx	r2, r4, #0, #8
+#endif
+	ldr	r9, [r0, r9, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r7, #8
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r7, ror #16
+#endif
+#else
+	ubfx	r10, r7, #16, #8
+#endif
+	eor	r9, r9, r11, ror #24
+	lsr	r11, r6, #24
+	eor	r9, r9, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r4, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r4, ror #8
+#endif
+#else
+	ubfx	lr, r4, #8, #8
+#endif
+	eor	r9, r9, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5
+#endif
+#else
+	ubfx	r2, r5, #0, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r6, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r6
+#endif
+#else
+	ubfx	r6, r6, #0, #8
+#endif
+	eor	r10, r10, r11, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r11, r4, #8
+	lsr	r11, r11, #24
+#else
+	uxtb	r11, r4, ror #16
+#endif
+#else
+	ubfx	r11, r4, #16, #8
+#endif
+	eor	r10, r10, lr, ror #8
+	lsr	lr, r7, #24
+	eor	r10, r10, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5, ror #8
+#endif
+#else
+	ubfx	r2, r5, #8, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r6, ror #24
+	ldm	r3!, {r4, r5, r6, r7}
+	eor	r11, r11, lr, ror #24
+	eor	r11, r11, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r8, r8, r4
+	eor	r9, r9, r5
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r4, r9, #8
+	lsr	r4, r4, #24
+#else
+	uxtb	r4, r9, ror #16
+#endif
+#else
+	ubfx	r4, r9, #16, #8
+#endif
+	lsr	r7, r8, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r10, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r10, ror #8
+#endif
+#else
+	ubfx	lr, r10, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r11, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r11
+#endif
+#else
+	ubfx	r2, r11, #0, #8
+#endif
+	ldr	r4, [r0, r4, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r5, r10, #8
+	lsr	r5, r5, #24
+#else
+	uxtb	r5, r10, ror #16
+#endif
+#else
+	ubfx	r5, r10, #16, #8
+#endif
+	eor	r4, r4, r7, ror #24
+	lsr	r7, r9, #24
+	eor	r4, r4, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r11, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r11, ror #8
+#endif
+#else
+	ubfx	lr, r11, #8, #8
+#endif
+	eor	r4, r4, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r8, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r8
+#endif
+#else
+	ubfx	r2, r8, #0, #8
+#endif
+	ldr	r5, [r0, r5, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r11, #8
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r11, ror #16
+#endif
+#else
+	ubfx	r6, r11, #16, #8
+#endif
+	eor	r5, r5, r7, ror #24
+	lsr	r7, r10, #24
+	eor	r5, r5, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r8, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r8, ror #8
+#endif
+#else
+	ubfx	lr, r8, #8, #8
+#endif
+	eor	r5, r5, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r9, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r9
+#endif
+#else
+	ubfx	r2, r9, #0, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r10, #24
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r10
+#endif
+#else
+	ubfx	r10, r10, #0, #8
+#endif
+	eor	r6, r6, r7, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r8, #8
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r8, ror #16
+#endif
+#else
+	ubfx	r7, r8, #16, #8
+#endif
+	eor	r6, r6, lr, ror #8
+	lsr	lr, r11, #24
+	eor	r6, r6, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r9, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r9, ror #8
+#endif
+#else
+	ubfx	r2, r9, #8, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r10, ror #24
+	ldm	r3!, {r8, r9, r10, r11}
+	eor	r7, r7, lr, ror #24
+	eor	r7, r7, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	subs	r1, r1, #1
+	bne	L_AES_GCMSIV_ctr_base_block_nr_256
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r8, r5, #8
+	lsr	r8, r8, #24
+#else
+	uxtb	r8, r5, ror #16
+#endif
+#else
+	ubfx	r8, r5, #16, #8
+#endif
+	lsr	r11, r4, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r6, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r6, ror #8
+#endif
+#else
+	ubfx	lr, r6, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r7, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r7
+#endif
+#else
+	ubfx	r2, r7, #0, #8
+#endif
+	ldr	r8, [r0, r8, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r9, r6, #8
+	lsr	r9, r9, #24
+#else
+	uxtb	r9, r6, ror #16
+#endif
+#else
+	ubfx	r9, r6, #16, #8
+#endif
+	eor	r8, r8, r11, ror #24
+	lsr	r11, r5, #24
+	eor	r8, r8, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r7, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r7, ror #8
+#endif
+#else
+	ubfx	lr, r7, #8, #8
+#endif
+	eor	r8, r8, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r4, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r4
+#endif
+#else
+	ubfx	r2, r4, #0, #8
+#endif
+	ldr	r9, [r0, r9, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r7, #8
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r7, ror #16
+#endif
+#else
+	ubfx	r10, r7, #16, #8
+#endif
+	eor	r9, r9, r11, ror #24
+	lsr	r11, r6, #24
+	eor	r9, r9, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r4, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r4, ror #8
+#endif
+#else
+	ubfx	lr, r4, #8, #8
+#endif
+	eor	r9, r9, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5
+#endif
+#else
+	ubfx	r2, r5, #0, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r6, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r6
+#endif
+#else
+	ubfx	r6, r6, #0, #8
+#endif
+	eor	r10, r10, r11, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r11, r4, #8
+	lsr	r11, r11, #24
+#else
+	uxtb	r11, r4, ror #16
+#endif
+#else
+	ubfx	r11, r4, #16, #8
+#endif
+	eor	r10, r10, lr, ror #8
+	lsr	lr, r7, #24
+	eor	r10, r10, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5, ror #8
+#endif
+#else
+	ubfx	r2, r5, #8, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r6, ror #24
+	ldm	r3!, {r4, r5, r6, r7}
+	eor	r11, r11, lr, ror #24
+	eor	r11, r11, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r8, r8, r4
+	eor	r9, r9, r5
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r4, r11, #24
+	lsr	r4, r4, #24
+#else
+	uxtb	r4, r11
+#endif
+#else
+	ubfx	r4, r11, #0, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r10, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r10, ror #8
+#endif
+#else
+	ubfx	r7, r10, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r9, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r9, ror #16
+#endif
+#else
+	ubfx	lr, r9, #16, #8
+#endif
+	lsr	r2, r8, #24
+	ldrb	r4, [r0, r4, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r5, r8, #24
+	lsr	r5, r5, #24
+#else
+	uxtb	r5, r8
+#endif
+#else
+	ubfx	r5, r8, #0, #8
+#endif
+	eor	r4, r4, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r11, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r11, ror #8
+#endif
+#else
+	ubfx	r7, r11, #8, #8
+#endif
+	eor	r4, r4, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r10, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r10, ror #16
+#endif
+#else
+	ubfx	lr, r10, #16, #8
+#endif
+	eor	r4, r4, r2, lsl #24
+	lsr	r2, r9, #24
+	ldrb	r5, [r0, r5, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r9, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r9
+#endif
+#else
+	ubfx	r6, r9, #0, #8
+#endif
+	eor	r5, r5, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r8, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r8, ror #8
+#endif
+#else
+	ubfx	r7, r8, #8, #8
+#endif
+	eor	r5, r5, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r11, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r11, ror #16
+#endif
+#else
+	ubfx	lr, r11, #16, #8
+#endif
+	eor	r5, r5, r2, lsl #24
+	lsr	r2, r10, #24
+	ldrb	r6, [r0, r6, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+	lsr	r11, r11, #24
+	eor	r6, r6, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r10, #24
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r10
+#endif
+#else
+	ubfx	r7, r10, #0, #8
+#endif
+	eor	r6, r6, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r9, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r9, ror #8
+#endif
+#else
+	ubfx	lr, r9, #8, #8
+#endif
+	eor	r6, r6, r2, lsl #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r8, #8
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r8, ror #16
+#endif
+#else
+	ubfx	r2, r8, #16, #8
+#endif
+	ldrb	r11, [r0, r11, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r11, lsl #16
+	ldm	r3, {r8, r9, r10, r11}
+	eor	r7, r7, lr, lsl #8
+	eor	r7, r7, r2, lsl #16
+	#   XOR in Key Schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+	pop	{r1, r2, lr}
+	ldr	r3, [sp]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	eor	r8, r4, r4, ror #16
+	eor	r9, r5, r5, ror #16
+	eor	r10, r6, r6, ror #16
+	eor	r11, r7, r7, ror #16
+	bic	r8, r8, #0xff0000
+	bic	r9, r9, #0xff0000
+	bic	r10, r10, #0xff0000
+	bic	r11, r11, #0xff0000
+	ror	r4, r4, #8
+	ror	r5, r5, #8
+	ror	r6, r6, #8
+	ror	r7, r7, #8
+	eor	r4, r4, r8, lsr #8
+	eor	r5, r5, r9, lsr #8
+	eor	r6, r6, r10, lsr #8
+	eor	r7, r7, r11, lsr #8
+#else
+	rev	r4, r4
+	rev	r5, r5
+	rev	r6, r6
+	rev	r7, r7
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+	ldr	r8, [lr]
+	ldr	r9, [lr, #4]
+	ldr	r10, [lr, #8]
+	ldr	r11, [lr, #12]
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	ldr	r8, [sp, #4]
+	str	r4, [r1]
+	str	r5, [r1, #4]
+	str	r6, [r1, #8]
+	str	r7, [r1, #12]
+	ldm	r8, {r4, r5, r6, r7}
+	subs	r2, r2, #16
+	add	lr, lr, #16
+	add	r1, r1, #16
+	bne	L_AES_GCMSIV_ctr_base_loop_block_256
+	b	L_AES_GCMSIV_ctr_base_end
+L_AES_GCMSIV_ctr_base_start_block_192:
+L_AES_GCMSIV_ctr_base_loop_block_192:
+	push	{r1, r2, lr}
+	ldr	lr, [sp, #16]
+	rev	r8, r4
+	add	r8, r8, #1
+	rev	r8, r8
+	mov	r9, r5
+	mov	r10, r6
+	mov	r11, r7
+	stm	lr, {r8, r9, r10, r11}
+	ldm	r3!, {r8, r9, r10, r11}
+	# Round: 0 - XOR in key schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	mov	r1, #5
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
+	bl	AES_encrypt_block
+#else
+L_AES_GCMSIV_ctr_base_block_nr_192:
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r8, r5, #8
+	lsr	r8, r8, #24
+#else
+	uxtb	r8, r5, ror #16
+#endif
+#else
+	ubfx	r8, r5, #16, #8
+#endif
+	lsr	r11, r4, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r6, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r6, ror #8
+#endif
+#else
+	ubfx	lr, r6, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r7, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r7
+#endif
+#else
+	ubfx	r2, r7, #0, #8
+#endif
+	ldr	r8, [r0, r8, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r9, r6, #8
+	lsr	r9, r9, #24
+#else
+	uxtb	r9, r6, ror #16
+#endif
+#else
+	ubfx	r9, r6, #16, #8
+#endif
+	eor	r8, r8, r11, ror #24
+	lsr	r11, r5, #24
+	eor	r8, r8, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r7, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r7, ror #8
+#endif
+#else
+	ubfx	lr, r7, #8, #8
+#endif
+	eor	r8, r8, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r4, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r4
+#endif
+#else
+	ubfx	r2, r4, #0, #8
+#endif
+	ldr	r9, [r0, r9, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r7, #8
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r7, ror #16
+#endif
+#else
+	ubfx	r10, r7, #16, #8
+#endif
+	eor	r9, r9, r11, ror #24
+	lsr	r11, r6, #24
+	eor	r9, r9, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r4, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r4, ror #8
+#endif
+#else
+	ubfx	lr, r4, #8, #8
+#endif
+	eor	r9, r9, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5
+#endif
+#else
+	ubfx	r2, r5, #0, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r6, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r6
+#endif
+#else
+	ubfx	r6, r6, #0, #8
+#endif
+	eor	r10, r10, r11, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r11, r4, #8
+	lsr	r11, r11, #24
+#else
+	uxtb	r11, r4, ror #16
+#endif
+#else
+	ubfx	r11, r4, #16, #8
+#endif
+	eor	r10, r10, lr, ror #8
+	lsr	lr, r7, #24
+	eor	r10, r10, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5, ror #8
+#endif
+#else
+	ubfx	r2, r5, #8, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r6, ror #24
+	ldm	r3!, {r4, r5, r6, r7}
+	eor	r11, r11, lr, ror #24
+	eor	r11, r11, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r8, r8, r4
+	eor	r9, r9, r5
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r4, r9, #8
+	lsr	r4, r4, #24
+#else
+	uxtb	r4, r9, ror #16
+#endif
+#else
+	ubfx	r4, r9, #16, #8
+#endif
+	lsr	r7, r8, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r10, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r10, ror #8
+#endif
+#else
+	ubfx	lr, r10, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r11, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r11
+#endif
+#else
+	ubfx	r2, r11, #0, #8
+#endif
+	ldr	r4, [r0, r4, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r5, r10, #8
+	lsr	r5, r5, #24
+#else
+	uxtb	r5, r10, ror #16
+#endif
+#else
+	ubfx	r5, r10, #16, #8
+#endif
+	eor	r4, r4, r7, ror #24
+	lsr	r7, r9, #24
+	eor	r4, r4, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r11, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r11, ror #8
+#endif
+#else
+	ubfx	lr, r11, #8, #8
+#endif
+	eor	r4, r4, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r8, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r8
+#endif
+#else
+	ubfx	r2, r8, #0, #8
+#endif
+	ldr	r5, [r0, r5, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r11, #8
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r11, ror #16
+#endif
+#else
+	ubfx	r6, r11, #16, #8
+#endif
+	eor	r5, r5, r7, ror #24
+	lsr	r7, r10, #24
+	eor	r5, r5, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r8, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r8, ror #8
+#endif
+#else
+	ubfx	lr, r8, #8, #8
+#endif
+	eor	r5, r5, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r9, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r9
+#endif
+#else
+	ubfx	r2, r9, #0, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r10, #24
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r10
+#endif
+#else
+	ubfx	r10, r10, #0, #8
+#endif
+	eor	r6, r6, r7, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r8, #8
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r8, ror #16
+#endif
+#else
+	ubfx	r7, r8, #16, #8
+#endif
+	eor	r6, r6, lr, ror #8
+	lsr	lr, r11, #24
+	eor	r6, r6, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r9, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r9, ror #8
+#endif
+#else
+	ubfx	r2, r9, #8, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r10, ror #24
+	ldm	r3!, {r8, r9, r10, r11}
+	eor	r7, r7, lr, ror #24
+	eor	r7, r7, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	subs	r1, r1, #1
+	bne	L_AES_GCMSIV_ctr_base_block_nr_192
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r8, r5, #8
+	lsr	r8, r8, #24
+#else
+	uxtb	r8, r5, ror #16
+#endif
+#else
+	ubfx	r8, r5, #16, #8
+#endif
+	lsr	r11, r4, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r6, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r6, ror #8
+#endif
+#else
+	ubfx	lr, r6, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r7, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r7
+#endif
+#else
+	ubfx	r2, r7, #0, #8
+#endif
+	ldr	r8, [r0, r8, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r9, r6, #8
+	lsr	r9, r9, #24
+#else
+	uxtb	r9, r6, ror #16
+#endif
+#else
+	ubfx	r9, r6, #16, #8
+#endif
+	eor	r8, r8, r11, ror #24
+	lsr	r11, r5, #24
+	eor	r8, r8, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r7, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r7, ror #8
+#endif
+#else
+	ubfx	lr, r7, #8, #8
+#endif
+	eor	r8, r8, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r4, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r4
+#endif
+#else
+	ubfx	r2, r4, #0, #8
+#endif
+	ldr	r9, [r0, r9, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r7, #8
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r7, ror #16
+#endif
+#else
+	ubfx	r10, r7, #16, #8
+#endif
+	eor	r9, r9, r11, ror #24
+	lsr	r11, r6, #24
+	eor	r9, r9, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r4, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r4, ror #8
+#endif
+#else
+	ubfx	lr, r4, #8, #8
+#endif
+	eor	r9, r9, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5
+#endif
+#else
+	ubfx	r2, r5, #0, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r6, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r6
+#endif
+#else
+	ubfx	r6, r6, #0, #8
+#endif
+	eor	r10, r10, r11, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r11, r4, #8
+	lsr	r11, r11, #24
+#else
+	uxtb	r11, r4, ror #16
+#endif
+#else
+	ubfx	r11, r4, #16, #8
+#endif
+	eor	r10, r10, lr, ror #8
+	lsr	lr, r7, #24
+	eor	r10, r10, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5, ror #8
+#endif
+#else
+	ubfx	r2, r5, #8, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r6, ror #24
+	ldm	r3!, {r4, r5, r6, r7}
+	eor	r11, r11, lr, ror #24
+	eor	r11, r11, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r8, r8, r4
+	eor	r9, r9, r5
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r4, r11, #24
+	lsr	r4, r4, #24
+#else
+	uxtb	r4, r11
+#endif
+#else
+	ubfx	r4, r11, #0, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r10, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r10, ror #8
+#endif
+#else
+	ubfx	r7, r10, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r9, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r9, ror #16
+#endif
+#else
+	ubfx	lr, r9, #16, #8
+#endif
+	lsr	r2, r8, #24
+	ldrb	r4, [r0, r4, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r5, r8, #24
+	lsr	r5, r5, #24
+#else
+	uxtb	r5, r8
+#endif
+#else
+	ubfx	r5, r8, #0, #8
+#endif
+	eor	r4, r4, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r11, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r11, ror #8
+#endif
+#else
+	ubfx	r7, r11, #8, #8
+#endif
+	eor	r4, r4, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r10, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r10, ror #16
+#endif
+#else
+	ubfx	lr, r10, #16, #8
+#endif
+	eor	r4, r4, r2, lsl #24
+	lsr	r2, r9, #24
+	ldrb	r5, [r0, r5, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r9, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r9
+#endif
+#else
+	ubfx	r6, r9, #0, #8
+#endif
+	eor	r5, r5, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r8, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r8, ror #8
+#endif
+#else
+	ubfx	r7, r8, #8, #8
+#endif
+	eor	r5, r5, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r11, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r11, ror #16
+#endif
+#else
+	ubfx	lr, r11, #16, #8
+#endif
+	eor	r5, r5, r2, lsl #24
+	lsr	r2, r10, #24
+	ldrb	r6, [r0, r6, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+	lsr	r11, r11, #24
+	eor	r6, r6, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r10, #24
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r10
+#endif
+#else
+	ubfx	r7, r10, #0, #8
+#endif
+	eor	r6, r6, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r9, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r9, ror #8
+#endif
+#else
+	ubfx	lr, r9, #8, #8
+#endif
+	eor	r6, r6, r2, lsl #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r8, #8
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r8, ror #16
+#endif
+#else
+	ubfx	r2, r8, #16, #8
+#endif
+	ldrb	r11, [r0, r11, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r11, lsl #16
+	ldm	r3, {r8, r9, r10, r11}
+	eor	r7, r7, lr, lsl #8
+	eor	r7, r7, r2, lsl #16
+	#   XOR in Key Schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+	pop	{r1, r2, lr}
+	ldr	r3, [sp]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	eor	r8, r4, r4, ror #16
+	eor	r9, r5, r5, ror #16
+	eor	r10, r6, r6, ror #16
+	eor	r11, r7, r7, ror #16
+	bic	r8, r8, #0xff0000
+	bic	r9, r9, #0xff0000
+	bic	r10, r10, #0xff0000
+	bic	r11, r11, #0xff0000
+	ror	r4, r4, #8
+	ror	r5, r5, #8
+	ror	r6, r6, #8
+	ror	r7, r7, #8
+	eor	r4, r4, r8, lsr #8
+	eor	r5, r5, r9, lsr #8
+	eor	r6, r6, r10, lsr #8
+	eor	r7, r7, r11, lsr #8
+#else
+	rev	r4, r4
+	rev	r5, r5
+	rev	r6, r6
+	rev	r7, r7
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+	ldr	r8, [lr]
+	ldr	r9, [lr, #4]
+	ldr	r10, [lr, #8]
+	ldr	r11, [lr, #12]
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	ldr	r8, [sp, #4]
+	str	r4, [r1]
+	str	r5, [r1, #4]
+	str	r6, [r1, #8]
+	str	r7, [r1, #12]
+	ldm	r8, {r4, r5, r6, r7}
+	subs	r2, r2, #16
+	add	lr, lr, #16
+	add	r1, r1, #16
+	bne	L_AES_GCMSIV_ctr_base_loop_block_192
+	b	L_AES_GCMSIV_ctr_base_end
+L_AES_GCMSIV_ctr_base_start_block_128:
+L_AES_GCMSIV_ctr_base_loop_block_128:
+	push	{r1, r2, lr}
+	ldr	lr, [sp, #16]
+	rev	r8, r4
+	add	r8, r8, #1
+	rev	r8, r8
+	mov	r9, r5
+	mov	r10, r6
+	mov	r11, r7
+	stm	lr, {r8, r9, r10, r11}
+	ldm	r3!, {r8, r9, r10, r11}
+	# Round: 0 - XOR in key schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	mov	r1, #4
+#ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
+	bl	AES_encrypt_block
+#else
+L_AES_GCMSIV_ctr_base_block_nr_128:
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r8, r5, #8
+	lsr	r8, r8, #24
+#else
+	uxtb	r8, r5, ror #16
+#endif
+#else
+	ubfx	r8, r5, #16, #8
+#endif
+	lsr	r11, r4, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r6, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r6, ror #8
+#endif
+#else
+	ubfx	lr, r6, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r7, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r7
+#endif
+#else
+	ubfx	r2, r7, #0, #8
+#endif
+	ldr	r8, [r0, r8, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r9, r6, #8
+	lsr	r9, r9, #24
+#else
+	uxtb	r9, r6, ror #16
+#endif
+#else
+	ubfx	r9, r6, #16, #8
+#endif
+	eor	r8, r8, r11, ror #24
+	lsr	r11, r5, #24
+	eor	r8, r8, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r7, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r7, ror #8
+#endif
+#else
+	ubfx	lr, r7, #8, #8
+#endif
+	eor	r8, r8, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r4, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r4
+#endif
+#else
+	ubfx	r2, r4, #0, #8
+#endif
+	ldr	r9, [r0, r9, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r7, #8
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r7, ror #16
+#endif
+#else
+	ubfx	r10, r7, #16, #8
+#endif
+	eor	r9, r9, r11, ror #24
+	lsr	r11, r6, #24
+	eor	r9, r9, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r4, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r4, ror #8
+#endif
+#else
+	ubfx	lr, r4, #8, #8
+#endif
+	eor	r9, r9, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5
+#endif
+#else
+	ubfx	r2, r5, #0, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r6, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r6
+#endif
+#else
+	ubfx	r6, r6, #0, #8
+#endif
+	eor	r10, r10, r11, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r11, r4, #8
+	lsr	r11, r11, #24
+#else
+	uxtb	r11, r4, ror #16
+#endif
+#else
+	ubfx	r11, r4, #16, #8
+#endif
+	eor	r10, r10, lr, ror #8
+	lsr	lr, r7, #24
+	eor	r10, r10, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5, ror #8
+#endif
+#else
+	ubfx	r2, r5, #8, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r6, ror #24
+	ldm	r3!, {r4, r5, r6, r7}
+	eor	r11, r11, lr, ror #24
+	eor	r11, r11, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r8, r8, r4
+	eor	r9, r9, r5
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r4, r9, #8
+	lsr	r4, r4, #24
+#else
+	uxtb	r4, r9, ror #16
+#endif
+#else
+	ubfx	r4, r9, #16, #8
+#endif
+	lsr	r7, r8, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r10, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r10, ror #8
+#endif
+#else
+	ubfx	lr, r10, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r11, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r11
+#endif
+#else
+	ubfx	r2, r11, #0, #8
+#endif
+	ldr	r4, [r0, r4, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r5, r10, #8
+	lsr	r5, r5, #24
+#else
+	uxtb	r5, r10, ror #16
+#endif
+#else
+	ubfx	r5, r10, #16, #8
+#endif
+	eor	r4, r4, r7, ror #24
+	lsr	r7, r9, #24
+	eor	r4, r4, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r11, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r11, ror #8
+#endif
+#else
+	ubfx	lr, r11, #8, #8
+#endif
+	eor	r4, r4, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r8, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r8
+#endif
+#else
+	ubfx	r2, r8, #0, #8
+#endif
+	ldr	r5, [r0, r5, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r11, #8
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r11, ror #16
+#endif
+#else
+	ubfx	r6, r11, #16, #8
+#endif
+	eor	r5, r5, r7, ror #24
+	lsr	r7, r10, #24
+	eor	r5, r5, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r8, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r8, ror #8
+#endif
+#else
+	ubfx	lr, r8, #8, #8
+#endif
+	eor	r5, r5, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r9, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r9
+#endif
+#else
+	ubfx	r2, r9, #0, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r10, #24
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r10
+#endif
+#else
+	ubfx	r10, r10, #0, #8
+#endif
+	eor	r6, r6, r7, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r8, #8
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r8, ror #16
+#endif
+#else
+	ubfx	r7, r8, #16, #8
+#endif
+	eor	r6, r6, lr, ror #8
+	lsr	lr, r11, #24
+	eor	r6, r6, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r9, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r9, ror #8
+#endif
+#else
+	ubfx	r2, r9, #8, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r7, [r0, r7, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r10, ror #24
+	ldm	r3!, {r8, r9, r10, r11}
+	eor	r7, r7, lr, ror #24
+	eor	r7, r7, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	subs	r1, r1, #1
+	bne	L_AES_GCMSIV_ctr_base_block_nr_128
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r8, r5, #8
+	lsr	r8, r8, #24
+#else
+	uxtb	r8, r5, ror #16
+#endif
+#else
+	ubfx	r8, r5, #16, #8
+#endif
+	lsr	r11, r4, #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r6, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r6, ror #8
+#endif
+#else
+	ubfx	lr, r6, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r7, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r7
+#endif
+#else
+	ubfx	r2, r7, #0, #8
+#endif
+	ldr	r8, [r0, r8, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r9, r6, #8
+	lsr	r9, r9, #24
+#else
+	uxtb	r9, r6, ror #16
+#endif
+#else
+	ubfx	r9, r6, #16, #8
+#endif
+	eor	r8, r8, r11, ror #24
+	lsr	r11, r5, #24
+	eor	r8, r8, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r7, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r7, ror #8
+#endif
+#else
+	ubfx	lr, r7, #8, #8
+#endif
+	eor	r8, r8, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r4, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r4
+#endif
+#else
+	ubfx	r2, r4, #0, #8
+#endif
+	ldr	r9, [r0, r9, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r10, r7, #8
+	lsr	r10, r10, #24
+#else
+	uxtb	r10, r7, ror #16
+#endif
+#else
+	ubfx	r10, r7, #16, #8
+#endif
+	eor	r9, r9, r11, ror #24
+	lsr	r11, r6, #24
+	eor	r9, r9, lr, ror #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r4, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r4, ror #8
+#endif
+#else
+	ubfx	lr, r4, #8, #8
+#endif
+	eor	r9, r9, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #24
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5
+#endif
+#else
+	ubfx	r2, r5, #0, #8
+#endif
+	ldr	r10, [r0, r10, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r6, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r6
+#endif
+#else
+	ubfx	r6, r6, #0, #8
+#endif
+	eor	r10, r10, r11, ror #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r11, r4, #8
+	lsr	r11, r11, #24
+#else
+	uxtb	r11, r4, ror #16
+#endif
+#else
+	ubfx	r11, r4, #16, #8
+#endif
+	eor	r10, r10, lr, ror #8
+	lsr	lr, r7, #24
+	eor	r10, r10, r2, ror #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r5, #16
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r5, ror #8
+#endif
+#else
+	ubfx	r2, r5, #8, #8
+#endif
+	ldr	r6, [r0, r6, lsl #2]
+	ldr	lr, [r0, lr, lsl #2]
+	ldr	r11, [r0, r11, lsl #2]
+	ldr	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r6, ror #24
+	ldm	r3!, {r4, r5, r6, r7}
+	eor	r11, r11, lr, ror #24
+	eor	r11, r11, r2, ror #8
+	#   XOR in Key Schedule
+	eor	r8, r8, r4
+	eor	r9, r9, r5
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r4, r11, #24
+	lsr	r4, r4, #24
+#else
+	uxtb	r4, r11
+#endif
+#else
+	ubfx	r4, r11, #0, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r10, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r10, ror #8
+#endif
+#else
+	ubfx	r7, r10, #8, #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r9, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r9, ror #16
+#endif
+#else
+	ubfx	lr, r9, #16, #8
+#endif
+	lsr	r2, r8, #24
+	ldrb	r4, [r0, r4, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r5, r8, #24
+	lsr	r5, r5, #24
+#else
+	uxtb	r5, r8
+#endif
+#else
+	ubfx	r5, r8, #0, #8
+#endif
+	eor	r4, r4, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r11, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r11, ror #8
+#endif
+#else
+	ubfx	r7, r11, #8, #8
+#endif
+	eor	r4, r4, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r10, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r10, ror #16
+#endif
+#else
+	ubfx	lr, r10, #16, #8
+#endif
+	eor	r4, r4, r2, lsl #24
+	lsr	r2, r9, #24
+	ldrb	r5, [r0, r5, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r6, r9, #24
+	lsr	r6, r6, #24
+#else
+	uxtb	r6, r9
+#endif
+#else
+	ubfx	r6, r9, #0, #8
+#endif
+	eor	r5, r5, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r8, #16
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r8, ror #8
+#endif
+#else
+	ubfx	r7, r8, #8, #8
+#endif
+	eor	r5, r5, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r11, #8
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r11, ror #16
+#endif
+#else
+	ubfx	lr, r11, #16, #8
+#endif
+	eor	r5, r5, r2, lsl #24
+	lsr	r2, r10, #24
+	ldrb	r6, [r0, r6, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+	lsr	r11, r11, #24
+	eor	r6, r6, r7, lsl #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r7, r10, #24
+	lsr	r7, r7, #24
+#else
+	uxtb	r7, r10
+#endif
+#else
+	ubfx	r7, r10, #0, #8
+#endif
+	eor	r6, r6, lr, lsl #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	lr, r9, #16
+	lsr	lr, lr, #24
+#else
+	uxtb	lr, r9, ror #8
+#endif
+#else
+	ubfx	lr, r9, #8, #8
+#endif
+	eor	r6, r6, r2, lsl #24
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	lsl	r2, r8, #8
+	lsr	r2, r2, #24
+#else
+	uxtb	r2, r8, ror #16
+#endif
+#else
+	ubfx	r2, r8, #16, #8
+#endif
+	ldrb	r11, [r0, r11, lsl #2]
+	ldrb	r7, [r0, r7, lsl #2]
+	ldrb	lr, [r0, lr, lsl #2]
+	ldrb	r2, [r0, r2, lsl #2]
+	eor	lr, lr, r11, lsl #16
+	ldm	r3, {r8, r9, r10, r11}
+	eor	r7, r7, lr, lsl #8
+	eor	r7, r7, r2, lsl #16
+	#   XOR in Key Schedule
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#endif /* !WOLFSSL_ARMASM_AES_BLOCK_INLINE */
+	pop	{r1, r2, lr}
+	ldr	r3, [sp]
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	eor	r8, r4, r4, ror #16
+	eor	r9, r5, r5, ror #16
+	eor	r10, r6, r6, ror #16
+	eor	r11, r7, r7, ror #16
+	bic	r8, r8, #0xff0000
+	bic	r9, r9, #0xff0000
+	bic	r10, r10, #0xff0000
+	bic	r11, r11, #0xff0000
+	ror	r4, r4, #8
+	ror	r5, r5, #8
+	ror	r6, r6, #8
+	ror	r7, r7, #8
+	eor	r4, r4, r8, lsr #8
+	eor	r5, r5, r9, lsr #8
+	eor	r6, r6, r10, lsr #8
+	eor	r7, r7, r11, lsr #8
+#else
+	rev	r4, r4
+	rev	r5, r5
+	rev	r6, r6
+	rev	r7, r7
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+	ldr	r8, [lr]
+	ldr	r9, [lr, #4]
+	ldr	r10, [lr, #8]
+	ldr	r11, [lr, #12]
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+	ldr	r8, [sp, #4]
+	str	r4, [r1]
+	str	r5, [r1, #4]
+	str	r6, [r1, #8]
+	str	r7, [r1, #12]
+	ldm	r8, {r4, r5, r6, r7}
+	subs	r2, r2, #16
+	add	lr, lr, #16
+	add	r1, r1, #16
+	bne	L_AES_GCMSIV_ctr_base_loop_block_128
+L_AES_GCMSIV_ctr_base_end:
+	pop	{r3, r8}
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+	eor	r10, r4, r4, ror #16
+	eor	r11, r5, r5, ror #16
+	bic	r10, r10, #0xff0000
+	bic	r11, r11, #0xff0000
+	ror	r4, r4, #8
+	ror	r5, r5, #8
+	eor	r4, r4, r10, lsr #8
+	eor	r5, r5, r11, lsr #8
+	eor	r10, r6, r6, ror #16
+	eor	r11, r7, r7, ror #16
+	bic	r10, r10, #0xff0000
+	bic	r11, r11, #0xff0000
+	ror	r6, r6, #8
+	ror	r7, r7, #8
+	eor	r6, r6, r10, lsr #8
+	eor	r7, r7, r11, lsr #8
+#else
+	rev	r4, r4
+	rev	r5, r5
+	rev	r6, r6
+	rev	r7, r7
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+	stm	r8, {r4, r5, r6, r7}
+	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	.size	AES_GCMSIV_ctr_base,.-AES_GCMSIV_ctr_base
+#endif /* WOLFSSL_AESGCM_SIV */
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* !NO_AES */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
