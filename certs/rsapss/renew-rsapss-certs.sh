@@ -207,4 +207,24 @@ mv tmp.pem client-3072-rsapss.pem
 echo "End of section"
 echo "---------------------------------------------------------------------"
 
+############################################################
+###### ecc-leaf-rsapss.pem: P-256 leaf signed by ca ########
+############################################################
+# Drives RSA-PSS cert verify with a tiny ECC leaf key in
+# examples/tls13/tls13_memio.c.
+echo "Updating ecc-leaf-rsapss.pem"
+echo ""
+cat > ecc-leaf.ext <<EOF
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always
+EOF
+openssl req -new -key ../ecc-key.pem -subj "/CN=localhost" -out ecc-leaf-rsapss.csr
+check_result $? "Generate request"
+
+openssl x509 -req -in ecc-leaf-rsapss.csr -days 3650 -extfile ecc-leaf.ext -CA ca-rsapss.pem -CAkey ca-rsapss-priv.pem -sigopt rsa_padding_mode:pss -CAcreateserial -out ecc-leaf-rsapss.pem
+check_result $? "Generate certificate"
+rm -f ecc-leaf-rsapss.csr ecc-leaf.ext ca-rsapss.srl
+echo "End of section"
+echo "---------------------------------------------------------------------"
+
 
