@@ -197,6 +197,7 @@ int main(void)
 
         /* Cleanup after this connection */
         wolfSSL_free(ssl);      /* Free the wolfSSL object              */
+        ssl = NULL;             /* Avoid double-free in util_Cleanup    */
         close(connd);           /* Close the connection to the client   */
     }
 
