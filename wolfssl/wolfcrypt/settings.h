@@ -4675,7 +4675,7 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #ifndef DH_MIN_SIZE
     #ifdef HAVE_FIPS
         #define DH_MIN_SIZE 2048
-    #elif WOLFSSL_MIN_DHKEY_BITS
+    #elif defined(WOLFSSL_MIN_DHKEY_BITS)
     /* For existing build settings that use WOLFSSL_MIN_DHKEY_BITS, map
      * DH_MIN_SIZE to the user's desired minimum */
         #define DH_MIN_SIZE WOLFSSL_MIN_DHKEY_BITS
