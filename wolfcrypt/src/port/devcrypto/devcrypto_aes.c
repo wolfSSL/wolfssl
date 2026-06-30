@@ -357,10 +357,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
-        return BAD_FUNC_ARG;
-    }
+    int ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
 
     return wc_DevCrypto_AesGcm(aes, out, (byte*)in, sz, iv, ivSz,
                                authTag, authTagSz, authIn, authInSz,
@@ -374,6 +373,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* authTag, word32 authTagSz,
                      const byte* authIn, word32 authInSz)
 {
+    int ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
+
     return wc_DevCrypto_AesGcm(aes, out, (byte*)in, sz, iv, ivSz,
                                (byte*)authTag, authTagSz, authIn, authInSz,
                                COP_DECRYPT);

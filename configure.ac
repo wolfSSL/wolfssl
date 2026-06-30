@@ -165,18 +165,35 @@ AC_ARG_ENABLE([linuxkm],
     [ENABLED_LINUXKM=no]
     )
 
-AC_ARG_ENABLE([linuxkm-defaults],
-    [AS_HELP_STRING([--enable-linuxkm-defaults],[Enable feature defaults for Linux Kernel Module (default: disabled)])],
-    [KERNEL_MODE_DEFAULTS=$enableval],
-    [KERNEL_MODE_DEFAULTS=$ENABLED_LINUXKM]
-    )
-
 # FreeBSD Kernel Module
 AC_ARG_ENABLE([freebsdkm],
     [AS_HELP_STRING([--enable-freebsdkm],[Enable FreeBSD Kernel Module (default: disabled)])],
     [ENABLED_BSDKM=$enableval],
     [ENABLED_BSDKM=no]
     )
+
+if test "$ENABLED_LINUXKM" != "no" || test "$ENABLED_BSDKM" != "no"
+then
+    KERNEL_MODE_DEFAULTS=yes
+else
+    KERNEL_MODE_DEFAULTS=no
+fi
+
+AC_ARG_ENABLE([kernel-settings],
+    [AS_HELP_STRING([--enable-kernel-settings],[Enable default settings appropriate for kernel modules (default: disabled)])],
+    [KERNEL_MODE_DEFAULTS=$enableval]
+    )
+
+# backward-compat alias for --enable-kernel-settings
+AC_ARG_ENABLE([linuxkm-defaults],
+    [AS_HELP_STRING([--enable-linuxkm-defaults],[Enable default settings appropriate for kernel modules (default: disabled)])],
+    [KERNEL_MODE_DEFAULTS=$enableval]
+    )
+
+if test "$KERNEL_MODE_DEFAULTS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KERNEL_MODE_DEFAULTS"
+fi
 
 AC_ARG_ENABLE([freebsdkm-crypto-register],
     [AS_HELP_STRING([--enable-freebsdkm-crypto-register],[Register wolfCrypt implementations with the FreeBSD kernel opencrypto framework. (default: disabled)])],
@@ -446,7 +463,7 @@ AC_SUBST([ENABLED_ASM])
 
 # Default math is SP Math all and not fast math
 # FIPS v1 and v2 must use fast math
-DEF_SP_MATH="yes"
+DEF_SP_MATH_ALL="yes"
 DEF_FAST_MATH="no"
 
 # FIPS 140
@@ -557,7 +574,7 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="v1"
         HAVE_FIPS_VERSION_MAJOR=1
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
+        DEF_SP_MATH_ALL="no"
         DEF_FAST_MATH="yes"
     ],
     [v2|cert3389],[
@@ -565,7 +582,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MAJOR=2
         HAVE_FIPS_VERSION_MINOR=0
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
+        DEF_SP_MATH_ALL="no"
         DEF_FAST_MATH="yes"
     ],
     [rand],[
@@ -573,7 +590,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MAJOR=2
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
+        DEF_SP_MATH_ALL="no"
         DEF_FAST_MATH="no"
     ],
     [v5|cert4718],[
@@ -582,7 +599,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=2
         HAVE_FIPS_VERSION_PATCH=1
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
+        DEF_SP_MATH_ALL="no"
         DEF_FAST_MATH="yes"
     ],
     [v5.2.3],[
@@ -591,7 +608,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=2
         HAVE_FIPS_VERSION_PATCH=3
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="yes"
+        DEF_SP_MATH_ALL="yes"
         DEF_FAST_MATH="no"
     ],
     [v5.2.4],[
@@ -600,7 +617,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=2
         HAVE_FIPS_VERSION_PATCH=4
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="yes"
+        DEF_SP_MATH_ALL="yes"
         DEF_FAST_MATH="no"
     ],
     [v5-RC12],[
@@ -609,7 +626,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=2
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
+        DEF_SP_MATH_ALL="no"
         DEF_FAST_MATH="yes"
     ],
     [v5-ready],[
@@ -617,7 +634,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MAJOR=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
+        DEF_SP_MATH_ALL="no"
         DEF_FAST_MATH="yes"
     ],
     [v5-dev],[
@@ -626,7 +643,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=2
         HAVE_FIPS_VERSION_PATCH=1
         ENABLED_FIPS="yes"
-        # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
+        # for dev, DEF_SP_MATH_ALL and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [v5-kcapi],[
         FIPS_VERSION="v5-dev"
@@ -634,7 +651,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=3
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
-        # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
+        # for dev, DEF_SP_MATH_ALL and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [v6|v6-dev],[
         FIPS_VERSION="v6"
@@ -643,7 +660,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=0
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="yes"
+        DEF_SP_MATH_ALL="yes"
         DEF_FAST_MATH="no"
     ],
     [v7],[
@@ -653,7 +670,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=0
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="yes"
+        DEF_SP_MATH_ALL="yes"
         DEF_FAST_MATH="no"
     ],
     # Should always remain one ahead of the latest so as not to be confused with
@@ -665,7 +682,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=0
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="yes"
+        DEF_SP_MATH_ALL="yes"
         DEF_FAST_MATH="no"
     ],
     [dev|v7-dev],[
@@ -674,7 +691,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=0
         HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
-        # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
+        # for dev, DEF_SP_MATH_ALL and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [lean-aesgcm|lean-aesgcm-ready|lean-aesgcm-dev],[
         FIPS_VERSION="$ENABLED_FIPS"
@@ -809,16 +826,10 @@ then
 fi
 AC_SUBST([ENABLED_KERNEL_BENCHMARKS])
 
-if test "$ENABLED_LINUXKM" = "yes" && test "$KERNEL_MODE_DEFAULTS" = "yes"
+# Kernel mode only supports sp-math-all with smallstack.
+if test "$KERNEL_MODE_DEFAULTS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DWOLFSSL_SMALL_STACK_STATIC -DWC_SHA3_NO_ASM"
-    if test "$ENABLED_LINUXKM_PIE" = "yes"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OCSP_ISSUER_CHECK"
-    fi
-    if test "$ENABLED_FIPS" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OLD_PRIME_CHECK"
-    fi
-    DEF_SP_MATH="yes"
+    DEF_SP_MATH_ALL="yes"
     DEF_FAST_MATH="no"
 fi
 
@@ -848,11 +859,11 @@ then
     # Currently DWARF 5 is the default debug format, but it results in
     # "Unsupported DW_TAG_atomic_type(0x47): type: 0x1eefc" in some
     # kernel module builds.
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM -gdwarf-4"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -gdwarf-4"
     AS_IF([test "$ax_enable_debug" = "yes"],
           [AM_CFLAGS="$AM_CFLAGS -g3"],
           [AM_CFLAGS="$AM_CFLAGS -g1"])
-    AM_CCASFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM -gdwarf-4"
+    AM_CCASFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -gdwarf-4"
     AS_IF([test "$ax_enable_debug" = "yes"],
           [AM_CCASFLAGS="$AM_CFLAGS -g3"],
           [AM_CCASFLAGS="$AM_CFLAGS -g1"])
@@ -879,8 +890,6 @@ then
     if test "${KERNEL_ARCH}" = ""; then
         AC_MSG_ERROR([Linux kernel target architecture for build tree ${KERNEL_ROOT} could not be determined.  Is target kernel configured?])
     fi
-
-    AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
 fi
 
 #
@@ -894,7 +903,6 @@ if test "x$ENABLED_BSDKM" = "xyes"
 then
     # note: bsdkm is wolfcrypt only for now.
     HAVE_KERNEL_MODE=yes
-    KERNEL_MODE_DEFAULTS=yes
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
 
@@ -938,9 +946,9 @@ then
     DEF_FAST_MATH=no
 fi
 
-if test "$DEF_SP_MATH" = "yes" && (test "$enable_fastmath" = "yes" || test "$enable_fasthugemath" = "yes" || test "$enable_heapmath" = "yes")
+if test "$DEF_SP_MATH_ALL" = "yes" && (test "$enable_fastmath" = "yes" || test "$enable_fasthugemath" = "yes" || test "$enable_heapmath" = "yes")
 then
-    DEF_SP_MATH=no
+    DEF_SP_MATH_ALL=no
 fi
 
 # Single Precision maths implementation
@@ -953,7 +961,7 @@ AC_ARG_ENABLE([sp],
 AC_ARG_ENABLE([sp-math-all],
     [AS_HELP_STRING([--enable-sp-math-all],[Enable Single Precision math implementation for full algorithm suite (default: enabled)])],
     [ ENABLED_SP_MATH_ALL=$enableval ],
-    [ ENABLED_SP_MATH_ALL=$DEF_SP_MATH ],
+    [ ENABLED_SP_MATH_ALL=$DEF_SP_MATH_ALL ],
     )
 
 # Single Precision maths (acceleration for common key sizes and curves)
@@ -985,7 +993,7 @@ then
     fi
 fi
 
-# enable SP math assembly support automatically for x86_64 and aarch64 (except Linux kernel module)
+# enable SP math assembly support automatically for x86_64 and aarch64 (except kernel modules)
 SP_ASM_DEFAULT=no
 if test "$ENABLED_SP_MATH" = "yes" && test "$KERNEL_MODE_DEFAULTS" = "no"
 then
@@ -1272,7 +1280,7 @@ then
 
     if test "$ENABLED_SP_MATH" != "yes"
     then
-        # linuxkm is incompatible with opensslextra and its dependents.
+        # kernel modules are currently incompatible with opensslextra and its dependents.
         if test "$KERNEL_MODE_DEFAULTS" != "yes"
         then
             test "$enable_opensslextra" = "" && enable_opensslextra=yes
@@ -1318,7 +1326,7 @@ if test "$ENABLED_ALL_OSP" = "yes"
 then
     if test "$KERNEL_MODE_DEFAULTS" = "yes"
     then
-        AC_MSG_ERROR([--enable-all-osp is incompatible with --enable-linuxkm-defaults])
+        AC_MSG_ERROR([--enable-all-osp is incompatible with kernel mode defaults])
     fi
 
     test "$enable_tailscale" = "" && enable_tailscale=yes
@@ -1593,12 +1601,8 @@ then
         # AFALG lacks AES-EAX
         test "$enable_aeseax" = "" && test "$enable_afalg" != "yes" && enable_aeseax=yes
         test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
-
-        if test "$KERNEL_MODE_DEFAULTS" != "yes"
-        then
-            test "$enable_cryptocb" = "" && enable_cryptocb=yes
-            test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
-        fi
+        test "$enable_cryptocb" = "" && enable_cryptocb=yes
+        test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
     fi
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6

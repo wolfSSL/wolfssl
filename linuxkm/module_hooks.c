@@ -265,7 +265,7 @@ static ssize_t dump_to_file(const char *path, const u8 *buf, size_t buf_len)
 
     fp = filp_open(path, O_WRONLY | O_CREAT, 0644);
     if (IS_ERR(fp)) {
-        pr_err("libwolfssl: cannot open %s: %ld\n", path, PTR_ERR(fp));
+        pr_err("libwolfssl: cannot open %s: %d\n", path, (int)PTR_ERR(fp));
         return PTR_ERR(fp);
     }
 
@@ -1412,8 +1412,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef __ARCH_STRSTR_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strstr = strstr;
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
 #ifndef __ARCH_STRNCPY_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncpy = strncpy;
+#endif
 #endif
 #ifndef __ARCH_STRNCAT_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncat = strncat;
@@ -1689,6 +1691,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_free = wolfSSL_X509_NAME_free;
     wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_new_ex = wolfSSL_X509_NAME_new_ex;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef HAVE_OCSP
+    wolfssl_linuxkm_pie_redirect_table.CheckOcspResponder = CheckOcspResponder;
+#endif
+
 #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
@@ -1867,7 +1873,7 @@ static int updateFipsHash(void)
             pr_err("ERROR: crypto_alloc_shash failed: target kernel is missing algorithm implementation for hash type %u\n", FIPS_IN_CORE_HASH_TYPE);
             ret = NOT_COMPILED_IN;
         } else {
-            pr_err("ERROR: crypto_alloc_shash failed with ret %ld\n",PTR_ERR(tfm));
+            pr_err("ERROR: crypto_alloc_shash failed with ret %d\n", (int)PTR_ERR(tfm));
             ret = HASH_TYPE_E;
         }
         tfm = NULL;

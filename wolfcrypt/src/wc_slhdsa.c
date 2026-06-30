@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define _WC_BUILDING_WC_SLHDSA_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if FIPS_VERSION3_GE(2,0,0)
@@ -47,7 +49,7 @@
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 
-#ifdef WC_SLHDSA_NO_ASM
+#if defined(WC_SLHDSA_NO_ASM) || defined(WC_SHA3_NO_ASM)
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
@@ -3281,6 +3283,8 @@ static int slhdsakey_wots_pkgen_chain_c(SlhDsaKey* key, const byte* sk_seed,
 
     WC_ALLOC_VAR_EX(sk, byte, (SLHDSA_MAX_MSG_SZ + 3) * SLHDSA_MAX_N,
         key->heap, DYNAMIC_TYPE_SLHDSA, ret = MEMORY_E);
+    if (ret == 0)
+        XMEMSET(sk, 0, (SLHDSA_MAX_MSG_SZ + 3) * SLHDSA_MAX_N);
     if (ret == 0) {
         /* Step 4. len consecutive addresses. */
         for (i = 0; i < len; i++) {

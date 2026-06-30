@@ -29,7 +29,9 @@
  *                     secret. Requires CURVE25519_SMALL. Default: off.
  */
 
- #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#define _WC_BUILDING_CURVE25519_C
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef NO_CURVED25519_X64
     #undef USE_INTEL_SPEEDUP

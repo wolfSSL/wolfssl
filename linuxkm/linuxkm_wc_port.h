@@ -76,6 +76,31 @@
     #define _GCC_STDINT_H
     #define WC_PTR_TYPE uintptr_t
 
+    #ifdef __clang__
+        /* inhibit inclusion of LLVM stdint.h (included via LLVM stdatomic.h) to
+         * avoid conflicts with linux/types.h.
+         */
+        #define __CLANG_STDINT_H
+        #define uint_least64_t uint64_t
+        #define int_least64_t int64_t
+        #define uint_least32_t uint32_t
+        #define int_least32_t int32_t
+        #define uint_least16_t uint16_t
+        #define int_least16_t int16_t
+        #define uint_least8_t uint8_t
+        #define int_least8_t int8_t
+        #define uint_fast64_t uint64_t
+        #define int_fast64_t int64_t
+        #define uint_fast32_t uint32_t
+        #define int_fast32_t int32_t
+        #define uint_fast16_t uint16_t
+        #define int_fast16_t int16_t
+        #define uint_fast8_t uint8_t
+        #define int_fast8_t int8_t
+        #define uintmax_t uint64_t
+        #define intmax_t int64_t
+    #endif
+
     /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     #define XSNPRINTF snprintf
 
@@ -192,6 +217,7 @@
     enum wc_svr_flags {
         WC_SVR_FLAG_NONE = 0,
         WC_SVR_FLAG_INHIBIT = 1,
+        WC_SVR_FLAG_FUZZ
     };
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
@@ -319,6 +345,10 @@
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
     _Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\""); /* needed for kernel 4.9.282 */
     _Pragma("GCC diagnostic ignored \"-Wattributes\"");
+#ifdef __clang__
+    _Pragma("clang diagnostic ignored \"-Wshorten-64-to-32\"");
+    _Pragma("clang diagnostic ignored \"-Wframe-address\"");
+#endif
 
     #ifdef CONFIG_KASAN
         #ifndef WC_SANITIZE_DISABLE
@@ -705,11 +735,7 @@
             #endif
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-                #define CAN_SAVE_VECTOR_REGISTERS() (wc_can_save_vector_registers_x86() && (SAVE_VECTOR_REGISTERS2_fuzzer() == 0))
-            #else
-                #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
-            #endif
+            #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
@@ -721,12 +747,7 @@
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-                #define SAVE_VECTOR_REGISTERS2() ({                    \
-                    int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
-                    (_fuzzer_ret == 0) ?                               \
-                     wc_save_vector_registers_x86(WC_SVR_FLAG_NONE) :  \
-                     _fuzzer_ret;                                      \
-                })
+                #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_FUZZ)
             #else
                 #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_NONE)
             #endif
@@ -783,6 +804,28 @@
     #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
     _Pragma("GCC diagnostic pop");
+
+    #define PTR_ERR(x) ((int)PTR_ERR(x))
+
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0) && !defined(NO_AES)
+        /* with CONFIG_FORTIFY_SOURCE we've seen false positive
+         * maybe-uninitialized on counter in AES_GCM_encrypt_C().  This is easy
+         * to mitigate with a grafted-on attribute.
+         */
+        #if FIPS_VERSION3_LT(6,0,0)
+            struct Aes;
+            WOLFSSL_LOCAL void __attribute__((nonnull(1))) GHASH(struct Aes *aes, const unsigned char* a,
+                                            unsigned int aSz, const unsigned char* c,
+                                            unsigned int cSz, unsigned char* s, unsigned int sSz);
+        #else
+            struct Gcm;
+            WOLFSSL_LOCAL void __attribute__((nonnull(1))) GHASH(struct Gcm *gcm, const unsigned char* a,
+                                            unsigned int aSz, const unsigned char* c,
+                                            unsigned int cSz, unsigned char* s, unsigned int sSz);
+        #endif
+         /* Need to suppress the otherwise-warned nullness checks in old FIPS aes.c. */
+        _Pragma("GCC diagnostic ignored \"-Wnonnull-compare\"");
+    #endif
 
     /* avoid -Wpointer-arith, encountered when -DCONFIG_FORTIFY_SOURCE */
     #undef __is_constexpr
@@ -896,6 +939,13 @@
             extern struct WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap);
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+        #ifdef HAVE_OCSP
+            struct OcspResponse;
+            extern int CheckOcspResponder(struct OcspResponse *bs, unsigned char* subjectNameHash,
+                unsigned char* subjectKeyHash, unsigned char extExtKeyUsage, unsigned char* issuerNameHash,
+                unsigned char* issuerKeyHash);
+        #endif
+
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #if defined(WC_CONTAINERIZE_THIS) && !defined(WC_SYM_RELOC_TABLES)
@@ -994,9 +1044,12 @@
     #ifndef __ARCH_STRSTR_NO_REDIRECT
         typeof(strstr) *strstr;
     #endif
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
+    /* note strncpy() purged from kernel by 079a028d63 */
     #ifndef __ARCH_STRNCPY_NO_REDIRECT
         typeof(strncpy) *strncpy;
     #endif
+    #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0) */
     #ifndef __ARCH_STRNCAT_NO_REDIRECT
         typeof(strncat) *strncat;
     #endif
@@ -1190,8 +1243,8 @@
             typeof(wolfCrypt_FIPS_ft_ro_sanity) *wolfCrypt_FIPS_ft_ro_sanity;
             typeof(wolfCrypt_FIPS_f_ro_sanity) *wolfCrypt_FIPS_f_ro_sanity;
             typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
-        #endif
-        #endif
+        #endif /* FIPS_VERSION3_GE(6,0,0) */
+        #endif /* HAVE_FIPS */
 
         #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
         typeof(GetCA) *GetCA;
@@ -1210,6 +1263,10 @@
         typeof(wolfSSL_X509_NAME_free) *wolfSSL_X509_NAME_free;
         typeof(wolfSSL_X509_NAME_new_ex) *wolfSSL_X509_NAME_new_ex;
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+        #ifdef HAVE_OCSP
+        typeof(CheckOcspResponder) *CheckOcspResponder;
+        #endif
 
         #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
@@ -1342,8 +1399,10 @@
     #ifndef __ARCH_STRSTR_NO_REDIRECT
         #define strstr WC_PIE_INDIRECT_SYM(strstr)
     #endif
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 2, 0)
     #ifndef __ARCH_STRNCPY_NO_REDIRECT
         #define strncpy WC_PIE_INDIRECT_SYM(strncpy)
+    #endif
     #endif
     #ifndef __ARCH_STRNCAT_NO_REDIRECT
         #define strncat WC_PIE_INDIRECT_SYM(strncat)
@@ -1503,6 +1562,10 @@
             #define wolfSSL_X509_NAME_free WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_free)
             #define wolfSSL_X509_NAME_new_ex WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_new_ex)
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+        #ifdef HAVE_OCSP
+            #define CheckOcspResponder WC_PIE_INDIRECT_SYM(CheckOcspResponder)
+        #endif
 
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
@@ -1747,6 +1810,23 @@
     #define NO_TIMEVAL 1
 
     #endif /* BUILDING_WOLFSSL */
+
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
+    /* note strncpy() purged from kernel by 079a028d63 */
+    static __always_inline char *wc_linuxkm_strncpy(char *dst, const char *src, size_t dsize) {
+        char *dstart = dst, *dend = dst + dsize;
+        while (dst < dend) {
+            if (*src == 0) {
+                *dst = 0;
+                /* don't bother zero-filling dst. */
+                break;
+            }
+            *dst++ = *src++;
+        }
+        return dstart;
+    }
+    #define strncpy wc_linuxkm_strncpy
+    #endif
 
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */

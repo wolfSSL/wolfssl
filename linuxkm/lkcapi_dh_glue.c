@@ -2901,8 +2901,8 @@ static int linuxkm_test_kpp_driver(const char * driver,
      * */
     tfm = crypto_alloc_kpp(driver, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating kpp algorithm %s failed: %ld\n",
-               driver, PTR_ERR(tfm));
+        pr_err("error: allocating kpp algorithm %s failed: %d\n",
+               driver, (int)PTR_ERR(tfm));
         if (PTR_ERR(tfm) == -ENOMEM)
             test_rc = MEMORY_E;
         else

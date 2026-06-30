@@ -1530,19 +1530,19 @@ int test_dtls13_min_rtx_interval(void)
 
     /* CH0 */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* HRR */
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* CH1 */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* SH ... FINISHED */
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
     /* We should have SH ... FINISHED messages in the buffer */
     ExpectIntGE(test_ctx.c_msg_count, 2);

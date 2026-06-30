@@ -39,6 +39,8 @@
  * PSOC6_HASH_SHA1:          PSoC6 hardware SHA-1                  default: off
  */
 
+#define _WC_BUILDING_SHA_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef DEBUG_WOLFSSL_VERBOSE

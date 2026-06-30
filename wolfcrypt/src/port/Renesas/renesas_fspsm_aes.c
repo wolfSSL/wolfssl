@@ -354,10 +354,9 @@ int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
-        return BAD_FUNC_ARG;
-    }
+    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    if (ret != 0)
+        return ret;
 
     if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
         WOLFSSL_MSG("keySize is invalid, neither 16 or 32.");

@@ -911,15 +911,15 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
         #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
             !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
         if ((PTR_ERR(tfm) == -ENOENT) && fips_enabled) {
-            pr_info("info: skipping unsupported kpp algorithm %s: %ld\n",
-                    driver, PTR_ERR(tfm));
+            pr_info("info: skipping unsupported kpp algorithm %s: %d\n",
+                    driver, (int)PTR_ERR(tfm));
             test_rc = NOT_COMPILED_IN;
         }
         else
         #endif
         {
-            pr_err("error: allocating kpp algorithm %s failed: %ld\n",
-                   driver, PTR_ERR(tfm));
+            pr_err("error: allocating kpp algorithm %s failed: %d\n",
+                   driver, (int)PTR_ERR(tfm));
             if (PTR_ERR(tfm) == -ENOMEM)
                 test_rc = MEMORY_E;
             else

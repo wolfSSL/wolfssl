@@ -4552,7 +4552,6 @@ static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
     byte* s, word32 sSz)
 {
-    if (gcm != NULL) {
         ALIGN8 byte x[WC_AES_BLOCK_SIZE];
         ALIGN8 byte scratch[WC_AES_BLOCK_SIZE];
         byte* h = gcm->H;
@@ -4688,7 +4687,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
 
         /* Copy the result into s. */
         XMEMCPY(s, x, sSz);
-    }
 }
 
 #define HAVE_GHASH
@@ -5295,7 +5293,6 @@ static void ghash_blocks(byte* x, byte* y, const byte* in, word32 blocks)
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
     byte* s, word32 sSz)
 {
-    if (gcm != NULL) {
         ALIGN8 byte x[WC_AES_BLOCK_SIZE];
         ALIGN8 byte scratch[WC_AES_BLOCK_SIZE];
         word32 blocks, partial;
@@ -5343,7 +5340,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
 
         /* Copy the result into s. */
         XMEMCPY(s, x, sSz);
-    }
 }
 
 #define HAVE_GHASH
@@ -6932,11 +6928,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && ((tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
-            (tagSz > WC_AES_BLOCK_SIZE))) {
-        WOLFSSL_MSG("GcmEncrypt tagSz error");
-        ret = BAD_FUNC_ARG;
-    }
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         switch (aes->rounds) {
@@ -8572,12 +8565,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* sanity checks */
     if ((aes == NULL) || (nonce == NULL) || (tag == NULL) ||
-            (tagSz > WC_AES_BLOCK_SIZE) || (tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
             ((aad == NULL) && (aadSz > 0)) || (nonceSz == 0) ||
             ((sz != 0) && ((in == NULL) || (out == NULL)))) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
+
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         switch (aes->rounds) {
@@ -8721,7 +8716,6 @@ static WC_INLINE void GMULT(byte *x, byte m[32][WC_AES_BLOCK_SIZE])
 void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
     byte* s, word32 sSz)
 {
-    if (gcm != NULL) {
         ALIGN8 byte x[WC_AES_BLOCK_SIZE];
         ALIGN8 byte scratch[WC_AES_BLOCK_SIZE];
         word32 blocks, partial;
@@ -8770,7 +8764,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c, word32 cSz,
 
         /* Copy the result into s. */
         XMEMCPY(s, x, sSz);
-    }
 }
 #endif /* !HAVE_GHASH */
 
@@ -8835,12 +8828,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && ((tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
-            (tagSz > WC_AES_BLOCK_SIZE))) {
-        WOLFSSL_MSG("GcmEncrypt tagSz error");
-        ret = BAD_FUNC_ARG;
-    }
-
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         if (nonceSz == GCM_NONCE_MID_SZ) {
@@ -8931,12 +8920,14 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* Validate parameters. */
     if ((aes == NULL) || (nonce == NULL) || (tag == NULL) ||
-            (tagSz > WC_AES_BLOCK_SIZE) || (tagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
             ((aad == NULL) && (aadSz > 0)) || (nonceSz == 0) ||
             ((sz != 0) && ((in == NULL) || (out == NULL)))) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         ret = BAD_FUNC_ARG;
     }
+
+    if (ret == 0)
+        ret = wc_local_AesGcmCheckTagSz(tagSz);
 
     if (ret == 0) {
         if (nonceSz == GCM_NONCE_MID_SZ) {

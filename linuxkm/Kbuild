@@ -80,10 +80,20 @@ endif
 
 HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static -fno-omit-frame-pointer
 
+ifdef CONFIG_CC_IS_CLANG
+    HOST_EXTRACFLAGS += -mfunction-return=keep
+endif
+
 # "-mindirect-branch=keep -mfunction-return=keep" to avoid "undefined reference
 #  to `__x86_return_thunk'" on CONFIG_RETHUNK kernels (5.19.0-rc7)
+ifdef CONFIG_CC_IS_GCC
 ifeq "$(KERNEL_ARCH_X86)" "yes"
   HOST_EXTRACFLAGS += -mindirect-branch=keep -mfunction-return=keep
+endif
+endif
+
+ifdef CONFIG_CC_IS_CLANG
+    WOLFSSL_CFLAGS += -Wno-unused-parameter
 endif
 
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
@@ -93,7 +103,9 @@ ifndef KERNEL_THREAD_STACK_SIZE
     $(WOLFSSL_OBJ_TARGETS): | $(obj)/linuxkm/get_thread_size
     KERNEL_THREAD_STACK_SIZE=$(shell test -x $(obj)/linuxkm/get_thread_size && $(obj)/linuxkm/get_thread_size || echo 16384)
 endif
-MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
+ifndef MAX_STACK_FRAME_SIZE
+    MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
+endif
 
 $(LIBWOLFSSL_NAME)-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
 

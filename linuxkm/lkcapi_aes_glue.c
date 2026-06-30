@@ -1201,9 +1201,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 #endif
         if (unlikely(IS_ERR(assoc))) {
             err = (int)PTR_ERR(assoc);
-            pr_err("%s: scatterwalk_map failed: %ld\n",
+            pr_err("%s: scatterwalk_map failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-                   PTR_ERR(assoc));
+                   (int)PTR_ERR(assoc));
             assoc = NULL;
             goto out;
         }
@@ -1415,9 +1415,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 #endif
         if (unlikely(IS_ERR(in_map))) {
             err = (int)PTR_ERR(in_map);
-            pr_err("%s: scatterwalk_map failed: %ld\n",
+            pr_err("%s: scatterwalk_map failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-                   PTR_ERR(in_map));
+                   (int)PTR_ERR(in_map));
             in_map = NULL;
             goto out;
         }
@@ -1433,9 +1433,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 #endif
         if (unlikely(IS_ERR(out_map))) {
             err = (int)PTR_ERR(out_map);
-            pr_err("%s: scatterwalk_map failed: %ld\n",
+            pr_err("%s: scatterwalk_map failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-                   PTR_ERR(out_map));
+                   (int)PTR_ERR(out_map));
             out_map = NULL;
             goto out;
         }
@@ -1916,9 +1916,9 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
 #endif
         if (unlikely(IS_ERR(in_map))) {
             err = (int)PTR_ERR(in_map);
-            pr_err("%s: scatterwalk_map failed: %ld\n",
+            pr_err("%s: scatterwalk_map failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-                   PTR_ERR(in_map));
+                   (int)PTR_ERR(in_map));
             in_map = NULL;
             goto out;
         }
@@ -1934,9 +1934,9 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
 #endif
         if (unlikely(IS_ERR(out_map))) {
             err = (int)PTR_ERR(out_map);
-            pr_err("%s: scatterwalk_map failed: %ld\n",
+            pr_err("%s: scatterwalk_map failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-                   PTR_ERR(out_map));
+                   (int)PTR_ERR(out_map));
             out_map = NULL;
             goto out;
         }
@@ -3129,8 +3129,8 @@ static int linuxkm_test_aescbc(void)
 
     tfm = crypto_alloc_skcipher(WOLFKM_AESCBC_NAME, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating AES skcipher algorithm %s failed: %ld\n",
-               WOLFKM_AESCBC_DRIVER, PTR_ERR(tfm));
+        pr_err("error: allocating AES skcipher algorithm %s failed: %d\n",
+               WOLFKM_AESCBC_DRIVER, (int)PTR_ERR(tfm));
         tfm = NULL;
         goto test_cbc_end;
     }
@@ -3342,8 +3342,8 @@ static int linuxkm_test_aescfb(void)
 
     tfm = crypto_alloc_skcipher(WOLFKM_AESCFB_NAME, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating AES skcipher algorithm %s failed: %ld\n",
-               WOLFKM_AESCFB_DRIVER, PTR_ERR(tfm));
+        pr_err("error: allocating AES skcipher algorithm %s failed: %d\n",
+               WOLFKM_AESCFB_DRIVER, (int)PTR_ERR(tfm));
         tfm = NULL;
         goto test_cfb_end;
     }
@@ -3606,8 +3606,8 @@ static int linuxkm_test_aesgcm(void)
 
     tfm = crypto_alloc_aead(WOLFKM_AESGCM_NAME, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating AES aead algorithm %s failed: %ld\n",
-               WOLFKM_AESGCM_DRIVER, PTR_ERR(tfm));
+        pr_err("error: allocating AES aead algorithm %s failed: %d\n",
+               WOLFKM_AESGCM_DRIVER, (int)PTR_ERR(tfm));
         tfm = NULL;
         goto test_gcm_end;
     }
@@ -3658,7 +3658,7 @@ static int linuxkm_test_aesgcm(void)
 
     sg_init_table(dst, 2);
     sg_set_buf(dst, assoc2, sizeof(assoc));
-    sg_set_buf(&dst[1], enc2, decryptLen);
+    sg_set_buf(&dst[1], enc2, (unsigned int)decryptLen);
 
     aead_request_set_callback(req, 0, NULL, NULL);
     aead_request_set_ad(req, sizeof(assoc));
@@ -3686,7 +3686,7 @@ static int linuxkm_test_aesgcm(void)
     /* Now decrypt crypto request. Reverse src and dst. */
     XMEMSET(dec2, 0, decryptLen);
     aead_request_set_ad(req, sizeof(assoc));
-    aead_request_set_crypt(req, dst, src, decryptLen, iv);
+    aead_request_set_crypt(req, dst, src, (unsigned int)decryptLen, iv);
 
     ret = crypto_aead_decrypt(req);
 
@@ -4209,7 +4209,7 @@ static int aes_xts_128_test(void)
 
     tfm = crypto_alloc_skcipher(WOLFKM_AESXTS_NAME, 0, 0);
     if (IS_ERR(tfm)) {
-        ret = PTR_ERR(tfm);
+        ret = (int)PTR_ERR(tfm);
         pr_err("error: allocating AES skcipher algorithm %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
         tfm = NULL;
@@ -4706,7 +4706,7 @@ static int aes_xts_256_test(void)
 
     tfm = crypto_alloc_skcipher(WOLFKM_AESXTS_NAME, 0, 0);
     if (IS_ERR(tfm)) {
-        ret = PTR_ERR(tfm);
+        ret = (int)PTR_ERR(tfm);
         pr_err("error: allocating AES skcipher algorithm %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
         tfm = NULL;

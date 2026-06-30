@@ -37,6 +37,8 @@
  *                                                                  default: off
  */
 
+#define _WC_BUILDING_CURVE448_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_CURVE448
