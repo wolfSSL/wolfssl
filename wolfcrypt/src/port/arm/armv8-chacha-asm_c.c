@@ -1024,8 +1024,7 @@ void wc_chacha_use_over(byte* over, byte* output, const byte* input, word32 len)
         "eor	w5, w5, w4\n\t"
         "subs	%w[len], %w[len], #1\n\t"
         "strb	w5, [%x[output]], #1\n\t"
-        "b.eq	L_chacha_use_over_arm64_done_%=\n\t"
-        "b	L_chacha_use_over_arm64_byte_loop_%=\n\t"
+        "b.ne	L_chacha_use_over_arm64_byte_loop_%=\n\t"
         "\n"
     "L_chacha_use_over_arm64_done_%=:\n\t"
         : [over] "+r" (over), [output] "+r" (output), [len] "+r" (len)

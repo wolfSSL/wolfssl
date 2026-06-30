@@ -44518,37 +44518,32 @@ L_AES_CTR_encrypt_NEON_loop_4:
 	ld1	{v4.2d}, [x9], #16
 	mov	v8.d[1], x10
 	mov	v8.d[0], x11
-	rev64	v8.16b, v8.16b
-	rev32	v8.16b, v8.16b
+	rev64	v8.4s, v8.4s
 	# Round: 0 - XOR in key schedule
 	eor	v0.16b, v8.16b, v4.16b
 	adds	x10, x10, #1
 	adc	x11, x11, xzr
 	mov	v8.d[1], x10
 	mov	v8.d[0], x11
-	rev64	v8.16b, v8.16b
-	rev32	v8.16b, v8.16b
+	rev64	v8.4s, v8.4s
 	eor	v1.16b, v8.16b, v4.16b
 	adds	x10, x10, #1
 	adc	x11, x11, xzr
 	mov	v8.d[1], x10
 	mov	v8.d[0], x11
-	rev64	v8.16b, v8.16b
-	rev32	v8.16b, v8.16b
+	rev64	v8.4s, v8.4s
 	eor	v2.16b, v8.16b, v4.16b
 	adds	x10, x10, #1
 	adc	x11, x11, xzr
 	mov	v8.d[1], x10
 	mov	v8.d[0], x11
-	rev64	v8.16b, v8.16b
-	rev32	v8.16b, v8.16b
+	rev64	v8.4s, v8.4s
 	eor	v3.16b, v8.16b, v4.16b
 	adds	x10, x10, #1
 	adc	x11, x11, xzr
 	mov	v8.d[1], x10
 	mov	v8.d[0], x11
-	rev64	v8.16b, v8.16b
-	rev32	v8.16b, v8.16b
+	rev64	v8.4s, v8.4s
 	sub	w8, w4, #2
 L_AES_CTR_encrypt_NEON_loop_nr_4:
 	tbl	v4.16b, {v16.16b, v17.16b, v18.16b, v19.16b}, v0.16b
@@ -44947,8 +44942,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_4:
 	bge	L_AES_CTR_encrypt_NEON_loop_4
 	mov	v2.d[1], x10
 	mov	v2.d[0], x11
-	rev64	v2.16b, v2.16b
-	rev32	v2.16b, v2.16b
+	rev64	v2.4s, v2.4s
 L_AES_CTR_encrypt_NEON_start_2:
 	movi	v12.16b, #0x40
 	movi	v13.16b, #0x80
@@ -44966,15 +44960,13 @@ L_AES_CTR_encrypt_NEON_loop_2:
 	adc	x11, x11, xzr
 	mov	v2.d[1], x10
 	mov	v2.d[0], x11
-	rev64	v2.16b, v2.16b
-	rev32	v2.16b, v2.16b
+	rev64	v2.4s, v2.4s
 	eor	v1.16b, v2.16b, v4.16b
 	adds	x10, x10, #1
 	adc	x11, x11, xzr
 	mov	v2.d[1], x10
 	mov	v2.d[0], x11
-	rev64	v2.16b, v2.16b
-	rev32	v2.16b, v2.16b
+	rev64	v2.4s, v2.4s
 	sub	w8, w4, #2
 L_AES_CTR_encrypt_NEON_loop_nr_2:
 	eor	v8.16b, v0.16b, v12.16b
@@ -45291,8 +45283,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_1:
 	adc	x11, x11, xzr
 	mov	v2.d[1], x10
 	mov	v2.d[0], x11
-	rev64	v2.16b, v2.16b
-	rev32	v2.16b, v2.16b
+	rev64	v2.4s, v2.4s
 L_AES_CTR_encrypt_NEON_data_done:
 	rev32	v2.16b, v2.16b
 	st1	{v2.2d}, [x5]
@@ -49790,8 +49781,7 @@ _AES_XTS_decrypt_NEON:
 	mov	x17, #0x87
 	ands	w19, w2, #15
 	cset	w16, ne
-	lsl	w16, w16, #4
-	sub	w2, w2, w16
+	sub	w2, w2, w16, lsl 4
 	ld1	{v2.2d}, [x3]
 	ld1	{v4.2d}, [x5]
 	rev32	v2.16b, v2.16b
@@ -51689,11 +51679,10 @@ L_AES_set_encrypt_key_loop_256:
 	stp	w6, w7, [x2]
 	stnp	w8, w9, [x2, #8]
 	sub	x2, x2, #16
-	mov	w3, w9
-	ubfx	w6, w3, #8, #8
-	ubfx	w7, w3, #16, #8
-	ubfx	w8, w3, #24, #8
-	ubfx	w3, w3, #0, #8
+	ubfx	w6, w9, #8, #8
+	ubfx	w7, w9, #16, #8
+	ubfx	w8, w9, #24, #8
+	ubfx	w3, w9, #0, #8
 	lsl	w6, w6, #2
 	lsl	w7, w7, #2
 	lsl	w8, w8, #2
@@ -55634,8 +55623,7 @@ _AES_XTS_decrypt:
 #endif /* __APPLE__ */
 	ands	w11, w2, #15
 	cset	w11, ne
-	lsl	w11, w11, #4
-	sub	w2, w2, w11
+	sub	w2, w2, w11, lsl 4
 	mov	x11, #0x87
 	mov	x28, x5
 	ldp	x23, x24, [x3]
