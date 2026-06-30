@@ -30402,6 +30402,105 @@ exit_rsa_certreq:
 #endif /* WOLFSSL_CERT_GEN && !NO_ASN_TIME && !WOLFSSL_NO_MALLOC &&
         * WOLFSSL_CERT_REQ && !WOLFSSL_NO_MALLOC */
 
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
+    !defined(WOLFSSL_SE050_NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA_VERIFY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)
+
+/* SE050 key ID for the ONLY_KEY_ID RSA test. Must be < SE050_KEYID_START. */
+#define SE050_ONLYKEYID_TEST_RSA_ID 51
+
+/* Exercise both routing paths under WOLFSSL_SE050_ONLY_KEY_ID for RSA: a
+ * generated software key (keyIdSet == 0 -> wolfCrypt software) and the same key
+ * promoted into the SE050 (keyIdSet == 1 -> hardware). PKCS#1 v1.5 sign/verify
+ * are checked on each path and cross-checked for interoperability. */
+static wc_test_ret_t rsa_se050_onlykeyid_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret;
+    RsaKey  swKey, hwKey;
+    int     swInit = 0, hwInit = 0;
+    byte*   der = NULL;
+    int     derSz;
+    byte    in[32];
+    byte    sigSw[256];
+    byte    sigHw[256];
+    byte    plain[256];
+    word32  inLen = (word32)sizeof(in);
+    int     sigSwSz, sigHwSz, plainSz;
+
+    XMEMSET(in, 7, sizeof(in));
+
+    ret = wc_InitRsaKey_ex(&swKey, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    swInit = 1;
+
+    /* Key generation must produce a software key (keyIdSet == 0). */
+    ret = wc_MakeRsaKey(&swKey, 2048, WC_RSA_EXPONENT, rng);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    if (swKey.keyIdSet != 0) { ret = WC_TEST_RET_ENC_NC; goto done; }
+
+    /* Export and promote the same key material into the SE050. */
+    der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) { ret = WC_TEST_RET_ENC_ERRNO; goto done; }
+    derSz = wc_RsaKeyToDer(&swKey, der, FOURK_BUF);
+    if (derSz < 0) { ret = WC_TEST_RET_ENC_EC(derSz); goto done; }
+
+    /* Erase any object a prior interrupted run may have left at this ID;
+     * erase failing (no such object) is the expected case. */
+    (void)wc_se050_erase_object(SE050_ONLYKEYID_TEST_RSA_ID);
+    ret = wc_se050_rsa_insert_private_key(SE050_ONLYKEYID_TEST_RSA_ID, der,
+            (word32)derSz);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+
+    ret = wc_InitRsaKey_ex(&hwKey, HEAP_HINT, devId);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    hwInit = 1;
+    ret = wc_RsaUseKeyId(&hwKey, SE050_ONLYKEYID_TEST_RSA_ID, 0);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    if (hwKey.keyIdSet != 1) { ret = WC_TEST_RET_ENC_NC; goto done; }
+
+    /* Software path: sign + verify. */
+    sigSwSz = wc_RsaSSL_Sign(in, inLen, sigSw, (word32)sizeof(sigSw), &swKey,
+            rng);
+    if (sigSwSz < 0) { ret = WC_TEST_RET_ENC_EC(sigSwSz); goto done; }
+    plainSz = wc_RsaSSL_Verify(sigSw, (word32)sigSwSz, plain,
+            (word32)sizeof(plain), &swKey);
+    if (plainSz < 0) { ret = WC_TEST_RET_ENC_EC(plainSz); goto done; }
+    if ((word32)plainSz != inLen || XMEMCMP(plain, in, inLen) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    /* Hardware path: sign + verify. */
+    sigHwSz = wc_RsaSSL_Sign(in, inLen, sigHw, (word32)sizeof(sigHw), &hwKey,
+            rng);
+    if (sigHwSz < 0) { ret = WC_TEST_RET_ENC_EC(sigHwSz); goto done; }
+    plainSz = wc_RsaSSL_Verify(sigHw, (word32)sigHwSz, plain,
+            (word32)sizeof(plain), &hwKey);
+    if (plainSz < 0) { ret = WC_TEST_RET_ENC_EC(plainSz); goto done; }
+    if ((word32)plainSz != inLen || XMEMCMP(plain, in, inLen) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    /* Cross-verify: RSA PKCS#1 v1.5 is deterministic, so the software and
+     * hardware signatures over the same key and input must be identical. */
+    if (sigSwSz != sigHwSz || XMEMCMP(sigSw, sigHw, (size_t)sigSwSz) != 0) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+    ret = 0;
+
+done:
+    if (der != NULL)
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (hwInit)
+        wc_FreeRsaKey(&hwKey);
+    if (swInit)
+        wc_FreeRsaKey(&swKey);
+    (void)wc_se050_erase_object(SE050_ONLYKEYID_TEST_RSA_ID);
+    return ret;
+}
+#endif /* WOLFSSL_SE050 && WOLFSSL_SE050_ONLY_KEY_ID && !NO_MALLOC && ... */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 {
     wc_test_ret_t ret;
@@ -30726,6 +30825,17 @@ ta100_rsa_pss_only:
         wc_FreeRsaKey(key);
     /* New key to be loaded in rsa_even_mod_test(). */
     ret = rsa_even_mod_test(&rng, key);
+#endif
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
+    !defined(WOLFSSL_SE050_NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA_VERIFY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    ret = rsa_se050_onlykeyid_test(&rng);
+    if (ret != 0) {
+        printf("rsa_se050_onlykeyid_test failed!\n");
+        goto exit_rsa;
+    }
 #endif
 
 exit_rsa:
@@ -43704,6 +43814,177 @@ static wc_test_ret_t ecc_test_all_deterministic_k(WC_RNG* rng)
 }
 #endif
 
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    defined(HAVE_ECC_KEY_EXPORT)
+
+/* SE050 key ID used by the ONLY_KEY_ID ECC test. Must be < SE050_KEYID_START so
+ * it does not collide with key IDs the SE050 port auto-allocates. */
+#define SE050_ONLYKEYID_TEST_ECC_ID 50
+
+/* Promote a freshly generated software ECC key into the SE050 so that the
+ * returned hwKey has keyIdSet == 1 and routes its operations to hardware. The
+ * same private key material is used, so signatures interoperate between the
+ * software and hardware keys. */
+static wc_test_ret_t se050_onlykeyid_promote_ecc(ecc_key* swKey, ecc_key* hwKey,
+        word32 keyId)
+{
+    wc_test_ret_t ret;
+    byte   der[256];
+    word32 derSz;
+
+    ret = wc_EccKeyToDer(swKey, der, (word32)sizeof(der));
+    if (ret < 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    derSz = (word32)ret;
+
+    /* Erase any object a prior interrupted run may have left at this ID;
+     * erase failing (no such object) is the expected case. */
+    (void)wc_se050_erase_object(keyId);
+    ret = wc_se050_ecc_insert_private_key(keyId, der, derSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_ecc_init_ex(hwKey, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_ecc_use_key_id(hwKey, keyId, 0);
+    if (ret != 0) {
+        wc_ecc_free(hwKey);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    if (hwKey->keyIdSet != 1) {
+        wc_ecc_free(hwKey);
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    return 0;
+}
+
+/* Exercise both routing paths under WOLFSSL_SE050_ONLY_KEY_ID: a generated
+ * software key (keyIdSet == 0 -> wolfCrypt software) and the same key promoted
+ * into the SE050 (keyIdSet == 1 -> hardware). */
+static wc_test_ret_t ecc_se050_onlykeyid_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret;
+    ecc_key swKey, hwKey;
+    int     swInit = 0, hwInit = 0;
+    int     verify;
+    byte    hash[32];
+    byte    sigSw[ECC_MAX_SIG_SIZE];
+    byte    sigHw[ECC_MAX_SIG_SIZE];
+    word32  sigSwSz = (word32)sizeof(sigSw);
+    word32  sigHwSz = (word32)sizeof(sigHw);
+
+    XMEMSET(hash, 9, sizeof(hash));
+
+    ret = wc_ecc_init_ex(&swKey, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    swInit = 1;
+
+    /* Key generation under WOLFSSL_SE050_ONLY_KEY_ID must produce a software
+     * key (keyIdSet == 0). */
+    ret = wc_ecc_make_key_ex(rng, 32, &swKey, ECC_SECP256R1);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    if (swKey.keyIdSet != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+
+    ret = se050_onlykeyid_promote_ecc(&swKey, &hwKey,
+            SE050_ONLYKEYID_TEST_ECC_ID);
+    if (ret != 0)
+        goto done;
+    hwInit = 1;
+
+    /* Software path: sign + verify. */
+    ret = wc_ecc_sign_hash(hash, (word32)sizeof(hash), sigSw, &sigSwSz, rng,
+                           &swKey);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    verify = 0;
+    ret = wc_ecc_verify_hash(sigSw, sigSwSz, hash, (word32)sizeof(hash),
+                             &verify, &swKey);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    if (verify != 1) { ret = WC_TEST_RET_ENC_NC; goto done; }
+
+    /* Hardware path: sign + verify. */
+    ret = wc_ecc_sign_hash(hash, (word32)sizeof(hash), sigHw, &sigHwSz, rng,
+                           &hwKey);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    verify = 0;
+    ret = wc_ecc_verify_hash(sigHw, sigHwSz, hash, (word32)sizeof(hash),
+                             &verify, &hwKey);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    if (verify != 1) { ret = WC_TEST_RET_ENC_NC; goto done; }
+
+    /* Cross-verify: a software-key signature verifies under the hardware key
+     * and vice-versa (same key material, different routing). */
+    verify = 0;
+    ret = wc_ecc_verify_hash(sigSw, sigSwSz, hash, (word32)sizeof(hash),
+                             &verify, &hwKey);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    if (verify != 1) { ret = WC_TEST_RET_ENC_NC; goto done; }
+    verify = 0;
+    ret = wc_ecc_verify_hash(sigHw, sigHwSz, hash, (word32)sizeof(hash),
+                             &verify, &swKey);
+    if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+    if (verify != 1) { ret = WC_TEST_RET_ENC_NC; goto done; }
+
+#if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_SE050_NO_ECDHE)
+    {
+        /* ECDH with the software key must match ECDH with the same key after it
+         * has been promoted into the SE050 (swKey and hwKey share material).
+         * Skipped under WOLFSSL_SE050_NO_ECDHE: with SE050 ECDH disabled the
+         * hardware key has no software private scalar to fall back on. */
+        ecc_key peer;
+        int     peerInit = 0;
+        byte    secretSw[MAX_ECC_BYTES];
+        byte    secretHw[MAX_ECC_BYTES];
+        word32  secretSwSz = (word32)sizeof(secretSw);
+        word32  secretHwSz = (word32)sizeof(secretHw);
+
+        ret = wc_ecc_init_ex(&peer, HEAP_HINT, devId);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto done; }
+        peerInit = 1;
+        ret = wc_ecc_make_key_ex(rng, 32, &peer, ECC_SECP256R1);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto ecdh_done; }
+
+        ret = wc_ecc_set_rng(&swKey, rng);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto ecdh_done; }
+        ret = wc_ecc_shared_secret(&swKey, &peer, secretSw, &secretSwSz);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto ecdh_done; }
+
+        ret = wc_ecc_shared_secret(&hwKey, &peer, secretHw, &secretHwSz);
+        if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto ecdh_done; }
+
+        if (secretSwSz != secretHwSz ||
+                XMEMCMP(secretSw, secretHw, secretSwSz) != 0) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    ecdh_done:
+        if (peerInit)
+            wc_ecc_free(&peer);
+        if (ret != 0)
+            goto done;
+    }
+#endif /* HAVE_ECC_DHE && !WOLFSSL_SE050_NO_ECDHE */
+
+done:
+    if (hwInit)
+        wc_ecc_free(&hwKey);
+    if (swInit)
+        wc_ecc_free(&swKey);
+    (void)wc_se050_erase_object(SE050_ONLYKEYID_TEST_ECC_ID);
+    return ret;
+}
+#endif /* WOLFSSL_SE050 && WOLFSSL_SE050_ONLY_KEY_ID && sign && verify &&
+        * key export */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 {
     wc_test_ret_t ret;
@@ -43831,6 +44112,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     ret = ecc_test_nonblock(&rng);
     if (ret != 0) {
         printf("ecc_test_nonblock failed!\n");
+        goto done;
+    }
+#endif
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    defined(HAVE_ECC_KEY_EXPORT)
+    ret = ecc_se050_onlykeyid_test(&rng);
+    if (ret != 0) {
+        printf("ecc_se050_onlykeyid_test failed!\n");
         goto done;
     }
 #endif
@@ -45603,6 +45894,13 @@ static wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* Under ONLY_KEY_ID, generated keys are software keys (keyIdSet == 0,
+     * privSet == 1); the shared-secret computation below runs in software. */
+    if (userA->keyIdSet != 0 || userB->keyIdSet != 0)
+        return WC_TEST_RET_ENC_NC;
+#endif
+
 #ifdef HAVE_CURVE25519_SHARED_SECRET
     /* find shared secret key */
     x = sizeof(sharedA);
@@ -46824,12 +47122,13 @@ static wc_test_ret_t ed25519_kat_test(ed25519_key* key, ed25519_key* key2)
                                    sizeof(msg4)
     };
 
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     /* Iter 5 uses RFC 8032 msg4 (~1023 bytes), which exceeds the NXP
      * Plug&Trust SDK's SE05X_TLV_BUF_SIZE_CMD = 900 byte APDU buffer:
      * EdDSASign fails with "Not enough buffer" before the command reaches
      * the secure element. Cap at 5 iterations until the SDK buffer is
-     * enlarged upstream. */
+     * enlarged upstream. Under WOLFSSL_SE050_ONLY_KEY_ID these are software
+     * keys (keyIdSet == 0) with no APDU limit, so run all 6. */
     for (i = 0; i < 5; i++) {
 #else
     for (i = 0; i < 6; i++) {
@@ -46988,7 +47287,10 @@ static wc_test_ret_t ed25519_rare_sig_test(ed25519_key* key)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-#ifdef WOLFSSL_SE050
+/* Under WOLFSSL_SE050_ONLY_KEY_ID this software key (keyIdSet == 0) verifies
+ * through the wolfCrypt software path, which reports the software error codes;
+ * only the always-offload SE050 build returns WC_HW_E here. */
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     #define RARE_ED_BAD_ENC_E   WC_NO_ERR_TRACE(WC_HW_E)
     #define RARE_ED_BAD_SIG_E   WC_NO_ERR_TRACE(WC_HW_E)
 #else
@@ -47118,9 +47420,11 @@ static wc_test_ret_t ed25519_asn_test(ed25519_key* key3)
     /* Signing with a private-only key (no public loaded yet) is rejected on
      * the host with BAD_FUNC_ARG. The SE050 port instead fails inside
      * sss_se05x_key_store_set_ecc_keypair and returns WC_HW_E, so accept
-     * that alternate error code when built against an SE050. */
+     * that alternate error code when built against an SE050. Under
+     * WOLFSSL_SE050_ONLY_KEY_ID this software key (keyIdSet == 0) takes the
+     * host path, so the host BAD_FUNC_ARG applies. */
     ret = wc_ed25519_sign_msg(msg, 0, out, &outlen, key3);
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     if (ret != WC_NO_ERR_TRACE(WC_HW_E))
 #else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -47174,6 +47478,74 @@ static wc_test_ret_t ed25519_asn_test(ed25519_key* key3)
 }
 #endif /* NO_ASN */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
+    defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_VERIFY)
+
+/* Under WOLFSSL_SE050_ONLY_KEY_ID an Ed25519 key resident in the SE050
+ * (keyIdSet == 1) routes its operations to hardware, which performs only
+ * PureEdDSA. Verify that the Ed25519ph / Ed25519ctx variants are rejected with
+ * BAD_FUNC_ARG rather than silently falling back to plain Ed25519. The routing
+ * guard rejects these variants before any hardware access, so a real resident
+ * object is not required: a software key with keyIdSet forced on exercises the
+ * exact branch added for the per-key routing. (There is no public API to load
+ * an SE050-resident Ed25519 key, and se050_ed25519_create_key is WOLFSSL_LOCAL,
+ * so the handle is simulated via the public keyIdSet field.) */
+static wc_test_ret_t ed25519_se050_onlykeyid_test(void)
+{
+    wc_test_ret_t ret;
+    ed25519_key   key;
+    int     keyInit = 0;
+    int     verify = 0;
+    byte    msg[32];
+    byte    ctx[4];
+    byte    sig[ED25519_SIG_SIZE];
+    word32  sigSz = (word32)sizeof(sig);
+
+    XMEMSET(msg, 5, sizeof(msg));
+    XMEMSET(ctx, 1, sizeof(ctx));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    ret = wc_ed25519_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    keyInit = 1;
+
+    /* Simulate an SE050-resident key (see note above). */
+    key.keyId = 1;
+    key.keyIdSet = 1;
+
+    /* Ed25519ph must be rejected for a resident key. */
+    ret = wc_ed25519ph_sign_msg(msg, (word32)sizeof(msg), sig, &sigSz, &key,
+            NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    /* Ed25519ctx must be rejected for a resident key. */
+    sigSz = (word32)sizeof(sig);
+    ret = wc_ed25519ctx_sign_msg(msg, (word32)sizeof(msg), sig, &sigSz, &key,
+            ctx, (byte)sizeof(ctx));
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    /* The ph/ctx rejection must also hold on the verify path. */
+    ret = wc_ed25519ph_verify_msg(sig, (word32)sizeof(sig), msg,
+            (word32)sizeof(msg), &verify, &key, NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        ret = WC_TEST_RET_ENC_NC; goto done;
+    }
+
+    ret = 0;
+done:
+    /* Clear the simulated handle so teardown stays on the software path. */
+    key.keyIdSet = 0;
+    if (keyInit)
+        wc_ed25519_free(&key);
+    return ret;
+}
+#endif /* WOLFSSL_SE050 && WOLFSSL_SE050_ONLY_KEY_ID && sign && verify */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
 {
@@ -47240,6 +47612,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, key2);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* Under ONLY_KEY_ID, generated keys are software keys (keyIdSet == 0); the
+     * sign/verify below therefore exercises the wolfCrypt software path. */
+    if (key->keyIdSet != 0 || key2->keyIdSet != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, cleanup);
+#endif
 #endif
 
     /* helper functions for signature and key size */
@@ -47300,6 +47678,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
         goto cleanup;
 #endif /* WOLFSSL_CERT_GEN */
 #endif /* WOLFSSL_TEST_CERT */
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
+    defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_VERIFY)
+    ret = ed25519_se050_onlykeyid_test();
+    if (ret != 0)
+        goto cleanup;
+#endif
 
 cleanup:
 

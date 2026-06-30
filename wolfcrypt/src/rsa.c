@@ -3769,6 +3769,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             return WC_HW_E;
         }
     #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
+    #ifdef WOLFSSL_SE050_ONLY_KEY_ID
+        /* Only offload to the SE050 when the key is resident in hardware;
+         * software keys (keyIdSet == 0) fall through to the software path. */
+        if (key->keyIdSet)
+    #endif
+        {
         if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
             return se050_rsa_public_encrypt(in, inLen, out, outLen, key,
                                             rsa_type, pad_value, pad_type, hash,
@@ -3784,6 +3790,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             return se050_rsa_sign(in, inLen, out, outLen, key, rsa_type,
                                   pad_value, pad_type, hash, mgf, label,
                                   labelSz, sz);
+        }
         }
     #endif /* RSA CRYPTO HW */
 
@@ -3949,6 +3956,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
          * wc_RsaPSS_CheckPadding / wc_RsaPSS_VerifyCheck path which has the
          * digest available. */
     #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
+    #ifdef WOLFSSL_SE050_ONLY_KEY_ID
+        /* Only offload to the SE050 when the key is resident in hardware;
+         * software keys (keyIdSet == 0) fall through to the software path. */
+        if (key->keyIdSet)
+    #endif
+        {
         if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
             ret = se050_rsa_private_decrypt(in, inLen, out, outLen, key,
                                             rsa_type, pad_value, pad_type, hash,
@@ -3975,6 +3988,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             return ret;
         }
     #endif /* !WOLFSSL_SE050_NO_RSA_VERIFY */
+        }
     #endif /* RSA CRYPTO HW */
 
 
@@ -5375,7 +5389,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
 #ifndef WC_NO_RNG
 #if !defined(WOLFSSL_CRYPTOCELL) && \
-    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA) || \
+     defined(WOLFSSL_SE050_ONLY_KEY_ID)) && \
     !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
     !defined(WOLFSSL_MICROCHIP_TA100)
 #ifdef WOLFSSL_SMALL_STACK
@@ -5440,7 +5455,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #elif defined(WOLFSSL_MICROCHIP_TA100)
     err = wc_Microchip_rsa_create_key(key, size, e);
     goto out;
-#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
+#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA) && \
+      !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     err = se050_rsa_create_key(key, size, e);
     goto out;
 #else
@@ -5794,7 +5810,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif /* WOLFSSL_CRYPTOCELL / SW only */
   out:
 
-#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
+#if !defined(WOLFSSL_CRYPTOCELL) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_ONLY_KEY_ID))
 #ifdef WOLFSSL_SMALL_STACK
     if (key != NULL) {
         XFREE(p, key->heap, DYNAMIC_TYPE_RSA);

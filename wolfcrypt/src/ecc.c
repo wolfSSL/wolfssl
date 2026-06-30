@@ -296,7 +296,14 @@ ECC Curve Sizes:
     #undef  HAVE_ECC_VERIFY_HELPER
     #define HAVE_ECC_VERIFY_HELPER
 #endif
-#if defined(WOLFSSL_SE050_NO_ECDSA_VERIFY) && defined(HAVE_ECC_VERIFY)
+/* Compile in the software verify helper whenever SE050 hardware ECDSA verify is
+ * bypassed:
+ *  - WOLFSSL_SE050_NO_ECDSA_VERIFY disables SE050 ECDSA verify outright.
+ *  - WOLFSSL_SE050_ONLY_KEY_ID verifies software keys (keyIdSet == 0) in
+ *    wolfCrypt; the SE050 is used at runtime only for keys resident in HW. */
+#if (defined(WOLFSSL_SE050_NO_ECDSA_VERIFY) || \
+     (defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID))) && \
+    defined(HAVE_ECC_VERIFY)
     #define HAVE_ECC_VERIFY_HELPER
 #endif
 
@@ -4728,6 +4735,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen)
 {
    int err = 0;
+   int privateKeyOk = 0;
 
 #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
@@ -4735,6 +4743,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 #endif
 
    (void)err;
+   (void)privateKeyOk;
 
    if (private_key == NULL || public_key == NULL || out == NULL ||
                                                             outlen == NULL) {
@@ -4757,8 +4766,16 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     return NO_VALID_DEVID;
 #else /* !WOLF_CRYPTO_CB_ONLY_ECC */
    /* type valid? */
-   if (private_key->type != ECC_PRIVATEKEY &&
-           private_key->type != ECC_PRIVATEKEY_ONLY) {
+   privateKeyOk = private_key->type == ECC_PRIVATEKEY ||
+                  private_key->type == ECC_PRIVATEKEY_ONLY;
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE) && \
+      defined(WOLFSSL_SE050_ONLY_KEY_ID)
+   /* A SE050 key-id handle can represent a private key even though
+    * wc_ecc_use_key_id() only loads the public point into the ecc_key. */
+   if (private_key->keyIdSet)
+      privateKeyOk = 1;
+#endif
+   if (!privateKeyOk) {
       return ECC_BAD_ARG_E;
    }
 
@@ -4801,6 +4818,15 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    err = silabs_ecc_shared_secret(private_key, public_key, out, outlen);
 #elif defined(WOLFSSL_KCAPI_ECC)
    err = KcapiEcc_SharedSecret(private_key, public_key, out, outlen);
+#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE) && \
+      defined(WOLFSSL_SE050_ONLY_KEY_ID)
+   /* SE050-resident private key uses hardware ECDH; a software private key
+    * (keyIdSet == 0) uses the wolfCrypt software implementation. */
+   if (private_key->keyIdSet)
+       err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
+   else
+       err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out,
+                                     outlen);
 #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE)
    err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
 #else
@@ -5881,7 +5907,8 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
    else {
       err = NOT_COMPILED_IN;
    }
-#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE)
+#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE) && \
+      !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     err = se050_ecc_create_key(key, key->dp->id, key->dp->size);
     key->type = ECC_PRIVATEKEY;
 #elif defined(WOLFSSL_CRYPTOCELL)
@@ -6981,7 +7008,14 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 
 /* hardware crypto */
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID)
+    /* Route by key location: SE050-resident keys sign in hardware, software
+     * keys (keyIdSet == 0) sign with the wolfCrypt software implementation. */
+    if (key->keyIdSet)
+        err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
+    else
+        err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
+#elif defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_MICROCHIP_TA100) || \
     defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_KCAPI_ECC) || \
@@ -9753,8 +9787,11 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
    byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
    byte hashcopy[ECC_MAX_CRYPTO_HW_SIZE] = {0};
-#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDSA_VERIFY)
+#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDSA_VERIFY) && \
+      !defined(WOLFSSL_SE050_ONLY_KEY_ID)
 #else
+   /* Software verify helper (also used for SE050 software keys under
+    * WOLFSSL_SE050_ONLY_KEY_ID) needs the curve specs. */
    int curveLoaded = 0;
    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
 #endif
@@ -9788,6 +9825,15 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    if (err != MP_OKAY) {
       return err;
    }
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID) && \
+    !defined(WOLFSSL_SE050_NO_ECDSA_VERIFY)
+   /* Key resident in the SE050: verify in hardware. Software keys fall through
+    * to the wolfCrypt verify helper below. */
+   if (key->keyIdSet) {
+       return se050_ecc_verify_hash_ex(hash, hashlen, r, s, key, res);
+   }
+#endif
 
    keySz = (word32)key->dp->size;
 

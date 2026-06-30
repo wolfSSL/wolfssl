@@ -1231,6 +1231,14 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -1435,6 +1443,14 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -1638,6 +1654,14 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -1805,6 +1829,14 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
+
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
@@ -2135,6 +2167,14 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
 #ifndef WC_ALLOW_ECC_ZERO_HASH
     /* SE050 hardware does not reject all-zero digests; mirror the
      * software path's check so behavior is consistent. */
@@ -2315,6 +2355,14 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
+
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
 
     keySize = key->dp->size;
     ret = se050_map_curve(key->dp->id, keySize, &keySizeBits, &curveType);
@@ -2983,6 +3031,14 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
         return WC_HW_E;
     }
 
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
@@ -3086,6 +3142,14 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
+
+#ifdef WOLFSSL_SE050_ONLY_KEY_ID
+    /* Under ONLY_KEY_ID only SE050-resident keys reach this
+     * hardware path. Never auto-import a software key (keyIdSet == 0). */
+    if (key->keyIdSet == 0) {
+        return NOT_COMPILED_IN;
+    }
+#endif
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;

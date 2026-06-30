@@ -265,6 +265,35 @@ offloaded to the SE050, but RSA PKCS#1 v1.5 verification (`wc_RsaSSL_Verify()`)
 uses wolfCrypt software (public-key exponentiation + unpad). RSA PSS verify and
 RSA key-exchange decrypt are unaffected.
 
+**`WOLFSSL_SE050_ONLY_KEY_ID`**
+
+Requires `WOLFSSL_SE050`. By default every keyed operation is routed to the
+SE050 at compile time. When this macro is defined, routing becomes a per-key
+*runtime* decision based on `key->keyIdSet`:
+
+- A key resident in the SE050 (`keyIdSet == 1`, established via
+  `wc_ecc_use_key_id()`, `wc_se050_ecc_insert_private_key()`, `wc_RsaUseKeyId()`,
+  `wc_se050_rsa_insert_private_key()`, etc.) runs the operation on the SE050.
+- A software key (`keyIdSet == 0`) runs the operation in wolfCrypt software.
+
+Because both paths must be available, the build compiles *both* the SE050 and
+the wolfCrypt software implementations (larger code size). Key generation
+(`wc_ecc_make_key()`, `wc_curve25519_make_key()`, `wc_MakeRsaKey()`; Ed25519
+key generation is already software-only) produces a *software* key
+(`keyIdSet == 0`); it does not implicitly create a key inside the SE050.
+
+In-scope operations: ECC sign/verify/ECDH/keygen, Ed25519 sign/verify,
+Curve25519 shared-secret/keygen, and RSA sign/verify/encrypt/decrypt/keygen.
+RNG (TRNG) and hashing have no key and are unaffected. AES routing continues to
+be governed by `WOLFSSL_SE050_CRYPT` and the AES `useSWCrypt` flag (the SE050
+AES path is opt-in and already chosen per-key at runtime).
+
+This macro composes with the `WOLFSSL_SE050_NO_*` macros above: if a `NO_*`
+macro disables an operation, that operation always uses wolfCrypt software
+regardless of `keyIdSet`. The SE050 port's "import a software key into the
+SE050 on first use" behavior is disabled under this macro, so a software key is
+never silently moved into hardware.
+
 ## wolfSSL HostCrypto Support
 
 The NXP SE05x Plug & Trust Middleware by default can use either OpenSSL or

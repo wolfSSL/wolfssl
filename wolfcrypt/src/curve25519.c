@@ -585,7 +585,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_X25519 &&
         * WOLFSSL_ASYNC_CRYPT_SW */
 
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_ONLY_KEY_ID)
     ret = se050_curve25519_create_key(key, keysize);
 #elif defined(WC_X25519_NONBLOCK)
     if (key->nb_ctx != NULL) {
@@ -593,7 +593,9 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
     }
     else
 #endif
-#if !defined(WOLFSSL_SE050)
+    /* Under WOLFSSL_SE050_ONLY_KEY_ID, generate a software key (keyIdSet == 0);
+     * its shared-secret computation routes through software (privSet == 1). */
+#if !defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_ONLY_KEY_ID)
     {
         ret = wc_curve25519_make_priv(rng, keysize, key->k);
         if (ret == 0) {
