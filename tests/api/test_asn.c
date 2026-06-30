@@ -1521,35 +1521,42 @@ int test_DecodeOtherName_bundleEID(void)
     int foundBundleEid = 0;
     int foundDns = 0;
 
+    /* Only read once the file actually opened: ExpectTrue records a failure
+     * but does not stop execution, so reading from a XBADFILE handle here
+     * would otherwise crash the test runner. */
     ExpectTrue((f = XFOPEN(bundleEidCert, "rb")) != XBADFILE);
-    ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
-    if (f != XBADFILE)
+    if (f != XBADFILE) {
+        ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
         XFCLOSE(f);
-
-    wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
-    /* Before the fix this failed with ASN_PARSE_E because the OtherName value
-     * (an IA5String) did not match any of the supported value types. */
-    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
-
-    for (dns = cert.altNames; dns != NULL; dns = dns->next) {
-        if ((dns->type == ASN_OTHER_TYPE) && (dns->len == 14) &&
-                (XMEMCMP(dns->name, "dtn://node000/", 14) == 0)) {
-            foundBundleEid = 1;
-        #ifdef WOLFSSL_FPKI
-            ExpectIntEQ(dns->oidSum, BUNDLE_EID_OID);
-        #endif
-        }
-        if ((dns->type == ASN_DNS_TYPE) && (dns->len == 13) &&
-                (XMEMCMP(dns->name, "node000.local", 13) == 0)) {
-            foundDns = 1;
-        }
     }
-    /* The bundleEID IA5String value must be decoded into an OtherName entry,
-     * and the trailing dNSName must still be parsed. */
-    ExpectIntEQ(foundBundleEid, 1);
-    ExpectIntEQ(foundDns, 1);
 
-    wc_FreeDecodedCert(&cert);
+    /* Likewise, only parse when something was actually read. */
+    if (bytes > 0) {
+        wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
+        /* Before the fix this failed with ASN_PARSE_E because the OtherName
+         * value (an IA5String) did not match any supported value type. */
+        ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL), 0);
+
+        for (dns = cert.altNames; dns != NULL; dns = dns->next) {
+            if ((dns->type == ASN_OTHER_TYPE) && (dns->len == 14) &&
+                    (XMEMCMP(dns->name, "dtn://node000/", 14) == 0)) {
+                foundBundleEid = 1;
+            #ifdef WOLFSSL_FPKI
+                ExpectIntEQ(dns->oidSum, BUNDLE_EID_OID);
+            #endif
+            }
+            if ((dns->type == ASN_DNS_TYPE) && (dns->len == 13) &&
+                    (XMEMCMP(dns->name, "node000.local", 13) == 0)) {
+                foundDns = 1;
+            }
+        }
+        /* The bundleEID IA5String value must be decoded into an OtherName
+         * entry, and the trailing dNSName must still be parsed. */
+        ExpectIntEQ(foundBundleEid, 1);
+        ExpectIntEQ(foundDns, 1);
+
+        wc_FreeDecodedCert(&cert);
+    }
 #endif /* WOLFSSL_DTN && (WOLFSSL_SEP || WOLFSSL_FPKI) && HAVE_ECC &&
         * !NO_CERTS && !NO_ASN && !NO_FILESYSTEM */
     return EXPECT_RESULT();
