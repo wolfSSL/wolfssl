@@ -4670,6 +4670,20 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #endif
 #endif
 
+/* Minimum allowed DH prime size in bits. SP 800-56A Rev3 / SP 800-131A
+ * disallow FFC below 2048 bits. Override to permit legacy sizes. */
+#ifndef DH_MIN_SIZE
+    #ifdef HAVE_FIPS
+        #define DH_MIN_SIZE 2048
+    #elif WOLFSSL_MIN_DHKEY_BITS
+    /* For existing build settings that use WOLFSSL_MIN_DHKEY_BITS, map
+     * DH_MIN_SIZE to the user's desired minimum */
+        #define DH_MIN_SIZE WOLFSSL_MIN_DHKEY_BITS
+    #else
+        #define DH_MIN_SIZE 1024
+    #endif
+#endif
+
 /* wc_Sha512.devId isn't available before FIPS 5.1 */
 #if defined(HAVE_FIPS) && FIPS_VERSION_LT(5,1)
     #define NO_SHA2_CRYPTO_CB

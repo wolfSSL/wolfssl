@@ -1261,6 +1261,12 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
     int ret = 0;
     word32 sz = 0;
 
+    /* reject primes below the minimum allowed size */
+    if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+        WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+        return WC_KEY_SIZE_E;
+    }
+
     if (mp_iseven(&key->p) == MP_YES) {
         ret = MP_VAL;
     }
@@ -1343,6 +1349,12 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
 #endif
 
     if (*pubSz < (word32)mp_unsigned_bin_size(&key->p)) {
+        return WC_KEY_SIZE_E;
+    }
+
+    /* reject primes below the minimum allowed size */
+    if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+        WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
         return WC_KEY_SIZE_E;
     }
 
@@ -2036,6 +2048,12 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
 #endif
 
+    /* reject primes below the minimum allowed size */
+    if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+        WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+        return WC_KEY_SIZE_E;
+    }
+
     if (mp_iseven(&key->p) == MP_YES) {
         return MP_VAL;
     }
@@ -2364,6 +2382,10 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 #ifdef WOLFSSL_KCAPI_DH
     (void)priv;
     (void)privSz;
+    if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+        WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+        return WC_KEY_SIZE_E;
+    }
     ret = KcapiDh_SharedSecret(key, otherPub, pubSz, agree, agreeSz);
 #else
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
