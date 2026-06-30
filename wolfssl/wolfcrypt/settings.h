@@ -4040,17 +4040,6 @@
         #define WOLFSSL_AARCH64_PRIVILEGE_MODE
     #endif
 
-    /* SHA-3 low level state can't alternate freely between C and intelasm. */
-    #ifdef _WC_BUILDING_WC_MLKEM_POLY_C
-        #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    #endif
-    #ifdef _WC_BUILDING_WC_MLDSA_C
-        #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    #endif
-    #ifdef _WC_BUILDING_WC_SLHDSA_C
-        #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    #endif
-
     #ifndef WC_SIPHASH_NO_ASM
         /* siphash asm produces wrong results in kernel mode. */
         #define WC_SIPHASH_NO_ASM
@@ -4233,6 +4222,15 @@
     #ifndef WOLFSSL_RSA_KEY_CHECK
         #define WOLFSSL_RSA_KEY_CHECK
     #endif
+#endif
+
+/* SHA-3 low level state can't alternate freely between C and intelasm. */
+#if (defined(_WC_BUILDING_WC_MLKEM_POLY_C) ||            \
+     defined(_WC_BUILDING_WC_MLDSA_C) ||                 \
+     defined(_WC_BUILDING_WC_SLHDSA_C)) &&               \
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) &&     \
+    !defined(DEBUG_FORCE_VECTOR_REGISTER_ACCESS_FUZZING)
+    #undef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
 #endif
 
 /* Make sure setting OPENSSL_ALL also sets OPENSSL_EXTRA. */
