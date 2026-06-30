@@ -30504,6 +30504,9 @@ static wc_test_ret_t dh_check_priv_key_test(DhKey* key, const byte* priv,
 {
     wc_test_ret_t ret;
     word32 pSz, qSz, gSz;
+    byte pBuf[DH_TEST_BUF_SIZE];
+    byte qBuf[DH_TEST_BUF_SIZE];
+    byte gBuf[DH_TEST_BUF_SIZE];
 
     ret = wc_DhCheckPrivKey(NULL, NULL, 0);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -30520,6 +30523,22 @@ static wc_test_ret_t dh_check_priv_key_test(DhKey* key, const byte* priv,
     ret = wc_DhExportParamsRaw(key, NULL, &pSz, NULL, &qSz, NULL, &gSz);
     if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_check_priv);
+
+    /* Regression: the explicit prime argument to wc_DhCheckPrivKey_ex must be
+     * honored and not overwritten by key->q. This key is set with p and g
+     * only, so key->q is empty; supplying the modulus p as a generous bound
+     * must accept any valid priv (priv < p). The prior defect clobbered the
+     * loaded bound with the empty key->q and rejected a valid key. */
+    if (pSz <= (word32)sizeof(pBuf) && qSz <= (word32)sizeof(qBuf) &&
+            gSz <= (word32)sizeof(gBuf)) {
+        ret = wc_DhExportParamsRaw(key, pBuf, &pSz, qBuf, &qSz, gBuf, &gSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_check_priv);
+
+        ret = wc_DhCheckPrivKey_ex(key, priv, privSz, pBuf, pSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_dh_check_priv);
+    }
 
     ret = 0;
 
