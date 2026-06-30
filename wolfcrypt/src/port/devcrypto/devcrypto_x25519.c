@@ -53,6 +53,7 @@ int wc_DevCryptoCurve25519(byte* out, word32 outSz, const byte* k,
 
     ret = wc_DevCryptoCreate(&ctx, CRYPTO_ASYM_MUL_MOD, NULL, 0);
     if (ret == 0) {
+        XMEMSET(&kop, 0, sizeof(kop));
         kop.crk_op = CRK_MUL_MOD;
         kop.ses    = ctx.sess.ses;
         kop.crk_flags = 0;
