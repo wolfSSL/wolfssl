@@ -2642,6 +2642,12 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 
     XMEMSET(ctx, 0, sizeof(WOLFSSL_CTX));
 
+#ifdef WOLFSSL_VERIFY_NONE_DEFAULT
+    /* OpenSSL compat: default to SSL_VERIFY_NONE unless the app
+     * sets SSL_VERIFY_PEER. */
+    ctx->verifyNone = 1;
+#endif
+
     ctx->method   = method;
     if (heap == NULL) {
         ctx->heap = ctx;  /* defaults to self */
