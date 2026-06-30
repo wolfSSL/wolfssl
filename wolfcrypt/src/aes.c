@@ -1189,7 +1189,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 }
 #endif /* HAVE_AES_DECRYPT && WOLFSSL_AES_DIRECT */
 
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM) || \
     defined(WOLFSSL_AESGCM_STREAM) || defined(HAVE_AESGCM)
@@ -4891,7 +4891,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
         return AesSetKey(aes, userKey, keylen, iv, dir);
     }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
     static int AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
@@ -6932,7 +6932,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         word32 blocks;
         int ret;
 #endif
@@ -6945,7 +6945,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return 0;
         }
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         blocks = sz / WC_AES_BLOCK_SIZE;
 #endif
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
@@ -7021,7 +7021,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     #endif
         return 0;
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         AES_CBC_encrypt(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds, (unsigned char*)aes->reg);
         return 0;
@@ -7136,7 +7136,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     /* Software AES - CBC Decrypt */
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         word32 blocks;
         int ret;
 #endif
@@ -7164,7 +7164,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     #endif
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         blocks = sz / WC_AES_BLOCK_SIZE;
 #endif
         if (sz % WC_AES_BLOCK_SIZE) {
@@ -7257,7 +7257,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #endif
     #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
         return 0;
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
         AES_CBC_decrypt(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds, (unsigned char*)aes->reg);
         return 0;
@@ -7621,7 +7621,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
           !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
             byte scratch[WC_AES_BLOCK_SIZE];
     #endif
-    #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+    #if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
             int ret = 0;
     #endif
             word32 processed;
@@ -7744,7 +7744,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             }
         #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
             return 0;
-    #elif defined(WOLFSSL_PPC64_ASM)
+    #elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
             {
                 word32 numBlocks;
                 byte* tmp = (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left;
@@ -8584,7 +8584,7 @@ static void GCM_gmult_len_armasm_C(
 #elif defined(WOLFSSL_ARMASM)
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len_NEON(x, (const byte*)((gcm)->H), a, len)
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 static void GCM_gmult_len_armasm_C(
     byte* x, const byte* h, const unsigned char* a, unsigned long len)
 {
@@ -8628,7 +8628,7 @@ static void GCM_gmult_len_armasm_C(
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
 #endif
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM)
 #define GCM_GMULT_LEN(gcm, x, a, len) \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
 #else
@@ -8928,7 +8928,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #endif
 
 /* PPC64 assembly */
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #define GCM_GMULT_LEN(gcm, x, a, len)                                    \
     GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
 #define GMULT(x, m)                                                      \
@@ -10448,7 +10448,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
 #endif /* STM32_CRYPTO_AES_GCM */
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
@@ -10569,7 +10569,7 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
     return ret;
 }
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
-      defined(WOLFSSL_PPC64_ASM)
+      (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 static int AES_GCM_encrypt_ASM(Aes* aes, byte* out, const byte* in,
     word32 sz, const byte* iv, word32 ivSz, byte* authTag, word32 authTagSz,
     const byte* authIn, word32 authInSz)
@@ -10830,7 +10830,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             authTagSz, authIn, authInSz);
     }
 #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
     ret = AES_GCM_encrypt_ASM(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
         authIn, authInSz);
 #else
@@ -11193,7 +11193,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 
 #endif /* STM32_CRYPTO_AES_GCM */
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM)
+#if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
@@ -11343,7 +11343,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     return ret;
 }
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
-      defined(WOLFSSL_PPC64_ASM)
+      (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
 static int AES_GCM_decrypt_ASM(Aes* aes, byte* out, const byte* in,
     word32 sz, const byte* iv, word32 ivSz, const byte* authTag,
     word32 authTagSz, const byte* authIn, word32 authInSz)
@@ -11602,7 +11602,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             authTagSz, authIn, authInSz);
     }
 #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
     {
         ret = AES_GCM_decrypt_ASM(aes, out, in, sz, iv, ivSz, authTag,
             authTagSz, authIn, authInSz);
@@ -15142,7 +15142,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
             aes->rounds);
     }
 #endif
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
     AES_ECB_encrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
     ret = 0;
 #else
@@ -15241,7 +15241,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
             aes->rounds);
     }
 #endif
-#elif defined(WOLFSSL_PPC64_ASM)
+#elif (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
     AES_ECB_decrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
     ret = 0;
 #else

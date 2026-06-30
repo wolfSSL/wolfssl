@@ -25,6 +25,7 @@
  *       ../wolfssl/wolfcrypt/src/port/ppc32/ppc32-sha256-asm.S
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_PPC32_ASM
 #ifndef WOLFSSL_PPC32_ASM_INLINE

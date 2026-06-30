@@ -272,6 +272,11 @@ WOLFSSL_LOCAL void BlockSha3(word64 *s);
         WOLFSSL_LOCAL void BlockSha3_crypto(word64 *s);
     #endif
     WOLFSSL_LOCAL void BlockSha3_base(word64 *s);
+#elif defined(WOLFSSL_PPC64_ASM)
+    #ifdef WOLFSSL_PPC64_ASM_POWER8
+        WOLFSSL_LOCAL void BlockSha3_power8(word64 *s);
+    #endif
+    WOLFSSL_LOCAL void BlockSha3_base(word64 *s);
 #endif
 
 #ifdef __cplusplus

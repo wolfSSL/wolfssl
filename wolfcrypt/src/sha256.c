@@ -126,6 +126,7 @@ on the specific device platform.
         (defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)) || \
         defined(WOLFSSL_RENESAS_RX64_HASH) || \
         defined(WOLFSSL_PPC32_ASM) || \
+        defined(WOLFSSL_PPC64_ASM) || \
         defined(WOLFSSL_ARMASM) || \
         (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
             (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))))
@@ -241,6 +242,8 @@ on the specific device platform.
 #elif defined(FREESCALE_MMCAU_SHA)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0 /* reverse not needed on update */
 #elif defined(WOLFSSL_PPC32_ASM)
+    #define SHA256_UPDATE_REV_BYTES(ctx)    0
+#elif defined(WOLFSSL_PPC64_ASM)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0
 #elif defined(WOLFSSL_ARMASM)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0
@@ -1121,10 +1124,46 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
-#elif defined(WOLFSSL_PPC32_ASM) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
+#elif (defined(WOLFSSL_PPC32_ASM) || defined(WOLFSSL_PPC64_ASM)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
 extern void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     word32 len);
+
+#if defined(WOLFSSL_PPC64_ASM) && defined(WOLFSSL_PPC64_ASM_CRYPTO)
+/* POWER8+ has a vector SHA-256 sigma instruction (vshasigmaw).  When built
+ * in, select that implementation at run time if the CPU supports it.
+ *
+ * A run-time flag with direct calls is used rather than a function pointer:
+ * an indirect call would require an ELFv1 function descriptor, whereas direct
+ * calls work under both the ELFv1 and ELFv2 ABIs. */
+extern void Transform_Sha256_Len_crypto(wc_Sha256* sha256, const byte* data,
+    word32 len);
+
+/* -1 = not yet determined, 0 = base, 1 = vector-crypto */
+static int sha256_use_crypto = -1;
+
+/* Detect CPU support via the central cpuid module.  Idempotent - safe to call
+ * from multiple threads as all callers compute the same value. */
+static void Sha256_SetTransform(void)
+{
+    if (sha256_use_crypto < 0) {
+        sha256_use_crypto = IS_PPC64_VEC_CRYPTO(cpuid_get_flags()) != 0;
+    }
+}
+
+static WC_INLINE void SHA256_TRANSFORM_LEN(wc_Sha256* sha256, const byte* data,
+    word32 len)
+{
+    if (sha256_use_crypto)
+        Transform_Sha256_Len_crypto(sha256, data, len);
+    else
+        Transform_Sha256_Len(sha256, data, len);
+}
+#else
+#define Sha256_SetTransform()           WC_DO_NOTHING
+#define SHA256_TRANSFORM_LEN(s, d, l)   Transform_Sha256_Len((s), (d), (l))
+#endif
 
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
@@ -1136,20 +1175,31 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     if (ret != 0)
         return ret;
 
+    Sha256_SetTransform();
+
     sha256->heap = heap;
+#ifdef WOLF_CRYPTO_CB
+    sha256->devId = devId;
+    sha256->devCtx = NULL;
+#else
     (void)devId;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha256->W = NULL;
+#endif
 
     return ret;
 }
 
 static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 {
-    Transform_Sha256_Len(sha256, data, WC_SHA256_BLOCK_SIZE);
+    SHA256_TRANSFORM_LEN(sha256, data, WC_SHA256_BLOCK_SIZE);
     return 0;
 }
 
 #define XTRANSFORM Transform_Sha256
-#define XTRANSFORM_LEN Transform_Sha256_Len
+#define XTRANSFORM_LEN(s, d, l)         SHA256_TRANSFORM_LEN((s), (d), (l))
 
 #elif defined(WOLFSSL_ARMASM) && !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
@@ -2253,6 +2303,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #else
         Sha256_SetTransform();
     #endif
+    #endif
+    #if defined(WOLFSSL_PPC64_ASM) && defined(WOLFSSL_PPC64_ASM_CRYPTO)
+        /* SHA-224 shares the SHA-256 transform; select the base/vector-crypto
+         * implementation at run time (sets sha256_use_crypto). */
+        Sha256_SetTransform();
     #endif
     #ifdef WOLFSSL_HASH_FLAGS
         sha224->flags = 0;
