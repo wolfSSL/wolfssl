@@ -30058,14 +30058,24 @@ static wc_test_ret_t dh_generate_test(WC_RNG *rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FFDHE)
-    /* Use API. */
+    /* Use API. p is a 9-bit prime: key generation is rejected with
+     * WC_KEY_SIZE_E unless DH_MIN_SIZE permits a prime this small. */
     ret = wc_DhGenerateKeyPair(smallKey, rng, priv, &privSz, pub, &pubSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &smallKey->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+#if DH_MIN_SIZE > 9
+    if (ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E))
+        ret = 0;
+    else if (ret == 0)
+        ret = WC_TEST_RET_ENC_NC; /* should have been rejected */
+    else
+        ret = WC_TEST_RET_ENC_EC(ret);
+#else
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
     }
+#endif
 #else
     (void)rng;
     #if defined(HAVE_FIPS) || !defined(WOLFSSL_NO_DH186)
