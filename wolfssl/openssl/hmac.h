@@ -37,6 +37,12 @@
 
 #include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/openssl/opensslv.h>
+/* OpenSSL's hmac.h pulls in evp.h; mirror it, but only on standalone
+ * include (WOLFSSL_SSL_H unset) to avoid an include cycle during
+ * wolfssl/ssl.h's own parse. */
+#ifndef WOLFSSL_SSL_H
+#include <wolfssl/openssl/evp.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
