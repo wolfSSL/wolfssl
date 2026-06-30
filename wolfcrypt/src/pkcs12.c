@@ -1355,6 +1355,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     WC_DerCertList* certList = NULL;
     WC_DerCertList* tailList = NULL;
     byte* buf             = NULL;
+    int   bufSz           = 0; /* allocation length of buf, for zeroization */
     word32 i, oid;
     word32 algId;
     word32 contentSz = 0;
@@ -1462,6 +1463,7 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
 
         /* decrypted content overwrites input buffer */
             size = (int)(ci->dataSz - idx);
+            bufSz = size;
             buf = (byte*)XMALLOC((size_t)size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
             if (buf == NULL) {
                 ERROR_OUT(MEMORY_E, exit_pk12par);
@@ -1780,8 +1782,11 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
         }
 
         /* free temporary buffer */
+        if (buf != NULL)
+            ForceZero(buf, (word32)bufSz);
         XFREE(buf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         buf = NULL;
+        bufSz = 0;
 
         ci = ci->next;
         WOLFSSL_MSG("Done Parsing PKCS12 Content Info Container");
@@ -1816,6 +1821,9 @@ exit_pk12par:
             XFREE(*pkey, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             *pkey = NULL;
         }
+        /* free temporary buffer */
+        if (buf != NULL)
+            ForceZero(buf, (word32)bufSz);
         XFREE(buf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         buf = NULL;
 

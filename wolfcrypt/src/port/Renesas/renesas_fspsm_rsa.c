@@ -199,12 +199,12 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
             if (keySize == 1024) {
                 ret = FSPSM_RSA1024_PKCSDEC_FUNC(&cipher, &plain,
                             (FSPSM_RSA1024_WPI_KEY*)
-                                key->ctx.wrapped_pri1024_key, &outLen);
+                                key->ctx.wrapped_pri1024_key, outLen);
             }
             else {
                 ret = FSPSM_RSA2048_PKCSDEC_FUNC(&cipher, &plain,
                             (FSPSM_RSA2048_WPI_KEY*)
-                                key->ctx.wrapped_pri2048_key, &outLen);
+                                key->ctx.wrapped_pri2048_key, outLen);
             }
         }
 
