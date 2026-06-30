@@ -2446,6 +2446,16 @@
             #define NO_ASN_TIME
         #endif
 
+        /* The HASH peripheral HAL module (stm32XXxx_hal_hash.h) and its
+         * register macros (HASH_DATATYPE_8B, HASH_ALGOMODE_HASH, ...) only
+         * exist when the CubeMX project enabled the HASH peripheral. If it was
+         * not enabled, fall back to software hashing instead of failing to
+         * compile. (zd22053) */
+        #if !defined(HAL_HASH_MODULE_ENABLED)
+            #undef  STM32_HASH
+            #undef  STM32_HMAC
+        #endif
+
         #if defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SP_INT_NEGATIVE)
             /* enable the negative support for abs(a) |a| */
             #define WOLFSSL_SP_INT_NEGATIVE
