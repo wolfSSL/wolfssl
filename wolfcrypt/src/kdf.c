@@ -86,6 +86,10 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     Hmac   hmac[1];
 #endif
 
+    if ((result == NULL && resLen  != 0) || (secret == NULL && secLen  != 0) ||
+       (seed   == NULL && seedLen != 0))
+      return BAD_FUNC_ARG;
+
 #ifdef WOLFSSL_SMALL_STACK
     previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
     current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
@@ -230,8 +234,22 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     byte labelSeed[MAX_PRF_LABSEED];
 #endif
 
+    if ((digest == NULL && digLen  != 0) ||
+        (secret == NULL && secLen  != 0) ||
+        (label  == NULL && labLen  != 0) ||
+        (seed   == NULL && seedLen != 0))
+    {
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+        FREE_VAR(labelSeed, heap);
+    #endif
+        return BAD_FUNC_ARG;
+    }
+
+    /* labLen + seedLen is checked with subtraction to avoid word32 wraparound
+     * (the labLen bound first ensures MAX_PRF_LABSEED - labLen cannot
+     * underflow). */
     if (half > MAX_PRF_HALF ||
-        labLen + seedLen > MAX_PRF_LABSEED ||
+        labLen > MAX_PRF_LABSEED || seedLen > MAX_PRF_LABSEED - labLen ||
         digLen > MAX_PRF_DIG)
     {
     #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
@@ -301,6 +319,13 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 {
     int ret = 0;
 
+    if ((digest == NULL && digLen  != 0) ||
+        (secret == NULL && secLen  != 0) ||
+        (label  == NULL && labLen  != 0) ||
+        (seed   == NULL && seedLen != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     if (useAtLeastSha256) {
     #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
         DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
@@ -310,7 +335,9 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         byte labelSeed[MAX_PRF_LABSEED];
     #endif
 
-        if (labLen + seedLen > MAX_PRF_LABSEED)
+        /* Checked with subtraction to avoid word32 wraparound of
+         * labLen + seedLen. */
+        if (labLen > MAX_PRF_LABSEED || seedLen > MAX_PRF_LABSEED - labLen)
             return BUFFER_E;
 
         XMEMCPY(labelSeed, label, labLen);
@@ -433,6 +460,20 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         int    ret = 0;
         int    idx = 0;
         byte   data[MAX_TLS13_HKDF_LABEL_SZ];
+
+        /* Validate caller-supplied lengths before assembling the HkdfLabel in
+         * data[]. Layout: 2-byte okmLen + 1-byte (protocol|label) length +
+         * protocol + label + 1-byte info length + info. Each field is bounded
+         * first so the summed length cannot wrap, then the total is checked
+         * against the buffer. This also guarantees the single-byte length
+         * prefixes written below cannot truncate. */
+        if ((protocolLen > (word32)MAX_TLS13_HKDF_LABEL_SZ) ||
+            (labelLen    > (word32)MAX_TLS13_HKDF_LABEL_SZ) ||
+            (infoLen     > (word32)MAX_TLS13_HKDF_LABEL_SZ) ||
+            ((word32)(2U + 1U + protocolLen + labelLen + 1U + infoLen) >
+                (word32)MAX_TLS13_HKDF_LABEL_SZ)) {
+            return BUFFER_E;
+        }
 
         /* Output length. */
         data[idx++] = (byte)(okmLen >> 8);

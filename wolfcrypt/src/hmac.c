@@ -846,6 +846,8 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     #endif /* WOLFSSL_SHA3 */
 
         default:
+            /* unknown/uninitialized macType */
+            ret = BAD_FUNC_ARG;
             break;
     }
 

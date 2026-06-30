@@ -1526,7 +1526,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* get dbMask value */
     if ((ret = RsaMGF(mgf, tmp, hLen, tmp + hLen,
                                        pkcsBlockLen - hLen - 1, heap)) != 0) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+        XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
@@ -1555,7 +1555,11 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
      */
     ret = 0;
     ret |= ConstantCompare(pkcsBlock + hLen + 1, h, hLen);
-    ret += pkcsBlock[idx++] ^ 0x01; /* separator value is 0x01 */
+    /* Guard against a missing 0x01 separator */
+    if (idx < pkcsBlockLen)
+        ret += pkcsBlock[idx++] ^ 0x01; /* separator value is 0x01 */
+    else
+        ret += 1;                       /* invalid: no separator */
     ret += pkcsBlock[0]     ^ 0x00; /* Y, the first value, should be 0 */
 
     /* Return 0 data length on error. */
@@ -4418,7 +4422,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         goto out;
     }
 
+#if defined(HAVE_FIPS)
+    if (e < WC_RSA_EXPONENT || (e & 1) == 0) {
+#else
     if (e < 3 || (e & 1) == 0) {
+#endif
         err = BAD_FUNC_ARG;
         goto out;
     }

@@ -7610,6 +7610,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    #ifndef WC_AESGCM_ALLOW_NONSTANDARD_TAG_LENGTH
+    if (authTagSz > 8 && authTagSz < 12) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz invalid");
+        return BAD_FUNC_ARG;
+    }
+    #endif
+
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
         int ret = wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz,
@@ -8131,6 +8138,13 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         return BAD_FUNC_ARG;
     }
+
+    #ifndef WC_AESGCM_ALLOW_NONSTANDARD_TAG_LENGTH
+    if (authTagSz > 8 && authTagSz < 12) {
+        WOLFSSL_MSG("GcmDecrypt authTagSz invalid");
+        return BAD_FUNC_ARG;
+    }
+    #endif
 
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
