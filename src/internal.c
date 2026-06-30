@@ -31947,16 +31947,43 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         if (ssl->options.resuming && ssl->session->ticketLen > 0) {
             SessionTicket* ticket;
 
-            ticket = TLSX_SessionTicket_Create(0, ssl->session->ticket,
-                                             ssl->session->ticketLen, ssl->heap);
-            if (ticket == NULL) return MEMORY_E;
-
-            ret = TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap);
-            if (ret != WOLFSSL_SUCCESS) {
-                TLSX_SessionTicket_Free(ticket, ssl->heap);
-                return ret;
+#if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
+            /* RFC 5077 Section 3.3 / RFC 8446 Section 4.6.1: a client SHOULD
+             * NOT use a ticket whose lifetime has expired. If the stored
+             * session has aged past its timeout the server would just reject
+             * the resumption, so suppress the ticket here and fall back to a
+             * full handshake (avoids leaking a stale ticket and saves a
+             * round-trip). Expiry is measured against ssl->session->timeout
+             * (the session's own lifetime) so this stays consistent with
+             * wolfSSL_SetSession(), which gates resumption on the same field;
+             * keying off ssl->timeout instead could contradict a decision
+             * SetSession() already made when the two values differ.
+             * If bornOn is 0 or the secret callback is set, it is assumed that
+             * the session is being externally managed and this check is
+             * skipped.  This is needed for hostap. */
+            if (ssl->session->bornOn != 0 &&
+            #ifdef HAVE_SECRET_CALLBACK
+                ssl->sessionSecretCb == NULL &&
+            #endif
+                LowResTimer() >=
+                    (ssl->session->bornOn + ssl->session->timeout)) {
+                WOLFSSL_MSG("Stored session ticket expired; full handshake");
+                ssl->options.resuming = 0;
             }
+            else
+#endif
+            {
+                ticket = TLSX_SessionTicket_Create(0, ssl->session->ticket,
+                                             ssl->session->ticketLen, ssl->heap);
+                if (ticket == NULL) return MEMORY_E;
 
+                ret = TLSX_UseSessionTicket(&ssl->extensions, ticket,
+                                            ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) {
+                    TLSX_SessionTicket_Free(ticket, ssl->heap);
+                    return ret;
+                }
+            }
             idSz = 0;
         }
 #endif /* HAVE_SESSION_TICKET */
@@ -36193,6 +36220,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         switch (err) {
             case WC_NO_ERR_TRACE(BUFFER_ERROR):
+            case WC_NO_ERR_TRACE(BUFFER_E):
                 return decode_error;
             case WC_NO_ERR_TRACE(EXT_NOT_ALLOWED):
             case WC_NO_ERR_TRACE(PEER_KEY_ERROR):
