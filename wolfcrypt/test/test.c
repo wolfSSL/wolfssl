@@ -43735,9 +43735,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
     wc_test_ret_t ret;
     word32 idx = 0;
 #ifndef WC_NO_RNG
-    /* pad our test message to 32 bytes so evenly divisible by AES_BLOCK_SZ */
-    byte   in[] = "Everyone gets Friday off. ecc p";
-    word32 inLen = (word32)XSTRLEN((char*)in);
+    /* 32 bytes: evenly divisible by AES_BLOCK_SZ and meets WC_MIN_DIGEST_SIZE */
+    byte         in[]  = "Everyone gets Friday off. ecc p";
+    const word32 inLen = sizeof(in); /* includes null terminator */
+    wc_static_assert2(sizeof(in) == 32, "in[] must be exactly 32 bytes");
     byte   out[256];
     byte   plain[256];
     WOLFSSL_ENTER("ecc_test_buffers");
@@ -43807,7 +43808,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF) && \
     defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
-    ret = ecc_buffers_encrypt_test(cliKey, servKey, tmpKey, in, sizeof(in), out,
+    ret = ecc_buffers_encrypt_test(cliKey, servKey, tmpKey, in, inLen, out,
         plain, inLen);
     if (ret != 0)
         goto done;
