@@ -66,8 +66,8 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "SUB	sp, sp, #0x1c\n\t"
-        "CMP	%[len], #0x0\n\t"
+        "SUB	sp, sp, #28\n\t"
+        "CMP	%[len], #0\n\t"
 #if defined(__GNUC__)
         "BEQ	L_poly1305_thumb2_16_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -75,10 +75,10 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
 #else
         "BEQ.N	L_poly1305_thumb2_16_done_%=\n\t"
 #endif
-        "ADD	lr, sp, #0xc\n\t"
+        "ADD	lr, sp, #12\n\t"
         "STM	lr, {%[ctx], %[m], %[len], %[notLast]}\n\t"
         /* Get h pointer */
-        "ADD	lr, %[ctx], #0x10\n\t"
+        "ADD	lr, %[ctx], #16\n\t"
         "LDM	lr, {r4, r5, r6, r7, r8}\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -97,7 +97,7 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
         "ADCS	r5, r5, %[notLast]\n\t"
         "ADCS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
-        "ADD	%[m], %[m], #0x10\n\t"
+        "ADD	%[m], %[m], #16\n\t"
         "ADC	r8, r8, r11\n\t"
 #ifdef WOLFSSL_ARM_ARCH_7M
         "STM	lr, {r4, r5, r6, r7, r8}\n\t"
@@ -239,7 +239,7 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
         "LDR	r5, [lr, #16]\n\t"
         /* r[3] * h[3] */
         "UMAAL	r10, r11, %[notLast], r4\n\t"
-        "MOV	r12, #0x0\n\t"
+        "MOV	r12, #0\n\t"
         /* r[0] * h[4] */
         "UMAAL	r8, r12, %[ctx], r5\n\t"
         /* r[1] * h[4] */
@@ -255,8 +255,8 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
         /* Load length */
         "LDR	%[len], [sp, #20]\n\t"
         /* Reduce mod 2^130 - 5 */
-        "BIC	%[notLast], r8, #0x3\n\t"
-        "AND	r8, r8, #0x3\n\t"
+        "BIC	%[notLast], r8, #3\n\t"
+        "AND	r8, r8, #3\n\t"
         "ADDS	r4, r4, %[notLast]\n\t"
         "LSR	%[notLast], %[notLast], #2\n\t"
         "ADCS	r5, r5, r9\n\t"
@@ -275,7 +275,7 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
         "ADCS	r7, r7, r11\n\t"
         "ADC	r8, r8, r12\n\t"
         /* Sub 16 from length. */
-        "SUBS	%[len], %[len], #0x10\n\t"
+        "SUBS	%[len], %[len], #16\n\t"
         /* Store length. */
         "STR	%[len], [sp, #20]\n\t"
         /* Loop again if more message to do. */
@@ -293,7 +293,7 @@ WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
 #else
     "L_poly1305_thumb2_16_done_%=:\n\t"
 #endif
-        "ADD	sp, sp, #0x1c\n\t"
+        "ADD	sp, sp, #28\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len),
           [notLast] "+r" (notLast)
@@ -337,7 +337,7 @@ WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx, const byte* key)
         "LDR	r3, [%[key], #20]\n\t"
         "LDR	r4, [%[key], #24]\n\t"
         "LDR	r5, [%[key], #28]\n\t"
-        "ADD	r10, %[ctx], #0x24\n\t"
+        "ADD	r10, %[ctx], #36\n\t"
         "STM	r10, {r2, r3, r4, r5}\n\t"
         /* Load, mask and store r. */
         "LDR	r2, [%[key]]\n\t"
@@ -348,14 +348,14 @@ WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx, const byte* key)
         "AND	r3, r3, r7\n\t"
         "AND	r4, r4, r8\n\t"
         "AND	r5, r5, r9\n\t"
-        "ADD	r10, %[ctx], #0x0\n\t"
+        "ADD	r10, %[ctx], #0\n\t"
         "STM	r10, {r2, r3, r4, r5}\n\t"
         /* h (accumulator) = 0 */
         "EOR	r6, r6, r6\n\t"
         "EOR	r7, r7, r7\n\t"
         "EOR	r8, r8, r8\n\t"
         "EOR	r9, r9, r9\n\t"
-        "ADD	r10, %[ctx], #0x10\n\t"
+        "ADD	r10, %[ctx], #16\n\t"
         "EOR	r5, r5, r5\n\t"
         "STM	r10, {r5, r6, r7, r8, r9}\n\t"
         /* Zero leftover */
@@ -385,25 +385,25 @@ WC_OMIT_FRAME_POINTER void poly1305_final(Poly1305* ctx, byte* mac)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "ADD	r11, %[ctx], #0x10\n\t"
+        "ADD	r11, %[ctx], #16\n\t"
         "LDM	r11, {r2, r3, r4, r5, r6}\n\t"
         /* Add 5 and check for h larger than p. */
-        "ADDS	r7, r2, #0x5\n\t"
-        "ADCS	r7, r3, #0x0\n\t"
-        "ADCS	r7, r4, #0x0\n\t"
-        "ADCS	r7, r5, #0x0\n\t"
-        "ADC	r7, r6, #0x0\n\t"
-        "SUB	r7, r7, #0x4\n\t"
+        "ADDS	r7, r2, #5\n\t"
+        "ADCS	r7, r3, #0\n\t"
+        "ADCS	r7, r4, #0\n\t"
+        "ADCS	r7, r5, #0\n\t"
+        "ADC	r7, r6, #0\n\t"
+        "SUB	r7, r7, #4\n\t"
         "LSR	r7, r7, #31\n\t"
-        "SUB	r7, r7, #0x1\n\t"
-        "AND	r7, r7, #0x5\n\t"
+        "SUB	r7, r7, #1\n\t"
+        "AND	r7, r7, #5\n\t"
         /* Add 0/5 to h. */
         "ADDS	r2, r2, r7\n\t"
-        "ADCS	r3, r3, #0x0\n\t"
-        "ADCS	r4, r4, #0x0\n\t"
-        "ADC	r5, r5, #0x0\n\t"
+        "ADCS	r3, r3, #0\n\t"
+        "ADCS	r4, r4, #0\n\t"
+        "ADC	r5, r5, #0\n\t"
         /* Add padding */
-        "ADD	r11, %[ctx], #0x24\n\t"
+        "ADD	r11, %[ctx], #36\n\t"
         "LDM	r11, {r7, r8, r9, r10}\n\t"
         "ADDS	r2, r2, r7\n\t"
         "ADCS	r3, r3, r8\n\t"
@@ -420,13 +420,13 @@ WC_OMIT_FRAME_POINTER void poly1305_final(Poly1305* ctx, byte* mac)
         "EOR	r4, r4, r4\n\t"
         "EOR	r5, r5, r5\n\t"
         "EOR	r6, r6, r6\n\t"
-        "ADD	r11, %[ctx], #0x10\n\t"
+        "ADD	r11, %[ctx], #16\n\t"
         "STM	r11, {r2, r3, r4, r5, r6}\n\t"
         /* Zero out r. */
-        "ADD	r11, %[ctx], #0x0\n\t"
+        "ADD	r11, %[ctx], #0\n\t"
         "STM	r11, {r2, r3, r4, r5}\n\t"
         /* Zero out padding. */
-        "ADD	r11, %[ctx], #0x24\n\t"
+        "ADD	r11, %[ctx], #36\n\t"
         "STM	r11, {r2, r3, r4, r5}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [mac] "+r" (mac)

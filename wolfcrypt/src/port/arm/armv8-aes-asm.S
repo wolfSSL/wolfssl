@@ -5736,7 +5736,7 @@ L_aes_gcm_encrypt_arm64_crypto_nonce_end_bytes:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_nonce_partial_done:
 	eor	x14, x14, x14
-	ubfiz	x24, x4, #3, #32
+	lsl	x24, x4, #3
 	mov	v28.d[0], x14
 	mov	v28.d[1], x24
 	rev64	v28.16b, v28.16b
@@ -7099,10 +7099,10 @@ L_aes_gcm_encrypt_arm64_crypto_192_start_zero:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_192_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -8637,10 +8637,10 @@ L_aes_gcm_encrypt_arm64_crypto_256_start_zero:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_256_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	aese	v14.16b, v0.16b
@@ -9944,10 +9944,10 @@ L_aes_gcm_encrypt_arm64_crypto_128_start_zero:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_128_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -10537,7 +10537,7 @@ L_aes_gcm_decrypt_arm64_crypto_nonce_end_bytes:
 	# Done GHASH
 L_aes_gcm_decrypt_arm64_crypto_nonce_partial_done:
 	eor	x14, x14, x14
-	ubfiz	x24, x4, #3, #32
+	lsl	x24, x4, #3
 	mov	v28.d[0], x14
 	mov	v28.d[1], x24
 	rev64	v28.16b, v28.16b
@@ -11893,10 +11893,10 @@ L_aes_gcm_decrypt_arm64_crypto_192_out_start_byte:
 L_aes_gcm_decrypt_arm64_crypto_192_out_end_bytes:
 L_aes_gcm_decrypt_arm64_crypto_192_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -11945,7 +11945,6 @@ L_aes_gcm_decrypt_arm64_crypto_192_partial_done:
 	ld1	{v28.16b}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_192_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_192_part_tag:
-	ubfiz	x6, x6, #0, #32
 	eor	v28.16b, v28.16b, v28.16b
 	mov	x17, x6
 	st1	{v28.2d}, [x11]
@@ -13447,10 +13446,10 @@ L_aes_gcm_decrypt_arm64_crypto_256_out_start_byte:
 L_aes_gcm_decrypt_arm64_crypto_256_out_end_bytes:
 L_aes_gcm_decrypt_arm64_crypto_256_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	aese	v14.16b, v0.16b
@@ -13507,7 +13506,6 @@ L_aes_gcm_decrypt_arm64_crypto_256_partial_done:
 	ld1	{v28.16b}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_256_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_256_part_tag:
-	ubfiz	x6, x6, #0, #32
 	eor	v28.16b, v28.16b, v28.16b
 	mov	x17, x6
 	st1	{v28.2d}, [x11]
@@ -14770,10 +14768,10 @@ L_aes_gcm_decrypt_arm64_crypto_128_out_start_byte:
 L_aes_gcm_decrypt_arm64_crypto_128_out_end_bytes:
 L_aes_gcm_decrypt_arm64_crypto_128_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -14818,7 +14816,6 @@ L_aes_gcm_decrypt_arm64_crypto_128_partial_done:
 	ld1	{v28.16b}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_128_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_128_part_tag:
-	ubfiz	x6, x6, #0, #32
 	eor	v28.16b, v28.16b, v28.16b
 	mov	x17, x6
 	st1	{v28.2d}, [x11]
@@ -15367,7 +15364,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_end_bytes:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_eor3_nonce_partial_done:
 	eor	x14, x14, x14
-	ubfiz	x24, x4, #3, #32
+	lsl	x24, x4, #3
 	mov	v28.d[0], x14
 	mov	v28.d[1], x24
 	rev64	v28.16b, v28.16b
@@ -16701,10 +16698,10 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_192_start_zero:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_eor3_192_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -18210,10 +18207,10 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_256_start_zero:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_eor3_256_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	aese	v14.16b, v0.16b
@@ -19488,10 +19485,10 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_128_start_zero:
 	# Done GHASH
 L_aes_gcm_encrypt_arm64_crypto_eor3_128_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -20059,7 +20056,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_end_bytes:
 	# Done GHASH
 L_aes_gcm_decrypt_arm64_crypto_eor3_nonce_partial_done:
 	eor	x14, x14, x14
-	ubfiz	x24, x4, #3, #32
+	lsl	x24, x4, #3
 	mov	v28.d[0], x14
 	mov	v28.d[1], x24
 	rev64	v28.16b, v28.16b
@@ -21386,10 +21383,10 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_start_byte:
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_out_end_bytes:
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -21437,7 +21434,6 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_192_partial_done:
 	ld1	{v28.16b}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_eor3_192_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_192_part_tag:
-	ubfiz	x6, x6, #0, #32
 	eor	v28.16b, v28.16b, v28.16b
 	mov	x17, x6
 	st1	{v28.2d}, [x11]
@@ -22911,10 +22907,10 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_start_byte:
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_out_end_bytes:
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	aese	v14.16b, v0.16b
@@ -22970,7 +22966,6 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_256_partial_done:
 	ld1	{v28.16b}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_eor3_256_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_256_part_tag:
-	ubfiz	x6, x6, #0, #32
 	eor	v28.16b, v28.16b, v28.16b
 	mov	x17, x6
 	st1	{v28.2d}, [x11]
@@ -24205,10 +24200,10 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_start_byte:
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_out_end_bytes:
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_partial_done:
 	ld1	{v14.2d}, [x12]
-	ubfiz	x8, x8, #3, #32
+	lsl	x8, x8, #3
 	rbit	x8, x8
 	mov	v28.d[0], x8
-	ubfiz	x2, x2, #3, #32
+	lsl	x2, x2, #3
 	rbit	x2, x2
 	mov	v28.d[1], x2
 	eor	v26.16b, v26.16b, v28.16b
@@ -24252,7 +24247,6 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_128_partial_done:
 	ld1	{v28.16b}, [x5]
 	b	L_aes_gcm_decrypt_arm64_crypto_eor3_128_tag_loaded
 L_aes_gcm_decrypt_arm64_crypto_eor3_128_part_tag:
-	ubfiz	x6, x6, #0, #32
 	eor	v28.16b, v28.16b, v28.16b
 	mov	x17, x6
 	st1	{v28.2d}, [x11]
@@ -24426,7 +24420,7 @@ L_aes_gcm_init_arm64_crypto_end_bytes:
 	# Done GHASH
 L_aes_gcm_init_arm64_crypto_partial_done:
 	eor	x7, x7, x7
-	ubfiz	x13, x3, #3, #32
+	lsl	x13, x3, #3
 	mov	v7.d[0], x7
 	mov	v7.d[1], x13
 	rev64	v7.16b, v7.16b
@@ -28788,10 +28782,10 @@ _AES_GCM_encrypt_final_AARCH64:
 	ld1	{v4.2d}, [x5]
 	ushr	v6.2d, v6.2d, #56
 	ld1	{v7.2d}, [x6]
-	ubfiz	x4, x4, #3, #32
+	lsl	x4, x4, #3
 	rbit	x4, x4
 	mov	v0.d[0], x4
-	ubfiz	x3, x3, #3, #32
+	lsl	x3, x3, #3
 	rbit	x3, x3
 	mov	v0.d[1], x3
 	eor	v5.16b, v5.16b, v0.16b
@@ -32674,10 +32668,10 @@ _AES_GCM_decrypt_final_AARCH64:
 	ld1	{v4.2d}, [x5]
 	ushr	v6.2d, v6.2d, #56
 	ld1	{v7.2d}, [x6]
-	ubfiz	x4, x4, #3, #32
+	lsl	x4, x4, #3
 	rbit	x4, x4
 	mov	v0.d[0], x4
-	ubfiz	x3, x3, #3, #32
+	lsl	x3, x3, #3
 	rbit	x3, x3
 	mov	v0.d[1], x3
 	eor	v5.16b, v5.16b, v0.16b
@@ -32702,7 +32696,6 @@ _AES_GCM_decrypt_final_AARCH64:
 	ld1	{v0.16b}, [x1]
 	b	L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded
 L_aes_gcm_decrypt_final_arm64_crypto_part_tag:
-	ubfiz	x2, x2, #0, #32
 	eor	v0.16b, v0.16b, v0.16b
 	mov	x10, x2
 	st1	{v0.2d}, [x0]
@@ -32863,7 +32856,7 @@ L_aes_gcm_init_arm64_crypto_eor3_end_bytes:
 	# Done GHASH
 L_aes_gcm_init_arm64_crypto_eor3_partial_done:
 	eor	x7, x7, x7
-	ubfiz	x13, x3, #3, #32
+	lsl	x13, x3, #3
 	mov	v7.d[0], x7
 	mov	v7.d[1], x13
 	rev64	v7.16b, v7.16b
@@ -37121,10 +37114,10 @@ _AES_GCM_encrypt_final_AARCH64_EOR3:
 	ld1	{v4.2d}, [x5]
 	ushr	v6.2d, v6.2d, #56
 	ld1	{v7.2d}, [x6]
-	ubfiz	x4, x4, #3, #32
+	lsl	x4, x4, #3
 	rbit	x4, x4
 	mov	v0.d[0], x4
-	ubfiz	x3, x3, #3, #32
+	lsl	x3, x3, #3
 	rbit	x3, x3
 	mov	v0.d[1], x3
 	eor	v5.16b, v5.16b, v0.16b
@@ -40922,10 +40915,10 @@ _AES_GCM_decrypt_final_AARCH64_EOR3:
 	ld1	{v4.2d}, [x5]
 	ushr	v6.2d, v6.2d, #56
 	ld1	{v7.2d}, [x6]
-	ubfiz	x4, x4, #3, #32
+	lsl	x4, x4, #3
 	rbit	x4, x4
 	mov	v0.d[0], x4
-	ubfiz	x3, x3, #3, #32
+	lsl	x3, x3, #3
 	rbit	x3, x3
 	mov	v0.d[1], x3
 	eor	v5.16b, v5.16b, v0.16b
@@ -40949,7 +40942,6 @@ _AES_GCM_decrypt_final_AARCH64_EOR3:
 	ld1	{v0.16b}, [x1]
 	b	L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded
 L_aes_gcm_decrypt_final_arm64_crypto_eor3_part_tag:
-	ubfiz	x2, x2, #0, #32
 	eor	v0.16b, v0.16b, v0.16b
 	mov	x10, x2
 	st1	{v0.2d}, [x0]

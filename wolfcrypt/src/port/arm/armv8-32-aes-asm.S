@@ -8367,37 +8367,36 @@ L_AES_set_encrypt_key_loop_256:
 	add	r2, r2, #16
 	stm	r2, {r4, r5, r6, r7}
 	sub	r2, r2, #16
-	mov	r3, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
-	lsl	r4, r3, #16
+	lsl	r4, r7, #16
 	lsr	r4, r4, #24
 #else
-	uxtb	r4, r3, ror #8
+	uxtb	r4, r7, ror #8
 #endif
 #else
-	ubfx	r4, r3, #8, #8
+	ubfx	r4, r7, #8, #8
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
-	lsl	r5, r3, #8
+	lsl	r5, r7, #8
 	lsr	r5, r5, #24
 #else
-	uxtb	r5, r3, ror #16
+	uxtb	r5, r7, ror #16
 #endif
 #else
-	ubfx	r5, r3, #16, #8
+	ubfx	r5, r7, #16, #8
 #endif
-	lsr	r6, r3, #24
+	lsr	r6, r7, #24
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
-	lsl	r3, r3, #24
+	lsl	r3, r7, #24
 	lsr	r3, r3, #24
 #else
-	uxtb	r3, r3
+	uxtb	r3, r7
 #endif
 #else
-	ubfx	r3, r3, #0, #8
+	ubfx	r3, r7, #0, #8
 #endif
 	ldrb	r4, [r8, r4, lsl #2]
 	ldrb	r6, [r8, r6, lsl #2]
@@ -23252,14 +23251,22 @@ L_GCM_gmult_len_start_block:
 	ldr	r12, [r0, #12]
 	ldr	r3, [r2, #12]
 	eor	r12, r12, r3
-	lsr	r3, r12, #24
-	and	r3, r3, #15
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r3, r12, #4
+	lsr	r3, r3, #28
+#else
+	ubfx	r3, r12, #24, #4
+#endif
 	add	r3, r1, r3, lsl #4
 	ldm	r3, {r8, r9, r10, r11}
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsr	r4, r12, #28
+#else
+	ubfx	r4, r12, #28, #4
+#endif
 	eor	r11, r11, r10, lsl #28
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
@@ -23275,9 +23282,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #12
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #16, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23292,9 +23303,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #20
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #8
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #20, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23309,9 +23324,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #20
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #8, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23326,9 +23345,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #12
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #16
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #12, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23359,9 +23382,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #24
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #4, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23385,8 +23412,12 @@ L_GCM_gmult_len_start_block:
 	ldr	r12, [r0, #8]
 	ldr	r3, [r2, #8]
 	eor	r12, r12, r3
-	lsr	r3, r12, #24
-	and	r3, r3, #15
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r3, r12, #4
+	lsr	r3, r3, #28
+#else
+	ubfx	r3, r12, #24, #4
+#endif
 	add	r3, r1, r3, lsl #4
 	ldm	r3, {r4, r5, r6, r7}
 	eor	r8, r8, r4
@@ -23396,7 +23427,11 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsr	r4, r12, #28
+#else
+	ubfx	r4, r12, #28, #4
+#endif
 	eor	r11, r11, r10, lsl #28
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
@@ -23412,9 +23447,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #12
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #16, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23429,9 +23468,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #20
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #8
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #20, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23446,9 +23489,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #20
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #8, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23463,9 +23510,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #12
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #16
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #12, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23496,9 +23547,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #24
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #4, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23522,8 +23577,12 @@ L_GCM_gmult_len_start_block:
 	ldr	r12, [r0, #4]
 	ldr	r3, [r2, #4]
 	eor	r12, r12, r3
-	lsr	r3, r12, #24
-	and	r3, r3, #15
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r3, r12, #4
+	lsr	r3, r3, #28
+#else
+	ubfx	r3, r12, #24, #4
+#endif
 	add	r3, r1, r3, lsl #4
 	ldm	r3, {r4, r5, r6, r7}
 	eor	r8, r8, r4
@@ -23533,7 +23592,11 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsr	r4, r12, #28
+#else
+	ubfx	r4, r12, #28, #4
+#endif
 	eor	r11, r11, r10, lsl #28
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
@@ -23549,9 +23612,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #12
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #16, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23566,9 +23633,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #20
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #8
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #20, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23583,9 +23654,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #20
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #8, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23600,9 +23675,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #12
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #16
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #12, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23633,9 +23712,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #24
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #4, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23659,8 +23742,12 @@ L_GCM_gmult_len_start_block:
 	ldr	r12, [r0]
 	ldr	r3, [r2]
 	eor	r12, r12, r3
-	lsr	r3, r12, #24
-	and	r3, r3, #15
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r3, r12, #4
+	lsr	r3, r3, #28
+#else
+	ubfx	r3, r12, #24, #4
+#endif
 	add	r3, r1, r3, lsl #4
 	ldm	r3, {r4, r5, r6, r7}
 	eor	r8, r8, r4
@@ -23670,7 +23757,11 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsr	r4, r12, #28
+#else
+	ubfx	r4, r12, #28, #4
+#endif
 	eor	r11, r11, r10, lsl #28
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
@@ -23686,9 +23777,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #12
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #16, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23703,9 +23798,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #20
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #8
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #20, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23720,9 +23819,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #20
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #8, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23737,9 +23840,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #12
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #16
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #12, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28
@@ -23770,9 +23877,13 @@ L_GCM_gmult_len_start_block:
 	lsr	r6, r10, #4
 	and	r3, r11, #15
 	lsr	r11, r11, #4
-	lsr	r4, r12, #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r4, r12, #24
+	lsr	r4, r4, #28
+#else
+	ubfx	r4, r12, #4, #4
+#endif
 	eor	r11, r11, r10, lsl #28
-	and	r4, r4, #15
 	ldr	r3, [lr, r3, lsl #2]
 	add	r4, r1, r4, lsl #4
 	eor	r10, r6, r9, lsl #28

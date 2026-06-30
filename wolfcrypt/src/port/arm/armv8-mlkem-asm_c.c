@@ -8406,11 +8406,11 @@ int mlkem_cmp_neon(const byte* a, const byte* b, int sz)
         "orr	v8.16b, v8.16b, v10.16b\n\t"
         "ext	v9.16b, v8.16b, v8.16b, #8\n\t"
         "orr	v8.16b, v8.16b, v9.16b\n\t"
-        "mov	%x[a], v8.d[0]\n\t"
-        "subs	%x[a], %x[a], xzr\n\t"
-        "csetm	%w[a], ne\n\t"
-        : [a] "+r" (a), [sz] "+r" (sz)
-        : [b] "r" (b)
+        "mov	x0, v8.d[0]\n\t"
+        "subs	x0, x0, xzr\n\t"
+        "csetm	w0, ne\n\t"
+        : [sz] "+r" (sz)
+        : [a] "r" (a), [b] "r" (b)
         : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
             "v9", "v10", "v11"
     );
@@ -9089,7 +9089,7 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "b	L_mlkem_rej_uniform_loop_lt_4_%=\n\t"
         "\n"
     "L_mlkem_rej_uniform_done_%=:\n\t"
-        "mov	%x[p], x12\n\t"
+        "mov	x0, x12\n\t"
         : [p] "+r" (p), [len] "+r" (len), [rLen] "+r" (rLen)
         : [r] "r" (r), [mask] "r" (mask), [q] "r" (q), [bits] "r" (bits),
           [indices] "r" (indices)

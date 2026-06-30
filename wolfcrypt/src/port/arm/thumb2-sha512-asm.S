@@ -217,7 +217,7 @@ L_SHA512_transform_len_begin:
 	LDRD	r4, r5, [r0, #16]
 	EOR	r10, r10, r4
 	EOR	r11, r11, r5
-	MOV	r12, #0x4
+	MOV	r12, #4
 	/* Start of 16 rounds */
 L_SHA512_transform_len_start:
 	/* Round 0 */
@@ -2205,7 +2205,7 @@ L_SHA512_transform_len_start:
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #120]
 	ADD	r3, r3, #0x80
-	SUBS	r12, r12, #0x1
+	SUBS	r12, r12, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA512_transform_len_start
 #else

@@ -67,7 +67,7 @@ BlockSha3:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	SUB	sp, sp, #0xcc
 	ADR	r1, L_sha3_thumb2_rt
-	MOV	r2, #0xc
+	MOV	r2, #12
 L_sha3_thumb2_begin:
 	STR	r2, [sp, #200]
 	/* Round even */
@@ -336,7 +336,7 @@ L_sha3_thumb2_begin:
 	STR	lr, [sp, #36]
 	/* Get constant */
 	LDRD	r10, r11, [r1]
-	ADD	r1, r1, #0x8
+	ADD	r1, r1, #8
 	BIC	r12, r6, r4
 	BIC	lr, r7, r5
 	EOR	r12, r12, r2
@@ -864,7 +864,7 @@ L_sha3_thumb2_begin:
 	STR	lr, [r0, #36]
 	/* Get constant */
 	LDRD	r10, r11, [r1]
-	ADD	r1, r1, #0x8
+	ADD	r1, r1, #8
 	BIC	r12, r6, r4
 	BIC	lr, r7, r5
 	EOR	r12, r12, r2
@@ -1127,7 +1127,7 @@ L_sha3_thumb2_begin:
 	STR	r12, [r0, #160]
 	STR	lr, [r0, #164]
 	LDR	r2, [sp, #200]
-	SUBS	r2, r2, #0x1
+	SUBS	r2, r2, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_sha3_thumb2_begin
 #else

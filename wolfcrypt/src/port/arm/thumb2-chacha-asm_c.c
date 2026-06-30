@@ -65,7 +65,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x, const byte* iv,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "ADD	r3, %[x], #0x34\n\t"
+        "ADD	r3, %[x], #52\n\t"
         "LDR	r4, [%[iv]]\n\t"
         "LDR	r5, [%[iv], #4]\n\t"
         "LDR	r6, [%[iv], #8]\n\t"
@@ -113,7 +113,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
 
     __asm__ __volatile__ (
         "MOV	r7, %[L_chacha_thumb2_constants]\n\t"
-        "SUBS	%[keySz], %[keySz], #0x10\n\t"
+        "SUBS	%[keySz], %[keySz], #16\n\t"
         "ADD	r7, r7, %[keySz]\n\t"
         /* Start state with constants */
         "LDM	r7, {r3, r4, r5, r6}\n\t"
@@ -180,7 +180,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "SUB	sp, sp, #0x34\n\t"
+        "SUB	sp, sp, #52\n\t"
         "MOV	lr, %[ctx]\n\t"
         "STRD	%[ctx], %[c], [sp, #32]\n\t"
         "STRD	%[m], %[len], [sp, #40]\n\t"
@@ -198,7 +198,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         /* Load x[0]..x[12] into registers. */
         "LDM	lr, {r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12}\n\t"
         /* 10x 2 full rounds to perform. */
-        "MOV	lr, #0xa\n\t"
+        "MOV	lr, #10\n\t"
         "STR	lr, [sp, #48]\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -322,7 +322,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "STR	lr, [sp, #20]\n\t"
         /* Check if we have done enough rounds. */
         "LDR	lr, [sp, #48]\n\t"
-        "SUBS	lr, lr, #0x1\n\t"
+        "SUBS	lr, lr, #1\n\t"
         "STR	lr, [sp, #48]\n\t"
 #if defined(__GNUC__)
         "BGT	L_chacha_thumb2_crypt_loop_%=\n\t"
@@ -359,7 +359,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "LDM	lr!, {r10, r11}\n\t"
         "ADD	r8, r8, r10\n\t"
         "ADD	r9, r9, r11\n\t"
-        "ADD	r10, r10, #0x1\n\t"
+        "ADD	r10, r10, #1\n\t"
         "STM	r12!, {r8, r9}\n\t"
         "STR	r10, [lr, #-8]\n\t"
         "LDM	r12, {r8, r9}\n\t"
@@ -480,7 +480,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #else
     "L_chacha_thumb2_crypt_16byte_loop_%=:\n\t"
 #endif
-        "CMP	%[len], #0x10\n\t"
+        "CMP	%[len], #16\n\t"
 #if defined(__GNUC__)
         "BLT	L_chacha_thumb2_crypt_word_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -498,7 +498,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "EOR	r9, r9, r5\n\t"
         "EOR	r10, r10, r6\n\t"
         "EOR	r11, r11, r7\n\t"
-        "SUBS	%[len], %[len], #0x10\n\t"
+        "SUBS	%[len], %[len], #16\n\t"
         "STR	r8, [%[c]]\n\t"
         "STR	r9, [%[c], #4]\n\t"
         "STR	r10, [%[c], #8]\n\t"
@@ -510,8 +510,8 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #else
         "BEQ.N	L_chacha_thumb2_crypt_done_%=\n\t"
 #endif
-        "ADD	%[m], %[m], #0x10\n\t"
-        "ADD	%[c], %[c], #0x10\n\t"
+        "ADD	%[m], %[m], #16\n\t"
+        "ADD	%[c], %[c], #16\n\t"
 #if defined(__GNUC__)
         "B	L_chacha_thumb2_crypt_16byte_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -525,7 +525,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #else
     "L_chacha_thumb2_crypt_word_loop_%=:\n\t"
 #endif
-        "CMP	%[len], #0x4\n\t"
+        "CMP	%[len], #4\n\t"
 #if defined(__GNUC__)
         "BLT	L_chacha_thumb2_crypt_byte_start_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -537,7 +537,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "LDR	r4, [lr]\n\t"
         "LDR	r8, [%[m]]\n\t"
         "EOR	r8, r8, r4\n\t"
-        "SUBS	%[len], %[len], #0x4\n\t"
+        "SUBS	%[len], %[len], #4\n\t"
         "STR	r8, [%[c]]\n\t"
 #if defined(__GNUC__)
         "BEQ	L_chacha_thumb2_crypt_done_%=\n\t"
@@ -546,9 +546,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #else
         "BEQ.N	L_chacha_thumb2_crypt_done_%=\n\t"
 #endif
-        "ADD	lr, lr, #0x4\n\t"
-        "ADD	%[m], %[m], #0x4\n\t"
-        "ADD	%[c], %[c], #0x4\n\t"
+        "ADD	lr, lr, #4\n\t"
+        "ADD	%[m], %[m], #4\n\t"
+        "ADD	%[c], %[c], #4\n\t"
 #if defined(__GNUC__)
         "B	L_chacha_thumb2_crypt_word_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -571,7 +571,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #endif
         "LDRB	r8, [%[m]]\n\t"
         "EOR	r8, r8, r4\n\t"
-        "SUBS	%[len], %[len], #0x1\n\t"
+        "SUBS	%[len], %[len], #1\n\t"
         "STRB	r8, [%[c]]\n\t"
 #if defined(__GNUC__)
         "BEQ	L_chacha_thumb2_crypt_done_%=\n\t"
@@ -581,8 +581,8 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
         "BEQ.N	L_chacha_thumb2_crypt_done_%=\n\t"
 #endif
         "LSR	r4, r4, #8\n\t"
-        "ADD	%[m], %[m], #0x1\n\t"
-        "ADD	%[c], %[c], #0x1\n\t"
+        "ADD	%[m], %[m], #1\n\t"
+        "ADD	%[c], %[c], #1\n\t"
 #if defined(__GNUC__)
         "B	L_chacha_thumb2_crypt_byte_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -596,7 +596,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
 #else
     "L_chacha_thumb2_crypt_done_%=:\n\t"
 #endif
-        "ADD	sp, sp, #0x34\n\t"
+        "ADD	sp, sp, #52\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [c] "+r" (c), [m] "+r" (m), [len] "+r" (len)
         :
@@ -631,7 +631,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
 #else
     "L_chacha_thumb2_over_16byte_loop_%=:\n\t"
 #endif
-        "CMP	%[len], #0x10\n\t"
+        "CMP	%[len], #16\n\t"
 #if defined(__GNUC__)
         "BLT	L_chacha_thumb2_over_word_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -652,7 +652,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
-        "SUBS	%[len], %[len], #0x10\n\t"
+        "SUBS	%[len], %[len], #16\n\t"
         "STR	r4, [%[output]]\n\t"
         "STR	r5, [%[output], #4]\n\t"
         "STR	r6, [%[output], #8]\n\t"
@@ -664,9 +664,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
 #else
         "BEQ.N	L_chacha_thumb2_over_done_%=\n\t"
 #endif
-        "ADD	%[over], %[over], #0x10\n\t"
-        "ADD	%[input], %[input], #0x10\n\t"
-        "ADD	%[output], %[output], #0x10\n\t"
+        "ADD	%[over], %[over], #16\n\t"
+        "ADD	%[input], %[input], #16\n\t"
+        "ADD	%[output], %[output], #16\n\t"
 #if defined(__GNUC__)
         "B	L_chacha_thumb2_over_16byte_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -680,7 +680,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
 #else
     "L_chacha_thumb2_over_word_loop_%=:\n\t"
 #endif
-        "CMP	%[len], #0x4\n\t"
+        "CMP	%[len], #4\n\t"
 #if defined(__GNUC__)
         "BLT	L_chacha_thumb2_over_byte_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -692,7 +692,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "LDR	r4, [%[over]]\n\t"
         "LDR	r8, [%[input]]\n\t"
         "EOR	r4, r4, r8\n\t"
-        "SUBS	%[len], %[len], #0x4\n\t"
+        "SUBS	%[len], %[len], #4\n\t"
         "STR	r4, [%[output]]\n\t"
 #if defined(__GNUC__)
         "BEQ	L_chacha_thumb2_over_done_%=\n\t"
@@ -701,9 +701,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
 #else
         "BEQ.N	L_chacha_thumb2_over_done_%=\n\t"
 #endif
-        "ADD	%[over], %[over], #0x4\n\t"
-        "ADD	%[input], %[input], #0x4\n\t"
-        "ADD	%[output], %[output], #0x4\n\t"
+        "ADD	%[over], %[over], #4\n\t"
+        "ADD	%[input], %[input], #4\n\t"
+        "ADD	%[output], %[output], #4\n\t"
 #if defined(__GNUC__)
         "B	L_chacha_thumb2_over_word_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -721,7 +721,7 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
         "LDRB	r4, [%[over]]\n\t"
         "LDRB	r8, [%[input]]\n\t"
         "EOR	r4, r4, r8\n\t"
-        "SUBS	%[len], %[len], #0x1\n\t"
+        "SUBS	%[len], %[len], #1\n\t"
         "STRB	r4, [%[output]]\n\t"
 #if defined(__GNUC__)
         "BEQ	L_chacha_thumb2_over_done_%=\n\t"
@@ -730,9 +730,9 @@ WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
 #else
         "BEQ.N	L_chacha_thumb2_over_done_%=\n\t"
 #endif
-        "ADD	%[over], %[over], #0x1\n\t"
-        "ADD	%[input], %[input], #0x1\n\t"
-        "ADD	%[output], %[output], #0x1\n\t"
+        "ADD	%[over], %[over], #1\n\t"
+        "ADD	%[input], %[input], #1\n\t"
+        "ADD	%[output], %[output], #1\n\t"
 #if defined(__GNUC__)
         "B	L_chacha_thumb2_over_byte_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)

@@ -249,16 +249,16 @@ L_AES_invert_key_loop:
 	LDM	r10, {r6, r7, r8, r9}
 	STM	r10, {r2, r3, r4, r5}
 	STM	r0!, {r6, r7, r8, r9}
-	SUBS	r11, r11, #0x2
-	SUB	r10, r10, #0x10
+	SUBS	r11, r11, #2
+	SUB	r10, r10, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_invert_key_loop
 #else
 	BNE.N	L_AES_invert_key_loop
 #endif
 	SUB	r0, r0, r1, LSL #3
-	ADD	r0, r0, #0x10
-	SUB	r11, r1, #0x1
+	ADD	r0, r0, #16
+	SUB	r11, r1, #1
 L_AES_invert_key_mix_loop:
 	LDM	r0, {r2, r3, r4, r5}
 	UBFX	r6, r2, #0, #8
@@ -325,7 +325,7 @@ L_AES_invert_key_mix_loop:
 	EOR	r8, r8, r7, ROR #8
 	EOR	r8, r8, r9, ROR #24
 	STR	r8, [r0], #4
-	SUBS	r11, r11, #0x1
+	SUBS	r11, r11, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_invert_key_mix_loop
 #else
@@ -390,8 +390,8 @@ AES_set_encrypt_key:
 	REV	r6, r6
 	REV	r7, r7
 	STM	r2, {r4, r5, r6, r7}
-	SUB	r2, r2, #0x10
-	MOV	r12, #0x6
+	SUB	r2, r2, #16
+	MOV	r12, #6
 L_AES_set_encrypt_key_loop_256:
 	UBFX	r4, r7, #0, #8
 	UBFX	r5, r7, #8, #8
@@ -411,14 +411,13 @@ L_AES_set_encrypt_key_loop_256:
 	EOR	r5, r5, r4
 	EOR	r6, r6, r5
 	EOR	r7, r7, r6
-	ADD	r2, r2, #0x10
+	ADD	r2, r2, #16
 	STM	r2, {r4, r5, r6, r7}
-	SUB	r2, r2, #0x10
-	MOV	r3, r7
-	UBFX	r4, r3, #8, #8
-	UBFX	r5, r3, #16, #8
-	LSR	r6, r3, #24
-	UBFX	r3, r3, #0, #8
+	SUB	r2, r2, #16
+	UBFX	r4, r7, #8, #8
+	UBFX	r5, r7, #16, #8
+	LSR	r6, r7, #24
+	UBFX	r3, r7, #0, #8
 	LDRB	r4, [r10, r4, LSL #2]
 	LDRB	r6, [r10, r6, LSL #2]
 	LDRB	r5, [r10, r5, LSL #2]
@@ -431,10 +430,10 @@ L_AES_set_encrypt_key_loop_256:
 	EOR	r5, r5, r4
 	EOR	r6, r6, r5
 	EOR	r7, r7, r6
-	ADD	r2, r2, #0x10
+	ADD	r2, r2, #16
 	STM	r2, {r4, r5, r6, r7}
-	SUB	r2, r2, #0x10
-	SUBS	r12, r12, #0x1
+	SUB	r2, r2, #16
+	SUBS	r12, r12, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_set_encrypt_key_loop_256
 #else
@@ -458,9 +457,9 @@ L_AES_set_encrypt_key_loop_256:
 	EOR	r5, r5, r4
 	EOR	r6, r6, r5
 	EOR	r7, r7, r6
-	ADD	r2, r2, #0x10
+	ADD	r2, r2, #16
 	STM	r2, {r4, r5, r6, r7}
-	SUB	r2, r2, #0x10
+	SUB	r2, r2, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_set_encrypt_key_end
 #else
@@ -482,7 +481,7 @@ L_AES_set_encrypt_key_start_192:
 	STM	r2, {r4, r5, r6, r7}
 	STRD	r8, r9, [r2, #16]
 	MOV	r7, r9
-	MOV	r12, #0x7
+	MOV	r12, #7
 L_AES_set_encrypt_key_loop_192:
 	UBFX	r4, r9, #0, #8
 	UBFX	r5, r9, #8, #8
@@ -505,7 +504,7 @@ L_AES_set_encrypt_key_loop_192:
 	EOR	r8, r8, r7
 	EOR	r9, r9, r8
 	STM	r2, {r4, r5, r6, r7, r8, r9}
-	SUBS	r12, r12, #0x1
+	SUBS	r12, r12, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_set_encrypt_key_loop_192
 #else
@@ -545,7 +544,7 @@ L_AES_set_encrypt_key_start_128:
 	REV	r6, r6
 	REV	r7, r7
 	STM	r2, {r4, r5, r6, r7}
-	MOV	r12, #0xa
+	MOV	r12, #10
 L_AES_set_encrypt_key_loop_128:
 	UBFX	r4, r7, #0, #8
 	UBFX	r5, r7, #8, #8
@@ -566,7 +565,7 @@ L_AES_set_encrypt_key_loop_128:
 	EOR	r6, r6, r5
 	EOR	r7, r7, r6
 	STM	r2, {r4, r5, r6, r7}
-	SUBS	r12, r12, #0x1
+	SUBS	r12, r12, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_set_encrypt_key_loop_128
 #else
@@ -574,7 +573,7 @@ L_AES_set_encrypt_key_loop_128:
 #endif
 L_AES_set_encrypt_key_end:
 	POP	{r4, r5, r6, r7, r8, r9, r10, pc}
-	/* Cycle Count = 340 */
+	/* Cycle Count = 339 */
 	.size	AES_set_encrypt_key,.-AES_set_encrypt_key
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	.text
@@ -684,7 +683,7 @@ L_AES_encrypt_block_nr:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_encrypt_block_nr
 #else
@@ -826,13 +825,13 @@ AES_ECB_encrypt:
 	LDR	r0, L_AES_Thumb2_te_ecb
 	LDR	r12, [sp, #36]
 	PUSH	{r3}
-	CMP	r12, #0xa
+	CMP	r12, #10
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_ECB_encrypt_start_block_128
 #else
 	BEQ.W	L_AES_ECB_encrypt_start_block_128
 #endif
-	CMP	r12, #0xc
+	CMP	r12, #12
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_ECB_encrypt_start_block_192
 #else
@@ -854,7 +853,7 @@ L_AES_ECB_encrypt_loop_block_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x6
+	MOV	r1, #6
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -959,7 +958,7 @@ L_AES_ECB_encrypt_block_nr_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_encrypt_block_nr_256
 #else
@@ -1076,9 +1075,9 @@ L_AES_ECB_encrypt_block_nr_256:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_encrypt_loop_block_256
 #else
@@ -1106,7 +1105,7 @@ L_AES_ECB_encrypt_loop_block_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x5
+	MOV	r1, #5
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -1211,7 +1210,7 @@ L_AES_ECB_encrypt_block_nr_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_encrypt_block_nr_192
 #else
@@ -1328,9 +1327,9 @@ L_AES_ECB_encrypt_block_nr_192:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_encrypt_loop_block_192
 #else
@@ -1358,7 +1357,7 @@ L_AES_ECB_encrypt_loop_block_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x4
+	MOV	r1, #4
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -1463,7 +1462,7 @@ L_AES_ECB_encrypt_block_nr_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_encrypt_block_nr_128
 #else
@@ -1580,9 +1579,9 @@ L_AES_ECB_encrypt_block_nr_128:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_encrypt_loop_block_128
 #else
@@ -1608,13 +1607,13 @@ AES_CBC_encrypt:
 	LDR	r0, L_AES_Thumb2_te_ecb
 	LDM	r9, {r4, r5, r6, r7}
 	PUSH	{r3, r9}
-	CMP	r8, #0xa
+	CMP	r8, #10
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CBC_encrypt_start_block_128
 #else
 	BEQ.W	L_AES_CBC_encrypt_start_block_128
 #endif
-	CMP	r8, #0xc
+	CMP	r8, #12
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CBC_encrypt_start_block_192
 #else
@@ -1640,7 +1639,7 @@ L_AES_CBC_encrypt_loop_block_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x6
+	MOV	r1, #6
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -1745,7 +1744,7 @@ L_AES_CBC_encrypt_block_nr_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_encrypt_block_nr_256
 #else
@@ -1862,9 +1861,9 @@ L_AES_CBC_encrypt_block_nr_256:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_encrypt_loop_block_256
 #else
@@ -1896,7 +1895,7 @@ L_AES_CBC_encrypt_loop_block_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x5
+	MOV	r1, #5
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -2001,7 +2000,7 @@ L_AES_CBC_encrypt_block_nr_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_encrypt_block_nr_192
 #else
@@ -2118,9 +2117,9 @@ L_AES_CBC_encrypt_block_nr_192:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_encrypt_loop_block_192
 #else
@@ -2152,7 +2151,7 @@ L_AES_CBC_encrypt_loop_block_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x4
+	MOV	r1, #4
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -2257,7 +2256,7 @@ L_AES_CBC_encrypt_block_nr_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_encrypt_block_nr_128
 #else
@@ -2374,9 +2373,9 @@ L_AES_CBC_encrypt_block_nr_128:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_encrypt_loop_block_128
 #else
@@ -2422,13 +2421,13 @@ AES_CTR_encrypt:
 	REV	r7, r7
 	STM	r8, {r4, r5, r6, r7}
 	PUSH	{r3, r8}
-	CMP	r12, #0xa
+	CMP	r12, #10
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CTR_encrypt_start_block_128
 #else
 	BEQ.W	L_AES_CTR_encrypt_start_block_128
 #endif
-	CMP	r12, #0xc
+	CMP	r12, #12
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CTR_encrypt_start_block_192
 #else
@@ -2437,10 +2436,10 @@ AES_CTR_encrypt:
 L_AES_CTR_encrypt_loop_block_256:
 	PUSH	{r1, r2, lr}
 	LDR	lr, [sp, #16]
-	ADDS	r11, r7, #0x1
-	ADCS	r10, r6, #0x0
-	ADCS	r9, r5, #0x0
-	ADC	r8, r4, #0x0
+	ADDS	r11, r7, #1
+	ADCS	r10, r6, #0
+	ADCS	r9, r5, #0
+	ADC	r8, r4, #0
 	STM	lr, {r8, r9, r10, r11}
 	LDM	r3!, {r8, r9, r10, r11}
 	/* Round: 0 - XOR in key schedule */
@@ -2448,7 +2447,7 @@ L_AES_CTR_encrypt_loop_block_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x6
+	MOV	r1, #6
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -2553,7 +2552,7 @@ L_AES_CTR_encrypt_block_nr_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CTR_encrypt_block_nr_256
 #else
@@ -2680,9 +2679,9 @@ L_AES_CTR_encrypt_block_nr_256:
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
 	LDM	r8, {r4, r5, r6, r7}
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CTR_encrypt_loop_block_256
 #else
@@ -2697,10 +2696,10 @@ L_AES_CTR_encrypt_start_block_192:
 L_AES_CTR_encrypt_loop_block_192:
 	PUSH	{r1, r2, lr}
 	LDR	lr, [sp, #16]
-	ADDS	r11, r7, #0x1
-	ADCS	r10, r6, #0x0
-	ADCS	r9, r5, #0x0
-	ADC	r8, r4, #0x0
+	ADDS	r11, r7, #1
+	ADCS	r10, r6, #0
+	ADCS	r9, r5, #0
+	ADC	r8, r4, #0
 	STM	lr, {r8, r9, r10, r11}
 	LDM	r3!, {r8, r9, r10, r11}
 	/* Round: 0 - XOR in key schedule */
@@ -2708,7 +2707,7 @@ L_AES_CTR_encrypt_loop_block_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x5
+	MOV	r1, #5
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -2813,7 +2812,7 @@ L_AES_CTR_encrypt_block_nr_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CTR_encrypt_block_nr_192
 #else
@@ -2940,9 +2939,9 @@ L_AES_CTR_encrypt_block_nr_192:
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
 	LDM	r8, {r4, r5, r6, r7}
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CTR_encrypt_loop_block_192
 #else
@@ -2957,10 +2956,10 @@ L_AES_CTR_encrypt_start_block_128:
 L_AES_CTR_encrypt_loop_block_128:
 	PUSH	{r1, r2, lr}
 	LDR	lr, [sp, #16]
-	ADDS	r11, r7, #0x1
-	ADCS	r10, r6, #0x0
-	ADCS	r9, r5, #0x0
-	ADC	r8, r4, #0x0
+	ADDS	r11, r7, #1
+	ADCS	r10, r6, #0
+	ADCS	r9, r5, #0
+	ADC	r8, r4, #0
 	STM	lr, {r8, r9, r10, r11}
 	LDM	r3!, {r8, r9, r10, r11}
 	/* Round: 0 - XOR in key schedule */
@@ -2968,7 +2967,7 @@ L_AES_CTR_encrypt_loop_block_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x4
+	MOV	r1, #4
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -3073,7 +3072,7 @@ L_AES_CTR_encrypt_block_nr_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CTR_encrypt_block_nr_128
 #else
@@ -3200,9 +3199,9 @@ L_AES_CTR_encrypt_block_nr_128:
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
 	LDM	r8, {r4, r5, r6, r7}
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CTR_encrypt_loop_block_128
 #else
@@ -3330,7 +3329,7 @@ L_AES_decrypt_block_nr:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_decrypt_block_nr
 #else
@@ -3513,13 +3512,13 @@ AES_ECB_decrypt:
 	LDR	r0, L_AES_Thumb2_td_ecb
 	MOV	r12, r2
 	ADR	r2, L_AES_Thumb2_td4
-	CMP	r8, #0xa
+	CMP	r8, #10
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_ECB_decrypt_start_block_128
 #else
 	BEQ.W	L_AES_ECB_decrypt_start_block_128
 #endif
-	CMP	r8, #0xc
+	CMP	r8, #12
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_ECB_decrypt_start_block_192
 #else
@@ -3541,7 +3540,7 @@ L_AES_ECB_decrypt_loop_block_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x6
+	MOV	r1, #6
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -3646,7 +3645,7 @@ L_AES_ECB_decrypt_block_nr_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_decrypt_block_nr_256
 #else
@@ -3762,9 +3761,9 @@ L_AES_ECB_decrypt_block_nr_256:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_decrypt_loop_block_256
 #else
@@ -3792,7 +3791,7 @@ L_AES_ECB_decrypt_loop_block_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x5
+	MOV	r1, #5
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -3897,7 +3896,7 @@ L_AES_ECB_decrypt_block_nr_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_decrypt_block_nr_192
 #else
@@ -4013,9 +4012,9 @@ L_AES_ECB_decrypt_block_nr_192:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_decrypt_loop_block_192
 #else
@@ -4043,7 +4042,7 @@ L_AES_ECB_decrypt_loop_block_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x4
+	MOV	r1, #4
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -4148,7 +4147,7 @@ L_AES_ECB_decrypt_block_nr_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_decrypt_block_nr_128
 #else
@@ -4264,9 +4263,9 @@ L_AES_ECB_decrypt_block_nr_128:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_ECB_decrypt_loop_block_128
 #else
@@ -4291,13 +4290,13 @@ AES_CBC_decrypt:
 	LDR	r8, [sp, #36]
 	LDR	r4, [sp, #40]
 	PUSH	{r3, r4}
-	CMP	r8, #0xa
+	CMP	r8, #10
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CBC_decrypt_loop_block_128
 #else
 	BEQ.W	L_AES_CBC_decrypt_loop_block_128
 #endif
-	CMP	r8, #0xc
+	CMP	r8, #12
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CBC_decrypt_loop_block_192
 #else
@@ -4322,7 +4321,7 @@ L_AES_CBC_decrypt_loop_block_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x6
+	MOV	r1, #6
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -4427,7 +4426,7 @@ L_AES_CBC_decrypt_block_nr_256_odd:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_block_nr_256_odd
 #else
@@ -4550,9 +4549,9 @@ L_AES_CBC_decrypt_block_nr_256_odd:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
@@ -4576,7 +4575,7 @@ L_AES_CBC_decrypt_block_nr_256_odd:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x6
+	MOV	r1, #6
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -4681,7 +4680,7 @@ L_AES_CBC_decrypt_block_nr_256_even:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_block_nr_256_even
 #else
@@ -4805,9 +4804,9 @@ L_AES_CBC_decrypt_block_nr_256_even:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_loop_block_256
 #else
@@ -4837,7 +4836,7 @@ L_AES_CBC_decrypt_loop_block_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x5
+	MOV	r1, #5
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -4942,7 +4941,7 @@ L_AES_CBC_decrypt_block_nr_192_odd:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_block_nr_192_odd
 #else
@@ -5065,9 +5064,9 @@ L_AES_CBC_decrypt_block_nr_192_odd:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
@@ -5091,7 +5090,7 @@ L_AES_CBC_decrypt_block_nr_192_odd:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x5
+	MOV	r1, #5
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -5196,7 +5195,7 @@ L_AES_CBC_decrypt_block_nr_192_even:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_block_nr_192_even
 #else
@@ -5320,9 +5319,9 @@ L_AES_CBC_decrypt_block_nr_192_even:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_loop_block_192
 #else
@@ -5352,7 +5351,7 @@ L_AES_CBC_decrypt_loop_block_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x4
+	MOV	r1, #4
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -5457,7 +5456,7 @@ L_AES_CBC_decrypt_block_nr_128_odd:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_block_nr_128_odd
 #else
@@ -5580,9 +5579,9 @@ L_AES_CBC_decrypt_block_nr_128_odd:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
@@ -5606,7 +5605,7 @@ L_AES_CBC_decrypt_block_nr_128_odd:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x4
+	MOV	r1, #4
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_decrypt_block
 #else
@@ -5711,7 +5710,7 @@ L_AES_CBC_decrypt_block_nr_128_even:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_block_nr_128_even
 #else
@@ -5835,9 +5834,9 @@ L_AES_CBC_decrypt_block_nr_128_even:
 	STR	r5, [r1, #4]
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
-	SUBS	r12, r12, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r12, r12, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_CBC_decrypt_loop_block_128
 #else
@@ -5894,14 +5893,13 @@ L_GCM_gmult_len_start_block:
 	LDR	r12, [r0, #12]
 	LDR	r3, [r2, #12]
 	EOR	r12, r12, r3
-	LSR	r3, r12, #24
-	AND	r3, r3, #0xf
+	UBFX	r3, r12, #24, #4
 	ADD	r3, r1, r3, LSL #4
 	LDM	r3, {r8, r9, r10, r11}
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #28
+	UBFX	r4, r12, #28, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -5915,77 +5913,9 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #16
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #20
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #8
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #12
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	AND	r4, r12, #0xf
+	UBFX	r4, r12, #16, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -5999,11 +5929,10 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #4
+	UBFX	r4, r12, #20, #4
 	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
 	EOR	r10, r6, r9, LSL #28
@@ -6016,7 +5945,71 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #8, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #12, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	AND	r4, r12, #15
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #4, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
@@ -6027,8 +6020,7 @@ L_GCM_gmult_len_start_block:
 	LDR	r12, [r0, #8]
 	LDR	r3, [r2, #8]
 	EOR	r12, r12, r3
-	LSR	r3, r12, #24
-	AND	r3, r3, #0xf
+	UBFX	r3, r12, #24, #4
 	ADD	r3, r1, r3, LSL #4
 	LDM	r3, {r4, r5, r6, r7}
 	EOR	r8, r8, r4
@@ -6036,9 +6028,9 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #28
+	UBFX	r4, r12, #28, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -6052,77 +6044,9 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #16
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #20
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #8
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #12
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	AND	r4, r12, #0xf
+	UBFX	r4, r12, #16, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -6136,11 +6060,10 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #4
+	UBFX	r4, r12, #20, #4
 	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
 	EOR	r10, r6, r9, LSL #28
@@ -6153,7 +6076,71 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #8, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #12, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	AND	r4, r12, #15
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #4, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
@@ -6164,8 +6151,7 @@ L_GCM_gmult_len_start_block:
 	LDR	r12, [r0, #4]
 	LDR	r3, [r2, #4]
 	EOR	r12, r12, r3
-	LSR	r3, r12, #24
-	AND	r3, r3, #0xf
+	UBFX	r3, r12, #24, #4
 	ADD	r3, r1, r3, LSL #4
 	LDM	r3, {r4, r5, r6, r7}
 	EOR	r8, r8, r4
@@ -6173,9 +6159,9 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #28
+	UBFX	r4, r12, #28, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -6189,77 +6175,9 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #16
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #20
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #8
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #12
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	AND	r4, r12, #0xf
+	UBFX	r4, r12, #16, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -6273,11 +6191,10 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #4
+	UBFX	r4, r12, #20, #4
 	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
 	EOR	r10, r6, r9, LSL #28
@@ -6290,7 +6207,71 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #8, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #12, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	AND	r4, r12, #15
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #4, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
@@ -6301,8 +6282,7 @@ L_GCM_gmult_len_start_block:
 	LDR	r12, [r0]
 	LDR	r3, [r2]
 	EOR	r12, r12, r3
-	LSR	r3, r12, #24
-	AND	r3, r3, #0xf
+	UBFX	r3, r12, #24, #4
 	ADD	r3, r1, r3, LSL #4
 	LDM	r3, {r4, r5, r6, r7}
 	EOR	r8, r8, r4
@@ -6310,9 +6290,9 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #28
+	UBFX	r4, r12, #28, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -6326,77 +6306,9 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #16
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #20
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #8
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	LSR	r4, r12, #12
-	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
-	LDR	r3, [lr, r3, LSL #2]
-	ADD	r4, r1, r4, LSL #4
-	EOR	r10, r6, r9, LSL #28
-	LSR	r9, r9, #4
-	LDM	r4, {r4, r5, r6, r7}
-	EOR	r9, r9, r8, LSL #28
-	EOR	r8, r3, r8, LSR #4
-	EOR	r8, r8, r4
-	EOR	r9, r9, r5
-	EOR	r10, r10, r6
-	EOR	r11, r11, r7
-	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
-	LSR	r11, r11, #4
-	AND	r4, r12, #0xf
+	UBFX	r4, r12, #16, #4
 	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
@@ -6410,11 +6322,74 @@ L_GCM_gmult_len_start_block:
 	EOR	r10, r10, r6
 	EOR	r11, r11, r7
 	LSR	r6, r10, #4
-	AND	r3, r11, #0xf
+	AND	r3, r11, #15
 	LSR	r11, r11, #4
-	LSR	r4, r12, #4
+	UBFX	r4, r12, #20, #4
 	EOR	r11, r11, r10, LSL #28
-	AND	r4, r4, #0xf
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #8, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #12, #4
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	AND	r4, r12, #15
+	EOR	r11, r11, r10, LSL #28
+	LDR	r3, [lr, r3, LSL #2]
+	ADD	r4, r1, r4, LSL #4
+	EOR	r10, r6, r9, LSL #28
+	LSR	r9, r9, #4
+	LDM	r4, {r4, r5, r6, r7}
+	EOR	r9, r9, r8, LSL #28
+	EOR	r8, r3, r8, LSR #4
+	EOR	r8, r8, r4
+	EOR	r9, r9, r5
+	EOR	r10, r10, r6
+	EOR	r11, r11, r7
+	LSR	r6, r10, #4
+	AND	r3, r11, #15
+	LSR	r11, r11, #4
+	UBFX	r4, r12, #4, #4
+	EOR	r11, r11, r10, LSL #28
 	LDR	r3, [lr, r3, LSL #2]
 	ADD	r4, r1, r4, LSL #4
 	EOR	r10, r6, r9, LSL #28
@@ -6432,15 +6407,15 @@ L_GCM_gmult_len_start_block:
 	REV	r11, r11
 	STM	r0, {r8, r9, r10, r11}
 	POP	{r3}
-	SUBS	r3, r3, #0x10
-	ADD	r2, r2, #0x10
+	SUBS	r3, r3, #16
+	ADD	r2, r2, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_GCM_gmult_len_start_block
 #else
 	BNE.W	L_GCM_gmult_len_start_block
 #endif
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 742 */
+	/* Cycle Count = 718 */
 	.size	GCM_gmult_len,.-GCM_gmult_len
 #ifndef __APPLE__
 	.text
@@ -6474,13 +6449,13 @@ AES_GCM_encrypt:
 	REV	r7, r7
 	STM	r8, {r4, r5, r6, r7}
 	PUSH	{r3, r8}
-	CMP	r12, #0xa
+	CMP	r12, #10
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_GCM_encrypt_start_block_128
 #else
 	BEQ.W	L_AES_GCM_encrypt_start_block_128
 #endif
-	CMP	r12, #0xc
+	CMP	r12, #12
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BEQ	L_AES_GCM_encrypt_start_block_192
 #else
@@ -6489,7 +6464,7 @@ AES_GCM_encrypt:
 L_AES_GCM_encrypt_loop_block_256:
 	PUSH	{r1, r2, lr}
 	LDR	lr, [sp, #16]
-	ADD	r7, r7, #0x1
+	ADD	r7, r7, #1
 	LDM	r3!, {r8, r9, r10, r11}
 	STR	r7, [lr, #12]
 	/* Round: 0 - XOR in key schedule */
@@ -6497,7 +6472,7 @@ L_AES_GCM_encrypt_loop_block_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x6
+	MOV	r1, #6
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -6602,7 +6577,7 @@ L_AES_GCM_encrypt_block_nr_256:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_GCM_encrypt_block_nr_256
 #else
@@ -6729,9 +6704,9 @@ L_AES_GCM_encrypt_block_nr_256:
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
 	LDM	r8, {r4, r5, r6, r7}
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_GCM_encrypt_loop_block_256
 #else
@@ -6746,7 +6721,7 @@ L_AES_GCM_encrypt_start_block_192:
 L_AES_GCM_encrypt_loop_block_192:
 	PUSH	{r1, r2, lr}
 	LDR	lr, [sp, #16]
-	ADD	r7, r7, #0x1
+	ADD	r7, r7, #1
 	LDM	r3!, {r8, r9, r10, r11}
 	STR	r7, [lr, #12]
 	/* Round: 0 - XOR in key schedule */
@@ -6754,7 +6729,7 @@ L_AES_GCM_encrypt_loop_block_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x5
+	MOV	r1, #5
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -6859,7 +6834,7 @@ L_AES_GCM_encrypt_block_nr_192:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_GCM_encrypt_block_nr_192
 #else
@@ -6986,9 +6961,9 @@ L_AES_GCM_encrypt_block_nr_192:
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
 	LDM	r8, {r4, r5, r6, r7}
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_GCM_encrypt_loop_block_192
 #else
@@ -7003,7 +6978,7 @@ L_AES_GCM_encrypt_start_block_128:
 L_AES_GCM_encrypt_loop_block_128:
 	PUSH	{r1, r2, lr}
 	LDR	lr, [sp, #16]
-	ADD	r7, r7, #0x1
+	ADD	r7, r7, #1
 	LDM	r3!, {r8, r9, r10, r11}
 	STR	r7, [lr, #12]
 	/* Round: 0 - XOR in key schedule */
@@ -7011,7 +6986,7 @@ L_AES_GCM_encrypt_loop_block_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	MOV	r1, #0x4
+	MOV	r1, #4
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 	BL	AES_encrypt_block
 #else
@@ -7116,7 +7091,7 @@ L_AES_GCM_encrypt_block_nr_128:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
-	SUBS	r1, r1, #0x1
+	SUBS	r1, r1, #1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_GCM_encrypt_block_nr_128
 #else
@@ -7243,9 +7218,9 @@ L_AES_GCM_encrypt_block_nr_128:
 	STR	r6, [r1, #8]
 	STR	r7, [r1, #12]
 	LDM	r8, {r4, r5, r6, r7}
-	SUBS	r2, r2, #0x10
-	ADD	lr, lr, #0x10
-	ADD	r1, r1, #0x10
+	SUBS	r2, r2, #16
+	ADD	lr, lr, #16
+	ADD	r1, r1, #16
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_GCM_encrypt_loop_block_128
 #else

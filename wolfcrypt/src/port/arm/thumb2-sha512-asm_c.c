@@ -244,7 +244,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
         "LDRD	r4, r5, [%[sha512], #16]\n\t"
         "EOR	r10, r10, r4\n\t"
         "EOR	r11, r11, r5\n\t"
-        "MOV	r12, #0x4\n\t"
+        "MOV	r12, #4\n\t"
         /* Start of 16 rounds */
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
@@ -2237,7 +2237,7 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
         "ADC	r5, r5, r7\n\t"
         "STRD	r4, r5, [sp, #120]\n\t"
         "ADD	r3, r3, #0x80\n\t"
-        "SUBS	r12, r12, #0x1\n\t"
+        "SUBS	r12, r12, #1\n\t"
 #if defined(__GNUC__)
         "BNE	L_SHA512_transform_len_start_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
