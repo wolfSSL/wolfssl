@@ -4130,12 +4130,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
     static const byte goodChar[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
-        "0123456789+/;";
+        "0123456789+/";
     static const byte charTest[] = "A+Gd\0\0\0";
     static const byte oneByteTest[] = "YQ==";
     static const byte twoByteTest[] = "YWE=";
     static const byte threeByteTest[] = "YWFh";
     static const byte fourByteTest[] = "YWFhYQ==";
+    static const byte trailingLFTest[] = "YWFhYQ==\n\n";
+    static const byte trailingSpaceTest[] = "YWFhYQ==  ";
+    static const byte trailingCodesTest1[] = "YWFhY";
+    static const byte trailingCodesTest2[] = "YWFhYW";
+    static const byte trailingCodesTest3[] = "YWFhYWF";
+    static const byte trailingJunkTest[] = "YWFhYQ==X";
     static const byte byteTestOutput[] = "aaaa";
     int        i;
     WOLFSSL_ENTER("base64_test");
@@ -4255,6 +4261,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
     N_BYTE_TEST(Base64_Decode, 3, threeByteTest);
     N_BYTE_TEST(Base64_Decode, 4, fourByteTest);
 
+#define N_BYTE_TRAILING_TEST(f, n, t, e) do {                   \
+    outLen = (n);                                               \
+    ret = (f)(t, sizeof(t), out, &outLen);                      \
+    if (ret != (e))                                             \
+        return WC_TEST_RET_ENC_EC(ret);                         \
+    else if (ret == 0) {                                        \
+        if (outLen != (n))                                      \
+            return WC_TEST_RET_ENC_I(outLen);                   \
+        if (XMEMCMP(out, byteTestOutput, n) != 0)               \
+            return WC_TEST_RET_ENC_NC;                          \
+    }                                                           \
+    } while (0)
+
+    N_BYTE_TRAILING_TEST(Base64_Decode, 4, trailingLFTest, 0);
+    N_BYTE_TRAILING_TEST(Base64_Decode, 4, trailingSpaceTest, 0);
+    N_BYTE_TRAILING_TEST(Base64_Decode, 4, trailingCodesTest1, WC_NO_ERR_TRACE(ASN_INPUT_E));
+    N_BYTE_TRAILING_TEST(Base64_Decode, 4, trailingCodesTest2, WC_NO_ERR_TRACE(ASN_INPUT_E));
+    N_BYTE_TRAILING_TEST(Base64_Decode, 4, trailingCodesTest3, WC_NO_ERR_TRACE(ASN_INPUT_E));
+    N_BYTE_TRAILING_TEST(Base64_Decode, 4, trailingJunkTest, WC_NO_ERR_TRACE(ASN_INPUT_E));
+
     /* Same tests again, using Base64_Decode_nonCT() */
 
     /* Good Base64 encodings. */
@@ -4334,6 +4360,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
     N_BYTE_TEST(Base64_Decode_nonCT, 2, twoByteTest);
     N_BYTE_TEST(Base64_Decode_nonCT, 3, threeByteTest);
     N_BYTE_TEST(Base64_Decode_nonCT, 4, fourByteTest);
+
+    N_BYTE_TRAILING_TEST(Base64_Decode_nonCT, 4, trailingLFTest, 0);
+    N_BYTE_TRAILING_TEST(Base64_Decode_nonCT, 4, trailingSpaceTest, 0);
+    N_BYTE_TRAILING_TEST(Base64_Decode_nonCT, 4, trailingCodesTest1, WC_NO_ERR_TRACE(ASN_INPUT_E));
+    N_BYTE_TRAILING_TEST(Base64_Decode_nonCT, 4, trailingCodesTest2, WC_NO_ERR_TRACE(ASN_INPUT_E));
+    N_BYTE_TRAILING_TEST(Base64_Decode_nonCT, 4, trailingCodesTest3, WC_NO_ERR_TRACE(ASN_INPUT_E));
+    N_BYTE_TRAILING_TEST(Base64_Decode_nonCT, 4, trailingJunkTest, WC_NO_ERR_TRACE(ASN_INPUT_E));
 
 #ifdef WOLFSSL_BASE64_ENCODE
     /* Decode and encode all symbols - non-alphanumeric. */

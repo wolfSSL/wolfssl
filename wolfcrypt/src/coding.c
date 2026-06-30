@@ -192,6 +192,7 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
         }
         e1 = in[j++];
         if (e1 == '\0') {
+            inLen = 0;
             break;
         }
         inLen--;
@@ -230,11 +231,6 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
             return ASN_INPUT_E;
         }
 
-        if (i + 1 + !pad3 + !pad4 > *outLen) {
-            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
-            return BUFFER_E;
-        }
-
         e1 = Base64_Char2Val_by_table(e1);
         e2 = Base64_Char2Val_by_table(e2);
         e3 = (byte)((e3 == PAD) ? 0 : Base64_Char2Val_by_table(e3));
@@ -243,6 +239,11 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
         if (e1 == BAD || e2 == BAD || e3 == BAD || e4 == BAD) {
             WOLFSSL_MSG("Bad Base64 Decode bad character");
             return ASN_INPUT_E;
+        }
+
+        if (i + 1 + !pad3 + !pad4 > *outLen) {
+            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
+            return BUFFER_E;
         }
 
         b1 = (byte)((e1 << 2) | (e2 >> 4));
@@ -256,6 +257,24 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
             out[i++] = b3;
         else
             break;
+    }
+
+    /* If there is still input available, and it's not whitespace or nulls, then
+     * the input is invalid.
+     */
+    while (inLen > 0) {
+        word32 cur_j = j;
+        if (in[j] == 0)
+            break;
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
+                /* Running out of buffer here is not an error */
+                break;
+            }
+            return ret;
+        }
+        if (j == cur_j)
+            return ASN_INPUT_E;
     }
 
     /* If the output buffer has a room for an extra byte, add a null terminator */
@@ -294,6 +313,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         }
         e1 = in[j++];
         if (e1 == '\0') {
+            inLen = 0;
             break;
         }
         inLen--;
@@ -321,11 +341,6 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         if (pad3 && !pad4)
             return ASN_INPUT_E;
 
-        if (i + 1 + !pad3 + !pad4 > *outLen) {
-            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
-            return BUFFER_E;
-        }
-
         e1 = Base64_Char2Val_CT(e1);
         e2 = Base64_Char2Val_CT(e2);
         e3 = (byte)((e3 == PAD) ? 0 : Base64_Char2Val_CT(e3));
@@ -334,6 +349,15 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         if (e1 == BAD || e2 == BAD || e3 == BAD || e4 == BAD) {
             WOLFSSL_MSG("Bad Base64 Decode bad character");
             return ASN_INPUT_E;
+        }
+
+        /* Output space check needs to follow input character validation to
+         * assure ASN_INPUT_E is returned on truncated input with the
+         * terminating null included in the input buffer.
+         */
+        if (i + 1 + !pad3 + !pad4 > *outLen) {
+            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
+            return BUFFER_E;
         }
 
         b1 = (byte)((e1 << 2) | (e2 >> 4));
@@ -347,6 +371,24 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             out[i++] = b3;
         else
             break;
+    }
+
+    /* If there is still input available, and it's not whitespace or nulls, then
+     * the input is invalid.
+     */
+    while (inLen > 0) {
+        word32 cur_j = j;
+        if (in[j] == 0)
+            break;
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
+                /* Running out of buffer here is not an error */
+                break;
+            }
+            return ret;
+        }
+        if (j == cur_j)
+            return ASN_INPUT_E;
     }
 
     /* If the output buffer has a room for an extra byte, add a null terminator */
