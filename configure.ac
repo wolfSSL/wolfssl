@@ -5152,6 +5152,11 @@ then
     ENABLED_CURVE25519="yes"
 fi
 
+if test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_LIGHTY" = "yes" && test "x$ENABLED_FIPS" = "xno"
+then
+    ENABLED_CURVE25519="yes"
+fi
+
 
 # ED25519
 AC_ARG_ENABLE([ed25519],
@@ -10518,6 +10523,23 @@ fi
 
 
 if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
+  case $host_cpu in
+  *x86_64* | *amd64*)
+    case $host_os in
+    *mingw* | *cygwin* | *msys*)
+      if test "$enable_sp_asm" = "yes"; then
+        AC_MSG_ERROR([--enable-sp-asm is not supported for x86_64 Windows hosts (MinGW/Cygwin). Reconfigure without --enable-sp-asm to use the C SP implementation.])
+      else
+        AC_MSG_WARN([x86_64 SP assembly is not supported for Windows hosts (MinGW/Cygwin); disabling SP assembly and using the C implementation.])
+        ENABLED_SP_ASM=no
+      fi
+      ;;
+    esac
+    ;;
+  esac
+fi
+
+if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
   if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AC_MSG_ERROR([SP non-blocking not supported with sp-asm])
   fi
@@ -12552,6 +12574,16 @@ if test "x$WOLFSSL_EXEC_PREFIX_ABS" = "xNONE"; then
 fi
 prefix=$WOLFSSL_PREFIX_ABS
 exec_prefix=$WOLFSSL_EXEC_PREFIX_ABS
+# The eval calls below expand ${prefix}/${exec_prefix} references embedded in
+# the libdir/includedir values. eval would, however, also execute or be
+# subverted by shell metacharacters in a --libdir/--includedir value (command
+# substitution, quote breakout, command separators, etc.), running arbitrary
+# commands during configure. Reject such values before the eval.
+case "$libdir $includedir" in
+    *'`'* | *'$('* | *'"'* | *"'"* | *';'* | *'&'* | *'|'* | *'<'* | *'>'* | *'\'* )
+        AC_MSG_ERROR([--libdir and --includedir must not contain shell metacharacters])
+        ;;
+esac
 eval WOLFSSL_LIBDIR_ABS=\"$libdir\"
 eval WOLFSSL_INCLUDEDIR_ABS=\"$includedir\"
 AC_SUBST([WOLFSSL_PREFIX_ABS])
