@@ -5851,6 +5851,92 @@ int test_tls13_corrupted_finished(void)
 }
 
 
+/* Test that DoTls13CertificateVerify rejects a CertificateVerify whose
+ * signature algorithm is not one the receiver advertised.
+ *
+ * This drives the validSigAlgo == 0 path in src/tls13.c: the loop that scans
+ * the receiver's hashSigAlgo list for the algorithm carried in the
+ * CertificateVerify message.  When no entry matches, validSigAlgo stays 0 and
+ * the message is rejected with INVALID_PARAMETER.
+ *
+ * The client sends its ClientHello (advertising its real signature
+ * algorithms), the server picks one of them to sign its CertificateVerify, and
+ * then - before the client processes the server flight - the client's accepted
+ * signature algorithm list is overwritten with a bogus entry.  The server's
+ * (legitimately chosen) algorithm is therefore absent from the client's list
+ * at verification time, so the lookup fails.
+ */
+int test_tls13_certificate_verify_bad_sigalgo(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int group = WOLFSSL_ECC_SECP256R1;
+    Suites* suites = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Constrain both peers to a single, mutually-supported key share group so
+     * the server never sends a HelloRetryRequest.  That keeps the message
+     * stepping below deterministic: one ClientHello, then the full server
+     * flight (which contains the CertificateVerify we want to corrupt). */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+
+    /* Step 1: Client sends ClientHello, advertising its real signature
+     * algorithms. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Step 2: Server processes the ClientHello and emits SH + EE + Cert +
+     * CertVerify + Finished, signing the CertVerify with an algorithm taken
+     * from the list the client just advertised. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* The ClientHello has now been sent, so changing the client's accepted
+     * signature algorithms no longer affects what it advertised.  Replace the
+     * list with a single bogus pair (not a valid SignatureScheme) that the
+     * server cannot have used.  When the client verifies the server's
+     * CertificateVerify, the lookup loop finds no match -> validSigAlgo == 0. */
+    if (EXPECT_SUCCESS()) {
+        suites = (Suites*)WOLFSSL_SUITES(ssl_c);
+        ExpectNotNull(suites);
+    }
+    if (suites != NULL) {
+        suites->hashSigAlgo[0] = 0xFE;
+        suites->hashSigAlgo[1] = 0xFE;
+        suites->hashSigAlgoSz = 2;
+    }
+
+    /* Step 3: Client processes the server flight.  DoTls13CertificateVerify
+     * must reject the CertificateVerify with INVALID_PARAMETER. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 /* Test the TLS 1.3 peerAuthGood fail-safe checks on both sides.
  * The client branch queues a real server flight before forcing
  * FIRST_REPLY_SECOND on a live handshake object, and the server branch clears

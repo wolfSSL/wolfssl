@@ -58,6 +58,7 @@ int test_tls13_0rtt_stateless_replay(void);
 int test_tls13_remove_session_return(void);
 int test_tls13_0rtt_ext_cache_eviction(void);
 int test_tls13_corrupted_finished(void);
+int test_tls13_certificate_verify_bad_sigalgo(void);
 int test_tls13_peerauth_failsafe(void);
 int test_tls13_hrr_bad_cookie(void);
 int test_tls13_zero_inner_content_type(void);
@@ -120,6 +121,7 @@ int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void);
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_eviction), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
     TEST_DECL_GROUP("tls13", test_tls13_corrupted_finished),     \
+    TEST_DECL_GROUP("tls13", test_tls13_certificate_verify_bad_sigalgo), \
     TEST_DECL_GROUP("tls13", test_tls13_peerauth_failsafe),    \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_bad_cookie), \
     TEST_DECL_GROUP("tls13", test_tls13_zero_inner_content_type), \
